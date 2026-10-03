@@ -10,7 +10,7 @@ export interface ProjectSummary extends ProjectIdCandidate {
 	key: string;
 	name: string;
 	slug: string | null;
-	workspace_slug?: string;
+	workspace_slug: string;
 }
 
 export const currentProject = signal<ProjectSummary | null>(null);

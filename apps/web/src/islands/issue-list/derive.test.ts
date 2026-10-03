@@ -12,6 +12,7 @@ import type { ProjectMeta } from "./types";
 
 function makeProject(overrides: Partial<ProjectMeta> = {}): ProjectMeta {
 	return {
+		workspace_slug: "test-workspace",
 		id: "project-1",
 		key: "PROJ",
 		name: "Project",

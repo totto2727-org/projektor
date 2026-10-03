@@ -9,7 +9,9 @@ import type { Issue, TaskStatus } from "../board-utils";
 import CreateIssueModal from "./CreateIssueModal";
 import { useCreateIssueModal } from "./useCreateIssueModal";
 
-const PROJECTS = [{ id: "p1", key: "PROJ", name: "Projektor", description: null }];
+const PROJECTS = [
+	{ id: "p1", key: "PROJ", name: "Projektor", description: null, workspace_slug: "test-workspace" },
+];
 
 function Harness() {
 	const [, setIssues] = useState<Issue[]>([]);
@@ -44,7 +46,10 @@ describe("CreateIssueModal — Description caption (PROJ-566)", () => {
 	});
 });
 
-const TWO_PROJECTS = [...PROJECTS, { id: "p2", key: "OTHER", name: "Other", description: null }];
+const TWO_PROJECTS = [
+	...PROJECTS,
+	{ id: "p2", key: "OTHER", name: "Other", description: null, workspace_slug: "test-workspace" },
+];
 const TASK_TYPES = [{ id: "t1", key: "BUG", name: "Bug" }];
 const STATUSES: TaskStatus[] = [
 	{ id: "s1", key: "todo", name: "To do", category: "todo", color: null },

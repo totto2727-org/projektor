@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import type { ProjectSummary } from "../lib/project-context";
 import { apiFetch } from "./api-client";
 
 // PROJ-315: a non-admin member with no group grants sees an empty list on every
@@ -21,7 +22,7 @@ export function useAccessGate(workspaceSlug?: string): AccessGate {
 		const slug = workspaceSlug;
 
 		Promise.all([
-			apiFetch<unknown[]>("/api/projects", { workspaceSlug }),
+			apiFetch<Pick<ProjectSummary, "workspace_slug">[]>("/api/projects", { workspaceSlug }),
 			slug
 				? apiFetch<{ currentUserRole?: string }>(`/api/workspaces/${slug}`, {
 						workspaceSlug: slug,
@@ -33,9 +34,7 @@ export function useAccessGate(workspaceSlug?: string): AccessGate {
 				const role = ws?.currentUserRole;
 				const isAdmin = role === "owner" || role === "admin";
 				const visible = Array.isArray(projects)
-					? projects.filter(
-							(p) => !slug || (p as { workspace_slug?: string }).workspace_slug === slug
-						)
+					? projects.filter((p) => !slug || p.workspace_slug === slug)
 					: [];
 				const noProjects = visible.length === 0;
 				// Only claim "pending" when we positively know a non-admin role: an

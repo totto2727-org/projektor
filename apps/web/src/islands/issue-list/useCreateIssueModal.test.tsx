@@ -7,7 +7,9 @@ import type { Issue } from "../board-utils";
 import CreateIssueModal from "./CreateIssueModal";
 import { useCreateIssueModal } from "./useCreateIssueModal";
 
-const PROJECTS = [{ id: "p1", key: "PROJ", name: "Projektor", description: null }];
+const PROJECTS = [
+	{ id: "p1", key: "PROJ", name: "Projektor", description: null, workspace_slug: "test-workspace" },
+];
 
 function Harness() {
 	const [, setIssues] = useState<Issue[]>([]);

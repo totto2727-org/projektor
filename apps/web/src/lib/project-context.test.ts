@@ -1,7 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import type { ProjectLookup } from "../islands/board-utils";
+import type { ProjectMeta } from "../islands/issue-list/types";
 import {
 	currentProject,
 	ensureProjectResolved,
+	type ProjectSummary,
 	projectError,
 	projectReady,
 	projectsList,
@@ -18,6 +21,17 @@ function catalog(projects = [A, B]) {
 beforeEach(() => history.replaceState(null, "", "/"));
 
 describe("project workspace identity", () => {
+	it("requires workspace identity on every project catalog type", () => {
+		expectTypeOf<Pick<ProjectSummary, "workspace_slug">>().toEqualTypeOf<{
+			workspace_slug: string;
+		}>();
+		expectTypeOf<Pick<ProjectLookup, "workspace_slug">>().toEqualTypeOf<{
+			workspace_slug: string;
+		}>();
+		expectTypeOf<Pick<ProjectMeta, "workspace_slug">>().toEqualTypeOf<{
+			workspace_slug: string;
+		}>();
+	});
 	it.each(["/issues/view?id=issue", "/wiki/view?id=page", "/feedback/view?id=source"])(
 		"does not interpret an entity UUID on %s as project identity",
 		(path) => {
