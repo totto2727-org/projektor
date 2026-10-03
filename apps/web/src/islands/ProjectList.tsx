@@ -8,6 +8,68 @@ import { Card } from "./ui/Card";
 import { EmptyState } from "./ui/EmptyState";
 import { Field } from "./ui/Field";
 import { Input } from "./ui/Input";
+import Select from "./ui/Select";
+
+interface Workspace {
+	id: string;
+	name: string;
+	slug: string;
+	role: string;
+}
+
+function useCreationWorkspace(workspaceSlug: string | undefined, isPublicViewer: boolean) {
+	const [state, setState] = useState<{
+		workspaceSlug?: string;
+		workspaces: Workspace[];
+		loading: boolean;
+		error: string | null;
+	}>({ workspaceSlug, workspaces: [], loading: true, error: null });
+	const [selectedSlug, setSelectedSlug] = useState("");
+	const [attempt, setAttempt] = useState(0);
+
+	useEffect(() => {
+		let cancelled = false;
+		setState({ workspaceSlug, workspaces: [], loading: true, error: null });
+		setSelectedSlug("");
+		if (isPublicViewer) return;
+
+		// Creation requires a workspace owner/admin, not merely a project write grant.
+		// Resolve memberships even for an explicit slug so read-only users cannot create.
+		apiFetch<Workspace[]>("/api/workspaces", { on401: "throw" })
+			.then((data) => {
+				if (cancelled) return;
+				const workspaces = Array.isArray(data)
+					? data.filter(
+							(w) =>
+								(w.role === "owner" || w.role === "admin") &&
+								!!w.slug &&
+								(!workspaceSlug || w.slug === workspaceSlug)
+						)
+					: [];
+				setState({ workspaceSlug, workspaces, loading: false, error: null });
+				setSelectedSlug(workspaces.length === 1 ? workspaces[0].slug : "");
+			})
+			.catch((error) => {
+				if (!cancelled) {
+					setState({ workspaceSlug, workspaces: [], loading: false, error: String(error) });
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [workspaceSlug, isPublicViewer, attempt]);
+
+	const loading = state.loading || state.workspaceSlug !== workspaceSlug;
+	const workspaces = loading || isPublicViewer ? [] : state.workspaces;
+	return {
+		workspaces,
+		loading,
+		error: state.error,
+		selected: workspaces.find((w) => w.slug === selectedSlug),
+		select: setSelectedSlug,
+		retry: () => setAttempt((prev) => prev + 1),
+	};
+}
 
 interface Project {
 	id: string;
@@ -37,6 +99,9 @@ const KEY_BADGE_CLASS =
 	" text-text-muted leading-6";
 
 interface ProjectCreateFormProps {
+	workspaces: Workspace[];
+	workspace: Workspace | undefined;
+	onWorkspaceChange: (slug: string) => void;
 	nameRef: { current: HTMLInputElement | null };
 	formName: string;
 	onNameInput: (v: string) => void;
@@ -51,6 +116,9 @@ interface ProjectCreateFormProps {
 }
 
 function ProjectCreateForm({
+	workspaces,
+	workspace,
+	onWorkspaceChange,
 	nameRef,
 	formName,
 	onNameInput,
@@ -68,6 +136,23 @@ function ProjectCreateForm({
 			onSubmit={onSubmit}
 			class="bg-surface border border-border rounded-lg p-4 mb-5 flex flex-col gap-3"
 		>
+			<div>
+				<p class="m-0 mb-1 text-xs font-semibold text-text-muted">Workspace</p>
+				{workspaces.length > 1 ? (
+					<Select
+						ariaLabel="Workspace"
+						value={workspace?.slug ?? ""}
+						placeholder="Choose a workspace"
+						options={workspaces.map((w) => ({ value: w.slug, label: `${w.name} (${w.slug})` }))}
+						onChange={onWorkspaceChange}
+						disabled={submitting}
+					/>
+				) : (
+					<p class="m-0 text-sm text-text-muted">
+						{workspace?.name} ({workspace?.slug})
+					</p>
+				)}
+			</div>
 			<div class="flex gap-3 flex-wrap">
 				<Field label="Name" htmlFor="new-project-name" required class="flex-[2_1_160px] min-w-0">
 					<Input
@@ -115,7 +200,7 @@ function ProjectCreateForm({
 				<Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={submitting}>
 					Cancel
 				</Button>
-				<Button type="submit" variant="primary" size="sm" disabled={submitting}>
+				<Button type="submit" variant="primary" size="sm" disabled={submitting || !workspace}>
 					{submitting ? "Creating…" : "Create project"}
 				</Button>
 			</div>
@@ -123,7 +208,7 @@ function ProjectCreateForm({
 	);
 }
 
-function useProjectCreateForm(workspaceSlug: string | undefined, onCreated: (p: Project) => void) {
+function useProjectCreateForm(workspace: Workspace | undefined, onCreated: (p: Project) => void) {
 	const [formOpen, setFormOpen] = useState(false);
 	const [formName, setFormName] = useState("");
 	const [formKey, setFormKey] = useState("");
@@ -164,6 +249,10 @@ function useProjectCreateForm(workspaceSlug: string | undefined, onCreated: (p: 
 	async function submit(e: Event) {
 		e.preventDefault();
 		if (submitting) return;
+		if (!workspace) {
+			setFormError("Choose a workspace before creating a project.");
+			return;
+		}
 
 		const name = formName.trim();
 		const key = formKey.trim().toUpperCase();
@@ -186,7 +275,7 @@ function useProjectCreateForm(workspaceSlug: string | undefined, onCreated: (p: 
 				"/api/projects",
 				{
 					method: "POST",
-					workspaceSlug,
+					workspaceSlug: workspace.slug,
 					body: { name, key, description },
 				}
 			);
@@ -198,9 +287,9 @@ function useProjectCreateForm(workspaceSlug: string | undefined, onCreated: (p: 
 				slug: created.slug,
 				description: description ?? null,
 				archived_at: null,
-				workspace_id: "",
-				workspace_name: "",
-				workspace_slug: workspaceSlug ?? "",
+				workspace_id: workspace.id,
+				workspace_name: workspace.name,
+				workspace_slug: workspace.slug,
 				open_issue_count: 0,
 				backlog_issue_count: 0,
 				created_at: Math.floor(Date.now() / 1000),
@@ -302,8 +391,9 @@ export default function ProjectList({ workspaceSlug }: { workspaceSlug?: string 
 
 	const gate = useAccessGate(workspaceSlug);
 	const isPublicViewer = usePublicViewer(workspaceSlug);
+	const creationWorkspace = useCreationWorkspace(workspaceSlug, isPublicViewer);
 
-	const createForm = useProjectCreateForm(workspaceSlug, (p) =>
+	const createForm = useProjectCreateForm(creationWorkspace.selected, (p) =>
 		setProjects((prev) => [...prev, p])
 	);
 
@@ -331,6 +421,23 @@ export default function ProjectList({ workspaceSlug }: { workspaceSlug?: string 
 					<p class="text-xs text-text-muted m-0">
 						Read-only demo — projects can't be created here.
 					</p>
+				) : creationWorkspace.loading ? (
+					<p role="status" class="text-xs text-text-muted m-0">
+						Loading workspaces…
+					</p>
+				) : creationWorkspace.error ? (
+					<div>
+						<p role="alert" class="text-xs text-red-600 m-0">
+							Failed to load workspaces: {creationWorkspace.error}
+						</p>
+						<Button type="button" variant="outline" size="sm" onClick={creationWorkspace.retry}>
+							Retry workspaces
+						</Button>
+					</div>
+				) : creationWorkspace.workspaces.length === 0 ? (
+					<p class="text-xs text-text-muted m-0">
+						You need an owner or admin workspace role to create projects.
+					</p>
 				) : (
 					!createForm.formOpen && (
 						<Button type="button" variant="primary" size="sm" onClick={createForm.open}>
@@ -340,8 +447,11 @@ export default function ProjectList({ workspaceSlug }: { workspaceSlug?: string 
 				)}
 			</div>
 
-			{!isPublicViewer && createForm.formOpen && (
+			{!isPublicViewer && creationWorkspace.workspaces.length > 0 && createForm.formOpen && (
 				<ProjectCreateForm
+					workspaces={creationWorkspace.workspaces}
+					workspace={creationWorkspace.selected}
+					onWorkspaceChange={creationWorkspace.select}
 					nameRef={createForm.nameRef}
 					formName={createForm.formName}
 					onNameInput={createForm.setFormName}
