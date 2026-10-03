@@ -1,7 +1,5 @@
 import { apiFetch } from "./api-client";
 
-const STORAGE_KEY = "projektor-last-project-id";
-
 export interface ProjectIdCandidate {
 	id: string;
 }
@@ -19,7 +17,6 @@ export function readUrlProjectId(): string | null {
 }
 
 export function persistProjectId(id: string): void {
-	localStorage.setItem(STORAGE_KEY, id);
 	const params = new URLSearchParams(window.location.search);
 	if (params.get("projectId") !== id) {
 		params.set("projectId", id);
@@ -28,9 +25,13 @@ export function persistProjectId(id: string): void {
 }
 
 export async function fetchProjects<T extends ProjectIdCandidate>(
-	workspaceSlug: string | undefined
+	workspaceSlug: string | undefined,
+	includeArchived = false
 ): Promise<T[]> {
-	const list = await apiFetch<T[]>("/api/projects", { workspaceSlug });
+	const list = await apiFetch<T[]>(
+		`/api/projects${includeArchived ? "?includeArchived=true" : ""}`,
+		{ workspaceSlug }
+	);
 	return Array.isArray(list) ? list : [];
 }
 
@@ -48,11 +49,14 @@ export function matchProjectId<T extends ProjectIdCandidate>(
 		return { project: null, error: "Project not found" };
 	}
 
-	const stored = localStorage.getItem(STORAGE_KEY);
-	const resolved =
-		(stored && (projects.find((p) => p.id === stored) ?? null)) || projects[0] || null;
+	// A sole project is unambiguous. Never revive a stored entity reference or
+	// silently select the first project from a cross-workspace list.
+	const resolved = projects.length === 1 ? projects[0] : null;
 	if (resolved) persistProjectId(resolved.id);
-	return { project: resolved, error: null };
+	return {
+		project: resolved,
+		error: projects.length > 1 ? "Select a project using its projectId." : null,
+	};
 }
 
 export async function resolveProjectId<T extends ProjectIdCandidate>(

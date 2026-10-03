@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { currentProject, projectReady } from "../lib/project-context";
 import IssueDetail from "./IssueDetail";
 
 // PROJ-344: on mobile the two-column body collapses to a column (items-start),
@@ -183,6 +184,15 @@ function setupFetch(issueData: IssueFixture, parentData?: IssueFixture) {
 // ─── Setup / teardown ────────────────────────────────────────────────────────
 
 beforeEach(() => {
+	// Simulate the selected project retained across ClientRouter navigation.
+	currentProject.value = {
+		id: "p1",
+		key: "PROJ",
+		name: "Project",
+		slug: "proj",
+		workspace_slug: "ws",
+	};
+	projectReady.value = true;
 	localStorage.clear();
 	history.replaceState(null, "", "/");
 });
@@ -273,7 +283,7 @@ describe("URL path parsing (pretty-URL fallback)", () => {
 		vi.stubGlobal("fetch", mockFetch);
 
 		// issueId prop supplied directly — path must be ignored
-		render(<IssueDetail issueId="plain-1" />);
+		render(<IssueDetail issueId="plain-1" workspaceSlug="ws" />);
 
 		await waitFor(() => screen.getByText("Plain Task"));
 
@@ -329,7 +339,7 @@ describe("workspace-slug header contract (PROJ-98)", () => {
 		expect(headers["X-Workspace-Slug"]).toBe("my-workspace");
 	});
 
-	it("omits X-Workspace-Slug header when workspaceSlug prop is not passed", async () => {
+	it("inherits X-Workspace-Slug from the selected project when no prop is passed", async () => {
 		const mockFetch = makeFetchForDetail(PLAIN_ISSUE_DATA);
 		vi.stubGlobal("fetch", mockFetch);
 
@@ -339,7 +349,7 @@ describe("workspace-slug header contract (PROJ-98)", () => {
 		const calls = mockFetch.mock.calls as [string, RequestInit][];
 		for (const [, init] of calls) {
 			const headers = (init?.headers as Record<string, string>) ?? {};
-			expect(headers["X-Workspace-Slug"]).toBeUndefined();
+			expect(headers["X-Workspace-Slug"]).toBe("ws");
 		}
 	});
 
@@ -554,6 +564,7 @@ describe("PROJ-438 — critical path", () => {
 		it("uses the prefetched response instead of issuing its own request", async () => {
 			history.replaceState(null, "", "/projects/PROJ/issues/7/plain-task");
 			(window as unknown as Record<string, unknown>).__projektorIssuePrefetch = {
+				workspaceSlug: "ws",
 				key: "PROJ-7",
 				t: Date.now(),
 				response: Promise.resolve({
@@ -575,6 +586,7 @@ describe("PROJ-438 — critical path", () => {
 		it("falls back to a normal fetch when the prefetch came back non-ok", async () => {
 			history.replaceState(null, "", "/projects/PROJ/issues/7/plain-task");
 			(window as unknown as Record<string, unknown>).__projektorIssuePrefetch = {
+				workspaceSlug: "ws",
 				key: "PROJ-7",
 				t: Date.now(),
 				response: Promise.resolve({ ok: false, status: 401 }),
@@ -592,6 +604,7 @@ describe("PROJ-438 — critical path", () => {
 		it("ignores a prefetch that was issued for a different issue", async () => {
 			history.replaceState(null, "", "/projects/PROJ/issues/7/plain-task");
 			(window as unknown as Record<string, unknown>).__projektorIssuePrefetch = {
+				workspaceSlug: "ws",
 				key: "PROJ-999",
 				t: Date.now(),
 				response: Promise.resolve({
@@ -620,6 +633,7 @@ describe("PROJ-438 — prefetch on the ?id= form", () => {
 
 	it("claims a prefetch keyed by UUID instead of refetching", async () => {
 		(window as unknown as Record<string, unknown>).__projektorIssuePrefetch = {
+			workspaceSlug: "ws",
 			key: "plain-1",
 			t: Date.now(),
 			response: Promise.resolve({ ok: true, json: () => Promise.resolve(PLAIN_ISSUE_DATA) }),
@@ -646,6 +660,7 @@ describe("PROJ-438 — stale prefetch handoff", () => {
 	it("ignores a handoff older than the freshness bound and fetches instead", async () => {
 		history.replaceState(null, "", "/projects/PROJ/issues/7/plain-task");
 		(window as unknown as Record<string, unknown>).__projektorIssuePrefetch = {
+			workspaceSlug: "ws",
 			key: "PROJ-7",
 			t: Date.now() - 60_000,
 			response: Promise.resolve({
@@ -667,6 +682,7 @@ describe("PROJ-438 — stale prefetch handoff", () => {
 	it("still uses a handoff issued moments ago", async () => {
 		history.replaceState(null, "", "/projects/PROJ/issues/7/plain-task");
 		(window as unknown as Record<string, unknown>).__projektorIssuePrefetch = {
+			workspaceSlug: "ws",
 			key: "PROJ-7",
 			t: Date.now() - 200,
 			response: Promise.resolve({ ok: true, json: () => Promise.resolve(PLAIN_ISSUE_DATA) }),

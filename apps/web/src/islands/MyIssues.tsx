@@ -10,6 +10,25 @@ interface Props {
 }
 
 const OPEN_CATEGORIES = new Set(["todo", "in_progress", "in_review"]);
+type ScopedIssue = Issue & { workspaceSlug: string };
+
+async function loadAssignedIssues(workspaceSlug: string): Promise<ScopedIssue[]> {
+	const items: ScopedIssue[] = [];
+	let cursor: string | number | null = null;
+	do {
+		const qs = new URLSearchParams({ assignee: "me", limit: "100" });
+		if (cursor != null) qs.set("cursor", String(cursor));
+		const data: { items: Issue[]; nextCursor?: string | number | null } = await apiFetch(
+			`/api/issues?${qs}`,
+			{ workspaceSlug }
+		);
+		items.push(
+			...(Array.isArray(data.items) ? data.items : []).map((issue) => ({ ...issue, workspaceSlug }))
+		);
+		cursor = data.nextCursor ?? null;
+	} while (cursor != null);
+	return items;
+}
 
 function getStoryPoints(issue: Issue): string | null {
 	const field = (issue.customFields ?? []).find((f) => f.key === "story_points");
@@ -55,17 +74,17 @@ function statusBadge(issue: Issue) {
 
 interface ProjectGroup {
 	name: string;
-	issues: Issue[];
+	issues: ScopedIssue[];
 }
 
-function groupIssuesByProject(visible: readonly Issue[]): {
+function groupIssuesByProject(visible: readonly ScopedIssue[]): {
 	order: string[];
 	byProject: Map<string, ProjectGroup>;
 } {
 	const order: string[] = [];
 	const byProject = new Map<string, ProjectGroup>();
 	for (const issue of visible) {
-		const key = issue.project_key ?? "__none__";
+		const key = `${issue.workspaceSlug}:${issue.project_key ?? "__none__"}`;
 		const name = issue.project_name ?? issue.project_key ?? "No project";
 		let group = byProject.get(key);
 		if (!group) {
@@ -78,7 +97,7 @@ function groupIssuesByProject(visible: readonly Issue[]): {
 	return { order, byProject };
 }
 
-function ProjectIssuesSection({ name, issues }: { name: string; issues: Issue[] }) {
+function ProjectIssuesSection({ name, issues }: { name: string; issues: ScopedIssue[] }) {
 	return (
 		<section>
 			<h2 class="text-sm font-semibold text-text-muted uppercase tracking-[0.05em] mb-2 pb-1 border-b border-border">
@@ -111,7 +130,13 @@ function ProjectIssuesSection({ name, issues }: { name: string; issues: Issue[] 
 								<tr key={issue.id} class="border-b border-border">
 									<td class="px-3 py-2 align-middle whitespace-nowrap">
 										<a
-											href={issueUrl(issue.project_key, issue.number, issue.title, issue.id)}
+											href={issueUrl(
+												issue.project_key,
+												issue.number,
+												issue.title,
+												issue.id,
+												issue.workspaceSlug
+											)}
 											class="text-text-muted font-mono text-[0.8rem] no-underline hover:underline focus:underline"
 										>
 											{formatIssueRef(issue.project_key, issue.number)}
@@ -119,7 +144,13 @@ function ProjectIssuesSection({ name, issues }: { name: string; issues: Issue[] 
 									</td>
 									<td class="px-3 py-2 align-middle text-text-base">
 										<a
-											href={issueUrl(issue.project_key, issue.number, issue.title, issue.id)}
+											href={issueUrl(
+												issue.project_key,
+												issue.number,
+												issue.title,
+												issue.id,
+												issue.workspaceSlug
+											)}
 											class="text-text-base no-underline hover:underline focus:underline"
 										>
 											{issue.title}
@@ -144,13 +175,25 @@ function ProjectIssuesSection({ name, issues }: { name: string; issues: Issue[] 
 				{issues.map((issue) => (
 					<div key={issue.id} class="py-3 px-4 border border-border rounded-md bg-surface">
 						<a
-							href={issueUrl(issue.project_key, issue.number, issue.title, issue.id)}
+							href={issueUrl(
+								issue.project_key,
+								issue.number,
+								issue.title,
+								issue.id,
+								issue.workspaceSlug
+							)}
 							class="inline-block font-mono text-[0.8rem] text-text-muted no-underline hover:underline focus:underline mb-1"
 						>
 							{formatIssueRef(issue.project_key, issue.number)}
 						</a>
 						<a
-							href={issueUrl(issue.project_key, issue.number, issue.title, issue.id)}
+							href={issueUrl(
+								issue.project_key,
+								issue.number,
+								issue.title,
+								issue.id,
+								issue.workspaceSlug
+							)}
 							class="no-underline"
 						>
 							<div class="text-[0.9rem] text-text-base font-medium mb-2">{issue.title}</div>
@@ -167,28 +210,35 @@ function ProjectIssuesSection({ name, issues }: { name: string; issues: Issue[] 
 }
 
 export default function MyIssues({ workspaceSlug }: Props) {
-	const [issues, setIssues] = useState<Issue[]>([]);
+	const [issues, setIssues] = useState<ScopedIssue[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [includeDone, setIncludeDone] = useState(false);
 
 	useEffect(() => {
+		let cancelled = false;
 		(async () => {
 			setLoading(true);
 			setError(null);
 			try {
-				// PROJ-444: "me" resolves server-side to the calling user — no more
-				// /auth/me round trip before this fetch can even start.
-				const data = await apiFetch<{ items: Issue[] }>("/api/issues?assignee=me", {
-					workspaceSlug,
-				});
-				setIssues(Array.isArray(data.items) ? data.items : []);
+				// Personal navigation is cross-workspace, but the issues endpoint is
+				// not. Fan out only over memberships returned for the signed-in user.
+				const workspaces = workspaceSlug
+					? [{ slug: workspaceSlug }]
+					: await apiFetch<Array<{ slug: string }>>("/api/workspaces");
+				const lists = await Promise.all(
+					(Array.isArray(workspaces) ? workspaces : []).map((w) => loadAssignedIssues(w.slug))
+				);
+				if (!cancelled) setIssues(lists.flat());
 			} catch (e) {
-				setError(String(e));
+				if (!cancelled) setError(String(e));
 			} finally {
-				setLoading(false);
+				if (!cancelled) setLoading(false);
 			}
 		})();
+		return () => {
+			cancelled = true;
+		};
 	}, [workspaceSlug]);
 
 	if (loading) return <p aria-live="polite">Loading…</p>;

@@ -338,7 +338,7 @@ function ProjectCard({ project }: { project: Project }) {
 			as="a"
 			href={
 				project.slug
-					? `/projects/view/${encodeURIComponent(project.slug)}`
+					? `/projects/view/${encodeURIComponent(project.slug)}?projectId=${encodeURIComponent(project.id)}`
 					: `/projects/view?projectId=${encodeURIComponent(project.id)}`
 			}
 			interactive

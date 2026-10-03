@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import { apiFetch } from "../utils/api-client";
 import { resolveWorkspaceSlug } from "../utils/workspace";
 import { Button } from "./ui/Button";
+import WorkspaceBoundary from "./WorkspaceBoundary";
 
 // PROJ-659: connector grants — the OAuth authorizations a user hands to Claude and
 // similar clients. Deliberately a separate island from TokenManager rather than another
@@ -131,7 +132,15 @@ function ConnectorCards({ grants, state }: { grants: ConnectorGrant[]; state: Re
 	);
 }
 
-export default function ConnectorManager({ workspaceSlug: propWorkspaceSlug }: Props) {
+export default function ConnectorManager(props: Props) {
+	return (
+		<WorkspaceBoundary workspaceSlug={props.workspaceSlug}>
+			{(slug) => <ConnectorManagerContent workspaceSlug={slug} />}
+		</WorkspaceBoundary>
+	);
+}
+
+function ConnectorManagerContent({ workspaceSlug: propWorkspaceSlug }: Props) {
 	const workspaceSlug = resolveWorkspaceSlug(propWorkspaceSlug);
 	const [grants, setGrants] = useState<ConnectorGrant[]>([]);
 	const [loading, setLoading] = useState(true);

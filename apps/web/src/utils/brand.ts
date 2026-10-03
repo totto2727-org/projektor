@@ -40,6 +40,7 @@ function layerWorkspaceBrand(base: BrandConfig, ws: WorkspaceBrandDto): BrandCon
 }
 
 let cached: BrandConfig | null = null;
+let cachedWorkspaceSlug: string | undefined;
 
 export function getBrandName(): string {
 	return cached && typeof cached.name === "string" ? cached.name : DEFAULT_NAME;
@@ -127,7 +128,8 @@ export async function applyShareBrand(
 }
 
 export async function applyBrand(fetchImpl: typeof fetch = fetch): Promise<void> {
-	if (cached) {
+	const workspaceSlug = resolveWorkspaceSlug();
+	if (cached && cachedWorkspaceSlug === workspaceSlug) {
 		applyBrandToDocument(cached);
 		return;
 	}
@@ -140,7 +142,6 @@ export async function applyBrand(fetchImpl: typeof fetch = fetch): Promise<void>
 		return;
 	}
 
-	const workspaceSlug = resolveWorkspaceSlug();
 	if (workspaceSlug) {
 		try {
 			const wsRes = await fetchImpl(`/api/workspaces/${workspaceSlug}/brand`, {
@@ -152,5 +153,6 @@ export async function applyBrand(fetchImpl: typeof fetch = fetch): Promise<void>
 	}
 
 	cached = brand;
+	cachedWorkspaceSlug = workspaceSlug;
 	applyBrandToDocument(brand);
 }

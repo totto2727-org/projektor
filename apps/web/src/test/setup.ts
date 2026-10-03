@@ -12,6 +12,7 @@
 //     so state never leaks between tests.
 import { cleanup } from "@testing-library/preact";
 import { afterEach, beforeEach, vi } from "vitest";
+import { __resetProjectStoreForTests } from "../lib/project-context";
 import { __resetApiFetchStateForTests } from "../utils/api-client";
 
 // jsdom has no matchMedia; uPlot's pixel-ratio watcher calls it at import time.
@@ -60,6 +61,7 @@ if (typeof globalThis.Path2D === "undefined") {
 }
 
 beforeEach(() => {
+	__resetProjectStoreForTests();
 	vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) }));
 	// The in-flight GET dedupe map (PROJ-443) is module-scoped; a test that mocks a
 	// never-resolving fetch would otherwise hand its pending promise to the next test.

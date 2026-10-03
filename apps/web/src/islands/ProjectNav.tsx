@@ -4,6 +4,7 @@ import {
 	ensureProjectResolved,
 	type ProjectSummary,
 	projectError,
+	readProjectHint,
 } from "../lib/project-context";
 
 interface Props {
@@ -89,22 +90,15 @@ export default function ProjectNav({ workspaceSlug, pageLabel }: Props) {
 		setActivePath(window.location.pathname);
 	}, []);
 
-	const hint =
-		typeof window === "undefined"
-			? null
-			: (() => {
-					const params = new URLSearchParams(window.location.search);
-					const slugMatch = window.location.pathname.match(/^\/projects\/view\/([^/]+)\/?$/);
-					return (
-						params.get("id") || params.get("projectId") || slugMatch?.[1] || params.get("project")
-					);
-				})();
+	const hint = readProjectHint();
 
 	const matchesHint = (p: ProjectSummary, h: string) => p.id === h || p.key === h || p.slug === h;
 
 	useEffect(() => {
 		let cancelled = false;
-		ensureProjectResolved(workspaceSlug, hint || null, matchesHint).then(() => {
+		const scope =
+			workspaceSlug || new URLSearchParams(window.location.search).get("workspace") || undefined;
+		ensureProjectResolved(scope, hint || null, matchesHint).then(() => {
 			if (!cancelled && pageLabel && currentProject.value) {
 				document.title = `${pageLabel} — ${currentProject.value.name}`;
 			}
@@ -178,7 +172,7 @@ export default function ProjectNav({ workspaceSlug, pageLabel }: Props) {
 	if (!project) {
 		return error ? (
 			<p role="alert" class="text-danger-text px-3 py-2 text-sm">
-				{error}
+				{error} <a href="/">Choose a project from Projects</a>
 			</p>
 		) : null;
 	}

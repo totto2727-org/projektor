@@ -44,6 +44,8 @@ interface SprintVelocity {
 	pointsTotal: number;
 }
 
+import { ProjectWorkspaceBoundary } from "./WorkspaceBoundary";
+
 interface Props {
 	workspaceSlug?: string;
 }
@@ -565,7 +567,15 @@ function SprintManagerContent({
 	);
 }
 
-export default function SprintManager({ workspaceSlug }: Props) {
+export default function SprintManager(props: Props) {
+	return (
+		<ProjectWorkspaceBoundary workspaceSlug={props.workspaceSlug} requireProject>
+			{(slug) => <ResolvedSprintManager workspaceSlug={slug} />}
+		</ProjectWorkspaceBoundary>
+	);
+}
+
+function ResolvedSprintManager({ workspaceSlug }: Props) {
 	const { projectId, project, sprints, loading, error, fetchSprints } =
 		useSprintData(workspaceSlug);
 	const velocity = useSprintVelocity(sprints, workspaceSlug);

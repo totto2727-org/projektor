@@ -80,6 +80,8 @@ function setupFetch(
 ) {
 	return vi.fn().mockImplementation((url: string) => {
 		const u = String(url);
+		if (u === "/api/workspaces")
+			return Promise.resolve({ ok: true, json: () => Promise.resolve([{ slug: "ws" }]) });
 		if (u.includes("/api/issues")) {
 			return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: issues }) });
 		}
@@ -210,16 +212,16 @@ describe("MyIssues — workspace-slug header contract", () => {
 		}
 	});
 
-	it("omits X-Workspace-Slug header when workspaceSlug prop is not passed", async () => {
+	it("discovers accessible memberships when workspaceSlug prop is not passed", async () => {
 		const mockFetch = setupFetch();
 		vi.stubGlobal("fetch", mockFetch);
 		render(<MyIssues />);
 		await waitForLoaded();
 
 		const calls = mockFetch.mock.calls as [string, RequestInit][];
-		for (const [, init] of calls) {
+		for (const [url, init] of calls) {
 			const headers = (init?.headers as Record<string, string>) ?? {};
-			expect(headers["X-Workspace-Slug"]).toBeUndefined();
+			expect(headers["X-Workspace-Slug"]).toBe(url === "/api/workspaces" ? undefined : "ws");
 		}
 	});
 });

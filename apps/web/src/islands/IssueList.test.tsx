@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { currentProject, projectReady } from "../lib/project-context";
 import type { Issue, TaskStatus } from "./board-utils";
 import IssueList from "./IssueList";
 
@@ -145,6 +146,24 @@ function openFiltersPopover() {
 // ─── Setup / teardown ────────────────────────────────────────────────────────
 
 beforeEach(() => {
+	// jsdom has no scroll observer. Pagination fixtures may render a next-page
+	// sentinel even when this suite only asserts the initial request.
+	vi.stubGlobal(
+		"IntersectionObserver",
+		class {
+			observe() {}
+			disconnect() {}
+		}
+	);
+	// Simulate the selected project retained across ClientRouter navigation.
+	currentProject.value = {
+		id: "p1",
+		key: "PROJ",
+		name: "Project",
+		slug: "proj",
+		workspace_slug: "ws",
+	};
+	projectReady.value = true;
 	localStorage.clear();
 	history.replaceState(null, "", "/");
 	setupFetch();
@@ -497,7 +516,7 @@ describe("workspace-slug header contract (PROJ-98)", () => {
 		expect(headers["X-Workspace-Slug"]).toBe("my-workspace");
 	});
 
-	it("omits X-Workspace-Slug header when workspaceSlug prop is not passed", async () => {
+	it("inherits X-Workspace-Slug from the selected project when no prop is passed", async () => {
 		const mockFetch = makeFetch();
 		vi.stubGlobal("fetch", mockFetch);
 
@@ -505,7 +524,7 @@ describe("workspace-slug header contract (PROJ-98)", () => {
 		await waitForLoaded();
 
 		for (const headers of requestHeadersList(mockFetch)) {
-			expect(headers["X-Workspace-Slug"]).toBeUndefined();
+			expect(headers["X-Workspace-Slug"]).toBe("ws");
 		}
 	});
 
@@ -532,7 +551,9 @@ describe("workspace-slug header contract (PROJ-98)", () => {
 
 // ─── Project filter API contract ─────────────────────────────────────────────
 
-const PROJECTS = [{ id: "proj-1", key: "PROJ", name: "Project", description: null }];
+const PROJECTS = [
+	{ id: "proj-1", key: "PROJ", name: "Project", description: null, workspace_slug: "ws" },
+];
 
 function setupProjectFetch(projects = PROJECTS, issues = ISSUES) {
 	const mock = vi.fn().mockImplementation((url: string) => {

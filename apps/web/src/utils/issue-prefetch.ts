@@ -10,6 +10,7 @@
 const HANDOFF = "__projektorIssuePrefetch";
 
 export interface IssuePrefetchHandoff {
+	workspaceSlug?: string;
 	/** Ref ("PROJ-42") or UUID the request was issued for. */
 	key: string;
 	/** When the request was issued, for the freshness bound below. */
@@ -39,11 +40,12 @@ const MAX_HANDOFF_AGE_MS = 15_000;
  * prefetch failed or returned a non-2xx — the caller falls back to `apiFetch`, which owns
  * the 401/re-auth handling this deliberately does not replicate.
  */
-export function claimPrefetchedIssue<T>(key: string): Promise<T> | null {
+export function claimPrefetchedIssue<T>(key: string, workspaceSlug?: string): Promise<T> | null {
 	const w = window as unknown as Record<string, IssuePrefetchHandoff | undefined>;
 	const handoff = w[HANDOFF];
 	if (!handoff || handoff.key !== key) return null;
 	delete w[HANDOFF];
+	if (handoff.workspaceSlug !== workspaceSlug) return null;
 	if (!(Date.now() - handoff.t < MAX_HANDOFF_AGE_MS)) return null;
 
 	return handoff.response.then((res) => {

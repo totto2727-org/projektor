@@ -14,6 +14,7 @@ import MarkdownEditor from "./LazyMarkdownEditor";
 import { Button } from "./ui/Button";
 import { Popover } from "./ui/Popover";
 import Select, { type SelectOption } from "./ui/Select";
+import { ProjectWorkspaceBoundary } from "./WorkspaceBoundary";
 
 /** Matches Base.astro's mobile `@media (max-width: 640px)` breakpoint. */
 const WIKI_MOBILE_QUERY = "(max-width: 640px)";
@@ -689,7 +690,11 @@ function useProjects(workspaceSlug: string | undefined) {
 
 	useEffect(() => {
 		apiFetch<ProjectOption[]>("/api/projects", { workspaceSlug })
-			.then((list) => setProjects(Array.isArray(list) ? list : []))
+			.then((list) =>
+				setProjects(
+					Array.isArray(list) ? list.filter((p) => p.workspace_slug === workspaceSlug) : []
+				)
+			)
 			.catch(() => {});
 	}, [workspaceSlug]);
 
@@ -4370,11 +4375,15 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
 	);
 }
 
-export default function WikiPage({
-	workspaceSlug,
-	projectId: projectIdProp,
-	slug: slugProp,
-}: Props) {
+export default function WikiPage(props: Props) {
+	return (
+		<ProjectWorkspaceBoundary workspaceSlug={props.workspaceSlug} projectHint={props.projectId}>
+			{(slug) => <WikiPageContent {...props} workspaceSlug={slug} />}
+		</ProjectWorkspaceBoundary>
+	);
+}
+
+function WikiPageContent({ workspaceSlug, projectId: projectIdProp, slug: slugProp }: Props) {
 	const state = useWikiPageState(workspaceSlug, projectIdProp, slugProp);
 	const {
 		gate,

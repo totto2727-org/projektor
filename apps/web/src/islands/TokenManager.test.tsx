@@ -39,9 +39,9 @@ function mockFetchTokens(tokens: readonly (typeof TOKEN)[] = [TOKEN]) {
 }
 
 describe("TokenManager", () => {
-	it("shows 'No workspace configured.' when workspaceSlug prop is absent", () => {
+	it("discovers membership before mounting workspace-scoped settings", () => {
 		render(<TokenManager />);
-		expect(screen.getByText(/No workspace configured/i)).toBeTruthy();
+		expect(screen.getByText(/Loading workspace/i)).toBeTruthy();
 	});
 
 	it("renders loading state while tokens are being fetched", () => {

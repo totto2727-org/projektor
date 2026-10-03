@@ -94,7 +94,8 @@ function mockFetchEpics(issues: readonly Issue[] = [EPIC_ISSUE]) {
 			if (u.includes("/api/projects")) {
 				return Promise.resolve({
 					ok: true,
-					json: () => Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor" }]),
+					json: () =>
+						Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor", workspace_slug: "ws" }]),
 				});
 			}
 			if (u.includes("/api/issues")) {
@@ -151,7 +152,8 @@ describe("EpicList", () => {
 				if (u.includes("/api/projects")) {
 					return Promise.resolve({
 						ok: true,
-						json: () => Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor" }]),
+						json: () =>
+							Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor", workspace_slug: "ws" }]),
 					});
 				}
 				if (u.includes("/api/issues")) {
@@ -174,7 +176,7 @@ describe("EpicList", () => {
 		expect(calledUrls.some((u) => u.includes("/api/issues") && u.includes("project=p1"))).toBe(
 			true
 		);
-		expect(localStorage.getItem("projektor-last-project-id")).toBe("p1");
+		expect(localStorage.getItem("projektor-last-project-id")).toBe("stale-deleted-project");
 	});
 
 	it("renders epic rows after fetch resolves", async () => {
@@ -219,7 +221,8 @@ describe("EpicList", () => {
 				if (u.includes("/api/projects")) {
 					return Promise.resolve({
 						ok: true,
-						json: () => Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor" }]),
+						json: () =>
+							Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor", workspace_slug: "ws" }]),
 					});
 				}
 				return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
@@ -289,7 +292,8 @@ describe("EpicList", () => {
 				if (u.includes("/api/projects")) {
 					return Promise.resolve({
 						ok: true,
-						json: () => Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor" }]),
+						json: () =>
+							Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor", workspace_slug: "ws" }]),
 					});
 				}
 				return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });

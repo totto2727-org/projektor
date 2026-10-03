@@ -10,6 +10,7 @@ import { useIssueFilters } from "./issue-list/useIssueFilters";
 import { useIssueListData } from "./issue-list/useIssueListData";
 import { useIssueSearch } from "./issue-list/useIssueSearch";
 import { useSavedViews } from "./issue-list/useSavedViews";
+import { ProjectWorkspaceBoundary } from "./WorkspaceBoundary";
 
 function readStoredView(): ViewMode {
 	try {
@@ -25,7 +26,15 @@ interface Props {
 	workspaceSlug?: string;
 }
 
-export default function IssueList({ workspaceSlug }: Props) {
+export default function IssueList(props: Props) {
+	return (
+		<ProjectWorkspaceBoundary workspaceSlug={props.workspaceSlug}>
+			{(slug) => <IssueListContent workspaceSlug={slug} />}
+		</ProjectWorkspaceBoundary>
+	);
+}
+
+function IssueListContent({ workspaceSlug }: Props) {
 	// safe-ls: cosmetic view preference (list/board/backlog). No API dependency — a stale
 	// or missing value falls back to the "list" default. PROJ-862: read synchronously so
 	// the first request uses the right page size for the stored view.

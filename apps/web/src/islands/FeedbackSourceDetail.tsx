@@ -5,6 +5,7 @@ import FeedbackList from "./FeedbackList";
 import FeedbackSourceSettings, { type FeedbackSource } from "./FeedbackSourceSettings";
 import FeedbackSummary from "./FeedbackSummary";
 import Select from "./ui/Select";
+import { ProjectWorkspaceBoundary } from "./WorkspaceBoundary";
 
 interface Props {
 	workspaceSlug?: string;
@@ -145,7 +146,15 @@ function FeedbackTabBar({
 	);
 }
 
-export default function FeedbackSourceDetail({
+export default function FeedbackSourceDetail(props: Props) {
+	return (
+		<ProjectWorkspaceBoundary workspaceSlug={props.workspaceSlug} projectHint={props.projectId}>
+			{(slug) => <FeedbackSourceDetailContent {...props} workspaceSlug={slug} />}
+		</ProjectWorkspaceBoundary>
+	);
+}
+
+function FeedbackSourceDetailContent({
 	workspaceSlug,
 	projectId: projectIdProp,
 	sourceId: sourceIdProp,

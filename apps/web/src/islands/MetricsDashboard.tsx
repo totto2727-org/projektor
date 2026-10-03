@@ -81,6 +81,8 @@ interface FlowMetrics {
 	};
 }
 
+import { ProjectWorkspaceBoundary } from "./WorkspaceBoundary";
+
 interface Props {
 	workspaceSlug?: string;
 }
@@ -835,7 +837,15 @@ function FactoryHealthBand({ factoryHealth }: { factoryHealth: FlowMetrics["fact
 	);
 }
 
-export default function MetricsDashboard({ workspaceSlug }: Props) {
+export default function MetricsDashboard(props: Props) {
+	return (
+		<ProjectWorkspaceBoundary workspaceSlug={props.workspaceSlug} requireProject>
+			{(slug) => <MetricsDashboardContent workspaceSlug={slug} />}
+		</ProjectWorkspaceBoundary>
+	);
+}
+
+function MetricsDashboardContent({ workspaceSlug }: Props) {
 	const [range, setRange] = useRangeUrlSync();
 	const { projectId, metrics, loading, error } = useFlowMetrics(workspaceSlug, range);
 

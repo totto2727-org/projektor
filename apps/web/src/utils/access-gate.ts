@@ -1,6 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
 import { apiFetch } from "./api-client";
-import { resolveWorkspaceSlug } from "./workspace";
 
 // PROJ-315: a non-admin member with no group grants sees an empty list on every
 // project-scoped surface (projects, issues, board, wiki). Rather than render a
@@ -18,7 +17,8 @@ export function useAccessGate(workspaceSlug?: string): AccessGate {
 
 	useEffect(() => {
 		let cancelled = false;
-		const slug = resolveWorkspaceSlug(workspaceSlug);
+		// The global Projects page must not inherit a cached project's tenant.
+		const slug = workspaceSlug;
 
 		Promise.all([
 			apiFetch<unknown[]>("/api/projects", { workspaceSlug }),
@@ -32,7 +32,12 @@ export function useAccessGate(workspaceSlug?: string): AccessGate {
 				if (cancelled) return;
 				const role = ws?.currentUserRole;
 				const isAdmin = role === "owner" || role === "admin";
-				const noProjects = Array.isArray(projects) && projects.length === 0;
+				const visible = Array.isArray(projects)
+					? projects.filter(
+							(p) => !slug || (p as { workspace_slug?: string }).workspace_slug === slug
+						)
+					: [];
+				const noProjects = visible.length === 0;
 				// Only claim "pending" when we positively know a non-admin role: an
 				// unresolved role (missing slug, request failure) fails open to the
 				// surface's own empty state rather than a misleading pending panel.

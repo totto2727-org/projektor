@@ -20,6 +20,7 @@ import { Card } from "./ui/Card";
 import { EmptyState } from "./ui/EmptyState";
 import { Input } from "./ui/Input";
 import Select from "./ui/Select";
+import { ProjectWorkspaceBoundary } from "./WorkspaceBoundary";
 
 interface Props {
 	workspaceSlug?: string;
@@ -373,7 +374,15 @@ function useCreateEpicForm(
 	};
 }
 
-export default function EpicList({ workspaceSlug }: Props) {
+export default function EpicList(props: Props) {
+	return (
+		<ProjectWorkspaceBoundary workspaceSlug={props.workspaceSlug} requireProject>
+			{(slug) => <EpicListContent workspaceSlug={slug} />}
+		</ProjectWorkspaceBoundary>
+	);
+}
+
+function EpicListContent({ workspaceSlug }: Props) {
 	const {
 		filterStatuses,
 		setFilterStatuses,

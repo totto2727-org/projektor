@@ -13,6 +13,23 @@ afterEach(() => {
 });
 
 describe("claimPrefetchedIssue", () => {
+	it("rejects another workspace's same issue ref and accepts matching scope", async () => {
+		const response = Promise.resolve(new Response(JSON.stringify({ id: "alpha-issue" })));
+		(window as unknown as Record<string, unknown>)[HANDOFF] = {
+			key: "PROJ-1",
+			t: Date.now(),
+			response,
+			workspaceSlug: "alpha",
+		};
+		expect(claimPrefetchedIssue("PROJ-1", "beta")).toBeNull();
+		(window as unknown as Record<string, unknown>)[HANDOFF] = {
+			key: "PROJ-1",
+			t: Date.now(),
+			response,
+			workspaceSlug: "alpha",
+		};
+		await expect(claimPrefetchedIssue("PROJ-1", "alpha")).resolves.toEqual({ id: "alpha-issue" });
+	});
 	it("returns null when there is no handoff", () => {
 		expect(claimPrefetchedIssue("PROJ-1")).toBeNull();
 	});

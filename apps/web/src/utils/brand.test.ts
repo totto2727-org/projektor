@@ -159,7 +159,7 @@ describe("applyBrand layers a per-workspace override on top of the deploy-level 
 		originalLocation = window.location;
 		Object.defineProperty(window, "location", {
 			configurable: true,
-			value: { ...originalLocation, hostname: "acme.projektor.example" },
+			value: { ...originalLocation, hostname: "app.example.com", search: "?workspace=acme" },
 		});
 	});
 
@@ -197,6 +197,35 @@ describe("applyBrand layers a per-workspace override on top of the deploy-level 
 		expect(document.querySelector('link[rel="icon"]')?.getAttribute("href")).toBe(
 			"/api/workspaces/acme/brand/logo"
 		);
+	});
+	it("does not reuse another workspace's cached override after scope switches", async () => {
+		const { applyBrand: freshApplyBrand } = await import("./brand");
+		const fetchImpl = vi.fn().mockImplementation((url: string) =>
+			Promise.resolve(
+				new Response(
+					JSON.stringify(
+						url === "/api/config/brand"
+							? DEFAULT_BRAND
+							: {
+									displayName: url.includes("/acme/") ? "Acme" : "Beta",
+									accent: null,
+									onAccent: null,
+									logoUrl: null,
+								}
+					)
+				)
+			)
+		);
+		await freshApplyBrand(fetchImpl);
+		Object.defineProperty(window, "location", {
+			configurable: true,
+			value: { ...originalLocation, search: "?workspace=beta" },
+		});
+		await freshApplyBrand(fetchImpl);
+		expect(fetchImpl).toHaveBeenCalledWith("/api/workspaces/beta/brand", {
+			credentials: "include",
+			headers: { "X-Workspace-Slug": "beta" },
+		});
 	});
 
 	it("falls back to the deploy-level brand when the workspace brand request fails", async () => {

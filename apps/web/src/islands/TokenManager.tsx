@@ -6,6 +6,7 @@ import { Button } from "./ui/Button";
 import { EmptyState } from "./ui/EmptyState";
 import { Input } from "./ui/Input";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "./ui/Table";
+import WorkspaceBoundary from "./WorkspaceBoundary";
 
 interface ApiToken {
 	id: string;
@@ -738,7 +739,15 @@ function useWorkspaceMcpMeta(workspaceSlug: string | undefined) {
 	return { mcpCommandTemplate, mcpUrl };
 }
 
-export default function TokenManager({ workspaceSlug: propWorkspaceSlug }: Props) {
+export default function TokenManager(props: Props) {
+	return (
+		<WorkspaceBoundary workspaceSlug={props.workspaceSlug}>
+			{(slug) => <ResolvedTokenManager workspaceSlug={slug} />}
+		</WorkspaceBoundary>
+	);
+}
+
+function ResolvedTokenManager({ workspaceSlug: propWorkspaceSlug }: Props) {
 	const workspaceSlug = resolveWorkspaceSlug(propWorkspaceSlug);
 	const [tokens, setTokens] = useState<ApiToken[]>([]);
 	const [loading, setLoading] = useState(true);

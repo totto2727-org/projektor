@@ -117,7 +117,11 @@ function mockFetchMetrics(metrics: unknown) {
 			return Promise.resolve({ ok: true, json: () => Promise.resolve(EMPTY_CODE_HEATMAP) });
 		}
 		if (u.endsWith("/api/projects")) {
-			return Promise.resolve({ ok: true, json: () => Promise.resolve([{ id: "p1" }]) });
+			return Promise.resolve({
+				ok: true,
+				json: () =>
+					Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor", workspace_slug: "ws" }]),
+			});
 		}
 		return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
 	});
@@ -142,7 +146,7 @@ describe("MetricsDashboard", () => {
 			vi.fn().mockImplementation(() => new Promise(() => {}))
 		);
 		render(<MetricsDashboard />);
-		expect(screen.getByText(/Loading metrics/i)).toBeTruthy();
+		expect(screen.getByText(/Loading project/i)).toBeTruthy();
 	});
 
 	it("renders throughput, lead/cycle tiles after fetch resolves", async () => {

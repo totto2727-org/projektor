@@ -7,6 +7,7 @@ import { Button } from "./ui/Button";
 import { EmptyState } from "./ui/EmptyState";
 import { Input } from "./ui/Input";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "./ui/Table";
+import WorkspaceBoundary from "./WorkspaceBoundary";
 
 type GrantRole = "viewer" | "member" | "admin";
 
@@ -112,7 +113,14 @@ async function loadAll(slug: string): Promise<Loaded> {
 				workspaceSlug: slug,
 			})
 		: [];
-	return { groups, members: ws.members ?? [], memberGroups, projects, role, isAdmin };
+	return {
+		groups,
+		members: ws.members ?? [],
+		memberGroups,
+		projects: projects.filter((p) => p.workspace_slug === slug),
+		role,
+		isAdmin,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -1059,7 +1067,15 @@ function GroupManagerBody(props: BodyProps) {
 // Root
 // ---------------------------------------------------------------------------
 
-export default function GroupManager({ workspaceSlug }: Props) {
+export default function GroupManager(props: Props) {
+	return (
+		<WorkspaceBoundary workspaceSlug={props.workspaceSlug}>
+			{(slug) => <GroupManagerContent workspaceSlug={slug} />}
+		</WorkspaceBoundary>
+	);
+}
+
+function GroupManagerContent({ workspaceSlug }: Props) {
 	const slug = resolveWorkspaceSlug(workspaceSlug);
 	const { data, loading, error, setError, forbidden, refetch } = useGroupManagerData(slug);
 	const [selected, setSelected] = useState<string | null>(null);

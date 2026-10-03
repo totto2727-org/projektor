@@ -10,9 +10,9 @@ function stubFetch(mcpUrl = "https://projektor.example.workers.dev/mcp/w1") {
 }
 
 describe("ConnectAgentGuide", () => {
-	it("renders nothing without a workspace slug", () => {
-		const { container } = render(<ConnectAgentGuide />);
-		expect(container.textContent).toBe("");
+	it("discovers membership before requesting scoped MCP information", () => {
+		render(<ConnectAgentGuide />);
+		expect(screen.getByText(/Loading workspace/i)).toBeTruthy();
 	});
 
 	it("shows the connect steps immediately, before the URL loads", () => {

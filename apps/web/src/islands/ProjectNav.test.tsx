@@ -160,7 +160,13 @@ describe("ProjectNav", () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockImplementation((url: string) => {
-				const project = { id: "p1", key: "PROJ", name: "Proj", slug: null };
+				const project = {
+					id: "p1",
+					key: "PROJ",
+					name: "Proj",
+					slug: null,
+					workspace_slug: "my-ws",
+				};
 				if (String(url).endsWith("/api/projects")) {
 					return Promise.resolve({ ok: true, json: () => Promise.resolve([project]) });
 				}

@@ -8,7 +8,7 @@
 // vi.stubGlobal, then await findBy* for the async state update.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { __resetProjectStoreForTests } from "../lib/project-context";
+import { __resetProjectStoreForTests, currentProject, projectReady } from "../lib/project-context";
 import * as markdownUtils from "../utils/markdown";
 import WikiPage, { assignHeadingIds, type ServerDraft, type WikiPageData } from "./WikiPage";
 
@@ -104,6 +104,16 @@ async function movePageToOther(fetchMock: ReturnType<typeof mockFetchMovePage>) 
 
 beforeEach(() => {
 	history.replaceState(null, "", "/");
+	// Presentation tests model navigation within an already-selected project.
+	// Cold-start discovery and ambiguity are covered by WorkspaceBoundary.test.
+	currentProject.value = {
+		id: "p1",
+		key: "PROJ",
+		name: "Projektor",
+		slug: "projektor",
+		workspace_slug: "ws",
+	};
+	projectReady.value = true;
 	vi.mocked(markdownUtils.renderMdWithWikilinks).mockClear();
 	vi.mocked(markdownUtils.renderMermaidDiagrams).mockClear();
 });
@@ -329,9 +339,15 @@ describe("WikiPage — project scope control (PROJ-352, PROJ-742)", () => {
 				if (u.includes("/api/projects")) {
 					return Promise.resolve({
 						ok: true,
-						json: () => Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor" }]),
+						json: () =>
+							Promise.resolve([{ id: "p1", key: "PROJ", name: "Projektor", workspace_slug: "ws" }]),
 					});
 				}
+				if (u === "/api/workspaces")
+					return Promise.resolve({
+						ok: true,
+						json: async () => [{ slug: "ws", name: "Workspace" }],
+					});
 				return Promise.resolve({ ok: true, json: () => Promise.resolve(page) });
 			})
 		);

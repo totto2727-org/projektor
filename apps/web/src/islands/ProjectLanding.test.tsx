@@ -17,6 +17,7 @@ const PROJECT = {
 	description: "An issue tracker.",
 	archivedAt: null,
 	workspaceId: "w1",
+	workspace_slug: "ws",
 	createdAt: 0,
 	updatedAt: 0,
 };
@@ -78,11 +79,11 @@ function mockFetchProject(
 
 beforeEach(() => {
 	__resetProjectStoreForTests();
-	history.replaceState(null, "", "/");
+	history.replaceState(null, "", "/projects/view");
 });
 
 afterEach(() => {
-	history.replaceState(null, "", "/");
+	history.replaceState(null, "", "/projects/view");
 });
 
 describe("ProjectLanding", () => {
@@ -98,7 +99,7 @@ describe("ProjectLanding", () => {
 		expect(screen.queryByText(/Loading/i)).toBeNull();
 	});
 
-	it("falls back to the stored project id when no URL param or slug is present, matching ProjectNav (PROJ-723)", async () => {
+	it("resolves the sole accessible project without using stored entity identity", async () => {
 		localStorage.setItem("projektor-last-project-id", "p1");
 		mockFetchProject();
 		render(<ProjectLanding />);

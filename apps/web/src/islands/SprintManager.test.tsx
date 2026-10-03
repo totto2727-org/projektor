@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __resetProjectStoreForTests } from "../lib/project-context";
 import SprintManager, { type Sprint } from "./SprintManager";
 
-const PROJECT = { id: "p1", name: "Projektor", key: "PROJ" };
+const PROJECT = { id: "p1", name: "Projektor", key: "PROJ", workspace_slug: "ws" };
 
 const SPRINT: Sprint = {
 	id: "s1",
@@ -59,7 +59,7 @@ describe("SprintManager", () => {
 		history.replaceState(null, "", "?projectId=p1");
 		mockFetchSprints([]);
 		render(<SprintManager />);
-		expect(screen.getByText(/Loading sprints/i)).toBeTruthy();
+		expect(screen.getByText(/Loading project/i)).toBeTruthy();
 	});
 
 	it("shows 'No project specified' instead of hanging when no projectId is in the URL and no fallback resolves (PROJ-424)", async () => {
@@ -77,7 +77,7 @@ describe("SprintManager", () => {
 		expect(screen.getByText("Ship it")).toBeTruthy();
 	});
 
-	it("falls back to the stored project id when no URL param is present, matching ProjectNav (PROJ-723)", async () => {
+	it("resolves the sole accessible project without relying on a stored entity reference", async () => {
 		localStorage.setItem("projektor-last-project-id", "p1");
 		mockFetchSprints([SPRINT]);
 		render(<SprintManager />);

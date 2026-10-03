@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { apiFetch } from "../utils/api-client";
 import { resolveWorkspaceSlug } from "../utils/workspace";
 import { Button } from "./ui/Button";
+import WorkspaceBoundary from "./WorkspaceBoundary";
 
 interface Props {
 	workspaceSlug?: string;
@@ -20,7 +21,15 @@ async function copyToClipboard(text: string) {
 	} catch {}
 }
 
-export default function ConnectAgentGuide({ workspaceSlug: propWorkspaceSlug }: Props) {
+export default function ConnectAgentGuide(props: Props) {
+	return (
+		<WorkspaceBoundary workspaceSlug={props.workspaceSlug}>
+			{(slug) => <ConnectAgentGuideContent workspaceSlug={slug} />}
+		</WorkspaceBoundary>
+	);
+}
+
+function ConnectAgentGuideContent({ workspaceSlug: propWorkspaceSlug }: Props) {
 	const workspaceSlug = resolveWorkspaceSlug(propWorkspaceSlug);
 	const [mcpUrl, setMcpUrl] = useState<string | null>(null);
 

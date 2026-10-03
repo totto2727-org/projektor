@@ -31,10 +31,14 @@ function useSprintLookups(
 				if (fallbackProjectId) {
 					projectId = fallbackProjectId;
 				} else {
-					const allProjects = await apiFetch<Array<{ id: string; key: string }>>("/api/projects", {
+					const allProjects = await apiFetch<
+						Array<{ id: string; key: string; workspace_slug: string }>
+					>("/api/projects", {
 						workspaceSlug,
 					});
-					const proj = allProjects.find((p) => p.key === filterProject);
+					const proj = allProjects.find(
+						(p) => p.workspace_slug === workspaceSlug && p.key === filterProject
+					);
 					if (!proj) return;
 					projectId = proj.id;
 				}
@@ -131,7 +135,8 @@ export function useIssueLookups(
 		(async () => {
 			try {
 				const data = await apiFetch<ProjectMeta[]>("/api/projects", { workspaceSlug });
-				if (Array.isArray(data)) setProjects(data);
+				if (Array.isArray(data))
+					setProjects(data.filter((p) => p.workspace_slug === workspaceSlug));
 			} catch {
 				// non-fatal
 			} finally {

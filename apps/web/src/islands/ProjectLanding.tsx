@@ -5,6 +5,7 @@ import {
 	ensureProjectResolved,
 	type ProjectSummary,
 	projectReady,
+	readProjectHint,
 	projectError as storeProjectError,
 } from "../lib/project-context";
 import { statusDisplayName } from "../lib/status";
@@ -12,6 +13,7 @@ import { apiFetch } from "../utils/api-client";
 import { usePublicViewer } from "../utils/public-viewer";
 import ProjectFlowCharts from "./ProjectFlowCharts";
 import { Button } from "./ui/Button";
+import { ProjectWorkspaceBoundary } from "./WorkspaceBoundary";
 
 interface Project {
 	id: string;
@@ -359,17 +361,16 @@ function RecentWikiSection({ pages }: { pages: RecentWikiPage[] }) {
 
 const matchesHint = (p: ProjectSummary, h: string) => p.id === h || p.key === h || p.slug === h;
 
-export default function ProjectLanding({ workspaceSlug }: Props) {
-	const hint =
-		typeof window === "undefined"
-			? null
-			: (() => {
-					const params = new URLSearchParams(window.location.search);
-					const slugMatch = window.location.pathname.match(/^\/projects\/view\/([^/]+)\/?$/);
-					return (
-						params.get("id") || params.get("projectId") || slugMatch?.[1] || params.get("project")
-					);
-				})();
+export default function ProjectLanding(props: Props) {
+	return (
+		<ProjectWorkspaceBoundary workspaceSlug={props.workspaceSlug} requireProject>
+			{(slug) => <ProjectLandingContent workspaceSlug={slug} />}
+		</ProjectWorkspaceBoundary>
+	);
+}
+
+function ProjectLandingContent({ workspaceSlug }: Props) {
+	const hint = readProjectHint();
 
 	useEffect(() => {
 		ensureProjectResolved(workspaceSlug, hint || null, matchesHint);

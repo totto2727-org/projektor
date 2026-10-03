@@ -24,6 +24,7 @@ import type {
 	TaskStatus,
 	TaskType,
 } from "./issue-detail-helpers";
+import { ProjectWorkspaceBoundary } from "./WorkspaceBoundary";
 
 interface Props {
 	issueId?: string;
@@ -102,7 +103,7 @@ function useResolvedIssueId(
  * re-authentication and offline reporting live.
  */
 async function loadIssue(ref: string, workspaceSlug: string | undefined): Promise<IssueData> {
-	const prefetched = claimPrefetchedIssue<IssueData>(ref);
+	const prefetched = claimPrefetchedIssue<IssueData>(ref, workspaceSlug);
 	if (prefetched) {
 		try {
 			return await prefetched;
@@ -178,7 +179,13 @@ function useEpicRelations(issue: IssueData | null, workspaceSlug: string | undef
 
 		// Silently update address bar to canonical pretty URL when arriving via UUID fallback
 		if (issue.project_key) {
-			const canonical = issueUrl(issue.project_key, issue.number, issue.title, issue.id);
+			const canonical = issueUrl(
+				issue.project_key,
+				issue.number,
+				issue.title,
+				issue.id,
+				workspaceSlug
+			);
 			history.replaceState(null, "", canonical);
 			document.title = `${formatIssueRef(issue.project_key, issue.number)} - ${issue.title}`;
 		}
@@ -665,7 +672,15 @@ function IssueDetailView(
 	);
 }
 
-export default function IssueDetail({
+export default function IssueDetail(props: Props) {
+	return (
+		<ProjectWorkspaceBoundary workspaceSlug={props.workspaceSlug} projectHint={props.projectSlug}>
+			{(slug) => <IssueDetailContent {...props} workspaceSlug={slug} />}
+		</ProjectWorkspaceBoundary>
+	);
+}
+
+function IssueDetailContent({
 	issueId: issueIdProp,
 	issueNumber,
 	projectSlug,
@@ -751,7 +766,7 @@ export default function IssueDetail({
 	const issueRef = formatIssueRef(issue.project_key, issue.number);
 	const blockedByLinks = links.filter((l) => l.type === "blocked_by");
 	const copyUrl = new URL(
-		issueUrl(issue.project_key, issue.number, issue.title, issue.id),
+		issueUrl(issue.project_key, issue.number, issue.title, issue.id, workspaceSlug),
 		window.location.origin
 	).href;
 

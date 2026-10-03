@@ -37,12 +37,12 @@ describe("readUrlProjectId", () => {
 });
 
 describe("resolveProjectId", () => {
-	it("resolves a valid URL hint, persists it to localStorage and the URL", async () => {
+	it("resolves a valid URL hint and persists only shareable URL identity", async () => {
 		mockProjects();
 		const res = await resolveProjectId(undefined, "p2");
 		expect(res.project).toEqual(PROJECTS[1]);
 		expect(res.error).toBeNull();
-		expect(localStorage.getItem("projektor-last-project-id")).toBe("p2");
+		expect(localStorage.getItem("projektor-last-project-id")).toBeNull();
 		expect(new URLSearchParams(window.location.search).get("projectId")).toBe("p2");
 	});
 
@@ -54,27 +54,28 @@ describe("resolveProjectId", () => {
 		expect(localStorage.getItem("projektor-last-project-id")).toBeNull();
 	});
 
-	it("falls back to a validated stored id when there is no URL hint", async () => {
+	it("ignores stored identity and requires a choice for multiple accessible projects", async () => {
 		localStorage.setItem("projektor-last-project-id", "p2");
 		mockProjects();
 		const res = await resolveProjectId(undefined, null);
-		expect(res.project).toEqual(PROJECTS[1]);
-		expect(res.error).toBeNull();
+		expect(res.project).toBeNull();
+		expect(res.error).toBe("Select a project using its projectId.");
 	});
 
-	it("falls through a stale stored id to the first project, rather than erroring", async () => {
+	it("ignores stale stored identity and safely resolves a sole project", async () => {
 		localStorage.setItem("projektor-last-project-id", "stale-id");
-		mockProjects();
+		mockProjects([PROJECTS[0]]);
 		const res = await resolveProjectId(undefined, null);
 		expect(res.project).toEqual(PROJECTS[0]);
 		expect(res.error).toBeNull();
-		expect(localStorage.getItem("projektor-last-project-id")).toBe("p1");
+		expect(localStorage.getItem("projektor-last-project-id")).toBe("stale-id");
 	});
 
-	it("falls back to the first project when there is no stored id", async () => {
+	it("does not pick the first project when multiple projects are accessible", async () => {
 		mockProjects();
 		const res = await resolveProjectId(undefined, null);
-		expect(res.project).toEqual(PROJECTS[0]);
+		expect(res.project).toBeNull();
+		expect(res.error).toBe("Select a project using its projectId.");
 	});
 
 	it("resolves to null without an error when the workspace has no projects", async () => {

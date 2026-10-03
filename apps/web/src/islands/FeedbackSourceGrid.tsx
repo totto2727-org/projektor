@@ -8,6 +8,7 @@ import {
 import { apiFetch } from "../utils/api-client";
 import type { FeedbackSource, FeedbackVersionSummary } from "./FeedbackSourceSettings";
 import NewSourceModal from "./NewSourceModal";
+import { ProjectWorkspaceBoundary } from "./WorkspaceBoundary";
 
 interface SourceSummary {
 	sourceId: string;
@@ -72,7 +73,19 @@ function NewSourceCard({ onClick }: { onClick: () => void }) {
 	);
 }
 
-export default function FeedbackSourceGrid({ workspaceSlug, projectId: projectIdProp }: Props) {
+export default function FeedbackSourceGrid(props: Props) {
+	return (
+		<ProjectWorkspaceBoundary
+			workspaceSlug={props.workspaceSlug}
+			projectHint={props.projectId}
+			requireProject
+		>
+			{(slug) => <FeedbackSourceGridContent {...props} workspaceSlug={slug} />}
+		</ProjectWorkspaceBoundary>
+	);
+}
+
+function FeedbackSourceGridContent({ workspaceSlug, projectId: projectIdProp }: Props) {
 	useEffect(() => {
 		if (!projectIdProp) ensureProjectResolved(workspaceSlug);
 	}, [projectIdProp, workspaceSlug]);

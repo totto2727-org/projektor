@@ -139,7 +139,7 @@ describe("FeedbackSourceDetail", () => {
 		stubFetch();
 		const originalLocation = window.location;
 		Object.defineProperty(window, "location", {
-			value: { ...originalLocation, href: "" },
+			value: { ...originalLocation, href: originalLocation.href },
 			writable: true,
 		});
 		try {

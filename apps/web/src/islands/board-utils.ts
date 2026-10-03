@@ -14,6 +14,7 @@ export interface CustomFieldValue {
 }
 
 export interface ProjectLookup {
+	workspace_slug?: string;
 	id: string;
 	key: string;
 	name: string;
