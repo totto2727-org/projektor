@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { unwrapResult } from "../../client/functions";
 import { Button } from "../../components/ui/Button";
+import { formatTimestampDate } from "../timestamp";
 import {
 	revokeFeedbackSource,
 	rotateFeedbackSourceToken,
@@ -37,7 +38,7 @@ interface Props {
 }
 
 function formatDate(ts: number): string {
-	return new Date(ts * 1000).toLocaleDateString();
+	return formatTimestampDate(ts);
 }
 
 function NewTokenReveal({ token, onDismiss }: { token: string; onDismiss: () => void }) {

@@ -22,6 +22,7 @@ import { FormErrors } from "../../components/FormErrors";
 import { Button } from "../../components/ui/Button";
 import { Popover } from "../../components/ui/Popover";
 import Select, { type SelectOption } from "../../components/ui/Select";
+import { formatTimestamp, formatTimestampDate } from "../timestamp";
 import {
 	createWikiPage,
 	deleteWikiAttachment,
@@ -336,7 +337,7 @@ function WikiMetadataBadges({ page }: { page: WikiPageData }) {
 			{page.owners.length > 0 && <span>Owners: {page.owners.join(", ")}</span>}
 			{page.verified_at && (
 				<span>
-					Verified {new Date(page.verified_at * 1000).toLocaleDateString()}
+					Verified {formatTimestampDate(page.verified_at)}
 					{page.verified_by ? ` by ${page.verified_by}` : ""}
 				</span>
 			)}
@@ -1534,7 +1535,7 @@ function DraftRestoreBanner({
 	return (
 		<div className={bannerClass}>
 			<span>
-				Restore unsaved draft from {new Date(updatedAt * 1000).toLocaleString()}?
+				Restore unsaved draft from {formatTimestamp(updatedAt)}?
 				{pageChangedSince && (
 					<span className="block text-text-muted text-[0.8rem]">
 						The page has been saved since this draft was started — saving it will ask before
@@ -1643,7 +1644,7 @@ function RevisionRow({
 				<span>
 					<strong className="text-text-base">{revision.author_name ?? "Unknown"}</strong>
 					{" — "}
-					{new Date(revision.created_at * 1000).toLocaleString()}
+					{formatTimestamp(revision.created_at)}
 				</span>
 				<Button
 					variant="outline"
@@ -2072,7 +2073,7 @@ function PageArticleMeta(
 					<strong className="text-text-base">
 						{props.latestRevision.author_name ?? "Unknown"}
 					</strong>{" "}
-					at {new Date(props.latestRevision.created_at * 1000).toLocaleString()}
+					at {formatTimestamp(props.latestRevision.created_at)}
 				</p>
 			)}
 
@@ -2169,7 +2170,7 @@ function PageArticle(props: PageArticleProps) {
 				/>
 
 				<footer className="mt-8 pt-4 border-t border-border text-xs text-text-muted">
-					Last updated: {new Date(page.updated_at * 1000).toLocaleString()}
+					Last updated: {formatTimestamp(page.updated_at)}
 				</footer>
 			</article>
 
@@ -3087,7 +3088,7 @@ function useWikiRestore(
 		// itself too — restoring mid-edit races the edit's own save against this PUT,
 		// and whichever lands second 409s against a revision it created itself.
 		if (editing) return;
-		const when = new Date(revision.created_at * 1000).toLocaleString();
+		const when = formatTimestamp(revision.created_at);
 		if (
 			!window.confirm(
 				`Restore this page to the version from ${when}? This creates a new revision — no history is lost.`

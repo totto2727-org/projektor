@@ -4,6 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { useState } from "react";
 import { unwrapResult } from "../../../../client/functions";
 import { Button } from "../../../../components/ui/Button";
+import { formatTimestampDate } from "../../../timestamp";
 import { updateSprint } from "../../actions";
 import { RequiredText, Text, useIssueForm } from "../../forms";
 import { dateInputToUnix, unixToDateInput } from "../../utils/date-input";
@@ -258,11 +259,9 @@ function SprintBannerView({
 				</span>
 				{sprintDetail.startDate && (
 					<span className="text-sm text-text-muted">
-						{new Date(sprintDetail.startDate * 1000).toLocaleDateString()}
+						{formatTimestampDate(sprintDetail.startDate)}
 						{" – "}
-						{sprintDetail.endDate
-							? new Date(sprintDetail.endDate * 1000).toLocaleDateString()
-							: "ongoing"}
+						{sprintDetail.endDate ? formatTimestampDate(sprintDetail.endDate) : "ongoing"}
 					</span>
 				)}
 				<button

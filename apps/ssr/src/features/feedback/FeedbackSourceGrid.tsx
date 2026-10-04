@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatTimestampDate } from "../timestamp";
 
 import type { FeedbackSource, FeedbackVersionSummary } from "./FeedbackSourceSettings";
 import NewSourceModal from "./NewSourceModal";
@@ -20,7 +21,7 @@ interface Props {
 }
 
 function formatDate(ts: number): string {
-	return new Date(ts * 1000).toLocaleDateString();
+	return formatTimestampDate(ts);
 }
 
 function statusLabel(s: FeedbackSource): string {

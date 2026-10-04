@@ -1,3 +1,4 @@
+import { formatTimestampDate } from "../timestamp";
 import type { RangeState, SprintIssue } from "./types";
 
 /** Original local-midnight date input contract, including timezone-safe round trips. */
@@ -13,7 +14,7 @@ export function unixToDateInput(ts: number | null): string {
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 export function formatUnixDate(ts: number | null): string {
-	return ts === null ? "\u2013" : new Date(ts * 1000).toLocaleDateString();
+	return ts === null ? "\u2013" : formatTimestampDate(ts);
 }
 export function getStoryPoints(issue: SprintIssue): number {
 	const field = issue.customFields.find((entry) => entry.key === "story_points");

@@ -16,6 +16,7 @@ import {
 	TableRow,
 } from "../../components/ui/Table";
 import { FormErrors } from "../planning/form-ui";
+import { formatTimestampDate } from "../timestamp";
 import { createToken, revokeToken } from "./actions";
 import { CreateTokenInputSchema } from "./input-schemas";
 import type { NewTokenResult, Token } from "./types";
@@ -38,7 +39,7 @@ export function formatTokenScopes(raw: string): string {
 	return scopes.filter((value): value is string => typeof value === "string").join(", ") || "–";
 }
 function formatDate(timestamp: number | null): string {
-	return timestamp === null ? "Never" : new Date(timestamp * 1000).toLocaleDateString();
+	return timestamp === null ? "Never" : formatTimestampDate(timestamp);
 }
 function NewTokenPanel({
 	token,

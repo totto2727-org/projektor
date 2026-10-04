@@ -6,6 +6,7 @@ import { type Dispatch, type SetStateAction, useOptimistic, useState, useTransit
 import { unwrapResult } from "../../client/functions";
 import { Button } from "../../components/ui/Button";
 import Select from "../../components/ui/Select";
+import { formatTimestampDate } from "../timestamp";
 import { navigateFeature } from "../wiki/navigation";
 import {
 	convertFeedbackToIssue,
@@ -55,7 +56,7 @@ function ratingDisplay(rating: number | null, scale: string | null): string {
 }
 
 function formatDate(ts: number): string {
-	return new Date(ts * 1000).toLocaleDateString();
+	return formatTimestampDate(ts);
 }
 
 function parseContext(

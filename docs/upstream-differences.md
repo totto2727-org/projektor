@@ -72,6 +72,7 @@ Client components receive serializable initial DTOs, not a `Request`, API client
 | Authentication document boundary | `apps/ssr/src/session-navigation.ts`, Worker entry and account-menu forms | Login, session refresh and logout use native same-origin POST forms rather than intercepted Flight links. The small frontend handler validates a bounded form and returns a 303 to the existing login or Access logout URL. Native form navigation discards the previous identity's application runtime without a custom router listener or private Effront API. Local return paths retain project/workspace queries. The API still owns authentication. |
 | Shared presentation | `apps/ssr/src/brand.ts`, `apps/ssr/src/components/**`, `apps/ssr/src/styles/app.css` | Adapt the existing shell, navigation and UI component contracts to React. Reuse the retained CSS tokens/global stylesheet and public fonts/assets as build inputs, not the Preact renderer. Load deployment and selected-workspace branding on the server, emitting names, favicon and color variables before paint without a cross-workspace browser cache. Branding remains cosmetic and optional, unlike protected page data. Keep tenant identity out of cosmetic localStorage preferences. Add a skip link, keyboard/focus behavior and responsive navigation without introducing another router. |
 | Page features and canonical state | `apps/ssr/src/features/**` | Port all 19 legacy page-source surfaces listed below, including dynamic aliases/fallbacks, with the original UI, CSS and control trees rather than substitute interfaces. Server route families own initial API load plans for Projects/Overview, Issues/My Issues/Epics, Wiki, Feedback, Sprints/Metrics, Groups/Tokens/Connectors and public Share/Help. SSR props remain canonical across refresh and navigation. Large-content tabs, view modes and filters use path/query navigation and native GET forms. Client state is limited to tiny transient controls, unsaved drafts and framework `useOptimistic` overlays. Public Share does not request membership discovery. Named issue views use user/workspace/project-scoped sessionStorage per browser tab, never entity-bearing cosmetic localStorage; applying a view explicitly navigates to canonical URL filters. |
+| Hydration-stable timestamp text | `apps/ssr/src/features/timestamp.ts`, its regression test and persisted timestamp labels in feature components | Format persisted timestamp/date labels with deterministic, explicitly labeled UTC text during both SSR and hydration. Default locale/timezone formatting could render 08:48 on the Worker and 17:48 in an Asia/Tokyo browser for the same Wiki update, triggering a React text hydration mismatch. The shared display formatter removes that runtime-dependent text without a client effect, timestamp state or hydration-warning suppression. Local-midnight date input conversion and backend timestamp storage remain unchanged. |
 | Tooling and dependencies | `justfile`, `apps/ssr/{package.json,tsconfig.json,vite.config.ts,vitest.config.ts,wrangler.jsonc}`, `pnpm-lock.yaml`, `biome.json` | Centralize new install/build/check/local-preview/dry-run tasks in `justfile`, pin the Effront-compatible local Vite+ toolchain, and include new SSR source in Biome checks. The app is workspace-internal and does not become another version source. Generated RSC, client and nested SSR bundles live in ignored `dist/`, not vendored source. |
 
 The port retains the original issue UI limits: custom-field editing is story-points-only, issue hierarchy shows the parent badge and children rather than adding a new reparent control, and backlog drag ordering is local presentation state, not persisted backend ordering.
@@ -80,7 +81,7 @@ Issue response decoding respects the existing endpoint contracts: the list-only 
 The concrete issue schema permits that omission and pure presentation normalization supplies `null`, while malformed present values still fail decoding.
 Maintained loader regressions in `apps/ssr/src/features/issues/loaders.test.tsx` cover the actual detail wire shape and invalid alias values without changing the API or broadening required identity fields.
 The backend, schema and migrations are unchanged, and the protected root `README.md` and philosophy documents are not modified by this SSR addition.
-The Effront dependencies are pinned to the current maximum core release `0.2.0`; the integration uses verified published APIs, not private framework hooks.
+The Effront dependencies are pinned to the published core release `0.2.0`; the integration uses verified published APIs, not private framework hooks.
 
 ### Independent build and deployment boundary
 
@@ -457,6 +458,8 @@ A apps/ssr/src/features/share/ShareView.tsx
 A apps/ssr/src/features/share/brand.ts
 A apps/ssr/src/features/share/server.tsx
 A apps/ssr/src/features/share/share.test.tsx
+A apps/ssr/src/features/timestamp.test.tsx
+A apps/ssr/src/features/timestamp.ts
 A apps/ssr/src/features/wiki/LazyMarkdownEditor.tsx
 A apps/ssr/src/features/wiki/MarkdownEditor.tsx
 A apps/ssr/src/features/wiki/WikiPageClient.tsx

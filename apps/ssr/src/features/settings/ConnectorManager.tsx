@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { unwrapResult } from "../../client/functions";
 import { Button } from "../../components/ui/Button";
+import { formatTimestampDate } from "../timestamp";
 import { disconnectConnector } from "./actions";
 import type { ConnectorGrant } from "./types";
 
@@ -10,7 +11,7 @@ const TD = "px-3 py-2 border-b border-border align-middle [tr:last-child_&]:bord
 const TD_MUTED = `${TD} font-mono text-[0.8rem] text-text-muted`;
 const TH =
 	"text-left px-3 py-2 border-b-2 border-border font-semibold text-text-base whitespace-nowrap";
-const date = (timestamp: number) => new Date(timestamp * 1000).toLocaleDateString();
+const date = formatTimestampDate;
 export function formatConnectorScopes(scopes: string[]): string {
 	if (scopes.some((scope) => scope.endsWith(":write"))) return "Read + Write";
 	if (scopes.some((scope) => scope.endsWith(":read"))) return "Read-only";

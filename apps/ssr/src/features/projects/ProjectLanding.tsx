@@ -7,6 +7,7 @@ import { unwrapResult } from "../../client/functions";
 import { useRuntime } from "../../client/runtime";
 import { FormErrors } from "../../components/FormErrors";
 import { Button } from "../../components/ui/Button";
+import { formatTimestampDate } from "../timestamp";
 import { archiveProject, updateDescription } from "./actions";
 import { ProjectFlowCharts } from "./ProjectFlowCharts";
 import {
@@ -27,7 +28,7 @@ const colors: Record<string, string> = {
 const heading = "text-xs font-semibold text-text-muted m-0 mb-3 uppercase tracking-[0.05em]";
 const badge =
 	"font-mono text-xs font-medium px-2 py-[0.125rem] rounded bg-surface border border-border text-text-muted";
-const date = (seconds: number) => new Date(seconds * 1000).toLocaleDateString();
+const date = formatTimestampDate;
 
 export function ProjectLanding({
 	initialProject,
