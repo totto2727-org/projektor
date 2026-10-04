@@ -144,7 +144,10 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
 			</div>
 			<nav
 				ref={navRef}
-				className="flex flex-nowrap items-center gap-0.5 px-5 max-sm:px-3"
+				// Before client measurement, every server-rendered link remains reachable
+				// through native scrolling without widening the document. The measured
+				// More menu keeps visible overflow so its popup is not clipped.
+				className={`flex flex-nowrap items-center gap-0.5 px-5 max-sm:px-3 ${overflow.length === 0 ? "overflow-x-auto" : ""}`}
 				aria-label="Project sections"
 			>
 				{visible.map((tab, index) => {
