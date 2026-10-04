@@ -12,6 +12,7 @@ import MetricsDashboard from "./MetricsDashboard";
 import MyIssues from "./MyIssues";
 import ProjectLanding from "./ProjectLanding";
 import ProjectList from "./ProjectList";
+import ProjectNav from "./ProjectNav";
 import SprintManager from "./SprintManager";
 import WikiPage from "./WikiPage";
 import WorkspaceBoundary, { ProjectWorkspaceBoundary } from "./WorkspaceBoundary";
@@ -268,6 +269,57 @@ describe("actual page request owners without build-time workspace props", () => 
 			await waitFor(() =>
 				expect(mock.mock.calls.some(([path]) => path.includes(endpoint))).toBe(true)
 			);
+			for (const [path, init] of mock.mock.calls) {
+				if (path === "/api/projects" || path.startsWith("/auth/")) continue;
+				expect(((init?.headers ?? {}) as Record<string, string>)["X-Workspace-Slug"], path).toBe(
+					"beta"
+				);
+			}
+		}
+	);
+});
+
+describe("hydrated project tab navigation", () => {
+	it.each([
+		["Issues", IssueList, "Loading workspace…", "No issues match the current filters."],
+		["Sprints", SprintManager, "Loading project…", "No sprints yet."],
+		["Epics", EpicList, "Loading project…", "No epics found. Use the button above to create one."],
+	] as const)(
+		"opens %s from Overview with an empty issue list",
+		async (tab, Component, loading, empty) => {
+			history.replaceState(null, "", "/projects/view?projectId=pb");
+			const mock = stubApi();
+			let nav = render(<ProjectNav pageLabel="Overview" />);
+			let page = render(<ProjectLanding />);
+			await screen.findByText("No issues yet.");
+			for (const [label, Destination, placeholder, emptyState] of [
+				[tab, Component, loading, empty],
+				["Overview", ProjectLanding, "Loading project…", "No issues yet."],
+				[tab, Component, loading, empty],
+			] as const) {
+				const link = screen.getByRole("link", { name: label });
+				link.addEventListener("click", (event) => event.preventDefault());
+				fireEvent.click(link);
+				const href = link.getAttribute("href");
+				if (!href) throw new Error("Missing project tab URL");
+				// ClientRouter replaces the page's islands with server HTML, then hydrates
+				// fresh Preact roots without resetting the shared project module. These are
+				// the static placeholders emitted without browser-only identity at build time.
+				nav.unmount();
+				page.unmount();
+				history.pushState(null, "", href);
+				document.dispatchEvent(new Event("astro:after-swap"));
+				const navContainer = document.createElement("div");
+				const container = document.createElement("div");
+				container.innerHTML = `<p aria-live="polite">${placeholder}</p>`;
+				document.body.append(navContainer, container);
+				nav = render(<ProjectNav pageLabel={label} />, { container: navContainer, hydrate: true });
+				page = render(<Destination />, { container, hydrate: true });
+				document.dispatchEvent(new Event("astro:page-load"));
+				expect(await screen.findByText(emptyState)).toBeTruthy();
+				expect(screen.queryByText(/Loading (project|workspace)…/)).toBeNull();
+				expect(currentProject.value?.id).toBe("pb");
+			}
 			for (const [path, init] of mock.mock.calls) {
 				if (path === "/api/projects" || path.startsWith("/auth/")) continue;
 				expect(((init?.headers ?? {}) as Record<string, string>)["X-Workspace-Slug"], path).toBe(

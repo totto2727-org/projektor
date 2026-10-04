@@ -112,6 +112,15 @@ export function ProjectWorkspaceBoundary({
 	requireProject = false,
 	children,
 }: Props & { requireProject?: boolean }) {
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
+	// ClientRouter hydrates fresh server HTML while the signal store survives.
+	// Reading that cached identity on the first render skips the server's loading
+	// branch, and Preact can leave its paragraph orphaned beside the loaded UI.
+	// Adopt the same placeholder first, then resolve scope without clearing the
+	// shared store or mounting any unscoped request owners.
+	if (!mounted)
+		return <p aria-live="polite">{requireProject ? "Loading project…" : "Loading workspace…"}</p>;
 	const hint = projectHint || readProjectHint();
 	const scope = workspaceSlug || readWorkspaceHint();
 	const current = currentProject.value;

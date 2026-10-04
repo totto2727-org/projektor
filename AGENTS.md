@@ -67,6 +67,14 @@ gates) live in exactly one place, the [workflow spec](https://tajd.github.io/pro
 
 Design records, implementation plans, and specs belong in the projektor wiki (`create_wiki_page`/`update_wiki_page`), not in a repo `docs/` folder. Keeping them in the wiki makes them discoverable and searchable (`search_wiki`) instead of buried in git history. Root-level user-facing docs (`README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`) are the only docs that belong in the repo itself.
 
+### Fork divergence record
+
+In `totto2727-org/projektor`, the maintained [`docs/upstream-differences.md`](https://github.com/totto2727-org/projektor/blob/main/docs/upstream-differences.md) is an explicit exception to the wiki-only rule above.
+It records this source fork's complete differences from its reviewed upstream revision, including already-merged patches, with their purpose, affected areas and operational impact.
+Update it in the same change that adds, alters or removes fork-specific behavior, types, tests, configuration or documentation.
+Keep deployment-repository differences in their own repositories and do not turn this record into a plan, progress log or task ledger.
+Pull requests for this fork target `totto2727-org/projektor`, never the original upstream repository.
+
 ## Human-authored files
 
 Most docs may be generated or written by agents, but these paths are human-authored (Tom's decision, PROJ-915):
