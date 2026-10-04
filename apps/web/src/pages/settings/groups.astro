@@ -2,7 +2,6 @@
 import Base from '../../layouts/Base.astro';
 import GroupManager from '../../islands/GroupManager';
 
-const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefined;
 ---
 <Base title="Groups — Projektor">
   <div class="page-container">
@@ -15,6 +14,6 @@ const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefine
         admin adds them to a group that grants a project.
       </p>
     </header>
-    <GroupManager client:load workspaceSlug={workspaceSlug} />
+    <GroupManager client:load />
   </div>
 </Base>

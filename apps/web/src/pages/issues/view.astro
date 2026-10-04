@@ -3,7 +3,6 @@ import Base from '../../layouts/Base.astro';
 import IssueDetail from '../../islands/IssueDetail';
 
 // Issue ID is read from ?id= at runtime by the island (static output cannot use dynamic routes).
-const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefined;
 ---
 <Base title="Issue — Projektor">
   <!-- PROJ-438: the island can't ask for the issue until its bundle has downloaded and
@@ -17,7 +16,7 @@ const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefine
        and refuses to run one it has run before, so without it this fires on the first
        navigation to an issue page and never again — and clicking through from the issue
        list is the common case, not a full page load. -->
-  <script is:inline data-astro-rerun define:vars={{ workspaceSlug }}>
+  <script is:inline data-astro-rerun>
     (function () {
       try {
         // An unclaimed handoff would otherwise outlive the page that made it: the router
@@ -33,12 +32,14 @@ const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefine
         // Same precedence the island uses (?id= before the pretty path). They have to
         // agree: a URL that satisfies both would otherwise be prefetched under one key
         // and claimed under the other, leaving a handoff nobody ever takes.
+        var params = new URLSearchParams(location.search);
+        var workspaceSlug = params.get('workspace');
         var pretty = location.pathname.match(/^\/projects\/([^/]+)\/issues\/(\d+)\//);
         var key =
-          new URLSearchParams(location.search).get('id') ||
+          params.get('id') ||
           (pretty ? pretty[1] + '-' + pretty[2] : null);
-        // The generic artifact has no build-time tenant. Let the gated island
-        // resolve identity instead of making an unscoped speculative request.
+        // Only an explicit runtime URL scope is available before hydration.
+        // Without one, let the island resolve membership/project identity.
         if (!key || !workspaceSlug) return;
         window.__projektorIssuePrefetch = {
           key: key,
@@ -57,6 +58,6 @@ const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefine
     })();
   </script>
   <div class="page-container">
-    <IssueDetail client:load workspaceSlug={workspaceSlug} />
+    <IssueDetail client:load />
   </div>
 </Base>

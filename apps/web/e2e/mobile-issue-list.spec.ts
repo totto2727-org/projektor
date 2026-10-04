@@ -35,14 +35,9 @@ function readCtx(): E2EContext {
 }
 
 async function openIssues(page: Page, ctx: E2EContext) {
-	await page.goto("/issues");
-	await page.evaluate(
-		({ slug }: { slug: string }) => {
-			localStorage.setItem("workspace-slug", slug);
-		},
-		{ slug: ctx.workspaceSlug },
+	await page.goto(
+		`/issues?projectId=${encodeURIComponent(ctx.grantedProjectId)}&workspace=${encodeURIComponent(ctx.workspaceSlug)}`,
 	);
-	await page.reload();
 	await page.waitForSelector("text=/\\d+ issues?/", { timeout: 15_000 });
 }
 

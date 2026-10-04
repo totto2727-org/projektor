@@ -7,10 +7,10 @@ const baseURL = process.env.E2E_BASE_URL;
 
 // Auth headers injected into every Playwright browser request so they bypass
 // both Cloudflare Access and the app's own bearer-token middleware.
-// All four are read from env vars; never hardcode values here.
-const extraHTTPHeaders: Record<string, string> = {
-	"X-Workspace-Slug": process.env.PUBLIC_WORKSPACE_SLUG ?? "projektor",
-};
+// All three are read from env vars; never hardcode values here.
+// Tenant selection must come from the app's runtime URL and API transport,
+// never a blanket browser header that could mask a missing app header.
+const extraHTTPHeaders: Record<string, string> = {};
 if (process.env.CF_ACCESS_CLIENT_ID)
 	extraHTTPHeaders["CF-Access-Client-Id"] = process.env.CF_ACCESS_CLIENT_ID;
 if (process.env.CF_ACCESS_CLIENT_SECRET)

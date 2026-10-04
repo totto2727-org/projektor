@@ -28,12 +28,9 @@ function readCtx(): E2EContext {
 }
 
 async function openIssues(page: Page, ctx: E2EContext) {
-	await page.goto("/issues");
-	// Inject the test workspace slug so the island queries the right workspace.
-	await page.evaluate(({ slug }: { slug: string }) => {
-		localStorage.setItem("workspace-slug", slug);
-	}, { slug: ctx.workspaceSlug });
-	await page.reload();
+	await page.goto(
+		`/issues?projectId=${encodeURIComponent(ctx.grantedProjectId)}&workspace=${encodeURIComponent(ctx.workspaceSlug)}`,
+	);
 }
 
 // Opens /issues and the "New issue" modal, returning the dialog locator.

@@ -17,8 +17,6 @@ import * as path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { E2EContext } from "./global-setup";
 
-const ISSUE_TITLE = "E2E my-issues test issue";
-
 function readCtx(): E2EContext {
 	const file = path.resolve(process.cwd(), "e2e", ".e2e-ctx.json");
 	if (!fs.existsSync(file)) {
@@ -30,15 +28,9 @@ function readCtx(): E2EContext {
 	return JSON.parse(fs.readFileSync(file, "utf-8")) as E2EContext;
 }
 
-async function openMyIssues(page: Page, ctx: E2EContext) {
+async function openMyIssues(page: Page) {
+	// My Issues intentionally aggregates all memberships, not one URL workspace.
 	await page.goto("/my-issues");
-	await page.evaluate(
-		({ slug }: { slug: string }) => {
-			localStorage.setItem("workspace-slug", slug);
-		},
-		{ slug: ctx.workspaceSlug }
-	);
-	await page.reload();
 }
 
 test.describe("My Issues page", () => {
@@ -49,6 +41,7 @@ test.describe("My Issues page", () => {
 		test.skip(!process.env.E2E_BASE_URL, "E2E_BASE_URL not set — skipping live deployment test");
 
 		const ctx = readCtx();
+		const issueTitle = `E2E my-issues test issue ${ctx.workspaceSlug} ${Date.now()}`;
 
 		// Resolve the dev-bypass user id via /auth/me.
 		const meRes = await request.get("/auth/me", {
@@ -70,7 +63,7 @@ test.describe("My Issues page", () => {
 			headers: { "X-Workspace-Slug": ctx.workspaceSlug },
 			data: {
 				projectId: ctx.grantedProjectId,
-				title: ISSUE_TITLE,
+				title: issueTitle,
 				priority: "medium",
 				assigneeId: me.user.id,
 			},
@@ -81,10 +74,10 @@ test.describe("My Issues page", () => {
 		// -----------------------------------------------------------------------
 		// Step 1: Issue appears on /my-issues by default (open)
 		// -----------------------------------------------------------------------
-		await openMyIssues(page, ctx);
+		await openMyIssues(page);
 		await expect(page.locator("h1", { hasText: "My Issues" })).toBeVisible({ timeout: 15_000 });
 
-		const issueEntry = page.getByText(ISSUE_TITLE).first();
+		const issueEntry = page.getByText(issueTitle, { exact: true });
 		await expect(issueEntry).toBeVisible({ timeout: 15_000 });
 
 		// -----------------------------------------------------------------------
@@ -98,12 +91,12 @@ test.describe("My Issues page", () => {
 
 		await page.reload();
 		await expect(page.locator("h1", { hasText: "My Issues" })).toBeVisible({ timeout: 15_000 });
-		await expect(page.getByText(ISSUE_TITLE)).toHaveCount(0, { timeout: 10_000 });
+		await expect(issueEntry).not.toBeVisible({ timeout: 10_000 });
 
 		// -----------------------------------------------------------------------
 		// Step 3: Toggle "Include done" — the issue reappears
 		// -----------------------------------------------------------------------
 		await page.getByLabel(/Include done/i).check();
-		await expect(page.getByText(ISSUE_TITLE).first()).toBeVisible({ timeout: 10_000 });
+		await expect(issueEntry).toBeVisible({ timeout: 10_000 });
 	});
 });

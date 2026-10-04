@@ -35,18 +35,17 @@ function readCtx(): E2EContext {
 }
 
 /**
- * Navigate to /issues, inject workspace slug + board view into localStorage,
- * then reload so the Preact island picks them up.
+ * Navigate to the seeded project and workspace, select the cosmetic board view,
+ * then reload so the Preact island picks up the view preference.
  */
 async function openBoard(page: Page, ctx: E2EContext) {
-	await page.goto("/issues");
-	await page.evaluate(
-		({ slug }: { slug: string }) => {
-			localStorage.setItem("workspace-slug", slug);
-			localStorage.setItem("issues-view", "board");
-		},
-		{ slug: ctx.workspaceSlug },
+	await page.goto(
+		`/issues?projectId=${encodeURIComponent(ctx.grantedProjectId)}&workspace=${encodeURIComponent(ctx.workspaceSlug)}`,
 	);
+	await page.evaluate(() => {
+		// safe-ls: cosmetic view preference, no API dependency.
+		localStorage.setItem("issues-view", "board");
+	});
 	await page.reload();
 
 	// Wait for the board columns to render.  The island shows "Loading issues…"

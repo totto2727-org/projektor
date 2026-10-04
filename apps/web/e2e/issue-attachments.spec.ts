@@ -37,14 +37,9 @@ async function createIssue(request: APIRequestContext, ctx: E2EContext, title: s
 }
 
 async function openIssue(page: Page, ctx: E2EContext, issueId: string) {
-	await page.goto(`/issues/view?id=${issueId}`);
-	await page.evaluate(
-		({ slug }: { slug: string }) => {
-			localStorage.setItem("workspace-slug", slug);
-		},
-		{ slug: ctx.workspaceSlug },
+	await page.goto(
+		`/issues/view?id=${issueId}&workspace=${encodeURIComponent(ctx.workspaceSlug)}`,
 	);
-	await page.reload();
 	await expect(page.locator("h1")).toBeVisible({ timeout: 15_000 });
 }
 

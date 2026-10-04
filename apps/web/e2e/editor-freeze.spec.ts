@@ -44,12 +44,6 @@ function readCtx(): E2EContext {
 	return JSON.parse(fs.readFileSync(file, "utf-8")) as E2EContext;
 }
 
-async function setWorkspaceSlug(page: Page, slug: string) {
-	await page.evaluate(({ slug: s }: { slug: string }) => {
-		localStorage.setItem("workspace-slug", s);
-	}, { slug });
-}
-
 /**
  * Types BURSTS chunks into the editor at `editorSelector`, asserting the
  * editor reflects each burst within STEP_TIMEOUT (a hang on any single
@@ -109,9 +103,7 @@ test.describe("Editor freeze regression (long-running)", () => {
 		test.setTimeout(10 * 60 * 1000);
 		const ctx = readCtx();
 
-		await page.goto("/wiki");
-		await setWorkspaceSlug(page, ctx.workspaceSlug);
-		await page.reload();
+		await page.goto(`/wiki?workspace=${encodeURIComponent(ctx.workspaceSlug)}`);
 
 		const newPageBtn = page.locator("button", { hasText: "+ New page" });
 		await expect(newPageBtn).toBeVisible({ timeout: 15_000 });
@@ -143,9 +135,9 @@ test.describe("Editor freeze regression (long-running)", () => {
 		test.setTimeout(10 * 60 * 1000);
 		const ctx = readCtx();
 
-		await page.goto(`/issues/view?id=${ctx.testIssueId}`);
-		await setWorkspaceSlug(page, ctx.workspaceSlug);
-		await page.reload();
+		await page.goto(
+			`/issues/view?id=${ctx.testIssueId}&workspace=${encodeURIComponent(ctx.workspaceSlug)}`,
+		);
 
 		await expect(page.locator("article h1")).toBeVisible({ timeout: 15_000 });
 

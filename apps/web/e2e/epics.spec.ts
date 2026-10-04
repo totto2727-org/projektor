@@ -31,16 +31,11 @@ function readCtx(): E2EContext {
 	return JSON.parse(fs.readFileSync(file, "utf-8")) as E2EContext;
 }
 
-/** Navigate to /epics scoped to the seeded project, inject the workspace slug, and reload. */
+/** Navigate to /epics scoped to the seeded project and workspace. */
 async function openEpics(page: Page, ctx: E2EContext) {
-	await page.goto(`/epics?projectId=${encodeURIComponent(ctx.grantedProjectId)}`);
-	await page.evaluate(
-		({ slug }: { slug: string }) => {
-			localStorage.setItem("workspace-slug", slug);
-		},
-		{ slug: ctx.workspaceSlug }
+	await page.goto(
+		`/epics?projectId=${encodeURIComponent(ctx.grantedProjectId)}&workspace=${encodeURIComponent(ctx.workspaceSlug)}`,
 	);
-	await page.reload();
 }
 
 test.describe("Epics page", () => {

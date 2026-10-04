@@ -10,11 +10,10 @@ export async function getStaticPaths() {
 }
 
 const { sourceId } = Astro.params as { sourceId: string };
-const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefined;
 ---
 <Base title="Feedback source — Projektor">
-  <ProjectNav client:load workspaceSlug={workspaceSlug} pageLabel="Feedback" />
+  <ProjectNav client:load pageLabel="Feedback" />
   <div class="page-container">
-    <FeedbackSourceDetail client:load workspaceSlug={workspaceSlug} sourceId={sourceId} />
+    <FeedbackSourceDetail client:load sourceId={sourceId} />
   </div>
 </Base>

@@ -269,9 +269,9 @@ pnpm install
 pnpm turbo type-check                  # tsc --noEmit across the monorepo
 pnpm --filter @projektor/api test      # vitest against an in-process Worker + D1
 
-# One-time local secrets so the browser frontend can auth without Cloudflare Access:
+# One-time local API secrets so the browser frontend can auth without Cloudflare Access:
 cp apps/api/.dev.vars.example apps/api/.dev.vars   # DEV_USER_EMAIL + BOOTSTRAP_SECRET
-cp apps/web/.env.example apps/web/.env             # PUBLIC_WORKSPACE_SLUG=projektor
+# The browser selects workspace from runtime project/membership data, not an env var.
 
 pnpm dev                               # local dev - API on :8787, web on :4321
 # `dev` auto-applies D1 migrations to the local Miniflare DB first (db:migrate:local),

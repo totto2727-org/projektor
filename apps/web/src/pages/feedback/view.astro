@@ -4,13 +4,12 @@ import ProjectNav from '../../islands/ProjectNav';
 import FeedbackSourceDetail from '../../islands/FeedbackSourceDetail';
 
 // Source ID and project ID are read from ?sourceId=/&projectId= at runtime by the island
-// (static output cannot use dynamic routes). Not "?id=" — this page also renders ProjectNav,
-// which reads ?id= as a project id.
-const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefined;
+// (static output cannot use dynamic routes). Source identity and ProjectNav's
+// project identity are separate; ?id= here is not a project hint.
 ---
 <Base title="Feedback source — Projektor">
-  <ProjectNav client:load workspaceSlug={workspaceSlug} pageLabel="Feedback" />
+  <ProjectNav client:load pageLabel="Feedback" />
   <div class="page-container">
-    <FeedbackSourceDetail client:load workspaceSlug={workspaceSlug} />
+    <FeedbackSourceDetail client:load />
   </div>
 </Base>

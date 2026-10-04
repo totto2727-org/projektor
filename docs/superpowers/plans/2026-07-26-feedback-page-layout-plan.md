@@ -2036,12 +2036,11 @@ import Base from '../layouts/Base.astro';
 import ProjectNav from '../islands/ProjectNav';
 import FeedbackSourceGrid from '../islands/FeedbackSourceGrid';
 
-const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefined;
 ---
 <Base title="Feedback — Projektor">
-  <ProjectNav client:load workspaceSlug={workspaceSlug} pageLabel="Feedback" />
+  <ProjectNav client:load pageLabel="Feedback" />
   <div class="page-container">
-    <FeedbackSourceGrid client:load workspaceSlug={workspaceSlug} />
+    <FeedbackSourceGrid client:load />
   </div>
 </Base>
 ```
@@ -2083,12 +2082,11 @@ export async function getStaticPaths() {
 }
 
 const { sourceId } = Astro.params as { sourceId: string };
-const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefined;
 ---
 <Base title="Feedback source — Projektor">
-  <ProjectNav client:load workspaceSlug={workspaceSlug} pageLabel="Feedback" />
+  <ProjectNav client:load pageLabel="Feedback" />
   <div class="page-container">
-    <FeedbackSourceDetail client:load workspaceSlug={workspaceSlug} sourceId={sourceId} />
+    <FeedbackSourceDetail client:load sourceId={sourceId} />
   </div>
 </Base>
 ```

@@ -29,14 +29,7 @@ function readCtx(): E2EContext {
 }
 
 async function openTokens(page: Page, ctx: E2EContext) {
-	await page.goto("/settings/tokens");
-	await page.evaluate(
-		({ slug }: { slug: string }) => {
-			localStorage.setItem("workspace-slug", slug);
-		},
-		{ slug: ctx.workspaceSlug }
-	);
-	await page.reload();
+	await page.goto(`/settings/tokens?workspace=${encodeURIComponent(ctx.workspaceSlug)}`);
 }
 
 test.describe("Settings → API Tokens page", () => {

@@ -32,12 +32,7 @@ function readCtx(): E2EContext {
 }
 
 async function openWiki(page: Page, ctx: E2EContext) {
-	await page.goto("/wiki");
-	// Inject the test workspace slug so the island queries the right workspace.
-	await page.evaluate(({ slug }: { slug: string }) => {
-		localStorage.setItem("workspace-slug", slug);
-	}, { slug: ctx.workspaceSlug });
-	await page.reload();
+	await page.goto(`/wiki?workspace=${encodeURIComponent(ctx.workspaceSlug)}`);
 }
 
 /** Type into the CodeMirror editor. Clicks to focus, then types via keyboard. */

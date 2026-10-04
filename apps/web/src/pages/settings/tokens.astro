@@ -4,7 +4,6 @@ import TokenManager from '../../islands/TokenManager';
 import ConnectorManager from '../../islands/ConnectorManager';
 import ConnectAgentGuide from '../../islands/ConnectAgentGuide';
 
-const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefined;
 ---
 <Base title="Connect Claude Code — Projektor">
   <div class="page-container">
@@ -16,7 +15,7 @@ const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefine
         Any workspace member can connect their own agent &mdash; access is automatically scoped to your role and group grants.
       </p>
     </header>
-    <ConnectAgentGuide client:load workspaceSlug={workspaceSlug} />
+    <ConnectAgentGuide client:load />
 
     <header style="margin: 2.5rem 0 1.5rem;">
       <h2 style="margin: 0 0 .25rem; font-size: 1.25rem; font-weight: 700; color: var(--text);">
@@ -26,7 +25,7 @@ const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefine
         Applications you have authorized to reach this workspace on your behalf. Yours only &mdash; other members manage their own.
       </p>
     </header>
-    <ConnectorManager client:load workspaceSlug={workspaceSlug} />
+    <ConnectorManager client:load />
 
     <header style="margin: 2.5rem 0 1.5rem;">
       <h2 style="margin: 0 0 .25rem; font-size: 1.25rem; font-weight: 700; color: var(--text);">
@@ -36,6 +35,6 @@ const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefine
         Shared workspace tokens for agents and scripts that can't use the connector sign-in flow above.
       </p>
     </header>
-    <TokenManager client:load workspaceSlug={workspaceSlug} />
+    <TokenManager client:load />
   </div>
 </Base>

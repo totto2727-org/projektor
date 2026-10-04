@@ -210,10 +210,11 @@ member-scoped `APIRequestContext` and asserts:
 
 ## Architecture notes
 
-- **Isolation**: each run creates its own `e2e-<timestamp>` workspace.  Tests set
-  `localStorage["workspace-slug"]` so the island queries that workspace, not production.
-- **No production data touched**: the suite never reads from or writes to the default
-  `projektor` workspace.
+- **Isolation**: each run creates its own `e2e-<timestamp>` workspace and records its slug and project IDs in the test-only `E2EContext` fixture.
+- **Runtime scope**: project pages receive the fixture's `projectId` in the URL, and entity-detail and settings pages receive its `workspace` query parameter.
+- **No tenant injection**: browser requests use the application's normal workspace resolution, without a global workspace header or a workspace localStorage override.
+- **Fixture writes**: mutations and direct scoped API assertions target the generated fixture workspace with its explicit scope.
+- **Cross-workspace reads**: My Issues intentionally reads the signed-in member's accessible workspaces, so its assertions locate fixture entities rather than assuming a single-workspace result set.
 - **No hardcoded ports**: `E2E_BASE_URL` is the single source of truth for all
   API and page navigation URLs.
 - **Mobile guard tested indirectly**: the spec verifies `window.innerWidth < 640` and

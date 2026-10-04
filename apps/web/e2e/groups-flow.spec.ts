@@ -2,11 +2,9 @@
  * PROJ-313: API-driven E2E for the group-access feature (PROJ-311).
  *
  * These tests exercise the groups REST surface directly via Playwright's
- * `request` fixture rather than the browser: the ephemeral e2e workspace
- * (created in globalSetup) is only reachable with the admin dev-bypass
- * identity, and the browser's injected headers target the deployment's
- * default workspace (see playwright.config.ts). Only the render-smoke test
- * below uses `page`, and it deliberately targets the default workspace.
+ * `request` fixture rather than the browser, with explicit workspace headers
+ * for the ephemeral E2E workspace created in globalSetup. Only the
+ * render-smoke test below uses `page`, selecting that workspace via the URL.
  *
  * Prerequisites: globalSetup must have written e2e/.e2e-ctx.json.
  */
@@ -40,7 +38,9 @@ test.describe("Groups flow (admin)", () => {
 
 		const ctx = readCtx();
 
-		const res = await request.get(`/api/workspaces/${ctx.workspaceSlug}/groups/${ctx.groupId}`);
+		const res = await request.get(`/api/workspaces/${ctx.workspaceSlug}/groups/${ctx.groupId}`, {
+			headers: { "X-Workspace-Slug": ctx.workspaceSlug },
+		});
 		expect(res.ok()).toBe(true);
 		const detail = (await res.json()) as GroupDetail;
 
@@ -62,6 +62,7 @@ test.describe("Groups flow (admin)", () => {
 		const groupName = `E2E Ad-hoc Group ${Date.now()}`;
 
 		const createRes = await request.post(`/api/workspaces/${ctx.workspaceSlug}/groups`, {
+			headers: { "X-Workspace-Slug": ctx.workspaceSlug },
 			data: { name: groupName },
 		});
 		expect(createRes.status()).toBe(201);
@@ -70,12 +71,16 @@ test.describe("Groups flow (admin)", () => {
 
 		const grantRes = await request.put(
 			`/api/workspaces/${ctx.workspaceSlug}/groups/${created.id}/grants`,
-			{ data: { projectId: ctx.grantedProjectId, role: "viewer" } }
+			{
+				headers: { "X-Workspace-Slug": ctx.workspaceSlug },
+				data: { projectId: ctx.grantedProjectId, role: "viewer" },
+			}
 		);
 		expect(grantRes.ok()).toBe(true);
 
 		const detailRes = await request.get(
-			`/api/workspaces/${ctx.workspaceSlug}/groups/${created.id}`
+			`/api/workspaces/${ctx.workspaceSlug}/groups/${created.id}`,
+			{ headers: { "X-Workspace-Slug": ctx.workspaceSlug } }
 		);
 		expect(detailRes.ok()).toBe(true);
 		const detail = (await detailRes.json()) as GroupDetail;
@@ -88,9 +93,8 @@ test.describe("Groups flow (admin)", () => {
 	test("groups settings page renders the group manager UI", async ({ page }) => {
 		test.skip(!process.env.E2E_BASE_URL, "E2E_BASE_URL not set — skipping live deployment test");
 
-		// Targets the deployment's DEFAULT workspace (config's X-Workspace-Slug),
-		// not the ephemeral e2e workspace — this is a render smoke of the surface.
-		await page.goto("/settings/groups");
+		const ctx = readCtx();
+		await page.goto(`/settings/groups?workspace=${encodeURIComponent(ctx.workspaceSlug)}`);
 		await expect(page.getByRole("heading", { name: "Groups" })).toBeVisible({ timeout: 15_000 });
 	});
 });

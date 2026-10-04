@@ -37,30 +37,11 @@ function readCtx(): E2EContext {
 	return JSON.parse(fs.readFileSync(file, "utf-8")) as E2EContext;
 }
 
-/**
- * Fetch the first project's ID from the test workspace.
- * globalSetup seeds an "E2E" project, so this always returns something.
- */
-async function fetchFirstProjectId(base: string, workspaceSlug: string): Promise<string> {
-	const res = await fetch(`${base}/api/projects`, {
-		headers: { "X-Workspace-Slug": workspaceSlug },
-	});
-	if (!res.ok) throw new Error(`GET /api/projects → ${res.status}`);
-	const data = (await res.json()) as { items: Array<{ id: string }> };
-	if (!data.items?.length) throw new Error("No projects found in the test workspace");
-	return data.items[0].id;
-}
-
-/**
- * Navigate to /sprints for a given project, inject the test workspace slug,
- * and reload so the SprintManager island picks everything up.
- */
-async function openSprints(page: Page, ctx: E2EContext, projectId: string) {
-	await page.goto(`/sprints?projectId=${encodeURIComponent(projectId)}`);
-	await page.evaluate(({ slug }: { slug: string }) => {
-		localStorage.setItem("workspace-slug", slug);
-	}, { slug: ctx.workspaceSlug });
-	await page.reload();
+/** Navigate to /sprints for the seeded granted project and workspace. */
+async function openSprints(page: Page, ctx: E2EContext) {
+	await page.goto(
+		`/sprints?projectId=${encodeURIComponent(ctx.grantedProjectId)}&workspace=${encodeURIComponent(ctx.workspaceSlug)}`,
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -77,13 +58,11 @@ test.describe("Sprint planning flow", () => {
 		);
 
 		const ctx = readCtx();
-		const base = process.env.E2E_BASE_URL as string;
-		const projectId = await fetchFirstProjectId(base, ctx.workspaceSlug);
 
 		// -----------------------------------------------------------------------
 		// Step 1: Navigate to /sprints
 		// -----------------------------------------------------------------------
-		await openSprints(page, ctx, projectId);
+		await openSprints(page, ctx);
 
 		// SprintManager renders an h1 immediately (before any async data).
 		await expect(page.locator("h1", { hasText: "Sprints" })).toBeVisible({ timeout: 15_000 });
@@ -164,7 +143,7 @@ test.describe("Sprint planning flow", () => {
 		// -----------------------------------------------------------------------
 		// Step 7: Return to /sprints and complete the sprint
 		// -----------------------------------------------------------------------
-		await openSprints(page, ctx, projectId);
+		await openSprints(page, ctx);
 		await expect(page.locator("h1", { hasText: "Sprints" })).toBeVisible({ timeout: 15_000 });
 
 		// The sprint is now active → "Complete sprint" button should appear.
@@ -198,9 +177,7 @@ test.describe("Sprint list — mobile layout (375×812)", () => {
 		test.skip(!process.env.E2E_BASE_URL, "E2E_BASE_URL not set — skipping live deployment test");
 
 		const ctx = readCtx();
-		const base = process.env.E2E_BASE_URL as string;
-		const projectId = await fetchFirstProjectId(base, ctx.workspaceSlug);
-		await openSprints(page, ctx, projectId);
+		await openSprints(page, ctx);
 
 		const innerWidth = await page.evaluate(() => window.innerWidth);
 		expect(innerWidth).toBeLessThan(640);
