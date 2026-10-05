@@ -1,6 +1,9 @@
+import { Effect } from "effect";
+import { HttpBody, HttpClientRequest } from "effect/unstable/http";
 import { describe, expect, it } from "vite-plus/test";
 
 import { actionFixture, formData } from "./features/planning/action-test-fixture";
+import { serviceBindingHttpClient } from "./http-client-layer";
 
 const { uploadAttachment, uploadInlineImage } = await import("./attachment-actions");
 
@@ -15,6 +18,68 @@ function nativeInput() {
 }
 
 describe("individual attachment ServerFns", () => {
+	it.each(["native", "inline"] as const)(
+		"preserves the multipart boundary and 64 KiB file through the real binding adapter (%s)",
+		async (kind) => {
+			const bytes = Uint8Array.from({ length: 64 * 1024 }, (_, index) => index % 256);
+			const file = new File([bytes], "native-attachment.bin", {
+				type: "application/octet-stream",
+			});
+			const metadata = {
+				id: "file-64k",
+				filename: file.name,
+				contentType: file.type,
+				size: file.size,
+			};
+			const binding = serviceBindingHttpClient({
+				async fetch(request: Request) {
+					expect(request.headers.get("x-workspace-slug")).toBe("alpha");
+					expect(request.headers.get("cookie")).toBe("CF_Authorization=actual-user");
+					expect(request.headers.get("content-type")).toMatch(/^multipart\/form-data; boundary=.+/);
+					// This is the unchanged API upload parser's actual Web Request boundary.
+					const fields = await request.formData();
+					expect(fields.get("entityType")).toBe("wiki_page");
+					expect(fields.get("entityId")).toBe("wiki-1");
+					const received = fields.get("file");
+					if (!(received instanceof File)) throw new Error("Expected multipart file");
+					expect(received.name).toBe(file.name);
+					expect(received.type).toBe(file.type);
+					expect(received.size).toBe(bytes.length);
+					expect(new Uint8Array(await received.arrayBuffer())).toEqual(bytes);
+					return Response.json(metadata, { status: 201 });
+				},
+			} as Parameters<typeof serviceBindingHttpClient>[0]);
+			const fixture = actionFixture(async (url, options) => {
+				// The fixture's FetchHttpClient exposes the action's outgoing body/headers.
+				// Replay them through the production Alchemy adapter, not native fetch.
+				const request = HttpClientRequest.post(url).pipe(
+					HttpClientRequest.setHeaders(new Headers(options?.headers)),
+				);
+				const outgoing =
+					options?.body instanceof FormData
+						? HttpClientRequest.bodyFormData(request, options.body)
+						: HttpClientRequest.setBody(request, HttpBody.raw(options?.body));
+				return Effect.runPromise(
+					Effect.scoped(
+						binding.execute(outgoing).pipe(Effect.flatMap((response) => response.json)),
+					),
+				);
+			});
+			const fields = nativeInput();
+			fields.set("file", file);
+			const result =
+				kind === "native"
+					? fixture.invoke(uploadAttachment, null, fields)
+					: fixture.invoke(uploadInlineImage, {
+							workspaceSlug: "alpha",
+							entityType: "wiki_page",
+							entityId: "wiki-1",
+							file,
+						});
+			await expect(result).resolves.toEqual({ ok: true, value: metadata });
+			expect(fixture.invalidated).toHaveBeenCalledOnce();
+		},
+	);
 	it("decodes the native FormData action and forwards the real file through the server HTTP client", async () => {
 		const fixture = actionFixture(async (url, options) => {
 			expect(url.pathname).toBe("/api/files");

@@ -95,6 +95,13 @@ The frontend supplies context to the existing API authorization, never replaces 
 | Timestamp hydration | `features/timestamp.ts` and regressions | Deterministic explicitly UTC persisted date/time labels avoid Worker/browser timezone mismatches without client timestamp state, suppression or a hydration effect. Local-midnight date inputs and backend timestamp storage are unchanged. |
 | Wire and form compatibility | Issues loaders and project actions/tests | Detail DTOs may omit the list-only `assignee_name` alias, normalized to null without accepting malformed values. Blank create/clear descriptions are strings, not unsupported null values. Project keys require the API's leading letter. Maintain these regressions rather than broadening backend contracts. |
 
+Native multipart uploads require an execution-boundary compatibility adjustment for the pinned Alchemy `2.0.0-beta.79` and Effect `4.0.0-rc.116` service-binding adapter.
+The official adapter serializes a FormData stream without carrying its generated multipart boundary into the outgoing headers, so otherwise valid native uploads reach the API as HTTP 400.
+`apps/web/src/http-client-layer.ts` keeps the official service-binding client and normalizes only that request body and matching content type at the HTTP execution boundary, not in each feature action.
+The attachment handlers, backend contract and framework request-size limit are unchanged.
+The same execution boundary preserves manual redirect handling rather than following a backend login redirect inside the API Worker.
+The frontend's existing login gateway must receive the API's 302 and issue a document redirect back to the frontend route, while ordinary API reads and mutations continue to reject unexpected redirects.
+
 ## Shared UI and dynamic Markdown integration
 
 The shared-control migration uses 22 generated shadcn `4.21.1` `base-nova` components built on Base UI, plus named app-facing adapters for product-specific prop/behavior compatibility.
@@ -129,15 +136,21 @@ Alchemy `2.0.0-beta.79` has no standalone build CLI, and a plan is not a build o
 Do not create replacement Cloudflare resources, rotate secrets, relax Access policy or claim remote migrations were applied just because source integration or local checks succeed.
 The backend continues to enforce Access/bearer identity, workspace/project authorization and OAuth consent boundaries.
 
-The maintained integration is on source branch `feat/alchemy-deployment`; it does not establish a production deployment or passing browser E2E acceptance.
+The maintained integration is on source branch `feat/alchemy-deployment`; local browser acceptance does not establish a production deployment.
 Minimal CI only runs `pnpm exec vp run ci` through `.github/workflows/ci.yml`.
 Docs generation/builds, plugin checks, browser E2E and deployment jobs are not part of that workflow.
 Production/preview deployment automation is deliberately outside the current minimal CI workflow.
-Earlier measurements and browser navigation observations on the standalone SSR artifact do not establish all-feature acceptance for this renamed Alchemy-integrated tree.
-Final acceptance needs a fresh real Effront RSC/nested SSR artifact held stable while testing cold loads, scope switches, permission failures, URL forms/tabs, Back/Forward, canonical action refresh, saved views, drafts and optimistic behavior.
-Attachment verification must cover native ordinary/inline uploads and multipart-inclusive framework limits without a bypass.
-Authentication transitions and native file GET/HEAD must preserve credential isolation and private responses.
-Do not substitute a renderer, inferred routing behavior or stale legacy E2E success for those observable checks.
+
+The maintained `tests/e2e-alchemy` suite builds a fresh real Effront RSC/nested SSR artifact and exercises all 21 current page declarations and aliases with JavaScript enabled and disabled on desktop and mobile.
+Entity pages use actual persisted API fixtures and exact page-specific content assertions, while separate native UI workflows create projects, issues and Wiki pages and verify canonical refresh, reload and deep entry.
+The suite also exercises URL-backed Sprint/Group/Feedback tabs, Back/Forward, real multiple memberships with colliding project keys, explicit native workspace selection, mismatch denial, a native 64 KiB attachment upload with persisted download bytes, and document-based session refresh.
+Every checkpoint retains a screenshot and browser audit for hydration/runtime errors, direct browser API fetch/XHR and configured viewport expansion.
+Read-fixture API writes are not counted as native UI mutation acceptance, and reports, traces and runtime data remain ignored temporary artifacts.
+The harness has its own Node TypeScript scope so its public runtime integration can be checked independently without adding it to minimal CI.
+
+The local suite is not evidence of profile-authenticated Alchemy CLI deployment, production Access/JWT behavior, cross-tab identity revocation, all rich editor interactions or a quantitative latency improvement.
+Native inline-image behavior and multipart-inclusive framework rejection limits retain focused regressions and the earlier standalone artifact's separately identified browser evidence; they are not represented as newly exercised ordinary-file workflows.
+Do not substitute a renderer, inferred routing behavior or stale legacy E2E success for observable checks.
 
 ## Maintenance rules
 
