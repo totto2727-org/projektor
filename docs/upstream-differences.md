@@ -1,513 +1,147 @@
 # Fork differences from upstream
 
-This is the maintained record for [`totto2727-org/projektor`](https://github.com/totto2727-org/projektor), compared with [`TAJD/projektor`](https://github.com/TAJD/projektor).
-It covers this source repository only, including the project-creation fix merged in [fork PR #1](https://github.com/totto2727-org/projektor/pull/1), the subsequent client workspace changes in [fork PR #2](https://github.com/totto2727-org/projektor/pull/2), and the independent Effront SSR frontend.
-Deployment repositories maintain their own differences separately.
+This is the maintained source-fork record for [`totto2727-org/projektor`](https://github.com/totto2727-org/projektor), relative to [`TAJD/projektor`](https://github.com/TAJD/projektor).
+It covers already-merged workspace fixes, the Effront SSR port, replacement of the legacy frontend, and the source-owned Alchemy/VitePlus integration.
+It is maintained architecture documentation, not a work log or task ledger.
+Deployment-repository customization belongs in that repository, not in this record.
 
-## Comparison revisions
+## Immutable fork point and comparison baseline
 
-| Revision | Meaning |
-| --- | --- |
-| [`ab122cbea1bae7efce8abe2345ce07375b9dcd13`](https://github.com/TAJD/projektor/commit/ab122cbea1bae7efce8abe2345ce07375b9dcd13) | Reviewed upstream source baseline. |
-| [`290f6644d8ced6d70fe1434437624d59015ff22d`](https://github.com/totto2727-org/projektor/commit/290f6644d8ced6d70fe1434437624d59015ff22d) | Project-creation patch in fork PR #1. |
-| [`590ee98ec00b18b34e39d009473d3030bfc39b43`](https://github.com/totto2727-org/projektor/commit/590ee98ec00b18b34e39d009473d3030bfc39b43) | Fork `main` merge of PR #1. |
-| [`55d10389929bb8bbccbd70280ce6955a113df4ab`](https://github.com/totto2727-org/projektor/commit/55d10389929bb8bbccbd70280ce6955a113df4ab) | Reviewed frontend snapshot after the full-client scope fix, required project workspace types and static environment retirement. |
-| [`2077f7cfc0ba3e4eba130d8157626560d291bd1d`](https://github.com/totto2727-org/projektor/commit/2077f7cfc0ba3e4eba130d8157626560d291bd1d) | Legacy frontend checkpoint with the retained-state hydration fix and complete source divergence record, before introducing the independent SSR app. |
+| Reference | Commit | Meaning |
+| --- | --- | --- |
+| Immutable fork point | [`ab122cbea1bae7efce8abe2345ce07375b9dcd13`](https://github.com/TAJD/projektor/commit/ab122cbea1bae7efce8abe2345ce07375b9dcd13) | Historical upstream commit from which this fork first diverged. Never update this value on an upstream sync. |
+| Reviewed comparison baseline | [`6c4b69697ec34ec6daa7a6773b4b6db50732b585`](https://github.com/totto2727-org/projektor/commit/6c4b69697ec34ec6daa7a6773b4b6db50732b585) | Reviewed source snapshot used for the current comparison. This fork's standalone SSR checkpoint is distinct from its immutable upstream fork point. Advance only after review. |
+| PR #1 patch | [`290f6644d8ced6d70fe1434437624d59015ff22d`](https://github.com/totto2727-org/projektor/commit/290f6644d8ced6d70fe1434437624d59015ff22d) | Workspace-aware project creation. Its sole parent is the immutable fork point. |
+| First divergent first-parent commit | [`590ee98ec00b18b34e39d009473d3030bfc39b43`](https://github.com/totto2727-org/projektor/commit/590ee98ec00b18b34e39d009473d3030bfc39b43) | Merge of [fork PR #1](https://github.com/totto2727-org/projektor/pull/1). Its first parent is the fork point, and its second parent is the PR #1 patch. |
+| Legacy frontend checkpoint | [`2077f7cfc0ba3e4eba130d8157626560d291bd1d`](https://github.com/totto2727-org/projektor/commit/2077f7cfc0ba3e4eba130d8157626560d291bd1d) | Complete runtime-workspace and hydration fixes before the independent SSR app. Historical Astro/Preact paths below refer to this snapshot. |
+| Standalone SSR checkpoint | [`6c4b69697ec34ec6daa7a6773b4b6db50732b585`](https://github.com/totto2727-org/projektor/commit/6c4b69697ec34ec6daa7a6773b4b6db50732b585) | Effront SSR, native forms, Effect HTTP, timestamp and navigation fixes before Alchemy integration and the `apps/ssr` to `apps/web` move. |
 
-These are immutable reference points, not a claim that upstream `main` remains at the baseline.
-The summaries and inventory below cover this checkout, including this record and its maintenance instructions, rather than stopping at the pre-documentation snapshot.
-Reproduce the complete current comparison with:
+The historical relationship is verified from Git parents, not inferred from matching file content or the current upstream branch name.
+`git merge-base HEAD ab122cbea1bae7efce8abe2345ce07375b9dcd13` also returns the fork point for the reviewed history.
 
 ```sh
-git diff --name-status ab122cbea1bae7efce8abe2345ce07375b9dcd13 HEAD
-git diff ab122cbea1bae7efce8abe2345ce07375b9dcd13 HEAD
+git show -s --format='%H%n%P%n%s' 290f6644d8ced6d70fe1434437624d59015ff22d
+git show -s --format='%H%n%P%n%s' 590ee98ec00b18b34e39d009473d3030bfc39b43
+git rev-list --first-parent --reverse ab122cbea1bae7efce8abe2345ce07375b9dcd13..HEAD
 ```
 
-The legacy source checkpoint is `2077f7cfc0ba3e4eba130d8157626560d291bd1d`, before the independent SSR app.
-The SSR architecture and appended inventory describe the source tree containing this record, including its maintained tests and configuration.
-This record does not pin a self-referencing final SSR commit SHA or imply a fully validated release.
-Before committing, omit `HEAD` to include tracked working-tree changes and inspect `git status --short` for newly added files.
-Include untracked SSR source explicitly with `git ls-files --others --exclude-standard apps/ssr`; ignored `node_modules/`, `dist/` and temporary output are not source inventory.
+## Complete comparison and traceability
 
-## Intentional source differences
-
-All runtime changes relative to this baseline are in the frontend.
-The existing API service, authentication enforcement, database schema, migrations and release implementation are unchanged.
-Frontend scope selection supplies context for existing backend authorization, not a replacement for authorization.
-
-| Pattern | Affected area | Difference, purpose and operational impact |
-| --- | --- | --- |
-| Project creation without workspace identity, PR #1 | `ProjectList.tsx` and `ProjectList.test.tsx` | Discover workspace memberships, offer only owner/admin memberships, auto-select a single eligible workspace, require a choice when there are several, and block loading/error/no-permission submissions. Send the selected workspace through `apiFetch` for `POST /api/projects`, and retain its metadata on the created card. Explicit scope still requires an eligible membership; public viewers cannot create projects. |
-| Scoped requests started before identity resolution | `WorkspaceBoundary.tsx`, `project-context.ts`, project root islands and `resolve-project-id.ts` | Resolve project UUID/key/slug and its workspace before mounting request-heavy children. Explicit scope is not overwritten by cached project state. Unknown and ambiguous projects produce an actionable selection/error rather than choosing the first catalog entry. Project/workspace keys remount child state on scope changes. |
-| Orphaned loading markup after client tab navigation | `WorkspaceBoundary.tsx` and its hydration regressions | Render the same deterministic loading placeholder for server HTML and the first Preact hydration render, then adopt retained project signals after mounting. Astro ClientRouter replaces page islands while the shared store survives, so choosing the cached branch too early could leave the server loading paragraph beside already-loaded content. This fixes that rendering lifecycle mismatch without resetting shared state, changing the resolver or issuing unscoped requests. Empty issues are not the cause. |
-| Optional workspace identity in project catalog types | `project-context.ts`, `board-utils.ts`, `issue-list/types.ts`, `access-gate.ts` | Require `workspace_slug: string`, matching the existing global project response. Represent an unselected project as `ProjectSummary \| null`, not as a fetched project with missing workspace identity. Update typed fixtures and type assertions accordingly. This does not change the API response. |
-| Hostname guesses in projectless settings | ConnectAgentGuide, ConnectorManager, GroupManager and TokenManager | Use accessible memberships and explicit URL scope instead of deriving the workspace from a deployment hostname. Synchronize selection across sibling islands and preserve it in the URL. A shared host can serve multiple workspaces. |
-| Projectless My Issues requests | `MyIssues.tsx`, issue row types and issue URLs | Query the existing assignee endpoint separately for each accessible membership and aggregate results when no explicit scope is supplied. Keep each row's workspace in grouping and links. Do not add or assume a cross-workspace issues backend endpoint. |
-| Navigation and stale catalog identity | `ProjectList.tsx`, `ProjectNav.tsx`, project context and issue lookups | Preserve project UUID and workspace on navigation, distinguish issue/wiki/feedback entity IDs from project hints, refresh discovery for newly created or archived projects, and filter workspace-specific dropdowns after global project discovery. Resolution versions prevent older async results from replacing a newer selection. |
-| Scope-free prefetch, links and branding | `issues/view.astro`, `issue-prefetch.ts`, `issue-url.ts`, `brand.ts`, workspace and access helpers | Skip scoped prefetch until a workspace is known, reject mismatched prefetch handoffs, retain scope in pretty issue links, file subresource query parameters and branding. Keep genuine global project/workspace discovery and global access checks global. |
-| Build-time workspace injected into shared pages | Astro page sources, `.env.example`, `page-workspace.test.ts` | Remove `PUBLIC_WORKSPACE_SLUG` from all 17 former page consumers and remove the 28 workspace props. Runtime project/membership selection supplies the scope. Issue prefetch uses explicit URL scope or waits for the island. The retired variable has no frontend effect and is not renamed to a test override. |
-| Tests masking missing runtime context | `playwright.config.ts`, affected E2E specs and E2E README | Remove the blanket browser tenant header and unused workspace localStorage writes. Retain authentication headers. Test fixture IDs appear explicitly in project/workspace URLs, direct fixture API requests supply their own workspace header, and My Issues assertions identify fixture entities without pretending it is single-workspace. |
-| Maintained regression coverage | Changed island/helper tests, new boundary/context/page-workspace tests and `test/setup.ts` | Exercise actual default roots with cold and retained state, scope switches, unknown/ambiguous selections, global discovery, role gates, typed catalog metadata, scoped prefetch and aggregate links. Shared setup resets the store and does not inject workspace identity. Presentation fixtures include realistic metadata. |
-| Source maintenance documentation | `AGENTS.md`, generated contributing conventions, E2E README, historical feedback-page examples and this record | Remove obsolete frontend environment instructions and maintain the source fork's own record here. The conventions page mirrors `AGENTS.md` through the existing generator. The historical plan is not an active workspace specification. This record is maintained architecture documentation, not a work log or task ledger. |
-
-The retained `apps/web` frontend continues to call its existing `apiFetch` header boundary.
-Global project/workspace discovery, auth, public sharing, global workflow and read-only playbooks retain their existing backend exemptions from workspace context.
-Native file GET subresources keep the backend-supported workspace query fallback where a request header cannot be attached.
-No change here creates resources, deploys a Worker, applies remote migrations or rotates secrets.
-
-## Independent Effront SSR frontend
-
-`apps/ssr` is a separate React/Effront frontend Worker, using the published `@effront/core`, Vite, Tailwind and Cloudflare adapters at `0.2.0`.
-It calls the existing API over HTTP rather than importing backend services, changing authorization, sharing a database binding or combining the two Workers.
-The retained Astro/Preact app and existing release/deployment pipeline remain available and are not silently switched to this Worker.
-The server resolves request identity and workspace/project context before rendering protected page data.
-Client components receive serializable initial DTOs, not a `Request`, API client, environment or shared cross-request signal store.
-
-| Boundary | Affected source | Difference and operational impact |
-| --- | --- | --- |
-| Rendering and routes | `apps/ssr/src/{effront,entry.effront,entry.workers,page,selection,urls}.ts*` | Effront owns the root document, layouts, matching, client navigation, Back/Forward and server-function refresh. Server page loaders prepare initial content before HTTP streaming, preserve error/denial status codes, and offer native GET project/workspace selection forms instead of a build-time tenant or first-project guess. Legacy paths, entity query IDs and project hints remain separate concepts. |
-| Request-local API context | `apps/ssr/src/request.ts`, `apps/ssr/src/server/**`, `apps/ssr/src/http-client-layer.ts` | `RequestApi.get`, `send` and `raw` are pure `HttpClientRequest` builders. `execute` performs execution and transport/status mapping only, returning an Effect `HttpClientResponse`; each domain operation decodes its concrete DTO with `HttpClientResponse.schemaBodyJson` within `Effect.scoped`. There is no HTTP result helper, generic unknown-body decoder or HTTP DTO deduplication/cache. Request caches contain only resolved semantic scopes and prepared views, and are invalidated after mutations, including uncertain outcomes. Provide `HttpClientLive` only at the top-level Effront application and Worker execution boundaries, never inside a domain operation. Forward the actual Access assertion/cookie or bearer credential only to the fixed trusted API origin. Resolve project metadata from the authenticated global catalog, check explicit workspace membership and attach `X-Workspace-Slug` to scoped requests. Do not reuse browser-global caches or run a nested Effect runtime inside domain loaders. Web Request/Response conversion is restricted to the Worker/framework boundary and required stream/signal interoperability. |
-| Forms, mutations and interaction queries | `apps/ssr/src/features/**/{actions,form-schemas,input-schemas}.ts`, `apps/ssr/src/client/{functions,runtime}.ts*`, `apps/ssr/src/function-result.ts` | Use native GET filters, URL tabs and native `useActionState` actions for simple forms. Stateful forms use TanStack Form with Effect `Schema.toStandardSchemaV1`; the server validates inputs independently. Declare individual literal `ServerFn.make` operations with their own input schema, authorized semantic scope and fixed API operation. Public Effront query functions serve interaction-specific reads, not page bootstrap. There is no generic browser HTTP dispatcher, mutation factory, custom router, refresh event bus or render-ID protocol. Effront owns the mutation response and refreshed canonical server tree. Tiny transient controls, unsaved drafts and `useOptimistic` framework overlays are not replacement canonical stores. `function-result.ts` describes typed UI action outcomes, not an HTTP response decoding helper. |
-| Attachment transport | `apps/ssr/src/{attachments,attachment-actions}.ts`, `apps/ssr/src/components/AttachmentUpload.tsx`, `apps/ssr/src/features/wiki/WikiPageClient.tsx` | Ordinary attachment upload is a native form using `useActionState(uploadAttachment)`. Wiki paste/drop separately calls the literal `uploadInlineImage` ServerFn so insertion can preserve the editor draft/cursor. Both use Effront transport and its current 10 MiB total request-body cap, including multipart overhead. The API's 50 MiB file policy is unchanged but is not fully accessible through that framework cap. Framework request-size bypasses are prohibited: the former custom upload routes, attachment-navigation handler and client upload helper have been deleted, with no 303 attachment-upload path or browser upload proxy remaining. Each ServerFn authorizes the workspace, forwards only the fixed file-upload operation with Effect HTTP and concretely decodes the response in a scoped operation. An uncertain upload is not automatically retried. |
-| Authentication document boundary | `apps/ssr/src/session-navigation.ts`, Worker entry and account-menu forms | Login, session refresh and logout use native same-origin POST forms rather than intercepted Flight links. The small frontend handler validates a bounded form and returns a 303 to the existing login or Access logout URL. Native form navigation discards the previous identity's application runtime without a custom router listener or private Effront API. Local return paths retain project/workspace queries. The API still owns authentication. |
-| Shared presentation | `apps/ssr/src/brand.ts`, `apps/ssr/src/components/**`, `apps/ssr/src/styles/app.css` | Adapt the existing shell, navigation and UI component contracts to React. Reuse the retained CSS tokens/global stylesheet and public fonts/assets as build inputs, not the Preact renderer. Load deployment and selected-workspace branding on the server, emitting names, favicon and color variables before paint without a cross-workspace browser cache. Branding remains cosmetic and optional, unlike protected page data. Keep tenant identity out of cosmetic localStorage preferences. Add a skip link, keyboard/focus behavior and responsive navigation without introducing another router. Before client width measurement, project tabs use native horizontal scrolling within the navigation instead of widening a mobile document; the measured More popup retains visible overflow so it is not clipped. |
-| Page features and canonical state | `apps/ssr/src/features/**` | Port all 19 legacy page-source surfaces listed below, including dynamic aliases/fallbacks, with the original UI, CSS and control trees rather than substitute interfaces. Server route families own initial API load plans for Projects/Overview, Issues/My Issues/Epics, Wiki, Feedback, Sprints/Metrics, Groups/Tokens/Connectors and public Share/Help. SSR props remain canonical across refresh and navigation. Large-content tabs, view modes and filters use path/query navigation and native GET forms. Client state is limited to tiny transient controls, unsaved drafts and framework `useOptimistic` overlays. Public Share does not request membership discovery. Named issue views use user/workspace/project-scoped sessionStorage per browser tab, never entity-bearing cosmetic localStorage; applying a view explicitly navigates to canonical URL filters. |
-| Hydration-stable timestamp text | `apps/ssr/src/features/timestamp.ts`, its regression test and persisted timestamp labels in feature components | Format persisted timestamp/date labels with deterministic, explicitly labeled UTC text during both SSR and hydration. Default locale/timezone formatting could render 08:48 on the Worker and 17:48 in an Asia/Tokyo browser for the same Wiki update, triggering a React text hydration mismatch. The shared display formatter removes that runtime-dependent text without a client effect, timestamp state or hydration-warning suppression. Local-midnight date input conversion and backend timestamp storage remain unchanged. |
-| Tooling and dependencies | `justfile`, `apps/ssr/{package.json,tsconfig.json,vite.config.ts,vitest.config.ts,wrangler.jsonc}`, `pnpm-lock.yaml`, `biome.json` | Centralize new install/build/check/local-preview/dry-run tasks in `justfile`, pin the Effront-compatible local Vite+ toolchain, and include new SSR source in Biome checks. The app is workspace-internal and does not become another version source. Generated RSC, client and nested SSR bundles live in ignored `dist/`, not vendored source. |
-
-The port retains the original issue UI limits: custom-field editing is story-points-only, issue hierarchy shows the parent badge and children rather than adding a new reparent control, and backlog drag ordering is local presentation state, not persisted backend ordering.
-These limits are not missing newly promised features.
-Issue response decoding respects the existing endpoint contracts: the list-only joined `assignee_name` alias may be absent from an issue-detail DTO.
-The concrete issue schema permits that omission and pure presentation normalization supplies `null`, while malformed present values still fail decoding.
-Maintained loader regressions in `apps/ssr/src/features/issues/loaders.test.tsx` cover the actual detail wire shape and invalid alias values without changing the API or broadening required identity fields.
-The backend, schema and migrations are unchanged, and the protected root `README.md` and philosophy documents are not modified by this SSR addition.
-The Effront dependencies are pinned to the published core release `0.2.0`; the integration uses verified published APIs, not private framework hooks.
-
-### Independent build and deployment boundary
-
-Run the new task entry points from this source repository:
+The following commands enumerate every tracked source/configuration/test/documentation difference from the reviewed baseline, including deletions and rename detection.
+Use the reviewed comparison baseline, not an automatically refreshed `upstream/main` ref.
+The baseline is a fork source checkpoint, not a claim that upstream published the SSR port.
+Historical fork changes preceding it remain recorded below; use the immutable fork point for the full historical upstream-to-fork diff.
 
 ```sh
-just ssr-install
-just ssr-lint
-just ssr-format
-just ssr-check
-just ssr-build
-just ssr-preview
-just ssr-deploy-dry-run
+baseline=6c4b69697ec34ec6daa7a6773b4b6db50732b585
+git diff --find-renames --name-status "$baseline" HEAD
+git diff --find-renames "$baseline" HEAD
+# Include tracked working-tree changes before committing:
+git diff --find-renames --name-status "$baseline"
+git diff --find-renames "$baseline"
+# New files are not included in git diff until tracked:
+git ls-files --others --exclude-standard
+git status --short
 ```
 
-The source Vite configuration accepts `EFFRONT_WRANGLER_CONFIG` through the adapter's public `configPath` option; when absent, it uses the checked-in app configuration.
-This is a source-owned configuration boundary, not a specification of any deployment repository's files or procedures.
-The generated Worker configuration is `apps/ssr/dist/rsc/wrangler.json`, including its browser assets and nested SSR modules.
-Start a fresh Wrangler preview from this generated configuration after building instead of hot-rebuilding while an acceptance session is using changing chunk filenames.
-The checked-in frontend `wrangler.jsonc` defaults `API_BASE` to `http://127.0.0.1:8792` for a separately running local API.
-For production, replace it with the existing API's trusted HTTPS origin and assign the frontend its own Worker route/domain.
-`API_BASE` is transport configuration, not workspace selection, and must not point back to the frontend's own gateway.
+Ignored dependencies, build output and temporary reports are not source inventory.
+Its complete historical diff remains reproducible using the pinned standalone SSR commit above; concrete path counts are not an architecture contract.
+Current comparison coverage is organized below by area, so removals and renamed files are not silently presented as retained source.
 
-Production Access configuration must allow the frontend's actual user credential to be accepted by the API and its edge policy, including the configured audience and hostname/cookie topology.
-Do not replace that prerequisite with a privileged shared token, a spoofed user header or relaxed backend verification.
-There is no generic browser API proxy.
-The fixed-origin gateway is exposed only for native `/api/files/*` GET/HEAD subresources and the GET `/auth/login` document boundary; `/auth/session` uses its separate native session-navigation handler.
-The gateway deliberately does not follow arbitrary API redirects with user credentials.
-The existing authenticated `/auth/login` redirect is forwarded only as a safe same-origin document destination.
-Dynamic HTML and Flight responses remain private and non-cacheable by shared HTTP caches.
-Effront manages its in-memory history responses and invalidates them through server-function refresh; authentication/document transitions must not be treated as permission to share those responses between users.
-The retained frontend's old service worker does not precache HTML or install a navigation fallback.
-This addition does not deploy either Worker, mutate remote resources, apply migrations or rotate secrets.
-
-### Acceptance requirements and evidence boundary
-
-The architecture and source inventory below are not evidence of a newly completed final all-feature browser E2E run.
-The coordinating root observed bounded navigation acceptance on a held official-build artifact: 52 history checkpoints across two desktop rounds and two mobile rounds passed URL, content, active-navigation and workspace/project-scope checks, without loading placeholders, errors or client API bootstrap.
-The reported layout measurements distinguish formal document CLS from all-shift diagnostics:
-
-| Measurement | SSR desktop | Legacy desktop | SSR mobile | Legacy mobile |
-| --- | --- | --- | --- | --- |
-| Formal document CLS | 0 | 0.0559877566 | 0 | 0 |
-| All-shift diagnostics | 0 | 0.155610469 | 0.105702927 | 0.288410722 |
-
-These observations establish only the measured navigation/layout behavior on that held artifact, not every feature or mutation in the subsequently corrected working tree.
-The project form contract requires blank descriptions to be strings, not unsupported `null` values.
-The source actions now send an empty string for blank create/clear-description inputs, and the shared Effect/Standard Schema project-key validator requires the API's leading letter.
-`apps/ssr/src/features/projects/actions.test.ts` maintains three regressions for blank creation, clearing descriptions and rejecting leading-digit keys before transport, using the unchanged API Zod schemas for payload-contract checks.
-The existence and source inspection of those regressions are not a claim of a new final test run.
-Final fresh-build form/entity acceptance is not yet established for this source snapshot.
-Acceptance requires a fresh official Effront RSC/nested SSR Worker artifact incorporating these corrections, held stable during browser verification rather than a substituted renderer or a changing hot rebuild.
-Required QA is to use the real built Effront RSC/nested SSR Worker with the existing API, compare all 19 legacy surfaces and their original control trees/CSS, and observe cold-load identity resolution, workspace/project switches, permission failures, native GET filters, URL tabs and Back/Forward, action-driven canonical refresh, scoped saved views and draft/optimistic behavior.
-Attachment QA must observe both native `uploadAttachment` and inline `uploadInlineImage`, multipart-inclusive 10 MiB framework rejection without a bypass, and unchanged backend policy.
-Authentication transitions and native file GET/HEAD must be checked without exposing a generic API proxy or sharing protected responses between users.
-The task recipes are reproducible validation entry points, not a claim that builds, tests, dry runs or final E2E were executed for this documentation snapshot.
-
-## Retained workspace-neutral Astro page delivery
-
-The following table describes the retained `apps/web` app, not the new SSR Worker.
-Astro uses `output: 'static'`, without an Astro SSR adapter.
-Static describes the HTML shell, not the selected workspace or data loaded by hydrated Preact islands.
-There are 19 page source files: 16 emit concrete HTML shells and three have empty `getStaticPaths()` and emit no per-entity production HTML.
-The configured `/projects` redirect is additional build output, not a twentieth page source.
-
-| Source under `apps/web/src/pages/` | Production delivery | Runtime context, and why a build-time workspace is unnecessary |
+| Current comparison area | Paths and coverage | Purpose and operational impact |
 | --- | --- | --- |
-| `index.astro` | Static Projects shell at `/` | Global project catalog. Creation selects an eligible workspace membership. A fixed tenant would restrict the global catalog. |
-| `projects/view.astro` | Static Overview shell, also served for Worker `/projects/view/:slug` fallback | The selected project's metadata supplies the workspace. Ambiguity requires selection. |
-| `issues.astro` | Static Issues shell | Runtime project/workspace context gates scoped requests. The same shell serves different contexts. |
-| `issues/view.astro` | Static issue-detail shell, also used by pretty issue Worker fallback | Entity UUID or pretty reference plus runtime scope. Inline prefetch requires explicit URL workspace. |
-| `sprints.astro` | Static Sprints shell | Selected project metadata supplies its workspace. |
-| `epics.astro` | Static Epics shell | Selected project metadata supplies its workspace. |
-| `metrics.astro` | Static Metrics shell | Selected project metadata supplies its workspace. |
-| `feedback.astro` | Static Feedback shell | Runtime project/membership boundary scopes the source list. |
-| `feedback/view.astro` | Static detail shell, also used for `/feedback/:sourceId` fallback | Source identity plus runtime project/membership scope. A source ID is not a project ID. |
-| `feedback/[sourceId].astro` | Empty static paths, development template. Production falls back to `feedback/view.astro`. | Runtime source identity and scope, without per-workspace generated HTML. |
-| `my-issues.astro` | Static My Issues shell | Accessible memberships are queried separately and aggregated. A fixed tenant would incorrectly narrow this view. |
-| `settings/groups.astro` | Static Groups shell | Membership selection, explicit URL workspace or current project inheritance. |
-| `settings/tokens.astro` | Static Tokens/Connectors/Agent setup shell | Sibling membership boundaries share runtime selection and URL scope. |
-| `wiki.astro` | Static Wiki shell with existing Worker legacy redirect helper | Runtime project/membership context scopes API calls. |
-| `wiki/view.astro` | Static Wiki detail fallback shell | URL wiki slug and runtime project/membership context. |
-| `wiki/[slug].astro` | Empty static paths, development template. Production falls back to `wiki/view.astro`. | Runtime scope. Worker metadata is a separate request-time enhancement, described below. |
-| `projects/[projectSlug]/issues/[issueNumber]/[titleSlug].astro` | Empty static paths, development template. Production falls back to `issues/view.astro`. | Pretty reference supplies project/issue hints, not a build-time tenant. |
-| `help.astro` | Static documentation HTML | No page-specific workspace data. It never used the retired setting. |
-| `share/view.astro` | Static public-share shell, also served for `/share/:token` | Public token scope, not membership selection. It never used the retired setting. |
+| Frontend replacement | Entire former Astro/Preact `apps/web` source, configuration, tests and E2E suite, compared with current `apps/web` | Delete the legacy app, then move the Effront app from `apps/ssr` into the canonical `apps/web` location. Preserve applicable fonts/assets and theme contracts as owned frontend inputs, not build-time imports from a second app. The similar product UI uses maintained generated shadcn/ui Base UI primitives rather than requiring exact legacy DOM/CSS parity. Old islands and signals are no longer an active runtime contract. |
+| Effront application and tests | `apps/web/src/**`, `apps/web/public/**`, frontend manifests and Vite/test/type configuration | React SSR with native forms, request-local identity, shared direct D1 reads, native service-binding HTTP mutations and framework-owned navigation/refresh. Retain maintained regression tests described below under the new path. |
+| Source-owned deployment | Root `alchemy.run.ts`, `infra/{api,config}.ts`, configuration regressions, `justfile`, frontend/API entry and hosting integration | One Alchemy stack owns both logical apps with `localState()` and Cloudflare providers. Use official Effront `0.2.0` and Alchemy `2.0.0-beta.79`. Production preflight checks the resolved account, Access confirmation and existing secret before Worker registration. Native public Worker props use a runtime-phase identity branch without deployment config or child resources; both local Workers share one `LocalDatabase` declaration. |
+| Shared data reads | `packages/data-services/src/**`, its query regressions, API service adapters and Web server loaders | Pure Effect-based D1 reads are reused across API and Web. Authentication, authorization/visibility policy, mutations and API/UI shaping stay in apps. Web binds the same external production D1 ID as the API, not a replacement database. |
+| Resource and security compatibility | Stack configuration, API Worker bindings and frontend API transport configuration | Preserve API Worker `projektor`, frontend Worker `projektor-frontend`, D1/KV/R2 identities and Access enforcement. The existing `RATE_LIMITER` binding targets `RateLimiter`, while `WorkspaceHub` remains unbound and historical v1/v2 migrations are not replayed. Use public `Worker.bind` references to the existing external storage IDs rather than adopting data stores as new Alchemy-managed resources. Supply the actual existing `JWT_SECRET` from the deployment environment rather than generating a replacement. |
+| Toolchain and workspace integration | Root/package manifests, workspace configuration, lockfile, VitePlus configuration, `justfile`, CI and hooks | Replace Turbo/Biome/Lefthook with VitePlus integrated task/test/type-check and Oxlint/Oxfmt commands. Adapt package references and tasks to canonical `apps/web`. Only `ci.yml` remains active, running VitePlus core/infra formatting and typed lint, API/Web/DB/data-services tests and native Alchemy `test:infra` configuration regressions. `just check` shares CI's check/format tasks, with no docs/plugin pipeline or deployment automation. Retained Astro docs tasks are optional local maintenance, not CI jobs. TypeScript `6.0.3` remains an API AST-test library rather than a standalone `tsc` runner; workspace TypeScript/Node-type overrides preserve consistent Vite peer type identities. |
+| Retired static release/hosting inputs | Former release artifact, static asset and standalone Wrangler tasks/configuration, including obsolete `apps/api/src/test/release-config.node.test.ts` | The old config-only example repository and Wrangler deployment workflow are not the fork's operator contract. Native Alchemy infra configuration regressions replace the deleted Wrangler release-artifact test as the deployment contract. Do not use old static-site output or point release consumers at removed Astro files. |
+| Maintained documentation | `AGENTS.md`, this record, generated contributing conventions, deployment guide, historical `docs/superpowers/plans/2026-07-26-feedback-page-layout-plan.md` corrections and necessary source-reference updates | Describe the current architecture and retain full fork history. The historical feedback-page plan is not an active workspace specification. Conventions mirror the AGENTS generator exactly. Root `README.md` and `apps/docs/src/content/docs/philosophy/**` remain protected and unedited. |
 
-None of these pages requires a fixed public workspace environment value.
-The former value was a single-workspace local/default convenience, not a static-generation requirement, and could override runtime identity.
-Tests use generated `E2EContext` fixture identity and explicitly test-prefixed controls such as `E2E_BASE_URL` instead.
+## Historical workspace fixes, retained in the fork history
 
-The unchanged wiki Worker can inject authenticated title/Open Graph metadata at request time.
-Its server scope resolution is header, opt-in subdomain routing, then `DEFAULT_WORKSPACE_SLUG`; it does not read the frontend `workspace` query parameter.
-An unresolved or unauthorized metadata lookup keeps the ordinary static shell.
-This is not Astro SSR and does not justify a build-time browser tenant.
-The server default and routing configuration remain unchanged.
+These changes were originally made in the now-removed Astro/Preact frontend.
+Their historical paths are discoverable in the legacy checkpoint, not claims that the old components still exist in current `apps/web`.
+The SSR app retains the runtime-selection principle while replacing the old implementation.
 
-The human-authored root `README.md` still has an obsolete local-setup comment naming the retired variable.
-Repository instructions prohibit agent edits to that file, so that comment is not treated as an active configuration contract.
-The editable environment example, instructions, contributing conventions, E2E guide and historical page examples are corrected.
+| Historical change | Historical affected area | Purpose and retained behavioral requirement |
+| --- | --- | --- |
+| [PR #1](https://github.com/totto2727-org/projektor/pull/1) project creation | `ProjectList.tsx` and tests | Discover memberships, offer only owner/admin workspaces, auto-select only a single eligible workspace, require explicit selection among several, and prevent loading/error/no-permission submission. Send selected workspace context and preserve created-project metadata. Public viewers cannot create projects. |
+| Scoped request ordering | `WorkspaceBoundary.tsx`, `project-context.ts`, project roots and `resolve-project-id.ts` | Resolve project UUID/key/slug and workspace before scoped requests. Reject unknown or ambiguous selections, respect explicit scope and prevent stale async resolution from replacing newer selection. |
+| Retained-state hydration | `WorkspaceBoundary.tsx` and regressions | Keep server markup and first hydration render deterministic before adopting retained client state. This corrected orphaned loading markup during Astro tab navigation, not an empty-issues backend bug. |
+| Required catalog identity | `project-context.ts`, `board-utils.ts`, issue-list types and access helpers | Require the existing API's `workspace_slug` metadata and use nullable selection instead of a fetched project with optional identity. Backend response shape is unchanged. |
+| Projectless settings and My Issues | ConnectAgentGuide, ConnectorManager, GroupManager, TokenManager and MyIssues | Select settings scope from memberships/URL, not hostname. Aggregate My Issues per accessible membership with workspace-bearing rows and links, without inventing a cross-workspace issues endpoint. |
+| Navigation, prefetch and branding | Project navigation, issue lookups, issue URLs, `issue-prefetch.ts`, `brand.ts` and access helpers | Preserve workspace/project metadata, distinguish entity IDs from project hints, skip unscoped prefetch and reject mismatched handoffs. Keep genuinely global discovery/global authorization checks global. Native file subresources retain backend-supported scoped transport. |
+| `PUBLIC_WORKSPACE_SLUG` retirement | Former Astro pages and `.env.example` | Remove all 17 former page consumers and 28 workspace props. Runtime identity replaces the retired environment variable, not another build-time tenant override. |
+| Honest regression fixtures | Island/helper tests, page-workspace/context/boundary tests, test setup and Playwright configuration/specs | Exercise cold/retained state, scope switches, role gates, ambiguity, required types, prefetch and aggregate links. Remove blanket browser tenant headers and entity-bearing localStorage fixture writes. Fixture API calls supply their own scope. These legacy suites are historical after app deletion. |
 
-Implementation references: [Astro configuration](../apps/web/astro.config.mjs), [pages](../apps/web/src/pages), [Worker fallbacks](../apps/api/src/index.ts) and [wiki metadata scope](../apps/api/src/lib/wiki-ssr.ts).
+## Current Effront SSR contract
 
-## Complete changed-path inventory
+The current app lives in `apps/web`; references to `apps/ssr` describe only the standalone checkpoint.
+The source port covers Projects/Overview, Issues/My Issues/Epics, Wiki, Feedback, Sprints/Metrics, Groups/Tokens/Connectors, public Share and Help, including dynamic aliases.
+Source coverage is not a claim of passing end-to-end behavior across these surfaces.
+The frontend supplies context to the existing API authorization, never replaces it.
 
-Paths are relative to this repository and cover the full tree comparison, including tests and documentation, not just runtime files.
-`M` means modified and `A` means added relative to the reviewed upstream baseline.
-The first block preserves the legacy inventory and PR history; the second appends the exact SSR source paths and additional root configuration changes.
-Together they cover the tracked comparison against `ab122cbea1bae7efce8abe2345ce07375b9dcd13` plus untracked source, not an obsolete legacy-only path count.
-This inventory must be adjusted when a later change alters the set of differing paths.
+| Boundary | Current source | Difference and operational impact |
+| --- | --- | --- |
+| Rendering and routing | `apps/web/src/{effront,entry.effront,entry.workers,page,selection,urls}.ts*` | Effront owns documents, layouts, matching, client navigation, Back/Forward and server-function refresh. Server loaders prepare data before streaming and preserve denial/error status. Native GET selection/filter forms and URL tabs replace browser bootstrap and build-time tenant selection. Entity IDs and project hints remain distinct. |
+| Request-local read and HTTP context | `apps/web/src/request.ts`, `server/**`, `http-client-layer.ts` | `/auth/me` verifies the actual browser session through the native `API` service binding. Direct-read scope rejects bearer-token requests/public-viewer identity; Web authorizes workspace/project membership and supplies app-owned visibility predicates to `@projektor/data-services`. Shared queries use request-local D1 and explicit scopes, with UI DTO/error shaping in Web. HTTP builders use Effect `HttpClientRequest` and concrete response schemas inside `Effect.scoped`; mutations and retained auth/share/file operations stay on the service binding. Scope/view caches remain request-local and invalidate after mutations, including uncertain outcomes. No browser direct API fetch or privileged shared token. |
+| Forms and canonical state | `features/**/{actions,form-schemas,input-schemas}.ts`, `client/{functions,runtime}.ts*`, `function-result.ts` | Native `useActionState` handles simple mutations. Stateful forms use TanStack Form with Effect `Schema.toStandardSchemaV1`, with independent server validation. Literal authorized `ServerFn.make` operations use fixed API operations. No generic browser HTTP dispatcher, mutation factory, custom router, refresh bus, render-ID protocol or replacement canonical store. Transient controls/drafts and framework optimistic overlays do not replace server props. |
+| Attachments | `attachments.ts`, `attachment-actions.ts`, upload component and Wiki editor | Native upload actions and literal inline-image ServerFn preserve drafts/cursors using Effront transport. The 10 MiB total framework body cap includes multipart overhead, while the API's 50 MiB policy remains unchanged. Deleted upload proxies/303 handlers are not restored to bypass the cap. Uncertain uploads are not automatically retried. |
+| Authentication and file subresources | `session-navigation.ts`, Worker entry and native account forms | Login/session-refresh/logout perform document transitions, discarding the prior identity's runtime. Validate bounded forms and local return paths. Native file GET/HEAD transport and login forwarding remain narrow, with no arbitrary credential-bearing redirects or generic API proxy. Dynamic HTML/Flight are private and non-cacheable by shared HTTP caches. |
+| Presentation and navigation | `brand.ts`, `components/**`, `styles/app.css`, public assets | React retains the product shell, navigation, design-token contracts and similar feature UI while adopting maintained generated shadcn/ui Base UI primitives. Keep generated component changes minimal, with per-file purpose/change notes for intentional customization and app-specific adapters outside generated source. Branding is emitted before paint and never cached across workspaces. Keep keyboard/focus/skip-link and responsive behavior. Unmeasured project tabs scroll within the navigation rather than widening mobile documents; the measured overflow popup is not clipped. |
+| Timestamp hydration | `features/timestamp.ts` and regressions | Deterministic explicitly UTC persisted date/time labels avoid Worker/browser timezone mismatches without client timestamp state, suppression or a hydration effect. Local-midnight date inputs and backend timestamp storage are unchanged. |
+| Wire and form compatibility | Issues loaders and project actions/tests | Detail DTOs may omit the list-only `assignee_name` alias, normalized to null without accepting malformed values. Blank create/clear descriptions are strings, not unsupported null values. Project keys require the API's leading letter. Maintain these regressions rather than broadening backend contracts. |
 
-```text
-M AGENTS.md
-M apps/docs/src/content/docs/contributing/conventions.md
-M apps/web/.env.example
-M apps/web/e2e/README.md
-M apps/web/e2e/board.spec.ts
-M apps/web/e2e/create-issue.spec.ts
-M apps/web/e2e/editor-freeze.spec.ts
-M apps/web/e2e/epics.spec.ts
-M apps/web/e2e/groups-flow.spec.ts
-M apps/web/e2e/issue-attachments.spec.ts
-M apps/web/e2e/mobile-issue-list.spec.ts
-M apps/web/e2e/my-issues.spec.ts
-M apps/web/e2e/settings-tokens.spec.ts
-M apps/web/e2e/sprint.spec.ts
-M apps/web/e2e/wiki-flow.spec.ts
-M apps/web/playwright.config.ts
-M apps/web/src/islands/ConnectAgentGuide.test.tsx
-M apps/web/src/islands/ConnectAgentGuide.tsx
-M apps/web/src/islands/ConnectorManager.tsx
-M apps/web/src/islands/EpicList.test.tsx
-M apps/web/src/islands/EpicList.tsx
-M apps/web/src/islands/FeedbackSourceDetail.test.tsx
-M apps/web/src/islands/FeedbackSourceDetail.tsx
-M apps/web/src/islands/FeedbackSourceGrid.tsx
-M apps/web/src/islands/GroupManager.tsx
-M apps/web/src/islands/IssueDetail.test.tsx
-M apps/web/src/islands/IssueDetail.tsx
-M apps/web/src/islands/IssueList.test.tsx
-M apps/web/src/islands/IssueList.tsx
-M apps/web/src/islands/MetricsDashboard.test.tsx
-M apps/web/src/islands/MetricsDashboard.tsx
-M apps/web/src/islands/MyIssues.test.tsx
-M apps/web/src/islands/MyIssues.tsx
-M apps/web/src/islands/ProjectLanding.test.tsx
-M apps/web/src/islands/ProjectLanding.tsx
-M apps/web/src/islands/ProjectList.test.tsx
-M apps/web/src/islands/ProjectList.tsx
-M apps/web/src/islands/ProjectNav.test.tsx
-M apps/web/src/islands/ProjectNav.tsx
-M apps/web/src/islands/SprintManager.test.tsx
-M apps/web/src/islands/SprintManager.tsx
-M apps/web/src/islands/TokenManager.test.tsx
-M apps/web/src/islands/TokenManager.tsx
-M apps/web/src/islands/WikiPage.test.tsx
-M apps/web/src/islands/WikiPage.tsx
-A apps/web/src/islands/WorkspaceBoundary.test.tsx
-A apps/web/src/islands/WorkspaceBoundary.tsx
-M apps/web/src/islands/board-utils.ts
-M apps/web/src/islands/issue-list/CreateIssueModal.test.tsx
-M apps/web/src/islands/issue-list/derive.test.ts
-M apps/web/src/islands/issue-list/types.ts
-M apps/web/src/islands/issue-list/useCreateIssueModal.test.tsx
-M apps/web/src/islands/issue-list/useIssueLookups.ts
-A apps/web/src/lib/project-context.test.ts
-M apps/web/src/lib/project-context.ts
-M apps/web/src/pages/epics.astro
-M apps/web/src/pages/feedback.astro
-M apps/web/src/pages/feedback/[sourceId].astro
-M apps/web/src/pages/feedback/view.astro
-M apps/web/src/pages/index.astro
-M apps/web/src/pages/issues.astro
-M apps/web/src/pages/issues/view.astro
-M apps/web/src/pages/metrics.astro
-M apps/web/src/pages/my-issues.astro
-M apps/web/src/pages/projects/[projectSlug]/issues/[issueNumber]/[titleSlug].astro
-M apps/web/src/pages/projects/view.astro
-M apps/web/src/pages/settings/groups.astro
-M apps/web/src/pages/settings/tokens.astro
-M apps/web/src/pages/sprints.astro
-M apps/web/src/pages/wiki.astro
-M apps/web/src/pages/wiki/[slug].astro
-M apps/web/src/pages/wiki/view.astro
-M apps/web/src/test/setup.ts
-M apps/web/src/utils/access-gate.ts
-M apps/web/src/utils/brand.test.ts
-M apps/web/src/utils/brand.ts
-M apps/web/src/utils/issue-prefetch.test.ts
-M apps/web/src/utils/issue-prefetch.ts
-M apps/web/src/utils/issue-url.ts
-A apps/web/src/utils/page-workspace.test.ts
-M apps/web/src/utils/resolve-project-id.test.ts
-M apps/web/src/utils/resolve-project-id.ts
-M apps/web/src/utils/workspace.test.ts
-M apps/web/src/utils/workspace.ts
-M docs/superpowers/plans/2026-07-26-feedback-page-layout-plan.md
-A docs/upstream-differences.md
-```
+## Shared UI and dynamic Markdown integration
 
-### SSR source inventory supplement
+The shared-control migration uses 22 generated shadcn `4.21.1` `base-nova` components built on Base UI, plus named app-facing adapters for product-specific prop/behavior compatibility.
+Each generated component records the intentional `cn` import alias change to `@/lib/utils` in its own source note.
+Keep adapters separate from generated primitives and document further intentional changes, excluding mechanical lint/format edits.
+The product UI is intended to remain similar, not an exact legacy DOM/CSS reproduction.
 
-This exact path snapshot supplements the retained legacy block above and includes new source, maintained tests, tooling, dependency lock and formatter configuration.
-It describes the source tree containing this record; generated bundles and ignored dependency/temporary directories are excluded.
+Dynamic user-authored Markdown uses Comark `0.6.2` runtime parsing and `@comark/html` rendering, not Effront's static Markdown compilation.
+The runtime keeps parser defaults and adds mdts-style footnotes, math, Mermaid, Shiki and TOC plugins, plus scoped wiki links.
+`apps/web/src/components/markdown/render.ts` creates a parser per invocation and sanitizes final authored/plugin HTML and SVG with explicit tag, attribute, style and URL allowlists.
+Untrusted HTML never becomes trusted merely because a plugin rendered it; content security stays separate from routing/data loading.
 
-```text
-M biome.json
-M pnpm-lock.yaml
-A justfile
-A apps/ssr/package.json
-A apps/ssr/src/attachment-actions.test.ts
-A apps/ssr/src/attachment-actions.ts
-A apps/ssr/src/attachments.ts
-A apps/ssr/src/brand.test.ts
-A apps/ssr/src/brand.ts
-A apps/ssr/src/client/functions.ts
-A apps/ssr/src/client/runtime.test.tsx
-A apps/ssr/src/client/runtime.tsx
-A apps/ssr/src/components/AttachmentUpload.tsx
-A apps/ssr/src/components/FormErrors.test.tsx
-A apps/ssr/src/components/FormErrors.tsx
-A apps/ssr/src/components/ProjectNav.test.tsx
-A apps/ssr/src/components/ProjectNav.tsx
-A apps/ssr/src/components/Shell.tsx
-A apps/ssr/src/components/ViewErrorBoundary.tsx
-A apps/ssr/src/components/ui/Badge.tsx
-A apps/ssr/src/components/ui/Button.tsx
-A apps/ssr/src/components/ui/Card.tsx
-A apps/ssr/src/components/ui/Dialog.tsx
-A apps/ssr/src/components/ui/EmptyState.tsx
-A apps/ssr/src/components/ui/Field.tsx
-A apps/ssr/src/components/ui/Input.tsx
-A apps/ssr/src/components/ui/Popover.tsx
-A apps/ssr/src/components/ui/Select.tsx
-A apps/ssr/src/components/ui/Table.tsx
-A apps/ssr/src/effront.ts
-A apps/ssr/src/entry.effront.tsx
-A apps/ssr/src/entry.workers.ts
-A apps/ssr/src/features/feedback/FeedbackDetailClient.tsx
-A apps/ssr/src/features/feedback/FeedbackGridClient.tsx
-A apps/ssr/src/features/feedback/FeedbackList.tsx
-A apps/ssr/src/features/feedback/FeedbackSourceDetail.tsx
-A apps/ssr/src/features/feedback/FeedbackSourceGrid.tsx
-A apps/ssr/src/features/feedback/FeedbackSourceSettings.tsx
-A apps/ssr/src/features/feedback/FeedbackSummary.tsx
-A apps/ssr/src/features/feedback/NewSourceModal.tsx
-A apps/ssr/src/features/feedback/actions.ts
-A apps/ssr/src/features/feedback/feedback-actions.test.ts
-A apps/ssr/src/features/feedback/feedback-client.test.tsx
-A apps/ssr/src/features/feedback/feedback.test.tsx
-A apps/ssr/src/features/feedback/schemas.ts
-A apps/ssr/src/features/feedback/server.tsx
-A apps/ssr/src/features/help/HelpPage.tsx
-A apps/ssr/src/features/issues/action-schemas.ts
-A apps/ssr/src/features/issues/actions.test.ts
-A apps/ssr/src/features/issues/actions.ts
-A apps/ssr/src/features/issues/forms.test.tsx
-A apps/ssr/src/features/issues/forms.ts
-A apps/ssr/src/features/issues/index.ts
-A apps/ssr/src/features/issues/legacy/EpicList.tsx
-A apps/ssr/src/features/issues/legacy/IssueDetail.tsx
-A apps/ssr/src/features/issues/legacy/IssueDetailParts.tsx
-A apps/ssr/src/features/issues/legacy/IssueList-helpers.ts
-A apps/ssr/src/features/issues/legacy/IssueList.tsx
-A apps/ssr/src/features/issues/legacy/LazyMarkdownEditor.tsx
-A apps/ssr/src/features/issues/legacy/MyIssues.tsx
-A apps/ssr/src/features/issues/legacy/board-utils.ts
-A apps/ssr/src/features/issues/legacy/issue-detail-helpers.ts
-A apps/ssr/src/features/issues/legacy/issue-list/BacklogView.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/BoardView.test.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/BoardView.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/BulkActions.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/CreateIssueModal.test.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/CreateIssueModal.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/FiltersPopover.test.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/FiltersPopover.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/HeaderRow.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/IssueListLayout.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/ListSection.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/MainContent.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/PageNavigation.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/SavedViewsControl.test.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/SavedViewsControl.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/SearchBox.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/SearchResultsSection.test.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/SearchResultsSection.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/SprintBannerSection.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/Toolbar.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/derive.test.ts
-A apps/ssr/src/features/issues/legacy/issue-list/derive.ts
-A apps/ssr/src/features/issues/legacy/issue-list/issue-render-helpers.test.ts
-A apps/ssr/src/features/issues/legacy/issue-list/issue-render-helpers.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/types-view.ts
-A apps/ssr/src/features/issues/legacy/issue-list/types.ts
-A apps/ssr/src/features/issues/legacy/issue-list/useCreateIssueModal.test.tsx
-A apps/ssr/src/features/issues/legacy/issue-list/useCreateIssueModal.ts
-A apps/ssr/src/features/issues/legacy/issue-list/useFilterUrlSync.test.ts
-A apps/ssr/src/features/issues/legacy/issue-list/useFilterUrlSync.ts
-A apps/ssr/src/features/issues/legacy/issue-list/useIssueFilters.ts
-A apps/ssr/src/features/issues/legacy/issue-list/useIssueListData.ts
-A apps/ssr/src/features/issues/legacy/issue-list/useIssueLookups.ts
-A apps/ssr/src/features/issues/legacy/issue-list/useIssueMutations.ts
-A apps/ssr/src/features/issues/legacy/issue-list/useIssueSearch.ts
-A apps/ssr/src/features/issues/legacy/issue-list/useSavedViews.ts
-A apps/ssr/src/features/issues/legacy/saved-views.ts
-A apps/ssr/src/features/issues/lib/issue-ref.ts
-A apps/ssr/src/features/issues/lib/slugify.ts
-A apps/ssr/src/features/issues/lib/status.ts
-A apps/ssr/src/features/issues/lib/story-points.ts
-A apps/ssr/src/features/issues/loaders.test.tsx
-A apps/ssr/src/features/issues/query.ts
-A apps/ssr/src/features/issues/refresh.test.tsx
-A apps/ssr/src/features/issues/server.test.ts
-A apps/ssr/src/features/issues/server.tsx
-A apps/ssr/src/features/issues/test/browser.ts
-A apps/ssr/src/features/issues/test/fixtures.ts
-A apps/ssr/src/features/issues/test/viewport.ts
-A apps/ssr/src/features/issues/types.ts
-A apps/ssr/src/features/issues/utils/date-input.ts
-A apps/ssr/src/features/issues/utils/drafts.ts
-A apps/ssr/src/features/issues/utils/issue-url.ts
-A apps/ssr/src/features/issues/utils/issue-utils.ts
-A apps/ssr/src/features/issues/utils/markdown.ts
-A apps/ssr/src/features/issues/utils/navigation.ts
-A apps/ssr/src/features/issues/utils/query-fields.ts
-A apps/ssr/src/features/issues/utils/use-media-query.ts
-A apps/ssr/src/features/issues/utils/use-unsaved-unload-guard.ts
-A apps/ssr/src/features/issues/views/EpicsPage.tsx
-A apps/ssr/src/features/issues/views/IssueDetailPage.tsx
-A apps/ssr/src/features/issues/views/IssuesPage.tsx
-A apps/ssr/src/features/issues/views/MyIssuesPage.tsx
-A apps/ssr/src/features/issues/views/shared.tsx
-A apps/ssr/src/features/planning/CodeHeatmap.tsx
-A apps/ssr/src/features/planning/MetricHelp.tsx
-A apps/ssr/src/features/planning/MetricsDashboard.test.tsx
-A apps/ssr/src/features/planning/MetricsDashboard.tsx
-A apps/ssr/src/features/planning/SprintManager.test.tsx
-A apps/ssr/src/features/planning/SprintManager.tsx
-A apps/ssr/src/features/planning/UplotChart.tsx
-A apps/ssr/src/features/planning/action-test-fixture.ts
-A apps/ssr/src/features/planning/actions.test.ts
-A apps/ssr/src/features/planning/actions.ts
-A apps/ssr/src/features/planning/flow-charts.tsx
-A apps/ssr/src/features/planning/form-ui.tsx
-A apps/ssr/src/features/planning/helpers.ts
-A apps/ssr/src/features/planning/input-schemas.ts
-A apps/ssr/src/features/planning/metric-definitions.ts
-A apps/ssr/src/features/planning/schemas.ts
-A apps/ssr/src/features/planning/server.test.tsx
-A apps/ssr/src/features/planning/server.tsx
-A apps/ssr/src/features/planning/types.ts
-A apps/ssr/src/features/planning/widgets.tsx
-A apps/ssr/src/features/projects/ProjectFlowCharts.tsx
-A apps/ssr/src/features/projects/ProjectLanding.tsx
-A apps/ssr/src/features/projects/ProjectList.tsx
-A apps/ssr/src/features/projects/ProjectRefresh.test.tsx
-A apps/ssr/src/features/projects/actions.test.ts
-A apps/ssr/src/features/projects/actions.ts
-A apps/ssr/src/features/projects/schemas.ts
-A apps/ssr/src/features/projects/server.tsx
-A apps/ssr/src/features/settings/ConnectAgentGuide.tsx
-A apps/ssr/src/features/settings/ConnectorManager.tsx
-A apps/ssr/src/features/settings/GroupManager.tsx
-A apps/ssr/src/features/settings/TokenManager.tsx
-A apps/ssr/src/features/settings/actions.test.ts
-A apps/ssr/src/features/settings/actions.ts
-A apps/ssr/src/features/settings/input-schemas.ts
-A apps/ssr/src/features/settings/schemas.ts
-A apps/ssr/src/features/settings/server.test.tsx
-A apps/ssr/src/features/settings/server.tsx
-A apps/ssr/src/features/settings/settings.test.tsx
-A apps/ssr/src/features/settings/types.ts
-A apps/ssr/src/features/settings/widgets.tsx
-A apps/ssr/src/features/share/ShareView.tsx
-A apps/ssr/src/features/share/brand.ts
-A apps/ssr/src/features/share/server.tsx
-A apps/ssr/src/features/share/share.test.tsx
-A apps/ssr/src/features/timestamp.test.tsx
-A apps/ssr/src/features/timestamp.ts
-A apps/ssr/src/features/wiki/LazyMarkdownEditor.tsx
-A apps/ssr/src/features/wiki/MarkdownEditor.tsx
-A apps/ssr/src/features/wiki/WikiPageClient.tsx
-A apps/ssr/src/features/wiki/actions.ts
-A apps/ssr/src/features/wiki/form-schemas.ts
-A apps/ssr/src/features/wiki/headings.ts
-A apps/ssr/src/features/wiki/markdown.tsx
-A apps/ssr/src/features/wiki/navigation.ts
-A apps/ssr/src/features/wiki/render-markdown.ts
-A apps/ssr/src/features/wiki/schemas.ts
-A apps/ssr/src/features/wiki/server.tsx
-A apps/ssr/src/features/wiki/test-api.ts
-A apps/ssr/src/features/wiki/wiki-actions.test.ts
-A apps/ssr/src/features/wiki/wiki-client.test.tsx
-A apps/ssr/src/features/wiki/wiki-server.test.tsx
-A apps/ssr/src/features/wiki/wiki.test.tsx
-A apps/ssr/src/function-result.ts
-A apps/ssr/src/gateway.test.ts
-A apps/ssr/src/gateway.ts
-A apps/ssr/src/http-client-layer.ts
-A apps/ssr/src/page.tsx
-A apps/ssr/src/request.test.ts
-A apps/ssr/src/request.ts
-A apps/ssr/src/selection.tsx
-A apps/ssr/src/server/api-client.test.ts
-A apps/ssr/src/server/api-client.ts
-A apps/ssr/src/server/errors.ts
-A apps/ssr/src/server/function-context.test.ts
-A apps/ssr/src/server/function-context.ts
-A apps/ssr/src/server/index.ts
-A apps/ssr/src/server/request-context.test.ts
-A apps/ssr/src/server/request-context.ts
-A apps/ssr/src/session-navigation.test.ts
-A apps/ssr/src/session-navigation.ts
-A apps/ssr/src/styles/app.css
-A apps/ssr/src/urls.ts
-A apps/ssr/tsconfig.json
-A apps/ssr/vite.config.ts
-A apps/ssr/vitest.config.ts
-A apps/ssr/wrangler.jsonc
-```
+The port retains the original UI limits: story-points-only custom-field editing, parent/children hierarchy without a new reparent control, and local presentation backlog ordering rather than new persisted ordering.
+Named issue views are user/workspace/project-scoped sessionStorage per browser tab, never entity-bearing cosmetic localStorage.
+API services now delegate reusable read SQL to the shared package; app authorization, validation, mutation behavior and REST/MCP response contracts remain app-owned.
+This is a source-layer extraction, not a new browser database surface or a claim that runtime source is unchanged.
 
-## Maintenance rule
+## Deployment and verification boundaries
 
-Update this record in the same change whenever fork-specific behavior, types, tests, configuration or documentation is added, changed, removed or absorbed upstream.
-Record the purpose, affected areas, operational impact and reviewed upstream revision, including changes already merged into fork `main`.
-When incorporating upstream, update the baseline deliberately and compare complete trees, not only the current pull request or a merge-base diff.
-Keep this source record in this repository and linked from `AGENTS.md`; generated conventions mirror that entry point.
-Do not place source-change summaries in a deployment example or use this record for progress logs, temporary artifacts, credentials or task tracking.
-Pull requests for fork work target `totto2727-org/projektor`, never `TAJD/projektor`.
+Run `just dev`, `just plan` and `just deploy` from this source repository.
+The root stack integrates API and frontend without requiring an example deployment repository or standalone Wrangler deployment.
+Production plan/deploy select `--stage production` and require the existing non-empty redacted `JWT_SECRET` plus `PROJEKTOR_ACCESS_CONFIRMED=true` after operator review of existing hostname protection.
+That flag is not a remote protection check and creates/resets no Access application or policy.
+The production stack binds existing external storage IDs without lifecycle ownership, including the same D1 ID in both Workers.
+Local development uses a single native emulated D1 declaration shared by API/Web and applies migrations locally, with separate local KV/R2 resources.
+Omitting the production Worker secret is not safe preservation on beta.79, so missing/empty values fail closed.
+`just check`, `just test`, `just format` and `just e2e` expose current verification tasks.
+`pnpm build` builds retained docs only, while the E2E recipe targets the official local runtime host for the real Worker graph separately from CLI profile authentication.
+
+Alchemy CLI profile authentication is required even for local dev/plan.
+Alchemy `2.0.0-beta.79` has no standalone build CLI, and a plan is not a build or evidence of production deployment.
+Do not create replacement Cloudflare resources, rotate secrets, relax Access policy or claim remote migrations were applied just because source integration or local checks succeed.
+The backend continues to enforce Access/bearer identity, workspace/project authorization and OAuth consent boundaries.
+
+The maintained integration is on source branch `feat/alchemy-deployment`; it does not establish a production deployment or passing browser E2E acceptance.
+Minimal CI only runs `pnpm exec vp run ci` through `.github/workflows/ci.yml`.
+Docs generation/builds, plugin checks, browser E2E and deployment jobs are not part of that workflow.
+Production/preview deployment automation is deliberately outside the current minimal CI workflow.
+Earlier measurements and browser navigation observations on the standalone SSR artifact do not establish all-feature acceptance for this renamed Alchemy-integrated tree.
+Final acceptance needs a fresh real Effront RSC/nested SSR artifact held stable while testing cold loads, scope switches, permission failures, URL forms/tabs, Back/Forward, canonical action refresh, saved views, drafts and optimistic behavior.
+Attachment verification must cover native ordinary/inline uploads and multipart-inclusive framework limits without a bypass.
+Authentication transitions and native file GET/HEAD must preserve credential isolation and private responses.
+Do not substitute a renderer, inferred routing behavior or stale legacy E2E success for those observable checks.
+
+## Maintenance rules
+
+Update this record in the same change that adds, alters, removes or absorbs fork-specific behavior, types, tests, configuration or documentation, including already-merged patches.
+Keep the immutable fork point unchanged forever; advance the reviewed comparison baseline only after an intentional upstream review, and regenerate the complete tree comparison against that baseline.
+Retain purpose, affected areas and operational impact for every divergence category rather than reducing this to the current pull request's diff.
+Do not include credentials, temporary artifacts, progress logs or tickets here.
+Pull requests for this source fork target `totto2727-org/projektor`, never `TAJD/projektor`.

@@ -5,10 +5,11 @@ sidebar:
   order: 3
 ---
 
-Projektor's web UI (`apps/web`) is themed entirely through CSS custom properties defined
-in `apps/web/src/styles/tokens.css`. There is no class-based dark mode and no
-JS-driven restyle — light/dark and (eventually) brand customisation are pure
-custom-property swaps that CSS resolves on its own.
+Projektor's product tokens live in `apps/web/src/styles/tokens.css`, with the generated component palette bridge in `apps/web/src/styles/shadcn.css`.
+Light/dark and brand customization use CSS custom-property swaps; generated controls also use the configured dark variant.
+The React/Effront app emits deployment/workspace brand variables during SSR.
+Its shared controls are the 22 shadcn `4.21.1` `base-nova` components built on Base UI, with per-file notes recording the `cn` import alias change to `@/lib/utils`.
+Product-specific adapters remain outside generated source, and the product token contract remains separate from component-library primitives.
 
 ## Two kinds of token
 
@@ -31,12 +32,11 @@ is a bug, not a customisation.
 Examples: `--danger-*`, `--warning-*`, `--success-*`, `--status-done`,
 `--status-cancelled`, `--priority-urgent-*`, `--priority-high-*`.
 
-Safe to override at any customisation layer: `--accent` itself, and — once a
-future layer exposes it — `--on-accent` (see below). Overriding a semantic-fixed token
+Safe branding inputs are `--accent` and the explicitly configured `--on-accent` value (see below). Overriding a semantic-fixed token
 directly is not supported; if a workspace genuinely needs a different danger color,
 that's a product decision, not a theming one.
 
-## `--on-accent` is currently static
+## `--on-accent` is explicit, not automatically derived
 
 `--light-on-accent` / `--dark-on-accent` are fixed per-theme values (`#fff`), not
 derived from `--accent`. A real derivation needs to pick black or white text based on
@@ -54,10 +54,9 @@ custom accent is actually set:
 3. Set both `--accent` and the computed `--on-accent` as inline styles on `<html>`
    alongside each other.
 
-This lands with whichever customisation layer first lets someone set a custom accent
-(self-hoster/workspace/user branding). Until then, the static value is correct because
-the only accents in use are the two shipped theme defaults, both already verified
-against white text (see below).
+The default themes retain their static white value, while SSR branding can explicitly set both light and dark on-accent variables from `BRAND_ON_ACCENT` or a workspace override.
+That configured value is not an automatic contrast derivation: a custom pale accent must supply a suitable foreground value.
+The default-theme measurements below are unchanged by the frontend migration.
 
 ## Contrast
 
@@ -79,8 +78,8 @@ gap another way.
 
 ## Reading tokens from JS
 
-Canvas-rendered charts (`apps/web/src/islands/metrics/flow-charts.tsx`,
-`apps/web/src/islands/MetricsDashboard.tsx`) can't use `var()` — canvas APIs need a
+Canvas-rendered charts (`apps/web/src/features/planning/flow-charts.tsx`,
+`apps/web/src/features/planning/MetricsDashboard.tsx`) can't use `var()` — canvas APIs need a
 resolved color string. These read the live custom property via a `readThemeColor()`
 helper with a literal fallback for the rare case the property isn't resolvable yet.
 The fallback is a safety net, not a second source of truth — the token itself is

@@ -1,53 +1,57 @@
 ---
 title: "Self-hosting Projektor"
-description: "Deploy your own Projektor instance on Cloudflare in five minutes."
+description: "Operate this source fork's Effront frontend and API through its Alchemy stack on Cloudflare."
 sidebar:
   order: 1
 ---
-Projektor deploys to **your own Cloudflare account** from a small **config-only repo**
-([`projektor-deploy-example`](https://github.com/TAJD/projektor-deploy-example)) that
-downloads a pre-built release artifact — no source checkout and no build step. Pick the
-path that suits you; they're ordered easiest first.
 
-Want to see it running before you deploy your own? Visit the
-[live demo](https://projektor-demo.tajdickson.workers.dev).
+This fork's source-owned deployment entry point is the root `alchemy.run.ts` stack.
+The checked-in production configuration targets the preserved account and resource IDs in `infra/config.ts`, not an arbitrary new account; its account guard fails closed on a mismatch.
+The stack contains the Hono API and the React/Effront SSR frontend, sharing the retained external production D1 ID while KV/R2 remain API-only.
+Local development shares one native emulated `LocalDatabase` declaration between the Workers.
+It does not require an example deployment repository, downloaded static release artifact or standalone Wrangler configuration.
+The Astro documentation site remains part of the source workspace.
 
-## One click
+## Source-owned workflow
 
-Use the **Deploy to Cloudflare** button in the
-[deploy repo](https://github.com/TAJD/projektor-deploy-example): Cloudflare clones it
-into your account, **auto-provisions D1, KV, and R2**, and deploys. Fill in your admin
-email on the setup page and you're live.
-
-## One command — or one prompt
-
-Clone the deploy repo and run the zero-config script; wrangler auto-provisions the
-resources, applies migrations, and deploys:
+From the application repository root:
 
 ```bash
-PROJEKTOR_REPO=TAJD/projektor ADMIN_EMAILS=you@example.com ./deploy-auto.sh
+just dev
+just plan
+just deploy
 ```
 
-Or hand the repo to an AI agent — *"deploy projektor to my Cloudflare account"* — and
-let it run the same flow. See
-[AGENT-DEPLOY.md](https://github.com/TAJD/projektor-deploy-example/blob/main/AGENT-DEPLOY.md).
+Use `just --list` to inspect the current recipes.
+Alchemy CLI profile authentication is required even for local development and planning.
+`just plan` is not a build command, and Alchemy `2.0.0-beta.79` has no standalone build CLI.
+`just deploy` mutates Cloudflare and must be an explicit operator action, not an automatic consequence of documentation edits or local checks.
 
-## Then: configure access
+For an existing instance, preserve Worker names, resource identities, Access settings and the actual existing `JWT_SECRET` supplied through the deployment environment.
+Do not create replacement data stores, rotate secrets or assume remote migrations ran as part of a source migration.
+The [full deployment guide](/projektor/guides/deploying/) describes configuration, resource preservation, authentication boundaries and honest verification limits.
 
-The Worker is live, but **Cloudflare Access** must front it before anyone can log in
-(a `*.workers.dev` toggle, or a custom domain). Then log in — the first user in
-`ADMIN_EMAILS` becomes owner — and mint a token for agents. Full handoff:
-[CONFIGURE.md](https://github.com/TAJD/projektor-deploy-example/blob/main/CONFIGURE.md).
+## Configure access
 
-**Updating later:** bump `projektor.version` and re-deploy (or push, if you wired CI).
+Cloudflare Access remains the browser identity gate, with the configured API audience and policy preserved.
+The API still provisions owner access from `ADMIN_EMAILS` and enforces workspace/project permissions.
+The frontend verifies browser identity with API `/auth/me` and forwards the actual user credential for mutations/retained HTTP operations through its native API Worker service binding, not a shared privileged token.
+Server loaders and API services reuse pure `@projektor/data-services` D1 reads, with app-owned authorization and UI/API shaping.
+Web direct-read scope rejects bearer-token requests and the public viewer rather than bypassing their restrictions; the browser has no direct API fetch or database access.
+Keep OAuth machine-to-machine discovery/token carve-outs while protecting human consent at `/oauth/authorize`.
 
-## Manual or CI deploys
+The retired `PUBLIC_WORKSPACE_SLUG` setting does not select a tenant.
+Projects and workspace memberships determine context at request time, so one deployment can serve multiple workspaces.
 
-Prefer to create the resources yourself, keep your config private, or deploy from CI on
-every push? The [full deploy guide](/projektor/guides/deploying/) covers the manual flow, the Cloudflare
-API token recipe (it **must include D1**), and push-based auto-updates.
+## Verification boundaries
+
+Only `.github/workflows/ci.yml` runs VitePlus core/infra checks, API/Web/DB/data-services tests and native Alchemy configuration regressions.
+`just check` shares the CI typed-lint/format tasks, and `just test` includes infra tests.
+Docs/plugin pipelines, browser E2E and deployment jobs are not part of minimal CI; production/preview GitHub Actions remain separate [TOT-252](https://linear.app/totto2727/issue/TOT-252/projektor-alchemy本番プレビューデプロイのgithub-actionsを整備) work.
+The `feat/alchemy-deployment` source integration is not evidence of a production deploy or passing browser E2E.
+See the deployment guide for preflight account/Access/secret guards and the public runtime/deployment phase split.
 
 ## Next: connect an agent
 
-Once your instance is up, [connect an AI agent](/projektor/agents/mcp-connection/) over MCP — that's the primary
-way to drive Projektor. Anything a browser user can do, an agent can do too.
+Once your instance is up, [connect an AI agent](/projektor/agents/mcp-connection/) over MCP.
+The backend retains its REST/MCP service-layer parity, including the documented browser-only credential and binary transport exceptions.

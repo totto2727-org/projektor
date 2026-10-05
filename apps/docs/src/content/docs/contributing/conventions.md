@@ -28,8 +28,11 @@ Implementation details:
 - **Runtime:** Hono on Cloudflare Workers
 - **Data:** D1 (SQLite) for relational data, KV for caching (Access certs, user-by-email), R2 for file attachments
 - **Schema:** Drizzle is the schema and primary query layer; raw `DB.prepare` remains in the auth/workspace middleware hot path, the dev bootstrap, and a handful of service queries (FTS, counters) where hand-written SQL is clearer.
-- **Monorepo:** pnpm workspaces + turbo. `apps/api` (the Worker), `apps/web` (Astro + Preact static site, served in production via CF Workers Static Assets — see below), `apps/docs` (the Astro docs site linked throughout this file), `packages/*` (db, types, plugin-sdk), `plugins/*`
-- **Deploy:** projektor publishes a self-contained **release artifact** on each `v*` tag; a config-only deploy repo (e.g. `projektor-deploy-example`) downloads it and ships it with `wrangler` — no submodule, no source checkout downstream. The Worker (`apps/api`) and the built frontend (`apps/web/dist`) ship together: `wrangler.toml` declares an `[assets]` binding with `run_worker_first = ["/api/*", "/mcp/*", "/wiki", "/.well-known/*"]`, so those paths always hit the Hono Worker while every other path serves the static Astro output (per-route HTML, asset-first). The release build compiles `apps/web` and bundles the Worker into a single `worker.js`.
+- **Monorepo:** pnpm workspaces with VitePlus. `apps/api` contains the Hono API Worker, `apps/web` contains the React/Effront SSR frontend, and `apps/docs` remains the Astro documentation site. Shared code lives in `packages/*` and `plugins/*`.
+- **Shared reads:** `@projektor/data-services` contains pure, server-only Effect-based D1 read queries reused by API services and Web server loaders. It owns neither authentication/authorization policy nor UI/API response shaping. Each app authorizes its caller, supplies trusted visibility predicates and maps query results/errors at its own boundary. Mutations remain API operations over the native Worker service binding, never direct Web DB writes or browser API fetches.
+- **Deploy:** this fork owns one Alchemy stack in root `alchemy.run.ts`, containing the API and Effront frontend as separate logical applications. Operate it from this source repository with `just dev`, `just plan`, and `just deploy`, not an example deployment repository or a standalone Wrangler configuration. The Effront frontend was moved from `apps/ssr` to `apps/web`, replacing the former Astro/Preact app. Alchemy is pinned to `2.0.0-beta.79` and the official Effront packages to `0.2.0`.
+- **Existing production resources:** preserve API Worker `projektor`, frontend Worker `projektor-frontend`, D1/KV/R2 identities and Access configuration in `infra/config.ts`. Bind existing storage IDs through public `Worker.bind` without declaring production storage lifecycle ownership. Preserve the deployed `RATE_LIMITER`/`RateLimiter` binding, leaving `WorkspaceHub` unbound and not replaying old migrations. Supply the existing `JWT_SECRET` through the deployment environment, never generate a production replacement. Production plan/deploy require `PROJEKTOR_ACCESS_CONFIRMED=true` after operator review of existing hostname protection. This is not a remote Access check. `plan` is not a build, and Alchemy CLI profile authentication is required even for local commands.
+- **Runtime/deployment split:** use public Alchemy Worker/runtime APIs. Root stack preflight checks the resolved production account, Access confirmation and preserved secret before Worker registration. Runtime-phase Worker props resolve symbolic identity/bindings without deployment configuration or child resource declarations. API and Web share `LocalDatabase` in dev and the existing external production D1 ID; only the API binds KV/R2.
 
 ## Coordination model (read this first)
 
@@ -80,6 +83,7 @@ Design records, implementation plans, and specs belong in the projektor wiki (`c
 In `totto2727-org/projektor`, the maintained [`docs/upstream-differences.md`](https://github.com/totto2727-org/projektor/blob/main/docs/upstream-differences.md) is an explicit exception to the wiki-only rule above.
 It records this source fork's complete differences from its reviewed upstream revision, including already-merged patches, with their purpose, affected areas and operational impact.
 Update it in the same change that adds, alters or removes fork-specific behavior, types, tests, configuration or documentation.
+Keep the immutable fork-point commit separate from the reviewed upstream comparison baseline: an upstream sync may advance the latter but must never rewrite the former.
 Keep deployment-repository differences in their own repositories and do not turn this record into a plan, progress log or task ledger.
 Pull requests for this fork target `totto2727-org/projektor`, never the original upstream repository.
 
@@ -98,13 +102,17 @@ There are **two surfaces** over the same data — a REST API and an MCP (JSON-RP
 They MUST behave identically. The mechanism that guarantees this:
 
 ```
-routes/<domain>.ts   (REST wrapper)  ─┐
-                                       ├─►  services/<domain>.ts   ─►  D1
-mcp/<domain>.ts      (MCP wrapper)   ─┘     (ALL business logic + SQL live here)
+routes/<domain>.ts (REST) ─┐
+                         ├─► apps/api/src/services/<domain>.ts ─► D1 mutations
+mcp/<domain>.ts (MCP) ────┘      │ app validation, authorization, API shaping
+                               ▼
+                    @projektor/data-services ─► D1 reads
+                               ▲
+apps/web server loaders ────────┘ app authorization, UI shaping
 ```
 
 **Rules:**
-1. **All business logic and SQL live in `services/<domain>.ts`.** Routes and MCP tools are thin wrappers — resolve context, call the service, adapt the result/error. No SQL in `routes/` or `mcp/`.
+1. **API business logic, validation, authorization, mutations and response shaping live in `services/<domain>.ts`.** Shared pure DB reads live in `packages/data-services/src/<domain>.ts` and are reused by API services and Web server loaders. Shared queries take explicit DB/scope inputs and app-authored predicates, not HTTP requests, credentials, UI props or authorization decisions. Routes and MCP tools are thin wrappers that resolve context, call the service and adapt the result/error. No SQL in `routes/` or `mcp/`.
 2. **REST and MCP must stay at parity.** If you add or change behavior, do it in the service so *both* surfaces get it. Adding a feature to only one surface is a bug.
 3. **Validation happens inside the service** via a shared Zod schema in `schemas/<domain>.ts` — so REST and MCP are validated identically. Never trust raw `unknown` input in a wrapper.
 4. **Services throw typed errors** from `services/errors.ts` (`ValidationError`, `NotFoundError`, `ForbiddenError`, `ConflictError`). The wrappers translate them:
@@ -180,15 +188,10 @@ Bounded arrays (enums like priority) are fine to bind directly. When in doubt, c
 
 ## Versioning
 
-**`apps/web/package.json` is the single version source** for the whole monorepo -
-bumped by `release-prepare.yml`, tagged by `release-tag.yml`, and read by
-`release.yml`/`scripts/build-release.sh` to produce the release artifact (embedded
-as `VERSION` in the tarball and injected into the MCP `serverInfo.version` via
-esbuild `--define`). Every other `apps/*`/`packages/*` package's `package.json`
-`version` field is a fixed `0.0.0-workspace` placeholder — those packages are
-workspace-internal and not independently released, so their version field is unused
-and intentionally never bumped. `plugins/*` packages carry their own unused
-placeholder versions (e.g. `0.0.0`, `0.0.1`), not `0.0.0-workspace`.
+`apps/web/package.json` preserves the application version `0.7.6` when the former workspace-internal SSR app replaces the Astro frontend.
+It remains the application version source, while internal `apps/api`, `apps/docs` and `packages/*` retain their workspace placeholder versions.
+Keep dependency versions pinned as required by the source-owned Alchemy/Effront integration.
+Do not infer a static release-artifact/deployment contract from the preserved application version or point version automation at the removed app.
 
 ## File layout per domain
 
@@ -196,11 +199,13 @@ When adding/changing a domain (issues, projects, wiki, comments, …):
 
 | File | Role |
 |------|------|
-| `apps/api/src/services/<domain>.ts` | business logic, SQL, validation, typed errors |
+| `apps/api/src/services/<domain>.ts` | app business logic, authorization, mutations, validation, API shaping and query adapters |
 | `apps/api/src/schemas/<domain>.ts` | Zod schemas (single source of truth; shared primitives in `schemas/common.ts`) |
 | `apps/api/src/routes/<domain>.ts` | REST wrapper (mounted in `index.ts`) |
 | `apps/api/src/mcp/<domain>.ts` | MCP tool array (composed in `routes/mcp.ts`) |
 | `apps/api/src/test/<domain>.test.ts` | **domain tests go here** |
+| `packages/data-services/src/<domain>.ts` | shared server-only DB reads, relational projections and typed query errors |
+| `packages/data-services/tests/<domain>.test.ts` | shared query regressions, separate from app authorization and response tests |
 
 **Test convention (don't skip this):** put a domain's tests in its own `<domain>.test.ts`. Do **not** pile MCP tests into the shared `test/mcp.test.ts` — parallel work on multiple domains will collide there on merge. (`mcp.test.ts` is for cross-cutting dispatch behavior only.)
 
@@ -227,107 +232,75 @@ or renamed entity leaves a stale value that will silently cause API 4xx errors.
 
 **Before adding a new `localStorage.setItem` call, ask:**
 1. Does a stale value ever reach an API request? If yes → don't store it; derive it from
-   props or build-time env instead.
+   props or request-resolved runtime context instead.
 2. Does a missing value crash the UI or produce a non-graceful error? If yes → add a
    safe fallback, not localStorage.
 
 Mark safe usages with a `// safe-ls:` comment explaining why (cosmetic, no API dep,
 degrades gracefully). This is the convention established in PR #99.
 
-## Frontend: islands and the API layer
+## Frontend: Effront, request identity and Effect HTTP
 
-All island↔API calls go through `apps/web/src/utils/api-client.ts`:
-- `buildHeaders(workspaceSlug, extra?)` — adds the X-Workspace-Slug header
-- `apiFetch<T>(path, opts)` — wraps fetch with headers, credentials, JSON parse, and error throwing
+`apps/web` is the React/Effront SSR application, not the former Astro/Preact island app.
+The API and frontend share the source-owned Alchemy stack but retain their own execution and authorization boundaries.
+API business logic and mutations stay in `apps/api/src/services/`, with unchanged REST/MCP parity.
+Pure D1 reads are shared through `@projektor/data-services`, with authorization and UI/API shaping retained in each app.
 
-No raw `fetch(` calls in island components. No local `buildHeaders` copies.
-This mirrors the backend service-layer contract: routes are thin wrappers; islands are thin callers.
+- Resolve the authenticated user, workspace and project in request-local server scope before loading protected page data. Do not guess a tenant from the hostname or `PUBLIC_WORKSPACE_SLUG`, pick the first project, or retain identity in a cross-request module store.
+- `apps/web/src/request.ts` owns request-local services and caches; `apps/web/src/server/api-client.ts` builds Effect `HttpClientRequest` values. HTTP operations decode concrete DTOs with `HttpClientResponse.schemaBodyJson` inside `Effect.scoped`. Provide the HTTP layer only at application/Worker execution boundaries, not inside domain loaders.
+- `/auth/me` remains the API credential verifier. Web direct-read scope rejects bearer-token requests and the shared public viewer rather than bypassing token restrictions. `server/data-context.ts` enforces authenticated workspace membership and project visibility before shared reads, scopes queries and hides query diagnostics. Do not treat a DB binding or frontend selection as authorization. Privileged metadata stays app-authorized and redacted.
+- The HTTP layer uses the Alchemy-provided `API` Worker service binding via `fromCloudflareFetcher` and `toHttpClient`. Forward the actual user credential only to that trusted API, with a configured logical API URL and `X-Workspace-Slug` for scoped requests. Do not replace native service-binding transport with public network fetch or let arbitrary URLs carry credentials. Frontend context selection never replaces backend authorization.
+- Protected domain reads use named shared DB queries on the server. Authentication, public-share and other retained HTTP operations stay narrowly scoped. Mutations use native Effront actions/server functions and HTTP through the API service binding; the browser has no direct API fetch path and never receives DB access.
+- Server page loaders prepare canonical initial DTOs. Client components receive serializable props, not a `Request`, environment, API client or server scope.
+- Use native GET forms and URL tabs for filters and navigation, native `useActionState` for simple actions, and TanStack Form with Effect Standard Schema validation for stateful forms. Literal Effront `ServerFn.make` operations validate and authorize independently.
+- Let Effront own routing, Back/Forward and action-driven canonical refresh. Do not add a generic client HTTP dispatcher, custom router, refresh bus or replacement canonical store.
+- Authentication changes use native document forms so the old identity's runtime is discarded. File GET/HEAD transport is narrowly scoped, not a generic API proxy. HTML and Flight responses remain private.
+- Keep persisted timestamp labels deterministic and explicitly UTC across SSR/hydration. Client width measurement must not cause project tabs to widen the initial mobile document.
+- Attachments use native Effront transport. Its 10 MiB total request cap includes multipart overhead, while the backend's existing 50 MiB policy remains unchanged. Do not bypass the framework limit.
 
-## Frontend: project identity (`apps/web/src/lib/project-context.ts`)
+React/Effront ports the product surfaces with a similar UI rather than requiring exact legacy DOM/CSS parity.
+Use the 22 maintained shadcn `4.21.1` `base-nova` components in `components/generated/`, built on Base UI, for shared controls; keep product-specific adaptation in app components.
+Each generated component records its intentional `cn` utility import alias change to `@/lib/utils` in a per-file note. Document any further intentional generated-source change and its purpose; mechanical lint/format changes are not product customization.
+Dynamic user-authored Markdown uses runtime Comark `0.6.2` with its Markdown parser defaults and the mdts-style footnotes, math, Mermaid, Shiki and TOC plugins, plus scoped wiki links, not Effront's static Markdown compilation path.
+`components/markdown/render.ts` creates a parser per render and sanitizes final authored and plugin-produced HTML/SVG with an explicit tag/attribute/style/URL allowlist. Treat user HTML as untrusted; do not move security handling into navigation or API loading.
 
-Islands are separate `client:load` roots (each its own Preact tree), so Preact context can't
-cross between them. Project identity instead lives in a module-level `@preact/signals` store:
-`currentProject`, `projectsList`, `projectError`, `projectReady`. Module state survives Astro's
-`ClientRouter` navigations, so whichever island resolves first writes it and every sibling
-island, plus the next in-app navigation, reads it without a refetch.
+`?projectId=` identifies a project, while `?id=` identifies a page entity such as an issue.
+Retain workspace/project scope in shareable navigation without assuming browser-global project signals survive.
+Named views may use user/workspace/project-scoped per-tab sessionStorage, not entity-bearing cosmetic localStorage.
 
-Islands call `ensureProjectResolved(workspaceSlug, urlHint?, matches?)` (or the `useCurrentProject`
-hook) instead of parsing `?projectId=`/`?id=` or fetching `/api/projects` themselves. Resolution
-persists the resolved id back to the address bar via `history.replaceState` (see
-`resolve-project-id.ts`'s `persistProjectId`), so copied URLs stay shareable. This is the only
-`@preact/signals` usage in the codebase and the only module-level store pattern for cross-island
-state — reach for it, don't invent a second one, before adding a new island that needs project
-identity.
+## Dev workflow and validation
 
-The identity param is a boundary concern, not a transport mechanism: links between pages that
-stay within the resolved project (`ProjectNav`'s tabs, in-app links to a project's own issues,
-wiki pages, etc.) carry no project param at all — the store survives the `ClientRouter`
-navigation those `<a>` tags trigger, so the destination resolves instantly with no refetch.
-`?projectId=` (the project UUID) is written only where identity actually crosses a boundary: the
-cold-start entry point (`ProjectList`'s project cards), a full non-SPA reload
-(`window.location.href` assignments, which drop all in-memory state), or an explicit project
-switch. `?id=` is reserved for a page's own entity (an issue on `/issues/view`, for example) and
-is never used for project identity in newly-written links — the resolver still accepts it (along
-with `?project=`) on read, for backward compatibility with existing shared URLs.
-
-## Dev workflow
+Use the root `justfile` for task entry points and inspect available recipes with `just --list`.
 
 ```bash
-pnpm install
-pnpm turbo type-check                  # tsc --noEmit across the monorepo
-pnpm --filter @projektor/api test      # vitest against an in-process Worker + D1
-
-# One-time local API secrets so the browser frontend can auth without Cloudflare Access:
-cp apps/api/.dev.vars.example apps/api/.dev.vars   # DEV_USER_EMAIL + BOOTSTRAP_SECRET
-# The browser selects workspace from runtime project/membership data, not an env var.
-
-pnpm dev                               # local dev - API on :8787, web on :4321
-# `dev` auto-applies D1 migrations to the local Miniflare DB first (db:migrate:local),
-# so /api/* won't 500 with "no such table" on a fresh checkout.
+just dev
+just plan
+just deploy
 ```
 
-`GET /bootstrap` (non-prod only, needs `BOOTSTRAP_SECRET`) seeds a workspace + user + token
-+ membership in one shot and prints the `claude mcp add ...` command to connect an agent. Seed it once:
+These wrap the source-owned Alchemy CLI workflow, not a config-only deploy example.
+`just deploy` mutates Cloudflare and must remain an explicit operator action.
+`just plan` is not a standalone build, and Alchemy `2.0.0-beta.79` has no standalone build CLI.
+The CLI requires an authenticated Alchemy profile even for local development or planning, so these commands are not an offline smoke-test guarantee.
+Supply the deployment configuration and preserved secrets required by the stack before starting it.
+Local non-production API bootstrap and `DEV_USER_EMAIL` remain backend capabilities, not an excuse to weaken production Access enforcement or to bypass MCP authentication.
 
-```bash
-curl -H "X-Bootstrap-Secret: localdev" http://127.0.0.1:8787/bootstrap
-```
+VitePlus provides the integrated task runner, Oxlint/Oxfmt checks, type checking and test entry points.
+Run `just check`, `just test` and `just format` for the maintained local checks, and `pnpm gen:docs` for generated documentation.
+`pnpm build` currently builds the retained documentation package, not an Alchemy Worker artifact.
+The `just e2e` recipe uses the official local runtime host for the real Worker graph, which is separate from the authenticated Alchemy CLI path.
+The only active GitHub workflow is `.github/workflows/ci.yml`, running `pnpm exec vp run ci` after a frozen install. Root `vite.config.ts` limits CI format and typed lint to API/Web, DB/data-services/types, `infra/`, `alchemy.run.ts` and core configuration, and runs API/Web/DB/data-services tests plus `test:infra` configuration regressions. It does not run docs generation/builds, plugin tasks, browser E2E or deployments. `just check` uses the same `ci:check` typed-lint and `ci:format` tasks; `just test` runs `test:packages`, including infra tests. The broader root `type-check` script still exists for optional docs/plugin maintenance, but is not the `just check` or CI contract.
+Use repository tasks rather than reinstating Turbo, Biome, Lefthook or direct standalone tool orchestration.
+API TypeScript `6.0.3` is retained only as a library for existing AST architecture tests, not as a `tsc` CLI/check script. Workspace overrides pin TypeScript `6.0.3` and Node types `24.13.3` to keep peer type identity consistent across the Vite integration.
+The Astro documentation site remains supported through its package tasks.
+Generated documentation, including this conventions mirror, must remain fresh even though minimal CI does not enforce generation. Regenerate only this mirror with `corepack pnpm exec tsx scripts/gen-conventions-page.ts` when changing AGENTS.md; `pnpm gen:docs` also regenerates other documentation.
+CI is the merge gate, and successful lint/type/test checks do not establish production deployment or all-feature browser acceptance.
+Production/preview deployment automation is not implemented in CI. Its separate follow-up is [TOT-252](https://linear.app/totto2727/issue/TOT-252/projektor-alchemy本番プレビューデプロイのgithub-actionsを整備).
 
-Then open **http://localhost:4321** — with `DEV_USER_EMAIL` set, the dev auth bypass logs you in
-as that user (a member of the seeded `projektor` workspace), and the islands load real data.
-
-**Before opening a PR:** `pnpm lint`, `pnpm turbo type-check`, `pnpm --filter @projektor/db test`, `pnpm --filter @projektor/api test:coverage`, `pnpm --filter @projektor/web test:coverage`, `pnpm --filter @projektor/web build`, and `pnpm --filter @projektor/docs build` must all be green, and `pnpm gen:docs` must produce no diff. CI runs these plus the island API and design system convention checks (`.github/workflows/ci.yml`).
-
-## E2E testing (`apps/web/e2e`, Playwright)
-
-Targets a **deployed dev instance** (`E2E_BASE_URL`), not local dev — see `apps/web/e2e/README.md` for the full setup, fixtures, and per-spec breakdown. Not run in CI (no live deployment there); run manually or on a schedule.
-
-Three projects, pick the narrowest one that answers your question:
-- `desktop` — default viewport, Chromium.
-- `mobile` — 375×812 viewport via Chromium's mobile emulation. Fast, good for layout/CSS regressions.
-- `mobile-webkit` — real WebKit engine (`devices["iPhone 13"]`). Reach for this specifically when investigating iOS Safari engine-level behavior that Chromium can't reproduce (visual-viewport/on-screen-keyboard resize events, `position: fixed` under scroll, etc.) — it caught the PROJ-397/PROJ-566 class of mobile-modal bugs. Still not a substitute for a real device: no Safari chrome, no PWA install/Add-to-Home-Screen coverage.
-
-```bash
-pnpm --filter @projektor/web exec playwright test --project=mobile-webkit
-```
-
-## Git hooks (lefthook)
-
-`pnpm install` runs `prepare`, which calls `lefthook install` and wires one hook:
-
-- **pre-commit** — `pnpm turbo type-check` (fast; leverages turbo's cache, near-instant on unchanged packages) and `pnpm biome check --changed --no-errors-on-unmatched` (lint, changed files only).
-
-There is deliberately no `pre-push` hook — CI (`.github/workflows/ci.yml`) is the authoritative gate before merge (main is PR-protected; direct pushes are rejected), so a local pre-push copy of the same checks was pure redundant overhead. It was also a source of real bugs: under concurrent local load its test step could fail while a backgrounded `git push` still reported exit code 0, masking a rejected push. It was removed for these reasons; don't re-add one without addressing both.
-
-CI runs a superset of the pre-commit checks: the generated-docs freshness check, `pnpm lint`, `pnpm turbo type-check`, `pnpm --filter @projektor/db test`, coverage-enforced test runs for `@projektor/api` and `@projektor/web`, and both the web and docs builds. New contributors get the pre-commit hook automatically after `pnpm install`. See **Before opening a PR** above for the full local command set to run before pushing.
-
-**Bypass for WIP commits:** pass `--no-verify` (or `-n`) to git:
-
-```bash
-git commit --no-verify -m "wip: …"
-```
-
-Agent workers should also use `--no-verify` for intermediate commits; run the full checks (listed under "Before opening a PR" above) before opening a PR.
+Browser verification must use the real Effront RSC/nested SSR Worker and API with a stable artifact.
+Check cold identity resolution, workspace/project switches, permission failures, native forms, URL filters/tabs, Back/Forward, action-driven refresh, attachments and authentication transitions.
+The removed Astro app's Playwright suite and island checks are historical, not a current `apps/web/e2e` contract.
+Do not claim newly completed browser acceptance from tests or measurements on the prior standalone SSR snapshot.
 
 ## Fleet coordination protocol
 
@@ -430,24 +403,12 @@ These are the constraints the fleet skill reads to plan batches. Keep them curre
 | flow-metrics | `services/flow-metrics.ts` | `schemas/flow-metrics.ts` | `routes/flow-metrics.ts` | `mcp/flow-metrics.ts` | `test/flow-metrics.test.ts` |
 | groups | `services/groups.ts` | `schemas/groups.ts` | `routes/groups.ts` | `mcp/groups.ts` | `test/groups.test.ts` |
 
-Frontend islands are **not** domain-locked in the same way, but two agents must never
-own the same island file. Assign each island to exactly one agent per batch.
+Frontend components are **not** domain-locked in the same way, but two agents must never own the same component file.
+Assign each component to exactly one agent per batch.
 
-**Deploy:** tag a release (`git tag vX.Y.Z && git push --tags`) — `release.yml`
-builds the artifact and the config-only deploy repo (`projektor-deploy-example`) picks
-it up. See the [deploy guide](https://tajd.github.io/projektor/guides/deploying/).
+**Deploy:** use `just plan` to inspect the source-owned Alchemy stack and `just deploy` only for an explicitly authorized deployment. Preserve production names, bindings and existing secrets. See the [deploy guide](https://tajd.github.io/projektor/guides/deploying/).
 
-**CI commands** (must all pass before opening a PR):
-```bash
-pnpm gen:docs   # must produce no diff
-pnpm lint
-pnpm turbo type-check
-pnpm --filter @projektor/db test
-pnpm --filter @projektor/api test:coverage
-pnpm --filter @projektor/web test:coverage
-pnpm --filter @projektor/web build
-pnpm --filter @projektor/docs build
-```
+**CI:** `.github/workflows/ci.yml` runs root `vp run ci` for core/infra format and typed lint, API/Web/DB/data-services tests and native Alchemy configuration regressions only. Generated docs must remain fresh through manual generation, but docs/plugin pipelines, docs builds, E2E and deploy jobs are not CI gates. Do not restore Turbo/Biome/Lefthook, legacy island checks or static-release build commands against the replaced frontend.
 
 **Merge ordering rule:** if two agents both touch the same frontend file (e.g.
 `IssueList.tsx`), assign one as "primary" and one as "secondary". Primary merges
@@ -468,8 +429,7 @@ claude mcp add --transport http --header "Authorization: Bearer <token>" \
 **The full tool list is generated from source — do not hand-maintain a copy here.**
 See the **[MCP tool catalog](https://tajd.github.io/projektor/agents/tool-catalog/)**
 (generated into `apps/docs/src/content/docs/agents/tool-catalog.md` by
-`apps/api/scripts/gen-mcp-catalog.ts` from `apps/api/src/mcp/*.ts`; CI fails if it is
-stale). The grouping there separates **Coordination** tools (the agent-native primitives
+`apps/api/scripts/gen-mcp-catalog.ts` from `apps/api/src/mcp/*.ts`; regenerate it when changing tools even though minimal CI does not check freshness). The grouping there separates **Coordination** tools (the agent-native primitives
 used by the fleet protocol above) from **Project data** tools.
 
 **Tip:** `get_issue` accepts `ref: "PROJ-42"` (project key + number) — you don't need the UUID when you have the display key.

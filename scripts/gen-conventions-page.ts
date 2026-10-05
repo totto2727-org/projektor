@@ -3,8 +3,8 @@
  * apps/docs/src/content/docs/contributing/conventions.md.
  *
  * AGENTS.md is the source of truth - this script only prepends Starlight
- * frontmatter + a mirror note and writes the rest verbatim. CI fails if the
- * committed page has drifted from AGENTS.md (see .github/workflows/ci.yml).
+ * frontmatter + a mirror note and writes the rest verbatim. Regenerate it when
+ * AGENTS.md changes. The minimal runtime CI does not check docs freshness.
  *
  *   tsx scripts/gen-conventions-page.ts
  */
