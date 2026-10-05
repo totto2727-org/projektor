@@ -11,7 +11,7 @@ export async function set<T>(
 	kv: KVNamespace,
 	key: string,
 	value: T,
-	ttlSeconds: number
+	ttlSeconds: number,
 ): Promise<void> {
 	try {
 		await kv.put(key, JSON.stringify(value), { expirationTtl: ttlSeconds });
@@ -26,7 +26,7 @@ export async function invalidate(kv: KVNamespace, key: string): Promise<void> {
 	} catch (err) {
 		console.error(
 			`[cache] invalidate failed for key "${key}", entry may be stale until TTL expiry:`,
-			err
+			err,
 		);
 	}
 }

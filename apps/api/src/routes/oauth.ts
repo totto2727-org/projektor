@@ -128,7 +128,7 @@ function consentHtml(
 	title: string,
 	body: string,
 	status: 200 | 400 | 403 | 500 = 200,
-	redirectUri?: string
+	redirectUri?: string,
 ) {
 	return c.html(page(title, body), status, {
 		...CONSENT_HEADERS,
@@ -141,7 +141,7 @@ function errorPage(c: Context<HonoEnv>, status: 400 | 403 | 500, heading: string
 		c,
 		heading,
 		`<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(detail)}</p>`,
-		status
+		status,
 	);
 }
 
@@ -229,7 +229,7 @@ oauthRouter.get("/authorize", async (c) => {
 			c,
 			400,
 			"Unknown application",
-			`The application could not be verified: ${String(err)}`
+			`The application could not be verified: ${String(err)}`,
 		);
 	}
 
@@ -245,7 +245,7 @@ oauthRouter.get("/authorize", async (c) => {
 				redirectUri: authRequest.redirectUri,
 				state: authRequest.state,
 				issuer: authRequest.issuer,
-			})
+			}),
 		);
 	}
 
@@ -256,7 +256,7 @@ oauthRouter.get("/authorize", async (c) => {
 			c,
 			400,
 			"Unknown application",
-			"This application is not registered with projektor."
+			"This application is not registered with projektor.",
 		);
 	}
 
@@ -269,13 +269,13 @@ oauthRouter.get("/authorize", async (c) => {
 			c,
 			403,
 			"Workspace unavailable",
-			"That workspace does not exist, or you are not a member of it."
+			"That workspace does not exist, or you are not a member of it.",
 		);
 	}
 
 	const token = await signConsentToken(
 		{ userId: user.id, workspaceId: workspace.id, scopes: consent.scopes, authRequest },
-		signingKey
+		signingKey,
 	);
 
 	const host = relyingPartyHost(authRequest.clientId);
@@ -309,7 +309,7 @@ oauthRouter.get("/authorize", async (c) => {
        <p class="meta">Verified identity: <strong>${escapeHtml(host)}</strong>. The
        application's name is self-declared; the address above is not.</p>`,
 		200,
-		authRequest.redirectUri
+		authRequest.redirectUri,
 	);
 });
 
@@ -328,7 +328,7 @@ oauthRouter.post("/authorize", async (c) => {
 			c,
 			400,
 			"This request has expired",
-			"Start the connection again from the application."
+			"Start the connection again from the application.",
 		);
 	}
 
@@ -344,7 +344,7 @@ oauthRouter.post("/authorize", async (c) => {
 				redirectUri: payload.authRequest.redirectUri,
 				state: payload.authRequest.state,
 				issuer: payload.authRequest.issuer,
-			})
+			}),
 		);
 	}
 

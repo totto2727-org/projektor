@@ -44,7 +44,7 @@ export const workspaceMembers = sqliteTable(
 	},
 	(t) => ({
 		pk: primaryKey({ columns: [t.workspaceId, t.userId] }),
-	})
+	}),
 );
 
 // PROJ-436: a durable record that an owner explicitly removed this user from this
@@ -63,7 +63,7 @@ export const provisioningRemovals = sqliteTable(
 	},
 	(t) => ({
 		pk: primaryKey({ columns: [t.workspaceId, t.userId] }),
-	})
+	}),
 );
 
 export const apiTokens = sqliteTable("api_tokens", {
@@ -94,5 +94,5 @@ export const enabledPlugins = sqliteTable(
 	},
 	(t) => ({
 		pk: primaryKey({ columns: [t.workspaceId, t.pluginId] }),
-	})
+	}),
 );

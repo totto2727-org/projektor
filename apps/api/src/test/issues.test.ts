@@ -23,7 +23,7 @@ async function callMcpTool(
 	workspaceId: string,
 	token: string,
 	slug: string,
-	params: unknown
+	params: unknown,
 ): Promise<{
 	result?: { content: Array<{ text: string }> };
 	error?: { code?: number; message: string };
@@ -360,7 +360,7 @@ describe("Issues API", () => {
 		expect(first.nextCursor).not.toBeNull();
 
 		const { page: second } = await listIssues(
-			`http://localhost/api/issues?limit=2&cursor=${first.nextCursor}`
+			`http://localhost/api/issues?limit=2&cursor=${first.nextCursor}`,
 		);
 		expect(second.items).toHaveLength(1);
 		expect(second.nextCursor).toBeNull();
@@ -381,7 +381,7 @@ describe("Issues API", () => {
 		expect(first.nextCursor).not.toBeNull();
 
 		const { page: second } = await listIssues(
-			`http://localhost/api/issues?cursor=${first.nextCursor}`
+			`http://localhost/api/issues?cursor=${first.nextCursor}`,
 		);
 		expect(second.items).toHaveLength(5);
 		expect(second.nextCursor).toBeNull();
@@ -404,7 +404,7 @@ describe("Issues API", () => {
 
 		// PROJ-857: later pages skip the COUNT(*) — the client keeps the first page's total.
 		const { page: second } = await listIssues(
-			`http://localhost/api/issues?cursor=${first.nextCursor}`
+			`http://localhost/api/issues?cursor=${first.nextCursor}`,
 		);
 		expect(second.total).toBeNull();
 		expect(second.items).toHaveLength(5);
@@ -445,11 +445,11 @@ describe("Issues API", () => {
 
 		// With projectId: all 10 project-scoped issues come back regardless of workspace age
 		const { page: scoped } = await listIssues(
-			`http://localhost/api/issues?project=${projectId}&limit=100`
+			`http://localhost/api/issues?project=${projectId}&limit=100`,
 		);
 		expect(scoped.items).toHaveLength(10);
 		expect(
-			scoped.items.every((i) => (i as { title: string }).title.startsWith("Older issue"))
+			scoped.items.every((i) => (i as { title: string }).title.startsWith("Older issue")),
 		).toBe(true);
 	}, 15000); // PROJ-248: seeds 65 issues sequentially; full-suite contention pushes this past the 5s default
 
@@ -498,7 +498,7 @@ describe("Issues API", () => {
 
 		const commentsRes = await SELF.fetch(
 			`http://localhost/api/issues/WEB2-${created.number}/comments`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(commentsRes.status).toBe(200);
 
@@ -623,7 +623,7 @@ describe("Issues API", () => {
 			`http://localhost/api/issues/search?q=shared-term&projectId=${projectId}`,
 			{
 				headers: authHeaders(token, slug),
-			}
+			},
 		);
 		const results = (await res.json()) as Array<{ title: string }>;
 		expect(results).toHaveLength(1);
@@ -1168,10 +1168,10 @@ describe("Issues API", () => {
 
 	// ─── PROJ-252: flow timestamps (ready_at/claimed_at/done_at) ──────────────
 	async function flowTimestampsOf(
-		id: string
+		id: string,
 	): Promise<{ ready_at: number | null; claimed_at: number | null; done_at: number | null }> {
 		const row = await env.DB.prepare(
-			"SELECT ready_at, claimed_at, done_at FROM issues WHERE id = ?"
+			"SELECT ready_at, claimed_at, done_at FROM issues WHERE id = ?",
 		)
 			.bind(id)
 			.first<{ ready_at: number | null; claimed_at: number | null; done_at: number | null }>();
@@ -1221,10 +1221,10 @@ describe("Issues API", () => {
 
 	// ─── PROJ-328: in_review_at + review_bounce_count ──────────────
 	async function reviewFieldsOf(
-		id: string
+		id: string,
 	): Promise<{ in_review_at: number | null; review_bounce_count: number }> {
 		const row = await env.DB.prepare(
-			"SELECT in_review_at, review_bounce_count FROM issues WHERE id = ?"
+			"SELECT in_review_at, review_bounce_count FROM issues WHERE id = ?",
 		)
 			.bind(id)
 			.first<{ in_review_at: number | null; review_bounce_count: number }>();
@@ -1268,7 +1268,7 @@ describe("Issues API", () => {
 	// ─── PROJ-334: gate rejections (in_review -> in_progress specifically) ──────
 	async function gateRejectionCountOf(id: string): Promise<number> {
 		const row = await env.DB.prepare(
-			"SELECT COUNT(*) as n FROM issue_gate_rejections WHERE issue_id = ?"
+			"SELECT COUNT(*) as n FROM issue_gate_rejections WHERE issue_id = ?",
 		)
 			.bind(id)
 			.first<{ n: number }>();
@@ -1754,7 +1754,7 @@ describe("Issues KV cache", () => {
 			`INSERT INTO issues (id, workspace_id, project_id, number, title, status, priority, labels,
 			   parent_id, created_by_id, created_at, updated_at)
 			 SELECT ?, workspace_id, project_id, number + 1000, 'sneaky child', 'todo', 'none', '[]',
-			   id, created_by_id, created_at, updated_at FROM issues WHERE id = ?`
+			   id, created_by_id, created_at, updated_at FROM issues WHERE id = ?`,
 		)
 			.bind(crypto.randomUUID(), id)
 			.run();
@@ -1850,7 +1850,7 @@ describe("Issues KV cache", () => {
 			`INSERT INTO issues (id, workspace_id, project_id, number, title, status, priority, labels,
 			   parent_id, created_by_id, created_at, updated_at)
 			 SELECT ?, workspace_id, project_id, number + 1000, 'sneaky child', 'todo', 'none', '[]',
-			   id, created_by_id, created_at, updated_at FROM issues WHERE id = ?`
+			   id, created_by_id, created_at, updated_at FROM issues WHERE id = ?`,
 		)
 			.bind(crypto.randomUUID(), id)
 			.run();
@@ -2072,7 +2072,7 @@ describe("get_prioritized_issues MCP tool", () => {
 					"## Verification",
 					"`pnpm test`",
 				].join("\n"),
-				ready.id
+				ready.id,
 			)
 			.run();
 		await seedIssue(workspaceId, projectId, userId, { title: "Not ready" });
@@ -2095,7 +2095,7 @@ describe("get_prioritized_issues MCP tool", () => {
 		const notReadyRow = data.issues.find((i) => i.title === "Not ready");
 		expect(notReadyRow?.needsGrooming).toBe(true);
 		expect(notReadyRow?.missingCriteria).toEqual(
-			expect.arrayContaining(["acceptance criteria", "scope/files"])
+			expect.arrayContaining(["acceptance criteria", "scope/files"]),
 		);
 		const readyRow = data.issues.find((i) => i.title === "Ready");
 		expect(readyRow?.needsGrooming).toBeUndefined();
@@ -2386,13 +2386,13 @@ describe("PROJ-713 — write tools resolve refs/keys server-side", () => {
 			{
 				name: "update_issue",
 				arguments: { id: mine.id, parentId: crypto.randomUUID() },
-			}
+			},
 		);
 		const invisibleRes = await callMcpTool(
 			roles.workspace.id,
 			roles.member.token,
 			roles.workspace.slug,
-			{ name: "update_issue", arguments: { id: mine.id, parentId: hidden.id } }
+			{ name: "update_issue", arguments: { id: mine.id, parentId: hidden.id } },
 		);
 
 		expect(missingRes.error).toBeUndefined();
@@ -2416,13 +2416,13 @@ describe("PROJ-713 — write tools resolve refs/keys server-side", () => {
 			roles.workspace.id,
 			roles.member.token,
 			roles.workspace.slug,
-			{ name: "list_issues", arguments: { projectId: "NOPE" } }
+			{ name: "list_issues", arguments: { projectId: "NOPE" } },
 		);
 		const invisibleRes = await callMcpTool(
 			roles.workspace.id,
 			roles.member.token,
 			roles.workspace.slug,
-			{ name: "list_issues", arguments: { projectId: "HIDE" } }
+			{ name: "list_issues", arguments: { projectId: "HIDE" } },
 		);
 
 		expect(nonexistentRes.error).toBeUndefined();
@@ -2820,7 +2820,7 @@ describe("PROJ-931 — compact MCP responses", () => {
 		for (const name of ["get_issue", "list_issues", "get_issues"]) {
 			const tool = issuesTools.find((t) => t.name === name);
 			expect(tool?.description).toContain(
-				"Omitted keys are null/empty/false; pass verbose:true for the raw shape."
+				"Omitted keys are null/empty/false; pass verbose:true for the raw shape.",
 			);
 		}
 	});
@@ -2938,7 +2938,7 @@ describe("PROJ-931 — compact MCP responses", () => {
 		const gone = `${key}-999999`;
 		const res = await SELF.fetch(
 			`http://localhost/api/issues/batch?refs=${encodeURIComponent(`${gone}, ${key}-${a.number}`)}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const data = (await res.json()) as { items: Array<{ id: string }>; missing: string[] };
@@ -2982,7 +2982,7 @@ describe("PROJ-931 — get_issues project visibility", () => {
 
 		const rest = await SELF.fetch(
 			`http://localhost/api/issues/batch?refs=${hiddenRef},${visibleRef}&ids=${hidden.id}`,
-			{ headers: authHeaders(roles.member.token, roles.workspace.slug) }
+			{ headers: authHeaders(roles.member.token, roles.workspace.slug) },
 		);
 		const restData = (await rest.json()) as { items: Array<{ id: string }>; missing: string[] };
 		expect(restData.items.map((i) => i.id)).toEqual([visible.id]);

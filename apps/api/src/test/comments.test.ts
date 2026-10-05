@@ -18,7 +18,7 @@ async function mcpCall<T>(
 	workspaceId: string,
 	method: string,
 	params: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -215,7 +215,7 @@ describe("Comments MCP cross-workspace security", () => {
 			wsA.workspace.id,
 			"tools/call",
 			{ name: "add_comment", arguments: { issueId: victimIssueId, body: "Injected comment" } },
-			authHeaders(wsA.token, wsA.workspace.slug)
+			authHeaders(wsA.token, wsA.workspace.slug),
 		)) as JsonRpcError;
 
 		expect(res.error).toBeUndefined();
@@ -246,7 +246,7 @@ describe("Comments MCP cross-workspace security", () => {
 			wsA.workspace.id,
 			"tools/call",
 			{ name: "list_comments", arguments: { issueId: victimIssueId } },
-			authHeaders(wsA.token, wsA.workspace.slug)
+			authHeaders(wsA.token, wsA.workspace.slug),
 		)) as JsonRpcError;
 
 		expect(res.error).toBeUndefined();

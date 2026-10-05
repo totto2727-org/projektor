@@ -51,7 +51,7 @@ describe("RFC 9728 protected resource metadata", () => {
 		// so an unknown id gets the same 200 as a real one; the id is rejected later,
 		// at the MCP request itself, behind authentication.
 		const res = await SELF.fetch(
-			`${HOST}/.well-known/oauth-protected-resource/mcp/00000000-0000-0000-0000-000000000000`
+			`${HOST}/.well-known/oauth-protected-resource/mcp/00000000-0000-0000-0000-000000000000`,
 		);
 		expect(res.status).toBe(200);
 

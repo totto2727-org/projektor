@@ -1,3 +1,5 @@
+import * as attachmentData from "@projektor/data-services/files";
+import { Effect } from "effect";
 import { wikiPagePath } from "../lib/urls";
 import {
 	CreateLinkAttachmentSchema,
@@ -66,7 +68,7 @@ function ownerVisibleFilter(ctx: ServiceCtx): { sql: string; params: unknown[] }
 async function assertEntityWritable(
 	ctx: ServiceCtx,
 	entityType: "issue" | "wiki_page",
-	entityId: string
+	entityId: string,
 ): Promise<void> {
 	const table = entityType === "issue" ? "issues" : "wiki_pages";
 	const row = await ctx.db
@@ -113,37 +115,18 @@ const ALLOWED_UPLOAD_TYPES = new Set([
 	"application/json",
 ]);
 
-interface AttachmentRow {
-	id: string;
-	kind: "file" | "wiki_ref" | "url";
-	filename: string;
-	content_type: string;
-	size: number;
-	url: string | null;
-	created_at: number;
-	wiki_page_id: string | null;
-	wiki_page_slug: string | null;
-	wiki_page_title: string | null;
-	wiki_page_project_id: string | null;
-}
-
-function toDto(r: AttachmentRow): AttachmentDto {
+function toDto(r: attachmentData.AttachmentMetadata): AttachmentDto {
 	return {
 		id: r.id,
 		kind: r.kind,
 		filename: r.filename,
-		contentType: r.content_type,
+		contentType: r.contentType,
 		size: r.size,
 		url: r.url,
-		createdAt: r.created_at,
-		wikiPage:
-			r.kind === "wiki_ref" && r.wiki_page_id
-				? {
-						id: r.wiki_page_id,
-						title: r.wiki_page_title,
-						url: wikiPagePath(r.wiki_page_slug ?? ""),
-					}
-				: null,
+		createdAt: r.createdAt,
+		wikiPage: r.wikiPage
+			? { id: r.wikiPage.id, title: r.wikiPage.title, url: wikiPagePath(r.wikiPage.slug ?? "") }
+			: null,
 	};
 }
 
@@ -158,38 +141,21 @@ export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<
 	// deleted page — the row still lists as an unavailable wiki_ref rather than leaking
 	// the restricted page's title.
 	const visible = visibleProjectSqlFragment(ctx, "w.project_id");
-	const joinCond = visible
-		? `w.id = a.linked_wiki_page_id AND w.deleted_at IS NULL AND (w.project_id IS NULL OR ${visible.sql})`
-		: "w.id = a.linked_wiki_page_id AND w.deleted_at IS NULL";
-
 	const owner = ownerVisibleFilter(ctx);
-
-	const rows = await ctx.db
-		.prepare(
-			`SELECT a.id, a.kind, a.filename, a.content_type, a.size, a.url, a.created_at,
-	            w.id AS wiki_page_id, w.slug AS wiki_page_slug, w.title AS wiki_page_title,
-	            w.project_id AS wiki_page_project_id
-	     FROM attachments a
-	     LEFT JOIN wiki_pages w ON ${joinCond}
-	     WHERE a.workspace_id = ? AND a.entity_type = ? AND a.entity_id = ?
-	       ${owner ? `AND ${owner.sql}` : ""}
-	     ORDER BY a.created_at ASC`
-		)
-		.bind(
-			...(visible ? visible.params : []),
-			ctx.workspaceId,
+	const rows = await Effect.runPromise(
+		attachmentData.listAttachments(ctx.db, ctx.workspaceId, {
 			entityType,
 			entityId,
-			...(owner ? owner.params : [])
-		)
-		.all<AttachmentRow>();
-
-	return (rows.results ?? []).map(toDto);
+			linkedWikiVisibility: visible,
+			ownerVisibility: owner,
+		}),
+	);
+	return rows.map(toDto);
 }
 
 export async function createLinkAttachment(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<{ id: string; kind: "wiki_ref" | "url" }> {
 	const parsed = CreateLinkAttachmentSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
@@ -212,7 +178,7 @@ export async function createLinkAttachment(
 			`INSERT INTO attachments
 	       (id, workspace_id, kind, r2_key, filename, content_type, size, url, linked_wiki_page_id,
 	        entity_type, entity_id, created_by_id, created_at)
-	     VALUES (?, ?, ?, '', ?, '', 0, ?, ?, ?, ?, ?, ?)`
+	     VALUES (?, ?, ?, '', ?, '', 0, ?, ?, ?, ?, ?, ?)`,
 		)
 		.bind(
 			id,
@@ -224,7 +190,7 @@ export async function createLinkAttachment(
 			data.entityType,
 			data.entityId,
 			ctx.userId,
-			now
+			now,
 		)
 		.run();
 
@@ -251,7 +217,7 @@ async function workspaceStorageUsageBytes(ctx: ServiceCtx): Promise<number> {
 /** Validates size/type/quota for a would-be upload; throws the matching typed error. */
 export async function assertUploadAllowed(
 	ctx: ServiceCtx,
-	params: Readonly<{ size: number; contentType: string; quotaBytes?: number }>
+	params: Readonly<{ size: number; contentType: string; quotaBytes?: number }>,
 ): Promise<void> {
 	if (params.size > MAX_UPLOAD_SIZE) {
 		throw new PayloadTooLargeError("File too large (max 50 MB)");
@@ -284,7 +250,7 @@ export async function recordUpload(ctx: ServiceCtx, input: unknown): Promise<{ i
 		.prepare(
 			`INSERT INTO attachments
 	       (id, workspace_id, r2_key, filename, content_type, size, entity_type, entity_id, created_by_id, created_at)
-	     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		)
 		.bind(
 			id,
@@ -296,7 +262,7 @@ export async function recordUpload(ctx: ServiceCtx, input: unknown): Promise<{ i
 			entityType,
 			entityId,
 			ctx.userId,
-			now
+			now,
 		)
 		.run();
 
@@ -306,14 +272,14 @@ export async function recordUpload(ctx: ServiceCtx, input: unknown): Promise<{ i
 /** Metadata needed to stream an attachment's bytes back; the route owns the actual R2 read. */
 export async function getAttachmentForDownload(
 	ctx: ServiceCtx,
-	id: string
+	id: string,
 ): Promise<{ r2Key: string; filename: string; contentType: string }> {
 	const owner = ownerVisibleFilter(ctx);
 
 	const row = await ctx.db
 		.prepare(
 			`SELECT a.r2_key, a.filename, a.content_type FROM attachments a
-	     WHERE a.id = ? AND a.workspace_id = ? ${owner ? `AND ${owner.sql}` : ""}`
+	     WHERE a.id = ? AND a.workspace_id = ? ${owner ? `AND ${owner.sql}` : ""}`,
 		)
 		.bind(id, ctx.workspaceId, ...(owner ? owner.params : []))
 		.first<{ r2_key: string; filename: string; content_type: string }>();
@@ -328,28 +294,13 @@ export async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<At
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
 
 	const visible = visibleProjectSqlFragment(ctx, "w.project_id");
-	const joinCond = visible
-		? `w.id = a.linked_wiki_page_id AND w.deleted_at IS NULL AND (w.project_id IS NULL OR ${visible.sql})`
-		: "w.id = a.linked_wiki_page_id AND w.deleted_at IS NULL";
 	const owner = ownerVisibleFilter(ctx);
-
-	const row = await ctx.db
-		.prepare(
-			`SELECT a.id, a.kind, a.filename, a.content_type, a.size, a.url, a.created_at,
-	            w.id AS wiki_page_id, w.slug AS wiki_page_slug, w.title AS wiki_page_title,
-	            w.project_id AS wiki_page_project_id
-	     FROM attachments a
-	     LEFT JOIN wiki_pages w ON ${joinCond}
-	     WHERE a.workspace_id = ? AND a.id = ?
-	       ${owner ? `AND ${owner.sql}` : ""}`
-		)
-		.bind(
-			...(visible ? visible.params : []),
-			ctx.workspaceId,
-			parsed.data.id,
-			...(owner ? owner.params : [])
-		)
-		.first<AttachmentRow>();
+	const row = await Effect.runPromise(
+		attachmentData.findAttachment(ctx.db, ctx.workspaceId, parsed.data.id, {
+			linkedWikiVisibility: visible,
+			ownerVisibility: owner,
+		}),
+	);
 
 	if (!row) throw new NotFoundError("Not found");
 	return toDto(row);
@@ -358,7 +309,7 @@ export async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<At
 /** Deletes the attachment row; returns the R2 key (if any) so the route can clean up storage. */
 export async function deleteAttachment(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<{ r2Key: string }> {
 	const parsed = DeleteAttachmentSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
@@ -369,7 +320,7 @@ export async function deleteAttachment(
 	const row = await ctx.db
 		.prepare(
 			`SELECT a.r2_key FROM attachments a
-	     WHERE a.id = ? AND a.workspace_id = ? ${owner ? `AND ${owner.sql}` : ""}`
+	     WHERE a.id = ? AND a.workspace_id = ? ${owner ? `AND ${owner.sql}` : ""}`,
 		)
 		.bind(parsed.data.id, ctx.workspaceId, ...(owner ? owner.params : []))
 		.first<{ r2_key: string }>();

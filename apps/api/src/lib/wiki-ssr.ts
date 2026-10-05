@@ -16,7 +16,7 @@ import { getWikiPage } from "../services/wiki";
 // not an error, since this is a best-effort enhancement over the client-side behavior
 // that already exists.
 async function resolveWikiWorkspaceContext(
-	c: Context<HonoEnv>
+	c: Context<HonoEnv>,
 ): Promise<{ id: string; name: string; slug: string; role: string } | null> {
 	const headerSlug = c.req.header("X-Workspace-Slug");
 	const routingEnabled = subdomainRoutingEnabled(c.env.WORKSPACE_SUBDOMAIN_ROUTING);
@@ -31,7 +31,7 @@ async function resolveWikiWorkspaceContext(
 		`SELECT w.id, w.name, w.slug, m.role
 		 FROM workspaces w
 		 LEFT JOIN workspace_members m ON m.workspace_id = w.id AND m.user_id = ?
-		 WHERE w.slug = ?`
+		 WHERE w.slug = ?`,
 	)
 		.bind(user.id, slug)
 		.first<{ id: string; name: string; slug: string; role: string | null }>();
@@ -53,7 +53,7 @@ export interface WikiSsrPage {
 // this leak page existence/content to an unauthenticated caller.
 export async function resolveWikiPageForSsr(
 	c: Context<HonoEnv>,
-	slugOrId: string
+	slugOrId: string,
 ): Promise<WikiSsrPage | null> {
 	let authenticated = false;
 	const authResponse = await authMiddleware(c, async () => {
@@ -91,7 +91,7 @@ function plainTextExcerpt(markdown: string, maxLen = 200): string {
 class AttrSetter {
 	constructor(
 		private attr: string,
-		private value: string
+		private value: string,
 	) {}
 	element(el: Element) {
 		el.setAttribute(this.attr, this.value);
@@ -111,7 +111,7 @@ class TextSetter {
 export function injectWikiMetadata(
 	response: Response,
 	page: WikiSsrPage,
-	pageUrl: string
+	pageUrl: string,
 ): Response {
 	const description = plainTextExcerpt(page.content);
 	return new HTMLRewriter()

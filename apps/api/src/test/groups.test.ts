@@ -14,7 +14,7 @@ async function mcpCall<T>(
 	workspaceId: string,
 	name: string,
 	args: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -144,7 +144,7 @@ describe("Groups REST", () => {
 
 		const rm = await SELF.fetch(
 			`http://localhost/api/workspaces/${slug}/groups/${gid}/members/${roles.member.user.id}`,
-			{ method: "DELETE", headers: ownerHeaders }
+			{ method: "DELETE", headers: ownerHeaders },
 		);
 		expect(rm.status).toBe(200);
 	});
@@ -176,7 +176,7 @@ describe("Groups REST", () => {
 
 		const rm = await SELF.fetch(
 			`http://localhost/api/workspaces/${slug}/groups/${gid}/grants/${project.id}`,
-			{ method: "DELETE", headers: ownerHeaders }
+			{ method: "DELETE", headers: ownerHeaders },
 		);
 		expect(rm.status).toBe(200);
 	});
@@ -281,21 +281,21 @@ describe("Groups MCP parity", () => {
 		const g1 = mcpData<{ id: string }>(
 			(await mcpCall(workspaceId, "create_group", { name: "G1" }, ownerHeaders)) as JsonRpcResult<{
 				content: Array<{ text: string }>;
-			}>
+			}>,
 		);
 		await mcpCall(workspaceId, "create_group", { name: "G2" }, ownerHeaders);
 		await mcpCall(
 			workspaceId,
 			"add_group_member",
 			{ groupId: g1.id, userId: roles.member.user.id },
-			ownerHeaders
+			ownerHeaders,
 		);
 
 		const memberList = (await mcpCall(
 			workspaceId,
 			"list_groups",
 			{},
-			memberHeaders
+			memberHeaders,
 		)) as JsonRpcResult<{
 			content: Array<{ text: string }>;
 		}>;
@@ -306,7 +306,7 @@ describe("Groups MCP parity", () => {
 			workspaceId,
 			"list_groups",
 			{},
-			ownerHeaders
+			ownerHeaders,
 		)) as JsonRpcResult<{
 			content: Array<{ text: string }>;
 		}>;
@@ -321,30 +321,30 @@ describe("Groups MCP parity", () => {
 				workspaceId,
 				"create_group",
 				{ name: "LoopGroup" },
-				ownerHeaders
+				ownerHeaders,
 			)) as JsonRpcResult<{
 				content: Array<{ text: string }>;
-			}>
+			}>,
 		);
 		const grant = await mcpCall(
 			workspaceId,
 			"set_group_grant",
 			{ groupId: created.id, projectId: project.id, role: "member" },
-			ownerHeaders
+			ownerHeaders,
 		);
 		expect(isMcpError(grant)).toBe(false);
 		const addMember = await mcpCall(
 			workspaceId,
 			"add_group_member",
 			{ groupId: created.id, userId: roles.member.user.id },
-			ownerHeaders
+			ownerHeaders,
 		);
 		expect(isMcpError(addMember)).toBe(false);
 
 		const detail = mcpData<{ members: unknown[]; grants: unknown[] }>(
 			(await mcpCall(workspaceId, "get_group", { id: created.id }, ownerHeaders)) as JsonRpcResult<{
 				content: Array<{ text: string }>;
-			}>
+			}>,
 		);
 		expect(detail.members).toHaveLength(1);
 		expect(detail.grants).toHaveLength(1);

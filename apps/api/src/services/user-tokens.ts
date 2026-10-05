@@ -21,7 +21,7 @@ export async function getUserWorkspaces(ctx: UserCtx) {
 			`SELECT w.id, w.name, w.slug, wm.role
      FROM workspaces w
      JOIN workspace_members wm ON wm.workspace_id = w.id
-     WHERE wm.user_id = ?`
+     WHERE wm.user_id = ?`,
 		)
 		.bind(ctx.userId)
 		.all();
@@ -51,7 +51,7 @@ export async function createUserToken(ctx: UserCtx, raw: unknown) {
 	await ctx.db
 		.prepare(
 			`INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		)
 		.bind(
 			crypto.randomUUID(),
@@ -61,7 +61,7 @@ export async function createUserToken(ctx: UserCtx, raw: unknown) {
 			hash,
 			JSON.stringify(scopes),
 			expiresAt ?? null,
-			Math.floor(Date.now() / 1000)
+			Math.floor(Date.now() / 1000),
 		)
 		.run();
 
@@ -74,7 +74,7 @@ export async function deleteUserToken(ctx: UserCtx, id: string) {
 	await ctx.db.batch([
 		ctx.db
 			.prepare(
-				"UPDATE agent_sessions SET token_id = NULL WHERE token_id IN (SELECT id FROM api_tokens WHERE id = ? AND user_id = ?)"
+				"UPDATE agent_sessions SET token_id = NULL WHERE token_id IN (SELECT id FROM api_tokens WHERE id = ? AND user_id = ?)",
 			)
 			.bind(id, ctx.userId),
 		ctx.db.prepare("DELETE FROM api_tokens WHERE id = ? AND user_id = ?").bind(id, ctx.userId),

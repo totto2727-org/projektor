@@ -17,7 +17,7 @@ async function mcpCall<T>(
 	workspaceId: string,
 	toolName: string,
 	args: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -43,13 +43,13 @@ function parseEvents(res: JsonRpcResult<McpContent> | JsonRpcError): unknown[] {
 async function seedSprint(
 	workspaceId: string,
 	projectId: string,
-	opts: Readonly<{ name?: string; status?: string; startDate?: number; endDate?: number }> = {}
+	opts: Readonly<{ name?: string; status?: string; startDate?: number; endDate?: number }> = {},
 ) {
 	const id = crypto.randomUUID();
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
 		`INSERT INTO sprints (id, workspace_id, project_id, name, status, start_date, end_date, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			id,
@@ -60,7 +60,7 @@ async function seedSprint(
 			opts.startDate ?? null,
 			opts.endDate ?? null,
 			now,
-			now
+			now,
 		)
 		.run();
 	return { id, name: opts.name ?? "Sprint 1" };
@@ -70,7 +70,7 @@ async function seedWikiPage(
 	workspaceId: string,
 	projectId: string,
 	authorId: string,
-	opts: Readonly<{ title?: string; slug?: string; updatedAt?: number; deletedAt?: number }> = {}
+	opts: Readonly<{ title?: string; slug?: string; updatedAt?: number; deletedAt?: number }> = {},
 ) {
 	const id = crypto.randomUUID();
 	const now = Math.floor(Date.now() / 1000);
@@ -79,7 +79,7 @@ async function seedWikiPage(
 	await env.DB.prepare(
 		`INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, created_by_id, updated_by_id,
        created_at, updated_at, deleted_at)
-     VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			id,
@@ -91,7 +91,7 @@ async function seedWikiPage(
 			authorId,
 			now,
 			updatedAt,
-			opts.deletedAt ?? null
+			opts.deletedAt ?? null,
 		)
 		.run();
 	return { id, slug };
@@ -115,7 +115,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		);
 		const events = parseEvents(res);
 		expect(Array.isArray(events)).toBe(true);
@@ -129,7 +129,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			type: string;
@@ -155,7 +155,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			type: string;
@@ -174,7 +174,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			type: string;
@@ -200,7 +200,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			type: string;
@@ -217,7 +217,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			type: string;
@@ -238,7 +238,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			type: string;
@@ -260,7 +260,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			type: string;
@@ -287,7 +287,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			type: string;
@@ -311,7 +311,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId, limit: 2 },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown })
 			.items as unknown[];
@@ -327,7 +327,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId, since: past },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			summary: string;
@@ -347,7 +347,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			summary: string;
@@ -368,7 +368,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<{
 			summary: string;
@@ -384,7 +384,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId: crypto.randomUUID() },
-			headers
+			headers,
 		);
 		const err = toolError(res);
 		expect(err?.code).toBe("not_found");
@@ -403,7 +403,7 @@ describe("list_project_activity MCP tool", () => {
 			workspaceId,
 			"list_project_activity",
 			{ projectId },
-			headers
+			headers,
 		)) as JsonRpcResult<McpContent>;
 		const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Array<
 			Record<string, unknown>

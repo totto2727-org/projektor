@@ -20,7 +20,7 @@ export const customFieldDefinitions = sqliteTable(
 	(t) => ({
 		wsIdx: index("cfd_workspace_idx").on(t.workspaceId),
 		wsProjKeyIdx: index("cfd_ws_proj_key_idx").on(t.workspaceId, t.projectId, t.key),
-	})
+	}),
 );
 
 export const customFieldValues = sqliteTable(
@@ -37,5 +37,5 @@ export const customFieldValues = sqliteTable(
 	(t) => ({
 		pk: primaryKey({ columns: [t.issueId, t.fieldId] }),
 		fieldIdx: index("cfv_field_idx").on(t.fieldId),
-	})
+	}),
 );

@@ -17,7 +17,7 @@ describe("injectWikiMetadata", () => {
 				content: "Steps to deploy the service.",
 				url: "/wiki/deploy-runbook",
 			},
-			"https://example.test/wiki/deploy-runbook"
+			"https://example.test/wiki/deploy-runbook",
 		);
 		const html = await rewritten.text();
 
@@ -36,7 +36,7 @@ describe("injectWikiMetadata", () => {
 				content: "# Heading\n\nSee [[Other Page|here]] and [a link](https://example.com).",
 				url: "/wiki/notes",
 			},
-			"https://example.test/wiki/notes"
+			"https://example.test/wiki/notes",
 		);
 		const html = await rewritten.text();
 

@@ -22,7 +22,7 @@ export class NotFoundError extends ServiceError {
 	// NotFoundError is unaffected.
 	constructor(
 		message = "Not found",
-		public readonly details?: Record<string, unknown>
+		public readonly details?: Record<string, unknown>,
 	) {
 		super(message);
 	}
@@ -42,7 +42,7 @@ export class ConflictError extends ServiceError {
 	// message. Optional so every pre-existing plain-message ConflictError is unaffected.
 	constructor(
 		message = "Conflict",
-		public readonly details?: Record<string, unknown>
+		public readonly details?: Record<string, unknown>,
 	) {
 		super(message);
 	}

@@ -30,7 +30,7 @@ function currentSlot(): number {
 
 async function seedD1Counter(key: string, count: number): Promise<void> {
 	await env.DB.prepare(
-		"INSERT OR REPLACE INTO rate_limit (key, count, window_start) VALUES (?, ?, ?)"
+		"INSERT OR REPLACE INTO rate_limit (key, count, window_start) VALUES (?, ?, ?)",
 	)
 		.bind(key, count, currentSlot())
 		.run();
@@ -238,7 +238,7 @@ describe("PROJ-432: the D1 fallback counter costs one round trip", () => {
 			await bumpRateCounter(
 				d1Only(proxy),
 				`ip:batch-${crypto.randomUUID().slice(0, 8)}`,
-				WINDOW_SECS
+				WINDOW_SECS,
 			);
 		} finally {
 			randomSpy.mockRestore();

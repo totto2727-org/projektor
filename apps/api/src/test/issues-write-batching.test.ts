@@ -52,7 +52,7 @@ function trackD1RoundTrips() {
 		});
 
 	vi.spyOn(env.DB, "prepare").mockImplementation(
-		(q: string) => wrapStmt(origPrepare(q)) as D1PreparedStatement
+		(q: string) => wrapStmt(origPrepare(q)) as D1PreparedStatement,
 	);
 	vi.spyOn(env.DB, "batch").mockImplementation((stmts: D1PreparedStatement[]) => {
 		count++;
@@ -79,7 +79,7 @@ function ownerCtx(f: Fixture): ServiceCtx {
 async function formErrorOf(p: Promise<unknown>): Promise<string[]> {
 	const err = (await p.then(
 		() => null,
-		(e: unknown) => e
+		(e: unknown) => e,
 	)) as { issues?: { formErrors: string[] } } | null;
 	expect(err, "expected the call to be rejected").not.toBeNull();
 	return err?.issues?.formErrors ?? [];
@@ -134,7 +134,7 @@ describe("PROJ-870: issue write batching", () => {
 		// Behaviour is unchanged: number comes back (via RETURNING), and every write landed.
 		expect(created.number).toBe(5);
 		const row = await env.DB.prepare(
-			"SELECT number, status, status_id, status_category, parent_id, type_id FROM issues WHERE id = ?"
+			"SELECT number, status, status_id, status_category, parent_id, type_id FROM issues WHERE id = ?",
 		)
 			.bind(created.id)
 			.first();
@@ -152,7 +152,7 @@ describe("PROJ-870: issue write batching", () => {
 		expect(fts).toEqual({ title: "Batched create", body: "hello body" });
 		const cf = await env.DB.prepare(
 			`SELECT d.key, v.value FROM custom_field_values v
-			 JOIN custom_field_definitions d ON d.id = v.field_id WHERE v.issue_id = ? ORDER BY d.key`
+			 JOIN custom_field_definitions d ON d.id = v.field_id WHERE v.issue_id = ? ORDER BY d.key`,
 		)
 			.bind(created.id)
 			.all();
@@ -161,7 +161,7 @@ describe("PROJ-870: issue write batching", () => {
 			{ key: "team", value: "core" },
 		]);
 		const activity = await env.DB.prepare(
-			"SELECT action FROM activity WHERE entity_id = ? AND entity_type = 'issue'"
+			"SELECT action FROM activity WHERE entity_id = ? AND entity_type = 'issue'",
 		)
 			.bind(created.id)
 			.all();
@@ -188,7 +188,7 @@ describe("PROJ-870: issue write batching", () => {
 		expect(roundTrips).toBeLessThanOrEqual(7);
 
 		const row = await env.DB.prepare(
-			"SELECT title, status, status_category, parent_id, completed_at, done_at FROM issues WHERE id = ?"
+			"SELECT title, status, status_category, parent_id, completed_at, done_at FROM issues WHERE id = ?",
 		)
 			.bind(issue.id)
 			.first<Record<string, unknown>>();
@@ -249,7 +249,7 @@ describe("PROJ-870: issue write batching", () => {
 
 		await updateIssue(ctx, issue.id, { status: "in_progress" });
 		const rejections = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?"
+			"SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?",
 		)
 			.bind(issue.id)
 			.first<{ n: number }>();
@@ -282,7 +282,7 @@ describe("PROJ-870 review: completion report comment limit", () => {
 			.first();
 		expect(row).toEqual({ status: "in_progress", completion_report_at: null });
 		const comments = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?"
+			"SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?",
 		)
 			.bind(issue.id)
 			.first<{ n: number }>();
@@ -322,11 +322,11 @@ describe("PROJ-870: recursive-CTE ancestor walk", () => {
 		const chain = await seedChain(f, 6);
 		expect(
 			await formErrorOf(
-				createIssue(ctx, { projectId: f.projectId, title: "too deep", parentId: chain[5] })
-			)
+				createIssue(ctx, { projectId: f.projectId, title: "too deep", parentId: chain[5] }),
+			),
 		).toEqual(["Maximum nesting depth (5) exceeded"]);
 		await expect(
-			createIssue(ctx, { projectId: f.projectId, title: "ok", parentId: chain[4] })
+			createIssue(ctx, { projectId: f.projectId, title: "ok", parentId: chain[4] }),
 		).resolves.toMatchObject({ number: expect.any(Number) });
 	});
 
@@ -353,7 +353,7 @@ describe("PROJ-870: recursive-CTE ancestor walk", () => {
 		const other = await seedProjectFixture({ role: "owner" });
 		const foreign = await seedIssue(other.workspaceId, other.projectId, other.userId);
 		await expect(
-			createIssue(ctx, { projectId: f.projectId, title: "x", parentId: foreign.id })
+			createIssue(ctx, { projectId: f.projectId, title: "x", parentId: foreign.id }),
 		).rejects.toThrow("Parent issue not found");
 	});
 
@@ -370,7 +370,7 @@ describe("PROJ-870: recursive-CTE ancestor walk", () => {
 			.run();
 
 		await expect(
-			createIssue(ctx, { projectId: f.projectId, title: "child of P", parentId: p.id })
+			createIssue(ctx, { projectId: f.projectId, title: "child of P", parentId: p.id }),
 		).resolves.toMatchObject({ number: expect.any(Number) });
 	});
 });

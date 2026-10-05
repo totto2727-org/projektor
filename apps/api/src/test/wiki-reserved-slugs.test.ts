@@ -25,7 +25,7 @@ describe("reserved wiki slugs (PROJ-811)", () => {
 		const fixedSegments = new Set(
 			wikiRouter.routes
 				.map((r) => r.path.split("/")[1] ?? "")
-				.filter((seg) => seg !== "" && !seg.startsWith(":") && seg !== "*")
+				.filter((seg) => seg !== "" && !seg.startsWith(":") && seg !== "*"),
 		);
 		expect(fixedSegments.size).toBeGreaterThan(5);
 		const missing = [...fixedSegments].filter((seg) => !RESERVED_WIKI_SLUGS.has(seg));
@@ -79,7 +79,7 @@ describe("reserved wiki slugs (PROJ-811)", () => {
 				stmt: env.DB.prepare(
 					`INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 					 parent_id, created_by_id, updated_by_id, created_at, updated_at, deleted_at)
-					 VALUES (?, ?, NULL, ?, ?, '', NULL, ?, ?, ?, ?, ?)`
+					 VALUES (?, ?, NULL, ?, ?, '', NULL, ?, ?, ?, ?, ?)`,
 				).bind(id, workspaceId, pageSlug, pageSlug, userId, userId, now, now, deletedAt),
 			};
 		};
@@ -105,7 +105,7 @@ describe("reserved wiki slugs (PROJ-811)", () => {
 		expect(await slugOf(search.id)).toBe("search-page");
 		expect(await slugOf(exportTaken.id)).toBe("export-page");
 		expect(await slugOf(exportPage.id)).toBe(
-			`export-page-${exportPage.id.replace(/-/g, "").slice(0, 8)}`
+			`export-page-${exportPage.id.replace(/-/g, "").slice(0, 8)}`,
 		);
 		expect(await slugOf(trashed.id)).toBe("trash-page");
 
@@ -114,7 +114,7 @@ describe("reserved wiki slugs (PROJ-811)", () => {
 				...RESERVED_WIKI_SLUGS,
 			]
 				.map(() => "?")
-				.join(",")})`
+				.join(",")})`,
 		)
 			.bind(workspaceId, ...RESERVED_WIKI_SLUGS)
 			.first<{ n: number }>();

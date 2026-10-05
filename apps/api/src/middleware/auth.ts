@@ -177,7 +177,7 @@ async function tryCfAccessAuth(c: Context<HonoEnv>): Promise<AuthOutcome> {
 
 async function tooManyAuthFailuresResponse(
 	c: Context<HonoEnv>,
-	message: string
+	message: string,
 ): Promise<Response> {
 	return (await tooManyAuthFailures(c))
 		? c.json({ error: "Too Many Requests" }, 429)
@@ -190,7 +190,7 @@ async function tooManyAuthFailuresResponse(
 // write tool call, so method-based classification doesn't apply there.
 function checkTokenScope(
 	c: Context<HonoEnv>,
-	scopes: ReturnType<typeof parseScopes>
+	scopes: ReturnType<typeof parseScopes>,
 ): Response | null {
 	if (c.req.path.startsWith("/mcp/")) return null;
 	const required = capabilityForMethod(c.req.method);
@@ -213,7 +213,7 @@ async function authenticateApiToken(c: Context<HonoEnv>, token: string): Promise
               u.id as user_id, u.email, u.name
        FROM api_tokens at
        LEFT JOIN users u ON u.id = at.user_id
-       WHERE at.token_hash = ?`
+       WHERE at.token_hash = ?`,
 	)
 		.bind(hash)
 		.first<{
@@ -254,7 +254,7 @@ async function authenticateApiToken(c: Context<HonoEnv>, token: string): Promise
 		c.executionCtx.waitUntil(
 			c.env.DB.prepare("UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?")
 				.bind(now, hash)
-				.run()
+				.run(),
 		);
 	}
 
@@ -364,7 +364,7 @@ type JwtHeader = z.infer<typeof JwtHeaderSchema>;
 type JwtPayload = z.infer<typeof JwtPayloadSchema>;
 
 function decodeJwtFields(
-	parts: readonly string[]
+	parts: readonly string[],
 ): { header: JwtHeader; payload: JwtPayload } | null {
 	try {
 		const header = JwtHeaderSchema.safeParse(JSON.parse(base64urlDecode(parts[0])));
@@ -381,7 +381,7 @@ function jwtClaimsValid(
 	header: JwtHeader,
 	payload: JwtPayload,
 	audience: string,
-	issuer: string
+	issuer: string,
 ): payload is JwtPayload & { email: string } {
 	if (header.alg !== "RS256") return false;
 
@@ -397,7 +397,7 @@ function jwtClaimsValid(
 
 async function verifySignatureAgainstKeys(
 	parts: readonly string[],
-	keys: readonly JsonWebKey[]
+	keys: readonly JsonWebKey[],
 ): Promise<boolean> {
 	const signingInput = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
 	const sig = base64urlToUint8Array(parts[2]);
@@ -409,7 +409,7 @@ async function verifySignatureAgainstKeys(
 				jwk,
 				{ name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
 				false,
-				["verify"]
+				["verify"],
 			);
 			if (await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, sig, signingInput)) return true;
 		} catch {}
@@ -422,7 +422,7 @@ export async function verifyJwtPayload(
 	jwt: string,
 	keys: JsonWebKey[],
 	audience: string,
-	issuer: string
+	issuer: string,
 ): Promise<{ email: string } | null> {
 	const parts = jwt.split(".");
 	if (parts.length !== 3) return null;
@@ -446,7 +446,7 @@ function preScreenCfAccessJwt(parts: readonly string[], env: Env): boolean {
 		decoded.header,
 		decoded.payload,
 		env.CF_ACCESS_AUDIENCE,
-		`https://${env.CF_ACCESS_TEAM_DOMAIN}`
+		`https://${env.CF_ACCESS_TEAM_DOMAIN}`,
 	);
 }
 
@@ -460,7 +460,7 @@ async function validateCfAccessJwt(jwt: string, env: Env): Promise<AuthUser | nu
 		jwt,
 		keys,
 		env.CF_ACCESS_AUDIENCE,
-		`https://${env.CF_ACCESS_TEAM_DOMAIN}`
+		`https://${env.CF_ACCESS_TEAM_DOMAIN}`,
 	);
 	if (!result) {
 		// PROJ-358: claims already passed the pre-screen above, so a null result
@@ -474,7 +474,7 @@ async function validateCfAccessJwt(jwt: string, env: Env): Promise<AuthUser | nu
 				jwt,
 				freshKeys,
 				env.CF_ACCESS_AUDIENCE,
-				`https://${env.CF_ACCESS_TEAM_DOMAIN}`
+				`https://${env.CF_ACCESS_TEAM_DOMAIN}`,
 			);
 		}
 	}
@@ -514,7 +514,7 @@ async function fetchAndCacheCfAccessKeys(env: Env): Promise<JsonWebKey[]> {
 // verify anything — surface that as its own failure rather than an auth verdict.
 async function getCfAccessKeysOrUnavailable(
 	env: Env,
-	opts?: { forceRefresh?: boolean }
+	opts?: { forceRefresh?: boolean },
 ): Promise<JsonWebKey[]> {
 	try {
 		return await getCfAccessKeys(env, opts);
@@ -525,7 +525,7 @@ async function getCfAccessKeysOrUnavailable(
 
 async function getCfAccessKeys(
 	env: Env,
-	opts?: Readonly<{ forceRefresh?: boolean }>
+	opts?: Readonly<{ forceRefresh?: boolean }>,
 ): Promise<JsonWebKey[]> {
 	if (opts?.forceRefresh) {
 		const now = Date.now();
@@ -570,7 +570,7 @@ export function resetAuthCachesForTests(): void {
 async function upsertUserByEmail(
 	email: string,
 	db: D1Database,
-	kv?: KVNamespace
+	kv?: KVNamespace,
 ): Promise<AuthUser> {
 	const local = inMemoryUserCache.get(email);
 	if (local && local.expiresAt > Date.now()) return local.user;
@@ -597,7 +597,7 @@ async function upsertUserByEmail(
 		.prepare(
 			`INSERT INTO users (id, email, name, created_at)
      VALUES (?, ?, ?, ?)
-     ON CONFLICT(email) DO UPDATE SET name = excluded.name`
+     ON CONFLICT(email) DO UPDATE SET name = excluded.name`,
 		)
 		.bind(id, email, name, now)
 		.run();
@@ -615,7 +615,7 @@ async function upsertUserByEmail(
 		} catch (err) {
 			console.error(
 				`[auth] failed to cache user-by-email:${email} in KV, continuing without it:`,
-				err
+				err,
 			);
 		}
 	}

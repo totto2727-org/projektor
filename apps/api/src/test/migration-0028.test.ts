@@ -34,20 +34,20 @@ async function seed0027Backfill() {
 
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
-		"INSERT INTO user_groups (id, workspace_id, name, description, created_at) VALUES (?, ?, 'all-projects', NULL, ?)"
+		"INSERT INTO user_groups (id, workspace_id, name, description, created_at) VALUES (?, ?, 'all-projects', NULL, ?)",
 	)
 		.bind(memberGroupId, ws.id, now)
 		.run();
 	for (const p of [pX, pY]) {
 		await env.DB.prepare(
-			"INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'member')"
+			"INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'member')",
 		)
 			.bind(memberGroupId, p.id)
 			.run();
 	}
 	for (const u of [viewer, member]) {
 		await env.DB.prepare(
-			"INSERT INTO user_group_members (group_id, user_id, added_by, added_at) VALUES (?, ?, ?, ?)"
+			"INSERT INTO user_group_members (group_id, user_id, added_by, added_at) VALUES (?, ?, ?, ?)",
 		)
 			.bind(memberGroupId, u.id, u.id, now)
 			.run();
@@ -57,7 +57,7 @@ async function seed0027Backfill() {
 
 async function memberCount(groupId: string, userId: string): Promise<number> {
 	const row = await env.DB.prepare(
-		"SELECT COUNT(*) AS n FROM user_group_members WHERE group_id = ? AND user_id = ?"
+		"SELECT COUNT(*) AS n FROM user_group_members WHERE group_id = ? AND user_id = ?",
 	)
 		.bind(groupId, userId)
 		.first<{ n: number }>();
@@ -89,7 +89,7 @@ describe("0028 viewer-preserving migration", () => {
 		expect(await memberCount(ctx.memberGroupId, ctx.member.id)).toBe(1);
 		expect(await memberCount(ctx.viewersGroupId, ctx.member.id)).toBe(0);
 		const memberGrants = await env.DB.prepare(
-			"SELECT DISTINCT role FROM group_project_grants WHERE group_id = ?"
+			"SELECT DISTINCT role FROM group_project_grants WHERE group_id = ?",
 		)
 			.bind(ctx.memberGroupId)
 			.all<{ role: string }>();
@@ -101,7 +101,7 @@ describe("0028 viewer-preserving migration", () => {
 		expect(await memberCount(ctx.viewersGroupId, ctx.viewer.id)).toBe(1);
 		expect(await memberCount(ctx.memberGroupId, ctx.viewer.id)).toBe(0);
 		const grants = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM group_project_grants WHERE group_id = ?"
+			"SELECT COUNT(*) AS n FROM group_project_grants WHERE group_id = ?",
 		)
 			.bind(ctx.viewersGroupId)
 			.first<{ n: number }>();
@@ -116,17 +116,17 @@ describe("0028 viewer-preserving migration", () => {
 		await seedMember(ws.id, member.id, "member");
 		const now = Math.floor(Date.now() / 1000);
 		await env.DB.prepare(
-			"INSERT INTO user_groups (id, workspace_id, name, description, created_at) VALUES (?, ?, 'all-projects', NULL, ?)"
+			"INSERT INTO user_groups (id, workspace_id, name, description, created_at) VALUES (?, ?, 'all-projects', NULL, ?)",
 		)
 			.bind(groupId, ws.id, now)
 			.run();
 		await env.DB.prepare(
-			"INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'member')"
+			"INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'member')",
 		)
 			.bind(groupId, p.id)
 			.run();
 		await env.DB.prepare(
-			"INSERT INTO user_group_members (group_id, user_id, added_by, added_at) VALUES (?, ?, ?, ?)"
+			"INSERT INTO user_group_members (group_id, user_id, added_by, added_at) VALUES (?, ?, ?, ?)",
 		)
 			.bind(groupId, member.id, member.id, now)
 			.run();

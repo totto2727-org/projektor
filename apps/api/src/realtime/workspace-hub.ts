@@ -92,7 +92,7 @@ export class WorkspaceHub {
 	}
 
 	private resolveIdentity(
-		request: Request
+		request: Request,
 	): { userId: string; workspaceId: string; role: Role } | null {
 		const userId = request.headers.get(INTERNAL_USER_ID_HEADER);
 		const workspaceId = request.headers.get(INTERNAL_WORKSPACE_ID_HEADER);
@@ -132,8 +132,8 @@ export class WorkspaceHub {
 			.where(
 				and(
 					eq(schema.workspaceMembers.workspaceId, attachment.workspaceId),
-					eq(schema.workspaceMembers.userId, attachment.userId)
-				)
+					eq(schema.workspaceMembers.userId, attachment.userId),
+				),
 			)
 			.get();
 
@@ -214,7 +214,7 @@ export class WorkspaceHub {
 						type: "subscribed",
 						filters,
 						timestamp: Math.floor(Date.now() / 1000),
-					})
+					}),
 				);
 			}
 		} catch {
@@ -226,7 +226,7 @@ export class WorkspaceHub {
 		ws: WebSocket,
 		code: number,
 		_reason: string,
-		_wasClean: boolean
+		_wasClean: boolean,
 	): Promise<void> {
 		ws.close(code, "Closed");
 	}

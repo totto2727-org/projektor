@@ -25,7 +25,7 @@ export const projects = sqliteTable(
 	(t) => ({
 		wsIdx: index("projects_workspace_idx").on(t.workspaceId),
 		slugIdx: index("projects_workspace_slug_idx").on(t.workspaceId, t.slug),
-	})
+	}),
 );
 
 export const taskTypes = sqliteTable(
@@ -45,7 +45,7 @@ export const taskTypes = sqliteTable(
 	(t) => ({
 		wsKeyIdx: uniqueIndex("task_types_workspace_key_idx").on(t.workspaceId, t.key),
 		wsIdx: index("task_types_workspace_idx").on(t.workspaceId),
-	})
+	}),
 );
 
 export const taskStatuses = sqliteTable(
@@ -67,7 +67,7 @@ export const taskStatuses = sqliteTable(
 	(t) => ({
 		wsKeyIdx: uniqueIndex("task_statuses_workspace_key_idx").on(t.workspaceId, t.key),
 		wsIdx: index("task_statuses_workspace_idx").on(t.workspaceId),
-	})
+	}),
 );
 
 export const issues = sqliteTable(
@@ -145,7 +145,7 @@ export const issues = sqliteTable(
 		wsCategoryCreatedIdx: index("issues_workspace_category_created_idx").on(
 			t.workspaceId,
 			t.statusCategory,
-			t.createdAt
+			t.createdAt,
 		),
 		wsCompletedIdx: index("idx_issues_workspace_completed").on(t.workspaceId, t.completedAt),
 		wsReadyIdx: index("idx_issues_workspace_ready_at").on(t.workspaceId, t.readyAt),
@@ -153,7 +153,7 @@ export const issues = sqliteTable(
 		wsDoneIdx: index("idx_issues_workspace_done_at").on(t.workspaceId, t.doneAt),
 		wsInReviewIdx: index("idx_issues_workspace_in_review_at").on(t.workspaceId, t.inReviewAt),
 		wsNeedsAuditIdx: index("idx_issues_workspace_needs_audit").on(t.workspaceId, t.needsAudit),
-	})
+	}),
 );
 
 export const issueComments = sqliteTable(
@@ -176,7 +176,7 @@ export const issueComments = sqliteTable(
 	},
 	(t) => ({
 		issueIdx: index("issue_comments_issue_idx").on(t.issueId),
-	})
+	}),
 );
 
 export const issueLinks = sqliteTable(
@@ -201,7 +201,7 @@ export const issueLinks = sqliteTable(
 	(t) => ({
 		sourceIdx: index("issue_links_source_idx").on(t.sourceIssueId),
 		targetIdx: index("issue_links_target_idx").on(t.targetIssueId),
-	})
+	}),
 );
 
 export const activity = sqliteTable(
@@ -227,9 +227,9 @@ export const activity = sqliteTable(
 		wsEntityCreatedIdx: index("activity_workspace_entity_created_idx").on(
 			t.workspaceId,
 			t.entityType,
-			t.createdAt
+			t.createdAt,
 		),
-	})
+	}),
 );
 
 // PROJ-334: gate rejections — an event log of in_review -> in_progress bounces
@@ -251,7 +251,7 @@ export const issueGateRejections = sqliteTable(
 	(t) => ({
 		wsOccurredIdx: index("idx_issue_gate_rejections_workspace_occurred").on(
 			t.workspaceId,
-			t.occurredAt
+			t.occurredAt,
 		),
-	})
+	}),
 );

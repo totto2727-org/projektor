@@ -15,14 +15,14 @@ async function insertPage(
 		content?: string;
 		updatedAt?: number;
 		deletedAt?: number | null;
-	}>
+	}>,
 ) {
 	const id = fields.id ?? crypto.randomUUID();
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
 		`INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, parent_id,
 		   created_by_id, updated_by_id, created_at, updated_at, deleted_at)
-		 VALUES (?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`
+		 VALUES (?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			id,
@@ -34,7 +34,7 @@ async function insertPage(
 			userId,
 			now,
 			fields.updatedAt ?? now,
-			fields.deletedAt ?? null
+			fields.deletedAt ?? null,
 		)
 		.run();
 	return id;
@@ -123,7 +123,7 @@ describe("PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince", ()
 					slug: `p${i}`,
 					title: `P${i}`,
 					updatedAt: now + i,
-				})
+				}),
 			);
 		}
 

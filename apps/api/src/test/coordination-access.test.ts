@@ -20,7 +20,7 @@ async function mcpList(
 	tool: string,
 	token: string,
 	slug: string,
-	workspaceId: string
+	workspaceId: string,
 ): Promise<ListResult> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -42,7 +42,7 @@ async function seedFileClaim(workspaceId: string, issueId: string, path: string)
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
 		`INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, released_at)
-		 VALUES (?, ?, ?, NULL, ?, ?, NULL)`
+		 VALUES (?, ?, ?, NULL, ?, ?, NULL)`,
 	)
 		.bind(crypto.randomUUID(), workspaceId, issueId, path, now)
 		.run();
@@ -54,7 +54,7 @@ async function seedFloatingAgent(workspaceId: string, name: string): Promise<str
 	await env.DB.prepare(
 		`INSERT INTO agent_sessions
 		   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
-		 VALUES (?, ?, NULL, NULL, ?, 'agent', 'active', ?, ?, NULL)`
+		 VALUES (?, ?, NULL, NULL, ?, 'agent', 'active', ?, ?, NULL)`,
 	)
 		.bind(id, workspaceId, name, now, now)
 		.run();

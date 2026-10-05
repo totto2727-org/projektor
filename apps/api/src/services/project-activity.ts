@@ -23,7 +23,7 @@ async function fetchActivityRows(
 	ctx: ServiceCtx,
 	projectId: string,
 	since: number | undefined,
-	limit: number
+	limit: number,
 ): Promise<ActivityEvent[]> {
 	// D1 limits compound SELECT to a small number of terms, so we run separate
 	// queries per event category and merge/sort in JS.
@@ -40,7 +40,7 @@ async function fetchActivityRows(
 				        i.title AS summary, i.created_at
 				 FROM issues i JOIN projects p ON i.project_id = p.id
 				 WHERE i.project_id = ? AND i.workspace_id = ? ${sinceFilter("i.created_at")}
-				 ORDER BY i.created_at DESC LIMIT ?`
+				 ORDER BY i.created_at DESC LIMIT ?`,
 			)
 			.bind(projectId, ctx.workspaceId, ...s, limit)
 			.all<ActivityEvent>(),
@@ -56,7 +56,7 @@ async function fetchActivityRows(
 				 JOIN issues i ON ic.issue_id = i.id
 				 JOIN projects p ON i.project_id = p.id
 				 WHERE i.project_id = ? AND i.workspace_id = ? ${sinceFilter("ic.created_at")}
-				 ORDER BY ic.created_at DESC LIMIT ?`
+				 ORDER BY ic.created_at DESC LIMIT ?`,
 			)
 			.bind(projectId, ctx.workspaceId, ...s, limit)
 			.all<ActivityEvent>(),
@@ -81,7 +81,7 @@ async function fetchActivityRows(
 				   AND a.workspace_id = ? AND i.project_id = ?
 				   AND json_extract(a.diff, '$.status') IS NOT NULL
 				   ${sinceFilter("a.created_at")}
-				 ORDER BY a.created_at DESC LIMIT ?`
+				 ORDER BY a.created_at DESC LIMIT ?`,
 			)
 			.bind(ctx.workspaceId, projectId, ...s, limit)
 			.all<ActivityEvent>(),
@@ -101,7 +101,7 @@ async function fetchActivityRows(
 				 FROM wiki_pages wp
 				 WHERE wp.project_id = ? AND wp.workspace_id = ? AND wp.deleted_at IS NULL
 				   AND wp.updated_at != wp.created_at ${sinceFilter("wp.updated_at")}
-				 ORDER BY created_at DESC LIMIT ?`
+				 ORDER BY created_at DESC LIMIT ?`,
 			)
 			.bind(projectId, ctx.workspaceId, ...s, projectId, ctx.workspaceId, ...s, limit)
 			.all<ActivityEvent>(),
@@ -125,7 +125,7 @@ async function fetchActivityRows(
 				 FROM sprints s
 				 WHERE s.project_id = ? AND s.workspace_id = ? AND s.status = 'completed'
 				   ${sinceFilter("s.updated_at")}
-				 ORDER BY created_at DESC LIMIT ?`
+				 ORDER BY created_at DESC LIMIT ?`,
 			)
 			.bind(projectId, ctx.workspaceId, ...s, projectId, ctx.workspaceId, ...s, limit)
 			.all<ActivityEvent>(),
@@ -142,7 +142,7 @@ async function fetchActivityRows(
 
 export async function listProjectActivity(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<ActivityEvent[]> {
 	const parsed = ListProjectActivitySchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());

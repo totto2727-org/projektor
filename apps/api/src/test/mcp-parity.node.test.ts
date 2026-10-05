@@ -146,7 +146,7 @@ function serviceIdentifiersUsedIn(...paths: string[]): Set<string> {
 	for (const path of paths.flatMap(expandToFiles)) {
 		const src = readFileSync(path, "utf8");
 		for (const m of src.matchAll(
-			/(?:import|export)\s*(?:type\s*)?\{([^}]+)\}\s*from\s*"[^"]*services\/[^"]+"/g
+			/(?:import|export)\s*(?:type\s*)?\{([^}]+)\}\s*from\s*"[^"]*services\/[^"]+"/g,
 		)) {
 			for (const part of m[1].split(",")) {
 				const id = part
@@ -158,7 +158,7 @@ function serviceIdentifiersUsedIn(...paths: string[]): Set<string> {
 			}
 		}
 		for (const m of src.matchAll(
-			/import\s*\*\s*as\s+([A-Za-z0-9_$]+)\s*from\s*"[^"]*services\/[^"]+"/g
+			/import\s*\*\s*as\s+([A-Za-z0-9_$]+)\s*from\s*"[^"]*services\/[^"]+"/g,
 		)) {
 			for (const use of src.matchAll(new RegExp(`\\b${m[1]}\\.([A-Za-z0-9_$]+)`, "g"))) {
 				names.add(use[1]);
@@ -272,7 +272,7 @@ describe("MCP surface parity (PROJ-623)", () => {
 				.filter(
 					(t) =>
 						!t.description?.trim() ||
-						(t.inputSchema as { type?: string } | undefined)?.type !== "object"
+						(t.inputSchema as { type?: string } | undefined)?.type !== "object",
 				)
 				.map((t) => t.name);
 			expect(bad).toEqual([]);

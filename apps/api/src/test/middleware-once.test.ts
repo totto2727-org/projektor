@@ -71,6 +71,6 @@ describe("PROJ-856: middleware runs once per request", () => {
 		async (path) => {
 			const res = await SELF.fetch(`http://localhost${path}`);
 			expect(res.status).toBe(401);
-		}
+		},
 	);
 });

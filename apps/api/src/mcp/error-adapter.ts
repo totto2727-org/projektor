@@ -33,7 +33,7 @@ function summarizeDetails(details: Record<string, unknown>): string {
 }
 
 function hasDetails(
-	details: Record<string, unknown> | undefined
+	details: Record<string, unknown> | undefined,
 ): details is Record<string, unknown> {
 	return details !== undefined && Object.keys(details).length > 0;
 }
@@ -50,7 +50,7 @@ function summarizeIssues(issues: ZodFlattenOutput): string {
 			.filter(([, messages]) => messages && messages.length > 0)
 			.map(
 				([field, messages]) =>
-					`${field}: ${truncate(messages?.join(", ") ?? "", MAX_DETAIL_VALUE_CHARS)}`
+					`${field}: ${truncate(messages?.join(", ") ?? "", MAX_DETAIL_VALUE_CHARS)}`,
 			),
 	];
 	return truncate(parts.join("; "), MAX_DETAIL_SUMMARY_CHARS);
@@ -91,7 +91,7 @@ function toMcpValidationError(err: ValidationError): {
 // also folded into `message` as a fallback for MCP hosts that don't surface `data`.
 function toMcpServiceErrorWithDetails(
 	message: string,
-	details: Record<string, unknown> | undefined
+	details: Record<string, unknown> | undefined,
 ): { code: number; message: string; data?: unknown } {
 	if (!hasDetails(details)) return { code: -32000, message };
 	return { code: -32000, message: `${message} (${summarizeDetails(details)})`, data: details };
@@ -99,7 +99,7 @@ function toMcpServiceErrorWithDetails(
 
 export function toMcpError(
 	err: unknown,
-	requestId: string
+	requestId: string,
 ): { code: number; message: string; data?: unknown } {
 	if (err instanceof ValidationError) return toMcpValidationError(err);
 	if (err instanceof ServiceError) {
@@ -113,14 +113,14 @@ export function toMcpError(
 			case "not_found":
 				return toMcpServiceErrorWithDetails(
 					err.message,
-					err instanceof NotFoundError ? err.details : undefined
+					err instanceof NotFoundError ? err.details : undefined,
 				);
 			case "forbidden":
 				return { code: -32000, message: err.message };
 			case "conflict":
 				return toMcpServiceErrorWithDetails(
 					err.message,
-					err instanceof ConflictError ? err.details : undefined
+					err instanceof ConflictError ? err.details : undefined,
 				);
 			default:
 				console.error(`[mcp] unhandled ServiceError kind (request ${requestId}):`, err.kind, err);
@@ -185,7 +185,7 @@ export function toolErrorResult(error: ToolErrorBody): ToolErrorResult {
 }
 
 function definedFields(
-	fieldErrors: ZodFlattenOutput["fieldErrors"]
+	fieldErrors: ZodFlattenOutput["fieldErrors"],
 ): Record<string, string[]> | undefined {
 	const out: Record<string, string[]> = {};
 	for (const [field, messages] of Object.entries(fieldErrors)) {

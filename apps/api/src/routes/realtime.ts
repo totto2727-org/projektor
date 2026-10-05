@@ -47,7 +47,7 @@ router.get("/workspaces/:slug/realtime", authMiddleware, workspaceMiddleware, as
 				error:
 					"Realtime WebSockets are not enabled on this instance. Configure WORKSPACE_HUB in wrangler.toml to enable.",
 			},
-			501
+			501,
 		);
 	}
 
@@ -71,7 +71,7 @@ router.get("/realtime", authMiddleware, workspaceMiddleware, async (c) => {
 				error:
 					"Realtime WebSockets are not enabled on this instance. Configure WORKSPACE_HUB in wrangler.toml to enable.",
 			},
-			501
+			501,
 		);
 	}
 

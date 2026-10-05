@@ -63,7 +63,7 @@ describe("Flow metrics (PROJ-252)", () => {
 
 	async function stampFlowTimestamps(
 		id: string,
-		{ readyAt, claimedAt, doneAt }: { readyAt?: number; claimedAt?: number; doneAt?: number }
+		{ readyAt, claimedAt, doneAt }: { readyAt?: number; claimedAt?: number; doneAt?: number },
 	) {
 		await env.DB.prepare("UPDATE issues SET ready_at = ?, claimed_at = ?, done_at = ? WHERE id = ?")
 			.bind(readyAt ?? null, claimedAt ?? null, doneAt ?? null, id)
@@ -72,7 +72,7 @@ describe("Flow metrics (PROJ-252)", () => {
 
 	async function stampReviewFields(
 		id: string,
-		{ inReviewAt, reviewBounceCount }: { inReviewAt?: number; reviewBounceCount?: number }
+		{ inReviewAt, reviewBounceCount }: { inReviewAt?: number; reviewBounceCount?: number },
 	) {
 		await env.DB.prepare("UPDATE issues SET in_review_at = ?, review_bounce_count = ? WHERE id = ?")
 			.bind(inReviewAt ?? null, reviewBounceCount ?? 0, id)
@@ -181,7 +181,7 @@ describe("Flow metrics (PROJ-252)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = (await res.json()) as FlowMetrics;
@@ -239,7 +239,7 @@ describe("Flow metrics (PROJ-252)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = (await res.json()) as FlowMetrics;
@@ -278,7 +278,7 @@ describe("Flow metrics (PROJ-252)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = (await res.json()) as FlowMetrics;
@@ -290,7 +290,7 @@ describe("Flow metrics (PROJ-252)", () => {
 	it("aligns weekly bucketStart labels to Monday", async () => {
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${Math.floor(Date.now() / 1000) - 4 * 7 * 86400}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = (await res.json()) as FlowMetrics;
@@ -322,11 +322,11 @@ describe("Flow metrics (PROJ-252)", () => {
 
 		const weeklyRes = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=week`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		const dailyRes = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=day`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(weeklyRes.status).toBe(200);
 		expect(dailyRes.status).toBe(200);
@@ -421,19 +421,19 @@ describe("Flow metrics (PROJ-252)", () => {
 		id: string,
 		issueId: string,
 		claimedAt: number,
-		releasedAt: number | null
+		releasedAt: number | null,
 	) {
 		const now = Math.floor(Date.now() / 1000);
 		await env.DB.prepare(
 			`INSERT INTO agent_sessions
 			   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
-			 VALUES (?, ?, ?, NULL, 'lease-test-agent', 'agent', 'ended', ?, ?, ?)`
+			 VALUES (?, ?, ?, NULL, 'lease-test-agent', 'agent', 'ended', ?, ?, ?)`,
 		)
 			.bind(id, workspaceId, issueId, now, now, now)
 			.run();
 		await env.DB.prepare(
 			`INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		)
 			.bind(
 				crypto.randomUUID(),
@@ -442,7 +442,7 @@ describe("Flow metrics (PROJ-252)", () => {
 				id,
 				claimedAt,
 				releasedAt,
-				releasedAt ? "released" : null
+				releasedAt ? "released" : null,
 			)
 			.run();
 	}
@@ -540,7 +540,7 @@ describe("Flow metrics (PROJ-252)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=day`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = (await res.json()) as FlowMetrics;
@@ -593,7 +593,7 @@ describe("Flow metrics (PROJ-252)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?granularity=week`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = (await res.json()) as FlowMetrics;
@@ -637,7 +637,7 @@ describe("Flow metrics (PROJ-252)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = (await res.json()) as FlowMetrics;
@@ -645,7 +645,7 @@ describe("Flow metrics (PROJ-252)", () => {
 		const totalCreated = metrics.arrivalVsCompletionOverTime.reduce((sum, b) => sum + b.created, 0);
 		const totalCompleted = metrics.arrivalVsCompletionOverTime.reduce(
 			(sum, b) => sum + b.completed,
-			0
+			0,
 		);
 		expect(totalCreated).toBe(1);
 		expect(totalCompleted).toBe(1);
@@ -734,7 +734,7 @@ describe("Flow metrics (PROJ-252)", () => {
 		const until = now;
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=week`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = (await res.json()) as FlowMetrics;
@@ -763,7 +763,7 @@ describe("Flow metrics (PROJ-252)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86400}&until=${now}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = (await res.json()) as FlowMetrics;
@@ -790,20 +790,20 @@ describe("Factory health tiles (PROJ-334)", () => {
 	async function seedLease(
 		issueId: string,
 		releaseReason: string | null,
-		releasedAt: number | null
+		releasedAt: number | null,
 	) {
 		const agentSessionId = crypto.randomUUID();
 		const now = Math.floor(Date.now() / 1000);
 		await env.DB.prepare(
 			`INSERT INTO agent_sessions
 			   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
-			 VALUES (?, ?, ?, NULL, 'seed-agent', 'agent', 'ended', ?, ?, ?)`
+			 VALUES (?, ?, ?, NULL, 'seed-agent', 'agent', 'ended', ?, ?, ?)`,
 		)
 			.bind(agentSessionId, workspaceId, issueId, now, now, now)
 			.run();
 		await env.DB.prepare(
 			`INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		)
 			.bind(
 				crypto.randomUUID(),
@@ -812,7 +812,7 @@ describe("Factory health tiles (PROJ-334)", () => {
 				agentSessionId,
 				now,
 				releasedAt,
-				releaseReason
+				releaseReason,
 			)
 			.run();
 	}
@@ -820,12 +820,12 @@ describe("Factory health tiles (PROJ-334)", () => {
 	async function seedFileClaim(
 		issueId: string,
 		releaseReason: string | null,
-		releasedAt: number | null
+		releasedAt: number | null,
 	) {
 		const now = Math.floor(Date.now() / 1000);
 		await env.DB.prepare(
 			"INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, " +
-				"released_at, release_reason) VALUES (?, ?, ?, NULL, ?, ?, ?, ?)"
+				"released_at, release_reason) VALUES (?, ?, ?, NULL, ?, ?, ?, ?)",
 		)
 			.bind(
 				crypto.randomUUID(),
@@ -834,14 +834,14 @@ describe("Factory health tiles (PROJ-334)", () => {
 				`src/${crypto.randomUUID()}.ts`,
 				now,
 				releasedAt,
-				releaseReason
+				releaseReason,
 			)
 			.run();
 	}
 
 	async function seedGateRejection(issueId: string, occurredAt: number) {
 		await env.DB.prepare(
-			"INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)"
+			"INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)",
 		)
 			.bind(crypto.randomUUID(), workspaceId, issueId, occurredAt)
 			.run();
@@ -850,7 +850,7 @@ describe("Factory health tiles (PROJ-334)", () => {
 	async function seedWipCapDenial(project: string, issueId: string, occurredAt: number) {
 		await env.DB.prepare(
 			"INSERT INTO wip_cap_denials (id, workspace_id, project_id, issue_id, agent_session_id, " +
-				"occurred_at) VALUES (?, ?, ?, ?, NULL, ?)"
+				"occurred_at) VALUES (?, ?, ?, ?, NULL, ?)",
 		)
 			.bind(crypto.randomUUID(), workspaceId, project, issueId, occurredAt)
 			.run();
@@ -885,7 +885,7 @@ describe("Factory health tiles (PROJ-334)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = (await res.json()) as FlowMetrics;
@@ -912,7 +912,7 @@ describe("Factory health tiles (PROJ-334)", () => {
 		await env.DB.prepare(
 			`INSERT INTO agent_sessions
 			   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
-			 VALUES (?, ?, ?, NULL, 'seed-agent', 'agent', 'ended', ?, ?, ?)`
+			 VALUES (?, ?, ?, NULL, 'seed-agent', 'agent', 'ended', ?, ?, ?)`,
 		)
 			.bind(crypto.randomUUID(), other.workspaceId, otherIssue.id, now, now, now)
 			.run();
@@ -920,7 +920,7 @@ describe("Factory health tiles (PROJ-334)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 100}&until=${now + 100}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		const metrics = (await res.json()) as FlowMetrics;
 		expect(metrics.factoryHealth.leaseExpiries).toBe(1);
@@ -933,7 +933,7 @@ describe("Factory health tiles (PROJ-334)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86400}&until=${now}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		const metrics = (await res.json()) as FlowMetrics;
 		expect(metrics.factoryHealth).toEqual({

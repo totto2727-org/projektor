@@ -20,7 +20,7 @@ router.get("/:id/code-heatmap", async (c) => {
 				until: until ? Number(until) : undefined,
 				prefix,
 				mode,
-			})
+			}),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);

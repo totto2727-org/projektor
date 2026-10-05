@@ -5,13 +5,10 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "type-check": "tsc --noEmit"
+    "type-check": "vp lint --type-check"
   },
   "dependencies": {
     "@projektor/plugin-sdk": "workspace:*",
     "@projektor/types": "workspace:*"
-  },
-  "devDependencies": {
-    "typescript": "^6.0.3"
   }
 }

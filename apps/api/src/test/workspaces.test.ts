@@ -17,7 +17,7 @@ async function mcpCall<T>(
 	workspaceId: string,
 	name: string,
 	args: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -57,7 +57,7 @@ describe("Workspaces MCP", () => {
 			workspaceId,
 			"list_workspaces",
 			{},
-			userHeaders
+			userHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 
 		expect(isMcpError(res)).toBe(false);
@@ -79,7 +79,7 @@ describe("Workspaces MCP", () => {
 			workspaceId,
 			"list_workspaces",
 			{},
-			userHeaders
+			userHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 
 		expect(isMcpError(res)).toBe(false);
@@ -100,7 +100,7 @@ describe("Workspaces MCP", () => {
 			workspaceId,
 			"list_workspaces",
 			{},
-			userHeaders
+			userHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 
 		expect(isMcpError(res)).toBe(false);
@@ -114,7 +114,7 @@ describe("Workspaces MCP", () => {
 			workspaceId,
 			"list_workspaces",
 			{},
-			userHeaders
+			userHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 
 		expect(isMcpError(res)).toBe(false);
@@ -130,7 +130,7 @@ describe("Workspaces MCP", () => {
 			workspaceId,
 			"create_workspace",
 			{ slug: "new-ws", name: "New Workspace" },
-			userHeaders
+			userHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 
 		expect(isMcpError(res)).toBe(false);
@@ -149,7 +149,7 @@ describe("Workspaces MCP", () => {
 			workspaceId,
 			"create_workspace",
 			{ slug: "seeded-ws", name: "Seeded" },
-			userHeaders
+			userHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 
 		expect(isMcpError(res)).toBe(false);
@@ -160,7 +160,7 @@ describe("Workspaces MCP", () => {
 			workspaceId,
 			"list_workspaces",
 			{},
-			userHeaders
+			userHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const workspaces = JSON.parse(listRes.result.content[0].text) as Array<{
 			id: string;
@@ -176,13 +176,13 @@ describe("Workspaces MCP", () => {
 			workspaceId,
 			"create_workspace",
 			{ slug: "dup-slug", name: "First" },
-			userHeaders
+			userHeaders,
 		);
 		const res = await mcpCall(
 			workspaceId,
 			"create_workspace",
 			{ slug: "dup-slug", name: "Second" },
-			userHeaders
+			userHeaders,
 		);
 		expect(toolError(res)?.code).toBe("conflict");
 		expect(toolError(res)?.message).toMatch(/slug already taken/i);
@@ -201,7 +201,7 @@ describe("Workspaces MCP", () => {
 			extra.workspace.id,
 			"delete_workspace",
 			{ workspaceSlug: extra.workspace.slug },
-			extraHeaders
+			extraHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 
 		expect(isMcpError(res)).toBe(false);
@@ -220,7 +220,7 @@ describe("Workspaces MCP", () => {
 			extra.workspace.id,
 			"delete_workspace",
 			{ workspaceSlug: extra.workspace.slug },
-			extraHeaders
+			extraHeaders,
 		);
 
 		expect(toolError(res)?.code).toBe("conflict");
@@ -240,7 +240,7 @@ describe("Workspaces MCP", () => {
 				a.workspace.id,
 				"delete_workspace",
 				{ workspaceSlug: victim.slug },
-				authHeaders(a.token, a.workspace.slug)
+				authHeaders(a.token, a.workspace.slug),
 			);
 
 			expect(toolError(res)?.code).toBe("not_found");
@@ -258,7 +258,7 @@ describe("Workspaces MCP", () => {
 				a.workspace.id,
 				"delete_workspace",
 				{ workspaceSlug: b.slug },
-				authHeaders(a.token, a.workspace.slug)
+				authHeaders(a.token, a.workspace.slug),
 			);
 
 			expect(toolError(res)?.code).toBe("not_found");
@@ -269,7 +269,7 @@ describe("Workspaces MCP", () => {
 	it("delete_workspace returns error for non-owner", async () => {
 		const ws = await seedWorkspace(`mcp-del-${crypto.randomUUID().slice(0, 8)}`);
 		const memberUser = await import("./helpers").then((h) =>
-			h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`)
+			h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
 		);
 		await seedMember(ws.id, memberUser.id, "member");
 		const memberToken = await seedToken(ws.id, memberUser.id);
@@ -288,7 +288,7 @@ describe("Workspaces MCP", () => {
 			extra.workspace.id,
 			"delete_workspace",
 			{ workspaceSlug: extra.workspace.slug },
-			extraHeaders
+			extraHeaders,
 		);
 		expect(toolError(res)?.code).toBe("conflict");
 		expect(toolError(res)?.message).toMatch(/delete all projects/i);
@@ -299,7 +299,7 @@ describe("Workspaces MCP", () => {
 			workspaceId,
 			"update_workspace",
 			{ name: "Renamed via MCP" },
-			userHeaders
+			userHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 
 		expect(isMcpError(res)).toBe(false);
@@ -316,7 +316,7 @@ describe("Workspaces MCP", () => {
 	it("update_workspace returns error for member role (PROJ-246)", async () => {
 		const ws = await seedWorkspace(`mcp-update-${crypto.randomUUID().slice(0, 8)}`);
 		const memberUser = await import("./helpers").then((h) =>
-			h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`)
+			h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
 		);
 		await seedMember(ws.id, memberUser.id, "member");
 		const memberToken = await seedToken(ws.id, memberUser.id);
@@ -359,7 +359,7 @@ describe("DELETE /api/workspaces/:slug (PROJ-96)", () => {
 	it("non-owner gets 403", async () => {
 		const ws = await seedWorkspace(`del-403-${crypto.randomUUID().slice(0, 8)}`);
 		const memberUser = await import("./helpers").then((h) =>
-			h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`)
+			h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
 		);
 		await seedMember(ws.id, memberUser.id, "member");
 		const memberToken = await seedToken(ws.id, memberUser.id);
@@ -374,7 +374,7 @@ describe("DELETE /api/workspaces/:slug (PROJ-96)", () => {
 		// The dev wrangler.toml sets DEFAULT_WORKSPACE_SLUG = "projektor"
 		const defaultWs = await seedWorkspace("projektor");
 		const ownerUser = await import("./helpers").then((h) =>
-			h.seedUser(`owner-def-${crypto.randomUUID().slice(0, 8)}@example.com`)
+			h.seedUser(`owner-def-${crypto.randomUUID().slice(0, 8)}@example.com`),
 		);
 		await seedMember(defaultWs.id, ownerUser.id, "owner");
 		const ownerTok = await seedToken(defaultWs.id, ownerUser.id);
@@ -415,7 +415,7 @@ describe("DELETE /api/workspaces/:slug (PROJ-96)", () => {
 describe("Member removal tombstone (PROJ-436)", () => {
 	async function tombstoneRow(workspaceId: string, userId: string) {
 		return env.DB.prepare(
-			"SELECT removed_at FROM provisioning_removals WHERE workspace_id = ? AND user_id = ?"
+			"SELECT removed_at FROM provisioning_removals WHERE workspace_id = ? AND user_id = ?",
 		)
 			.bind(workspaceId, userId)
 			.first<{ removed_at: number }>();
@@ -429,7 +429,7 @@ describe("Member removal tombstone (PROJ-436)", () => {
 
 		const delRes = await SELF.fetch(
 			`http://localhost/api/workspaces/${fixture.workspace.slug}/members/${memberUser.id}`,
-			{ method: "DELETE", headers: ownerHeaders }
+			{ method: "DELETE", headers: ownerHeaders },
 		);
 		expect(delRes.status).toBe(200);
 		expect(await tombstoneRow(fixture.workspace.id, memberUser.id)).not.toBeNull();
@@ -440,7 +440,7 @@ describe("Member removal tombstone (PROJ-436)", () => {
 				method: "POST",
 				headers: ownerHeaders,
 				body: JSON.stringify({ email: memberUser.email, role: "member" }),
-			}
+			},
 		);
 		expect(inviteRes.status).toBe(201);
 		expect(await tombstoneRow(fixture.workspace.id, memberUser.id)).toBeNull();
@@ -513,7 +513,7 @@ describe("GET /api/workspaces/:slug/mcp-info (PROJ-83)", () => {
 			`claude mcp add --transport http ` +
 				`--header "Authorization: Bearer {{TOKEN}}" ` +
 				`--header "X-Workspace-Slug: ${slug}" ` +
-				`projektor "${body.mcpUrl}"`
+				`projektor "${body.mcpUrl}"`,
 		);
 	});
 });
@@ -766,7 +766,7 @@ describe("Workspace brand (PROJ-761)", () => {
 				method: "PATCH",
 				headers: ownerHeaders,
 				body: JSON.stringify({ displayName: "Header Workspace" }),
-			}
+			},
 		);
 		expect(patchRes.status).toBe(200);
 		const patched = (await patchRes.json()) as { displayName: string | null };
@@ -776,13 +776,13 @@ describe("Workspace brand (PROJ-761)", () => {
 			headers: memberHeaders,
 		});
 		expect(((await headerWsBrand.json()) as { displayName: string | null }).displayName).toBe(
-			"Header Workspace"
+			"Header Workspace",
 		);
 
 		const otherOwnerHeaders = authHeaders(other.token, other.workspace.slug);
 		const otherWsBrand = await SELF.fetch(
 			`http://localhost/api/workspaces/${other.workspace.slug}/brand`,
-			{ headers: otherOwnerHeaders }
+			{ headers: otherOwnerHeaders },
 		);
 		expect(((await otherWsBrand.json()) as { displayName: string | null }).displayName).toBeNull();
 	});

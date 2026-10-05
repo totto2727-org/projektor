@@ -5,10 +5,9 @@
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",
 	"scripts": {
-		"type-check": "tsc --noEmit"
+		"type-check": "vp lint --type-check"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^5.20260813.1",
-		"typescript": "^6.0.3"
+		"@cloudflare/workers-types": "^5.20260813.1"
 	}
 }

@@ -72,7 +72,7 @@ describe("PROJ-889: auth middleware records method + credential", () => {
 		const id = crypto.randomUUID();
 		await env.DB.prepare(
 			`INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, created_at)
-			 VALUES (?, ?, ?, 'pk', ?, '["read"]', ?)`
+			 VALUES (?, ?, ?, 'pk', ?, '["read"]', ?)`,
 		)
 			.bind(id, workspace.id, user.id, await hashToken(raw), Math.floor(Date.now() / 1000))
 			.run();

@@ -120,6 +120,6 @@ describe("checkDefinitionOfReady (PROJ-253)", () => {
 				ready: true,
 				missing: [],
 			});
-		}
+		},
 	);
 });

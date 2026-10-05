@@ -9,7 +9,7 @@ export const CreateTaskStatusSchema = z.object({
 		.max(50)
 		.regex(
 			/^[a-z][a-z0-9_]*$/,
-			"Key must start with a letter and contain only lowercase letters, digits, or underscores"
+			"Key must start with a letter and contain only lowercase letters, digits, or underscores",
 		),
 	name: z.string().min(1).max(100),
 	category: CategoryEnum,

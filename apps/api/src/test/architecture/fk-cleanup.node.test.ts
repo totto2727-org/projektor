@@ -48,7 +48,7 @@ function declarationSource(ref: string): string | null {
 	}
 	const start = new RegExp(
 		`^(?:export )?(?:async )?(?:function\\s+${name}\\b|const\\s+${name}\\b)`,
-		"m"
+		"m",
 	).exec(text);
 	if (!start) return null;
 	const rest = text.slice(start.index + start[0].length);
@@ -72,7 +72,7 @@ describe("PROJ-923: FK ON DELETE actions have explicit app cleanup", () => {
 		const missing = [...declared].filter((k) => !(k in FK_CLEANUP_ALLOWLIST));
 		expect(
 			missing,
-			"New FK with ON DELETE: D1 won't reliably run it. Clean up explicitly in the parent's delete path and add an entry to fk-cleanup-allowlist.ts (AGENTS.md: 'Deletes never rely on FK cascades')."
+			"New FK with ON DELETE: D1 won't reliably run it. Clean up explicitly in the parent's delete path and add an entry to fk-cleanup-allowlist.ts (AGENTS.md: 'Deletes never rely on FK cascades').",
 		).toEqual([]);
 	});
 
@@ -90,7 +90,7 @@ describe("PROJ-923: FK ON DELETE actions have explicit app cleanup", () => {
 				if (src === null) problems.push(`${key}: ${ref} not found`);
 			const mentions = sources.every(
 				({ src }) =>
-					src !== null && (src.includes(child) || new RegExp(`\\b${camel(child)}\\b`).test(src))
+					src !== null && (src.includes(child) || new RegExp(`\\b${camel(child)}\\b`).test(src)),
 			);
 			if (!mentions)
 				problems.push(`${key}: not every one of ${entry.cleanedBy.join(", ")} mentions ${child}`);

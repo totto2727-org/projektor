@@ -135,10 +135,10 @@ router.post("/:workspaceId", async (c) => {
 					instructions: buildServerInstructions(
 						await getWorkflow().then(
 							(w) => w.version,
-							() => null
-						)
+							() => null,
+						),
 					),
-				})
+				}),
 			);
 
 		case "tools/list": {
@@ -149,7 +149,7 @@ router.post("/:workspaceId", async (c) => {
 					domainsParam
 						.split(",")
 						.map((s) => s.trim())
-						.filter(Boolean)
+						.filter(Boolean),
 				);
 				if (requested.length > 0) {
 					const invalid = requested.filter((slug) => !TOOL_DOMAIN_SLUGS.includes(slug));
@@ -158,9 +158,9 @@ router.post("/:workspaceId", async (c) => {
 							jsonRpcError(
 								body.id,
 								-32602,
-								`Unknown domain slug(s): ${invalid.join(", ")}. Valid domains: ${TOOL_DOMAIN_SLUGS.join(", ")}`
+								`Unknown domain slug(s): ${invalid.join(", ")}. Valid domains: ${TOOL_DOMAIN_SLUGS.join(", ")}`,
 							),
-							400
+							400,
 						);
 					}
 					const allowed = toolNamesForDomains(requested);
@@ -180,7 +180,7 @@ router.post("/:workspaceId", async (c) => {
 					// so a short client-side cache is safe.
 					ttlMs: TOOLS_LIST_TTL_MS,
 					cacheScope: TOOLS_LIST_CACHE_SCOPE,
-				})
+				}),
 			);
 		}
 
@@ -195,7 +195,7 @@ router.post("/:workspaceId", async (c) => {
 			const args = body.params.arguments ?? {};
 			if (!isPlainObject(args)) {
 				return c.json(
-					jsonRpcError(body.id, -32602, "Invalid params: `arguments` must be an object")
+					jsonRpcError(body.id, -32602, "Invalid params: `arguments` must be an object"),
 				);
 			}
 			const tool = getAllTools(workspace.id).find((t) => t.name === name);
@@ -218,7 +218,7 @@ router.post("/:workspaceId", async (c) => {
 								? [`Missing required argument(s): ${missing.join(", ")}`]
 								: [],
 						fieldErrors,
-					})
+					}),
 				);
 				// biome-ignore lint/style/noNonNullAssertion: a ValidationError always maps
 				return c.json(jsonRpcResult(body.id, toolError!));
@@ -242,7 +242,7 @@ router.post("/:workspaceId", async (c) => {
 						// PROJ-931: minified — pretty-printing roughly doubled token cost
 						// for agents reading tool results. REST responses are unaffected.
 						content: [{ type: "text", text: JSON.stringify(result) }],
-					})
+					}),
 				);
 			} catch (err) {
 				// PROJ-893: service errors (validation, not_found, forbidden, conflict, …) are
@@ -299,7 +299,7 @@ function insufficientScope(
 	c: Context<HonoEnv>,
 	workspaceId: string,
 	id: unknown,
-	required: Capability
+	required: Capability,
 ) {
 	c.header("WWW-Authenticate", insufficientScopeChallenge(c.req.url, workspaceId));
 	return c.json(jsonRpcError(id, -32003, `Token lacks '${required}' scope`), 403);

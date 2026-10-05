@@ -4,7 +4,7 @@ import { authHeaders, seedIssue, seedProjectFixture } from "./helpers";
 
 async function mintSource(
 	f: Readonly<{ projectId: string; token: string; slug: string }>,
-	body: Record<string, unknown> = { name: "Widget" }
+	body: Record<string, unknown> = { name: "Widget" },
 ): Promise<void> {
 	await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
 		method: "POST",
@@ -24,14 +24,14 @@ async function seedFeedbackRow(
 		submitterLabel?: string;
 		status?: string;
 		linkedIssueId?: string;
-	}> = {}
+	}> = {},
 ): Promise<string> {
 	const id = crypto.randomUUID();
 	await env.DB.prepare(
 		`INSERT INTO feedback
        (id, source_id, workspace_id, project_id, rating, rating_scale, body, submitter_label,
         status, linked_issue_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			id,
@@ -44,7 +44,7 @@ async function seedFeedbackRow(
 			opts.submitterLabel ?? null,
 			opts.status ?? "new",
 			opts.linkedIssueId ?? null,
-			100
+			100,
 		)
 		.run();
 	return id;
@@ -71,7 +71,7 @@ describe("POST /api/projects/:id/feedback/bulk-mark-reviewed", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ feedbackIds: [id1, id2] }),
-			}
+			},
 		);
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({ updated: 2 });
@@ -95,7 +95,7 @@ describe("POST /api/projects/:id/feedback/bulk-mark-reviewed", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ feedbackIds: [foreignId] }),
-			}
+			},
 		);
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({ updated: 0 });
@@ -114,7 +114,7 @@ describe("POST /api/projects/:id/feedback/bulk-mark-reviewed", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ feedbackIds: ["nonexistent"] }),
-			}
+			},
 		);
 		expect(res.status).toBe(403);
 	});
@@ -142,14 +142,14 @@ describe("POST /api/projects/:id/feedback/bulk-convert-to-issue", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ feedbackIds: [id1, id2] }),
-			}
+			},
 		);
 		expect(res.status).toBe(201);
 		const created = (await res.json()) as { id: string; convertedCount: number };
 		expect(created.convertedCount).toBe(2);
 
 		const rows = await env.DB.prepare(
-			"SELECT linked_issue_id, status FROM feedback WHERE id IN (?, ?)"
+			"SELECT linked_issue_id, status FROM feedback WHERE id IN (?, ?)",
 		)
 			.bind(id1, id2)
 			.all<{ linked_issue_id: string; status: string }>();
@@ -179,7 +179,7 @@ describe("POST /api/projects/:id/feedback/bulk-convert-to-issue", () => {
 		});
 
 		const issueCountBefore = await env.DB.prepare(
-			"SELECT COUNT(*) as count FROM issues WHERE project_id = ?"
+			"SELECT COUNT(*) as count FROM issues WHERE project_id = ?",
 		)
 			.bind(f.projectId)
 			.first<{ count: number }>();
@@ -190,7 +190,7 @@ describe("POST /api/projects/:id/feedback/bulk-convert-to-issue", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ feedbackIds: [freshId, convertedId] }),
-			}
+			},
 		);
 		expect(res.status).toBe(409);
 
@@ -201,7 +201,7 @@ describe("POST /api/projects/:id/feedback/bulk-convert-to-issue", () => {
 		expect(fresh!.status).toBe("new");
 
 		const issueCountAfter = await env.DB.prepare(
-			"SELECT COUNT(*) as count FROM issues WHERE project_id = ?"
+			"SELECT COUNT(*) as count FROM issues WHERE project_id = ?",
 		)
 			.bind(f.projectId)
 			.first<{ count: number }>();
@@ -220,7 +220,7 @@ describe("POST /api/projects/:id/feedback/bulk-convert-to-issue", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ feedbackIds: [id1, "nonexistent-id"] }),
-			}
+			},
 		);
 		expect(res.status).toBe(404);
 	});
@@ -233,7 +233,7 @@ describe("POST /api/projects/:id/feedback/bulk-convert-to-issue", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ feedbackIds: ["nonexistent"] }),
-			}
+			},
 		);
 		expect(res.status).toBe(403);
 	});

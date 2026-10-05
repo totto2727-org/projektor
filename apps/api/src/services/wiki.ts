@@ -1,5 +1,7 @@
 import { drizzle, schema } from "@projektor/db";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import * as wikiData from "@projektor/data-services/wiki";
+import { Effect } from "effect";
+import { and, asc, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { wikiPagePath } from "../lib/urls";
 import { IdSchema } from "../schemas/common";
 import {
@@ -161,7 +163,7 @@ async function assertSlugAvailable(
 	orm: ReturnType<typeof drizzle<typeof schema>>,
 	workspaceId: string,
 	slug: string,
-	excludePageId?: string
+	excludePageId?: string,
 ): Promise<void> {
 	if (RESERVED_WIKI_SLUGS.has(slug)) {
 		throw new ValidationError({
@@ -176,8 +178,8 @@ async function assertSlugAvailable(
 			and(
 				eq(schema.wikiPages.workspaceId, workspaceId),
 				eq(schema.wikiPages.slug, slug),
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.get();
 	if (existing && existing.id !== excludePageId) {
@@ -188,7 +190,7 @@ async function assertSlugAvailable(
 async function resolvePageByIdOrSlug(
 	db: D1Database,
 	idOrSlug: string,
-	workspaceId: string
+	workspaceId: string,
 ): Promise<{
 	id: string;
 	slug: string;
@@ -218,8 +220,8 @@ async function resolvePageByIdOrSlug(
 				eq(schema.wikiPages.workspaceId, workspaceId),
 				// PROJ-496: a trashed page is treated as gone for every normal read/write
 				// entry point — only undeleteWikiPage/listWikiTrash bypass this filter.
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.orderBy(idFirst(idOrSlug))
 		.get();
@@ -252,7 +254,7 @@ async function resolvePageByIdOrSlug(
 async function getSubtreeHeight(
 	db: D1Database,
 	pageId: string,
-	workspaceId: string
+	workspaceId: string,
 ): Promise<number> {
 	// PROJ-820 (post-review correction): a legacy row with a cyclic parent_id (pre-dating
 	// validateParentDepth, or written directly against D1) would otherwise make this
@@ -270,7 +272,7 @@ async function getSubtreeHeight(
 				JOIN subtree ON wp.parent_id = subtree.id
 				WHERE wp.workspace_id = ?2 AND subtree.depth < ?3
 			)
-			SELECT MAX(depth) AS maxDepth FROM subtree`
+			SELECT MAX(depth) AS maxDepth FROM subtree`,
 		)
 		.bind(pageId, workspaceId, WIKI_MAX_NESTING_DEPTH + 1)
 		.first<{ maxDepth: number | null }>();
@@ -285,7 +287,7 @@ async function validateParentDepth(
 	db: D1Database,
 	parentId: string,
 	workspaceId: string,
-	forbidPageId?: string
+	forbidPageId?: string,
 ): Promise<void> {
 	if (forbidPageId && parentId === forbidPageId) {
 		throw new ValidationError({ formErrors: ["A page cannot be its own parent"], fieldErrors: {} });
@@ -332,7 +334,7 @@ async function validateNewPageParent(
 	db: D1Database,
 	parentId: string,
 	workspaceId: string,
-	projectId: string | null | undefined
+	projectId: string | null | undefined,
 ): Promise<void> {
 	const orm = drizzle(db, { schema });
 	const parentPage = await orm
@@ -343,8 +345,8 @@ async function validateNewPageParent(
 				eq(schema.wikiPages.id, parentId),
 				eq(schema.wikiPages.workspaceId, workspaceId),
 				// PROJ-496: a page can't be (re)parented under a trashed page.
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.get();
 	if (!parentPage) {
@@ -366,7 +368,7 @@ async function validateUpdatedPageParent(
 	db: D1Database,
 	parentId: string,
 	workspaceId: string,
-	page: Readonly<{ id: string; projectId: string | null }>
+	page: Readonly<{ id: string; projectId: string | null }>,
 ): Promise<void> {
 	const orm = drizzle(db, { schema });
 	const parentPage = await orm
@@ -377,8 +379,8 @@ async function validateUpdatedPageParent(
 				eq(schema.wikiPages.id, parentId),
 				eq(schema.wikiPages.workspaceId, workspaceId),
 				// PROJ-496: a page can't be (re)parented under a trashed page.
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.get();
 	if (!parentPage) {
@@ -405,7 +407,7 @@ function buildWikiPageUpdateSet(
 		parentId?: string | null;
 		slug?: string;
 		meta?: WikiFrontmatterMeta;
-	}>
+	}>,
 ): Record<string, unknown> {
 	// PROJ-919: every page write bumps the version the write guard compares.
 	const setData: Record<string, unknown> = {
@@ -445,7 +447,7 @@ function buildWikiPageUpdateDiff(
 	fields: Readonly<{
 		title?: string;
 		content?: string;
-	}>
+	}>,
 ): Record<string, unknown> {
 	const diff: Record<string, unknown> = {};
 	if (fields.title !== undefined) diff.title = fields.title;
@@ -453,299 +455,54 @@ function buildWikiPageUpdateDiff(
 	return diff;
 }
 
-// PROJ-488: any-of tag match — a page matches if `wiki_pages.tags` (a JSON array
-// column) contains at least one of the given tags. json_each is the standard SQLite
-// way to query into a JSON array column without denormalizing it into its own table;
-// `tags` has no direct index (see 0045_wiki_frontmatter.sql), so this is a per-row
-// scan, acceptable at current wiki sizes — revisit with a join table if it becomes hot.
-function tagsFilterCondition(tags: readonly string[]) {
-	if (tags.length === 0) return undefined;
-	return sql`EXISTS (SELECT 1 FROM json_each(${schema.wikiPages.tags}) WHERE value IN (${sql.join(
-		tags.map((t) => sql`${t}`),
-		sql`, `
-	)}))`;
-}
-
-// PROJ-489 (R7): a page is "stale" for maintenance-queue purposes when EITHER an explicit
-// `status: stale|deprecated` is set, OR a `verify_interval` was declared and the page is
-// either never-verified or overdue. This is the SQL-side mirror of computeFreshness's
-// stale/unverified branches (services/wiki-freshness.ts) — kept in lockstep by hand since
-// this needs to run inside SQL (ORDER BY / WHERE) rather than per-row in JS. `now` is
-// passed in as a bound parameter (not `strftime('%s','now')`) so ranking and the
-// freshness computed for the same response agree on one instant.
-//
-// PROJ-515: only used by listStaleWikiPages now — searchWiki's ranking-demotion tier
-// deliberately diverged from this (see its inline ORDER BY CASE) to stop penalizing
-// never-verified pages in search results while still surfacing them here for maintenance.
-function staleWikiPageCondition(now: number) {
-	return sql`(
-		${schema.wikiPages.status} IN ('stale', 'deprecated')
-		OR (
-			${schema.wikiPages.verifyInterval} IS NOT NULL
-			AND (
-				${schema.wikiPages.verifiedAt} IS NULL
-				OR (${schema.wikiPages.verifiedAt} + ${schema.wikiPages.verifyInterval} * 86400) <= ${now}
-			)
-		)
-	)`;
-}
-
-function projectScopeCondition(projectId: string | undefined, includeWorkspacePages: boolean) {
-	if (!projectId) return undefined;
-	return includeWorkspacePages
-		? or(eq(schema.wikiPages.projectId, projectId), isNull(schema.wikiPages.projectId))
-		: eq(schema.wikiPages.projectId, projectId);
-}
-
-function buildListWikiPagesConditions(
-	ctx: ServiceCtx,
-	data: ReturnType<typeof ListPagesInputSchema.parse>
-) {
-	const conditions = [
-		eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-		// PROJ-496: trashed pages never appear in the normal listing.
-		isNull(schema.wikiPages.deletedAt),
-	];
-	if (data.parentId) conditions.push(eq(schema.wikiPages.parentId, data.parentId));
-	const scope = projectScopeCondition(data.projectId, data.includeWorkspacePages);
-	if (scope) conditions.push(scope);
-	if (data.type) conditions.push(eq(schema.wikiPages.type, data.type));
-	if (data.status) conditions.push(eq(schema.wikiPages.status, data.status));
-	const tagsCond = tagsFilterCondition(data.tags ?? []);
-	if (tagsCond) conditions.push(tagsCond);
-	// PROJ-525: matches search_wiki/listStaleWikiPages's is_template=0 exclusion — a
-	// template shouldn't leak into ordinary type/status/tags browsing (e.g. filtering by
-	// type=runbook alongside "Runbook Template").
-	if (!data.includeTemplates) conditions.push(eq(schema.wikiPages.isTemplate, false));
-	// PROJ-311: hide project-scoped pages whose project the user isn't granted
-	// (workspace-level pages, projectId null, stay visible to everyone).
+// The app composes its authorization policy, including workspace-level pages.
+function wikiReadVisibility(ctx: ServiceCtx) {
 	const visible = visibleProjectPredicate(ctx, schema.wikiPages.projectId);
-	if (visible) {
-		const cond = or(isNull(schema.wikiPages.projectId), visible);
-		if (cond) conditions.push(cond);
-	}
-	return conditions;
+	return visible ? or(isNull(schema.wikiPages.projectId), visible) : undefined;
 }
 
 export async function listWikiPages(ctx: ServiceCtx, input: unknown) {
 	const parsed = ListPagesInputSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
-
-	const orm = drizzle(ctx.db, { schema });
-	const conditions = buildListWikiPagesConditions(ctx, parsed.data);
-
-	const rows = await orm
-		.select({
-			id: schema.wikiPages.id,
-			slug: schema.wikiPages.slug,
-			title: schema.wikiPages.title,
-			// eslint-disable-next-line camelcase
-			parent_id: schema.wikiPages.parentId,
-			// eslint-disable-next-line camelcase
-			project_id: schema.wikiPages.projectId,
-			// eslint-disable-next-line camelcase
-			updated_at: schema.wikiPages.updatedAt,
-			// PROJ-488 (R6): denormalized frontmatter metadata.
-			type: schema.wikiPages.type,
-			tags: schema.wikiPages.tags,
-			status: schema.wikiPages.status,
-			// eslint-disable-next-line camelcase
-			verified_at: schema.wikiPages.verifiedAt,
-			// eslint-disable-next-line camelcase
-			verified_by: schema.wikiPages.verifiedBy,
-			owners: schema.wikiPages.owners,
-			// eslint-disable-next-line camelcase
-			verify_interval: schema.wikiPages.verifyInterval,
-			// eslint-disable-next-line camelcase
-			is_template: schema.wikiPages.isTemplate,
-		})
-		.from(schema.wikiPages)
-		.where(and(...conditions))
-		.orderBy(asc(schema.wikiPages.title));
-
+	const rows = await Effect.runPromise(
+		wikiData.listWikiPages(ctx.db, ctx.workspaceId, {
+			...parsed.data,
+			visibility: wikiReadVisibility(ctx),
+		}),
+	);
 	return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }));
-}
-
-// PROJ-486: title is weighted well above content and tags so a title match ranks
-// above a match buried deep in body content — bm25() weight args are positional,
-// one per wiki_fts column (page_id, workspace_id, title, content, tags); the first
-// two are UNINDEXED so their weight is irrelevant, left at 0 for clarity.
-const WIKI_FTS_BM25_WEIGHTS = "0, 0, 10.0, 1.0, 5.0";
-
-// PROJ-488: a JSON-array column read through a raw D1 query (no drizzle json decoding).
-function decodeJsonArrayColumn(value: unknown): string[] {
-	if (Array.isArray(value)) return value as string[];
-	if (typeof value !== "string") return [];
-	try {
-		const parsed = JSON.parse(value);
-		return Array.isArray(parsed) ? parsed : [];
-	} catch {
-		return [];
-	}
 }
 
 export async function searchWiki(ctx: ServiceCtx, input: unknown) {
 	const parsed = SearchWikiInputSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
-	const { query, limit, offset, projectId, updatedSince, type, status, tags } = parsed.data;
-	const includeWorkspacePages = parsed.data.includeWorkspacePages;
-
+	const { query, projectId, includeWorkspacePages } = parsed.data;
 	const ftsQuery = sanitizeFtsQuery(query);
 	if (!ftsQuery) return [];
-
-	if (projectId && !includeWorkspacePages) {
-		// PROJ-311: searching a specific project the user can't see returns nothing.
-		if (!(await hasProjectAccess(ctx, projectId))) {
-			return [];
-		}
-	}
-
-	const { q, params, now } = buildSearchWikiQuery(ctx, ftsQuery, {
-		projectId,
-		includeWorkspacePages,
-		updatedSince,
-		type,
-		status,
-		tags,
-		limit,
-		offset,
-	});
-
-	const { results } = await ctx.db
-		.prepare(q)
-		.bind(...params)
-		.all();
-	return (results as Array<Record<string, unknown>>).map((r) => mapSearchWikiRow(r, now));
-}
-
-type SearchWikiFilters = {
-	projectId: string | undefined;
-	includeWorkspacePages: boolean;
-	updatedSince: number | undefined;
-	type: string | undefined;
-	status: string | undefined;
-	tags: string[] | undefined;
-	limit: number;
-	offset: number;
-};
-
-function buildSearchWikiQuery(
-	ctx: ServiceCtx,
-	ftsQuery: string,
-	{
-		projectId,
-		includeWorkspacePages,
-		updatedSince,
-		type,
-		status,
-		tags,
-		limit,
-		offset,
-	}: SearchWikiFilters
-): { q: string; params: unknown[]; now: number } {
-	let q = `SELECT p.id, p.slug, p.title, p.project_id,
-              p.type, p.tags, p.status, p.verified_at, p.verified_by, p.owners, p.verify_interval,
-              snippet(wiki_fts, -1, '**', '**', '…', 24) as excerpt,
-              bm25(wiki_fts, ${WIKI_FTS_BM25_WEIGHTS}) as rank
-            FROM wiki_fts
-            JOIN wiki_pages p ON p.id = wiki_fts.page_id
-            -- PROJ-491 (R9): templates are a picker-only concern (list_wiki_templates), not
-            -- search results — excluded unconditionally rather than behind an opt-in filter.
-            WHERE wiki_fts MATCH ? AND wiki_fts.workspace_id = ?
-              AND p.is_template = 0
-              -- PROJ-496: FTS rows for a trashed page aren't purged until 30 days out —
-              -- joining wiki_pages and filtering here (not just querying wiki_fts) is what
-              -- keeps a trashed page out of search results in the meantime.
-              AND p.deleted_at IS NULL`;
-	const params: unknown[] = [ftsQuery, ctx.workspaceId];
-
-	if (projectId) {
-		q += includeWorkspacePages
-			? " AND (p.project_id = ? OR p.project_id IS NULL)"
-			: " AND p.project_id = ?";
-		params.push(projectId);
-	}
-	if (!projectId || includeWorkspacePages) {
-		// PROJ-311: across the workspace, exclude project-scoped pages the user isn't granted.
-		const visible = visibleProjectSqlFragment(ctx, "p.project_id");
-		if (visible) {
-			q += ` AND (p.project_id IS NULL OR ${visible.sql})`;
-			params.push(...visible.params);
-		}
-	}
-
-	if (updatedSince !== undefined) {
-		q += " AND p.updated_at >= ?";
-		params.push(updatedSince);
-	}
-
-	// PROJ-488 (R6): type/status/tags filters over the denormalized frontmatter
-	// columns — combined (AND) with the FTS match, same as updatedSince/projectId above.
-	if (type) {
-		q += " AND p.type = ?";
-		params.push(type);
-	}
-	if (status) {
-		q += " AND p.status = ?";
-		params.push(status);
-	}
-	if (tags && tags.length > 0) {
-		// Any-of match, same semantics as listWikiPages's tagsFilterCondition.
-		q += ` AND EXISTS (SELECT 1 FROM json_each(p.tags) WHERE value IN (${tags.map(() => "?").join(",")}))`;
-		params.push(...tags);
-	}
-
-	// PROJ-489 (R7) / PROJ-515: demote computed-stale (verified once, now overdue) and
-	// explicitly stale-or-deprecated pages below everything else, THEN rank by bm25
-	// within each tier. `now` is bound once and reused below for the freshness computed
-	// on each returned row, so the ordering and the displayed freshness state always agree.
-	//
-	// PROJ-515: deliberately does NOT demote "unverified" (verify_interval declared,
-	// verified_at still null) — a freshly authored page that opts into verification
-	// tracking shouldn't rank worse than a legacy page carrying no frontmatter at all
-	// just for declaring an interval. This is now intentionally NARROWER than
-	// staleWikiPageCondition (used by listStaleWikiPages, which keeps "unverified" — the
-	// maintenance queue is the right place to nag about it). The two conditions were kept
-	// in lockstep by design until this decision; any future change to one should
-	// re-examine whether the other should follow.
-	// PROJ-486: bm25() alone ties on equal-rank rows, which makes LIMIT/OFFSET
-	// paging non-deterministic (duplicate/skip results across pages) — break
-	// ties by page id for a stable order. `now` is bound once here and reused by the
-	// caller for the freshness computed on each returned row, so the ordering and the
-	// displayed freshness state always agree.
+	if (projectId && !includeWorkspacePages && !(await hasProjectAccess(ctx, projectId))) return [];
 	const now = Math.floor(Date.now() / 1000);
-	q += ` ORDER BY (CASE WHEN (
-	              p.status IN ('stale', 'deprecated')
-	              OR (
-	                p.verify_interval IS NOT NULL
-	                AND p.verified_at IS NOT NULL
-	                AND (p.verified_at + p.verify_interval * 86400) <= ?
-	              )
-	            ) THEN 1 ELSE 0 END),
-	          bm25(wiki_fts, ${WIKI_FTS_BM25_WEIGHTS}), p.id LIMIT ? OFFSET ?`;
-	params.push(now, limit, offset);
-
-	return { q, params, now };
-}
-
-// PROJ-488: this is a raw D1 query, so the JSON-array columns come back as the stored
-// TEXT rather than as arrays the way drizzle's `{ mode: "json" }` decodes them for
-// listWikiPages/getWikiPage. Decode here so every wiki surface returns tags/owners with
-// the same shape.
-function mapSearchWikiRow(r: Record<string, unknown>, now: number) {
-	return {
+	const visible =
+		!projectId || includeWorkspacePages
+			? visibleProjectSqlFragment(ctx, "p.project_id")
+			: undefined;
+	const rows = await Effect.runPromise(
+		wikiData.searchWiki(ctx.db, ctx.workspaceId, ftsQuery, {
+			...parsed.data,
+			now,
+			visibilitySql: visible
+				? { sql: `p.project_id IS NULL OR ${visible.sql}`, params: visible.params }
+				: undefined,
+		}),
+	);
+	return rows.map((r) => ({
 		...r,
-		tags: decodeJsonArrayColumn(r.tags),
-		owners: decodeJsonArrayColumn(r.owners),
-		// PROJ-489 (R7): null when the page has no verify_interval/status signal at all —
-		// never fabricated (services/wiki-freshness.ts).
 		freshness: computeFreshness({
 			verifiedAt: r.verified_at as number | null,
 			verifyInterval: r.verify_interval as number | null,
 			status: r.status as string | null,
 			now,
 		}),
-	};
+	}));
 }
 
 const wikiPageDetailColumns = {
@@ -781,7 +538,7 @@ const wikiPageDetailColumns = {
 async function resolveWikiPageByRedirect(
 	orm: ReturnType<typeof drizzle<typeof schema>>,
 	workspaceId: string,
-	oldSlug: string
+	oldSlug: string,
 ) {
 	const redirect = await orm
 		.select({ pageId: schema.wikiRedirects.pageId })
@@ -789,8 +546,8 @@ async function resolveWikiPageByRedirect(
 		.where(
 			and(
 				eq(schema.wikiRedirects.workspaceId, workspaceId),
-				eq(schema.wikiRedirects.oldSlug, oldSlug)
-			)
+				eq(schema.wikiRedirects.oldSlug, oldSlug),
+			),
 		)
 		.get();
 	if (!redirect) return undefined;
@@ -804,29 +561,14 @@ async function resolveWikiPageByRedirect(
 				// PROJ-496: a redirect to a page that's since been trashed does not resolve —
 				// a trashed page is treated as gone, same as a hard-deleted one, until it's
 				// undeleted (see the PR description for this call).
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.get();
 }
 
 export async function getWikiPage(ctx: ServiceCtx, slugOrId: string) {
-	const orm = drizzle(ctx.db, { schema });
-	const direct = await orm
-		.select(wikiPageDetailColumns)
-		.from(schema.wikiPages)
-		.where(
-			and(
-				idOrSlugMatch(slugOrId),
-				eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-				isNull(schema.wikiPages.deletedAt)
-			)
-		)
-		.orderBy(idFirst(slugOrId))
-		.get();
-	// PROJ-483: live page always wins over a redirect, so reusing an old slug for a
-	// new/renamed page never leaves getWikiPage returning an ambiguous result.
-	const page = direct ?? (await resolveWikiPageByRedirect(orm, ctx.workspaceId, slugOrId));
+	const page = await Effect.runPromise(wikiData.findWikiPage(ctx.db, ctx.workspaceId, slugOrId));
 	if (!page) throw new NotFoundError("Wiki page not found");
 	await assertWikiPageVisible(ctx, page.project_id);
 	return {
@@ -834,7 +576,9 @@ export async function getWikiPage(ctx: ServiceCtx, slugOrId: string) {
 		// PROJ-809: the revision pointer for exactly this content — the value to send back
 		// as baseRevisionId. Read with the page, so a save that lands between a caller's
 		// read and a separate list_wiki_revisions call can't hand them a newer base.
-		revisionId: await getLatestRevisionId(ctx.db, page.id),
+		revisionId: await Effect.runPromise(
+			wikiData.getLatestWikiRevisionId(ctx.db, ctx.workspaceId, page.id),
+		),
 		url: wikiPagePath(page.slug),
 		// PROJ-489 (R7): computed/derived, not a stored column — surfaced for the page header.
 		freshness: computeFreshness({
@@ -857,8 +601,8 @@ export async function getWikiBacklinks(ctx: ServiceCtx, slugOrId: string): Promi
 			and(
 				idOrSlugMatch(slugOrId),
 				eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.orderBy(idFirst(slugOrId))
 		.get();
@@ -927,7 +671,7 @@ function buildCreateWikiPageInsertStatement(
 		parentId: string | null;
 		now: number;
 		meta: ReturnType<typeof parseWikiFrontmatter>;
-	}>
+	}>,
 ): D1PreparedStatement {
 	const { id, projectId, slug, title, content, parentId, now, meta } = fields;
 	return toD1Statement(
@@ -957,7 +701,7 @@ function buildCreateWikiPageInsertStatement(
 				verifyInterval: meta.verifyInterval,
 				isTemplate: meta.isTemplate,
 			})
-			.toSQL()
+			.toSQL(),
 	);
 }
 
@@ -967,7 +711,7 @@ function buildCreateWikiPageInsertStatement(
 async function writeCreateWikiPageBatch(
 	ctx: ServiceCtx,
 	statements: readonly D1PreparedStatement[],
-	slug: string
+	slug: string,
 ): Promise<void> {
 	try {
 		await ctx.db.batch(statements as D1PreparedStatement[]);
@@ -990,7 +734,7 @@ async function finalizeWikiPageCreate(
 		slug: string;
 		title: string;
 		meta: ReturnType<typeof parseWikiFrontmatter>;
-	}>
+	}>,
 ): Promise<void> {
 	const { id, parentId, slug, title, meta } = fields;
 	await recordActivity(ctx, { entityType: "wiki_page", entityId: id, action: "created" });
@@ -1051,7 +795,7 @@ export async function createWikiPage(ctx: ServiceCtx, input: unknown) {
 			...linkStatements,
 			incomingLinkStatement,
 		],
-		slug
+		slug,
 	);
 	await finalizeWikiPageCreate(ctx, { id, parentId, slug, title, meta });
 	return { id, slug, projectId: resolvedProjectId, url: wikiPagePath(slug), ...meta };
@@ -1074,7 +818,7 @@ export async function createWikiPage(ctx: ServiceCtx, input: unknown) {
 async function getLatestRevisionId(db: D1Database, pageId: string): Promise<string | null> {
 	const row = await db
 		.prepare(
-			"SELECT id FROM wiki_revisions WHERE page_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1"
+			"SELECT id FROM wiki_revisions WHERE page_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
 		)
 		.bind(pageId)
 		.first<{ id: string }>();
@@ -1102,7 +846,7 @@ function staleWriteGuard(ctx: ServiceCtx, page: GuardedPage): D1PreparedStatemen
 			`SELECT CASE WHEN EXISTS (
 			   SELECT 1 FROM wiki_pages
 			   WHERE id = ? AND workspace_id = ? AND content = ? AND version = ?
-			 ) THEN 1 ELSE json('${STALE_WRITE_MARKER}') END`
+			 ) THEN 1 ELSE json('${STALE_WRITE_MARKER}') END`,
 		)
 		.bind(page.id, ctx.workspaceId, page.content, page.version);
 }
@@ -1116,7 +860,7 @@ function isStaleWriteError(e: unknown): boolean {
 async function batchGuarded(
 	ctx: ServiceCtx,
 	page: GuardedPage,
-	statements: readonly D1PreparedStatement[]
+	statements: readonly D1PreparedStatement[],
 ): Promise<void> {
 	try {
 		await ctx.db.batch([staleWriteGuard(ctx, page), ...statements]);
@@ -1145,12 +889,12 @@ async function resolveBaseContent(
 	db: D1Database,
 	pageId: string,
 	baseRevisionId: string | null,
-	currentContent: string
+	currentContent: string,
 ): Promise<string> {
 	if (baseRevisionId === null) {
 		const row = await db
 			.prepare(
-				"SELECT content FROM wiki_revisions WHERE page_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 1"
+				"SELECT content FROM wiki_revisions WHERE page_id = ? ORDER BY created_at ASC, rowid ASC LIMIT 1",
 			)
 			.bind(pageId)
 			.first<{ content: string }>();
@@ -1158,7 +902,7 @@ async function resolveBaseContent(
 	}
 	const baseRow = await db
 		.prepare(
-			"SELECT created_at as createdAt, rowid FROM wiki_revisions WHERE id = ? AND page_id = ?"
+			"SELECT created_at as createdAt, rowid FROM wiki_revisions WHERE id = ? AND page_id = ?",
 		)
 		.bind(baseRevisionId, pageId)
 		.first<{ createdAt: number; rowid: number }>();
@@ -1172,7 +916,7 @@ async function resolveBaseContent(
 		.prepare(
 			`SELECT content FROM wiki_revisions
 			 WHERE page_id = ? AND (created_at > ? OR (created_at = ? AND rowid > ?))
-			 ORDER BY created_at ASC, rowid ASC LIMIT 1`
+			 ORDER BY created_at ASC, rowid ASC LIMIT 1`,
 		)
 		.bind(pageId, baseRow.createdAt, baseRow.createdAt, baseRow.rowid)
 		.first<{ content: string }>();
@@ -1189,7 +933,7 @@ async function resolveBaseContent(
 async function assertRevisionBelongsToPage(
 	db: D1Database,
 	pageId: string,
-	baseRevisionId: string | null
+	baseRevisionId: string | null,
 ): Promise<void> {
 	if (baseRevisionId === null) return;
 	const baseRow = await db
@@ -1204,128 +948,7 @@ async function assertRevisionBelongsToPage(
 	}
 }
 
-// PROJ-484: LCS-based line diff. dp is O(n*m) time/memory, which is fine for typical
-// wiki-page edits; MAX_DIFF_CELLS guards against pathological blowup on huge pages by
-// falling back to a coarse "everything replaced" edit script instead of hanging.
-const MAX_DIFF_CELLS = 1_000_000;
-
-type DiffOp = { type: "equal" | "add" | "remove"; line: string };
-
-function buildLcsTable(oldLines: readonly string[], newLines: readonly string[]): number[][] {
-	const n = oldLines.length;
-	const m = newLines.length;
-	const dp: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
-	for (let i = n - 1; i >= 0; i--) {
-		for (let j = m - 1; j >= 0; j--) {
-			dp[i][j] =
-				oldLines[i] === newLines[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-		}
-	}
-	return dp;
-}
-
-function traceLcsDiffOps(
-	oldLines: readonly string[],
-	newLines: readonly string[],
-	dp: readonly number[][]
-): DiffOp[] {
-	const n = oldLines.length;
-	const m = newLines.length;
-	const ops: DiffOp[] = [];
-	let i = 0;
-	let j = 0;
-	while (i < n && j < m) {
-		if (oldLines[i] === newLines[j]) {
-			ops.push({ type: "equal", line: oldLines[i] });
-			i++;
-			j++;
-		} else if (dp[i + 1][j] >= dp[i][j + 1]) {
-			ops.push({ type: "remove", line: oldLines[i] });
-			i++;
-		} else {
-			ops.push({ type: "add", line: newLines[j] });
-			j++;
-		}
-	}
-	while (i < n) {
-		ops.push({ type: "remove", line: oldLines[i] });
-		i++;
-	}
-	while (j < m) {
-		ops.push({ type: "add", line: newLines[j] });
-		j++;
-	}
-	return ops;
-}
-
-function computeLineDiff(oldLines: readonly string[], newLines: readonly string[]): DiffOp[] {
-	const n = oldLines.length;
-	const m = newLines.length;
-	if (n * m > MAX_DIFF_CELLS) {
-		return [
-			...oldLines.map((line): DiffOp => ({ type: "remove", line })),
-			...newLines.map((line): DiffOp => ({ type: "add", line })),
-		];
-	}
-	const dp = buildLcsTable(oldLines, newLines);
-	return traceLcsDiffOps(oldLines, newLines, dp);
-}
-
-// PROJ-484: renders a standard unified diff (`--- base` / `+++ current`, `@@ -a,b +c,d @@`
-// hunks with 3 lines of context) between a conflicting write's base content and the
-// page's current content, so an agent can see exactly what changed and rebase.
-export function buildUnifiedDiff(baseContent: string, currentContent: string): string {
-	if (baseContent === currentContent) return "";
-	const oldLines = baseContent.split("\n");
-	const newLines = currentContent.split("\n");
-	const ops = computeLineDiff(oldLines, newLines);
-
-	const CONTEXT = 3;
-	const changeIdxs = ops.reduce<number[]>((acc, op, idx) => {
-		if (op.type !== "equal") acc.push(idx);
-		return acc;
-	}, []);
-	if (changeIdxs.length === 0) return "";
-
-	// Group nearby changes into hunks so their context ranges overlap into one block.
-	const groups: Array<[number, number]> = [];
-	let groupStart = changeIdxs[0];
-	let groupEnd = changeIdxs[0];
-	for (const idx of changeIdxs.slice(1)) {
-		if (idx - groupEnd <= CONTEXT * 2) {
-			groupEnd = idx;
-		} else {
-			groups.push([groupStart, groupEnd]);
-			groupStart = idx;
-			groupEnd = idx;
-		}
-	}
-	groups.push([groupStart, groupEnd]);
-
-	const hunks: string[] = [];
-	for (const [gStart, gEnd] of groups) {
-		const sliceStart = Math.max(0, gStart - CONTEXT);
-		const sliceEnd = Math.min(ops.length - 1, gEnd + CONTEXT);
-		const slice = ops.slice(sliceStart, sliceEnd + 1);
-
-		let oldStart = 1;
-		let newStart = 1;
-		for (let k = 0; k < sliceStart; k++) {
-			if (ops[k].type !== "add") oldStart++;
-			if (ops[k].type !== "remove") newStart++;
-		}
-		const oldCount = slice.filter((op) => op.type !== "add").length;
-		const newCount = slice.filter((op) => op.type !== "remove").length;
-
-		const lines = slice.map((op) => {
-			const prefix = op.type === "add" ? "+" : op.type === "remove" ? "-" : " ";
-			return `${prefix}${op.line}`;
-		});
-		hunks.push(`@@ -${oldStart},${oldCount} +${newStart},${newCount} @@\n${lines.join("\n")}`);
-	}
-
-	return `--- base\n+++ current\n${hunks.join("\n")}`;
-}
+export const buildUnifiedDiff = wikiData.buildUnifiedDiff;
 
 // PROJ-511: converts an un-awaited drizzle query builder (insert/update/delete) into a
 // raw D1PreparedStatement, so it can sit in the same ctx.db.batch() array as hand-written
@@ -1333,7 +956,7 @@ export function buildUnifiedDiff(baseContent: string, currentContent: string): s
 // D1PreparedStatement, not drizzle's own query builders.
 function toD1Statement(
 	ctx: ServiceCtx,
-	query: Readonly<{ sql: string; params: unknown[] }>
+	query: Readonly<{ sql: string; params: unknown[] }>,
 ): D1PreparedStatement {
 	return ctx.db.prepare(query.sql).bind(...query.params);
 }
@@ -1360,7 +983,7 @@ function buildFtsInsertStatements(
 	id: string,
 	title: string,
 	content: string,
-	tags: readonly string[]
+	tags: readonly string[],
 ): D1PreparedStatement[] {
 	// PROJ-488: tags is space-joined — wiki_fts's default unicode61 tokenizer splits on
 	// non-alphanumeric, so a comma join would tokenize identically, but space matches how
@@ -1369,13 +992,13 @@ function buildFtsInsertStatements(
 		// A page written outside this module (or before 0065) may have no search_rowid yet.
 		ctx.db
 			.prepare(
-				"UPDATE wiki_pages SET search_rowid = ? WHERE id = ? AND workspace_id = ? AND search_rowid IS NULL"
+				"UPDATE wiki_pages SET search_rowid = ? WHERE id = ? AND workspace_id = ? AND search_rowid IS NULL",
 			)
 			.bind(newSearchRowid(), id, ctx.workspaceId),
 		ctx.db
 			.prepare(
 				`INSERT INTO wiki_fts (rowid, page_id, workspace_id, title, content, tags)
-				 VALUES (${FTS_ROWID_OF_PAGE}, ?, ?, ?, ?, ?)`
+				 VALUES (${FTS_ROWID_OF_PAGE}, ?, ?, ?, ?, ?)`,
 			)
 			.bind(id, ctx.workspaceId, id, ctx.workspaceId, title, content, tags.join(" ")),
 	];
@@ -1390,7 +1013,7 @@ function buildFtsReindexStatements(
 	id: string,
 	title: string,
 	content: string,
-	tags: string[]
+	tags: string[],
 ): D1PreparedStatement[] {
 	return [
 		ctx.db
@@ -1408,7 +1031,7 @@ function buildFtsReindexStatements(
 async function currentPageTags(
 	orm: ReturnType<typeof drizzle<typeof schema>>,
 	ctx: ServiceCtx,
-	id: string
+	id: string,
 ): Promise<string[]> {
 	const row = await orm
 		.select({ tags: schema.wikiPages.tags })
@@ -1428,7 +1051,7 @@ async function deleteWikiFtsEntries(ctx: ServiceCtx, pageIds: string[]): Promise
 		await ctx.db
 			.prepare(
 				`DELETE FROM wiki_fts WHERE rowid IN (
-				   SELECT search_rowid FROM wiki_pages WHERE id IN (${placeholders}) AND workspace_id = ?)`
+				   SELECT search_rowid FROM wiki_pages WHERE id IN (${placeholders}) AND workspace_id = ?)`,
 			)
 			.bind(...chunk, ctx.workspaceId)
 			.run();
@@ -1456,7 +1079,7 @@ function buildUpdateWikiPageStatements(
 		parentId?: string | null;
 		slug?: string;
 		summary?: string;
-	}>
+	}>,
 ): D1PreparedStatement[] {
 	const { now, isRename, meta } = opts;
 	const { title, content, parentId, slug, summary } = fields;
@@ -1480,8 +1103,8 @@ function buildUpdateWikiPageStatements(
 						authorId: ctx.userId,
 						createdAt: now,
 					})
-					.toSQL()
-			)
+					.toSQL(),
+			),
 		);
 	}
 
@@ -1494,8 +1117,8 @@ function buildUpdateWikiPageStatements(
 				// biome-ignore lint/suspicious/noExplicitAny: Drizzle set() requires typed columns; setData is safe
 				.set(setData as any)
 				.where(eq(schema.wikiPages.id, page.id))
-				.toSQL()
-		)
+				.toSQL(),
+		),
 	);
 
 	// FTS and link-graph reindex statements are built separately by the caller (both need
@@ -1521,8 +1144,8 @@ function buildUpdateWikiPageStatements(
 						target: [schema.wikiRedirects.workspaceId, schema.wikiRedirects.oldSlug],
 						set: { pageId: page.id, createdAt: now },
 					})
-					.toSQL()
-			)
+					.toSQL(),
+			),
 		);
 	}
 
@@ -1537,7 +1160,7 @@ function buildUpdateWikiPageStatements(
 async function assertNoUpdateConflict(
 	db: D1Database,
 	page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
-	baseRevisionId: string | null | undefined
+	baseRevisionId: string | null | undefined,
 ): Promise<void> {
 	if (baseRevisionId === undefined) return;
 	const currentRevisionId = await getLatestRevisionId(db, page.id);
@@ -1563,7 +1186,7 @@ async function buildUpdateWikiPageReindexStatements(
 		title: string | undefined;
 		content: string | undefined;
 		meta: ReturnType<typeof parseWikiFrontmatter> | undefined;
-	}>
+	}>,
 ): Promise<D1PreparedStatement[]> {
 	const { title, content, meta } = fields;
 	const statements: D1PreparedStatement[] = [];
@@ -1587,7 +1210,7 @@ async function writeUpdateWikiPageBatch(
 	page: GuardedPage,
 	statements: readonly D1PreparedStatement[],
 	isRename: boolean,
-	slug: string | undefined
+	slug: string | undefined,
 ): Promise<void> {
 	try {
 		await batchGuarded(ctx, page, statements);
@@ -1612,7 +1235,7 @@ async function finalizeWikiPageUpdate(
 		parentId: string | null | undefined;
 		slug: string | undefined;
 		meta: ReturnType<typeof parseWikiFrontmatter> | undefined;
-	}>
+	}>,
 ): Promise<void> {
 	const { title, content, parentId, slug, meta } = fields;
 	await recordActivity(ctx, {
@@ -1687,10 +1310,10 @@ export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: u
 		orm,
 		page,
 		{ now, isRename, meta },
-		{ title, content, parentId, slug, summary }
+		{ title, content, parentId, slug, summary },
 	);
 	statements.push(
-		...(await buildUpdateWikiPageReindexStatements(ctx, orm, page, { title, content, meta }))
+		...(await buildUpdateWikiPageReindexStatements(ctx, orm, page, { title, content, meta })),
 	);
 
 	// PROJ-814: a title and/or slug change can make this page newly match (or stop
@@ -1706,8 +1329,8 @@ export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: u
 			buildUnresolveStaleIncomingLinksStatement(
 				ctx,
 				{ id: page.id, title: finalTitle, slug: finalSlug },
-				{ title: page.title, slug: page.slug }
-			)
+				{ title: page.title, slug: page.slug },
+			),
 		);
 	}
 
@@ -1776,7 +1399,7 @@ export async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
 export async function listStaleWikiPages(ctx: ServiceCtx, input: unknown) {
 	const parsed = ListStaleWikiPagesInputSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
-	const { projectId, limit, offset, includeWorkspacePages } = parsed.data;
+	const { projectId, includeWorkspacePages } = parsed.data;
 
 	if (projectId && !includeWorkspacePages) {
 		// PROJ-311: same as searchWiki — querying a project the caller can't see returns nothing.
@@ -1785,51 +1408,14 @@ export async function listStaleWikiPages(ctx: ServiceCtx, input: unknown) {
 		}
 	}
 
-	const orm = drizzle(ctx.db, { schema });
 	const now = Math.floor(Date.now() / 1000);
-	const conditions = [
-		eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-		staleWikiPageCondition(now),
-		// PROJ-491 (R9): a template shouldn't show up in the maintenance queue — it isn't
-		// content that needs re-verification, it's a skeleton other pages are seeded from.
-		eq(schema.wikiPages.isTemplate, false),
-		// PROJ-496: a trashed page needs no re-verification either.
-		isNull(schema.wikiPages.deletedAt),
-	];
-	const scope = projectScopeCondition(projectId, includeWorkspacePages);
-	if (scope) conditions.push(scope);
-	if (!projectId || includeWorkspacePages) {
-		// PROJ-311: workspace-wide, exclude project-scoped pages the caller isn't granted.
-		const visible = visibleProjectPredicate(ctx, schema.wikiPages.projectId);
-		if (visible) {
-			const cond = or(isNull(schema.wikiPages.projectId), visible);
-			if (cond) conditions.push(cond);
-		}
-	}
-
-	const rows = await orm
-		.select({
-			id: schema.wikiPages.id,
-			slug: schema.wikiPages.slug,
-			title: schema.wikiPages.title,
-			// eslint-disable-next-line camelcase
-			project_id: schema.wikiPages.projectId,
-			status: schema.wikiPages.status,
-			// eslint-disable-next-line camelcase
-			verified_at: schema.wikiPages.verifiedAt,
-			// eslint-disable-next-line camelcase
-			verified_by: schema.wikiPages.verifiedBy,
-			// eslint-disable-next-line camelcase
-			verify_interval: schema.wikiPages.verifyInterval,
-			// eslint-disable-next-line camelcase
-			updated_at: schema.wikiPages.updatedAt,
-		})
-		.from(schema.wikiPages)
-		.where(and(...conditions))
-		.orderBy(asc(schema.wikiPages.updatedAt))
-		.limit(limit)
-		.offset(offset);
-
+	const rows = await Effect.runPromise(
+		wikiData.listStaleWikiPages(ctx.db, ctx.workspaceId, {
+			...parsed.data,
+			now,
+			visibility: !projectId || includeWorkspacePages ? wikiReadVisibility(ctx) : undefined,
+		}),
+	);
 	return rows.map((r) => ({
 		...r,
 		url: wikiPagePath(r.slug),
@@ -1936,7 +1522,7 @@ function applySectionOp(
 	op: Extract<
 		PatchWikiPageInput,
 		{ op: "append_to_section" | "replace_section" | "insert_after_heading" }
-	>
+	>,
 ): string {
 	const lines = content.split("\n");
 	const before = lines.slice(0, section.startLine);
@@ -2000,7 +1586,7 @@ function applySectionOp(
 // consistency and because a revision snapshot is still created either way.
 function findUniqueSectionOrThrow(
 	currentSections: readonly HeadingSection[],
-	heading: string
+	heading: string,
 ): HeadingSection {
 	const currentMatches = findSections(currentSections, heading);
 	if (currentMatches.length === 0) {
@@ -2034,7 +1620,7 @@ async function assertNoSectionPatchConflict(
 	pageId: string,
 	currentContent: string,
 	currentSection: HeadingSection,
-	data: Readonly<{ baseRevisionId: string | null; heading: string }>
+	data: Readonly<{ baseRevisionId: string | null; heading: string }>,
 ): Promise<void> {
 	const currentRevisionId = await getLatestRevisionId(ctx.db, pageId);
 	if (currentRevisionId === data.baseRevisionId) return;
@@ -2049,7 +1635,7 @@ async function assertNoSectionPatchConflict(
 	if (baseSectionText !== currentSectionText) {
 		throw new ConflictError(
 			`Section '${data.heading}' has been modified since baseRevisionId; rebase and retry`,
-			{ currentRevisionId, diff: buildUnifiedDiff(baseSectionText, currentSectionText) }
+			{ currentRevisionId, diff: buildUnifiedDiff(baseSectionText, currentSectionText) },
 		);
 	}
 }
@@ -2061,7 +1647,7 @@ async function resolveSectionPatchContent(
 	data: Extract<
 		PatchWikiPageInput,
 		{ op: "append_to_section" | "replace_section" | "insert_after_heading" }
-	>
+	>,
 ): Promise<string> {
 	const currentSections = parseHeadingSections(currentContent);
 	const currentSection = findUniqueSectionOrThrow(currentSections, data.heading);
@@ -2094,7 +1680,7 @@ export async function patchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: un
 async function patchWikiPageOnce(
 	ctx: ServiceCtx,
 	page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
-	data: PatchWikiPageInput
+	data: PatchWikiPageInput,
 ) {
 	await requireWikiWrite(ctx, page.projectId);
 	const currentContent = page.content;
@@ -2133,7 +1719,7 @@ async function patchWikiPageOnce(
 				authorId: ctx.userId,
 				createdAt: now,
 			})
-			.toSQL()
+			.toSQL(),
 	);
 
 	const setData = buildWikiPageUpdateSet(now, ctx.userId, { content: newContent, meta });
@@ -2144,7 +1730,7 @@ async function patchWikiPageOnce(
 			// biome-ignore lint/suspicious/noExplicitAny: Drizzle set() requires typed columns; setData is safe
 			.set(setData as any)
 			.where(eq(schema.wikiPages.id, page.id))
-			.toSQL()
+			.toSQL(),
 	);
 
 	const ftsStatements = buildFtsReindexStatements(ctx, page.id, page.title, newContent, meta.tags);
@@ -2196,36 +1782,12 @@ export async function listWikiTemplates(ctx: ServiceCtx, input: unknown) {
 		}
 	}
 
-	const orm = drizzle(ctx.db, { schema });
-	const conditions = [
-		eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-		eq(schema.wikiPages.isTemplate, true),
-		// PROJ-496: a trashed template isn't offered by the picker.
-		isNull(schema.wikiPages.deletedAt),
-	];
-	if (projectId) {
-		conditions.push(eq(schema.wikiPages.projectId, projectId));
-	} else {
-		const visible = visibleProjectPredicate(ctx, schema.wikiPages.projectId);
-		if (visible) {
-			const cond = or(isNull(schema.wikiPages.projectId), visible);
-			if (cond) conditions.push(cond);
-		}
-	}
-
-	const rows = await orm
-		.select({
-			id: schema.wikiPages.id,
-			slug: schema.wikiPages.slug,
-			title: schema.wikiPages.title,
-			// eslint-disable-next-line camelcase
-			project_id: schema.wikiPages.projectId,
-			type: schema.wikiPages.type,
-		})
-		.from(schema.wikiPages)
-		.where(and(...conditions))
-		.orderBy(asc(schema.wikiPages.title));
-
+	const rows = await Effect.runPromise(
+		wikiData.listWikiTemplates(ctx.db, ctx.workspaceId, {
+			...parsed.data,
+			visibility: projectId ? undefined : wikiReadVisibility(ctx),
+		}),
+	);
 	return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }));
 }
 
@@ -2305,7 +1867,7 @@ const DEFAULT_WIKI_TEMPLATES: Array<{ slug: string; title: string; type: string;
 export async function seedDefaultWikiTemplates(
 	db: D1Database,
 	workspaceId: string,
-	userId: string
+	userId: string,
 ): Promise<void> {
 	const orm = drizzle(db, { schema });
 	const now = Math.floor(Date.now() / 1000);
@@ -2333,7 +1895,7 @@ export async function seedDefaultWikiTemplates(
 	await db
 		.prepare(
 			`INSERT INTO wiki_fts (rowid, page_id, workspace_id, title, content, tags)
-			 VALUES ((SELECT search_rowid FROM wiki_pages WHERE id = ?), ?, ?, ?, ?, ?)`
+			 VALUES ((SELECT search_rowid FROM wiki_pages WHERE id = ?), ?, ?, ?, ?, ?)`,
 		)
 		.bind(parentId, parentId, workspaceId, "Templates", "", "")
 		.run();
@@ -2370,7 +1932,7 @@ export async function seedDefaultWikiTemplates(
 async function collectDescendantIds(
 	db: D1Database,
 	rootId: string,
-	workspaceId: string
+	workspaceId: string,
 ): Promise<string[]> {
 	const orm = drizzle(db, { schema });
 	const descendants: string[] = [];
@@ -2384,9 +1946,9 @@ async function collectDescendantIds(
 					and(
 						inArray(schema.wikiPages.parentId, chunk),
 						eq(schema.wikiPages.workspaceId, workspaceId),
-						isNull(schema.wikiPages.deletedAt)
-					)
-				)
+						isNull(schema.wikiPages.deletedAt),
+					),
+				),
 		);
 		frontier = children.map((c) => c.id);
 		descendants.push(...frontier);
@@ -2406,7 +1968,7 @@ async function collectCascadeTrashedDescendantIds(
 	db: D1Database,
 	rootId: string,
 	workspaceId: string,
-	trashBatchId: string | null
+	trashBatchId: string | null,
 ): Promise<string[]> {
 	if (trashBatchId === null) return [];
 	const orm = drizzle(db, { schema });
@@ -2421,9 +1983,9 @@ async function collectCascadeTrashedDescendantIds(
 					and(
 						inArray(schema.wikiPages.parentId, chunk),
 						eq(schema.wikiPages.workspaceId, workspaceId),
-						eq(schema.wikiPages.trashBatchId, trashBatchId)
-					)
-				)
+						eq(schema.wikiPages.trashBatchId, trashBatchId),
+					),
+				),
 		);
 		frontier = children.map((c) => c.id);
 		descendants.push(...frontier);
@@ -2444,7 +2006,7 @@ const R2_DELETE_BATCH_SIZE = 1000;
 async function deleteWikiPageAttachments(
 	ctx: ServiceCtx,
 	orm: ReturnType<typeof drizzle<typeof schema>>,
-	pageIds: string[]
+	pageIds: string[],
 ): Promise<void> {
 	const fileAttachments = await orm
 		.select({ r2Key: schema.attachments.r2Key })
@@ -2454,8 +2016,8 @@ async function deleteWikiPageAttachments(
 				eq(schema.attachments.workspaceId, ctx.workspaceId),
 				eq(schema.attachments.entityType, "wiki_page"),
 				inArray(schema.attachments.entityId, pageIds),
-				eq(schema.attachments.kind, "file")
-			)
+				eq(schema.attachments.kind, "file"),
+			),
 		);
 	const r2Keys = fileAttachments.map((a) => a.r2Key).filter((key): key is string => Boolean(key));
 	for (let i = 0; i < r2Keys.length; i += R2_DELETE_BATCH_SIZE) {
@@ -2468,8 +2030,8 @@ async function deleteWikiPageAttachments(
 			and(
 				eq(schema.attachments.workspaceId, ctx.workspaceId),
 				eq(schema.attachments.entityType, "wiki_page"),
-				inArray(schema.attachments.entityId, pageIds)
-			)
+				inArray(schema.attachments.entityId, pageIds),
+			),
 		);
 
 	// PROJ-407: mirror the migration's ON DELETE CASCADE at the app level too, since
@@ -2480,8 +2042,8 @@ async function deleteWikiPageAttachments(
 		.where(
 			and(
 				eq(schema.attachments.workspaceId, ctx.workspaceId),
-				inArray(schema.attachments.linkedWikiPageId, pageIds)
-			)
+				inArray(schema.attachments.linkedWikiPageId, pageIds),
+			),
 		);
 }
 
@@ -2574,9 +2136,9 @@ export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?
 					.where(
 						and(
 							inArray(schema.wikiPages.id, chunk),
-							eq(schema.wikiPages.workspaceId, ctx.workspaceId)
-						)
-					)
+							eq(schema.wikiPages.workspaceId, ctx.workspaceId),
+						),
+					),
 			);
 			await notifyCascadeDescendantWatchers(ctx, descendants);
 		}
@@ -2701,7 +2263,7 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
 		ctx.db,
 		page.id,
 		ctx.workspaceId,
-		page.trashBatchId
+		page.trashBatchId,
 	);
 	const allIds = [page.id, ...descendantIds];
 
@@ -2719,9 +2281,9 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
 						.where(
 							and(
 								inArray(schema.wikiPages.id, chunk),
-								eq(schema.wikiPages.workspaceId, ctx.workspaceId)
-							)
-						)
+								eq(schema.wikiPages.workspaceId, ctx.workspaceId),
+							),
+						),
 				)
 			: [];
 
@@ -2757,7 +2319,7 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
 	await ctx.db.batch([
 		buildResolveIncomingLinksStatement(ctx, { id: page.id, title: page.title, slug: page.slug }),
 		...descendantRows.map((d) =>
-			buildResolveIncomingLinksStatement(ctx, { id: d.id, title: d.title, slug: d.slug })
+			buildResolveIncomingLinksStatement(ctx, { id: d.id, title: d.title, slug: d.slug }),
 		),
 	]);
 
@@ -2809,7 +2371,7 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
 export async function listWikiTrash(ctx: ServiceCtx, input: unknown) {
 	const parsed = ListWikiTrashInputSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
-	const { projectId, limit, offset } = parsed.data;
+	const { projectId } = parsed.data;
 
 	if (projectId) {
 		if (!(await hasProjectAccess(ctx, projectId))) {
@@ -2817,39 +2379,12 @@ export async function listWikiTrash(ctx: ServiceCtx, input: unknown) {
 		}
 	}
 
-	const orm = drizzle(ctx.db, { schema });
-	const conditions = [
-		eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-		isNotNull(schema.wikiPages.deletedAt),
-	];
-	if (projectId) {
-		conditions.push(eq(schema.wikiPages.projectId, projectId));
-	} else {
-		const visible = visibleProjectPredicate(ctx, schema.wikiPages.projectId);
-		if (visible) {
-			const cond = or(isNull(schema.wikiPages.projectId), visible);
-			if (cond) conditions.push(cond);
-		}
-	}
-
-	const rows = await orm
-		.select({
-			id: schema.wikiPages.id,
-			slug: schema.wikiPages.slug,
-			title: schema.wikiPages.title,
-			// eslint-disable-next-line camelcase
-			parent_id: schema.wikiPages.parentId,
-			// eslint-disable-next-line camelcase
-			project_id: schema.wikiPages.projectId,
-			// eslint-disable-next-line camelcase
-			deleted_at: schema.wikiPages.deletedAt,
-		})
-		.from(schema.wikiPages)
-		.where(and(...conditions))
-		.orderBy(desc(schema.wikiPages.deletedAt))
-		.limit(limit)
-		.offset(offset);
-
+	const rows = await Effect.runPromise(
+		wikiData.listWikiTrash(ctx.db, ctx.workspaceId, {
+			...parsed.data,
+			visibility: projectId ? undefined : wikiReadVisibility(ctx),
+		}),
+	);
 	return rows.map((r) => ({
 		...r,
 		// PROJ-496: purge is due 30 days after deletedAt — surfaced so a UI/agent can show
@@ -2876,7 +2411,7 @@ export const WIKI_TRASH_PURGE_DEFAULT_PAGE_LIMIT = 200;
 
 export async function purgeExpiredWikiPages(
 	ctx: ServiceCtx,
-	options: { limit?: number } = {}
+	options: { limit?: number } = {},
 ): Promise<{ purgedCount: number; purgedIds: string[]; moreExpired: boolean }> {
 	if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError("Insufficient permissions");
 
@@ -2894,8 +2429,8 @@ export async function purgeExpiredWikiPages(
 			and(
 				eq(schema.wikiPages.workspaceId, ctx.workspaceId),
 				isNotNull(schema.wikiPages.deletedAt),
-				lte(schema.wikiPages.deletedAt, cutoff)
-			)
+				lte(schema.wikiPages.deletedAt, cutoff),
+			),
 		)
 		.orderBy(asc(schema.wikiPages.deletedAt))
 		.limit(limit + 1);
@@ -2971,8 +2506,8 @@ export async function purgeExpiredWikiPages(
 			.where(
 				and(
 					eq(schema.wikiRedirects.workspaceId, ctx.workspaceId),
-					inArray(schema.wikiRedirects.pageId, chunk)
-				)
+					inArray(schema.wikiRedirects.pageId, chunk),
+				),
 			);
 		return [];
 	});
@@ -2983,40 +2518,12 @@ export async function purgeExpiredWikiPages(
 export async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise<TreeNode[]> {
 	const parsed = WikiTreeInputSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
-	const { projectId, includeWorkspacePages } = parsed.data;
-
-	const orm = drizzle(ctx.db, { schema });
-	const conditions = [
-		eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-		// PROJ-496: a trashed page (and, naturally, its whole trashed subtree) drops out of
-		// the tree. A live page whose PARENT is trashed becomes a root in the tree instead
-		// of disappearing — see the map.has() check below, unchanged — which is the "orphan-
-		// in-trash" case documented on undeleteWikiPage.
-		isNull(schema.wikiPages.deletedAt),
-	];
-	const scope = projectScopeCondition(projectId, includeWorkspacePages);
-	if (scope) conditions.push(scope);
-	// PROJ-311: same visibility filter as listWikiPages.
-	const visible = visibleProjectPredicate(ctx, schema.wikiPages.projectId);
-	if (visible) {
-		const cond = or(isNull(schema.wikiPages.projectId), visible);
-		if (cond) conditions.push(cond);
-	}
-	const rows = await orm
-		.select({
-			id: schema.wikiPages.id,
-			slug: schema.wikiPages.slug,
-			title: schema.wikiPages.title,
-			parentId: schema.wikiPages.parentId,
-			projectId: schema.wikiPages.projectId,
-			// PROJ-514: so the sidebar's type filter dropdown can derive its options from
-			// this same tree fetch instead of issuing a second, unfiltered listWikiPages call.
-			type: schema.wikiPages.type,
-		})
-		.from(schema.wikiPages)
-		.where(and(...conditions))
-		.orderBy(asc(schema.wikiPages.title));
-
+	const rows = await Effect.runPromise(
+		wikiData.listWikiTreeRows(ctx.db, ctx.workspaceId, {
+			...parsed.data,
+			visibility: wikiReadVisibility(ctx),
+		}),
+	);
 	const map = new Map<string, TreeNode>();
 	for (const p of rows) {
 		map.set(p.id, {
@@ -3050,51 +2557,16 @@ export async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise
 export async function listWikiRevisions(ctx: ServiceCtx, idOrSlug: string) {
 	const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId);
 	await assertWikiPageVisible(ctx, page.projectId);
-	const orm = drizzle(ctx.db, { schema });
-
-	return (
-		orm
-			.select({
-				id: schema.wikiRevisions.id,
-				title: schema.wikiRevisions.title,
-				summary: schema.wikiRevisions.summary,
-				// eslint-disable-next-line camelcase
-				author_id: schema.wikiRevisions.authorId,
-				// eslint-disable-next-line camelcase
-				created_at: schema.wikiRevisions.createdAt,
-				// eslint-disable-next-line camelcase
-				author_name: schema.users.name,
-			})
-			.from(schema.wikiRevisions)
-			.leftJoin(schema.users, eq(schema.wikiRevisions.authorId, schema.users.id))
-			.where(eq(schema.wikiRevisions.pageId, page.id))
-			// PROJ-484: createdAt is unix SECONDS (repo convention), so edits within the same
-			// second tie on it; tiebreak on rowid (monotonic insertion order) so "most recent
-			// first" is actually correct, matching getLatestRevisionId's raw-SQL equivalent.
-			.orderBy(desc(schema.wikiRevisions.createdAt), desc(sql`wiki_revisions.rowid`))
-	);
+	return Effect.runPromise(wikiData.listWikiRevisions(ctx.db, ctx.workspaceId, page.id));
 }
 
 // PROJ-509: same id-or-slug + redirect resolution as listWikiRevisions above.
 export async function getWikiRevision(ctx: ServiceCtx, idOrSlug: string, revisionId: string) {
 	const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId);
 	await assertWikiPageVisible(ctx, page.projectId);
-	const orm = drizzle(ctx.db, { schema });
-
-	const revision = await orm
-		.select({
-			id: schema.wikiRevisions.id,
-			content: schema.wikiRevisions.content,
-			title: schema.wikiRevisions.title,
-			summary: schema.wikiRevisions.summary,
-			// eslint-disable-next-line camelcase
-			author_id: schema.wikiRevisions.authorId,
-			// eslint-disable-next-line camelcase
-			created_at: schema.wikiRevisions.createdAt,
-		})
-		.from(schema.wikiRevisions)
-		.where(and(eq(schema.wikiRevisions.id, revisionId), eq(schema.wikiRevisions.pageId, page.id)))
-		.get();
+	const revision = await Effect.runPromise(
+		wikiData.getWikiRevision(ctx.db, ctx.workspaceId, page.id, revisionId),
+	);
 	if (!revision) throw new NotFoundError("Revision not found");
 
 	return revision;
@@ -3111,7 +2583,7 @@ export async function getWikiRevisionDiff(
 	ctx: ServiceCtx,
 	idOrSlug: string,
 	revisionId: string,
-	input: unknown
+	input: unknown,
 ) {
 	const parsed = WikiRevisionDiffInputSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
@@ -3119,24 +2591,18 @@ export async function getWikiRevisionDiff(
 
 	const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId);
 	await assertWikiPageVisible(ctx, page.projectId);
-	const orm = drizzle(ctx.db, { schema });
-
-	const fromRevision = await orm
-		.select({ content: schema.wikiRevisions.content })
-		.from(schema.wikiRevisions)
-		.where(and(eq(schema.wikiRevisions.id, revisionId), eq(schema.wikiRevisions.pageId, page.id)))
-		.get();
+	const fromRevision = await Effect.runPromise(
+		wikiData.getWikiRevision(ctx.db, ctx.workspaceId, page.id, revisionId),
+	);
 	if (!fromRevision) throw new NotFoundError("Revision not found");
 
 	let toContent: string;
 	if (against === "current") {
 		toContent = page.content;
 	} else {
-		const toRevision = await orm
-			.select({ content: schema.wikiRevisions.content })
-			.from(schema.wikiRevisions)
-			.where(and(eq(schema.wikiRevisions.id, against), eq(schema.wikiRevisions.pageId, page.id)))
-			.get();
+		const toRevision = await Effect.runPromise(
+			wikiData.getWikiRevision(ctx.db, ctx.workspaceId, page.id, against),
+		);
 		if (!toRevision) throw new NotFoundError("Revision not found");
 		toContent = toRevision.content;
 	}

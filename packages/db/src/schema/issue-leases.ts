@@ -25,7 +25,7 @@ export const issueLeases = sqliteTable(
 	},
 	(t) => ({
 		agentIdx: index("idx_issue_leases_agent").on(t.workspaceId, t.agentSessionId),
-	})
+	}),
 );
 
 // WIP-cap denials (PROJ-342): an event log of claimIssue rejections caused by the
@@ -52,5 +52,5 @@ export const wipCapDenials = sqliteTable(
 	(t) => ({
 		wsOccurredIdx: index("idx_wip_cap_denials_workspace_occurred").on(t.workspaceId, t.occurredAt),
 		projectIdx: index("idx_wip_cap_denials_project").on(t.workspaceId, t.projectId),
-	})
+	}),
 );

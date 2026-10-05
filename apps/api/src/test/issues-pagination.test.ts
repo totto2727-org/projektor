@@ -12,7 +12,7 @@ describe("PROJ-857: issue list cursor", () => {
 		for (let n = 2; n <= 35; n++) {
 			await env.DB.prepare(
 				`INSERT INTO issues (id, workspace_id, project_id, number, title, status, priority, labels, created_by_id, created_at, updated_at)
-				 VALUES (?, ?, ?, ?, ?, 'todo', 'none', '[]', ?, ?, ?)`
+				 VALUES (?, ?, ?, ?, ?, 'todo', 'none', '[]', ?, ?, ?)`,
 			)
 				.bind(
 					crypto.randomUUID(),
@@ -22,7 +22,7 @@ describe("PROJ-857: issue list cursor", () => {
 					`same-second ${n}`,
 					f.userId,
 					createdAt,
-					createdAt
+					createdAt,
 				)
 				.run();
 		}
@@ -63,7 +63,7 @@ describe("PROJ-857: issue list cursor", () => {
 		const f = await seedIssueFixture();
 		const res = await SELF.fetch(
 			`http://localhost/api/issues?projectId=${f.projectId}&cursor=${Math.floor(Date.now() / 1000) + 60}`,
-			{ headers: authHeaders(f.token, f.slug) }
+			{ headers: authHeaders(f.token, f.slug) },
 		);
 		expect(res.status).toBe(200);
 		expect(((await res.json()) as { items: unknown[] }).items).toHaveLength(1);

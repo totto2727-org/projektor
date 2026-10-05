@@ -143,7 +143,7 @@ describe("Issue Links API", () => {
 	it("returns 404 when deleting nonexistent link", async () => {
 		const res = await SELF.fetch(
 			`http://localhost/api/issues/${issueA.id}/links/${crypto.randomUUID()}`,
-			{ method: "DELETE", headers: authHeaders(token, slug) }
+			{ method: "DELETE", headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(404);
 	});
@@ -173,7 +173,7 @@ describe("Issue Links API", () => {
 		const now = Math.floor(Date.now() / 1000);
 		await env.DB.prepare(
 			`INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		)
 			.bind(
 				crypto.randomUUID(),
@@ -182,7 +182,7 @@ describe("Issue Links API", () => {
 				issueOther.id === issueA.id ? issueB.id : issueOther.id,
 				"relates_to",
 				fixture2.user.id,
-				now
+				now,
 			)
 			.run();
 
@@ -353,7 +353,7 @@ describe("createLink target-visibility existence oracle", () => {
 			roles.workspace.id,
 			hiddenProject.id,
 			roles.owner.user.id,
-			{ title: "Hidden target" }
+			{ title: "Hidden target" },
 		);
 
 		const missingRes = await SELF.fetch(`http://localhost/api/issues/${source.id}/links`, {

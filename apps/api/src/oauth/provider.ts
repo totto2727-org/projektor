@@ -99,7 +99,7 @@ export function oauthApi(env: Env): OAuthHelpers {
  */
 export async function tokenEndpointRateLimited(
 	request: Request,
-	env: Env
+	env: Env,
 ): Promise<Response | null> {
 	if (new URL(request.url).pathname !== TOKEN_ENDPOINT) return null;
 
@@ -120,6 +120,6 @@ export async function tokenEndpointRateLimited(
 
 	return Response.json(
 		{ error: "slow_down", error_description: "Too many token requests" },
-		{ status: 429, headers: { "Retry-After": String(windowSecs) } }
+		{ status: 429, headers: { "Retry-After": String(windowSecs) } },
 	);
 }

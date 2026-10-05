@@ -54,7 +54,7 @@ export const UpdatePageSchema = z
 			d.slug !== undefined,
 		{
 			message: "At least one of title, content, parentId, or slug must be provided",
-		}
+		},
 	);
 
 // PROJ-488 (R6): the optional YAML frontmatter block parsed out of a page's `content`

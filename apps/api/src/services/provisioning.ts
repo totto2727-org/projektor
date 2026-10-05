@@ -10,7 +10,7 @@ import { createWorkspace } from "./workspaces";
 async function isRemovalTombstoned(
 	orm: ReturnType<typeof drizzle>,
 	workspaceId: string,
-	userId: string
+	userId: string,
 ): Promise<boolean> {
 	const row = await orm
 		.select({ workspaceId: schema.provisioningRemovals.workspaceId })
@@ -18,8 +18,8 @@ async function isRemovalTombstoned(
 		.where(
 			and(
 				eq(schema.provisioningRemovals.workspaceId, workspaceId),
-				eq(schema.provisioningRemovals.userId, userId)
-			)
+				eq(schema.provisioningRemovals.userId, userId),
+			),
 		)
 		.get();
 	return !!row;
@@ -33,7 +33,7 @@ function parseEmailSet(raw?: string): Set<string> {
 		(raw ?? "")
 			.split(",")
 			.map((e) => e.trim().toLowerCase())
-			.filter(Boolean)
+			.filter(Boolean),
 	);
 }
 
@@ -91,7 +91,7 @@ function parseDomainMap(raw?: string): Map<string, { slug: string; role: Role }>
 
 function resolveDomainMapping(
 	raw: string | undefined,
-	email: string
+	email: string,
 ): { slug: string; role: Role } | null {
 	const at = email.lastIndexOf("@");
 	if (at < 0) return null;
@@ -110,7 +110,7 @@ function resolveDomainMapping(
 async function grantOwner(
 	orm: ReturnType<typeof drizzle>,
 	workspaceId: string,
-	userId: string
+	userId: string,
 ): Promise<void> {
 	// PROJ-436: an owner who was explicitly removed from this workspace stays removed,
 	// even though they're still an admin instance-wide.
@@ -133,7 +133,7 @@ async function provisionAdmin(
 	env: Env,
 	user: Readonly<{ id: string; email: string }>,
 	slug: string,
-	name: string
+	name: string,
 ): Promise<void> {
 	// PROJ-433: every workspace plus this admin's role in each, in one query. The previous
 	// shape read the workspace list and then looped a per-workspace membership SELECT, so
@@ -150,8 +150,8 @@ async function provisionAdmin(
 			schema.workspaceMembers,
 			and(
 				eq(schema.workspaceMembers.workspaceId, schema.workspaces.id),
-				eq(schema.workspaceMembers.userId, user.id)
-			)
+				eq(schema.workspaceMembers.userId, user.id),
+			),
 		)
 		.all();
 
@@ -219,7 +219,7 @@ async function markProvisioned(env: Env, userId: string): Promise<void> {
 	} catch (err) {
 		console.error(
 			`[provisioning] failed to cache provisioned marker for ${userId} in KV, continuing without it:`,
-			err
+			err,
 		);
 	}
 }
@@ -273,7 +273,7 @@ export async function forgetProvisionedForTests(env: Env, userId: string): Promi
  */
 export async function ensureUserProvisioned(
 	env: Env,
-	user: { id: string; email: string }
+	user: { id: string; email: string },
 ): Promise<void> {
 	if (await alreadyProvisioned(env, user.id)) return;
 	// Only remember runs that reached a settled outcome. Bailing because a workspace hasn't
@@ -365,7 +365,7 @@ const PUBLIC_VIEWER_MARKER_SUFFIX = ":public-v2";
 
 export async function provisionPublicViewer(
 	env: Env,
-	user: Readonly<{ id: string }>
+	user: Readonly<{ id: string }>,
 ): Promise<void> {
 	const marker = `${user.id}${PUBLIC_VIEWER_MARKER_SUFFIX}`;
 	if (await alreadyProvisioned(env, marker)) return;
@@ -408,8 +408,8 @@ export async function provisionPublicViewer(
 		.where(
 			and(
 				eq(schema.userGroups.workspaceId, ws.id),
-				eq(schema.userGroups.name, PUBLIC_VIEWERS_GROUP_NAME)
-			)
+				eq(schema.userGroups.name, PUBLIC_VIEWERS_GROUP_NAME),
+			),
 		)
 		.get();
 	if (group) {

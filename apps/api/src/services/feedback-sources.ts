@@ -1,3 +1,5 @@
+import * as feedbackQueries from "@projektor/data-services/feedback";
+import { Effect } from "effect";
 import {
 	CreateFeedbackSourceSchema,
 	GetFeedbackSourceSchema,
@@ -56,7 +58,7 @@ interface SourceRow {
 async function requireSource(
 	ctx: ServiceCtx,
 	sourceId: string,
-	projectId?: string
+	projectId?: string,
 ): Promise<SourceRow> {
 	const clauses = ["id = ?", "workspace_id = ?"];
 	const binds: unknown[] = [sourceId, ctx.workspaceId];
@@ -67,7 +69,7 @@ async function requireSource(
 	const row = await ctx.db
 		.prepare(
 			`SELECT id, project_id, token_hash, name, description, is_active, allowed_origins, created_at, revoked_at
-       FROM feedback_sources WHERE ${clauses.join(" AND ")}`
+       FROM feedback_sources WHERE ${clauses.join(" AND ")}`,
 		)
 		.bind(...binds)
 		.first<SourceRow>();
@@ -77,7 +79,7 @@ async function requireSource(
 
 export async function createFeedbackSource(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<{ id: string; token: string }> {
 	const parsed = CreateFeedbackSourceSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
@@ -96,7 +98,7 @@ export async function createFeedbackSource(
 			`INSERT INTO feedback_sources
        (id, token_hash, workspace_id, project_id, name, description, is_active,
         allowed_origins, created_by, created_at, revoked_at)
-       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NULL)`
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NULL)`,
 		)
 		.bind(
 			id,
@@ -107,7 +109,7 @@ export async function createFeedbackSource(
 			description ?? null,
 			allowedOrigins ? JSON.stringify(allowedOrigins) : null,
 			ctx.userId,
-			now
+			now,
 		)
 		.run();
 
@@ -116,7 +118,7 @@ export async function createFeedbackSource(
 
 export async function listFeedbackSources(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<FeedbackSourceView[]> {
 	const parsed = ListFeedbackSourcesSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
@@ -125,13 +127,9 @@ export async function listFeedbackSources(
 	await requireProjectInWorkspace(ctx, projectId);
 	if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError("Insufficient permissions");
 
-	const { results } = await ctx.db
-		.prepare(
-			`SELECT id, token_hash, name, description, is_active, allowed_origins, created_at, revoked_at
-       FROM feedback_sources WHERE project_id = ? AND workspace_id = ? ORDER BY created_at DESC`
-		)
-		.bind(projectId, ctx.workspaceId)
-		.all<SourceRow>();
+	const results = await Effect.runPromise(
+		feedbackQueries.listFeedbackSources(ctx.db, ctx.workspaceId, { projectId }),
+	);
 
 	return (results ?? []).map((r) => ({
 		id: r.id,
@@ -147,12 +145,15 @@ export async function listFeedbackSources(
 
 export async function getFeedbackSource(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<FeedbackSourceDetailView> {
 	const parsed = GetFeedbackSourceSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
 
-	const row = await requireSource(ctx, parsed.data.sourceId);
+	const row = await Effect.runPromise(
+		feedbackQueries.findFeedbackSourceById(ctx.db, ctx.workspaceId, parsed.data.sourceId),
+	);
+	if (!row) throw new NotFoundError("Feedback source not found");
 	return {
 		id: row.id,
 		projectId: row.project_id,
@@ -201,7 +202,7 @@ export async function updateFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
 
 export async function rotateFeedbackSourceToken(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<{ token: string }> {
 	const parsed = RotateFeedbackSourceSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());

@@ -33,7 +33,7 @@ describe("PROJ-894: stateless agent identity", () => {
 	async function call(
 		bearer: string,
 		name: string,
-		args: Record<string, unknown>
+		args: Record<string, unknown>,
 	): Promise<{ ok: boolean; value: Record<string, unknown>; message: string }> {
 		const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 			method: "POST",
@@ -72,7 +72,7 @@ describe("PROJ-894: stateless agent identity", () => {
 	it("register_agent records the credential and auth method on the session", async () => {
 		const id = await register();
 		const row = await env.DB.prepare(
-			"SELECT auth_method, credential_id, token_id FROM agent_sessions WHERE id = ?"
+			"SELECT auth_method, credential_id, token_id FROM agent_sessions WHERE id = ?",
 		)
 			.bind(id)
 			.first<{ auth_method: string; credential_id: string; token_id: string }>();

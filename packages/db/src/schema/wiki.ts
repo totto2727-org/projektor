@@ -79,17 +79,17 @@ export const wikiPages = sqliteTable(
 		// PROJ-491: template picker / search+staleness exclusion filter on this flag.
 		workspaceTemplateIdx: index("wiki_pages_workspace_template_idx").on(
 			t.workspaceId,
-			t.isTemplate
+			t.isTemplate,
 		),
 		// PROJ-496: trash listing / purge job scan (services/wiki.ts#listWikiTrash,
 		// #purgeExpiredWikiPages).
 		workspaceDeletedAtIdx: index("wiki_pages_workspace_deleted_at_idx").on(
 			t.workspaceId,
-			t.deletedAt
+			t.deletedAt,
 		),
 		// PROJ-496 follow-up: collectCascadeTrashedDescendantIds walks this per batch id.
 		trashBatchIdIdx: index("wiki_pages_trash_batch_id_idx").on(t.workspaceId, t.trashBatchId),
-	})
+	}),
 );
 
 export const wikiRevisions = sqliteTable(
@@ -111,7 +111,7 @@ export const wikiRevisions = sqliteTable(
 	},
 	(t) => ({
 		pageIdx: index("wiki_revisions_page_idx").on(t.pageId),
-	})
+	}),
 );
 
 // PROJ-483: old slug -> page id, written whenever a page's slug changes (services/wiki.ts
@@ -133,10 +133,10 @@ export const wikiRedirects = sqliteTable(
 	(t) => ({
 		workspaceOldSlugIdx: uniqueIndex("wiki_redirects_workspace_old_slug_idx").on(
 			t.workspaceId,
-			t.oldSlug
+			t.oldSlug,
 		),
 		pageIdIdx: index("wiki_redirects_page_id_idx").on(t.pageId),
-	})
+	}),
 );
 
 // PROJ-485: server-side wiki link graph. Recomputed (delete-then-reinsert) on every
@@ -167,7 +167,7 @@ export const wikiLinks = sqliteTable(
 	(t) => ({
 		sourcePageIdx: index("wiki_links_source_page_idx").on(t.sourcePageId),
 		workspaceTargetIdx: index("wiki_links_workspace_target_idx").on(t.workspaceId, t.targetPageId),
-	})
+	}),
 );
 
 // PROJ-493 (R11): a user watching either a single page (subtree=false) or a page and its
@@ -195,10 +195,10 @@ export const wikiWatchers = sqliteTable(
 		userPageUniqueIdx: uniqueIndex("wiki_watchers_user_page_idx").on(
 			t.workspaceId,
 			t.userId,
-			t.pageId
+			t.pageId,
 		),
 		pageIdx: index("wiki_watchers_page_idx").on(t.workspaceId, t.pageId),
-	})
+	}),
 );
 
 // PROJ-493 (R11): per-user notification list. `pageId` is NOT a foreign key (and has no
@@ -226,7 +226,7 @@ export const wikiNotifications = sqliteTable(
 	},
 	(t) => ({
 		userIdx: index("wiki_notifications_user_idx").on(t.workspaceId, t.userId, t.createdAt),
-	})
+	}),
 );
 
 // PROJ-495 (R13): per-user scratch draft, one row per (page, user) — saveWikiDraft
@@ -257,7 +257,7 @@ export const wikiDrafts = sqliteTable(
 		userPageUniqueIdx: uniqueIndex("wiki_drafts_user_page_idx").on(
 			t.workspaceId,
 			t.userId,
-			t.pageId
+			t.pageId,
 		),
-	})
+	}),
 );

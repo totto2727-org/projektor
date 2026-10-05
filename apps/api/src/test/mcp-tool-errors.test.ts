@@ -43,7 +43,7 @@ describe("PROJ-893: MCP tool failures are isError results", () => {
 	async function call(name: string, args: unknown, token = f.token): Promise<Rpc> {
 		const res = await post(
 			{ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } },
-			token
+			token,
 		);
 		expect(res.status).toBe(200);
 		return (await res.json()) as Rpc;
@@ -122,11 +122,11 @@ describe("PROJ-893: MCP tool failures are isError results", () => {
 	it("conflict on a stale wiki save: re-read, then patch_wiki_page — and the current revision is in details", async () => {
 		const created = JSON.parse(
 			(await call("create_wiki_page", { title: "Locked Doc", content: "v1" })).result?.content?.[0]
-				.text ?? "{}"
+				.text ?? "{}",
 		) as { slug: string };
 		await call("update_wiki_page", { slug: created.slug, content: "v2" });
 		const revisions = JSON.parse(
-			(await call("list_wiki_revisions", { slug: created.slug })).result?.content?.[0].text ?? "[]"
+			(await call("list_wiki_revisions", { slug: created.slug })).result?.content?.[0].text ?? "[]",
 		) as Array<{ id: string }>;
 		const stale = revisions[0].id;
 		await call("update_wiki_page", { slug: created.slug, content: "v3", baseRevisionId: stale });
@@ -191,7 +191,7 @@ describe("PROJ-893: MCP tool failures are isError results", () => {
 				method: "tools/call",
 				params: { name: "create_issue", arguments: { projectId: f.projectId, title: "x" } },
 			},
-			readOnly
+			readOnly,
 		);
 		expect(res.status).toBe(403);
 		expect(res.headers.get("WWW-Authenticate")).toBeTruthy();

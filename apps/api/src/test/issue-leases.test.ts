@@ -268,8 +268,8 @@ describe("claim_issue agent WIP limit (PROJ-253)", () => {
 		const agent = await registerAgent("worker");
 		const issues = await Promise.all(
 			Array.from({ length: 4 }, (_, i) =>
-				seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })
-			)
+				seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` }),
+			),
 		);
 
 		for (const issue of issues.slice(0, 3)) {
@@ -293,8 +293,8 @@ describe("claim_issue agent WIP limit (PROJ-253)", () => {
 		const agent = await registerAgent("worker");
 		const issues = await Promise.all(
 			Array.from({ length: cap + 1 }, (_, i) =>
-				seedIssue(workspaceId, projectId, userId, { title: `Cap ${i}` })
-			)
+				seedIssue(workspaceId, projectId, userId, { title: `Cap ${i}` }),
+			),
 		);
 
 		for (const issue of issues.slice(0, cap)) {
@@ -314,8 +314,8 @@ describe("claim_issue agent WIP limit (PROJ-253)", () => {
 		const agent = await registerAgent("worker");
 		const issues = await Promise.all(
 			Array.from({ length: 4 }, (_, i) =>
-				seedIssue(workspaceId, projectId, userId, { title: `Denial ${i}` })
-			)
+				seedIssue(workspaceId, projectId, userId, { title: `Denial ${i}` }),
+			),
 		);
 
 		for (const issue of issues.slice(0, 3)) {
@@ -325,7 +325,7 @@ describe("claim_issue agent WIP limit (PROJ-253)", () => {
 		expect((await claim(issues[3].id, agent)).status).toBe(409);
 
 		const row = await env.DB.prepare(
-			"SELECT project_id, issue_id, agent_session_id FROM wip_cap_denials WHERE workspace_id = ?"
+			"SELECT project_id, issue_id, agent_session_id FROM wip_cap_denials WHERE workspace_id = ?",
 		)
 			.bind(workspaceId)
 			.first<{ project_id: string; issue_id: string; agent_session_id: string }>();
@@ -340,8 +340,8 @@ describe("claim_issue agent WIP limit (PROJ-253)", () => {
 		const agent = await registerAgent("worker");
 		const issues = await Promise.all(
 			Array.from({ length: 8 }, (_, i) =>
-				seedIssue(workspaceId, projectId, userId, { title: `C${i}` })
-			)
+				seedIssue(workspaceId, projectId, userId, { title: `C${i}` }),
+			),
 		);
 
 		// Fire all claims at once: the read-then-insert bug let several each see cap-1
@@ -352,7 +352,7 @@ describe("claim_issue agent WIP limit (PROJ-253)", () => {
 
 		const row = await env.DB.prepare(
 			`SELECT COUNT(*) AS n FROM issue_leases il JOIN issues i ON i.id = il.issue_id
-			 WHERE il.released_at IS NULL AND i.project_id = ?`
+			 WHERE il.released_at IS NULL AND i.project_id = ?`,
 		)
 			.bind(projectId)
 			.first<{ n: number }>();
@@ -441,7 +441,7 @@ describe("claim_issue agent WIP limit (PROJ-253)", () => {
 			expect((await patchStatus(issue.id, "done", REPORT)).status).toBe(200);
 
 			const leases = await env.DB.prepare(
-				"SELECT release_reason FROM issue_leases WHERE issue_id = ? AND released_at IS NOT NULL"
+				"SELECT release_reason FROM issue_leases WHERE issue_id = ? AND released_at IS NOT NULL",
 			)
 				.bind(issue.id)
 				.first<{ release_reason: string }>();
@@ -479,7 +479,7 @@ describe("claim_issue agent WIP limit (PROJ-253)", () => {
 			expect(res.status).toBe(200);
 
 			const leases = await env.DB.prepare(
-				"SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ? AND released_at IS NULL"
+				"SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ? AND released_at IS NULL",
 			)
 				.bind(issue.id)
 				.first<{ n: number }>();
@@ -575,7 +575,7 @@ describe("PROJ-932: list_issue_leases live-only default", () => {
 					headers: authHeaders(token, slug),
 					body: JSON.stringify({}),
 				})
-			).status
+			).status,
 		).toBe(200);
 
 		expect((await mcpLeases({ issueId: issue.id })).items).toHaveLength(0);
@@ -627,7 +627,7 @@ describe("PROJ-932: list_issue_leases live-only default", () => {
 
 		const staleRes = await SELF.fetch(
 			`http://localhost/api/issues/${issue.id}/leases?includeStale=true`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		const staleBody = (await staleRes.json()) as { items: unknown[] };
 		expect(staleBody.items).toHaveLength(1);
@@ -663,7 +663,7 @@ describe("PROJ-932: list_issue_leases live-only default", () => {
 
 		const byProjectKey = await SELF.fetch(
 			`http://localhost/api/issue-leases?projectId=${projectKey}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		const byProjectKeyBody = (await byProjectKey.json()) as { items: Array<{ issueId: string }> };
 		expect(byProjectKeyBody.items.some((i) => i.issueId === issue.id)).toBe(true);
@@ -710,7 +710,7 @@ describe("PROJ-932: list_issue_leases projectId + visibility for a non-admin mem
 		const now = Math.floor(Date.now() / 1000);
 		await env.DB.prepare(
 			`INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)
-			 VALUES (?, ?, ?, ?, ?, NULL, NULL)`
+			 VALUES (?, ?, ?, ?, ?, NULL, NULL)`,
 		)
 			.bind(crypto.randomUUID(), workspaceId, hiddenIssue.id, agent.id, now)
 			.run();

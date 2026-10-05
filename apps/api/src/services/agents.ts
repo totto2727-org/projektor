@@ -158,8 +158,8 @@ export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
 			and(
 				eq(schema.agentSessions.id, id),
 				eq(schema.agentSessions.workspaceId, ctx.workspaceId),
-				eq(schema.agentSessions.status, "active")
-			)
+				eq(schema.agentSessions.status, "active"),
+			),
 		)
 		.get();
 	if (!existing) throw new NotFoundError("Agent session not found");
@@ -169,7 +169,7 @@ export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
 		.update(schema.agentSessions)
 		.set({ lastHeartbeatAt: now })
 		.where(
-			and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId))
+			and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)),
 		);
 
 	const row = await orm
@@ -192,7 +192,7 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
 		.select({ id: schema.agentSessions.id })
 		.from(schema.agentSessions)
 		.where(
-			and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId))
+			and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)),
 		)
 		.get();
 	if (!existing) throw new NotFoundError("Agent session not found");
@@ -202,7 +202,7 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
 		.update(schema.agentSessions)
 		.set({ status: "ended", endedAt: now })
 		.where(
-			and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId))
+			and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)),
 		);
 
 	await releaseClaimsForAgent(ctx, id);
@@ -305,8 +305,8 @@ export async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
 			schema.issues,
 			and(
 				eq(schema.agentSessions.issueId, schema.issues.id),
-				eq(schema.issues.workspaceId, ctx.workspaceId)
-			)
+				eq(schema.issues.workspaceId, ctx.workspaceId),
+			),
 		)
 		.leftJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
 		.where(and(...conditions))

@@ -24,5 +24,5 @@ export const sprints = sqliteTable(
 	},
 	(t) => ({
 		wsProjectIdx: index("sprints_workspace_project_idx").on(t.workspaceId, t.projectId),
-	})
+	}),
 );

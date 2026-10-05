@@ -11,7 +11,7 @@ describe("SubmitFeedbackSchema", () => {
 	});
 	it("accepts rating + ratingScale", () => {
 		expect(SubmitFeedbackSchema.safeParse({ rating: 5, ratingScale: "five_star" }).success).toBe(
-			true
+			true,
 		);
 	});
 	it("rejects empty submission (neither rating nor body)", () => {
@@ -22,40 +22,40 @@ describe("SubmitFeedbackSchema", () => {
 	});
 	it("rejects ratingScale without rating", () => {
 		expect(SubmitFeedbackSchema.safeParse({ body: "x", ratingScale: "thumbs" }).success).toBe(
-			false
+			false,
 		);
 	});
 
 	it("accepts thumbs rating of -1 or 1", () => {
 		expect(SubmitFeedbackSchema.safeParse({ rating: -1, ratingScale: "thumbs" }).success).toBe(
-			true
+			true,
 		);
 		expect(SubmitFeedbackSchema.safeParse({ rating: 1, ratingScale: "thumbs" }).success).toBe(true);
 	});
 
 	it("rejects an out-of-range thumbs rating", () => {
 		expect(SubmitFeedbackSchema.safeParse({ rating: 0, ratingScale: "thumbs" }).success).toBe(
-			false
+			false,
 		);
 		expect(SubmitFeedbackSchema.safeParse({ rating: 5, ratingScale: "thumbs" }).success).toBe(
-			false
+			false,
 		);
 	});
 
 	it("accepts five_star ratings 1 through 5", () => {
 		for (const rating of [1, 2, 3, 4, 5]) {
 			expect(SubmitFeedbackSchema.safeParse({ rating, ratingScale: "five_star" }).success).toBe(
-				true
+				true,
 			);
 		}
 	});
 
 	it("rejects an out-of-range five_star rating", () => {
 		expect(SubmitFeedbackSchema.safeParse({ rating: 0, ratingScale: "five_star" }).success).toBe(
-			false
+			false,
 		);
 		expect(SubmitFeedbackSchema.safeParse({ rating: 6, ratingScale: "five_star" }).success).toBe(
-			false
+			false,
 		);
 	});
 });
@@ -63,7 +63,7 @@ describe("SubmitFeedbackSchema", () => {
 describe("CreateFeedbackSourceSchema", () => {
 	it("requires a name", () => {
 		expect(
-			CreateFeedbackSourceSchema.safeParse({ projectId: "p", name: "Onboarding" }).success
+			CreateFeedbackSourceSchema.safeParse({ projectId: "p", name: "Onboarding" }).success,
 		).toBe(true);
 		expect(CreateFeedbackSourceSchema.safeParse({ projectId: "p" }).success).toBe(false);
 	});
@@ -73,7 +73,7 @@ describe("UpdateFeedbackSourceSchema", () => {
 	it("requires at least one mutable field", () => {
 		expect(UpdateFeedbackSourceSchema.safeParse({ sourceId: "s" }).success).toBe(false);
 		expect(UpdateFeedbackSourceSchema.safeParse({ sourceId: "s", isActive: false }).success).toBe(
-			true
+			true,
 		);
 	});
 });

@@ -54,7 +54,7 @@ describe("PROJ-581: viewers see projects only through grants, consistently on bo
 		await provisionPublicViewer({ ...env, DEFAULT_WORKSPACE_SLUG: slug } as Env, pub);
 
 		const group = await env.DB.prepare(
-			"SELECT g.id FROM user_groups g JOIN user_group_members m ON m.group_id = g.id WHERE g.workspace_id = ? AND g.name = ? AND m.user_id = ?"
+			"SELECT g.id FROM user_groups g JOIN user_group_members m ON m.group_id = g.id WHERE g.workspace_id = ? AND g.name = ? AND m.user_id = ?",
 		)
 			.bind(ws.id, PUBLIC_VIEWERS_GROUP_NAME, pub.id)
 			.first<{ id: string }>();
@@ -62,7 +62,7 @@ describe("PROJ-581: viewers see projects only through grants, consistently on bo
 
 		expect(await ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).toEqual([]);
 		await env.DB.prepare(
-			"INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'viewer')"
+			"INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'viewer')",
 		)
 			.bind(group?.id, published.id)
 			.run();
@@ -83,7 +83,7 @@ describe("PROJ-581: viewers see projects only through grants, consistently on bo
 			auth: { kind: "human", method: "public" },
 		};
 		await expect(updateIssue(ctx, issue.id, { title: "defaced" })).rejects.toThrow(
-			/Insufficient permissions/
+			/Insufficient permissions/,
 		);
 		// A signed-in viewer with a member grant can still write (PROJ-311's documented model).
 		await expect(
@@ -92,8 +92,8 @@ describe("PROJ-581: viewers see projects only through grants, consistently on bo
 				issue.id,
 				{
 					title: "edited by a granted viewer",
-				}
-			)
+				},
+			),
 		).resolves.toBeTruthy();
 	});
 
@@ -103,7 +103,7 @@ describe("PROJ-581: viewers see projects only through grants, consistently on bo
 		const pub = await seedUser(`public-${crypto.randomUUID().slice(0, 8)}@projektor.local`);
 		const existing = crypto.randomUUID();
 		await env.DB.prepare(
-			"INSERT INTO user_groups (id, workspace_id, name, created_at) VALUES (?, ?, ?, 0)"
+			"INSERT INTO user_groups (id, workspace_id, name, created_at) VALUES (?, ?, ?, 0)",
 		)
 			.bind(existing, ws.id, PUBLIC_VIEWERS_GROUP_NAME)
 			.run();
@@ -112,7 +112,7 @@ describe("PROJ-581: viewers see projects only through grants, consistently on bo
 		await env.KV.delete(`provisioned:${pub.id}:public-v2`); // force a second real run
 		await provisionPublicViewer(e, pub);
 		const rows = await env.DB.prepare(
-			"SELECT g.id FROM user_groups g JOIN user_group_members m ON m.group_id = g.id WHERE g.workspace_id = ? AND m.user_id = ?"
+			"SELECT g.id FROM user_groups g JOIN user_group_members m ON m.group_id = g.id WHERE g.workspace_id = ? AND m.user_id = ?",
 		)
 			.bind(ws.id, pub.id)
 			.all<{ id: string }>();

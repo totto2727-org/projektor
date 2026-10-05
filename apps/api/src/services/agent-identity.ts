@@ -27,7 +27,7 @@ const LIVE_TTL_SECONDS = 120;
 export async function resolveAgentSessionId(
 	ctx: ServiceCtx,
 	provided: string | undefined,
-	opts: { includeStale?: boolean } = {}
+	opts: { includeStale?: boolean } = {},
 ): Promise<string> {
 	if (provided) return provided;
 

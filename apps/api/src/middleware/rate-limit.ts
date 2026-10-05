@@ -20,7 +20,7 @@ import type { Context, Next } from "hono";
 //   RATE_LIMIT_WINDOW_SECS   — window size in seconds (default 60)
 export async function rateLimitMiddleware(
 	c: Context<HonoEnv>,
-	next: Next
+	next: Next,
 ): Promise<Response | undefined> {
 	const windowSecs = parseInt(c.env.RATE_LIMIT_WINDOW_SECS ?? "60", 10);
 	const testNow =
@@ -130,7 +130,7 @@ async function incrementCounter(
 	env: Env,
 	key: string,
 	windowSecs: number,
-	nowSecs: number
+	nowSecs: number,
 ): Promise<{ count: number; slot: number }> {
 	const ns = env.RATE_LIMITER;
 	if (ns) {
@@ -149,7 +149,7 @@ async function incrementCounter(
 		warnedD1Fallback = true;
 		console.warn(
 			"RATE_LIMITER Durable Object binding missing: using the deprecated D1 rate limiter. " +
-				"Add the binding from wrangler.example.toml; the D1 fallback will be removed."
+				"Add the binding from wrangler.example.toml; the D1 fallback will be removed.",
 		);
 	}
 	const slot = Math.floor(nowSecs / windowSecs) * windowSecs;
@@ -160,7 +160,7 @@ async function incrementD1Counter(
 	db: D1Database,
 	key: string,
 	slot: number,
-	windowSecs: number
+	windowSecs: number,
 ): Promise<number> {
 	// Upsert: if same window slot, increment; if window has rolled over, reset to 1.
 	// We use a separate SELECT because D1's local runtime may not reliably return

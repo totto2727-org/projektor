@@ -20,7 +20,7 @@ async function mcpFetch(
 	method: string,
 	params: unknown,
 	headers: Record<string, string>,
-	query = ""
+	query = "",
 ): Promise<Response> {
 	return SELF.fetch(`http://localhost/mcp/${workspaceId}${query}`, {
 		method: "POST",
@@ -34,7 +34,7 @@ async function mcpCall<T>(
 	method: string,
 	params: unknown,
 	headers: Record<string, string>,
-	query = ""
+	query = "",
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
 	const res = await mcpFetch(workspaceId, method, params, headers, query);
 	return res.json();
@@ -103,7 +103,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/list",
 			{},
-			headers
+			headers,
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		expect(res.result.tools.length).toBeGreaterThan(0);
 	});
@@ -113,7 +113,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/list",
 			{},
-			headers
+			headers,
 		)) as JsonRpcResult<{ ttlMs: number; cacheScope: string }>;
 		expect(res.result.ttlMs).toBeGreaterThan(0);
 		expect(res.result.cacheScope).toBe("private");
@@ -125,13 +125,13 @@ describe("MCP endpoint", () => {
 			"tools/list",
 			{},
 			headers,
-			"?domains=issues"
+			"?domains=issues",
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		const unfiltered = (await mcpCall<{ tools: Array<{ name: string }> }>(
 			workspaceId,
 			"tools/list",
 			{},
-			headers
+			headers,
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		expect(filtered.result.tools.length).toBeLessThan(unfiltered.result.tools.length);
 	});
@@ -141,7 +141,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/list",
 			{},
-			headers
+			headers,
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		const names = res.result.tools.map((t) => t.name);
 		expect(names).toContain("list_issues");
@@ -155,7 +155,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "list_issues", arguments: {} },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const data = JSON.parse(res.result.content[0].text) as IssuePage;
 		expect(Array.isArray(data.items)).toBe(true);
@@ -171,14 +171,14 @@ describe("MCP endpoint", () => {
 				name: "create_issue",
 				arguments: { projectId, title: "MCP-created issue", priority: "high" },
 			},
-			headers
+			headers,
 		);
 
 		const listRes = (await mcpCall<{ content: Array<{ text: string }> }>(
 			workspaceId,
 			"tools/call",
 			{ name: "list_issues", arguments: {} },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const data = JSON.parse(listRes.result.content[0].text) as IssuePage;
 		expect(data.items).toHaveLength(1);
@@ -197,7 +197,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "search_wiki", arguments: { query: "MCP endpoint" } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const results = (JSON.parse(res.result.content[0].text) as { items: Array<{ title: string }> })
 			.items;
@@ -216,7 +216,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_wiki_page", arguments: { slug: "runbook" } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const page = JSON.parse(res.result.content[0].text) as { title: string; content: string };
 		expect(page.title).toBe("Runbook");
@@ -233,7 +233,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "does_not_exist", arguments: {} },
-			headers
+			headers,
 		)) as JsonRpcError;
 		expect(res.error.code).toBe(-32601);
 		expect(res.error.message).toContain("does_not_exist");
@@ -246,7 +246,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "create_issue", arguments: { projectId, title: 123 } },
-			headers
+			headers,
 		);
 		const err = toolError(res);
 		expect(err?.code).toBe("validation");
@@ -262,7 +262,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_issue", arguments: { id: crypto.randomUUID() } },
-			headers
+			headers,
 		);
 		const err = toolError(res);
 		expect(err?.code).toBe("not_found");
@@ -287,7 +287,7 @@ describe("MCP endpoint", () => {
 					labels: ["mcp", "test"],
 				},
 			},
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const created = JSON.parse(createRes.result.content[0].text) as { id: string };
 		expect(created.id).toBeTruthy();
@@ -306,7 +306,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "create_issue", arguments: { projectId, title: "Before update" } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const { id } = JSON.parse(createRes.result.content[0].text) as { id: string };
 
@@ -317,7 +317,7 @@ describe("MCP endpoint", () => {
 				name: "update_issue",
 				arguments: { id, assigneeId: assignee.id, labels: ["updated"] },
 			},
-			headers
+			headers,
 		);
 
 		const getRes = await SELF.fetch(`http://localhost/api/issues/${id}`, { headers });
@@ -338,7 +338,7 @@ describe("MCP endpoint", () => {
 				name: "create_issue",
 				arguments: { projectId, title: "Unassigned" },
 			},
-			headers
+			headers,
 		);
 		await mcpCall(
 			workspaceId,
@@ -347,7 +347,7 @@ describe("MCP endpoint", () => {
 				name: "create_issue",
 				arguments: { projectId, title: "Assigned", assigneeId: assignee.id },
 			},
-			headers
+			headers,
 		);
 
 		// MCP filter
@@ -355,7 +355,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "list_issues", arguments: { assignee: assignee.id } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const mcpData = JSON.parse(mcpRes.result.content[0].text) as IssuePage;
 		expect(mcpData.items).toHaveLength(1);
@@ -375,7 +375,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "list_issues", arguments: {} },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const mcpData = JSON.parse(mcpRes.result.content[0].text) as IssuePage;
 
@@ -397,14 +397,14 @@ describe("MCP endpoint", () => {
 				name: "create_issue",
 				arguments: { projectId, title: "Ref via MCP" },
 			},
-			headers
+			headers,
 		);
 
 		const res = (await mcpCall<{ content: Array<{ text: string }> }>(
 			workspaceId,
 			"tools/call",
 			{ name: "get_issue", arguments: { ref: "PROJ-1" } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const issue = JSON.parse(res.result.content[0].text) as { title: string };
 		expect(issue.title).toBe("Ref via MCP");
@@ -415,7 +415,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_issue", arguments: { id: crypto.randomUUID() } },
-			headers
+			headers,
 		);
 		const err = toolError(res);
 		expect(err?.code).toBe("not_found");
@@ -442,7 +442,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "list_wiki_pages", arguments: {} },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const pages = JSON.parse(res.result.content[0].text) as unknown[];
 		expect(pages).toHaveLength(2);
@@ -459,7 +459,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "search_wiki", arguments: { query: "" } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const results = JSON.parse(res.result.content[0].text) as { items: unknown[] };
 		expect(results).toEqual({ items: [] });
@@ -477,7 +477,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "search_wiki", arguments: { query: "Verbose" } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const results = (
 			JSON.parse(res.result.content[0].text) as { items: Array<{ excerpt: string }> }
@@ -491,7 +491,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "create_wiki_page", arguments: { title: "Auto Slug Page", content: "hi" } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const created = JSON.parse(res.result.content[0].text) as { slug: string };
 		expect(created.slug).toBe("auto-slug-page");
@@ -502,7 +502,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "create_wiki_page", arguments: { title: "Rev Test", content: "v1" } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const { id } = JSON.parse(createRes.result.content[0].text) as { id: string };
 
@@ -513,7 +513,7 @@ describe("MCP endpoint", () => {
 				name: "update_wiki_page",
 				arguments: { id, content: "v2" },
 			},
-			headers
+			headers,
 		);
 
 		const revRes = await SELF.fetch(`http://localhost/api/wiki/rev-test/revisions`, {
@@ -528,7 +528,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "create_wiki_page", arguments: { title: "Title Only", content: "body" } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const { id } = JSON.parse(createRes.result.content[0].text) as { id: string };
 
@@ -539,7 +539,7 @@ describe("MCP endpoint", () => {
 				name: "update_wiki_page",
 				arguments: { id, title: "New Title" },
 			},
-			headers
+			headers,
 		);
 
 		const revRes = await SELF.fetch("http://localhost/api/wiki/title-only/revisions", {
@@ -563,7 +563,7 @@ describe("MCP endpoint", () => {
 				name: "update_wiki_page",
 				arguments: { slug: "slug-update", content: "updated" },
 			},
-			headers
+			headers,
 		);
 
 		const pageRes = await SELF.fetch("http://localhost/api/wiki/slug-update", { headers });
@@ -576,7 +576,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "create_wiki_page", arguments: { title: "" } },
-			headers
+			headers,
 		);
 		expect("error" in (res as object)).toBe(false);
 		expect(toolError(res)?.code).toBe("validation");
@@ -604,7 +604,7 @@ describe("MCP endpoint", () => {
 			owner.workspace.id,
 			"tools/call",
 			{ name: "delete_wiki_page", arguments: { slug: parent.slug, cascade: true } },
-			ownerHeaders
+			ownerHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		expect(JSON.parse(delRes.result.content[0].text)).toEqual({
 			ok: true,
@@ -640,7 +640,7 @@ describe("MCP endpoint", () => {
 			owner.workspace.id,
 			"tools/call",
 			{ name: "delete_wiki_page", arguments: { slug: parent.slug } },
-			ownerHeaders
+			ownerHeaders,
 		);
 
 		const childRes2 = await SELF.fetch(`http://localhost/api/wiki/${child.slug}`, {
@@ -658,7 +658,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_prioritized_issues", arguments: { includeNotReady: true } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const data = JSON.parse(res.result.content[0].text) as { issues: unknown[] };
 		expect(Array.isArray(data.issues)).toBe(true);
@@ -674,7 +674,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_prioritized_issues", arguments: { includeNotReady: true } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const data = JSON.parse(res.result.content[0].text) as {
 			issues: Array<{
@@ -701,7 +701,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_prioritized_issues", arguments: { includeNotReady: true } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const data = JSON.parse(res.result.content[0].text) as {
 			issues: Array<{ title: string; _score: number }>;
@@ -728,7 +728,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_prioritized_issues", arguments: { includeNotReady: true } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const data = JSON.parse(res.result.content[0].text) as { issues: Array<{ title: string }> };
 		const titles = data.issues.map((i) => i.title);
@@ -747,7 +747,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_prioritized_issues", arguments: { limit: 2, includeNotReady: true } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const data = JSON.parse(res.result.content[0].text) as { issues: unknown[] };
 		expect(data.issues).toHaveLength(2);
@@ -775,7 +775,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_prioritized_issues", arguments: { includeNotReady: true } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const data = JSON.parse(res.result.content[0].text) as {
 			issues: Array<{ title: string; _score_breakdown: { centrality: number } }>;
@@ -808,7 +808,7 @@ describe("MCP endpoint", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_prioritized_issues", arguments: { includeNotReady: true } },
-			headers
+			headers,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const data = JSON.parse(res.result.content[0].text) as {
 			issues: Array<{ title: string; _score: number }>;

@@ -121,7 +121,7 @@ describe("PROJ-439 — ETag / conditional GET", () => {
 	it("a non-member replaying a valid ETag gets 403, not 304", async () => {
 		const owner = await seedIssueFixture({ role: "owner" });
 		const etag = (await get(`/api/issues/${owner.issueId}`, owner.token, owner.slug)).headers.get(
-			"ETag"
+			"ETag",
 		);
 
 		// A user with a token of their own, but no membership of the owner's workspace.
@@ -135,7 +135,7 @@ describe("PROJ-439 — ETag / conditional GET", () => {
 	it("a cross-workspace token replaying a valid ETag gets 403, not 304", async () => {
 		const owner = await seedIssueFixture({ role: "owner" });
 		const etag = (await get(`/api/issues/${owner.issueId}`, owner.token, owner.slug)).headers.get(
-			"ETag"
+			"ETag",
 		);
 
 		// API tokens are workspace-scoped (PROJ-16). Pointing one at another workspace's

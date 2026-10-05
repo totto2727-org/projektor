@@ -57,7 +57,7 @@ async function requireSpaceVisible(ctx: ServiceCtx, projectId: string | null): P
 // this is an export utility, not a citation path that needs stale-link tolerance).
 async function resolveExportRoot(
 	ctx: ServiceCtx,
-	idOrSlug: string
+	idOrSlug: string,
 ): Promise<{ id: string; slug: string; title: string; content: string; projectId: string | null }> {
 	const orm = drizzle(ctx.db, { schema });
 	const row = await orm
@@ -73,8 +73,8 @@ async function resolveExportRoot(
 			and(
 				eq(schema.wikiPages.workspaceId, ctx.workspaceId),
 				eq(schema.wikiPages.id, idOrSlug),
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.get();
 	if (row) return row;
@@ -91,8 +91,8 @@ async function resolveExportRoot(
 			and(
 				eq(schema.wikiPages.workspaceId, ctx.workspaceId),
 				eq(schema.wikiPages.slug, idOrSlug),
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.get();
 	if (!bySlug) throw new NotFoundError("Wiki page not found");
@@ -111,7 +111,7 @@ async function resolveExportRoot(
 async function collectDescendantIds(
 	ctx: ServiceCtx,
 	rootId: string,
-	rootProjectId: string | null
+	rootProjectId: string | null,
 ): Promise<string[]> {
 	const orm = drizzle(ctx.db, { schema });
 	const descendants: string[] = [];
@@ -125,9 +125,9 @@ async function collectDescendantIds(
 					and(
 						inArray(schema.wikiPages.parentId, chunk),
 						eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-						isNull(schema.wikiPages.deletedAt)
-					)
-				)
+						isNull(schema.wikiPages.deletedAt),
+					),
+				),
 		);
 		const inScope = children.filter((c) => (c.projectId ?? null) === rootProjectId);
 		frontier = inScope.map((c) => c.id);
@@ -155,9 +155,9 @@ async function pagesByIds(ctx: ServiceCtx, ids: string[]): Promise<ExportedPage[
 				and(
 					inArray(schema.wikiPages.id, chunk),
 					eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-					isNull(schema.wikiPages.deletedAt)
-				)
-			)
+					isNull(schema.wikiPages.deletedAt),
+				),
+			),
 	);
 }
 
@@ -175,7 +175,7 @@ function ensureFrontmatter(page: ExportedPage): string {
 // pointer attachments have an empty r2_key and nothing to zip).
 async function collectAttachments(
 	ctx: ServiceCtx,
-	pages: readonly ExportedPage[]
+	pages: readonly ExportedPage[],
 ): Promise<Array<{ pageSlug: string; filename: string; r2Key: string; size: number }>> {
 	if (pages.length === 0) return [];
 	const orm = drizzle(ctx.db, { schema });
@@ -197,9 +197,9 @@ async function collectAttachments(
 					eq(schema.attachments.workspaceId, ctx.workspaceId),
 					eq(schema.attachments.entityType, "wiki_page"),
 					inArray(schema.attachments.entityId, chunk),
-					eq(schema.attachments.kind, "file")
-				)
-			)
+					eq(schema.attachments.kind, "file"),
+				),
+			),
 	);
 
 	return rows
@@ -225,7 +225,7 @@ function safeZipPathSegment(value: string): string {
 function reserveUniqueName(
 	usedNames: Set<string>,
 	candidate: string,
-	altFor: (n: number) => string
+	altFor: (n: number) => string,
 ): string {
 	if (!usedNames.has(candidate)) {
 		usedNames.add(candidate);
@@ -248,7 +248,7 @@ function reserveUniqueName(
 // up front (assertExportSizeAllowed) before any R2 fetch happens.
 async function buildZip(
 	ctx: ServiceCtx,
-	pages: ExportedPage[]
+	pages: ExportedPage[],
 ): Promise<ReadableStream<Uint8Array>> {
 	const attachments = await collectAttachments(ctx, pages);
 	const totalAttachmentBytes = attachments.reduce((sum, a) => sum + a.size, 0);
@@ -280,7 +280,7 @@ async function buildZip(
 					const name = reserveUniqueName(
 						usedNames,
 						`pages/${base}.md`,
-						(n) => `pages/${base}-${n}.md`
+						(n) => `pages/${base}-${n}.md`,
 					);
 					const entry = new ZipDeflate(name);
 					zip.add(entry);
@@ -295,7 +295,7 @@ async function buildZip(
 					const name = reserveUniqueName(
 						usedNames,
 						`attachments/${dir}/${filename}`,
-						(n) => `attachments/${dir}/${n}-${filename}`
+						(n) => `attachments/${dir}/${n}-${filename}`,
 					);
 					const entry = new ZipDeflate(name);
 					zip.add(entry);
@@ -313,7 +313,7 @@ async function buildZip(
 
 export async function exportWiki(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<{ filename: string; stream: ReadableStream<Uint8Array> }> {
 	const parsed = ExportWikiInputSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
@@ -338,8 +338,8 @@ export async function exportWiki(
 					isNull(schema.wikiPages.deletedAt),
 					data.projectId
 						? eq(schema.wikiPages.projectId, data.projectId)
-						: isNull(schema.wikiPages.projectId)
-				)
+						: isNull(schema.wikiPages.projectId),
+				),
 			)
 			// Fetch one row past the cap so an oversized space can be rejected here, before
 			// content bodies for the full (potentially huge) page set are ever loaded.

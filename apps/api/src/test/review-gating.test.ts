@@ -242,7 +242,7 @@ describe("Review gating (PROJ-254/287/289/292/293/375)", () => {
 
 		expect((await patch(issue.id, { statusId: custom.id })).status).toBe(400);
 		expect((await patch(issue.id, { statusId: custom.id, completionReport: report })).status).toBe(
-			200
+			200,
 		);
 	});
 
@@ -278,7 +278,7 @@ describe("Review gating (PROJ-254/287/289/292/293/375)", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/issues?projectId=${projectId}&needsAudit=true`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		const { items } = (await res.json()) as { items: Array<{ id: string }> };
 		const ids = items.map((i) => i.id);
@@ -293,7 +293,7 @@ describe("Review gating (PROJ-254/287/289/292/293/375)", () => {
 		// inverting this filter. Guards against regressing to that.
 		const res = await SELF.fetch(
 			`http://localhost/api/issues?projectId=${projectId}&needsAudit=false`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		const { items } = (await res.json()) as { items: Array<{ id: string }> };
 		const ids = items.map((i) => i.id);

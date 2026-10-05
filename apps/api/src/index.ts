@@ -104,7 +104,7 @@ app.use(
 			return allowed.includes(origin) ? origin : null;
 		},
 		allowHeaders: ["Authorization", "Content-Type", "Cf-Access-Jwt-Assertion", "X-Workspace-Slug"],
-	})
+	}),
 );
 
 app.get("/health", (c) => c.json({ ok: true }));
@@ -156,7 +156,7 @@ app.get("/bootstrap", async (c) => {
 	const userId = crypto.randomUUID();
 	await c.env.DB.prepare(
 		`INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)
-     ON CONFLICT(email) DO UPDATE SET name = excluded.name`
+     ON CONFLICT(email) DO UPDATE SET name = excluded.name`,
 	)
 		.bind(userId, email, email.split("@")[0], now)
 		.run();
@@ -168,7 +168,7 @@ app.get("/bootstrap", async (c) => {
 	const wsId = crypto.randomUUID();
 	await c.env.DB.prepare(
 		`INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, 'projektor', 'projektor', ?)
-     ON CONFLICT(slug) DO NOTHING`
+     ON CONFLICT(slug) DO NOTHING`,
 	)
 		.bind(wsId, now)
 		.run();
@@ -179,7 +179,7 @@ app.get("/bootstrap", async (c) => {
 	// Upsert membership
 	await c.env.DB.prepare(
 		`INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)
-     ON CONFLICT(workspace_id, user_id) DO NOTHING`
+     ON CONFLICT(workspace_id, user_id) DO NOTHING`,
 	)
 		.bind(ws?.id, user?.id, now)
 		.run();
@@ -203,7 +203,7 @@ app.get("/bootstrap", async (c) => {
 	const tokenId = crypto.randomUUID();
 	await c.env.DB.prepare(
 		`INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, created_at)
-     VALUES (?, ?, ?, 'bootstrap', ?, '["read","write"]', ?)`
+     VALUES (?, ?, ?, 'bootstrap', ?, '["read","write"]', ?)`,
 	)
 		.bind(tokenId, ws?.id, user?.id, hash, now)
 		.run();
@@ -380,7 +380,7 @@ app.get("*", async (c) => {
 						? "/wiki/view/index.html"
 						: "/index.html";
 	const response = await c.env.ASSETS.fetch(
-		new Request(new URL(fallbackPath, c.req.url).toString())
+		new Request(new URL(fallbackPath, c.req.url).toString()),
 	);
 	// PROJ-487 fix-up: best-effort server-injected <title>/OG metadata for a resolved,
 	// authenticated wiki page — see lib/wiki-ssr.ts for why this can't be a build-time
@@ -414,7 +414,7 @@ async function sha256hex(s: string): Promise<string> {
 export async function scheduled(
 	_controller: ScheduledController,
 	env: Env,
-	ctx: ExecutionContext
+	ctx: ExecutionContext,
 ): Promise<void> {
 	ctx.waitUntil(purgeAllWorkspacesExpiredWikiPages(env));
 	ctx.waitUntil(purgeExpiredOAuthData(env));
@@ -442,10 +442,10 @@ export async function runFtsDedupeOnce(env: Env): Promise<void> {
 		await env.DB.prepare(
 			`UPDATE OR IGNORE wiki_pages SET search_rowid = (
 			   SELECT MAX(rowid) FROM wiki_fts WHERE page_id = wiki_pages.id)
-			 WHERE search_rowid IS NULL`
+			 WHERE search_rowid IS NULL`,
 		).run();
 		const result = await env.DB.prepare(
-			"DELETE FROM wiki_fts WHERE rowid NOT IN (SELECT search_rowid FROM wiki_pages WHERE search_rowid IS NOT NULL)"
+			"DELETE FROM wiki_fts WHERE rowid NOT IN (SELECT search_rowid FROM wiki_pages WHERE search_rowid IS NOT NULL)",
 		).run();
 		await env.KV.put(FTS_DEDUPE_ONCE_KV_KEY, "1");
 		console.log("one-off wiki_fts dedupe complete (PROJ-816)", {
@@ -494,13 +494,13 @@ async function deleteExpiredInChunks(
 	db: D1Database,
 	table: string,
 	whereSql: string,
-	params: readonly unknown[]
+	params: readonly unknown[],
 ): Promise<number> {
 	let totalDeleted = 0;
 	for (let i = 0; i < RETENTION_MAX_CHUNKS_PER_CATEGORY; i++) {
 		const result = await db
 			.prepare(
-				`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${whereSql} LIMIT ?)`
+				`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE ${whereSql} LIMIT ?)`,
 			)
 			.bind(...params, RETENTION_CHUNK_SIZE)
 			.run();
@@ -563,14 +563,14 @@ export async function purgeExpiredRetentionData(env: Env): Promise<void> {
 						`UPDATE claim_conflicts SET rejected_agent_id = NULL WHERE rejected_agent_id IN (${expiring})`,
 						`UPDATE claim_conflicts SET holding_agent_id = NULL WHERE holding_agent_id IN (${expiring})`,
 						`UPDATE wip_cap_denials SET agent_session_id = NULL WHERE agent_session_id IN (${expiring})`,
-					].map((sql) => env.DB.prepare(sql).bind(...category.params))
+					].map((sql) => env.DB.prepare(sql).bind(...category.params)),
 				);
 			}
 			counts[category.name] = await deleteExpiredInChunks(
 				env.DB,
 				category.table,
 				category.whereSql,
-				category.params
+				category.params,
 			);
 		} catch (err) {
 			failures.push(category.name);
@@ -674,7 +674,7 @@ function wrapD1WithBudget(db: D1Database, budget: SubrequestBudget): D1Database 
 								return (...args: unknown[]) => {
 									const bound = Reflect.get(stmtTarget, "bind", stmtReceiver).call(
 										stmtTarget,
-										...args
+										...args,
 									);
 									return new Proxy(bound, {
 										get(boundTarget, boundProp, boundReceiver) {
@@ -738,14 +738,14 @@ async function loadWikiTrashPurgeCursor(kv: KVNamespace): Promise<string[] | nul
 
 async function saveWikiTrashPurgeCursor(
 	kv: KVNamespace,
-	remainingWorkspaceIds: string[]
+	remainingWorkspaceIds: string[],
 ): Promise<void> {
 	if (remainingWorkspaceIds.length === 0) {
 		await kv.delete(WIKI_TRASH_PURGE_CURSOR_KV_KEY);
 	} else {
 		await kv.put(
 			WIKI_TRASH_PURGE_CURSOR_KV_KEY,
-			JSON.stringify({ workspaceIds: remainingWorkspaceIds })
+			JSON.stringify({ workspaceIds: remainingWorkspaceIds }),
 		);
 	}
 }
@@ -757,7 +757,7 @@ async function findWorkspacesWithExpiredTrash(db: D1Database): Promise<string[]>
 	const cutoff = Math.floor(Date.now() / 1000) - WIKI_TRASH_RETENTION_SECONDS;
 	const { results } = await db
 		.prepare(
-			"SELECT DISTINCT workspace_id AS id FROM wiki_pages WHERE deleted_at IS NOT NULL AND deleted_at < ?"
+			"SELECT DISTINCT workspace_id AS id FROM wiki_pages WHERE deleted_at IS NOT NULL AND deleted_at < ?",
 		)
 		.bind(cutoff)
 		.all<{ id: string }>();

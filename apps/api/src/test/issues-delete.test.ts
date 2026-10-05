@@ -58,7 +58,7 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 		// issue_links (CASCADE), both directions
 		await env.DB.prepare(
 			`INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
-			 VALUES (?, ?, ?, ?, 'relates_to', ?, ?)`
+			 VALUES (?, ?, ?, ?, 'relates_to', ?, ?)`,
 		)
 			.bind(
 				crypto.randomUUID(),
@@ -66,12 +66,12 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 				issueId,
 				otherIssueId,
 				userId,
-				Math.floor(Date.now() / 1000)
+				Math.floor(Date.now() / 1000),
 			)
 			.run();
 		await env.DB.prepare(
 			`INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
-			 VALUES (?, ?, ?, ?, 'relates_to', ?, ?)`
+			 VALUES (?, ?, ?, ?, 'relates_to', ?, ?)`,
 		)
 			.bind(
 				crypto.randomUUID(),
@@ -79,7 +79,7 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 				otherIssueId,
 				issueId,
 				userId,
-				Math.floor(Date.now() / 1000)
+				Math.floor(Date.now() / 1000),
 			)
 			.run();
 
@@ -90,7 +90,7 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 		// issue_file_claims (CASCADE)
 		await env.DB.prepare(
 			`INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, released_at)
-			 VALUES (?, ?, ?, NULL, ?, ?, NULL)`
+			 VALUES (?, ?, ?, NULL, ?, ?, NULL)`,
 		)
 			.bind(crypto.randomUUID(), workspaceId, issueId, "src/foo.ts", Math.floor(Date.now() / 1000))
 			.run();
@@ -101,7 +101,7 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 		// claim_conflicts (CASCADE on both rejected_issue_id and holding_issue_id)
 		await env.DB.prepare(
 			`INSERT INTO claim_conflicts (id, workspace_id, path, rejected_issue_id, holding_issue_id, forced, occurred_at)
-			 VALUES (?, ?, ?, ?, ?, 0, ?)`
+			 VALUES (?, ?, ?, ?, ?, 0, ?)`,
 		)
 			.bind(
 				crypto.randomUUID(),
@@ -109,14 +109,14 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 				"src/bar.ts",
 				issueId,
 				otherIssueId,
-				Math.floor(Date.now() / 1000)
+				Math.floor(Date.now() / 1000),
 			)
 			.run();
 
 		// wip_cap_denials (CASCADE)
 		await env.DB.prepare(
 			`INSERT INTO wip_cap_denials (id, workspace_id, project_id, issue_id, agent_session_id, occurred_at)
-			 VALUES (?, ?, ?, ?, ?, ?)`
+			 VALUES (?, ?, ?, ?, ?, ?)`,
 		)
 			.bind(
 				crypto.randomUUID(),
@@ -124,14 +124,14 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 				projectId,
 				issueId,
 				agentSessionId,
-				Math.floor(Date.now() / 1000)
+				Math.floor(Date.now() / 1000),
 			)
 			.run();
 
 		// share_tokens (no FK at all)
 		await env.DB.prepare(
 			`INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at)
-			 VALUES (?, ?, ?, ?, ?, ?)`
+			 VALUES (?, ?, ?, ?, ?, ?)`,
 		)
 			.bind(crypto.randomUUID(), issueId, workspaceId, "someone", 9999999999, 0)
 			.run();
@@ -139,7 +139,7 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 		// issue_gate_rejections (CASCADE)
 		await env.DB.prepare(
 			`INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at)
-			 VALUES (?, ?, ?, ?)`
+			 VALUES (?, ?, ?, ?)`,
 		)
 			.bind(crypto.randomUUID(), workspaceId, issueId, Math.floor(Date.now() / 1000))
 			.run();
@@ -148,7 +148,7 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 		const sourceId = crypto.randomUUID();
 		await env.DB.prepare(
 			`INSERT INTO feedback_sources (id, token_hash, workspace_id, project_id, name, is_active, created_by, created_at)
-			 VALUES (?, ?, ?, ?, ?, 1, ?, ?)`
+			 VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
 		)
 			.bind(
 				sourceId,
@@ -157,13 +157,13 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 				projectId,
 				"Test source",
 				userId,
-				Math.floor(Date.now() / 1000)
+				Math.floor(Date.now() / 1000),
 			)
 			.run();
 		const feedbackId = crypto.randomUUID();
 		await env.DB.prepare(
 			`INSERT INTO feedback (id, source_id, workspace_id, project_id, status, linked_issue_id, created_at)
-			 VALUES (?, ?, ?, ?, 'actioned', ?, ?)`
+			 VALUES (?, ?, ?, ?, 'actioned', ?, ?)`,
 		)
 			.bind(feedbackId, sourceId, workspaceId, projectId, issueId, Math.floor(Date.now() / 1000))
 			.run();
@@ -190,54 +190,54 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 
 		// Sanity: every dependent row exists before delete.
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?", issueId),
 		).toBe(1);
 		expect(
 			await tableCount(
 				"SELECT COUNT(*) AS n FROM issue_links WHERE source_issue_id = ? OR target_issue_id = ?",
 				issueId,
-				issueId
-			)
+				issueId,
+			),
 		).toBe(2);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?", issueId),
 		).toBe(1);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?", issueId),
 		).toBe(1);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?", issueId),
 		).toBe(1);
 		expect(
 			await tableCount(
 				"SELECT COUNT(*) AS n FROM claim_conflicts WHERE rejected_issue_id = ? OR holding_issue_id = ?",
 				issueId,
-				issueId
-			)
+				issueId,
+			),
 		).toBe(1);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?", issueId),
 		).toBe(1);
 		expect(
 			await tableCount(
 				"SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?",
-				issueId
-			)
+				issueId,
+			),
 		).toBe(1);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM agent_sessions WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM agent_sessions WHERE issue_id = ?", issueId),
 		).toBe(1);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id = ?", issueId),
 		).toBe(1);
 		expect(
 			await tableCount(
 				"SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'issue' AND entity_id = ?",
-				issueId
-			)
+				issueId,
+			),
 		).toBe(1);
 		expect(await tableCount("SELECT COUNT(*) AS n FROM issues WHERE parent_id = ?", issueId)).toBe(
-			1
+			1,
 		);
 
 		// --- act ---
@@ -249,56 +249,56 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 
 		// --- assert: nothing references the deleted issue any more ---
 		expect(
-			await env.DB.prepare("SELECT id FROM issues WHERE id = ?").bind(issueId).first()
+			await env.DB.prepare("SELECT id FROM issues WHERE id = ?").bind(issueId).first(),
 		).toBeNull();
 		expect(
 			await env.DB.prepare("SELECT issue_id FROM issues_fts WHERE issue_id = ?")
 				.bind(issueId)
-				.first()
+				.first(),
 		).toBeNull();
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?", issueId),
 		).toBe(0);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?", issueId),
 		).toBe(0);
 		expect(
 			await tableCount(
 				"SELECT COUNT(*) AS n FROM issue_links WHERE source_issue_id = ? OR target_issue_id = ?",
 				issueId,
-				issueId
-			)
+				issueId,
+			),
 		).toBe(0);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?", issueId),
 		).toBe(0);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM issue_file_claims WHERE issue_id = ?", issueId),
 		).toBe(0);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?", issueId),
 		).toBe(0);
 		expect(
 			await tableCount(
 				"SELECT COUNT(*) AS n FROM claim_conflicts WHERE rejected_issue_id = ? OR holding_issue_id = ?",
 				issueId,
-				issueId
-			)
+				issueId,
+			),
 		).toBe(0);
 		expect(
-			await tableCount("SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?", issueId)
+			await tableCount("SELECT COUNT(*) AS n FROM wip_cap_denials WHERE issue_id = ?", issueId),
 		).toBe(0);
 		expect(
 			await tableCount(
 				"SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?",
-				issueId
-			)
+				issueId,
+			),
 		).toBe(0);
 		expect(
 			await tableCount(
 				"SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'issue' AND entity_id = ?",
-				issueId
-			)
+				issueId,
+			),
 		).toBe(0);
 
 		// SET NULL rows: the row survives, the reference is cleared.
@@ -325,7 +325,7 @@ describe("deleteIssue — dependent row cleanup (PROJ-922)", () => {
 
 		// The unrelated issue and its own row are untouched.
 		expect(
-			await env.DB.prepare("SELECT id FROM issues WHERE id = ?").bind(otherIssueId).first()
+			await env.DB.prepare("SELECT id FROM issues WHERE id = ?").bind(otherIssueId).first(),
 		).not.toBeNull();
 	});
 });

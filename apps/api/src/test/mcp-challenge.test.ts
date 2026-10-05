@@ -53,7 +53,7 @@ describe("MCP 401 carries an RFC 9728 challenge", () => {
 		// Per-workspace, not origin-level: Claude matches the PRM document's
 		// `resource` against the URL the user typed, path component included.
 		expect(challenge.resource_metadata).toBe(
-			`${HOST}/.well-known/oauth-protected-resource/mcp/${workspaceId}`
+			`${HOST}/.well-known/oauth-protected-resource/mcp/${workspaceId}`,
 		);
 		expect(challenge.scope).toBe("projektor:read projektor:write");
 	});
@@ -68,7 +68,7 @@ describe("MCP 401 carries an RFC 9728 challenge", () => {
 
 		const challenge = parseChallenge(res.headers.get("WWW-Authenticate"));
 		expect(challenge.resource_metadata).toBe(
-			`${other}/.well-known/oauth-protected-resource/mcp/${workspaceId}`
+			`${other}/.well-known/oauth-protected-resource/mcp/${workspaceId}`,
 		);
 	});
 
@@ -138,7 +138,7 @@ describe("insufficient scope is a 403 challenge, not a 200 with a JSON-RPC error
 		const challenge = parseChallenge(res.headers.get("WWW-Authenticate"));
 		expect(challenge.error).toBe("insufficient_scope");
 		expect(challenge.resource_metadata).toBe(
-			`${HOST}/.well-known/oauth-protected-resource/mcp/${workspaceId}`
+			`${HOST}/.well-known/oauth-protected-resource/mcp/${workspaceId}`,
 		);
 		// All scopes in one go — challenging incrementally would force a second
 		// consent round-trip the moment the client touched another operation.

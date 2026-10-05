@@ -41,7 +41,7 @@ publicRouter.options("/submit", (c) => {
 
 async function checkFeedbackRateLimit(
 	c: Context<HonoEnv>,
-	token: string
+	token: string,
 ): Promise<Response | null> {
 	// Dual-keyed rate limit (token hash + IP) — reject if either trips its bucket.
 	// Dedicated PROJ-378 env vars, not RATE_LIMIT_API_MAX/RATE_LIMIT_AUTH_MAX: this

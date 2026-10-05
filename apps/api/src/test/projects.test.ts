@@ -13,7 +13,7 @@ async function mcpCall<T>(
 	workspaceId: string,
 	name: string,
 	args: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -242,7 +242,7 @@ describe("Projects REST", () => {
 
 		const includeArchivedRes = await SELF.fetch(
 			"http://localhost/api/projects?includeArchived=true",
-			{ headers: ownerHeaders }
+			{ headers: ownerHeaders },
 		);
 		const withArchived = (await includeArchivedRes.json()) as Array<{
 			key: string;
@@ -322,7 +322,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"list_projects",
 			{},
-			ownerHeaders
+			ownerHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		expect(isMcpError(res)).toBe(false);
 		expect(toolError(res)).toBeUndefined();
@@ -336,7 +336,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"create_project",
 			{ name: "MCP Project", key: "MCP" },
-			ownerHeaders
+			ownerHeaders,
 		);
 		expect(isMcpError(res)).toBe(false);
 		expect(toolError(res)).toBeUndefined();
@@ -351,7 +351,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"create_project",
 			{ name: "Lower", key: "lower" },
-			ownerHeaders
+			ownerHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const data = JSON.parse(res.result.content[0].text) as { key: string };
 		expect(data.key).toBe("LOWER");
@@ -362,7 +362,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"create_project",
 			{ name: "Blocked", key: "BLKD" },
-			memberHeaders
+			memberHeaders,
 		);
 		expect(toolError(res)?.code).toBe("forbidden");
 	});
@@ -372,7 +372,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"create_project",
 			{ name: "Blocked", key: "BLKD" },
-			viewerHeaders
+			viewerHeaders,
 		);
 		expect(toolError(res)?.code).toBe("forbidden");
 	});
@@ -383,7 +383,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"create_project",
 			{ name: "Second", key: "DUPL" },
-			ownerHeaders
+			ownerHeaders,
 		);
 		expect(toolError(res)?.code).toBe("conflict");
 	});
@@ -393,7 +393,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"create_project",
 			{ name: "Bad", key: "BAD KEY!" },
-			ownerHeaders
+			ownerHeaders,
 		);
 		expect(toolError(res)?.code).toBe("validation");
 	});
@@ -403,7 +403,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"create_project",
 			{ name: "x".repeat(101), key: "TOOLNG" },
-			ownerHeaders
+			ownerHeaders,
 		);
 		expect(toolError(res)?.code).toBe("validation");
 	});
@@ -415,7 +415,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"list_projects",
 			{},
-			ownerHeaders
+			ownerHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const projects = JSON.parse(listRes.result.content[0].text) as Array<{
 			key: string;
@@ -465,7 +465,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"list_projects",
 			{},
-			ownerHeaders
+			ownerHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const mcpProjects = JSON.parse(mcpRes.result.content[0].text) as Array<{ key: string }>;
 
@@ -477,17 +477,17 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"create_project",
 			{ name: "MCP Archivable", key: "MARCH" },
-			ownerHeaders
+			ownerHeaders,
 		);
 		const { id } = JSON.parse(
-			(createRes as JsonRpcResult<{ content: Array<{ text: string }> }>).result.content[0].text
+			(createRes as JsonRpcResult<{ content: Array<{ text: string }> }>).result.content[0].text,
 		) as { id: string };
 
 		const updateRes = await mcpCall(
 			workspaceId,
 			"update_project",
 			{ id, archived: true },
-			ownerHeaders
+			ownerHeaders,
 		);
 		expect(isMcpError(updateRes)).toBe(false);
 		expect(toolError(updateRes)).toBeUndefined();
@@ -496,10 +496,10 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"list_projects",
 			{},
-			ownerHeaders
+			ownerHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const keys = (JSON.parse(listRes.result.content[0].text) as Array<{ key: string }>).map(
-			(p) => p.key
+			(p) => p.key,
 		);
 		expect(keys).not.toContain("MARCH");
 
@@ -507,7 +507,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"list_projects",
 			{ includeArchived: true },
-			ownerHeaders
+			ownerHeaders,
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const includeArchivedKeys = (
 			JSON.parse(includeArchivedRes.result.content[0].text) as Array<{ key: string }>
@@ -525,7 +525,7 @@ describe("Projects MCP", () => {
 			workspaceId,
 			"create_project",
 			{ name: "ByMember", key: "MEMBR" },
-			memberHeaders
+			memberHeaders,
 		);
 
 		// Both must reject member
@@ -536,9 +536,8 @@ describe("Projects MCP", () => {
 
 describe("GET /api/projects cross-workspace", () => {
 	it("returns projects from all workspaces the user belongs to", async () => {
-		const { seedFixture, seedProject, seedWorkspace, seedMember, seedGroupGrant } = await import(
-			"./helpers"
-		);
+		const { seedFixture, seedProject, seedWorkspace, seedMember, seedGroupGrant } =
+			await import("./helpers");
 
 		const ws1 = await seedFixture({ role: "owner" });
 		const ws2 = await seedWorkspace();

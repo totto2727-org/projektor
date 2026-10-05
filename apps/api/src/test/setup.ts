@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { beforeAll, beforeEach } from "vitest";
+import { beforeAll, beforeEach } from "vite-plus/test";
 import { MIGRATIONS } from "./migrations";
 import { resetRateLimits } from "./rate-limit-reset";
 

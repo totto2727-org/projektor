@@ -23,7 +23,7 @@ function envWith(overrides: Partial<Env>): Env {
 
 async function memberRole(workspaceId: string, userId: string) {
 	const row = await env.DB.prepare(
-		"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?"
+		"SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
 	)
 		.bind(workspaceId, userId)
 		.first<{ role: string }>();
@@ -33,7 +33,7 @@ async function memberRole(workspaceId: string, userId: string) {
 // Simulates a prior removeMember call without going through the HTTP route.
 async function tombstoneRemoval(workspaceId: string, userId: string) {
 	await env.DB.prepare(
-		"INSERT INTO provisioning_removals (workspace_id, user_id, removed_at) VALUES (?, ?, ?)"
+		"INSERT INTO provisioning_removals (workspace_id, user_id, removed_at) VALUES (?, ?, ?)",
 	)
 		.bind(workspaceId, userId, Math.floor(Date.now() / 1000))
 		.run();
@@ -50,7 +50,7 @@ describe("login provisioning", () => {
 				DEFAULT_WORKSPACE_SLUG: slug,
 				AUTO_JOIN_ROLE: "viewer",
 			}),
-			admin
+			admin,
 		);
 
 		const ws = await env.DB.prepare("SELECT id FROM workspaces WHERE slug = ?")
@@ -71,7 +71,7 @@ describe("login provisioning", () => {
 				DEFAULT_WORKSPACE_SLUG: slug,
 				AUTO_JOIN_ROLE: "viewer",
 			}),
-			user
+			user,
 		);
 
 		expect(await memberRole(ws.id, user.id)).toBe("viewer");
@@ -87,7 +87,7 @@ describe("login provisioning", () => {
 				DEFAULT_WORKSPACE_SLUG: slug,
 				AUTO_JOIN_ROLE: "viewer",
 			}),
-			user
+			user,
 		);
 
 		const ws = await env.DB.prepare("SELECT id FROM workspaces WHERE slug = ?").bind(slug).first();
@@ -105,7 +105,7 @@ describe("login provisioning", () => {
 				DEFAULT_WORKSPACE_SLUG: slug,
 				AUTO_JOIN_ROLE: "none",
 			}),
-			user
+			user,
 		);
 
 		expect(await memberRole(ws.id, user.id)).toBeNull();
@@ -122,7 +122,7 @@ describe("login provisioning", () => {
 				DEFAULT_WORKSPACE_SLUG: slug,
 				AUTO_JOIN_ROLE: undefined,
 			}),
-			user
+			user,
 		);
 
 		expect(await memberRole(ws.id, user.id)).toBeNull();
@@ -140,7 +140,7 @@ describe("login provisioning", () => {
 				DEFAULT_WORKSPACE_SLUG: slug,
 				AUTO_JOIN_ROLE: "viewer",
 			}),
-			user
+			user,
 		);
 
 		expect(await memberRole(ws.id, user.id)).toBe("owner");
@@ -158,7 +158,7 @@ describe("login provisioning", () => {
 				AUTO_JOIN_ROLE: "viewer",
 				WORKSPACE_DOMAIN_MAP: '{"example.com":{"slug":"prov-mapped","role":"member"}}',
 			}),
-			user
+			user,
 		);
 
 		expect(await memberRole(mappedWs.id, user.id)).toBe("member");
@@ -178,7 +178,7 @@ describe("login provisioning", () => {
 				AUTO_JOIN_ROLE: "viewer",
 				WORKSPACE_DOMAIN_MAP: '{"example.com":{"slug":"prov-mapped-2","role":"member"}}',
 			}),
-			admin
+			admin,
 		);
 
 		// The domain rule never confines an admin; admins own every workspace, mapped or not.
@@ -200,7 +200,7 @@ describe("login provisioning", () => {
 				DEFAULT_WORKSPACE_SLUG: "prov-own-all-default",
 				AUTO_JOIN_ROLE: "viewer",
 			}),
-			admin
+			admin,
 		);
 
 		expect(await memberRole(defaultWs.id, admin.id)).toBe("owner");
@@ -218,7 +218,7 @@ describe("login provisioning", () => {
 				DEFAULT_WORKSPACE_SLUG: slug,
 				AUTO_JOIN_ROLE: "viewer",
 			}),
-			user
+			user,
 		);
 
 		const ws = await env.DB.prepare("SELECT id FROM workspaces WHERE slug = ?")
@@ -245,7 +245,7 @@ describe("PROJ-436: removal tombstone", () => {
 				DEFAULT_WORKSPACE_SLUG: "prov-436-admin-default-unused",
 				AUTO_JOIN_ROLE: "viewer",
 			}),
-			admin
+			admin,
 		);
 
 		expect(await memberRole(removedFrom.id, admin.id)).toBeNull();
@@ -264,7 +264,7 @@ describe("PROJ-436: removal tombstone", () => {
 				DEFAULT_WORKSPACE_SLUG: slug,
 				AUTO_JOIN_ROLE: "viewer",
 			}),
-			user
+			user,
 		);
 
 		expect(await memberRole(ws.id, user.id)).toBeNull();
@@ -282,7 +282,7 @@ describe("PROJ-436: removal tombstone", () => {
 				AUTO_JOIN_ROLE: "viewer",
 				WORKSPACE_DOMAIN_MAP: '{"example.com":{"slug":"prov-436-domain-removed","role":"member"}}',
 			}),
-			user
+			user,
 		);
 
 		expect(await memberRole(mappedWs.id, user.id)).toBeNull();
@@ -476,7 +476,7 @@ describe("public viewer provisioning (PROJ-373)", () => {
 
 		await provisionPublicViewer(
 			envWith({ DEFAULT_WORKSPACE_SLUG: "prov-public-viewer-not-yet" }),
-			user
+			user,
 		);
 
 		const ws = await env.DB.prepare("SELECT id FROM workspaces WHERE slug = ?")

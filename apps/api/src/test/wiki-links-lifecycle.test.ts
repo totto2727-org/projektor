@@ -29,7 +29,7 @@ async function updatePage(
 	token: string,
 	wsSlug: string,
 	pageSlug: string,
-	body: Record<string, unknown>
+	body: Record<string, unknown>,
 ) {
 	const res = await fetchFresh(`http://localhost/api/wiki/${pageSlug}`, {
 		method: "PUT",
@@ -79,7 +79,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
 
 		let broken = await brokenLinks(token, workspace.slug);
 		expect(broken.some((l) => l.sourcePageId === linker.id && l.targetTitle === "Onboarding")).toBe(
-			true
+			true,
 		);
 
 		const target = await createPage(token, workspace.slug, "Onboarding");
@@ -97,7 +97,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
 
 		// Sanity: resolved at creation time (existing per-page resolution).
 		expect(
-			(await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)
+			(await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id),
 		).toBe(true);
 
 		// Rename the target away from "Foo" — the link's raw text no longer matches it.
@@ -107,7 +107,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
 		expect(broken.some((l) => l.sourcePageId === linker.id && l.targetTitle === "Foo")).toBe(true);
 		// slug is unchanged (only the title was renamed) — target.slug still resolves the page.
 		expect(
-			(await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)
+			(await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id),
 		).toBe(false);
 
 		// Rename a THIRD, unrelated page onto "Foo" — it should claim the now-broken link.
@@ -117,7 +117,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
 		broken = await brokenLinks(token, workspace.slug);
 		expect(broken.some((l) => l.sourcePageId === linker.id)).toBe(false);
 		expect(
-			(await backlinks(token, workspace.slug, claimant.slug)).some((b) => b.pageId === linker.id)
+			(await backlinks(token, workspace.slug, claimant.slug)).some((b) => b.pageId === linker.id),
 		).toBe(true);
 	});
 
@@ -130,7 +130,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
 		const linker = await createPage(token, workspace.slug, "Linker3", "See [[Vault]].");
 		let broken = await brokenLinks(token, workspace.slug);
 		expect(broken.some((l) => l.sourcePageId === linker.id && l.targetTitle === "Vault")).toBe(
-			true
+			true,
 		);
 
 		await undeletePage(token, workspace.slug, target.id);
@@ -138,7 +138,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
 		broken = await brokenLinks(token, workspace.slug);
 		expect(broken.some((l) => l.sourcePageId === linker.id)).toBe(false);
 		expect(
-			(await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)
+			(await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id),
 		).toBe(true);
 	});
 
@@ -150,13 +150,13 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
 		await deletePage(token, workspace.slug, target.slug);
 		const broken = await brokenLinks(token, workspace.slug);
 		expect(broken.some((l) => l.sourcePageId === linker.id && l.targetTitle === "Doomed")).toBe(
-			true
+			true,
 		);
 		expect(await targetOf(linker.id)).toBe(target.id);
 
 		await undeletePage(token, workspace.slug, target.id);
 		expect(
-			(await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)
+			(await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id),
 		).toBe(true);
 	});
 
@@ -187,7 +187,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
 		};
 		await purgeExpiredWikiPages(ctx);
 		const rows = await env.DB.prepare(
-			"SELECT target_title AS t, target_page_id AS id FROM wiki_links WHERE source_page_id = ?"
+			"SELECT target_title AS t, target_page_id AS id FROM wiki_links WHERE source_page_id = ?",
 		)
 			.bind(linker.id)
 			.all<{ t: string; id: string | null }>();
@@ -209,7 +209,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
 
 async function targetOf(sourceId: string): Promise<string | null> {
 	const row = await env.DB.prepare(
-		"SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?"
+		"SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?",
 	)
 		.bind(sourceId)
 		.first<{ t: string | null }>();
@@ -218,7 +218,7 @@ async function targetOf(sourceId: string): Promise<string | null> {
 
 async function targetsOf(sourceId: string): Promise<Array<string | null>> {
 	const rows = await env.DB.prepare(
-		"SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ? ORDER BY target_page_id"
+		"SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ? ORDER BY target_page_id",
 	)
 		.bind(sourceId)
 		.all<{ t: string | null }>();

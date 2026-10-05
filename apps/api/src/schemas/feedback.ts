@@ -24,7 +24,7 @@ export const SubmitFeedbackSchema = z
 			if (d.ratingScale === "thumbs") return d.rating === -1 || d.rating === 1;
 			return d.rating >= 1 && d.rating <= 5;
 		},
-		{ message: "rating must be -1 or 1 for thumbs, or an integer 1-5 for five_star" }
+		{ message: "rating must be -1 or 1 for thumbs, or an integer 1-5 for five_star" },
 	);
 
 export const CreateFeedbackSourceSchema = z.object({

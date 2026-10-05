@@ -1,5 +1,7 @@
 import { drizzle, schema } from "@projektor/db";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import * as data from "@projektor/data-services";
+import { and, eq } from "drizzle-orm";
+import { Effect } from "effect";
 import { IdSchema } from "../schemas/common";
 import { CreateProjectSchema, UpdateProjectSchema } from "../schemas/projects";
 import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from "./access";
@@ -20,18 +22,12 @@ async function invalidateProjectsCache(ctx: ServiceCtx) {
 }
 
 export async function listProjects(ctx: ServiceCtx, opts: { includeArchived?: boolean } = {}) {
-	const orm = drizzle(ctx.db, { schema });
-
 	// PROJ-311: owner/admin share the cached workspace list; others get an uncached per-user set.
 	const visible = visibleProjectPredicate(ctx, schema.projects.id);
 	const includeArchived = opts.includeArchived ?? false;
 	if (!visible) {
 		if (includeArchived) {
-			return orm
-				.select()
-				.from(schema.projects)
-				.where(eq(schema.projects.workspaceId, ctx.workspaceId))
-				.orderBy(asc(schema.projects.name));
+			return Effect.runPromise(data.listProjects(ctx.db, ctx.workspaceId, { includeArchived }));
 		}
 		const cacheKey = PROJECTS_CACHE_KEY(ctx.workspaceId);
 		const local = localCache.get(cacheKey);
@@ -41,87 +37,38 @@ export async function listProjects(ctx: ServiceCtx, opts: { includeArchived?: bo
 			localCache.set(cacheKey, cached);
 			return cached;
 		}
-		const result = await orm
-			.select()
-			.from(schema.projects)
-			.where(
-				and(eq(schema.projects.workspaceId, ctx.workspaceId), isNull(schema.projects.archivedAt))
-			)
-			.orderBy(asc(schema.projects.name));
+		const result = await Effect.runPromise(data.listProjects(ctx.db, ctx.workspaceId));
 		await cache.set(ctx.kv, cacheKey, result, WS_META_TTL);
 		localCache.set(cacheKey, result);
 		return result;
 	}
 
-	const conditions = [eq(schema.projects.workspaceId, ctx.workspaceId), visible];
-	if (!includeArchived) conditions.push(isNull(schema.projects.archivedAt));
-
-	return orm
-		.select()
-		.from(schema.projects)
-		.where(and(...conditions))
-		.orderBy(asc(schema.projects.name));
+	return Effect.runPromise(
+		data.listProjects(ctx.db, ctx.workspaceId, {
+			includeArchived,
+			visibility: visible,
+		}),
+	);
 }
 
-export interface ProjectSummary {
-	id: string;
-	name: string;
-	key: string;
-	slug: string | null;
-	description: string | null;
-	workspace_id: string;
-	workspace_name: string;
-	workspace_slug: string;
-	open_issue_count: number;
-	backlog_issue_count: number;
-	archived_at: number | null;
-	created_at: number;
-	updated_at: number;
-}
+export type ProjectSummary = data.ProjectSummary;
 
 export async function listProjectsAcrossWorkspaces(
 	userId: string,
 	db: D1Database,
-	includeArchived = false
+	includeArchived = false,
 ): Promise<ProjectSummary[]> {
-	const rows = await db
-		.prepare(
-			`SELECT
-        p.id,
-        p.name,
-        p.key,
-        p.slug,
-        p.description,
-        p.archived_at,
-        p.created_at,
-        p.updated_at,
-        w.id   AS workspace_id,
-        w.name AS workspace_name,
-        w.slug AS workspace_slug,
-        COUNT(CASE WHEN COALESCE(NULLIF(i.status_category, ''), i.status) NOT IN ('done','cancelled') THEN 1 END)
-          AS open_issue_count,
-        COUNT(CASE WHEN COALESCE(NULLIF(i.status_category, ''), i.status) NOT IN ('done','cancelled')
-                     AND i.status = 'backlog' THEN 1 END)
-          AS backlog_issue_count
-      FROM projects p
-      JOIN workspaces w         ON w.id  = p.workspace_id
-      JOIN workspace_members wm ON wm.workspace_id = p.workspace_id AND wm.user_id = ?
-      LEFT JOIN issues i        ON i.project_id = p.id
-      -- PROJ-311: in each workspace the user sees all projects if owner/admin there,
-      -- otherwise only projects their groups grant (indexed EXISTS).
-      WHERE (wm.role IN ('owner','admin')
+	// PROJ-311: this app owns the role/grant policy. The shared query only
+	// evaluates the explicitly supplied predicate within the user's memberships.
+	const visibility: data.ProjectSummaryVisibility = {
+		sql: `wm.role IN ('owner','admin')
          OR EXISTS (
               SELECT 1 FROM user_group_members ugm
               JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id
-              WHERE ugm.user_id = ? AND gpg.project_id = p.id))
-        ${includeArchived ? "" : "AND p.archived_at IS NULL"}
-      GROUP BY p.id, p.name, p.key, p.slug, p.description, p.archived_at, p.created_at, p.updated_at,
-               w.id, w.name, w.slug
-      ORDER BY w.slug, p.name`
-		)
-		.bind(userId, userId)
-		.all<ProjectSummary>();
-	return rows.results;
+              WHERE ugm.user_id = ? AND gpg.project_id = p.id)`,
+		bindings: [userId],
+	};
+	return Effect.runPromise(data.listProjectSummaries(db, userId, visibility, includeArchived));
 }
 
 const PROJECT_KEY_PATTERN = /^[A-Z][A-Z0-9]*$/;
@@ -129,28 +76,18 @@ const PROJECT_KEY_PATTERN = /^[A-Z][A-Z0-9]*$/;
 export async function resolveProjectIdParam(ctx: ServiceCtx, param: string): Promise<string> {
 	if (!PROJECT_KEY_PATTERN.test(param)) return param;
 
-	const orm = drizzle(ctx.db, { schema });
-	const row = await orm
-		.select({ id: schema.projects.id })
-		.from(schema.projects)
-		.where(and(eq(schema.projects.key, param), eq(schema.projects.workspaceId, ctx.workspaceId)))
-		.get();
+	const row = await Effect.runPromise(data.findProjectIdByKey(ctx.db, ctx.workspaceId, param));
 	if (!row) throw new NotFoundError("Project not found");
 	return row.id;
 }
 
 export async function resolveVisibleProjectIdParam(
 	ctx: ServiceCtx,
-	param: string
+	param: string,
 ): Promise<string> {
 	if (!PROJECT_KEY_PATTERN.test(param)) return param;
 
-	const orm = drizzle(ctx.db, { schema });
-	const row = await orm
-		.select({ id: schema.projects.id })
-		.from(schema.projects)
-		.where(and(eq(schema.projects.key, param), eq(schema.projects.workspaceId, ctx.workspaceId)))
-		.get();
+	const row = await Effect.runPromise(data.findProjectIdByKey(ctx.db, ctx.workspaceId, param));
 	if (!row) return crypto.randomUUID();
 	if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, row.id)) === null) {
 		return crypto.randomUUID();
@@ -159,12 +96,7 @@ export async function resolveVisibleProjectIdParam(
 }
 
 export async function getProject(ctx: ServiceCtx, id: string) {
-	const orm = drizzle(ctx.db, { schema });
-	const project = await orm
-		.select()
-		.from(schema.projects)
-		.where(and(eq(schema.projects.id, id), eq(schema.projects.workspaceId, ctx.workspaceId)))
-		.get();
+	const project = await Effect.runPromise(data.findProjectById(ctx.db, ctx.workspaceId, id));
 	if (!project) throw new NotFoundError("Project not found");
 
 	// PROJ-311: default-deny — a non-admin without a grant 404s (existence hidden).
@@ -177,12 +109,7 @@ export async function getProject(ctx: ServiceCtx, id: string) {
 // PROJ-376: pretty project URLs (/projects/view/<slug>) resolve here instead of
 // the UUID route. Same visibility rules as getProject.
 export async function getProjectBySlug(ctx: ServiceCtx, slug: string) {
-	const orm = drizzle(ctx.db, { schema });
-	const project = await orm
-		.select()
-		.from(schema.projects)
-		.where(and(eq(schema.projects.slug, slug), eq(schema.projects.workspaceId, ctx.workspaceId)))
-		.get();
+	const project = await Effect.runPromise(data.findProjectBySlug(ctx.db, ctx.workspaceId, slug));
 	if (!project) throw new NotFoundError("Project not found");
 
 	if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, project.id)) === null) {
@@ -206,7 +133,7 @@ function slugify(name: string): string {
 async function generateUniqueSlug(
 	orm: ReturnType<typeof drizzle>,
 	workspaceId: string,
-	name: string
+	name: string,
 ): Promise<string> {
 	const base = slugify(name);
 	let candidate = base;
@@ -381,7 +308,7 @@ export async function deleteProject(ctx: ServiceCtx, id: string) {
 				`SELECT r2_key AS k FROM attachments
 				 WHERE workspace_id = ?2 AND kind = 'file' AND r2_key IS NOT NULL AND (
 				   (entity_type = 'issue' AND entity_id IN (${ISSUES_OF_PROJECT}))
-				   OR (entity_type = 'wiki_page' AND entity_id IN (${PAGES_OF_PROJECT})))`
+				   OR (entity_type = 'wiki_page' AND entity_id IN (${PAGES_OF_PROJECT})))`,
 			)
 			.bind(id, ctx.workspaceId)
 			.all<{ k: string }>()
@@ -391,8 +318,8 @@ export async function deleteProject(ctx: ServiceCtx, id: string) {
 		PROJECT_CLEANUP_SQL.map((sql) =>
 			sql.includes("?2")
 				? ctx.db.prepare(sql).bind(id, ctx.workspaceId)
-				: ctx.db.prepare(sql).bind(id)
-		)
+				: ctx.db.prepare(sql).bind(id),
+		),
 	);
 
 	for (let i = 0; i < r2Keys.length; i += 1000) {

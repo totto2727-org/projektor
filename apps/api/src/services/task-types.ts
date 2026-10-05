@@ -1,5 +1,7 @@
+import { listTaskTypes as queryTypes } from "@projektor/data-services/task-types";
+import { Effect } from "effect";
 import { drizzle, schema } from "@projektor/db";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { z } from "zod";
 import { IdSchema } from "../schemas/common";
 import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from "../schemas/task-types";
@@ -19,7 +21,7 @@ async function invalidateTaskTypesCache(ctx: ServiceCtx) {
 }
 
 function buildTaskTypeUpdateSet(
-	data: z.infer<typeof UpdateTaskTypeSchema>
+	data: z.infer<typeof UpdateTaskTypeSchema>,
 ): Record<string, unknown> {
 	const setObj: Record<string, unknown> = {};
 	if (data.name !== undefined) setObj.name = data.name;
@@ -41,18 +43,7 @@ export async function listTaskTypes(ctx: ServiceCtx) {
 		return cached;
 	}
 
-	const orm = drizzle(ctx.db, { schema });
-	const rows = await orm
-		.select()
-		.from(schema.taskTypes)
-		.where(eq(schema.taskTypes.workspaceId, ctx.workspaceId))
-		.orderBy(asc(schema.taskTypes.position), asc(schema.taskTypes.name));
-	const result = rows.map(({ isDefault, workspaceId, ...rest }) => ({
-		...rest,
-		workspace_id: workspaceId,
-		is_default: isDefault,
-	}));
-
+	const result = await Effect.runPromise(queryTypes(ctx.db, ctx.workspaceId));
 	await cache.set(ctx.kv, cacheKey, result, WS_META_TTL);
 	localCache.set(cacheKey, result);
 	return result;

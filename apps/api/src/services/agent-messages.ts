@@ -18,7 +18,7 @@ const SESSION_TTL_SECONDS = 120;
 async function touchAgentHeartbeatIfLive(
 	orm: ReturnType<typeof drizzle>,
 	ctx: ServiceCtx,
-	agentId: string
+	agentId: string,
 ): Promise<void> {
 	const cutoff = Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS;
 	await orm
@@ -29,14 +29,14 @@ async function touchAgentHeartbeatIfLive(
 				eq(schema.agentSessions.id, agentId),
 				eq(schema.agentSessions.workspaceId, ctx.workspaceId),
 				eq(schema.agentSessions.status, "active"),
-				gt(schema.agentSessions.lastHeartbeatAt, cutoff)
-			)
+				gt(schema.agentSessions.lastHeartbeatAt, cutoff),
+			),
 		);
 }
 
 function toD1Statement(
 	ctx: ServiceCtx,
-	query: Readonly<{ sql: string; params: unknown[] }>
+	query: Readonly<{ sql: string; params: unknown[] }>,
 ): D1PreparedStatement {
 	return ctx.db.prepare(query.sql).bind(...query.params);
 }
@@ -55,7 +55,7 @@ const MESSAGE_INSERT_CHUNK_SIZE = 10;
 export function buildPostMessageStatements(
 	ctx: ServiceCtx,
 	orm: ReturnType<typeof drizzle>,
-	messages: readonly Readonly<{ scope: string; agentId?: string; body: string }>[]
+	messages: readonly Readonly<{ scope: string; agentId?: string; body: string }>[],
 ): D1PreparedStatement[] {
 	if (messages.length === 0) return [];
 	const now = Date.now();
@@ -101,8 +101,8 @@ export async function postMessage(ctx: ServiceCtx, raw: unknown) {
 			.where(
 				and(
 					eq(schema.agentSessions.id, agentId),
-					eq(schema.agentSessions.workspaceId, ctx.workspaceId)
-				)
+					eq(schema.agentSessions.workspaceId, ctx.workspaceId),
+				),
 			)
 			.get();
 		if (!agent) throw new NotFoundError("Agent session not found");
@@ -155,7 +155,7 @@ export async function listMessages(ctx: ServiceCtx, raw: unknown) {
 			// Next page: rows strictly after (cursorTime, cursorId) in ASC order
 			// (createdAt > cursorTime) OR (createdAt = cursorTime AND id > cursorId)
 			sql`(${schema.agentMessages.createdAt} > ${cursorTime} OR
-				(${schema.agentMessages.createdAt} = ${cursorTime} AND ${schema.agentMessages.id} > ${cursorId}))`
+				(${schema.agentMessages.createdAt} = ${cursorTime} AND ${schema.agentMessages.id} > ${cursorId}))`,
 		);
 	}
 
@@ -166,8 +166,8 @@ export async function listMessages(ctx: ServiceCtx, raw: unknown) {
 			cursorFilter ??
 				and(
 					eq(schema.agentMessages.workspaceId, ctx.workspaceId),
-					eq(schema.agentMessages.scope, scope)
-				)
+					eq(schema.agentMessages.scope, scope),
+				),
 		)
 		.orderBy(asc(schema.agentMessages.createdAt), asc(schema.agentMessages.id))
 		.limit(limit + 1);

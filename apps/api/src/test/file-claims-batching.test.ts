@@ -42,7 +42,7 @@ function trackD1RoundTrips() {
 		});
 
 	vi.spyOn(env.DB, "prepare").mockImplementation(
-		(q: string) => wrapStmt(origPrepare(q)) as D1PreparedStatement
+		(q: string) => wrapStmt(origPrepare(q)) as D1PreparedStatement,
 	);
 	vi.spyOn(env.DB, "batch").mockImplementation((stmts: D1PreparedStatement[]) => {
 		count++;
@@ -64,14 +64,14 @@ describe("PROJ-864: claim_files/release_files write batching", () => {
 		await env.DB.prepare(
 			`INSERT INTO agent_sessions
 				(id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
-			 VALUES (?, ?, NULL, NULL, 'stale-holder', 'agent', 'active', ?, ?, NULL)`
+			 VALUES (?, ?, NULL, NULL, 'stale-holder', 'agent', 'active', ?, ?, NULL)`,
 		)
 			.bind(agentId, workspaceId, now, now - 200) // 200s > 120s TTL — stale, but status stays 'active'
 			.run();
 		await env.DB.prepare(
 			`INSERT INTO issue_file_claims
 				(id, workspace_id, issue_id, agent_id, path, claimed_at, released_at, release_reason)
-			 VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)`
+			 VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)`,
 		)
 			.bind(crypto.randomUUID(), workspaceId, issueId, agentId, path, now)
 			.run();
@@ -83,7 +83,7 @@ describe("PROJ-864: claim_files/release_files write batching", () => {
 		await env.DB.prepare(
 			`INSERT INTO issue_file_claims
 				(id, workspace_id, issue_id, agent_id, path, claimed_at, released_at, release_reason)
-			 VALUES (?, ?, ?, NULL, ?, ?, NULL, NULL)`
+			 VALUES (?, ?, ?, NULL, ?, ?, NULL, NULL)`,
 		)
 			.bind(crypto.randomUUID(), workspaceId, issueId, path, now)
 			.run();
@@ -156,7 +156,7 @@ describe("PROJ-864: claim_files/release_files write batching", () => {
 		// The stale claim was still reclaimed even though the overall request was rejected —
 		// documented pre-existing behaviour (reclaim happens before conflict evaluation).
 		const staleRow = await env.DB.prepare(
-			"SELECT release_reason FROM issue_file_claims WHERE path = ?"
+			"SELECT release_reason FROM issue_file_claims WHERE path = ?",
 		)
 			.bind("src/rstale-0.ts")
 			.first<{ release_reason: string | null }>();
@@ -164,7 +164,7 @@ describe("PROJ-864: claim_files/release_files write batching", () => {
 
 		// Every contended path recorded a conflict row.
 		const conflicts = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM claim_conflicts WHERE rejected_issue_id = ? AND forced = 0"
+			"SELECT COUNT(*) AS n FROM claim_conflicts WHERE rejected_issue_id = ? AND forced = 0",
 		)
 			.bind(issueId)
 			.first<{ n: number }>();
@@ -224,7 +224,7 @@ describe("PROJ-864: claim_files/release_files write batching", () => {
 			if (armed) {
 				armed = false;
 				await origPrepare(
-					"UPDATE issue_file_claims SET released_at = 1, release_reason = 'expired' WHERE path = ?"
+					"UPDATE issue_file_claims SET released_at = 1, release_reason = 'expired' WHERE path = ?",
 				)
 					.bind("src/race-0.ts")
 					.run();
@@ -243,7 +243,7 @@ describe("PROJ-864: claim_files/release_files write batching", () => {
 		expect(body.count).toBe(4);
 		expect(body.released.map((r) => r.path)).not.toContain("src/race-0.ts");
 		const raced = await env.DB.prepare(
-			"SELECT released_at, release_reason FROM issue_file_claims WHERE path = ?"
+			"SELECT released_at, release_reason FROM issue_file_claims WHERE path = ?",
 		)
 			.bind("src/race-0.ts")
 			.first();
@@ -268,7 +268,7 @@ describe("PROJ-864: claim_files/release_files write batching", () => {
 		// 100 paths of ~300 chars: the untruncated path list alone would be ~30,000 chars.
 		const paths = Array.from(
 			{ length: 100 },
-			(_, i) => `src/${"deep/".repeat(58)}file-${String(i).padStart(3, "0")}.ts`
+			(_, i) => `src/${"deep/".repeat(58)}file-${String(i).padStart(3, "0")}.ts`,
 		);
 		for (const p of paths) await seedLiveClaim(workspaceId, holder.id, p);
 
@@ -280,7 +280,7 @@ describe("PROJ-864: claim_files/release_files write batching", () => {
 		expect(res.status).toBe(201);
 
 		const messages = await env.DB.prepare(
-			"SELECT scope, body FROM agent_messages WHERE scope IN (?, ?) ORDER BY scope"
+			"SELECT scope, body FROM agent_messages WHERE scope IN (?, ?) ORDER BY scope",
 		)
 			.bind(`issue:${issueId}`, `issue:${holder.id}`)
 			.all<{ scope: string; body: string }>();

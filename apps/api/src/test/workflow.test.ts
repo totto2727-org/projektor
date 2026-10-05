@@ -13,7 +13,7 @@ async function mcpCall<T>(
 	workspaceId: string,
 	method: string,
 	params: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -103,7 +103,7 @@ describe("Workflow spec", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_workflow", arguments: {} },
-			authHeaders(token, slug)
+			authHeaders(token, slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const mcpBody = JSON.parse(mcpJson.result.content[0].text) as { version: string };
 		expect(mcpBody.version).toBe(body1.version);
@@ -114,7 +114,7 @@ describe("Workflow spec", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_workflow", arguments: {} },
-			authHeaders(token, slug)
+			authHeaders(token, slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const { version } = JSON.parse(first.result.content[0].text) as { version: string };
 
@@ -122,7 +122,7 @@ describe("Workflow spec", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_workflow", arguments: { ifVersion: version } },
-			authHeaders(token, slug)
+			authHeaders(token, slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const body = JSON.parse(second.result.content[0].text);
 
@@ -149,7 +149,7 @@ describe("Workflow spec", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_workflow", arguments: { ifVersion: "not-the-real-version" } },
-			authHeaders(token, slug)
+			authHeaders(token, slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const mcpBody = JSON.parse(mcpJson.result.content[0].text);
 		expect(mcpBody.content).toContain("Definition of ready");
@@ -157,7 +157,7 @@ describe("Workflow spec", () => {
 
 		const restRes = await SELF.fetch(
 			"http://localhost/api/workflow?ifVersion=not-the-real-version",
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(restRes.status).toBe(200);
 		const restBody = (await restRes.json()) as { content: string; unchanged?: boolean };
@@ -195,8 +195,8 @@ describe("Workflow spec", () => {
 		};
 		expect(body.version).toBe(
 			await hashWorkflowContent(
-				JSON.stringify({ title: body.title, description: body.description, content: body.content })
-			)
+				JSON.stringify({ title: body.title, description: body.description, content: body.content }),
+			),
 		);
 	});
 
@@ -217,7 +217,7 @@ describe("Workflow spec", () => {
 			workspaceId,
 			"initialize",
 			{},
-			authHeaders(token, slug)
+			authHeaders(token, slug),
 		)) as JsonRpcResult<{ instructions: string }>;
 
 		expect(initRes.result.instructions).toContain(version);
@@ -229,7 +229,7 @@ describe("Workflow spec", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_workflow", arguments: { ifVersion: 42 } },
-			authHeaders(token, slug)
+			authHeaders(token, slug),
 		);
 
 		expect(toolError(res)?.code).toBe("validation");

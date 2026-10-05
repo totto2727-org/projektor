@@ -1,5 +1,7 @@
+import * as groupData from "@projektor/data-services/groups";
 import { drizzle, schema } from "@projektor/db";
-import { and, asc, eq } from "drizzle-orm";
+import { Effect } from "effect";
+import { and, eq } from "drizzle-orm";
 import {
 	AddGroupMemberSchema,
 	CreateGroupSchema,
@@ -21,7 +23,7 @@ async function loadGroup(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, group
 		.select()
 		.from(schema.userGroups)
 		.where(
-			and(eq(schema.userGroups.id, groupId), eq(schema.userGroups.workspaceId, ctx.workspaceId))
+			and(eq(schema.userGroups.id, groupId), eq(schema.userGroups.workspaceId, ctx.workspaceId)),
 		)
 		.get();
 	if (!group) throw new NotFoundError("Group not found");
@@ -41,43 +43,13 @@ async function requireAdminGroup(ctx: ServiceCtx, groupId: string) {
  * only the groups they belong to (ticket: "members see only their own groups").
  */
 export async function listGroups(ctx: ServiceCtx) {
-	const orm = drizzle(ctx.db, { schema });
-	const memberCount = orm.$count(
-		schema.userGroupMembers,
-		eq(schema.userGroupMembers.groupId, schema.userGroups.id)
+	return Effect.runPromise(
+		groupData.listGroups(
+			ctx.db,
+			ctx.workspaceId,
+			isWorkspaceAdmin(ctx.role) ? {} : { memberUserId: ctx.userId },
+		),
 	);
-	const grantCount = orm.$count(
-		schema.groupProjectGrants,
-		eq(schema.groupProjectGrants.groupId, schema.userGroups.id)
-	);
-	const cols = {
-		id: schema.userGroups.id,
-		name: schema.userGroups.name,
-		description: schema.userGroups.description,
-		createdAt: schema.userGroups.createdAt,
-		memberCount,
-		grantCount,
-	};
-
-	if (isWorkspaceAdmin(ctx.role)) {
-		return orm
-			.select(cols)
-			.from(schema.userGroups)
-			.where(eq(schema.userGroups.workspaceId, ctx.workspaceId))
-			.orderBy(asc(schema.userGroups.name));
-	}
-
-	return orm
-		.select(cols)
-		.from(schema.userGroups)
-		.innerJoin(schema.userGroupMembers, eq(schema.userGroupMembers.groupId, schema.userGroups.id))
-		.where(
-			and(
-				eq(schema.userGroups.workspaceId, ctx.workspaceId),
-				eq(schema.userGroupMembers.userId, ctx.userId)
-			)
-		)
-		.orderBy(asc(schema.userGroups.name));
 }
 
 /**
@@ -86,7 +58,7 @@ export async function listGroups(ctx: ServiceCtx) {
  */
 export async function getGroup(ctx: ServiceCtx, groupId: string) {
 	const orm = drizzle(ctx.db, { schema });
-	const group = await loadGroup(orm, ctx, groupId);
+	await loadGroup(orm, ctx, groupId);
 
 	if (!isWorkspaceAdmin(ctx.role)) {
 		const own = await orm
@@ -95,37 +67,21 @@ export async function getGroup(ctx: ServiceCtx, groupId: string) {
 			.where(
 				and(
 					eq(schema.userGroupMembers.groupId, groupId),
-					eq(schema.userGroupMembers.userId, ctx.userId)
-				)
+					eq(schema.userGroupMembers.userId, ctx.userId),
+				),
 			)
 			.get();
 		if (!own) throw new ForbiddenError();
 	}
 
-	const members = await orm
-		.select({
-			userId: schema.users.id,
-			email: schema.users.email,
-			name: schema.users.name,
-			addedAt: schema.userGroupMembers.addedAt,
-			addedBy: schema.userGroupMembers.addedBy,
-		})
-		.from(schema.userGroupMembers)
-		.innerJoin(schema.users, eq(schema.users.id, schema.userGroupMembers.userId))
-		.where(eq(schema.userGroupMembers.groupId, groupId))
-		.orderBy(asc(schema.userGroupMembers.addedAt));
-
-	const grants = await orm
-		.select({
-			projectId: schema.groupProjectGrants.projectId,
-			projectName: schema.projects.name,
-			projectKey: schema.projects.key,
-			role: schema.groupProjectGrants.role,
-		})
-		.from(schema.groupProjectGrants)
-		.innerJoin(schema.projects, eq(schema.projects.id, schema.groupProjectGrants.projectId))
-		.where(eq(schema.groupProjectGrants.groupId, groupId))
-		.orderBy(asc(schema.projects.name));
+	const group = await Effect.runPromise(groupData.findGroup(ctx.db, ctx.workspaceId, groupId));
+	if (!group) throw new NotFoundError("Group not found");
+	const members = await Effect.runPromise(
+		groupData.listGroupMembers(ctx.db, ctx.workspaceId, groupId),
+	);
+	const grants = await Effect.runPromise(
+		groupData.listGroupGrants(ctx.db, ctx.workspaceId, groupId),
+	);
 
 	return { ...group, members, grants };
 }
@@ -137,35 +93,7 @@ export async function getGroup(ctx: ServiceCtx, groupId: string) {
  */
 export async function listMemberGroups(ctx: ServiceCtx) {
 	requireAdmin(ctx);
-	const orm = drizzle(ctx.db, { schema });
-	const rows = await orm
-		.select({
-			userId: schema.workspaceMembers.userId,
-			groupId: schema.userGroups.id,
-			groupName: schema.userGroups.name,
-		})
-		.from(schema.workspaceMembers)
-		.leftJoin(
-			schema.userGroupMembers,
-			eq(schema.userGroupMembers.userId, schema.workspaceMembers.userId)
-		)
-		.leftJoin(
-			schema.userGroups,
-			and(
-				eq(schema.userGroups.id, schema.userGroupMembers.groupId),
-				eq(schema.userGroups.workspaceId, ctx.workspaceId)
-			)
-		)
-		.where(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId));
-
-	const byUser = new Map<string, { id: string; name: string }[]>();
-	for (const r of rows) {
-		if (!byUser.has(r.userId)) byUser.set(r.userId, []);
-		if (r.groupId && r.groupName) {
-			byUser.get(r.userId)?.push({ id: r.groupId, name: r.groupName });
-		}
-	}
-	return Array.from(byUser.entries()).map(([userId, groups]) => ({ userId, groups }));
+	return Effect.runPromise(groupData.listMemberGroups(ctx.db, ctx.workspaceId));
 }
 
 export async function createGroup(ctx: ServiceCtx, input: unknown) {
@@ -179,7 +107,7 @@ export async function createGroup(ctx: ServiceCtx, input: unknown) {
 		.select({ id: schema.userGroups.id })
 		.from(schema.userGroups)
 		.where(
-			and(eq(schema.userGroups.workspaceId, ctx.workspaceId), eq(schema.userGroups.name, name))
+			and(eq(schema.userGroups.workspaceId, ctx.workspaceId), eq(schema.userGroups.name, name)),
 		)
 		.get();
 	if (existing) throw new ConflictError(`Group "${name}" already exists`);
@@ -224,8 +152,8 @@ export async function updateGroup(ctx: ServiceCtx, groupId: string, input: unkno
 			.where(
 				and(
 					eq(schema.userGroups.workspaceId, ctx.workspaceId),
-					eq(schema.userGroups.name, setObj.name as string)
-				)
+					eq(schema.userGroups.name, setObj.name as string),
+				),
 			)
 			.get();
 		if (clash && clash.id !== groupId)
@@ -236,7 +164,7 @@ export async function updateGroup(ctx: ServiceCtx, groupId: string, input: unkno
 		.update(schema.userGroups)
 		.set(setObj)
 		.where(
-			and(eq(schema.userGroups.id, groupId), eq(schema.userGroups.workspaceId, ctx.workspaceId))
+			and(eq(schema.userGroups.id, groupId), eq(schema.userGroups.workspaceId, ctx.workspaceId)),
 		);
 
 	await recordActivity(ctx, {
@@ -281,8 +209,8 @@ export async function addGroupMember(ctx: ServiceCtx, groupId: string, input: un
 		.where(
 			and(
 				eq(schema.workspaceMembers.workspaceId, ctx.workspaceId),
-				eq(schema.workspaceMembers.userId, userId)
-			)
+				eq(schema.workspaceMembers.userId, userId),
+			),
 		)
 		.get();
 	if (!wsMember)
@@ -309,7 +237,7 @@ export async function removeGroupMember(ctx: ServiceCtx, groupId: string, userId
 	await orm
 		.delete(schema.userGroupMembers)
 		.where(
-			and(eq(schema.userGroupMembers.groupId, groupId), eq(schema.userGroupMembers.userId, userId))
+			and(eq(schema.userGroupMembers.groupId, groupId), eq(schema.userGroupMembers.userId, userId)),
 		);
 
 	await recordActivity(ctx, {
@@ -365,8 +293,8 @@ export async function removeGroupGrant(ctx: ServiceCtx, groupId: string, project
 		.where(
 			and(
 				eq(schema.groupProjectGrants.groupId, groupId),
-				eq(schema.groupProjectGrants.projectId, projectId)
-			)
+				eq(schema.groupProjectGrants.projectId, projectId),
+			),
 		);
 
 	await recordActivity(ctx, {

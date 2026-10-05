@@ -25,7 +25,7 @@ function subdomainCandidate(host: string | undefined): string | undefined {
 async function warnIfIgnoredSubdomain(
 	c: Context<HonoEnv>,
 	headerSlug: string | undefined,
-	routingEnabled: boolean
+	routingEnabled: boolean,
 ): Promise<void> {
 	if (headerSlug || routingEnabled) return;
 	const candidateSlug = subdomainCandidate(c.req.header("host"));
@@ -35,7 +35,7 @@ async function warnIfIgnoredSubdomain(
 		.first<{ id: string }>();
 	if (resolvable) {
 		console.warn(
-			`workspace subdomain "${candidateSlug}" would resolve but WORKSPACE_SUBDOMAIN_ROUTING is off; rejecting request`
+			`workspace subdomain "${candidateSlug}" would resolve but WORKSPACE_SUBDOMAIN_ROUTING is off; rejecting request`,
 		);
 	}
 }
@@ -58,7 +58,7 @@ export function mcpWorkspaceIdFromPath(path: string): string | undefined {
 // it always did, rather than leaking whether the caller happens to be a member there.
 function tokenConfinedToOtherWorkspace(
 	row: Readonly<{ id: string }>,
-	tokenWorkspaceId: string | null | undefined
+	tokenWorkspaceId: string | null | undefined,
 ): boolean {
 	return tokenWorkspaceId != null && row.id !== tokenWorkspaceId;
 }
@@ -66,7 +66,7 @@ function tokenConfinedToOtherWorkspace(
 async function missingWorkspaceResponse(
 	c: Context<HonoEnv>,
 	headerSlug: string | undefined,
-	routingEnabled: boolean
+	routingEnabled: boolean,
 ): Promise<Response> {
 	await warnIfIgnoredSubdomain(c, headerSlug, routingEnabled);
 	return c.json(
@@ -75,7 +75,7 @@ async function missingWorkspaceResponse(
 				? "Workspace not specified"
 				: "Workspace not specified: missing X-Workspace-Slug header",
 		},
-		400
+		400,
 	);
 }
 
@@ -96,7 +96,7 @@ async function missingWorkspaceResponse(
 function resolveWorkspaceTarget(
 	c: Context<HonoEnv>,
 	headerSlug: string | undefined,
-	routingEnabled: boolean
+	routingEnabled: boolean,
 ): { slug: string | undefined; mcpWorkspaceId: string | undefined } {
 	const queryFallback = c.get("allowQueryWorkspaceFallback")
 		? (c.req.query("workspace") ?? undefined)

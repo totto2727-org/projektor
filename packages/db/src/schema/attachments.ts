@@ -35,7 +35,7 @@ export const attachments = sqliteTable(
 		wsEntityIdx: index("attachments_workspace_entity_idx").on(
 			t.workspaceId,
 			t.entityType,
-			t.entityId
+			t.entityId,
 		),
-	})
+	}),
 );

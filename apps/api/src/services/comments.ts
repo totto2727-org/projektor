@@ -1,5 +1,7 @@
+import { listComments as queryComments } from "@projektor/data-services/comments";
+import { Effect } from "effect";
 import { drizzle, schema } from "@projektor/db";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
 	AddCommentSchema,
 	DeleteCommentSchema,
@@ -44,29 +46,7 @@ export async function listComments(ctx: ServiceCtx, input: unknown): Promise<Com
 	const { issueId } = parsed.data;
 
 	await assertIssueVisible(ctx, issueId);
-
-	const orm = drizzle(ctx.db, { schema });
-	const rows = await orm
-		.select({
-			id: schema.issueComments.id,
-			body: schema.issueComments.body,
-			// eslint-disable-next-line camelcase
-			created_at: schema.issueComments.createdAt,
-			// eslint-disable-next-line camelcase
-			updated_at: schema.issueComments.updatedAt,
-			// eslint-disable-next-line camelcase
-			author_id: schema.users.id,
-			// eslint-disable-next-line camelcase
-			author_name: schema.users.name,
-			// eslint-disable-next-line camelcase
-			author_email: schema.users.email,
-		})
-		.from(schema.issueComments)
-		.innerJoin(schema.users, eq(schema.issueComments.authorId, schema.users.id))
-		.where(eq(schema.issueComments.issueId, issueId))
-		.orderBy(asc(schema.issueComments.createdAt));
-
-	return rows as CommentRow[];
+	return Effect.runPromise(queryComments(ctx.db, ctx.workspaceId, issueId));
 }
 
 export async function addComment(ctx: ServiceCtx, input: unknown): Promise<{ id: string }> {
@@ -100,7 +80,7 @@ export async function addComment(ctx: ServiceCtx, input: unknown): Promise<{ id:
 export function buildAddCommentInsertStatement(
 	ctx: ServiceCtx,
 	orm: ReturnType<typeof drizzle>,
-	opts: Readonly<{ id: string; issueId: string; body: string; now: number }>
+	opts: Readonly<{ id: string; issueId: string; body: string; now: number }>,
 ) {
 	const query = orm
 		.insert(schema.issueComments)

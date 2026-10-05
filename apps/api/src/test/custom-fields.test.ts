@@ -444,7 +444,7 @@ describe("Custom Fields — list_issues filter", () => {
 			"http://localhost/api/issues?cfKey=nonexistent&cfOp=eq&cfValue=x",
 			{
 				headers: authHeaders(token, slug),
-			}
+			},
 		);
 		expect(res.status).toBe(400);
 	});
@@ -464,7 +464,7 @@ describe("Custom Fields — story_points seed", () => {
 		await seedDefaultCustomFields(env.DB, ws);
 
 		const row = await env.DB.prepare(
-			`SELECT key, label, type FROM custom_field_definitions WHERE workspace_id = ? AND key = 'story_points'`
+			`SELECT key, label, type FROM custom_field_definitions WHERE workspace_id = ? AND key = 'story_points'`,
 		)
 			.bind(ws)
 			.first<{ key: string; label: string; type: string }>();
@@ -486,7 +486,7 @@ describe("Custom Fields — story_points seed", () => {
 		await seedDefaultCustomFields(env.DB, ws);
 
 		const { results } = await env.DB.prepare(
-			`SELECT id FROM custom_field_definitions WHERE workspace_id = ? AND key = 'story_points'`
+			`SELECT id FROM custom_field_definitions WHERE workspace_id = ? AND key = 'story_points'`,
 		)
 			.bind(ws)
 			.all();
@@ -637,7 +637,7 @@ describe("PROJ-837: custom field definitions respect project access", () => {
 
 		const scoped = await SELF.fetch(
 			`http://localhost/api/custom-fields?projectId=${restricted.id}`,
-			{ headers: authHeaders(token, workspace.slug) }
+			{ headers: authHeaders(token, workspace.slug) },
 		);
 		const scopedKeys = ((await scoped.json()) as Array<{ key: string }>).map((d) => d.key);
 		expect(scopedKeys).toEqual(["ws_field"]);

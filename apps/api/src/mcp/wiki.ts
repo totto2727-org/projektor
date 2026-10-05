@@ -792,7 +792,7 @@ export const wikiTools: MCPTool[] = [
 			const events = result.changes as Array<{ createdAt: number }>;
 			const page = toPage(
 				events,
-				result.nextSince > (rest.since as number) ? result.nextSince : null
+				result.nextSince > (rest.since as number) ? result.nextSince : null,
 			);
 			// `since` is exclusive, so a cut must not split events sharing one second.
 			return capPage(page, {

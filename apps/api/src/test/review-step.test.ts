@@ -32,12 +32,12 @@ describe("PROJ-749: review steps are explicit, not inferred from the status key"
 
 	async function reviewState(id: string) {
 		const row = await env.DB.prepare(
-			"SELECT in_review_at, review_bounce_count FROM issues WHERE id = ?"
+			"SELECT in_review_at, review_bounce_count FROM issues WHERE id = ?",
 		)
 			.bind(id)
 			.first<{ in_review_at: number | null; review_bounce_count: number }>();
 		const rejections = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?"
+			"SELECT COUNT(*) AS n FROM issue_gate_rejections WHERE issue_id = ?",
 		)
 			.bind(id)
 			.first<{ n: number }>();
@@ -82,7 +82,7 @@ describe("PROJ-749: review steps are explicit, not inferred from the status key"
 					statusId: peer.id,
 					completionReport: { summary: "s", verification: "v" },
 				})
-			).status
+			).status,
 		).toBe(200);
 		expect((await patch(issue.id, { status: "in_progress" })).status).toBe(200);
 
@@ -132,7 +132,7 @@ describe("PROJ-749: migration 0061 backfill preserves today's behaviour", () => 
 		const keys = ["in_review", "code_review", "contract_review", "todo", "done"];
 		for (const key of keys) {
 			await env.DB.prepare(
-				"INSERT INTO task_statuses (id, workspace_id, key, name, category, position, is_default, is_review_step) VALUES (?, ?, ?, ?, 'todo', 0, 0, 0)"
+				"INSERT INTO task_statuses (id, workspace_id, key, name, category, position, is_default, is_review_step) VALUES (?, ?, ?, ?, 'todo', 0, 0, 0)",
 			)
 				.bind(crypto.randomUUID(), ws, key, key)
 				.run();
@@ -146,7 +146,7 @@ describe("PROJ-749: migration 0061 backfill preserves today's behaviour", () => 
 		await env.DB.prepare(backfill as string).run();
 
 		const rows = await env.DB.prepare(
-			"SELECT key, is_review_step AS f FROM task_statuses WHERE workspace_id = ? ORDER BY key"
+			"SELECT key, is_review_step AS f FROM task_statuses WHERE workspace_id = ? ORDER BY key",
 		)
 			.bind(ws)
 			.all<{ key: string; f: number }>();

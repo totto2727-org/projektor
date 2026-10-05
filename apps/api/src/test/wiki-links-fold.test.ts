@@ -15,7 +15,7 @@ async function call(url: string, token: string, slug: string, init?: RequestInit
 async function createPage(
 	token: string,
 	slug: string,
-	body: { title: string; content?: string; projectId?: string }
+	body: { title: string; content?: string; projectId?: string },
 ) {
 	const res = await call("http://localhost/api/wiki", token, slug, {
 		method: "POST",
@@ -33,7 +33,7 @@ async function broken(token: string, slug: string) {
 
 async function targetOf(sourceId: string) {
 	const row = await env.DB.prepare(
-		"SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?"
+		"SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?",
 	)
 		.bind(sourceId)
 		.first<{ t: string | null }>();
@@ -67,7 +67,7 @@ describe("PROJ-818: accented Latin titles fold on both sides", () => {
 		const legacyId = crypto.randomUUID();
 		await env.DB.prepare(
 			`INSERT INTO wiki_pages (id, workspace_id, slug, title, content, created_by_id, updated_by_id, created_at, updated_at)
-			 VALUES (?, ?, 'legacy-uber', 'Über Legacy', '', ?, ?, 0, 0)`
+			 VALUES (?, ?, 'legacy-uber', 'Über Legacy', '', ?, ?, 0, 0)`,
 		)
 			.bind(legacyId, workspace.id, user.id, user.id)
 			.run();
@@ -119,12 +119,12 @@ describe("PROJ-818: legacy link rows don't leak a hidden page's title", () => {
 		// As a pre-0063 slug link resolved to the hidden page would look.
 		await env.DB.prepare(
 			`INSERT INTO wiki_links (id, workspace_id, source_page_id, target_page_id, target_title, created_at)
-			 VALUES (?, ?, ?, ?, 'Hidden Title', 0)`
+			 VALUES (?, ?, ?, ?, 'Hidden Title', 0)`,
 		)
 			.bind(crypto.randomUUID(), workspace.id, src.id, secret.id)
 			.run();
 		const rows = (await broken(member.token, workspace.slug)).filter(
-			(b) => b.sourceSlug === src.slug
+			(b) => b.sourceSlug === src.slug,
 		);
 		expect(rows).toHaveLength(1);
 		expect(rows[0].targetTitle).not.toContain("Hidden");

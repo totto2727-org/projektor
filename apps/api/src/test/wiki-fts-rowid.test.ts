@@ -33,7 +33,7 @@ describe("PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
 		const byRowid = await plan(
 			"DELETE FROM wiki_fts WHERE rowid = (SELECT search_rowid FROM wiki_pages WHERE id = ? AND workspace_id = ?)",
 			"x",
-			"y"
+			"y",
 		);
 		// FTS5 reports its xBestIndex choice as "VIRTUAL TABLE INDEX <n>:<constraints>";
 		// a rowid-equality lookup carries an '=' constraint, the page_id filter none.
@@ -56,7 +56,7 @@ describe("PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
 		}
 		const rows = await env.DB.prepare(
 			`SELECT f.page_id, f.content, f.rowid = p.search_rowid AS keyed
-			 FROM wiki_fts f JOIN wiki_pages p ON p.id = f.page_id WHERE p.id IN (?, ?) ORDER BY f.page_id`
+			 FROM wiki_fts f JOIN wiki_pages p ON p.id = f.page_id WHERE p.id IN (?, ?) ORDER BY f.page_id`,
 		)
 			.bind(a.id, b.id)
 			.all<{ page_id: string; content: string; keyed: number }>();
@@ -79,7 +79,7 @@ describe("PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
 			.run();
 		await updateWikiPage(ctx, page.slug, { content: "y" });
 		const row = await env.DB.prepare(
-			"SELECT p.search_rowid AS r, (SELECT COUNT(*) FROM wiki_fts f WHERE f.rowid = p.search_rowid) AS n FROM wiki_pages p WHERE p.id = ?"
+			"SELECT p.search_rowid AS r, (SELECT COUNT(*) FROM wiki_fts f WHERE f.rowid = p.search_rowid) AS n FROM wiki_pages p WHERE p.id = ?",
 		)
 			.bind(page.id)
 			.first<{ r: number | null; n: number }>();

@@ -22,7 +22,7 @@ async function mcpCall<T>(
 	workspaceId: string,
 	method: string,
 	params: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -36,13 +36,13 @@ async function mcpToolResult<T>(
 	workspaceId: string,
 	name: string,
 	toolArgs: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<T> {
 	const res = (await mcpCall<{ content: Array<{ text: string }> }>(
 		workspaceId,
 		"tools/call",
 		{ name, arguments: toolArgs },
-		headers
+		headers,
 	)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 	return JSON.parse(res.result.content[0].text) as T;
 }
@@ -51,7 +51,7 @@ function makeUploadRequest(
 	token: string,
 	slug: string,
 	content = "hello world",
-	filename = "test.txt"
+	filename = "test.txt",
 ) {
 	const form = new FormData();
 	form.append("file", new File([content], filename, { type: "text/plain" }));
@@ -88,7 +88,7 @@ describe("Files API", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const list = (await res.json()) as Array<{
@@ -113,7 +113,7 @@ describe("Files API", () => {
 	it("GET /api/files returns empty array when no attachments exist", async () => {
 		const res = await SELF.fetch(
 			`http://localhost/api/files?entityType=issue&entityId=${crypto.randomUUID()}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual([]);
@@ -235,7 +235,7 @@ describe("Files API", () => {
 			`http://localhost/api/files/${id}?workspace=${other.workspace.slug}`,
 			{
 				headers: { Authorization: `Bearer ${other.token}` },
-			}
+			},
 		);
 		expect(getRes.status).toBe(404);
 	});
@@ -368,7 +368,7 @@ describe("Files API", () => {
 		// Can list the attachment back
 		const listRes = await SELF.fetch(
 			`http://localhost/api/files?entityType=wiki_page&entityId=${wikiPageId}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(listRes.status).toBe(200);
 		const list = (await listRes.json()) as Array<{ filename: string }>;
@@ -383,7 +383,7 @@ describe("Files API", () => {
 		await env.DB.prepare(
 			`INSERT INTO attachments (id, workspace_id, r2_key, filename, content_type, size, entity_type,
        entity_id, created_by_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		)
 			.bind(
 				crypto.randomUUID(),
@@ -395,7 +395,7 @@ describe("Files API", () => {
 				"issue",
 				ENTITY_ID,
 				userId,
-				now
+				now,
 			)
 			.run();
 
@@ -443,7 +443,7 @@ describe("Files API", () => {
 
 			const listRes = await SELF.fetch(
 				`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`,
-				{ headers: authHeaders(token, slug) }
+				{ headers: authHeaders(token, slug) },
 			);
 			const list = (await listRes.json()) as Array<{
 				kind: string;
@@ -484,7 +484,7 @@ describe("Files API", () => {
 
 			const listRes = await SELF.fetch(
 				`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`,
-				{ headers: authHeaders(token, slug) }
+				{ headers: authHeaders(token, slug) },
 			);
 			const list = (await listRes.json()) as Array<{
 				kind: string;
@@ -613,7 +613,7 @@ describe("Files API", () => {
 
 			const listRes = await SELF.fetch(
 				`http://localhost/api/files?entityType=issue&entityId=${entityId}`,
-				{ headers: authHeaders(token, slug) }
+				{ headers: authHeaders(token, slug) },
 			);
 			const list = (await listRes.json()) as Array<{ kind: string; wikiPage: unknown }>;
 			const entry = list.find((l) => l.kind === "wiki_ref");
@@ -657,7 +657,7 @@ describe("Files API", () => {
 			// after the page is trashed.
 			const listRes = await SELF.fetch(
 				`http://localhost/api/files?entityType=issue&entityId=${entityId}`,
-				{ headers: adminHeaders }
+				{ headers: adminHeaders },
 			);
 			const list = (await listRes.json()) as Array<{ kind: string; id: string; wikiPage: unknown }>;
 			const trashedEntry = list.find((l) => l.kind === "wiki_ref");
@@ -672,7 +672,7 @@ describe("Files API", () => {
 				workspaceId,
 				"get_attachment",
 				{ id: trashedEntry?.id },
-				adminHeaders
+				adminHeaders,
 			);
 			expect(metadata.wikiPage).toBeNull();
 
@@ -689,7 +689,7 @@ describe("Files API", () => {
 			await resetRateLimits();
 			const listAfterPurge = await SELF.fetch(
 				`http://localhost/api/files?entityType=issue&entityId=${entityId}`,
-				{ headers: adminHeaders }
+				{ headers: adminHeaders },
 			);
 			const listAfter = (await listAfterPurge.json()) as Array<{ kind: string }>;
 			expect(listAfter.find((l) => l.kind === "wiki_ref")).toBeUndefined();
@@ -774,7 +774,7 @@ describe("Files MCP tools", () => {
 			workspaceId,
 			"create_link_attachment",
 			{ kind: "url", entityType: "issue", entityId, url: "https://example.com", label: "Docs" },
-			headers
+			headers,
 		);
 		expect(created.kind).toBe("url");
 
@@ -782,7 +782,7 @@ describe("Files MCP tools", () => {
 			workspaceId,
 			"list_attachments",
 			{ entityType: "issue", entityId },
-			headers
+			headers,
 		);
 		expect(list).toHaveLength(1);
 		expect(list[0].id).toBe(created.id);
@@ -792,7 +792,7 @@ describe("Files MCP tools", () => {
 			workspaceId,
 			"get_attachment",
 			{ id: created.id },
-			headers
+			headers,
 		);
 		expect(meta.filename).toBe("Docs");
 
@@ -800,14 +800,14 @@ describe("Files MCP tools", () => {
 			workspaceId,
 			"delete_attachment",
 			{ id: created.id },
-			headers
+			headers,
 		);
 
 		const afterDelete = await mcpToolResult<unknown[]>(
 			workspaceId,
 			"list_attachments",
 			{ entityType: "issue", entityId },
-			headers
+			headers,
 		);
 		expect(afterDelete).toHaveLength(0);
 	});
@@ -817,7 +817,7 @@ describe("Files MCP tools", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_attachment", arguments: { id: crypto.randomUUID() } },
-			authHeaders(token, slug)
+			authHeaders(token, slug),
 		);
 		expect("error" in (res as object)).toBe(false);
 		expect(toolError(res)?.code).toBe("not_found");
@@ -836,7 +836,7 @@ describe("Files MCP tools", () => {
 					wikiPageId: crypto.randomUUID(),
 				},
 			},
-			authHeaders(token, slug)
+			authHeaders(token, slug),
 		);
 		expect("error" in (res as object)).toBe(false);
 		expect(toolError(res)?.code).toBe("not_found");
@@ -863,7 +863,7 @@ describe("Files MCP tools", () => {
 			workspaceId,
 			"delete_attachment",
 			{ id },
-			authHeaders(token, slug)
+			authHeaders(token, slug),
 		);
 
 		expect(await env.R2.get(row?.r2_key ?? "")).toBeNull();
@@ -875,7 +875,7 @@ describe("Files MCP tools", () => {
 			other.workspace.id,
 			"list_attachments",
 			{ entityType: "issue", entityId: ENTITY_ID },
-			authHeaders(other.token, other.workspace.slug)
+			authHeaders(other.token, other.workspace.slug),
 		);
 		expect(result).toEqual([]);
 	});
@@ -894,7 +894,7 @@ describe("Files MCP tools", () => {
 					url: "https://example.com",
 				},
 			},
-			authHeaders(viewer.token, workspace.slug)
+			authHeaders(viewer.token, workspace.slug),
 		);
 		expect("error" in (res as object)).toBe(false);
 		expect(toolError(res)?.code).toBe("forbidden");
@@ -911,14 +911,14 @@ describe("Files MCP tools", () => {
 				entityId: crypto.randomUUID(),
 				url: "https://example.com",
 			},
-			authHeaders(owner.token, workspace.slug)
+			authHeaders(owner.token, workspace.slug),
 		);
 
 		const res = await mcpCall(
 			workspace.id,
 			"tools/call",
 			{ name: "delete_attachment", arguments: { id: created.id } },
-			authHeaders(viewer.token, workspace.slug)
+			authHeaders(viewer.token, workspace.slug),
 		);
 		expect("error" in (res as object)).toBe(false);
 		expect(toolError(res)?.code).toBe("forbidden");
@@ -948,7 +948,7 @@ describe("Attachment project visibility", () => {
 		await env.DB.prepare(
 			`INSERT INTO attachments (id, workspace_id, kind, r2_key, filename, content_type, size,
 	       entity_type, entity_id, created_by_id, created_at)
-	     VALUES (?, ?, 'file', ?, ?, 'text/plain', 12, ?, ?, ?, ?)`
+	     VALUES (?, ?, 'file', ?, ?, 'text/plain', 12, ?, ?, ?, ?)`,
 		)
 			.bind(
 				id,
@@ -958,7 +958,7 @@ describe("Attachment project visibility", () => {
 				entityType,
 				entityId,
 				memberId,
-				Math.floor(Date.now() / 1000)
+				Math.floor(Date.now() / 1000),
 			)
 			.run();
 		return { id, r2Key };
@@ -992,7 +992,7 @@ describe("Attachment project visibility", () => {
 	it("hides attachments on an issue in a project the member has no grant on", async () => {
 		const res = await SELF.fetch(
 			`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`,
-			{ headers: asMember() }
+			{ headers: asMember() },
 		);
 		expect(res.status).toBe(200);
 		// The filename alone is the leak this closes — "acquisition-terms.pdf" on a ticket
@@ -1034,7 +1034,7 @@ describe("Attachment project visibility", () => {
 	it("hides attachments on a wiki page in an invisible project, but not workspace-level ones", async () => {
 		const now = Math.floor(Date.now() / 1000);
 		const hiddenProject = await env.DB.prepare(
-			"SELECT id FROM projects WHERE workspace_id = ? AND key = 'SECRET'"
+			"SELECT id FROM projects WHERE workspace_id = ? AND key = 'SECRET'",
 		)
 			.bind(workspaceId)
 			.first<{ id: string }>();
@@ -1047,7 +1047,7 @@ describe("Attachment project visibility", () => {
 			await env.DB.prepare(
 				`INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 		       parent_id, created_by_id, updated_by_id, created_at, updated_at)
-		     VALUES (?, ?, ?, ?, ?, '', NULL, ?, ?, ?, ?)`
+		     VALUES (?, ?, ?, ?, ?, '', NULL, ?, ?, ?, ?)`,
 			)
 				.bind(
 					id,
@@ -1058,7 +1058,7 @@ describe("Attachment project visibility", () => {
 					memberId,
 					memberId,
 					now,
-					now
+					now,
 				)
 				.run();
 			await seedAttachment("wiki_page", id, `${name}.txt`);
@@ -1066,7 +1066,7 @@ describe("Attachment project visibility", () => {
 
 		const scoped = await SELF.fetch(
 			`http://localhost/api/files?entityType=wiki_page&entityId=${pages.scoped}`,
-			{ headers: asMember() }
+			{ headers: asMember() },
 		);
 		expect(await scoped.json()).toEqual([]);
 
@@ -1074,7 +1074,7 @@ describe("Attachment project visibility", () => {
 		// silent regression that the invisible-project assertions above cannot catch.
 		const global = await SELF.fetch(
 			`http://localhost/api/files?entityType=wiki_page&entityId=${pages.global}`,
-			{ headers: asMember() }
+			{ headers: asMember() },
 		);
 		expect(((await global.json()) as unknown[]).length).toBe(1);
 	});
@@ -1084,7 +1084,7 @@ describe("Attachment project visibility", () => {
 		// this fix overshooting into a denial of service.
 		const list = await SELF.fetch(
 			`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`,
-			{ headers: authHeaders(adminToken, slug) }
+			{ headers: authHeaders(adminToken, slug) },
 		);
 		expect(((await list.json()) as unknown[]).length).toBe(1);
 
@@ -1103,7 +1103,7 @@ describe("Attachment project visibility", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/files?entityType=issue&entityId=${orphanId}`,
-			{ headers: asMember() }
+			{ headers: asMember() },
 		);
 		expect(((await res.json()) as Array<{ filename: string }>).map((a) => a.filename)).toEqual([
 			"orphan.txt",
@@ -1112,7 +1112,7 @@ describe("Attachment project visibility", () => {
 
 	it("rejects uploading onto an issue in an invisible project without orphaning the R2 object", async () => {
 		const before = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM attachments WHERE workspace_id = ?"
+			"SELECT COUNT(*) AS n FROM attachments WHERE workspace_id = ?",
 		)
 			.bind(workspaceId)
 			.first<{ n: number }>();
@@ -1131,7 +1131,7 @@ describe("Attachment project visibility", () => {
 		expect(res.status).toBe(404);
 
 		const after = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM attachments WHERE workspace_id = ?"
+			"SELECT COUNT(*) AS n FROM attachments WHERE workspace_id = ?",
 		)
 			.bind(workspaceId)
 			.first<{ n: number }>();
@@ -1198,7 +1198,7 @@ describe("Attachment project visibility", () => {
 			workspaceId,
 			"tools/call",
 			{ name: "get_attachment", arguments: { id: hiddenAttachmentId } },
-			asMember()
+			asMember(),
 		);
 		expect("error" in (res as object)).toBe(false);
 		expect(toolError(res)?.code).toBe("not_found");

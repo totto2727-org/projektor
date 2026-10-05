@@ -63,7 +63,7 @@ describe("PROJ-809: get_wiki_page returns the revision it read", () => {
 		expect(listed[0].id).not.toBe(readByA.revisionId);
 
 		await expect(
-			updateWikiPage(ctx, slug, { content: "A's stale copy", baseRevisionId: readByA.revisionId })
+			updateWikiPage(ctx, slug, { content: "A's stale copy", baseRevisionId: readByA.revisionId }),
 		).rejects.toBeInstanceOf(ConflictError);
 		expect(await contentOf(ctx, slug)).toBe("B's edit");
 	});
@@ -88,7 +88,7 @@ describe("PROJ-810: guarded writes", () => {
 				.run();
 		});
 		await expect(updateWikiPage(ctx, slug, { content: "mine" })).rejects.toBeInstanceOf(
-			ConflictError
+			ConflictError,
 		);
 		expect(await contentOf(ctx, slug)).toBe("concurrent");
 	});
@@ -140,7 +140,7 @@ describe("PROJ-810: guarded writes", () => {
 				.run();
 		});
 		await expect(
-			patchWikiPage(ctx, slug, { op: "append_to_page", text: "x", baseRevisionId: revisionId })
+			patchWikiPage(ctx, slug, { op: "append_to_page", text: "x", baseRevisionId: revisionId }),
 		).rejects.toBeInstanceOf(ConflictError);
 		expect(n).toBe(3);
 	});
@@ -153,7 +153,7 @@ describe("PROJ-919: metadata-only writes are guarded too", () => {
 			await updateWikiPage(ctx, slug, { title: "B's title" });
 		});
 		await expect(updateWikiPage(ctx, slug, { title: "A's title" })).rejects.toBeInstanceOf(
-			ConflictError
+			ConflictError,
 		);
 		expect(((await getWikiPage(ctx, slug)) as { title: string }).title).toBe("B's title");
 	});
@@ -167,7 +167,7 @@ describe("PROJ-919: metadata-only writes are guarded too", () => {
 			await updateWikiPage(ctx, slug, { title: "Renamed" });
 		});
 		await expect(updateWikiPage(ctx, slug, { parentId: parent.id })).rejects.toBeInstanceOf(
-			ConflictError
+			ConflictError,
 		);
 		const page = (await getWikiPage(ctx, slug)) as { title: string; parent_id: string | null };
 		expect(page.title).toBe("Renamed");
@@ -180,7 +180,7 @@ describe("PROJ-919: metadata-only writes are guarded too", () => {
 			await updateWikiPage(ctx, slug, { title: "Concurrent title" });
 		});
 		await expect(
-			updateWikiPage(ctx, slug, { title: "Doc", content: "mine" })
+			updateWikiPage(ctx, slug, { title: "Doc", content: "mine" }),
 		).rejects.toBeInstanceOf(ConflictError);
 		const page = (await getWikiPage(ctx, slug)) as { title: string; content: string };
 		expect(page.title).toBe("Concurrent title");

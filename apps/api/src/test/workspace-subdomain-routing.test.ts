@@ -87,7 +87,7 @@ describe("workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)", () => {
 			`http://localhost/api/task-types?workspace=${fixture.workspace.slug}`,
 			{
 				headers: { Authorization: `Bearer ${fixture.token}` },
-			}
+			},
 		);
 		expect(res.status).toBe(400);
 	});

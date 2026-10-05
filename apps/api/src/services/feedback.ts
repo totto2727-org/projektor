@@ -1,3 +1,5 @@
+import * as feedbackQueries from "@projektor/data-services/feedback";
+import { Effect } from "effect";
 import {
 	BulkFeedbackIdsSchema,
 	ConvertFeedbackSchema,
@@ -37,7 +39,7 @@ async function resolveFeedbackSource(db: D1Database, tokenHash: string): Promise
 	const source = await db
 		.prepare(
 			`SELECT id, workspace_id, project_id, is_active, allowed_origins, revoked_at
-       FROM feedback_sources WHERE token_hash = ?`
+       FROM feedback_sources WHERE token_hash = ?`,
 		)
 		.bind(tokenHash)
 		.first<SubmitSourceRow>();
@@ -59,7 +61,7 @@ function parseSubmitFeedbackBody(rawBody: unknown) {
 async function insertFeedbackRow(
 	db: D1Database,
 	source: SubmitSourceRow,
-	d: ReturnType<typeof parseSubmitFeedbackBody>
+	d: ReturnType<typeof parseSubmitFeedbackBody>,
 ): Promise<string> {
 	const id = crypto.randomUUID();
 	const now = Math.floor(Date.now() / 1000);
@@ -68,7 +70,7 @@ async function insertFeedbackRow(
 			`INSERT INTO feedback
        (id, source_id, workspace_id, project_id, rating, rating_scale, body, submitter_label,
         source_url, app_version, status, linked_issue_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', NULL, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', NULL, ?)`,
 		)
 		.bind(
 			id,
@@ -81,7 +83,7 @@ async function insertFeedbackRow(
 			d.submitterLabel ?? null,
 			d.sourceUrl ?? null,
 			d.appVersion ?? null,
-			now
+			now,
 		)
 		.run();
 	return id;
@@ -89,7 +91,7 @@ async function insertFeedbackRow(
 
 function resolveCorsAllowOrigin(
 	source: SubmitSourceRow,
-	requestOrigin: string | null
+	requestOrigin: string | null,
 ): string | null {
 	const allowed = source.allowed_origins ? (JSON.parse(source.allowed_origins) as string[]) : null;
 	return allowed && requestOrigin && allowed.includes(requestOrigin) ? requestOrigin : null;
@@ -99,7 +101,7 @@ export async function submitFeedback(
 	db: D1Database,
 	token: string,
 	rawBody: unknown,
-	requestOrigin: string | null
+	requestOrigin: string | null,
 ): Promise<{ id: string; corsAllowOrigin: string | null }> {
 	const tokenHash = await hashFeedbackToken(token);
 	const source = await resolveFeedbackSource(db, tokenHash);
@@ -124,21 +126,6 @@ export interface FeedbackView {
 	createdAt: number;
 }
 
-interface FeedbackJoinRow {
-	id: string;
-	source_id: string;
-	source_name: string | null;
-	rating: number | null;
-	rating_scale: string | null;
-	body: string | null;
-	submitter_label: string | null;
-	source_url: string | null;
-	app_version: string | null;
-	status: string;
-	linked_issue_id: string | null;
-	created_at: number;
-}
-
 export async function listFeedback(ctx: ServiceCtx, input: unknown): Promise<FeedbackView[]> {
 	const parsed = ListFeedbackSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
@@ -147,28 +134,9 @@ export async function listFeedback(ctx: ServiceCtx, input: unknown): Promise<Fee
 	await requireProjectInWorkspace(ctx, projectId);
 	await requireProjectAccess(ctx, projectId);
 
-	const clauses = ["f.project_id = ?", "f.workspace_id = ?"];
-	const binds: unknown[] = [projectId, ctx.workspaceId];
-	if (status) {
-		clauses.push("f.status = ?");
-		binds.push(status);
-	}
-	if (sourceId) {
-		clauses.push("f.source_id = ?");
-		binds.push(sourceId);
-	}
-
-	const { results } = await ctx.db
-		.prepare(
-			`SELECT f.id, f.source_id, s.name AS source_name, f.rating, f.rating_scale, f.body,
-            f.submitter_label, f.source_url, f.app_version, f.status, f.linked_issue_id, f.created_at
-       FROM feedback f
-       LEFT JOIN feedback_sources s ON s.id = f.source_id
-       WHERE ${clauses.join(" AND ")}
-       ORDER BY f.created_at DESC`
-		)
-		.bind(...binds)
-		.all<FeedbackJoinRow>();
+	const results = await Effect.runPromise(
+		feedbackQueries.listFeedback(ctx.db, ctx.workspaceId, { projectId, status, sourceId }),
+	);
 
 	return (results ?? []).map((r) => ({
 		id: r.id,
@@ -195,7 +163,7 @@ interface FeedbackScopeRow {
 async function requireFeedbackScope(
 	ctx: ServiceCtx,
 	feedbackId: string,
-	projectId: string | undefined
+	projectId: string | undefined,
 ): Promise<string> {
 	const clauses = ["id = ?", "workspace_id = ?"];
 	const binds: unknown[] = [feedbackId, ctx.workspaceId];
@@ -244,7 +212,7 @@ interface ConvertFeedbackRow {
 
 export async function convertFeedbackToIssue(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<{ id: string; number?: number }> {
 	const parsed = ConvertFeedbackSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
@@ -256,7 +224,7 @@ export async function convertFeedbackToIssue(
 	const fb = await ctx.db
 		.prepare(
 			`SELECT rating, rating_scale, body, submitter_label, status, linked_issue_id
-       FROM feedback WHERE id = ? AND project_id = ? AND workspace_id = ?`
+       FROM feedback WHERE id = ? AND project_id = ? AND workspace_id = ?`,
 		)
 		.bind(feedbackId, resolvedProjectId, ctx.workspaceId)
 		.first<ConvertFeedbackRow>();
@@ -281,7 +249,7 @@ export async function convertFeedbackToIssue(
 
 	await ctx.db
 		.prepare(
-			"UPDATE feedback SET linked_issue_id = ?, status = 'actioned' WHERE id = ? AND workspace_id = ?"
+			"UPDATE feedback SET linked_issue_id = ?, status = 'actioned' WHERE id = ? AND workspace_id = ?",
 		)
 		.bind(issue.id, feedbackId, ctx.workspaceId)
 		.run();
@@ -291,7 +259,7 @@ export async function convertFeedbackToIssue(
 
 export async function bulkMarkReviewed(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<{ updated: number }> {
 	const parsed = BulkFeedbackIdsSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
@@ -305,7 +273,7 @@ export async function bulkMarkReviewed(
 		const result = await ctx.db
 			.prepare(
 				`UPDATE feedback SET status = 'reviewed'
-         WHERE id IN (${placeholders}) AND project_id = ? AND workspace_id = ?`
+         WHERE id IN (${placeholders}) AND project_id = ? AND workspace_id = ?`,
 			)
 			.bind(...chunk, projectId, ctx.workspaceId)
 			.run();
@@ -327,7 +295,7 @@ interface BulkConvertFeedbackRow {
 
 export async function bulkConvertToIssue(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<{ id: string; number?: number; convertedCount: number }> {
 	const parsed = BulkFeedbackIdsSchema.safeParse(input);
 	if (!parsed.success) throw new ValidationError(parsed.error.flatten());
@@ -340,7 +308,7 @@ export async function bulkConvertToIssue(
 		return ctx.db
 			.prepare(
 				`SELECT id, rating, rating_scale, body, submitter_label, linked_issue_id
-         FROM feedback WHERE id IN (${placeholders}) AND project_id = ? AND workspace_id = ?`
+         FROM feedback WHERE id IN (${placeholders}) AND project_id = ? AND workspace_id = ?`,
 			)
 			.bind(...chunk, projectId, ctx.workspaceId)
 			.all<BulkConvertFeedbackRow>()
@@ -363,7 +331,7 @@ export async function bulkConvertToIssue(
 				`— submitted via feedback source${fb.submitter_label ? ` by ${fb.submitter_label}` : ""}` +
 				(fb.rating !== null ? `, rating: ${fb.rating} (${fb.rating_scale})` : "");
 			return [`${i + 1}. ${ratingLabel(fb.rating, fb.rating_scale)}`, fb.body ?? "", footer].join(
-				"\n"
+				"\n",
 			);
 		})
 		.join("\n\n");
@@ -380,7 +348,7 @@ export async function bulkConvertToIssue(
 		return ctx.db
 			.prepare(
 				`UPDATE feedback SET linked_issue_id = ?, status = 'actioned'
-         WHERE id IN (${placeholders}) AND workspace_id = ?`
+         WHERE id IN (${placeholders}) AND workspace_id = ?`,
 			)
 			.bind(issue.id, ...chunk, ctx.workspaceId)
 			.run()
@@ -406,47 +374,18 @@ export interface FeedbackSourceSummary {
 	versions: FeedbackVersionSummary[];
 }
 
-interface FeedbackSummaryRow {
-	source_id: string;
-	source_name: string | null;
-	app_version: string | null;
-	total: number;
-	thumbs_up: number;
-	thumbs_total: number;
-	five_star_avg: number | null;
-	five_star_total: number;
-	with_comment_count: number;
-	last_seen_at: number;
-}
-
 export async function getFeedbackSummary(
 	ctx: ServiceCtx,
-	input: Readonly<{ projectId: string }>
+	input: Readonly<{ projectId: string }>,
 ): Promise<FeedbackSourceSummary[]> {
 	const { projectId } = input;
 
 	await requireProjectInWorkspace(ctx, projectId);
 	await requireProjectAccess(ctx, projectId);
 
-	const { results } = await ctx.db
-		.prepare(
-			`SELECT
-         f.source_id, s.name AS source_name, f.app_version,
-         COUNT(*) AS total,
-         SUM(CASE WHEN f.rating_scale = 'thumbs' AND f.rating > 0 THEN 1 ELSE 0 END) AS thumbs_up,
-         SUM(CASE WHEN f.rating_scale = 'thumbs' THEN 1 ELSE 0 END) AS thumbs_total,
-         AVG(CASE WHEN f.rating_scale = 'five_star' THEN f.rating END) AS five_star_avg,
-         SUM(CASE WHEN f.rating_scale = 'five_star' THEN 1 ELSE 0 END) AS five_star_total,
-         SUM(CASE WHEN f.body IS NOT NULL AND f.body != '' THEN 1 ELSE 0 END) AS with_comment_count,
-         MAX(f.created_at) AS last_seen_at
-       FROM feedback f
-       LEFT JOIN feedback_sources s ON s.id = f.source_id
-       WHERE f.project_id = ? AND f.workspace_id = ?
-       GROUP BY f.source_id, f.app_version
-       ORDER BY last_seen_at DESC`
-		)
-		.bind(projectId, ctx.workspaceId)
-		.all<FeedbackSummaryRow>();
+	const results = await Effect.runPromise(
+		feedbackQueries.readFeedbackSummary(ctx.db, ctx.workspaceId, { projectId }),
+	);
 
 	const bySource = new Map<string, FeedbackSourceSummary>();
 	for (const r of results ?? []) {

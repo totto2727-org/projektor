@@ -33,7 +33,7 @@ export interface FeedbackPayload {
 export async function submitFeedback(
 	endpoint: string,
 	token: string,
-	feedback: FeedbackPayload
+	feedback: FeedbackPayload,
 ): Promise<{ id: string }> {
 	const res = await fetch(endpoint, {
 		method: "POST",

@@ -81,7 +81,7 @@ describe("PROJ-311 group-based project access", () => {
 			roles.workspace.id,
 			roles.member.user.id,
 			project.id,
-			"member"
+			"member",
 		);
 
 		expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toEqual([
@@ -92,7 +92,7 @@ describe("PROJ-311 group-based project access", () => {
 		// call reflects it immediately with no session state to invalidate.
 		const del = await SELF.fetch(
 			`http://localhost/api/workspaces/${slug}/groups/${groupId}/members/${roles.member.user.id}`,
-			{ method: "DELETE", headers: authHeaders(roles.owner.token, slug) }
+			{ method: "DELETE", headers: authHeaders(roles.owner.token, slug) },
 		);
 		expect(del.status).toBe(200);
 

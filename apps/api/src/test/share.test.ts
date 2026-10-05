@@ -60,7 +60,7 @@ describe("Share tokens", () => {
 		const expiredToken = "00000000000000000000000000000001";
 		const { env } = await import("cloudflare:test");
 		await env.DB.prepare(
-			"INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+			"INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
 		)
 			.bind(await hashToken(expiredToken), issueId, workspaceId, userId, now - 1, now - 86400)
 			.run();
@@ -102,7 +102,7 @@ describe("Share tokens", () => {
 	it("POST /api/issues/:id/share returns 404 for a nonexistent issue ID", async () => {
 		const res = await SELF.fetch(
 			"http://localhost/api/issues/00000000-0000-0000-0000-000000000000/share",
-			{ method: "POST", headers: authHeaders(token, slug) }
+			{ method: "POST", headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(404);
 	});
@@ -157,12 +157,12 @@ describe("Share tokens", () => {
 		const internalFieldId = crypto.randomUUID();
 		await env.DB.prepare(
 			"INSERT INTO custom_field_definitions (id, workspace_id, project_id, key, label, type, " +
-				"options, created_at, is_internal) VALUES (?, ?, NULL, ?, ?, 'text', NULL, ?, 1)"
+				"options, created_at, is_internal) VALUES (?, ?, NULL, ?, ?, 'text', NULL, ?, 1)",
 		)
 			.bind(internalFieldId, workspaceId, "secret_notes", "Secret Notes", now)
 			.run();
 		await env.DB.prepare(
-			"INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)"
+			"INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)",
 		)
 			.bind(issueId, internalFieldId, "confidential")
 			.run();
@@ -170,12 +170,12 @@ describe("Share tokens", () => {
 		const publicFieldId = crypto.randomUUID();
 		await env.DB.prepare(
 			"INSERT INTO custom_field_definitions (id, workspace_id, project_id, key, label, type, " +
-				"options, created_at, is_internal) VALUES (?, ?, NULL, ?, ?, 'text', NULL, ?, 0)"
+				"options, created_at, is_internal) VALUES (?, ?, NULL, ?, ?, 'text', NULL, ?, 0)",
 		)
 			.bind(publicFieldId, workspaceId, "public_note", "Public Note", now)
 			.run();
 		await env.DB.prepare(
-			"INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)"
+			"INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)",
 		)
 			.bind(issueId, publicFieldId, "hello world")
 			.run();
@@ -295,7 +295,7 @@ describe("Share tokens", () => {
 
 	it("review finding 1: GET /api/share/<unknown-token>/logo 404s", async () => {
 		const res = await SELF.fetch(
-			"http://localhost/api/share/ffffffffffffffffffffffffffffffff/logo"
+			"http://localhost/api/share/ffffffffffffffffffffffffffffffff/logo",
 		);
 		expect(res.status).toBe(404);
 	});
@@ -305,7 +305,7 @@ describe("Share tokens", () => {
 		const { env } = await import("cloudflare:test");
 		const now = Math.floor(Date.now() / 1000);
 		await env.DB.prepare(
-			"INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+			"INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
 		)
 			.bind(
 				await hashToken("11111111111111111111111111111111"),
@@ -313,7 +313,7 @@ describe("Share tokens", () => {
 				viewerFixture.workspaceId,
 				viewerFixture.userId,
 				now + 86400,
-				now
+				now,
 			)
 			.run();
 
@@ -358,7 +358,7 @@ describe("Share tokens", () => {
 			const { env } = await import("cloudflare:test");
 			const now = Math.floor(Date.now() / 1000);
 			await env.DB.prepare(
-				"INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+				"INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
 			)
 				.bind(await hashToken("victim-link"), f.issueId, f.workspaceId, f.userId, now + 3600, now)
 				.run();
@@ -446,7 +446,7 @@ describe("Share tokens", () => {
 			expect(await shareStatus(f.shareToken)).toBe(200);
 
 			const grant = await env.DB.prepare(
-				"SELECT role FROM group_project_grants WHERE group_id = ? AND project_id = ?"
+				"SELECT role FROM group_project_grants WHERE group_id = ? AND project_id = ?",
 			)
 				.bind(f.groupId, f.projectId)
 				.first<{ role: string }>();
@@ -456,11 +456,11 @@ describe("Share tokens", () => {
 			expect(await shareStatus(f.shareToken)).toBe(404);
 			await resetRateLimits();
 			expect((await SELF.fetch(`http://localhost/api/share/${f.shareToken}/logo`)).status).toBe(
-				404
+				404,
 			);
 
 			await env.DB.prepare(
-				"INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, ?)"
+				"INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, ?)",
 			)
 				.bind(f.groupId, f.projectId, grant?.role ?? "member")
 				.run();

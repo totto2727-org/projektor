@@ -82,7 +82,7 @@ describe("MCP: parse and envelope errors", () => {
 				id: 2,
 				method: "tools/call",
 				params: { name: "get_project" },
-			})
+			}),
 		);
 		const body = await res.json();
 		const err = toolError(body);

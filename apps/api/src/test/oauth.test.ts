@@ -51,7 +51,7 @@ async function installAccessKeys(): Promise<void> {
 			hash: "SHA-256",
 		},
 		true,
-		["sign", "verify"]
+		["sign", "verify"],
 	)) as CryptoKeyPair;
 	signingKey = pair.privateKey;
 	resetAuthCachesForTests();
@@ -59,7 +59,7 @@ async function installAccessKeys(): Promise<void> {
 	env.CF_ACCESS_AUDIENCE = CF_AUDIENCE;
 	await env.KV.put(
 		"cf-access-certs",
-		JSON.stringify([await crypto.subtle.exportKey("jwk", pair.publicKey)])
+		JSON.stringify([await crypto.subtle.exportKey("jwk", pair.publicKey)]),
 	);
 }
 
@@ -75,7 +75,7 @@ async function accessJwt(email: string): Promise<string> {
 	const sig = await crypto.subtle.sign(
 		"RSASSA-PKCS1-v1_5",
 		signingKey,
-		new TextEncoder().encode(`${header}.${body}`)
+		new TextEncoder().encode(`${header}.${body}`),
 	);
 	return `${header}.${body}.${b64url(new Uint8Array(sig))}`;
 }
@@ -92,7 +92,7 @@ async function accessJwt(email: string): Promise<string> {
 // ---------------------------------------------------------------------------
 
 async function seedOAuthClient(
-	redirectUris: string[] = [CLIENT_REDIRECT]
+	redirectUris: string[] = [CLIENT_REDIRECT],
 ): Promise<{ clientId: string }> {
 	// Opaque, i.e. a DCR-registered client. A CIMD client's id is an HTTPS URL the
 	// provider fetches over the network, which is not seedable from a test.
@@ -110,7 +110,7 @@ async function seedOAuthClient(
 			// what Claude is, and what the metadata document advertises via
 			// token_endpoint_auth_methods_supported: ["none"].
 			tokenEndpointAuthMethod: "none",
-		})
+		}),
 	);
 	return { clientId };
 }
@@ -129,7 +129,7 @@ function authorizeUrl(
 		challenge: string;
 		redirectUri?: string;
 		state?: string;
-	}>
+	}>,
 ): string {
 	const url = new URL(`${HOST}/oauth/authorize`);
 	url.searchParams.set("response_type", "code");
@@ -205,7 +205,7 @@ async function connect(opts: {
 			challenge,
 			redirectUri: opts.redirectUri,
 		}),
-		{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) }
+		{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) },
 	);
 	expect(consentPage.status).toBe(200);
 
@@ -266,7 +266,7 @@ describe("only a signed-in human reaches the consent screen", () => {
 
 		const res = await SELF.fetch(
 			authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${fixture.workspace.id}` }),
-			{ headers: { Authorization: `Bearer ${token}` } }
+			{ headers: { Authorization: `Bearer ${token}` } },
 		);
 
 		expect(res.status).toBe(403);
@@ -322,12 +322,12 @@ describe("the authorization request must name a workspace the user belongs to", 
 
 		const res = await SELF.fetch(
 			authorizeUrl({ clientId, challenge, resource: `${HOST}/api/projects` }),
-			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }), redirect: "manual" }
+			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }), redirect: "manual" },
 		);
 
 		expect(res.status).toBe(302);
 		expect(new URL(res.headers.get("Location") as string).searchParams.get("error")).toBe(
-			"invalid_target"
+			"invalid_target",
 		);
 	});
 
@@ -340,7 +340,7 @@ describe("the authorization request must name a workspace the user belongs to", 
 
 		const res = await SELF.fetch(
 			authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${other.id}` }),
-			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }), redirect: "manual" }
+			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }), redirect: "manual" },
 		);
 
 		// Rendered locally on purpose. Bouncing back with access_denied would tell the
@@ -370,7 +370,7 @@ describe("the consent screen", () => {
 
 		const res = await SELF.fetch(
 			authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
-			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) }
+			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) },
 		);
 		const body = await res.text();
 
@@ -403,7 +403,7 @@ describe("the consent screen", () => {
 				resource: `${HOST}/mcp/${workspaceId}`,
 				redirectUri: "http://127.0.0.1:8976/callback",
 			}),
-			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) }
+			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) },
 		);
 
 		expect(await res.text()).toContain("your own machine");
@@ -422,7 +422,7 @@ describe("the consent screen", () => {
 				resource: `${HOST}/mcp/${workspaceId}`,
 				redirectUri: "http://127.0.0.1:54321/callback",
 			}),
-			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) }
+			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) },
 		);
 
 		expect(res.status).toBe(200);
@@ -439,7 +439,7 @@ describe("the consent screen", () => {
 				resource: `${HOST}/mcp/${workspaceId}`,
 				redirectUri: "https://attacker.example/steal",
 			}),
-			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }), redirect: "manual" }
+			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }), redirect: "manual" },
 		);
 
 		// Rendered, never redirected — this is the open-redirect case, and the
@@ -453,7 +453,7 @@ describe("the consent screen", () => {
 		const { challenge } = await pkce();
 		const consentPage = await SELF.fetch(
 			authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
-			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) }
+			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) },
 		);
 
 		const res = await postConsent(consentTokenFrom(await consentPage.text()), "deny", jwt);
@@ -490,7 +490,7 @@ describe("the consent POST cannot be forged or replayed", () => {
 		const { challenge } = await pkce();
 		const consentPage = await SELF.fetch(
 			authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
-			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) }
+			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) },
 		);
 		const token = consentTokenFrom(await consentPage.text());
 		const [body, sig] = token.split(".");
@@ -507,7 +507,7 @@ describe("the consent POST cannot be forged or replayed", () => {
 		const { challenge } = await pkce();
 		const consentPage = await SELF.fetch(
 			authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
-			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) }
+			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) },
 		);
 		const token = consentTokenFrom(await consentPage.text());
 
@@ -672,7 +672,7 @@ describe("an OAuth grant cannot mint or revoke a workspace token (PROJ-917)", ()
 		await seedMember(workspace.id, user.id, "owner");
 		await seedToken(workspace.id, user.id);
 		const target = await env.DB.prepare(
-			"SELECT id FROM api_tokens WHERE workspace_id = ? AND user_id = ?"
+			"SELECT id FROM api_tokens WHERE workspace_id = ? AND user_id = ?",
 		)
 			.bind(workspace.id, user.id)
 			.first<{ id: string }>();
@@ -720,7 +720,7 @@ describe("the token endpoint's failure modes", () => {
 		});
 		const approved = await postConsent(consentTokenFrom(await consentPage.text()), "approve", jwt);
 		const code = new URL(approved.headers.get("Location") as string).searchParams.get(
-			"code"
+			"code",
 		) as string;
 		const body = {
 			grant_type: "authorization_code",
@@ -753,7 +753,7 @@ describe("the token endpoint's failure modes", () => {
 		const { clientId } = await seedOAuthClient();
 		const { challenge } = await pkce();
 		const url = new URL(
-			authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` })
+			authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
 		);
 		url.searchParams.delete("code_challenge_method");
 
@@ -764,7 +764,7 @@ describe("the token endpoint's failure modes", () => {
 
 		expect(res.status).toBe(302);
 		expect(new URL(res.headers.get("Location") as string).searchParams.get("error")).toBe(
-			"invalid_request"
+			"invalid_request",
 		);
 	});
 
@@ -779,7 +779,7 @@ describe("the token endpoint's failure modes", () => {
 		});
 		const approved = await postConsent(consentTokenFrom(await consentPage.text()), "approve", jwt);
 		const code = new URL(approved.headers.get("Location") as string).searchParams.get(
-			"code"
+			"code",
 		) as string;
 
 		// A code intercepted from the redirect is worthless without the verifier that
@@ -884,7 +884,7 @@ describe("the request limiter keys on the grant, not the token (PROJ-658)", () =
 		clientIp = "203.0.113.251"; // the consent screen's own IP budget is 3 per window
 		const second = await connect({ email, workspaceId: workspace.id });
 		expect((await mcpCall(workspace.id, second.tokens.access_token, "list_projects")).status).toBe(
-			200
+			200,
 		);
 	});
 });
@@ -940,7 +940,7 @@ describe("Settings lists and withdraws connectors (PROJ-659)", () => {
 		const { challenge } = await pkce();
 		const consentPage = await SELF.fetch(
 			authorizeUrl({ clientId, resource: `${HOST}/mcp/${workspace.id}`, challenge }),
-			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) }
+			{ headers: browserHeaders({ "Cf-Access-Jwt-Assertion": jwt }) },
 		);
 		const approved = await postConsent(consentTokenFrom(await consentPage.text()), "approve", jwt);
 		expect(approved.status).toBe(302);
@@ -1070,7 +1070,7 @@ describe("hardening the consent screen itself", () => {
 			authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
 			{
 				headers: browserHeaders({ "Cf-Access-Jwt-Assertion": await accessJwt(email) }),
-			}
+			},
 		);
 	}
 
@@ -1185,7 +1185,7 @@ describe("existing credentials are untouched by the provider", () => {
 
 		expect(res.status).toBe(401);
 		expect(res.headers.get("WWW-Authenticate")).toContain(
-			`${HOST}/.well-known/oauth-protected-resource/mcp/${fixture.workspace.id}`
+			`${HOST}/.well-known/oauth-protected-resource/mcp/${fixture.workspace.id}`,
 		);
 	});
 });

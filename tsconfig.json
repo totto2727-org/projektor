@@ -1,0 +1,15 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"target": "ES2023",
+		"lib": ["ES2023", "DOM", "DOM.Iterable"],
+		"jsx": "react-jsx",
+		"noEmit": true,
+		"types": ["node"],
+		"resolveJsonModule": true,
+		"allowImportingTsExtensions": true
+	},
+	"include": ["alchemy.run.ts", "infra/**/*.ts", "vite.config.ts"]
+}

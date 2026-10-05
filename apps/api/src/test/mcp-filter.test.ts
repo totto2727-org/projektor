@@ -8,7 +8,7 @@ async function mcpFetch(
 	method: string,
 	params: unknown,
 	headers: Record<string, string>,
-	query = ""
+	query = "",
 ): Promise<Response> {
 	return SELF.fetch(`http://localhost/mcp/${workspaceId}${query}`, {
 		method: "POST",
@@ -22,7 +22,7 @@ async function mcpCall<T>(
 	method: string,
 	params: unknown,
 	headers: Record<string, string>,
-	query = ""
+	query = "",
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
 	const res = await mcpFetch(workspaceId, method, params, headers, query);
 	return res.json();
@@ -43,7 +43,7 @@ describe("MCP tools/list domain filtering (PROJ-716)", () => {
 			workspaceId,
 			"tools/list",
 			{},
-			headers
+			headers,
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		expect(res.result.tools.length).toBe(TOOL_COUNT);
 	});
@@ -54,7 +54,7 @@ describe("MCP tools/list domain filtering (PROJ-716)", () => {
 			"tools/list",
 			{},
 			headers,
-			"?domains=issues"
+			"?domains=issues",
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		const names = res.result.tools.map((t) => t.name);
 		expect(names).toContain("get_issue");
@@ -69,7 +69,7 @@ describe("MCP tools/list domain filtering (PROJ-716)", () => {
 			"tools/list",
 			{},
 			headers,
-			"?domains=issues,wiki"
+			"?domains=issues,wiki",
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		const names = res.result.tools.map((t) => t.name);
 		expect(names).toContain("get_issue");
@@ -82,17 +82,17 @@ describe("MCP tools/list domain filtering (PROJ-716)", () => {
 			"tools/list",
 			{},
 			headers,
-			"?domains=issues,issues,issues"
+			"?domains=issues,issues,issues",
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		const straightRes = (await mcpCall<{ tools: Array<{ name: string }> }>(
 			workspaceId,
 			"tools/list",
 			{},
 			headers,
-			"?domains=issues"
+			"?domains=issues",
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		expect(dupRes.result.tools.map((t) => t.name).sort()).toEqual(
-			straightRes.result.tools.map((t) => t.name).sort()
+			straightRes.result.tools.map((t) => t.name).sort(),
 		);
 
 		const forwardRes = (await mcpCall<{ tools: Array<{ name: string }> }>(
@@ -100,17 +100,17 @@ describe("MCP tools/list domain filtering (PROJ-716)", () => {
 			"tools/list",
 			{},
 			headers,
-			"?domains=issues,wiki"
+			"?domains=issues,wiki",
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		const reversedRes = (await mcpCall<{ tools: Array<{ name: string }> }>(
 			workspaceId,
 			"tools/list",
 			{},
 			headers,
-			"?domains=wiki,issues"
+			"?domains=wiki,issues",
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		expect(forwardRes.result.tools.map((t) => t.name).sort()).toEqual(
-			reversedRes.result.tools.map((t) => t.name).sort()
+			reversedRes.result.tools.map((t) => t.name).sort(),
 		);
 	});
 
@@ -130,7 +130,7 @@ describe("MCP tools/list domain filtering (PROJ-716)", () => {
 			"tools/list",
 			{},
 			headers,
-			"?domains=issues,bogus-domain"
+			"?domains=issues,bogus-domain",
 		);
 		expect(res.status).toBe(400);
 	});
@@ -141,7 +141,7 @@ describe("MCP tools/list domain filtering (PROJ-716)", () => {
 			"tools/list",
 			{},
 			headers,
-			"?domains="
+			"?domains=",
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		expect(res.result.tools.length).toBe(TOOL_COUNT);
 	});
@@ -152,7 +152,7 @@ describe("MCP tools/list domain filtering (PROJ-716)", () => {
 			"tools/list",
 			{},
 			headers,
-			"?domains=issues"
+			"?domains=issues",
 		)) as JsonRpcResult<{ tools: Array<{ name: string }> }>;
 		expect(listRes.result.tools.map((t) => t.name)).not.toContain("get_wiki_page");
 
@@ -161,7 +161,7 @@ describe("MCP tools/list domain filtering (PROJ-716)", () => {
 			"tools/call",
 			{ name: "search_wiki", arguments: { query: "" } },
 			headers,
-			"?domains=issues"
+			"?domains=issues",
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		expect(callRes.result.content[0].text).toBeDefined();
 	});

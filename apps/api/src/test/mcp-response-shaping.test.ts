@@ -82,7 +82,7 @@ describe("PROJ-891: serializer (unit)", () => {
 			updated: 2,
 		});
 		expect(
-			shapeIssue({ ...raw, parent_id: "P", assignee_name: "Ann" }, { view: "summary" })
+			shapeIssue({ ...raw, parent_id: "P", assignee_name: "Ann" }, { view: "summary" }),
 		).toMatchObject({ parent: "P", assignee: "Ann" });
 	});
 
@@ -185,7 +185,7 @@ describe("PROJ-891: MCP tools", () => {
 
 	async function tool<T = Record<string, unknown>>(
 		name: string,
-		args: Record<string, unknown> = {}
+		args: Record<string, unknown> = {},
 	): Promise<T> {
 		const res = await SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
 			method: "POST",
@@ -211,18 +211,18 @@ describe("PROJ-891: MCP tools", () => {
 		}
 		const first = await tool<{ items: Array<Record<string, unknown>>; next?: string }>(
 			"list_issues",
-			{ view: "summary", limit: 2 }
+			{ view: "summary", limit: 2 },
 		);
 		expect(first.items).toHaveLength(2);
 		expect(first.next).toBeTypeOf("string");
 		expect(first).not.toHaveProperty("nextCursor");
 		expect(Object.keys(first.items[0]).sort()).toEqual(
-			["priority", "ref", "status", "title", "updated"].sort()
+			["priority", "ref", "status", "title", "updated"].sort(),
 		);
 
 		const second = await tool<{ items: Array<Record<string, unknown>>; next?: string }>(
 			"list_issues",
-			{ view: "summary", limit: 2, cursor: first.next }
+			{ view: "summary", limit: 2, cursor: first.next },
 		);
 		expect(second.items).toHaveLength(1);
 		expect(second.next).toBeUndefined();

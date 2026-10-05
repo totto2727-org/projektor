@@ -35,7 +35,7 @@ export async function seedUser(email = "user@example.com") {
 export async function seedMember(workspaceId: string, userId: string, role = "member") {
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
-		"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)"
+		"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)",
 	)
 		.bind(workspaceId, userId, role, now)
 		.run();
@@ -44,14 +44,14 @@ export async function seedMember(workspaceId: string, userId: string, role = "me
 export async function seedToken(
 	workspaceId: string,
 	userId: string,
-	opts?: Readonly<{ scopes?: string[]; expiresAt?: number }>
+	opts?: Readonly<{ scopes?: string[]; expiresAt?: number }>,
 ): Promise<string> {
 	const raw = `tok_${crypto.randomUUID().replace(/-/g, "")}`;
 	const hash = await hashToken(raw);
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
 		`INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			crypto.randomUUID(),
@@ -61,7 +61,7 @@ export async function seedToken(
 			hash,
 			JSON.stringify(opts?.scopes ?? ["*"]),
 			opts?.expiresAt ?? null,
-			now
+			now,
 		)
 		.run();
 	return raw;
@@ -70,14 +70,14 @@ export async function seedToken(
 /** Seed a user-scoped token (NULL workspace_id — valid across all the user's workspaces). */
 export async function seedUserToken(
 	userId: string,
-	opts?: Readonly<{ scopes?: string[]; expiresAt?: number }>
+	opts?: Readonly<{ scopes?: string[]; expiresAt?: number }>,
 ): Promise<string> {
 	const raw = `tok_${crypto.randomUUID().replace(/-/g, "")}`;
 	const hash = await hashToken(raw);
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
 		`INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			crypto.randomUUID(),
@@ -87,7 +87,7 @@ export async function seedUserToken(
 			hash,
 			JSON.stringify(opts?.scopes ?? ["*"]),
 			opts?.expiresAt ?? null,
-			now
+			now,
 		)
 		.run();
 	return raw;
@@ -97,7 +97,7 @@ export async function seedProject(workspaceId: string, key = "PROJ") {
 	const id = crypto.randomUUID();
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
-		"INSERT INTO projects (id, workspace_id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+		"INSERT INTO projects (id, workspace_id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
 	)
 		.bind(id, workspaceId, "Test Project", key, now, now)
 		.run();
@@ -113,22 +113,22 @@ export async function seedGroupGrant(
 	workspaceId: string,
 	userId: string,
 	projectId: string,
-	role = "member"
+	role = "member",
 ): Promise<{ groupId: string }> {
 	const now = Math.floor(Date.now() / 1000);
 	const groupId = crypto.randomUUID();
 	await env.DB.prepare(
-		"INSERT INTO user_groups (id, workspace_id, name, description, created_at) VALUES (?, ?, ?, NULL, ?)"
+		"INSERT INTO user_groups (id, workspace_id, name, description, created_at) VALUES (?, ?, ?, NULL, ?)",
 	)
 		.bind(groupId, workspaceId, `grp-${groupId.slice(0, 8)}`, now)
 		.run();
 	await env.DB.prepare(
-		"INSERT INTO user_group_members (group_id, user_id, added_by, added_at) VALUES (?, ?, ?, ?)"
+		"INSERT INTO user_group_members (group_id, user_id, added_by, added_at) VALUES (?, ?, ?, ?)",
 	)
 		.bind(groupId, userId, userId, now)
 		.run();
 	await env.DB.prepare(
-		"INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, ?)"
+		"INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, ?)",
 	)
 		.bind(groupId, projectId, role)
 		.run();
@@ -148,13 +148,13 @@ export async function seedComment(
 	issueId: string,
 	authorId: string,
 	body = "Test comment",
-	authorKind?: "human" | "agent"
+	authorKind?: "human" | "agent",
 ) {
 	const id = crypto.randomUUID();
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
 		"INSERT INTO issue_comments (id, issue_id, author_id, body, created_at, updated_at, " +
-			"author_kind) VALUES (?, ?, ?, ?, ?, ?, ?)"
+			"author_kind) VALUES (?, ?, ?, ?, ?, ?, ?)",
 	)
 		.bind(id, issueId, authorId, body, now, now, authorKind ?? null)
 		.run();
@@ -169,13 +169,13 @@ export async function seedTaskType(
 		name?: string;
 		isDefault?: boolean;
 		position?: number;
-	}>
+	}>,
 ) {
 	const id = opts?.id ?? crypto.randomUUID();
 	const key = opts?.key ?? `type-${id.slice(0, 8)}`;
 	await env.DB.prepare(
 		`INSERT INTO task_types (id, workspace_id, key, name, color, icon, position, is_default)
-     VALUES (?, ?, ?, ?, NULL, NULL, ?, ?)`
+     VALUES (?, ?, ?, ?, NULL, NULL, ?, ?)`,
 	)
 		.bind(id, workspaceId, key, opts?.name ?? key, opts?.position ?? 0, opts?.isDefault ? 1 : 0)
 		.run();
@@ -191,13 +191,13 @@ export async function seedTaskStatus(
 		isDefault?: boolean;
 		position?: number;
 		isReviewStep?: boolean;
-	}>
+	}>,
 ) {
 	const id = crypto.randomUUID();
 	const key = opts?.key ?? `status-${id.slice(0, 8)}`;
 	await env.DB.prepare(
 		`INSERT INTO task_statuses (id, workspace_id, key, name, category, color, position, is_default, is_review_step)
-     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
 	)
 		.bind(
 			id,
@@ -207,7 +207,7 @@ export async function seedTaskStatus(
 			opts?.category ?? "todo",
 			opts?.position ?? 0,
 			opts?.isDefault ? 1 : 0,
-			opts?.isReviewStep ? 1 : 0
+			opts?.isReviewStep ? 1 : 0,
 		)
 		.run();
 	return { id, key, name: opts?.name ?? key };
@@ -226,7 +226,7 @@ export async function seedIssue(
 		parentId?: string;
 		typeId?: string;
 		createdAt?: number;
-	}>
+	}>,
 ) {
 	const id = crypto.randomUUID();
 	const now = opts?.createdAt ?? Math.floor(Date.now() / 1000);
@@ -234,7 +234,7 @@ export async function seedIssue(
 		`INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, status_id, priority,
        assignee_id, labels, parent_id, type_id, created_by_id, created_at, updated_at)
      SELECT ?, ?, ?, COALESCE(MAX(number), 0) + 1, ?, '', ?, ?, ?, ?, '[]', ?, ?, ?, ?, ?
-     FROM issues WHERE project_id = ?`
+     FROM issues WHERE project_id = ?`,
 	)
 		.bind(
 			id,
@@ -250,11 +250,11 @@ export async function seedIssue(
 			createdById,
 			now,
 			now,
-			projectId
+			projectId,
 		)
 		.run();
 	await env.DB.prepare(
-		`UPDATE issues SET status_category = COALESCE((SELECT category FROM task_statuses WHERE id = ?), '') WHERE id = ?`
+		`UPDATE issues SET status_category = COALESCE((SELECT category FROM task_statuses WHERE id = ?), '') WHERE id = ?`,
 	)
 		.bind(opts?.statusId ?? null, id)
 		.run();
@@ -272,13 +272,13 @@ export async function seedCustomFieldDef(
 		type?: string;
 		options?: string[];
 		projectId?: string | null;
-	}>
+	}>,
 ) {
 	const id = crypto.randomUUID();
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
 		`INSERT INTO custom_field_definitions (id, workspace_id, project_id, key, label, type, options, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			id,
@@ -288,7 +288,7 @@ export async function seedCustomFieldDef(
 			opts.label ?? opts.key,
 			opts.type ?? "text",
 			opts.options ? JSON.stringify(opts.options) : null,
-			now
+			now,
 		)
 		.run();
 	return { id, key: opts.key };
@@ -297,7 +297,7 @@ export async function seedCustomFieldDef(
 export async function seedCustomFieldValue(issueId: string, fieldId: string, value: string) {
 	await env.DB.prepare(
 		`INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)
-     ON CONFLICT(issue_id, field_id) DO UPDATE SET value = excluded.value`
+     ON CONFLICT(issue_id, field_id) DO UPDATE SET value = excluded.value`,
 	)
 		.bind(issueId, fieldId, value)
 		.run();
@@ -312,7 +312,7 @@ export async function seedCustomFieldValue(issueId: string, fieldId: string, val
 export async function seedAgentLease(
 	workspaceId: string,
 	issueId: string,
-	opts?: Readonly<{ kind?: "agent" | "human"; live?: boolean; name?: string }>
+	opts?: Readonly<{ kind?: "agent" | "human"; live?: boolean; name?: string }>,
 ): Promise<{ agentSessionId: string; leaseId: string }> {
 	const now = Math.floor(Date.now() / 1000);
 	const live = opts?.live ?? true;
@@ -320,7 +320,7 @@ export async function seedAgentLease(
 	await env.DB.prepare(
 		`INSERT INTO agent_sessions
        (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
-     VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			agentSessionId,
@@ -331,13 +331,13 @@ export async function seedAgentLease(
 			live ? "active" : "ended",
 			now,
 			live ? now : now - 1000,
-			live ? null : now
+			live ? null : now,
 		)
 		.run();
 	const leaseId = crypto.randomUUID();
 	await env.DB.prepare(
 		`INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			leaseId,
@@ -346,7 +346,7 @@ export async function seedAgentLease(
 			agentSessionId,
 			now,
 			live ? null : now,
-			live ? null : "agent_ended"
+			live ? null : "agent_ended",
 		)
 		.run();
 	return { agentSessionId, leaseId };
@@ -354,7 +354,7 @@ export async function seedAgentLease(
 
 /** Seed a complete workspace + user + member + token in one call */
 export async function seedFixture(
-	opts?: Readonly<{ slug?: string; email?: string; role?: string }>
+	opts?: Readonly<{ slug?: string; email?: string; role?: string }>,
 ) {
 	const workspace = await seedWorkspace(opts?.slug ?? `ws-${crypto.randomUUID().slice(0, 8)}`);
 	const user = await seedUser(opts?.email ?? `u-${crypto.randomUUID().slice(0, 8)}@example.com`);

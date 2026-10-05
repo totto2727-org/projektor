@@ -15,7 +15,7 @@ describe("PROJ-858: batched slug link resolution on save", () => {
 			env.DB.prepare(
 				`INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, parent_id,
 				   created_by_id, updated_by_id, created_at, updated_at, deleted_at)
-				 VALUES (?, ?, NULL, ?, ?, '', NULL, ?, ?, ?, ?, ?)`
+				 VALUES (?, ?, NULL, ?, ?, '', NULL, ?, ?, ?, ?, ?)`,
 			)
 				.bind(id, workspace.id, slug, title, user.id, user.id, now, now, deletedAt)
 				.run();
@@ -34,7 +34,7 @@ describe("PROJ-858: batched slug link resolution on save", () => {
 			redirected.push(id);
 			await insertPage(id, `renamed-${i}`, `Renamed ${i}`, i < 5 ? now : null);
 			await env.DB.prepare(
-				"INSERT INTO wiki_redirects (id, workspace_id, old_slug, page_id, created_at) VALUES (?, ?, ?, ?, ?)"
+				"INSERT INTO wiki_redirects (id, workspace_id, old_slug, page_id, created_at) VALUES (?, ?, ?, ?, ?)",
 			)
 				.bind(crypto.randomUUID(), workspace.id, `old-${i}`, id, now)
 				.run();
@@ -66,18 +66,18 @@ describe("PROJ-858: batched slug link resolution on save", () => {
 		// Every read of wiki_pages / wiki_redirects during the save — slug checks, parent
 		// lookups and link resolution together. Per-link resolution made this ~300.
 		const wikiReads = sqls.filter(
-			(q) => /^select/i.test(q.trim()) && /from "?wiki_(pages|redirects)"?/i.test(q)
+			(q) => /^select/i.test(q.trim()) && /from "?wiki_(pages|redirects)"?/i.test(q),
 		);
 		expect(wikiReads.length).toBeLessThanOrEqual(12);
 
 		const { id: hubId } = (await res.json()) as { id: string };
 		const rows = await env.DB.prepare(
-			"SELECT target_page_id, target_title FROM wiki_links WHERE source_page_id = ?"
+			"SELECT target_page_id, target_title FROM wiki_links WHERE source_page_id = ?",
 		)
 			.bind(hubId)
 			.all<{ target_page_id: string | null; target_title: string }>();
 		const resolvedIds = new Set(
-			(rows.results ?? []).map((r) => r.target_page_id).filter((x): x is string => x !== null)
+			(rows.results ?? []).map((r) => r.target_page_id).filter((x): x is string => x !== null),
 		);
 		const unresolved = (rows.results ?? []).filter((r) => r.target_page_id === null);
 

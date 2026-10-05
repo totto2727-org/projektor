@@ -250,7 +250,7 @@ describe("Agents API", () => {
 			expect(body.claimedFiles.map((f) => f.path).sort()).toEqual(["src/a.ts", "src/b.ts"]);
 
 			const leaseRow = await env.DB.prepare(
-				"SELECT agent_session_id FROM issue_leases WHERE issue_id = ? AND released_at IS NULL"
+				"SELECT agent_session_id FROM issue_leases WHERE issue_id = ? AND released_at IS NULL",
 			)
 				.bind(issue.id)
 				.first<{ agent_session_id: string }>();
@@ -283,7 +283,7 @@ describe("Agents API", () => {
 			expect(second.status).toBe(409); // Same ConflictError as claim_issue today
 
 			const sessions = await env.DB.prepare(
-				"SELECT id, status FROM agent_sessions WHERE name = 'worker-2'"
+				"SELECT id, status FROM agent_sessions WHERE name = 'worker-2'",
 			).all<{ id: string; status: string }>();
 			// The session was registered internally, then compensated — either absent, or
 			// present but already ended, never left active.
@@ -309,7 +309,7 @@ describe("Agents API", () => {
 				const issue2 = await seedIssue(workspaceId, projectId, userId, { title: "Wants file" });
 				await startWorkDirect(
 					{ db: env.DB, kv: env.KV, r2: env.R2, workspaceId, userId, role: "owner" } as ServiceCtx,
-					{ issue: issue1.id, paths: ["src/contended.ts"], name: "holder" }
+					{ issue: issue1.id, paths: ["src/contended.ts"], name: "holder" },
 				);
 
 				const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -348,7 +348,7 @@ describe("Agents API", () => {
 						issue: issue2.id,
 						paths: ["src/contended.ts"],
 						name: "wants-it",
-					})
+					}),
 				).rejects.toMatchObject({ kind: "conflict" });
 
 				// The compensating-cleanup failure was logged, not thrown or swallowed silently.
@@ -375,7 +375,7 @@ describe("Agents API", () => {
 
 			// issue2 never ended up with a live lease — the failed file claim rolled it back.
 			const lease = await env.DB.prepare(
-				"SELECT id FROM issue_leases WHERE issue_id = ? AND released_at IS NULL"
+				"SELECT id FROM issue_leases WHERE issue_id = ? AND released_at IS NULL",
 			)
 				.bind(issue2.id)
 				.first();
@@ -401,14 +401,14 @@ describe("Agents API", () => {
 			expect(issueRow?.status).toBe("done");
 
 			const lease = await env.DB.prepare(
-				"SELECT id FROM issue_leases WHERE issue_id = ? AND released_at IS NULL"
+				"SELECT id FROM issue_leases WHERE issue_id = ? AND released_at IS NULL",
 			)
 				.bind(issue.id)
 				.first();
 			expect(lease).toBeNull();
 
 			const claim = await env.DB.prepare(
-				"SELECT id FROM issue_file_claims WHERE issue_id = ? AND released_at IS NULL"
+				"SELECT id FROM issue_file_claims WHERE issue_id = ? AND released_at IS NULL",
 			)
 				.bind(issue.id)
 				.first();
@@ -447,7 +447,7 @@ describe("Agents API", () => {
 			const { sessionId } = (await res.json()) as { sessionId: string };
 
 			const session = await env.DB.prepare(
-				"SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?"
+				"SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?",
 			)
 				.bind(sessionId)
 				.first<{ last_heartbeat_at: number }>();
@@ -596,14 +596,14 @@ describe("Agents API", () => {
 
 			const byKey = await listAgents({ projectId: projectKey });
 			const byKeyIds = ((await byKey.json()) as { items: Array<{ id: string }> }).items.map(
-				(s) => s.id
+				(s) => s.id,
 			);
 			expect(byKeyIds).toContain(linkedASession.id);
 			expect(byKeyIds).not.toContain(linkedBSession.id);
 
 			const byUuid = await listAgents({ projectId });
 			const byUuidIds = ((await byUuid.json()) as { items: Array<{ id: string }> }).items.map(
-				(s) => s.id
+				(s) => s.id,
 			);
 			expect(byUuidIds).toContain(linkedASession.id);
 			expect(byUuidIds).not.toContain(linkedBSession.id);

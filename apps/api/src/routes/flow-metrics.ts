@@ -18,7 +18,7 @@ router.get("/:id/flow-metrics", async (c) => {
 				since: since ? Number(since) : undefined,
 				until: until ? Number(until) : undefined,
 				granularity,
-			})
+			}),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);

@@ -29,7 +29,7 @@ async function seedWorkspaceWithIssues(n: number) {
 			env.DB.prepare(
 				`INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, priority,
 				   labels, created_by_id, created_at, updated_at)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?)`
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?)`,
 			).bind(
 				id,
 				workspace.id,
@@ -41,8 +41,8 @@ async function seedWorkspaceWithIssues(n: number) {
 				PRIORITIES[(i * 3) % 5],
 				user.id,
 				now,
-				now
-			)
+				now,
+			),
 		);
 	}
 	// Links: issue j points at issue (j*7 mod n) for the first third — uneven in-degrees.
@@ -50,8 +50,8 @@ async function seedWorkspaceWithIssues(n: number) {
 		stmts.push(
 			env.DB.prepare(
 				`INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
-				 VALUES (?, ?, ?, ?, 'blocks', ?, ?)`
-			).bind(crypto.randomUUID(), workspace.id, ids[j], ids[(j * 7) % n], user.id, now)
+				 VALUES (?, ?, ?, ?, 'blocks', ?, ?)`,
+			).bind(crypto.randomUUID(), workspace.id, ids[j], ids[(j * 7) % n], user.id, now),
 		);
 	}
 	// Story points on every 4th issue.
@@ -59,14 +59,14 @@ async function seedWorkspaceWithIssues(n: number) {
 	stmts.push(
 		env.DB.prepare(
 			`INSERT INTO custom_field_definitions (id, workspace_id, project_id, key, label, type, created_at)
-			 VALUES (?, ?, NULL, 'story_points', 'Story points', 'number', ?)`
-		).bind(fieldId, workspace.id, now)
+			 VALUES (?, ?, NULL, 'story_points', 'Story points', 'number', ?)`,
+		).bind(fieldId, workspace.id, now),
 	);
 	for (let i = 0; i < n; i += 4) {
 		stmts.push(
 			env.DB.prepare(
-				"INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)"
-			).bind(ids[i], fieldId, String((i % 8) + 1))
+				"INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)",
+			).bind(ids[i], fieldId, String((i % 8) + 1)),
 		);
 	}
 	for (let k = 0; k < stmts.length; k += 90) await env.DB.batch(stmts.slice(k, k + 90));
@@ -88,18 +88,18 @@ async function reference(ctx: ServiceCtx, includeBacklog: boolean) {
 	const { results: open } = await env.DB.prepare(
 		`SELECT id, priority, body, rowid AS rid FROM issues
 		 WHERE workspace_id = ? AND status NOT IN ('done', 'cancelled') ${includeBacklog ? "" : "AND status != 'backlog'"}
-		 ORDER BY rowid`
+		 ORDER BY rowid`,
 	)
 		.bind(ctx.workspaceId)
 		.all<{ id: string; priority: string; body: string }>();
 	const { results: links } = await env.DB.prepare(
-		"SELECT target_issue_id FROM issue_links WHERE workspace_id = ?"
+		"SELECT target_issue_id FROM issue_links WHERE workspace_id = ?",
 	)
 		.bind(ctx.workspaceId)
 		.all<{ target_issue_id: string }>();
 	const { results: sps } = await env.DB.prepare(
 		`SELECT v.issue_id, CAST(v.value AS REAL) AS sp FROM custom_field_values v
-		 JOIN custom_field_definitions d ON d.id = v.field_id WHERE d.workspace_id = ?`
+		 JOIN custom_field_definitions d ON d.id = v.field_id WHERE d.workspace_id = ?`,
 	)
 		.bind(ctx.workspaceId)
 		.all<{ issue_id: string; sp: number }>();
@@ -147,7 +147,7 @@ describe("PROJ-859: prioritization parity with the in-memory algorithm", () => {
 			expect(issue.needsGrooming === true).toBe(!wanted[k].ready);
 		});
 		expect(got.droppedNotReady).toBe(
-			opts.includeNotReady ? 0 : expected.filter((e) => !e.ready).length
+			opts.includeNotReady ? 0 : expected.filter((e) => !e.ready).length,
 		);
 	});
 });
@@ -160,7 +160,7 @@ describe("PROJ-859: bounded query count", () => {
 		await getPrioritizedIssues(ctx, { limit: 10 }); // first call heals dor_* in batches
 
 		const stored = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM issues WHERE workspace_id = ? AND dor_ready IS NULL"
+			"SELECT COUNT(*) AS n FROM issues WHERE workspace_id = ? AND dor_ready IS NULL",
 		)
 			.bind(ctx.workspaceId)
 			.first<{ n: number }>();
@@ -181,7 +181,7 @@ describe("PROJ-859: bounded query count", () => {
 		const { ctx } = await seedWorkspaceWithIssues(6);
 		await getPrioritizedIssues(ctx, { limit: 10 });
 		const row = await env.DB.prepare(
-			"SELECT id FROM issues WHERE workspace_id = ? AND dor_ready = 0 LIMIT 1"
+			"SELECT id FROM issues WHERE workspace_id = ? AND dor_ready = 0 LIMIT 1",
 		)
 			.bind(ctx.workspaceId)
 			.first<{ id: string }>();

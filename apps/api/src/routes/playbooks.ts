@@ -14,7 +14,7 @@ router.post("/:name/compose", async (c) => {
 	const ctx = ctxFromHono(c);
 	try {
 		return c.json(
-			await composePlaybook(ctx, { name: c.req.param("name"), params: await jsonBody(c) })
+			await composePlaybook(ctx, { name: c.req.param("name"), params: await jsonBody(c) }),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);

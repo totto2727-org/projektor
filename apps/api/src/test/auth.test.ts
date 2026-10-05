@@ -39,7 +39,7 @@ function encodeJwtPart(obj: unknown): string {
 
 async function signTestJwt(
 	privateKey: CryptoKey,
-	payload: Record<string, unknown>
+	payload: Record<string, unknown>,
 ): Promise<string> {
 	const header = encodeJwtPart({ alg: "RS256", typ: "JWT" });
 	const body = encodeJwtPart(payload);
@@ -111,7 +111,7 @@ describe("PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)", ()
 				hash: "SHA-256",
 			},
 			true,
-			["sign", "verify"]
+			["sign", "verify"],
 		)) as CryptoKeyPair;
 		privateKey = keyPair.privateKey;
 		publicJwk = (await crypto.subtle.exportKey("jwk", keyPair.publicKey)) as JsonWebKey;
@@ -313,7 +313,7 @@ describe("PROJ-79: CF Access JWT HTTP rejection paths", () => {
 			.replace(/\//g, "_")
 			.replace(/=/g, "");
 		const payload = btoa(
-			JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600, email: "x@x.com" })
+			JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600, email: "x@x.com" }),
 		)
 			.replace(/\+/g, "-")
 			.replace(/\//g, "_")
@@ -390,7 +390,7 @@ describe("PROJ-354: CF Access auth caches are isolate-local", () => {
 				hash: "SHA-256",
 			},
 			true,
-			["sign", "verify"]
+			["sign", "verify"],
 		)) as CryptoKeyPair;
 		const publicJwk = (await crypto.subtle.exportKey("jwk", keyPair.publicKey)) as JsonWebKey;
 
@@ -454,7 +454,7 @@ describe("PROJ-358: JWKS force-refresh on signature verification failure", () =>
 					hash: "SHA-256",
 				},
 				true,
-				["sign", "verify"]
+				["sign", "verify"],
 			) as Promise<CryptoKeyPair>;
 
 		// `otherKeyPair` is never returned by the stub below, so a token signed
@@ -464,7 +464,7 @@ describe("PROJ-358: JWKS force-refresh on signature verification failure", () =>
 		const otherKeyPair = await genKeyPair();
 		const currentPublicJwk = (await crypto.subtle.exportKey(
 			"jwk",
-			currentKeyPair.publicKey
+			currentKeyPair.publicKey,
 		)) as JsonWebKey;
 
 		const domain = `proj-358-${crypto.randomUUID().slice(0, 8)}.example.com`;
@@ -484,7 +484,7 @@ describe("PROJ-358: JWKS force-refresh on signature verification failure", () =>
 					status: 200,
 					headers: { "Content-Type": "application/json" },
 				});
-			})
+			}),
 		);
 
 		try {
@@ -533,7 +533,7 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
 				hash: "SHA-256",
 			},
 			true,
-			["sign", "verify"]
+			["sign", "verify"],
 		)) as CryptoKeyPair;
 		const publicJwk = (await crypto.subtle.exportKey("jwk", keyPair.publicKey)) as JsonWebKey;
 
@@ -552,7 +552,7 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
 					status: 200,
 					headers: { "Content-Type": "application/json" },
 				});
-			})
+			}),
 		);
 		const putSpy = vi
 			.spyOn(env.KV, "put")
@@ -574,7 +574,7 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
 			expect(putSpy).toHaveBeenCalledWith(
 				"cf-access-certs",
 				expect.any(String),
-				expect.objectContaining({ expirationTtl: 3600 })
+				expect.objectContaining({ expirationTtl: 3600 }),
 			);
 		} finally {
 			vi.unstubAllGlobals();
@@ -593,7 +593,7 @@ describe("PROJ-735: JWKS cache read failure falls back to a fresh fetch", () => 
 				hash: "SHA-256",
 			},
 			true,
-			["sign", "verify"]
+			["sign", "verify"],
 		)) as CryptoKeyPair;
 		const publicJwk = (await crypto.subtle.exportKey("jwk", keyPair.publicKey)) as JsonWebKey;
 
@@ -644,7 +644,7 @@ describe("PROJ-746: user-by-email cache read failure falls back to the DB upsert
 				hash: "SHA-256",
 			},
 			true,
-			["sign", "verify"]
+			["sign", "verify"],
 		)) as CryptoKeyPair;
 		const publicJwk = (await crypto.subtle.exportKey("jwk", keyPair.publicKey)) as JsonWebKey;
 
@@ -657,7 +657,7 @@ describe("PROJ-746: user-by-email cache read failure falls back to the DB upsert
 		await env.KV.delete("cf-access-certs");
 		vi.stubGlobal(
 			"fetch",
-			vi.fn(async () => new Response(JSON.stringify({ keys: [publicJwk] }), { status: 200 }))
+			vi.fn(async () => new Response(JSON.stringify({ keys: [publicJwk] }), { status: 200 })),
 		);
 		const originalGet = env.KV.get.bind(env.KV);
 		vi.spyOn(env.KV, "get").mockImplementation(async (key: unknown, ...rest: unknown[]) => {
@@ -891,7 +891,7 @@ describe("PROJ-373: PUBLIC_READ_ONLY anonymous viewer", () => {
 				hash: "SHA-256",
 			},
 			true,
-			["sign", "verify"]
+			["sign", "verify"],
 		)) as CryptoKeyPair;
 		const publicJwk = (await crypto.subtle.exportKey("jwk", keyPair.publicKey)) as JsonWebKey;
 
@@ -1074,7 +1074,7 @@ describe("PROJ-79: DELETE /auth/tokens/:id", () => {
 
 		// Retrieve the token ID by looking up the DB (the POST response only returns token value)
 		const tokenRow = await env.DB.prepare(
-			"SELECT id FROM api_tokens WHERE name = ? AND workspace_id = ?"
+			"SELECT id FROM api_tokens WHERE name = ? AND workspace_id = ?",
 		)
 			.bind("to-delete", fixture.workspace.id)
 			.first<{ id: string }>();
@@ -1085,7 +1085,7 @@ describe("PROJ-79: DELETE /auth/tokens/:id", () => {
 			`http://localhost/auth/tokens/${tokenRow!.id}`,
 			{
 				method: "DELETE",
-			}
+			},
 		);
 		expect(deleteRes.status).toBe(200);
 		const body = (await deleteRes.json()) as { ok: boolean };
@@ -1100,7 +1100,7 @@ describe("PROJ-79: DELETE /auth/tokens/:id", () => {
 
 		// Bob's token: retrieve its ID
 		const bobTokenRow = await env.DB.prepare(
-			"SELECT id FROM api_tokens WHERE workspace_id = ? AND user_id = ? LIMIT 1"
+			"SELECT id FROM api_tokens WHERE workspace_id = ? AND user_id = ? LIMIT 1",
 		)
 			.bind(bob.workspace.id, bob.user.id)
 			.first<{ id: string }>();
@@ -1111,7 +1111,7 @@ describe("PROJ-79: DELETE /auth/tokens/:id", () => {
 			`http://localhost/auth/tokens/${bobTokenRow!.id}`,
 			{
 				method: "DELETE",
-			}
+			},
 		);
 		// The endpoint returns 200 ok (no error — just no rows deleted)
 		expect(res.status).toBe(200);
@@ -1194,7 +1194,7 @@ describe("PROJ-79: MCP error contract — serviceErr → tool error codes", () =
 			"create_task_type",
 			{ key: "epic", name: "Epic" },
 			viewerHeaders,
-			roles.workspace.id
+			roles.workspace.id,
 		);
 		expectToolError(resp, "forbidden");
 	});
@@ -1326,7 +1326,7 @@ describe("PROJ-430: CF Access certs fetch failure", () => {
 				hash: "SHA-256",
 			},
 			true,
-			["sign", "verify"]
+			["sign", "verify"],
 		)) as CryptoKeyPair;
 
 		const domain = "proj-430-unreachable.example.com";
@@ -1346,7 +1346,7 @@ describe("PROJ-430: CF Access certs fetch failure", () => {
 			"fetch",
 			vi.fn(async () => {
 				throw new TypeError("Network connection lost");
-			})
+			}),
 		);
 
 		try {
@@ -1385,7 +1385,7 @@ describe("PROJ-430: CF Access certs fetch failure", () => {
 				"http://localhost/auth/login?redirect_url=/projects/view/proj-1",
 				{
 					redirect: "manual",
-				}
+				},
 			);
 			expect(res.status).toBe(302);
 			expect(res.headers.get("location")).toBe("/projects/view/proj-1");
@@ -1394,7 +1394,7 @@ describe("PROJ-430: CF Access certs fetch failure", () => {
 		it("falls back to / for an absolute-URL redirect_url", async () => {
 			const res = await SELF.fetch(
 				"http://localhost/auth/login?redirect_url=https://evil.example.com",
-				{ redirect: "manual" }
+				{ redirect: "manual" },
 			);
 			expect(res.status).toBe(302);
 			expect(res.headers.get("location")).toBe("/");
@@ -1411,7 +1411,7 @@ describe("PROJ-430: CF Access certs fetch failure", () => {
 		it("falls back to / for a javascript: redirect_url", async () => {
 			const res = await SELF.fetch(
 				`http://localhost/auth/login?redirect_url=${encodeURIComponent("javascript:alert(1)")}`,
-				{ redirect: "manual" }
+				{ redirect: "manual" },
 			);
 			expect(res.status).toBe(302);
 			expect(res.headers.get("location")).toBe("/");

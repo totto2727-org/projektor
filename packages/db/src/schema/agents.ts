@@ -34,7 +34,7 @@ export const agentSessions = sqliteTable(
 		credentialIdx: index("idx_agent_sessions_credential").on(
 			t.workspaceId,
 			t.credentialId,
-			t.status
+			t.status,
 		),
-	})
+	}),
 );

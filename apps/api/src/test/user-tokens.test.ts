@@ -145,7 +145,7 @@ function mintAsHuman(email: string, body: unknown) {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
-		})
+		}),
 	);
 }
 
@@ -161,7 +161,7 @@ describe("PROJ-91: POST /auth/tokens — user-scoped minting", () => {
 		expect(typeof body.token).toBe("string");
 
 		const row = await env.DB.prepare(
-			"SELECT workspace_id FROM api_tokens WHERE name = ? AND user_id = ?"
+			"SELECT workspace_id FROM api_tokens WHERE name = ? AND user_id = ?",
 		)
 			.bind("my-user-token", fixture.user.id)
 			.first<{ workspace_id: string | null }>();
@@ -195,7 +195,7 @@ describe("PROJ-91: POST /auth/tokens — user-scoped minting", () => {
 		const { token: minted } = (await res.json()) as { token: string };
 
 		const row = await env.DB.prepare(
-			"SELECT workspace_id FROM api_tokens WHERE name = ? AND user_id = ?"
+			"SELECT workspace_id FROM api_tokens WHERE name = ? AND user_id = ?",
 		)
 			.bind("ws-scoped", fixture.user.id)
 			.first<{ workspace_id: string | null }>();
@@ -249,7 +249,7 @@ describe("PROJ-903: only a human session can mint or revoke a PAT", () => {
 		expect(byToken.status).toBe(403);
 
 		const byHuman = await asHuman(fixture.user.email, () =>
-			SELF.fetch(`http://localhost/auth/tokens/${id}`, { method: "DELETE" })
+			SELF.fetch(`http://localhost/auth/tokens/${id}`, { method: "DELETE" }),
 		);
 		expect(byHuman.status).toBe(200);
 	});

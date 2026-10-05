@@ -33,7 +33,7 @@ async function assertIssueShareable(ctx: ServiceCtx, issueId: string): Promise<v
 
 export async function createShareToken(
 	ctx: ServiceCtx,
-	issueId: string
+	issueId: string,
 ): Promise<{ token: string; url: string }> {
 	await assertIssueShareable(ctx, issueId);
 
@@ -47,7 +47,7 @@ export async function createShareToken(
 	const id = await hashToken(token);
 	await ctx.db
 		.prepare(
-			"INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+			"INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
 		)
 		.bind(id, issueId, ctx.workspaceId, ctx.userId, expiresAt, now)
 		.run();
@@ -67,7 +67,7 @@ export async function createShareToken(
  */
 async function resolveLiveShareToken(
 	db: D1Database,
-	tokenHash: string
+	tokenHash: string,
 ): Promise<{ issueId: string; workspaceId: string } | null> {
 	const now = Math.floor(Date.now() / 1000);
 	const row = await db
@@ -77,7 +77,7 @@ async function resolveLiveShareToken(
        JOIN issues i ON i.id = st.issue_id AND i.workspace_id = st.workspace_id
        JOIN projects p ON p.id = i.project_id AND p.workspace_id = st.workspace_id
        WHERE st.id = ? AND st.expires_at > ?
-         AND p.archived_at IS NULL`
+         AND p.archived_at IS NULL`,
 		)
 		.bind(tokenHash, now)
 		.first<{ issue_id: string; workspace_id: string; created_by: string; project_id: string }>();
@@ -86,7 +86,7 @@ async function resolveLiveShareToken(
 	const allowed = await usersWithProjectReadAccess(
 		{ db, workspaceId: row.workspace_id },
 		row.project_id,
-		[row.created_by]
+		[row.created_by],
 	);
 	if (!allowed.has(row.created_by)) return null;
 	return { issueId: row.issue_id, workspaceId: row.workspace_id };
@@ -109,7 +109,7 @@ interface SharedIssueRow {
 
 export async function getSharedIssue(
 	db: D1Database,
-	token: string
+	token: string,
 ): Promise<
 	Omit<SharedIssueRow, "workspace_id" | "workspace_slug"> & {
 		customFields: Array<{ key: string; label: string; type: string; value: string }>;
@@ -136,7 +136,7 @@ export async function getSharedIssue(
       LEFT JOIN task_statuses ts ON ts.id = i.status_id
       LEFT JOIN projects p ON p.id = i.project_id
       LEFT JOIN users u ON u.id = i.assignee_id
-      WHERE st.id = ?`
+      WHERE st.id = ?`,
 		)
 		.bind(id)
 		.first<SharedIssueRow>();
@@ -148,7 +148,7 @@ export async function getSharedIssue(
 			`SELECT cfd.key, cfd.label, cfd.type, cfv.value
        FROM custom_field_values cfv
        JOIN custom_field_definitions cfd ON cfd.id = cfv.field_id
-       WHERE cfv.issue_id = ? AND cfd.is_internal = 0`
+       WHERE cfv.issue_id = ? AND cfd.is_internal = 0`,
 		)
 		.bind(live.issueId)
 		.all<{ key: string; label: string; type: string; value: string }>();
@@ -163,7 +163,7 @@ export async function getSharedIssue(
 export async function getSharedLogo(
 	db: D1Database,
 	r2: R2Bucket,
-	token: string
+	token: string,
 ): Promise<R2ObjectBody | null> {
 	const live = await resolveLiveShareToken(db, await hashToken(token));
 	if (!live) return null;

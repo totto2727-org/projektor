@@ -32,7 +32,7 @@ router.get("/:id", async (c) => {
 		// PROJ-376: pretty project URLs pass a slug (e.g. "start-line") here instead
 		// of a UUID.
 		return c.json(
-			UUID_RE.test(param) ? await getProject(ctx, param) : await getProjectBySlug(ctx, param)
+			UUID_RE.test(param) ? await getProject(ctx, param) : await getProjectBySlug(ctx, param),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);

@@ -43,13 +43,13 @@ async function hmacKey(secret: string): Promise<CryptoKey> {
 		new TextEncoder().encode(secret),
 		{ name: "HMAC", hash: "SHA-256" },
 		false,
-		["sign", "verify"]
+		["sign", "verify"],
 	);
 }
 
 export async function signConsentToken(
 	payload: Omit<ConsentPayload, "exp">,
-	secret: string
+	secret: string,
 ): Promise<string> {
 	const full: ConsentPayload = {
 		...payload,
@@ -59,7 +59,7 @@ export async function signConsentToken(
 	const sig = await crypto.subtle.sign(
 		"HMAC",
 		await hmacKey(secret),
-		new TextEncoder().encode(body)
+		new TextEncoder().encode(body),
 	);
 	return `${body}.${b64urlEncode(new Uint8Array(sig))}`;
 }
@@ -68,7 +68,7 @@ export async function signConsentToken(
 export async function verifyConsentToken(
 	token: string,
 	userId: string,
-	secret: string
+	secret: string,
 ): Promise<ConsentPayload | null> {
 	const [body, sig] = token.split(".");
 	if (!body || !sig) return null;
@@ -79,7 +79,7 @@ export async function verifyConsentToken(
 			"HMAC",
 			await hmacKey(secret),
 			b64urlDecode(sig),
-			new TextEncoder().encode(body)
+			new TextEncoder().encode(body),
 		);
 	} catch {
 		return null;

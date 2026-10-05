@@ -12,7 +12,8 @@ import { authHeaders, type JsonRpcResult, seedFixture } from "./helpers";
 describe("MCP tool annotations (PROJ-887)", () => {
 	it("every core tool declares readOnlyHint and openWorldHint", () => {
 		const missing = coreMCPTools.filter(
-			(t) => t.annotations?.readOnlyHint === undefined || t.annotations?.openWorldHint === undefined
+			(t) =>
+				t.annotations?.readOnlyHint === undefined || t.annotations?.openWorldHint === undefined,
 		);
 		expect(missing.map((t) => t.name)).toEqual([]);
 	});
@@ -24,14 +25,14 @@ describe("MCP tool annotations (PROJ-887)", () => {
 
 	it("every read-capability tool is annotated readOnlyHint: true", () => {
 		const wrong = coreMCPTools.filter(
-			(t) => capabilityForMcpTool(t.name) === "read" && t.annotations?.readOnlyHint !== true
+			(t) => capabilityForMcpTool(t.name) === "read" && t.annotations?.readOnlyHint !== true,
 		);
 		expect(wrong.map((t) => t.name)).toEqual([]);
 	});
 
 	it("readOnlyHint: true only on read-capability tools (never auto-approve a write)", () => {
 		const wrong = coreMCPTools.filter(
-			(t) => t.annotations?.readOnlyHint === true && capabilityForMcpTool(t.name) !== "read"
+			(t) => t.annotations?.readOnlyHint === true && capabilityForMcpTool(t.name) !== "read",
 		);
 		expect(wrong.map((t) => t.name)).toEqual([]);
 	});
@@ -44,7 +45,7 @@ describe("MCP tool annotations (PROJ-887)", () => {
 	it("every non-read (write-capability) tool declares destructiveHint", () => {
 		const missing = coreMCPTools.filter(
 			(t) =>
-				capabilityForMcpTool(t.name) === "write" && t.annotations?.destructiveHint === undefined
+				capabilityForMcpTool(t.name) === "write" && t.annotations?.destructiveHint === undefined,
 		);
 		expect(missing.map((t) => t.name)).toEqual([]);
 	});
@@ -61,7 +62,7 @@ describe("MCP tool annotations (PROJ-887)", () => {
 	it("no non-destructive tool is marked destructiveHint: true, and vice versa", () => {
 		const destructiveSet = new Set(DESTRUCTIVE_TOOLS);
 		const mismatched = coreMCPTools.filter(
-			(t) => Boolean(t.annotations?.destructiveHint) !== destructiveSet.has(t.name)
+			(t) => Boolean(t.annotations?.destructiveHint) !== destructiveSet.has(t.name),
 		);
 		expect(mismatched.map((t) => t.name)).toEqual([]);
 	});

@@ -31,7 +31,7 @@ function mintAsHuman(email: string, slug: string, body: string) {
 			method: "POST",
 			headers: humanHeaders(slug),
 			body,
-		})
+		}),
 	);
 }
 
@@ -72,7 +72,7 @@ describe("PROJ-917: workspace tokens require a human session", () => {
 		const mint = await mintAsHuman(
 			f.user.email,
 			slug,
-			JSON.stringify({ name: "human-minted", scopes: ["read"] })
+			JSON.stringify({ name: "human-minted", scopes: ["read"] }),
 		);
 		expect(mint.status).toBe(201);
 		const { id, token } = (await mint.json()) as { id: string; token: string };
@@ -89,7 +89,7 @@ describe("PROJ-917: workspace tokens require a human session", () => {
 			SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
 				method: "DELETE",
 				headers: humanHeaders(slug),
-			})
+			}),
 		);
 		expect(byHuman.status).toBe(200);
 		expect(await tokenRow("human-minted")).toBeNull();
@@ -100,7 +100,7 @@ describe("PROJ-917: workspace tokens require a human session", () => {
 		const res = await mintAsHuman(
 			f.user.email,
 			f.workspace.slug,
-			JSON.stringify({ name: "member-minted", scopes: ["read"] })
+			JSON.stringify({ name: "member-minted", scopes: ["read"] }),
 		);
 		expect(res.status).toBe(403);
 		expect(await tokenRow("member-minted")).toBeNull();

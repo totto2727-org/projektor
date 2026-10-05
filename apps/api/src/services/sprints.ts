@@ -1,5 +1,7 @@
+import * as sprintQueries from "@projektor/data-services/sprints";
 import { drizzle, schema } from "@projektor/db";
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
+import { Effect } from "effect";
 import type { z } from "zod";
 import { IdSchema } from "../schemas/common";
 import {
@@ -39,25 +41,15 @@ export async function listSprints(ctx: ServiceCtx, raw: unknown) {
 		return { items: [] };
 	}
 
-	const orm = drizzle(ctx.db, { schema });
-	const items = await orm
-		.select()
-		.from(schema.sprints)
-		.where(
-			and(eq(schema.sprints.workspaceId, ctx.workspaceId), eq(schema.sprints.projectId, projectId))
-		)
-		.orderBy(asc(schema.sprints.createdAt));
+	const items = await Effect.runPromise(
+		sprintQueries.listSprints(ctx.db, ctx.workspaceId, { projectId }),
+	);
 
 	return { items };
 }
 
 export async function getSprint(ctx: ServiceCtx, id: string) {
-	const orm = drizzle(ctx.db, { schema });
-	const sprint = await orm
-		.select()
-		.from(schema.sprints)
-		.where(and(eq(schema.sprints.id, id), eq(schema.sprints.workspaceId, ctx.workspaceId)))
-		.get();
+	const sprint = await Effect.runPromise(sprintQueries.findSprintById(ctx.db, ctx.workspaceId, id));
 
 	if (!sprint) throw new NotFoundError("Sprint not found");
 	await assertSprintProjectVisible(ctx, sprint.projectId);
@@ -226,9 +218,9 @@ export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
 				and(
 					inArray(schema.issues.id, chunk),
 					eq(schema.issues.workspaceId, ctx.workspaceId),
-					ne(schema.issues.projectId, sprint.projectId)
-				)
-			)
+					ne(schema.issues.projectId, sprint.projectId),
+				),
+			),
 	);
 	if (foreignIssues.length > 0) {
 		throw new NotFoundError(`Issue not found: ${foreignIssues[0].id}`);

@@ -17,14 +17,14 @@ async function seedManyPages(
 	workspaceId: string,
 	userId: string,
 	count: number,
-	projectId: string | null = null
+	projectId: string | null = null,
 ): Promise<void> {
 	const now = Math.floor(Date.now() / 1000);
 	const statements = Array.from({ length: count }, (_, i) =>
 		env.DB.prepare(
 			`INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 			 parent_id, created_by_id, updated_by_id, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, '', NULL, ?, ?, ?, ?)`
+			 VALUES (?, ?, ?, ?, ?, '', NULL, ?, ?, ?, ?)`,
 		).bind(
 			crypto.randomUUID(),
 			workspaceId,
@@ -34,8 +34,8 @@ async function seedManyPages(
 			userId,
 			userId,
 			now,
-			now
-		)
+			now,
+		),
 	);
 	await env.DB.batch(statements);
 }
@@ -43,7 +43,7 @@ async function seedManyPages(
 async function createPage(
 	token: string,
 	slug: string,
-	body: Record<string, unknown>
+	body: Record<string, unknown>,
 ): Promise<{ id: string; slug: string }> {
 	const res = await SELF.fetch("http://localhost/api/wiki", {
 		method: "POST",
@@ -59,7 +59,7 @@ async function uploadAttachment(
 	slug: string,
 	pageId: string,
 	filename: string,
-	content: string
+	content: string,
 ): Promise<void> {
 	const form = new FormData();
 	form.append("file", new File([content], filename, { type: "text/plain" }));
@@ -76,7 +76,7 @@ async function uploadAttachment(
 async function exportZip(
 	token: string,
 	slug: string,
-	query: string
+	query: string,
 ): Promise<{ status: number; entries?: Record<string, Uint8Array> }> {
 	const res = await SELF.fetch(`http://localhost/api/wiki/export?${query}`, {
 		headers: authHeaders(token, slug),
@@ -198,7 +198,7 @@ describe("Wiki export (PROJ-497)", () => {
 		const { status } = await exportZip(
 			member.token,
 			member.workspace.slug,
-			`scope=space&projectId=${project.id}`
+			`scope=space&projectId=${project.id}`,
 		);
 		expect(status).toBe(404);
 	});
@@ -214,7 +214,7 @@ describe("Wiki export (PROJ-497)", () => {
 		const { status, entries } = await exportZip(
 			fixture.token,
 			fixture.slug,
-			`scope=space&projectId=${fixture.projectId}`
+			`scope=space&projectId=${fixture.projectId}`,
 		);
 		expect(status).toBe(200);
 		expect(Object.keys(entries ?? {})).toEqual(["pages/granted.md"]);
@@ -262,7 +262,7 @@ describe("Wiki export (PROJ-497)", () => {
 			`INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 			 parent_id, created_by_id, updated_by_id, created_at, updated_at)
 			 VALUES (?, ?, NULL, ?, ?, ?, ?, (SELECT created_by_id FROM wiki_pages WHERE id = ?),
-				 (SELECT updated_by_id FROM wiki_pages WHERE id = ?), ?, ?)`
+				 (SELECT updated_by_id FROM wiki_pages WHERE id = ?), ?, ?)`,
 		)
 			.bind(
 				mismatchedId,
@@ -274,7 +274,7 @@ describe("Wiki export (PROJ-497)", () => {
 				root.id,
 				root.id,
 				now,
-				now
+				now,
 			)
 			.run();
 
@@ -304,7 +304,7 @@ describe("Wiki export (PROJ-497)", () => {
 			env.DB.prepare(
 				`INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 				 parent_id, created_by_id, updated_by_id, created_at, updated_at)
-				 VALUES (?, ?, NULL, ?, ?, '', ?, ?, ?, ?, ?)`
+				 VALUES (?, ?, NULL, ?, ?, '', ?, ?, ?, ?, ?)`,
 			).bind(
 				crypto.randomUUID(),
 				workspaceId,
@@ -314,8 +314,8 @@ describe("Wiki export (PROJ-497)", () => {
 				userId,
 				userId,
 				now,
-				now
-			)
+				now,
+			),
 		);
 		await env.DB.batch(statements);
 

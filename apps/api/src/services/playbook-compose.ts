@@ -37,12 +37,12 @@ function fillEpicGoalDirective(params: {
 		fill(
 			fill(EPIC_GOAL_TEMPLATE.reviewCadence, "{N}", String(params.cadence)),
 			"{MODEL}",
-			params.reviewModel
+			params.reviewModel,
 		),
 		fill(
 			EPIC_GOAL_TEMPLATE.humanCheckpoint,
 			"{CHECKPOINT_INTERVAL}",
-			String(params.checkpointInterval)
+			String(params.checkpointInterval),
 		),
 		EPIC_GOAL_TEMPLATE.doneWhen[params.variant],
 		EPIC_GOAL_TEMPLATE.decisionsLog,

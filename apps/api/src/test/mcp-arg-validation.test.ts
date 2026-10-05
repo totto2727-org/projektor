@@ -53,7 +53,7 @@ async function rpc(
 	workspaceId: string,
 	headers: Record<string, string>,
 	method: string,
-	params: unknown
+	params: unknown,
 ) {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -154,7 +154,7 @@ describe("validateToolArgs", () => {
 				labels: ["a"],
 				limit: 3,
 				extra: 1,
-			})
+			}),
 		).toEqual([]);
 	});
 
@@ -171,10 +171,10 @@ describe("validateToolArgs", () => {
 
 	it("stays as lenient as the services: numeric/boolean strings and null for optional fields", () => {
 		expect(
-			validateToolArgs(schema, { status: "done", limit: "3", labels: null, title: null })
+			validateToolArgs(schema, { status: "done", limit: "3", labels: null, title: null }),
 		).toEqual([]);
 		expect(
-			validateToolArgs({ properties: { flag: { type: "boolean" } } }, { flag: "true" })
+			validateToolArgs({ properties: { flag: { type: "boolean" } } }, { flag: "true" }),
 		).toEqual([]);
 		expect(validateToolArgs(schema, { status: null }).map((i) => i.path)).toEqual(["status"]);
 		expect(validateToolArgs(schema, { status: "todo", limit: "ten" }).map((i) => i.path)).toEqual([

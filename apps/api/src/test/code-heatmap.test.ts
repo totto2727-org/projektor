@@ -45,7 +45,7 @@ describe("Code heatmap (PROJ-332)", () => {
 	async function seedClaim(issueId: string, path: string, claimedAt: number, releasedAt?: number) {
 		await env.DB.prepare(
 			"INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, " +
-				"released_at) VALUES (?, ?, ?, NULL, ?, ?, ?)"
+				"released_at) VALUES (?, ?, ?, NULL, ?, ?, ?)",
 		)
 			.bind(crypto.randomUUID(), workspaceId, issueId, path, claimedAt, releasedAt ?? null)
 			.run();
@@ -56,11 +56,11 @@ describe("Code heatmap (PROJ-332)", () => {
 		holdingIssueId: string,
 		path: string,
 		occurredAt: number,
-		forced = 0
+		forced = 0,
 	) {
 		await env.DB.prepare(
 			"INSERT INTO claim_conflicts (id, workspace_id, path, rejected_issue_id, rejected_agent_id, " +
-				"holding_issue_id, holding_agent_id, forced, occurred_at) VALUES (?, ?, ?, ?, NULL, ?, NULL, ?, ?)"
+				"holding_issue_id, holding_agent_id, forced, occurred_at) VALUES (?, ?, ?, ?, NULL, ?, NULL, ?, ?)",
 		)
 			.bind(
 				crypto.randomUUID(),
@@ -69,7 +69,7 @@ describe("Code heatmap (PROJ-332)", () => {
 				rejectedIssueId,
 				holdingIssueId,
 				forced,
-				occurredAt
+				occurredAt,
 			)
 			.run();
 	}
@@ -80,7 +80,7 @@ describe("Code heatmap (PROJ-332)", () => {
 			`http://localhost/api/projects/${projectId}/code-heatmap${qs ? `?${qs}` : ""}`,
 			{
 				headers: authHeaders(token, slug),
-			}
+			},
 		);
 	}
 
@@ -177,7 +177,7 @@ describe("Code heatmap (PROJ-332)", () => {
 		const query = `since=${now - 3600}&until=${now}`;
 		const restRes = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/code-heatmap?${query}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		const restBody = await restRes.json();
 
@@ -217,32 +217,32 @@ describe("Code heatmap (PROJ-332)", () => {
 				apiIssue.id,
 				holdingIssue.id,
 				"apps/api/src/services/flow-metrics.ts",
-				now - 1000
+				now - 1000,
 			);
 			await seedConflict(
 				apiIssue.id,
 				holdingIssue.id,
 				"apps/api/src/services/code-heatmap.ts",
-				now - 900
+				now - 900,
 			);
 			await seedConflict(
 				apiIssue2.id,
 				holdingIssue.id,
 				"apps/api/src/routes/code-heatmap.ts",
-				now - 800
+				now - 800,
 			);
 			await seedConflict(
 				webIssue.id,
 				holdingIssue.id,
 				"apps/web/src/islands/MetricsDashboard.tsx",
-				now - 700
+				now - 700,
 			);
 			// Outside the requested window — must not count.
 			await seedConflict(
 				oldIssue.id,
 				holdingIssue.id,
 				"apps/api/src/routes/old.ts",
-				now - 10 * 86400
+				now - 10 * 86400,
 			);
 
 			const res = await getHeatmap({
@@ -271,19 +271,19 @@ describe("Code heatmap (PROJ-332)", () => {
 				issueA.id,
 				holdingIssue.id,
 				"apps/api/src/services/flow-metrics.ts",
-				now - 100
+				now - 100,
 			);
 			await seedConflict(
 				issueB.id,
 				holdingIssue.id,
 				"apps/api/src/services/code-heatmap.ts",
-				now - 90
+				now - 90,
 			);
 			await seedConflict(
 				issueA.id,
 				holdingIssue.id,
 				"apps/web/src/islands/MetricsDashboard.tsx",
-				now - 80
+				now - 80,
 			);
 
 			const apiRes = await getHeatmap({

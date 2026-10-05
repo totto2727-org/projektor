@@ -136,7 +136,7 @@ describe("mcp/error-adapter: toMcpError", () => {
 	it("maps a NotFoundError with details to -32000 with the details in error.data and a message summary", () => {
 		const result = toMcpError(
 			new NotFoundError("Heading 'Nope' not found", { currentHeadings: ["Alpha", "Beta"] }),
-			"req-1"
+			"req-1",
 		);
 		expect(result).toEqual({
 			code: -32000,
@@ -175,7 +175,7 @@ describe("mcp/error-adapter: toMcpError", () => {
 	it("maps a ConflictError with details to -32000 with the details in error.data and a message summary", () => {
 		const result = toMcpError(
 			new ConflictError("Revision conflict", { currentRevisionId: "rev-2", diff: "..." }),
-			"req-1"
+			"req-1",
 		);
 		expect(result).toEqual({
 			code: -32000,

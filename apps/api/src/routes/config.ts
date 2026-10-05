@@ -24,7 +24,7 @@ router.get("/brand", (c) => {
 			logoUrl: c.env.BRAND_LOGO_URL?.trim() || null,
 		},
 		200,
-		{ "Cache-Control": "public, max-age=300" }
+		{ "Cache-Control": "public, max-age=300" },
 	);
 });
 

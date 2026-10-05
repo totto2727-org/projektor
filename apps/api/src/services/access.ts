@@ -30,7 +30,7 @@ const PROJECT_ROLE_RANK: Record<"viewer" | "member" | "admin", number> = {
 };
 
 function strongestGrant(
-	roles: readonly ("viewer" | "member" | "admin")[]
+	roles: readonly ("viewer" | "member" | "admin")[],
 ): "viewer" | "member" | "admin" {
 	return roles.reduce((best, r) => (PROJECT_ROLE_RANK[r] > PROJECT_ROLE_RANK[best] ? r : best));
 }
@@ -47,7 +47,7 @@ function strongestGrant(
  */
 export async function effectiveProjectRole(
 	ctx: ServiceCtx,
-	projectId: string
+	projectId: string,
 ): Promise<Role | null> {
 	if (isWorkspaceAdmin(ctx.role)) return ctx.role ?? null;
 
@@ -57,13 +57,13 @@ export async function effectiveProjectRole(
 		.from(schema.groupProjectGrants)
 		.innerJoin(
 			schema.userGroupMembers,
-			eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId)
+			eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId),
 		)
 		.where(
 			and(
 				eq(schema.userGroupMembers.userId, ctx.userId),
-				eq(schema.groupProjectGrants.projectId, projectId)
-			)
+				eq(schema.groupProjectGrants.projectId, projectId),
+			),
 		);
 
 	if (rows.length === 0) return null;
@@ -149,7 +149,7 @@ export async function assertProjectAccess(
 	ctx: ServiceCtx,
 	projectId: string,
 	mode: AccessMode,
-	opts: AssertProjectAccessOptions = {}
+	opts: AssertProjectAccessOptions = {},
 ): Promise<Role> {
 	const notFound = opts.notFoundMessage ?? "Not found";
 	if (!opts.projectLoadedFromWorkspaceRow) {
@@ -174,7 +174,7 @@ export async function assertProjectAccess(
 export async function hasProjectAccess(
 	ctx: ServiceCtx,
 	projectId: string,
-	mode: AccessMode = "read"
+	mode: AccessMode = "read",
 ): Promise<boolean> {
 	if (isWorkspaceAdmin(ctx.role)) return true;
 	const role = await effectiveProjectRole(ctx, projectId);
@@ -189,7 +189,7 @@ export async function hasProjectAccess(
  */
 export function visibleProjectFilter(
 	ctx: ServiceCtx,
-	projectColumn: Column | SQL = schema.projects.id
+	projectColumn: Column | SQL = schema.projects.id,
 ): SQL | undefined {
 	return visibleProjectPredicate(ctx, projectColumn);
 }
@@ -204,7 +204,7 @@ export function visibleProjectFilter(
  */
 export function visibleProjectPredicate(
 	ctx: ServiceCtx,
-	projectColumn: Column | SQL
+	projectColumn: Column | SQL,
 ): SQL | undefined {
 	if (isWorkspaceAdmin(ctx.role)) return undefined;
 	return sql`EXISTS (
@@ -228,11 +228,11 @@ const COLUMN_EXPR = /^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?$/;
 
 export function visibleProjectSqlFragment(
 	ctx: ServiceCtx,
-	projectColExpr: string
+	projectColExpr: string,
 ): { sql: string; params: unknown[] } | null {
 	if (!COLUMN_EXPR.test(projectColExpr)) {
 		throw new Error(
-			`visibleProjectSqlFragment: projectColExpr must be a column identifier, got ${JSON.stringify(projectColExpr)}`
+			`visibleProjectSqlFragment: projectColExpr must be a column identifier, got ${JSON.stringify(projectColExpr)}`,
 		);
 	}
 	if (isWorkspaceAdmin(ctx.role)) return null;
@@ -267,7 +267,7 @@ export async function visibleProjectIds(ctx: ServiceCtx): Promise<string[]> {
 		.from(schema.groupProjectGrants)
 		.innerJoin(
 			schema.userGroupMembers,
-			eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId)
+			eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId),
 		)
 		.innerJoin(schema.userGroups, eq(schema.userGroups.id, schema.groupProjectGrants.groupId))
 		.innerJoin(schema.projects, eq(schema.projects.id, schema.groupProjectGrants.projectId))
@@ -275,8 +275,8 @@ export async function visibleProjectIds(ctx: ServiceCtx): Promise<string[]> {
 			and(
 				eq(schema.userGroupMembers.userId, ctx.userId),
 				eq(schema.userGroups.workspaceId, ctx.workspaceId),
-				eq(schema.projects.workspaceId, ctx.workspaceId)
-			)
+				eq(schema.projects.workspaceId, ctx.workspaceId),
+			),
 		)
 		.all();
 	return rows.map((r) => r.id);
@@ -292,7 +292,7 @@ export async function visibleProjectIds(ctx: ServiceCtx): Promise<string[]> {
 export async function requireWorkspaceMember(
 	ctx: Pick<ServiceCtx, "db" | "workspaceId">,
 	userId: string,
-	field = "assigneeId"
+	field = "assigneeId",
 ): Promise<void> {
 	const orm = drizzle(ctx.db, { schema });
 	const member = await orm
@@ -301,8 +301,8 @@ export async function requireWorkspaceMember(
 		.where(
 			and(
 				eq(schema.workspaceMembers.workspaceId, ctx.workspaceId),
-				eq(schema.workspaceMembers.userId, userId)
-			)
+				eq(schema.workspaceMembers.userId, userId),
+			),
 		)
 		.get();
 	if (!member) {
@@ -327,7 +327,7 @@ export async function usersWithProjectReadAccess(
 	// PROJ-794) can call this without a caller identity.
 	ctx: Pick<ServiceCtx, "db" | "workspaceId">,
 	projectId: string | null,
-	userIds: readonly string[]
+	userIds: readonly string[],
 ): Promise<Set<string>> {
 	if (userIds.length === 0) return new Set();
 	const orm = drizzle(ctx.db, { schema });
@@ -338,9 +338,9 @@ export async function usersWithProjectReadAccess(
 			.where(
 				and(
 					eq(schema.workspaceMembers.workspaceId, ctx.workspaceId),
-					inArray(schema.workspaceMembers.userId, chunk)
-				)
-			)
+					inArray(schema.workspaceMembers.userId, chunk),
+				),
+			),
 	);
 	if (projectId === null) return new Set(members.map((m) => m.userId));
 
@@ -352,14 +352,14 @@ export async function usersWithProjectReadAccess(
 			.from(schema.groupProjectGrants)
 			.innerJoin(
 				schema.userGroupMembers,
-				eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId)
+				eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId),
 			)
 			.where(
 				and(
 					eq(schema.groupProjectGrants.projectId, projectId),
-					inArray(schema.userGroupMembers.userId, chunk)
-				)
-			)
+					inArray(schema.userGroupMembers.userId, chunk),
+				),
+			),
 	);
 	for (const g of granted) allowed.add(g.userId);
 	return allowed;

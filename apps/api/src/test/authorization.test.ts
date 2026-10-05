@@ -42,7 +42,7 @@ async function mcpCall(
 	workspaceId: string,
 	name: string,
 	args: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<JsonRpcResult | JsonRpcError> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -337,7 +337,7 @@ describe("PROJ-78: MCP tools – viewer role → error", () => {
 			workspaceId,
 			"create_project",
 			{ name: "Blocked", key: "BLK" },
-			viewerHeaders
+			viewerHeaders,
 		);
 		expect(toolError(res)?.code).toBe("forbidden");
 	});
@@ -347,7 +347,7 @@ describe("PROJ-78: MCP tools – viewer role → error", () => {
 			workspaceId,
 			"create_project",
 			{ name: "Owner Made", key: "OWN" },
-			ownerHeaders
+			ownerHeaders,
 		);
 		expect(isMcpError(res)).toBe(false);
 	});
@@ -357,7 +357,7 @@ describe("PROJ-78: MCP tools – viewer role → error", () => {
 			workspaceId,
 			"create_task_type",
 			{ key: "epic", name: "Epic" },
-			viewerHeaders
+			viewerHeaders,
 		);
 		expect(toolError(res)?.code).toBe("forbidden");
 	});
@@ -367,7 +367,7 @@ describe("PROJ-78: MCP tools – viewer role → error", () => {
 			workspaceId,
 			"create_task_type",
 			{ key: "epic", name: "Epic" },
-			ownerHeaders
+			ownerHeaders,
 		);
 		expect(isMcpError(res)).toBe(false);
 	});
@@ -377,7 +377,7 @@ describe("PROJ-78: MCP tools – viewer role → error", () => {
 			workspaceId,
 			"create_task_status",
 			{ key: "triage", name: "Triage", category: "todo" },
-			viewerHeaders
+			viewerHeaders,
 		);
 		expect(toolError(res)?.code).toBe("forbidden");
 	});
@@ -387,7 +387,7 @@ describe("PROJ-78: MCP tools – viewer role → error", () => {
 			workspaceId,
 			"create_custom_field",
 			{ key: "cf1", label: "CF 1", type: "text" },
-			viewerHeaders
+			viewerHeaders,
 		);
 		expect(isMcpError(res)).toBe(true);
 	});
@@ -514,7 +514,7 @@ describe("PROJ-78: Workspace routes – non-owner blocked, owner allowed", () =>
 	it("member cannot PATCH /api/workspaces/:slug/members/:userId (role-change)", async () => {
 		// viewerUser is already in the workspace from seedWorkspaceRoles
 		const viewerRow = await env.DB.prepare(
-			"SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'"
+			"SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'",
 		)
 			.bind(workspaceId)
 			.first<{ user_id: string }>();
@@ -525,14 +525,14 @@ describe("PROJ-78: Workspace routes – non-owner blocked, owner allowed", () =>
 				method: "PATCH",
 				headers: memberHeaders,
 				body: JSON.stringify({ role: "member" }),
-			}
+			},
 		);
 		expect(res.status).toBe(403);
 	});
 
 	it("owner CAN PATCH /api/workspaces/:slug/members/:userId", async () => {
 		const viewerRow = await env.DB.prepare(
-			"SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'"
+			"SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'",
 		)
 			.bind(workspaceId)
 			.first<{ user_id: string }>();
@@ -543,7 +543,7 @@ describe("PROJ-78: Workspace routes – non-owner blocked, owner allowed", () =>
 				method: "PATCH",
 				headers: ownerHeaders,
 				body: JSON.stringify({ role: "member" }),
-			}
+			},
 		);
 		expect(res.status).toBe(200);
 	});
@@ -591,14 +591,14 @@ describe("PROJ-78: Workspace routes – non-owner blocked, owner allowed", () =>
 				method: "POST",
 				headers: humanHeaders(),
 				body: JSON.stringify({ name, scopes }),
-			})
+			}),
 		);
 	const revoke = (email: string, id: string) =>
 		asHuman(email, () =>
 			SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
 				method: "DELETE",
 				headers: humanHeaders(),
-			})
+			}),
 		);
 
 	it("member cannot POST /api/workspaces/:slug/tokens", async () => {
@@ -639,7 +639,7 @@ describe("PROJ-78: seedToken scopes parameter", () => {
 	it("seedToken defaults to ['*'] scopes", async () => {
 		const fixture = await seedFixture();
 		const row = await env.DB.prepare(
-			"SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?"
+			"SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?",
 		)
 			.bind(fixture.workspace.id, fixture.user.id)
 			.first<{ scopes: string }>();
@@ -655,7 +655,7 @@ describe("PROJ-78: seedToken scopes parameter", () => {
 		await seedToken(ws.id, user.id, { scopes: ["read"] });
 
 		const row = await env.DB.prepare(
-			"SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?"
+			"SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?",
 		)
 			.bind(ws.id, user.id)
 			.first<{ scopes: string }>();
@@ -671,7 +671,7 @@ describe("PROJ-78: seedToken scopes parameter", () => {
 		await seedToken(ws.id, user.id, { expiresAt });
 
 		const row = await env.DB.prepare(
-			"SELECT expires_at FROM api_tokens WHERE workspace_id = ? AND user_id = ?"
+			"SELECT expires_at FROM api_tokens WHERE workspace_id = ? AND user_id = ?",
 		)
 			.bind(ws.id, user.id)
 			.first<{ expires_at: number }>();

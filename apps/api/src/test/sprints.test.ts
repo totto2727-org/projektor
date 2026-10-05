@@ -244,7 +244,7 @@ describe("Sprints API", () => {
 				method: "POST",
 				headers: authHeaders(token, slug),
 				body: JSON.stringify({ issueIds: [issue.id] }),
-			}
+			},
 		);
 		expect(res.status).toBe(404);
 	});

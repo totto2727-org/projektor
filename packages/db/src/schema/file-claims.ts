@@ -24,7 +24,7 @@ export const issueFileClaims = sqliteTable(
 	},
 	(t) => ({
 		issueIdx: index("idx_file_claims_issue").on(t.workspaceId, t.issueId),
-	})
+	}),
 );
 
 // PROJ-337: claim conflicts — an event log of rejected/overridden claimFiles attempts.
@@ -58,5 +58,5 @@ export const claimConflicts = sqliteTable(
 	(t) => ({
 		wsOccurredIdx: index("idx_claim_conflicts_workspace_occurred").on(t.workspaceId, t.occurredAt),
 		pathIdx: index("idx_claim_conflicts_path").on(t.workspaceId, t.path),
-	})
+	}),
 );

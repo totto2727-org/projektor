@@ -66,7 +66,7 @@ router.get("/oauth-protected-resource/mcp/:workspaceId", (c) => {
 			scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
 		},
 		200,
-		PUBLIC_HEADERS
+		PUBLIC_HEADERS,
 	);
 });
 
@@ -108,7 +108,7 @@ router.get("/oauth-authorization-server", (c) => {
 			// DCR over CIMD — the opposite of what the flags above are arranging.
 		},
 		200,
-		PUBLIC_HEADERS
+		PUBLIC_HEADERS,
 	);
 });
 

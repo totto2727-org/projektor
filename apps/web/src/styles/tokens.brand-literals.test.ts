@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 const tokensCss = readFileSync(join(__dirname, "tokens.css"), "utf-8");
 
@@ -48,6 +48,6 @@ describe("tokens.css — brand-derived tokens stay derived from --accent (PROJ-7
 			expect(darkValue, `--dark-${name} should be declared`).toBeDefined();
 			expect(lightValue).toContain("var(--light-accent)");
 			expect(darkValue).toContain("var(--dark-accent)");
-		}
+		},
 	);
 });

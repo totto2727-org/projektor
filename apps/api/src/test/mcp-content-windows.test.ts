@@ -194,7 +194,7 @@ describe("PROJ-892: MCP tools", () => {
 		const slug = await makeWiki("# Only\nshort");
 		const page = await tool<{ content: string; next?: string; totalChars: number }>(
 			"get_wiki_page",
-			{ slug }
+			{ slug },
 		);
 		expect(page.content).toBe("# Only\nshort");
 		expect(page.next).toBeUndefined();
@@ -211,7 +211,7 @@ describe("PROJ-892: MCP tools", () => {
 
 		const miss = await tool<{ sectionFound: boolean; outline: string[]; content?: string }>(
 			"get_wiki_page",
-			{ slug, section: "gamma" }
+			{ slug, section: "gamma" },
 		);
 		expect(miss.sectionFound).toBe(false);
 		expect(miss.outline).toEqual(["# Top", "## Alpha", "## Beta"]);

@@ -37,7 +37,7 @@ function countSubrequests(realEnv: typeof env): { env: Env; count: () => number 
 									return (...args: unknown[]) => {
 										const bound = Reflect.get(stmtTarget, "bind", stmtReceiver).call(
 											stmtTarget,
-											...args
+											...args,
 										);
 										return new Proxy(bound, {
 											get(boundTarget, boundProp, boundReceiver) {
@@ -145,10 +145,10 @@ describe("scheduled wiki trash purge (PROJ-496)", () => {
 		await purgeAllWorkspacesExpiredWikiPages(env);
 
 		expect(
-			await env.DB.prepare("SELECT id FROM wiki_pages WHERE id = ?").bind(page.id).first()
+			await env.DB.prepare("SELECT id FROM wiki_pages WHERE id = ?").bind(page.id).first(),
 		).toBeNull();
 		expect(
-			await env.DB.prepare("SELECT id FROM wiki_pages WHERE id = ?").bind(otherPage.id).first()
+			await env.DB.prepare("SELECT id FROM wiki_pages WHERE id = ?").bind(otherPage.id).first(),
 		).not.toBeNull();
 	});
 
@@ -175,14 +175,14 @@ describe("scheduled retention purge (PROJ-869)", () => {
 		await env.DB.prepare(
 			`INSERT INTO wiki_notifications
 			   (id, workspace_id, user_id, page_id, page_slug, page_title, action, actor_id, summary, created_at)
-			 VALUES (?, ?, ?, 'p1', 'p1', 'P1', 'updated', NULL, 'x', ?)`
+			 VALUES (?, ?, ?, 'p1', 'p1', 'P1', 'updated', NULL, 'x', ?)`,
 		)
 			.bind(expiredNotificationId, workspaceId, userId, now() - 91 * DAY)
 			.run();
 		await env.DB.prepare(
 			`INSERT INTO wiki_notifications
 			   (id, workspace_id, user_id, page_id, page_slug, page_title, action, actor_id, summary, created_at)
-			 VALUES (?, ?, ?, 'p2', 'p2', 'P2', 'updated', NULL, 'x', ?)`
+			 VALUES (?, ?, ?, 'p2', 'p2', 'P2', 'updated', NULL, 'x', ?)`,
 		)
 			.bind(freshNotificationId, workspaceId, userId, now() - 1 * DAY)
 			.run();
@@ -193,7 +193,7 @@ describe("scheduled retention purge (PROJ-869)", () => {
 		await env.DB.prepare(
 			`INSERT INTO agent_sessions
 			   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
-			 VALUES (?, ?, NULL, NULL, 'no-lease-session', 'agent', 'ended', ?, ?, ?)`
+			 VALUES (?, ?, NULL, NULL, 'no-lease-session', 'agent', 'ended', ?, ?, ?)`,
 		)
 			.bind(expiredNoLeaseId, workspaceId, now() - 100 * DAY, now() - 100 * DAY, now() - 91 * DAY)
 			.run();
@@ -212,13 +212,13 @@ describe("scheduled retention purge (PROJ-869)", () => {
 		const freshActivityId = crypto.randomUUID();
 		await env.DB.prepare(
 			`INSERT INTO activity (id, workspace_id, entity_type, entity_id, actor_id, action, diff, created_at)
-			 VALUES (?, ?, 'issue', ?, ?, 'updated', NULL, ?)`
+			 VALUES (?, ?, 'issue', ?, ?, 'updated', NULL, ?)`,
 		)
 			.bind(expiredActivityId, workspaceId, issueId, userId, now() - 366 * DAY)
 			.run();
 		await env.DB.prepare(
 			`INSERT INTO activity (id, workspace_id, entity_type, entity_id, actor_id, action, diff, created_at)
-			 VALUES (?, ?, 'issue', ?, ?, 'updated', NULL, ?)`
+			 VALUES (?, ?, 'issue', ?, ?, 'updated', NULL, ?)`,
 		)
 			.bind(freshActivityId, workspaceId, issueId, userId, now() - 1 * DAY)
 			.run();
@@ -228,19 +228,19 @@ describe("scheduled retention purge (PROJ-869)", () => {
 		expect(
 			await env.DB.prepare("SELECT id FROM wiki_notifications WHERE id = ?")
 				.bind(expiredNotificationId)
-				.first()
+				.first(),
 		).toBeNull();
 		expect(
 			await env.DB.prepare("SELECT id FROM wiki_notifications WHERE id = ?")
 				.bind(freshNotificationId)
-				.first()
+				.first(),
 		).not.toBeNull();
 
 		// The lease-less expired session is purged.
 		expect(
 			await env.DB.prepare("SELECT id FROM agent_sessions WHERE id = ?")
 				.bind(expiredNoLeaseId)
-				.first()
+				.first(),
 		).toBeNull();
 
 		// PROJ-869 (must-fix): an old ended session that STILL has a lease survives, and so
@@ -249,28 +249,28 @@ describe("scheduled retention purge (PROJ-869)", () => {
 		expect(
 			await env.DB.prepare("SELECT id FROM issue_leases WHERE id = ?")
 				.bind(expiredWithLease.leaseId)
-				.first()
+				.first(),
 		).not.toBeNull();
 		expect(
 			await env.DB.prepare("SELECT id FROM agent_sessions WHERE id = ?")
 				.bind(expiredWithLease.agentSessionId)
-				.first()
+				.first(),
 		).not.toBeNull();
 
 		expect(
-			await env.DB.prepare("SELECT id FROM issue_leases WHERE id = ?").bind(live.leaseId).first()
+			await env.DB.prepare("SELECT id FROM issue_leases WHERE id = ?").bind(live.leaseId).first(),
 		).not.toBeNull();
 		expect(
 			await env.DB.prepare("SELECT id FROM agent_sessions WHERE id = ?")
 				.bind(live.agentSessionId)
-				.first()
+				.first(),
 		).not.toBeNull();
 
 		expect(
-			await env.DB.prepare("SELECT id FROM activity WHERE id = ?").bind(expiredActivityId).first()
+			await env.DB.prepare("SELECT id FROM activity WHERE id = ?").bind(expiredActivityId).first(),
 		).toBeNull();
 		expect(
-			await env.DB.prepare("SELECT id FROM activity WHERE id = ?").bind(freshActivityId).first()
+			await env.DB.prepare("SELECT id FROM activity WHERE id = ?").bind(freshActivityId).first(),
 		).not.toBeNull();
 	});
 
@@ -305,7 +305,7 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 				   (id, workspace_id, project_id, slug, title, content, parent_id,
 				    created_by_id, updated_by_id, created_at, updated_at, version,
 				    tags, owners, is_template, deleted_at, trash_batch_id)
-				 VALUES (?, ?, NULL, ?, ?, '', NULL, ?, ?, ?, ?, 0, '[]', '[]', 0, ?, ?)`
+				 VALUES (?, ?, NULL, ?, ?, '', NULL, ?, ?, ?, ?, 0, '[]', '[]', 0, ?, ?)`,
 			)
 				.bind(
 					id,
@@ -317,7 +317,7 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 					EXPIRED_AT,
 					EXPIRED_AT,
 					EXPIRED_AT,
-					crypto.randomUUID()
+					crypto.randomUUID(),
 				)
 				.run();
 			pageIds.push(id);
@@ -331,7 +331,7 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 				`INSERT INTO attachments
 				   (id, workspace_id, kind, r2_key, filename, content_type, size, url,
 				    linked_wiki_page_id, entity_type, entity_id, created_by_id, created_at)
-				 VALUES (?, ?, 'file', ?, ?, 'text/plain', 3, NULL, NULL, 'wiki_page', ?, ?, ?)`
+				 VALUES (?, ?, 'file', ?, ?, 'text/plain', 3, NULL, NULL, 'wiki_page', ?, ?, ?)`,
 			)
 				.bind(
 					crypto.randomUUID(),
@@ -340,7 +340,7 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 					`file-${i}.txt`,
 					pageId,
 					creator.id,
-					EXPIRED_AT
+					EXPIRED_AT,
 				)
 				.run();
 		}
@@ -356,7 +356,7 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 			iterations++;
 
 			const row = await env.DB.prepare(
-				"SELECT COUNT(*) AS n FROM wiki_pages WHERE deleted_at IS NOT NULL AND deleted_at < ?"
+				"SELECT COUNT(*) AS n FROM wiki_pages WHERE deleted_at IS NOT NULL AND deleted_at < ?",
 			)
 				.bind(Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60)
 				.first<{ n: number }>();
@@ -365,13 +365,13 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 
 		expect(remainingPages).toBe(0);
 		const leftoverPages = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM wiki_pages WHERE id IN (SELECT value FROM json_each(?))"
+			"SELECT COUNT(*) AS n FROM wiki_pages WHERE id IN (SELECT value FROM json_each(?))",
 		)
 			.bind(JSON.stringify(pageIds))
 			.first<{ n: number }>();
 		expect(leftoverPages?.n ?? 0).toBe(0);
 		const leftoverAttachments = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'wiki_page' AND entity_id IN (SELECT value FROM json_each(?))"
+			"SELECT COUNT(*) AS n FROM attachments WHERE entity_type = 'wiki_page' AND entity_id IN (SELECT value FROM json_each(?))",
 		)
 			.bind(JSON.stringify(pageIds))
 			.first<{ n: number }>();
@@ -388,7 +388,7 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 	// re-run while the cursor still lists it.
 	it("1 workspace / 500 expired pages: every run stays within budget, repeated runs purge them all", async () => {
 		const creator = await seedUser(
-			`cron-purge-one-ws-${crypto.randomUUID().slice(0, 8)}@example.com`
+			`cron-purge-one-ws-${crypto.randomUUID().slice(0, 8)}@example.com`,
 		);
 		const ws = await seedWorkspace(`cron-purge-one-ws-${crypto.randomUUID().slice(0, 6)}`);
 
@@ -400,7 +400,7 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 				   (id, workspace_id, project_id, slug, title, content, parent_id,
 				    created_by_id, updated_by_id, created_at, updated_at, version,
 				    tags, owners, is_template, deleted_at, trash_batch_id)
-				 VALUES (?, ?, NULL, ?, ?, '', NULL, ?, ?, ?, ?, 0, '[]', '[]', 0, ?, ?)`
+				 VALUES (?, ?, NULL, ?, ?, '', NULL, ?, ?, ?, ?, 0, '[]', '[]', 0, ?, ?)`,
 			)
 				.bind(
 					id,
@@ -412,7 +412,7 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 					EXPIRED_AT,
 					EXPIRED_AT,
 					EXPIRED_AT - i, // stagger deleted_at so ORDER BY is deterministic
-					crypto.randomUUID()
+					crypto.randomUUID(),
 				)
 				.run();
 			pageIds.push(id);
@@ -427,7 +427,7 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 			iterations++;
 
 			const row = await env.DB.prepare(
-				"SELECT COUNT(*) AS n FROM wiki_pages WHERE workspace_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?"
+				"SELECT COUNT(*) AS n FROM wiki_pages WHERE workspace_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?",
 			)
 				.bind(ws.id, Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60)
 				.first<{ n: number }>();
@@ -437,7 +437,7 @@ describe("scheduled wiki trash purge scaling (PROJ-865)", () => {
 		expect(remainingPages).toBe(0);
 		expect(iterations).toBeGreaterThan(1); // 500 pages couldn't have drained in a single call
 		const leftover = await env.DB.prepare(
-			"SELECT COUNT(*) AS n FROM wiki_pages WHERE id IN (SELECT value FROM json_each(?))"
+			"SELECT COUNT(*) AS n FROM wiki_pages WHERE id IN (SELECT value FROM json_each(?))",
 		)
 			.bind(JSON.stringify(pageIds))
 			.first<{ n: number }>();
@@ -454,7 +454,7 @@ describe("scheduled one-off wiki_fts dedupe (PROJ-816)", () => {
 
 		// A stray row: inserted with an auto rowid that no wiki_pages.search_rowid points at.
 		await env.DB.prepare(
-			"INSERT INTO wiki_fts(rowid, title, content) VALUES (999999999, 'stray', 'x')"
+			"INSERT INTO wiki_fts(rowid, title, content) VALUES (999999999, 'stray', 'x')",
 		).run();
 
 		let ran = 0;
@@ -479,7 +479,7 @@ describe("scheduled one-off wiki_fts dedupe (PROJ-816)", () => {
 
 		expect(ran).toBe(1);
 		expect(
-			await env.DB.prepare("SELECT rowid FROM wiki_fts WHERE rowid = 999999999").first()
+			await env.DB.prepare("SELECT rowid FROM wiki_fts WHERE rowid = 999999999").first(),
 		).toBeNull();
 		expect(await env.KV.get("maint:fts-dedupe-0065")).not.toBeNull();
 	});

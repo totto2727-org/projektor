@@ -50,8 +50,8 @@ async function resolveWatchTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
 				eq(schema.wikiPages.workspaceId, ctx.workspaceId),
 				// PROJ-496: a trashed page can't be (un)watched — same "trashed = gone" rule
 				// as every other page reference entry point (services/wiki.ts).
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.orderBy(idFirst(idOrSlug))
 		.get();
@@ -64,8 +64,8 @@ async function resolveWatchTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
 			.where(
 				and(
 					eq(schema.wikiRedirects.workspaceId, ctx.workspaceId),
-					eq(schema.wikiRedirects.oldSlug, idOrSlug)
-				)
+					eq(schema.wikiRedirects.oldSlug, idOrSlug),
+				),
 			)
 			.get();
 		if (redirect) {
@@ -82,8 +82,8 @@ async function resolveWatchTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
 					and(
 						eq(schema.wikiPages.id, redirect.pageId),
 						eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-						isNull(schema.wikiPages.deletedAt)
-					)
+						isNull(schema.wikiPages.deletedAt),
+					),
 				)
 				.get();
 		}
@@ -137,8 +137,8 @@ export async function unwatchWikiPage(ctx: ServiceCtx, idOrSlug: string) {
 			and(
 				eq(schema.wikiWatchers.workspaceId, ctx.workspaceId),
 				eq(schema.wikiWatchers.userId, ctx.userId),
-				eq(schema.wikiWatchers.pageId, page.id)
-			)
+				eq(schema.wikiWatchers.pageId, page.id),
+			),
 		);
 	return { ok: true };
 }
@@ -163,8 +163,8 @@ export async function listWikiWatches(ctx: ServiceCtx) {
 				// PROJ-496: a watch row on a page that's since been trashed lingers until
 				// purge (deleteWikiWatchersForPages now only runs at purge time) — filtered
 				// out here so the caller's watch list doesn't show a page they can't open.
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.orderBy(desc(schema.wikiWatchers.createdAt));
 
@@ -181,7 +181,7 @@ async function resolveAncestorChain(
 	db: D1Database,
 	pageId: string,
 	parentId: string | null,
-	workspaceId: string
+	workspaceId: string,
 ): Promise<string[]> {
 	const chain = [pageId];
 	let cur = parentId;
@@ -220,13 +220,13 @@ export async function notifyWikiWatchers(
 		slug: string;
 		title: string;
 		action: "created" | "updated" | "deleted";
-	}>
+	}>,
 ): Promise<void> {
 	const ancestorIds = await resolveAncestorChain(
 		ctx.db,
 		opts.pageId,
 		opts.parentId,
-		ctx.workspaceId
+		ctx.workspaceId,
 	);
 	const orm = drizzle(ctx.db, { schema });
 	const rows = await orm
@@ -236,8 +236,8 @@ export async function notifyWikiWatchers(
 			and(
 				eq(schema.wikiWatchers.workspaceId, ctx.workspaceId),
 				inArray(schema.wikiWatchers.pageId, ancestorIds),
-				or(eq(schema.wikiWatchers.pageId, opts.pageId), eq(schema.wikiWatchers.subtree, true))
-			)
+				or(eq(schema.wikiWatchers.pageId, opts.pageId), eq(schema.wikiWatchers.subtree, true)),
+			),
 		);
 
 	const userIds = [...new Set(rows.map((r) => r.userId))].filter((id) => id !== ctx.userId);
@@ -252,7 +252,7 @@ export async function notifyWikiWatchers(
 			slug: opts.slug,
 			title: opts.title,
 			action: opts.action,
-		}))
+		})),
 	);
 }
 
@@ -263,7 +263,7 @@ export async function notifyWikiWatchers(
 async function filterRecipientsWithAccess<E extends { userId: string; pageId: string }>(
 	ctx: ServiceCtx,
 	orm: Orm,
-	entries: readonly E[]
+	entries: readonly E[],
 ): Promise<E[]> {
 	const pageIds = [...new Set(entries.map((e) => e.pageId))];
 	// Trashed pages are included on purpose: "deleted" notifications are sent for them.
@@ -272,8 +272,8 @@ async function filterRecipientsWithAccess<E extends { userId: string; pageId: st
 			.select({ id: schema.wikiPages.id, projectId: schema.wikiPages.projectId })
 			.from(schema.wikiPages)
 			.where(
-				and(eq(schema.wikiPages.workspaceId, ctx.workspaceId), inArray(schema.wikiPages.id, chunk))
-			)
+				and(eq(schema.wikiPages.workspaceId, ctx.workspaceId), inArray(schema.wikiPages.id, chunk)),
+			),
 	);
 	const projectOf = new Map(pages.map((p) => [p.id, p.projectId ?? null]));
 
@@ -305,7 +305,7 @@ async function insertNotifications(
 		slug: string;
 		title: string;
 		action: "created" | "updated" | "deleted";
-	}[]
+	}[],
 ): Promise<void> {
 	if (entries.length === 0) return;
 	const deliverable = await filterRecipientsWithAccess(ctx, orm, entries);
@@ -348,7 +348,7 @@ async function insertNotifications(
 export async function notifyCascadeDescendantWatchers(
 	ctx: ServiceCtx,
 	descendants: readonly { id: string; slug: string; title: string; isTemplate: boolean }[],
-	action: "created" | "updated" | "deleted" = "deleted"
+	action: "created" | "updated" | "deleted" = "deleted",
 ): Promise<void> {
 	const pages = descendants.filter((p) => !p.isTemplate);
 	if (pages.length === 0) return;
@@ -363,9 +363,9 @@ export async function notifyCascadeDescendantWatchers(
 				.where(
 					and(
 						eq(schema.wikiWatchers.workspaceId, ctx.workspaceId),
-						inArray(schema.wikiWatchers.pageId, chunk)
-					)
-				)
+						inArray(schema.wikiWatchers.pageId, chunk),
+					),
+				),
 	);
 
 	const byId = new Map(pages.map((p) => [p.id, p]));
@@ -393,7 +393,7 @@ export async function notifyCascadeDescendantWatchers(
 // watch rows pointing at pages that no longer exist.
 export async function deleteWikiWatchersForPages(
 	ctx: ServiceCtx,
-	pageIds: string[]
+	pageIds: string[],
 ): Promise<void> {
 	if (pageIds.length === 0) return;
 	const orm = drizzle(ctx.db, { schema });
@@ -403,8 +403,8 @@ export async function deleteWikiWatchersForPages(
 			.where(
 				and(
 					eq(schema.wikiWatchers.workspaceId, ctx.workspaceId),
-					inArray(schema.wikiWatchers.pageId, chunk)
-				)
+					inArray(schema.wikiWatchers.pageId, chunk),
+				),
 			);
 		return [];
 	});
@@ -557,7 +557,7 @@ type WikiActivityRow = {
 // went away.
 function eventFieldsFor(
 	action: "created" | "updated" | "deleted",
-	r: WikiActivityRow
+	r: WikiActivityRow,
 ): {
 	slug: string | null;
 	title: string | null;
@@ -576,7 +576,7 @@ function eventFieldsFor(
 async function isEventVisible(
 	projectId: string | undefined,
 	eventProjectId: string | null,
-	canSeeProject: (id: string) => Promise<boolean>
+	canSeeProject: (id: string) => Promise<boolean>,
 ): Promise<boolean> {
 	if (projectId) return eventProjectId === projectId;
 	if (eventProjectId === null) return true;
@@ -588,7 +588,7 @@ async function isEventVisible(
 async function toWikiChangeEvent(
 	r: WikiActivityRow,
 	projectId: string | undefined,
-	canSeeProject: (id: string) => Promise<boolean>
+	canSeeProject: (id: string) => Promise<boolean>,
 ): Promise<WikiChangeEvent | null> {
 	const action = r.action as "created" | "updated" | "deleted";
 	if (action !== "deleted" && r.pageDeletedAt !== null && r.pageDeletedAt !== undefined)
@@ -618,7 +618,7 @@ async function toWikiChangeEvent(
 // same class of "current tree, not historical" approximation as the rest of this file.
 async function loadWikiWatchSets(
 	ctx: ServiceCtx,
-	orm: Orm
+	orm: Orm,
 ): Promise<{ directWatchIds: Set<string>; subtreeRootIds: Set<string> }> {
 	const watches = await orm
 		.select({ pageId: schema.wikiWatchers.pageId, subtree: schema.wikiWatchers.subtree })
@@ -626,8 +626,8 @@ async function loadWikiWatchSets(
 		.where(
 			and(
 				eq(schema.wikiWatchers.workspaceId, ctx.workspaceId),
-				eq(schema.wikiWatchers.userId, ctx.userId)
-			)
+				eq(schema.wikiWatchers.userId, ctx.userId),
+			),
 		);
 	return {
 		directWatchIds: new Set(watches.map((w) => w.pageId)),
@@ -644,7 +644,7 @@ async function matchSubtreeWatches(
 	orm: Orm,
 	pending: Map<string, string>,
 	subtreeRootIds: ReadonlySet<string>,
-	matched: Set<string>
+	matched: Set<string>,
 ): Promise<void> {
 	for (let depth = 0; depth < WIKI_MAX_NESTING_DEPTH + 1 && pending.size > 0; depth++) {
 		const frontier = [...new Set(pending.values())];
@@ -655,9 +655,9 @@ async function matchSubtreeWatches(
 				.where(
 					and(
 						inArray(schema.wikiPages.id, chunk),
-						eq(schema.wikiPages.workspaceId, ctx.workspaceId)
-					)
-				)
+						eq(schema.wikiPages.workspaceId, ctx.workspaceId),
+					),
+				),
 		);
 		const parentOf = new Map(rows.map((r) => [r.id, r.parentId]));
 		for (const [candidate, cur] of [...pending]) {
@@ -677,7 +677,7 @@ async function matchSubtreeWatches(
 async function watchedPageIds(
 	ctx: ServiceCtx,
 	orm: Orm,
-	candidatePageIds: string[]
+	candidatePageIds: string[],
 ): Promise<Set<string>> {
 	const { directWatchIds, subtreeRootIds } = await loadWikiWatchSets(ctx, orm);
 	if (directWatchIds.size === 0 && subtreeRootIds.size === 0) return new Set();
@@ -704,7 +704,7 @@ async function watchedPageIds(
 // changes inside a single second, and the alternative is a poll that can never advance.)
 function trimTrailingPartialSecond<T extends { createdAt: number }>(
 	rows: readonly T[],
-	limit: number
+	limit: number,
 ): readonly T[] {
 	if (rows.length !== limit || rows.length === 0) return rows;
 	const maxTs = rows[rows.length - 1].createdAt;
@@ -725,7 +725,7 @@ function trimTrailingPartialSecond<T extends { createdAt: number }>(
 // care can filter client-side on the page's `type`/`is_template` themselves.
 export async function listWikiChanges(
 	ctx: ServiceCtx,
-	input: unknown
+	input: unknown,
 ): Promise<{
 	changes: WikiChangeEvent[];
 	nextSince: number;
@@ -767,8 +767,8 @@ export async function listWikiChanges(
 			and(
 				eq(schema.activity.workspaceId, ctx.workspaceId),
 				eq(schema.activity.entityType, "wiki_page"),
-				gt(schema.activity.createdAt, since)
-			)
+				gt(schema.activity.createdAt, since),
+			),
 		)
 		.orderBy(schema.activity.createdAt)
 		.limit(limit);
@@ -797,7 +797,7 @@ export async function listWikiChanges(
 		const watched = await watchedPageIds(
 			ctx,
 			orm,
-			events.map((e) => e.pageId)
+			events.map((e) => e.pageId),
 		);
 		return {
 			changes: events.filter((e) => watched.has(e.pageId)),

@@ -1,5 +1,7 @@
+import { listTaskStatuses as queryStatuses } from "@projektor/data-services/task-statuses";
+import { Effect } from "effect";
 import { drizzle, schema } from "@projektor/db";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { z } from "zod";
 import { IdSchema } from "../schemas/common";
 import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from "../schemas/task-statuses";
@@ -23,19 +25,7 @@ export async function listTaskStatuses(ctx: ServiceCtx) {
 		return cached;
 	}
 
-	const orm = drizzle(ctx.db, { schema });
-	const rows = await orm
-		.select()
-		.from(schema.taskStatuses)
-		.where(eq(schema.taskStatuses.workspaceId, ctx.workspaceId))
-		.orderBy(asc(schema.taskStatuses.position), asc(schema.taskStatuses.name));
-	const result = rows.map(({ isDefault, isReviewStep, workspaceId, ...rest }) => ({
-		...rest,
-		workspace_id: workspaceId,
-		is_default: isDefault,
-		is_review_step: isReviewStep,
-	}));
-
+	const result = await Effect.runPromise(queryStatuses(ctx.db, ctx.workspaceId));
 	await cache.set(ctx.kv, cacheKey, result, WS_META_TTL);
 	localCache.set(cacheKey, result);
 	return result;
@@ -58,7 +48,7 @@ export async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
 		.select({ id: schema.taskStatuses.id })
 		.from(schema.taskStatuses)
 		.where(
-			and(eq(schema.taskStatuses.workspaceId, ctx.workspaceId), eq(schema.taskStatuses.key, key))
+			and(eq(schema.taskStatuses.workspaceId, ctx.workspaceId), eq(schema.taskStatuses.key, key)),
 		)
 		.get();
 	if (existing) throw new ConflictError(`Task status key '${key}' already exists`);
@@ -120,7 +110,7 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
 		.select({ id: schema.taskStatuses.id, category: schema.taskStatuses.category })
 		.from(schema.taskStatuses)
 		.where(
-			and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId))
+			and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)),
 		)
 		.get();
 	if (!existing) throw new NotFoundError("Task status not found");
@@ -135,7 +125,7 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
 		.update(schema.taskStatuses)
 		.set(setObj)
 		.where(
-			and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId))
+			and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)),
 		);
 
 	if (categoryChanged) {
@@ -163,7 +153,7 @@ export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
 		.select({ isDefault: schema.taskStatuses.isDefault })
 		.from(schema.taskStatuses)
 		.where(
-			and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId))
+			and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)),
 		)
 		.get();
 	if (!row) throw new NotFoundError("Task status not found");
@@ -179,7 +169,7 @@ export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
 	await orm
 		.delete(schema.taskStatuses)
 		.where(
-			and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId))
+			and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)),
 		);
 
 	await invalidateTaskStatusesCache(ctx);
@@ -250,7 +240,7 @@ export async function seedDefaultTaskStatuses(db: D1Database, workspaceId: strin
 export async function resolveStatus(
 	ctx: ServiceCtx,
 	statusId: string | null | undefined,
-	legacyStatus?: string
+	legacyStatus?: string,
 ): Promise<{ id: string | null; key: string; category: string | null; isReviewStep: boolean }> {
 	const orm = drizzle(ctx.db, { schema });
 	const cols = {
@@ -279,8 +269,8 @@ export async function resolveStatus(
 			.where(
 				and(
 					eq(schema.taskStatuses.id, statusId),
-					eq(schema.taskStatuses.workspaceId, ctx.workspaceId)
-				)
+					eq(schema.taskStatuses.workspaceId, ctx.workspaceId),
+				),
 			)
 			.get();
 		if (!found)
@@ -297,8 +287,8 @@ export async function resolveStatus(
 			.where(
 				and(
 					eq(schema.taskStatuses.workspaceId, ctx.workspaceId),
-					eq(schema.taskStatuses.key, legacyStatus)
-				)
+					eq(schema.taskStatuses.key, legacyStatus),
+				),
 			)
 			.get();
 		return found ? fromRow(found) : fromKey(legacyStatus);
@@ -309,8 +299,8 @@ export async function resolveStatus(
 		.where(
 			and(
 				eq(schema.taskStatuses.workspaceId, ctx.workspaceId),
-				eq(schema.taskStatuses.isDefault, 1)
-			)
+				eq(schema.taskStatuses.isDefault, 1),
+			),
 		)
 		.get();
 	return def ? fromRow(def) : fromKey("backlog");

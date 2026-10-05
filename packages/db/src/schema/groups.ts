@@ -23,7 +23,7 @@ export const userGroups = sqliteTable(
 	},
 	(t) => ({
 		wsNameIdx: uniqueIndex("user_groups_workspace_name_idx").on(t.workspaceId, t.name),
-	})
+	}),
 );
 
 export const userGroupMembers = sqliteTable(
@@ -43,7 +43,7 @@ export const userGroupMembers = sqliteTable(
 	(t) => ({
 		pk: primaryKey({ columns: [t.groupId, t.userId] }),
 		userIdx: index("user_group_members_user_idx").on(t.userId),
-	})
+	}),
 );
 
 export const groupProjectGrants = sqliteTable(
@@ -60,5 +60,5 @@ export const groupProjectGrants = sqliteTable(
 	(t) => ({
 		pk: primaryKey({ columns: [t.groupId, t.projectId] }),
 		projectIdx: index("group_project_grants_project_idx").on(t.projectId),
-	})
+	}),
 );

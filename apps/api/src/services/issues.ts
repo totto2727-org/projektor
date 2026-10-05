@@ -1,5 +1,7 @@
+import * as issueQueries from "@projektor/data-services/issues";
 import { drizzle, schema } from "@projektor/db";
-import { and, desc, eq, gte, inArray, isNull, lte, notInArray, or, sql } from "drizzle-orm";
+import { Effect } from "effect";
+import { and, eq, or } from "drizzle-orm";
 import type { z } from "zod";
 import { issuePath } from "../lib/urls";
 import { AddCommentSchema } from "../schemas/comments";
@@ -24,11 +26,7 @@ import {
 import { recordActivity } from "./activity";
 import * as cache from "./cache";
 import { buildAddCommentInsertStatement } from "./comments";
-import {
-	batchLoadCustomFields,
-	buildCustomFieldUpsertStatements,
-	validateCustomFields,
-} from "./custom-fields";
+import { buildCustomFieldUpsertStatements, validateCustomFields } from "./custom-fields";
 import { dorColumns } from "./definition-of-ready";
 import { ForbiddenError, NotFoundError, ValidationError } from "./errors";
 import { isExternallyVerifiableEvidence } from "./evidence-classification";
@@ -44,7 +42,6 @@ import {
 import { listLinksForIssue } from "./issue-links";
 import { resolveProjectIdParam, resolveVisibleProjectIdParam } from "./projects";
 import { broadcastWorkspaceEvent } from "./realtime";
-import { inChunks, sanitizeFtsQuery } from "./sql";
 import { resolveStatus } from "./task-statuses";
 import type { ServiceCtx } from "./types";
 
@@ -55,20 +52,17 @@ const ISSUE_TTL = 300;
 // services/wiki.ts and services/file-claims.ts.
 function toD1Statement(
 	ctx: ServiceCtx,
-	query: Readonly<{ sql: string; params: unknown[] }>
+	query: Readonly<{ sql: string; params: unknown[] }>,
 ): D1PreparedStatement {
 	return ctx.db.prepare(query.sql).bind(...query.params);
 }
-
-// biome-ignore lint/suspicious/noExplicitAny: Drizzle SQL condition array; typed condition union is unwieldy
-type Condition = any;
 
 // Validates a candidate parentId: checks workspace scope, cycle prevention, and depth cap (max 5).
 // Pass issueId=null on create (no cycle possible yet); pass the existing issue's id on update.
 async function validateParent(
 	ctx: ServiceCtx,
 	parentId: string,
-	issueId: string | null
+	issueId: string | null,
 ): Promise<void> {
 	if (issueId && parentId === issueId) {
 		throw new ValidationError({
@@ -92,7 +86,7 @@ async function validateParent(
 				JOIN chain c ON i.id = c.parent_id
 				WHERE i.workspace_id = ? AND c.depth < 5
 			)
-			SELECT id, project_id, depth FROM chain ORDER BY depth ASC`
+			SELECT id, project_id, depth FROM chain ORDER BY depth ASC`,
 		)
 		.bind(parentId, ctx.workspaceId, ctx.workspaceId)
 		.all<{ id: string; project_id: string; depth: number }>();
@@ -129,139 +123,6 @@ async function validateParent(
 	}
 }
 
-type ListIssuesFilters = z.infer<typeof ListIssuesSchema>;
-
-function addStatusFilters(conditions: Condition[], filters: ListIssuesFilters): void {
-	const { status, statusId, statusIds, category, priority, priorities } = filters;
-
-	if (status)
-		conditions.push(
-			eq(
-				schema.issues.status,
-				status as "backlog" | "todo" | "in_progress" | "in_review" | "done" | "cancelled"
-			)
-		);
-	if (statusId) conditions.push(eq(schema.issues.statusId, statusId));
-	if (statusIds) {
-		const ids = statusIds
-			.split(",")
-			.map((s) => s.trim())
-			.filter(Boolean);
-		if (ids.length) conditions.push(inArray(schema.issues.statusId, ids));
-	}
-	if (category) conditions.push(eq(schema.issues.statusCategory, category));
-	if (filters.needsAudit !== undefined) {
-		conditions.push(eq(schema.issues.needsAudit, filters.needsAudit));
-	}
-	if (priority)
-		conditions.push(
-			eq(schema.issues.priority, priority as "urgent" | "high" | "medium" | "low" | "none")
-		);
-	if (priorities) {
-		const vals = priorities
-			.split(",")
-			.map((s) => s.trim())
-			.filter(Boolean) as ("urgent" | "high" | "medium" | "low" | "none")[];
-		if (vals.length) conditions.push(inArray(schema.issues.priority, vals));
-	}
-}
-
-function addAssociationFilters(
-	conditions: Condition[],
-	ctx: ServiceCtx,
-	filters: ListIssuesFilters
-): void {
-	const { projectId, assignee, parentId, noParent, typeId, excludeTypeIds, sprintId } = filters;
-
-	if (projectId) conditions.push(eq(schema.issues.projectId, projectId));
-	// PROJ-444: "me" resolves to the calling user, so a caller never needs its own id.
-	if (assignee)
-		conditions.push(eq(schema.issues.assigneeId, assignee === "me" ? ctx.userId : assignee));
-	if (parentId) conditions.push(eq(schema.issues.parentId, parentId));
-	if (noParent) conditions.push(isNull(schema.issues.parentId));
-	if (typeId) conditions.push(eq(schema.issues.typeId, typeId));
-	if (excludeTypeIds) {
-		const ids = excludeTypeIds
-			.split(",")
-			.map((s) => s.trim())
-			.filter(Boolean);
-		// Exclude issues of these types (e.g. epics). Type ids come from workspace config, so the
-		// array is bounded — no D1 chunking needed. Keep untyped issues (NULL type_id): SQL
-		// `type_id NOT IN (...)` is NULL for a NULL type_id, which would otherwise drop them.
-		if (ids.length)
-			conditions.push(or(isNull(schema.issues.typeId), notInArray(schema.issues.typeId, ids)));
-	}
-	if (sprintId) conditions.push(eq(schema.issues.sprintId, sprintId));
-}
-
-async function addCustomFieldFilter(
-	orm: ReturnType<typeof drizzle>,
-	ctx: ServiceCtx,
-	conditions: Condition[],
-	filters: ListIssuesFilters
-): Promise<void> {
-	const { cfKey, cfOp, cfValue } = filters;
-	if (!cfKey) return;
-
-	const fieldDef = await orm
-		.select({ id: schema.customFieldDefinitions.id, type: schema.customFieldDefinitions.type })
-		.from(schema.customFieldDefinitions)
-		.where(
-			and(
-				eq(schema.customFieldDefinitions.workspaceId, ctx.workspaceId),
-				eq(schema.customFieldDefinitions.key, cfKey)
-			)
-		)
-		.get();
-	if (!fieldDef)
-		throw new ValidationError({
-			formErrors: [`Unknown custom field key: ${cfKey}`],
-			fieldErrors: {},
-		});
-
-	const op = cfOp ?? "eq";
-	if (op === "eq") {
-		conditions.push(
-			sql`EXISTS (SELECT 1 FROM custom_field_values
-				WHERE issue_id = ${schema.issues.id} AND field_id = ${fieldDef.id}
-				AND value = ${cfValue ?? ""})`
-		);
-	} else {
-		const sqlOp = { gt: ">", gte: ">=", lt: "<", lte: "<=" }[op] ?? ">";
-		conditions.push(
-			sql`EXISTS (SELECT 1 FROM custom_field_values
-				WHERE issue_id = ${schema.issues.id} AND field_id = ${fieldDef.id}
-				AND CAST(value AS REAL) ${sql.raw(sqlOp)} ${parseFloat(cfValue ?? "0")})`
-		);
-	}
-}
-
-// Date-range filters (PROJ-212) — inclusive bounds, index-backed.
-function addDateRangeFilters(conditions: Condition[], filters: ListIssuesFilters): void {
-	const { completedAfter, completedBefore, updatedAfter, updatedBefore } = filters;
-
-	if (completedAfter) conditions.push(gte(schema.issues.completedAt, completedAfter));
-	if (completedBefore) conditions.push(lte(schema.issues.completedAt, completedBefore));
-	if (updatedAfter) conditions.push(gte(schema.issues.updatedAt, updatedAfter));
-	if (updatedBefore) conditions.push(lte(schema.issues.updatedAt, updatedBefore));
-}
-
-async function buildListIssuesConditions(
-	orm: ReturnType<typeof drizzle>,
-	ctx: ServiceCtx,
-	filters: ListIssuesFilters
-): Promise<Condition[]> {
-	const conditions: Condition[] = [eq(schema.issues.workspaceId, ctx.workspaceId)];
-	// PROJ-311: default-deny — a non-admin only sees issues in projects their groups grant.
-	const visible = visibleProjectPredicate(ctx, schema.issues.projectId);
-	if (visible) conditions.push(visible);
-	addStatusFilters(conditions, filters);
-	addAssociationFilters(conditions, ctx, filters);
-	await addCustomFieldFilter(orm, ctx, conditions, filters);
-	addDateRangeFilters(conditions, filters);
-	return conditions;
-}
-
 export async function listIssues(ctx: ServiceCtx, raw: unknown) {
 	const result = ListIssuesSchema.safeParse(raw);
 	if (!result.success) throw new ValidationError(result.error.flatten());
@@ -273,194 +134,36 @@ export async function listIssues(ctx: ServiceCtx, raw: unknown) {
 		parentId: result.data.parentId
 			? await resolveIssueIdParam(ctx, result.data.parentId)
 			: result.data.parentId,
+		assignee: result.data.assignee === "me" ? ctx.userId : result.data.assignee,
 	};
-	const { limit } = filters;
-
-	const orm = drizzle(ctx.db, { schema });
-
-	// Conditions exclude the pagination cursor, so they represent the full filtered set —
-	// used as-is for the total count, and extended with the cursor below for the page query.
-	const conditions = await buildListIssuesConditions(orm, ctx, filters);
-	const cursor = filters.cursor;
-	const pageConditions = !cursor
-		? conditions
-		: cursor.id === undefined
-			? [...conditions, sql`${schema.issues.createdAt} < ${cursor.createdAt}`]
-			: [
-					...conditions,
-					sql`(${schema.issues.createdAt} < ${cursor.createdAt} OR (${schema.issues.createdAt} = ${cursor.createdAt} AND ${schema.issues.id} < ${cursor.id}))`,
-				];
-
-	// PROJ-857: the filtered total only changes the header count, which the first page
-	// already set — later pages skip the COUNT(*) and return total: null.
-	const total = cursor ? null : await orm.$count(schema.issues, and(...conditions));
-
-	// Select with snake_case aliases to preserve the same response shape as the raw-SQL version.
-	// labels uses a raw SQL expression to return the stored JSON string (bypassing Drizzle's
-	// mode:'json' deserializer), matching what callers expect.
-	const rows = await orm
-		.select({
-			id: schema.issues.id,
-			workspace_id: schema.issues.workspaceId,
-			project_id: schema.issues.projectId,
-			number: schema.issues.number,
-			title: schema.issues.title,
-			body: schema.issues.body,
-			status: schema.issues.status,
-			priority: schema.issues.priority,
-			assignee_id: schema.issues.assigneeId,
-			labels: sql<string>`${schema.issues.labels}`,
-			parent_id: schema.issues.parentId,
-			type_id: schema.issues.typeId,
-			status_id: schema.issues.statusId,
-			status_category: schema.taskStatuses.category,
-			sprint_id: schema.issues.sprintId,
-			created_by_id: schema.issues.createdById,
-			author_kind: schema.issues.authorKind,
-			created_at: schema.issues.createdAt,
-			updated_at: schema.issues.updatedAt,
-			completed_at: schema.issues.completedAt,
-			needs_audit: schema.issues.needsAudit,
-			assignee_name: schema.users.name,
-			project_key: schema.projects.key,
-			project_name: schema.projects.name,
-			type_key: schema.taskTypes.key,
-			type_name: schema.taskTypes.name,
-			status_key: schema.taskStatuses.key,
-			status_name: schema.taskStatuses.name,
-		})
-		.from(schema.issues)
-		.leftJoin(schema.users, eq(schema.issues.assigneeId, schema.users.id))
-		.leftJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
-		.leftJoin(schema.taskTypes, eq(schema.issues.typeId, schema.taskTypes.id))
-		.leftJoin(schema.taskStatuses, eq(schema.issues.statusId, schema.taskStatuses.id))
-		.where(and(...pageConditions))
-		.orderBy(desc(schema.issues.createdAt), desc(schema.issues.id))
-		.limit(limit + 1);
-
-	const hasMore = rows.length > limit;
-	const items = hasMore ? rows.slice(0, limit) : rows;
-	const lastItem = items[items.length - 1] as { created_at: number; id: string } | undefined;
-	const nextCursor = hasMore && lastItem ? `${lastItem.created_at}:${lastItem.id}` : null;
-
-	const issueIds = (items as Array<{ id: string }>).map((i) => i.id);
-	const customFieldsByIssue = await batchLoadCustomFields(ctx.db, ctx.workspaceId, issueIds);
-	// PROJ-441: computed in one grouped query for the whole page, rather than the
-	// frontend fanning out a getIssue call per row.
-	const rollupsByParent = filters.includeRollups
-		? await computeChildRollupsForParents(ctx, orm, issueIds)
-		: null;
-
-	const itemsWithFields = (items as Array<Record<string, unknown>>).map((i) => {
-		// PROJ-442: body is omitted by default — callers that need it pass includeBody=1.
-		const { body: _body, ...rest } = i;
-		const item: Record<string, unknown> = {
-			...rest,
-			...(filters.includeBody ? { body: i.body } : {}),
-			customFields: customFieldsByIssue[i.id as string] ?? [],
-			url: i.project_key
-				? issuePath(i.project_key as string, i.number as number, i.title as string)
-				: null,
-		};
-		if (rollupsByParent) item.rollup = rollupsByParent[i.id as string] ?? computeChildRollup([]);
-		return item;
-	});
-
-	return { items: itemsWithFields, nextCursor, total };
-}
-
-// PROJ-441: batched sibling of the single-issue rollup in getIssue below — one grouped
-// query for every parent id on the page instead of N getIssue-shaped queries. Groups by
-// the raw `status` column, exactly like getIssue's child query, so the two surfaces
-// return identical rollups for the same parent — byStatus keys and the done/remaining
-// derivation in computeChildRollup must never diverge between them. Workspace-scoped
-// like every query; deliberately NOT project-visibility filtered, matching getIssue's
-// own child rollup (see assertIssueProjectVisible — that gate applies to the parent
-// issue, not to counting its children).
-async function computeChildRollupsForParents(
-	ctx: ServiceCtx,
-	orm: ReturnType<typeof drizzle>,
-	parentIds: string[]
-): Promise<Record<string, ReturnType<typeof computeChildRollup>>> {
-	if (parentIds.length === 0) return {};
-
-	type ChildRow = { parent_id: string; status: string; count: number };
-	const rows = (await inChunks(parentIds, (chunk) =>
-		orm
-			.select({
-				parent_id: schema.issues.parentId,
-				status: schema.issues.status,
-				count: sql<number>`count(*)`,
-			})
-			.from(schema.issues)
-			.where(
-				and(eq(schema.issues.workspaceId, ctx.workspaceId), inArray(schema.issues.parentId, chunk))
+	const field = filters.cfKey
+		? await Effect.runPromise(
+				issueQueries.findIssueCustomField(ctx.db, ctx.workspaceId, filters.cfKey),
 			)
-			.groupBy(schema.issues.parentId, schema.issues.status)
-	)) as ChildRow[];
-
-	const rowsByParent: Record<string, Array<{ status: string; count: number }>> = {};
-	for (const row of rows) {
-		if (!rowsByParent[row.parent_id]) rowsByParent[row.parent_id] = [];
-		rowsByParent[row.parent_id].push({ status: row.status, count: row.count });
-	}
-
-	const result: Record<string, ReturnType<typeof computeChildRollup>> = {};
-	for (const parentId of parentIds) {
-		result[parentId] = computeChildRollup(rowsByParent[parentId] ?? []);
-	}
-	return result;
-}
-
-// Snake-case aliases preserve the existing response contract. The labels raw expression
-// bypasses mode:'json' deserialization so callers receive the stored JSON string as before.
-const issueColumns = {
-	id: schema.issues.id,
-	workspace_id: schema.issues.workspaceId,
-	project_id: schema.issues.projectId,
-	number: schema.issues.number,
-	title: schema.issues.title,
-	body: schema.issues.body,
-	status: schema.issues.status,
-	priority: schema.issues.priority,
-	assignee_id: schema.issues.assigneeId,
-	labels: sql<string>`${schema.issues.labels}`,
-	parent_id: schema.issues.parentId,
-	type_id: schema.issues.typeId,
-	status_id: schema.issues.statusId,
-	status_category: schema.taskStatuses.category,
-	sprint_id: schema.issues.sprintId,
-	created_by_id: schema.issues.createdById,
-	author_kind: schema.issues.authorKind,
-	created_at: schema.issues.createdAt,
-	updated_at: schema.issues.updatedAt,
-	completed_at: schema.issues.completedAt,
-	needs_audit: schema.issues.needsAudit,
-	project_key: schema.projects.key,
-	project_name: schema.projects.name,
-	type_key: schema.taskTypes.key,
-	type_name: schema.taskTypes.name,
-	status_key: schema.taskStatuses.key,
-	status_name: schema.taskStatuses.name,
-} as const;
-
-async function fetchIssueById(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, id: string) {
-	return (
-		(await orm
-			.select(issueColumns)
-			.from(schema.issues)
-			.leftJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
-			.leftJoin(schema.taskTypes, eq(schema.issues.typeId, schema.taskTypes.id))
-			.leftJoin(schema.taskStatuses, eq(schema.issues.statusId, schema.taskStatuses.id))
-			.where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-			.get()) ?? null
+		: null;
+	if (filters.cfKey && !field)
+		throw new ValidationError({
+			formErrors: [`Unknown custom field key: ${filters.cfKey}`],
+			fieldErrors: {},
+		});
+	const page = await Effect.runPromise(
+		issueQueries.listIssues(
+			ctx.db,
+			ctx.workspaceId,
+			{
+				...filters,
+				customField: field ? { id: field.id, op: filters.cfOp, value: filters.cfValue } : undefined,
+			},
+			visibleProjectPredicate(ctx, schema.issues.projectId) ?? undefined,
+		),
 	);
+	return { ...page, items: page.items.map((item) => ({ ...item, url: buildIssueUrl(item) })) };
 }
 
 // Digits are bounded: parseInt("9".repeat(400)) is Infinity, which drizzle would happily
 // bind and D1 would reject as a type error — a 500 where a 404 belongs. Anything longer
 // than this isn't a ref, so it falls through to being treated as an id and 404s.
-export const ISSUE_REF_PATTERN = /^([A-Z][A-Z0-9]*)-(\d{1,9})$/;
+export const ISSUE_REF_PATTERN = issueQueries.ISSUE_REF_PATTERN;
 
 /**
  * Accept either identifier in an `:issueId` path segment.
@@ -480,64 +183,17 @@ export const ISSUE_REF_PATTERN = /^([A-Z][A-Z0-9]*)-(\d{1,9})$/;
 export async function resolveIssueIdParam(
 	ctx: ServiceCtx,
 	param: string,
-	notFoundMessage = "Issue not found"
+	notFoundMessage = "Issue not found",
 ): Promise<string> {
 	const m = param.match(ISSUE_REF_PATTERN);
 	if (!m) return param;
 
-	const orm = drizzle(ctx.db, { schema });
-	const row = await orm
-		.select({ id: schema.issues.id })
-		.from(schema.issues)
-		.innerJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
-		.where(
-			and(
-				eq(schema.projects.key, m[1]),
-				eq(schema.issues.number, parseInt(m[2], 10)),
-				eq(schema.issues.workspaceId, ctx.workspaceId)
-			)
-		)
-		.get();
-	if (!row) throw new NotFoundError(notFoundMessage);
-	return row.id;
+	const id = await Effect.runPromise(issueQueries.findIssueIdByRef(ctx.db, ctx.workspaceId, param));
+	if (!id) throw new NotFoundError(notFoundMessage);
+	return id;
 }
 
-async function fetchIssueByRef(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, ref: string) {
-	const m = ref.match(ISSUE_REF_PATTERN);
-	if (!m)
-		throw new ValidationError({
-			formErrors: ["ref must be in format KEY-NUMBER"],
-			fieldErrors: {},
-		});
-	return (
-		(await orm
-			.select(issueColumns)
-			.from(schema.issues)
-			.innerJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
-			.leftJoin(schema.taskTypes, eq(schema.issues.typeId, schema.taskTypes.id))
-			.leftJoin(schema.taskStatuses, eq(schema.issues.statusId, schema.taskStatuses.id))
-			.where(
-				and(
-					eq(schema.projects.key, m[1]),
-					eq(schema.issues.number, parseInt(m[2], 10)),
-					eq(schema.issues.workspaceId, ctx.workspaceId)
-				)
-			)
-			.get()) ?? null
-	);
-}
-
-function computeChildRollup(childRows: ReadonlyArray<{ status: string; count: number }>) {
-	const byStatus: Record<string, number> = {};
-	let total = 0;
-	for (const r of childRows) {
-		byStatus[r.status] = r.count;
-		total += r.count;
-	}
-	const done = (byStatus.done ?? 0) + (byStatus.cancelled ?? 0);
-	const remaining = total - done;
-	return { total, byStatus, done, remaining };
-}
+const computeChildRollup = issueQueries.computeChildRollup;
 
 // PROJ-311: an issue is only visible if its project is granted to one of the
 // user's groups (owner/admin bypass). Throw the issue-not-found error rather than a
@@ -549,23 +205,12 @@ async function assertIssueProjectVisible(ctx: ServiceCtx, projectId: string): Pr
 	}
 }
 
-async function fetchIssueByIdOrRef(
-	orm: ReturnType<typeof drizzle>,
-	ctx: ServiceCtx,
-	id: string | undefined,
-	ref: string | undefined
-) {
-	if (id) return fetchIssueById(orm, ctx, id);
-	if (ref) return fetchIssueByRef(orm, ctx, ref);
-	return null;
-}
-
 function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
 	return issueRecord.project_key
 		? issuePath(
 				issueRecord.project_key as string,
 				issueRecord.number as number,
-				issueRecord.title as string
+				issueRecord.title as string,
 			)
 		: null;
 }
@@ -579,28 +224,16 @@ function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
 // full-payload shape still carry these two keys, so they stay readable.
 type CachedIssueExtras = { rollup: ReturnType<typeof computeChildRollup>; customFields: unknown[] };
 
-async function loadIssueExtras(
-	ctx: ServiceCtx,
-	orm: ReturnType<typeof drizzle>,
-	issueId: string
-): Promise<CachedIssueExtras> {
+async function loadIssueExtras(ctx: ServiceCtx, issueId: string): Promise<CachedIssueExtras> {
 	const key = `issue:${ctx.workspaceId}:${issueId}`;
 	const cached = await cache.get<CachedIssueExtras>(ctx.kv, key);
 	if (cached?.rollup && cached.customFields) {
 		return { rollup: cached.rollup, customFields: cached.customFields };
 	}
 
-	type ChildCount = { status: string; count: number };
-	const childRows = (await orm.all(
-		sql`SELECT status, COUNT(*) as count FROM issues
-			WHERE parent_id = ${issueId} AND workspace_id = ${ctx.workspaceId}
-			GROUP BY status`
-	)) as ChildCount[];
-	const customFieldsByIssue = await batchLoadCustomFields(ctx.db, ctx.workspaceId, [issueId]);
-	const extras: CachedIssueExtras = {
-		rollup: computeChildRollup(childRows),
-		customFields: customFieldsByIssue[issueId] ?? [],
-	};
+	const extras: CachedIssueExtras = await Effect.runPromise(
+		issueQueries.getIssueExtras(ctx.db, ctx.workspaceId, issueId),
+	);
 	await cache.set(ctx.kv, key, extras, ISSUE_TTL);
 	return extras;
 }
@@ -610,16 +243,21 @@ export async function getIssue(ctx: ServiceCtx, raw: unknown) {
 	if (!result.success) throw new ValidationError(result.error.flatten());
 	const { id, ref } = result.data;
 
-	const orm = drizzle(ctx.db, { schema });
-
-	const issue = await fetchIssueByIdOrRef(orm, ctx, id, ref);
+	if (!id && ref && !ISSUE_REF_PATTERN.test(ref))
+		throw new ValidationError({
+			formErrors: ["ref must be in format KEY-NUMBER"],
+			fieldErrors: {},
+		});
+	const issue = await Effect.runPromise(
+		issueQueries.getIssue(ctx.db, ctx.workspaceId, { id, ref }),
+	);
 	if (!issue) throw new NotFoundError("Issue not found");
 
 	const issueRecord = issue as Record<string, unknown>;
 	await assertIssueProjectVisible(ctx, issueRecord.project_id as string);
 	const issueId = issueRecord.id as string;
 
-	const { rollup, customFields } = await loadIssueExtras(ctx, orm, issueId);
+	const { rollup, customFields } = await loadIssueExtras(ctx, issueId);
 	const links = await listLinksForIssue(ctx, { issueId });
 
 	const full: Record<string, unknown> = {
@@ -643,119 +281,26 @@ export async function getIssue(ctx: ServiceCtx, raw: unknown) {
 export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
 	const result = GetIssuesBatchSchema.safeParse(raw);
 	if (!result.success) throw new ValidationError(result.error.flatten());
-	const { refs = [], ids = [], includeBody } = result.data;
-
-	const orm = drizzle(ctx.db, { schema });
-
-	// PROJ-931 review: preserve the caller's request order (refs first, then ids, exactly
-	// as given) and remember which literal string ("PROJ-42" or a raw id) each resolved id
-	// came from, so an id that fails the visibility check below can still be reported back
-	// under the identifier the caller actually used.
-	const order: Array<{ requested: string; id: string | undefined }> = [];
-
-	const numbersByKey = new Map<string, number[]>();
-	for (const ref of refs) {
-		const m = ref.match(ISSUE_REF_PATTERN);
-		if (!m)
+	for (const ref of result.data.refs ?? [])
+		if (!ISSUE_REF_PATTERN.test(ref))
 			throw new ValidationError({
 				formErrors: [`Invalid ref: ${ref} (expected KEY-NUMBER)`],
 				fieldErrors: {},
 			});
-		const nums = numbersByKey.get(m[1]) ?? [];
-		nums.push(parseInt(m[2], 10));
-		numbersByKey.set(m[1], nums);
-	}
-	// Canonical lookup key for a ref, so a zero-padded "PROJ-042" matches the resolved
-	// "PROJ-42" the same way single get_issue does.
-	const canonicalRef = (ref: string) => {
-		const m = ref.match(ISSUE_REF_PATTERN) as RegExpMatchArray;
-		return `${m[1]}-${parseInt(m[2], 10)}`;
-	};
-
-	// ref -> resolved id, filled in per project key below.
-	const refToId = new Map<string, string>();
-	for (const [key, numbers] of numbersByKey) {
-		const rows = await inChunks(numbers, (chunk) =>
-			orm
-				.select({ id: schema.issues.id, number: schema.issues.number })
-				.from(schema.issues)
-				.innerJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
-				.where(
-					and(
-						eq(schema.projects.key, key),
-						eq(schema.issues.workspaceId, ctx.workspaceId),
-						inArray(schema.issues.number, chunk)
-					)
-				)
-		);
-		for (const row of rows) refToId.set(`${key}-${row.number}`, row.id);
-	}
-	for (const ref of refs) order.push({ requested: ref, id: refToId.get(canonicalRef(ref)) });
-	for (const id of ids) order.push({ requested: id, id });
-
-	const allIds = Array.from(new Set(order.map((o) => o.id).filter((id): id is string => !!id)));
-
-	let rowsById = new Map<string, Record<string, unknown>>();
-	if (allIds.length > 0) {
-		const visible = visibleProjectPredicate(ctx, schema.issues.projectId);
-		const rows = await inChunks(allIds, (chunk) => {
-			const conditions = [
-				inArray(schema.issues.id, chunk),
-				eq(schema.issues.workspaceId, ctx.workspaceId),
-			];
-			if (visible) conditions.push(visible);
-			return orm
-				.select(issueColumns)
-				.from(schema.issues)
-				.leftJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
-				.leftJoin(schema.taskTypes, eq(schema.issues.typeId, schema.taskTypes.id))
-				.leftJoin(schema.taskStatuses, eq(schema.issues.statusId, schema.taskStatuses.id))
-				.where(and(...conditions));
-		});
-
-		const issueIds = (rows as Array<{ id: string }>).map((r) => r.id);
-		const customFieldsByIssue = await batchLoadCustomFields(ctx.db, ctx.workspaceId, issueIds);
-		rowsById = new Map(
-			(rows as Array<Record<string, unknown>>).map((r) => {
-				// Match list_issues: body only on request (PROJ-442) — 50 full bodies would
-				// defeat the point of a token-saving batch call.
-				const { body, ...withoutBody } = r;
-				const base = includeBody ? { ...withoutBody, body } : withoutBody;
-				return [
-					r.id as string,
-					{
-						...base,
-						customFields: customFieldsByIssue[r.id as string] ?? [],
-						url: buildIssueUrl(r),
-					},
-				];
-			})
-		);
-	}
-
-	// One item per distinct resolved+visible id, in first-requested order; every requested
-	// ref/id that didn't resolve to an issue or isn't visible goes to `missing` instead —
-	// under the identifier the caller used, never a resolved-but-invisible id.
-	const items: Record<string, unknown>[] = [];
-	const missing: string[] = [];
-	const seen = new Set<string>();
-	for (const entry of order) {
-		const row = entry.id ? rowsById.get(entry.id) : undefined;
-		if (!row) {
-			if (!missing.includes(entry.requested)) missing.push(entry.requested);
-			continue;
-		}
-		if (seen.has(entry.id as string)) continue;
-		seen.add(entry.id as string);
-		items.push(row);
-	}
-
-	return { items, missing };
+	const page = await Effect.runPromise(
+		issueQueries.getIssuesBatch(
+			ctx.db,
+			ctx.workspaceId,
+			result.data,
+			visibleProjectPredicate(ctx, schema.issues.projectId) ?? undefined,
+		),
+	);
+	return { ...page, items: page.items.map((item) => ({ ...item, url: buildIssueUrl(item) })) };
 }
 
 async function resolveTypeId(
 	ctx: ServiceCtx,
-	typeId: string | null | undefined
+	typeId: string | null | undefined,
 ): Promise<string | null> {
 	if (typeId === null) return null;
 	const orm = drizzle(ctx.db, { schema });
@@ -764,7 +309,7 @@ async function resolveTypeId(
 			.select({ id: schema.taskTypes.id })
 			.from(schema.taskTypes)
 			.where(
-				and(eq(schema.taskTypes.id, typeId), eq(schema.taskTypes.workspaceId, ctx.workspaceId))
+				and(eq(schema.taskTypes.id, typeId), eq(schema.taskTypes.workspaceId, ctx.workspaceId)),
 			)
 			.get();
 		if (!found)
@@ -778,7 +323,7 @@ async function resolveTypeId(
 		.select({ id: schema.taskTypes.id })
 		.from(schema.taskTypes)
 		.where(
-			and(eq(schema.taskTypes.workspaceId, ctx.workspaceId), eq(schema.taskTypes.isDefault, 1))
+			and(eq(schema.taskTypes.workspaceId, ctx.workspaceId), eq(schema.taskTypes.isDefault, 1)),
 		)
 		.get();
 	return def?.id ?? null;
@@ -810,7 +355,7 @@ function buildInsertIssueStatement(
 		// PROJ-921: set when the issue is created straight into a ready status.
 		readyAt: number | null;
 		now: number;
-	}>
+	}>,
 ): D1PreparedStatement {
 	// Atomic number allocation: the subquery for MAX(number) and the INSERT run as
 	// a single SQLite statement, eliminating the read-then-write race that existed
@@ -825,7 +370,7 @@ function buildInsertIssueStatement(
 			 VALUES
 			   (?, ?, ?, (SELECT COALESCE(MAX(number), 0) + 1 FROM issues WHERE project_id = ?),
 			    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			 RETURNING number`
+			 RETURNING number`,
 		)
 		.bind(
 			params.id,
@@ -849,7 +394,7 @@ function buildInsertIssueStatement(
 			params.now,
 			params.now,
 			...dorColumns(params.resolvedBody),
-			params.readyAt
+			params.readyAt,
 		);
 }
 
@@ -857,7 +402,7 @@ function buildFtsInsertStatement(
 	ctx: ServiceCtx,
 	id: string,
 	title: string,
-	body: string
+	body: string,
 ): D1PreparedStatement {
 	return ctx.db
 		.prepare("INSERT INTO issues_fts (issue_id, workspace_id, title, body) VALUES (?, ?, ?, ?)")
@@ -876,7 +421,7 @@ function buildActivityInsertStatement(
 		entityId: string;
 		action: "created" | "updated";
 		diff?: Record<string, unknown>;
-	}>
+	}>,
 ): D1PreparedStatement {
 	const query = orm
 		.insert(schema.activity)
@@ -1043,7 +588,7 @@ function buildSimpleFields(data: UpdateIssueData): SetValues {
 function buildCompletedAtTransition(
 	existing: ExistingIssue,
 	resolvedStatusKey: string,
-	newStatusCategory: string | undefined
+	newStatusCategory: string | undefined,
 ): SetValues {
 	const wasDone = existing.statusCategory === "done" || existing.status === "done";
 	const isDone = newStatusCategory === "done" || resolvedStatusKey === "done";
@@ -1061,7 +606,7 @@ function buildCompletedAtTransition(
 function isClaimedState(
 	category: string | null | undefined,
 	key: string | null | undefined,
-	isReviewStep: boolean
+	isReviewStep: boolean,
 ): boolean {
 	return category === "in_progress" || key === "in_progress" || isReviewStep;
 }
@@ -1072,7 +617,7 @@ function isDoneState(category: string | null | undefined, key: string | null | u
 
 function isCancelledState(
 	category: string | null | undefined,
-	key: string | null | undefined
+	key: string | null | undefined,
 ): boolean {
 	return category === "cancelled" || key === "cancelled";
 }
@@ -1092,7 +637,7 @@ function buildFlowTimestampTransitions(
 	existing: ExistingIssue,
 	resolvedStatusKey: string,
 	newStatusCategory: string | undefined,
-	newIsReviewStep: boolean
+	newIsReviewStep: boolean,
 ): SetValues {
 	const setValues: SetValues = {};
 
@@ -1103,7 +648,7 @@ function buildFlowTimestampTransitions(
 	const wasClaimed = isClaimedState(
 		existing.statusCategory,
 		existing.status,
-		existing.statusIsReviewStep
+		existing.statusIsReviewStep,
 	);
 	const isClaimed = isClaimedState(newStatusCategory, resolvedStatusKey, newIsReviewStep);
 	if (isClaimed && !wasClaimed && existing.claimedAt == null) setValues.claimedAt = now();
@@ -1136,7 +681,7 @@ function buildReviewTransitions(
 		newIsReviewStep: boolean;
 		enteringInReview: boolean;
 		enteringDone: boolean;
-	}>
+	}>,
 ): { setValues: SetValues; isGateRejection: boolean } {
 	const { resolvedStatusKey, newStatusCategory, newIsReviewStep, enteringInReview, enteringDone } =
 		transition;
@@ -1179,7 +724,7 @@ function classifyStatusTransition(
 	existing: ExistingIssue,
 	resolvedStatusKey: string,
 	newStatusCategory: string | undefined,
-	newIsReviewStep: boolean
+	newIsReviewStep: boolean,
 ): { enteringInReview: boolean; enteringDone: boolean } {
 	const wasInReview = existing.statusIsReviewStep;
 	const enteringInReview = newIsReviewStep && !wasInReview;
@@ -1199,7 +744,7 @@ async function assertReviewGate(
 	ctx: ServiceCtx,
 	data: UpdateIssueData,
 	existing: ExistingIssue,
-	transition: Readonly<{ enteringInReview: boolean; enteringDone: boolean }>
+	transition: Readonly<{ enteringInReview: boolean; enteringDone: boolean }>,
 ): Promise<void> {
 	const { enteringInReview, enteringDone } = transition;
 	if (!enteringInReview && !enteringDone) return;
@@ -1241,7 +786,7 @@ async function computeNeedsAudit(ctx: ServiceCtx, data: UpdateIssueData): Promis
 async function applyStatusFields(
 	ctx: ServiceCtx,
 	data: UpdateIssueData,
-	existing: ExistingIssue
+	existing: ExistingIssue,
 ): Promise<{
 	setValues: SetValues;
 	reviewOrDoneTransition: boolean;
@@ -1266,7 +811,7 @@ async function applyStatusFields(
 	const resolved = await resolveStatus(
 		ctx,
 		"statusId" in data ? data.statusId : undefined,
-		data.status
+		data.status,
 	);
 	const { id: resolvedStatusId, key: resolvedStatusKey } = resolved;
 	const newStatusCategory = resolved.category ?? undefined;
@@ -1276,7 +821,7 @@ async function applyStatusFields(
 		existing,
 		resolvedStatusKey,
 		newStatusCategory,
-		newIsReviewStep
+		newIsReviewStep,
 	);
 	await assertReviewGate(ctx, data, existing, transition);
 
@@ -1291,11 +836,11 @@ async function applyStatusFields(
 
 	Object.assign(
 		setValues,
-		buildCompletedAtTransition(existing, resolvedStatusKey, newStatusCategory)
+		buildCompletedAtTransition(existing, resolvedStatusKey, newStatusCategory),
 	);
 	Object.assign(
 		setValues,
-		buildFlowTimestampTransitions(existing, resolvedStatusKey, newStatusCategory, newIsReviewStep)
+		buildFlowTimestampTransitions(existing, resolvedStatusKey, newStatusCategory, newIsReviewStep),
 	);
 	const { setValues: reviewSetValues, isGateRejection } = buildReviewTransitions(existing, {
 		resolvedStatusKey,
@@ -1315,7 +860,7 @@ async function applyStatusFields(
 	const gateRejectionStatement = isGateRejection
 		? ctx.db
 				.prepare(
-					"INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)"
+					"INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)",
 				)
 				.bind(crypto.randomUUID(), ctx.workspaceId, existing.id, now())
 		: null;
@@ -1339,7 +884,7 @@ function now(): number {
 // been written); the batched insert doesn't re-validate, so check it here, before the
 // batch, and fail the whole update with a 400 instead of storing an oversize comment.
 function completionReportCommentBody(
-	report: Parameters<typeof formatCompletionReportComment>[0]
+	report: Parameters<typeof formatCompletionReportComment>[0],
 ): string {
 	const body = formatCompletionReportComment(report);
 	const max = AddCommentSchema.shape.body.maxLength;
@@ -1361,7 +906,7 @@ function formatCompletionReportComment(
 		summary: string;
 		verification: string;
 		prLink?: string;
-	}>
+	}>,
 ): string {
 	const lines = [
 		"**Completion report**",
@@ -1382,7 +927,7 @@ async function assertNotDemotingEpicWithChildren(
 	ctx: ServiceCtx,
 	orm: ReturnType<typeof drizzle>,
 	existing: ExistingIssue,
-	newTypeId: string | null
+	newTypeId: string | null,
 ): Promise<void> {
 	if (!existing.typeId || existing.typeId === newTypeId) return;
 
@@ -1392,15 +937,15 @@ async function assertNotDemotingEpicWithChildren(
 		.where(
 			and(
 				eq(schema.taskTypes.id, existing.typeId),
-				eq(schema.taskTypes.workspaceId, ctx.workspaceId)
-			)
+				eq(schema.taskTypes.workspaceId, ctx.workspaceId),
+			),
 		)
 		.get();
 	if (currentType?.key !== "epic") return;
 
 	const childCount = await orm.$count(
 		schema.issues,
-		and(eq(schema.issues.parentId, existing.id), eq(schema.issues.workspaceId, ctx.workspaceId))
+		and(eq(schema.issues.parentId, existing.id), eq(schema.issues.workspaceId, ctx.workspaceId)),
 	);
 	if (childCount > 0) {
 		throw new ValidationError({
@@ -1416,7 +961,7 @@ async function buildUpdateSetValues(
 	ctx: ServiceCtx,
 	orm: ReturnType<typeof drizzle>,
 	data: UpdateIssueData,
-	existing: ExistingIssue
+	existing: ExistingIssue,
 ): Promise<{
 	setValues: SetValues;
 	recordCompletionReport: boolean;
@@ -1455,7 +1000,7 @@ function buildFtsReindexStatements(
 	ctx: ServiceCtx,
 	id: string,
 	title: string,
-	body: string
+	body: string,
 ): D1PreparedStatement[] {
 	return [
 		ctx.db
@@ -1496,7 +1041,7 @@ async function invalidateUpdateCaches(
 	ctx: ServiceCtx,
 	id: string,
 	data: UpdateIssueData,
-	existing: ExistingIssue
+	existing: ExistingIssue,
 ): Promise<void> {
 	await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${id}`);
 
@@ -1548,8 +1093,8 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
 			schema.taskStatuses,
 			and(
 				eq(schema.taskStatuses.id, schema.issues.statusId),
-				eq(schema.taskStatuses.workspaceId, ctx.workspaceId)
-			)
+				eq(schema.taskStatuses.workspaceId, ctx.workspaceId),
+			),
 		)
 		.where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
 		.get();
@@ -1602,7 +1147,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
 			.update(schema.issues)
 			.set(setValues)
 			.where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-			.toSQL()
+			.toSQL(),
 	);
 
 	const statements: D1PreparedStatement[] = [updateStatement];
@@ -1613,8 +1158,8 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
 				ctx,
 				id,
 				data.title ?? existing.title,
-				data.body ?? existing.body
-			)
+				data.body ?? existing.body,
+			),
 		);
 	}
 
@@ -1627,7 +1172,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
 				issueId: id,
 				body: completionReportCommentBody(data.completionReport),
 				now: commentNow,
-			})
+			}),
 		);
 	}
 
@@ -1639,7 +1184,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
 			entityId: id,
 			action: "updated",
 			diff,
-		})
+		}),
 	);
 
 	// PROJ-928: an issue moving to done/cancelled releases its lease and file claims so
@@ -1651,7 +1196,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
 	if (closing) {
 		statements.push(
 			buildReleaseLeaseForClosedIssueStatement(ctx, id),
-			buildReleaseClaimsForClosedIssueStatement(ctx, id)
+			buildReleaseClaimsForClosedIssueStatement(ctx, id),
 		);
 	}
 
@@ -1730,8 +1275,8 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 				eq(schema.attachments.workspaceId, ctx.workspaceId),
 				eq(schema.attachments.entityType, "issue"),
 				eq(schema.attachments.entityId, id),
-				eq(schema.attachments.kind, "file")
-			)
+				eq(schema.attachments.kind, "file"),
+			),
 		);
 	// Issues whose cached payload mentions this one (link targets/sources, children) —
 	// invalidated after the batch so they stop showing a deleted issue.
@@ -1739,7 +1284,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 		.prepare(
 			`SELECT target_issue_id AS id FROM issue_links WHERE source_issue_id = ?1
 			 UNION SELECT source_issue_id FROM issue_links WHERE target_issue_id = ?1
-			 UNION SELECT id FROM issues WHERE parent_id = ?1 AND workspace_id = ?2`
+			 UNION SELECT id FROM issues WHERE parent_id = ?1 AND workspace_id = ?2`,
 		)
 		.bind(id, ctx.workspaceId)
 		.all<{ id: string }>();
@@ -1750,7 +1295,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 			orm
 				.delete(schema.issues)
 				.where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-				.toSQL()
+				.toSQL(),
 		),
 		ctx.db
 			.prepare("DELETE FROM issues_fts WHERE issue_id = ? AND workspace_id = ?")
@@ -1763,26 +1308,26 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 		// ON DELETE CASCADE rows — delete outright.
 		toD1Statement(
 			ctx,
-			orm.delete(schema.issueComments).where(eq(schema.issueComments.issueId, id)).toSQL()
+			orm.delete(schema.issueComments).where(eq(schema.issueComments.issueId, id)).toSQL(),
 		),
 		toD1Statement(
 			ctx,
 			orm
 				.delete(schema.issueLinks)
 				.where(or(eq(schema.issueLinks.sourceIssueId, id), eq(schema.issueLinks.targetIssueId, id)))
-				.toSQL()
+				.toSQL(),
 		),
 		toD1Statement(
 			ctx,
-			orm.delete(schema.customFieldValues).where(eq(schema.customFieldValues.issueId, id)).toSQL()
+			orm.delete(schema.customFieldValues).where(eq(schema.customFieldValues.issueId, id)).toSQL(),
 		),
 		toD1Statement(
 			ctx,
-			orm.delete(schema.issueFileClaims).where(eq(schema.issueFileClaims.issueId, id)).toSQL()
+			orm.delete(schema.issueFileClaims).where(eq(schema.issueFileClaims.issueId, id)).toSQL(),
 		),
 		toD1Statement(
 			ctx,
-			orm.delete(schema.issueLeases).where(eq(schema.issueLeases.issueId, id)).toSQL()
+			orm.delete(schema.issueLeases).where(eq(schema.issueLeases.issueId, id)).toSQL(),
 		),
 		toD1Statement(
 			ctx,
@@ -1791,21 +1336,21 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 				.where(
 					or(
 						eq(schema.claimConflicts.rejectedIssueId, id),
-						eq(schema.claimConflicts.holdingIssueId, id)
-					)
+						eq(schema.claimConflicts.holdingIssueId, id),
+					),
 				)
-				.toSQL()
+				.toSQL(),
 		),
 		toD1Statement(
 			ctx,
-			orm.delete(schema.wipCapDenials).where(eq(schema.wipCapDenials.issueId, id)).toSQL()
+			orm.delete(schema.wipCapDenials).where(eq(schema.wipCapDenials.issueId, id)).toSQL(),
 		),
 		toD1Statement(
 			ctx,
 			orm
 				.delete(schema.issueGateRejections)
 				.where(eq(schema.issueGateRejections.issueId, id))
-				.toSQL()
+				.toSQL(),
 		),
 		toD1Statement(
 			ctx,
@@ -1815,10 +1360,10 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 					and(
 						eq(schema.attachments.workspaceId, ctx.workspaceId),
 						eq(schema.attachments.entityType, "issue"),
-						eq(schema.attachments.entityId, id)
-					)
+						eq(schema.attachments.entityId, id),
+					),
 				)
-				.toSQL()
+				.toSQL(),
 		),
 		// ON DELETE SET NULL rows — null the referencing column instead.
 		toD1Statement(
@@ -1829,14 +1374,14 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 				.where(
 					and(
 						eq(schema.agentSessions.issueId, id),
-						eq(schema.agentSessions.workspaceId, ctx.workspaceId)
-					)
+						eq(schema.agentSessions.workspaceId, ctx.workspaceId),
+					),
 				)
-				.toSQL()
+				.toSQL(),
 		),
 		ctx.db
 			.prepare(
-				"UPDATE feedback SET linked_issue_id = NULL WHERE linked_issue_id = ? AND workspace_id = ?"
+				"UPDATE feedback SET linked_issue_id = NULL WHERE linked_issue_id = ? AND workspace_id = ?",
 			)
 			.bind(id, ctx.workspaceId),
 		// Not a physically-declared FK (issues.parent_id carries no REFERENCES clause), but
@@ -1847,7 +1392,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 				.update(schema.issues)
 				.set({ parentId: null })
 				.where(and(eq(schema.issues.parentId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-				.toSQL()
+				.toSQL(),
 		),
 	];
 
@@ -1872,7 +1417,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 	const toInvalidate = new Set([id, ...affected.results.map((r) => r.id)]);
 	if (existing.parentId) toInvalidate.add(existing.parentId);
 	await Promise.all(
-		[...toInvalidate].map((iid) => cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${iid}`))
+		[...toInvalidate].map((iid) => cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${iid}`)),
 	);
 
 	await broadcastWorkspaceEvent(ctx, {
@@ -1941,10 +1486,10 @@ async function healDefinitionOfReady(ctx: ServiceCtx): Promise<void> {
 			rows.map((r) =>
 				ctx.db
 					.prepare(
-						"UPDATE issues SET dor_ready = ?, dor_missing = ? WHERE id = ? AND workspace_id = ?"
+						"UPDATE issues SET dor_ready = ?, dor_missing = ? WHERE id = ? AND workspace_id = ?",
 					)
-					.bind(...dorColumns(r.body), r.id, ctx.workspaceId)
-			)
+					.bind(...dorColumns(r.body), r.id, ctx.workspaceId),
+			),
 		);
 		if (rows.length < DOR_HEAL_BATCH) return;
 	}
@@ -1986,7 +1531,7 @@ async function queryPrioritized(
 		excludeClaimed: boolean;
 		projectId: string | undefined;
 		readyOnly: boolean;
-	}
+	},
 ): Promise<PrioritizedRow[]> {
 	const where: string[] = [
 		"i.workspace_id = ?",
@@ -2124,35 +1669,12 @@ export async function searchIssues(ctx: ServiceCtx, raw: unknown) {
 		? await resolveVisibleProjectIdParam(ctx, result.data.projectId)
 		: result.data.projectId;
 
-	const ftsQuery = sanitizeFtsQuery(query);
-	if (!ftsQuery) return [];
-
-	let q = `SELECT i.id, i.number, i.title, i.status, i.priority,
-              p.id as project_id, p.key as project_key, p.name as project_name
-           FROM issues_fts
-           JOIN issues i ON i.id = issues_fts.issue_id
-           LEFT JOIN projects p ON p.id = i.project_id
-           WHERE issues_fts MATCH ? AND issues_fts.workspace_id = ?`;
-	const params: unknown[] = [ftsQuery, ctx.workspaceId];
-
-	if (projectId) {
-		q += " AND i.project_id = ?";
-		params.push(projectId);
-	}
-
-	// PROJ-311: restrict full-text results to the user's visible projects.
-	const visible = visibleProjectSqlFragment(ctx, "i.project_id");
-	if (visible) {
-		q += ` AND ${visible.sql}`;
-		params.push(...visible.params);
-	}
-
-	q += " ORDER BY bm25(issues_fts) LIMIT ?";
-	params.push(limit);
-
-	const { results } = await ctx.db
-		.prepare(q)
-		.bind(...params)
-		.all();
-	return results;
+	return Effect.runPromise(
+		issueQueries.searchIssues(
+			ctx.db,
+			ctx.workspaceId,
+			{ query, limit, projectId },
+			visibleProjectSqlFragment(ctx, "i.project_id") ?? undefined,
+		),
+	);
 }

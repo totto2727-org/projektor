@@ -22,7 +22,7 @@ const outPath = join(
 	"content",
 	"docs",
 	"agents",
-	"workflow-spec.md"
+	"workflow-spec.md",
 );
 
 const frontmatter = [

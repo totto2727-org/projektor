@@ -171,7 +171,7 @@ export function setWikiFrontmatterFields(content: string, values: Record<string,
 export function stampWikiFrontmatterVerification(
 	content: string,
 	verifiedAtSeconds: number,
-	verifiedBy: string
+	verifiedBy: string,
 ): string {
 	const match = FRONTMATTER_RE.exec(content);
 	const rest = match ? content.slice(match[0].length) : content;

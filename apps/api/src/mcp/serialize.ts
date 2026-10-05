@@ -87,7 +87,7 @@ const ShapeOptsSchema = z.object({
 	fields: z
 		.union([z.string(), z.array(z.string())])
 		.transform((v) =>
-			(typeof v === "string" ? v.split(",") : v).map((s) => s.trim()).filter((s) => s.length > 0)
+			(typeof v === "string" ? v.split(",") : v).map((s) => s.trim()).filter((s) => s.length > 0),
 		)
 		.pipe(z.array(z.enum(ISSUE_FIELD_NAMES)).max(ISSUE_FIELD_NAMES.length))
 		.optional(),
@@ -198,7 +198,7 @@ function summarize(issue: Record<string, unknown>): Record<string, unknown> {
  */
 export function shapeIssue(
 	issue: Record<string, unknown>,
-	opts: ShapeOpts = {}
+	opts: ShapeOpts = {},
 ): Record<string, unknown> {
 	const ref = refOf(issue);
 	if (opts.fields && opts.fields.length > 0) {
@@ -244,7 +244,7 @@ export function shapeIssue(
 export function toPage<T>(
 	items: T[],
 	next?: string | number | null,
-	extra: Record<string, unknown> = {}
+	extra: Record<string, unknown> = {},
 ): { items: T[]; next?: string } & Record<string, unknown> {
 	return { items, ...(next == null ? {} : { next: String(next) }), ...extra };
 }
@@ -264,7 +264,7 @@ export function capPage<P extends { items: unknown[]; next?: string }>(
 		cursorOf?: (index: number) => string | undefined;
 		/** Whether the page may end after `kept` items (e.g. not mid-way through one timestamp). */
 		canCutAt?: (kept: number) => boolean;
-	} = {}
+	} = {},
 ): P & { truncated?: true; hint?: string } {
 	const max = opts.max ?? MAX_RESULT_CHARS;
 	if (page.items.length === 0 || JSON.stringify(page).length <= max) return page;

@@ -8,7 +8,7 @@ export async function recordActivity(
 		entityId: string;
 		action: "created" | "updated" | "deleted";
 		diff?: Record<string, unknown>;
-	}>
+	}>,
 ): Promise<void> {
 	const orm = drizzle(ctx.db, { schema });
 	await orm.insert(schema.activity).values({

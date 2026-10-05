@@ -119,14 +119,14 @@ describe("PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixtur
 				inReviewAt?: number;
 				doneAt?: number;
 				typeKey?: string;
-			}>
+			}>,
 		): Promise<string> {
 			const id = crypto.randomUUID();
 			await env.DB.prepare(
 				`INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, priority,
 					labels, created_by_id, created_at, updated_at, ready_at, claimed_at, in_review_at, done_at)
 				SELECT ?, ?, ?, COALESCE(MAX(number), 0) + 1, ?, '', 'backlog', 'none', '[]', ?, ?, ?, ?, ?, ?, ?
-				FROM issues WHERE project_id = ?`
+				FROM issues WHERE project_id = ?`,
 			)
 				.bind(
 					id,
@@ -140,13 +140,13 @@ describe("PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixtur
 					stamps.claimedAt ?? null,
 					stamps.inReviewAt ?? null,
 					stamps.doneAt ?? null,
-					projectId
+					projectId,
 				)
 				.run();
 			if (stamps.typeKey) {
 				const typeId = crypto.randomUUID();
 				await env.DB.prepare(
-					`INSERT INTO task_types (id, workspace_id, key, name, position) VALUES (?, ?, ?, ?, 0)`
+					`INSERT INTO task_types (id, workspace_id, key, name, position) VALUES (?, ?, ?, ?, 0)`,
 				)
 					.bind(typeId, workspaceId, stamps.typeKey, stamps.typeKey)
 					.run();
@@ -193,7 +193,7 @@ describe("PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixtur
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=day`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		const metrics = await res.json();
@@ -221,7 +221,7 @@ describe("PROJ-866: D1 query bound at scale", () => {
 			env.DB.prepare(
 				`INSERT INTO agent_sessions (id, workspace_id, issue_id, token_id, name, kind, status,
 					started_at, last_heartbeat_at, ended_at)
-				VALUES (?, ?, NULL, NULL, 'bulk', 'agent', 'ended', ?, ?, ?)`
+				VALUES (?, ?, NULL, NULL, 'bulk', 'agent', 'ended', ?, ?, ?)`,
 			).bind(agentSessionId, workspaceId, since, since, since),
 		];
 		const insertIssue = (number: number, createdAt: number, claimedAt: number, doneAt: number) => {
@@ -230,7 +230,7 @@ describe("PROJ-866: D1 query bound at scale", () => {
 				env.DB.prepare(
 					`INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, priority,
 						labels, created_by_id, created_at, updated_at, claimed_at, done_at)
-					VALUES (?, ?, ?, ?, ?, '', 'done', 'none', '[]', ?, ?, ?, ?, ?)`
+					VALUES (?, ?, ?, ?, ?, '', 'done', 'none', '[]', ?, ?, ?, ?, ?)`,
 				).bind(
 					id,
 					workspaceId,
@@ -241,8 +241,8 @@ describe("PROJ-866: D1 query bound at scale", () => {
 					createdAt,
 					createdAt,
 					claimedAt,
-					doneAt
-				)
+					doneAt,
+				),
 			);
 			return id;
 		};
@@ -257,16 +257,16 @@ describe("PROJ-866: D1 query bound at scale", () => {
 				statements.push(
 					env.DB.prepare(
 						`INSERT INTO issue_comments (id, issue_id, author_id, body, created_at, updated_at, author_kind)
-						VALUES (?, ?, ?, 'c', ?, ?, 'human')`
-					).bind(crypto.randomUUID(), id, userId, claimedAt, claimedAt)
+						VALUES (?, ?, ?, 'c', ?, ?, 'human')`,
+					).bind(crypto.randomUUID(), id, userId, claimedAt, claimedAt),
 				);
 			}
 			if (i % 4 === 0) {
 				statements.push(
 					env.DB.prepare(
 						`INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)
-						VALUES (?, ?, ?, ?, ?, ?, 'released')`
-					).bind(crypto.randomUUID(), workspaceId, id, agentSessionId, claimedAt, claimedAt + 500)
+						VALUES (?, ?, ?, ?, ?, ?, 'released')`,
+					).bind(crypto.randomUUID(), workspaceId, id, agentSessionId, claimedAt, claimedAt + 500),
 				);
 			}
 		}
@@ -348,14 +348,14 @@ describe("PROJ-866 review: window defaults and aging WIP", () => {
 		const until = now - 20 * DAY;
 		const insert = async (
 			title: string,
-			stamps: Readonly<{ createdAt: number; claimedAt: number; doneAt: number | null }>
+			stamps: Readonly<{ createdAt: number; claimedAt: number; doneAt: number | null }>,
 		) => {
 			const id = crypto.randomUUID();
 			await env.DB.prepare(
 				`INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, priority,
 					labels, created_by_id, created_at, updated_at, claimed_at, done_at)
 				SELECT ?, ?, ?, COALESCE(MAX(number), 0) + 1, ?, '', 'in_progress', 'none', '[]', ?, ?, ?, ?, ?
-				FROM issues WHERE project_id = ?`
+				FROM issues WHERE project_id = ?`,
 			)
 				.bind(
 					id,
@@ -367,7 +367,7 @@ describe("PROJ-866 review: window defaults and aging WIP", () => {
 					stamps.createdAt,
 					stamps.claimedAt,
 					stamps.doneAt,
-					projectId
+					projectId,
 				)
 				.run();
 			return id;
@@ -398,7 +398,7 @@ describe("PROJ-866 review: window defaults and aging WIP", () => {
 		// and the reopened one sits in the CFD done band (done before since) only.
 		expect(metrics.wipOverTime.every((b) => b.count === 0)).toBe(true);
 		expect(
-			metrics.arrivalVsCompletionOverTime.every((b) => b.created === 0 && b.completed === 0)
+			metrics.arrivalVsCompletionOverTime.every((b) => b.created === 0 && b.completed === 0),
 		).toBe(true);
 		expect(metrics.cfdOverTime.every((b) => b.done === 1 && b.inProgress === 0)).toBe(true);
 	});

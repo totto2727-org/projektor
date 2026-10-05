@@ -50,7 +50,7 @@ describe("File Claims API", () => {
 		args: Record<string, unknown>,
 		t = token,
 		s = slug,
-		wsId = workspaceId
+		wsId = workspaceId,
 	) {
 		return SELF.fetch(`http://localhost/mcp/${wsId}`, {
 			method: "POST",
@@ -245,7 +245,7 @@ describe("File Claims API", () => {
 		expect(res.status).toBe(409);
 
 		const rows = await env.DB.prepare(
-			"SELECT * FROM claim_conflicts WHERE workspace_id = ? AND path = ?"
+			"SELECT * FROM claim_conflicts WHERE workspace_id = ? AND path = ?",
 		)
 			.bind(workspaceId, "src/conflict-log.ts")
 			.all();
@@ -268,7 +268,7 @@ describe("File Claims API", () => {
 		expect(res.status).toBe(409);
 
 		const rows = await env.DB.prepare(
-			"SELECT path FROM claim_conflicts WHERE workspace_id = ? AND rejected_issue_id = ? AND forced = 0"
+			"SELECT path FROM claim_conflicts WHERE workspace_id = ? AND rejected_issue_id = ? AND forced = 0",
 		)
 			.bind(workspaceId, issue2.id)
 			.all();
@@ -290,7 +290,7 @@ describe("File Claims API", () => {
 		expect(res.status).toBe(201);
 
 		const rows = await env.DB.prepare(
-			"SELECT * FROM claim_conflicts WHERE workspace_id = ? AND path = ?"
+			"SELECT * FROM claim_conflicts WHERE workspace_id = ? AND path = ?",
 		)
 			.bind(workspaceId, "src/force-log.ts")
 			.all();
@@ -307,7 +307,7 @@ describe("File Claims API", () => {
 		expect(res.status).toBe(201);
 
 		const rows = await env.DB.prepare(
-			"SELECT * FROM claim_conflicts WHERE workspace_id = ? AND path = ?"
+			"SELECT * FROM claim_conflicts WHERE workspace_id = ? AND path = ?",
 		)
 			.bind(workspaceId, "src/no-conflict.ts")
 			.all();
@@ -317,7 +317,7 @@ describe("File Claims API", () => {
 	async function listMessagesForScope(scope: string) {
 		const res = await SELF.fetch(
 			`http://localhost/api/agent-messages?scope=${encodeURIComponent(scope)}`,
-			{ headers: authHeaders(token, slug) }
+			{ headers: authHeaders(token, slug) },
 		);
 		expect(res.status).toBe(200);
 		return (await res.json()) as { items: Array<{ body: string }> };
@@ -398,7 +398,7 @@ describe("File Claims API", () => {
 	// definition it didn't. B4b above covers the clean-exit path; none of these do.
 	describe("PROJ-636: stale-holder reclaim", () => {
 		async function seedSession(
-			opts: Readonly<{ status?: string; heartbeatAgeSecs?: number; name?: string }> = {}
+			opts: Readonly<{ status?: string; heartbeatAgeSecs?: number; name?: string }> = {},
 		): Promise<string> {
 			const id = crypto.randomUUID();
 			const now = Math.floor(Date.now() / 1000);
@@ -406,7 +406,7 @@ describe("File Claims API", () => {
 				`INSERT INTO agent_sessions
 	         (id, workspace_id, issue_id, token_id, name, kind, status, started_at,
 	          last_heartbeat_at, ended_at)
-	       VALUES (?, ?, NULL, NULL, ?, 'agent', ?, ?, ?, NULL)`
+	       VALUES (?, ?, NULL, NULL, ?, 'agent', ?, ?, ?, NULL)`,
 			)
 				.bind(
 					id,
@@ -414,7 +414,7 @@ describe("File Claims API", () => {
 					opts.name ?? "crashed-agent",
 					opts.status ?? "active",
 					now,
-					now - (opts.heartbeatAgeSecs ?? 0)
+					now - (opts.heartbeatAgeSecs ?? 0),
 				)
 				.run();
 			return id;
@@ -422,7 +422,7 @@ describe("File Claims API", () => {
 
 		async function claimRow(path: string) {
 			return env.DB.prepare(
-				"SELECT released_at, release_reason FROM issue_file_claims WHERE path = ? AND workspace_id = ?"
+				"SELECT released_at, release_reason FROM issue_file_claims WHERE path = ? AND workspace_id = ?",
 			)
 				.bind(path, workspaceId)
 				.first<{ released_at: number | null; release_reason: string | null }>();
@@ -432,7 +432,7 @@ describe("File Claims API", () => {
 			// 200s > the 120s TTL. Status stays 'active' — that is the whole point.
 			const dead = await seedSession({ heartbeatAgeSecs: 200 });
 			expect(
-				(await claimFiles({ issueId, agentId: dead, paths: ["src/abandoned.ts"] })).status
+				(await claimFiles({ issueId, agentId: dead, paths: ["src/abandoned.ts"] })).status,
 			).toBe(201);
 
 			const issue2 = await seedIssue(workspaceId, projectId, userId, { title: "Takes over" });
@@ -459,7 +459,7 @@ describe("File Claims API", () => {
 
 			// Two rows now share this path; the released one is the original holder's.
 			const released = await env.DB.prepare(
-				"SELECT release_reason FROM issue_file_claims WHERE path = ? AND released_at IS NOT NULL"
+				"SELECT release_reason FROM issue_file_claims WHERE path = ? AND released_at IS NOT NULL",
 			)
 				.bind("src/reason.ts")
 				.first<{ release_reason: string }>();
@@ -487,7 +487,7 @@ describe("File Claims API", () => {
 
 			const issue2 = await seedIssue(workspaceId, projectId, userId, { title: "Blocked" });
 			expect((await claimFiles({ issueId: issue2.id, paths: ["src/no-agent.ts"] })).status).toBe(
-				409
+				409,
 			);
 		});
 
@@ -502,7 +502,7 @@ describe("File Claims API", () => {
 			// repeatedly-hot path says something about how the work was sliced. Fleet mortality
 			// is not contention, so counting it there would corrupt the signal.
 			const conflicts = await env.DB.prepare(
-				"SELECT COUNT(*) AS n FROM claim_conflicts WHERE path = ?"
+				"SELECT COUNT(*) AS n FROM claim_conflicts WHERE path = ?",
 			)
 				.bind("src/no-conflict.ts")
 				.first<{ n: number }>();
@@ -519,7 +519,7 @@ describe("File Claims API", () => {
 			await claimFiles({ issueId: issue2.id, paths: ["src/live-conflict.ts"] });
 
 			const conflicts = await env.DB.prepare(
-				"SELECT COUNT(*) AS n FROM claim_conflicts WHERE path = ?"
+				"SELECT COUNT(*) AS n FROM claim_conflicts WHERE path = ?",
 			)
 				.bind("src/live-conflict.ts")
 				.first<{ n: number }>();
@@ -575,7 +575,7 @@ describe("File Claims API", () => {
 			const live = await seedSession({ heartbeatAgeSecs: 5 });
 			await claimFiles({ issueId, agentId: live, paths: ["src/touch-live.ts"] });
 			const liveRow = await env.DB.prepare(
-				"SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?"
+				"SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?",
 			)
 				.bind(live)
 				.first<{ last_heartbeat_at: number }>();
@@ -583,14 +583,14 @@ describe("File Claims API", () => {
 
 			const dead = await seedSession({ heartbeatAgeSecs: 200 });
 			const deadBefore = await env.DB.prepare(
-				"SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?"
+				"SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?",
 			)
 				.bind(dead)
 				.first<{ last_heartbeat_at: number }>();
 			const issue2 = await seedIssue(workspaceId, projectId, userId, { title: "Dead claimer" });
 			await claimFiles({ issueId: issue2.id, agentId: dead, paths: ["src/touch-dead.ts"] });
 			const deadAfter = await env.DB.prepare(
-				"SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?"
+				"SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?",
 			)
 				.bind(dead)
 				.first<{ last_heartbeat_at: number }>();
@@ -604,7 +604,7 @@ describe("File Claims API", () => {
 			async function backdateClaim(path: string, secondsAgo: number) {
 				const claimedAt = Math.floor(Date.now() / 1000) - secondsAgo;
 				await env.DB.prepare(
-					"UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?"
+					"UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?",
 				)
 					.bind(claimedAt, path, workspaceId)
 					.run();
@@ -663,7 +663,7 @@ describe("File Claims API", () => {
 			expect(listBody.items).toHaveLength(0);
 
 			const row = await env.DB.prepare(
-				"SELECT release_reason FROM issue_file_claims WHERE path = ? AND workspace_id = ?"
+				"SELECT release_reason FROM issue_file_claims WHERE path = ? AND workspace_id = ?",
 			)
 				.bind("src/done-releases.ts", workspaceId)
 				.first<{ release_reason: string }>();
@@ -731,14 +731,14 @@ describe("File Claims API", () => {
 
 			const byKey = await listFileClaims({ projectId: projectKey });
 			const byKeyPaths = ((await byKey.json()) as { items: Array<{ path: string }> }).items.map(
-				(i) => i.path
+				(i) => i.path,
 			);
 			expect(byKeyPaths).toContain("src/in-project.ts");
 			expect(byKeyPaths).not.toContain("src/in-other.ts");
 
 			const byUuid = await listFileClaims({ projectId });
 			const byUuidPaths = ((await byUuid.json()) as { items: Array<{ path: string }> }).items.map(
-				(i) => i.path
+				(i) => i.path,
 			);
 			expect(byUuidPaths).toContain("src/in-project.ts");
 			expect(byUuidPaths).not.toContain("src/in-other.ts");
@@ -766,7 +766,7 @@ describe("File Claims API", () => {
 			await env.DB.prepare(
 				`INSERT INTO agent_sessions
 				   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
-				 VALUES (?, ?, NULL, NULL, ?, 'agent', 'active', ?, ?, NULL)`
+				 VALUES (?, ?, NULL, NULL, ?, 'agent', 'active', ?, ?, NULL)`,
 			)
 				.bind(id, workspaceId, "stale-session-932", now, now - 200) // 200s > the 120s TTL
 				.run();
@@ -776,7 +776,7 @@ describe("File Claims API", () => {
 		it("excludes an agent-linked claim whose session heartbeat is stale; includeStale:true includes it, flagged live:false", async () => {
 			const dead = await seedStaleAgentSession();
 			expect(
-				(await claimFiles({ issueId, agentId: dead, paths: ["src/stale-agent-932.ts"] })).status
+				(await claimFiles({ issueId, agentId: dead, paths: ["src/stale-agent-932.ts"] })).status,
 			).toBe(201);
 
 			const withoutFlag = await listFileClaims({ path: "src/stale-agent-932.ts" });
@@ -793,15 +793,15 @@ describe("File Claims API", () => {
 
 		it("excludes an agentless claim past the file-claim TTL; includeStale:true includes it, flagged live:false", async () => {
 			expect((await claimFiles({ issueId, paths: ["src/expired-agentless-932.ts"] })).status).toBe(
-				201
+				201,
 			);
 			await env.DB.prepare(
-				"UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?"
+				"UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?",
 			)
 				.bind(
 					Math.floor(Date.now() / 1000) - (24 * 60 * 60 + 1), // past the default 24h TTL
 					"src/expired-agentless-932.ts",
-					workspaceId
+					workspaceId,
 				)
 				.run();
 

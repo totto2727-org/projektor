@@ -32,7 +32,7 @@ router.get("/", async (c) => {
 				tags,
 				includeTemplates,
 				includeWorkspacePages: c.req.query("includeWorkspacePages"),
-			})
+			}),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -47,7 +47,7 @@ router.get("/tree", async (c) => {
 			await wikiService.getWikiTree(ctx, {
 				projectId,
 				includeWorkspacePages: c.req.query("includeWorkspacePages"),
-			})
+			}),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -76,7 +76,7 @@ router.get("/search", async (c) => {
 				status,
 				tags,
 				includeWorkspacePages: c.req.query("includeWorkspacePages"),
-			})
+			}),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -107,7 +107,7 @@ router.get("/stale-pages", async (c) => {
 				limit,
 				offset,
 				includeWorkspacePages: c.req.query("includeWorkspacePages"),
-			})
+			}),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -154,7 +154,7 @@ router.get("/notifications", async (c) => {
 		const limit = c.req.query("limit");
 		const offset = c.req.query("offset");
 		return c.json(
-			await wikiWatchersService.listWikiNotifications(ctx, { unreadOnly, limit, offset })
+			await wikiWatchersService.listWikiNotifications(ctx, { unreadOnly, limit, offset }),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -211,7 +211,7 @@ router.get("/changes", async (c) => {
 		const projectId = c.req.query("projectId");
 		const watchedOnly = c.req.query("watchedOnly");
 		return c.json(
-			await wikiWatchersService.listWikiChanges(ctx, { since, limit, projectId, watchedOnly })
+			await wikiWatchersService.listWikiChanges(ctx, { since, limit, projectId, watchedOnly }),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -254,7 +254,7 @@ router.get("/:slug/revisions/:revisionId", async (c) => {
 	const ctx = ctxFromHono(c);
 	try {
 		return c.json(
-			await wikiService.getWikiRevision(ctx, c.req.param("slug"), c.req.param("revisionId"))
+			await wikiService.getWikiRevision(ctx, c.req.param("slug"), c.req.param("revisionId")),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -267,7 +267,7 @@ router.get("/:slug/revisions/:revisionId/diff", async (c) => {
 		return c.json(
 			await wikiService.getWikiRevisionDiff(ctx, c.req.param("slug"), c.req.param("revisionId"), {
 				against: c.req.query("against"),
-			})
+			}),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);

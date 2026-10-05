@@ -117,7 +117,7 @@ function validateObject(
 	obj: Record<string, unknown>,
 	schema: Schema,
 	path: string,
-	issues: ArgIssue[]
+	issues: ArgIssue[],
 ): void {
 	const props =
 		schema.properties && typeof schema.properties === "object"

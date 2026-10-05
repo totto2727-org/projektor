@@ -81,7 +81,7 @@ function collect(): Map<string, FnInfo> {
 			fileName,
 			readFileSync(join(SERVICES, fileName), "utf8"),
 			ts.ScriptTarget.Latest,
-			true
+			true,
 		);
 
 		// import name → "file:name" (or "guard:name" for access.ts guards)
@@ -101,7 +101,7 @@ function collect(): Map<string, FnInfo> {
 						const orig = (el.propertyName ?? el.name).text;
 						imports.set(
 							el.name.text,
-							from === "access" && GUARDS.has(orig) ? `guard:${orig}` : `${from}:${orig}`
+							from === "access" && GUARDS.has(orig) ? `guard:${orig}` : `${from}:${orig}`,
 						);
 					}
 				}
@@ -204,7 +204,7 @@ describe("PROJ-837: project-scoped service operations reach the access guard", (
 			unguarded,
 			"These exported services take a project-scoped id but never reach services/access.ts. " +
 				"Call assertProjectAccess/hasProjectAccess (or a helper that does), or — if the " +
-				"function is genuinely safe — add it to test/architecture/access-guard-allowlist.ts with a reason."
+				"function is genuinely safe — add it to test/architecture/access-guard-allowlist.ts with a reason.",
 		).toEqual([]);
 	});
 

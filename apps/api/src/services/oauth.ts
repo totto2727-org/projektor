@@ -15,7 +15,7 @@ export class OAuthRequestError extends Error {
 	/** The OAuth error code to report back to the client (RFC 6749 §4.1.2.1). */
 	constructor(
 		readonly code: "invalid_target" | "invalid_scope",
-		readonly reason: string
+		readonly reason: string,
 	) {
 		super(reason);
 		this.name = "OAuthRequestError";
@@ -35,7 +35,7 @@ export function workspaceIdFromResource(resource: string | string[] | undefined)
 	if (resource === undefined) {
 		throw new OAuthRequestError(
 			"invalid_target",
-			"A `resource` parameter naming the target workspace is required"
+			"A `resource` parameter naming the target workspace is required",
 		);
 	}
 	// Multiple resources would mean one grant spanning several workspaces, which the
@@ -57,7 +57,7 @@ export function workspaceIdFromResource(resource: string | string[] | undefined)
 	if (!workspaceId) {
 		throw new OAuthRequestError(
 			"invalid_target",
-			"`resource` must name an MCP endpoint, e.g. https://host/mcp/<id>"
+			"`resource` must name an MCP endpoint, e.g. https://host/mcp/<id>",
 		);
 	}
 	return decodeURIComponent(workspaceId);
@@ -79,7 +79,7 @@ export function grantedScopes(requested: readonly string[]): string[] {
 	if (granted.length === 0) {
 		throw new OAuthRequestError(
 			"invalid_scope",
-			`No supported scopes requested. Supported: ${OAUTH_SCOPES_SUPPORTED.join(", ")}`
+			`No supported scopes requested. Supported: ${OAUTH_SCOPES_SUPPORTED.join(", ")}`,
 		);
 	}
 	return [...granted];
@@ -162,14 +162,14 @@ export type ConsentWorkspace = Readonly<{ id: string; name: string; slug: string
 export async function lookupConsentWorkspace(
 	db: D1Database,
 	userId: string,
-	workspaceId: string
+	workspaceId: string,
 ): Promise<ConsentWorkspace | null> {
 	const row = await db
 		.prepare(
 			`SELECT w.id, w.name, w.slug, m.role
        FROM workspaces w
        LEFT JOIN workspace_members m ON m.workspace_id = w.id AND m.user_id = ?
-       WHERE w.id = ?`
+       WHERE w.id = ?`,
 		)
 		.bind(userId, workspaceId)
 		.first<{ id: string; name: string; slug: string; role: string | null }>();
@@ -210,7 +210,7 @@ const GRANT_MAX_PAGES = 5;
 export async function listConnectorGrants(
 	api: OAuthHelpers,
 	userId: string,
-	workspaceId: string
+	workspaceId: string,
 ): Promise<ConnectorGrant[]> {
 	const grants: ConnectorGrant[] = [];
 	let cursor: string | undefined;
@@ -265,7 +265,7 @@ export async function revokeConnectorGrant(
 	api: OAuthHelpers,
 	userId: string,
 	workspaceId: string,
-	grantId: string
+	grantId: string,
 ): Promise<{ ok: true }> {
 	const grants = await listConnectorGrants(api, userId, workspaceId);
 	if (!grants.some((grant) => grant.id === grantId)) {

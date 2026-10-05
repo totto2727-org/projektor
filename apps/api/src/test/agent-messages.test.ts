@@ -43,7 +43,7 @@ describe("Agent Messages API", () => {
 		args: Record<string, unknown>,
 		t = token,
 		s = slug,
-		wsId = workspaceId
+		wsId = workspaceId,
 	) {
 		return SELF.fetch(`http://localhost/mcp/${wsId}`, {
 			method: "POST",
@@ -108,7 +108,7 @@ describe("Agent Messages API", () => {
 		const page2Res = await listMessages(
 			{ scope, limit: "2", cursor: page1.nextCursor! },
 			token2,
-			slug
+			slug,
 		);
 		expect(page2Res.status).toBe(200);
 		const page2 = (await page2Res.json()) as {
@@ -140,7 +140,7 @@ describe("Agent Messages API", () => {
 			"list_messages",
 			{ scope, limit: 2, cursor: p1.nextCursor },
 			token5,
-			slug
+			slug,
 		);
 		const p2Body = (await p2Res.json()) as {
 			result?: { content: Array<{ text: string }> };
@@ -244,7 +244,7 @@ describe("Agent Messages API", () => {
 			"release_files",
 			{ paths: ["src/coord.ts"], issueId: issue2.id },
 			token2,
-			slug
+			slug,
 		);
 		expect(releaseRes.status).toBe(200);
 
@@ -257,7 +257,7 @@ describe("Agent Messages API", () => {
 				paths: ["src/coord.ts"],
 			},
 			token2,
-			slug
+			slug,
 		);
 		expect(reclaimRes.status).toBe(200);
 		const reclaimBody = (await reclaimRes.json()) as {
@@ -277,7 +277,7 @@ describe("Agent Messages API", () => {
 				paths: ["src/forced.ts"],
 			},
 			token2,
-			slug
+			slug,
 		);
 		expect(claimBRes.status).toBe(200);
 
@@ -294,7 +294,7 @@ describe("Agent Messages API", () => {
 				force: true,
 			},
 			token3,
-			slug
+			slug,
 		);
 		expect(forceRes.status).toBe(200);
 		const forceBody = (await forceRes.json()) as { result: { content: Array<{ text: string }> } };
@@ -313,8 +313,8 @@ describe("Agent Messages API", () => {
 		};
 		expect(
 			noticeData.items.some(
-				(m) => m.body.includes("force-claimed") && m.body.includes("src/forced.ts")
-			)
+				(m) => m.body.includes("force-claimed") && m.body.includes("src/forced.ts"),
+			),
 		).toBe(true);
 	}, 15000); // PROJ-248: many sequential MCP round-trips; full-suite contention pushes this past the 5s default
 

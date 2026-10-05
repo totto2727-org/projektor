@@ -33,7 +33,7 @@ async function seedScopeFixture() {
 	const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`);
 	const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`);
 	await env.DB.prepare(
-		"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)"
+		"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
 	)
 		.bind(ws.id, user.id, Math.floor(Date.now() / 1000))
 		.run();
@@ -174,7 +174,7 @@ async function mcpCall(
 	workspaceId: string,
 	name: string,
 	args: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<JsonRpcResult | JsonRpcError> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -214,7 +214,7 @@ describe("PROJ-17: MCP scope enforcement", () => {
 			workspaceId,
 			"create_issue",
 			{ projectId, title: "blocked" },
-			headers
+			headers,
 		);
 		expect(isMcpError(created)).toBe(true);
 		if (isMcpError(created)) {
@@ -229,7 +229,7 @@ describe("PROJ-17: MCP scope enforcement", () => {
 			workspaceId,
 			"create_issue",
 			{ projectId, title: "made via mcp" },
-			authHeaders(token, slug)
+			authHeaders(token, slug),
 		);
 		expect(isMcpError(created)).toBe(false);
 	});
@@ -256,7 +256,7 @@ describe("PROJ-17: POST /auth/tokens", () => {
 		const user = await seedUser(email);
 		userId = user.id;
 		await env.DB.prepare(
-			"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)"
+			"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
 		)
 			.bind(workspaceId, userId, Math.floor(Date.now() / 1000))
 			.run();

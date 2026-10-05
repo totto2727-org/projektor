@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { loadMigrations, migratedDb } from "./helpers";
 
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../migrations");
@@ -23,7 +23,7 @@ describe("migrations", () => {
 		}[];
 		const tables = rows.map((r) => r.name);
 		expect(tables).toEqual(
-			expect.arrayContaining(["workspaces", "users", "workspace_members", "projects", "issues"])
+			expect.arrayContaining(["workspaces", "users", "workspace_members", "projects", "issues"]),
 		);
 	});
 });
@@ -34,7 +34,7 @@ describe("schema constraints", () => {
 		expect(() =>
 			db
 				.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)")
-				.run("w1", null, "acme", 0)
+				.run("w1", null, "acme", 0),
 		).toThrow();
 	});
 
@@ -44,12 +44,12 @@ describe("schema constraints", () => {
 			"w1",
 			"Acme",
 			"acme",
-			0
+			0,
 		);
 		expect(() =>
 			db
 				.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)")
-				.run("w2", "Acme Two", "acme", 0)
+				.run("w2", "Acme Two", "acme", 0),
 		).toThrow();
 	});
 
@@ -59,12 +59,12 @@ describe("schema constraints", () => {
 			"u1",
 			"a@example.com",
 			"A",
-			0
+			0,
 		);
 		expect(() =>
 			db
 				.prepare("INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)")
-				.run("u2", "a@example.com", "A2", 0)
+				.run("u2", "a@example.com", "A2", 0),
 		).toThrow();
 	});
 
@@ -74,14 +74,14 @@ describe("schema constraints", () => {
 			"u1",
 			"a@example.com",
 			"A",
-			0
+			0,
 		);
 		expect(() =>
 			db
 				.prepare(
-					"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)"
+					"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)",
 				)
-				.run("no-such-workspace", "u1", "member", 0)
+				.run("no-such-workspace", "u1", "member", 0),
 		).toThrow();
 	});
 
@@ -91,16 +91,16 @@ describe("schema constraints", () => {
 			"w1",
 			"Acme",
 			"acme",
-			0
+			0,
 		);
 		db.prepare("INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)").run(
 			"u1",
 			"a@example.com",
 			"A",
-			0
+			0,
 		);
 		db.prepare(
-			"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)"
+			"INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)",
 		).run("w1", "u1", "member", 0);
 
 		db.prepare("DELETE FROM workspaces WHERE id = ?").run("w1");
@@ -115,29 +115,29 @@ describe("schema constraints", () => {
 			"w1",
 			"Acme",
 			"acme",
-			0
+			0,
 		);
 		db.prepare("INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)").run(
 			"u1",
 			"a@example.com",
 			"A",
-			0
+			0,
 		);
 		db.prepare(
-			"INSERT INTO projects (id, workspace_id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+			"INSERT INTO projects (id, workspace_id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
 		).run("p1", "w1", "Acme Project", "ACME", 0, 0);
 		db.prepare(
 			`INSERT INTO issues (id, workspace_id, project_id, number, title, created_by_id, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		).run("i1", "w1", "p1", 1, "First issue", "u1", 0, 0);
 
 		expect(() =>
 			db
 				.prepare(
 					`INSERT INTO issues (id, workspace_id, project_id, number, title, created_by_id, created_at, updated_at)
-					 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 				)
-				.run("i2", "w1", "p1", 1, "Duplicate number", "u1", 0, 0)
+				.run("i2", "w1", "p1", 1, "Duplicate number", "u1", 0, 0),
 		).toThrow();
 	});
 
@@ -172,14 +172,14 @@ describe("schema constraints", () => {
 			"w1",
 			"Acme",
 			"acme",
-			0
+			0,
 		);
 		// Two projects that slugify to the same base value ("start-line").
 		db.prepare(
-			"INSERT INTO projects (id, workspace_id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+			"INSERT INTO projects (id, workspace_id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
 		).run("p1", "w1", "Start Line", "SL", 0, 0);
 		db.prepare(
-			"INSERT INTO projects (id, workspace_id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+			"INSERT INTO projects (id, workspace_id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
 		).run("p2", "w1", "Start_Line", "SL2", 1, 1);
 
 		const slugSql = readFileSync(join(MIGRATIONS_DIR, slugFile), "utf8");

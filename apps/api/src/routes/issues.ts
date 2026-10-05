@@ -75,7 +75,7 @@ router.get("/", async (c) => {
 				includeBody,
 				cursor,
 				limit,
-			})
+			}),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -93,7 +93,7 @@ router.get("/prioritized", async (c) => {
 				excludeClaimed: excludeClaimed !== undefined ? excludeClaimed === "true" : undefined,
 				includeNotReady: includeNotReady !== undefined ? includeNotReady === "true" : undefined,
 				projectId,
-			})
+			}),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -105,7 +105,7 @@ router.get("/search", async (c) => {
 	const { q, projectId, limit } = c.req.query();
 	try {
 		return c.json(
-			await searchIssues(ctx, { query: q, projectId, limit: limit ? Number(limit) : undefined })
+			await searchIssues(ctx, { query: q, projectId, limit: limit ? Number(limit) : undefined }),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -171,7 +171,7 @@ router.post("/:id/claim", async (c) => {
 	try {
 		return c.json(
 			await claimIssue(ctx, { issueId: c.req.param("id"), agentId: body.agentId }),
-			201
+			201,
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);

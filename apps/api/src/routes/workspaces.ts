@@ -152,8 +152,8 @@ router.delete("/:slug/connectors/:grantId", async (c) => {
 				oauthApi(c.env),
 				ctx.userId,
 				ctx.workspaceId,
-				c.req.param("grantId")
-			)
+				c.req.param("grantId"),
+			),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);
@@ -164,7 +164,7 @@ router.delete("/:slug", async (c) => {
 	const ctx = ctxFromHono(c);
 	try {
 		return c.json(
-			await deleteWorkspace(ctx, c.req.param("slug"), c.env.DEFAULT_WORKSPACE_SLUG ?? "projektor")
+			await deleteWorkspace(ctx, c.req.param("slug"), c.env.DEFAULT_WORKSPACE_SLUG ?? "projektor"),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);

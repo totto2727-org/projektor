@@ -16,7 +16,7 @@ router.get("/:id/activity", async (c) => {
 				projectId: c.req.param("id"),
 				since: since ? Number(since) : undefined,
 				limit: limit ? Number(limit) : undefined,
-			})
+			}),
 		);
 	} catch (e) {
 		return serviceErrToResponse(c, e);

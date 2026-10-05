@@ -97,7 +97,7 @@ describe("PROJ-921: migration 0062 clears zero lead times", () => {
 		for (const r of rows) {
 			await env.DB.prepare(
 				`INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, created_by_id, created_at, updated_at, ready_at, done_at)
-				 VALUES (?, ?, ?, ?, 't', '', 'todo', ?, 0, 0, ?, ?)`
+				 VALUES (?, ?, ?, ?, 't', '', 'todo', ?, 0, 0, ?, ?)`,
 			)
 				.bind(r.id, workspaceId, projectId, n++, userId, r.ready, r.done)
 				.run();
@@ -113,8 +113,8 @@ describe("PROJ-921: migration 0062 clears zero lead times", () => {
 			rows.map((r) =>
 				env.DB.prepare("SELECT ready_at FROM issues WHERE id = ?")
 					.bind(r.id)
-					.first<{ ready_at: number | null }>()
-			)
+					.first<{ ready_at: number | null }>(),
+			),
 		);
 		expect(after.map((a) => a?.ready_at)).toEqual([null, 50, 50]);
 	});

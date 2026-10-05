@@ -50,7 +50,7 @@ describe("Realtime WebSockets (Opt-In)", () => {
 				type: "issue.created",
 				projectId,
 				data: { id: "test-id" },
-			})
+			}),
 		).resolves.toBeUndefined();
 	});
 
@@ -121,7 +121,7 @@ describe("Realtime WebSockets (Opt-In)", () => {
 				action: "subscribe",
 				projects: [projectId],
 				eventTypes: ["issue.*"],
-			})
+			}),
 		);
 		expect(mockWs.serializeAttachment).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -129,7 +129,7 @@ describe("Realtime WebSockets (Opt-In)", () => {
 					projects: [projectId],
 					eventTypes: ["issue.*"],
 				},
-			})
+			}),
 		);
 		expect(mockWs.send).toHaveBeenCalledWith(expect.stringContaining('"type":"subscribed"'));
 	});
@@ -161,7 +161,7 @@ describe("Realtime WebSockets (Opt-In)", () => {
 				action: "subscribe",
 				projects: [projectId, "forbidden-project-id"],
 				eventTypes: ["issue.*"],
-			})
+			}),
 		);
 
 		expect(mockWs.serializeAttachment).toHaveBeenCalledWith(
@@ -170,10 +170,10 @@ describe("Realtime WebSockets (Opt-In)", () => {
 					projects: [projectId],
 					eventTypes: ["issue.*"],
 				},
-			})
+			}),
 		);
 		const subscribedCall = mockWs.send.mock.calls.find((call) =>
-			String(call[0]).includes('"type":"subscribed"')
+			String(call[0]).includes('"type":"subscribed"'),
 		);
 		expect(subscribedCall).toBeTruthy();
 	});
@@ -412,7 +412,7 @@ describe("Realtime WebSockets (Opt-In)", () => {
 		expect(serializeAttachment).toHaveBeenCalledWith(
 			expect.objectContaining({
 				visibleProjectIds: [grantedProject.id],
-			})
+			}),
 		);
 		expect(mockWs.send).toHaveBeenCalledWith(expect.stringContaining('"type":"pong"'));
 	});
@@ -450,7 +450,7 @@ describe("Realtime WebSockets (Opt-In)", () => {
 		await hub.webSocketMessage(mockWs as unknown as WebSocket, JSON.stringify({ action: "ping" }));
 
 		expect(serializeAttachment).toHaveBeenCalledWith(
-			expect.objectContaining({ role: undefined, visibleProjectIds: [] })
+			expect.objectContaining({ role: undefined, visibleProjectIds: [] }),
 		);
 
 		const { recipientCount } = await hub.broadcast({
@@ -461,7 +461,7 @@ describe("Realtime WebSockets (Opt-In)", () => {
 		});
 		expect(recipientCount).toBe(0);
 		expect(mockWs.send).not.toHaveBeenCalledWith(
-			expect.stringContaining("should-not-reach-removed-admin")
+			expect.stringContaining("should-not-reach-removed-admin"),
 		);
 	});
 
@@ -553,7 +553,7 @@ describe("Realtime WebSockets (Opt-In)", () => {
 			expect.objectContaining({
 				method: "POST",
 				body: expect.stringContaining('"type":"issue.created"'),
-			})
+			}),
 		);
 	});
 });

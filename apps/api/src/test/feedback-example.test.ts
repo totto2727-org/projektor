@@ -19,7 +19,7 @@ describe("documented feedback widget example", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ name: "Docs example source" }),
-			}
+			},
 		);
 		const { token } = (await created.json()) as { token: string };
 
@@ -46,7 +46,7 @@ describe("documented feedback widget example", () => {
 		vi.stubGlobal("fetch", (url: string, init?: RequestInit) => SELF.fetch(url, init));
 
 		await expect(
-			submitFeedback("http://localhost/api/feedback/submit", "not-a-real-token", { body: "x" })
+			submitFeedback("http://localhost/api/feedback/submit", "not-a-real-token", { body: "x" }),
 		).rejects.toThrow(/Feedback submit failed: 401/);
 	});
 });

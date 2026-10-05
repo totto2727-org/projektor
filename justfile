@@ -1,30 +1,32 @@
-# Independent SSR frontend. The existing API/legacy frontend tasks are unchanged.
 default:
     @just --list
 
-ssr-install:
+install:
     corepack pnpm install --frozen-lockfile
 
-ssr-dev:
-    corepack pnpm --filter @projektor/ssr exec vp dev
+# Alchemy owns the local Workers, bindings and Vite build lifecycle.
+dev:
+    corepack pnpm exec alchemy dev --config alchemy.run.ts
 
-ssr-build:
-    corepack pnpm --filter @projektor/ssr exec vp build
+# Planning compares resources. It is not a production build or upload.
+plan:
+    corepack pnpm exec alchemy plan --config alchemy.run.ts --stage production
 
-# Use the built RSC + nested SSR Worker, not a substituted test renderer.
-ssr-preview:
-    corepack pnpm --filter @projektor/ssr exec wrangler dev --config dist/rsc/wrangler.json --local --port 8793
+# Requires the existing JWT_SECRET, Cloudflare profile and confirmed Access.
+# Execute only as an intentional operator action.
+deploy:
+    corepack pnpm exec alchemy deploy --config alchemy.run.ts --stage production
 
-ssr-lint:
-    corepack pnpm exec biome check apps/ssr/src apps/ssr/*.ts apps/ssr/*.json apps/ssr/*.jsonc
+check:
+    corepack pnpm exec vp run ci:check
+    corepack pnpm exec vp run ci:format
 
-ssr-format:
-    corepack pnpm exec biome check --write apps/ssr/src apps/ssr/*.ts apps/ssr/*.json apps/ssr/*.jsonc
+test:
+    corepack pnpm exec vp run test:packages
 
-ssr-check: ssr-lint
-    corepack pnpm --filter @projektor/ssr exec tsc --noEmit
-    corepack pnpm --filter @projektor/ssr exec vitest run --config vitest.config.ts
+format:
+    corepack pnpm exec vp fmt
 
-# Upload is always an explicit operator action, never a build side effect.
-ssr-deploy-dry-run: ssr-build
-    corepack pnpm --filter @projektor/ssr exec wrangler deploy --config dist/rsc/wrangler.json --dry-run
+# Official local runtime host builds both Workers without production credentials.
+e2e:
+    corepack pnpm exec playwright test --config tests/e2e-alchemy/playwright.config.ts

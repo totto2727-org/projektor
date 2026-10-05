@@ -40,23 +40,23 @@ describe("PROJ-923: explicit cleanup on delete", () => {
 		const { groupId } = await seedGroupGrant(workspace.id, user.id, project.id);
 		await deleteGroup(ctx, groupId);
 		expect(
-			await count("SELECT COUNT(*) AS n FROM user_group_members WHERE group_id = ?", groupId)
+			await count("SELECT COUNT(*) AS n FROM user_group_members WHERE group_id = ?", groupId),
 		).toBe(0);
 		expect(
-			await count("SELECT COUNT(*) AS n FROM group_project_grants WHERE group_id = ?", groupId)
+			await count("SELECT COUNT(*) AS n FROM group_project_grants WHERE group_id = ?", groupId),
 		).toBe(0);
 	});
 
 	it("revokeToken nulls agent_sessions.token_id", async () => {
 		const { ctx, workspace } = await ownerCtx();
 		const tokenRow = await env.DB.prepare(
-			"SELECT id FROM api_tokens WHERE workspace_id = ? LIMIT 1"
+			"SELECT id FROM api_tokens WHERE workspace_id = ? LIMIT 1",
 		)
 			.bind(workspace.id)
 			.first<{ id: string }>();
 		const sessionId = crypto.randomUUID();
 		await env.DB.prepare(
-			"INSERT INTO agent_sessions (id, workspace_id, token_id, name, status, started_at, last_heartbeat_at) VALUES (?, ?, ?, 'a', 'active', 0, 0)"
+			"INSERT INTO agent_sessions (id, workspace_id, token_id, name, status, started_at, last_heartbeat_at) VALUES (?, ?, ?, 'a', 'active', 0, 0)",
 		)
 			.bind(sessionId, workspace.id, tokenRow?.id)
 			.run();
@@ -90,11 +90,11 @@ describe("PROJ-923: explicit cleanup on delete", () => {
 		];
 		for (const t of tables) {
 			expect(
-				`${t}: ${await count(`SELECT COUNT(*) AS n FROM ${t} WHERE workspace_id = ?`, workspace.id)}`
+				`${t}: ${await count(`SELECT COUNT(*) AS n FROM ${t} WHERE workspace_id = ?`, workspace.id)}`,
 			).toBe(`${t}: 0`);
 		}
 		expect(await count("SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?", page.id)).toBe(
-			0
+			0,
 		);
 		expect(await count("SELECT COUNT(*) AS n FROM workspaces WHERE id = ?", workspace.id)).toBe(0);
 	});

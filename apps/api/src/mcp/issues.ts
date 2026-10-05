@@ -55,7 +55,7 @@ function splitBodyChars(rest: Record<string, unknown>): {
 
 function withBodyPreview(
 	item: Record<string, unknown>,
-	bodyChars: number
+	bodyChars: number,
 ): Record<string, unknown> {
 	if (bodyChars <= 0) return item;
 	return { ...item, ...bodyPreview(item.body, bodyChars) };
@@ -180,7 +180,7 @@ export const issuesTools: MCPTool[] = [
 			const page = toPage(
 				raw.map((i) => shapeIssue(withBodyPreview(i, bodyChars), shape)),
 				result.nextCursor,
-				result.total === undefined ? {} : { total: result.total }
+				result.total === undefined ? {} : { total: result.total },
 			);
 			return capPage(page, {
 				cursorOf: (i) => (raw[i] ? `${raw[i].created_at}:${raw[i].id}` : undefined),

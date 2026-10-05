@@ -26,7 +26,7 @@ const DEFAULT_AGENT_WIP_LIMIT = 3;
 async function assertIssueExists(
 	orm: ReturnType<typeof drizzle>,
 	ctx: ServiceCtx,
-	issueId: string
+	issueId: string,
 ): Promise<{ projectId: string }> {
 	const issue = await orm
 		.select({ id: schema.issues.id, projectId: schema.issues.projectId })
@@ -41,7 +41,7 @@ async function assertIssueExists(
 export async function fetchAgentWipCap(
 	orm: ReturnType<typeof drizzle>,
 	ctx: ServiceCtx,
-	projectId: string
+	projectId: string,
 ): Promise<number> {
 	const project = await orm
 		.select({ agentWipLimit: schema.projects.agentWipLimit })
@@ -57,7 +57,7 @@ async function liveLeaseHoldersForProject(
 	orm: ReturnType<typeof drizzle>,
 	ctx: ServiceCtx,
 	projectId: string,
-	cutoff: number
+	cutoff: number,
 ): Promise<string[]> {
 	const live = await orm
 		.select({ issueId: schema.issueLeases.issueId })
@@ -70,8 +70,8 @@ async function liveLeaseHoldersForProject(
 				isNull(schema.issueLeases.releasedAt),
 				eq(schema.issues.projectId, projectId),
 				eq(schema.agentSessions.status, "active"),
-				gt(schema.agentSessions.lastHeartbeatAt, cutoff)
-			)
+				gt(schema.agentSessions.lastHeartbeatAt, cutoff),
+			),
 		);
 	return live.map((l) => l.issueId);
 }
@@ -81,7 +81,7 @@ async function assertAgentSessionLive(
 	orm: ReturnType<typeof drizzle>,
 	ctx: ServiceCtx,
 	agentId: string,
-	cutoff: number
+	cutoff: number,
 ): Promise<void> {
 	const session = await orm
 		.select({
@@ -92,8 +92,8 @@ async function assertAgentSessionLive(
 		.where(
 			and(
 				eq(schema.agentSessions.id, agentId),
-				eq(schema.agentSessions.workspaceId, ctx.workspaceId)
-			)
+				eq(schema.agentSessions.workspaceId, ctx.workspaceId),
+			),
 		)
 		.get();
 	if (!session) throw new NotFoundError("Agent session not found");
@@ -117,7 +117,7 @@ async function assertAgentSessionLive(
 async function touchAgentHeartbeat(
 	orm: ReturnType<typeof drizzle>,
 	ctx: ServiceCtx,
-	agentId: string
+	agentId: string,
 ): Promise<void> {
 	await orm
 		.update(schema.agentSessions)
@@ -126,8 +126,8 @@ async function touchAgentHeartbeat(
 			and(
 				eq(schema.agentSessions.id, agentId),
 				eq(schema.agentSessions.workspaceId, ctx.workspaceId),
-				eq(schema.agentSessions.status, "active")
-			)
+				eq(schema.agentSessions.status, "active"),
+			),
 		);
 }
 
@@ -140,7 +140,7 @@ async function touchAgentHeartbeat(
 // claimIssue's touchAgentHeartbeat call site has, so the guard must be explicit.
 export function buildTouchAgentHeartbeatIfLiveStatement(
 	ctx: ServiceCtx,
-	agentSessionId: string
+	agentSessionId: string,
 ): D1PreparedStatement {
 	const orm = drizzle(ctx.db, { schema });
 	const query = orm
@@ -151,8 +151,8 @@ export function buildTouchAgentHeartbeatIfLiveStatement(
 				eq(schema.agentSessions.id, agentSessionId),
 				eq(schema.agentSessions.workspaceId, ctx.workspaceId),
 				eq(schema.agentSessions.status, "active"),
-				gt(schema.agentSessions.lastHeartbeatAt, liveCutoff())
-			)
+				gt(schema.agentSessions.lastHeartbeatAt, liveCutoff()),
+			),
 		)
 		.toSQL();
 	return ctx.db.prepare(query.sql).bind(...query.params);
@@ -165,7 +165,7 @@ async function reclaimStaleLeaseOrThrow(
 	ctx: ServiceCtx,
 	issueId: string,
 	cutoff: number,
-	now: number
+	now: number,
 ): Promise<void> {
 	const existing = await orm
 		.select({
@@ -180,8 +180,8 @@ async function reclaimStaleLeaseOrThrow(
 			and(
 				eq(schema.issueLeases.workspaceId, ctx.workspaceId),
 				eq(schema.issueLeases.issueId, issueId),
-				isNull(schema.issueLeases.releasedAt)
-			)
+				isNull(schema.issueLeases.releasedAt),
+			),
 		)
 		.get();
 	if (!existing) return;
@@ -245,7 +245,7 @@ export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
 				   JOIN agent_sessions s ON s.id = il.agent_session_id
 				   WHERE il.workspace_id = ? AND il.released_at IS NULL
 				     AND i.project_id = ? AND s.status = 'active' AND s.last_heartbeat_at > ?
-				 ) < ?`
+				 ) < ?`,
 			)
 			.bind(id, ctx.workspaceId, issueId, agentId, now, ctx.workspaceId, projectId, cutoff, cap)
 			.run();
@@ -265,14 +265,14 @@ export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
 		await ctx.db
 			.prepare(
 				"INSERT INTO wip_cap_denials (id, workspace_id, project_id, issue_id, agent_session_id, " +
-					"occurred_at) VALUES (?, ?, ?, ?, ?, ?)"
+					"occurred_at) VALUES (?, ?, ?, ?, ?, ?)",
 			)
 			.bind(crypto.randomUUID(), ctx.workspaceId, projectId, issueId, agentId, now)
 			.run();
 
 		const held = await liveLeaseHoldersForProject(orm, ctx, projectId, cutoff);
 		throw new ConflictError(
-			`Project agent WIP limit reached (${cap}); currently held: ${held.join(", ")}`
+			`Project agent WIP limit reached (${cap}); currently held: ${held.join(", ")}`,
 		);
 	}
 
@@ -347,7 +347,7 @@ export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
  */
 export function buildReleaseLeaseForClosedIssueStatement(
 	ctx: ServiceCtx,
-	issueId: string
+	issueId: string,
 ): D1PreparedStatement {
 	const orm = drizzle(ctx.db, { schema });
 	const now = Math.floor(Date.now() / 1000);
@@ -358,8 +358,8 @@ export function buildReleaseLeaseForClosedIssueStatement(
 			and(
 				eq(schema.issueLeases.workspaceId, ctx.workspaceId),
 				eq(schema.issueLeases.issueId, issueId),
-				isNull(schema.issueLeases.releasedAt)
-			)
+				isNull(schema.issueLeases.releasedAt),
+			),
 		)
 		.toSQL();
 	return ctx.db.prepare(query.sql).bind(...query.params);
@@ -377,8 +377,8 @@ export async function releaseLeasesForAgent(ctx: ServiceCtx, agentSessionId: str
 			and(
 				eq(schema.issueLeases.workspaceId, ctx.workspaceId),
 				eq(schema.issueLeases.agentSessionId, agentSessionId),
-				isNull(schema.issueLeases.releasedAt)
-			)
+				isNull(schema.issueLeases.releasedAt),
+			),
 		);
 }
 
@@ -397,8 +397,8 @@ export async function liveLeasedIssueIds(ctx: ServiceCtx): Promise<Set<string>> 
 				eq(schema.issueLeases.workspaceId, ctx.workspaceId),
 				isNull(schema.issueLeases.releasedAt),
 				eq(schema.agentSessions.status, "active"),
-				gt(schema.agentSessions.lastHeartbeatAt, liveCutoff())
-			)
+				gt(schema.agentSessions.lastHeartbeatAt, liveCutoff()),
+			),
 		);
 	return new Set(rows.map((r) => r.issueId));
 }
@@ -425,8 +425,8 @@ export async function issueHasLiveAgentLease(ctx: ServiceCtx, issueId: string): 
 				eq(schema.issueLeases.issueId, issueId),
 				isNull(schema.issueLeases.releasedAt),
 				eq(schema.agentSessions.status, "active"),
-				gt(schema.agentSessions.lastHeartbeatAt, liveCutoff())
-			)
+				gt(schema.agentSessions.lastHeartbeatAt, liveCutoff()),
+			),
 		)
 		.get();
 	return row != null;
@@ -448,8 +448,8 @@ export async function issueEverHadAgentLease(ctx: ServiceCtx, issueId: string): 
 		.where(
 			and(
 				eq(schema.issueLeases.workspaceId, ctx.workspaceId),
-				eq(schema.issueLeases.issueId, issueId)
-			)
+				eq(schema.issueLeases.issueId, issueId),
+			),
 		)
 		.get();
 	return row != null;
@@ -469,7 +469,7 @@ export async function issueEverHadAgentLease(ctx: ServiceCtx, issueId: string): 
  */
 export async function isLiveAgentSessionId(
 	ctx: ServiceCtx,
-	agentSessionId: string
+	agentSessionId: string,
 ): Promise<boolean> {
 	const orm = drizzle(ctx.db, { schema });
 	const row = await orm
@@ -480,8 +480,8 @@ export async function isLiveAgentSessionId(
 				eq(schema.agentSessions.id, agentSessionId),
 				eq(schema.agentSessions.workspaceId, ctx.workspaceId),
 				eq(schema.agentSessions.status, "active"),
-				gt(schema.agentSessions.lastHeartbeatAt, liveCutoff())
-			)
+				gt(schema.agentSessions.lastHeartbeatAt, liveCutoff()),
+			),
 		)
 		.get();
 	return row != null;
@@ -546,8 +546,8 @@ export async function listIssueLeases(ctx: ServiceCtx, raw: unknown) {
 			schema.issues,
 			and(
 				eq(schema.issueLeases.issueId, schema.issues.id),
-				eq(schema.issues.workspaceId, ctx.workspaceId)
-			)
+				eq(schema.issues.workspaceId, ctx.workspaceId),
+			),
 		)
 		.innerJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
 		.where(and(...conditions))

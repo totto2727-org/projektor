@@ -16,12 +16,12 @@ import { seedRateLimitCounter } from "./rate-limit-reset";
 describe("feedback migration", () => {
 	it("creates feedback_sources and feedback tables", async () => {
 		const src = await env.DB.prepare(
-			"SELECT name FROM sqlite_master WHERE type='table' AND name='feedback_sources'"
+			"SELECT name FROM sqlite_master WHERE type='table' AND name='feedback_sources'",
 		).first<{ name: string }>();
 		expect(src?.name).toBe("feedback_sources");
 
 		const fb = await env.DB.prepare(
-			"SELECT name FROM sqlite_master WHERE type='table' AND name='feedback'"
+			"SELECT name FROM sqlite_master WHERE type='table' AND name='feedback'",
 		).first<{ name: string }>();
 		expect(fb?.name).toBe("feedback");
 	});
@@ -59,7 +59,7 @@ describe("Feedback sources REST", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ name: "NPS" }),
-			}
+			},
 		);
 		const { token } = (await created.json()) as { token: string };
 
@@ -87,7 +87,7 @@ describe("Feedback sources REST", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ name: "Old" }),
-			}
+			},
 		);
 		const { id } = (await created.json()) as { id: string };
 
@@ -97,7 +97,7 @@ describe("Feedback sources REST", () => {
 				method: "PATCH",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ name: "New", isActive: false }),
-			}
+			},
 		);
 		expect(res.status).toBe(200);
 		const row = await env.DB.prepare("SELECT name, is_active FROM feedback_sources WHERE id = ?")
@@ -119,13 +119,13 @@ describe("Feedback sources REST", () => {
 
 		const memberRes = await SELF.fetch(
 			`http://localhost/api/projects/${proj.id}/feedback-sources/${id}`,
-			{ method: "DELETE", headers: authHeaders(roles.member.token, roles.workspace.slug) }
+			{ method: "DELETE", headers: authHeaders(roles.member.token, roles.workspace.slug) },
 		);
 		expect(memberRes.status).toBe(403);
 
 		const ownerRes = await SELF.fetch(
 			`http://localhost/api/projects/${proj.id}/feedback-sources/${id}`,
-			{ method: "DELETE", headers: authHeaders(roles.owner.token, roles.workspace.slug) }
+			{ method: "DELETE", headers: authHeaders(roles.owner.token, roles.workspace.slug) },
 		);
 		expect(ownerRes.status).toBe(200);
 		const row = await env.DB.prepare("SELECT revoked_at FROM feedback_sources WHERE id = ?")
@@ -137,7 +137,7 @@ describe("Feedback sources REST", () => {
 
 async function mintSource(
 	f: Readonly<{ projectId: string; token: string; slug: string }>,
-	body: Record<string, unknown> = { name: "Widget" }
+	body: Record<string, unknown> = { name: "Widget" },
 ): Promise<string> {
 	const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
 		method: "POST",
@@ -188,7 +188,7 @@ describe("Feedback submit (public)", () => {
 		expect(Object.keys(data)).toEqual(["id"]);
 
 		const row = await env.DB.prepare(
-			"SELECT project_id, workspace_id, source_id, status FROM feedback WHERE id = ?"
+			"SELECT project_id, workspace_id, source_id, status FROM feedback WHERE id = ?",
 		)
 			.bind(data.id)
 			.first<{ project_id: string; workspace_id: string; source_id: string; status: string }>();
@@ -348,13 +348,13 @@ async function seedFeedbackRow(
 	sourceId: string,
 	workspaceId: string,
 	projectId: string,
-	opts: Readonly<{ body?: string; status?: string }> = {}
+	opts: Readonly<{ body?: string; status?: string }> = {},
 ): Promise<string> {
 	const id = crypto.randomUUID();
 	const now = Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
 		`INSERT INTO feedback (id, source_id, workspace_id, project_id, body, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(id, sourceId, workspaceId, projectId, opts.body ?? "seed", opts.status ?? "new", now)
 		.run();
@@ -380,7 +380,7 @@ describe("Feedback triage read/patch", () => {
 
 		const filtered = await SELF.fetch(
 			`http://localhost/api/projects/${f.projectId}/feedback?status=new`,
-			{ headers: authHeaders(f.token, f.slug) }
+			{ headers: authHeaders(f.token, f.slug) },
 		);
 		const rows = (await filtered.json()) as Array<{ status: string }>;
 		expect(rows).toHaveLength(1);
@@ -419,7 +419,7 @@ describe("Feedback triage read/patch", () => {
 				method: "PATCH",
 				headers: authHeaders(roles.viewer.token, roles.workspace.slug),
 				body: JSON.stringify({ status: "reviewed" }),
-			}
+			},
 		);
 		expect(viewerRes.status).toBe(403);
 
@@ -429,7 +429,7 @@ describe("Feedback triage read/patch", () => {
 				method: "PATCH",
 				headers: authHeaders(roles.member.token, roles.workspace.slug),
 				body: JSON.stringify({ status: "reviewed" }),
-			}
+			},
 		);
 		expect(memberRes.status).toBe(200);
 		const row = await env.DB.prepare("SELECT status FROM feedback WHERE id = ?")
@@ -452,7 +452,7 @@ describe("Feedback triage read/patch", () => {
 		await mintSource(f, { name: "A" });
 		await mintSource(f, { name: "B" });
 		const sources = await env.DB.prepare(
-			"SELECT id, name FROM feedback_sources WHERE project_id = ? ORDER BY name"
+			"SELECT id, name FROM feedback_sources WHERE project_id = ? ORDER BY name",
 		)
 			.bind(f.projectId)
 			.all<{ id: string; name: string }>();
@@ -462,7 +462,7 @@ describe("Feedback triage read/patch", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${f.projectId}/feedback?sourceId=${srcA.id}`,
-			{ headers: authHeaders(f.token, f.slug) }
+			{ headers: authHeaders(f.token, f.slug) },
 		);
 		const rows = (await res.json()) as Array<{ sourceId: string }>;
 		expect(rows).toHaveLength(1);
@@ -490,7 +490,7 @@ async function mcpCall<T>(
 	workspaceId: string,
 	name: string,
 	args: unknown,
-	headers: Record<string, string>
+	headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
 	const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
 		method: "POST",
@@ -516,7 +516,7 @@ describe("Feedback source MCP tools", () => {
 			f.workspaceId,
 			"create_feedback_source",
 			{ projectId: f.projectId, name: "Onboarding" },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const out = mcpText<{ id: string; token: string }>(res);
 		expect(out.id).toBeTruthy();
@@ -529,7 +529,7 @@ describe("Feedback source MCP tools", () => {
 			f.workspaceId,
 			"create_feedback_source",
 			{ projectId: f.projectId, name: "X" },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		);
 		expect(toolError(res)?.code).toBe("forbidden");
 	});
@@ -540,7 +540,7 @@ describe("Feedback source MCP tools", () => {
 			f.workspaceId,
 			"create_feedback_source",
 			{ projectId: f.projectId, name: "NPS" },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const { token } = mcpText<{ id: string; token: string }>(created);
 
@@ -548,7 +548,7 @@ describe("Feedback source MCP tools", () => {
 			f.workspaceId,
 			"list_feedback_sources",
 			{ projectId: f.projectId },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		expect(listed.result.content[0].text).not.toContain(token);
 	});
@@ -559,7 +559,7 @@ describe("Feedback source MCP tools", () => {
 			f.workspaceId,
 			"create_feedback_source",
 			{ projectId: f.projectId, name: "Old" },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const { id } = mcpText<{ id: string }>(created);
 
@@ -567,7 +567,7 @@ describe("Feedback source MCP tools", () => {
 			f.workspaceId,
 			"update_feedback_source",
 			{ sourceId: id, name: "New", isActive: false },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult;
 		expect(res.result).toBeDefined();
 
@@ -584,7 +584,7 @@ describe("Feedback source MCP tools", () => {
 			f.workspaceId,
 			"create_feedback_source",
 			{ projectId: f.projectId, name: "S" },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const { id } = mcpText<{ id: string }>(created);
 
@@ -592,7 +592,7 @@ describe("Feedback source MCP tools", () => {
 			f.workspaceId,
 			"revoke_feedback_source",
 			{ sourceId: id },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult;
 		expect(res.result).toBeDefined();
 
@@ -608,7 +608,7 @@ describe("Feedback source MCP tools", () => {
 			f.workspaceId,
 			"create_feedback_source",
 			{ projectId: f.projectId, name: "R" },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const { id, token: oldToken } = mcpText<{ id: string; token: string }>(created);
 		// Existing feedback under this source
@@ -618,7 +618,7 @@ describe("Feedback source MCP tools", () => {
 			f.workspaceId,
 			"rotate_feedback_source_token",
 			{ sourceId: id },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const { token: newToken } = mcpText<{ token: string }>(rotated);
 		expect(newToken).not.toBe(oldToken);
@@ -639,7 +639,7 @@ describe("Feedback source MCP tools", () => {
 		expect(newRes.status).toBe(201);
 		// id + history intact
 		const stillThere = await env.DB.prepare(
-			"SELECT id FROM feedback WHERE id = ? AND source_id = ?"
+			"SELECT id FROM feedback WHERE id = ? AND source_id = ?",
 		)
 			.bind(fbId, id)
 			.first<{ id: string }>();
@@ -660,7 +660,7 @@ describe("Feedback convert-to-issue", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`,
-			{ method: "POST", headers: authHeaders(f.token, f.slug) }
+			{ method: "POST", headers: authHeaders(f.token, f.slug) },
 		);
 		expect(res.status).toBe(201);
 		const issue = (await res.json()) as { id: string };
@@ -690,7 +690,7 @@ describe("Feedback convert-to-issue", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${proj.id}/feedback/${fbId}/convert-to-issue`,
-			{ method: "POST", headers: authHeaders(roles.viewer.token, roles.workspace.slug) }
+			{ method: "POST", headers: authHeaders(roles.viewer.token, roles.workspace.slug) },
 		);
 		expect(res.status).toBe(403);
 	});
@@ -712,7 +712,7 @@ describe("Feedback convert-to-issue", () => {
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${proj.id}/feedback/${fbId}/convert-to-issue`,
-			{ method: "POST", headers: authHeaders(roles.member.token, roles.workspace.slug) }
+			{ method: "POST", headers: authHeaders(roles.member.token, roles.workspace.slug) },
 		);
 		expect(res.status).toBe(201);
 	});
@@ -727,14 +727,14 @@ describe("Feedback convert-to-issue", () => {
 		const now = Math.floor(Date.now() / 1000);
 		await env.DB.prepare(
 			`INSERT INTO feedback (id, source_id, workspace_id, project_id, rating, rating_scale, body, status, created_at)
-			 VALUES (?, ?, ?, ?, ?, ?, NULL, 'new', ?)`
+			 VALUES (?, ?, ?, ?, ?, ?, NULL, 'new', ?)`,
 		)
 			.bind(id, src!.id, f.workspaceId, f.projectId, 1, "thumbs", now)
 			.run();
 
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${f.projectId}/feedback/${id}/convert-to-issue`,
-			{ method: "POST", headers: authHeaders(f.token, f.slug) }
+			{ method: "POST", headers: authHeaders(f.token, f.slug) },
 		);
 		expect(res.status).toBe(201);
 		const issue = (await res.json()) as { id: string };
@@ -754,13 +754,13 @@ describe("Feedback convert-to-issue", () => {
 
 		const first = await SELF.fetch(
 			`http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`,
-			{ method: "POST", headers: authHeaders(f.token, f.slug) }
+			{ method: "POST", headers: authHeaders(f.token, f.slug) },
 		);
 		expect(first.status).toBe(201);
 
 		const second = await SELF.fetch(
 			`http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`,
-			{ method: "POST", headers: authHeaders(f.token, f.slug) }
+			{ method: "POST", headers: authHeaders(f.token, f.slug) },
 		);
 		expect(second.status).toBe(409);
 	});
@@ -824,7 +824,7 @@ describe("PROJ-390: path params win over body-supplied ids", () => {
 					projectId: "00000000-0000-0000-0000-000000000000",
 					sourceId: "00000000-0000-0000-0000-000000000000",
 				}),
-			}
+			},
 		);
 		expect(res.status).toBe(200);
 		const row = await env.DB.prepare("SELECT name FROM feedback_sources WHERE id = ?")
@@ -856,7 +856,7 @@ describe("PROJ-390: cross-project feedback source mutation is rejected", () => {
 				method: "PATCH",
 				headers: authHeaders(roles.owner.token, roles.workspace.slug),
 				body: JSON.stringify({ name: "Hijacked" }),
-			}
+			},
 		);
 		expect(res.status).toBe(404);
 	});
@@ -865,7 +865,7 @@ describe("PROJ-390: cross-project feedback source mutation is rejected", () => {
 		const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace();
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}/rotate`,
-			{ method: "POST", headers: authHeaders(roles.owner.token, roles.workspace.slug) }
+			{ method: "POST", headers: authHeaders(roles.owner.token, roles.workspace.slug) },
 		);
 		expect(res.status).toBe(404);
 	});
@@ -874,7 +874,7 @@ describe("PROJ-390: cross-project feedback source mutation is rejected", () => {
 		const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace();
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}`,
-			{ method: "DELETE", headers: authHeaders(roles.owner.token, roles.workspace.slug) }
+			{ method: "DELETE", headers: authHeaders(roles.owner.token, roles.workspace.slug) },
 		);
 		expect(res.status).toBe(404);
 	});
@@ -882,7 +882,7 @@ describe("PROJ-390: cross-project feedback source mutation is rejected", () => {
 
 describe("PROJ-390: mutating a revoked feedback source", () => {
 	async function seedRevokedSource(
-		f: Readonly<{ projectId: string; token: string; slug: string }>
+		f: Readonly<{ projectId: string; token: string; slug: string }>,
 	) {
 		const created = await SELF.fetch(
 			`http://localhost/api/projects/${f.projectId}/feedback-sources`,
@@ -890,7 +890,7 @@ describe("PROJ-390: mutating a revoked feedback source", () => {
 				method: "POST",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ name: "Doomed" }),
-			}
+			},
 		);
 		const { id } = (await created.json()) as { id: string };
 		await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
@@ -909,7 +909,7 @@ describe("PROJ-390: mutating a revoked feedback source", () => {
 				method: "PATCH",
 				headers: authHeaders(f.token, f.slug),
 				body: JSON.stringify({ name: "Resurrected" }),
-			}
+			},
 		);
 		expect(res.status).toBe(409);
 	});
@@ -919,7 +919,7 @@ describe("PROJ-390: mutating a revoked feedback source", () => {
 		const id = await seedRevokedSource(f);
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}/rotate`,
-			{ method: "POST", headers: authHeaders(f.token, f.slug) }
+			{ method: "POST", headers: authHeaders(f.token, f.slug) },
 		);
 		expect(res.status).toBe(409);
 	});
@@ -929,7 +929,7 @@ describe("PROJ-390: mutating a revoked feedback source", () => {
 		const id = await seedRevokedSource(f);
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`,
-			{ method: "DELETE", headers: authHeaders(f.token, f.slug) }
+			{ method: "DELETE", headers: authHeaders(f.token, f.slug) },
 		);
 		expect(res.status).toBe(200);
 	});
@@ -952,7 +952,7 @@ describe("Feedback read/triage MCP tools", () => {
 			f.workspaceId,
 			"list_feedback",
 			{ projectId: f.projectId },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const all = mcpText<Array<{ status: string; sourceId: string }>>(res);
 		expect(all).toHaveLength(2);
@@ -961,7 +961,7 @@ describe("Feedback read/triage MCP tools", () => {
 			f.workspaceId,
 			"list_feedback",
 			{ projectId: f.projectId, status: "reviewed" },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const reviewed = mcpText<Array<{ status: string }>>(filtered);
 		expect(reviewed).toHaveLength(1);
@@ -971,7 +971,7 @@ describe("Feedback read/triage MCP tools", () => {
 			f.workspaceId,
 			"list_feedback",
 			{ projectId: f.projectId, sourceId: src!.id },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		expect(mcpText<Array<unknown>>(bySource)).toHaveLength(2);
 	});
@@ -992,7 +992,7 @@ describe("Feedback read/triage MCP tools", () => {
 			roles.workspace.id,
 			"list_feedback",
 			{ projectId: proj.id },
-			authHeaders(roles.viewer.token, roles.workspace.slug)
+			authHeaders(roles.viewer.token, roles.workspace.slug),
 		)) as JsonRpcResult;
 		expect(res.result).toBeDefined();
 	});
@@ -1009,7 +1009,7 @@ describe("Feedback read/triage MCP tools", () => {
 			f.workspaceId,
 			"update_feedback_status",
 			{ feedbackId: fbId, status: "reviewed" },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult;
 		expect(res.result).toBeDefined();
 
@@ -1035,7 +1035,7 @@ describe("Feedback read/triage MCP tools", () => {
 			roles.workspace.id,
 			"update_feedback_status",
 			{ feedbackId: fbId, status: "reviewed" },
-			authHeaders(roles.viewer.token, roles.workspace.slug)
+			authHeaders(roles.viewer.token, roles.workspace.slug),
 		);
 		expect(toolError(res)?.code).toBe("forbidden");
 	});
@@ -1054,7 +1054,7 @@ describe("Feedback read/triage MCP tools", () => {
 			f.workspaceId,
 			"convert_feedback_to_issue",
 			{ feedbackId: fbId },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		)) as JsonRpcResult<{ content: Array<{ text: string }> }>;
 		const issue = mcpText<{ id: string }>(res);
 		expect(issue.id).toBeTruthy();
@@ -1078,13 +1078,13 @@ describe("Feedback read/triage MCP tools", () => {
 			f.workspaceId,
 			"convert_feedback_to_issue",
 			{ feedbackId: fbId },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		);
 		const second = await mcpCall(
 			f.workspaceId,
 			"convert_feedback_to_issue",
 			{ feedbackId: fbId },
-			authHeaders(f.token, f.slug)
+			authHeaders(f.token, f.slug),
 		);
 		expect(toolError(second)?.code).toBe("conflict");
 	});
@@ -1105,7 +1105,7 @@ describe("Feedback read/triage MCP tools", () => {
 			roles.workspace.id,
 			"convert_feedback_to_issue",
 			{ feedbackId: fbId },
-			authHeaders(roles.viewer.token, roles.workspace.slug)
+			authHeaders(roles.viewer.token, roles.workspace.slug),
 		);
 		expect(toolError(res)?.code).toBe("forbidden");
 	});

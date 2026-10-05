@@ -13,7 +13,7 @@ import type { ServiceCtx } from "./types";
 async function assertIssueInWorkspace(
 	orm: ReturnType<typeof drizzle>,
 	workspaceId: string,
-	issueId: string
+	issueId: string,
 ): Promise<string> {
 	const issue = await orm
 		.select({ projectId: schema.issues.projectId })
@@ -27,13 +27,13 @@ async function assertIssueInWorkspace(
 async function assertAgentInWorkspace(
 	orm: ReturnType<typeof drizzle>,
 	workspaceId: string,
-	agentId: string
+	agentId: string,
 ) {
 	const agent = await orm
 		.select({ id: schema.agentSessions.id })
 		.from(schema.agentSessions)
 		.where(
-			and(eq(schema.agentSessions.id, agentId), eq(schema.agentSessions.workspaceId, workspaceId))
+			and(eq(schema.agentSessions.id, agentId), eq(schema.agentSessions.workspaceId, workspaceId)),
 		)
 		.get();
 	if (!agent) throw new NotFoundError("Agent session not found");
@@ -55,7 +55,7 @@ async function touchAgentHeartbeatIfLive(
 	orm: ReturnType<typeof drizzle>,
 	ctx: ServiceCtx,
 	agentId: string,
-	cutoff: number
+	cutoff: number,
 ): Promise<void> {
 	await orm
 		.update(schema.agentSessions)
@@ -65,8 +65,8 @@ async function touchAgentHeartbeatIfLive(
 				eq(schema.agentSessions.id, agentId),
 				eq(schema.agentSessions.workspaceId, ctx.workspaceId),
 				eq(schema.agentSessions.status, "active"),
-				gt(schema.agentSessions.lastHeartbeatAt, cutoff)
-			)
+				gt(schema.agentSessions.lastHeartbeatAt, cutoff),
+			),
 		);
 }
 
@@ -124,7 +124,7 @@ async function loadActiveClaimsByPath(
 	workspaceId: string,
 	paths: string[],
 	cutoff: number,
-	agentlessCutoff: number
+	agentlessCutoff: number,
 ): Promise<Map<string, ActiveClaim>> {
 	const activeClaims = await inChunks(paths, (chunk) =>
 		orm
@@ -148,9 +148,9 @@ async function loadActiveClaimsByPath(
 				and(
 					eq(schema.issueFileClaims.workspaceId, workspaceId),
 					inArray(schema.issueFileClaims.path, chunk),
-					isNull(schema.issueFileClaims.releasedAt)
-				)
-			)
+					isNull(schema.issueFileClaims.releasedAt),
+				),
+			),
 	);
 	return new Map(
 		activeClaims.map(({ sessionStatus, sessionHeartbeat, ...claim }) => [
@@ -167,7 +167,7 @@ async function loadActiveClaimsByPath(
 						? claim.claimedAt > agentlessCutoff
 						: sessionStatus === "active" && (sessionHeartbeat ?? 0) > cutoff,
 			},
-		])
+		]),
 	);
 }
 
@@ -183,7 +183,7 @@ const ID_CHUNK_SIZE = 90;
 
 function toD1Statement(
 	ctx: ServiceCtx,
-	query: Readonly<{ sql: string; params: unknown[] }>
+	query: Readonly<{ sql: string; params: unknown[] }>,
 ): D1PreparedStatement {
 	return ctx.db.prepare(query.sql).bind(...query.params);
 }
@@ -204,7 +204,7 @@ function buildReleaseByIdsStatements(
 	orm: ReturnType<typeof drizzle>,
 	ids: readonly string[],
 	now: number,
-	reason: string
+	reason: string,
 ): D1PreparedStatement[] {
 	return chunk(ids, ID_CHUNK_SIZE).map((idChunk) =>
 		toD1Statement(
@@ -216,12 +216,12 @@ function buildReleaseByIdsStatements(
 					and(
 						eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),
 						inArray(schema.issueFileClaims.id, idChunk),
-						isNull(schema.issueFileClaims.releasedAt)
-					)
+						isNull(schema.issueFileClaims.releasedAt),
+					),
 				)
 				.returning({ id: schema.issueFileClaims.id })
-				.toSQL()
-		)
+				.toSQL(),
+		),
 	);
 }
 
@@ -254,20 +254,20 @@ function formatPathList(paths: readonly string[], overhead: number): string {
 function buildConflictInsertStatements(
 	ctx: ServiceCtx,
 	orm: ReturnType<typeof drizzle>,
-	rows: readonly (typeof schema.claimConflicts.$inferInsert)[]
+	rows: readonly (typeof schema.claimConflicts.$inferInsert)[],
 ): D1PreparedStatement[] {
 	return chunk(rows, CONFLICT_INSERT_CHUNK_SIZE).map((rowChunk) =>
-		toD1Statement(ctx, orm.insert(schema.claimConflicts).values(rowChunk).toSQL())
+		toD1Statement(ctx, orm.insert(schema.claimConflicts).values(rowChunk).toSQL()),
 	);
 }
 
 function buildClaimInsertStatements(
 	ctx: ServiceCtx,
 	orm: ReturnType<typeof drizzle>,
-	rows: readonly (typeof schema.issueFileClaims.$inferInsert)[]
+	rows: readonly (typeof schema.issueFileClaims.$inferInsert)[],
 ): D1PreparedStatement[] {
 	return chunk(rows, CLAIM_INSERT_CHUNK_SIZE).map((rowChunk) =>
-		toD1Statement(ctx, orm.insert(schema.issueFileClaims).values(rowChunk).toSQL())
+		toD1Statement(ctx, orm.insert(schema.issueFileClaims).values(rowChunk).toSQL()),
 	);
 }
 
@@ -297,7 +297,7 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
 		ctx.workspaceId,
 		paths,
 		liveCutoff(),
-		fileClaimAgentlessCutoff(ctx, now)
+		fileClaimAgentlessCutoff(ctx, now),
 	);
 
 	// PROJ-636: split stale holders out before conflict evaluation — a dead holder neither
@@ -318,7 +318,7 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
 		orm,
 		stale.map((c) => c.id),
 		now,
-		"expired"
+		"expired",
 	);
 
 	// Every path in this request that's still (genuinely) held once stale claims are excluded.
@@ -345,14 +345,14 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
 					holdingAgentId: existing.agentId,
 					forced: 0,
 					occurredAt: now,
-				}))
-			)
+				})),
+			),
 		);
 		await ctx.db.batch(statements);
 		const first = contended[0];
 		throw new ConflictError(
 			`Path "${first.path}" is held by issue ${first.existing.issueId}` +
-				`${first.existing.agentId ? ` (agent ${first.existing.agentId})` : ""}`
+				`${first.existing.agentId ? ` (agent ${first.existing.agentId})` : ""}`,
 		);
 	}
 
@@ -373,7 +373,7 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
 				orm,
 				contended.map(({ existing }) => existing.id),
 				now,
-				"overridden"
+				"overridden",
 			),
 			...buildConflictInsertStatements(
 				ctx,
@@ -388,8 +388,8 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
 					holdingAgentId: existing.agentId,
 					forced: 1,
 					occurredAt: now,
-				}))
-			)
+				})),
+			),
 		);
 		const messages: { scope: string; agentId?: string; body: string }[] = [];
 		for (const [displacedIssueId, displacedIssuePaths] of displacedPaths) {
@@ -593,8 +593,8 @@ export async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
 			schema.issues,
 			and(
 				eq(schema.issueFileClaims.issueId, schema.issues.id),
-				eq(schema.issues.workspaceId, ctx.workspaceId)
-			)
+				eq(schema.issues.workspaceId, ctx.workspaceId),
+			),
 		)
 		.innerJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
 		.where(and(...conditions))
@@ -628,8 +628,8 @@ export async function releaseClaimsForAgent(ctx: ServiceCtx, agentId: string) {
 			and(
 				eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),
 				eq(schema.issueFileClaims.agentId, agentId),
-				isNull(schema.issueFileClaims.releasedAt)
-			)
+				isNull(schema.issueFileClaims.releasedAt),
+			),
 		);
 }
 
@@ -642,7 +642,7 @@ export async function releaseClaimsForAgent(ctx: ServiceCtx, agentId: string) {
  */
 export function buildReleaseClaimsForClosedIssueStatement(
 	ctx: ServiceCtx,
-	issueId: string
+	issueId: string,
 ): D1PreparedStatement {
 	const orm = drizzle(ctx.db, { schema });
 	const now = Math.floor(Date.now() / 1000);
@@ -655,9 +655,9 @@ export function buildReleaseClaimsForClosedIssueStatement(
 				and(
 					eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),
 					eq(schema.issueFileClaims.issueId, issueId),
-					isNull(schema.issueFileClaims.releasedAt)
-				)
+					isNull(schema.issueFileClaims.releasedAt),
+				),
 			)
-			.toSQL()
+			.toSQL(),
 	);
 }

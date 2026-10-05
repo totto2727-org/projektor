@@ -53,7 +53,7 @@ describe("PROJ-819: deleteProject cleans up explicitly", () => {
 		});
 		await seedGroupGrant(workspace.id, user.id, doomed.id);
 		await env.DB.prepare(
-			"INSERT INTO sprints (id, workspace_id, project_id, name, status, created_at, updated_at) VALUES (?, ?, ?, 'S1', 'planned', 0, 0)"
+			"INSERT INTO sprints (id, workspace_id, project_id, name, status, created_at, updated_at) VALUES (?, ?, ?, 'S1', 'planned', 0, 0)",
 		)
 			.bind(crypto.randomUUID(), workspace.id, doomed.id)
 			.run();
@@ -78,31 +78,31 @@ describe("PROJ-819: deleteProject cleans up explicitly", () => {
 
 		expect(await count("SELECT COUNT(*) AS n FROM issues WHERE project_id = ?", doomed.id)).toBe(0);
 		expect(
-			await count("SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?", issue.id)
+			await count("SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?", issue.id),
 		).toBe(0);
 		expect(await count("SELECT COUNT(*) AS n FROM issue_leases WHERE issue_id = ?", issue.id)).toBe(
-			0
+			0,
 		);
 		expect(
-			await count("SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?", issue.id)
+			await count("SELECT COUNT(*) AS n FROM custom_field_values WHERE issue_id = ?", issue.id),
 		).toBe(0);
 		expect(
-			await count("SELECT COUNT(*) AS n FROM custom_field_definitions WHERE id = ?", field.id)
+			await count("SELECT COUNT(*) AS n FROM custom_field_definitions WHERE id = ?", field.id),
 		).toBe(0);
 		expect(await count("SELECT COUNT(*) AS n FROM issues_fts WHERE issue_id = ?", issue.id)).toBe(
-			0
+			0,
 		);
 		expect(await count("SELECT COUNT(*) AS n FROM sprints WHERE project_id = ?", doomed.id)).toBe(
-			0
+			0,
 		);
 		expect(
-			await count("SELECT COUNT(*) AS n FROM group_project_grants WHERE project_id = ?", doomed.id)
+			await count("SELECT COUNT(*) AS n FROM group_project_grants WHERE project_id = ?", doomed.id),
 		).toBe(0);
 		expect(
-			await count("SELECT COUNT(*) AS n FROM wiki_pages WHERE project_id = ?", doomed.id)
+			await count("SELECT COUNT(*) AS n FROM wiki_pages WHERE project_id = ?", doomed.id),
 		).toBe(0);
 		expect(await count("SELECT COUNT(*) AS n FROM wiki_revisions WHERE page_id = ?", page.id)).toBe(
-			0
+			0,
 		);
 		expect(await count("SELECT COUNT(*) AS n FROM wiki_fts WHERE page_id = ?", page.id)).toBe(0);
 		expect(await count("SELECT COUNT(*) AS n FROM projects WHERE id = ?", doomed.id)).toBe(0);
@@ -113,7 +113,7 @@ describe("PROJ-819: deleteProject cleans up explicitly", () => {
 			.first<{ p: string | null }>();
 		expect(childRow?.p).toBeNull();
 		const link = await env.DB.prepare(
-			"SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?"
+			"SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?",
 		)
 			.bind(linker.id)
 			.first<{ t: string | null }>();

@@ -28,7 +28,7 @@ async function insertPage(workspaceId: string, userId: string, slug: string, cre
 	await env.DB.prepare(
 		`INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 		 parent_id, created_by_id, updated_by_id, created_at, updated_at)
-		 VALUES (?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?)`
+		 VALUES (?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?)`,
 	)
 		.bind(id, workspaceId, slug, slug, "content", userId, userId, createdAt, createdAt)
 		.run();
@@ -58,7 +58,7 @@ describe("0050 wiki slug slash backfill", () => {
 		expect(page?.slug).toBe("docs-setup");
 
 		const redirect = await env.DB.prepare(
-			"SELECT page_id FROM wiki_redirects WHERE workspace_id = ? AND old_slug = ?"
+			"SELECT page_id FROM wiki_redirects WHERE workspace_id = ? AND old_slug = ?",
 		)
 			.bind(workspaceId, "docs/setup")
 			.first<{ page_id: string }>();
@@ -97,7 +97,7 @@ describe("0050 wiki slug slash backfill", () => {
 		const now = Math.floor(Date.now() / 1000);
 		const otherPageId = await insertPage(workspaceId, userId, "unrelated", now - 2000);
 		await env.DB.prepare(
-			"INSERT INTO wiki_redirects (id, workspace_id, old_slug, page_id, created_at) VALUES (?, ?, ?, ?, ?)"
+			"INSERT INTO wiki_redirects (id, workspace_id, old_slug, page_id, created_at) VALUES (?, ?, ?, ?, ?)",
 		)
 			.bind(crypto.randomUUID(), workspaceId, "legacy/page", otherPageId, now - 1000)
 			.run();
@@ -107,7 +107,7 @@ describe("0050 wiki slug slash backfill", () => {
 		await expect(runMigration0050()).resolves.not.toThrow();
 
 		const redirect = await env.DB.prepare(
-			"SELECT page_id FROM wiki_redirects WHERE workspace_id = ? AND old_slug = ?"
+			"SELECT page_id FROM wiki_redirects WHERE workspace_id = ? AND old_slug = ?",
 		)
 			.bind(workspaceId, "legacy/page")
 			.first<{ page_id: string }>();

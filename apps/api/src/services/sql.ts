@@ -34,7 +34,7 @@ const CHUNK_SIZE = D1_BOUND_PARAM_LIMIT - 10;
  */
 export async function inChunks<I, O>(
 	items: readonly I[],
-	op: (chunk: I[]) => Promise<O[]>
+	op: (chunk: I[]) => Promise<O[]>,
 ): Promise<O[]> {
 	if (items.length === 0) return [];
 	const out: O[] = [];

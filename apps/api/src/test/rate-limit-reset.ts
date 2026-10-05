@@ -26,7 +26,7 @@ export async function resetRateLimits(): Promise<void> {
 export async function seedRateLimitCounter(
 	key: string,
 	count: number,
-	windowSecs = 60
+	windowSecs = 60,
 ): Promise<void> {
 	const windowMs = windowSecs * 1000;
 	const intoWindow = Date.now() % windowMs;

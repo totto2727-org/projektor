@@ -1,7 +1,9 @@
 import type { WorkspaceBrand } from "@projektor/db";
 import { drizzle, schema } from "@projektor/db";
+import * as data from "@projektor/data-services";
 import { buildMcpAddCommand } from "@projektor/types";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { Effect } from "effect";
 import { IdSchema } from "../schemas/common";
 import {
 	CreateTokenSchema,
@@ -33,22 +35,7 @@ async function sha256hex(s: string): Promise<string> {
 }
 
 export async function listWorkspaces(db: D1Database, userId: string) {
-	const orm = drizzle(db, { schema });
-	return orm
-		.select({
-			id: schema.workspaces.id,
-			name: schema.workspaces.name,
-			slug: schema.workspaces.slug,
-			createdAt: schema.workspaces.createdAt,
-			role: schema.workspaceMembers.role,
-		})
-		.from(schema.workspaces)
-		.innerJoin(
-			schema.workspaceMembers,
-			eq(schema.workspaceMembers.workspaceId, schema.workspaces.id)
-		)
-		.where(eq(schema.workspaceMembers.userId, userId))
-		.orderBy(asc(schema.workspaces.name));
+	return Effect.runPromise(data.listWorkspaces(db, userId));
 }
 
 export async function createWorkspace(db: D1Database, userId: string, input: unknown) {
@@ -80,22 +67,9 @@ export async function createWorkspace(db: D1Database, userId: string, input: unk
 
 export async function getWorkspaceWithMembers(
 	ctx: ServiceCtx,
-	workspace: Readonly<{ id: string; name: string; slug: string }>
+	workspace: Readonly<{ id: string; name: string; slug: string }>,
 ) {
-	const orm = drizzle(ctx.db, { schema });
-	const members = await orm
-		.select({
-			id: schema.users.id,
-			email: schema.users.email,
-			name: schema.users.name,
-			avatarUrl: schema.users.avatarUrl,
-			role: schema.workspaceMembers.role,
-			joinedAt: schema.workspaceMembers.joinedAt,
-		})
-		.from(schema.workspaceMembers)
-		.innerJoin(schema.users, eq(schema.users.id, schema.workspaceMembers.userId))
-		.where(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId))
-		.orderBy(asc(schema.workspaceMembers.joinedAt));
+	const members = await Effect.runPromise(data.listWorkspaceMembers(ctx.db, ctx.workspaceId));
 	return { ...workspace, members, currentUserRole: ctx.role };
 }
 
@@ -138,8 +112,8 @@ export async function inviteMember(ctx: ServiceCtx, input: unknown) {
 		.where(
 			and(
 				eq(schema.workspaceMembers.workspaceId, ctx.workspaceId),
-				eq(schema.workspaceMembers.userId, user.id)
-			)
+				eq(schema.workspaceMembers.userId, user.id),
+			),
 		)
 		.get();
 	if (existing) throw new ConflictError("Already a member");
@@ -154,8 +128,8 @@ export async function inviteMember(ctx: ServiceCtx, input: unknown) {
 		.where(
 			and(
 				eq(schema.provisioningRemovals.workspaceId, ctx.workspaceId),
-				eq(schema.provisioningRemovals.userId, user.id)
-			)
+				eq(schema.provisioningRemovals.userId, user.id),
+			),
 		);
 	return { ok: true };
 }
@@ -174,8 +148,8 @@ export async function removeMember(ctx: ServiceCtx, targetUserId: string) {
 		.where(
 			and(
 				eq(schema.workspaceMembers.workspaceId, ctx.workspaceId),
-				eq(schema.workspaceMembers.userId, targetUserId)
-			)
+				eq(schema.workspaceMembers.userId, targetUserId),
+			),
 		);
 	// PROJ-436: tombstone the removal so ensureUserProvisioned (ADMIN_EMAILS / AUTO_JOIN_ROLE /
 	// WORKSPACE_DOMAIN_MAP) doesn't silently re-add this user once their provisioning cache
@@ -205,8 +179,8 @@ export async function updateMemberRole(ctx: ServiceCtx, targetUserId: string, in
 		.where(
 			and(
 				eq(schema.workspaceMembers.workspaceId, ctx.workspaceId),
-				eq(schema.workspaceMembers.userId, targetUserId)
-			)
+				eq(schema.workspaceMembers.userId, targetUserId),
+			),
 		);
 	return { ok: true };
 }
@@ -246,19 +220,7 @@ export async function createToken(ctx: ServiceCtx, input: unknown) {
 
 export async function listTokens(ctx: ServiceCtx) {
 	if (ctx.role === "member" || ctx.role === "viewer") throw new ForbiddenError();
-	const orm = drizzle(ctx.db, { schema });
-	return orm
-		.select({
-			id: schema.apiTokens.id,
-			name: schema.apiTokens.name,
-			scopes: schema.apiTokens.scopes,
-			lastUsedAt: schema.apiTokens.lastUsedAt,
-			expiresAt: schema.apiTokens.expiresAt,
-			createdAt: schema.apiTokens.createdAt,
-		})
-		.from(schema.apiTokens)
-		.where(eq(schema.apiTokens.workspaceId, ctx.workspaceId))
-		.orderBy(desc(schema.apiTokens.createdAt));
+	return Effect.runPromise(data.listWorkspaceTokenMetadata(ctx.db, ctx.workspaceId));
 }
 
 export async function revokeToken(ctx: ServiceCtx, tokenId: string) {
@@ -269,7 +231,7 @@ export async function revokeToken(ctx: ServiceCtx, tokenId: string) {
 		ctx.db
 			.prepare(
 				`UPDATE agent_sessions SET token_id = NULL WHERE token_id IN (
-				   SELECT id FROM api_tokens WHERE id = ? AND workspace_id = ?)`
+				   SELECT id FROM api_tokens WHERE id = ? AND workspace_id = ?)`,
 			)
 			.bind(tokenId, ctx.workspaceId),
 		ctx.db
@@ -323,7 +285,7 @@ const WORKSPACE_CLEANUP_SQL: readonly string[] = [
 export async function deleteWorkspace(
 	ctx: ServiceCtx,
 	pathSlug: string,
-	defaultWorkspaceSlug: string
+	defaultWorkspaceSlug: string,
 ): Promise<{ ok: true }> {
 	if (ctx.role !== "owner") {
 		throw new ForbiddenError("Only workspace owners can delete a workspace");
@@ -354,7 +316,7 @@ export async function deleteWorkspace(
 
 	const projectCount = await orm.$count(
 		schema.projects,
-		eq(schema.projects.workspaceId, ctx.workspaceId)
+		eq(schema.projects.workspaceId, ctx.workspaceId),
 	);
 
 	if (projectCount > 0) {
@@ -369,7 +331,7 @@ export async function deleteWorkspace(
 	const r2Keys = (
 		await ctx.db
 			.prepare(
-				"SELECT r2_key AS k FROM attachments WHERE workspace_id = ?1 AND kind = 'file' AND r2_key IS NOT NULL"
+				"SELECT r2_key AS k FROM attachments WHERE workspace_id = ?1 AND kind = 'file' AND r2_key IS NOT NULL",
 			)
 			.bind(ctx.workspaceId)
 			.all<{ k: string }>()
@@ -393,7 +355,7 @@ export async function deleteWorkspace(
 export async function getWorkspaceMcpInfo(
 	_ctx: ServiceCtx,
 	workspace: Readonly<{ id: string; slug: string }>,
-	origin: string
+	origin: string,
 ): Promise<{
 	mcpUrl: string;
 	workspaceId: string;
@@ -428,13 +390,7 @@ function requireBrandWrite(ctx: ServiceCtx): void {
 }
 
 async function readBrand(ctx: ServiceCtx): Promise<WorkspaceBrand> {
-	const orm = drizzle(ctx.db, { schema });
-	const row = await orm
-		.select({ brand: schema.workspaces.brand })
-		.from(schema.workspaces)
-		.where(eq(schema.workspaces.id, ctx.workspaceId))
-		.get();
-	return row?.brand ?? {};
+	return Effect.runPromise(data.readWorkspaceBrand(ctx.db, ctx.workspaceId));
 }
 
 async function writeBrand(ctx: ServiceCtx, brand: WorkspaceBrand): Promise<void> {
@@ -458,7 +414,7 @@ function toBrandDto(brand: WorkspaceBrand, workspaceSlug: string): WorkspaceBran
 
 export async function getWorkspaceBrand(
 	ctx: ServiceCtx,
-	workspaceSlug: string
+	workspaceSlug: string,
 ): Promise<WorkspaceBrandDto> {
 	return toBrandDto(await readBrand(ctx), workspaceSlug);
 }
@@ -466,28 +422,19 @@ export async function getWorkspaceBrand(
 export async function getWorkspaceBrandForShare(
 	db: D1Database,
 	workspaceId: string,
-	workspaceSlug: string
+	workspaceSlug: string,
 ): Promise<WorkspaceBrandDto> {
-	const orm = drizzle(db, { schema });
-	const row = await orm
-		.select({ brand: schema.workspaces.brand })
-		.from(schema.workspaces)
-		.where(eq(schema.workspaces.id, workspaceId))
-		.get();
-	return toBrandDto(row?.brand ?? {}, workspaceSlug);
+	return toBrandDto(
+		await Effect.runPromise(data.readWorkspaceBrand(db, workspaceId)),
+		workspaceSlug,
+	);
 }
 
 export async function getWorkspaceBrandLogoR2Key(
 	db: D1Database,
-	workspaceId: string
+	workspaceId: string,
 ): Promise<string | null> {
-	const orm = drizzle(db, { schema });
-	const row = await orm
-		.select({ brand: schema.workspaces.brand })
-		.from(schema.workspaces)
-		.where(eq(schema.workspaces.id, workspaceId))
-		.get();
-	return row?.brand?.logoR2Key ?? null;
+	return (await Effect.runPromise(data.readWorkspaceBrand(db, workspaceId))).logoR2Key ?? null;
 }
 
 const BRAND_FIELDS = ["displayName", "accent", "onAccent", "fontFamily", "fontUrl"] as const;
@@ -495,7 +442,7 @@ const BRAND_FIELDS = ["displayName", "accent", "onAccent", "fontFamily", "fontUr
 export async function updateWorkspaceBrand(
 	ctx: ServiceCtx,
 	workspaceSlug: string,
-	input: unknown
+	input: unknown,
 ): Promise<WorkspaceBrandDto> {
 	requireBrandWrite(ctx);
 	const parsed = UpdateWorkspaceBrandSchema.safeParse(input);
@@ -519,7 +466,7 @@ const ALLOWED_LOGO_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 export async function uploadWorkspaceLogo(
 	ctx: ServiceCtx,
-	file: Readonly<{ size: number; type: string; arrayBuffer: () => Promise<ArrayBuffer> }>
+	file: Readonly<{ size: number; type: string; arrayBuffer: () => Promise<ArrayBuffer> }>,
 ): Promise<{ ok: true }> {
 	requireBrandWrite(ctx);
 	if (file.size > MAX_LOGO_SIZE) throw new PayloadTooLargeError("Logo too large (max 2 MB)");

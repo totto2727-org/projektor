@@ -14,7 +14,7 @@ describe("Activity audit log", () => {
 
 	async function activityForEntity(entityId: string) {
 		const { results } = await env.DB.prepare(
-			"SELECT * FROM activity WHERE entity_id = ? ORDER BY created_at ASC"
+			"SELECT * FROM activity WHERE entity_id = ? ORDER BY created_at ASC",
 		)
 			.bind(entityId)
 			.all<{

@@ -37,8 +37,8 @@ async function resolveDraftTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
 				eq(schema.wikiPages.workspaceId, ctx.workspaceId),
 				// PROJ-496: no drafts on a trashed page — same "trashed = gone" rule as every
 				// other page reference entry point (services/wiki.ts).
-				isNull(schema.wikiPages.deletedAt)
-			)
+				isNull(schema.wikiPages.deletedAt),
+			),
 		)
 		.orderBy(idFirst(idOrSlug))
 		.get();
@@ -51,8 +51,8 @@ async function resolveDraftTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
 			.where(
 				and(
 					eq(schema.wikiRedirects.workspaceId, ctx.workspaceId),
-					eq(schema.wikiRedirects.oldSlug, idOrSlug)
-				)
+					eq(schema.wikiRedirects.oldSlug, idOrSlug),
+				),
 			)
 			.get();
 		if (redirect) {
@@ -67,8 +67,8 @@ async function resolveDraftTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
 					and(
 						eq(schema.wikiPages.id, redirect.pageId),
 						eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-						isNull(schema.wikiPages.deletedAt)
-					)
+						isNull(schema.wikiPages.deletedAt),
+					),
 				)
 				.get();
 		}
@@ -101,8 +101,8 @@ export async function getWikiDraft(ctx: ServiceCtx, idOrSlug: string) {
 			and(
 				eq(schema.wikiDrafts.workspaceId, ctx.workspaceId),
 				eq(schema.wikiDrafts.userId, ctx.userId),
-				eq(schema.wikiDrafts.pageId, page.id)
-			)
+				eq(schema.wikiDrafts.pageId, page.id),
+			),
 		)
 		.get();
 	return row ?? null;
@@ -156,8 +156,8 @@ export async function discardWikiDraft(ctx: ServiceCtx, idOrSlug: string) {
 			and(
 				eq(schema.wikiDrafts.workspaceId, ctx.workspaceId),
 				eq(schema.wikiDrafts.userId, ctx.userId),
-				eq(schema.wikiDrafts.pageId, page.id)
-			)
+				eq(schema.wikiDrafts.pageId, page.id),
+			),
 		);
 	return { ok: true };
 }
@@ -176,8 +176,8 @@ export async function deleteWikiDraftsForPages(ctx: ServiceCtx, pageIds: string[
 			.where(
 				and(
 					eq(schema.wikiDrafts.workspaceId, ctx.workspaceId),
-					inArray(schema.wikiDrafts.pageId, chunk)
-				)
+					inArray(schema.wikiDrafts.pageId, chunk),
+				),
 			);
 		return [];
 	});

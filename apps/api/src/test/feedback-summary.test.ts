@@ -4,7 +4,7 @@ import { authHeaders, seedProjectFixture } from "./helpers";
 
 async function mintSource(
 	f: Readonly<{ projectId: string; token: string; slug: string }>,
-	body: Record<string, unknown> = { name: "Widget" }
+	body: Record<string, unknown> = { name: "Widget" },
 ): Promise<string> {
 	const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
 		method: "POST",
@@ -24,14 +24,14 @@ async function seedFeedbackRow(
 		body?: string;
 		appVersion?: string;
 		createdAt?: number;
-	}> = {}
+	}> = {},
 ): Promise<string> {
 	const id = crypto.randomUUID();
 	const now = opts.createdAt ?? Math.floor(Date.now() / 1000);
 	await env.DB.prepare(
 		`INSERT INTO feedback
        (id, source_id, workspace_id, project_id, rating, rating_scale, body, app_version, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`,
 	)
 		.bind(
 			id,
@@ -42,7 +42,7 @@ async function seedFeedbackRow(
 			opts.ratingScale ?? null,
 			opts.body ?? null,
 			opts.appVersion ?? null,
-			now
+			now,
 		)
 		.run();
 	return id;
@@ -143,7 +143,7 @@ describe("GET /api/projects/:id/feedback/summary", () => {
 		const stranger = await seedProjectFixture({ role: "owner" });
 		const res = await SELF.fetch(
 			`http://localhost/api/projects/${owner.projectId}/feedback/summary`,
-			{ headers: authHeaders(stranger.token, stranger.slug) }
+			{ headers: authHeaders(stranger.token, stranger.slug) },
 		);
 		expect(res.status).toBe(404);
 	});
