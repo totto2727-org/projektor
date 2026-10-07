@@ -58,7 +58,8 @@ Do not deploy, rotate secrets, modify Access or destroy resources during validat
 Upstream: https://github.com/TAJD/projektor
 Fork: https://github.com/totto2727-org/projektor
 Immutable fork point: `ab122cbea1bae7efce8abe2345ce07375b9dcd13`.
-Reviewed upstream-comparison baseline: `6c4b69697ec34ec6daa7a6773b4b6db50732b585`.
+Upstream comparison revision: the immutable fork point above.
+Previous fork SSR checkpoint: `6c4b69697ec34ec6daa7a6773b4b6db50732b585`.
 The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scoped ServerFns, Base UI and dynamic Comark rendering.
 It adds shared internal D1 retrieval while keeping API contracts, authorization, mutations and MCP behavior at the application boundary.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
