@@ -25,3 +25,6 @@ plugins/**/package-lock.json
 tmp/
 test-results/
 playwright-report/
+
+# Retired docs build outputs are not maintained source.
+**/.astro/

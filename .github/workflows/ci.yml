@@ -16,16 +16,13 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      # Unlike template/vite-plus-app, this source has no flake/dev shell.
-      # Use its pinned pnpm packageManager and a compatible Node runtime instead
-      # of adopting the template's Nix-dependent setup sequence.
-      - uses: pnpm/action-setup@v4.2.0
-      - uses: actions/setup-node@v4.4.0
+      - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
+      - uses: totto2727-org/monorepo/.github/actions/setup-typescript@main
         with:
-          node-version: "22.18.0"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+          install-args: --frozen-lockfile
       - name: Verify Vite+ project
-        run: pnpm exec vp run ci
+        run: |
+          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#default")"
+          vp run ci
         env:
           NODE_OPTIONS: --max-old-space-size=8192

@@ -2,8 +2,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as RuntimeServices from "@alchemy.run/cloudflare-runtime/core/RuntimeServices";
 import * as Credentials from "@distilled.cloud/cloudflare/Credentials";
 import { Effect, Exit, Layer, Scope } from "effect";
-import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
-import * as HttpClient from "effect/unstable/http/HttpClient";
+import { FetchHttpClient, HttpClient } from "effect/http";
 import type { Plugin } from "vite-plus";
 import { makeInlineApiLayer } from "./inline-api";
 

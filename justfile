@@ -2,31 +2,33 @@ default:
     @just --list
 
 install:
-    corepack pnpm install --frozen-lockfile
+    vp install --frozen-lockfile
 
-# Alchemy owns the local Workers, bindings and Vite build lifecycle.
+# One stack owns both Workers and the local bindings.
 dev:
-    corepack pnpm exec alchemy dev --config alchemy.run.ts
+    vp exec alchemy dev --config alchemy.run.ts
 
-# Planning compares resources. It is not a production build or upload.
+# A resource comparison, not a production build or upload.
 plan:
-    corepack pnpm exec alchemy plan --config alchemy.run.ts --stage production
+    vp exec alchemy plan --config alchemy.run.ts --stage production
 
-# Requires the existing JWT_SECRET, Cloudflare profile and confirmed Access.
-# Execute only as an intentional operator action.
+# Intentional operator action. Requires existing JWT and confirmed Access.
 deploy:
-    corepack pnpm exec alchemy deploy --config alchemy.run.ts --stage production
+    vp exec alchemy deploy --config alchemy.run.ts --stage production
 
 check:
-    corepack pnpm exec vp run ci:check
-    corepack pnpm exec vp run ci:format
+    vp run check:project
 
 test:
-    corepack pnpm exec vp run test:packages
+    vp run test:project
+
+# Upstream pool 0.22 supports Vitest 4, not Vite+ 1.1's Vitest 5 yet.
+test-workers:
+    vp run test:workers
 
 format:
-    corepack pnpm exec vp fmt
+    vp fmt
 
-# Official local runtime host builds both Workers without production credentials.
+# Real local Workers, isolated storage, screenshot evidence, no production auth.
 e2e:
-    corepack pnpm exec playwright test --config tests/e2e-alchemy/playwright.config.ts
+    vp exec playwright test --config tests/e2e-alchemy/playwright.config.ts

@@ -3,7 +3,7 @@ import * as D1 from "@alchemy.run/cloudflare-runtime/core/bindings/d1/D1";
 import * as Text from "@alchemy.run/cloudflare-runtime/core/bindings/Text";
 import cloudflare from "@alchemy.run/cloudflare-runtime/vite";
 import { defineConfig } from "vite-plus";
-import applicationConfig from "../../apps/web/vite.config";
+import applicationConfig from "../../vite.config";
 import { makePreviewContext } from "./runtime-context";
 import { inlineApiBinding } from "./inline-api";
 
@@ -12,14 +12,18 @@ import { inlineApiBinding } from "./inline-api";
 // rendering requires the native API service binding, not a public fetch fallback.
 export default defineConfig(async (environment) => {
 	const preview = await makePreviewContext(environment.isPreview);
-	const application =
-		typeof applicationConfig === "function" ? applicationConfig(environment) : applicationConfig;
+	const application = await (typeof applicationConfig === "function"
+		? applicationConfig(environment)
+		: applicationConfig);
 	return {
 		...application,
-		root: fileURLToPath(new URL("../../apps/web/", import.meta.url)),
+		root: fileURLToPath(new URL("../../", import.meta.url)),
 		resolve: {
 			...application.resolve,
-			alias: { "@": fileURLToPath(new URL("../../apps/web/src/", import.meta.url)) },
+			alias: {
+				...application.resolve?.alias,
+				"@": fileURLToPath(new URL("../../src/web/", import.meta.url)),
+			},
 		},
 		plugins: [
 			preview?.lifecycle,

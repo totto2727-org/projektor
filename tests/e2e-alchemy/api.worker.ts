@@ -1,9 +1,9 @@
-import api from "../../apps/api/src/index";
-import { MIGRATIONS } from "../../apps/api/src/test/migrations";
+import api from "../../src/api/index";
+import { MIGRATIONS } from "../../src/api/test/migrations";
 
 // Preserve the real Worker's DO exports and scheduled handler. The only adapter
 // work is applying the maintained schema to this host's empty temporary D1.
-export { RateLimiter, WorkspaceHub } from "../../apps/api/src/index";
+export { RateLimiter, WorkspaceHub } from "../../src/api/index";
 let ready: Promise<void> | undefined;
 
 export default {
