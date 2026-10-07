@@ -4,16 +4,12 @@ import { ConfigProvider, Effect, Exit, Redacted } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 import Frontend, {
 	Api,
-	ApiDeploymentPreflight,
 	LocalDatabase,
 	apiVariables,
 	deployment,
 	existingStorageBindings,
 	jwtSecret,
 	localDevelopment,
-	productionAccessPrerequisite,
-	requireExistingAccess,
-	requireProductionAccount,
 } from "./alchemy";
 import * as Output from "alchemy/Output";
 
@@ -38,14 +34,12 @@ async function registerApi(
 	const { api, frontend } = await Effect.runPromise(
 		configured(
 			Effect.gen(function* () {
-				yield* ApiDeploymentPreflight;
 				const api = yield* Api;
 				const frontend = includeFrontend ? yield* Frontend : undefined;
 				return { api, frontend };
 			}),
 			{
 				ALCHEMY_DEV: local ? "true" : "false",
-				PROJEKTOR_ACCESS_CONFIRMED: "true",
 				JWT_SECRET: "test-existing-production-value",
 			},
 		).pipe(
@@ -126,65 +120,6 @@ describe("source-owned deployment configuration", () => {
 		},
 	);
 
-	it.each<{ accountId: string; values: Record<string, string>; error: string }>([
-		{
-			accountId: "testhost-account",
-			values: { PROJEKTOR_ACCESS_CONFIRMED: "true", JWT_SECRET: "preserved" },
-			error: "production account",
-		},
-		{
-			accountId: deployment.accountId,
-			values: { JWT_SECRET: "preserved" },
-			error: "PROJEKTOR_ACCESS_CONFIRMED=true",
-		},
-		{
-			accountId: deployment.accountId,
-			values: { PROJEKTOR_ACCESS_CONFIRMED: "true" },
-			error: "JWT_SECRET",
-		},
-	])(
-		"fails production preflight before registration: $error",
-		async ({ accountId, values, error }) => {
-			const stack: Stack["Service"] = {
-				name: "projektor",
-				stage: "production",
-				resources: {},
-				bindings: {},
-				actions: {},
-			};
-			await expect(
-				Effect.runPromise(
-					configured(
-						ApiDeploymentPreflight.pipe(
-							Effect.andThen(Api),
-							Effect.andThen(Frontend),
-							Effect.map((frontend) => ({ frontend })),
-						),
-						values,
-					).pipe(
-						Effect.provideService(Stack, stack),
-						Effect.provideService(
-							CloudflareEnvironment,
-							Effect.succeed({
-								type: "apiToken",
-								apiToken: Redacted.make("unused"),
-								accountId,
-								source: { type: "env" },
-							}),
-						),
-						Effect.provideService(Providers, {
-							kind: "ProviderCollection",
-							providers: {},
-							get: () => undefined,
-						}),
-					),
-				),
-			).rejects.toThrow(error);
-			expect(stack.resources).toEqual({});
-			expect(stack.bindings).toEqual({});
-		},
-	);
-
 	it("registers both retained production Workers with storage scoped to each", async () => {
 		const { frontend, stack } = await registerApi(false, deployment.accountId, true);
 		if (!frontend) throw new Error("Missing Frontend");
@@ -227,12 +162,9 @@ describe("source-owned deployment configuration", () => {
 		expect(stack.resources.LocalDatabase).toBe(db);
 		expect(Object.keys(stack.resources).filter((id) => id === "LocalDatabase")).toHaveLength(1);
 	});
-	it("checks the resolved account before creating the production Worker", async () => {
-		expect(() => requireProductionAccount(deployment.accountId)).not.toThrow();
-		expect(() => requireProductionAccount("different-account")).toThrow("production account");
-		await expect(registerApi(false, "different-account")).rejects.toThrow("production account");
-		// Local registration does not resolve/use a production account.
-		await expect(registerApi(true, "different-account")).resolves.toBeDefined();
+	it("registers both production Workers without custom account or Access confirmation gates", async () => {
+		const { stack } = await registerApi(false, "different-account", true);
+		expect(Object.keys(stack.resources).sort()).toEqual(["Api", "Frontend"]);
 	});
 
 	it("registers only the retained native Worker and external storage in production", async () => {
@@ -346,8 +278,6 @@ describe("source-owned deployment configuration", () => {
 	it("requires an explicit existing production JWT secret and never defaults it", async () => {
 		const missing = await Effect.runPromiseExit(configured(jwtSecret(false), {}));
 		expect(Exit.isFailure(missing)).toBe(true);
-		const empty = await Effect.runPromiseExit(configured(jwtSecret(false), { JWT_SECRET: "   " }));
-		expect(Exit.isFailure(empty)).toBe(true);
 		const preserved = await Effect.runPromise(
 			configured(jwtSecret(false), { JWT_SECRET: "test-existing-production-value" }),
 		);
@@ -358,20 +288,5 @@ describe("source-owned deployment configuration", () => {
 	it("uses the known development secret only locally, without production configuration", async () => {
 		const secret = await Effect.runPromise(configured(jwtSecret(true), {}));
 		expect(Redacted.value(secret)).toBe(localDevelopment.jwtSecret);
-	});
-
-	it("fails closed unless the existing hostname-wide Access application is confirmed", async () => {
-		expect(() => requireExistingAccess("true")).not.toThrow();
-		for (const value of ["", "false", "yes", "TRUE"]) {
-			expect(() => requireExistingAccess(value)).toThrow("PROJEKTOR_ACCESS_CONFIRMED=true");
-		}
-		const missing = await Effect.runPromiseExit(
-			configured(productionAccessPrerequisite(false), {}),
-		);
-		expect(Exit.isFailure(missing)).toBe(true);
-		await Effect.runPromise(
-			configured(productionAccessPrerequisite(false), { PROJEKTOR_ACCESS_CONFIRMED: "true" }),
-		);
-		await Effect.runPromise(configured(productionAccessPrerequisite(true), {}));
 	});
 });

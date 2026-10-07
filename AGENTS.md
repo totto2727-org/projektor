@@ -49,8 +49,10 @@ Keep temporary reports and screenshots under ignored `tmp/` or acceptance-output
 Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed account, storage IDs, API cron and the existing `RATE_LIMITER` / `RateLimiter` binding.
 Existing production D1/KV/R2 are external bindings, not resources to recreate or migrate automatically.
 Do not replay the historical unbound WorkspaceHub migration.
-Production requires the existing JWT_SECRET and operator-confirmed hostname-wide Cloudflare Access.
-Worker runtime capture must never run deployment preflight or register local storage.
+Production receives the existing JWT_SECRET through Alchemy's standard redacted configuration.
+Cloudflare authentication selects the deployment account, without a custom fixed-account rejection or Access-confirmation flag.
+Existing Access policies remain external and unchanged.
+Worker runtime capture must never resolve deployment secrets or register local storage.
 Do not deploy, rotate secrets, modify Access or destroy resources during validation.
 
 ## Fork Record
@@ -63,6 +65,7 @@ Previous fork SSR checkpoint: `6c4b69697ec34ec6daa7a6773b4b6db50732b585`.
 The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scoped ServerFns, Base UI and dynamic Comark rendering.
 It adds shared internal D1 retrieval while keeping API contracts, authorization, mutations and MCP behavior at the application boundary.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
+Deployment uses standard Alchemy configuration without custom confirmation flags, preflight gates or secret-value validation.
 The project is consolidated into one root package and Vite+ toolchain instead of private workspace packages.
 The documentation app and docs directory are intentionally removed at the user's request.
 Maintain this compact divergence record alongside behavior/configuration changes.

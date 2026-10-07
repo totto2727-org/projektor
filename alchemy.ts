@@ -50,14 +50,6 @@ export const localDevelopment = {
 	jwtSecret: "projektor-local-development-only-secret",
 };
 
-export function requireProductionAccount(accountId: string) {
-	if (accountId !== deployment.accountId) {
-		throw new Error(
-			"Resolved Cloudflare account does not match the preserved Projektor production account",
-		);
-	}
-}
-
 /** Public bindings grant access to existing IDs without declaring a storage lifecycle. */
 export function existingStorageBindings(): WorkerBinding[] {
 	return [
@@ -93,45 +85,8 @@ export function apiVariables(
 export function jwtSecret(local: boolean) {
 	return local
 		? Effect.succeed(Redacted.make(localDevelopment.jwtSecret))
-		: Config.Redacted("JWT_SECRET").pipe(
-				Effect.flatMap((secret) =>
-					Redacted.value(secret).trim().length > 0
-						? Effect.succeed(secret)
-						: Effect.die(new Error("JWT_SECRET must contain the existing production secret")),
-				),
-				Effect.orDie,
-			);
+		: Config.Redacted("JWT_SECRET").pipe(Effect.orDie);
 }
-
-export function requireExistingAccess(confirmed: string) {
-	if (confirmed !== "true") {
-		throw new Error(
-			"Confirm the existing hostname-wide Cloudflare Access protection for projektor.totto2727.dev, then set PROJEKTOR_ACCESS_CONFIRMED=true. Existing policies must not be recreated.",
-		);
-	}
-}
-
-/** Operator confirmation is not a remote protection check or an Access mutation. */
-export function productionAccessPrerequisite(local: boolean) {
-	return local
-		? Effect.void
-		: Config.String("PROJEKTOR_ACCESS_CONFIRMED").pipe(
-				Config.withDefault("false"),
-				Effect.flatMap((confirmed) => Effect.sync(() => requireExistingAccess(confirmed))),
-				Effect.orDie,
-			);
-}
-
-/** Called only by the deployment stack, before registering either Worker. */
-export const ApiDeploymentPreflight = Effect.gen(function* () {
-	const local = yield* ALCHEMY_DEV;
-	if (!local) {
-		const { accountId } = yield* yield* Cloudflare.CloudflareEnvironment;
-		requireProductionAccount(accountId);
-	}
-	yield* productionAccessPrerequisite(local);
-	yield* jwtSecret(local);
-});
 
 export const LocalDatabase = Cloudflare.D1.Database("LocalDatabase", {
 	name: "projektor-local",
