@@ -49,7 +49,9 @@ Keep temporary reports and screenshots under ignored `tmp/` or acceptance-output
 Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed account, storage IDs, API cron and the existing `RATE_LIMITER` / `RateLimiter` binding.
 Existing production D1/KV/R2 are external bindings, not resources to recreate or migrate automatically.
 Do not replay the historical unbound WorkspaceHub migration.
-Production receives the existing JWT_SECRET through Alchemy's standard redacted configuration.
+Production inherits the existing JWT_SECRET through a standard Cloudflare `inherit` binding when no local value is supplied.
+Only initial secret creation needs JWT_SECRET through Alchemy's standard redacted configuration; explicitly supplying a value updates it.
+If the Worker has no existing secret, supply the initial value once; do not silently generate a replacement.
 Cloudflare authentication selects the deployment account, without a custom fixed-account rejection or Access-confirmation flag.
 Existing Access policies remain external and unchanged.
 Worker runtime capture must never resolve deployment secrets or register local storage.
@@ -66,6 +68,7 @@ The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scop
 It adds shared internal D1 retrieval while keeping API contracts, authorization, mutations and MCP behavior at the application boundary.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
 Deployment uses standard Alchemy configuration without custom confirmation flags, preflight gates or secret-value validation.
+JWT secrets remain Cloudflare-owned across normal deployments through standard binding inheritance, without reading their values or storing them in project state.
 The project is consolidated into one root package and Vite+ toolchain instead of private workspace packages.
 The documentation app and docs directory are intentionally removed at the user's request.
 Maintain this compact divergence record alongside behavior/configuration changes.

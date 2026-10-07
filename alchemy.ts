@@ -7,7 +7,7 @@ import {
 	type WorkerBinding,
 	type WorkerBindingProps,
 } from "alchemy/Cloudflare/Workers";
-import { Config, Effect, Redacted } from "effect";
+import { Config, Effect, Option, Redacted } from "effect";
 import { HttpServerResponse } from "effect/http";
 import { forwardApi } from "./src/web/gateway";
 import { HttpClientLive } from "./src/web/http-client-layer";
@@ -81,11 +81,15 @@ export function apiVariables(
 		: { ...common, ENVIRONMENT: "production", ADMIN_EMAILS: "kaihatu.totto2727@gmail.com" };
 }
 
-/** Production must receive the same existing value, never a generated replacement. */
+/** Omit production input to inherit the existing secret without reading or rotating it. */
 export function jwtSecret(local: boolean) {
 	return local
 		? Effect.succeed(Redacted.make(localDevelopment.jwtSecret))
-		: Config.Redacted("JWT_SECRET").pipe(Effect.orDie);
+		: Config.Redacted("JWT_SECRET").pipe(
+				Config.option,
+				Effect.map(Option.getOrUndefined),
+				Effect.orDie,
+			);
 }
 
 export const LocalDatabase = Cloudflare.D1.Database("LocalDatabase", {
@@ -109,6 +113,7 @@ export const Api = Cloudflare.Worker(
 		if ((yield* ALCHEMY_PHASE) === "runtime") return apiIdentity;
 		const local = yield* ALCHEMY_DEV;
 		const secret = yield* jwtSecret(local);
+		const secretEnv: WorkerBindingProps = secret === undefined ? {} : { JWT_SECRET: secret };
 		const devUserEmail = local
 			? yield* Config.String("DEV_USER_EMAIL").pipe(
 					Config.withDefault(localDevelopment.userEmail),
@@ -130,7 +135,7 @@ export const Api = Cloudflare.Worker(
 			env: {
 				...apiVariables(local, devUserEmail),
 				...storage,
-				JWT_SECRET: secret,
+				...secretEnv,
 				// Preserve the deployed name/class. WorkspaceHub stays unbound, no old migrations replay.
 				RATE_LIMITER: Cloudflare.DurableObject("RateLimiter", { className: "RateLimiter" }),
 			},
@@ -144,14 +149,6 @@ export const Api = Cloudflare.Worker(
 		),
 	),
 	RemovalPolicy.retain(),
-	Effect.tap((api) =>
-		Effect.gen(function* () {
-			if ((yield* ALCHEMY_PHASE) === "runtime") return;
-			if (!(yield* ALCHEMY_DEV)) {
-				yield* api.bind("external-storage", { bindings: existingStorageBindings() });
-			}
-		}),
-	),
 );
 
 class Frontend extends Cloudflare.Worker<Frontend>()(

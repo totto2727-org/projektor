@@ -1,9 +1,9 @@
 import { Stack } from "alchemy";
 import { CloudflareEnvironment, Providers } from "alchemy/Cloudflare";
-import { ConfigProvider, Effect, Exit, Redacted } from "effect";
+import { dedupeBindings, diffBindings } from "alchemy/Diff";
+import { ConfigProvider, Effect, Redacted } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 import Frontend, {
-	Api,
 	LocalDatabase,
 	apiVariables,
 	deployment,
@@ -11,6 +11,7 @@ import Frontend, {
 	jwtSecret,
 	localDevelopment,
 } from "./alchemy";
+import { workers } from "./alchemy.run";
 import * as Output from "alchemy/Output";
 
 function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<string, string>) {
@@ -22,7 +23,7 @@ function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<stri
 async function registerApi(
 	local: boolean,
 	accountId = deployment.accountId,
-	includeFrontend = false,
+	productionSecret: string | null = "test-existing-production-value",
 ) {
 	const stack: Stack["Service"] = {
 		name: "projektor",
@@ -32,17 +33,10 @@ async function registerApi(
 		actions: {},
 	};
 	const { api, frontend } = await Effect.runPromise(
-		configured(
-			Effect.gen(function* () {
-				const api = yield* Api;
-				const frontend = includeFrontend ? yield* Frontend : undefined;
-				return { api, frontend };
-			}),
-			{
-				ALCHEMY_DEV: local ? "true" : "false",
-				JWT_SECRET: "test-existing-production-value",
-			},
-		).pipe(
+		configured(workers, {
+			ALCHEMY_DEV: local ? "true" : "false",
+			...(productionSecret === null ? {} : { JWT_SECRET: productionSecret }),
+		}).pipe(
 			Effect.provideService(Stack, stack),
 			Effect.provideService(
 				CloudflareEnvironment,
@@ -121,7 +115,7 @@ describe("source-owned deployment configuration", () => {
 	);
 
 	it("registers both retained production Workers with storage scoped to each", async () => {
-		const { frontend, stack } = await registerApi(false, deployment.accountId, true);
+		const { frontend, stack } = await registerApi(false);
 		if (!frontend) throw new Error("Missing Frontend");
 		expect(Object.keys(stack.resources).sort()).toEqual(["Api", "Frontend"]);
 		expect(frontend.RemovalPolicy).toBe("retain");
@@ -144,7 +138,7 @@ describe("source-owned deployment configuration", () => {
 	});
 
 	it("shares one native local database between API and Frontend", async () => {
-		const { api, frontend, stack } = await registerApi(true, deployment.accountId, true);
+		const { api, frontend, stack } = await registerApi(true);
 		if (!frontend) throw new Error("Missing Frontend");
 		const { db } = await Effect.runPromise(
 			LocalDatabase.pipe(
@@ -163,17 +157,53 @@ describe("source-owned deployment configuration", () => {
 		expect(Object.keys(stack.resources).filter((id) => id === "LocalDatabase")).toHaveLength(1);
 	});
 	it("registers both production Workers without custom account or Access confirmation gates", async () => {
-		const { stack } = await registerApi(false, "different-account", true);
+		const { stack } = await registerApi(false, "different-account");
 		expect(Object.keys(stack.resources).sort()).toEqual(["Api", "Frontend"]);
 	});
 
-	it("registers only the retained native Worker and external storage in production", async () => {
+	it("inherits the existing production JWT secret without requiring or reading its value", async () => {
+		const { api, stack } = await registerApi(false, deployment.accountId, null);
+		expect(api.Props.env).not.toHaveProperty("JWT_SECRET");
+		const bindings = dedupeBindings(stack.bindings.Api).flatMap(
+			(entry) => entry.data.bindings ?? [],
+		);
+		expect(bindings.filter((binding) => binding.name === "JWT_SECRET")).toEqual([
+			{ type: "inherit", name: "JWT_SECRET" },
+		]);
+		const frontendBindings = stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? []);
+		expect(frontendBindings.some((binding) => binding.name === "JWT_SECRET")).toBe(false);
+		for (const binding of existingStorageBindings()) expect(bindings).toContainEqual(binding);
+	});
+
+	it("switches initial secret configuration to stable inheritance on subsequent deployments", async () => {
+		const initial = await registerApi(false);
+		const inherited = await registerApi(false, deployment.accountId, null);
+		const repeated = await registerApi(false, deployment.accountId, null);
+		const changes = diffBindings(initial.stack.bindings.Api, inherited.stack.bindings.Api);
+		// Alchemy's apply path excludes deleted binding rows before provider reconciliation.
+		const activeJwt = changes
+			.filter((entry) => entry.action !== "delete")
+			.flatMap((entry) => entry.data.bindings ?? [])
+			.filter((binding) => binding.name === "JWT_SECRET");
+		expect(activeJwt).toEqual([{ type: "inherit", name: "JWT_SECRET" }]);
+		expect(changes.some((entry) => entry.action === "delete")).toBe(true);
+		expect(
+			diffBindings(inherited.stack.bindings.Api, repeated.stack.bindings.Api).every(
+				(entry) => entry.action === "noop",
+			),
+		).toBe(true);
+	});
+
+	it("registers the retained native API Worker and external storage in production", async () => {
 		const { api, stack } = await registerApi(false);
-		expect(Object.keys(stack.resources)).toEqual(["Api"]);
+		expect(Object.keys(stack.resources).sort()).toEqual(["Api", "Frontend"]);
 		expect(api.RemovalPolicy).toBe("retain");
 		expect(api.Adopt).toBe(true);
 		const env = api.Props.env;
 		if (!env) throw new Error("Production Worker is missing its environment");
+		if (!("JWT_SECRET" in env) || !Redacted.isRedacted(env.JWT_SECRET)) {
+			throw new Error("Expected a redacted JWT secret");
+		}
 		expect(Redacted.value(env.JWT_SECRET)).toBe("test-existing-production-value");
 		expect(api.Props).toMatchObject({
 			name: "projektor",
@@ -184,7 +214,12 @@ describe("source-owned deployment configuration", () => {
 		});
 		expect(api.Props).not.toHaveProperty("access");
 		expect(api.Props).not.toHaveProperty("migrations");
-		const bindings = stack.bindings.Api.flatMap((entry) => entry.data.bindings ?? []);
+		const bindings = dedupeBindings(stack.bindings.Api).flatMap(
+			(entry) => entry.data.bindings ?? [],
+		);
+		expect(bindings.filter((binding) => binding.name === "JWT_SECRET")).toEqual([
+			{ type: "secret_text", name: "JWT_SECRET", text: "test-existing-production-value" },
+		]);
 		for (const binding of existingStorageBindings()) expect(bindings).toContainEqual(binding);
 		expect(bindings).toContainEqual(
 			expect.objectContaining({
@@ -200,6 +235,7 @@ describe("source-owned deployment configuration", () => {
 		const { api, stack } = await registerApi(true);
 		expect(Object.keys(stack.resources).sort()).toEqual([
 			"Api",
+			"Frontend",
 			"LocalCache",
 			"LocalDatabase",
 			"LocalFiles",
@@ -275,18 +311,20 @@ describe("source-owned deployment configuration", () => {
 		});
 	});
 
-	it("requires an explicit existing production JWT secret and never defaults it", async () => {
-		const missing = await Effect.runPromiseExit(configured(jwtSecret(false), {}));
-		expect(Exit.isFailure(missing)).toBe(true);
+	it("leaves an omitted production secret unchanged and accepts explicit initial configuration", async () => {
+		const missing = await Effect.runPromise(configured(jwtSecret(false), {}));
+		expect(missing).toBeUndefined();
 		const preserved = await Effect.runPromise(
 			configured(jwtSecret(false), { JWT_SECRET: "test-existing-production-value" }),
 		);
+		if (preserved === undefined) throw new Error("Expected the configured secret");
 		expect(Redacted.value(preserved)).toBe("test-existing-production-value");
 		expect(JSON.stringify(preserved)).not.toContain("test-existing-production-value");
 	});
 
 	it("uses the known development secret only locally, without production configuration", async () => {
 		const secret = await Effect.runPromise(configured(jwtSecret(true), {}));
+		if (secret === undefined) throw new Error("Expected the development secret");
 		expect(Redacted.value(secret)).toBe(localDevelopment.jwtSecret);
 	});
 });

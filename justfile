@@ -12,7 +12,7 @@ dev:
 plan:
     vp exec alchemy plan --config alchemy.run.ts --stage production
 
-# Intentional operator action. Requires the existing production JWT secret.
+# Both Workers deploy together. Omitted JWT_SECRET inherits the existing cloud secret.
 deploy:
     vp exec alchemy deploy --config alchemy.run.ts --stage production
 
