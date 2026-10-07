@@ -1,21 +1,22 @@
-"use client";
-import { describe, expect, it } from "vite-plus/test";
-import { parseDateField } from "./useFilterUrlSync";
+'use client'
+import { describe, expect, it } from 'vite-plus/test'
 
-describe("parseDateField", () => {
-	it("passes through 'completed'", () => {
-		expect(parseDateField("completed")).toBe("completed");
-	});
+import { parseDateField } from './useFilterUrlSync'
 
-	it("passes through 'updated'", () => {
-		expect(parseDateField("updated")).toBe("updated");
-	});
+describe('parseDateField', () => {
+  it("passes through 'completed'", () => {
+    expect(parseDateField('completed')).toBe('completed')
+  })
 
-	it("returns an empty string for null", () => {
-		expect(parseDateField(null)).toBe("");
-	});
+  it("passes through 'updated'", () => {
+    expect(parseDateField('updated')).toBe('updated')
+  })
 
-	it("returns an empty string for an unrecognized value", () => {
-		expect(parseDateField("created")).toBe("");
-	});
-});
+  it('returns an empty string for null', () => {
+    expect(parseDateField(null)).toBe('')
+  })
+
+  it('returns an empty string for an unrecognized value', () => {
+    expect(parseDateField('created')).toBe('')
+  })
+})

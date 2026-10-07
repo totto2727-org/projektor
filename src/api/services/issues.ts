@@ -1,84 +1,79 @@
-import * as issueQueries from "#services/issues";
-import { drizzle, schema } from "#db";
-import { Effect } from "effect";
-import { and, eq, or } from "drizzle-orm";
-import type { z } from "zod";
-import { issuePath } from "../lib/urls";
-import { AddCommentSchema } from "../schemas/comments";
-import { BooleanQueryParam, IdSchema } from "../schemas/common";
-import {
-	CreateIssueSchema,
-	GetIssueSchema,
-	GetIssuesBatchSchema,
-	ListIssuesSchema,
-	SearchIssuesInputSchema,
-	UpdateIssueSchema,
-} from "../schemas/issues";
-import {
-	canWriteProject,
-	effectiveProjectRole,
-	isWorkspaceAdmin,
-	requireProjectInWorkspace,
-	requireWorkspaceMember,
-	visibleProjectPredicate,
-	visibleProjectSqlFragment,
-} from "./access";
-import { recordActivity } from "./activity";
-import * as cache from "./cache";
-import { buildAddCommentInsertStatement } from "./comments";
-import { buildCustomFieldUpsertStatements, validateCustomFields } from "./custom-fields";
-import { dorColumns } from "./definition-of-ready";
-import { ForbiddenError, NotFoundError, ValidationError } from "./errors";
-import { isExternallyVerifiableEvidence } from "./evidence-classification";
-import { buildReleaseClaimsForClosedIssueStatement } from "./file-claims";
-import {
-	buildReleaseLeaseForClosedIssueStatement,
-	buildTouchAgentHeartbeatIfLiveStatement,
-	isLiveAgentSessionId,
-	issueEverHadAgentLease,
-	issueHasLiveAgentLease,
-	SESSION_TTL_SECONDS,
-} from "./issue-leases";
-import { listLinksForIssue } from "./issue-links";
-import { resolveProjectIdParam, resolveVisibleProjectIdParam } from "./projects";
-import { broadcastWorkspaceEvent } from "./realtime";
-import { resolveStatus } from "./task-statuses";
-import type { ServiceCtx } from "./types";
+import { and, eq, or } from 'drizzle-orm'
+import { Effect } from 'effect'
+import type { z } from 'zod'
 
-const ISSUE_TTL = 300;
+import { drizzle, schema } from '#db'
+import * as issueQueries from '#services/issues'
+
+import { issuePath } from '../lib/urls'
+import { AddCommentSchema } from '../schemas/comments'
+import { BooleanQueryParam, IdSchema } from '../schemas/common'
+import {
+  CreateIssueSchema,
+  GetIssueSchema,
+  GetIssuesBatchSchema,
+  ListIssuesSchema,
+  SearchIssuesInputSchema,
+  UpdateIssueSchema,
+} from '../schemas/issues'
+import {
+  canWriteProject,
+  effectiveProjectRole,
+  isWorkspaceAdmin,
+  requireProjectInWorkspace,
+  requireWorkspaceMember,
+  visibleProjectPredicate,
+  visibleProjectSqlFragment,
+} from './access'
+import { recordActivity } from './activity'
+import * as cache from './cache'
+import { buildAddCommentInsertStatement } from './comments'
+import { buildCustomFieldUpsertStatements, validateCustomFields } from './custom-fields'
+import { dorColumns } from './definition-of-ready'
+import { ForbiddenError, NotFoundError, ValidationError } from './errors'
+import { isExternallyVerifiableEvidence } from './evidence-classification'
+import { buildReleaseClaimsForClosedIssueStatement } from './file-claims'
+import {
+  buildReleaseLeaseForClosedIssueStatement,
+  buildTouchAgentHeartbeatIfLiveStatement,
+  isLiveAgentSessionId,
+  issueEverHadAgentLease,
+  issueHasLiveAgentLease,
+  SESSION_TTL_SECONDS,
+} from './issue-leases'
+import { listLinksForIssue } from './issue-links'
+import { resolveProjectIdParam, resolveVisibleProjectIdParam } from './projects'
+import { broadcastWorkspaceEvent } from './realtime'
+import { resolveStatus } from './task-statuses'
+import type { ServiceCtx } from './types'
+
+const ISSUE_TTL = 300
 
 // PROJ-870: turns a drizzle-built query into a D1PreparedStatement without executing it, so
 // it can be folded into a caller's own ctx.db.batch() array — same pattern as
 // services/wiki.ts and services/file-claims.ts.
-function toD1Statement(
-	ctx: ServiceCtx,
-	query: Readonly<{ sql: string; params: unknown[] }>,
-): D1PreparedStatement {
-	return ctx.db.prepare(query.sql).bind(...query.params);
+function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
+  return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
 // Validates a candidate parentId: checks workspace scope, cycle prevention, and depth cap (max 5).
 // Pass issueId=null on create (no cycle possible yet); pass the existing issue's id on update.
-async function validateParent(
-	ctx: ServiceCtx,
-	parentId: string,
-	issueId: string | null,
-): Promise<void> {
-	if (issueId && parentId === issueId) {
-		throw new ValidationError({
-			formErrors: ["An issue cannot be its own parent"],
-			fieldErrors: {},
-		});
-	}
+async function validateParent(ctx: ServiceCtx, parentId: string, issueId: string | null): Promise<void> {
+  if (issueId && parentId === issueId) {
+    throw new ValidationError({
+      formErrors: ['An issue cannot be its own parent'],
+      fieldErrors: {},
+    })
+  }
 
-	// PROJ-870: one recursive CTE replaces the parent SELECT plus one SELECT per ancestor
-	// level. Row depth 0 is the parent itself (existence + project for the visibility
-	// check); depths 1..5 are its ancestors, nearest first, every step workspace-scoped.
-	// `depth < 5` stops the recursion at the 5th ancestor — the most the checks below can
-	// ever look at, and a hard bound should the stored tree ever contain a cycle.
-	const { results: chain } = await ctx.db
-		.prepare(
-			`WITH RECURSIVE chain(id, parent_id, project_id, depth) AS (
+  // PROJ-870: one recursive CTE replaces the parent SELECT plus one SELECT per ancestor
+  // level. Row depth 0 is the parent itself (existence + project for the visibility
+  // check); depths 1..5 are its ancestors, nearest first, every step workspace-scoped.
+  // `depth < 5` stops the recursion at the 5th ancestor — the most the checks below can
+  // ever look at, and a hard bound should the stored tree ever contain a cycle.
+  const { results: chain } = await ctx.db
+    .prepare(
+      `WITH RECURSIVE chain(id, parent_id, project_id, depth) AS (
 				SELECT id, parent_id, project_id, 0 FROM issues WHERE id = ? AND workspace_id = ?
 				UNION ALL
 				SELECT i.id, i.parent_id, i.project_id, c.depth + 1
@@ -87,83 +82,76 @@ async function validateParent(
 				WHERE i.workspace_id = ? AND c.depth < 5
 			)
 			SELECT id, project_id, depth FROM chain ORDER BY depth ASC`,
-		)
-		.bind(parentId, ctx.workspaceId, ctx.workspaceId)
-		.all<{ id: string; project_id: string; depth: number }>();
+    )
+    .bind(parentId, ctx.workspaceId, ctx.workspaceId)
+    .all<{ id: string; project_id: string; depth: number }>()
 
-	const parentRow = chain[0];
-	if (!parentRow) throw new NotFoundError("Parent issue not found");
-	if (
-		!isWorkspaceAdmin(ctx.role) &&
-		(await effectiveProjectRole(ctx, parentRow.project_id)) === null
-	) {
-		throw new NotFoundError("Parent issue not found");
-	}
+  const parentRow = chain[0]
+  if (!parentRow) throw new NotFoundError('Parent issue not found')
+  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, parentRow.project_id)) === null) {
+    throw new NotFoundError('Parent issue not found')
+  }
 
-	// Same checks, in the same order, as the old per-level loop: for each ancestor of the
-	// parent (nearest first) test for a cycle, then count it and test the cap. So when the
-	// issue itself is the 5th ancestor, the cycle error still wins over the depth error.
-	// If the parent already has 5 ancestors, the child would be at depth 6 — exceeds the cap.
-	let ancestorCount = 0;
-	for (const { id: ancestorId } of chain.slice(1)) {
-		if (issueId && ancestorId === issueId) {
-			throw new ValidationError({
-				formErrors: ["Setting this parent would create a cycle"],
-				fieldErrors: {},
-			});
-		}
+  // Same checks, in the same order, as the old per-level loop: for each ancestor of the
+  // parent (nearest first) test for a cycle, then count it and test the cap. So when the
+  // issue itself is the 5th ancestor, the cycle error still wins over the depth error.
+  // If the parent already has 5 ancestors, the child would be at depth 6 — exceeds the cap.
+  let ancestorCount = 0
+  for (const { id: ancestorId } of chain.slice(1)) {
+    if (issueId && ancestorId === issueId) {
+      throw new ValidationError({
+        formErrors: ['Setting this parent would create a cycle'],
+        fieldErrors: {},
+      })
+    }
 
-		ancestorCount++;
-		if (ancestorCount >= 5) {
-			throw new ValidationError({
-				formErrors: ["Maximum nesting depth (5) exceeded"],
-				fieldErrors: {},
-			});
-		}
-	}
+    ancestorCount++
+    if (ancestorCount >= 5) {
+      throw new ValidationError({
+        formErrors: ['Maximum nesting depth (5) exceeded'],
+        fieldErrors: {},
+      })
+    }
+  }
 }
 
 export async function listIssues(ctx: ServiceCtx, raw: unknown) {
-	const result = ListIssuesSchema.safeParse(raw);
-	if (!result.success) throw new ValidationError(result.error.flatten());
-	const filters = {
-		...result.data,
-		projectId: result.data.projectId
-			? await resolveVisibleProjectIdParam(ctx, result.data.projectId)
-			: result.data.projectId,
-		parentId: result.data.parentId
-			? await resolveIssueIdParam(ctx, result.data.parentId)
-			: result.data.parentId,
-		assignee: result.data.assignee === "me" ? ctx.userId : result.data.assignee,
-	};
-	const field = filters.cfKey
-		? await Effect.runPromise(
-				issueQueries.findIssueCustomField(ctx.db, ctx.workspaceId, filters.cfKey),
-			)
-		: null;
-	if (filters.cfKey && !field)
-		throw new ValidationError({
-			formErrors: [`Unknown custom field key: ${filters.cfKey}`],
-			fieldErrors: {},
-		});
-	const page = await Effect.runPromise(
-		issueQueries.listIssues(
-			ctx.db,
-			ctx.workspaceId,
-			{
-				...filters,
-				customField: field ? { id: field.id, op: filters.cfOp, value: filters.cfValue } : undefined,
-			},
-			visibleProjectPredicate(ctx, schema.issues.projectId) ?? undefined,
-		),
-	);
-	return { ...page, items: page.items.map((item) => ({ ...item, url: buildIssueUrl(item) })) };
+  const result = ListIssuesSchema.safeParse(raw)
+  if (!result.success) throw new ValidationError(result.error.flatten())
+  const filters = {
+    ...result.data,
+    projectId: result.data.projectId
+      ? await resolveVisibleProjectIdParam(ctx, result.data.projectId)
+      : result.data.projectId,
+    parentId: result.data.parentId ? await resolveIssueIdParam(ctx, result.data.parentId) : result.data.parentId,
+    assignee: result.data.assignee === 'me' ? ctx.userId : result.data.assignee,
+  }
+  const field = filters.cfKey
+    ? await Effect.runPromise(issueQueries.findIssueCustomField(ctx.db, ctx.workspaceId, filters.cfKey))
+    : null
+  if (filters.cfKey && !field)
+    throw new ValidationError({
+      formErrors: [`Unknown custom field key: ${filters.cfKey}`],
+      fieldErrors: {},
+    })
+  const page = await Effect.runPromise(
+    issueQueries.listIssues(
+      ctx.db,
+      ctx.workspaceId,
+      {
+        ...filters,
+        customField: field ? { id: field.id, op: filters.cfOp, value: filters.cfValue } : undefined,
+      },
+      visibleProjectPredicate(ctx, schema.issues.projectId) ?? undefined,
+    ),
+  )
+  return { ...page, items: page.items.map((item) => ({ ...item, url: buildIssueUrl(item) })) }
 }
 
 // Digits are bounded: parseInt("9".repeat(400)) is Infinity, which drizzle would happily
 // bind and D1 would reject as a type error — a 500 where a 404 belongs. Anything longer
 // than this isn't a ref, so it falls through to being treated as an id and 404s.
-export const ISSUE_REF_PATTERN = issueQueries.ISSUE_REF_PATTERN;
+export const ISSUE_REF_PATTERN = issueQueries.ISSUE_REF_PATTERN
 
 /**
  * Accept either identifier in an `:issueId` path segment.
@@ -181,38 +169,34 @@ export const ISSUE_REF_PATTERN = issueQueries.ISSUE_REF_PATTERN;
  * an id from this function is workspace-scoped and nothing more.
  */
 export async function resolveIssueIdParam(
-	ctx: ServiceCtx,
-	param: string,
-	notFoundMessage = "Issue not found",
+  ctx: ServiceCtx,
+  param: string,
+  notFoundMessage = 'Issue not found',
 ): Promise<string> {
-	const m = param.match(ISSUE_REF_PATTERN);
-	if (!m) return param;
+  const m = param.match(ISSUE_REF_PATTERN)
+  if (!m) return param
 
-	const id = await Effect.runPromise(issueQueries.findIssueIdByRef(ctx.db, ctx.workspaceId, param));
-	if (!id) throw new NotFoundError(notFoundMessage);
-	return id;
+  const id = await Effect.runPromise(issueQueries.findIssueIdByRef(ctx.db, ctx.workspaceId, param))
+  if (!id) throw new NotFoundError(notFoundMessage)
+  return id
 }
 
-const computeChildRollup = issueQueries.computeChildRollup;
+const computeChildRollup = issueQueries.computeChildRollup
 
 // PROJ-311: an issue is only visible if its project is granted to one of the
 // user's groups (owner/admin bypass). Throw the issue-not-found error rather than a
 // project one so an invisible issue's existence never leaks.
 async function assertIssueProjectVisible(ctx: ServiceCtx, projectId: string): Promise<void> {
-	if (isWorkspaceAdmin(ctx.role)) return;
-	if ((await effectiveProjectRole(ctx, projectId)) === null) {
-		throw new NotFoundError("Issue not found");
-	}
+  if (isWorkspaceAdmin(ctx.role)) return
+  if ((await effectiveProjectRole(ctx, projectId)) === null) {
+    throw new NotFoundError('Issue not found')
+  }
 }
 
 function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
-	return issueRecord.project_key
-		? issuePath(
-				issueRecord.project_key as string,
-				issueRecord.number as number,
-				issueRecord.title as string,
-			)
-		: null;
+  return issueRecord.project_key
+    ? issuePath(issueRecord.project_key as string, issueRecord.number as number, issueRecord.title as string)
+    : null
 }
 
 // PROJ-863: what the KV cache holds for an issue — only data owned by the issue itself
@@ -222,52 +206,50 @@ function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
 // every request (the row fetch is one joined query, links one more), so renaming or
 // deleting those can never leave a stale copy behind. Entries written in the old
 // full-payload shape still carry these two keys, so they stay readable.
-type CachedIssueExtras = { rollup: ReturnType<typeof computeChildRollup>; customFields: unknown[] };
+type CachedIssueExtras = { rollup: ReturnType<typeof computeChildRollup>; customFields: unknown[] }
 
 async function loadIssueExtras(ctx: ServiceCtx, issueId: string): Promise<CachedIssueExtras> {
-	const key = `issue:${ctx.workspaceId}:${issueId}`;
-	const cached = await cache.get<CachedIssueExtras>(ctx.kv, key);
-	if (cached?.rollup && cached.customFields) {
-		return { rollup: cached.rollup, customFields: cached.customFields };
-	}
+  const key = `issue:${ctx.workspaceId}:${issueId}`
+  const cached = await cache.get<CachedIssueExtras>(ctx.kv, key)
+  if (cached?.rollup && cached.customFields) {
+    return { rollup: cached.rollup, customFields: cached.customFields }
+  }
 
-	const extras: CachedIssueExtras = await Effect.runPromise(
-		issueQueries.getIssueExtras(ctx.db, ctx.workspaceId, issueId),
-	);
-	await cache.set(ctx.kv, key, extras, ISSUE_TTL);
-	return extras;
+  const extras: CachedIssueExtras = await Effect.runPromise(
+    issueQueries.getIssueExtras(ctx.db, ctx.workspaceId, issueId),
+  )
+  await cache.set(ctx.kv, key, extras, ISSUE_TTL)
+  return extras
 }
 
 export async function getIssue(ctx: ServiceCtx, raw: unknown) {
-	const result = GetIssueSchema.safeParse(raw);
-	if (!result.success) throw new ValidationError(result.error.flatten());
-	const { id, ref } = result.data;
+  const result = GetIssueSchema.safeParse(raw)
+  if (!result.success) throw new ValidationError(result.error.flatten())
+  const { id, ref } = result.data
 
-	if (!id && ref && !ISSUE_REF_PATTERN.test(ref))
-		throw new ValidationError({
-			formErrors: ["ref must be in format KEY-NUMBER"],
-			fieldErrors: {},
-		});
-	const issue = await Effect.runPromise(
-		issueQueries.getIssue(ctx.db, ctx.workspaceId, { id, ref }),
-	);
-	if (!issue) throw new NotFoundError("Issue not found");
+  if (!id && ref && !ISSUE_REF_PATTERN.test(ref))
+    throw new ValidationError({
+      formErrors: ['ref must be in format KEY-NUMBER'],
+      fieldErrors: {},
+    })
+  const issue = await Effect.runPromise(issueQueries.getIssue(ctx.db, ctx.workspaceId, { id, ref }))
+  if (!issue) throw new NotFoundError('Issue not found')
 
-	const issueRecord = issue as Record<string, unknown>;
-	await assertIssueProjectVisible(ctx, issueRecord.project_id as string);
-	const issueId = issueRecord.id as string;
+  const issueRecord = issue as Record<string, unknown>
+  await assertIssueProjectVisible(ctx, issueRecord.project_id as string)
+  const issueId = issueRecord.id as string
 
-	const { rollup, customFields } = await loadIssueExtras(ctx, issueId);
-	const links = await listLinksForIssue(ctx, { issueId });
+  const { rollup, customFields } = await loadIssueExtras(ctx, issueId)
+  const links = await listLinksForIssue(ctx, { issueId })
 
-	const full: Record<string, unknown> = {
-		...issueRecord,
-		rollup,
-		links,
-		customFields,
-		url: buildIssueUrl(issueRecord),
-	};
-	return full;
+  const full: Record<string, unknown> = {
+    ...issueRecord,
+    rollup,
+    links,
+    customFields,
+    url: buildIssueUrl(issueRecord),
+  }
+  return full
 }
 
 // PROJ-931: fetch up to 50 issues in one call, by ref (KEY-NUMBER) and/or id, for agents
@@ -279,57 +261,50 @@ export async function getIssue(ctx: ServiceCtx, raw: unknown) {
 // items (customFields, no rollup/links) rather than getIssue's full shape, since loading
 // rollup/links per issue here would be an N+1 the batch is meant to avoid.
 export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
-	const result = GetIssuesBatchSchema.safeParse(raw);
-	if (!result.success) throw new ValidationError(result.error.flatten());
-	for (const ref of result.data.refs ?? [])
-		if (!ISSUE_REF_PATTERN.test(ref))
-			throw new ValidationError({
-				formErrors: [`Invalid ref: ${ref} (expected KEY-NUMBER)`],
-				fieldErrors: {},
-			});
-	const page = await Effect.runPromise(
-		issueQueries.getIssuesBatch(
-			ctx.db,
-			ctx.workspaceId,
-			result.data,
-			visibleProjectPredicate(ctx, schema.issues.projectId) ?? undefined,
-		),
-	);
-	return { ...page, items: page.items.map((item) => ({ ...item, url: buildIssueUrl(item) })) };
+  const result = GetIssuesBatchSchema.safeParse(raw)
+  if (!result.success) throw new ValidationError(result.error.flatten())
+  for (const ref of result.data.refs ?? [])
+    if (!ISSUE_REF_PATTERN.test(ref))
+      throw new ValidationError({
+        formErrors: [`Invalid ref: ${ref} (expected KEY-NUMBER)`],
+        fieldErrors: {},
+      })
+  const page = await Effect.runPromise(
+    issueQueries.getIssuesBatch(
+      ctx.db,
+      ctx.workspaceId,
+      result.data,
+      visibleProjectPredicate(ctx, schema.issues.projectId) ?? undefined,
+    ),
+  )
+  return { ...page, items: page.items.map((item) => ({ ...item, url: buildIssueUrl(item) })) }
 }
 
-async function resolveTypeId(
-	ctx: ServiceCtx,
-	typeId: string | null | undefined,
-): Promise<string | null> {
-	if (typeId === null) return null;
-	const orm = drizzle(ctx.db, { schema });
-	if (typeId) {
-		const found = await orm
-			.select({ id: schema.taskTypes.id })
-			.from(schema.taskTypes)
-			.where(
-				and(eq(schema.taskTypes.id, typeId), eq(schema.taskTypes.workspaceId, ctx.workspaceId)),
-			)
-			.get();
-		if (!found)
-			throw new ValidationError({
-				formErrors: ["Task type not found in this workspace"],
-				fieldErrors: {},
-			});
-		return typeId;
-	}
-	const def = await orm
-		.select({ id: schema.taskTypes.id })
-		.from(schema.taskTypes)
-		.where(
-			and(eq(schema.taskTypes.workspaceId, ctx.workspaceId), eq(schema.taskTypes.isDefault, 1)),
-		)
-		.get();
-	return def?.id ?? null;
+async function resolveTypeId(ctx: ServiceCtx, typeId: string | null | undefined): Promise<string | null> {
+  if (typeId === null) return null
+  const orm = drizzle(ctx.db, { schema })
+  if (typeId) {
+    const found = await orm
+      .select({ id: schema.taskTypes.id })
+      .from(schema.taskTypes)
+      .where(and(eq(schema.taskTypes.id, typeId), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
+      .get()
+    if (!found)
+      throw new ValidationError({
+        formErrors: ['Task type not found in this workspace'],
+        fieldErrors: {},
+      })
+    return typeId
+  }
+  const def = await orm
+    .select({ id: schema.taskTypes.id })
+    .from(schema.taskTypes)
+    .where(and(eq(schema.taskTypes.workspaceId, ctx.workspaceId), eq(schema.taskTypes.isDefault, 1)))
+    .get()
+  return def?.id ?? null
 }
 
-type CreateIssueData = z.infer<typeof CreateIssueSchema>;
+type CreateIssueData = z.infer<typeof CreateIssueSchema>
 
 // PROJ-870: build (without executing) the single INSERT that creates the issue row.
 // status_category is bound directly from the category resolveStatus already read (no
@@ -338,32 +313,32 @@ type CreateIssueData = z.infer<typeof CreateIssueSchema>;
 // (like the pre-PROJ-870 version) since the number subquery isn't expressible through
 // drizzle's insert builder.
 function buildInsertIssueStatement(
-	ctx: ServiceCtx,
-	params: Readonly<{
-		id: string;
-		projectId: string;
-		title: string;
-		resolvedBody: string;
-		resolvedStatusKey: string;
-		resolvedStatusId: string | null;
-		resolvedStatusCategory: string | null;
-		priority: CreateIssueData["priority"];
-		assigneeId: string | null;
-		labels: string[];
-		parentId: string | null;
-		resolvedTypeId: string | null;
-		// PROJ-921: set when the issue is created straight into a ready status.
-		readyAt: number | null;
-		now: number;
-	}>,
+  ctx: ServiceCtx,
+  params: Readonly<{
+    id: string
+    projectId: string
+    title: string
+    resolvedBody: string
+    resolvedStatusKey: string
+    resolvedStatusId: string | null
+    resolvedStatusCategory: string | null
+    priority: CreateIssueData['priority']
+    assigneeId: string | null
+    labels: string[]
+    parentId: string | null
+    resolvedTypeId: string | null
+    // PROJ-921: set when the issue is created straight into a ready status.
+    readyAt: number | null
+    now: number
+  }>,
 ): D1PreparedStatement {
-	// Atomic number allocation: the subquery for MAX(number) and the INSERT run as
-	// a single SQLite statement, eliminating the read-then-write race that existed
-	// when they were two separate operations. The UNIQUE index on (project_id, number)
-	// is a hard safety net — see migration 0002_issue_number_unique.sql.
-	return ctx.db
-		.prepare(
-			`INSERT INTO issues
+  // Atomic number allocation: the subquery for MAX(number) and the INSERT run as
+  // a single SQLite statement, eliminating the read-then-write race that existed
+  // when they were two separate operations. The UNIQUE index on (project_id, number)
+  // is a hard safety net — see migration 0002_issue_number_unique.sql.
+  return ctx.db
+    .prepare(
+      `INSERT INTO issues
 			   (id, workspace_id, project_id, number, title, body, status, status_id,
 			    status_category, priority, assignee_id, labels, parent_id, type_id,
 			    created_by_id, author_kind, created_at, updated_at, dor_ready, dor_missing, ready_at)
@@ -371,42 +346,37 @@ function buildInsertIssueStatement(
 			   (?, ?, ?, (SELECT COALESCE(MAX(number), 0) + 1 FROM issues WHERE project_id = ?),
 			    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 RETURNING number`,
-		)
-		.bind(
-			params.id,
-			ctx.workspaceId,
-			params.projectId,
-			params.projectId,
-			params.title,
-			params.resolvedBody,
-			params.resolvedStatusKey,
-			params.resolvedStatusId ?? null,
-			params.resolvedStatusCategory ?? "",
-			params.priority ?? "none",
-			params.assigneeId ?? null,
-			JSON.stringify(params.labels ?? []),
-			params.parentId ?? null,
-			params.resolvedTypeId,
-			ctx.userId,
-			// PROJ-396: stamped from the authenticated principal type, not a caller-supplied
-			// field — see ServiceCtx.authKind and the issueComments.authorKind precedent (PROJ-328).
-			ctx.authKind ?? null,
-			params.now,
-			params.now,
-			...dorColumns(params.resolvedBody),
-			params.readyAt,
-		);
+    )
+    .bind(
+      params.id,
+      ctx.workspaceId,
+      params.projectId,
+      params.projectId,
+      params.title,
+      params.resolvedBody,
+      params.resolvedStatusKey,
+      params.resolvedStatusId ?? null,
+      params.resolvedStatusCategory ?? '',
+      params.priority ?? 'none',
+      params.assigneeId ?? null,
+      JSON.stringify(params.labels ?? []),
+      params.parentId ?? null,
+      params.resolvedTypeId,
+      ctx.userId,
+      // PROJ-396: stamped from the authenticated principal type, not a caller-supplied
+      // field — see ServiceCtx.authKind and the issueComments.authorKind precedent (PROJ-328).
+      ctx.authKind ?? null,
+      params.now,
+      params.now,
+      ...dorColumns(params.resolvedBody),
+      params.readyAt,
+    )
 }
 
-function buildFtsInsertStatement(
-	ctx: ServiceCtx,
-	id: string,
-	title: string,
-	body: string,
-): D1PreparedStatement {
-	return ctx.db
-		.prepare("INSERT INTO issues_fts (issue_id, workspace_id, title, body) VALUES (?, ?, ?, ?)")
-		.bind(id, ctx.workspaceId, title, body);
+function buildFtsInsertStatement(ctx: ServiceCtx, id: string, title: string, body: string): D1PreparedStatement {
+  return ctx.db
+    .prepare('INSERT INTO issues_fts (issue_id, workspace_id, title, body) VALUES (?, ?, ?, ?)')
+    .bind(id, ctx.workspaceId, title, body)
 }
 
 // PROJ-870: build (without executing) an activity-log INSERT identical in shape to
@@ -414,170 +384,166 @@ function buildFtsInsertStatement(
 // being a separate awaited round trip. recordActivity itself is left unchanged for its
 // other (non-batched) callers (wiki_page, project, group).
 function buildActivityInsertStatement(
-	ctx: ServiceCtx,
-	orm: ReturnType<typeof drizzle>,
-	opts: Readonly<{
-		entityType: "issue";
-		entityId: string;
-		action: "created" | "updated";
-		diff?: Record<string, unknown>;
-	}>,
+  ctx: ServiceCtx,
+  orm: ReturnType<typeof drizzle>,
+  opts: Readonly<{
+    entityType: 'issue'
+    entityId: string
+    action: 'created' | 'updated'
+    diff?: Record<string, unknown>
+  }>,
 ): D1PreparedStatement {
-	const query = orm
-		.insert(schema.activity)
-		.values({
-			id: crypto.randomUUID(),
-			workspaceId: ctx.workspaceId,
-			entityType: opts.entityType,
-			entityId: opts.entityId,
-			actorId: ctx.userId,
-			action: opts.action,
-			diff: opts.diff ?? null,
-			createdAt: now(),
-		})
-		.toSQL();
-	return ctx.db.prepare(query.sql).bind(...query.params);
+  const query = orm
+    .insert(schema.activity)
+    .values({
+      id: crypto.randomUUID(),
+      workspaceId: ctx.workspaceId,
+      entityType: opts.entityType,
+      entityId: opts.entityId,
+      actorId: ctx.userId,
+      action: opts.action,
+      diff: opts.diff ?? null,
+      createdAt: now(),
+    })
+    .toSQL()
+  return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
 async function resolveCreateIssueDeps(ctx: ServiceCtx, data: CreateIssueData) {
-	if (data.parentId) {
-		await validateParent(ctx, data.parentId, null);
-	}
+  if (data.parentId) {
+    await validateParent(ctx, data.parentId, null)
+  }
 
-	const resolvedTypeId = await resolveTypeId(ctx, data.typeId);
-	const {
-		id: resolvedStatusId,
-		key: resolvedStatusKey,
-		category: resolvedStatusCategory,
-	} = await resolveStatus(ctx, data.statusId, data.status);
-	const cfWrites = data.customFields
-		? await validateCustomFields(ctx.db, ctx.workspaceId, data.customFields)
-		: [];
+  const resolvedTypeId = await resolveTypeId(ctx, data.typeId)
+  const {
+    id: resolvedStatusId,
+    key: resolvedStatusKey,
+    category: resolvedStatusCategory,
+  } = await resolveStatus(ctx, data.statusId, data.status)
+  const cfWrites = data.customFields ? await validateCustomFields(ctx.db, ctx.workspaceId, data.customFields) : []
 
-	return { resolvedTypeId, resolvedStatusId, resolvedStatusKey, resolvedStatusCategory, cfWrites };
+  return { resolvedTypeId, resolvedStatusId, resolvedStatusKey, resolvedStatusCategory, cfWrites }
 }
 
 export async function createIssue(ctx: ServiceCtx, raw: unknown) {
-	const result = CreateIssueSchema.safeParse(raw);
-	if (!result.success) throw new ValidationError(result.error.flatten());
-	const projectId = await resolveProjectIdParam(ctx, result.data.projectId);
-	const parentId = result.data.parentId
-		? await resolveIssueIdParam(ctx, result.data.parentId)
-		: result.data.parentId;
-	const data = { ...result.data, projectId, parentId };
-	const { title, body, priority, assigneeId, labels } = data;
+  const result = CreateIssueSchema.safeParse(raw)
+  if (!result.success) throw new ValidationError(result.error.flatten())
+  const projectId = await resolveProjectIdParam(ctx, result.data.projectId)
+  const parentId = result.data.parentId ? await resolveIssueIdParam(ctx, result.data.parentId) : result.data.parentId
+  const data = { ...result.data, projectId, parentId }
+  const { title, body, priority, assigneeId, labels } = data
 
-	// PROJ-389: confirm projectId belongs to this workspace BEFORE the admin-bypass
-	// check below, so an owner/admin can't write into another workspace's project.
-	await requireProjectInWorkspace(ctx, projectId);
+  // PROJ-389: confirm projectId belongs to this workspace BEFORE the admin-bypass
+  // check below, so an owner/admin can't write into another workspace's project.
+  await requireProjectInWorkspace(ctx, projectId)
 
-	// PROJ-311: writing requires a member/admin grant on this project (owner/admin
-	// bypass). No grant → the project is invisible → 404; a viewer grant is read-only.
-	if (!isWorkspaceAdmin(ctx.role)) {
-		const projRole = await effectiveProjectRole(ctx, projectId);
-		if (projRole === null) throw new NotFoundError("Project not found");
-		if (!canWriteProject(projRole)) throw new ForbiddenError("Insufficient permissions");
-	}
+  // PROJ-311: writing requires a member/admin grant on this project (owner/admin
+  // bypass). No grant → the project is invisible → 404; a viewer grant is read-only.
+  if (!isWorkspaceAdmin(ctx.role)) {
+    const projRole = await effectiveProjectRole(ctx, projectId)
+    if (projRole === null) throw new NotFoundError('Project not found')
+    if (!canWriteProject(projRole)) throw new ForbiddenError('Insufficient permissions')
+  }
 
-	// PROJ-785: an assignee must be a member of this workspace — otherwise we'd
-	// persist a dangling or wrong-workspace user reference.
-	if (assigneeId) {
-		await requireWorkspaceMember(ctx, assigneeId);
-	}
+  // PROJ-785: an assignee must be a member of this workspace — otherwise we'd
+  // persist a dangling or wrong-workspace user reference.
+  if (assigneeId) {
+    await requireWorkspaceMember(ctx, assigneeId)
+  }
 
-	const { resolvedTypeId, resolvedStatusId, resolvedStatusKey, resolvedStatusCategory, cfWrites } =
-		await resolveCreateIssueDeps(ctx, data);
+  const { resolvedTypeId, resolvedStatusId, resolvedStatusKey, resolvedStatusCategory, cfWrites } =
+    await resolveCreateIssueDeps(ctx, data)
 
-	const id = crypto.randomUUID();
-	const nowTs = now();
-	const resolvedBody = body ?? "";
+  const id = crypto.randomUUID()
+  const nowTs = now()
+  const resolvedBody = body ?? ''
 
-	const orm = drizzle(ctx.db, { schema });
+  const orm = drizzle(ctx.db, { schema })
 
-	// PROJ-870: everything below is independent of everything above it having already
-	// happened (all validation/resolution reads are done), so the issue INSERT (with its
-	// status_category computed inline and its allocated number returned), the FTS mirror
-	// insert, the custom-field upserts, and the activity-log insert all go in one
-	// ctx.db.batch() — one D1 round trip instead of up to 6 sequential ones.
-	const statements: D1PreparedStatement[] = [
-		buildInsertIssueStatement(ctx, {
-			id,
-			projectId,
-			title,
-			resolvedBody,
-			resolvedStatusKey,
-			resolvedStatusId,
-			resolvedStatusCategory,
-			priority,
-			assigneeId: assigneeId ?? null,
-			labels: labels ?? [],
-			parentId: parentId ?? null,
-			resolvedTypeId,
-			readyAt: isOpenPastBacklog(resolvedStatusKey, resolvedStatusCategory) ? nowTs : null,
-			now: nowTs,
-		}),
-		buildFtsInsertStatement(ctx, id, title, resolvedBody),
-		...buildCustomFieldUpsertStatements(ctx.db, id, cfWrites),
-		buildActivityInsertStatement(ctx, orm, {
-			entityType: "issue",
-			entityId: id,
-			action: "created",
-		}),
-	];
+  // PROJ-870: everything below is independent of everything above it having already
+  // happened (all validation/resolution reads are done), so the issue INSERT (with its
+  // status_category computed inline and its allocated number returned), the FTS mirror
+  // insert, the custom-field upserts, and the activity-log insert all go in one
+  // ctx.db.batch() — one D1 round trip instead of up to 6 sequential ones.
+  const statements: D1PreparedStatement[] = [
+    buildInsertIssueStatement(ctx, {
+      id,
+      projectId,
+      title,
+      resolvedBody,
+      resolvedStatusKey,
+      resolvedStatusId,
+      resolvedStatusCategory,
+      priority,
+      assigneeId: assigneeId ?? null,
+      labels: labels ?? [],
+      parentId: parentId ?? null,
+      resolvedTypeId,
+      readyAt: isOpenPastBacklog(resolvedStatusKey, resolvedStatusCategory) ? nowTs : null,
+      now: nowTs,
+    }),
+    buildFtsInsertStatement(ctx, id, title, resolvedBody),
+    ...buildCustomFieldUpsertStatements(ctx.db, id, cfWrites),
+    buildActivityInsertStatement(ctx, orm, {
+      entityType: 'issue',
+      entityId: id,
+      action: 'created',
+    }),
+  ]
 
-	const results = await ctx.db.batch(statements);
-	const number = (results[0]?.results as Array<{ number: number }> | undefined)?.[0]?.number;
+  const results = await ctx.db.batch(statements)
+  const number = (results[0]?.results as Array<{ number: number }> | undefined)?.[0]?.number
 
-	if (parentId) {
-		await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${parentId}`);
-	}
+  if (parentId) {
+    await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${parentId}`)
+  }
 
-	await broadcastWorkspaceEvent(ctx, {
-		type: "issue.created",
-		projectId: data.projectId,
-		data: { id, number, title: data.title, status: resolvedStatusKey ?? "todo" },
-	});
+  await broadcastWorkspaceEvent(ctx, {
+    type: 'issue.created',
+    projectId: data.projectId,
+    data: { id, number, title: data.title, status: resolvedStatusKey ?? 'todo' },
+  })
 
-	return { id, number };
+  return { id, number }
 }
 
-type UpdateIssueData = z.infer<typeof UpdateIssueSchema>;
+type UpdateIssueData = z.infer<typeof UpdateIssueSchema>
 type ExistingIssue = {
-	id: string;
-	parentId: string | null;
-	typeId: string | null;
-	title: string;
-	body: string;
-	status: string;
-	statusCategory: string | null;
-	readyAt: number | null;
-	claimedAt: number | null;
-	doneAt: number | null;
-	completionReportAt: number | null;
-	inReviewAt: number | null;
-	reviewBounceCount: number;
-	// PROJ-749: whether the issue's current status is a designated review step.
-	statusIsReviewStep: boolean;
-};
+  id: string
+  parentId: string | null
+  typeId: string | null
+  title: string
+  body: string
+  status: string
+  statusCategory: string | null
+  readyAt: number | null
+  claimedAt: number | null
+  doneAt: number | null
+  completionReportAt: number | null
+  inReviewAt: number | null
+  reviewBounceCount: number
+  // PROJ-749: whether the issue's current status is a designated review step.
+  statusIsReviewStep: boolean
+}
 
 // biome-ignore lint/suspicious/noExplicitAny: Drizzle set() requires typed columns; setValues is safe
-type SetValues = Record<string, any>;
+type SetValues = Record<string, any>
 
 function buildSimpleFields(data: UpdateIssueData): SetValues {
-	const setValues: SetValues = {};
-	if (data.title !== undefined) setValues.title = data.title;
-	if (data.body !== undefined) {
-		setValues.body = data.body;
-		// PROJ-859: keep the stored definition-of-ready result in step with the body.
-		const [dorReady, dorMissing] = dorColumns(data.body);
-		setValues.dorReady = dorReady;
-		setValues.dorMissing = dorMissing;
-	}
-	if (data.priority !== undefined) setValues.priority = data.priority;
-	if ("assigneeId" in data) setValues.assigneeId = data.assigneeId ?? null;
-	if (data.labels !== undefined) setValues.labels = data.labels;
-	if ("parentId" in data) setValues.parentId = data.parentId ?? null;
-	return setValues;
+  const setValues: SetValues = {}
+  if (data.title !== undefined) setValues.title = data.title
+  if (data.body !== undefined) {
+    setValues.body = data.body
+    // PROJ-859: keep the stored definition-of-ready result in step with the body.
+    const [dorReady, dorMissing] = dorColumns(data.body)
+    setValues.dorReady = dorReady
+    setValues.dorMissing = dorMissing
+  }
+  if (data.priority !== undefined) setValues.priority = data.priority
+  if ('assigneeId' in data) setValues.assigneeId = data.assigneeId ?? null
+  if (data.labels !== undefined) setValues.labels = data.labels
+  if ('parentId' in data) setValues.parentId = data.parentId ?? null
+  return setValues
 }
 
 // PROJ-212: stamp completed_at when an issue first enters a done-category
@@ -586,15 +552,15 @@ function buildSimpleFields(data: UpdateIssueData): SetValues {
 // either the configured status category or the legacy `status` enum, so it
 // works whether or not the workspace uses custom task statuses.
 function buildCompletedAtTransition(
-	existing: ExistingIssue,
-	resolvedStatusKey: string,
-	newStatusCategory: string | undefined,
+  existing: ExistingIssue,
+  resolvedStatusKey: string,
+  newStatusCategory: string | undefined,
 ): SetValues {
-	const wasDone = existing.statusCategory === "done" || existing.status === "done";
-	const isDone = newStatusCategory === "done" || resolvedStatusKey === "done";
-	if (isDone && !wasDone) return { completedAt: now() };
-	if (!isDone && wasDone) return { completedAt: null };
-	return {};
+  const wasDone = existing.statusCategory === 'done' || existing.status === 'done'
+  const isDone = newStatusCategory === 'done' || resolvedStatusKey === 'done'
+  if (isDone && !wasDone) return { completedAt: now() }
+  if (!isDone && wasDone) return { completedAt: null }
+  return {}
 }
 
 // PROJ-252 flow metrics: stamp ready_at/claimed_at/done_at the first time an issue
@@ -604,22 +570,19 @@ function buildCompletedAtTransition(
 // its own status_category (backlog and todo share category 'todo'), so it's detected
 // from the legacy `status` key instead: any status other than 'backlog'.
 function isClaimedState(
-	category: string | null | undefined,
-	key: string | null | undefined,
-	isReviewStep: boolean,
+  category: string | null | undefined,
+  key: string | null | undefined,
+  isReviewStep: boolean,
 ): boolean {
-	return category === "in_progress" || key === "in_progress" || isReviewStep;
+  return category === 'in_progress' || key === 'in_progress' || isReviewStep
 }
 
 function isDoneState(category: string | null | undefined, key: string | null | undefined): boolean {
-	return category === "done" || key === "done";
+  return category === 'done' || key === 'done'
 }
 
-function isCancelledState(
-	category: string | null | undefined,
-	key: string | null | undefined,
-): boolean {
-	return category === "cancelled" || key === "cancelled";
+function isCancelledState(category: string | null | undefined, key: string | null | undefined): boolean {
+  return category === 'cancelled' || key === 'cancelled'
 }
 
 // PROJ-921: an issue becomes "ready" when it leaves backlog for an open status —
@@ -629,35 +592,31 @@ function isCancelledState(
 // waited to be worked, and used to get ready_at = done_at, a 0s lead time that dragged
 // the median to zero. Issues created in an open non-backlog status are ready from creation.
 function isOpenPastBacklog(key: string, category: string | null | undefined): boolean {
-	if (key === "backlog" || key === "cancelled" || category === "cancelled") return false;
-	return !isDoneState(category, key);
+  if (key === 'backlog' || key === 'cancelled' || category === 'cancelled') return false
+  return !isDoneState(category, key)
 }
 
 function buildFlowTimestampTransitions(
-	existing: ExistingIssue,
-	resolvedStatusKey: string,
-	newStatusCategory: string | undefined,
-	newIsReviewStep: boolean,
+  existing: ExistingIssue,
+  resolvedStatusKey: string,
+  newStatusCategory: string | undefined,
+  newIsReviewStep: boolean,
 ): SetValues {
-	const setValues: SetValues = {};
+  const setValues: SetValues = {}
 
-	if (existing.readyAt == null && isOpenPastBacklog(resolvedStatusKey, newStatusCategory)) {
-		setValues.readyAt = now();
-	}
+  if (existing.readyAt == null && isOpenPastBacklog(resolvedStatusKey, newStatusCategory)) {
+    setValues.readyAt = now()
+  }
 
-	const wasClaimed = isClaimedState(
-		existing.statusCategory,
-		existing.status,
-		existing.statusIsReviewStep,
-	);
-	const isClaimed = isClaimedState(newStatusCategory, resolvedStatusKey, newIsReviewStep);
-	if (isClaimed && !wasClaimed && existing.claimedAt == null) setValues.claimedAt = now();
+  const wasClaimed = isClaimedState(existing.statusCategory, existing.status, existing.statusIsReviewStep)
+  const isClaimed = isClaimedState(newStatusCategory, resolvedStatusKey, newIsReviewStep)
+  if (isClaimed && !wasClaimed && existing.claimedAt == null) setValues.claimedAt = now()
 
-	const wasDone = isDoneState(existing.statusCategory, existing.status);
-	const isDone = isDoneState(newStatusCategory, resolvedStatusKey);
-	if (isDone && !wasDone && existing.doneAt == null) setValues.doneAt = now();
+  const wasDone = isDoneState(existing.statusCategory, existing.status)
+  const isDone = isDoneState(newStatusCategory, resolvedStatusKey)
+  if (isDone && !wasDone && existing.doneAt == null) setValues.doneAt = now()
 
-	return setValues;
+  return setValues
 }
 
 // PROJ-328 (collaboration-shape metrics): stamp in_review_at the first time an issue
@@ -674,41 +633,37 @@ function buildFlowTimestampTransitions(
 // reason", so review -> cancelled (the issue was killed, not sent back for more work)
 // must not count here even though it still increments the aggregate.
 function buildReviewTransitions(
-	existing: ExistingIssue,
-	transition: Readonly<{
-		resolvedStatusKey: string;
-		newStatusCategory: string | undefined;
-		newIsReviewStep: boolean;
-		enteringInReview: boolean;
-		enteringDone: boolean;
-	}>,
+  existing: ExistingIssue,
+  transition: Readonly<{
+    resolvedStatusKey: string
+    newStatusCategory: string | undefined
+    newIsReviewStep: boolean
+    enteringInReview: boolean
+    enteringDone: boolean
+  }>,
 ): { setValues: SetValues; isGateRejection: boolean } {
-	const { resolvedStatusKey, newStatusCategory, newIsReviewStep, enteringInReview, enteringDone } =
-		transition;
-	const setValues: SetValues = {};
-	if (enteringInReview && existing.inReviewAt == null) setValues.inReviewAt = now();
+  const { resolvedStatusKey, newStatusCategory, newIsReviewStep, enteringInReview, enteringDone } = transition
+  const setValues: SetValues = {}
+  if (enteringInReview && existing.inReviewAt == null) setValues.inReviewAt = now()
 
-	const wasInReview = existing.statusIsReviewStep;
-	const leavingReviewNotDone = wasInReview && !newIsReviewStep && !enteringDone;
-	if (leavingReviewNotDone) setValues.reviewBounceCount = existing.reviewBounceCount + 1;
+  const wasInReview = existing.statusIsReviewStep
+  const leavingReviewNotDone = wasInReview && !newIsReviewStep && !enteringDone
+  if (leavingReviewNotDone) setValues.reviewBounceCount = existing.reviewBounceCount + 1
 
-	const isGateRejection =
-		leavingReviewNotDone &&
-		(newStatusCategory === "in_progress" || resolvedStatusKey === "in_progress");
-	return { setValues, isGateRejection };
+  const isGateRejection =
+    leavingReviewNotDone && (newStatusCategory === 'in_progress' || resolvedStatusKey === 'in_progress')
+  return { setValues, isGateRejection }
 }
 
 function assertCompletionReportPresent(data: UpdateIssueData): void {
-	if (!data.completionReport) {
-		throw new ValidationError({
-			formErrors: [],
-			fieldErrors: {
-				completionReport: [
-					"summary and verification are required for an agent to enter review (PROJ-254)",
-				],
-			},
-		});
-	}
+  if (!data.completionReport) {
+    throw new ValidationError({
+      formErrors: [],
+      fieldErrors: {
+        completionReport: ['summary and verification are required for an agent to enter review (PROJ-254)'],
+      },
+    })
+  }
 }
 
 // Pure classification of what this status change is entering, shared by the gate
@@ -721,17 +676,17 @@ function assertCompletionReportPresent(data: UpdateIssueData): void {
 // gate and pollute review flow metrics. Migration 0061 backfilled the flag from the old
 // rule, so existing custom review statuses ("code_review", "peer_review") keep the gate.
 function classifyStatusTransition(
-	existing: ExistingIssue,
-	resolvedStatusKey: string,
-	newStatusCategory: string | undefined,
-	newIsReviewStep: boolean,
+  existing: ExistingIssue,
+  resolvedStatusKey: string,
+  newStatusCategory: string | undefined,
+  newIsReviewStep: boolean,
 ): { enteringInReview: boolean; enteringDone: boolean } {
-	const wasInReview = existing.statusIsReviewStep;
-	const enteringInReview = newIsReviewStep && !wasInReview;
+  const wasInReview = existing.statusIsReviewStep
+  const enteringInReview = newIsReviewStep && !wasInReview
 
-	const wasDone = existing.statusCategory === "done" || existing.status === "done";
-	const enteringDone = (newStatusCategory === "done" || resolvedStatusKey === "done") && !wasDone;
-	return { enteringInReview, enteringDone };
+  const wasDone = existing.statusCategory === 'done' || existing.status === 'done'
+  const enteringDone = (newStatusCategory === 'done' || resolvedStatusKey === 'done') && !wasDone
+  return { enteringInReview, enteringDone }
 }
 
 // PROJ-254/287/289/292, relaxed by PROJ-375: entering review while an agent holds a
@@ -741,32 +696,30 @@ function classifyStatusTransition(
 // (live lease) transitioning to done — agents can close freely now; see
 // computeNeedsAudit below for the audit-after-the-fact replacement.
 async function assertReviewGate(
-	ctx: ServiceCtx,
-	data: UpdateIssueData,
-	existing: ExistingIssue,
-	transition: Readonly<{ enteringInReview: boolean; enteringDone: boolean }>,
+  ctx: ServiceCtx,
+  data: UpdateIssueData,
+  existing: ExistingIssue,
+  transition: Readonly<{ enteringInReview: boolean; enteringDone: boolean }>,
 ): Promise<void> {
-	const { enteringInReview, enteringDone } = transition;
-	if (!enteringInReview && !enteringDone) return;
+  const { enteringInReview, enteringDone } = transition
+  if (!enteringInReview && !enteringDone) return
 
-	if (enteringInReview) {
-		const hasLiveAgentLease = await issueHasLiveAgentLease(ctx, existing.id);
-		if (hasLiveAgentLease) {
-			assertCompletionReportPresent(data);
-		}
-	}
+  if (enteringInReview) {
+    const hasLiveAgentLease = await issueHasLiveAgentLease(ctx, existing.id)
+    if (hasLiveAgentLease) {
+      assertCompletionReportPresent(data)
+    }
+  }
 
-	if (enteringDone) {
-		const everAgentWorked = await issueEverHadAgentLease(ctx, existing.id);
-		if (everAgentWorked && existing.completionReportAt == null && !data.completionReport) {
-			throw new ValidationError({
-				formErrors: [
-					"A completion report is required before an agent-worked issue can be marked done (PROJ-254)",
-				],
-				fieldErrors: {},
-			});
-		}
-	}
+  if (enteringDone) {
+    const everAgentWorked = await issueEverHadAgentLease(ctx, existing.id)
+    if (everAgentWorked && existing.completionReportAt == null && !data.completionReport) {
+      throw new ValidationError({
+        formErrors: ['A completion report is required before an agent-worked issue can be marked done (PROJ-254)'],
+        fieldErrors: {},
+      })
+    }
+  }
 }
 
 // PROJ-375: audit-after-the-fact replacement for the removed done-gate block. Only
@@ -777,146 +730,129 @@ async function assertReviewGate(
 // can still dodge the flag by omitting agentSessionId entirely — accepted limitation,
 // see the module doc on evidence-classification.ts.
 async function computeNeedsAudit(ctx: ServiceCtx, data: UpdateIssueData): Promise<boolean> {
-	if (!data.agentSessionId) return false;
-	if (!(await isLiveAgentSessionId(ctx, data.agentSessionId))) return false;
-	if (!data.completionReport) return true;
-	return !isExternallyVerifiableEvidence(data.completionReport.verification);
+  if (!data.agentSessionId) return false
+  if (!(await isLiveAgentSessionId(ctx, data.agentSessionId))) return false
+  if (!data.completionReport) return true
+  return !isExternallyVerifiableEvidence(data.completionReport.verification)
 }
 
 async function applyStatusFields(
-	ctx: ServiceCtx,
-	data: UpdateIssueData,
-	existing: ExistingIssue,
+  ctx: ServiceCtx,
+  data: UpdateIssueData,
+  existing: ExistingIssue,
 ): Promise<{
-	setValues: SetValues;
-	reviewOrDoneTransition: boolean;
-	gateRejectionStatement: D1PreparedStatement | null;
-	// PROJ-928: resolved to done/cancelled by category OR legacy key — a workspace with
-	// no custom task_statuses row backing this key has category === null (see
-	// resolveStatus), so status_category alone would miss the legacy-key case.
-	closing: boolean;
+  setValues: SetValues
+  reviewOrDoneTransition: boolean
+  gateRejectionStatement: D1PreparedStatement | null
+  // PROJ-928: resolved to done/cancelled by category OR legacy key — a workspace with
+  // no custom task_statuses row backing this key has category === null (see
+  // resolveStatus), so status_category alone would miss the legacy-key case.
+  closing: boolean
 }> {
-	if (data.status === undefined && !("statusId" in data)) {
-		return {
-			setValues: {},
-			reviewOrDoneTransition: false,
-			gateRejectionStatement: null,
-			closing: false,
-		};
-	}
+  if (data.status === undefined && !('statusId' in data)) {
+    return {
+      setValues: {},
+      reviewOrDoneTransition: false,
+      gateRejectionStatement: null,
+      closing: false,
+    }
+  }
 
-	// PROJ-870: resolveStatus returns the category from the same row lookup that resolves
-	// the status id/key, replacing the separate fetchStatusCategory re-query of that id and
-	// the COALESCE((SELECT category ...)) subquery that used to sit in the UPDATE.
-	const resolved = await resolveStatus(
-		ctx,
-		"statusId" in data ? data.statusId : undefined,
-		data.status,
-	);
-	const { id: resolvedStatusId, key: resolvedStatusKey } = resolved;
-	const newStatusCategory = resolved.category ?? undefined;
+  // PROJ-870: resolveStatus returns the category from the same row lookup that resolves
+  // the status id/key, replacing the separate fetchStatusCategory re-query of that id and
+  // the COALESCE((SELECT category ...)) subquery that used to sit in the UPDATE.
+  const resolved = await resolveStatus(ctx, 'statusId' in data ? data.statusId : undefined, data.status)
+  const { id: resolvedStatusId, key: resolvedStatusKey } = resolved
+  const newStatusCategory = resolved.category ?? undefined
 
-	const newIsReviewStep = resolved.isReviewStep;
-	const transition = classifyStatusTransition(
-		existing,
-		resolvedStatusKey,
-		newStatusCategory,
-		newIsReviewStep,
-	);
-	await assertReviewGate(ctx, data, existing, transition);
+  const newIsReviewStep = resolved.isReviewStep
+  const transition = classifyStatusTransition(existing, resolvedStatusKey, newStatusCategory, newIsReviewStep)
+  await assertReviewGate(ctx, data, existing, transition)
 
-	const setValues: SetValues = {
-		status: resolvedStatusKey,
-		statusId: resolvedStatusId,
-		statusCategory: resolved.category ?? "",
-	};
-	if (transition.enteringDone) {
-		setValues.needsAudit = await computeNeedsAudit(ctx, data);
-	}
+  const setValues: SetValues = {
+    status: resolvedStatusKey,
+    statusId: resolvedStatusId,
+    statusCategory: resolved.category ?? '',
+  }
+  if (transition.enteringDone) {
+    setValues.needsAudit = await computeNeedsAudit(ctx, data)
+  }
 
-	Object.assign(
-		setValues,
-		buildCompletedAtTransition(existing, resolvedStatusKey, newStatusCategory),
-	);
-	Object.assign(
-		setValues,
-		buildFlowTimestampTransitions(existing, resolvedStatusKey, newStatusCategory, newIsReviewStep),
-	);
-	const { setValues: reviewSetValues, isGateRejection } = buildReviewTransitions(existing, {
-		resolvedStatusKey,
-		newStatusCategory,
-		newIsReviewStep,
-		enteringInReview: transition.enteringInReview,
-		enteringDone: transition.enteringDone,
-	});
-	Object.assign(setValues, reviewSetValues);
-	// PROJ-334/PROJ-870: recorded as its own event, built here but not executed — folded
-	// into the caller's single ctx.db.batch() alongside the issue UPDATE. Batching it
-	// (rather than the pre-PROJ-870 stray extra await) is strictly safer than before: the
-	// batch is one atomic transaction, so the rejection row and the status change can no
-	// longer disagree (either both land or neither does), whereas the old comment's "a
-	// stray extra row on a later failure is harmless" was tolerating exactly the gap this
-	// closes.
-	const gateRejectionStatement = isGateRejection
-		? ctx.db
-				.prepare(
-					"INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)",
-				)
-				.bind(crypto.randomUUID(), ctx.workspaceId, existing.id, now())
-		: null;
+  Object.assign(setValues, buildCompletedAtTransition(existing, resolvedStatusKey, newStatusCategory))
+  Object.assign(
+    setValues,
+    buildFlowTimestampTransitions(existing, resolvedStatusKey, newStatusCategory, newIsReviewStep),
+  )
+  const { setValues: reviewSetValues, isGateRejection } = buildReviewTransitions(existing, {
+    resolvedStatusKey,
+    newStatusCategory,
+    newIsReviewStep,
+    enteringInReview: transition.enteringInReview,
+    enteringDone: transition.enteringDone,
+  })
+  Object.assign(setValues, reviewSetValues)
+  // PROJ-334/PROJ-870: recorded as its own event, built here but not executed — folded
+  // into the caller's single ctx.db.batch() alongside the issue UPDATE. Batching it
+  // (rather than the pre-PROJ-870 stray extra await) is strictly safer than before: the
+  // batch is one atomic transaction, so the rejection row and the status change can no
+  // longer disagree (either both land or neither does), whereas the old comment's "a
+  // stray extra row on a later failure is harmless" was tolerating exactly the gap this
+  // closes.
+  const gateRejectionStatement = isGateRejection
+    ? ctx.db
+        .prepare('INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)')
+        .bind(crypto.randomUUID(), ctx.workspaceId, existing.id, now())
+    : null
 
-	return {
-		setValues,
-		reviewOrDoneTransition: transition.enteringInReview || transition.enteringDone,
-		gateRejectionStatement,
-		closing:
-			isDoneState(newStatusCategory, resolvedStatusKey) ||
-			isCancelledState(newStatusCategory, resolvedStatusKey),
-	};
+  return {
+    setValues,
+    reviewOrDoneTransition: transition.enteringInReview || transition.enteringDone,
+    gateRejectionStatement,
+    closing:
+      isDoneState(newStatusCategory, resolvedStatusKey) || isCancelledState(newStatusCategory, resolvedStatusKey),
+  }
 }
 
 function now(): number {
-	return Math.floor(Date.now() / 1000);
+  return Math.floor(Date.now() / 1000)
 }
 
 // The completion report is posted as a comment, so the formatted body has to satisfy the
 // comment body limit. addComment used to enforce that (after the issue UPDATE had already
 // been written); the batched insert doesn't re-validate, so check it here, before the
 // batch, and fail the whole update with a 400 instead of storing an oversize comment.
-function completionReportCommentBody(
-	report: Parameters<typeof formatCompletionReportComment>[0],
-): string {
-	const body = formatCompletionReportComment(report);
-	const max = AddCommentSchema.shape.body.maxLength;
-	if (max !== null && body.length > max) {
-		throw new ValidationError({
-			formErrors: [],
-			fieldErrors: {
-				completionReport: [
-					`Completion report is too long: it is posted as a comment, which is limited to ${max} characters (this one formats to ${body.length})`,
-				],
-			},
-		});
-	}
-	return body;
+function completionReportCommentBody(report: Parameters<typeof formatCompletionReportComment>[0]): string {
+  const body = formatCompletionReportComment(report)
+  const max = AddCommentSchema.shape.body.maxLength
+  if (max !== null && body.length > max) {
+    throw new ValidationError({
+      formErrors: [],
+      fieldErrors: {
+        completionReport: [
+          `Completion report is too long: it is posted as a comment, which is limited to ${max} characters (this one formats to ${body.length})`,
+        ],
+      },
+    })
+  }
+  return body
 }
 
 function formatCompletionReportComment(
-	report: Readonly<{
-		summary: string;
-		verification: string;
-		prLink?: string;
-	}>,
+  report: Readonly<{
+    summary: string
+    verification: string
+    prLink?: string
+  }>,
 ): string {
-	const lines = [
-		"**Completion report**",
-		"",
-		`**Summary:** ${report.summary}`,
-		"",
-		`**Verification:** ${report.verification}`,
-	];
-	if (report.prLink) lines.push("", `**PR:** ${report.prLink}`);
-	return lines.join("\n");
+  const lines = [
+    '**Completion report**',
+    '',
+    `**Summary:** ${report.summary}`,
+    '',
+    `**Verification:** ${report.verification}`,
+  ]
+  if (report.prLink) lines.push('', `**PR:** ${report.prLink}`)
+  return lines.join('\n')
 }
 
 // PROJ-571: changing an epic's type away from Epic silently orphans its children
@@ -924,92 +860,78 @@ function formatCompletionReportComment(
 // view for them anymore). Block it at the service layer so REST and MCP both get
 // the guard, rather than only a frontend confirm dialog.
 async function assertNotDemotingEpicWithChildren(
-	ctx: ServiceCtx,
-	orm: ReturnType<typeof drizzle>,
-	existing: ExistingIssue,
-	newTypeId: string | null,
+  ctx: ServiceCtx,
+  orm: ReturnType<typeof drizzle>,
+  existing: ExistingIssue,
+  newTypeId: string | null,
 ): Promise<void> {
-	if (!existing.typeId || existing.typeId === newTypeId) return;
+  if (!existing.typeId || existing.typeId === newTypeId) return
 
-	const currentType = await orm
-		.select({ key: schema.taskTypes.key })
-		.from(schema.taskTypes)
-		.where(
-			and(
-				eq(schema.taskTypes.id, existing.typeId),
-				eq(schema.taskTypes.workspaceId, ctx.workspaceId),
-			),
-		)
-		.get();
-	if (currentType?.key !== "epic") return;
+  const currentType = await orm
+    .select({ key: schema.taskTypes.key })
+    .from(schema.taskTypes)
+    .where(and(eq(schema.taskTypes.id, existing.typeId), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
+    .get()
+  if (currentType?.key !== 'epic') return
 
-	const childCount = await orm.$count(
-		schema.issues,
-		and(eq(schema.issues.parentId, existing.id), eq(schema.issues.workspaceId, ctx.workspaceId)),
-	);
-	if (childCount > 0) {
-		throw new ValidationError({
-			formErrors: [
-				"Cannot change type: this epic still has child issues — move or remove them first",
-			],
-			fieldErrors: {},
-		});
-	}
+  const childCount = await orm.$count(
+    schema.issues,
+    and(eq(schema.issues.parentId, existing.id), eq(schema.issues.workspaceId, ctx.workspaceId)),
+  )
+  if (childCount > 0) {
+    throw new ValidationError({
+      formErrors: ['Cannot change type: this epic still has child issues — move or remove them first'],
+      fieldErrors: {},
+    })
+  }
 }
 
 async function buildUpdateSetValues(
-	ctx: ServiceCtx,
-	orm: ReturnType<typeof drizzle>,
-	data: UpdateIssueData,
-	existing: ExistingIssue,
+  ctx: ServiceCtx,
+  orm: ReturnType<typeof drizzle>,
+  data: UpdateIssueData,
+  existing: ExistingIssue,
 ): Promise<{
-	setValues: SetValues;
-	recordCompletionReport: boolean;
-	gateRejectionStatement: D1PreparedStatement | null;
-	closing: boolean;
+  setValues: SetValues
+  recordCompletionReport: boolean
+  gateRejectionStatement: D1PreparedStatement | null
+  closing: boolean
 }> {
-	const setValues: SetValues = { updatedAt: now(), ...buildSimpleFields(data) };
-	const statusFields = await applyStatusFields(ctx, data, existing);
-	Object.assign(setValues, statusFields.setValues);
-	const reviewOrDoneTransition = statusFields.reviewOrDoneTransition;
-	if ("typeId" in data) {
-		const resolvedTypeId = await resolveTypeId(ctx, data.typeId);
-		await assertNotDemotingEpicWithChildren(ctx, orm, existing, resolvedTypeId);
-		setValues.typeId = resolvedTypeId;
-	}
-	// PROJ-293: only stamp/post the report when the issue actually transitions into
-	// review or done — a title-only update carrying a completionReport must not
-	// pre-stamp completion_report_at (which would later satisfy the human-done gate).
-	const recordCompletionReport = Boolean(data.completionReport) && reviewOrDoneTransition;
-	if (recordCompletionReport) {
-		setValues.completionReportAt = now();
-	}
-	return {
-		setValues,
-		recordCompletionReport,
-		gateRejectionStatement: statusFields.gateRejectionStatement,
-		closing: statusFields.closing,
-	};
+  const setValues: SetValues = { updatedAt: now(), ...buildSimpleFields(data) }
+  const statusFields = await applyStatusFields(ctx, data, existing)
+  Object.assign(setValues, statusFields.setValues)
+  const reviewOrDoneTransition = statusFields.reviewOrDoneTransition
+  if ('typeId' in data) {
+    const resolvedTypeId = await resolveTypeId(ctx, data.typeId)
+    await assertNotDemotingEpicWithChildren(ctx, orm, existing, resolvedTypeId)
+    setValues.typeId = resolvedTypeId
+  }
+  // PROJ-293: only stamp/post the report when the issue actually transitions into
+  // review or done — a title-only update carrying a completionReport must not
+  // pre-stamp completion_report_at (which would later satisfy the human-done gate).
+  const recordCompletionReport = Boolean(data.completionReport) && reviewOrDoneTransition
+  if (recordCompletionReport) {
+    setValues.completionReportAt = now()
+  }
+  return {
+    setValues,
+    recordCompletionReport,
+    gateRejectionStatement: statusFields.gateRejectionStatement,
+    closing: statusFields.closing,
+  }
 }
 
 // PROJ-870: build (without executing) the FTS delete+insert pair using title/body already
 // known from the caller (either the new value being written, or the existing row's value
 // fetched alongside `existing` at the top of updateIssue) — no re-SELECT of the row that
 // was just written, unlike the pre-PROJ-870 version.
-function buildFtsReindexStatements(
-	ctx: ServiceCtx,
-	id: string,
-	title: string,
-	body: string,
-): D1PreparedStatement[] {
-	return [
-		ctx.db
-			.prepare("DELETE FROM issues_fts WHERE issue_id = ? AND workspace_id = ?")
-			.bind(id, ctx.workspaceId),
-		ctx.db
-			.prepare("INSERT INTO issues_fts (issue_id, workspace_id, title, body) VALUES (?, ?, ?, ?)")
-			.bind(id, ctx.workspaceId, title, body),
-	];
+function buildFtsReindexStatements(ctx: ServiceCtx, id: string, title: string, body: string): D1PreparedStatement[] {
+  return [
+    ctx.db.prepare('DELETE FROM issues_fts WHERE issue_id = ? AND workspace_id = ?').bind(id, ctx.workspaceId),
+    ctx.db
+      .prepare('INSERT INTO issues_fts (issue_id, workspace_id, title, body) VALUES (?, ?, ?, ?)')
+      .bind(id, ctx.workspaceId, title, body),
+  ]
 }
 
 // PROJ-869: body can be arbitrarily large and is already persisted on the issue row
@@ -1018,499 +940,450 @@ function buildFtsReindexStatements(
 // table's growth. Record just that body changed, not the text itself; every other field
 // here is a small scalar, so those keep recording the actual (new) value.
 function buildUpdateDiffCore(data: UpdateIssueData): Record<string, unknown> {
-	const diff: Record<string, unknown> = {};
-	if (data.title !== undefined) diff.title = data.title;
-	if (data.body !== undefined) diff.bodyChanged = true;
-	if (data.status !== undefined) diff.status = data.status;
-	if (data.priority !== undefined) diff.priority = data.priority;
-	if (data.labels !== undefined) diff.labels = data.labels;
-	return diff;
+  const diff: Record<string, unknown> = {}
+  if (data.title !== undefined) diff.title = data.title
+  if (data.body !== undefined) diff.bodyChanged = true
+  if (data.status !== undefined) diff.status = data.status
+  if (data.priority !== undefined) diff.priority = data.priority
+  if (data.labels !== undefined) diff.labels = data.labels
+  return diff
 }
 
 function buildUpdateDiffRefs(data: UpdateIssueData): Record<string, unknown> {
-	const diff: Record<string, unknown> = {};
-	if ("statusId" in data) diff.statusId = data.statusId ?? null;
-	if ("assigneeId" in data) diff.assigneeId = data.assigneeId ?? null;
-	if ("parentId" in data) diff.parentId = data.parentId ?? null;
-	if ("typeId" in data) diff.typeId = data.typeId ?? null;
-	if (data.customFields !== undefined) diff.customFields = data.customFields;
-	return diff;
+  const diff: Record<string, unknown> = {}
+  if ('statusId' in data) diff.statusId = data.statusId ?? null
+  if ('assigneeId' in data) diff.assigneeId = data.assigneeId ?? null
+  if ('parentId' in data) diff.parentId = data.parentId ?? null
+  if ('typeId' in data) diff.typeId = data.typeId ?? null
+  if (data.customFields !== undefined) diff.customFields = data.customFields
+  return diff
 }
 
 async function invalidateUpdateCaches(
-	ctx: ServiceCtx,
-	id: string,
-	data: UpdateIssueData,
-	existing: ExistingIssue,
+  ctx: ServiceCtx,
+  id: string,
+  data: UpdateIssueData,
+  existing: ExistingIssue,
 ): Promise<void> {
-	await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${id}`);
+  await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${id}`)
 
-	// Invalidate the old parent's rollup cache
-	if (existing.parentId) {
-		await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${existing.parentId}`);
-	}
-	// If parentId is being changed to a new parent, also invalidate that one
-	if ("parentId" in data && data.parentId && data.parentId !== existing.parentId) {
-		await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${data.parentId}`);
-	}
+  // Invalidate the old parent's rollup cache
+  if (existing.parentId) {
+    await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${existing.parentId}`)
+  }
+  // If parentId is being changed to a new parent, also invalidate that one
+  if ('parentId' in data && data.parentId && data.parentId !== existing.parentId) {
+    await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${data.parentId}`)
+  }
 }
 
 export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) {
-	const id = await resolveIssueIdParam(ctx, rawId);
-	const result = UpdateIssueSchema.safeParse(raw);
-	if (!result.success) throw new ValidationError(result.error.flatten());
-	const data =
-		"parentId" in result.data && result.data.parentId
-			? { ...result.data, parentId: await resolveIssueIdParam(ctx, result.data.parentId) }
-			: result.data;
+  const id = await resolveIssueIdParam(ctx, rawId)
+  const result = UpdateIssueSchema.safeParse(raw)
+  if (!result.success) throw new ValidationError(result.error.flatten())
+  const data =
+    'parentId' in result.data && result.data.parentId
+      ? { ...result.data, parentId: await resolveIssueIdParam(ctx, result.data.parentId) }
+      : result.data
 
-	if ("parentId" in data && data.parentId) {
-		await validateParent(ctx, data.parentId, id);
-	}
+  if ('parentId' in data && data.parentId) {
+    await validateParent(ctx, data.parentId, id)
+  }
 
-	const orm = drizzle(ctx.db, { schema });
+  const orm = drizzle(ctx.db, { schema })
 
-	const existingRow = await orm
-		.select({
-			id: schema.issues.id,
-			projectId: schema.issues.projectId,
-			parentId: schema.issues.parentId,
-			typeId: schema.issues.typeId,
-			title: schema.issues.title,
-			body: schema.issues.body,
-			status: schema.issues.status,
-			statusCategory: schema.issues.statusCategory,
-			readyAt: schema.issues.readyAt,
-			claimedAt: schema.issues.claimedAt,
-			doneAt: schema.issues.doneAt,
-			completionReportAt: schema.issues.completionReportAt,
-			inReviewAt: schema.issues.inReviewAt,
-			reviewBounceCount: schema.issues.reviewBounceCount,
-			statusReviewFlag: schema.taskStatuses.isReviewStep,
-		})
-		.from(schema.issues)
-		.leftJoin(
-			schema.taskStatuses,
-			and(
-				eq(schema.taskStatuses.id, schema.issues.statusId),
-				eq(schema.taskStatuses.workspaceId, ctx.workspaceId),
-			),
-		)
-		.where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-		.get();
-	if (!existingRow) throw new NotFoundError("Issue not found");
-	// PROJ-749: a status row's flag decides; without one only the built-in "in_review" counts.
-	const { statusReviewFlag, ...existingFields } = existingRow;
-	const existing = {
-		...existingFields,
-		statusIsReviewStep:
-			statusReviewFlag == null ? existingRow.status === "in_review" : statusReviewFlag === 1,
-	};
+  const existingRow = await orm
+    .select({
+      id: schema.issues.id,
+      projectId: schema.issues.projectId,
+      parentId: schema.issues.parentId,
+      typeId: schema.issues.typeId,
+      title: schema.issues.title,
+      body: schema.issues.body,
+      status: schema.issues.status,
+      statusCategory: schema.issues.statusCategory,
+      readyAt: schema.issues.readyAt,
+      claimedAt: schema.issues.claimedAt,
+      doneAt: schema.issues.doneAt,
+      completionReportAt: schema.issues.completionReportAt,
+      inReviewAt: schema.issues.inReviewAt,
+      reviewBounceCount: schema.issues.reviewBounceCount,
+      statusReviewFlag: schema.taskStatuses.isReviewStep,
+    })
+    .from(schema.issues)
+    .leftJoin(
+      schema.taskStatuses,
+      and(eq(schema.taskStatuses.id, schema.issues.statusId), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)),
+    )
+    .where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
+    .get()
+  if (!existingRow) throw new NotFoundError('Issue not found')
+  // PROJ-749: a status row's flag decides; without one only the built-in "in_review" counts.
+  const { statusReviewFlag, ...existingFields } = existingRow
+  const existing = {
+    ...existingFields,
+    statusIsReviewStep: statusReviewFlag == null ? existingRow.status === 'in_review' : statusReviewFlag === 1,
+  }
 
-	// PROJ-311: gate the write on the effective project role (owner/admin bypass).
-	// No grant → invisible → 404; a viewer grant is read-only → 403.
-	if (!isWorkspaceAdmin(ctx.role)) {
-		const projRole = await effectiveProjectRole(ctx, existing.projectId);
-		if (projRole === null) throw new NotFoundError("Issue not found");
-		if (!canWriteProject(projRole)) throw new ForbiddenError("Insufficient permissions");
-	}
+  // PROJ-311: gate the write on the effective project role (owner/admin bypass).
+  // No grant → invisible → 404; a viewer grant is read-only → 403.
+  if (!isWorkspaceAdmin(ctx.role)) {
+    const projRole = await effectiveProjectRole(ctx, existing.projectId)
+    if (projRole === null) throw new NotFoundError('Issue not found')
+    if (!canWriteProject(projRole)) throw new ForbiddenError('Insufficient permissions')
+  }
 
-	// PROJ-785: a non-null assigneeId must be a member of this workspace —
-	// otherwise we'd persist a dangling or wrong-workspace user reference. `null`
-	// (clearing the assignee) and "not provided" (key absent) both skip this.
-	if ("assigneeId" in data && data.assigneeId) {
-		await requireWorkspaceMember(ctx, data.assigneeId);
-	}
+  // PROJ-785: a non-null assigneeId must be a member of this workspace —
+  // otherwise we'd persist a dangling or wrong-workspace user reference. `null`
+  // (clearing the assignee) and "not provided" (key absent) both skip this.
+  if ('assigneeId' in data && data.assigneeId) {
+    await requireWorkspaceMember(ctx, data.assigneeId)
+  }
 
-	const { setValues, recordCompletionReport, gateRejectionStatement, closing } =
-		await buildUpdateSetValues(ctx, orm, data, existing);
+  const { setValues, recordCompletionReport, gateRejectionStatement, closing } = await buildUpdateSetValues(
+    ctx,
+    orm,
+    data,
+    existing,
+  )
 
-	// PROJ-870: custom-field writes are validated (read) before the batch, same as before,
-	// but the upserts themselves are now built as statements and folded in below instead of
-	// looping one round trip per field.
-	const cfWrites =
-		data.customFields && Object.keys(data.customFields).length > 0
-			? await validateCustomFields(ctx.db, ctx.workspaceId, data.customFields)
-			: [];
+  // PROJ-870: custom-field writes are validated (read) before the batch, same as before,
+  // but the upserts themselves are now built as statements and folded in below instead of
+  // looping one round trip per field.
+  const cfWrites =
+    data.customFields && Object.keys(data.customFields).length > 0
+      ? await validateCustomFields(ctx.db, ctx.workspaceId, data.customFields)
+      : []
 
-	const commentId = crypto.randomUUID();
-	const commentNow = now();
-	const diff = { ...buildUpdateDiffCore(data), ...buildUpdateDiffRefs(data) };
+  const commentId = crypto.randomUUID()
+  const commentNow = now()
+  const diff = { ...buildUpdateDiffCore(data), ...buildUpdateDiffRefs(data) }
 
-	// PROJ-870: the issue UPDATE (status_category included, from resolveStatus), the FTS delete+insert, the custom-field upserts, the completion-report
-	// comment insert, the gate-rejection insert, and the activity-log insert are all
-	// independent writes derived from data resolved above — fold them into one
-	// ctx.db.batch() instead of up to ~10 sequential round trips.
-	const updateStatement = toD1Statement(
-		ctx,
-		orm
-			.update(schema.issues)
-			.set(setValues)
-			.where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-			.toSQL(),
-	);
+  // PROJ-870: the issue UPDATE (status_category included, from resolveStatus), the FTS delete+insert, the custom-field upserts, the completion-report
+  // comment insert, the gate-rejection insert, and the activity-log insert are all
+  // independent writes derived from data resolved above — fold them into one
+  // ctx.db.batch() instead of up to ~10 sequential round trips.
+  const updateStatement = toD1Statement(
+    ctx,
+    orm
+      .update(schema.issues)
+      .set(setValues)
+      .where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
+      .toSQL(),
+  )
 
-	const statements: D1PreparedStatement[] = [updateStatement];
+  const statements: D1PreparedStatement[] = [updateStatement]
 
-	if (data.title !== undefined || data.body !== undefined) {
-		statements.push(
-			...buildFtsReindexStatements(
-				ctx,
-				id,
-				data.title ?? existing.title,
-				data.body ?? existing.body,
-			),
-		);
-	}
+  if (data.title !== undefined || data.body !== undefined) {
+    statements.push(...buildFtsReindexStatements(ctx, id, data.title ?? existing.title, data.body ?? existing.body))
+  }
 
-	statements.push(...buildCustomFieldUpsertStatements(ctx.db, id, cfWrites));
+  statements.push(...buildCustomFieldUpsertStatements(ctx.db, id, cfWrites))
 
-	if (recordCompletionReport && data.completionReport) {
-		statements.push(
-			buildAddCommentInsertStatement(ctx, orm, {
-				id: commentId,
-				issueId: id,
-				body: completionReportCommentBody(data.completionReport),
-				now: commentNow,
-			}),
-		);
-	}
+  if (recordCompletionReport && data.completionReport) {
+    statements.push(
+      buildAddCommentInsertStatement(ctx, orm, {
+        id: commentId,
+        issueId: id,
+        body: completionReportCommentBody(data.completionReport),
+        now: commentNow,
+      }),
+    )
+  }
 
-	if (gateRejectionStatement) statements.push(gateRejectionStatement);
+  if (gateRejectionStatement) statements.push(gateRejectionStatement)
 
-	statements.push(
-		buildActivityInsertStatement(ctx, orm, {
-			entityType: "issue",
-			entityId: id,
-			action: "updated",
-			diff,
-		}),
-	);
+  statements.push(
+    buildActivityInsertStatement(ctx, orm, {
+      entityType: 'issue',
+      entityId: id,
+      action: 'updated',
+      diff,
+    }),
+  )
 
-	// PROJ-928: an issue moving to done/cancelled releases its lease and file claims so
-	// they don't keep blocking the fleet after the work they were guarding is over — folded
-	// into this same batch (PROJ-870 convention) rather than a separate round trip. `closing`
-	// is only computed when this update actually carries a status/statusId change (see
-	// applyStatusFields' early return), so a title-only save of an already-closed issue
-	// never reaches here; re-saving status=done again is a harmless no-op release.
-	if (closing) {
-		statements.push(
-			buildReleaseLeaseForClosedIssueStatement(ctx, id),
-			buildReleaseClaimsForClosedIssueStatement(ctx, id),
-		);
-	}
+  // PROJ-928: an issue moving to done/cancelled releases its lease and file claims so
+  // they don't keep blocking the fleet after the work they were guarding is over — folded
+  // into this same batch (PROJ-870 convention) rather than a separate round trip. `closing`
+  // is only computed when this update actually carries a status/statusId change (see
+  // applyStatusFields' early return), so a title-only save of an already-closed issue
+  // never reaches here; re-saving status=done again is a harmless no-op release.
+  if (closing) {
+    statements.push(
+      buildReleaseLeaseForClosedIssueStatement(ctx, id),
+      buildReleaseClaimsForClosedIssueStatement(ctx, id),
+    )
+  }
 
-	// PROJ-929: a call that carries a live agentSessionId implicitly refreshes that
-	// session's heartbeat, same as claim_issue/claim_files/post_message. Folded into this
-	// same batch (PROJ-870 convention) rather than a separate round trip; the statement's
-	// own WHERE guard (status='active' AND heartbeat > cutoff) makes it a no-op if the
-	// session went stale between this check and the batch executing.
-	if (data.agentSessionId && (await isLiveAgentSessionId(ctx, data.agentSessionId))) {
-		statements.push(buildTouchAgentHeartbeatIfLiveStatement(ctx, data.agentSessionId));
-	}
+  // PROJ-929: a call that carries a live agentSessionId implicitly refreshes that
+  // session's heartbeat, same as claim_issue/claim_files/post_message. Folded into this
+  // same batch (PROJ-870 convention) rather than a separate round trip; the statement's
+  // own WHERE guard (status='active' AND heartbeat > cutoff) makes it a no-op if the
+  // session went stale between this check and the batch executing.
+  if (data.agentSessionId && (await isLiveAgentSessionId(ctx, data.agentSessionId))) {
+    statements.push(buildTouchAgentHeartbeatIfLiveStatement(ctx, data.agentSessionId))
+  }
 
-	await ctx.db.batch(statements);
+  await ctx.db.batch(statements)
 
-	if (recordCompletionReport && data.completionReport) {
-		await broadcastWorkspaceEvent(ctx, {
-			type: "comment.created",
-			projectId: existing.projectId,
-			data: { id: commentId, issueId: id, authorId: ctx.userId },
-		});
-	}
+  if (recordCompletionReport && data.completionReport) {
+    await broadcastWorkspaceEvent(ctx, {
+      type: 'comment.created',
+      projectId: existing.projectId,
+      data: { id: commentId, issueId: id, authorId: ctx.userId },
+    })
+  }
 
-	await invalidateUpdateCaches(ctx, id, data, existing);
+  await invalidateUpdateCaches(ctx, id, data, existing)
 
-	const isStatusChange = data.status !== undefined || data.statusId !== undefined;
-	await broadcastWorkspaceEvent(ctx, {
-		type: isStatusChange ? "issue.status_changed" : "issue.updated",
-		projectId: existing.projectId ?? undefined,
-		data: { id, updates: data },
-	});
+  const isStatusChange = data.status !== undefined || data.statusId !== undefined
+  await broadcastWorkspaceEvent(ctx, {
+    type: isStatusChange ? 'issue.status_changed' : 'issue.updated',
+    projectId: existing.projectId ?? undefined,
+    data: { id, updates: data },
+  })
 
-	return { ok: true };
+  return { ok: true }
 }
 
 export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
-	const id = await resolveIssueIdParam(ctx, rawId);
-	const idCheck = IdSchema.safeParse(id);
-	if (!idCheck.success)
-		throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} });
-	const orm = drizzle(ctx.db, { schema });
+  const id = await resolveIssueIdParam(ctx, rawId)
+  const idCheck = IdSchema.safeParse(id)
+  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  const orm = drizzle(ctx.db, { schema })
 
-	const existing = await orm
-		.select({ parentId: schema.issues.parentId, projectId: schema.issues.projectId })
-		.from(schema.issues)
-		.where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-		.get();
-	// PROJ-922: every dependent-row statement below keys on this id, several without a
-	// workspace filter of their own — so the id MUST be proven to be in this workspace
-	// first, or an admin of workspace A could wipe workspace B's comments/links/files by
-	// passing one of B's issue UUIDs.
-	if (!existing) throw new NotFoundError("Issue not found");
+  const existing = await orm
+    .select({ parentId: schema.issues.parentId, projectId: schema.issues.projectId })
+    .from(schema.issues)
+    .where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
+    .get()
+  // PROJ-922: every dependent-row statement below keys on this id, several without a
+  // workspace filter of their own — so the id MUST be proven to be in this workspace
+  // first, or an admin of workspace A could wipe workspace B's comments/links/files by
+  // passing one of B's issue UUIDs.
+  if (!existing) throw new NotFoundError('Issue not found')
 
-	// PROJ-311: deletion needs admin inside the project — workspace owner/admin bypass
-	// groups; everyone else needs a project-admin grant.
-	if (!isWorkspaceAdmin(ctx.role)) {
-		const projRole = await effectiveProjectRole(ctx, existing.projectId);
-		if (projRole !== "admin") throw new ForbiddenError("Insufficient permissions");
-	}
+  // PROJ-311: deletion needs admin inside the project — workspace owner/admin bypass
+  // groups; everyone else needs a project-admin grant.
+  if (!isWorkspaceAdmin(ctx.role)) {
+    const projRole = await effectiveProjectRole(ctx, existing.projectId)
+    if (projRole !== 'admin') throw new ForbiddenError('Insufficient permissions')
+  }
 
-	// PROJ-922: D1 does not reliably enforce the FK ON DELETE CASCADE/SET NULL declared in
-	// the schema (PROJ-407), so every row that references this issue must be cleaned up
-	// explicitly here, in the same batch as the issue row itself — final list from
-	// grepping root migrations/ for `REFERENCES issues`, plus two references that
-	// exist without a physical FK constraint (issues.parent_id, attachments' polymorphic
-	// entity_type/entity_id) but the same dangling-reference risk.
-	//
-	// R2 objects for "file"-kind attachments hanging directly off this issue
-	// (entity_type='issue') are looked up before the batch (their D1 rows are deleted in
-	// it) and removed only after the batch commits, so a failed batch never leaves
-	// attachment metadata pointing at bytes we already destroyed.
-	const fileAttachments = await orm
-		.select({ r2Key: schema.attachments.r2Key })
-		.from(schema.attachments)
-		.where(
-			and(
-				eq(schema.attachments.workspaceId, ctx.workspaceId),
-				eq(schema.attachments.entityType, "issue"),
-				eq(schema.attachments.entityId, id),
-				eq(schema.attachments.kind, "file"),
-			),
-		);
-	// Issues whose cached payload mentions this one (link targets/sources, children) —
-	// invalidated after the batch so they stop showing a deleted issue.
-	const affected = await ctx.db
-		.prepare(
-			`SELECT target_issue_id AS id FROM issue_links WHERE source_issue_id = ?1
+  // PROJ-922: D1 does not reliably enforce the FK ON DELETE CASCADE/SET NULL declared in
+  // the schema (PROJ-407), so every row that references this issue must be cleaned up
+  // explicitly here, in the same batch as the issue row itself — final list from
+  // grepping root migrations/ for `REFERENCES issues`, plus two references that
+  // exist without a physical FK constraint (issues.parent_id, attachments' polymorphic
+  // entity_type/entity_id) but the same dangling-reference risk.
+  //
+  // R2 objects for "file"-kind attachments hanging directly off this issue
+  // (entity_type='issue') are looked up before the batch (their D1 rows are deleted in
+  // it) and removed only after the batch commits, so a failed batch never leaves
+  // attachment metadata pointing at bytes we already destroyed.
+  const fileAttachments = await orm
+    .select({ r2Key: schema.attachments.r2Key })
+    .from(schema.attachments)
+    .where(
+      and(
+        eq(schema.attachments.workspaceId, ctx.workspaceId),
+        eq(schema.attachments.entityType, 'issue'),
+        eq(schema.attachments.entityId, id),
+        eq(schema.attachments.kind, 'file'),
+      ),
+    )
+  // Issues whose cached payload mentions this one (link targets/sources, children) —
+  // invalidated after the batch so they stop showing a deleted issue.
+  const affected = await ctx.db
+    .prepare(
+      `SELECT target_issue_id AS id FROM issue_links WHERE source_issue_id = ?1
 			 UNION SELECT source_issue_id FROM issue_links WHERE target_issue_id = ?1
 			 UNION SELECT id FROM issues WHERE parent_id = ?1 AND workspace_id = ?2`,
-		)
-		.bind(id, ctx.workspaceId)
-		.all<{ id: string }>();
+    )
+    .bind(id, ctx.workspaceId)
+    .all<{ id: string }>()
 
-	const deleteStatements: D1PreparedStatement[] = [
-		toD1Statement(
-			ctx,
-			orm
-				.delete(schema.issues)
-				.where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-				.toSQL(),
-		),
-		ctx.db
-			.prepare("DELETE FROM issues_fts WHERE issue_id = ? AND workspace_id = ?")
-			.bind(id, ctx.workspaceId),
-		// share_tokens has no FK at all (0017), so nothing ever removed a deleted issue's
-		// public share links.
-		ctx.db
-			.prepare("DELETE FROM share_tokens WHERE issue_id = ? AND workspace_id = ?")
-			.bind(id, ctx.workspaceId),
-		// ON DELETE CASCADE rows — delete outright.
-		toD1Statement(
-			ctx,
-			orm.delete(schema.issueComments).where(eq(schema.issueComments.issueId, id)).toSQL(),
-		),
-		toD1Statement(
-			ctx,
-			orm
-				.delete(schema.issueLinks)
-				.where(or(eq(schema.issueLinks.sourceIssueId, id), eq(schema.issueLinks.targetIssueId, id)))
-				.toSQL(),
-		),
-		toD1Statement(
-			ctx,
-			orm.delete(schema.customFieldValues).where(eq(schema.customFieldValues.issueId, id)).toSQL(),
-		),
-		toD1Statement(
-			ctx,
-			orm.delete(schema.issueFileClaims).where(eq(schema.issueFileClaims.issueId, id)).toSQL(),
-		),
-		toD1Statement(
-			ctx,
-			orm.delete(schema.issueLeases).where(eq(schema.issueLeases.issueId, id)).toSQL(),
-		),
-		toD1Statement(
-			ctx,
-			orm
-				.delete(schema.claimConflicts)
-				.where(
-					or(
-						eq(schema.claimConflicts.rejectedIssueId, id),
-						eq(schema.claimConflicts.holdingIssueId, id),
-					),
-				)
-				.toSQL(),
-		),
-		toD1Statement(
-			ctx,
-			orm.delete(schema.wipCapDenials).where(eq(schema.wipCapDenials.issueId, id)).toSQL(),
-		),
-		toD1Statement(
-			ctx,
-			orm
-				.delete(schema.issueGateRejections)
-				.where(eq(schema.issueGateRejections.issueId, id))
-				.toSQL(),
-		),
-		toD1Statement(
-			ctx,
-			orm
-				.delete(schema.attachments)
-				.where(
-					and(
-						eq(schema.attachments.workspaceId, ctx.workspaceId),
-						eq(schema.attachments.entityType, "issue"),
-						eq(schema.attachments.entityId, id),
-					),
-				)
-				.toSQL(),
-		),
-		// ON DELETE SET NULL rows — null the referencing column instead.
-		toD1Statement(
-			ctx,
-			orm
-				.update(schema.agentSessions)
-				.set({ issueId: null })
-				.where(
-					and(
-						eq(schema.agentSessions.issueId, id),
-						eq(schema.agentSessions.workspaceId, ctx.workspaceId),
-					),
-				)
-				.toSQL(),
-		),
-		ctx.db
-			.prepare(
-				"UPDATE feedback SET linked_issue_id = NULL WHERE linked_issue_id = ? AND workspace_id = ?",
-			)
-			.bind(id, ctx.workspaceId),
-		// Not a physically-declared FK (issues.parent_id carries no REFERENCES clause), but
-		// the same dangling-reference risk: null child issues' parent_id.
-		toD1Statement(
-			ctx,
-			orm
-				.update(schema.issues)
-				.set({ parentId: null })
-				.where(and(eq(schema.issues.parentId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-				.toSQL(),
-		),
-	];
+  const deleteStatements: D1PreparedStatement[] = [
+    toD1Statement(
+      ctx,
+      orm
+        .delete(schema.issues)
+        .where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
+        .toSQL(),
+    ),
+    ctx.db.prepare('DELETE FROM issues_fts WHERE issue_id = ? AND workspace_id = ?').bind(id, ctx.workspaceId),
+    // share_tokens has no FK at all (0017), so nothing ever removed a deleted issue's
+    // public share links.
+    ctx.db.prepare('DELETE FROM share_tokens WHERE issue_id = ? AND workspace_id = ?').bind(id, ctx.workspaceId),
+    // ON DELETE CASCADE rows — delete outright.
+    toD1Statement(ctx, orm.delete(schema.issueComments).where(eq(schema.issueComments.issueId, id)).toSQL()),
+    toD1Statement(
+      ctx,
+      orm
+        .delete(schema.issueLinks)
+        .where(or(eq(schema.issueLinks.sourceIssueId, id), eq(schema.issueLinks.targetIssueId, id)))
+        .toSQL(),
+    ),
+    toD1Statement(ctx, orm.delete(schema.customFieldValues).where(eq(schema.customFieldValues.issueId, id)).toSQL()),
+    toD1Statement(ctx, orm.delete(schema.issueFileClaims).where(eq(schema.issueFileClaims.issueId, id)).toSQL()),
+    toD1Statement(ctx, orm.delete(schema.issueLeases).where(eq(schema.issueLeases.issueId, id)).toSQL()),
+    toD1Statement(
+      ctx,
+      orm
+        .delete(schema.claimConflicts)
+        .where(or(eq(schema.claimConflicts.rejectedIssueId, id), eq(schema.claimConflicts.holdingIssueId, id)))
+        .toSQL(),
+    ),
+    toD1Statement(ctx, orm.delete(schema.wipCapDenials).where(eq(schema.wipCapDenials.issueId, id)).toSQL()),
+    toD1Statement(
+      ctx,
+      orm.delete(schema.issueGateRejections).where(eq(schema.issueGateRejections.issueId, id)).toSQL(),
+    ),
+    toD1Statement(
+      ctx,
+      orm
+        .delete(schema.attachments)
+        .where(
+          and(
+            eq(schema.attachments.workspaceId, ctx.workspaceId),
+            eq(schema.attachments.entityType, 'issue'),
+            eq(schema.attachments.entityId, id),
+          ),
+        )
+        .toSQL(),
+    ),
+    // ON DELETE SET NULL rows — null the referencing column instead.
+    toD1Statement(
+      ctx,
+      orm
+        .update(schema.agentSessions)
+        .set({ issueId: null })
+        .where(and(eq(schema.agentSessions.issueId, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
+        .toSQL(),
+    ),
+    ctx.db
+      .prepare('UPDATE feedback SET linked_issue_id = NULL WHERE linked_issue_id = ? AND workspace_id = ?')
+      .bind(id, ctx.workspaceId),
+    // Not a physically-declared FK (issues.parent_id carries no REFERENCES clause), but
+    // the same dangling-reference risk: null child issues' parent_id.
+    toD1Statement(
+      ctx,
+      orm
+        .update(schema.issues)
+        .set({ parentId: null })
+        .where(and(eq(schema.issues.parentId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
+        .toSQL(),
+    ),
+  ]
 
-	await ctx.db.batch(deleteStatements);
+  await ctx.db.batch(deleteStatements)
 
-	// The issue is gone once the batch commits; failing to remove its R2 bytes now only
-	// leaks storage, so log it rather than failing the request. One call for all keys.
-	const r2Keys = fileAttachments.map((a) => a.r2Key).filter((k): k is string => Boolean(k));
-	if (r2Keys.length > 0) {
-		try {
-			await ctx.r2.delete(r2Keys);
-		} catch (err) {
-			console.error("deleteIssue: R2 cleanup failed", {
-				id,
-				count: r2Keys.length,
-				err: String(err),
-			});
-		}
-	}
+  // The issue is gone once the batch commits; failing to remove its R2 bytes now only
+  // leaks storage, so log it rather than failing the request. One call for all keys.
+  const r2Keys = fileAttachments.map((a) => a.r2Key).filter((k): k is string => Boolean(k))
+  if (r2Keys.length > 0) {
+    try {
+      await ctx.r2.delete(r2Keys)
+    } catch (err) {
+      console.error('deleteIssue: R2 cleanup failed', {
+        id,
+        count: r2Keys.length,
+        err: String(err),
+      })
+    }
+  }
 
-	await recordActivity(ctx, { entityType: "issue", entityId: id, action: "deleted" });
-	const toInvalidate = new Set([id, ...affected.results.map((r) => r.id)]);
-	if (existing.parentId) toInvalidate.add(existing.parentId);
-	await Promise.all(
-		[...toInvalidate].map((iid) => cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${iid}`)),
-	);
+  await recordActivity(ctx, { entityType: 'issue', entityId: id, action: 'deleted' })
+  const toInvalidate = new Set([id, ...affected.results.map((r) => r.id)])
+  if (existing.parentId) toInvalidate.add(existing.parentId)
+  await Promise.all([...toInvalidate].map((iid) => cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${iid}`)))
 
-	await broadcastWorkspaceEvent(ctx, {
-		type: "issue.deleted",
-		projectId: existing.projectId,
-		data: { id },
-	});
+  await broadcastWorkspaceEvent(ctx, {
+    type: 'issue.deleted',
+    projectId: existing.projectId,
+    data: { id },
+  })
 
-	return { ok: true };
+  return { ok: true }
 }
 
-const _PRIORITY_SCORE: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1, none: 0 };
+const _PRIORITY_SCORE: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1, none: 0 }
 
 type PrioritizedFilters = {
-	limit: number;
-	includeBacklog: boolean;
-	excludeClaimed: boolean;
-	includeNotReady: boolean;
-	projectId: string | undefined;
-};
+  limit: number
+  includeBacklog: boolean
+  excludeClaimed: boolean
+  includeNotReady: boolean
+  projectId: string | undefined
+}
 
 function parsePrioritizedFilters(raw: unknown): PrioritizedFilters {
-	const input = raw as {
-		limit?: unknown;
-		includeBacklog?: unknown;
-		excludeClaimed?: unknown;
-		includeNotReady?: unknown;
-		projectId?: unknown;
-	};
-	// PROJ-920: MCP clients may send "5" / "false" (the arg validator allows what the
-	// services coerce), so parse like BooleanQueryParam / z.coerce rather than comparing
-	// with === true / !== false, which read the string "false" as true.
-	const flag = (v: unknown, fallback: boolean): boolean => {
-		const parsed = BooleanQueryParam.safeParse(v);
-		return parsed.success ? parsed.data : fallback;
-	};
-	const rawLimit = typeof input.limit === "string" ? Number(input.limit) : input.limit;
-	const limit =
-		typeof rawLimit === "number" && Number.isFinite(rawLimit) && rawLimit > 0
-			? Math.min(Math.floor(rawLimit), 100)
-			: 10;
-	const includeBacklog = flag(input.includeBacklog, true);
-	const excludeClaimed = flag(input.excludeClaimed, false);
-	const includeNotReady = flag(input.includeNotReady, false);
-	const projectId =
-		typeof input.projectId === "string" && input.projectId ? input.projectId : undefined;
-	return { limit, includeBacklog, excludeClaimed, includeNotReady, projectId };
+  const input = raw as {
+    limit?: unknown
+    includeBacklog?: unknown
+    excludeClaimed?: unknown
+    includeNotReady?: unknown
+    projectId?: unknown
+  }
+  // PROJ-920: MCP clients may send "5" / "false" (the arg validator allows what the
+  // services coerce), so parse like BooleanQueryParam / z.coerce rather than comparing
+  // with === true / !== false, which read the string "false" as true.
+  const flag = (v: unknown, fallback: boolean): boolean => {
+    const parsed = BooleanQueryParam.safeParse(v)
+    return parsed.success ? parsed.data : fallback
+  }
+  const rawLimit = typeof input.limit === 'string' ? Number(input.limit) : input.limit
+  const limit =
+    typeof rawLimit === 'number' && Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 100) : 10
+  const includeBacklog = flag(input.includeBacklog, true)
+  const excludeClaimed = flag(input.excludeClaimed, false)
+  const includeNotReady = flag(input.includeNotReady, false)
+  const projectId = typeof input.projectId === 'string' && input.projectId ? input.projectId : undefined
+  return { limit, includeBacklog, excludeClaimed, includeNotReady, projectId }
 }
 
 // PROJ-859: fill in dor_ready/dor_missing for rows written before migration 0058.
 // One-time per row (writes keep the columns current afterwards), in bounded batches so
 // a large workspace heals over a few calls instead of one huge request. Steady state
 // is a single indexed SELECT that returns nothing.
-const DOR_HEAL_BATCH = 200;
-const DOR_HEAL_MAX_BATCHES = 5;
+const DOR_HEAL_BATCH = 200
+const DOR_HEAL_MAX_BATCHES = 5
 
 async function healDefinitionOfReady(ctx: ServiceCtx): Promise<void> {
-	for (let i = 0; i < DOR_HEAL_MAX_BATCHES; i++) {
-		const { results } = await ctx.db
-			.prepare("SELECT id, body FROM issues WHERE workspace_id = ? AND dor_ready IS NULL LIMIT ?")
-			.bind(ctx.workspaceId, DOR_HEAL_BATCH)
-			.all<{ id: string; body: string | null }>();
-		const rows = results ?? [];
-		if (rows.length === 0) return;
-		await ctx.db.batch(
-			rows.map((r) =>
-				ctx.db
-					.prepare(
-						"UPDATE issues SET dor_ready = ?, dor_missing = ? WHERE id = ? AND workspace_id = ?",
-					)
-					.bind(...dorColumns(r.body), r.id, ctx.workspaceId),
-			),
-		);
-		if (rows.length < DOR_HEAL_BATCH) return;
-	}
+  for (let i = 0; i < DOR_HEAL_MAX_BATCHES; i++) {
+    const { results } = await ctx.db
+      .prepare('SELECT id, body FROM issues WHERE workspace_id = ? AND dor_ready IS NULL LIMIT ?')
+      .bind(ctx.workspaceId, DOR_HEAL_BATCH)
+      .all<{ id: string; body: string | null }>()
+    const rows = results ?? []
+    if (rows.length === 0) return
+    await ctx.db.batch(
+      rows.map((r) =>
+        ctx.db
+          .prepare('UPDATE issues SET dor_ready = ?, dor_missing = ? WHERE id = ? AND workspace_id = ?')
+          .bind(...dorColumns(r.body), r.id, ctx.workspaceId),
+      ),
+    )
+    if (rows.length < DOR_HEAL_BATCH) return
+  }
 }
 
 interface PrioritizedRow {
-	id: string;
-	title: string;
-	status: string;
-	priority: string;
-	project_id: string;
-	number: number;
-	status_id: string | null;
-	status_category: string | null;
-	dor_ready: number | null;
-	dor_missing: string | null;
-	centrality: number;
-	priority_score: number;
-	story_points: number;
-	score: number;
-	not_ready_count: number;
+  id: string
+  title: string
+  status: string
+  priority: string
+  project_id: string
+  number: number
+  status_id: string | null
+  status_category: string | null
+  dor_ready: number | null
+  dor_missing: string | null
+  centrality: number
+  priority_score: number
+  story_points: number
+  score: number
+  not_ready_count: number
 }
 
 /**
@@ -1524,42 +1397,42 @@ interface PrioritizedRow {
  * filtered afterwards. Ties break on insertion order (rowid).
  */
 async function queryPrioritized(
-	ctx: ServiceCtx,
-	opts: {
-		limit: number;
-		includeBacklog: boolean;
-		excludeClaimed: boolean;
-		projectId: string | undefined;
-		readyOnly: boolean;
-	},
+  ctx: ServiceCtx,
+  opts: {
+    limit: number
+    includeBacklog: boolean
+    excludeClaimed: boolean
+    projectId: string | undefined
+    readyOnly: boolean
+  },
 ): Promise<PrioritizedRow[]> {
-	const where: string[] = [
-		"i.workspace_id = ?",
-		`((i.status_id IS NULL AND i.status NOT IN ('done', 'cancelled'))
+  const where: string[] = [
+    'i.workspace_id = ?',
+    `((i.status_id IS NULL AND i.status NOT IN ('done', 'cancelled'))
 		  OR (i.status_id IS NOT NULL AND ts.category NOT IN ('done', 'cancelled')))`,
-	];
-	const params: unknown[] = [ctx.workspaceId];
-	if (opts.projectId) {
-		where.push("i.project_id = ?");
-		params.push(opts.projectId);
-	}
-	// PROJ-311: only prioritize issues in projects the user can see.
-	const visible = visibleProjectSqlFragment(ctx, "i.project_id");
-	if (visible) {
-		where.push(visible.sql);
-		params.push(...visible.params);
-	}
-	if (!opts.includeBacklog) where.push("i.status != 'backlog'");
-	// PROJ-184: skip issues held by a live lease.
-	if (opts.excludeClaimed) {
-		where.push(`NOT EXISTS (
+  ]
+  const params: unknown[] = [ctx.workspaceId]
+  if (opts.projectId) {
+    where.push('i.project_id = ?')
+    params.push(opts.projectId)
+  }
+  // PROJ-311: only prioritize issues in projects the user can see.
+  const visible = visibleProjectSqlFragment(ctx, 'i.project_id')
+  if (visible) {
+    where.push(visible.sql)
+    params.push(...visible.params)
+  }
+  if (!opts.includeBacklog) where.push("i.status != 'backlog'")
+  // PROJ-184: skip issues held by a live lease.
+  if (opts.excludeClaimed) {
+    where.push(`NOT EXISTS (
 			SELECT 1 FROM issue_leases l JOIN agent_sessions s ON s.id = l.agent_session_id
 			WHERE l.workspace_id = i.workspace_id AND l.issue_id = i.id AND l.released_at IS NULL
-			  AND s.status = 'active' AND s.last_heartbeat_at > ?)`);
-		params.push(Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS);
-	}
+			  AND s.status = 'active' AND s.last_heartbeat_at > ?)`)
+    params.push(Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS)
+  }
 
-	const sqlText = `
+  const sqlText = `
 		WITH open AS (
 			SELECT i.id, i.title, i.status, i.priority, i.project_id, i.number, i.status_id,
 			       ts.category AS status_category, i.dor_ready, i.dor_missing, i.rowid AS rid,
@@ -1573,7 +1446,7 @@ async function queryPrioritized(
 			         ORDER BY v.rowid DESC LIMIT 1) AS sp
 			  FROM issues i
 			  LEFT JOIN task_statuses ts ON ts.id = i.status_id
-			 WHERE ${where.join(" AND ")}
+			 WHERE ${where.join(' AND ')}
 		),
 		scored AS (
 			SELECT *,
@@ -1586,95 +1459,93 @@ async function queryPrioritized(
 		)
 		SELECT *, 0.4 * centrality + 0.4 * priority_score + 0.2 * (1.0 / story_points) AS score
 		  FROM scored
-		 ${opts.readyOnly ? "WHERE dor_ready = 1" : ""}
+		 ${opts.readyOnly ? 'WHERE dor_ready = 1' : ''}
 		 ORDER BY score DESC, rid ASC
-		 LIMIT ?`;
-	params.push(opts.limit);
+		 LIMIT ?`
+  params.push(opts.limit)
 
-	const { results } = await ctx.db
-		.prepare(sqlText)
-		.bind(...params)
-		.all<PrioritizedRow>();
-	return results ?? [];
+  const { results } = await ctx.db
+    .prepare(sqlText)
+    .bind(...params)
+    .all<PrioritizedRow>()
+  return results ?? []
 }
 
 function toPrioritizedIssue(r: PrioritizedRow) {
-	const issue = {
-		id: r.id,
-		title: r.title,
-		status: r.status,
-		priority: r.priority,
-		project_id: r.project_id,
-		number: r.number,
-		status_id: r.status_id,
-		status_category: r.status_category,
-		_score: r.score,
-		_score_breakdown: {
-			centrality: r.centrality,
-			priority: r.priority_score,
-			story_points: r.story_points,
-		},
-	};
-	if (r.dor_ready === 1) return issue;
-	return {
-		...issue,
-		needsGrooming: true as const,
-		missingCriteria: JSON.parse(r.dor_missing ?? "[]") as string[],
-	};
+  const issue = {
+    id: r.id,
+    title: r.title,
+    status: r.status,
+    priority: r.priority,
+    project_id: r.project_id,
+    number: r.number,
+    status_id: r.status_id,
+    status_category: r.status_category,
+    _score: r.score,
+    _score_breakdown: {
+      centrality: r.centrality,
+      priority: r.priority_score,
+      story_points: r.story_points,
+    },
+  }
+  if (r.dor_ready === 1) return issue
+  return {
+    ...issue,
+    needsGrooming: true as const,
+    missingCriteria: JSON.parse(r.dor_missing ?? '[]') as string[],
+  }
 }
 
 export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
-	const parsed = parsePrioritizedFilters(raw);
-	const { limit, includeBacklog, excludeClaimed, includeNotReady } = parsed;
-	const projectId = parsed.projectId
-		? await resolveVisibleProjectIdParam(ctx, parsed.projectId)
-		: parsed.projectId;
+  const parsed = parsePrioritizedFilters(raw)
+  const { limit, includeBacklog, excludeClaimed, includeNotReady } = parsed
+  const projectId = parsed.projectId ? await resolveVisibleProjectIdParam(ctx, parsed.projectId) : parsed.projectId
 
-	await healDefinitionOfReady(ctx);
-	const base = { limit, includeBacklog, excludeClaimed, projectId };
+  await healDefinitionOfReady(ctx)
+  const base = { limit, includeBacklog, excludeClaimed, projectId }
 
-	// PROJ-253: definition-of-ready gate. By default, issues missing acceptance
-	// criteria/scope are dropped from "what should I work on next?" — an agent that
-	// claims one is set up to guess. includeNotReady surfaces them anyway, annotated
-	// with what's missing, for grooming.
-	if (includeNotReady) {
-		const rows = await queryPrioritized(ctx, { ...base, readyOnly: false });
-		if (rows.length === 0) return { issues: [] };
-		return { issues: rows.map(toPrioritizedIssue), droppedNotReady: 0 };
-	}
+  // PROJ-253: definition-of-ready gate. By default, issues missing acceptance
+  // criteria/scope are dropped from "what should I work on next?" — an agent that
+  // claims one is set up to guess. includeNotReady surfaces them anyway, annotated
+  // with what's missing, for grooming.
+  if (includeNotReady) {
+    const rows = await queryPrioritized(ctx, { ...base, readyOnly: false })
+    if (rows.length === 0) return { issues: [] }
+    return { issues: rows.map(toPrioritizedIssue), droppedNotReady: 0 }
+  }
 
-	const ready = await queryPrioritized(ctx, { ...base, readyOnly: true });
-	// PROJ-291: don't SILENTLY drop not-ready issues — surface the count so a caller
-	// seeing few results knows to groom (or re-query with includeNotReady).
-	if (ready.length > 0) {
-		return { issues: ready.map(toPrioritizedIssue), droppedNotReady: ready[0].not_ready_count };
-	}
+  const ready = await queryPrioritized(ctx, { ...base, readyOnly: true })
+  // PROJ-291: don't SILENTLY drop not-ready issues — surface the count so a caller
+  // seeing few results knows to groom (or re-query with includeNotReady).
+  if (ready.length > 0) {
+    return { issues: ready.map(toPrioritizedIssue), droppedNotReady: ready[0].not_ready_count }
+  }
 
-	// Nothing ready: return the ranked not-ready list, flagged, rather than an empty
-	// array that reads as "no open work".
-	const all = await queryPrioritized(ctx, { ...base, readyOnly: false });
-	if (all.length === 0) return { issues: [] };
-	return {
-		issues: all.map(toPrioritizedIssue),
-		droppedNotReady: all[0].not_ready_count,
-		degraded: true,
-	};
+  // Nothing ready: return the ranked not-ready list, flagged, rather than an empty
+  // array that reads as "no open work".
+  const all = await queryPrioritized(ctx, { ...base, readyOnly: false })
+  if (all.length === 0) return { issues: [] }
+  return {
+    issues: all.map(toPrioritizedIssue),
+    droppedNotReady: all[0].not_ready_count,
+    degraded: true,
+  }
 }
 
 export async function searchIssues(ctx: ServiceCtx, raw: unknown) {
-	const result = SearchIssuesInputSchema.safeParse(raw);
-	if (!result.success) throw new ValidationError(result.error.flatten());
-	const { query, limit } = result.data;
-	const projectId = result.data.projectId
-		? await resolveVisibleProjectIdParam(ctx, result.data.projectId)
-		: result.data.projectId;
+  const result = SearchIssuesInputSchema.safeParse(raw)
+  if (!result.success) throw new ValidationError(result.error.flatten())
+  const { query, limit } = result.data
+  const projectId = result.data.projectId
+    ? await resolveVisibleProjectIdParam(ctx, result.data.projectId)
+    : result.data.projectId
 
-	return Effect.runPromise(
-		issueQueries.searchIssues(
-			ctx.db,
-			ctx.workspaceId,
-			{ query, limit, projectId },
-			visibleProjectSqlFragment(ctx, "i.project_id") ?? undefined,
-		),
-	);
+  return Effect.runPromise(
+    issueQueries.searchIssues(
+      ctx.db,
+      ctx.workspaceId,
+      { query, limit, projectId },
+      visibleProjectSqlFragment(ctx, 'i.project_id') ?? undefined,
+    ),
+  )
 }

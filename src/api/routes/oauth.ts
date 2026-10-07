@@ -1,18 +1,20 @@
-import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
-import { AuthorizationError } from "@cloudflare/workers-oauth-provider";
-import type { HonoEnv } from "#types";
-import { type Context, Hono } from "hono";
-import type { AuthUser } from "../middleware/auth";
-import { isPublicViewer } from "../middleware/auth";
-import { signConsentToken, verifyConsentToken } from "../oauth/consent-token";
+import type { AuthRequest, OAuthHelpers } from '@cloudflare/workers-oauth-provider'
+import { AuthorizationError } from '@cloudflare/workers-oauth-provider'
+import { type Context, Hono } from 'hono'
+
+import type { HonoEnv } from '#types'
+
+import type { AuthUser } from '../middleware/auth'
+import { isPublicViewer } from '../middleware/auth'
+import { signConsentToken, verifyConsentToken } from '../oauth/consent-token'
 import {
-	describeScope,
-	isLoopbackOnlyClient,
-	lookupConsentWorkspace,
-	OAuthRequestError,
-	parseConsentRequest,
-	relyingPartyHost,
-} from "../services/oauth";
+  describeScope,
+  isLoopbackOnlyClient,
+  lookupConsentWorkspace,
+  OAuthRequestError,
+  parseConsentRequest,
+  relyingPartyHost,
+} from '../services/oauth'
 
 // PROJ-656: the consent screen.
 //
@@ -29,10 +31,10 @@ import {
 // round-trip through a JSON endpoint that has to reproduce all of the checks below,
 // and an unstyled flash on the most security-sensitive page in the product.
 
-export const oauthRouter = new Hono<HonoEnv>();
+export const oauthRouter = new Hono<HonoEnv>()
 
 function helpers(c: Context<HonoEnv>): OAuthHelpers {
-	return (c.env as unknown as { OAUTH_PROVIDER: OAuthHelpers }).OAUTH_PROVIDER;
+  return (c.env as unknown as { OAUTH_PROVIDER: OAuthHelpers }).OAUTH_PROVIDER
 }
 
 // PROJ-660, seen on a real deployment: Cloudflare's Email Address Obfuscation is a
@@ -44,16 +46,16 @@ function helpers(c: Context<HonoEnv>): OAuthHelpers {
 // `<!--email_off-->` is Cloudflare's documented opt-out and is an ordinary HTML comment
 // everywhere else, so it costs nothing on a deployment that never sees the rewriter.
 function emailOff(escaped: string): string {
-	return `<!--email_off-->${escaped}<!--/email_off-->`;
+  return `<!--email_off-->${escaped}<!--/email_off-->`
 }
 
 function escapeHtml(value: string): string {
-	return value
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 const PAGE_STYLE = `
@@ -79,14 +81,14 @@ li { margin-bottom:.35rem; }
 button { flex:1 1 10rem; min-height:44px; font:inherit; font-weight:600; border-radius:8px;
   border:1px solid var(--line); padding:.65rem 1rem; cursor:pointer; background:transparent; color:var(--fg); }
 button[value="approve"] { background:var(--accent); border-color:var(--accent); color:#fff; }
-`;
+`
 
 function page(title: string, body: string): string {
-	return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>${escapeHtml(title)}</title><style>${PAGE_STYLE}</style></head>
-<body><main>${body}</main></body></html>`;
+<body><main>${body}</main></body></html>`
 }
 
 // A consent screen is the canonical clickjacking target: frame it invisibly over
@@ -105,44 +107,39 @@ function page(title: string, body: string): string {
 // checked redirect_uri against the client's registered URIs before this page rendered,
 // so nothing widens the policy that was not already the approved destination.
 function consentCsp(redirectUri?: string): string {
-	let formAction = "'self'";
-	if (redirectUri) {
-		try {
-			formAction += ` ${new URL(redirectUri).origin}`;
-		} catch {
-			// Unparseable means it never passed validation; leave the policy at 'self'.
-		}
-	}
-	return `default-src 'none'; style-src 'unsafe-inline'; form-action ${formAction}; frame-ancestors 'none'; base-uri 'none'`;
+  let formAction = "'self'"
+  if (redirectUri) {
+    try {
+      formAction += ` ${new URL(redirectUri).origin}`
+    } catch {
+      // Unparseable means it never passed validation; leave the policy at 'self'.
+    }
+  }
+  return `default-src 'none'; style-src 'unsafe-inline'; form-action ${formAction}; frame-ancestors 'none'; base-uri 'none'`
 }
 
 const CONSENT_HEADERS = {
-	"X-Frame-Options": "DENY",
-	"Referrer-Policy": "no-referrer",
-	// The URL carries the authorization request; nothing about it should be cached.
-	"Cache-Control": "no-store",
-} as const;
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'no-referrer',
+  // The URL carries the authorization request; nothing about it should be cached.
+  'Cache-Control': 'no-store',
+} as const
 
 function consentHtml(
-	c: Context<HonoEnv>,
-	title: string,
-	body: string,
-	status: 200 | 400 | 403 | 500 = 200,
-	redirectUri?: string,
+  c: Context<HonoEnv>,
+  title: string,
+  body: string,
+  status: 200 | 400 | 403 | 500 = 200,
+  redirectUri?: string,
 ) {
-	return c.html(page(title, body), status, {
-		...CONSENT_HEADERS,
-		"Content-Security-Policy": consentCsp(redirectUri),
-	});
+  return c.html(page(title, body), status, {
+    ...CONSENT_HEADERS,
+    'Content-Security-Policy': consentCsp(redirectUri),
+  })
 }
 
 function errorPage(c: Context<HonoEnv>, status: 400 | 403 | 500, heading: string, detail: string) {
-	return consentHtml(
-		c,
-		heading,
-		`<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(detail)}</p>`,
-		status,
-	);
+  return consentHtml(c, heading, `<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(detail)}</p>`, status)
 }
 
 /**
@@ -155,13 +152,13 @@ function errorPage(c: Context<HonoEnv>, status: 400 | 403 | 500, heading: string
  * projektor that grants standing access.
  */
 function consentSigningKey(c: Context<HonoEnv>): string | null {
-	const secret = c.env.JWT_SECRET;
-	return secret && secret.length > 0 ? secret : null;
+  const secret = c.env.JWT_SECRET
+  return secret && secret.length > 0 ? secret : null
 }
 
 const NO_SIGNING_KEY =
-	"This projektor instance has no JWT_SECRET configured, so it cannot safely process " +
-	"a consent request. Set it with `wrangler secret put JWT_SECRET` and try again.";
+  'This projektor instance has no JWT_SECRET configured, so it cannot safely process ' +
+  'a consent request. Set it with `wrangler secret put JWT_SECRET` and try again.'
 
 /**
  * Report an authorization failure the way OAuth expects.
@@ -174,17 +171,17 @@ const NO_SIGNING_KEY =
  * waiting on a callback that never arrives shows the user a hung tab, not an error.
  */
 function authorizationFailure(c: Context<HonoEnv>, err: AuthorizationError) {
-	if (!err.redirectUri) {
-		return errorPage(c, 400, "Invalid authorization request", err.description);
-	}
-	const url = new URL(err.redirectUri);
-	url.searchParams.set("error", err.code);
-	url.searchParams.set("error_description", err.description);
-	if (err.state) url.searchParams.set("state", err.state);
-	// RFC 9207: error responses carry `iss` too, so a client with several
-	// authorization servers configured can tell which one rejected it.
-	if (err.issuer) url.searchParams.set("iss", err.issuer);
-	return c.redirect(url.toString(), 302);
+  if (!err.redirectUri) {
+    return errorPage(c, 400, 'Invalid authorization request', err.description)
+  }
+  const url = new URL(err.redirectUri)
+  url.searchParams.set('error', err.code)
+  url.searchParams.set('error_description', err.description)
+  if (err.state) url.searchParams.set('state', err.state)
+  // RFC 9207: error responses carry `iss` too, so a client with several
+  // authorization servers configured can tell which one rejected it.
+  if (err.issuer) url.searchParams.set('iss', err.issuer)
+  return c.redirect(url.toString(), 302)
 }
 
 /**
@@ -199,98 +196,83 @@ function authorizationFailure(c: Context<HonoEnv>, err: AuthorizationError) {
  * rather than silently issuing a grant as the public viewer.
  */
 function consentingUser(c: Context<HonoEnv>): AuthUser | null {
-	if (c.get("authKind") !== "human") return null;
-	const user = c.get("user") as AuthUser | undefined;
-	if (!user || isPublicViewer(user)) return null;
-	return user;
+  if (c.get('authKind') !== 'human') return null
+  const user = c.get('user') as AuthUser | undefined
+  if (!user || isPublicViewer(user)) return null
+  return user
 }
 
 const NO_CONSENTER =
-	"You are not signed in as a person who can authorize this. Sign in to projektor first; " +
-	"anonymous read-only visitors and API tokens cannot connect an application.";
+  'You are not signed in as a person who can authorize this. Sign in to projektor first; ' +
+  'anonymous read-only visitors and API tokens cannot connect an application.'
 
-oauthRouter.get("/authorize", async (c) => {
-	const user = consentingUser(c);
-	if (!user) return errorPage(c, 403, "Sign-in required", NO_CONSENTER);
+oauthRouter.get('/authorize', async (c) => {
+  const user = consentingUser(c)
+  if (!user) return errorPage(c, 403, 'Sign-in required', NO_CONSENTER)
 
-	const signingKey = consentSigningKey(c);
-	if (!signingKey) return errorPage(c, 500, "Not configured", NO_SIGNING_KEY);
+  const signingKey = consentSigningKey(c)
+  if (!signingKey) return errorPage(c, 500, 'Not configured', NO_SIGNING_KEY)
 
-	// parseAuthRequest is also the client and redirect-URI validator: it resolves the
-	// client (fetching and checking the CIMD document for a URL client_id) and rejects
-	// a redirect_uri the client has not registered. Everything after this point can
-	// therefore trust authRequest.redirectUri.
-	let authRequest: AuthRequest;
-	try {
-		authRequest = await helpers(c).parseAuthRequest(c.req.raw);
-	} catch (err) {
-		if (err instanceof AuthorizationError) return authorizationFailure(c, err);
-		return errorPage(
-			c,
-			400,
-			"Unknown application",
-			`The application could not be verified: ${String(err)}`,
-		);
-	}
+  // parseAuthRequest is also the client and redirect-URI validator: it resolves the
+  // client (fetching and checking the CIMD document for a URL client_id) and rejects
+  // a redirect_uri the client has not registered. Everything after this point can
+  // therefore trust authRequest.redirectUri.
+  let authRequest: AuthRequest
+  try {
+    authRequest = await helpers(c).parseAuthRequest(c.req.raw)
+  } catch (err) {
+    if (err instanceof AuthorizationError) return authorizationFailure(c, err)
+    return errorPage(c, 400, 'Unknown application', `The application could not be verified: ${String(err)}`)
+  }
 
-	let consent: ReturnType<typeof parseConsentRequest>;
-	try {
-		consent = parseConsentRequest(authRequest);
-	} catch (err) {
-		if (!(err instanceof OAuthRequestError)) throw err;
-		return authorizationFailure(
-			c,
-			new AuthorizationError(err.code, {
-				description: err.reason,
-				redirectUri: authRequest.redirectUri,
-				state: authRequest.state,
-				issuer: authRequest.issuer,
-			}),
-		);
-	}
+  let consent: ReturnType<typeof parseConsentRequest>
+  try {
+    consent = parseConsentRequest(authRequest)
+  } catch (err) {
+    if (!(err instanceof OAuthRequestError)) throw err
+    return authorizationFailure(
+      c,
+      new AuthorizationError(err.code, {
+        description: err.reason,
+        redirectUri: authRequest.redirectUri,
+        state: authRequest.state,
+        issuer: authRequest.issuer,
+      }),
+    )
+  }
 
-	// Read back for display only — parseAuthRequest already validated it.
-	const client = await helpers(c).lookupClient(authRequest.clientId);
-	if (!client) {
-		return errorPage(
-			c,
-			400,
-			"Unknown application",
-			"This application is not registered with projektor.",
-		);
-	}
+  // Read back for display only — parseAuthRequest already validated it.
+  const client = await helpers(c).lookupClient(authRequest.clientId)
+  if (!client) {
+    return errorPage(c, 400, 'Unknown application', 'This application is not registered with projektor.')
+  }
 
-	const workspace = await lookupConsentWorkspace(c.env.DB, user.id, consent.workspaceId);
-	if (!workspace) {
-		// Rendered locally, not redirected: whether this user is a member of that
-		// workspace is not the client's business, and an `access_denied` bounce would
-		// tell it. The human is the one who needs to know, and they are right here.
-		return errorPage(
-			c,
-			403,
-			"Workspace unavailable",
-			"That workspace does not exist, or you are not a member of it.",
-		);
-	}
+  const workspace = await lookupConsentWorkspace(c.env.DB, user.id, consent.workspaceId)
+  if (!workspace) {
+    // Rendered locally, not redirected: whether this user is a member of that
+    // workspace is not the client's business, and an `access_denied` bounce would
+    // tell it. The human is the one who needs to know, and they are right here.
+    return errorPage(c, 403, 'Workspace unavailable', 'That workspace does not exist, or you are not a member of it.')
+  }
 
-	const token = await signConsentToken(
-		{ userId: user.id, workspaceId: workspace.id, scopes: consent.scopes, authRequest },
-		signingKey,
-	);
+  const token = await signConsentToken(
+    { userId: user.id, workspaceId: workspace.id, scopes: consent.scopes, authRequest },
+    signingKey,
+  )
 
-	const host = relyingPartyHost(authRequest.clientId);
-	const name = client.clientName ?? host;
-	const scopeItems = consent.scopes.map((s) => `<li>${escapeHtml(describeScope(s))}</li>`).join("");
-	const loopbackWarning = isLoopbackOnlyClient(client.redirectUris)
-		? `<div class="warn">This application receives its response on your own machine
+  const host = relyingPartyHost(authRequest.clientId)
+  const name = client.clientName ?? host
+  const scopeItems = consent.scopes.map((s) => `<li>${escapeHtml(describeScope(s))}</li>`).join('')
+  const loopbackWarning = isLoopbackOnlyClient(client.redirectUris)
+    ? `<div class="warn">This application receives its response on your own machine
        (<code>${escapeHtml(client.redirectUris[0])}</code>). projektor cannot verify which
        local program that is — only continue if you started this yourself.</div>`
-		: "";
+    : ''
 
-	return consentHtml(
-		c,
-		"Connect an application",
-		`<h1>Connect ${escapeHtml(name)}?</h1>
+  return consentHtml(
+    c,
+    'Connect an application',
+    `<h1>Connect ${escapeHtml(name)}?</h1>
        <p><strong>${escapeHtml(name)}</strong> is asking to access the
        <strong>${escapeHtml(workspace.name)}</strong> workspace as
        <strong>${emailOff(escapeHtml(user.email))}</strong>.</p>
@@ -308,66 +290,61 @@ oauthRouter.get("/authorize", async (c) => {
        </form>
        <p class="meta">Verified identity: <strong>${escapeHtml(host)}</strong>. The
        application's name is self-declared; the address above is not.</p>`,
-		200,
-		authRequest.redirectUri,
-	);
-});
+    200,
+    authRequest.redirectUri,
+  )
+})
 
-oauthRouter.post("/authorize", async (c) => {
-	const user = consentingUser(c);
-	if (!user) return errorPage(c, 403, "Sign-in required", NO_CONSENTER);
+oauthRouter.post('/authorize', async (c) => {
+  const user = consentingUser(c)
+  if (!user) return errorPage(c, 403, 'Sign-in required', NO_CONSENTER)
 
-	const signingKey = consentSigningKey(c);
-	if (!signingKey) return errorPage(c, 500, "Not configured", NO_SIGNING_KEY);
+  const signingKey = consentSigningKey(c)
+  if (!signingKey) return errorPage(c, 500, 'Not configured', NO_SIGNING_KEY)
 
-	const form = await c.req.parseBody();
-	const submitted = typeof form.consent_token === "string" ? form.consent_token : "";
-	const payload = await verifyConsentToken(submitted, user.id, signingKey);
-	if (!payload) {
-		return errorPage(
-			c,
-			400,
-			"This request has expired",
-			"Start the connection again from the application.",
-		);
-	}
+  const form = await c.req.parseBody()
+  const submitted = typeof form.consent_token === 'string' ? form.consent_token : ''
+  const payload = await verifyConsentToken(submitted, user.id, signingKey)
+  if (!payload) {
+    return errorPage(c, 400, 'This request has expired', 'Start the connection again from the application.')
+  }
 
-	if (form.decision !== "approve") {
-		// Safe to redirect: this redirect_uri came out of parseAuthRequest, which
-		// validated it against the client's registered set, and the signature above
-		// proves it has not been altered since. Telling the client explicitly beats
-		// leaving it waiting on a callback that will never arrive.
-		return authorizationFailure(
-			c,
-			new AuthorizationError("access_denied", {
-				description: "The user declined the request",
-				redirectUri: payload.authRequest.redirectUri,
-				state: payload.authRequest.state,
-				issuer: payload.authRequest.issuer,
-			}),
-		);
-	}
+  if (form.decision !== 'approve') {
+    // Safe to redirect: this redirect_uri came out of parseAuthRequest, which
+    // validated it against the client's registered set, and the signature above
+    // proves it has not been altered since. Telling the client explicitly beats
+    // leaving it waiting on a callback that will never arrive.
+    return authorizationFailure(
+      c,
+      new AuthorizationError('access_denied', {
+        description: 'The user declined the request',
+        redirectUri: payload.authRequest.redirectUri,
+        state: payload.authRequest.state,
+        issuer: payload.authRequest.issuer,
+      }),
+    )
+  }
 
-	const { redirectTo } = await helpers(c).completeAuthorization({
-		request: payload.authRequest,
-		userId: user.id,
-		metadata: { workspaceId: payload.workspaceId, consentedAt: Math.floor(Date.now() / 1000) },
-		scope: payload.scopes,
-		// Carried on every request this grant authorizes; middleware/auth.ts turns it
-		// back into projektor's own user + workspace + scope context.
-		props: {
-			userId: user.id,
-			email: user.email,
-			name: user.name,
-			workspaceId: payload.workspaceId,
-			scopes: payload.scopes,
-			clientId: payload.authRequest.clientId,
-		},
-		// The library defaults this to true, which would revoke the user's other grants
-		// for the same client. Grants here are per-workspace by design, so the default
-		// would mean connecting a second workspace silently disconnects the first.
-		revokeExistingGrants: false,
-	});
+  const { redirectTo } = await helpers(c).completeAuthorization({
+    request: payload.authRequest,
+    userId: user.id,
+    metadata: { workspaceId: payload.workspaceId, consentedAt: Math.floor(Date.now() / 1000) },
+    scope: payload.scopes,
+    // Carried on every request this grant authorizes; middleware/auth.ts turns it
+    // back into projektor's own user + workspace + scope context.
+    props: {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      workspaceId: payload.workspaceId,
+      scopes: payload.scopes,
+      clientId: payload.authRequest.clientId,
+    },
+    // The library defaults this to true, which would revoke the user's other grants
+    // for the same client. Grants here are per-workspace by design, so the default
+    // would mean connecting a second workspace silently disconnects the first.
+    revokeExistingGrants: false,
+  })
 
-	return c.redirect(redirectTo, 302);
-});
+  return c.redirect(redirectTo, 302)
+})

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod'
 
 /**
  * Capabilities an API token can be granted (PROJ-17).
@@ -6,11 +6,11 @@ import { z } from "zod";
  * - "write" — mutating access (implies "read").
  * - "*"     — full access (read + write); convenient default.
  */
-export const ScopeSchema = z.enum(["read", "write", "*"]);
-export type Scope = z.infer<typeof ScopeSchema>;
+export const ScopeSchema = z.enum(['read', 'write', '*'])
+export type Scope = z.infer<typeof ScopeSchema>
 
 /** The capability a given request requires. */
-export type Capability = "read" | "write";
+export type Capability = 'read' | 'write'
 
 /**
  * Does a token's scope set permit the required capability?
@@ -19,9 +19,9 @@ export type Capability = "read" | "write";
  * - Unknown/legacy scope strings grant nothing (fail-closed).
  */
 export function tokenAllows(scopes: readonly string[], required: Capability): boolean {
-	if (scopes.includes("*")) return true;
-	if (required === "write") return scopes.includes("write");
-	return scopes.includes("read") || scopes.includes("write");
+  if (scopes.includes('*')) return true
+  if (required === 'write') return scopes.includes('write')
+  return scopes.includes('read') || scopes.includes('write')
 }
 
 /**
@@ -29,8 +29,8 @@ export function tokenAllows(scopes: readonly string[], required: Capability): bo
  * else writes. (Searches are GET, so they classify as reads.)
  */
 export function capabilityForMethod(method: string): Capability {
-	const m = method.toUpperCase();
-	return m === "GET" || m === "HEAD" || m === "OPTIONS" ? "read" : "write";
+  const m = method.toUpperCase()
+  return m === 'GET' || m === 'HEAD' || m === 'OPTIONS' ? 'read' : 'write'
 }
 
 /**
@@ -39,15 +39,10 @@ export function capabilityForMethod(method: string): Capability {
  * write. Fail-closed: a new tool without a read prefix needs the write scope.
  */
 export function capabilityForMcpTool(name: string): Capability {
-	if (
-		name.startsWith("list_") ||
-		name.startsWith("get_") ||
-		name.startsWith("search_") ||
-		name === "wiki_tree"
-	) {
-		return "read";
-	}
-	return "write";
+  if (name.startsWith('list_') || name.startsWith('get_') || name.startsWith('search_') || name === 'wiki_tree') {
+    return 'read'
+  }
+  return 'write'
 }
 
 /**
@@ -57,19 +52,19 @@ export function capabilityForMcpTool(name: string): Capability {
  * else fails closed to [] (which tokenAllows() then treats as "grants nothing").
  */
 export function parseScopes(raw: string | null | undefined): string[] {
-	if (!raw) return [];
-	try {
-		const parsed = JSON.parse(raw);
-		return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === "string") : [];
-	} catch {
-		// Legacy fallback: only an unquoted bracketed list like "[read,write]".
-		const m = raw.match(/^\s*\[(.*)\]\s*$/);
-		if (!m) return [];
-		return m[1]
-			.split(",")
-			.map((s) => s.trim())
-			.filter((s) => s.length > 0);
-	}
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === 'string') : []
+  } catch {
+    // Legacy fallback: only an unquoted bracketed list like "[read,write]".
+    const m = raw.match(/^\s*\[(.*)\]\s*$/)
+    if (!m) return []
+    return m[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+  }
 }
 
 /**
@@ -93,9 +88,9 @@ export function parseScopes(raw: string | null | undefined): string[] {
  * authority on every request, and a token can never exceed it, so finer scopes
  * would imply a precision the authorization model does not actually have.
  */
-export const OAUTH_SCOPE_READ = "projektor:read";
-export const OAUTH_SCOPE_WRITE = "projektor:write";
-export const OAUTH_SCOPES_SUPPORTED = [OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE] as const;
+export const OAUTH_SCOPE_READ = 'projektor:read'
+export const OAUTH_SCOPE_WRITE = 'projektor:write'
+export const OAUTH_SCOPES_SUPPORTED = [OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE] as const
 
 /**
  * Map an OAuth wire scope to the capability it grants, or null if it is not one
@@ -103,7 +98,7 @@ export const OAUTH_SCOPES_SUPPORTED = [OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE] as c
  * nothing rather than being silently treated as read.
  */
 export function capabilityForOAuthScope(scope: string): Capability | null {
-	if (scope === OAUTH_SCOPE_READ) return "read";
-	if (scope === OAUTH_SCOPE_WRITE) return "write";
-	return null;
+  if (scope === OAUTH_SCOPE_READ) return 'read'
+  if (scope === OAUTH_SCOPE_WRITE) return 'write'
+  return null
 }

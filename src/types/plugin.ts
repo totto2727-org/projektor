@@ -1,6 +1,6 @@
 export interface Migration {
-	version: number;
-	sql: string;
+  version: number
+  sql: string
 }
 
 /**
@@ -11,24 +11,24 @@ export interface Migration {
  * openWorldHint (see mcp/annotations.ts).
  */
 export interface MCPToolAnnotations {
-	/** Human-readable title distinct from `name`. */
-	title?: string;
-	/** True if the tool only reads data and never mutates state. */
-	readOnlyHint?: boolean;
-	/** True if calling the tool may perform destructive/irreversible updates. */
-	destructiveHint?: boolean;
-	/** True if repeated calls with the same arguments have no additional effect. */
-	idempotentHint?: boolean;
-	/** True if the tool interacts with an "open world" of external entities. */
-	openWorldHint?: boolean;
+  /** Human-readable title distinct from `name`. */
+  title?: string
+  /** True if the tool only reads data and never mutates state. */
+  readOnlyHint?: boolean
+  /** True if calling the tool may perform destructive/irreversible updates. */
+  destructiveHint?: boolean
+  /** True if repeated calls with the same arguments have no additional effect. */
+  idempotentHint?: boolean
+  /** True if the tool interacts with an "open world" of external entities. */
+  openWorldHint?: boolean
 }
 
 export interface MCPTool {
-	name: string;
-	description: string;
-	inputSchema: Record<string, unknown>;
-	annotations?: MCPToolAnnotations;
-	handler: (input: unknown, ctx: PluginContext) => Promise<unknown>;
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+  annotations?: MCPToolAnnotations
+  handler: (input: unknown, ctx: PluginContext) => Promise<unknown>
 }
 
 /**
@@ -39,17 +39,17 @@ export interface MCPTool {
  * - `public`: shared PUBLIC_READ_ONLY viewer        - `oauth`: OAuth grant (connector)
  * - `pk`: workspace API token (`pk_…`)             - `pat`: personal access token
  */
-export type AuthMethod = "oauth" | "pk" | "pat" | "access" | "dev" | "public";
+export type AuthMethod = 'oauth' | 'pk' | 'pat' | 'access' | 'dev' | 'public'
 
 export interface AuthInfo {
-	kind: "human" | "agent";
-	method: AuthMethod;
-	/** api_tokens.id for pk/pat, the grant id for oauth; absent for sessions. */
-	credentialId?: string;
-	/** OAuth client id (grants created after PROJ-889 only). */
-	clientId?: string;
-	/** Token/grant scopes; absent for sessions (governed by role only). */
-	scopes?: string[];
+  kind: 'human' | 'agent'
+  method: AuthMethod
+  /** api_tokens.id for pk/pat, the grant id for oauth; absent for sessions. */
+  credentialId?: string
+  /** OAuth client id (grants created after PROJ-889 only). */
+  clientId?: string
+  /** Token/grant scopes; absent for sessions (governed by role only). */
+  scopes?: string[]
 }
 
 /**
@@ -58,37 +58,37 @@ export interface AuthInfo {
  * waitUntil and the realtime hub — so MCP mutations broadcast like REST ones.
  */
 export interface PluginContext {
-	db: D1Database;
-	kv: KVNamespace;
-	r2: R2Bucket;
-	workspaceId: string;
-	userId: string;
-	role?: Role;
-	// PROJ-328: which auth path authenticated this request ("human" = Cloudflare Access
-	// JWT / dev bypass, "agent" = Bearer API token or OAuth grant).
-	authKind?: "human" | "agent";
-	auth?: AuthInfo;
-	workspaceHub?: DurableObjectNamespace;
-	waitUntil?: (promise: Promise<unknown>) => void;
-	// PROJ-928: parsed, narrowly-typed config tunables a service may need — never the raw
-	// worker env. A prior version of this put the whole `env` here, which (since
-	// PluginContext is shared by every service and MCP/plugin handler) would have handed
-	// every tool secrets and bindings it has no business touching. Each field is parsed
-	// once from the real env (see ctxFromHono) and defaults are applied there, not by
-	// the reading service.
-	config?: {
-		fileClaimTtlSeconds?: number;
-	};
+  db: D1Database
+  kv: KVNamespace
+  r2: R2Bucket
+  workspaceId: string
+  userId: string
+  role?: Role
+  // PROJ-328: which auth path authenticated this request ("human" = Cloudflare Access
+  // JWT / dev bypass, "agent" = Bearer API token or OAuth grant).
+  authKind?: 'human' | 'agent'
+  auth?: AuthInfo
+  workspaceHub?: DurableObjectNamespace
+  waitUntil?: (promise: Promise<unknown>) => void
+  // PROJ-928: parsed, narrowly-typed config tunables a service may need — never the raw
+  // worker env. A prior version of this put the whole `env` here, which (since
+  // PluginContext is shared by every service and MCP/plugin handler) would have handed
+  // every tool secrets and bindings it has no business touching. Each field is parsed
+  // once from the real env (see ctxFromHono) and defaults are applied there, not by
+  // the reading service.
+  config?: {
+    fileClaimTtlSeconds?: number
+  }
 }
 
 export interface Plugin {
-	id: string;
-	name: string;
-	version: string;
-	migrations?: Migration[];
-	// biome-ignore lint/suspicious/noExplicitAny: Hono app type not available in this package
-	register?: (app: any) => void;
-	mcpTools?: MCPTool[];
+  id: string
+  name: string
+  version: string
+  migrations?: Migration[]
+  // biome-ignore lint/suspicious/noExplicitAny: Hono app type not available in this package
+  register?: (app: any) => void
+  mcpTools?: MCPTool[]
 }
 
-export type Role = "owner" | "admin" | "member" | "viewer";
+export type Role = 'owner' | 'admin' | 'member' | 'viewer'

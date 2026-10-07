@@ -1,1 +1,1 @@
-export type ViewMode = "list" | "board" | "backlog";
+export type ViewMode = 'list' | 'board' | 'backlog'

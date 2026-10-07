@@ -1,29 +1,31 @@
-import type { HonoEnv } from "#types";
-import { Hono } from "hono";
-import { jsonBody } from "../http/body";
-import { serviceErrToResponse } from "../http/error-adapter";
-import { listMessages, postMessage } from "../services/agent-messages";
-import { ctxFromHono } from "../services/types";
+import { Hono } from 'hono'
 
-const router = new Hono<HonoEnv>();
+import type { HonoEnv } from '#types'
 
-router.get("/", async (c) => {
-	const ctx = ctxFromHono(c);
-	const { scope, cursor, limit } = c.req.query();
-	try {
-		return c.json(await listMessages(ctx, { scope, cursor, limit }));
-	} catch (e) {
-		return serviceErrToResponse(c, e);
-	}
-});
+import { jsonBody } from '../http/body'
+import { serviceErrToResponse } from '../http/error-adapter'
+import { listMessages, postMessage } from '../services/agent-messages'
+import { ctxFromHono } from '../services/types'
 
-router.post("/", async (c) => {
-	const ctx = ctxFromHono(c);
-	try {
-		return c.json(await postMessage(ctx, await jsonBody(c)), 201);
-	} catch (e) {
-		return serviceErrToResponse(c, e);
-	}
-});
+const router = new Hono<HonoEnv>()
 
-export { router as agentMessagesRouter };
+router.get('/', async (c) => {
+  const ctx = ctxFromHono(c)
+  const { scope, cursor, limit } = c.req.query()
+  try {
+    return c.json(await listMessages(ctx, { scope, cursor, limit }))
+  } catch (e) {
+    return serviceErrToResponse(c, e)
+  }
+})
+
+router.post('/', async (c) => {
+  const ctx = ctxFromHono(c)
+  try {
+    return c.json(await postMessage(ctx, await jsonBody(c)), 201)
+  } catch (e) {
+    return serviceErrToResponse(c, e)
+  }
+})
+
+export { router as agentMessagesRouter }

@@ -7,16 +7,16 @@
  */
 
 export interface FeedbackPayload {
-	/** -1 or 1 for a "thumbs" ratingScale, or 1-5 for "five_star". */
-	rating?: number;
-	ratingScale?: "thumbs" | "five_star";
-	/** Free-text comment. At least one of rating or body is required. */
-	body?: string;
-	/** Optional label for who submitted this (e.g. an email or username). */
-	submitterLabel?: string;
-	/** Optional context URL — e.g. the page or generated-content URL this feedback is about. */
-	sourceUrl?: string;
-	appVersion?: string;
+  /** -1 or 1 for a "thumbs" ratingScale, or 1-5 for "five_star". */
+  rating?: number
+  ratingScale?: 'thumbs' | 'five_star'
+  /** Free-text comment. At least one of rating or body is required. */
+  body?: string
+  /** Optional label for who submitted this (e.g. an email or username). */
+  submitterLabel?: string
+  /** Optional context URL — e.g. the page or generated-content URL this feedback is about. */
+  sourceUrl?: string
+  appVersion?: string
 }
 
 /**
@@ -28,20 +28,20 @@ export interface FeedbackPayload {
  * Sentry DSN or a Stripe publishable key.
  */
 export async function submitFeedback(
-	endpoint: string,
-	token: string,
-	feedback: FeedbackPayload,
+  endpoint: string,
+  token: string,
+  feedback: FeedbackPayload,
 ): Promise<{ id: string }> {
-	const res = await fetch(endpoint, {
-		method: "POST",
-		headers: {
-			Authorization: `Bearer ${token}`,
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(feedback),
-	});
-	if (!res.ok) {
-		throw new Error(`Feedback submit failed: ${res.status} ${await res.text()}`);
-	}
-	return res.json();
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(feedback),
+  })
+  if (!res.ok) {
+    throw new Error(`Feedback submit failed: ${res.status} ${await res.text()}`)
+  }
+  return res.json()
 }

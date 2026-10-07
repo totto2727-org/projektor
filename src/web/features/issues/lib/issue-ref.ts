@@ -1,11 +1,11 @@
 export function formatIssueRef(projectKey: string | null | undefined, number: number): string {
-	return projectKey ? `${projectKey}-${number}` : String(number);
+  return projectKey ? `${projectKey}-${number}` : String(number)
 }
 
 export function normalizeIssueRef(ref: string): string {
-	return ref.trim().toUpperCase();
+  return ref.trim().toUpperCase()
 }
 
 export function isValidIssueRef(ref: string): boolean {
-	return /^[A-Z][A-Z0-9]*-\d+$/.test(ref);
+  return /^[A-Z][A-Z0-9]*-\d+$/.test(ref)
 }

@@ -4,22 +4,22 @@
 // runtime — it only fakes the JS-visible viewport signal. For CSS-only
 // responsive behavior there's nothing to assert here beyond the class names
 // themselves.
-import { afterEach } from "vite-plus/test";
+import { afterEach } from 'vite-plus/test'
 
-export const MOBILE_WIDTH = 375;
-export const DESKTOP_WIDTH = 1024;
+export const MOBILE_WIDTH = 375
+export const DESKTOP_WIDTH = 1024
 
 export function setViewportWidth(width: number): void {
-	Object.defineProperty(window, "innerWidth", {
-		writable: true,
-		configurable: true,
-		value: width,
-	});
-	window.dispatchEvent(new Event("resize"));
+  Object.defineProperty(window, 'innerWidth', {
+    writable: true,
+    configurable: true,
+    value: width,
+  })
+  window.dispatchEvent(new Event('resize'))
 }
 
 // Reset to a desktop width after every test so viewport state never leaks
 // between test files.
 afterEach(() => {
-	setViewportWidth(DESKTOP_WIDTH);
-});
+  setViewportWidth(DESKTOP_WIDTH)
+})

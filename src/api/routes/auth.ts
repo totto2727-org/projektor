@@ -1,27 +1,29 @@
-import type { HonoEnv } from "#types";
-import { Hono } from "hono";
-import { jsonBody } from "../http/body";
-import { serviceErrToResponse } from "../http/error-adapter";
-import { authMiddleware, requireInteractiveHuman } from "../middleware/auth";
-import { createUserToken, deleteUserToken, getUserWorkspaces } from "../services/user-tokens";
+import { Hono } from 'hono'
 
-const router = new Hono<HonoEnv>();
+import type { HonoEnv } from '#types'
+
+import { jsonBody } from '../http/body'
+import { serviceErrToResponse } from '../http/error-adapter'
+import { authMiddleware, requireInteractiveHuman } from '../middleware/auth'
+import { createUserToken, deleteUserToken, getUserWorkspaces } from '../services/user-tokens'
+
+const router = new Hono<HonoEnv>()
 
 function isSafeRedirectPath(url: string): boolean {
-	return url.startsWith("/") && !url.startsWith("//");
+  return url.startsWith('/') && !url.startsWith('//')
 }
 
-router.get("/login", (c) => {
-	const requested = c.req.query("redirect_url") ?? "/";
-	const redirectUrl = isSafeRedirectPath(requested) ? requested : "/";
-	return c.redirect(redirectUrl, 302);
-});
+router.get('/login', (c) => {
+  const requested = c.req.query('redirect_url') ?? '/'
+  const redirectUrl = isSafeRedirectPath(requested) ? requested : '/'
+  return c.redirect(redirectUrl, 302)
+})
 
-router.get("/me", authMiddleware, async (c) => {
-	const user = c.get("user") as { id: string; email: string; name: string };
-	const workspaces = await getUserWorkspaces({ db: c.env.DB, userId: user.id });
-	return c.json({ user, workspaces });
-});
+router.get('/me', authMiddleware, async (c) => {
+  const user = c.get('user') as { id: string; email: string; name: string }
+  const workspaces = await getUserWorkspaces({ db: c.env.DB, userId: user.id })
+  return c.json({ user, workspaces })
+})
 
 // PROJ-903: personal access tokens are minted and revoked only from an interactive
 // human session (Cloudflare Access JWT or the dev bypass). A bearer token or OAuth grant
@@ -32,27 +34,27 @@ router.get("/me", authMiddleware, async (c) => {
 // is refused too. Chosen over "confine the minted token to the caller": there is no
 // machine use case for minting PATs, and the narrower rule has less to get wrong.
 const HUMAN_SESSION_REQUIRED =
-	"Personal access tokens can only be created or revoked from a signed-in browser session, not with an API token or connected app.";
+  'Personal access tokens can only be created or revoked from a signed-in browser session, not with an API token or connected app.'
 
-router.post("/tokens", authMiddleware, async (c) => {
-	const denied = requireInteractiveHuman(c, HUMAN_SESSION_REQUIRED);
-	if (denied) return denied;
-	const user = c.get("user") as { id: string };
-	try {
-		const result = await createUserToken({ db: c.env.DB, userId: user.id }, await jsonBody(c));
-		return c.json(result, 201);
-	} catch (e) {
-		return serviceErrToResponse(c, e);
-	}
-});
+router.post('/tokens', authMiddleware, async (c) => {
+  const denied = requireInteractiveHuman(c, HUMAN_SESSION_REQUIRED)
+  if (denied) return denied
+  const user = c.get('user') as { id: string }
+  try {
+    const result = await createUserToken({ db: c.env.DB, userId: user.id }, await jsonBody(c))
+    return c.json(result, 201)
+  } catch (e) {
+    return serviceErrToResponse(c, e)
+  }
+})
 
-router.delete("/tokens/:id", authMiddleware, async (c) => {
-	const denied = requireInteractiveHuman(c, HUMAN_SESSION_REQUIRED);
-	if (denied) return denied;
-	const user = c.get("user") as { id: string };
-	const id = c.req.param("id") ?? "";
-	const result = await deleteUserToken({ db: c.env.DB, userId: user.id }, id);
-	return c.json(result);
-});
+router.delete('/tokens/:id', authMiddleware, async (c) => {
+  const denied = requireInteractiveHuman(c, HUMAN_SESSION_REQUIRED)
+  if (denied) return denied
+  const user = c.get('user') as { id: string }
+  const id = c.req.param('id') ?? ''
+  const result = await deleteUserToken({ db: c.env.DB, userId: user.id }, id)
+  return c.json(result)
+})
 
-export { router as authRouter };
+export { router as authRouter }

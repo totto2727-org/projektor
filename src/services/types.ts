@@ -1,32 +1,33 @@
-import type { schema } from "#db";
-import type { Role } from "#types";
-import type { SQL } from "drizzle-orm";
+import type { SQL } from 'drizzle-orm'
 
-export type Project = typeof schema.projects.$inferSelect;
-export type Workspace = typeof schema.workspaces.$inferSelect;
-export type WorkspaceMemberRelation = typeof schema.workspaceMembers.$inferSelect;
+import type { schema } from '#db'
+import type { Role } from '#types'
+
+export type Project = typeof schema.projects.$inferSelect
+export type Workspace = typeof schema.workspaces.$inferSelect
+export type WorkspaceMemberRelation = typeof schema.workspaceMembers.$inferSelect
 
 /** Relational projection, retaining the existing catalog column names. */
 export interface ProjectSummary {
-	id: string;
-	name: string;
-	key: string;
-	slug: string | null;
-	description: string | null;
-	workspace_id: string;
-	workspace_name: string;
-	workspace_slug: string;
-	open_issue_count: number;
-	backlog_issue_count: number;
-	archived_at: number | null;
-	created_at: number;
-	updated_at: number;
+  id: string
+  name: string
+  key: string
+  slug: string | null
+  description: string | null
+  workspace_id: string
+  workspace_name: string
+  workspace_slug: string
+  open_issue_count: number
+  backlog_issue_count: number
+  archived_at: number | null
+  created_at: number
+  updated_at: number
 }
 
 export interface ProjectListOptions {
-	includeArchived?: boolean;
-	/** An app-authorized predicate against schema.projects, not a role decision. */
-	visibility?: SQL;
+  includeArchived?: boolean
+  /** An app-authorized predicate against schema.projects, not a role decision. */
+  visibility?: SQL
 }
 
 /**
@@ -35,28 +36,28 @@ export interface ProjectListOptions {
  * to the calling app. The query itself still requires the user's membership.
  */
 export interface ProjectSummaryVisibility {
-	sql: string;
-	bindings: readonly string[];
+  sql: string
+  bindings: readonly string[]
 }
 
 export interface WorkspaceMembership {
-	id: string;
-	name: string;
-	slug: string;
-	createdAt: number;
-	role: Role;
+  id: string
+  name: string
+  slug: string
+  createdAt: number
+  role: Role
 }
 
 export interface WorkspaceMember {
-	id: string;
-	email: string;
-	name: string;
-	avatarUrl: string | null;
-	role: Role;
-	joinedAt: number;
+  id: string
+  email: string
+  name: string
+  avatarUrl: string | null
+  role: Role
+  joinedAt: number
 }
 
 export type WorkspaceTokenMetadata = Pick<
-	typeof schema.apiTokens.$inferSelect,
-	"id" | "name" | "scopes" | "lastUsedAt" | "expiresAt" | "createdAt"
->;
+  typeof schema.apiTokens.$inferSelect,
+  'id' | 'name' | 'scopes' | 'lastUsedAt' | 'expiresAt' | 'createdAt'
+>

@@ -15,14 +15,14 @@ Do not recreate workspace packages, a separate infra project, Turbo, Biome or Le
 Use the Nix default shell and Vite+.
 `vp install --frozen-lockfile` installs dependencies.
 `vp run ci` runs formatting, typed lint and the supported API Node, Web and database/service tests.
-`just test-workers` preserves the native API regression entry point, currently blocked before test collection by Cloudflare pool 0.22's Vitest 5 incompatibility with Vite+ 1.1.
+`vp run test:workers` preserves the native API regression entry point, currently blocked before test collection by Cloudflare pool 0.22's Vitest 5 incompatibility with Vite+ 1.1.
 Do not patch the pool, add a second test CLI or describe those blocked regressions as passing.
 The separate screenshot-backed E2E workflow exercises the real API and Web Workers and shared D1 but does not replace every native API regression.
-`just dev` starts the whole Alchemy stack.
-`just plan` compares production resources but does not prove a production build or deployment.
-`just deploy` intentionally deploys both Workers from `alchemy.run.ts` and requires operator authorization.
-`just e2e` runs the real local Worker/browser acceptance workflow with screenshots.
-`wrangler.test.toml` is only the native Cloudflare test-pool configuration, not a deployment entry point.
+`vp run dev` starts the whole Alchemy stack.
+`vp run plan` compares production resources but does not prove a production build or deployment.
+`vp run deploy` intentionally deploys both Workers from `alchemy.run.ts` and requires operator authorization.
+`vp run e2e` runs the real local Worker/browser acceptance workflow with screenshots.
+The native Cloudflare test pool uses its public local options directly, without a Wrangler TOML or custom parser.
 CI uses the shared setup actions and Nix inputs from the Vite+ app template.
 Do not add docs, plugin or automatic deployment workflows to the minimal CI.
 
@@ -46,6 +46,8 @@ Keep temporary reports and screenshots under ignored `tmp/` or acceptance-output
 ## Production Safety
 
 `alchemy.ts` declares both Workers and `alchemy.run.ts` deploys them together.
+LocalLayer and ProductionLayer aggregate environment-specific settings, adoption and storage/secret bindings, selected once at the composition boundary.
+Worker declarations resolve dependencies and dynamic imports only; Web routing and response behavior belong in `src/web/worker.ts`.
 Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed account, storage IDs, API cron and the existing `RATE_LIMITER` / `RateLimiter` binding.
 Existing production D1/KV/R2 are external bindings, not resources to recreate or migrate automatically.
 Do not replay the historical unbound WorkspaceHub migration.
@@ -68,8 +70,10 @@ The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scop
 It adds shared internal D1 retrieval while keeping API contracts, authorization, mutations and MCP behavior at the application boundary.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
 Deployment uses standard Alchemy configuration without custom confirmation flags, preflight gates or secret-value validation.
+Environment differences are provided through aggregate Effect Layers rather than leaf-level local/production branches, and runtime request handling stays outside Worker declarations.
 JWT secrets remain Cloudflare-owned across normal deployments through standard binding inheritance, without reading their values or storing them in project state.
 The project is consolidated into one root package and Vite+ toolchain instead of private workspace packages.
+Vite+ owns all task entry points without Just, formatting/lint settings match the Vite+ app template, and tests use standard isolated projects rather than a runtime-plugin mode branch or test-runner alias shim.
 The documentation app and docs directory are intentionally removed at the user's request.
 Maintain this compact divergence record alongside behavior/configuration changes.
 Use `git diff ab122cbea1bae7efce8abe2345ce07375b9dcd13 -- src migrations alchemy.ts alchemy.run.ts vite.config.ts package.json .github` when reviewing fork changes.

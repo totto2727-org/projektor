@@ -4,11 +4,10 @@
 // Kept as a plain TS constant (not a `?raw` markdown import) so it loads identically
 // under the test runner and the Worker bundle without a custom markdown loader.
 export const WORKFLOW_SPEC = {
-	title: "Workflow spec",
-	description:
-		"The canonical agent workflow rules: definition of ready, state machine, human gates, WIP limits.",
-	sidebarOrder: 4,
-	body: `This page is the **single home** for projektor's agentic workflow rules. Every other
+  title: 'Workflow spec',
+  description: 'The canonical agent workflow rules: definition of ready, state machine, human gates, WIP limits.',
+  sidebarOrder: 4,
+  body: `This page is the **single home** for projektor's agentic workflow rules. Every other
 surface — the MCP server's \`initialize\` instructions, \`AGENTS.md\`, spawn prompts, skills —
 points here instead of restating these rules. If you're reading a copy of this text
 somewhere else, that copy is stale; this page wins. Fetch it programmatically any time
@@ -118,4 +117,4 @@ ship the same way this spec does — one home, fetched at the moment of use. Cal
 the template filled server-side with live data. Working an epic end-to-end? Start with
 \`get_playbook("epic-goal")\`.
 `,
-} as const;
+} as const

@@ -1,52 +1,53 @@
-import { z } from "zod";
-import { ScopeSchema } from "../auth/scopes";
-import { RoleEnum } from "./common";
+import { z } from 'zod'
+
+import { ScopeSchema } from '../auth/scopes'
+import { RoleEnum } from './common'
 
 export const CreateWorkspaceSchema = z.object({
-	name: z.string().min(1).max(100),
-	slug: z
-		.string()
-		.min(2)
-		.max(50)
-		.regex(/^[a-z0-9-]+$/),
-});
+  name: z.string().min(1).max(100),
+  slug: z
+    .string()
+    .min(2)
+    .max(50)
+    .regex(/^[a-z0-9-]+$/),
+})
 
 export const UpdateWorkspaceSchema = z.object({
-	name: z.string().min(1).max(100),
-});
+  name: z.string().min(1).max(100),
+})
 
 export const InviteMemberSchema = z.object({
-	email: z.string().email(),
-	role: RoleEnum.default("member"),
-});
+  email: z.string().email(),
+  role: RoleEnum.default('member'),
+})
 
 export const UpdateRoleSchema = z.object({
-	role: RoleEnum,
-});
+  role: RoleEnum,
+})
 
 export const CreateTokenSchema = z.object({
-	name: z.string().min(1).max(100),
-	scopes: z.array(ScopeSchema).min(1).default(["read", "write"]),
-	expiresInDays: z.number().int().min(1).max(365).optional(),
-});
+  name: z.string().min(1).max(100),
+  scopes: z.array(ScopeSchema).min(1).default(['read', 'write']),
+  expiresInDays: z.number().int().min(1).max(365).optional(),
+})
 
 export const DeleteWorkspaceInput = z.object({
-	workspaceSlug: z.string(),
-});
+  workspaceSlug: z.string(),
+})
 
-const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 
 export const UpdateWorkspaceBrandSchema = z
-	.object({
-		displayName: z.string().min(1).max(100).nullable().optional(),
-		accent: HexColor.nullable().optional(),
-		onAccent: HexColor.nullable().optional(),
-		fontFamily: z.string().min(1).max(100).nullable().optional(),
-		fontUrl: z
-			.string()
-			.url()
-			.refine((v) => v.startsWith("https://"), "fontUrl must be an https:// URL")
-			.nullable()
-			.optional(),
-	})
-	.strict();
+  .object({
+    displayName: z.string().min(1).max(100).nullable().optional(),
+    accent: HexColor.nullable().optional(),
+    onAccent: HexColor.nullable().optional(),
+    fontFamily: z.string().min(1).max(100).nullable().optional(),
+    fontUrl: z
+      .string()
+      .url()
+      .refine((v) => v.startsWith('https://'), 'fontUrl must be an https:// URL')
+      .nullable()
+      .optional(),
+  })
+  .strict()

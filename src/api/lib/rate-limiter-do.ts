@@ -1,4 +1,4 @@
-import { DurableObject } from "cloudflare:workers";
+import { DurableObject } from 'cloudflare:workers'
 
 // PROJ-867: fixed-window rate-limit counter, one Durable Object per (class, subject) key
 // (see middleware/rate-limit.ts for how keys are named).
@@ -15,21 +15,21 @@ import { DurableObject } from "cloudflare:workers";
 // from zero: a lost count only ever lets traffic through, the same failure direction as
 // the limiter's fail-open, and a key that is actually hammering the limiter stays hot.
 export class RateLimiter extends DurableObject {
-	private windowStart = -1;
-	private count = 0;
+  private windowStart = -1
+  private count = 0
 
-	/**
-	 * Count one hit in the fixed window containing `nowSecs` and return the new count and
-	 * the window's start. The caller passes its own clock (and window size) so the math is
-	 * identical to the previous D1 limiter and the test clock override keeps working.
-	 */
-	increment(windowSecs: number, nowSecs: number): { count: number; slot: number } {
-		const slot = Math.floor(nowSecs / windowSecs) * windowSecs;
-		if (slot !== this.windowStart) {
-			this.windowStart = slot;
-			this.count = 0;
-		}
-		this.count += 1;
-		return { count: this.count, slot };
-	}
+  /**
+   * Count one hit in the fixed window containing `nowSecs` and return the new count and
+   * the window's start. The caller passes its own clock (and window size) so the math is
+   * identical to the previous D1 limiter and the test clock override keeps working.
+   */
+  increment(windowSecs: number, nowSecs: number): { count: number; slot: number } {
+    const slot = Math.floor(nowSecs / windowSecs) * windowSecs
+    if (slot !== this.windowStart) {
+      this.windowStart = slot
+      this.count = 0
+    }
+    this.count += 1
+    return { count: this.count, slot }
+  }
 }

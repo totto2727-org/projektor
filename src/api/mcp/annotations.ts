@@ -1,4 +1,4 @@
-import type { MCPToolAnnotations } from "#types";
+import type { MCPToolAnnotations } from '#types'
 
 /**
  * Shared MCP tool annotation constants/helpers (PROJ-887), so the 119 tools in
@@ -14,7 +14,7 @@ import type { MCPToolAnnotations } from "#types";
  */
 
 /** Annotations for a read-only tool (list_/get_/search_/wiki_tree). */
-export const READ: MCPToolAnnotations = { readOnlyHint: true, openWorldHint: false };
+export const READ: MCPToolAnnotations = { readOnlyHint: true, openWorldHint: false }
 
 /**
  * Annotations for a non-read (mutating) tool.
@@ -23,25 +23,25 @@ export const READ: MCPToolAnnotations = { readOnlyHint: true, openWorldHint: fal
  *   obviously false (create_*); omit for tools where it is not clear-cut (e.g. patch_*).
  */
 export function WRITE(opts: { destructive: boolean; idempotent?: boolean }): MCPToolAnnotations {
-	return {
-		readOnlyHint: false,
-		openWorldHint: false,
-		destructiveHint: opts.destructive,
-		...(opts.idempotent !== undefined ? { idempotentHint: opts.idempotent } : {}),
-	};
+  return {
+    readOnlyHint: false,
+    openWorldHint: false,
+    destructiveHint: opts.destructive,
+    ...(opts.idempotent !== undefined ? { idempotentHint: opts.idempotent } : {}),
+  }
 }
 
 /** Non-destructive, non-idempotent write (e.g. create_*). */
-export const CREATE: MCPToolAnnotations = WRITE({ destructive: false, idempotent: false });
+export const CREATE: MCPToolAnnotations = WRITE({ destructive: false, idempotent: false })
 
 /** Non-destructive, idempotent write (e.g. update_*, set_* or claim_*-by-id). */
-export const IDEMPOTENT_WRITE: MCPToolAnnotations = WRITE({ destructive: false, idempotent: true });
+export const IDEMPOTENT_WRITE: MCPToolAnnotations = WRITE({ destructive: false, idempotent: true })
 
 /** Non-destructive write with no clear-cut idempotency. */
-export const PLAIN_WRITE: MCPToolAnnotations = WRITE({ destructive: false });
+export const PLAIN_WRITE: MCPToolAnnotations = WRITE({ destructive: false })
 
 /** Destructive write; idempotentHint is left unset (spec default: false). */
-export const DESTRUCTIVE: MCPToolAnnotations = WRITE({ destructive: true });
+export const DESTRUCTIVE: MCPToolAnnotations = WRITE({ destructive: true })
 
 /**
  * The 22 destructive tools (PROJ-887 AC). Kept here as the single source of
@@ -49,33 +49,33 @@ export const DESTRUCTIVE: MCPToolAnnotations = WRITE({ destructive: true });
  * against this exact set.
  */
 export const DESTRUCTIVE_TOOLS: readonly string[] = [
-	// delete_*
-	"delete_comment",
-	"delete_custom_field_def",
-	"delete_attachment",
-	"delete_group",
-	"delete_issue",
-	"delete_issue_link",
-	"delete_project",
-	"delete_sprint",
-	"delete_task_status",
-	"delete_task_type",
-	"delete_wiki_page",
-	"delete_workspace",
-	// remove_*
-	"remove_group_member",
-	"remove_group_grant",
-	"remove_member",
-	// purge_wiki_trash
-	"purge_wiki_trash",
-	// rotate_* or revoke_*
-	"rotate_feedback_source_token",
-	"revoke_feedback_source",
-	// update_member_role
-	"update_member_role",
-	// discard_wiki_draft
-	"discard_wiki_draft",
-	// release_*
-	"release_files",
-	"release_issue",
-];
+  // delete_*
+  'delete_comment',
+  'delete_custom_field_def',
+  'delete_attachment',
+  'delete_group',
+  'delete_issue',
+  'delete_issue_link',
+  'delete_project',
+  'delete_sprint',
+  'delete_task_status',
+  'delete_task_type',
+  'delete_wiki_page',
+  'delete_workspace',
+  // remove_*
+  'remove_group_member',
+  'remove_group_grant',
+  'remove_member',
+  // purge_wiki_trash
+  'purge_wiki_trash',
+  // rotate_* or revoke_*
+  'rotate_feedback_source_token',
+  'revoke_feedback_source',
+  // update_member_role
+  'update_member_role',
+  // discard_wiki_draft
+  'discard_wiki_draft',
+  // release_*
+  'release_files',
+  'release_issue',
+]

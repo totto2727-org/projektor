@@ -1,7 +1,9 @@
-import type { HonoEnv } from "#types";
-import { type Context, Hono } from "hono";
-import { OAUTH_SCOPES_SUPPORTED } from "../auth/scopes";
-import { AUTHORIZE_ENDPOINT, TOKEN_ENDPOINT } from "../oauth/provider";
+import { type Context, Hono } from 'hono'
+
+import type { HonoEnv } from '#types'
+
+import { OAUTH_SCOPES_SUPPORTED } from '../auth/scopes'
+import { AUTHORIZE_ENDPOINT, TOKEN_ENDPOINT } from '../oauth/provider'
 
 // PROJ-655: the two public OAuth discovery documents, mounted under /.well-known.
 //
@@ -14,12 +16,12 @@ import { AUTHORIZE_ENDPOINT, TOKEN_ENDPOINT } from "../oauth/provider";
 // release deploy because `/.well-known/*` is in `run_worker_first` (PROJ-650) — the
 // static-asset handler would otherwise answer with the SPA fallback.
 
-const router = new Hono<HonoEnv>();
+const router = new Hono<HonoEnv>()
 
 // Claude caches discovery documents globally by URL for roughly 5 minutes, so a
 // short shared cache here costs nothing and absorbs the probe traffic. These
 // documents are identical for every caller.
-const CACHE_CONTROL = "public, max-age=3600";
+const CACHE_CONTROL = 'public, max-age=3600'
 
 // The global cors() in index.ts is an allowlist that denies by default, which is
 // right for the credentialed API but wrong for these two documents: RFC 9728
@@ -27,12 +29,12 @@ const CACHE_CONTROL = "public, max-age=3600";
 // MCP client on any origin must be able to read them. They carry no credentials and
 // no per-caller data, so a wildcard is safe here and only here.
 const PUBLIC_HEADERS = {
-	"Cache-Control": CACHE_CONTROL,
-	"Access-Control-Allow-Origin": "*",
-};
+  'Cache-Control': CACHE_CONTROL,
+  'Access-Control-Allow-Origin': '*',
+}
 
 function originOf(c: { req: { url: string } }): string {
-	return new URL(c.req.url).origin;
+  return new URL(c.req.url).origin
 }
 
 // RFC 9728 §3.1 path-suffixed variant: /.well-known/oauth-protected-resource/<path>.
@@ -49,68 +51,68 @@ function originOf(c: { req: { url: string } }): string {
 // document contains nothing workspace-specific to protect — it is entirely derived
 // from the request URL. An id that does not resolve fails later, at the MCP request
 // itself, behind authentication where it belongs.
-router.get("/oauth-protected-resource/mcp/:workspaceId", (c) => {
-	const origin = originOf(c);
-	// Re-encode rather than interpolating the raw segment: this value lands in a URL
-	// that clients compare byte-for-byte against the one the user entered.
-	const workspaceId = encodeURIComponent(c.req.param("workspaceId"));
+router.get('/oauth-protected-resource/mcp/:workspaceId', (c) => {
+  const origin = originOf(c)
+  // Re-encode rather than interpolating the raw segment: this value lands in a URL
+  // that clients compare byte-for-byte against the one the user entered.
+  const workspaceId = encodeURIComponent(c.req.param('workspaceId'))
 
-	return c.json(
-		{
-			resource: `${origin}/mcp/${workspaceId}`,
-			authorization_servers: [origin],
-			bearer_methods_supported: ["header"],
-			// No `offline_access`: the MCP spec says a protected resource SHOULD NOT
-			// advertise it. Refresh-token support is advertised where it belongs, in
-			// the authorization server's `grant_types_supported` below.
-			scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
-		},
-		200,
-		PUBLIC_HEADERS,
-	);
-});
+  return c.json(
+    {
+      resource: `${origin}/mcp/${workspaceId}`,
+      authorization_servers: [origin],
+      bearer_methods_supported: ['header'],
+      // No `offline_access`: the MCP spec says a protected resource SHOULD NOT
+      // advertise it. Refresh-token support is advertised where it belongs, in
+      // the authorization server's `grant_types_supported` below.
+      scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
+    },
+    200,
+    PUBLIC_HEADERS,
+  )
+})
 
 // RFC 8414 authorization server metadata. `issuer` is the bare origin, which is what
 // makes this document's own location (/.well-known/oauth-authorization-server, no
 // path suffix) the correct one per RFC 8414 §3.
-router.get("/oauth-authorization-server", (c) => {
-	const origin = originOf(c);
+router.get('/oauth-authorization-server', (c) => {
+  const origin = originOf(c)
 
-	return c.json(
-		{
-			issuer: origin,
-			authorization_endpoint: `${origin}${AUTHORIZE_ENDPOINT}`,
-			token_endpoint: `${origin}${TOKEN_ENDPOINT}`,
-			// Same URL as the token endpoint, not a separate /oauth/revoke: the
-			// provider answers RFC 7009 revocation on the token endpoint itself.
-			// Advertising a path nothing serves would send every revocation to the
-			// SPA fallback, which answers 200 — and a client reading that as success
-			// would report a token revoked that is still live.
-			revocation_endpoint: `${origin}${TOKEN_ENDPOINT}`,
-			response_types_supported: ["code"],
-			response_modes_supported: ["query"],
-			grant_types_supported: ["authorization_code", "refresh_token"],
-			// OAuth 2.1: PKCE is mandatory and `plain` is not offered.
-			code_challenge_methods_supported: ["S256"],
-			// The two CIMD gating flags. Claude selects Client ID Metadata Documents
-			// only when `client_id_metadata_document_supported` is true AND "none"
-			// appears in `token_endpoint_auth_methods_supported`. Missing either one
-			// and it silently falls back to hunting for a `registration_endpoint`.
-			token_endpoint_auth_methods_supported: ["none"],
-			client_id_metadata_document_supported: true,
-			revocation_endpoint_auth_methods_supported: ["none"],
-			// RFC 9207. Advertised because PROJ-656 emits `iss` on authorization
-			// responses; a client may reject an `iss` it was not told to expect.
-			authorization_response_iss_parameter_supported: true,
-			scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
-			// Deliberately absent: `registration_endpoint`. RFC 7591 Dynamic Client
-			// Registration is deprecated, and advertising it would make clients prefer
-			// DCR over CIMD — the opposite of what the flags above are arranging.
-		},
-		200,
-		PUBLIC_HEADERS,
-	);
-});
+  return c.json(
+    {
+      issuer: origin,
+      authorization_endpoint: `${origin}${AUTHORIZE_ENDPOINT}`,
+      token_endpoint: `${origin}${TOKEN_ENDPOINT}`,
+      // Same URL as the token endpoint, not a separate /oauth/revoke: the
+      // provider answers RFC 7009 revocation on the token endpoint itself.
+      // Advertising a path nothing serves would send every revocation to the
+      // SPA fallback, which answers 200 — and a client reading that as success
+      // would report a token revoked that is still live.
+      revocation_endpoint: `${origin}${TOKEN_ENDPOINT}`,
+      response_types_supported: ['code'],
+      response_modes_supported: ['query'],
+      grant_types_supported: ['authorization_code', 'refresh_token'],
+      // OAuth 2.1: PKCE is mandatory and `plain` is not offered.
+      code_challenge_methods_supported: ['S256'],
+      // The two CIMD gating flags. Claude selects Client ID Metadata Documents
+      // only when `client_id_metadata_document_supported` is true AND "none"
+      // appears in `token_endpoint_auth_methods_supported`. Missing either one
+      // and it silently falls back to hunting for a `registration_endpoint`.
+      token_endpoint_auth_methods_supported: ['none'],
+      client_id_metadata_document_supported: true,
+      revocation_endpoint_auth_methods_supported: ['none'],
+      // RFC 9207. Advertised because PROJ-656 emits `iss` on authorization
+      // responses; a client may reject an `iss` it was not told to expect.
+      authorization_response_iss_parameter_supported: true,
+      scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
+      // Deliberately absent: `registration_endpoint`. RFC 7591 Dynamic Client
+      // Registration is deprecated, and advertising it would make clients prefer
+      // DCR over CIMD — the opposite of what the flags above are arranging.
+    },
+    200,
+    PUBLIC_HEADERS,
+  )
+})
 
 // Deliberately not served: the origin-level `/.well-known/oauth-protected-resource`.
 // Claude probes the path-suffixed URL above first and only falls back to the bare one.
@@ -131,12 +133,12 @@ router.get("/oauth-authorization-server", (c) => {
 // Note this is invisible under `wrangler dev` and in the test suite, neither of which
 // has an ASSETS binding — there, the catch-all already 404s. The regression test
 // asserts the *content type* rather than the status for exactly that reason.
-const discoveryNotFound = (c: Context<HonoEnv>) => c.json({ error: "Not Found" }, 404);
+const discoveryNotFound = (c: Context<HonoEnv>) => c.json({ error: 'Not Found' }, 404)
 
-router.all("/oauth-protected-resource", discoveryNotFound);
-router.all("/oauth-protected-resource/*", discoveryNotFound);
-router.all("/oauth-authorization-server", discoveryNotFound);
-router.all("/oauth-authorization-server/*", discoveryNotFound);
+router.all('/oauth-protected-resource', discoveryNotFound)
+router.all('/oauth-protected-resource/*', discoveryNotFound)
+router.all('/oauth-authorization-server', discoveryNotFound)
+router.all('/oauth-authorization-server/*', discoveryNotFound)
 
 // PROJ-660, found on a real deployment rather than in a test: the MCP spec lets a
 // client discover the authorization server through OIDC Discovery *instead of* RFC
@@ -144,7 +146,7 @@ router.all("/oauth-authorization-server/*", discoveryNotFound);
 // OIDC provider and never serves one. Left to fall through it answered 200 text/html
 // with the app shell — the exact failure this file exists to prevent, just at a URL
 // outside the `oauth-*` namespace. It gets the same clean 404.
-router.all("/openid-configuration", discoveryNotFound);
-router.all("/openid-configuration/*", discoveryNotFound);
+router.all('/openid-configuration', discoveryNotFound)
+router.all('/openid-configuration/*', discoveryNotFound)
 
-export { router as oauthMetadataRouter };
+export { router as oauthMetadataRouter }

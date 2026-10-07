@@ -1,8 +1,8 @@
 function slugifyForUrl(text: string): string {
-	return text
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-|-$/g, "");
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 /**
@@ -11,7 +11,7 @@ function slugifyForUrl(text: string): string {
  * exactly, so it's safe to (re)compute here independently of the client.
  */
 export function issuePath(projectKey: string, number: number, title: string): string {
-	return `/projects/${projectKey}/issues/${number}/${slugifyForUrl(title)}`;
+  return `/projects/${projectKey}/issues/${number}/${slugifyForUrl(title)}`
 }
 
 /**
@@ -19,7 +19,7 @@ export function issuePath(projectKey: string, number: number, title: string): st
  * Slugs are unique per workspace (PROJ-483), so no project disambiguator is needed.
  */
 export function wikiPagePath(slug: string): string {
-	return `/wiki/${encodeURIComponent(slug)}`;
+  return `/wiki/${encodeURIComponent(slug)}`
 }
 
 // PROJ-510/PROJ-512: decodeURIComponent throws on a malformed percent-escape (e.g. a
@@ -27,9 +27,9 @@ export function wikiPagePath(slug: string): string {
 // or path segment (wiki-links.ts's extractWikiSlugFromUrl, index.ts's SSR fallback)
 // want "not decodable" treated as "no slug", not a crash.
 export function safeDecodeURIComponent(raw: string): string | null {
-	try {
-		return decodeURIComponent(raw);
-	} catch {
-		return null;
-	}
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return null
+  }
 }

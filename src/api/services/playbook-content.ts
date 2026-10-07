@@ -6,77 +6,76 @@
 // Kept as a plain TS constant (not a `?raw` markdown import) for the same reason as
 // WORKFLOW_SPEC: identical loading under the test runner and the Worker bundle.
 export interface Playbook {
-	name: string;
-	title: string;
-	description: string;
-	whenToUse: string;
-	sidebarOrder: number;
-	body: string;
+  name: string
+  title: string
+  description: string
+  whenToUse: string
+  sidebarOrder: number
+  body: string
 }
 
 // The individual template clauses, factored out so services/playbook-compose.ts can
 // fill and assemble the same wording that PLAYBOOKS' prose body documents below —
 // one source for both the human-readable doc and the machine-composed directive.
 export const EPIC_GOAL_TEMPLATE = {
-	goal: "**Goal:** work through {EPIC} autonomously until it is fully done.",
-	auditFirst:
-		"**Audit first:** before implementing anything, audit origin/main, open PRs, and local " +
-		"worktree state so already-finished or in-flight work is folded in, not redone.",
-	loop:
-		"**Loop:** pick the next open ticket on the epic (`get_prioritized_issues`), implement " +
-		"it, verify (tests/build), commit, close the ticket, move on.",
-	selfFeed: {
-		bounded:
-			"**Self-feed (bounded):** file tickets for bugs, improvements, and follow-on features you " +
-			"discover and link them to the epic — but only action ones that block or directly improve " +
-			"the epic's outcome. Park everything else in the backlog untriaged. At each review " +
-			"checkpoint, have the reviewer rank the parked tickets and drop any not worth keeping.",
-		full:
-			"**Self-feed (full):** file tickets for bugs, improvements, and follow-on features you " +
-			"discover, link them to the epic, and action them in the same loop — the goal covers " +
-			"generated work, not just the original tickets.",
-	},
-	reviewCadence:
-		"**Review cadence:** after every {N} completed tickets, run an adversarial {MODEL} review " +
-		"of the accumulated diff; file and fix anything it finds before continuing.",
-	humanCheckpoint:
-		"**Human checkpoint:** every {CHECKPOINT_INTERVAL} completed tickets, or immediately if " +
-		"confidence is genuinely low, stop and give a human something to act on: **Try** — a URL " +
-		"and a 30-second script for what to open, what to do, and what should happen — and **Least " +
-		"confident about** — the one thing in this batch you'd most want a second opinion on, in " +
-		"your own words. This is for the failure a diff review and a green build don't catch; use " +
-		"it for what a human would only find by using the thing. If confidence is genuinely low, do " +
-		"not self-merge even when the diff scope allows it — queue the change and say so.",
-	doneWhen: {
-		bounded:
-			"**Done when:** every ticket on the epic (original + actioned generated) is closed, " +
-			"verification is green, and everything is committed and pushed.",
-		full:
-			"**Done when:** every ticket on the epic (original + generated) is closed, verification " +
-			"is green, and everything is committed and pushed.",
-	},
-	decisionsLog:
-		"**Decisions log:** instead of asking questions, make the call — but when you record it " +
-		"depends on the decision. If reversing it later stays cheap, comment it on the epic for " +
-		"review at the end, as before. If it's cheap to reverse now and expensive later — retiring " +
-		"a public endpoint, deleting a directory, changing a data shape, choosing duplication over " +
-		"abstraction — comment it on the epic when you make it, not at the end, so a human can " +
-		"object before the next ticket compounds it. If two reasonable implementations diverge, " +
-		"comment both options on the ticket, pick the simpler, and flag it.",
-} as const;
+  goal: '**Goal:** work through {EPIC} autonomously until it is fully done.',
+  auditFirst:
+    '**Audit first:** before implementing anything, audit origin/main, open PRs, and local ' +
+    'worktree state so already-finished or in-flight work is folded in, not redone.',
+  loop:
+    '**Loop:** pick the next open ticket on the epic (`get_prioritized_issues`), implement ' +
+    'it, verify (tests/build), commit, close the ticket, move on.',
+  selfFeed: {
+    bounded:
+      '**Self-feed (bounded):** file tickets for bugs, improvements, and follow-on features you ' +
+      'discover and link them to the epic — but only action ones that block or directly improve ' +
+      "the epic's outcome. Park everything else in the backlog untriaged. At each review " +
+      'checkpoint, have the reviewer rank the parked tickets and drop any not worth keeping.',
+    full:
+      '**Self-feed (full):** file tickets for bugs, improvements, and follow-on features you ' +
+      'discover, link them to the epic, and action them in the same loop — the goal covers ' +
+      'generated work, not just the original tickets.',
+  },
+  reviewCadence:
+    '**Review cadence:** after every {N} completed tickets, run an adversarial {MODEL} review ' +
+    'of the accumulated diff; file and fix anything it finds before continuing.',
+  humanCheckpoint:
+    '**Human checkpoint:** every {CHECKPOINT_INTERVAL} completed tickets, or immediately if ' +
+    'confidence is genuinely low, stop and give a human something to act on: **Try** — a URL ' +
+    'and a 30-second script for what to open, what to do, and what should happen — and **Least ' +
+    "confident about** — the one thing in this batch you'd most want a second opinion on, in " +
+    "your own words. This is for the failure a diff review and a green build don't catch; use " +
+    'it for what a human would only find by using the thing. If confidence is genuinely low, do ' +
+    'not self-merge even when the diff scope allows it — queue the change and say so.',
+  doneWhen: {
+    bounded:
+      '**Done when:** every ticket on the epic (original + actioned generated) is closed, ' +
+      'verification is green, and everything is committed and pushed.',
+    full:
+      '**Done when:** every ticket on the epic (original + generated) is closed, verification ' +
+      'is green, and everything is committed and pushed.',
+  },
+  decisionsLog:
+    '**Decisions log:** instead of asking questions, make the call — but when you record it ' +
+    'depends on the decision. If reversing it later stays cheap, comment it on the epic for ' +
+    "review at the end, as before. If it's cheap to reverse now and expensive later — retiring " +
+    'a public endpoint, deleting a directory, changing a data shape, choosing duplication over ' +
+    'abstraction — comment it on the epic when you make it, not at the end, so a human can ' +
+    'object before the next ticket compounds it. If two reasonable implementations diverge, ' +
+    'comment both options on the ticket, pick the simpler, and flag it.',
+} as const
 
 export const PLAYBOOKS: Playbook[] = [
-	{
-		name: "epic-goal",
-		title: "Epic-driven autonomous goals",
-		description:
-			"Compose a standing goal directive for autonomously working an epic (or ticket list) to completion.",
-		whenToUse:
-			'Starting an autonomous run over an epic or list of tickets — "work through this epic", ' +
-			'"implement these tickets and keep going". Two variants: bounded (default — generated work ' +
-			"is triaged and pruned) and full (all generated work is actioned).",
-		sidebarOrder: 1,
-		body: `A prompt pattern for pointing an agent at an epic (or ticket list) and having it work
+  {
+    name: 'epic-goal',
+    title: 'Epic-driven autonomous goals',
+    description: 'Compose a standing goal directive for autonomously working an epic (or ticket list) to completion.',
+    whenToUse:
+      'Starting an autonomous run over an epic or list of tickets — "work through this epic", ' +
+      '"implement these tickets and keep going". Two variants: bounded (default — generated work ' +
+      'is triaged and pruned) and full (all generated work is actioned).',
+    sidebarOrder: 1,
+    body: `A prompt pattern for pointing an agent at an epic (or ticket list) and having it work
 autonomously until everything — including work it discovers along the way — is done.
 
 It's deliberately generic. [The workflow spec](/projektor/agents/workflow-spec/) is the
@@ -178,19 +177,19 @@ Workers that share one credential (one token for the whole fleet) must pass the 
 from \`register_agent\` to \`claim_issue\`, \`heartbeat_agent\` and \`end_agent\`. A lone agent on its
 own credential may omit it.
 `,
-	},
-	{
-		name: "idea-discovery",
-		title: "Idea discovery",
-		description:
-			"A domain-agnostic research process for turning a domain description into a sequenced, " +
-			"falsification-tested list of buildable product ideas.",
-		whenToUse:
-			'Exploring a new domain or application area for viable products — "what could we build ' +
-			'in X", "find gaps in Y" — before committing to any single idea. Best when the founder is ' +
-			"solo/technical, favours free data sources, and needs a clear distribution channel per idea.",
-		sidebarOrder: 2,
-		body: `A prompt pattern for taking a one-paragraph domain description and working it through to
+  },
+  {
+    name: 'idea-discovery',
+    title: 'Idea discovery',
+    description:
+      'A domain-agnostic research process for turning a domain description into a sequenced, ' +
+      'falsification-tested list of buildable product ideas.',
+    whenToUse:
+      'Exploring a new domain or application area for viable products — "what could we build ' +
+      'in X", "find gaps in Y" — before committing to any single idea. Best when the founder is ' +
+      'solo/technical, favours free data sources, and needs a clear distribution channel per idea.',
+    sidebarOrder: 2,
+    body: `A prompt pattern for taking a one-paragraph domain description and working it through to
 a sequenced, evidence-tested set of product ideas — without reconstructing the process
 from scratch each time.
 
@@ -256,5 +255,5 @@ right.
   field on desk research alone. They are not a substitute for talking to a real buyer
   before building.
 `,
-	},
-];
+  },
+]

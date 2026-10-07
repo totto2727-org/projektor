@@ -7,39 +7,36 @@
 //
 // RULE: never bind a row- or user-scaled array straight into a query. Split it with
 // `inChunks` so each underlying query stays under the cap.
-const D1_BOUND_PARAM_LIMIT = 100;
+const D1_BOUND_PARAM_LIMIT = 100
 
 // PROJ-518: shared by services/issues.ts (issues_fts) and services/wiki.ts (wiki_fts) —
 // FTS5 MATCH treats bare input as query syntax (AND/OR/NOT, column filters, prefix "*",
 // etc). Wrap each whitespace-separated token in double quotes so raw user text is always
 // treated as a literal phrase search, never interpreted as FTS query syntax.
 export function sanitizeFtsQuery(q: string): string {
-	return q
-		.trim()
-		.split(/\s+/)
-		.filter((t) => Boolean(t) && /\w/.test(t))
-		.map((t) => `"${t.replace(/"/g, '""')}"`)
-		.join(" ");
+  return q
+    .trim()
+    .split(/\s+/)
+    .filter((t) => Boolean(t) && /\w/.test(t))
+    .map((t) => `"${t.replace(/"/g, '""')}"`)
+    .join(' ')
 }
 
 // Conservative chunk size: leaves ~10 parameters of headroom for the other predicates in
 // the same query (a workspaceId filter, status filters, etc.). Every current caller binds
 // fewer than 10 extra params, so 90 is safe; shrink it if a query ever needs more.
-const CHUNK_SIZE = D1_BOUND_PARAM_LIMIT - 10;
+const CHUNK_SIZE = D1_BOUND_PARAM_LIMIT - 10
 
 /**
  * Run `op` over `items` in chunks small enough that each resulting query stays under D1's
  * bound-parameter cap, concatenating the rows each chunk returns. For mutations that
  * return nothing, have `op` return an empty array.
  */
-export async function inChunks<I, O>(
-	items: readonly I[],
-	op: (chunk: I[]) => Promise<O[]>,
-): Promise<O[]> {
-	if (items.length === 0) return [];
-	const out: O[] = [];
-	for (let i = 0; i < items.length; i += CHUNK_SIZE) {
-		out.push(...(await op(items.slice(i, i + CHUNK_SIZE) as I[])));
-	}
-	return out;
+export async function inChunks<I, O>(items: readonly I[], op: (chunk: I[]) => Promise<O[]>): Promise<O[]> {
+  if (items.length === 0) return []
+  const out: O[] = []
+  for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+    out.push(...(await op(items.slice(i, i + CHUNK_SIZE) as I[])))
+  }
+  return out
 }

@@ -5,4 +5,4 @@
  * does not run build-release.sh, so it intentionally reports "dev" - only versioned
  * release tarballs get a real version string.
  */
-declare const __PROJEKTOR_VERSION__: string | undefined;
+declare const __PROJEKTOR_VERSION__: string | undefined

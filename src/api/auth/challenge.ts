@@ -1,4 +1,4 @@
-import { OAUTH_SCOPES_SUPPORTED } from "./scopes";
+import { OAUTH_SCOPES_SUPPORTED } from './scopes'
 
 // PROJ-651: RFC 9728 `WWW-Authenticate` challenges for the MCP endpoint.
 //
@@ -17,14 +17,14 @@ import { OAUTH_SCOPES_SUPPORTED } from "./scopes";
 // scope names from a fixed list) contain neither quotes nor backslashes today, but a
 // challenge header that can be broken by its own payload is not worth the gamble.
 function quote(value: string): string {
-	return `"${value.replace(/[\\"]/g, (ch) => `\\${ch}`)}"`;
+  return `"${value.replace(/[\\"]/g, (ch) => `\\${ch}`)}"`
 }
 
 function bearerChallenge(params: Readonly<Record<string, string>>): string {
-	const rendered = Object.entries(params)
-		.map(([key, value]) => `${key}=${quote(value)}`)
-		.join(", ");
-	return `Bearer ${rendered}`;
+  const rendered = Object.entries(params)
+    .map(([key, value]) => `${key}=${quote(value)}`)
+    .join(', ')
+  return `Bearer ${rendered}`
 }
 
 /**
@@ -37,16 +37,16 @@ function bearerChallenge(params: Readonly<Record<string, string>>): string {
  * every hostname an instance is reachable at.
  */
 export function protectedResourceMetadataUrl(requestUrl: string, workspaceId: string): string {
-	const { origin } = new URL(requestUrl);
-	return `${origin}/.well-known/oauth-protected-resource/mcp/${encodeURIComponent(workspaceId)}`;
+  const { origin } = new URL(requestUrl)
+  return `${origin}/.well-known/oauth-protected-resource/mcp/${encodeURIComponent(workspaceId)}`
 }
 
 /** `WWW-Authenticate` for an unauthenticated MCP request (401). */
 export function unauthorizedChallenge(requestUrl: string, workspaceId: string): string {
-	return bearerChallenge({
-		resource_metadata: protectedResourceMetadataUrl(requestUrl, workspaceId),
-		scope: OAUTH_SCOPES_SUPPORTED.join(" "),
-	});
+  return bearerChallenge({
+    resource_metadata: protectedResourceMetadataUrl(requestUrl, workspaceId),
+    scope: OAUTH_SCOPES_SUPPORTED.join(' '),
+  })
 }
 
 /**
@@ -60,9 +60,9 @@ export function unauthorizedChallenge(requestUrl: string, workspaceId: string): 
  * complete set is what any grant that can satisfy this request looks like anyway.
  */
 export function insufficientScopeChallenge(requestUrl: string, workspaceId: string): string {
-	return bearerChallenge({
-		error: "insufficient_scope",
-		resource_metadata: protectedResourceMetadataUrl(requestUrl, workspaceId),
-		scope: OAUTH_SCOPES_SUPPORTED.join(" "),
-	});
+  return bearerChallenge({
+    error: 'insufficient_scope',
+    resource_metadata: protectedResourceMetadataUrl(requestUrl, workspaceId),
+    scope: OAUTH_SCOPES_SUPPORTED.join(' '),
+  })
 }

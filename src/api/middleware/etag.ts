@@ -1,5 +1,6 @@
-import type { HonoEnv } from "#types";
-import type { Context, Next } from "hono";
+import type { Context, Next } from 'hono'
+
+import type { HonoEnv } from '#types'
 
 // PROJ-439: conditional GETs on the read-heavy JSON routes.
 //
@@ -17,41 +18,41 @@ import type { Context, Next } from "hono";
 // `private` — these are per-user authorised responses behind Cloudflare Access, so no
 // shared cache may hold them. `no-cache` means "store, but revalidate every time",
 // which is the point; a max-age would risk showing one user a stale or foreign view.
-const CACHE_CONTROL = "private, no-cache";
+const CACHE_CONTROL = 'private, no-cache'
 
 export async function etagMiddleware(c: Context<HonoEnv>, next: Next): Promise<void> {
-	await next();
+  await next()
 
-	// Registered after authMiddleware/workspaceMiddleware on the same prefixes, so an
-	// unauthorised request never reaches here. This guard is the second lock: a 304 must
-	// never stand in for a 401/403/404.
-	if (c.req.method !== "GET" || c.res.status !== 200) return;
+  // Registered after authMiddleware/workspaceMiddleware on the same prefixes, so an
+  // unauthorised request never reaches here. This guard is the second lock: a 304 must
+  // never stand in for a 401/403/404.
+  if (c.req.method !== 'GET' || c.res.status !== 200) return
 
-	const body = await c.res.clone().arrayBuffer();
-	const etag = `"${await sha256Prefix(body)}"`;
+  const body = await c.res.clone().arrayBuffer()
+  const etag = `"${await sha256Prefix(body)}"`
 
-	if (ifNoneMatchMatches(c.req.header("If-None-Match"), etag)) {
-		c.res = new Response(null, {
-			status: 304,
-			headers: { ETag: etag, "Cache-Control": CACHE_CONTROL },
-		});
-		return;
-	}
+  if (ifNoneMatchMatches(c.req.header('If-None-Match'), etag)) {
+    c.res = new Response(null, {
+      status: 304,
+      headers: { ETag: etag, 'Cache-Control': CACHE_CONTROL },
+    })
+    return
+  }
 
-	c.res.headers.set("ETag", etag);
-	c.res.headers.set("Cache-Control", CACHE_CONTROL);
+  c.res.headers.set('ETag', etag)
+  c.res.headers.set('Cache-Control', CACHE_CONTROL)
 }
 
 function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {
-	if (!header) return false;
-	if (header.trim() === "*") return true;
-	const stripWeak = (t: string) => t.trim().replace(/^W\//, "");
-	return header.split(",").some((t) => stripWeak(t) === stripWeak(etag));
+  if (!header) return false
+  if (header.trim() === '*') return true
+  const stripWeak = (t: string) => t.trim().replace(/^W\//, '')
+  return header.split(',').some((t) => stripWeak(t) === stripWeak(etag))
 }
 
 async function sha256Prefix(input: ArrayBuffer): Promise<string> {
-	const buf = await crypto.subtle.digest("SHA-256", input);
-	return Array.from(new Uint8Array(buf).slice(0, 16))
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
+  const buf = await crypto.subtle.digest('SHA-256', input)
+  return Array.from(new Uint8Array(buf).slice(0, 16))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 }

@@ -1,5 +1,6 @@
-import { env } from "cloudflare:test";
-import { rateLimiterObjectName } from "../middleware/rate-limit";
+import { env } from 'cloudflare:test'
+
+import { rateLimiterObjectName } from '../middleware/rate-limit'
 
 /**
  * Start every rate-limit counter afresh (PROJ-867).
@@ -11,8 +12,8 @@ import { rateLimiterObjectName } from "../middleware/rate-limit";
  * deprecated no-binding fallback path (PROJ-924).
  */
 export async function resetRateLimits(): Promise<void> {
-	env.RATE_LIMIT_TEST_EPOCH = crypto.randomUUID();
-	await env.DB.prepare("DELETE FROM rate_limit").run();
+  env.RATE_LIMIT_TEST_EPOCH = crypto.randomUUID()
+  await env.DB.prepare('DELETE FROM rate_limit').run()
 }
 
 /**
@@ -23,20 +24,16 @@ export async function resetRateLimits(): Promise<void> {
  * PROJ-637: the window is fixed, so seeding in the last moments of one window and sending
  * the request in the next silently clears the cap. Wait out the tail of the window first.
  */
-export async function seedRateLimitCounter(
-	key: string,
-	count: number,
-	windowSecs = 60,
-): Promise<void> {
-	const windowMs = windowSecs * 1000;
-	const intoWindow = Date.now() % windowMs;
-	const HEADROOM_MS = 5_000;
-	if (intoWindow > windowMs - HEADROOM_MS) {
-		await new Promise((resolve) => setTimeout(resolve, windowMs - intoWindow + 50));
-	}
-	const ns = env.RATE_LIMITER;
-	if (!ns) throw new Error("RATE_LIMITER binding missing from wrangler.test.toml");
-	const stub = ns.get(ns.idFromName(rateLimiterObjectName(env, key)));
-	const nowSecs = Math.floor(Date.now() / 1000);
-	for (let i = 0; i < count; i++) await stub.increment(windowSecs, nowSecs);
+export async function seedRateLimitCounter(key: string, count: number, windowSecs = 60): Promise<void> {
+  const windowMs = windowSecs * 1000
+  const intoWindow = Date.now() % windowMs
+  const HEADROOM_MS = 5_000
+  if (intoWindow > windowMs - HEADROOM_MS) {
+    await new Promise((resolve) => setTimeout(resolve, windowMs - intoWindow + 50))
+  }
+  const ns = env.RATE_LIMITER
+  if (!ns) throw new Error('RATE_LIMITER binding missing from vite.config.ts')
+  const stub = ns.get(ns.idFromName(rateLimiterObjectName(env, key)))
+  const nowSecs = Math.floor(Date.now() / 1000)
+  for (let i = 0; i < count; i++) await stub.increment(windowSecs, nowSecs)
 }

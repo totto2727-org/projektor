@@ -1,6 +1,7 @@
-import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
-import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from "../auth/scopes";
-import { NotFoundError } from "./errors";
+import type { AuthRequest, OAuthHelpers } from '@cloudflare/workers-oauth-provider'
+
+import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from '../auth/scopes'
+import { NotFoundError } from './errors'
 
 // PROJ-656: the parts of the authorization request that are projektor's business
 // rather than the OAuth library's.
@@ -12,14 +13,14 @@ import { NotFoundError } from "./errors";
 // to grant access to it. That is here.
 
 export class OAuthRequestError extends Error {
-	/** The OAuth error code to report back to the client (RFC 6749 §4.1.2.1). */
-	constructor(
-		readonly code: "invalid_target" | "invalid_scope",
-		readonly reason: string,
-	) {
-		super(reason);
-		this.name = "OAuthRequestError";
-	}
+  /** The OAuth error code to report back to the client (RFC 6749 §4.1.2.1). */
+  constructor(
+    readonly code: 'invalid_target' | 'invalid_scope',
+    readonly reason: string,
+  ) {
+    super(reason)
+    this.name = 'OAuthRequestError'
+  }
 }
 
 /**
@@ -32,35 +33,29 @@ export class OAuthRequestError extends Error {
  * be the only thing standing between them.
  */
 export function workspaceIdFromResource(resource: string | string[] | undefined): string {
-	if (resource === undefined) {
-		throw new OAuthRequestError(
-			"invalid_target",
-			"A `resource` parameter naming the target workspace is required",
-		);
-	}
-	// Multiple resources would mean one grant spanning several workspaces, which the
-	// per-workspace audience binding is specifically designed to prevent.
-	if (Array.isArray(resource)) {
-		if (resource.length !== 1) {
-			throw new OAuthRequestError("invalid_target", "Exactly one `resource` may be requested");
-		}
-		return workspaceIdFromResource(resource[0]);
-	}
+  if (resource === undefined) {
+    throw new OAuthRequestError('invalid_target', 'A `resource` parameter naming the target workspace is required')
+  }
+  // Multiple resources would mean one grant spanning several workspaces, which the
+  // per-workspace audience binding is specifically designed to prevent.
+  if (Array.isArray(resource)) {
+    if (resource.length !== 1) {
+      throw new OAuthRequestError('invalid_target', 'Exactly one `resource` may be requested')
+    }
+    return workspaceIdFromResource(resource[0])
+  }
 
-	let url: URL;
-	try {
-		url = new URL(resource);
-	} catch {
-		throw new OAuthRequestError("invalid_target", "`resource` is not a valid URL");
-	}
-	const workspaceId = /^\/mcp\/([^/]+)$/.exec(url.pathname)?.[1];
-	if (!workspaceId) {
-		throw new OAuthRequestError(
-			"invalid_target",
-			"`resource` must name an MCP endpoint, e.g. https://host/mcp/<id>",
-		);
-	}
-	return decodeURIComponent(workspaceId);
+  let url: URL
+  try {
+    url = new URL(resource)
+  } catch {
+    throw new OAuthRequestError('invalid_target', '`resource` is not a valid URL')
+  }
+  const workspaceId = /^\/mcp\/([^/]+)$/.exec(url.pathname)?.[1]
+  if (!workspaceId) {
+    throw new OAuthRequestError('invalid_target', '`resource` must name an MCP endpoint, e.g. https://host/mcp/<id>')
+  }
+  return decodeURIComponent(workspaceId)
 }
 
 /**
@@ -74,23 +69,22 @@ export function workspaceIdFromResource(resource: string | string[] | undefined)
  * grant, not an error page.
  */
 export function grantedScopes(requested: readonly string[]): string[] {
-	if (requested.length === 0) return [...OAUTH_SCOPES_SUPPORTED];
-	const granted = OAUTH_SCOPES_SUPPORTED.filter((scope) => requested.includes(scope));
-	if (granted.length === 0) {
-		throw new OAuthRequestError(
-			"invalid_scope",
-			`No supported scopes requested. Supported: ${OAUTH_SCOPES_SUPPORTED.join(", ")}`,
-		);
-	}
-	return [...granted];
+  if (requested.length === 0) return [...OAUTH_SCOPES_SUPPORTED]
+  const granted = OAUTH_SCOPES_SUPPORTED.filter((scope) => requested.includes(scope))
+  if (granted.length === 0) {
+    throw new OAuthRequestError(
+      'invalid_scope',
+      `No supported scopes requested. Supported: ${OAUTH_SCOPES_SUPPORTED.join(', ')}`,
+    )
+  }
+  return [...granted]
 }
 
 /** Plain-language description of a scope, for the consent screen. */
 export function describeScope(scope: string): string {
-	if (scope === OAUTH_SCOPE_READ) return "Read issues, wiki pages, projects and comments";
-	if (scope === OAUTH_SCOPE_WRITE)
-		return "Create and change issues, wiki pages, projects and comments";
-	return scope;
+  if (scope === OAUTH_SCOPE_READ) return 'Read issues, wiki pages, projects and comments'
+  if (scope === OAUTH_SCOPE_WRITE) return 'Create and change issues, wiki pages, projects and comments'
+  return scope
 }
 
 /**
@@ -102,13 +96,13 @@ export function describeScope(scope: string): string {
  * so that is what the consent screen names.
  */
 export function relyingPartyHost(clientId: string): string {
-	try {
-		return new URL(clientId).host;
-	} catch {
-		// A non-URL client_id predates CIMD (a DCR-issued opaque id). Show it verbatim
-		// rather than inventing a hostname for it.
-		return clientId;
-	}
+  try {
+    return new URL(clientId).host
+  } catch {
+    // A non-URL client_id predates CIMD (a DCR-issued opaque id). Show it verbatim
+    // rather than inventing a hostname for it.
+    return clientId
+  }
 }
 
 /**
@@ -119,33 +113,33 @@ export function relyingPartyHost(clientId: string): string {
  * authorization server can verify. Claude Code legitimately looks like this.
  */
 export function isLoopbackOnlyClient(redirectUris: readonly string[]): boolean {
-	if (redirectUris.length === 0) return false;
-	return redirectUris.every((uri) => {
-		try {
-			const { hostname } = new URL(uri);
-			return hostname === "localhost" || hostname === "::1" || /^127\./.test(hostname);
-		} catch {
-			return false;
-		}
-	});
+  if (redirectUris.length === 0) return false
+  return redirectUris.every((uri) => {
+    try {
+      const { hostname } = new URL(uri)
+      return hostname === 'localhost' || hostname === '::1' || /^127\./.test(hostname)
+    } catch {
+      return false
+    }
+  })
 }
 
 export type ConsentRequest = Readonly<{
-	authRequest: AuthRequest;
-	workspaceId: string;
-	scopes: string[];
-}>;
+  authRequest: AuthRequest
+  workspaceId: string
+  scopes: string[]
+}>
 
 /** Validate the projektor-specific half of an authorization request. */
 export function parseConsentRequest(authRequest: AuthRequest): ConsentRequest {
-	return {
-		authRequest,
-		workspaceId: workspaceIdFromResource(authRequest.resource),
-		scopes: grantedScopes(authRequest.scope),
-	};
+  return {
+    authRequest,
+    workspaceId: workspaceIdFromResource(authRequest.resource),
+    scopes: grantedScopes(authRequest.scope),
+  }
 }
 
-export type ConsentWorkspace = Readonly<{ id: string; name: string; slug: string; role: string }>;
+export type ConsentWorkspace = Readonly<{ id: string; name: string; slug: string; role: string }>
 
 /**
  * The workspace being consented to, if the signed-in user may consent for it.
@@ -160,22 +154,22 @@ export type ConsentWorkspace = Readonly<{ id: string; name: string; slug: string
  * in the service layer, on every call.
  */
 export async function lookupConsentWorkspace(
-	db: D1Database,
-	userId: string,
-	workspaceId: string,
+  db: D1Database,
+  userId: string,
+  workspaceId: string,
 ): Promise<ConsentWorkspace | null> {
-	const row = await db
-		.prepare(
-			`SELECT w.id, w.name, w.slug, m.role
+  const row = await db
+    .prepare(
+      `SELECT w.id, w.name, w.slug, m.role
        FROM workspaces w
        LEFT JOIN workspace_members m ON m.workspace_id = w.id AND m.user_id = ?
        WHERE w.id = ?`,
-		)
-		.bind(userId, workspaceId)
-		.first<{ id: string; name: string; slug: string; role: string | null }>();
+    )
+    .bind(userId, workspaceId)
+    .first<{ id: string; name: string; slug: string; role: string | null }>()
 
-	if (!row?.role) return null;
-	return { id: row.id, name: row.name, slug: row.slug, role: row.role };
+  if (!row?.role) return null
+  return { id: row.id, name: row.name, slug: row.slug, role: row.role }
 }
 
 // PROJ-659: the connector grants a user has issued, for Settings.
@@ -184,20 +178,20 @@ export async function lookupConsentWorkspace(
 // where grants live — see PROJ-658 for why there is no api_tokens row to mirror them into.
 
 export type ConnectorGrant = Readonly<{
-	id: string;
-	/** Host of the client_id URL — see relyingPartyHost for why not client_name. */
-	client: string;
-	clientId: string;
-	scopes: string[];
-	grantedAt: number;
-	expiresAt: number;
-}>;
+  id: string
+  /** Host of the client_id URL — see relyingPartyHost for why not client_name. */
+  client: string
+  clientId: string
+  scopes: string[]
+  grantedAt: number
+  expiresAt: number
+}>
 
 // A person accumulates a handful of connectors, not thousands. The page walk is bounded
 // so a corrupt or hostile cursor cannot turn one settings request into an unbounded KV
 // scan; if a user somehow exceeds it, the list truncates rather than hanging.
-const GRANT_PAGE_SIZE = 100;
-const GRANT_MAX_PAGES = 5;
+const GRANT_PAGE_SIZE = 100
+const GRANT_MAX_PAGES = 5
 
 /**
  * Every live grant this user has issued for this workspace.
@@ -208,49 +202,49 @@ const GRANT_MAX_PAGES = 5;
  * side by side in Settings and are deliberately governed differently.
  */
 export async function listConnectorGrants(
-	api: OAuthHelpers,
-	userId: string,
-	workspaceId: string,
+  api: OAuthHelpers,
+  userId: string,
+  workspaceId: string,
 ): Promise<ConnectorGrant[]> {
-	const grants: ConnectorGrant[] = [];
-	let cursor: string | undefined;
+  const grants: ConnectorGrant[] = []
+  let cursor: string | undefined
 
-	for (let page = 0; page < GRANT_MAX_PAGES; page++) {
-		const result = await api.listUserGrants(userId, { limit: GRANT_PAGE_SIZE, cursor });
-		for (const grant of result.items) {
-			// The workspace a grant is bound to is the one recorded at consent time.
-			// A grant for another workspace belongs on that workspace's settings page.
-			if ((grant.metadata as { workspaceId?: string } | null)?.workspaceId !== workspaceId) {
-				continue;
-			}
-			// PROJ-660, found by walking the real flow: the library stamps expiresAt onto a
-			// grant only when the authorization code is redeemed for a refresh token. A
-			// grant with none is one where the person pressed "Allow access" and the client
-			// then never came back — an authorization that was started, not a connection
-			// that exists. Listing it says "claude.ai is connected" about a client holding
-			// no credential, and the Disconnect button beside it withdraws nothing.
-			//
-			// Only a display concern: the library writes the unredeemed record with a ten
-			// minute KV expiry, so it clears itself and there is nothing here to sweep.
-			//
-			// Safe as a liveness test only because projektor leaves refreshTokenTTL at its
-			// default; setting it to undefined would issue refresh tokens with no expiry and
-			// make every live grant look pending here. The test below pins that.
-			if (grant.expiresAt === undefined) continue;
-			grants.push({
-				id: grant.id,
-				client: relyingPartyHost(grant.clientId),
-				clientId: grant.clientId,
-				scopes: grant.scope,
-				grantedAt: grant.createdAt,
-				expiresAt: grant.expiresAt,
-			});
-		}
-		if (!result.cursor) break;
-		cursor = result.cursor;
-	}
+  for (let page = 0; page < GRANT_MAX_PAGES; page++) {
+    const result = await api.listUserGrants(userId, { limit: GRANT_PAGE_SIZE, cursor })
+    for (const grant of result.items) {
+      // The workspace a grant is bound to is the one recorded at consent time.
+      // A grant for another workspace belongs on that workspace's settings page.
+      if ((grant.metadata as { workspaceId?: string } | null)?.workspaceId !== workspaceId) {
+        continue
+      }
+      // PROJ-660, found by walking the real flow: the library stamps expiresAt onto a
+      // grant only when the authorization code is redeemed for a refresh token. A
+      // grant with none is one where the person pressed "Allow access" and the client
+      // then never came back — an authorization that was started, not a connection
+      // that exists. Listing it says "claude.ai is connected" about a client holding
+      // no credential, and the Disconnect button beside it withdraws nothing.
+      //
+      // Only a display concern: the library writes the unredeemed record with a ten
+      // minute KV expiry, so it clears itself and there is nothing here to sweep.
+      //
+      // Safe as a liveness test only because projektor leaves refreshTokenTTL at its
+      // default; setting it to undefined would issue refresh tokens with no expiry and
+      // make every live grant look pending here. The test below pins that.
+      if (grant.expiresAt === undefined) continue
+      grants.push({
+        id: grant.id,
+        client: relyingPartyHost(grant.clientId),
+        clientId: grant.clientId,
+        scopes: grant.scope,
+        grantedAt: grant.createdAt,
+        expiresAt: grant.expiresAt,
+      })
+    }
+    if (!result.cursor) break
+    cursor = result.cursor
+  }
 
-	return grants.sort((a, b) => b.grantedAt - a.grantedAt);
+  return grants.sort((a, b) => b.grantedAt - a.grantedAt)
 }
 
 /**
@@ -262,15 +256,15 @@ export async function listConnectorGrants(
  * workspace B, which would silently disconnect a client the page never showed them.
  */
 export async function revokeConnectorGrant(
-	api: OAuthHelpers,
-	userId: string,
-	workspaceId: string,
-	grantId: string,
+  api: OAuthHelpers,
+  userId: string,
+  workspaceId: string,
+  grantId: string,
 ): Promise<{ ok: true }> {
-	const grants = await listConnectorGrants(api, userId, workspaceId);
-	if (!grants.some((grant) => grant.id === grantId)) {
-		throw new NotFoundError("Connector not found");
-	}
-	await api.revokeGrant(grantId, userId);
-	return { ok: true };
+  const grants = await listConnectorGrants(api, userId, workspaceId)
+  if (!grants.some((grant) => grant.id === grantId)) {
+    throw new NotFoundError('Connector not found')
+  }
+  await api.revokeGrant(grantId, userId)
+  return { ok: true }
 }
