@@ -1,4 +1,4 @@
-import { ConflictError, NotFoundError, ServiceError, ValidationError, type ZodFlattenOutput } from '../services/errors'
+import { ConflictError, NotFoundError, ServiceError, ValidationError, type ZodFlattenOutput } from '#commands/errors'
 
 const MAX_DETAIL_VALUE_CHARS = 80
 const MAX_DETAIL_SUMMARY_CHARS = 300

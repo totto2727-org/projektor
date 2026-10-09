@@ -1,11 +1,11 @@
 import { env, SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { relyingPartyHost } from '#commands/oauth'
 import type { Env } from '#types'
 
 import { purgeExpiredOAuthData } from '../index'
 import { resetAuthCachesForTests } from '../middleware/auth'
-import { relyingPartyHost } from '../services/oauth'
 import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers'
 
 // PROJ-656/657: the OAuth 2.1 authorization code flow, end to end.

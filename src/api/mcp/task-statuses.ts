@@ -1,7 +1,7 @@
+import { ValidationError } from '#commands/errors'
+import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '#commands/task-statuses'
 import type { MCPTool } from '#types'
 
-import { ValidationError } from '../services/errors'
-import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '../services/task-statuses'
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
 
 export const taskStatusesTools: MCPTool[] = [

@@ -1,6 +1,6 @@
+import { createLinkAttachment, deleteAttachment, getAttachment, listAttachments } from '#commands/files'
 import type { MCPTool } from '#types'
 
-import { createLinkAttachment, deleteAttachment, getAttachment, listAttachments } from '../services/files'
 import { CREATE, DESTRUCTIVE, READ } from './annotations'
 
 // Binary upload and streamed download can't cross JSON-RPC, so those two operations

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { ValidationError } from '../services/errors'
-import { parseWikiFrontmatter, stampWikiFrontmatterVerification, stripTemplateFlag } from '../services/wiki-frontmatter'
+import { ValidationError } from '#commands/errors'
+import { parseWikiFrontmatter, stampWikiFrontmatterVerification, stripTemplateFlag } from '#commands/wiki-frontmatter'
 
 describe('parseWikiFrontmatter (PROJ-488)', () => {
   it('returns empty meta for content with no frontmatter block', () => {

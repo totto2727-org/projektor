@@ -1,6 +1,6 @@
+import { addComment, deleteComment, listComments, updateComment } from '#commands/comments'
 import type { MCPTool } from '#types'
 
-import { addComment, deleteComment, listComments, updateComment } from '../services/comments'
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
 import { toPage } from './serialize'
 

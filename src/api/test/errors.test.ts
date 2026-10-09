@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vite-plus/test'
 
+import { ConflictError, ForbiddenError, NotFoundError, ServiceError, ValidationError } from '#commands/errors'
+
 import { serviceErrToResponse } from '../http/error-adapter'
 import { toMcpError } from '../mcp/error-adapter'
-import { ConflictError, ForbiddenError, NotFoundError, ServiceError, ValidationError } from '../services/errors'
 
 describe('ValidationError', () => {
   it('carries the zod-flattened issues and a fixed message', () => {

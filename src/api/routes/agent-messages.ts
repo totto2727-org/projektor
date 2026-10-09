@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 
+import { listMessages, postMessage } from '#commands/agent-messages'
 import type { HonoEnv } from '#types'
 
 import { jsonBody } from '../http/body'
 import { serviceErrToResponse } from '../http/error-adapter'
-import { listMessages, postMessage } from '../services/agent-messages'
 import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()

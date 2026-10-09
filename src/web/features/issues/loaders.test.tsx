@@ -49,7 +49,7 @@ const detailUrl = new URL('https://front.test/issues/view?id=issue-a&workspace=w
 describe('complete direct D1 issues SSR loaders', () => {
   it('keeps workspace-wide issues and the full authorized project selector', async () => {
     const data = fixture()
-    const result = await data.run(loadIssues(data.api, scope, listUrl))
+    const result = await data.run(loadIssues(scope, listUrl))
     expect(result?.initialData.project).toBeNull()
     expect(result?.initialData.projects.map((entry) => entry.id)).toEqual([project.id, secondProject.id])
     expect(result?.initialData.page.items.map((entry) => entry.id)).toEqual(['issue-b', 'issue-a'])
@@ -75,7 +75,7 @@ describe('complete direct D1 issues SSR loaders', () => {
   })
   it('SSR-renders original rows, selectors, story points, and modal trigger before effects', async () => {
     const data = fixture()
-    const html = renderToString(await data.run(renderIssues(data.api, scope, listUrl)))
+    const html = renderToString(await data.run(renderIssues(scope, listUrl)))
     expect(html).toContain('Original issue')
     expect(html).toContain('3')
     expect(html).toContain('New issue')
@@ -87,7 +87,6 @@ describe('complete direct D1 issues SSR loaders', () => {
     const data = fixture()
     const result = await data.run(
       loadIssue(
-        data.api,
         {
           ...scope,
           selection: { kind: 'selection-required', target: 'project', reason: 'ambiguous' },
@@ -104,26 +103,24 @@ describe('complete direct D1 issues SSR loaders', () => {
     const data = fixture()
     const url = new URL('https://front.test/projects/a/issues/1/outdated-title?workspace=workspace')
     const params = { projectSlug: 'a', issueNumber: '1', titleSlug: 'outdated-title' }
-    const detail = await data.run(loadIssue(data.api, selected, url, params))
+    const detail = await data.run(loadIssue(selected, url, params))
     expect(detail?.initialData.issue.assignee_name).toBeNull()
     expect(detail?.initialData.issue.body).toBe('**Original description**')
     const list = await data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams({ project: project.id })))
-    expect(list.items[0].assignee_name).toBe('User')
+    expect(list.items[0].assignee_name).toBe('user')
     expect(list.items[0].body).toBeNull()
-    const html = renderToString(await data.run(renderIssue(data.api, selected, url, params)))
+    const html = renderToString(await data.run(renderIssue(selected, url, params)))
     expect(html).toContain('Original issue')
     expect(html).toContain('<strong>Original description</strong>')
   })
   it('does not fetch an unauthorized workspace or expand an unauthorized catalog project', async () => {
     const data = fixture()
     expect(
-      await data.run(
-        loadIssue(data.api, scope, new URL('https://front.test/issues/view?id=issue-a&workspace=foreign')),
-      ),
+      await data.run(loadIssue(scope, new URL('https://front.test/issues/view?id=issue-a&workspace=foreign'))),
     ).toBeNull()
     for (const id of ['hidden-issue', 'other-issue']) {
       const error = await data.run(
-        Effect.flip(loadIssue(data.api, scope, new URL(`https://front.test/issues/view?id=${id}&workspace=workspace`))),
+        Effect.flip(loadIssue(scope, new URL(`https://front.test/issues/view?id=${id}&workspace=workspace`))),
       )
       expect(error).toBeInstanceOf(ScopeError)
       expect(error.status).toBe(404)
@@ -133,12 +130,11 @@ describe('complete direct D1 issues SSR loaders', () => {
     const data = fixture()
     const html = renderToString(
       await data.run(
-        renderIssue(
-          data.api,
-          selected,
-          new URL('https://front.test/projects/a/issues/1/outdated-title?workspace=workspace'),
-          { projectSlug: 'a', issueNumber: '1', titleSlug: 'outdated-title' },
-        ),
+        renderIssue(selected, new URL('https://front.test/projects/a/issues/1/outdated-title?workspace=workspace'), {
+          projectSlug: 'a',
+          issueNumber: '1',
+          titleSlug: 'outdated-title',
+        }),
       ),
     )
     expect(html).toContain('Original issue')
@@ -171,7 +167,7 @@ describe('complete direct D1 issues SSR loaders', () => {
       projects: [...scope.projects, otherProject],
     }
     const result = await data.run(
-      loadMyIssues(data.api, memberships, new URL('https://front.test/my-issues?projectId=project-a')),
+      loadMyIssues(memberships, new URL('https://front.test/my-issues?projectId=project-a')),
     )
     expect(result.issues).toHaveLength(105)
     expect(new Set(result.issues.map((entry) => entry.id)).size).toBe(105)
@@ -188,7 +184,6 @@ describe('complete direct D1 issues SSR loaders', () => {
       })
     const result = await data.run(
       loadIssues(
-        data.api,
         selected,
         new URL('https://front.test/issues?workspace=workspace&projectId=project-a&view=board&q=needle'),
       ),
@@ -203,14 +198,12 @@ describe('complete direct D1 issues SSR loaders', () => {
   it('keeps query schema and driver failures in the typed Effect error channel', async () => {
     const data = fixture()
     const invalid = await data.run(
-      Effect.flip(
-        loadIssues(data.api, scope, new URL('https://front.test/issues?workspace=workspace&cursor=not-a-cursor')),
-      ),
+      Effect.flip(loadIssues(scope, new URL('https://front.test/issues?workspace=workspace&cursor=not-a-cursor'))),
     )
     expect(invalid).toBeInstanceOf(ScopeError)
     expect(invalid.status).toBe(400)
     data.sqlite.exec('DROP TABLE task_statuses')
-    const error = await data.run(Effect.flip(loadIssues(data.api, scope, listUrl)))
+    const error = await data.run(Effect.flip(loadIssues(scope, listUrl)))
     expect(error).toBeInstanceOf(ApiError)
     expect(error.status).toBe(500)
     expect(error.message).not.toContain('SELECT')
@@ -220,9 +213,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     data.insertIssue({ id: 'epic-a', number: 2, typeId: 'epic-type' })
     data.insertIssue({ id: 'child-a', number: 3, parentId: 'epic-a', statusId: 'done' })
     data.sqlite.exec("UPDATE issues SET status='done' WHERE id='child-a'")
-    const result = await data.run(
-      loadEpics(data.api, selected, new URL('https://front.test/epics?projectId=project-a')),
-    )
+    const result = await data.run(loadEpics(selected, new URL('https://front.test/epics?projectId=project-a')))
     expect(result?.initialData.page.items).toHaveLength(1)
     expect(result?.initialData.page.items[0].rollup).toMatchObject({
       total: 1,
@@ -230,7 +221,7 @@ describe('complete direct D1 issues SSR loaders', () => {
       remaining: 0,
     })
     const detail = await data.run(
-      loadIssue(data.api, scope, new URL('https://front.test/issues/view?id=epic-a&workspace=workspace')),
+      loadIssue(scope, new URL('https://front.test/issues/view?id=epic-a&workspace=workspace')),
     )
     expect(detail?.initialData.children.map((entry) => entry.id)).toEqual(['child-a'])
   })
@@ -239,7 +230,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     data.sqlite.exec(
       `INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,linked_wiki_page_id,entity_type,entity_id,created_by_id,created_at) VALUES ('wiki-link','workspace-a','wiki_ref','','Hidden wiki','','0','wiki-hidden','issue','issue-a','user-a',2)`,
     )
-    const result = await data.run(loadIssue(data.api, scope, detailUrl))
+    const result = await data.run(loadIssue(scope, detailUrl))
     expect(result?.initialData.attachments.find((entry) => entry.id === 'wiki-link')?.wikiPage).toBeNull()
   })
 })

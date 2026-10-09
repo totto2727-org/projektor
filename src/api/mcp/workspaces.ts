@@ -1,10 +1,6 @@
 import { eq } from 'drizzle-orm'
 
-import { drizzle, schema } from '#db'
-import type { MCPTool, PluginContext } from '#types'
-
-import { DeleteWorkspaceInput } from '../schemas/workspaces'
-import { NotFoundError, ValidationError } from '../services/errors'
+import { NotFoundError, ValidationError } from '#commands/errors'
 import {
   createWorkspace,
   deleteWorkspace,
@@ -16,7 +12,11 @@ import {
   updateMemberRole,
   updateWorkspace,
   updateWorkspaceBrand,
-} from '../services/workspaces'
+} from '#commands/workspaces'
+import { drizzle, schema } from '#db'
+import type { MCPTool, PluginContext } from '#types'
+
+import { DeleteWorkspaceInput } from '../schemas/workspaces'
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
 
 async function currentWorkspaceSlug(ctx: PluginContext): Promise<string> {

@@ -7,7 +7,6 @@ import { ConfigProvider, Effect, Redacted } from 'effect'
 import { describe, expect, it } from 'vite-plus/test'
 
 import Frontend, {
-  LocalDatabase,
   LocalLayer,
   ProductionLayer,
   WorkerResources,
@@ -65,51 +64,59 @@ async function registerApi(
 }
 
 describe('source-owned deployment configuration', () => {
-  it.each([false, true])('captures env.API without deployment inputs in runtime (dev=%s)', async (local) => {
-    const stack: Stack['Service'] = {
-      name: 'projektor',
-      stage: 'testhost',
-      resources: {},
-      bindings: {},
-      actions: {},
-    }
-    const reads: string[] = []
-    const provider = ConfigProvider.make((path) => {
-      const key = path.join('.')
-      reads.push(key)
-      if (key === 'ALCHEMY_PHASE') return Effect.succeed(ConfigProvider.makeValue('runtime'))
-      if (key === 'ALCHEMY_DEV') return Effect.succeed(ConfigProvider.makeValue(String(local)))
-      return Effect.die(new Error(`Runtime read deployment input ${key}`))
-    })
-    await Effect.runPromise(
-      Frontend.pipe(
-        Effect.map((frontend) => ({ frontend })),
-        Effect.provideService(Stack, stack),
-        Effect.provideService(ConfigProvider.ConfigProvider, provider),
-        Effect.provideService(CloudflareEnvironment, Effect.die(new Error('Runtime resolved deployment profile'))),
-        Effect.provideService(Providers, {
-          kind: 'ProviderCollection',
-          providers: {},
-          get: () => {
-            throw new Error('Runtime resolved lifecycle provider')
-          },
-        }),
-      ),
-    )
-    expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Frontend'])
-    expect(stack.resources.Api.Props).not.toHaveProperty('env')
-    expect(stack.resources.Frontend.Props.env).not.toHaveProperty('DB')
-    expect(stack.bindings.Frontend.some((entry) => entry.sid === 'external-database')).toBe(false)
-    expect(stack.bindings.Api ?? []).toEqual([])
-    expect(new Set(reads)).toEqual(new Set(['ALCHEMY_PHASE']))
-    const binding = stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? [])[0]
-    expect(binding.type).toBe('service')
-    expect(binding.name).toBe('API')
-    expect(Output.isOutput(binding.service)).toBe(true)
-    expect(binding.service.kind).toBe('PropExpr')
-    expect(binding.service.identifier).toBe('workerName')
-    expect(binding.service.expr.src.LogicalId).toBe('Api')
-  })
+  it.each([false, true])(
+    'captures the symbolic namespace graph without deployment inputs in runtime (dev=%s)',
+    async (local) => {
+      const stack: Stack['Service'] = {
+        name: 'projektor',
+        stage: 'testhost',
+        resources: {},
+        bindings: {},
+        actions: {},
+      }
+      const reads: string[] = []
+      const provider = ConfigProvider.make((path) => {
+        const key = path.join('.')
+        reads.push(key)
+        if (key === 'ALCHEMY_PHASE') return Effect.succeed(ConfigProvider.makeValue('runtime'))
+        if (key === 'ALCHEMY_DEV') return Effect.succeed(ConfigProvider.makeValue(String(local)))
+        return Effect.die(new Error(`Runtime read deployment input ${key}`))
+      })
+      await Effect.runPromise(
+        Frontend.pipe(
+          Effect.map((frontend) => ({ frontend })),
+          Effect.provideService(Stack, stack),
+          Effect.provideService(ConfigProvider.ConfigProvider, provider),
+          Effect.provideService(CloudflareEnvironment, Effect.die(new Error('Runtime resolved deployment profile'))),
+          Effect.provideService(Providers, {
+            kind: 'ProviderCollection',
+            providers: {},
+            get: () => {
+              throw new Error('Runtime resolved lifecycle provider')
+            },
+          }),
+        ),
+      )
+      expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Frontend'])
+      expect(stack.resources.Api.Props).not.toHaveProperty('env')
+      expect(stack.resources.Frontend.Props.env).not.toHaveProperty('DB')
+      expect(stack.bindings.Frontend.some((entry) => entry.sid === 'external-storage')).toBe(false)
+      expect(stack.bindings.Api ?? []).toEqual([])
+      expect(new Set(reads)).toEqual(new Set(['ALCHEMY_PHASE']))
+      const binding = stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? [])[0]
+      expect(binding.type).toBe('durable_object_namespace')
+      expect(binding.name).toBe('RATE_LIMITER')
+      expect(binding.className).toBe('RateLimiter')
+      expect(Output.isOutput(binding.scriptName)).toBe(true)
+      expect(binding.scriptName.kind).toBe('PropExpr')
+      expect(binding.scriptName.identifier).toBe('workerName')
+      expect(binding.scriptName.expr.src.LogicalId).toBe('Api')
+      expect(stack.resources.Frontend.Props.env).not.toHaveProperty('API')
+      expect(stack.resources.Frontend.Props.env).not.toHaveProperty('API_BASE')
+      expect(stack.resources.Frontend.Props.env).not.toHaveProperty('JWT_SECRET')
+      expect(stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? [])).toHaveLength(1)
+    },
+  )
 
   it('registers both retained production Workers with storage scoped to each', async () => {
     const { frontend, stack } = await registerApi(false)
@@ -127,32 +134,74 @@ describe('source-owned deployment configuration', () => {
     expect(frontend.Props).not.toHaveProperty('access')
     expect(frontend.Props).not.toHaveProperty('migrations')
     const bindings = stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? [])
-    expect(bindings.filter((binding) => binding.type !== 'service')).toEqual([
-      { type: 'plain_text', name: 'API_BASE', text: deployment.api.origin },
-      existingStorageBindings()[0],
-    ])
-    expect(bindings).toContainEqual(expect.objectContaining({ type: 'service', name: 'API' }))
+    for (const binding of existingStorageBindings()) expect(bindings).toContainEqual(binding)
+    expect(bindings.filter((binding) => ['d1', 'kv_namespace', 'r2_bucket'].includes(binding.type))).toHaveLength(4)
+    expect(bindings.some((binding) => binding.type === 'service')).toBe(false)
+    for (const name of ['API', 'API_BASE', 'JWT_SECRET']) {
+      expect(frontend.Props.env).not.toHaveProperty(name)
+      expect(bindings.some((binding) => binding.name === name)).toBe(false)
+    }
+    expect(frontend.Props.env).toMatchObject({
+      ENVIRONMENT: 'production',
+      CF_ACCESS_TEAM_DOMAIN: deployment.access.teamDomain,
+      CF_ACCESS_AUDIENCE: deployment.access.audience,
+      ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
+      DEFAULT_WORKSPACE_SLUG: 'projektor',
+      DEFAULT_WORKSPACE_NAME: 'Projektor',
+      AUTO_JOIN_ROLE: 'none',
+    })
   })
 
-  it('shares one native local database between API and Frontend', async () => {
+  it('shares all four genuine native local storage resources between API and Frontend', async () => {
     const { api, frontend, stack } = await registerApi(true)
     if (!frontend) throw new Error('Missing Frontend')
-    const { db } = await Effect.runPromise(
-      LocalDatabase.pipe(
-        Effect.map((db) => ({ db })),
-        Effect.provideService(Stack, stack),
-        Effect.provideService(Providers, {
-          kind: 'ProviderCollection',
-          providers: {},
-          get: () => undefined,
-        }),
-      ),
-    )
-    expect(api.Props.env).toMatchObject({ DB: db })
-    expect(frontend.Props.env).toMatchObject({ DB: db })
-    expect(stack.resources.LocalDatabase).toBe(db)
-    expect(Object.keys(stack.resources).filter((id) => id === 'LocalDatabase')).toHaveLength(1)
+    for (const [name, id] of [
+      ['DB', 'LocalDatabase'],
+      ['KV', 'LocalCache'],
+      ['OAUTH_KV', 'LocalOAuth'],
+      ['R2', 'LocalFiles'],
+    ]) {
+      expect(api.Props.env?.[name]).toBe(stack.resources[id])
+      expect(frontend.Props.env?.[name]).toBe(stack.resources[id])
+      expect(Object.keys(stack.resources).filter((resourceId) => resourceId === id)).toHaveLength(1)
+    }
+    expect(frontend.Props.env).toMatchObject({
+      ENVIRONMENT: 'development',
+      DEV_USER_EMAIL: localDevelopment.userEmail,
+      ADMIN_EMAILS: localDevelopment.userEmail,
+    })
+    const bindings = stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? [])
+    expect(bindings.some((binding) => binding.type === 'service')).toBe(false)
+    for (const name of ['API', 'API_BASE', 'JWT_SECRET']) {
+      expect(frontend.Props.env).not.toHaveProperty(name)
+      expect(bindings.some((binding) => binding.name === name)).toBe(false)
+    }
   })
+
+  it.each([false, true])(
+    'references the API-owned RateLimiter without a frontend namespace migration (dev=%s)',
+    async (local) => {
+      const { api, frontend, stack } = await registerApi(local)
+      const apiBindings = dedupeBindings(stack.bindings.Api).flatMap((entry) => entry.data.bindings ?? [])
+      const frontendBindings = dedupeBindings(stack.bindings.Frontend).flatMap((entry) => entry.data.bindings ?? [])
+      const apiLimiter = apiBindings.filter((binding) => binding.type === 'durable_object_namespace')
+      const frontendLimiter = frontendBindings.filter((binding) => binding.type === 'durable_object_namespace')
+      expect(apiLimiter).toHaveLength(1)
+      expect(frontendLimiter).toHaveLength(1)
+      expect(apiLimiter[0]).toMatchObject({ name: 'RATE_LIMITER', className: 'RateLimiter' })
+      expect(apiLimiter[0].scriptName).toBeUndefined()
+      expect(frontendLimiter[0]).toMatchObject({ name: 'RATE_LIMITER', className: 'RateLimiter' })
+      const scriptName = frontendLimiter[0].scriptName
+      expect(Output.isOutput(scriptName)).toBe(true)
+      expect(scriptName.kind).toBe('PropExpr')
+      expect(scriptName.identifier).toBe('workerName')
+      expect(scriptName.expr.src.LogicalId).toBe(api.LogicalId)
+      expect(scriptName.expr.src.Props.name).toBe('projektor')
+      expect(frontendLimiter[0]).not.toHaveProperty('namespaceId')
+      expect(frontendLimiter[0].transferredFrom).toBeUndefined()
+      expect(frontend.Props).not.toHaveProperty('migrations')
+    },
+  )
   it('registers both production Workers without custom account or Access confirmation gates', async () => {
     const { stack } = await registerApi(false, 'different-account')
     expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Frontend'])
@@ -355,6 +404,6 @@ describe('source-owned deployment configuration', () => {
       { type: 'inherit', name: 'JWT_SECRET' },
     ])
     expect(stack.bindings.Api.filter((entry) => entry.sid === 'existing-jwt-secret')).toHaveLength(1)
-    expect(stack.bindings.Frontend.filter((entry) => entry.sid === 'external-database')).toHaveLength(1)
+    expect(stack.bindings.Frontend.filter((entry) => entry.sid === 'external-storage')).toHaveLength(1)
   })
 })

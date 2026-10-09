@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 
+import { createProject, deleteProject, getProject, getProjectBySlug, updateProject } from '#commands/projects'
 import type { HonoEnv } from '#types'
 
 import { jsonBody } from '../http/body'
 import { serviceErrToResponse } from '../http/error-adapter'
-import { createProject, deleteProject, getProject, getProjectBySlug, updateProject } from '../services/projects'
 import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()

@@ -1,19 +1,13 @@
 import { Cause, Effect, Exit } from 'effect'
-import { FetchHttpClient } from 'effect/http'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+
+import { resetAuthCachesForTests } from '#services/authentication'
 
 import { makeRequestServices, RequestServices } from '../request'
 import { createTestDatabase } from '../test/database'
-import { TestHttpClient } from '../test/http-client'
 import { type FunctionOptions, type FunctionSelector, resolveFunctionContext } from './function-context'
 import type { AuthSession, ProjectSummary } from './request-context'
-
-vi.mock('@effront/core/workers', async () => {
-  const { Effect } = await import('effect')
-  return {
-    getWorkersRequestContext: () => Effect.die('Host context is not used by request-factory tests.'),
-  }
-})
+import { testEnvironment } from './test/resources'
 
 const session: AuthSession = {
   user: { id: 'user-a', email: 'a@example.test', name: 'A' },
@@ -40,6 +34,7 @@ const project: ProjectSummary = {
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
+  resetAuthCachesForTests()
   for (const database of databases.splice(0)) database.close()
 })
 
@@ -48,6 +43,7 @@ function fixture(
   auth: AuthSession = session,
   catalog: readonly ProjectSummary[] = [project],
 ) {
+  resetAuthCachesForTests()
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite
@@ -90,46 +86,41 @@ function fixture(
       .run(`group-${item.id}`, item.id)
   }
   const invalidated = vi.fn()
-  const transport = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
-    const incoming = new Request(input, init)
-    expect(incoming.headers.get('Cf-Access-Jwt-Assertion')).toBe('actual-user')
-    expect(incoming.headers.get('x-workspace-slug')).toBeNull()
-    return Response.json(new URL(incoming.url).pathname === '/auth/me' ? auth : catalog)
-  })
+  const env = testEnvironment(database.db, auth.user.email)
   function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {
     return Effect.runPromise(
       Effect.gen(function* () {
         const request = new Request(`https://front.example.test${path}`, {
           method: 'POST',
           headers: {
-            'Cf-Access-Jwt-Assertion': 'actual-user',
+            'x-user-id': 'spoofed',
+            'x-workspace-slug': 'untrusted',
             origin: 'https://front.example.test',
           },
         })
-        const services = yield* makeRequestServices(request, {
-          API_BASE: 'https://api.example.test',
-          DB: database.db,
-        })
+        const services = yield* makeRequestServices(request, env)
         return yield* operation.pipe(
           Effect.provideService(RequestServices, {
             ...services,
             invalidate: services.invalidate.pipe(Effect.tap(() => Effect.sync(invalidated))),
           }),
         )
-      }).pipe(Effect.provide(TestHttpClient), Effect.provideService(FetchHttpClient.Fetch, transport)),
+      }),
     )
   }
-  return { run, transport, invalidated }
+  return { run, env, database, invalidated }
 }
 
 describe('independent ServerFn authentication and semantic selection', () => {
   it('resolves a workspace query without a page URL or inferred project', async () => {
-    const { run, invalidated, transport } = fixture()
+    const { run, invalidated } = fixture()
     const context = await run(resolveFunctionContext({ workspaceSlug: 'alpha' }, { requireWorkspace: true }))
     expect(context.workspaceSlug).toBe('alpha')
     expect(context.projectId).toBeUndefined()
     expect(context.scope.selection.kind).toBe('workspace')
-    expect(transport).toHaveBeenCalledTimes(1)
+    expect(context.scope.user.id).toBe('user-a')
+    expect(context.scope.auth).toEqual({ kind: 'human', method: 'dev' })
+    expect(context).not.toHaveProperty('api')
     expect(invalidated).not.toHaveBeenCalled()
   })
 
@@ -178,12 +169,12 @@ describe('independent ServerFn authentication and semantic selection', () => {
   it.each([{ workspaceSlug: '' }, { projectId: '' }] satisfies readonly FunctionSelector[])(
     'rejects malformed semantic selection: %o',
     async (selector) => {
-      const { run, transport } = fixture()
+      const { run, database } = fixture()
+      database.sqlite.exec('DROP TABLE users')
       await expect(run(resolveFunctionContext(selector))).rejects.toMatchObject({
         _tag: 'ScopeError',
         status: 400,
       })
-      expect(transport).not.toHaveBeenCalled()
     },
   )
 
@@ -220,8 +211,8 @@ describe('independent ServerFn authentication and semantic selection', () => {
   })
 
   it('preserves typed authentication failures and never invalidates during resolution', async () => {
-    const { run, transport, invalidated } = fixture()
-    transport.mockImplementation(async () => new Response('private failure', { status: 401 }))
+    const { run, env, invalidated } = fixture()
+    env.ENVIRONMENT = 'production'
     await expect(run(resolveFunctionContext({}))).rejects.toMatchObject({
       _tag: 'ApiError',
       status: 401,

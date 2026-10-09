@@ -4,13 +4,15 @@ import * as Cloudflare from 'alchemy/Cloudflare'
 import { type Worker, type WorkerBinding, type WorkerBindingProps, type WorkerProps } from 'alchemy/Cloudflare/Workers'
 import { Config, Context, Effect, Layer, Option, Redacted } from 'effect'
 
+import { apiOrigin } from './src/deployment'
+
 /** Existing production identities. Storage and Access remain operator-owned. */
 export const deployment = {
   accountId: '5643a837ef66765e7881c0831a36ebed',
   api: {
     name: 'projektor',
     hostname: 'projektor-api.totto2727.dev',
-    origin: 'https://projektor-api.totto2727.dev',
+    origin: apiOrigin,
     main: './src/api/index.ts',
     compatibility: {
       date: '2024-09-23',
@@ -51,12 +53,16 @@ export function existingStorageBindings(): WorkerBinding[] {
   ]
 }
 
-const commonApiEnvironment = {
+const commonApplicationEnvironment = {
   CF_ACCESS_TEAM_DOMAIN: deployment.access.teamDomain,
   CF_ACCESS_AUDIENCE: deployment.access.audience,
   DEFAULT_WORKSPACE_SLUG: 'projektor',
   DEFAULT_WORKSPACE_NAME: 'Projektor',
   AUTO_JOIN_ROLE: 'none',
+}
+
+const commonApiEnvironment = {
+  ...commonApplicationEnvironment,
   // Preserve the deployed name/class. WorkspaceHub stays unbound, no old migrations replay.
   RATE_LIMITER: Cloudflare.DurableObject('RateLimiter', { className: 'RateLimiter' }),
 }
@@ -87,23 +93,25 @@ export const LocalLayer = Layer.mergeAll(
         Effect.orDie,
       )
       const db = yield* LocalDatabase
+      const sharedEnvironment = {
+        ...commonApplicationEnvironment,
+        ENVIRONMENT: 'development',
+        ADMIN_EMAILS: email,
+        DEV_USER_EMAIL: email,
+        DB: db,
+        KV: yield* Cloudflare.KV.Namespace('LocalCache', { title: 'projektor-local' }),
+        OAUTH_KV: yield* Cloudflare.KV.Namespace('LocalOAuth', { title: 'projektor-oauth-local' }),
+        R2: yield* Cloudflare.R2.Bucket('LocalFiles', { name: 'projektor-files-local' }),
+      }
       return {
         apiProps: {
           env: {
             ...commonApiEnvironment,
-            ENVIRONMENT: 'development',
-            ADMIN_EMAILS: email,
-            DEV_USER_EMAIL: email,
+            ...sharedEnvironment,
             JWT_SECRET: Redacted.make(localDevelopment.jwtSecret),
-            DB: db,
-            KV: yield* Cloudflare.KV.Namespace('LocalCache', { title: 'projektor-local' }),
-            OAUTH_KV: yield* Cloudflare.KV.Namespace('LocalOAuth', {
-              title: 'projektor-oauth-local',
-            }),
-            R2: yield* Cloudflare.R2.Bucket('LocalFiles', { name: 'projektor-files-local' }),
           },
         },
-        frontendEnv: { DB: db },
+        frontendEnv: sharedEnvironment,
         bindApi: () => Effect.void,
         bindFrontend: () => Effect.void,
       }
@@ -119,16 +127,20 @@ export const ProductionLayer = Layer.mergeAll(
     Effect.gen(function* () {
       const secret = yield* Config.Redacted('JWT_SECRET').pipe(Config.option, Effect.orDie)
       const secretEnv: WorkerBindingProps = Option.isSome(secret) ? { JWT_SECRET: secret.value } : {}
+      const sharedEnvironment = {
+        ...commonApplicationEnvironment,
+        ENVIRONMENT: 'production',
+        ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
+      }
       return {
         apiProps: {
           env: {
             ...commonApiEnvironment,
-            ENVIRONMENT: 'production',
-            ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
+            ...sharedEnvironment,
             ...secretEnv,
           },
         },
-        frontendEnv: {},
+        frontendEnv: sharedEnvironment,
         bindApi: (api: Worker) =>
           Effect.gen(function* () {
             yield* api.bind('external-storage', { bindings: existingStorageBindings() })
@@ -139,8 +151,8 @@ export const ProductionLayer = Layer.mergeAll(
             }
           }),
         bindFrontend: (frontend: Worker) =>
-          frontend.bind('external-database', {
-            bindings: existingStorageBindings().filter((binding) => binding.type === 'd1'),
+          frontend.bind('external-storage', {
+            bindings: existingStorageBindings(),
           }),
       }
     }),
@@ -187,19 +199,25 @@ class Frontend extends Cloudflare.Worker<Frontend>()(
   'Frontend',
   Effect.gen(function* () {
     const environment = yield* DeploymentEnvironment
+    const api = yield* Api
     return {
       name: deployment.frontend.name,
       main: import.meta.url,
       compatibility: { date: '2026-09-01', flags: ['nodejs_compat'] },
       workersDev: { enabled: false, previewsEnabled: false },
       domain: { name: deployment.frontend.hostname, previews: false },
-      env: { API: Api, API_BASE: deployment.api.origin, ...environment.frontendEnv },
+      env: {
+        ...environment.frontendEnv,
+        // Reference the API-owned namespace, never host or migrate another RateLimiter.
+        RATE_LIMITER: Cloudflare.DurableObject('RateLimiter', {
+          className: 'RateLimiter',
+          scriptName: api.workerName,
+        }),
+      },
       vite: { rootDir: '.', viteEnvironments: { entry: 'rsc', children: ['ssr'] } },
     }
   }),
-  Effect.promise(() => import('./src/web/worker')).pipe(
-    Effect.flatMap(({ makeWebWorker }) => makeWebWorker(deployment.api.origin)),
-  ),
+  Effect.promise(() => import('./src/web/worker')).pipe(Effect.flatMap(({ makeWebWorker }) => makeWebWorker())),
 ) {}
 
 const frontend = Frontend.pipe(
@@ -217,7 +235,7 @@ export const WorkerResources = Effect.gen(function* () {
   const api = yield* Api
   const web = yield* frontend
   const environment = yield* DeploymentEnvironment
-  // Wire the API once after both declarations, including its repeated service-binding reference.
+  // Wire the API once after both declarations. The frontend references only its RateLimiter namespace.
   yield* environment.bindApi(api)
   return { api, frontend: web }
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { isExternallyVerifiableEvidence } from '../services/evidence-classification'
+import { isExternallyVerifiableEvidence } from '#commands/evidence-classification'
 
 describe('isExternallyVerifiableEvidence (PROJ-375)', () => {
   it('is not verifiable for plain prose', () => {

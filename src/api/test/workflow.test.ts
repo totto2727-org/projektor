@@ -1,7 +1,8 @@
 import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
-import { hashWorkflowContent } from '../services/workflow'
+import { hashWorkflowContent } from '#commands/workflow'
+
 import { authHeaders, type JsonRpcError, type JsonRpcResult, seedFixture, toolError } from './helpers'
 
 async function mcpCall<T>(

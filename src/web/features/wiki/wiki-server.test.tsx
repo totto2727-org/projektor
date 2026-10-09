@@ -1,13 +1,17 @@
 import { Effect } from 'effect'
+import { isValidElement, type ComponentProps, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { type PreparedView, RequestServices } from '../../request'
+import { resetProvisioningCacheForTests } from '#commands/provisioning'
+import { resetAuthCachesForTests } from '#services/authentication'
+
+import { makeRequestServices, RequestServices } from '../../request'
 import type { RequestScope } from '../../server/request-context'
+import { testEnvironment } from '../../server/test/resources'
 import { createTestDatabase } from '../../test/database'
 import { renderWiki } from './server'
-import { jsonResponse, testRequestApi } from './test-api'
-import type { WikiSeed } from './WikiPageClient'
+import { WikiPageClient } from './WikiPageClient'
 
 vi.mock('./actions', () => ({}))
 vi.mock('../../attachment-actions', () => ({
@@ -43,15 +47,24 @@ const scope: RequestScope = {
   projects: [project],
   selection: { kind: 'workspace', workspace },
 }
+function initialData(rendered: ReactElement) {
+  if (!isValidElement<ComponentProps<typeof WikiPageClient>>(rendered) || rendered.type !== WikiPageClient)
+    throw new Error('Expected the Wiki page client with server-owned initial data')
+  return rendered.props.initial
+}
+
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
   for (const database of databases.splice(0)) database.close()
 })
-function fixture(currentScope: RequestScope = scope) {
+async function fixture(currentScope: RequestScope = scope) {
+  resetAuthCachesForTests()
+  resetProvisioningCacheForTests()
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`
 		INSERT INTO workspaces (id,name,slug,created_at) VALUES ('workspace','Team','team',1),('other','Other','other',1);
+		UPDATE workspaces SET brand='{"displayName":"Acme"}' WHERE id='workspace';
 		INSERT INTO users (id,email,name,created_at) VALUES ('user','alice@example.test','Alice',1),('other-user','other@example.test','Other',1);
 		INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES ('workspace','user','member',1);
 		INSERT INTO projects (id,workspace_id,name,key,slug,created_at,updated_at) VALUES
@@ -72,40 +85,25 @@ function fixture(currentScope: RequestScope = scope) {
 		CREATE VIRTUAL TABLE wiki_fts USING fts5(page_id UNINDEXED,workspace_id UNINDEXED,title,content,tags);
 		INSERT INTO wiki_fts (page_id,workspace_id,title,content,tags) SELECT id,workspace_id,title,content,tags FROM wiki_pages;
 	`)
-  const calls: string[] = []
-  const api = testRequestApi((outgoing) => {
-    calls.push(outgoing.url)
-    if (!outgoing.url.includes('brand')) throw new Error(`Unexpected HTTP read ${outgoing.url}`)
-    return jsonResponse(
-      outgoing,
-      outgoing.url === '/api/config/brand'
-        ? { name: 'Base', mark: 'B', accent: null, onAccent: null, logoUrl: null }
-        : { displayName: 'Acme', accent: null, onAccent: null, logoUrl: null },
-    )
-  })
+  const calls = vi.spyOn(globalThis, 'fetch')
   const request = new Request('https://app.test/wiki/guide')
-  const services = {
-    api,
-    db: database.db,
-    request,
-    env: { API_BASE: 'https://api.test', DB: database.db },
-    url: new URL(request.url),
-    scope: () => Effect.succeed(currentScope),
-    prepare: (view: PreparedView) => view,
-    invalidate: Effect.void,
-  }
+  const services = await Effect.runPromise(
+    makeRequestServices(request, testEnvironment(database.db, 'alice@example.test')),
+  )
+  const authenticated = await Effect.runPromise(services.scope({ workspaceHint: 'team' }))
+  expect(authenticated.user.id).toBe(currentScope.user.id)
   const effect = (path = 'https://app.test/wiki/guide', params = { slug: 'guide' }) =>
-    renderWiki(api, currentScope, new URL(path), params).pipe(Effect.provideService(RequestServices, services))
+    renderWiki(currentScope, new URL(path), params).pipe(Effect.provideService(RequestServices, services))
   return { ...database, calls, effect }
 }
 
 describe('Wiki direct request-owned queries', () => {
   it('is lazy, preserves real SSR HTML and ToC, tree shaping, revision pointer and user-only draft without wiki HTTP', async () => {
-    const test = fixture()
+    const test = await fixture()
     const effect = test.effect('https://app.test/wiki/guide?workspace=team&slug=untrusted-hint')
-    expect(test.calls).toEqual([])
+    expect(test.calls).not.toHaveBeenCalled()
     const rendered = await Effect.runPromise(effect)
-    const initial = (rendered.props as { initial: WikiSeed }).initial
+    const initial = initialData(rendered)
     expect(initial.page).toMatchObject({
       id: 'page',
       revisionId: 'rev-new',
@@ -122,27 +120,27 @@ describe('Wiki direct request-owned queries', () => {
     expect(html).toContain('Loaded on the <strong>server</strong>.')
     expect(html).toContain('Guide - Acme Wiki')
     expect(html).toContain('initial-body')
-    expect(test.calls.every((path) => path.includes('brand'))).toBe(true)
+    expect(test.calls).not.toHaveBeenCalled()
   })
   it('disables autosave after an actual optional draft query failure', async () => {
-    const test = fixture()
+    const test = await fixture()
     test.sqlite.exec('DROP TABLE wiki_drafts')
     const rendered = await Effect.runPromise(test.effect('https://app.test/wiki/guide/edit'))
-    const { initial } = rendered.props as { initial: WikiSeed }
+    const initial = initialData(rendered)
     expect(initial.draftStatus).toBe('failed')
     expect(initial.page?.content).toContain('server')
   })
   it('rejects a fetched project page outside the authorized catalog before loading lookup data', async () => {
-    const test = fixture()
+    const test = await fixture()
     await expect(
       Effect.runPromise(test.effect('https://app.test/wiki/hidden-guide', { slug: 'hidden-guide' })),
     ).rejects.toMatchObject({ status: 404 })
-    expect(test.calls).toEqual([])
+    expect(test.calls).not.toHaveBeenCalled()
   })
   it('applies the existing FTS and browse visibility policy with workspace pages and computed freshness', async () => {
-    const test = fixture()
+    const test = await fixture()
     const rendered = await Effect.runPromise(test.effect('https://app.test/wiki?q=Guide', { slug: '' }))
-    const { initial } = rendered.props as { initial: WikiSeed }
+    const initial = initialData(rendered)
     expect(initial.searchResults.map((page) => page.id).sort()).toEqual(['child', 'page', 'visible-page'])
     expect(initial.searchResults.find((page) => page.id === 'visible-page')?.freshness).toEqual({
       state: 'stale',
@@ -151,11 +149,11 @@ describe('Wiki direct request-owned queries', () => {
     expect(initial.stalePages.map((page) => page.id)).toEqual(['visible-page'])
   })
   it('retains explicit project scope plus workspace pages and validates bounded filters', async () => {
-    const test = fixture({ ...scope, selection: { kind: 'project', workspace, project } })
+    const test = await fixture({ ...scope, selection: { kind: 'project', workspace, project } })
     const rendered = await Effect.runPromise(
       test.effect('https://app.test/wiki?type=guide&tags=docs&q=Guide', { slug: '' }),
     )
-    const { initial } = rendered.props as { initial: WikiSeed }
+    const initial = initialData(rendered)
     expect(initial.projectId).toBe('allowed')
     expect(initial.filteredPages.map((page) => page.id)).toEqual(['page'])
     expect(initial.searchResults.map((page) => page.id)).toEqual(['page'])
@@ -171,12 +169,12 @@ describe('Wiki direct request-owned queries', () => {
     ).rejects.toMatchObject({ status: 400 })
   })
   it('does not infer an unselected workspace from a lone membership', async () => {
-    const test = fixture({
+    const test = await fixture({
       ...scope,
       selection: { kind: 'selection-required', target: 'workspace', reason: 'ambiguous' },
     })
     const html = renderToStaticMarkup(await Effect.runPromise(test.effect()))
     expect(html).toContain('Choose a workspace')
-    expect(test.calls).toEqual([])
+    expect(test.calls).not.toHaveBeenCalled()
   })
 })

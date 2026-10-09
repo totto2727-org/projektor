@@ -2,7 +2,8 @@ import { Effect, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 import { afterEach, vi } from 'vite-plus/test'
 
-import { makeRequestServices, RequestServices } from '../../request'
+import { type Env, makeRequestServices, RequestServices } from '../../request'
+import { inMemoryKV, inMemoryR2, testEnvironment } from '../../server/test/resources'
 import { createTestDatabase } from '../../test/database'
 
 type InputSchema = Schema.Constraint & Schema.Decoder<unknown>
@@ -11,7 +12,7 @@ interface Definition {
   handler: (...input: unknown[]) => Effect.Effect<unknown, unknown, RequestServices>
 }
 const definitions = vi.hoisted(() => new WeakMap<object, Definition>())
-/** Capture only the framework registration. The real schemas, handlers, resolver and HTTP adapter run. */
+/** Capture only framework registration. Real schemas, browser authentication and commands run. */
 vi.mock('../../effront', () => ({
   EFFRONT: {
     ServerFn: {
@@ -29,7 +30,6 @@ vi.mock('@effront/core/workers', async () => {
     getWorkersRequestContext: () => Effect.die('Host context is not used by feature action tests.'),
   }
 })
-const workspace = { id: 'w1', slug: 'alpha', name: 'Alpha', role: 'owner' }
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
   for (const database of databases.splice(0)) database.close()
@@ -49,21 +49,41 @@ export function featureDatabase() {
 		INSERT INTO sprints (id,workspace_id,project_id,name,status,created_at,updated_at) VALUES
 			('s1','w1','p1','Sprint','planned',1,1), ('s2','w1','p1','Next sprint','planned',2,2),
 			('foreign-sprint','w2','foreign','Private sprint','planned',1,1);
+    CREATE VIRTUAL TABLE issues_fts USING fts5(issue_id UNINDEXED, workspace_id UNINDEXED, title, body);
+    CREATE VIRTUAL TABLE wiki_fts USING fts5(page_id UNINDEXED, workspace_id UNINDEXED, title, content, tags);
 	`)
   return database
 }
 
-export function actionFixture(resolve: (url: URL, options?: RequestInit) => unknown, origin = 'https://front.example') {
+export const planningIds = {
+  project: '00000000-0000-4000-8000-000000000001',
+  source: '00000000-0000-4000-8000-000000000002',
+  target: '00000000-0000-4000-8000-000000000003',
+}
+
+export function actionFixture(
+  resolve: (url: URL, options?: RequestInit) => unknown = () => {
+    throw new Error('Web actions must not use an API transport.')
+  },
+  origin = 'https://front.example',
+  overrides: Partial<Env> = {},
+) {
   const database = featureDatabase()
+  const kv = inMemoryKV()
+  const r2 = inMemoryR2()
+  const oauthKV = inMemoryKV()
+  const env = testEnvironment(database.db, 'owner@example.test', {
+    KV: kv,
+    R2: r2,
+    OAUTH_KV: oauthKV,
+    DEFAULT_WORKSPACE_SLUG: 'alpha',
+    AUTO_JOIN_ROLE: 'none',
+    ...overrides,
+    DB: database.db,
+  })
   const invalidated = vi.fn()
   const transport = vi.fn<typeof fetch>().mockImplementation(async (input, options) => {
     const url = new URL(input instanceof Request ? input.url : input.toString())
-    if (url.pathname === '/auth/me')
-      return Response.json({
-        user: { id: 'u1', name: 'Owner', email: 'owner@example.test' },
-        workspaces: [workspace],
-      })
-
     const value = await resolve(url, options)
     return value instanceof Response ? value : Response.json(value)
   })
@@ -75,9 +95,9 @@ export function actionFixture(resolve: (url: URL, options?: RequestInit) => unkn
         const services = yield* makeRequestServices(
           new Request('https://front.example/_effront/functions', {
             method: 'POST',
-            headers: { cookie: 'CF_Authorization=actual-user', origin },
+            headers: { origin },
           }),
-          { API_BASE: 'https://api.example', DB: database.db },
+          env,
         )
         const spread = Array.isArray(definition.input)
         const schema = spread ? Schema.Tuple(definition.input as InputSchema[]) : (definition.input as InputSchema)
@@ -91,7 +111,7 @@ export function actionFixture(resolve: (url: URL, options?: RequestInit) => unkn
       }).pipe(Effect.provide(FetchHttpClient.layer), Effect.provideService(FetchHttpClient.Fetch, transport)),
     )
   }
-  return { invoke, transport, invalidated, ...database }
+  return { invoke, transport, invalidated, env, kv, r2, oauthKV, ...database }
 }
 
 /** Native action test boundary uses the browser's actual submitted fields. */

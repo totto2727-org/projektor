@@ -1,21 +1,21 @@
 'use server'
 
 import { Effect, Schema } from 'effect'
-import { HttpClientResponse } from 'effect/http'
+
+import * as projectCommands from '#commands/projects'
 
 import { EFFRONT } from '../../effront'
 import type { ActionResult } from '../../function-result'
 import { RequestServices } from '../../request'
-import { checkSameOriginMutation, responseError } from '../../server'
+import { runCommand } from '../../server/command-context'
 import { resolveFunctionContext } from '../../server/function-context'
+import { checkSameOriginMutation } from '../../server/mutation'
 import {
   type ArchiveProjectInput,
   ArchiveProjectInputSchema,
   type CreatedProject,
-  CreatedProjectSchema,
   type CreateProjectInput,
   CreateProjectInputSchema,
-  ProjectMutationResultSchema,
   type UpdateDescriptionInput,
   UpdateDescriptionInputSchema,
 } from './schemas'
@@ -29,23 +29,13 @@ export const createProject = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        return yield* context.api
-          .execute(
-            context.api.send('/api/projects', {
-              method: 'POST',
-              workspaceSlug: context.workspaceSlug,
-              json: {
-                name: input.name.trim(),
-                key: input.key.trim().toUpperCase(),
-                description: input.description.trim(),
-              },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(CreatedProjectSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        return yield* runCommand(context, (ctx) =>
+          projectCommands.createProject(ctx, {
+            name: input.name.trim(),
+            key: input.key.trim().toUpperCase(),
+            description: input.description.trim(),
+          }),
+        )
       }).pipe(
         Effect.map((value): ActionResult<CreatedProject> => ({ ok: true, value })),
         Effect.catchTags({
@@ -79,19 +69,11 @@ export const updateDescription = EFFRONT.ServerFn.make({
           requireWorkspace: true,
           requireProject: true,
         })
-        return yield* context.api
-          .execute(
-            context.api.send(`/api/projects/${encodeURIComponent(context.projectId ?? input.projectId)}`, {
-              method: 'PATCH',
-              workspaceSlug: context.workspaceSlug,
-              json: { description: input.description.trim() },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(ProjectMutationResultSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        return yield* runCommand(context, (ctx) =>
+          projectCommands.updateProject(ctx, context.projectId ?? input.projectId, {
+            description: input.description.trim(),
+          }),
+        )
       }).pipe(
         Effect.map((value): ActionResult<{ readonly ok: boolean }> => ({ ok: true, value })),
         Effect.catchTags({
@@ -125,19 +107,9 @@ export const archiveProject = EFFRONT.ServerFn.make({
           requireWorkspace: true,
           requireProject: true,
         })
-        return yield* context.api
-          .execute(
-            context.api.send(`/api/projects/${encodeURIComponent(context.projectId ?? input.projectId)}`, {
-              method: 'PATCH',
-              workspaceSlug: context.workspaceSlug,
-              json: { archived: input.archived },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(ProjectMutationResultSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        return yield* runCommand(context, (ctx) =>
+          projectCommands.updateProject(ctx, context.projectId ?? input.projectId, { archived: input.archived }),
+        )
       }).pipe(
         Effect.map((value): ActionResult<{ readonly ok: boolean }> => ({ ok: true, value })),
         Effect.catchTags({

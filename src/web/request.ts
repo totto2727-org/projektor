@@ -4,20 +4,32 @@ import { Cache, Context, Data, Effect, Exit, Layer, Option } from 'effect'
 import { HttpRouter } from 'effect/http'
 import type { ReactNode } from 'react'
 
-import {
-  type ApiError,
-  createRequestApi,
-  loadRequestScope,
-  type RequestApi,
-  type RequestScope,
-  type ScopeError,
-  type ScopeOptions,
-} from './server'
+import type { BrowserAuthEnvironment } from '#services/authentication'
+import type { Env as ApiEnvironment } from '#types'
 
-export interface Env {
-  readonly API_BASE: string
-  readonly DB: D1Database
-}
+import { type ApiError, loadRequestScope, type RequestScope, type ScopeError, type ScopeOptions } from './server'
+
+export interface Env
+  extends
+    BrowserAuthEnvironment,
+    Pick<
+      ApiEnvironment,
+      | 'R2'
+      | 'OAUTH_KV'
+      | 'RATE_LIMITER'
+      | 'WORKSPACE_HUB'
+      | 'STORAGE_QUOTA_BYTES'
+      | 'RATE_LIMIT_AUTH_MAX'
+      | 'RATE_LIMIT_API_MAX'
+      | 'RATE_LIMIT_WINDOW_SECS'
+      | 'RATE_LIMIT_TEST_EPOCH'
+      | 'RATE_LIMIT_TEST_NOW_MS'
+      | 'BRAND_NAME'
+      | 'BRAND_MARK'
+      | 'BRAND_ACCENT'
+      | 'BRAND_ON_ACCENT'
+      | 'BRAND_LOGO_URL'
+    > {}
 
 export type PageFailure = ApiError | ScopeError
 export type PreparedView = Effect.Effect<Awaited<ReactNode>, PageFailure, RequestServices>
@@ -36,7 +48,6 @@ export class RequestServices extends Context.Service<
     readonly request: Request
     readonly env: Env
     readonly url: URL
-    readonly api: RequestApi
     readonly db: D1Database
     readonly scope: (options?: ScopeOptions) => Effect.Effect<RequestScope, PageFailure>
     readonly prepare: (view: PreparedView) => PreparedView
@@ -48,9 +59,8 @@ export class RequestServices extends Context.Service<
 export const makeRequestServices = (request: Request, env: Env) =>
   Effect.gen(function* () {
     const url = new URL(request.url)
-    const api = yield* createRequestApi(request, { apiBaseUrl: env.API_BASE })
     const scopes = yield* Cache.makeWith(
-      (options: ScopeOptions) => loadRequestScope(api, url, options, { db: env.DB, request }),
+      (options: ScopeOptions) => loadRequestScope(url, options, { db: env.DB, request, env }),
       { capacity: 32, timeToLive: (exit) => (Exit.isSuccess(exit) ? Infinity : 0) },
     )
     const views = yield* Cache.makeWith((view: PreparedView) => view, {
@@ -62,7 +72,6 @@ export const makeRequestServices = (request: Request, env: Env) =>
       request,
       env,
       url,
-      api,
       db: env.DB,
       scope: (options: ScopeOptions = {}) =>
         getRouteParams.pipe(

@@ -15,8 +15,9 @@
 import { env, SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { createIssue, updateIssue } from '../services/issues'
-import type { ServiceCtx } from '../services/types'
+import { createIssue, updateIssue } from '#commands/issues'
+import type { ServiceCtx } from '#commands/types'
+
 import {
   authHeaders,
   seedAgentLease,

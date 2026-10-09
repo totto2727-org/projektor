@@ -1,12 +1,22 @@
 import type { Context, Next } from 'hono'
-import { z } from 'zod'
 
-import type { Env, HonoEnv } from '#types'
+import { provisionPublicViewer } from '#commands/provisioning'
+import {
+  authenticateAccessJwt,
+  authenticateDevelopment,
+  type AuthUser,
+  BrowserAuthenticationError,
+  parseCookie,
+  upsertUserByEmail,
+} from '#services/authentication'
+import type { HonoEnv } from '#types'
+
+export { resetAuthCachesForTests, verifyJwtPayload } from '#services/authentication'
+export type { AuthUser } from '#services/authentication'
 
 import { unauthorizedChallenge } from '../auth/challenge'
 import type { Capability } from '../auth/scopes'
 import { capabilityForMethod, capabilityForOAuthScope, parseScopes, tokenAllows } from '../auth/scopes'
-import { ensureUserProvisioned, provisionPublicViewer } from '../services/provisioning'
 import { bumpRateCounter } from './rate-limit'
 import { mcpWorkspaceIdFromPath } from './workspace'
 
@@ -63,19 +73,7 @@ async function tooManyAuthFailures(c: Context<HonoEnv>): Promise<boolean> {
   }
 }
 
-export interface AuthUser {
-  id: string
-  email: string
-  name: string
-}
-
 type AuthOutcome = { kind: 'skip' } | { kind: 'deny'; response: Response } | { kind: 'allow' }
-
-// PROJ-430: separates "we could not check this token" from "this token is bad".
-// The frontend reloads the page to re-authenticate on a 401, so reporting an
-// unreachable JWKS endpoint as 401 sends the user through a login round-trip
-// that cannot fix it — and reloading on a still-broken backend loops.
-class AuthUnavailableError extends Error {}
 
 // 0. OAuth 2.1 grant (PROJ-656/657). The provider has already verified the access
 // token, checked its RFC 8707 audience against this exact URL, and decrypted the props
@@ -147,23 +145,16 @@ async function tryCfAccessAuth(c: Context<HonoEnv>): Promise<AuthOutcome> {
   const cfJwt = c.req.header('Cf-Access-Jwt-Assertion') ?? parseCookie(c.req.header('cookie') ?? '', 'CF_Authorization')
   if (!cfJwt) return { kind: 'skip' }
 
-  let user: AuthUser | null
   try {
-    user = await validateCfAccessJwt(cfJwt, c.env)
+    const principal = await authenticateAccessJwt(cfJwt, c.env)
+    c.set('user', principal.user)
+    c.set('authKind', principal.auth.kind)
+    c.set('auth', principal.auth)
+    return { kind: 'allow' }
   } catch (err) {
-    if (!(err instanceof AuthUnavailableError)) throw err
-    return {
-      kind: 'deny',
-      response: c.json({ error: 'Authentication temporarily unavailable' }, 503),
-    }
+    if (!(err instanceof BrowserAuthenticationError)) throw err
+    return { kind: 'deny', response: c.json({ error: err.message }, err.status) }
   }
-  if (!user) return { kind: 'deny', response: c.json({ error: 'Invalid Access token' }, 401) }
-
-  await ensureUserProvisioned(c.env, user)
-  c.set('user', user)
-  c.set('authKind', 'human')
-  c.set('auth', { kind: 'human', method: 'access' })
-  return { kind: 'allow' }
 }
 
 async function tooManyAuthFailuresResponse(c: Context<HonoEnv>, message: string): Promise<Response> {
@@ -265,11 +256,11 @@ async function tryDevBypassAuth(c: Context<HonoEnv>): Promise<AuthOutcome> {
   // which is untouched.
   if (mcpWorkspaceIdFromPath(c.req.path)) return { kind: 'skip' }
 
-  const user = await upsertUserByEmail(c.env.DEV_USER_EMAIL, c.env.DB)
-  await ensureUserProvisioned(c.env, user)
-  c.set('user', user)
-  c.set('authKind', 'human')
-  c.set('auth', { kind: 'human', method: 'dev' })
+  const principal = await authenticateDevelopment(c.env)
+  if (!principal) return { kind: 'skip' }
+  c.set('user', principal.user)
+  c.set('authKind', principal.auth.kind)
+  c.set('auth', principal.auth)
   return { kind: 'allow' }
 }
 
@@ -319,268 +310,6 @@ export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
   }
 
   return withMcpAuthChallenge(c, c.json({ error: 'Unauthorized' }, 401))
-}
-
-/**
- * Pure JWT verifier with injectable keys — no network I/O.
- * Exported so tests can generate a key pair, pre-populate keys[], and exercise
- * the validation logic without hitting CF's JWKS endpoint or KV.
- * The live path (validateCfAccessJwt) calls this after fetching/caching keys.
- */
-// PROJ-879: the decoded JSON is untrusted until parsed. Previously it was cast, so a
-// JWT without `exp` compared `undefined < now` → false → never expired, and one without
-// `email` (a Cloudflare Access *service-token* JWT) crashed provisioning with a 500.
-// Now: `exp`, `aud` and `iss` are required; `email` is required too, because every
-// Access identity projektor serves is a person. Service-token JWTs are rejected (401) —
-// machine callers use pk_ API tokens or OAuth instead, which carry confinement and scopes.
-const JwtHeaderSchema = z.object({ alg: z.string(), kid: z.string().optional() })
-const JwtPayloadSchema = z.object({
-  exp: z.number(),
-  iat: z.number().optional(),
-  aud: z.union([z.string(), z.array(z.string())]),
-  iss: z.string(),
-  email: z.string().min(1).optional(),
-})
-type JwtHeader = z.infer<typeof JwtHeaderSchema>
-type JwtPayload = z.infer<typeof JwtPayloadSchema>
-
-function decodeJwtFields(parts: readonly string[]): { header: JwtHeader; payload: JwtPayload } | null {
-  try {
-    const header = JwtHeaderSchema.safeParse(JSON.parse(base64urlDecode(parts[0])))
-    const payload = JwtPayloadSchema.safeParse(JSON.parse(base64urlDecode(parts[1])))
-    if (!header.success || !payload.success) return null
-    return { header: header.data, payload: payload.data }
-  } catch {
-    return null
-  }
-}
-
-/** The single claim check, used by both the key-less pre-screen and the verifier. */
-function jwtClaimsValid(
-  header: JwtHeader,
-  payload: JwtPayload,
-  audience: string,
-  issuer: string,
-): payload is JwtPayload & { email: string } {
-  if (header.alg !== 'RS256') return false
-
-  const now = Math.floor(Date.now() / 1000)
-  if (payload.exp < now) return false
-
-  const aud = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
-  if (!aud.includes(audience)) return false
-
-  if (payload.iss !== issuer) return false
-  return typeof payload.email === 'string'
-}
-
-async function verifySignatureAgainstKeys(parts: readonly string[], keys: readonly JsonWebKey[]): Promise<boolean> {
-  const signingInput = new TextEncoder().encode(`${parts[0]}.${parts[1]}`)
-  const sig = base64urlToUint8Array(parts[2])
-
-  for (const jwk of keys) {
-    try {
-      const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, [
-        'verify',
-      ])
-      if (await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig, signingInput)) return true
-    } catch {}
-  }
-
-  return false
-}
-
-export async function verifyJwtPayload(
-  jwt: string,
-  keys: JsonWebKey[],
-  audience: string,
-  issuer: string,
-): Promise<{ email: string } | null> {
-  const parts = jwt.split('.')
-  if (parts.length !== 3) return null
-
-  const decoded = decodeJwtFields(parts)
-  if (!decoded) return null
-
-  const { header, payload } = decoded
-  if (!jwtClaimsValid(header, payload, audience, issuer)) return null
-
-  const valid = await verifySignatureAgainstKeys(parts, keys)
-  return valid ? { email: payload.email } : null
-}
-
-// Pre-screen without keys: avoids a JWKS fetch for obviously-invalid tokens.
-// Mirrors the order of checks in verifyJwtPayload so early exits fire first.
-function preScreenCfAccessJwt(parts: readonly string[], env: Env): boolean {
-  const decoded = decodeJwtFields(parts)
-  if (!decoded) return false
-  return jwtClaimsValid(decoded.header, decoded.payload, env.CF_ACCESS_AUDIENCE, `https://${env.CF_ACCESS_TEAM_DOMAIN}`)
-}
-
-async function validateCfAccessJwt(jwt: string, env: Env): Promise<AuthUser | null> {
-  const parts = jwt.split('.')
-  if (parts.length !== 3) return null
-  if (!preScreenCfAccessJwt(parts, env)) return null
-  // All field checks passed — now fetch keys and verify the signature.
-  const keys = await getCfAccessKeysOrUnavailable(env)
-  let result = await verifyJwtPayload(jwt, keys, env.CF_ACCESS_AUDIENCE, `https://${env.CF_ACCESS_TEAM_DOMAIN}`)
-  if (!result) {
-    // PROJ-358: claims already passed the pre-screen above, so a null result
-    // here means the signature didn't match any cached key — most likely
-    // Cloudflare rotated its Access signing keys since we cached them. Force
-    // one rate-limited refetch and retry before giving up, instead of
-    // leaving every login failing until both cache layers expire.
-    const freshKeys = await getCfAccessKeysOrUnavailable(env, { forceRefresh: true })
-    if (freshKeys !== keys) {
-      result = await verifyJwtPayload(jwt, freshKeys, env.CF_ACCESS_AUDIENCE, `https://${env.CF_ACCESS_TEAM_DOMAIN}`)
-    }
-  }
-  if (!result) return null
-  return upsertUserByEmail(result.email, env.DB, env.KV)
-}
-
-// PROJ-354: both caches below are read on every authenticated CF Access request.
-// A Worker isolate serves many requests before Cloudflare recycles it, so an
-// isolate-local (module-scope) cache in front of the KV read cuts the vast
-// majority of that KV read volume — KV remains the cross-isolate/cold-start
-// fallback and the TTL source of truth; these local TTLs only bound staleness
-// within a single isolate's lifetime.
-let inMemoryCertsCache: { keys: JsonWebKey[]; expiresAt: number } | null = null
-const CERTS_LOCAL_TTL_MS = 3600 * 1000
-
-// PROJ-358: bounds how often a burst of stale-key-signed tokens can force a real
-// network fetch of the JWKS endpoint.
-let lastForcedRefreshAt = 0
-const FORCE_REFRESH_COOLDOWN_MS = 60 * 1000
-
-async function fetchAndCacheCfAccessKeys(env: Env): Promise<JsonWebKey[]> {
-  const res = await fetch(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`)
-  if (!res.ok) throw new Error('Failed to fetch CF Access certs')
-  const { keys } = await res.json<{ keys: JsonWebKey[] }>()
-
-  try {
-    await env.KV.put('cf-access-certs', JSON.stringify(keys), { expirationTtl: 3600 })
-  } catch (err) {
-    console.error('[auth] failed to cache cf-access-certs in KV, continuing without it:', err)
-  }
-  inMemoryCertsCache = { keys, expiresAt: Date.now() + CERTS_LOCAL_TTL_MS }
-  return keys
-}
-
-// A cold cache plus an unreachable/erroring JWKS endpoint leaves us unable to
-// verify anything — surface that as its own failure rather than an auth verdict.
-async function getCfAccessKeysOrUnavailable(env: Env, opts?: { forceRefresh?: boolean }): Promise<JsonWebKey[]> {
-  try {
-    return await getCfAccessKeys(env, opts)
-  } catch {
-    throw new AuthUnavailableError()
-  }
-}
-
-async function getCfAccessKeys(env: Env, opts?: Readonly<{ forceRefresh?: boolean }>): Promise<JsonWebKey[]> {
-  if (opts?.forceRefresh) {
-    const now = Date.now()
-    if (now - lastForcedRefreshAt >= FORCE_REFRESH_COOLDOWN_MS) {
-      lastForcedRefreshAt = now
-      return fetchAndCacheCfAccessKeys(env)
-    }
-    // Within cooldown — another request already forced a refresh recently;
-    // fall through to whatever's cached rather than hitting the network again.
-  }
-
-  if (inMemoryCertsCache && inMemoryCertsCache.expiresAt > Date.now()) {
-    return inMemoryCertsCache.keys
-  }
-
-  let cached: unknown
-  try {
-    cached = await env.KV.get('cf-access-certs', 'json')
-  } catch (err) {
-    console.error('[auth] failed to read cf-access-certs from KV, fetching fresh:', err)
-  }
-  if (cached) {
-    const keys = cached as JsonWebKey[]
-    inMemoryCertsCache = { keys, expiresAt: Date.now() + CERTS_LOCAL_TTL_MS }
-    return keys
-  }
-
-  return fetchAndCacheCfAccessKeys(env)
-}
-
-const inMemoryUserCache = new Map<string, { user: AuthUser; expiresAt: number }>()
-const USER_LOCAL_TTL_MS = 300 * 1000
-
-// Test-only: clear the isolate-local caches above. Without this, a test that exercises a
-// second real CF Access JWT verification with a *different* keypair than an earlier test in
-// the same file would hit the still-warm cache and verify against the wrong keys.
-export function resetAuthCachesForTests(): void {
-  inMemoryCertsCache = null
-  inMemoryUserCache.clear()
-}
-
-async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNamespace): Promise<AuthUser> {
-  const local = inMemoryUserCache.get(email)
-  if (local && local.expiresAt > Date.now()) return local.user
-
-  if (kv) {
-    let cached: unknown
-    try {
-      cached = await kv.get(`user-by-email:${email}`, 'json')
-    } catch (err) {
-      console.error(`[auth] failed to read user-by-email:${email} from KV, continuing:`, err)
-    }
-    if (cached) {
-      const user = cached as AuthUser
-      inMemoryUserCache.set(email, { user, expiresAt: Date.now() + USER_LOCAL_TTL_MS })
-      return user
-    }
-  }
-
-  const id = crypto.randomUUID()
-  const name = email.split('@')[0]
-  const now = Math.floor(Date.now() / 1000)
-
-  await db
-    .prepare(
-      `INSERT INTO users (id, email, name, created_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(email) DO UPDATE SET name = excluded.name`,
-    )
-    .bind(id, email, name, now)
-    .run()
-
-  const user = await db.prepare('SELECT id, email, name FROM users WHERE email = ?').bind(email).first<AuthUser>()
-
-  if (!user) throw new Error('Failed to upsert user')
-
-  if (kv) {
-    try {
-      await kv.put(`user-by-email:${email}`, JSON.stringify(user), { expirationTtl: 300 })
-    } catch (err) {
-      console.error(`[auth] failed to cache user-by-email:${email} in KV, continuing without it:`, err)
-    }
-  }
-  inMemoryUserCache.set(email, { user, expiresAt: Date.now() + USER_LOCAL_TTL_MS })
-
-  return user
-}
-
-function parseCookie(cookieHeader: string, name: string): string | undefined {
-  for (const part of cookieHeader.split(';')) {
-    const [k, ...rest] = part.trim().split('=')
-    if (k.trim() === name) return rest.join('=').trim()
-  }
-  return undefined
-}
-
-function base64urlDecode(s: string): string {
-  const padded = s.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice(0, (4 - (s.length % 4)) % 4)
-  return atob(padded)
-}
-
-function base64urlToUint8Array(s: string): Uint8Array<ArrayBuffer> {
-  const binary = base64urlDecode(s)
-  return Uint8Array.from(binary, (c) => c.charCodeAt(0))
 }
 
 async function hashToken(token: string): Promise<string> {

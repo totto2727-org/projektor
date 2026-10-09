@@ -1,7 +1,5 @@
 import type { Context } from 'hono'
 
-import type { HonoEnv } from '#types'
-
 import {
   ConflictError,
   ForbiddenError,
@@ -9,7 +7,8 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from '../services/errors'
+} from '#commands/errors'
+import type { HonoEnv } from '#types'
 
 export function serviceErrToResponse(c: Context<HonoEnv>, err: unknown) {
   if (err instanceof ValidationError) {

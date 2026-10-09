@@ -47,7 +47,10 @@ export default defineConfig({
     command: `corepack pnpm exec vp build --config "${apiConfig}" && corepack pnpm exec vp build --config "${frontendConfig}" && corepack pnpm exec vp preview --config "${frontendConfig}" --host 127.0.0.1 --port 4393 --strictPort`,
     env: { PROJEKTOR_E2E_STORAGE_DIRECTORY: storageDirectory },
     cwd: fileURLToPath(new URL('../../', import.meta.url)),
-    url: 'http://127.0.0.1:4393/',
+    // The API-only test adapter applies migrations on its first request.
+    // Bootstrap it explicitly: Web no longer calls the API to initialize D1.
+    // Every browser case then exercises the independently authenticated Web Worker.
+    url: 'http://127.0.0.1:4392/auth/me',
     timeout: 180_000,
     reuseExistingServer: false,
     stdout: 'pipe',

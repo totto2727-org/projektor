@@ -1,5 +1,3 @@
-import type { MCPTool } from '#types'
-
 import {
   addGroupMember,
   createGroup,
@@ -11,7 +9,9 @@ import {
   removeGroupMember,
   setGroupGrant,
   updateGroup,
-} from '../services/groups'
+} from '#commands/groups'
+import type { MCPTool } from '#types'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
 
 export const groupsTools: MCPTool[] = [

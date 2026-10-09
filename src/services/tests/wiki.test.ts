@@ -4,11 +4,11 @@ import { eq, isNull, or } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import type { ServiceCtx } from '#commands/types'
+import * as apiWiki from '#commands/wiki'
 import { schema } from '#db'
 import { migratedDb } from '#db/test/helpers'
 
-import type { ServiceCtx } from '../../api/services/types'
-import * as apiWiki from '../../api/services/wiki'
 import { DataQueryError } from '../errors'
 import * as wiki from '../wiki'
 

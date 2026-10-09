@@ -1,17 +1,18 @@
 'use server'
 
 import { Effect, Schema } from 'effect'
-import { HttpClientResponse } from 'effect/http'
 
+import * as sprintCommands from '#commands/sprints'
 import { getIssue } from '#services/issues'
 import { findSprintById } from '#services/sprints'
 
 import { EFFRONT } from '../../effront'
 import { RequestServices } from '../../request'
-import { checkSameOriginMutation } from '../../server/api-client'
+import { runCommand } from '../../server/command-context'
 import { dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context'
-import { responseError, ScopeError } from '../../server/errors'
+import { ScopeError } from '../../server/errors'
 import { resolveFunctionContext } from '../../server/function-context'
+import { checkSameOriginMutation } from '../../server/mutation'
 import type { RequestScope } from '../../server/request-context'
 import {
   CreateSprintInputSchema,
@@ -43,10 +44,6 @@ function sprintInProject(
   })
 }
 
-const CreatedSchema = Schema.Struct({ id: Schema.String })
-const OkSchema = Schema.Struct({ ok: Schema.Literal(true) })
-const MovedSchema = Schema.Struct({ ok: Schema.Literal(true), count: Schema.Finite })
-
 export const createSprint = EFFRONT.ServerFn.make({
   input: [Schema.Unknown, Schema.fromFormData(Schema.toCodecStringTree(CreateSprintInputSchema))] as const,
   handler: (_previous, input) =>
@@ -57,28 +54,18 @@ export const createSprint = EFFRONT.ServerFn.make({
         const context = yield* resolveFunctionContext(input, { requireProject: true })
         if (context.scope.selection.kind !== 'project')
           return yield* new ScopeError(404, 'Select an accessible project.')
-        const { project, workspace } = context.scope.selection
+        const { project } = context.scope.selection
         const startDate = calendarTimestamp(input.start, input.startOffset)
         const endDate = calendarTimestamp(input.end, input.endOffset)
-        const value = yield* context.api
-          .execute(
-            context.api.send('/api/sprints', {
-              method: 'POST',
-              workspaceSlug: workspace.slug,
-              json: {
-                projectId: project.id,
-                name: input.name.trim(),
-                ...(input.goal.trim() ? { goal: input.goal.trim() } : {}),
-                ...(startDate === null ? {} : { startDate }),
-                ...(endDate === null ? {} : { endDate }),
-              },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(CreatedSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          sprintCommands.createSprint(ctx, {
+            projectId: project.id,
+            name: input.name.trim(),
+            ...(input.goal.trim() ? { goal: input.goal.trim() } : {}),
+            ...(startDate === null ? {} : { startDate }),
+            ...(endDate === null ? {} : { endDate }),
+          }),
+        )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -100,26 +87,15 @@ export const editSprint = EFFRONT.ServerFn.make({
         if (context.scope.selection.kind !== 'project')
           return yield* new ScopeError(404, 'Select an accessible project.')
         const { project, workspace } = context.scope.selection
-        const path = `/api/sprints/${encodeURIComponent(input.sprintId)}`
         yield* sprintInProject(services.db, context.scope, workspace.id, project.id, input.sprintId)
-        const value = yield* context.api
-          .execute(
-            context.api.send(path, {
-              method: 'PATCH',
-              workspaceSlug: workspace.slug,
-              json: {
-                name: input.name.trim(),
-                goal: input.goal.trim() || null,
-                startDate: calendarTimestamp(input.start, input.startOffset),
-                endDate: calendarTimestamp(input.end, input.endOffset),
-              },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          sprintCommands.updateSprint(ctx, input.sprintId, {
+            name: input.name.trim(),
+            goal: input.goal.trim() || null,
+            startDate: calendarTimestamp(input.start, input.startOffset),
+            endDate: calendarTimestamp(input.end, input.endOffset),
+          }),
+        ).pipe(Effect.map(() => ({ ok: true as const })))
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -141,21 +117,10 @@ export const setSprintStatus = EFFRONT.ServerFn.make({
         if (context.scope.selection.kind !== 'project')
           return yield* new ScopeError(404, 'Select an accessible project.')
         const { project, workspace } = context.scope.selection
-        const path = `/api/sprints/${encodeURIComponent(input.sprintId)}`
         yield* sprintInProject(services.db, context.scope, workspace.id, project.id, input.sprintId)
-        const value = yield* context.api
-          .execute(
-            context.api.send(path, {
-              method: 'PATCH',
-              workspaceSlug: workspace.slug,
-              json: { status: input.status },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          sprintCommands.updateSprint(ctx, input.sprintId, { status: input.status }),
+        ).pipe(Effect.map(() => ({ ok: true as const })))
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -177,20 +142,10 @@ export const archiveSprint = EFFRONT.ServerFn.make({
         if (context.scope.selection.kind !== 'project')
           return yield* new ScopeError(404, 'Select an accessible project.')
         const { project, workspace } = context.scope.selection
-        const path = `/api/sprints/${encodeURIComponent(input.sprintId)}`
         yield* sprintInProject(services.db, context.scope, workspace.id, project.id, input.sprintId)
-        const value = yield* context.api
-          .execute(
-            context.api.send(path, {
-              method: 'DELETE',
-              workspaceSlug: workspace.slug,
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) => sprintCommands.deleteSprint(ctx, input.sprintId)).pipe(
+          Effect.map(() => ({ ok: true as const })),
+        )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -227,19 +182,9 @@ export const moveSprintIssues = EFFRONT.ServerFn.make({
         )
         if (issues.some((issue) => !issue || issue.project_id !== project.id || issue.sprint_id !== source.id))
           return yield* new ScopeError(404, 'An issue is no longer in the selected sprint.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(`/api/sprints/${encodeURIComponent(target.id)}/move-issues`, {
-              method: 'POST',
-              workspaceSlug: workspace.slug,
-              json: { issueIds: [...new Set(input.issueIds)] },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(MovedSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          sprintCommands.moveIssuesToSprint(ctx, { sprintId: target.id, issueIds: [...new Set(input.issueIds)] }),
+        ).pipe(Effect.map(({ count }) => ({ ok: true as const, count })))
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({

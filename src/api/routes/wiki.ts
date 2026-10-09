@@ -1,14 +1,14 @@
 import { Hono } from 'hono'
 
+import * as wikiService from '#commands/wiki'
+import * as wikiDraftsService from '#commands/wiki-drafts'
+import { exportWiki } from '#commands/wiki-export'
+import * as wikiWatchersService from '#commands/wiki-watchers'
 import type { HonoEnv } from '#types'
 
 import { jsonBody } from '../http/body'
 import { serviceErrToResponse } from '../http/error-adapter'
 import { ctxFromHono } from '../services/types'
-import * as wikiService from '../services/wiki'
-import * as wikiDraftsService from '../services/wiki-drafts'
-import { exportWiki } from '../services/wiki-export'
-import * as wikiWatchersService from '../services/wiki-watchers'
 
 const router = new Hono<HonoEnv>()
 

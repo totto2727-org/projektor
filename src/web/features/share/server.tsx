@@ -1,11 +1,14 @@
 import { Effect, Schema } from 'effect'
-import { HttpClientResponse } from 'effect/http'
 import type React from 'react'
 
+import { getSharedIssue } from '#commands/share'
+
+import { deploymentBrand } from '../../brand'
 import { renderMarkdownEffect } from '../../components/markdown/effect'
-import type { RequestApi } from '../../server/api-client'
+import type { Env, PageFailure } from '../../request'
+import { commandError } from '../../server/command-context'
 import { ApiError, responseError } from '../../server/errors'
-import { DEFAULT_BRAND, DeploymentBrand, layerBrand, WorkspaceBrand } from './brand'
+import { layerBrand, WorkspaceBrand } from './brand'
 import ShareView, { ErrorState } from './ShareView'
 
 const nullable = Schema.NullOr(Schema.String)
@@ -56,37 +59,25 @@ const SHARE_STYLES = `
 
 /** Token-authorized public view. Never requests a protected workspace/session lookup. */
 export function renderShare(
-  api: RequestApi,
+  env: Pick<Env, 'DB' | 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>,
   _scope: null,
   url: URL,
   params: Readonly<Record<string, string | undefined>> = {},
-): Effect.Effect<React.ReactElement, ApiError> {
+): Effect.Effect<React.ReactElement, PageFailure> {
   return Effect.gen(function* () {
     const shareToken = params.token ?? url.searchParams.get('token')
     if (!shareToken) return <ErrorState error='not_found' />
-    const { issue, base } = yield* Effect.all(
-      {
-        issue: api.execute(api.get(`/api/share/${encodeURIComponent(shareToken)}`)).pipe(
-          Effect.flatMap(HttpClientResponse.schemaBodyJson(SharedIssue)),
-          Effect.mapError(responseError),
-          Effect.scoped,
-          Effect.catchIf(
-            (cause) => [404, 410].includes(cause.status),
-            () => Effect.succeed(null),
-          ),
-        ),
-        base: api.execute(api.get('/api/config/brand')).pipe(
-          Effect.flatMap(HttpClientResponse.schemaBodyJson(DeploymentBrand)),
-          Effect.mapError(responseError),
-          Effect.scoped,
-          Effect.catchIf(
-            (cause) => cause.status === 404,
-            () => Effect.succeed(DEFAULT_BRAND),
-          ),
-        ),
-      },
-      { concurrency: 2 },
+    const issue = yield* Effect.tryPromise({
+      try: () => getSharedIssue(env.DB, shareToken),
+      catch: commandError,
+    }).pipe(
+      Effect.flatMap((value) => Schema.decodeUnknownEffect(SharedIssue)(value).pipe(Effect.mapError(responseError))),
+      Effect.catchIf(
+        (cause) => [404, 410].includes(cause.status),
+        () => Effect.succeed(null),
+      ),
     )
+    const base = deploymentBrand(env)
     if (!issue) return <ErrorState error='not_found' />
     const renderedBody = yield* renderMarkdownEffect(issue.body ?? '').pipe(
       Effect.mapError((cause) => new ApiError('request', 500, cause.message, cause.cause)),

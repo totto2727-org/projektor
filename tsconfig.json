@@ -1,16 +1,11 @@
 {
   "compilerOptions": {
     "strict": true,
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "target": "ES2023",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "target": "ESNext",
     "jsx": "react-jsx",
     "noEmit": true,
     "skipLibCheck": true,
     "types": ["node", "@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types", "vite/client"],
-    "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
     "paths": { "@/*": ["./src/web/*"] }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "alchemy.ts", "alchemy.run.ts", "alchemy.test.ts", "vite.config.ts"]

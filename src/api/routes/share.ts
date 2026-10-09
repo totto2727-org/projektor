@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 
+import { createShareToken, getSharedIssue, getSharedLogo, revokeShareToken } from '#commands/share'
 import type { HonoEnv } from '#types'
 
 import { serviceErrToResponse } from '../http/error-adapter'
-import { createShareToken, getSharedIssue, getSharedLogo, revokeShareToken } from '../services/share'
 import { ctxFromHono } from '../services/types'
 
 // Authenticated router — POST/DELETE /api/issues/:id/share

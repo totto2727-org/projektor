@@ -8,13 +8,21 @@ export class ApiError extends Data.TaggedError('ApiError')<{
   readonly status: number
   readonly message: string
   readonly cause?: Redacted.Redacted<unknown>
+  readonly details?: Readonly<Record<string, unknown>>
 }> {
-  constructor(kind: ApiFailureKind, status: number, message: string, cause?: unknown) {
+  constructor(
+    kind: ApiFailureKind,
+    status: number,
+    message: string,
+    cause?: unknown,
+    details?: Readonly<Record<string, unknown>>,
+  ) {
     super({
       kind,
       status,
       message,
       ...(cause === undefined ? {} : { cause: Redacted.make(cause) }),
+      ...(details === undefined ? {} : { details }),
     })
   }
 }

@@ -1,19 +1,17 @@
 'use server'
 
 import { Effect, Schema } from 'effect'
-import { HttpClientResponse } from 'effect/http'
 
-import {
-  type UploadAttachmentInput,
-  UploadAttachmentInputSchema,
-  type UploadedAttachment,
-  UploadedAttachmentSchema,
-} from './attachments'
+import { storageQuotaBytes, uploadStoredAttachment } from '#commands/files'
+
+import { type UploadAttachmentInput, UploadAttachmentInputSchema, type UploadedAttachment } from './attachments'
 import { EFFRONT } from './effront'
 import type { ActionResult } from './function-result'
 import { RequestServices } from './request'
-import { checkSameOriginMutation, responseError } from './server'
+import { runCommand } from './server/command-context'
+import { ApiError } from './server/errors'
 import { resolveFunctionContext } from './server/function-context'
+import { checkSameOriginMutation } from './server/mutation'
 
 /** Native form action. Effront owns decoding, request limits and page refresh. */
 export const uploadAttachment = EFFRONT.ServerFn.make({
@@ -25,19 +23,11 @@ export const uploadAttachment = EFFRONT.ServerFn.make({
         Effect.gen(function* () {
           yield* checkSameOriginMutation(services.request)
           const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-          const body = new FormData()
-          body.set('file', input.file)
-          body.set('entityType', input.entityType)
-          body.set('entityId', input.entityId)
-          const response = yield* context.api.execute(
-            context.api.raw('/api/files', {
-              method: 'POST',
-              workspaceSlug: context.workspaceSlug,
-              body,
-            }),
-          )
-          return yield* HttpClientResponse.schemaBodyJson(UploadedAttachmentSchema)(response).pipe(
-            Effect.mapError(responseError),
+          // Preserve the Web transport's effective 10 MiB limit, not the API's larger cap.
+          if (input.file.size > 10 * 1024 * 1024)
+            return yield* new ApiError('request', 413, 'File too large (max 10 MB)')
+          return yield* runCommand(context, (ctx) =>
+            uploadStoredAttachment(ctx, input, storageQuotaBytes(services.env)),
           )
         }),
       ).pipe(
@@ -71,19 +61,11 @@ export const uploadInlineImage = EFFRONT.ServerFn.make({
         Effect.gen(function* () {
           yield* checkSameOriginMutation(services.request)
           const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-          const body = new FormData()
-          body.set('file', input.file)
-          body.set('entityType', input.entityType)
-          body.set('entityId', input.entityId)
-          const response = yield* context.api.execute(
-            context.api.raw('/api/files', {
-              method: 'POST',
-              workspaceSlug: context.workspaceSlug,
-              body,
-            }),
-          )
-          return yield* HttpClientResponse.schemaBodyJson(UploadedAttachmentSchema)(response).pipe(
-            Effect.mapError(responseError),
+          // Preserve the Web transport's effective 10 MiB limit, not the API's larger cap.
+          if (input.file.size > 10 * 1024 * 1024)
+            return yield* new ApiError('request', 413, 'File too large (max 10 MB)')
+          return yield* runCommand(context, (ctx) =>
+            uploadStoredAttachment(ctx, input, storageQuotaBytes(services.env)),
           )
         }),
       ).pipe(

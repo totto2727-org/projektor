@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { checkDefinitionOfReady } from '../services/definition-of-ready'
+import { checkDefinitionOfReady } from '#commands/definition-of-ready'
 
 describe('checkDefinitionOfReady (PROJ-253)', () => {
   it('is ready when all three sections have content', () => {

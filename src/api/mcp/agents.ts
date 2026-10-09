@@ -1,7 +1,7 @@
+import { endAgent, finishWork, heartbeatAgent, listActiveAgents, registerAgent, startWork } from '#commands/agents'
+import { ValidationError } from '#commands/errors'
 import type { MCPTool } from '#types'
 
-import { endAgent, finishWork, heartbeatAgent, listActiveAgents, registerAgent, startWork } from '../services/agents'
-import { ValidationError } from '../services/errors'
 import { PLAIN_WRITE, READ } from './annotations'
 
 /** claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both. */

@@ -2,10 +2,13 @@ import { Effect } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { RequestServices } from '../../request'
+import { resetProvisioningCacheForTests } from '#commands/provisioning'
+import { resetAuthCachesForTests } from '#services/authentication'
+
+import { makeRequestServices, RequestServices } from '../../request'
 import type { RequestScope } from '../../server/request-context'
+import { testEnvironment } from '../../server/test/resources'
 import { createTestDatabase } from '../../test/database'
-import { testRequestApi } from '../wiki/test-api'
 import { renderFeedback, renderFeedbackDetail } from './server'
 
 vi.mock('./actions', () => ({}))
@@ -35,7 +38,9 @@ const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
   for (const database of databases.splice(0)) database.close()
 })
-function fixture(currentScope = scope) {
+async function fixture(currentScope = scope) {
+  resetAuthCachesForTests()
+  resetProvisioningCacheForTests()
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`
@@ -51,40 +56,33 @@ function fixture(currentScope = scope) {
 			('row','source','workspace','actual',5,'five_star','Useful customer comment','v1','new',1),
 			('reviewed','source','workspace','actual',1,'thumbs','Reviewed comment','v2','reviewed',2);
 	`)
-  const execute = vi.fn(() => Effect.die('Feedback reads must not call HTTP'))
-  const api = testRequestApi(execute)
+  const execute = vi.spyOn(globalThis, 'fetch')
   const request = new Request('https://app.test/feedback')
-  const services = {
-    api,
-    request,
-    env: { API_BASE: 'https://api.test', DB: database.db },
-    db: database.db,
-    url: new URL(request.url),
-    scope: () => Effect.succeed(currentScope),
-    prepare: <T,>(view: T) => view,
-    invalidate: Effect.void,
-  }
+  const services = await Effect.runPromise(
+    makeRequestServices(request, testEnvironment(database.db, 'alice@example.test')),
+  )
+  const authenticated = await Effect.runPromise(services.scope({ workspaceHint: 'team' }))
+  expect(authenticated.user.id).toBe(currentScope.user.id)
   function run<T, E>(effect: Effect.Effect<T, E, RequestServices>) {
     return Effect.runPromise(effect.pipe(Effect.provideService(RequestServices, services)))
   }
-  return { ...database, api, execute, run }
+  return { ...database, execute, run }
 }
 
 describe('feedback request-local database SSR', () => {
   it('requires a project for grid without reading API or DB', async () => {
-    const f = fixture()
+    const f = await fixture()
     const prepare = vi.spyOn(f.db, 'prepare')
-    expect(
-      renderToStaticMarkup(await f.run(renderFeedback(f.api, scope, new URL('https://app.test/feedback')))),
-    ).toContain('Choose a project')
+    expect(renderToStaticMarkup(await f.run(renderFeedback(scope, new URL('https://app.test/feedback'))))).toContain(
+      'Choose a project',
+    )
     expect(prepare).not.toHaveBeenCalled()
     expect(f.execute).not.toHaveBeenCalled()
   })
   it('derives source project independently of URL and preserves canonical DTOs without exposing credentials', async () => {
-    const f = fixture()
+    const f = await fixture()
     const node = await f.run(
       renderFeedbackDetail(
-        f.api,
         scope,
         new URL('https://app.test/feedback/view?sourceId=source&projectId=wrong&status=new&tab=summary'),
       ),
@@ -109,10 +107,10 @@ describe('feedback request-local database SSR', () => {
     expect(f.execute).not.toHaveBeenCalled()
   })
   it('checks source project catalog before loading protected sources or feedback', async () => {
-    const f = fixture()
+    const f = await fixture()
     const prepare = vi.spyOn(f.db, 'prepare')
     const node = await f.run(
-      renderFeedbackDetail(f.api, scope, new URL('https://app.test/feedback'), {
+      renderFeedbackDetail(scope, new URL('https://app.test/feedback'), {
         sourceId: 'hidden',
       }),
     )
@@ -120,10 +118,10 @@ describe('feedback request-local database SSR', () => {
     expect(prepare).toHaveBeenCalledTimes(1)
   })
   it("does not resolve another workspace's source", async () => {
-    const f = fixture()
+    const f = await fixture()
     expect(
       renderToStaticMarkup(
-        await f.run(renderFeedbackDetail(f.api, scope, new URL('https://app.test/feedback?id=foreign-source'))),
+        await f.run(renderFeedbackDetail(scope, new URL('https://app.test/feedback?id=foreign-source'))),
       ),
     ).toContain('Feedback source not found')
   })
@@ -134,25 +132,25 @@ describe('feedback request-local database SSR', () => {
       workspaces: [member],
       selection: { kind: 'project', workspace: member, project },
     }
-    const f = fixture(memberScope)
+    const f = await fixture(memberScope)
     const prepare = vi.spyOn(f.db, 'prepare')
-    await expect(f.run(renderFeedback(f.api, memberScope, new URL('https://app.test/feedback')))).rejects.toMatchObject(
-      { _tag: 'ScopeError', status: 403 },
-    )
+    await expect(f.run(renderFeedback(memberScope, new URL('https://app.test/feedback')))).rejects.toMatchObject({
+      _tag: 'ScopeError',
+      status: 403,
+    })
     expect(prepare).not.toHaveBeenCalled()
   })
   it('rejects malformed URL status as a validation error', async () => {
-    const f = fixture()
+    const f = await fixture()
     await expect(
-      f.run(renderFeedbackDetail(f.api, scope, new URL('https://app.test/feedback?id=source&status=unknown'))),
+      f.run(renderFeedbackDetail(scope, new URL('https://app.test/feedback?id=source&status=unknown'))),
     ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
   })
   it('redacts malformed stored source metadata without exposing driver or credential details', async () => {
-    const f = fixture()
+    const f = await fixture()
     f.sqlite.prepare("UPDATE feedback_sources SET allowed_origins = ? WHERE id = 'source'").run('private invalid JSON')
     const result = await f.run(
       renderFeedback(
-        f.api,
         { ...scope, selection: { kind: 'project', workspace, project } },
         new URL('https://app.test/feedback'),
       ).pipe(Effect.catch((error) => Effect.succeed(error))),
@@ -165,10 +163,9 @@ describe('feedback request-local database SSR', () => {
     expect(JSON.stringify(result)).not.toContain('private invalid JSON')
   })
   it('renders original grid cards from DB initial DTOs', async () => {
-    const f = fixture()
+    const f = await fixture()
     const node = await f.run(
       renderFeedback(
-        f.api,
         { ...scope, selection: { kind: 'project', workspace, project } },
         new URL('https://app.test/feedback'),
       ),

@@ -1,6 +1,6 @@
+import { createProject, deleteProject, getProject, listProjects, updateProject } from '#commands/projects'
 import type { MCPTool } from '#types'
 
-import { createProject, deleteProject, getProject, listProjects, updateProject } from '../services/projects'
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
 
 export const projectsTools: MCPTool[] = [

@@ -1,10 +1,9 @@
 import { and, eq } from 'drizzle-orm'
 
+import { visibleProjectIds } from '#commands/access'
+import type { ServiceCtx } from '#commands/types'
 import { drizzle, schema } from '#db'
 import type { Env, RealtimeEvent, Role } from '#types'
-
-import { visibleProjectIds } from '../services/access'
-import type { ServiceCtx } from '../services/types'
 
 export interface SubscriptionFilters {
   projects?: string[]

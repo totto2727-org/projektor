@@ -8,10 +8,11 @@
 import { env } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
-import { deleteGroup } from '../services/groups'
-import type { ServiceCtx } from '../services/types'
-import { createWikiPage } from '../services/wiki'
-import { deleteWorkspace, revokeToken } from '../services/workspaces'
+import { deleteGroup } from '#commands/groups'
+import type { ServiceCtx } from '#commands/types'
+import { createWikiPage } from '#commands/wiki'
+import { deleteWorkspace, revokeToken } from '#commands/workspaces'
+
 import { seedFixture, seedGroupGrant, seedProject, seedTaskStatus } from './helpers'
 
 async function count(sql: string, ...params: unknown[]): Promise<number> {

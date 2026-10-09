@@ -8,8 +8,9 @@
 import { env, SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
-import type { ServiceCtx } from '../services/types'
-import { createWikiPage, updateWikiPage } from '../services/wiki'
+import type { ServiceCtx } from '#commands/types'
+import { createWikiPage, updateWikiPage } from '#commands/wiki'
+
 import {
   authHeaders,
   seedAgentLease,

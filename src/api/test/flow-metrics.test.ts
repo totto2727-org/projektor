@@ -1,7 +1,8 @@
 import { env, SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
-import type { Distribution } from '../services/flow-metrics'
+import type { Distribution } from '#commands/flow-metrics'
+
 import { authHeaders, type JsonRpcResult, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers'
 
 interface FlowMetrics {

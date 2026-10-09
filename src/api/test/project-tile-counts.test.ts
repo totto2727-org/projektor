@@ -4,8 +4,9 @@
 import { env, SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
+import { listProjectsAcrossWorkspaces } from '#commands/projects'
+
 import m0066 from '../../../migrations/0066_repair_status_category.sql?raw'
-import { listProjectsAcrossWorkspaces } from '../services/projects'
 import {
   authHeaders,
   seedIssue,

@@ -50,7 +50,7 @@ export const IssueSchema = Schema.Struct({
     }),
   ),
 })
-/** DTO normalization is pure. RequestApi validates these schemas in its Effect channel. */
+/** DTO normalization is pure. Each native loader validates its concrete schema. */
 export function normalizeIssue(dto: typeof IssueSchema.Type): Issue {
   return {
     ...dto,

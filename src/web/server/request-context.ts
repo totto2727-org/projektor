@@ -1,10 +1,11 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import { Effect, Schema } from 'effect'
-import { HttpClientResponse } from 'effect/http'
 
+import { getUserWorkspaces } from '#commands/user-tokens'
 import { listProjectSummaries } from '#services'
+import { authenticateBrowser, type BrowserAuthEnvironment, BrowserAuthenticationError } from '#services/authentication'
+import type { AuthInfo } from '#types'
 
-import type { RequestApi } from './api-client'
 import {
   dataError,
   projectSummaryVisibility,
@@ -12,7 +13,7 @@ import {
   requireBrowserDataRequest,
   requireDataDatabase,
 } from './data-context'
-import { ApiError, responseError, ScopeError } from './errors'
+import { ApiError, ScopeError } from './errors'
 
 const NonEmptyString = Schema.String.check(Schema.isMinLength(1))
 
@@ -76,6 +77,7 @@ export type ScopeSelection =
 /** Serializable data only. The transport/Request/credentials never belong here. */
 export interface RequestScope {
   readonly user: AuthUser
+  readonly auth?: AuthInfo
   readonly workspaces: readonly WorkspaceMembership[]
   readonly projects: readonly ProjectSummary[]
   readonly selection: ScopeSelection
@@ -166,26 +168,33 @@ export function resolveScope(
 }
 
 /**
- * Called by server Page loaders. Backend auth and membership stay authoritative.
+ * Called by server Page loaders. The shared browser verifier and DB memberships stay authoritative.
  * The global catalog is never narrowed by a baked-in deployment workspace.
  */
 export function loadRequestScope(
-  api: RequestApi,
   url: URL,
   options: ScopeOptions,
-  services: { readonly db: D1Database; readonly request: Request },
+  services: { readonly db: D1Database; readonly request: Request; readonly env: BrowserAuthEnvironment },
 ): Effect.Effect<RequestScope, ApiError | ScopeError> {
   return Effect.gen(function* () {
     yield* scopePolicy(() => requireBrowserDataRequest(services.request))
-    const session = yield* api
-      .execute(api.get('/auth/me'))
-      .pipe(
-        Effect.flatMap(HttpClientResponse.schemaBodyJson(AuthSessionSchema)),
-        Effect.mapError(responseError),
-        Effect.scoped,
-      )
-    yield* scopePolicy(() => requireAuthenticatedDataSession(session))
+    const principal = yield* Effect.tryPromise({
+      try: () => authenticateBrowser(services.request, services.env),
+      catch: (cause) =>
+        cause instanceof BrowserAuthenticationError
+          ? new ApiError('request', cause.status, cause.message)
+          : dataError(cause),
+    })
+    yield* scopePolicy(() => requireAuthenticatedDataSession({ user: principal.user, workspaces: [] }))
     const db = yield* Effect.try({ try: () => requireDataDatabase(services.db), catch: dataError })
+    const session = yield* Effect.tryPromise({
+      try: async () =>
+        decodeAuthSession({
+          user: principal.user,
+          workspaces: await getUserWorkspaces({ db, userId: principal.user.id }),
+        }),
+      catch: dataError,
+    })
     const loadCatalog = (includeArchived = false) =>
       listProjectSummaries(db, session.user.id, projectSummaryVisibility(session.user.id), includeArchived).pipe(
         Effect.mapError(dataError),
@@ -212,7 +221,8 @@ export function loadRequestScope(
     )
     // Archived deep links retry exactly once without widening ordinary catalogs.
     const catalog = hint && !hasActiveMatch ? yield* loadCatalog(true) : projects
-    return yield* scopePolicy(() => resolveScope(session, catalog, url, options))
+    const scope = yield* scopePolicy(() => resolveScope(session, catalog, url, options))
+    return { ...scope, auth: principal.auth }
   })
 }
 

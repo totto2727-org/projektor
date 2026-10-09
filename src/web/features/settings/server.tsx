@@ -1,13 +1,16 @@
 import { Effect, Schema } from 'effect'
-import { HttpClientResponse } from 'effect/http'
 
+import { listConnectorGrants } from '#commands/oauth'
+import { getWorkspaceMcpInfo } from '#commands/workspaces'
 import * as groupQueries from '#services/groups'
+import { oauthApi } from '#services/oauth-provider'
 import { listWorkspaceMembers, listWorkspaceTokenMetadata } from '#services/workspaces'
 
+import { apiOrigin } from '../../../deployment'
 import { RequestServices } from '../../request'
-import type { RequestApi } from '../../server/api-client'
+import { runCommand } from '../../server/command-context'
 import { dataError, makeDataContext } from '../../server/data-context'
-import { responseError, ScopeError } from '../../server/errors'
+import { ScopeError } from '../../server/errors'
 import type { RequestScope, WorkspaceMembership } from '../../server/request-context'
 import { GroupViewSchema } from './input-schemas'
 import {
@@ -96,7 +99,7 @@ function TokenSettings({
     </div>
   )
 }
-export function renderGroups(_api: RequestApi, scope: RequestScope, url: URL) {
+export function renderGroups(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) return <p className='text-text-muted'>Select a workspace to manage groups.</p>
@@ -178,7 +181,7 @@ export function renderGroups(_api: RequestApi, scope: RequestScope, url: URL) {
     ),
   )
 }
-export function renderTokens(api: RequestApi, scope: RequestScope, _url: URL) {
+export function renderTokens(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) return <p className='text-text-muted'>Select a workspace to manage tokens.</p>
@@ -195,33 +198,20 @@ export function renderTokens(api: RequestApi, scope: RequestScope, _url: URL) {
               Effect.map((tokens) => ({ tokens, denied: false })),
             )
           : Effect.succeed({ tokens: [], denied: true }),
-        api
-          .execute(
-            api.get(`/api/workspaces/${encodeURIComponent(slug)}/connectors`, {
-              workspaceSlug: slug,
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(ConnectorsSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
-          .pipe(
-            Effect.map((grants) => ({ grants, denied: false })),
-            Effect.catchIf(forbidden, () => Effect.succeed({ grants: [], denied: true })),
-          ),
-        api
-          .execute(
-            api.get(`/api/workspaces/${encodeURIComponent(slug)}/mcp-info`, {
-              workspaceSlug: slug,
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(McpInfoSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
-          .pipe(Effect.catch(() => Effect.succeed(null))),
+        runCommand({ scope, workspaceSlug: slug }, (command) =>
+          listConnectorGrants(oauthApi(services.env), command.userId, command.workspaceId),
+        ).pipe(
+          Effect.flatMap(Schema.decodeUnknownEffect(ConnectorsSchema)),
+          Effect.mapError((cause) => (cause instanceof ScopeError ? cause : dataError(cause))),
+          Effect.map((grants) => ({ grants, denied: false })),
+          Effect.catchIf(forbidden, () => Effect.succeed({ grants: [], denied: true })),
+        ),
+        runCommand({ scope, workspaceSlug: slug }, (command) =>
+          getWorkspaceMcpInfo(command, workspace, apiOrigin),
+        ).pipe(
+          Effect.flatMap(Schema.decodeUnknownEffect(McpInfoSchema)),
+          Effect.catch(() => Effect.succeed(null)),
+        ),
       ],
       { concurrency: 3 },
     )
@@ -257,40 +247,30 @@ export function renderTokens(api: RequestApi, scope: RequestScope, _url: URL) {
     ),
   )
 }
-export function renderConnectAgent(api: RequestApi, scope: RequestScope, _url: URL) {
+export function renderConnectAgent(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) return <p className='text-text-muted'>Select a workspace to connect an agent.</p>
-    const info = yield* api
-      .execute(
-        api.get(`/api/workspaces/${encodeURIComponent(workspace.slug)}/mcp-info`, {
-          workspaceSlug: workspace.slug,
-        }),
-      )
-      .pipe(
-        Effect.flatMap(HttpClientResponse.schemaBodyJson(McpInfoSchema)),
-        Effect.mapError(responseError),
-        Effect.scoped,
-      )
-      .pipe(Effect.catch(() => Effect.succeed(null)))
+    const info = yield* runCommand({ scope, workspaceSlug: workspace.slug }, (command) =>
+      getWorkspaceMcpInfo(command, workspace, apiOrigin),
+    ).pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(McpInfoSchema)),
+      Effect.catch(() => Effect.succeed(null)),
+    )
     return <ConnectAgentGuide key={workspace.slug} workspaceSlug={workspace.slug} mcpUrl={info?.mcpUrl ?? null} />
   })
 }
-export function renderConnectors(api: RequestApi, scope: RequestScope, _url: URL) {
+export function renderConnectors(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) return <p className='text-text-muted'>Select a workspace to manage connectors.</p>
-    const grants = yield* api
-      .execute(
-        api.get(`/api/workspaces/${encodeURIComponent(workspace.slug)}/connectors`, {
-          workspaceSlug: workspace.slug,
-        }),
-      )
-      .pipe(
-        Effect.flatMap(HttpClientResponse.schemaBodyJson(ConnectorsSchema)),
-        Effect.mapError(responseError),
-        Effect.scoped,
-      )
+    const services = yield* RequestServices
+    const grants = yield* runCommand({ scope, workspaceSlug: workspace.slug }, (command) =>
+      listConnectorGrants(oauthApi(services.env), command.userId, command.workspaceId),
+    ).pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(ConnectorsSchema)),
+      Effect.mapError((cause) => (cause instanceof ScopeError ? cause : dataError(cause))),
+    )
     return <ConnectorManager key={workspace.slug} workspaceSlug={workspace.slug} initialGrants={grants} />
   }).pipe(
     Effect.catchIf(forbidden, () =>

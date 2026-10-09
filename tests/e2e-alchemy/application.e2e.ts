@@ -155,6 +155,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   page,
   browser,
   baseURL,
+  request,
 }, testInfo) => {
   const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
   const projectName = `Alchemy acceptance ${suffix}`
@@ -205,6 +206,15 @@ test('native create project and issue refresh canonical reads and navigation', a
   await page.reload()
   await expect(page.getByRole('heading', { name: issueTitle, exact: true })).toBeVisible()
   await checkpoint(page, testInfo, 'issue')
+  const issueBody = `Native direct-read update ${suffix}`
+  await page.getByTitle('Edit description', { exact: true }).click()
+  await page.getByRole('textbox', { name: 'Markdown editor', exact: true }).fill(issueBody)
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByText(issueBody, { exact: true })).toBeVisible()
+  await checkpoint(page, testInfo, 'issue-updated-canonical-body')
+  await page.reload()
+  await expect(page.getByText(issueBody, { exact: true })).toBeVisible()
+  await checkpoint(page, testInfo, 'issue-updated-body-reload')
   const filename = `native-attachment-${suffix}.txt`
   const bytes = Buffer.alloc(65_536, 'native-effront-attachment\n')
   await page.getByRole('button', { name: /Attach file/ }).click()
@@ -217,6 +227,14 @@ test('native create project and issue refresh canonical reads and navigation', a
   await page.getByRole('button', { name: 'Upload', exact: true }).click()
   const attachment = page.locator('a[href^="/api/files/"]').filter({ hasText: filename })
   await expect(attachment).toBeVisible()
+  const filePath = new URL((await attachment.getAttribute('href')) ?? '', page.url()).pathname
+  const apiFile = await request.get(`http://127.0.0.1:4392${filePath}`, {
+    headers: { 'X-Workspace-Slug': 'projektor' },
+  })
+  expect(apiFile.status()).toBe(200)
+  expect(await apiFile.body()).toEqual(bytes)
+  expect(apiFile.headers()['content-type']).toBe('application/octet-stream')
+  expect(apiFile.headers()['x-content-type-options']).toBe('nosniff')
   await page.reload()
   await expect(attachment).toBeVisible()
   await checkpoint(page, testInfo, 'native-attachment-reload')
@@ -229,6 +247,15 @@ test('native create project and issue refresh canonical reads and navigation', a
   for await (const chunk of stream) chunks.push(Buffer.from(chunk))
   expect(Buffer.concat(chunks)).toEqual(bytes)
   await checkpoint(page, testInfo, 'native-attachment-download')
+  await page.getByRole('button', { name: `Remove ${filename}`, exact: true }).click()
+  await expect(attachment).toHaveCount(0)
+  await page.reload()
+  await expect(attachment).toHaveCount(0)
+  const removedFile = await request.get(`http://127.0.0.1:4392${filePath}`, {
+    headers: { 'X-Workspace-Slug': 'projektor' },
+  })
+  expect(removedFile.status()).toBe(404)
+  await checkpoint(page, testInfo, 'native-attachment-deleted-reload')
   await page.goBack()
   await expect(page).toHaveURL(issuesUrl)
   await expect(page.getByRole('link', { name: issueTitle, exact: true })).toBeVisible()
@@ -334,6 +361,29 @@ async function createReaderFixtures(request: APIRequestContext) {
   })
   expect(createdIssue.status(), await createdIssue.text()).toBe(201)
   const issue = { ...(await createdIssue.json()), title: `Reader issue ${suffix}` }
+  // Reciprocal file parity: the real API writes/deletes, while Web reads directly.
+  // This fixture does not replace the separate browser-native upload/delete flow.
+  const fileBytes = Buffer.alloc(65_536, `api-web-file-${suffix}\n`)
+  const uploadedFile = await request.post('http://127.0.0.1:4392/api/files', {
+    headers,
+    multipart: {
+      file: { name: `api-file-${suffix}.txt`, mimeType: 'text/plain', buffer: fileBytes },
+      entityType: 'issue',
+      entityId: issue.id,
+    },
+  })
+  expect(uploadedFile.status(), await uploadedFile.text()).toBe(201)
+  const uploaded = await uploadedFile.json()
+  expect(uploaded).toMatchObject({ filename: `api-file-${suffix}.txt`, contentType: 'text/plain', size: 65_536 })
+  const nativeFileUrl = `http://127.0.0.1:4393/api/files/${uploaded.id}?workspace=projektor`
+  const nativeFile = await request.get(nativeFileUrl)
+  expect(nativeFile.status()).toBe(200)
+  expect(await nativeFile.body()).toEqual(fileBytes)
+  expect(nativeFile.headers()['content-type']).toBe('application/octet-stream')
+  expect(nativeFile.headers()['cache-control']).toBe('private, no-store')
+  const deletedFile = await request.delete(`http://127.0.0.1:4392/api/files/${uploaded.id}`, { headers })
+  expect(deletedFile.status()).toBe(204)
+  expect((await request.get(nativeFileUrl)).status()).toBe(404)
   const createdWiki = await request.post('http://127.0.0.1:4392/api/wiki', {
     headers,
     data: {

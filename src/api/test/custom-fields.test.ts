@@ -1,7 +1,8 @@
 import { env, SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
-import { batchLoadCustomFields } from '../services/custom-fields'
+import { batchLoadCustomFields } from '#commands/custom-fields'
+
 import {
   authHeaders,
   seedCustomFieldDef,
@@ -452,7 +453,7 @@ describe('Custom Fields — list_issues filter', () => {
 
 describe('Custom Fields — story_points seed', () => {
   it('seedDefaultCustomFields creates story_points for new workspace', async () => {
-    const { seedDefaultCustomFields } = await import('../services/custom-fields')
+    const { seedDefaultCustomFields } = await import('#commands/custom-fields')
     const ws = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
@@ -473,7 +474,7 @@ describe('Custom Fields — story_points seed', () => {
   })
 
   it('seedDefaultCustomFields is idempotent', async () => {
-    const { seedDefaultCustomFields } = await import('../services/custom-fields')
+    const { seedDefaultCustomFields } = await import('#commands/custom-fields')
     const ws = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { parseWikiLinkTargets } from '../services/wiki-links'
+import { parseWikiLinkTargets } from '#commands/wiki-links'
 
 describe('parseWikiLinkTargets (PROJ-483)', () => {
   it('returns no targets for content with no links', () => {

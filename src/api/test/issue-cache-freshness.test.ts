@@ -4,8 +4,9 @@
 import { env, SELF } from 'cloudflare:test'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { getIssue } from '../services/issues'
-import type { ServiceCtx } from '../services/types'
+import { getIssue } from '#commands/issues'
+import type { ServiceCtx } from '#commands/types'
+
 import { authHeaders, seedIssue, seedIssueFixture, seedTaskStatus } from './helpers'
 
 type IssueBody = {

@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
 
+import { composePlaybook } from '#commands/playbook-compose'
+import { getPlaybook, listPlaybooks } from '#commands/playbooks'
 import type { HonoEnv } from '#types'
 
 import { jsonBody } from '../http/body'
 import { serviceErrToResponse } from '../http/error-adapter'
-import { composePlaybook } from '../services/playbook-compose'
-import { getPlaybook, listPlaybooks } from '../services/playbooks'
 import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()

@@ -13,8 +13,9 @@
 import { env, SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { getFlowMetrics } from '../services/flow-metrics'
-import type { ServiceCtx } from '../services/types'
+import { getFlowMetrics } from '#commands/flow-metrics'
+import type { ServiceCtx } from '#commands/types'
+
 import { authHeaders, seedProjectFixture } from './helpers'
 
 describe('PROJ-866: flow-metrics window validation', () => {

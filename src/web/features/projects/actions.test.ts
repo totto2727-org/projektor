@@ -1,101 +1,101 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { CreateProjectSchema, UpdateProjectSchema } from '../../../api/schemas/projects'
 import { actionFixture, formData } from '../planning/action-test-fixture'
 
 const { createProject, updateDescription, archiveProject } = await import('./actions')
 
-describe('project native form API contract', () => {
-  it('creates a project with a blank optional description using the unchanged backend schema', async () => {
-    const fixture = actionFixture(async (url, options) => {
-      expect(url.pathname).toBe('/api/projects')
-      const body = CreateProjectSchema.parse(JSON.parse(await new Response(options?.body).text()))
-      expect(body).toEqual({ name: 'New project', key: 'NEW', description: '' })
-      return { id: 'created', name: body.name, key: body.key, slug: 'new-project' }
+describe('project native forms invoke real shared commands', () => {
+  it('creates a project with a blank optional description through the unchanged domain schema', async () => {
+    const test = actionFixture()
+    const result = await test.invoke(
+      createProject,
+      null,
+      formData({ workspaceSlug: 'alpha', name: 'New project', key: 'NEW', description: '' }),
+    )
+    expect(result).toMatchObject({
+      ok: true,
+      value: { id: expect.any(String), name: 'New project', key: 'NEW', slug: 'new-project' },
     })
-    await expect(
-      fixture.invoke(
-        createProject,
-        null,
-        formData({
-          workspaceSlug: 'alpha',
-          name: 'New project',
-          key: 'NEW',
-          description: '',
-        }),
-      ),
-    ).resolves.toMatchObject({ ok: true, value: { id: 'created' } })
+    expect(test.sqlite.prepare("SELECT name,key,description FROM projects WHERE key='NEW'").get()).toMatchObject({
+      name: 'New project',
+      key: 'NEW',
+      description: '',
+    })
+    expect(test.transport).not.toHaveBeenCalled()
+    expect(test.invalidated).toHaveBeenCalledTimes(1)
   })
-
   it('clears the description with an accepted empty string rather than unsupported null', async () => {
-    const fixture = actionFixture(async (url, options) => {
-      expect(url.pathname).toBe('/api/projects/p1')
-      expect(UpdateProjectSchema.parse(JSON.parse(await new Response(options?.body).text()))).toEqual({
-        description: '',
-      })
-      return { ok: true }
-    })
-    await expect(
-      fixture.invoke(
+    const test = actionFixture()
+    test.sqlite.exec("UPDATE projects SET description='Existing' WHERE id='p1'")
+    expect(
+      await test.invoke(
         updateDescription,
         null,
-        formData({
-          workspaceSlug: 'alpha',
-          projectId: 'p1',
-          description: '',
-        }),
+        formData({ workspaceSlug: 'alpha', projectId: 'p1', description: '' }),
       ),
-    ).resolves.toEqual({ ok: true, value: { ok: true } })
+    ).toEqual({ ok: true, value: { ok: true } })
+    expect(test.sqlite.prepare("SELECT description FROM projects WHERE id='p1'").get()?.description).toBe('')
+    expect(test.transport).not.toHaveBeenCalled()
   })
-
-  it('archives through the unchanged API after resolving the actual D1 project catalog', async () => {
-    const fixture = actionFixture(async (url, options) => {
-      expect(url.pathname).toBe('/api/projects/p1')
-      expect(options?.method).toBe('PATCH')
-      expect(UpdateProjectSchema.parse(JSON.parse(await new Response(options?.body).text()))).toEqual({
-        archived: true,
-      })
-      return { ok: true }
+  it('archives and restores after resolving the actual D1 project catalog', async () => {
+    const test = actionFixture()
+    expect(await test.invoke(archiveProject, { workspaceSlug: 'alpha', projectId: 'p1', archived: true })).toEqual({
+      ok: true,
+      value: { ok: true },
     })
-    await expect(
-      fixture.invoke(archiveProject, { workspaceSlug: 'alpha', projectId: 'p1', archived: true }),
-    ).resolves.toEqual({ ok: true, value: { ok: true } })
-    const readPaths = fixture.transport.mock.calls
-      .filter(([, options]) => options?.method === 'GET')
-      .map(([input]) => new URL(input instanceof Request ? input.url : input.toString()).pathname)
-    expect(readPaths).toEqual(['/auth/me'])
+    expect(test.sqlite.prepare("SELECT archived_at FROM projects WHERE id='p1'").get()?.archived_at).toEqual(
+      expect.any(Number),
+    )
+    expect(await test.invoke(archiveProject, { workspaceSlug: 'alpha', projectId: 'p1', archived: false })).toEqual({
+      ok: true,
+      value: { ok: true },
+    })
+    expect(test.sqlite.prepare("SELECT archived_at FROM projects WHERE id='p1'").get()?.archived_at).toBeNull()
+    expect(test.transport).not.toHaveBeenCalled()
   })
-
-  it('rejects a foreign project from real D1 before the project PATCH', async () => {
-    const fixture = actionFixture(() => {
-      throw new Error('Must not mutate a foreign project')
-    })
-    await expect(
-      fixture.invoke(archiveProject, {
-        workspaceSlug: 'alpha',
-        projectId: 'foreign',
-        archived: true,
-      }),
-    ).resolves.toMatchObject({ ok: false, status: 404 })
-    expect(fixture.transport.mock.calls.filter(([, options]) => options?.method !== 'GET')).toEqual([])
+  it('rejects a foreign project from real D1 before the mutation', async () => {
+    const test = actionFixture()
+    expect(
+      await test.invoke(archiveProject, { workspaceSlug: 'alpha', projectId: 'foreign', archived: true }),
+    ).toMatchObject({ ok: false, status: 404 })
+    expect(test.sqlite.prepare("SELECT archived_at FROM projects WHERE id='foreign'").get()?.archived_at).toBeNull()
+    expect(test.transport).not.toHaveBeenCalled()
   })
-
-  it('rejects leading-digit project keys in the shared Effect form schema before HTTP execution', async () => {
-    const fixture = actionFixture(() => {
-      throw new Error('Must not send invalid key')
-    })
+  it('rejects leading-digit project keys before execution', async () => {
+    const test = actionFixture()
     await expect(
-      fixture.invoke(
+      test.invoke(
         createProject,
         null,
-        formData({
-          workspaceSlug: 'alpha',
-          name: 'Invalid key',
-          key: '1BAD',
-          description: '',
-        }),
+        formData({ workspaceSlug: 'alpha', name: 'Invalid key', key: '1BAD', description: '' }),
       ),
     ).rejects.toBeDefined()
-    expect(fixture.transport).not.toHaveBeenCalled()
+    expect(test.transport).not.toHaveBeenCalled()
+  })
+  it('preserves workspace-admin mutation authority even for a granted project member', async () => {
+    const test = actionFixture()
+    test.sqlite.exec(
+      "UPDATE workspace_members SET role='member' WHERE user_id='u1'; INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('g1','w1','Team',1); INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1); INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','admin');",
+    )
+    expect(
+      await test.invoke(
+        updateDescription,
+        null,
+        formData({ workspaceSlug: 'alpha', projectId: 'p1', description: 'Denied' }),
+      ),
+    ).toMatchObject({ ok: false, status: 403 })
+    expect(test.sqlite.prepare("SELECT description FROM projects WHERE id='p1'").get()?.description).toBeNull()
+  })
+  it('serializes a real duplicate-key conflict and invalidates without an API transport', async () => {
+    const test = actionFixture()
+    expect(
+      await test.invoke(
+        createProject,
+        null,
+        formData({ workspaceSlug: 'alpha', name: 'Duplicate', key: 'PROJ', description: '' }),
+      ),
+    ).toMatchObject({ ok: false, status: 409 })
+    expect(test.invalidated).toHaveBeenCalledTimes(1)
+    expect(test.transport).not.toHaveBeenCalled()
   })
 })

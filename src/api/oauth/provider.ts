@@ -1,13 +1,9 @@
-import {
-  getOAuthApi,
-  type OAuthHelpers,
-  OAuthProvider,
-  type OAuthProviderOptions,
-} from '@cloudflare/workers-oauth-provider'
+import { OAuthProvider } from '@cloudflare/workers-oauth-provider'
 
+import { AUTHORIZE_ENDPOINT, providerOptions, TOKEN_ENDPOINT } from '#services/oauth-provider'
 import type { Env } from '#types'
 
-import { OAUTH_SCOPES_SUPPORTED } from '../auth/scopes'
+export { AUTHORIZE_ENDPOINT, oauthApi, TOKEN_ENDPOINT } from '#services/oauth-provider'
 import { bumpRateCounter } from '../middleware/rate-limit'
 
 // PROJ-656/657: the OAuth 2.1 token lifecycle, delegated to Cloudflare's provider.
@@ -47,45 +43,8 @@ export function isOAuthProviderPath(pathname: string): boolean {
 // Revocation shares this URL: the provider handles issuance, refresh and RFC 7009
 // revocation on the one token endpoint, which is why the discovery document
 // advertises `revocation_endpoint` as the same path rather than a separate /oauth/revoke.
-export const TOKEN_ENDPOINT = '/oauth/token'
-export const AUTHORIZE_ENDPOINT = '/oauth/authorize'
-
-function providerOptions(app: ExportedHandler<Env>): OAuthProviderOptions<Env> {
-  return {
-    // Only reached for requests index.ts has already identified as carrying an
-    // OAuth access token; see isOAuthAccessToken above.
-    apiRoute: '/mcp/',
-    apiHandler: app as OAuthProviderOptions<Env>['apiHandler'],
-    defaultHandler: app,
-    // Not handled by the provider — it only advertises this URL. The consent
-    // screen is projektor's own route (routes/oauth.ts), because the user is
-    // authenticated by the existing Cloudflare Access session and the screen has
-    // to name a workspace the provider knows nothing about.
-    authorizeEndpoint: AUTHORIZE_ENDPOINT,
-    tokenEndpoint: TOKEN_ENDPOINT,
-    clientIdMetadataDocumentEnabled: true,
-    scopesSupported: [...OAUTH_SCOPES_SUPPORTED],
-  }
-}
-
 export function createOAuthProvider(app: ExportedHandler<Env>) {
   return new OAuthProvider<Env>(providerOptions(app))
-}
-
-// Read/write access to grants from a normal Hono route (PROJ-659: Settings lists and
-// revokes connectors). `env.OAUTH_PROVIDER` only exists on requests the provider itself
-// routed, and a settings page request is not one of those — it carries a session cookie,
-// not an OAuth token, so index.ts hands it straight to the app.
-//
-// The handlers in the options are never invoked on this path; getOAuthApi builds the
-// helpers from the KV binding and the endpoint configuration alone. Passing a handler
-// that throws would be a lie about what happens, so it 404s instead.
-const HANDLER_UNUSED_HERE: ExportedHandler<Env> = {
-  fetch: () => new Response('Not found', { status: 404 }),
-}
-
-export function oauthApi(env: Env): OAuthHelpers {
-  return getOAuthApi(providerOptions(HANDLER_UNUSED_HERE), env)
 }
 
 /**

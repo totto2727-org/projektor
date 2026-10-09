@@ -1,6 +1,6 @@
+import { getCodeHeatmap } from '#commands/code-heatmap'
 import type { MCPTool } from '#types'
 
-import { getCodeHeatmap } from '../services/code-heatmap'
 import { READ } from './annotations'
 
 export const codeHeatmapTools: MCPTool[] = [

@@ -1,8 +1,9 @@
 import { env, SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
-import { computeFreshness } from '../services/wiki-freshness'
-import { listWikiChanges } from '../services/wiki-watchers'
+import { computeFreshness } from '#commands/wiki-freshness'
+import { listWikiChanges } from '#commands/wiki-watchers'
+
 import {
   authHeaders,
   type JsonRpcError,

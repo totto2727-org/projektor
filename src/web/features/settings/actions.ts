@@ -1,13 +1,23 @@
 'use server'
 
+import { and, eq } from 'drizzle-orm'
 import { Effect, Schema } from 'effect'
-import { HttpClientResponse } from 'effect/http'
+
+import * as groupCommands from '#commands/groups'
+import { revokeConnectorGrant } from '#commands/oauth'
+import * as workspaceCommands from '#commands/workspaces'
+import { schema } from '#db'
+import { oauthApi } from '#services/oauth-provider'
+import { listProjects } from '#services/projects'
 
 import { EFFRONT } from '../../effront'
 import { RequestServices } from '../../request'
-import { checkSameOriginMutation } from '../../server/api-client'
-import { responseError, ScopeError } from '../../server/errors'
+import { runCommand } from '../../server/command-context'
+import { dataError, visibleProjectPredicate } from '../../server/data-context'
+import { ScopeError } from '../../server/errors'
 import { resolveFunctionContext } from '../../server/function-context'
+import { checkSameOriginMutation } from '../../server/mutation'
+import type { RequestScope } from '../../server/request-context'
 import {
   ConnectorIdentitySchema,
   CreateGroupInputSchema,
@@ -17,14 +27,27 @@ import {
   GroupIdentitySchema,
   GroupMemberInputSchema,
   GroupProjectIdentitySchema,
-  NewTokenSchema,
   RenameGroupInputSchema,
   TokenIdentitySchema,
 } from './input-schemas'
 
-const CreatedSchema = Schema.Struct({ id: Schema.String })
-const OkSchema = Schema.Struct({ ok: Schema.Literal(true) })
-const GrantProjectSchema = Schema.Struct({ id: Schema.String, workspaceId: Schema.String })
+/** Grant targets are explicit IDs, including archived projects outside the active page catalog. */
+function authorizeGrantProject(db: Parameters<typeof listProjects>[0], scope: RequestScope, projectId: string) {
+  return Effect.gen(function* () {
+    if (scope.selection.kind !== 'workspace')
+      return yield* new ScopeError(404, 'Project not found in the selected workspace.')
+    const workspaceId = scope.selection.workspace.id
+    const visibility = yield* Effect.try({
+      try: () =>
+        and(visibleProjectPredicate(scope, workspaceId, schema.projects.id), eq(schema.projects.id, projectId)),
+      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
+    })
+    const [project] = yield* listProjects(db, workspaceId, { includeArchived: true, visibility }).pipe(
+      Effect.mapError(dataError),
+    )
+    if (!project) return yield* new ScopeError(404, 'Project not found in the selected workspace.')
+  })
+}
 
 export const createGroup = EFFRONT.ServerFn.make({
   input: [Schema.Unknown, Schema.fromFormData(CreateGroupInputSchema)] as const,
@@ -35,19 +58,9 @@ export const createGroup = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(`/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/groups`, {
-              method: 'POST',
-              workspaceSlug: context.workspaceSlug,
-              json: { name: input.name.trim() },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(CreatedSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          groupCommands.createGroup(ctx, { name: input.name.trim() }),
+        ).pipe(Effect.map(({ id }) => ({ id })))
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -67,22 +80,9 @@ export const renameGroup = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(
-              `/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/groups/${encodeURIComponent(input.groupId)}`,
-              {
-                method: 'PATCH',
-                workspaceSlug: context.workspaceSlug,
-                json: { name: input.name.trim() },
-              },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          groupCommands.updateGroup(ctx, input.groupId, { name: input.name.trim() }),
+        )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -102,22 +102,9 @@ export const describeGroup = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(
-              `/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/groups/${encodeURIComponent(input.groupId)}`,
-              {
-                method: 'PATCH',
-                workspaceSlug: context.workspaceSlug,
-                json: { description: input.description.trim() || null },
-              },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          groupCommands.updateGroup(ctx, input.groupId, { description: input.description.trim() || null }),
+        )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -137,18 +124,7 @@ export const deleteGroup = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(
-              `/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/groups/${encodeURIComponent(input.groupId)}`,
-              { method: 'DELETE', workspaceSlug: context.workspaceSlug },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) => groupCommands.deleteGroup(ctx, input.groupId))
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -168,22 +144,9 @@ export const addGroupMember = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(
-              `/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/groups/${encodeURIComponent(input.groupId)}/members`,
-              {
-                method: 'POST',
-                workspaceSlug: context.workspaceSlug,
-                json: { userId: input.userId },
-              },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          groupCommands.addGroupMember(ctx, input.groupId, { userId: input.userId }),
+        )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -203,18 +166,9 @@ export const removeGroupMember = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(
-              `/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/groups/${encodeURIComponent(input.groupId)}/members/${encodeURIComponent(input.userId)}`,
-              { method: 'DELETE', workspaceSlug: context.workspaceSlug },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          groupCommands.removeGroupMember(ctx, input.groupId, input.userId),
+        )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -236,40 +190,11 @@ export const setGroupGrant = EFFRONT.ServerFn.make({
           { workspaceSlug: input.workspaceSlug },
           { requireWorkspace: true },
         )
-        // The grant's target is not a page selector. Direct GET also includes archived projects.
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const project = yield* context.api
-          .execute(
-            context.api.get(`/api/projects/${encodeURIComponent(input.projectId)}`, {
-              workspaceSlug: context.workspaceSlug,
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(GrantProjectSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
-        if (
-          context.scope.selection.kind !== 'workspace' ||
-          project.workspaceId !== context.scope.selection.workspace.id
+        yield* authorizeGrantProject(services.db, context.scope, input.projectId)
+        const value = yield* runCommand(context, (ctx) =>
+          groupCommands.setGroupGrant(ctx, input.groupId, { projectId: input.projectId, role: input.role }),
         )
-          return yield* new ScopeError(404, 'Project not found in the selected workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(
-              `/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/groups/${encodeURIComponent(input.groupId)}/grants`,
-              {
-                method: 'PUT',
-                workspaceSlug: context.workspaceSlug,
-                json: { projectId: input.projectId, role: input.role },
-              },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -293,38 +218,10 @@ export const createGroupGrant = EFFRONT.ServerFn.make({
           { requireWorkspace: true },
         )
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const project = yield* context.api
-          .execute(
-            context.api.get(`/api/projects/${encodeURIComponent(input.projectId)}`, {
-              workspaceSlug: context.workspaceSlug,
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(GrantProjectSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
-        if (
-          context.scope.selection.kind !== 'workspace' ||
-          project.workspaceId !== context.scope.selection.workspace.id
+        yield* authorizeGrantProject(services.db, context.scope, input.projectId)
+        const value = yield* runCommand(context, (ctx) =>
+          groupCommands.setGroupGrant(ctx, input.groupId, { projectId: input.projectId, role: input.role }),
         )
-          return yield* new ScopeError(404, 'Project not found in the selected workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(
-              `/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/groups/${encodeURIComponent(input.groupId)}/grants`,
-              {
-                method: 'PUT',
-                workspaceSlug: context.workspaceSlug,
-                json: { projectId: input.projectId, role: input.role },
-              },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -347,34 +244,10 @@ export const removeGroupGrant = EFFRONT.ServerFn.make({
           { requireWorkspace: true },
         )
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const project = yield* context.api
-          .execute(
-            context.api.get(`/api/projects/${encodeURIComponent(input.projectId)}`, {
-              workspaceSlug: context.workspaceSlug,
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(GrantProjectSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
-        if (
-          context.scope.selection.kind !== 'workspace' ||
-          project.workspaceId !== context.scope.selection.workspace.id
+        yield* authorizeGrantProject(services.db, context.scope, input.projectId)
+        const value = yield* runCommand(context, (ctx) =>
+          groupCommands.removeGroupGrant(ctx, input.groupId, input.projectId),
         )
-          return yield* new ScopeError(404, 'Project not found in the selected workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(
-              `/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/groups/${encodeURIComponent(input.groupId)}/grants/${encodeURIComponent(input.projectId)}`,
-              { method: 'DELETE', workspaceSlug: context.workspaceSlug },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -394,23 +267,13 @@ export const createToken = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(`/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/tokens`, {
-              method: 'POST',
-              workspaceSlug: context.workspaceSlug,
-              json: {
-                name: input.name.trim(),
-                scopes: input.scope === 'read' ? ['read'] : ['read', 'write'],
-                ...(input.expiry ? { expiresInDays: Number(input.expiry) } : {}),
-              },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(NewTokenSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          workspaceCommands.createToken(ctx, {
+            name: input.name.trim(),
+            scopes: input.scope === 'read' ? ['read'] : ['read', 'write'],
+            ...(input.expiry ? { expiresInDays: Number(input.expiry) } : {}),
+          }),
+        )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -430,18 +293,7 @@ export const revokeToken = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(
-              `/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/tokens/${encodeURIComponent(input.tokenId)}`,
-              { method: 'DELETE', workspaceSlug: context.workspaceSlug },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) => workspaceCommands.revokeToken(ctx, input.tokenId))
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
@@ -461,18 +313,9 @@ export const disconnectConnector = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const value = yield* context.api
-          .execute(
-            context.api.send(
-              `/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/connectors/${encodeURIComponent(input.connectorId)}`,
-              { method: 'DELETE', workspaceSlug: context.workspaceSlug },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OkSchema)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(context, (ctx) =>
+          revokeConnectorGrant(oauthApi(services.env), ctx.userId, ctx.workspaceId, input.connectorId),
+        )
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({

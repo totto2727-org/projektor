@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { inChunks, sanitizeFtsQuery } from '../services/sql'
+import { inChunks, sanitizeFtsQuery } from '#commands/sql'
 
 describe('sanitizeFtsQuery (PROJ-518)', () => {
   it('wraps each whitespace-separated token in double quotes', () => {

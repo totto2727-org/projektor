@@ -1,15 +1,15 @@
 import { Hono } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
 import {
   createCustomFieldDef,
   deleteCustomFieldDef,
   listCustomFieldDefs,
   updateCustomFieldDef,
-} from '../services/custom-fields'
+} from '#commands/custom-fields'
+import type { HonoEnv } from '#types'
+
+import { jsonBody } from '../http/body'
+import { serviceErrToResponse } from '../http/error-adapter'
 import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()

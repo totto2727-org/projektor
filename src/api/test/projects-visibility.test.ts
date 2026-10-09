@@ -7,12 +7,12 @@
 import { env } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
+import { updateIssue } from '#commands/issues'
+import { listProjects, listProjectsAcrossWorkspaces } from '#commands/projects'
+import { PUBLIC_VIEWERS_GROUP_NAME, provisionPublicViewer } from '#commands/provisioning'
+import type { ServiceCtx } from '#commands/types'
 import type { Env } from '#types'
 
-import { updateIssue } from '../services/issues'
-import { listProjects, listProjectsAcrossWorkspaces } from '../services/projects'
-import { PUBLIC_VIEWERS_GROUP_NAME, provisionPublicViewer } from '../services/provisioning'
-import type { ServiceCtx } from '../services/types'
 import { seedGroupGrant, seedIssue, seedMember, seedProject, seedUser, seedWorkspace } from './helpers'
 
 function viewerCtx(workspaceId: string, userId: string): ServiceCtx {

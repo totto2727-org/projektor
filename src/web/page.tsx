@@ -5,18 +5,24 @@ import type { ReactNode } from 'react'
 import { RuntimeProvider } from './client/runtime'
 import { ProjectNav } from './components/ProjectNav'
 import { EFFRONT } from './effront'
-import { getRouteParams, type PageFailure, type PreparedView, RequestServices, type RouteParams } from './request'
+import {
+  getRouteParams,
+  type Env,
+  type PageFailure,
+  type PreparedView,
+  RequestServices,
+  type RouteParams,
+} from './request'
 import { ScopeSelection } from './selection'
-import type { RequestApi, RequestScope, ScopeOptions } from './server'
+import type { RequestScope, ScopeOptions } from './server'
 
 export type RouteRenderer = (
-  api: RequestApi,
   scope: RequestScope,
   url: URL,
   params: RouteParams,
 ) => Effect.Effect<ReactNode, PageFailure, RequestServices>
 export type PublicRenderer = (
-  api: RequestApi,
+  env: Env,
   scope: null,
   url: URL,
   params: RouteParams,
@@ -55,11 +61,11 @@ export function pageRenderer(
     const scope = options.public ? null : yield* services.scope(options)
     let content: ReactNode
     if (scope === null) {
-      content = yield* (render as PublicRenderer)(services.api, null, services.url, params)
+      content = yield* (render as PublicRenderer)(services.env, null, services.url, params)
     } else if (scope.selection.kind === 'selection-required') {
       content = <ScopeSelection scope={scope} url={services.url} />
     } else {
-      content = yield* (render as RouteRenderer)(services.api, scope, services.url, params)
+      content = yield* (render as RouteRenderer)(scope, services.url, params)
     }
     return (
       <RuntimeProvider key={services.url.href} scope={scope} url={services.url.href}>

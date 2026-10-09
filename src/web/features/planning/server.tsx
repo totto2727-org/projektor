@@ -7,7 +7,6 @@ import { listIssues, type IssueListOptions } from '#services/issues'
 import { listSprints } from '#services/sprints'
 
 import { RequestServices } from '../../request'
-import type { RequestApi } from '../../server/api-client'
 import { dataError, requireDataProject, requireDataWorkspace, visibleProjectPredicate } from '../../server/data-context'
 import { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
@@ -28,7 +27,7 @@ function selectedProject(scope: RequestScope, projectId: string, workspaceId: st
 }
 
 /** Fully page scoped issue DTOs on the server, including completed velocity history. */
-export function loadSprintIssues(_api: RequestApi, projectId: string, workspaceSlug: string, scope: RequestScope) {
+export function loadSprintIssues(projectId: string, workspaceSlug: string, scope: RequestScope) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const workspace = scope.workspaces.find((item) => item.slug === workspaceSlug)
@@ -58,7 +57,7 @@ export function loadSprintIssues(_api: RequestApi, projectId: string, workspaceS
     return issues
   })
 }
-export function renderSprints(api: RequestApi, scope: RequestScope, url: URL) {
+export function renderSprints(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
     if (scope.selection.kind !== 'project')
       return <p className='text-text-muted'>Select a project to view its sprints.</p>
@@ -74,7 +73,7 @@ export function renderSprints(api: RequestApi, scope: RequestScope, url: URL) {
           Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(SprintSchema))),
           Effect.mapError(dataError),
         ),
-        loadSprintIssues(api, project.id, workspace.slug, scope),
+        loadSprintIssues(project.id, workspace.slug, scope),
       ],
       { concurrency: 2 },
     )
@@ -92,7 +91,7 @@ export function renderSprints(api: RequestApi, scope: RequestScope, url: URL) {
     )
   })
 }
-export function renderMetrics(_api: RequestApi, scope: RequestScope, url: URL) {
+export function renderMetrics(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
     if (scope.selection.kind !== 'project') return <p className='text-text-muted'>Select a project to view metrics.</p>
     const { project, workspace } = scope.selection

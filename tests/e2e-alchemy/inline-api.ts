@@ -20,7 +20,7 @@ export class InlineApi extends Plugin.Service<
   { readonly bind: PluginContext.BindingHook<RuntimeServices.BindingServices> }
 >()('cloudflare-runtime/plugin/ProjektorInlineApi') {}
 
-export const inlineApiBinding = Plugin.use(InlineApi, (plugin) => plugin.api.bind)
+export const inlineApiRateLimiterBinding = Plugin.use(InlineApi, (plugin) => plugin.api.bind)
 
 /** Read the real official API build, entry first, without rewriting its modules. */
 async function readApiModules(): Promise<WorkerdConfig.Worker_Module[]> {
@@ -77,12 +77,19 @@ export async function makeInlineApiLayer(directory: string) {
               },
             }),
           )
-          return { name: 'API', service: { name: apiService } }
+          // Native foreign namespace within this SAME workerd. No Web API
+          // service binding and no registry/network proxy for the RateLimiter.
+          return {
+            name: 'RATE_LIMITER',
+            durableObjectNamespace: { className: 'RateLimiter', serviceName: apiService },
+          }
         }),
       },
       defer: Effect.sync((): Plugin.PluginConfig => {
-        if (!bindings) throw new Error('The inline API binding was not initialized.')
-        console.log(`[e2e-host] One workerd, two actual user Workers, one D1 service. API modules: ${modules.length}`)
+        if (!bindings) throw new Error('The inline API RateLimiter binding was not initialized.')
+        console.log(
+          `[e2e-host] One workerd, two actual user Workers, shared D1/KV/R2/OAuth, native foreign RateLimiter. API modules: ${modules.length}`,
+        )
         return {
           userWorker: { globalOutbound: { name: loopbackNetwork } },
           services: [

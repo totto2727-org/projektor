@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 
+import { createTaskType, deleteTaskType, listTaskTypes, updateTaskType } from '#commands/task-types'
 import type { HonoEnv } from '#types'
 
 import { jsonBody } from '../http/body'
 import { serviceErrToResponse } from '../http/error-adapter'
-import { createTaskType, deleteTaskType, listTaskTypes, updateTaskType } from '../services/task-types'
 import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()

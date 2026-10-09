@@ -1,10 +1,10 @@
 import { env, SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { fetchAgentWipCap } from '#commands/issue-leases'
+import type { ServiceCtx } from '#commands/types'
 import { drizzle, schema } from '#db'
 
-import { fetchAgentWipCap } from '../services/issue-leases'
-import type { ServiceCtx } from '../services/types'
 import { authHeaders, seedAgentLease, seedFixture, seedIssue, seedProject, seedProjectFixture } from './helpers'
 
 describe('Issue leases API (PROJ-184)', () => {

@@ -7,8 +7,8 @@ import { listIssues } from '#services/issues'
 import { findProjectById, listProjectSummaries } from '#services/projects'
 import { listWikiPages } from '#services/wiki'
 
-import { RequestServices } from '../../request'
-import { type RequestApi, type RequestScope } from '../../server'
+import { type Env, RequestServices } from '../../request'
+import type { RequestScope } from '../../server'
 import {
   dataError,
   projectSummaryVisibility,
@@ -43,7 +43,6 @@ function sixWeekRange(now = new Date()): { since: number; until: number } {
 }
 
 export function renderProjects(
-  _api: RequestApi,
   scope: RequestScope,
   url: URL,
 ): Effect.Effect<ReactNode, ApiError | ScopeError, RequestServices> {
@@ -65,7 +64,6 @@ export function renderProjects(
 }
 
 export function renderOverview(
-  _api: RequestApi,
   scope: RequestScope,
   _url: URL,
 ): Effect.Effect<ReactNode, ApiError | ScopeError, RequestServices> {
@@ -130,6 +128,6 @@ export function renderOverview(
   })
 }
 
-export function renderHelp(_api: RequestApi, _scope: RequestScope | null, _url: URL): Effect.Effect<ReactNode, never> {
+export function renderHelp(_env: Env, _scope: null, _url: URL): Effect.Effect<ReactNode, never> {
   return Effect.succeed(<HelpPage />)
 }

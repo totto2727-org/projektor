@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 
+import { getWorkflow } from '#commands/workflow'
 import type { HonoEnv } from '#types'
 
 import { serviceErrToResponse } from '../http/error-adapter'
-import { getWorkflow } from '../services/workflow'
 
 const router = new Hono<HonoEnv>()
 

@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 
+import { endAgent, finishWork, heartbeatAgent, listActiveAgents, registerAgent, startWork } from '#commands/agents'
 import type { HonoEnv } from '#types'
 
 import { jsonBody } from '../http/body'
 import { serviceErrToResponse } from '../http/error-adapter'
-import { endAgent, finishWork, heartbeatAgent, listActiveAgents, registerAgent, startWork } from '../services/agents'
 import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()

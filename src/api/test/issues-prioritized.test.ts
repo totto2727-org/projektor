@@ -4,9 +4,10 @@
 import { env } from 'cloudflare:test'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { checkDefinitionOfReady } from '../services/definition-of-ready'
-import { getPrioritizedIssues } from '../services/issues'
-import type { ServiceCtx } from '../services/types'
+import { checkDefinitionOfReady } from '#commands/definition-of-ready'
+import { getPrioritizedIssues } from '#commands/issues'
+import type { ServiceCtx } from '#commands/types'
+
 import { seedFixture, seedProject } from './helpers'
 
 const READY_BODY = 'Do the thing.\n\n## Acceptance criteria\n- [ ] it works\n\n## Scope\n`apps/api/src/x.ts`'
@@ -178,7 +179,7 @@ describe('PROJ-859: bounded query count', () => {
     const row = await env.DB.prepare('SELECT id FROM issues WHERE workspace_id = ? AND dor_ready = 0 LIMIT 1')
       .bind(ctx.workspaceId)
       .first<{ id: string }>()
-    const { updateIssue } = await import('../services/issues')
+    const { updateIssue } = await import('#commands/issues')
     await updateIssue(ctx, row?.id as string, { body: READY_BODY })
     const after = await env.DB.prepare('SELECT dor_ready, dor_missing FROM issues WHERE id = ?')
       .bind(row?.id)

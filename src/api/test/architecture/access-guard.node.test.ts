@@ -8,7 +8,7 @@
 // guard" a build failure instead of a security report.
 //
 // How it works (static, TypeScript compiler API, no execution):
-//   1. Parse every src/services/*.ts file.
+//   1. Parse every src/services/commands/*.ts file.
 //   2. Build a call graph of top-level functions, resolving `./x` imports across files.
 //   3. A function is GUARDED if it calls a guard from services/access.ts, or calls
 //      (transitively) a function that is guarded.
@@ -31,7 +31,7 @@ import { describe, expect, it } from 'vite-plus/test'
 
 import { ACCESS_GUARD_ALLOWLIST } from './access-guard-allowlist'
 
-const SERVICES = join(import.meta.dirname, '..', '..', 'services')
+const SERVICES = join(import.meta.dirname, '..', '..', '..', 'services', 'commands')
 
 /** Exports of services/access.ts that actually decide access (not pure predicates). */
 const GUARDS = new Set([

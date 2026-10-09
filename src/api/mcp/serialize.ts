@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { ValidationError } from '../services/errors'
+import { ValidationError } from '#commands/errors'
 
 // PROJ-891 (builds on PROJ-931): MCP-only response shaping. Applied in the MCP layer, not
 // the service, so REST keeps returning the full shape — the service is the single source

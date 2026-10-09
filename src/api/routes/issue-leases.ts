@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 
+import { listIssueLeases } from '#commands/issue-leases'
 import type { HonoEnv } from '#types'
 
 import { serviceErrToResponse } from '../http/error-adapter'
-import { listIssueLeases } from '../services/issue-leases'
 import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()

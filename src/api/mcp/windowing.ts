@@ -1,4 +1,4 @@
-import { ValidationError } from '../services/errors'
+import { ValidationError } from '#commands/errors'
 
 // PROJ-892: windowed reads of long text (wiki pages, issue bodies) so one call never
 // returns an unbounded blob. Offsets are UTF-16 code units (JS string indices) and are

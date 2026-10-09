@@ -2,12 +2,7 @@ import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
 
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { bumpRateCounter } from '../middleware/rate-limit'
-import { ForbiddenError, NotFoundError, ValidationError } from '../services/errors'
+import { ForbiddenError, NotFoundError, ValidationError } from '#commands/errors'
 import {
   bulkConvertToIssue,
   bulkMarkReviewed,
@@ -17,7 +12,12 @@ import {
   listFeedback,
   submitFeedback,
   updateFeedbackStatus,
-} from '../services/feedback'
+} from '#commands/feedback'
+import type { HonoEnv } from '#types'
+
+import { jsonBody } from '../http/body'
+import { serviceErrToResponse } from '../http/error-adapter'
+import { bumpRateCounter } from '../middleware/rate-limit'
 import { ctxFromHono } from '../services/types'
 
 const publicRouter = new Hono<HonoEnv>()

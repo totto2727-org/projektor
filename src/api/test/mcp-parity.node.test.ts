@@ -6,7 +6,7 @@
 // both with a check that fails the build.
 //
 // The four surfaces:
-//   1. service functions   src/api/services/*.ts — the operations that exist at all
+//   1. service functions   src/services/commands/*.ts — the operations that exist at all
 //   2. REST routes         src/api/routes/*.ts   — the browser/HTTP surface
 //   3. runtime MCP registry src/api/routes/mcp.ts — what tools/call can actually dispatch
 //   4. grouped catalog     src/api/mcp/catalog.ts — the domain-grouped tool registry
@@ -15,14 +15,16 @@
 // has no node:fs. See the `projects` block in root vite.config.ts.
 
 import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
+import ts from 'typescript'
 import { describe, expect, it } from 'vite-plus/test'
 
 import { TOOL_DOMAINS } from '../mcp/catalog'
 import { coreMCPTools } from '../routes/mcp'
 
 const SRC = join(import.meta.dirname, '..')
+const COMMANDS = join(SRC, '..', 'services', 'commands')
 
 // ---------------------------------------------------------------------------
 // Deliberate exceptions.
@@ -61,6 +63,9 @@ const REST_ONLY: Record<string, string> = {
   'share.ts:getSharedLogo': 'streams bytes for the browser, no JSON operation',
   'share.ts:revokeShareToken': 'revoking a public share link is a human action',
   // Upload plumbing — multipart/quota mechanics, not operations.
+  'files.ts:uploadStoredAttachment': 'binary multipart upload and R2 I/O remain HTTP-only, not a JSON-RPC contract',
+  'files.ts:getStoredAttachment': 'binary R2 download remains HTTP-only, not a JSON-RPC contract',
+  'files.ts:deleteStoredAttachment': 'R2 I/O wrapper; its metadata deletion operation is exposed on both surfaces',
   'files.ts:storageQuotaBytes': 'quota arithmetic used by the upload route',
   'files.ts:assertUploadAllowed': 'upload precondition check',
   'files.ts:recordUpload': 'second half of the multipart upload handshake',
@@ -135,8 +140,8 @@ function snakeCase(name: string): string {
 
 /**
  * Every service identifier referenced by any file in `dir`, covering the binding styles
- * that can wire a surface up: named (`import { listIssues } from "../services/issues"`),
- * re-export (`export { listIssues } from "../services/issues"`), and namespace
+ * that can wire a surface up: named (`import { listIssues } from "#commands/issues"`),
+ * re-export (`export { listIssues } from "#commands/issues"`), and namespace
  * (`import * as wikiService` then `wikiService.listWikiPages(...)`).
  *
  * The re-export form isn't used in this codebase today, but it binds a service function
@@ -148,7 +153,7 @@ function serviceIdentifiersUsedIn(...paths: string[]): Set<string> {
   for (const path of paths.flatMap(expandToFiles)) {
     const src = readFileSync(path, 'utf8')
     for (const m of src.matchAll(
-      /(?:import|export)\s*(?:type\s*)?\{([^}]+)\}\s*from\s*["'][^"']*services\/[^"']+["']/g,
+      /(?:import|export)\s*(?:type\s*)?\{([^}]+)\}\s*from\s*["'][^"']*(?:services|#commands)\/[^"']+["']/g,
     )) {
       for (const part of m[1].split(',')) {
         const id = part
@@ -159,7 +164,9 @@ function serviceIdentifiersUsedIn(...paths: string[]): Set<string> {
         if (id) names.add(id)
       }
     }
-    for (const m of src.matchAll(/import\s*\*\s*as\s+([A-Za-z0-9_$]+)\s*from\s*["'][^"']*services\/[^"']+["']/g)) {
+    for (const m of src.matchAll(
+      /import\s*\*\s*as\s+([A-Za-z0-9_$]+)\s*from\s*["'][^"']*(?:services|#commands)\/[^"']+["']/g,
+    )) {
       for (const use of src.matchAll(new RegExp(`\\b${m[1]}\\.([A-Za-z0-9_$]+)`, 'g'))) {
         names.add(use[1])
       }
@@ -181,12 +188,42 @@ interface ServiceFn {
 // /api/projects). Scanning only routes/ made those read as unwired, which is how two
 // MCP_ONLY entries came to claim a REST equivalent was missing when one existed, and how
 // listAllProjects got swallowed by the internal-by-construction rule. PROJ-638.
+/**
+ * The concrete R2 wrappers replace route-local I/O, not the metadata contracts.
+ * Follow their actual local calls instead of treating an import as the entire path.
+ * Only these HTTP I/O entry points are expanded: ordinary domain helpers are not
+ * independent surface operations merely because another command calls them.
+ */
+const FILE_IO_WRAPPERS = ['uploadStoredAttachment', 'getStoredAttachment', 'deleteStoredAttachment'] as const
+
+function fileIoCalls(source: string): Map<string, Set<string>> {
+  const ast = ts.createSourceFile('files.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const calls = new Map<string, Set<string>>()
+  for (const node of ast.statements) {
+    if (!ts.isFunctionDeclaration(node) || !node.name || !node.body) continue
+    const names = new Set<string>()
+    function visit(child: ts.Node): void {
+      if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) names.add(child.expression.text)
+      ts.forEachChild(child, visit)
+    }
+    visit(node.body)
+    calls.set(node.name.text, names)
+  }
+  return calls
+}
+
+const fileWrapperCalls = fileIoCalls(readFileSync(join(COMMANDS, 'files.ts'), 'utf8'))
 const restIdentifiers = serviceIdentifiersUsedIn(join(SRC, 'routes'), join(SRC, 'index.ts'))
+for (const wrapper of FILE_IO_WRAPPERS) {
+  if (!restIdentifiers.has(wrapper)) continue
+  for (const called of fileWrapperCalls.get(wrapper) ?? []) restIdentifiers.add(called)
+}
 const mcpIdentifiers = serviceIdentifiersUsedIn(join(SRC, 'mcp'))
 
 const serviceFns: ServiceFn[] = []
-for (const file of tsFiles(join(SRC, 'services'))) {
-  const src = readFileSync(join(SRC, 'services', file), 'utf8')
+for (const path of [COMMANDS, join(SRC, 'services')].flatMap(expandToFiles)) {
+  const file = basename(path)
+  const src = readFileSync(path, 'utf8')
   for (const m of src.matchAll(/^export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/gm)) {
     const fn = m[1]
     serviceFns.push({
@@ -221,6 +258,35 @@ describe('MCP surface parity (PROJ-623)', () => {
     // makes that regression fail here rather than resurface as a false parity gap.
     expect(restIdentifiers.has('listProjectsAcrossWorkspaces')).toBe(true)
     expect(restIdentifiers.has('createWorkspace')).toBe(true)
+  })
+
+  it('traces concrete file I/O wrappers to metadata operations without creating binary MCP contracts', () => {
+    expect([...(fileWrapperCalls.get('uploadStoredAttachment') ?? [])].sort()).toEqual([
+      'assertUploadAllowed',
+      'recordUpload',
+    ])
+    expect([...(fileWrapperCalls.get('getStoredAttachment') ?? [])]).toEqual(['getAttachmentForDownload'])
+    expect([...(fileWrapperCalls.get('deleteStoredAttachment') ?? [])]).toEqual(['deleteAttachment'])
+    for (const fn of ['assertUploadAllowed', 'recordUpload', 'getAttachmentForDownload', 'deleteAttachment']) {
+      expect(restIdentifiers.has(fn)).toBe(true)
+    }
+    expect(mcpIdentifiers.has('deleteAttachment')).toBe(true)
+    for (const wrapper of FILE_IO_WRAPPERS) {
+      expect(restIdentifiers.has(wrapper)).toBe(true)
+      expect(mcpIdentifiers.has(wrapper)).toBe(false)
+    }
+  })
+
+  it('ignores comments, type references and unrelated function bodies when tracing wrapper calls', () => {
+    const calls = fileIoCalls(`
+      export async function deleteStoredAttachment(ctx: unknown, id: string): Promise<void> {
+        // getAttachmentForDownload(ctx, id) is not a call.
+        const label = 'recordUpload(ctx, id)'
+        await deleteAttachment(ctx, { id })
+      }
+      function unrelated() { recordUpload() }
+    `)
+    expect([...(calls.get('deleteStoredAttachment') ?? [])]).toEqual(['deleteAttachment'])
   })
 
   it('has no service function name exported from two different files', () => {

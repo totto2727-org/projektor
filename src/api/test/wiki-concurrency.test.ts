@@ -4,9 +4,10 @@
 import { env, SELF } from 'cloudflare:test'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { ConflictError } from '../services/errors'
-import type { ServiceCtx } from '../services/types'
-import { createWikiPage, getWikiPage, listWikiRevisions, patchWikiPage, updateWikiPage } from '../services/wiki'
+import { ConflictError } from '#commands/errors'
+import type { ServiceCtx } from '#commands/types'
+import { createWikiPage, getWikiPage, listWikiRevisions, patchWikiPage, updateWikiPage } from '#commands/wiki'
+
 import { authHeaders, seedFixture } from './helpers'
 
 async function setup() {

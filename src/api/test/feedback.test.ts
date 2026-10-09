@@ -1,7 +1,8 @@
 import { env, SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
-import { hashFeedbackToken } from '../services/feedback'
+import { hashFeedbackToken } from '#commands/feedback'
+
 import {
   authHeaders,
   type JsonRpcError,

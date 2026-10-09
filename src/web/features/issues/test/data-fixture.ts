@@ -1,15 +1,18 @@
 import { Effect } from 'effect'
-import { HttpClientRequest } from 'effect/http'
 import { vi } from 'vite-plus/test'
 
-import { RequestServices } from '../../../request'
-import type { RequestApi } from '../../../server/api-client'
-import type { RequestScope } from '../../../server/request-context'
+import { resetProvisioningCacheForTests } from '#commands/provisioning'
+import { resetAuthCachesForTests } from '#services/authentication'
+
+import { makeRequestServices, RequestServices } from '../../../request'
+import { testEnvironment } from '../../../server/test/resources'
 import { createTestDatabase } from '../../../test/database'
 import { project, scope, secondProject, workspace } from './fixtures'
 
 /** Actual migrated relational database and native SQLite FTS5, never a HTTP-shaped read fake. */
 export function issueDataFixture() {
+  resetAuthCachesForTests()
+  resetProvisioningCacheForTests()
   const database = createTestDatabase()
   const { db, sqlite } = database
   sqlite.exec(`
@@ -102,28 +105,25 @@ export function issueDataFixture() {
 			('wiki-global','workspace-a','workspace-guide','Workspace guide','Guide content',NULL,'user-a','user-a',1,1);
 		INSERT INTO wiki_fts (page_id,workspace_id,title,content,tags) SELECT id,workspace_id,title,content,'[]' FROM wiki_pages;
 	`)
-  const api: RequestApi = {
-    get: (path) => HttpClientRequest.get(path),
-    send: (path, options) => HttpClientRequest.make(options.method)(path),
-    raw: (path) => HttpClientRequest.get(path),
-    execute: () => Effect.die('Issue DB loaders must not use the API binding.'),
-  }
   const request = new Request('https://front.test/issues?workspace=workspace')
   const invalidated = vi.fn()
-  function services(requestScope: RequestScope = scope): typeof RequestServices.Service {
-    return {
-      request,
-      env: { API_BASE: 'https://api.test', DB: db },
-      url: new URL(request.url),
-      api,
-      db,
-      scope: () => Effect.succeed(requestScope),
-      prepare: (view) => view,
-      invalidate: Effect.sync(invalidated),
-    }
+  const env = testEnvironment(db, 'user@example.test')
+  function services() {
+    return makeRequestServices(request, env).pipe(
+      Effect.map((native) => ({
+        ...native,
+        invalidate: native.invalidate.pipe(Effect.tap(() => Effect.sync(invalidated))),
+      })),
+    )
   }
-  function run<A, E>(operation: Effect.Effect<A, E, RequestServices>, requestScope: RequestScope = scope) {
-    return Effect.runPromise(operation.pipe(Effect.provideService(RequestServices, services(requestScope))))
+  function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const native = yield* services()
+        yield* native.scope()
+        return yield* operation.pipe(Effect.provideService(RequestServices, native))
+      }),
+    )
   }
-  return { ...database, api, insertIssue, services, run, invalidated }
+  return { ...database, insertIssue, services, run, invalidated }
 }

@@ -1,6 +1,6 @@
+import { listProjectActivity } from '#commands/project-activity'
 import type { MCPTool } from '#types'
 
-import { listProjectActivity } from '../services/project-activity'
 import { READ } from './annotations'
 import { capPage, toPage } from './serialize'
 

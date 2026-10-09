@@ -2,15 +2,14 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import type { D1Database } from '@cloudflare/workers-types'
 import { Effect } from 'effect'
-import { FetchHttpClient } from 'effect/http'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { resetProvisioningCacheForTests } from '#commands/provisioning'
 import { schema } from '#db'
 import { listProjects } from '#services'
+import { type BrowserAuthEnvironment, resetAuthCachesForTests } from '#services/authentication'
 
 import { createTestDatabase } from '../test/database'
-import { TestHttpClient } from '../test/http-client'
-import { createRequestApi } from './api-client'
 import { visibleProjectPredicate } from './data-context'
 import {
   type AuthSession,
@@ -177,111 +176,116 @@ describe('server scope loading', () => {
   let sqlite: DatabaseSync
   let db: D1Database
   let prepare: ReturnType<typeof vi.fn>
-  const transport = vi.fn<typeof fetch>()
+  let env: BrowserAuthEnvironment
+  let externalFetch: ReturnType<typeof vi.fn<typeof fetch>>
   beforeEach(() => {
-    // Real migrated SQL through the shared D1-shaped transport, not a Worker emulator.
+    resetAuthCachesForTests()
+    resetProvisioningCacheForTests()
     const fixture = createTestDatabase()
     sqlite = fixture.sqlite
     db = fixture.db
     prepare = vi.spyOn(db, 'prepare')
+    const cache = new Map<string, string>()
+    env = {
+      DB: db,
+      KV: {
+        get: async (key: string, type?: string) => {
+          const value = cache.get(key)
+          return value === undefined ? null : type === 'json' ? JSON.parse(value) : value
+        },
+        put: async (key: string, value: string) => {
+          cache.set(key, value)
+        },
+      } as unknown as KVNamespace,
+      ENVIRONMENT: 'development',
+      DEV_USER_EMAIL: session.user.email,
+      CF_ACCESS_TEAM_DOMAIN: 'team.example.test',
+      CF_ACCESS_AUDIENCE: 'audience',
+      DEFAULT_WORKSPACE_SLUG: 'alpha',
+    }
     sqlite.exec(`
-			INSERT INTO users (id,email,name,created_at) VALUES ('user-a','a@example.test','A',1);
-			INSERT INTO workspaces (id,name,slug,created_at) VALUES
-			 ('workspace-a','Alpha','alpha',1), ('workspace-b','Beta','beta',1), ('workspace-c','Hidden','hidden',1);
-			INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES
-			 ('workspace-a','user-a','member',1), ('workspace-b','user-a','viewer',1);
-			INSERT INTO projects (id,workspace_id,name,key,slug,created_at,updated_at) VALUES
-			 ('project-a','workspace-a','Project A','ALPHA','alpha-project',1,2),
-			 ('project-b','workspace-b','Project B','BETA','beta-project',1,2),
-			 ('project-hidden','workspace-a','No Grant','SECRET','secret',1,2),
-			 ('project-other-tenant','workspace-c','Hidden','OTHER','other',1,2);
-			INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('group-a','workspace-a','Readers',1);
-			INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('group-a','user-a','user-a',1);
-			INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('group-a','project-a','viewer');
-		`)
-    transport.mockReset().mockImplementation(async (input, init) => {
-      expect(new URL(input instanceof Request ? input.url : input).pathname).toBe('/auth/me')
-      expect(new Headers(init?.headers).get('x-workspace-slug')).toBeNull()
-      return Response.json(session)
-    })
+      INSERT INTO users (id,email,name,created_at) VALUES ('user-a','a@example.test','A',1);
+      INSERT INTO workspaces (id,name,slug,created_at) VALUES
+        ('workspace-a','Alpha','alpha',1), ('workspace-b','Beta','beta',1), ('workspace-c','Hidden','hidden',1);
+      INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES
+        ('workspace-a','user-a','member',1), ('workspace-b','user-a','viewer',1);
+      INSERT INTO projects (id,workspace_id,name,key,slug,created_at,updated_at) VALUES
+        ('project-a','workspace-a','Project A','ALPHA','alpha-project',1,2),
+        ('project-b','workspace-b','Project B','BETA','beta-project',1,2),
+        ('project-hidden','workspace-a','No Grant','SECRET','secret',1,2),
+        ('project-other-tenant','workspace-c','Hidden','OTHER','other',1,2);
+      INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('group-a','workspace-a','Readers',1);
+      INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('group-a','user-a','user-a',1);
+      INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('group-a','project-a','viewer');
+    `)
+    externalFetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('No external/API fetch'))
   })
-  afterEach(() => sqlite.close())
+  afterEach(() => {
+    externalFetch.mockRestore()
+    sqlite.close()
+  })
   function load(request = new Request(page('/')), database = db) {
-    return Effect.runPromise(
-      createRequestApi(request, { apiBaseUrl: 'https://api.example.test' }).pipe(
-        Effect.flatMap((api) => loadRequestScope(api, new URL(request.url), {}, { db: database, request })),
-        Effect.provide(TestHttpClient),
-        Effect.provideService(FetchHttpClient.Fetch, transport),
-      ),
-    )
+    return Effect.runPromise(loadRequestScope(new URL(request.url), {}, { db: database, request, env }))
   }
-
-  it('verifies auth once then reads only granted projects directly, without inherited workspace header', async () => {
-    const request = new Request(page('/issues?projectId=project-a'), {
-      headers: { 'cf-access-jwt-assertion': 'access-credential', 'x-workspace-slug': 'unrelated' },
-    })
-    const scope = await load(request)
+  function catalogReads() {
+    return prepare.mock.calls.filter(([query]) => typeof query === 'string' && query.includes('COUNT(CASE')).length
+  }
+  it('verifies browser auth then reads only granted projects directly, without inherited workspace header', async () => {
+    const scope = await load(
+      new Request(page('/issues?projectId=project-a'), { headers: { 'x-workspace-slug': 'unrelated' } }),
+    )
     expect(scope.selection).toMatchObject({ kind: 'project', project: { id: 'project-a' } })
     expect(scope.projects.map((item) => item.id)).toEqual(['project-a'])
-    expect(transport).toHaveBeenCalledTimes(1)
-    expect(prepare).toHaveBeenCalledTimes(1)
-    expect(JSON.stringify(scope)).not.toContain('access-credential')
+    expect(scope.auth).toEqual({ kind: 'human', method: 'dev' })
+    expect(externalFetch).not.toHaveBeenCalled()
+    expect(catalogReads()).toBe(1)
+    expect(scope.workspaces).toEqual(session.workspaces)
   })
   it('retries archived DB catalog exactly once and leaves ordinary catalog active-only', async () => {
     sqlite.exec("UPDATE projects SET archived_at = 42 WHERE id = 'project-a'")
     expect((await load()).projects).toEqual([])
     prepare.mockClear()
     const scope = await load(new Request(page('/issues?projectId=project-a')))
-    expect(scope.selection).toMatchObject({
-      kind: 'project',
-      project: { id: 'project-a', archived_at: 42 },
-    })
-    expect(prepare).toHaveBeenCalledTimes(2)
+    expect(scope.selection).toMatchObject({ kind: 'project', project: { id: 'project-a', archived_at: 42 } })
+    expect(catalogReads()).toBe(2)
   })
   it.each(['Bearer workspace-restricted', 'Bearer read-restricted', 'Basic other', ''])(
     'rejects Authorization %s before auth or DB even with Access credentials',
     async (authorization) => {
       await expect(
-        load(
-          new Request(page('/'), {
-            headers: { authorization, 'cf-access-jwt-assertion': 'access' },
-          }),
-        ),
+        load(new Request(page('/'), { headers: { authorization, 'cf-access-jwt-assertion': 'access' } })),
       ).rejects.toMatchObject({ _tag: 'ScopeError', status: 403 })
-      expect(transport).not.toHaveBeenCalled()
+      expect(externalFetch).not.toHaveBeenCalled()
       expect(prepare).not.toHaveBeenCalled()
     },
   )
-  it('fails closed before DB on invalid API authentication and malformed session', async () => {
-    transport.mockResolvedValueOnce(new Response('Denied', { status: 401 }))
-    await expect(load()).rejects.toMatchObject({ _tag: 'ApiError', status: 401 })
-    transport.mockResolvedValueOnce(Response.json({ malformed: true }))
-    await expect(load()).rejects.toMatchObject({ _tag: 'ApiError', kind: 'schema', status: 502 })
+  it('fails closed on invalid Access credentials without falling back to development', async () => {
+    await expect(
+      load(new Request(page('/'), { headers: { cookie: 'CF_Authorization=invalid-token' } })),
+    ).rejects.toMatchObject({ _tag: 'ApiError', status: 401, message: 'Invalid Access token' })
     expect(prepare).not.toHaveBeenCalled()
+    expect(externalFetch).not.toHaveBeenCalled()
   })
-  it('rejects anonymous public-viewer sessions before any data query', async () => {
-    transport.mockResolvedValueOnce(
-      Response.json({
-        ...session,
-        user: { ...session.user, email: 'public-viewer@projektor.local' },
-      }),
-    )
+  it('rejects anonymous public-viewer identity before private catalog retrieval', async () => {
+    env.DEV_USER_EMAIL = 'public-viewer@projektor.local'
     await expect(load()).rejects.toMatchObject({ _tag: 'ScopeError', status: 403 })
-    expect(prepare).not.toHaveBeenCalled()
+    expect(catalogReads()).toBe(0)
   })
   it('uses actual membership roles and refreshes grant visibility each request', async () => {
     expect((await load()).projects.map((item) => item.id)).toEqual(['project-a'])
     sqlite.exec(
       "DELETE FROM group_project_grants; UPDATE workspace_members SET role='admin' WHERE workspace_id='workspace-b'",
     )
-    expect((await load()).projects.map((item) => item.id)).toEqual(['project-b'])
+    const updated = await load()
+    expect(updated.projects.map((item) => item.id)).toEqual(['project-b'])
+    expect(updated.workspaces.find((workspace) => workspace.id === 'workspace-b')?.role).toBe('admin')
     await expect(load(new Request(page('/issues?projectId=project-hidden')))).rejects.toMatchObject({
       _tag: 'ScopeError',
       status: 404,
     })
   })
-  it('keeps API-confirmed memberships as an additional boundary', async () => {
-    transport.mockResolvedValueOnce(Response.json({ ...session, workspaces: [] }))
+  it('retains current DB membership as an additional boundary even with valid identity', async () => {
+    sqlite.exec('DELETE FROM workspace_members')
     expect((await load()).projects).toEqual([])
   })
   it('applies the web app grant predicate to shared workspace-scoped list queries', async () => {
@@ -319,11 +323,7 @@ describe('server scope loading', () => {
       await load()
       throw new Error('expected failure')
     } catch (error) {
-      expect(error).toMatchObject({
-        _tag: 'ApiError',
-        status: 500,
-        message: 'Unable to load project data.',
-      })
+      expect(error).toMatchObject({ _tag: 'ApiError', status: 500, message: 'Unable to load project data.' })
       expect(JSON.stringify(error)).not.toContain('secret SQL credential')
     }
   })

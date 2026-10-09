@@ -1,34 +1,34 @@
 import { Effect } from 'effect'
-import { FetchHttpClient, HttpRouter, HttpServerResponse } from 'effect/http'
-import { afterAll, describe, expect, it, vi } from 'vite-plus/test'
+import { HttpRouter, HttpServerResponse } from 'effect/http'
+import { afterEach, describe, expect, it } from 'vite-plus/test'
+
+import { resetAuthCachesForTests } from '#services/authentication'
 
 import { getRouteParams, makeRequestServices, type PreparedView, RequestServices } from './request'
 import { ApiError } from './server'
+import { testEnvironment } from './server/test/resources'
 import { createTestDatabase } from './test/database'
-import { TestHttpClient } from './test/http-client'
 
-vi.mock('@effront/core/workers', async () => {
-  const { Effect } = await import('effect')
-  return {
-    getWorkersRequestContext: () => Effect.die('Host context is not used by request-factory tests.'),
-  }
+const databases: ReturnType<typeof createTestDatabase>[] = []
+afterEach(() => {
+  resetAuthCachesForTests()
+  for (const database of databases.splice(0)) database.close()
 })
-
-const database = createTestDatabase()
-afterAll(database.close)
-const env = { API_BASE: 'https://api.example.test', DB: database.db }
-function incoming(identity: string) {
-  return new Request('https://front.example.test/', {
-    headers: { 'Cf-Access-Jwt-Assertion': identity },
-  })
+function fixture() {
+  resetAuthCachesForTests()
+  const database = createTestDatabase()
+  databases.push(database)
+  database.sqlite.exec(`
+    INSERT INTO users(id,email,name,created_at) VALUES
+      ('first','first@example.test','First',1), ('second','second@example.test','Second',1);
+    INSERT INTO workspaces(id,name,slug,created_at) VALUES ('w','Before','alpha',1);
+    INSERT INTO workspace_members(workspace_id,user_id,role,joined_at) VALUES ('w','first','owner',1);
+  `)
+  return database
 }
-function run<A, E>(effect: Effect.Effect<A, E, import('effect/http').HttpClient.HttpClient>, transport: typeof fetch) {
-  return Effect.runPromise(
-    effect.pipe(Effect.provide(TestHttpClient), Effect.provideService(FetchHttpClient.Fetch, transport)),
-  )
-}
+const incoming = () => new Request('https://front.example.test/')
 
-describe('request-scoped Effect services', () => {
+describe('request-scoped native services', () => {
   it('reads matched framework parameters without another URL parser', async () => {
     const params = { projectSlug: 'already%decoded', issueNumber: '12' }
     const result = await Effect.runPromise(
@@ -46,87 +46,82 @@ describe('request-scoped Effect services', () => {
     expect(result).toBe(params)
     expect(await Effect.runPromise(getRouteParams)).toEqual({})
   })
-  it("shares concurrent work only inside one identity's request", async () => {
-    const calls: Array<{ path: string; identity: string | null }> = []
-    const transport: typeof fetch = async (input, init) => {
-      const request = new Request(input, init)
-      const path = new URL(request.url).pathname
-      const identity = request.headers.get('Cf-Access-Jwt-Assertion')
-      calls.push({ path, identity })
-      return Response.json(
-        path === '/auth/me'
-          ? {
-              user: { id: identity, name: identity, email: 'user@example.test' },
-              workspaces: [],
-            }
-          : [],
-      )
-    }
-    const results = await run(
+
+  it('shares concurrent work only inside one verified identity request', async () => {
+    const database = fixture()
+    const result = await Effect.runPromise(
       Effect.gen(function* () {
-        const first = yield* makeRequestServices(incoming('first'), env)
-        const second = yield* makeRequestServices(incoming('second'), env)
-        const [a, repeated, b] = yield* Effect.all(
-          [first.scope({ requireWorkspace: false }), first.scope({ requireWorkspace: false }), second.scope()],
-          { concurrency: 3 },
-        )
-        return { a, repeated, b }
+        const first = yield* makeRequestServices(incoming(), testEnvironment(database.db, 'first@example.test'))
+        const second = yield* makeRequestServices(incoming(), testEnvironment(database.db, 'second@example.test'))
+        const [a, repeated, b] = yield* Effect.all([first.scope(), first.scope(), second.scope()], { concurrency: 3 })
+        return { a, repeated, b, first }
       }),
-      transport,
     )
-    expect(results.a).toBe(results.repeated)
-    expect(results.a.user.id).toBe('first')
-    expect(results.b.user.id).toBe('second')
-    expect(calls.filter((call) => call.path === '/auth/me')).toHaveLength(2)
-    expect(calls.filter((call) => call.path === '/api/projects')).toHaveLength(0)
+    expect(result.a).toBe(result.repeated)
+    expect(result.a.user.id).toBe('first')
+    expect(result.b.user.id).toBe('second')
+    expect(result.a.workspaces.map((workspace) => workspace.slug)).toEqual(['alpha'])
+    expect(result.b.workspaces).toEqual([])
+    expect(result.a.auth).toEqual({ kind: 'human', method: 'dev' })
+    expect(result.first).not.toHaveProperty('api')
   })
 
-  it('invalidates only request-owned scope state and reloads authoritative HTTP data', async () => {
-    let name = 'Before'
-    const transport = vi
-      .fn<typeof fetch>()
-      .mockImplementation(async (input) =>
-        Response.json(
-          new URL(String(input)).pathname === '/auth/me'
-            ? { user: { id: 'user', name, email: 'user@example.test' }, workspaces: [] }
-            : [],
-        ),
-      )
-    const actual = await run(
+  it('invalidates only request-owned scope state and reloads authoritative database memberships', async () => {
+    const database = fixture()
+    const actual = await Effect.runPromise(
       Effect.gen(function* () {
-        const services = yield* makeRequestServices(incoming('caller'), env)
+        const env = testEnvironment(database.db, 'first@example.test')
+        const services = yield* makeRequestServices(incoming(), env)
+        const other = yield* makeRequestServices(incoming(), env)
         const first = yield* services.scope()
-        name = 'After'
+        const independent = yield* other.scope()
+        database.sqlite.prepare('UPDATE workspaces SET name = ? WHERE id = ?').run('After', 'w')
         const cached = yield* services.scope()
         yield* services.invalidate
         const refreshed = yield* services.scope()
-        return { first, cached, refreshed }
+        const otherCached = yield* other.scope()
+        return { first, cached, refreshed, independent, otherCached }
       }),
-      transport,
     )
     expect(actual.cached).toBe(actual.first)
-    expect(actual.first.user.name).toBe('Before')
-    expect(actual.refreshed.user.name).toBe('After')
-    expect(transport).toHaveBeenCalledTimes(2)
+    expect(actual.first.workspaces[0].name).toBe('Before')
+    expect(actual.refreshed.workspaces[0].name).toBe('After')
+    expect(actual.otherCached).toBe(actual.independent)
+    expect(actual.otherCached.workspaces[0].name).toBe('Before')
   })
 
-  it('invalidates prepared views explicitly', async () => {
-    let renders = 0
-    const actual = await run(
+  it('retries failed authentication instead of caching failure permanently', async () => {
+    const database = fixture()
+    const env = testEnvironment(database.db, 'first@example.test', { ENVIRONMENT: 'production' })
+    const actual = await Effect.runPromise(
       Effect.gen(function* () {
-        const services = yield* makeRequestServices(incoming('caller'), env)
+        const services = yield* makeRequestServices(incoming(), env)
+        const first = yield* services.scope().pipe(Effect.result)
+        env.ENVIRONMENT = 'development'
+        const recovered = yield* services.scope()
+        return { first, recovered }
+      }),
+    )
+    expect(actual.first).toMatchObject({ _tag: 'Failure', failure: { _tag: 'ApiError', status: 401 } })
+    expect(actual.recovered.user.id).toBe('first')
+  })
+
+  it('invalidates prepared views explicitly, including concurrent work', async () => {
+    const database = fixture()
+    let renders = 0
+    const actual = await Effect.runPromise(
+      Effect.gen(function* () {
+        const services = yield* makeRequestServices(incoming(), testEnvironment(database.db))
         const view: PreparedView = Effect.gen(function* () {
           const current = yield* RequestServices
           return `${current.url.pathname}:${++renders}`
         })
         const prepare = services.prepare(view).pipe(Effect.provideService(RequestServices, services))
-        const a = yield* prepare
-        const cached = yield* prepare
+        const [a, cached] = yield* Effect.all([prepare, prepare], { concurrency: 2 })
         yield* services.invalidate
         const refreshed = yield* prepare
         return { a, cached, refreshed }
       }),
-      async () => Response.json([]),
     )
     expect(actual.a).toBe(actual.cached)
     expect(actual.refreshed).not.toBe(actual.a)
@@ -134,13 +129,14 @@ describe('request-scoped Effect services', () => {
   })
 
   it('does not permanently cache a failed pre-stream render', async () => {
+    const database = fixture()
     let attempts = 0
-    const actual = await run(
+    const actual = await Effect.runPromise(
       Effect.gen(function* () {
-        const services = yield* makeRequestServices(incoming('caller'), env)
+        const services = yield* makeRequestServices(incoming(), testEnvironment(database.db))
         const view: PreparedView = Effect.suspend(() =>
           ++attempts === 1
-            ? Effect.fail(new ApiError('network', 502, 'Temporarily unavailable.'))
+            ? Effect.fail(new ApiError('request', 500, 'Temporarily unavailable.'))
             : Effect.succeed('Recovered'),
         )
         const prepare = services.prepare(view).pipe(Effect.provideService(RequestServices, services))
@@ -148,7 +144,6 @@ describe('request-scoped Effect services', () => {
         const second = yield* prepare
         return { first, second }
       }),
-      async () => Response.json([]),
     )
     expect(actual.first._tag).toBe('Failure')
     expect(actual.second).toBe('Recovered')

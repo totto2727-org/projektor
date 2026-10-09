@@ -1,9 +1,10 @@
 import { env, SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { RESERVED_WIKI_SLUGS } from '#commands/wiki'
+
 import m0060 from '../../../migrations/0060_wiki_reserved_slug_rename.sql?raw'
 import { wikiRouter } from '../routes/wiki'
-import { RESERVED_WIKI_SLUGS } from '../services/wiki'
 import { authHeaders, seedFixture } from './helpers'
 
 // PROJ-811: every fixed first path segment under /api/wiki is matched before the /:slug

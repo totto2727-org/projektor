@@ -16,17 +16,14 @@ export default defineConfig({
   ],
   run: {
     tasks: {
-      ci: { command: '', dependsOn: ['check', 'test'], cache: false },
+      ci: { command: '', dependsOn: ['check', 'test'] },
       check: 'vp check',
       fix: 'vp check --fix',
       // Cloudflare pool 0.22 supports Vitest 4, while Vite+ 1.1 bundles Vitest 5.
       // Preserve native regressions explicitly until upstream support lands.
       // Real Worker browser acceptance is the separate `vp run e2e` workflow.
-      test: {
-        command: 'vp test run --project api-node --project web --project data',
-        cache: false,
-      },
-      'test:workers': { command: 'vp test run --project workers', cache: false },
+      test: 'vp test run --project api-node --project web --project data',
+      'test:workers': 'vp test run --project workers',
       dev: { command: 'alchemy dev --config alchemy.run.ts', cache: false },
       plan: { command: 'alchemy plan --config alchemy.run.ts --stage production', cache: false },
       deploy: { command: 'alchemy deploy --config alchemy.run.ts --stage production', cache: false },
@@ -93,6 +90,7 @@ export default defineConfig({
           environment: 'node',
           include: ['src/web/**/*.test.ts', 'src/web/**/*.test.tsx'],
           restoreMocks: true,
+          server: { deps: { inline: ['@cloudflare/workers-oauth-provider'] } },
         },
       },
       {
@@ -104,11 +102,5 @@ export default defineConfig({
         },
       },
     ],
-    // Expected MCP domain failures are caught at the API boundary. Preserve
-    // the existing narrow workerd rejection filter, never arbitrary errors.
-    onUnhandledError(error) {
-      const kind = 'kind' in error ? error.kind : undefined
-      if (typeof kind === 'string' && ['validation', 'not_found', 'forbidden', 'conflict'].includes(kind)) return false
-    },
   },
 })

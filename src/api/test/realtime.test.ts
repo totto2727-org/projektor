@@ -1,12 +1,12 @@
 import { env, SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { createIssue } from '#commands/issues'
+import { broadcastWorkspaceEvent } from '#commands/realtime'
+import type { ServiceCtx } from '#commands/types'
 import type { Env } from '#types'
 
 import { WorkspaceHub } from '../realtime/workspace-hub'
-import { createIssue } from '../services/issues'
-import { broadcastWorkspaceEvent } from '../services/realtime'
-import type { ServiceCtx } from '../services/types'
 import { authHeaders, seedGroupGrant, seedProject, seedProjectFixture, seedWorkspaceRoles } from './helpers'
 
 describe('Realtime WebSockets (Opt-In)', () => {

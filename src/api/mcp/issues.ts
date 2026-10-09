@@ -1,6 +1,4 @@
-import type { MCPTool } from '#types'
-
-import { ValidationError } from '../services/errors'
+import { ValidationError } from '#commands/errors'
 import {
   createIssue,
   deleteIssue,
@@ -10,7 +8,9 @@ import {
   listIssues,
   searchIssues,
   updateIssue,
-} from '../services/issues'
+} from '#commands/issues'
+import type { MCPTool } from '#types'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
 import { capPage, OMISSION_NOTE, shapeIssue, splitShapeOpts, toPage, VIEW_FIELDS_PROPS } from './serialize'
 import { bodyPreview, ISSUE_BODY_MAX_CHARS, LIST_BODY_MAX_CHARS, windowText } from './windowing'

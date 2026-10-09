@@ -1,5 +1,7 @@
 import { type Context, Hono } from 'hono'
 
+import { ValidationError } from '#commands/errors'
+import { getWorkflow } from '#commands/workflow'
 import type { HonoEnv, MCPTool } from '#types'
 
 import { insufficientScopeChallenge } from '../auth/challenge'
@@ -31,9 +33,7 @@ import { wikiTools } from '../mcp/wiki'
 import { workflowTools } from '../mcp/workflow'
 import { workspacesTools } from '../mcp/workspaces'
 import { pluginRegistry } from '../plugins/registry'
-import { ValidationError } from '../services/errors'
 import { ctxFromHono } from '../services/types'
-import { getWorkflow } from '../services/workflow'
 
 // __PROJEKTOR_VERSION__ is injected by esbuild --define at release-build time
 // (scripts/build-release.sh); it's absent in local `wrangler dev` and tests.

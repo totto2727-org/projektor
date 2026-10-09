@@ -1,12 +1,8 @@
 import type { Context } from 'hono'
 
-import type { AuthInfo, HonoEnv, PluginContext, Role } from '#types'
-
-import { parseFileClaimTtlSeconds } from './file-claims'
-
-// PROJ-889: one context type for REST and MCP — defined in #types as
-// PluginContext (so MCPTool handlers receive it without casts) and aliased here.
-export type ServiceCtx = PluginContext
+import { parseFileClaimTtlSeconds } from '#commands/file-claims'
+import type { ServiceCtx } from '#commands/types'
+import type { AuthInfo, HonoEnv, Role } from '#types'
 
 export function ctxFromHono(c: Context<HonoEnv>): ServiceCtx {
   const workspace = c.get('workspace') as { id: string }

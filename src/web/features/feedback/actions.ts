@@ -1,14 +1,16 @@
 'use server'
 
 import { Effect, Schema } from 'effect'
-import { HttpClientResponse } from 'effect/http'
+
+import * as feedbackCommands from '#commands/feedback'
+import * as sourceCommands from '#commands/feedback-sources'
 
 import { EFFRONT } from '../../effront'
 import { RequestServices } from '../../request'
-import { checkSameOriginMutation } from '../../server/api-client'
-import { responseError } from '../../server/errors'
+import { runCommand } from '../../server/command-context'
 import { FunctionSelectorSchema, resolveFunctionContext } from '../../server/function-context'
-import { Converted, CreatedSource, Ok, SourceFields } from './schemas'
+import { checkSameOriginMutation } from '../../server/mutation'
+import { SourceFields } from './schemas'
 
 const identifier = Schema.String.check(Schema.isMinLength(1))
 const SourceReference = Schema.Struct({
@@ -49,23 +51,14 @@ export const createFeedbackSource = EFFRONT.ServerFn.make({
           .split(/[\n,]/)
           .map((value) => value.trim())
           .filter(Boolean)
-        const value = yield* ctx.api
-          .execute(
-            ctx.api.send(`/api/projects/${encodeURIComponent(ctx.projectId ?? '')}/feedback-sources`, {
-              method: 'POST',
-              workspaceSlug: ctx.workspaceSlug,
-              json: {
-                name: input.name.trim(),
-                ...(input.description.trim() ? { description: input.description.trim() } : {}),
-                ...(origins.length ? { allowedOrigins: origins } : {}),
-              },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(CreatedSource)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(ctx, (command) =>
+          sourceCommands.createFeedbackSource(command, {
+            projectId: ctx.projectId,
+            name: input.name.trim(),
+            ...(input.description.trim() ? { description: input.description.trim() } : {}),
+            ...(origins.length ? { allowedOrigins: origins } : {}),
+          }),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -85,18 +78,13 @@ export const setFeedbackSourceActive = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
-        const value = yield* ctx.api
-          .execute(
-            ctx.api.send(
-              `/api/projects/${encodeURIComponent(ctx.projectId ?? '')}/feedback-sources/${encodeURIComponent(input.sourceId)}`,
-              {
-                method: 'PATCH',
-                workspaceSlug: ctx.workspaceSlug,
-                json: { isActive: input.active },
-              },
-            ),
-          )
-          .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(Ok)), Effect.mapError(responseError), Effect.scoped)
+        const value = yield* runCommand(ctx, (command) =>
+          sourceCommands.updateFeedbackSource(command, {
+            projectId: ctx.projectId,
+            sourceId: input.sourceId,
+            isActive: input.active,
+          }),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -116,18 +104,9 @@ export const rotateFeedbackSourceToken = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
-        const value = yield* ctx.api
-          .execute(
-            ctx.api.send(
-              `/api/projects/${encodeURIComponent(ctx.projectId ?? '')}/feedback-sources/${encodeURIComponent(input.sourceId)}/rotate`,
-              { method: 'POST', workspaceSlug: ctx.workspaceSlug },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(Schema.Struct({ token: Schema.String }))),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(ctx, (command) =>
+          sourceCommands.rotateFeedbackSourceToken(command, { projectId: ctx.projectId, sourceId: input.sourceId }),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -147,14 +126,9 @@ export const revokeFeedbackSource = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
-        const value = yield* ctx.api
-          .execute(
-            ctx.api.send(
-              `/api/projects/${encodeURIComponent(ctx.projectId ?? '')}/feedback-sources/${encodeURIComponent(input.sourceId)}`,
-              { method: 'DELETE', workspaceSlug: ctx.workspaceSlug },
-            ),
-          )
-          .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(Ok)), Effect.mapError(responseError), Effect.scoped)
+        const value = yield* runCommand(ctx, (command) =>
+          sourceCommands.revokeFeedbackSource(command, { projectId: ctx.projectId, sourceId: input.sourceId }),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -174,14 +148,13 @@ export const markFeedbackReviewed = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
-        const value = yield* ctx.api
-          .execute(
-            ctx.api.send(
-              `/api/projects/${encodeURIComponent(ctx.projectId ?? '')}/feedback/${encodeURIComponent(input.feedbackId)}`,
-              { method: 'PATCH', workspaceSlug: ctx.workspaceSlug, json: { status: 'reviewed' } },
-            ),
-          )
-          .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(Ok)), Effect.mapError(responseError), Effect.scoped)
+        const value = yield* runCommand(ctx, (command) =>
+          feedbackCommands.updateFeedbackStatus(command, {
+            projectId: ctx.projectId,
+            feedbackId: input.feedbackId,
+            status: 'reviewed',
+          }),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -201,18 +174,9 @@ export const convertFeedbackToIssue = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
-        const value = yield* ctx.api
-          .execute(
-            ctx.api.send(
-              `/api/projects/${encodeURIComponent(ctx.projectId ?? '')}/feedback/${encodeURIComponent(input.feedbackId)}/convert-to-issue`,
-              { method: 'POST', workspaceSlug: ctx.workspaceSlug },
-            ),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(Converted)),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(ctx, (command) =>
+          feedbackCommands.convertFeedbackToIssue(command, { projectId: ctx.projectId, feedbackId: input.feedbackId }),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -232,19 +196,9 @@ export const markSelectedFeedbackReviewed = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
-        const value = yield* ctx.api
-          .execute(
-            ctx.api.send(`/api/projects/${encodeURIComponent(ctx.projectId ?? '')}/feedback/bulk-mark-reviewed`, {
-              method: 'POST',
-              workspaceSlug: ctx.workspaceSlug,
-              json: { feedbackIds: input.feedbackIds },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(Schema.Struct({ updated: Schema.Number }))),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(ctx, (command) =>
+          feedbackCommands.bulkMarkReviewed(command, { projectId: ctx.projectId, feedbackIds: input.feedbackIds }),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -264,21 +218,9 @@ export const convertSelectedFeedbackToIssue = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
-        const value = yield* ctx.api
-          .execute(
-            ctx.api.send(`/api/projects/${encodeURIComponent(ctx.projectId ?? '')}/feedback/bulk-convert-to-issue`, {
-              method: 'POST',
-              workspaceSlug: ctx.workspaceSlug,
-              json: { feedbackIds: input.feedbackIds },
-            }),
-          )
-          .pipe(
-            Effect.flatMap(
-              HttpClientResponse.schemaBodyJson(Schema.Struct({ ...Converted.fields, convertedCount: Schema.Number })),
-            ),
-            Effect.mapError(responseError),
-            Effect.scoped,
-          )
+        const value = yield* runCommand(ctx, (command) =>
+          feedbackCommands.bulkConvertToIssue(command, { projectId: ctx.projectId, feedbackIds: input.feedbackIds }),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({

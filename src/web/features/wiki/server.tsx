@@ -10,7 +10,6 @@ import * as wikiData from '#services/wiki'
 import { loadBrand } from '../../brand'
 import { renderMarkdownEffect } from '../../components/markdown/effect'
 import { type PageFailure, RequestServices } from '../../request'
-import type { RequestApi } from '../../server/api-client'
 import {
   authorizeDataEntity,
   dataError,
@@ -44,7 +43,6 @@ function freshness(
 
 /** The request owns authorization, presentation and rendering. Shared queries own only SQL. */
 export function renderWiki(
-  _api: RequestApi,
   scope: RequestScope,
   url: URL,
   params: Readonly<Record<string, string | undefined>> = {},
@@ -160,7 +158,7 @@ export function renderWiki(
     })
     const data = yield* Effect.all(
       {
-        brand: loadBrand(services.api, scope),
+        brand: loadBrand(services.env, scope),
         tree: Schema.decodeUnknownEffect(Tree)(roots).pipe(Effect.mapError(dataError)),
         templates: wikiData
           .listWikiTemplates(db, workspace.id, { visibility })

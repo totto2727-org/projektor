@@ -3,7 +3,6 @@ import { Effect, Schema } from 'effect'
 import * as feedbackQueries from '#services/feedback'
 
 import { RequestServices } from '../../request'
-import type { RequestApi } from '../../server/api-client'
 import { dataError, makeDataContext, requireDataProject } from '../../server/data-context'
 import { ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
@@ -86,7 +85,7 @@ function loadSummaries(db: Parameters<typeof feedbackQueries.listFeedback>[0], w
 }
 
 /** Pure reads use the request-local DB. Source-management policy remains in the web app. */
-export function renderFeedback(_api: RequestApi, scope: RequestScope, _url: URL) {
+export function renderFeedback(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     if (scope.selection.kind !== 'project') return <NeedProject />
     const services = yield* RequestServices
@@ -118,7 +117,6 @@ export function renderFeedback(_api: RequestApi, scope: RequestScope, _url: URL)
 
 /** Lookup is workspace-scoped, and the source's actual project must be in the authorized catalog. */
 export function renderFeedbackDetail(
-  _api: RequestApi,
   scope: RequestScope,
   url: URL,
   params: Readonly<Record<string, string | undefined>> = {},

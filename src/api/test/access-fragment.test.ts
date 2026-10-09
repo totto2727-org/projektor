@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { visibleProjectSqlFragment } from '../services/access'
-import type { ServiceCtx } from '../services/types'
+import { visibleProjectSqlFragment } from '#commands/access'
+import type { ServiceCtx } from '#commands/types'
 
 // PROJ-317: visibleProjectSqlFragment inlines its column expression verbatim into
 // raw SQL, so it must reject anything that isn't a bare/qualified column identifier

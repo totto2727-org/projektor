@@ -1,32 +1,15 @@
 import { Effect } from 'effect'
-import { FetchHttpClient } from 'effect/http'
-import { describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, it } from 'vite-plus/test'
 
-import { brandStyles, defaultBrand, loadBrand } from './brand'
-import { createRequestApi, type RequestScope } from './server'
-import { TestHttpClient } from './test/http-client'
+import { brandStyles, defaultBrand, deploymentBrand, loadBrand } from './brand'
+import type { RequestScope } from './server'
+import { testEnvironment } from './server/test/resources'
+import { createTestDatabase } from './test/database'
 
-function load(
-  responses: Record<string, unknown>,
-  calls: Array<{ path: string; workspace: string | null }>,
-  scope: RequestScope | null,
-) {
-  const transport: typeof fetch = async (input, init) => {
-    const request = new Request(input, init)
-    const path = new URL(request.url).pathname
-    calls.push({ path, workspace: request.headers.get('x-workspace-slug') })
-    return path in responses ? Response.json(responses[path]) : new Response(null, { status: 404 })
-  }
-  return Effect.runPromise(
-    createRequestApi(new Request('https://frontend.example/'), {
-      apiBaseUrl: 'https://api.example',
-    }).pipe(
-      Effect.flatMap((api) => loadBrand(api, scope)),
-      Effect.provide(TestHttpClient),
-      Effect.provideService(FetchHttpClient.Fetch, transport),
-    ),
-  )
-}
+const databases: ReturnType<typeof createTestDatabase>[] = []
+afterEach(() => {
+  for (const database of databases.splice(0)) database.close()
+})
 const workspace = { id: 'w', slug: 'beta', name: 'Beta', role: 'owner' as const }
 const scope: RequestScope = {
   user: { id: 'u', email: 'u@example.test', name: 'User' },
@@ -34,51 +17,84 @@ const scope: RequestScope = {
   projects: [],
   selection: { kind: 'workspace', workspace },
 }
-
-describe('server-rendered brand', () => {
-  it('layers only the explicitly resolved workspace over the deployment brand', async () => {
-    const calls: Array<{ path: string; workspace: string | null }> = []
-    const brand = await load(
-      {
-        '/api/config/brand': { ...defaultBrand, name: 'Deploy', accent: '#123456' },
-        '/api/workspaces/beta/brand': {
-          displayName: 'Beta',
-          accent: null,
-          onAccent: '#ffffff',
-          logoUrl: null,
-        },
-      },
-      calls,
-      scope,
+function fixture() {
+  const database = createTestDatabase()
+  databases.push(database)
+  database.sqlite
+    .prepare('INSERT INTO workspaces(id,name,slug,created_at,brand) VALUES(?,?,?,1,?)')
+    .run(
+      'w',
+      'Beta',
+      'beta',
+      JSON.stringify({ displayName: 'Beta', onAccent: '#ffffff', logoR2Key: 'w/brand-logo/logo' }),
     )
-    expect(brand).toMatchObject({
+  return {
+    database,
+    env: testEnvironment(database.db, 'u@example.test', { BRAND_NAME: 'Deploy', BRAND_ACCENT: '#123456' }),
+  }
+}
+
+describe('server-rendered native brand', () => {
+  it('normalizes deployment bindings and derives a Unicode mark', () => {
+    expect(deploymentBrand({})).toEqual(defaultBrand)
+    expect(
+      deploymentBrand({
+        BRAND_NAME: '  🐳 Team  ',
+        BRAND_ACCENT: ' #123456 ',
+        BRAND_ON_ACCENT: ' ',
+        BRAND_LOGO_URL: ' /logo.svg ',
+      }),
+    ).toEqual({ name: '🐳 Team', mark: '🐳', accent: '#123456', onAccent: null, logoUrl: '/logo.svg' })
+    expect(deploymentBrand({ BRAND_NAME: 'Deploy', BRAND_MARK: '  xyz ' }).mark).toBe('x')
+  })
+
+  it('layers only the explicitly resolved workspace over deployment bindings', async () => {
+    const { env } = fixture()
+    const brand = await Effect.runPromise(loadBrand(env, scope))
+    expect(brand).toEqual({
       name: 'Beta',
       mark: 'B',
       accent: '#123456',
       onAccent: '#ffffff',
+      logoUrl: '/api/workspaces/beta/brand/logo',
     })
-    expect(calls).toEqual([
-      { path: '/api/config/brand', workspace: null },
-      { path: '/api/workspaces/beta/brand', workspace: 'beta' },
-    ])
-    expect(brandStyles(brand)).toMatchObject({
+    expect(brandStyles(brand)).toEqual({
       '--light-accent': '#123456',
+      '--dark-accent': '#123456',
+      '--light-on-accent': '#ffffff',
       '--dark-on-accent': '#ffffff',
     })
   })
-  it('does not look up a tenant on a global or public page', async () => {
-    const calls: Array<{ path: string; workspace: string | null }> = []
-    await load({ '/api/config/brand': defaultBrand }, calls, null)
-    await load({ '/api/config/brand': defaultBrand }, calls, {
-      ...scope,
-      selection: { kind: 'global' },
-    })
-    expect(calls).toEqual([
-      { path: '/api/config/brand', workspace: null },
-      { path: '/api/config/brand', workspace: null },
-    ])
+
+  it('does not look up a tenant on global or public pages', async () => {
+    const { env, database } = fixture()
+    database.sqlite.exec('DROP TABLE workspaces')
+    expect(await Effect.runPromise(loadBrand(env, null))).toEqual(deploymentBrand(env))
+    expect(await Effect.runPromise(loadBrand(env, { ...scope, selection: { kind: 'global' } }))).toEqual(
+      deploymentBrand(env),
+    )
   })
-  it('keeps cosmetic failures optional without swallowing page-data errors', async () => {
-    expect(await load({}, [], scope)).toEqual(defaultBrand)
+
+  it('does not apply branding from unverified membership or mismatched workspace slug', async () => {
+    const { env } = fixture()
+    expect(await Effect.runPromise(loadBrand(env, { ...scope, workspaces: [] }))).toEqual(deploymentBrand(env))
+    expect(
+      await Effect.runPromise(loadBrand(env, { ...scope, workspaces: [{ ...workspace, slug: 'other' }] })),
+    ).toEqual(deploymentBrand(env))
+  })
+
+  it('keeps cosmetic database failures optional', async () => {
+    const { env, database } = fixture()
+    database.sqlite.exec('DROP TABLE workspaces')
+    expect(await Effect.runPromise(loadBrand(env, scope))).toEqual(deploymentBrand(env))
+  })
+
+  it('reads workspace branding afresh instead of sharing a cross-request cache', async () => {
+    const { env, database } = fixture()
+    expect((await Effect.runPromise(loadBrand(env, scope))).name).toBe('Beta')
+    database.sqlite
+      .prepare('UPDATE workspaces SET brand = ? WHERE id = ?')
+      .run(JSON.stringify({ displayName: 'Changed' }), 'w')
+    expect((await Effect.runPromise(loadBrand(env, scope))).name).toBe('Changed')
   })
 })

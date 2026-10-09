@@ -1,11 +1,11 @@
 import type { Context } from 'hono'
 
+import { getWikiPage } from '#commands/wiki'
 import type { HonoEnv } from '#types'
 
 import { authMiddleware } from '../middleware/auth'
 import { subdomainRoutingEnabled } from '../middleware/workspace'
 import { ctxFromHono } from '../services/types'
-import { getWikiPage } from '../services/wiki'
 
 // PROJ-487 fix-up: server-side redirect + metadata injection for the /wiki catch-all
 // need a workspace-scoped ServiceCtx, but a plain top-level browser navigation carries

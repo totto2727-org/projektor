@@ -1,14 +1,4 @@
-export {
-  type ApiMutationOptions,
-  type ApiRawOptions,
-  type ApiReadOptions,
-  assertSameOriginMutation,
-  checkSameOriginMutation,
-  createRequestApi,
-  type JsonValue,
-  type RequestApi,
-  type RequestApiOptions,
-} from './api-client'
+export { assertSameOriginMutation, checkSameOriginMutation } from './mutation'
 export { ApiError, type ApiFailureKind, responseError, ScopeError } from './errors'
 export {
   type AuthSession,

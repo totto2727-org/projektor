@@ -5,9 +5,9 @@
 This is one private Vite+ project with two Cloudflare Workers in one Alchemy stack.
 `src/api` owns the Hono API, authentication and API response shaping.
 `src/web` owns the Effront application, ServerFns, UI and browser-session authorization.
-`src/services` contains internal pure retrieval queries shared by API and Web, not a published package.
+`src/services` contains internal retrieval queries, browser authentication and shared domain commands for API and Web, not a published package.
 `src/db` contains the schema, `migrations/` the maintained SQL migrations, and `src/types` the shared internal types.
-Private `#db`, `#services`, `#types` and `#plugin-sdk` imports resolve inside this project.
+Private `#db`, `#services`, `#commands`, `#types` and `#plugin-sdk` imports resolve inside this project.
 Do not recreate workspace packages, a separate infra project, Turbo, Biome or Lefthook.
 
 ## Commands
@@ -32,8 +32,13 @@ Prefer framework-native page navigation, URL-backed tabs and native forms.
 Define each operation separately with `ServerFn.make`, with concrete Effect schemas and domain authorization.
 Keep SSR data canonical and client state limited to drafts, selections and transient feedback.
 Use TanStack Form with Effect standard schemas for client-managed forms.
-Use Effect HTTP and provide services only at execution boundaries.
-Build requests separately from execution and decode responses with their concrete `HttpClientResponse.schemaBodyJson` schema.
+Resolve native request dependencies only at execution boundaries.
+Entity retrieval and pre-mutation visibility checks use shared direct D1 queries.
+Each browser ServerFn calls its concrete shared command with verified request identity and workspace capabilities, not HTTP endpoints or a generic dispatcher.
+Browser Access/development authentication and D1/R2 file storage are shared with API adapters without a Web-to-API service binding.
+The API retains bearer/OAuth authentication and HTTP shaping, while Web retains browser-only session, same-origin, UI and upload-limit boundaries.
+Web has no API binding, API_BASE or OAuth signing JWT secret.
+Both Workers share the existing storage identities and rate-limiter namespace, with environment differences resolved by aggregate Layers.
 Never introduce direct browser backend fetches, generic mutation dispatchers or upload-size bypasses.
 Direct DB reads must preserve workspace/project visibility, including authorized archived entity reads.
 Authentication and response/UI shaping belong at their application boundaries, not in internal retrieval queries.
@@ -67,13 +72,16 @@ Immutable fork point: `ab122cbea1bae7efce8abe2345ce07375b9dcd13`.
 Upstream comparison revision: the immutable fork point above.
 Previous fork SSR checkpoint: `6c4b69697ec34ec6daa7a6773b4b6db50732b585`.
 The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scoped ServerFns, Base UI and dynamic Comark rendering.
-It adds shared internal D1 retrieval while keeping API contracts, authorization, mutations and MCP behavior at the application boundary.
+It adds shared internal D1 retrieval and domain commands while keeping application-specific authorization, API responses and MCP protocol behavior at their boundaries.
+Browser authentication, updates and file transfers execute against shared native D1/KV/R2 capabilities without Web-to-API HTTP or service bindings.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
 Deployment uses standard Alchemy configuration without custom confirmation flags, preflight gates or secret-value validation.
 Environment differences are provided through aggregate Effect Layers rather than leaf-level local/production branches, and runtime request handling stays outside Worker declarations.
 JWT secrets remain Cloudflare-owned across normal deployments through standard binding inheritance, without reading their values or storing them in project state.
 The project is consolidated into one root package and Vite+ toolchain instead of private workspace packages.
 Vite+ owns all task entry points without Just, formatting/lint settings match the Vite+ app template, and tests use standard isolated projects rather than a runtime-plugin mode branch or test-runner alias shim.
+TypeScript configuration relies on supported compiler defaults for bundled ESM resolution and DOM libraries, retaining only the app's strict checking, JSX, runtime types, aliases and maintained-source scope.
+Test failures and unhandled rejections are not globally filtered by domain error kind.
 The documentation app and docs directory are intentionally removed at the user's request.
 Maintain this compact divergence record alongside behavior/configuration changes.
 Use `git diff ab122cbea1bae7efce8abe2345ce07375b9dcd13 -- src migrations alchemy.ts alchemy.run.ts vite.config.ts package.json .github` when reviewing fork changes.

@@ -1,13 +1,6 @@
 import { Hono } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { isPublicViewer, requireInteractiveHuman } from '../middleware/auth'
-import { oauthApi } from '../oauth/provider'
-import { listConnectorGrants, revokeConnectorGrant } from '../services/oauth'
-import { ctxFromHono } from '../services/types'
+import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth'
 import {
   createToken,
   deleteWorkspace,
@@ -24,7 +17,14 @@ import {
   updateWorkspace,
   updateWorkspaceBrand,
   uploadWorkspaceLogo,
-} from '../services/workspaces'
+} from '#commands/workspaces'
+import type { HonoEnv } from '#types'
+
+import { jsonBody } from '../http/body'
+import { serviceErrToResponse } from '../http/error-adapter'
+import { isPublicViewer, requireInteractiveHuman } from '../middleware/auth'
+import { oauthApi } from '../oauth/provider'
+import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()
 

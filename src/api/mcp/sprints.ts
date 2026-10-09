@@ -1,6 +1,4 @@
-import type { MCPTool } from '#types'
-
-import { ValidationError } from '../services/errors'
+import { ValidationError } from '#commands/errors'
 import {
   completeSprint,
   createSprint,
@@ -9,7 +7,9 @@ import {
   listSprints,
   moveIssuesToSprint,
   updateSprint,
-} from '../services/sprints'
+} from '#commands/sprints'
+import type { MCPTool } from '#types'
+
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
 
 export const sprintsTools: MCPTool[] = [

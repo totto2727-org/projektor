@@ -1,193 +1,163 @@
-import { Effect, Schema } from 'effect'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, it } from 'vite-plus/test'
 
-import { type PreparedView, RequestServices } from '../../request'
-import type { RequestApi } from '../../server/api-client'
-import type { RequestScope } from '../../server/request-context'
-import { createTestDatabase } from '../../test/database'
-import { jsonResponse, testRequestApi } from '../wiki/test-api'
-import { createFeedbackSource, markFeedbackReviewed, markSelectedFeedbackReviewed } from './actions'
+import { actionFixture, formData, planningIds } from '../planning/action-test-fixture'
 
-type Definition = {
-  input: Schema.Decoder<unknown> | readonly Schema.Decoder<unknown>[]
-  handler: (...input: never[]) => Effect.Effect<unknown, unknown, RequestServices>
+const actions = await import('./actions')
+const scope = { workspaceSlug: 'alpha', projectId: planningIds.project }
+function fixture(origin = 'https://front.example') {
+  const test = actionFixture(undefined, origin)
+  test.sqlite.exec(`
+    INSERT INTO projects (id,workspace_id,name,key,slug,created_at,updated_at) VALUES ('${scope.projectId}','w1','Feedback','FEED','feedback',1,1);
+    INSERT INTO feedback_sources (id,token_hash,workspace_id,project_id,name,created_by,created_at) VALUES ('source','initial-hash','w1','${scope.projectId}','Existing','u1',1);
+    INSERT INTO feedback (id,source_id,workspace_id,project_id,body,created_at) VALUES
+      ('feedback','source','w1','${scope.projectId}','Please improve search',1),
+      ('feedback2','source','w1','${scope.projectId}','Please improve navigation',1);
+  `)
+  return test
 }
-const definitions = vi.hoisted(() => new Map<unknown, Definition>())
-vi.mock('@effront/core/workers', async () => {
-  const { Effect } = await import('effect')
-  return { getWorkersRequestContext: () => Effect.die('No Workers runtime in handler unit tests') }
-})
-vi.mock('../../effront', () => ({
-  EFFRONT: {
-    ServerFn: {
-      make: (definition: Definition) => {
-        const operation = () => undefined
-        definitions.set(operation, definition)
-        return operation
-      },
-    },
-  },
-}))
-const workspace = { id: 'workspace', slug: 'team', name: 'Team', role: 'member' as const }
-const project = {
-  id: 'project',
-  key: 'PROJ',
-  name: 'Project',
-  slug: null,
-  description: null,
-  workspace_id: 'workspace',
-  workspace_name: 'Team',
-  workspace_slug: 'team',
-  open_issue_count: 0,
-  backlog_issue_count: 0,
-  archived_at: null,
-  created_at: 1,
-  updated_at: 1,
-}
-const scope: RequestScope = {
-  user: { id: 'user', name: 'Alice', email: 'alice@example.test' },
-  workspaces: [workspace],
-  projects: [project],
-  selection: { kind: 'project', workspace, project },
-}
-const databases: ReturnType<typeof createTestDatabase>[] = []
-afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
-})
-function fixture(origin = 'https://app.test') {
-  const database = createTestDatabase()
-  databases.push(database)
-  const reads: string[] = []
-  const writes: { path: string; mutation: Parameters<RequestApi['send']>[1] }[] = []
-  const invalidate = vi.fn()
-  const api = testRequestApi((outgoing) =>
-    Effect.suspend(() => {
-      const path = outgoing.url
-      if (outgoing.method === 'GET') {
-        reads.push(path)
-        return jsonResponse(outgoing, [])
-      }
-      writes.push({
-        path,
-        mutation: {
-          method: outgoing.method as Parameters<RequestApi['send']>[1]['method'],
-          workspaceSlug: outgoing.headers['x-workspace-slug'],
-          ...(outgoing.body._tag === 'Uint8Array'
-            ? { json: JSON.parse(new TextDecoder().decode(outgoing.body.body)) }
-            : {}),
-        },
-      })
-      return jsonResponse(outgoing, { ok: true, id: 'source', token: 'secret-source-token' })
-    }),
-  )
-  const request = new Request('https://app.test/_effront/function', {
-    method: 'POST',
-    headers: { Origin: origin },
-  })
-  const services = {
-    api,
-    request,
-    env: { API_BASE: 'https://api.test', DB: database.db },
-    db: database.db,
-    url: new URL(request.url),
-    scope: () => Effect.succeed(scope),
-    prepare: (view: PreparedView) => view,
-    invalidate: Effect.sync(invalidate),
-  }
-  function run(operation: unknown, input: unknown) {
-    const definition = definitions.get(operation)
-    if (!definition) throw new Error('Missing operation definition')
-    const spread = Array.isArray(definition.input)
-    const decoder = spread
-      ? Schema.Tuple(definition.input as readonly Schema.Decoder<unknown>[])
-      : (definition.input as Schema.Decoder<unknown>)
-    const encoded = operation === createFeedbackSource ? [null, new FormData()] : input
-    if (operation === createFeedbackSource && Array.isArray(encoded)) {
-      const data = encoded[1] as FormData
-      for (const [key, value] of Object.entries(input as Record<string, string>)) data.set(key, value)
-    }
-    return Effect.runPromise(
-      Schema.decodeUnknownEffect(decoder)(encoded).pipe(
-        Effect.flatMap((value) =>
-          spread ? definition.handler(...(value as never[])) : definition.handler(value as never),
-        ),
-        Effect.provideService(RequestServices, services),
+
+describe('Feedback concrete ServerFn shared commands', () => {
+  it('parses original origins form and persists only known source configuration fields', async () => {
+    const test = fixture()
+    expect(
+      await test.invoke(
+        actions.createFeedbackSource,
+        null,
+        formData({
+          ...scope,
+          name: ' Customers ',
+          description: ' Notes ',
+          origins: 'https://one.test\nhttps://two.test, ',
+        }),
       ),
-    )
-  }
-  return { run, reads, writes, invalidate }
-}
-describe('Feedback concrete ServerFn contracts', () => {
-  it('parses original origins form and emits only known source configuration fields', async () => {
+    ).toEqual({ ok: true, value: { id: expect.any(String), token: expect.stringMatching(/^fbk_/) } })
+    expect(
+      test.sqlite
+        .prepare("SELECT name,description,allowed_origins,created_by FROM feedback_sources WHERE name='Customers'")
+        .get(),
+    ).toMatchObject({
+      name: 'Customers',
+      description: 'Notes',
+      allowed_origins: '["https://one.test","https://two.test"]',
+      created_by: 'u1',
+    })
+    expect(test.invalidated).toHaveBeenCalledTimes(1)
+    expect(test.transport).not.toHaveBeenCalled()
+  })
+  it('rejects an inaccessible explicit project before mutation', async () => {
     const test = fixture()
     expect(
-      await test.run(createFeedbackSource, {
-        workspaceSlug: 'team',
-        projectId: 'project',
-        name: ' Customers ',
-        description: ' Notes ',
-        origins: 'https://one.test\nhttps://two.test, ',
-      }),
-    ).toEqual({ ok: true, value: { id: 'source', token: 'secret-source-token' } })
-    expect(test.writes).toEqual([
-      {
-        path: '/api/projects/project/feedback-sources',
-        mutation: {
-          method: 'POST',
-          workspaceSlug: 'team',
-          json: {
-            name: 'Customers',
-            description: 'Notes',
-            allowedOrigins: ['https://one.test', 'https://two.test'],
-          },
-        },
-      },
-    ])
-    expect(test.invalidate).toHaveBeenCalledTimes(1)
+      await test.invoke(actions.markFeedbackReviewed, { ...scope, projectId: 'foreign', feedbackId: 'feedback' }),
+    ).toMatchObject({ ok: false, status: 404 })
+    expect(test.sqlite.prepare("SELECT status FROM feedback WHERE id='feedback'").get()?.status).toBe('new')
+    expect(test.transport).not.toHaveBeenCalled()
   })
-  it('rejects an inaccessible explicit project before backend reads or writes', async () => {
-    const test = fixture()
-    expect(
-      await test.run(markFeedbackReviewed, {
-        workspaceSlug: 'team',
-        projectId: 'other',
-        feedbackId: 'feedback',
-      }),
-    ).toEqual({ ok: false, status: 404, message: expect.any(String) })
-    expect(test.reads).toEqual([])
-  })
-  it('rejects cross-origin Feedback mutations before any backend work', async () => {
+  it('rejects cross-origin Feedback mutations before backend work', async () => {
     const test = fixture('https://attacker.test')
-    expect(
-      await test.run(markFeedbackReviewed, {
-        workspaceSlug: 'team',
-        projectId: 'project',
-        feedbackId: 'feedback',
-      }),
-    ).toEqual({ ok: false, status: 403, message: expect.any(String) })
-    expect(test.reads).toEqual([])
-    expect(test.writes).toEqual([])
-    expect(test.invalidate).toHaveBeenCalledTimes(1)
+    expect(await test.invoke(actions.markFeedbackReviewed, { ...scope, feedbackId: 'feedback' })).toMatchObject({
+      ok: false,
+      status: 403,
+    })
+    expect(test.sqlite.prepare("SELECT status FROM feedback WHERE id='feedback'").get()?.status).toBe('new')
+    expect(test.invalidated).toHaveBeenCalledTimes(1)
+    expect(test.transport).not.toHaveBeenCalled()
   })
-  it('rejects empty/oversized bulk selections and oversized origins using actual input schemas', async () => {
+  it('rejects empty/oversized selections and origins using actual schemas', async () => {
     const test = fixture()
     for (const feedbackIds of [[], Array.from({ length: 501 }, (_, i) => String(i))])
-      await expect(
-        test.run(markSelectedFeedbackReviewed, {
-          workspaceSlug: 'team',
-          projectId: 'project',
-          feedbackIds,
-        }),
-      ).rejects.toThrow()
+      await expect(test.invoke(actions.markSelectedFeedbackReviewed, { ...scope, feedbackIds })).rejects.toMatchObject({
+        _tag: 'SchemaError',
+      })
     await expect(
-      test.run(createFeedbackSource, {
-        workspaceSlug: 'team',
-        projectId: 'project',
-        name: 'Source',
-        description: '',
-        origins: 'x'.repeat(2001),
-      }),
-    ).rejects.toThrow()
-    expect(test.writes).toEqual([])
+      test.invoke(
+        actions.createFeedbackSource,
+        null,
+        formData({ ...scope, name: 'Source', description: '', origins: 'x'.repeat(2001) }),
+      ),
+    ).rejects.toMatchObject({ _tag: 'SchemaError' })
+    expect(test.transport).not.toHaveBeenCalled()
+  })
+  it('updates, rotates and revokes a real scoped feedback source', async () => {
+    const test = fixture()
+    const reference = { ...scope, sourceId: 'source' }
+    expect(await test.invoke(actions.setFeedbackSourceActive, { ...reference, active: false })).toEqual({
+      ok: true,
+      value: { ok: true },
+    })
+    expect(test.sqlite.prepare("SELECT is_active FROM feedback_sources WHERE id='source'").get()?.is_active).toBe(0)
+    expect(await test.invoke(actions.rotateFeedbackSourceToken, reference)).toMatchObject({
+      ok: true,
+      value: { token: expect.stringMatching(/^fbk_/) },
+    })
+    expect(test.sqlite.prepare("SELECT token_hash FROM feedback_sources WHERE id='source'").get()?.token_hash).not.toBe(
+      'initial-hash',
+    )
+    expect(await test.invoke(actions.revokeFeedbackSource, reference)).toEqual({ ok: true, value: { ok: true } })
+    expect(test.sqlite.prepare("SELECT revoked_at FROM feedback_sources WHERE id='source'").get()?.revoked_at).toEqual(
+      expect.any(Number),
+    )
+    expect(await test.invoke(actions.rotateFeedbackSourceToken, reference)).toMatchObject({ ok: false, status: 409 })
+    expect(test.transport).not.toHaveBeenCalled()
+  })
+  it('marks individual and selected feedback reviewed with concrete result counts', async () => {
+    const test = fixture()
+    expect(await test.invoke(actions.markFeedbackReviewed, { ...scope, feedbackId: 'feedback' })).toEqual({
+      ok: true,
+      value: { ok: true },
+    })
+    expect(test.sqlite.prepare("SELECT status FROM feedback WHERE id='feedback'").get()?.status).toBe('reviewed')
+    expect(await test.invoke(actions.markSelectedFeedbackReviewed, { ...scope, feedbackIds: ['feedback2'] })).toEqual({
+      ok: true,
+      value: { updated: 1 },
+    })
+    expect(test.sqlite.prepare("SELECT status FROM feedback WHERE id='feedback2'").get()?.status).toBe('reviewed')
+    expect(test.transport).not.toHaveBeenCalled()
+  })
+  it('converts feedback to a real issue and rejects duplicate conversion', async () => {
+    const test = fixture()
+    const reference = { ...scope, feedbackId: 'feedback' }
+    const result = await test.invoke(actions.convertFeedbackToIssue, reference)
+    expect(result).toMatchObject({ ok: true, value: { id: expect.any(String), number: expect.any(Number) } })
+    const feedback = test.sqlite.prepare("SELECT status,linked_issue_id FROM feedback WHERE id='feedback'").get()
+    expect(feedback).toMatchObject({ status: 'actioned', linked_issue_id: expect.any(String) })
+    if (typeof feedback?.linked_issue_id !== 'string') throw new Error('Expected linked issue ID.')
+    expect(test.sqlite.prepare('SELECT title FROM issues WHERE id=?').get(feedback.linked_issue_id)?.title).toBe(
+      'Please improve search',
+    )
+    expect(await test.invoke(actions.convertFeedbackToIssue, reference)).toMatchObject({ ok: false, status: 409 })
+    expect(test.transport).not.toHaveBeenCalled()
+  })
+  it('bulk converts selected feedback into one issue with linked count', async () => {
+    const test = fixture()
+    expect(
+      await test.invoke(actions.convertSelectedFeedbackToIssue, { ...scope, feedbackIds: ['feedback', 'feedback2'] }),
+    ).toMatchObject({ ok: true, value: { id: expect.any(String), number: expect.any(Number), convertedCount: 2 } })
+    expect(
+      test.sqlite.prepare("SELECT count(DISTINCT linked_issue_id) AS count FROM feedback WHERE status='actioned'").get()
+        ?.count,
+    ).toBe(1)
+    expect(test.sqlite.prepare('SELECT title FROM issues WHERE project_id=?').get(scope.projectId)?.title).toBe(
+      '2 feedback items',
+    )
+    expect(test.transport).not.toHaveBeenCalled()
+  })
+  it('preserves source-admin and feedback project-write authority from shared commands', async () => {
+    const test = fixture()
+    test.sqlite.exec(
+      `UPDATE workspace_members SET role='member' WHERE user_id='u1'; INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('g1','w1','Team',1); INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1); INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','${scope.projectId}','viewer');`,
+    )
+    expect(
+      await test.invoke(actions.setFeedbackSourceActive, { ...scope, sourceId: 'source', active: false }),
+    ).toMatchObject({ ok: false, status: 403 })
+    expect(await test.invoke(actions.markFeedbackReviewed, { ...scope, feedbackId: 'feedback' })).toMatchObject({
+      ok: false,
+      status: 403,
+    })
+    test.sqlite.exec("UPDATE group_project_grants SET role='member' WHERE group_id='g1'")
+    expect(await test.invoke(actions.markFeedbackReviewed, { ...scope, feedbackId: 'feedback' })).toEqual({
+      ok: true,
+      value: { ok: true },
+    })
+    expect(test.transport).not.toHaveBeenCalled()
   })
 })

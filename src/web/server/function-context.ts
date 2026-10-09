@@ -1,7 +1,6 @@
 import { Effect, Schema } from 'effect'
 
 import { RequestServices } from '../request'
-import type { RequestApi } from './api-client'
 import { type ApiError, ScopeError } from './errors'
 import type { RequestScope } from './request-context'
 
@@ -15,7 +14,6 @@ export const FunctionSelectorSchema = Schema.Struct({
 export type FunctionSelector = typeof FunctionSelectorSchema.Type
 
 export interface FunctionContext {
-  readonly api: RequestApi
   readonly scope: RequestScope
   readonly workspaceSlug?: string
   readonly projectId?: string
@@ -71,7 +69,6 @@ export function resolveFunctionContext(
       return yield* new ScopeError(404, 'Selected project is not accessible.')
     }
     return {
-      api: services.api,
       scope,
       ...(workspace ? { workspaceSlug: workspace.slug } : {}),
       ...(selection.kind === 'project' ? { projectId: selection.project.id } : {}),

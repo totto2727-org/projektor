@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 
+import { claimFiles, listFileClaims, releaseFiles } from '#commands/file-claims'
 import type { HonoEnv } from '#types'
 
 import { jsonBody } from '../http/body'
 import { serviceErrToResponse } from '../http/error-adapter'
-import { claimFiles, listFileClaims, releaseFiles } from '../services/file-claims'
 import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()

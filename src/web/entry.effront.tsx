@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 import { brandStyles, loadBrand } from './brand'
 import { Shell } from './components/Shell'
@@ -10,7 +10,6 @@ import { renderHelp, renderOverview, renderProjects } from './features/projects/
 import { renderGroups, renderTokens } from './features/settings/server'
 import { renderShare } from './features/share/server'
 import { renderWiki } from './features/wiki/server'
-import { HttpClientLive } from './http-client-layer'
 import { pageRenderer } from './page'
 import { RequestServices, RequestServicesLive } from './request'
 
@@ -44,7 +43,7 @@ const RootLayout = EFFRONT.Layout.make({
       const services = yield* RequestServices
       const publicRoute = /^\/share(?:\/|$)/.test(services.url.pathname) || /^\/help\/?$/.test(services.url.pathname)
       const scope = publicRoute ? null : yield* services.scope()
-      const brand = yield* loadBrand(services.api, scope)
+      const brand = yield* loadBrand(services.env, scope)
       return (
         <html lang='en' style={brandStyles(brand)} suppressHydrationWarning>
           <head>
@@ -191,5 +190,5 @@ const routes = EFFRONT.Routes.make({ layout: RootLayout })
 
 export default EFFRONT.make({
   routes,
-  layer: RequestServicesLive.pipe(Layer.provideMerge(HttpClientLive)),
+  layer: RequestServicesLive,
 })

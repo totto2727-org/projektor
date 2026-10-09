@@ -1,135 +1,123 @@
-import { Effect } from 'effect'
-import { HttpBody, HttpClientRequest } from 'effect/http'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, it, vi } from 'vite-plus/test'
 
 import { actionFixture, formData } from './features/planning/action-test-fixture'
-import { serviceBindingHttpClient } from './http-client-layer'
 
 const { uploadAttachment, uploadInlineImage } = await import('./attachment-actions')
 
-const uploaded = { id: 'file-1', filename: 'diagram.png', contentType: 'image/png', size: 4 }
-function nativeInput() {
-  const fields = formData({ workspaceSlug: 'alpha', entityType: 'wiki_page', entityId: 'wiki-1' })
-  fields.set('file', new File([new Uint8Array([0, 255, 7, 128])], 'diagram.png', { type: 'image/png' }))
-  return fields
+function fileFixture(origin = 'https://front.example', quotaBytes?: string) {
+  const objects = new Map<string, ArrayBuffer>()
+  // A bounded R2 double, with the real migrated database and command authorization.
+  const put = vi.fn(async (key: string, body: ArrayBuffer) => {
+    objects.set(key, body)
+    return null
+  })
+  const remove = vi.fn(async (key: string) => {
+    objects.delete(key)
+  })
+  const r2 = { put, delete: remove } as unknown as R2Bucket
+  const fixture = actionFixture(
+    () => {
+      throw new Error('File transfer must not use API transport.')
+    },
+    origin,
+    {
+      R2: r2,
+      STORAGE_QUOTA_BYTES: quotaBytes,
+    },
+  )
+  return { ...fixture, objects, put, remove }
+}
+function file(bytes: Uint8Array<ArrayBuffer> = new Uint8Array([0, 255, 7, 128]), type = 'image/png') {
+  return new File([bytes], 'diagram.png', { type })
+}
+function invoke(
+  fixture: ReturnType<typeof fileFixture>,
+  kind: 'native' | 'inline',
+  upload = file(),
+  workspaceSlug = 'alpha',
+) {
+  const input = { workspaceSlug, entityType: 'wiki_page' as const, entityId: 'wiki-1', file: upload }
+  if (kind === 'inline') return fixture.invoke(uploadInlineImage, input)
+  const fields = formData({ workspaceSlug, entityType: input.entityType, entityId: input.entityId })
+  fields.set('file', upload)
+  return fixture.invoke(uploadAttachment, null, fields)
 }
 
-describe('individual attachment ServerFns', () => {
+describe('direct attachment ServerFns with shared guarded D1/R2 commands', () => {
   it.each(['native', 'inline'] as const)(
-    'preserves the multipart boundary and 64 KiB file through the real binding adapter (%s)',
+    'preserves exact 64 KiB bytes and concrete metadata without API transfer (%s)',
     async (kind) => {
+      const fixture = fileFixture()
       const bytes = Uint8Array.from({ length: 64 * 1024 }, (_, index) => index % 256)
-      const file = new File([bytes], 'native-attachment.bin', {
-        type: 'application/octet-stream',
-      })
-      const metadata = {
-        id: 'file-64k',
-        filename: file.name,
-        contentType: file.type,
-        size: file.size,
-      }
-      const binding = serviceBindingHttpClient({
-        async fetch(request: Request) {
-          expect(request.headers.get('x-workspace-slug')).toBe('alpha')
-          expect(request.headers.get('cookie')).toBe('CF_Authorization=actual-user')
-          expect(request.headers.get('content-type')).toMatch(/^multipart\/form-data; boundary=.+/)
-          // This is the unchanged API upload parser's actual Web Request boundary.
-          const fields = await request.formData()
-          expect(fields.get('entityType')).toBe('wiki_page')
-          expect(fields.get('entityId')).toBe('wiki-1')
-          const received = fields.get('file')
-          if (!(received instanceof File)) throw new Error('Expected multipart file')
-          expect(received.name).toBe(file.name)
-          expect(received.type).toBe(file.type)
-          expect(received.size).toBe(bytes.length)
-          expect(new Uint8Array(await received.arrayBuffer())).toEqual(bytes)
-          return Response.json(metadata, { status: 201 })
+      const upload = file(bytes)
+      const result = await invoke(fixture, kind, upload)
+      expect(result).toEqual({
+        ok: true,
+        value: {
+          id: expect.any(String),
+          filename: 'diagram.png',
+          contentType: 'image/png',
+          size: bytes.length,
         },
-      } as Parameters<typeof serviceBindingHttpClient>[0])
-      const fixture = actionFixture(async (url, options) => {
-        // The fixture's FetchHttpClient exposes the action's outgoing body/headers.
-        // Replay them through the production Alchemy adapter, not native fetch.
-        const request = HttpClientRequest.post(url).pipe(HttpClientRequest.setHeaders(new Headers(options?.headers)))
-        const outgoing =
-          options?.body instanceof FormData
-            ? HttpClientRequest.bodyFormData(request, options.body)
-            : HttpClientRequest.setBody(request, HttpBody.raw(options?.body))
-        return Effect.runPromise(
-          Effect.scoped(binding.execute(outgoing).pipe(Effect.flatMap((response) => response.json))),
-        )
       })
-      const fields = nativeInput()
-      fields.set('file', file)
-      const result =
-        kind === 'native'
-          ? fixture.invoke(uploadAttachment, null, fields)
-          : fixture.invoke(uploadInlineImage, {
-              workspaceSlug: 'alpha',
-              entityType: 'wiki_page',
-              entityId: 'wiki-1',
-              file,
-            })
-      await expect(result).resolves.toEqual({ ok: true, value: metadata })
+      expect(fixture.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//), await upload.arrayBuffer(), {
+        httpMetadata: { contentType: 'image/png' },
+      })
+      expect(fixture.sqlite.prepare('SELECT workspace_id,entity_type,entity_id,size FROM attachments').get()).toEqual({
+        workspace_id: 'w1',
+        entity_type: 'wiki_page',
+        entity_id: 'wiki-1',
+        size: bytes.length,
+      })
+      expect(fixture.transport).not.toHaveBeenCalled()
       expect(fixture.invalidated).toHaveBeenCalledOnce()
     },
   )
-  it('decodes the native FormData action and forwards the real file through the server HTTP client', async () => {
-    const fixture = actionFixture(async (url, options) => {
-      expect(url.pathname).toBe('/api/files')
-      expect(options?.method).toBe('POST')
-      expect(new Headers(options?.headers).get('x-workspace-slug')).toBe('alpha')
-      const body = options?.body
-      if (!(body instanceof FormData)) throw new Error('Expected framework-decoded multipart fields')
-      expect(body.get('entityType')).toBe('wiki_page')
-      expect(body.get('entityId')).toBe('wiki-1')
-      const file = body.get('file')
-      if (!(file instanceof File)) throw new Error('Expected original file')
-      expect(file.name).toBe('diagram.png')
-      expect(new Uint8Array(await file.arrayBuffer())).toEqual(new Uint8Array([0, 255, 7, 128]))
-      return uploaded
-    })
-    await expect(fixture.invoke(uploadAttachment, null, nativeInput())).resolves.toEqual({
-      ok: true,
-      value: uploaded,
-    })
-    expect(fixture.invalidated).toHaveBeenCalledOnce()
-  })
-
-  it('returns the image identity for editor insertion without a separate upload endpoint', async () => {
-    const fixture = actionFixture(() => uploaded)
-    await expect(
-      fixture.invoke(uploadInlineImage, {
-        workspaceSlug: 'alpha',
-        entityType: 'wiki_page',
-        entityId: 'wiki-1',
-        file: nativeInput().get('file') as File,
-      }),
-    ).resolves.toEqual({ ok: true, value: uploaded })
-    expect(fixture.invalidated).toHaveBeenCalledOnce()
-  })
-
-  it('rejects cross-origin native mutations before contacting the API', async () => {
-    const fixture = actionFixture(() => {
-      throw new Error('Must not execute')
-    }, 'https://other.example')
-    await expect(fixture.invoke(uploadAttachment, null, nativeInput())).resolves.toMatchObject({
-      ok: false,
-      status: 403,
-    })
-    expect(fixture.transport).not.toHaveBeenCalled()
-    expect(fixture.invalidated).toHaveBeenCalledOnce()
-  })
-
-  it('preserves an upstream rejection and validates the concrete upload response', async () => {
-    const denied = actionFixture(() => Response.json({ error: 'Upload rejected' }, { status: 413 }))
-    await expect(denied.invoke(uploadAttachment, null, nativeInput())).resolves.toMatchObject({
+  it.each(['native', 'inline'] as const)(
+    'rejects cross-origin writes before authorization or storage (%s)',
+    async (kind) => {
+      const fixture = fileFixture('https://other.example')
+      expect(await invoke(fixture, kind)).toMatchObject({ ok: false, status: 403 })
+      expect(fixture.transport).not.toHaveBeenCalled()
+      expect(fixture.put).not.toHaveBeenCalled()
+      expect(fixture.invalidated).toHaveBeenCalledOnce()
+    },
+  )
+  it.each(['native', 'inline'] as const)('preserves the effective Web 10 MiB cap (%s)', async (kind) => {
+    const fixture = fileFixture()
+    expect(await invoke(fixture, kind, file(new Uint8Array(10 * 1024 * 1024 + 1)))).toMatchObject({
       ok: false,
       status: 413,
     })
-    const malformed = actionFixture(() => ({ id: 'missing-file-metadata' }))
-    await expect(malformed.invoke(uploadAttachment, null, nativeInput())).resolves.toMatchObject({
+    expect(fixture.put).not.toHaveBeenCalled()
+    expect(fixture.invalidated).toHaveBeenCalledOnce()
+  })
+  it.each(['native', 'inline'] as const)('retains shared MIME and configured quota rejection (%s)', async (kind) => {
+    const unsupported = fileFixture()
+    expect(await invoke(unsupported, kind, file(undefined, 'application/octet-stream'))).toMatchObject({
       ok: false,
-      status: 502,
+      status: 415,
     })
+    const quota = fileFixture('https://front.example', '3')
+    expect(await invoke(quota, kind)).toMatchObject({ ok: false, status: 413 })
+    expect(unsupported.put).not.toHaveBeenCalled()
+    expect(quota.put).not.toHaveBeenCalled()
+  })
+  it.each(['native', 'inline'] as const)('rejects foreign workspace selection before storage (%s)', async (kind) => {
+    const fixture = fileFixture()
+    expect(await invoke(fixture, kind, file(), 'beta')).toMatchObject({ ok: false, status: 403 })
+    expect(fixture.put).not.toHaveBeenCalled()
+  })
+  it.each(['native', 'inline'] as const)('compensates R2 and redacts a metadata write failure (%s)', async (kind) => {
+    const fixture = fileFixture()
+    fixture.sqlite.exec(
+      "CREATE TRIGGER fail_attachment BEFORE INSERT ON attachments BEGIN SELECT RAISE(ABORT, 'private storage failure'); END",
+    )
+    const result = await invoke(fixture, kind)
+    expect(result).toMatchObject({ ok: false, status: 500 })
+    expect(JSON.stringify(result)).not.toContain('private storage failure')
+    expect(fixture.remove).toHaveBeenCalledOnce()
+    expect(fixture.objects.size).toBe(0)
+    expect(fixture.invalidated).toHaveBeenCalledOnce()
   })
 })

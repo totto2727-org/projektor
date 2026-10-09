@@ -2,11 +2,6 @@ import type { AuthRequest, OAuthHelpers } from '@cloudflare/workers-oauth-provid
 import { AuthorizationError } from '@cloudflare/workers-oauth-provider'
 import { type Context, Hono } from 'hono'
 
-import type { HonoEnv } from '#types'
-
-import type { AuthUser } from '../middleware/auth'
-import { isPublicViewer } from '../middleware/auth'
-import { signConsentToken, verifyConsentToken } from '../oauth/consent-token'
 import {
   describeScope,
   isLoopbackOnlyClient,
@@ -14,7 +9,12 @@ import {
   OAuthRequestError,
   parseConsentRequest,
   relyingPartyHost,
-} from '../services/oauth'
+} from '#commands/oauth'
+import type { HonoEnv } from '#types'
+
+import type { AuthUser } from '../middleware/auth'
+import { isPublicViewer } from '../middleware/auth'
+import { signConsentToken, verifyConsentToken } from '../oauth/consent-token'
 
 // PROJ-656: the consent screen.
 //

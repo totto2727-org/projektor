@@ -10,7 +10,6 @@ import { listWorkspaceMembers } from '#services/workspaces'
 
 import { renderMarkdownDocument } from '../../components/markdown/render'
 import { RequestServices } from '../../request'
-import type { RequestApi } from '../../server/api-client'
 import { authorizeDataEntity, dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context'
 import { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
@@ -119,7 +118,6 @@ function lookups(scope: RequestScope, workspaceId: string) {
 }
 
 export function loadIssues(
-  _api: RequestApi,
   scope: RequestScope,
   url: URL,
 ): Effect.Effect<IssuesLoaderData | null, ReadFailure, RequestServices> {
@@ -187,13 +185,9 @@ export function loadIssues(
     }
   })
 }
-export function renderIssues(
-  api: RequestApi,
-  scope: RequestScope,
-  url: URL,
-): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
+export function renderIssues(scope: RequestScope, url: URL): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
-    const data = yield* loadIssues(api, scope, url)
+    const data = yield* loadIssues(scope, url)
     return (
       <IssuesPage
         scope={scope}
@@ -220,7 +214,6 @@ function issueIdentifier(url: URL, scope: RequestScope, params: IssueRouteParams
   return `${project.key}-${number}`
 }
 export function loadIssue(
-  _api: RequestApi,
   scope: RequestScope,
   url: URL,
   params: IssueRouteParams = {},
@@ -302,18 +295,16 @@ export function loadIssue(
   })
 }
 export function renderIssue(
-  api: RequestApi,
   scope: RequestScope,
   url: URL,
   params: IssueRouteParams = {},
 ): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
-    const data = yield* loadIssue(api, scope, url, params)
+    const data = yield* loadIssue(scope, url, params)
     return <IssueDetailPage scope={data?.scope ?? scope} {...(data ?? { workspaceSlug: '', initialData: null })} />
   })
 }
 export function loadMyIssues(
-  _api: RequestApi,
   scope: RequestScope,
   url: URL,
 ): Effect.Effect<MyIssuesInitialData, ReadFailure, RequestServices> {
@@ -334,16 +325,14 @@ export function loadMyIssues(
   })
 }
 export function renderMyIssues(
-  api: RequestApi,
   scope: RequestScope,
   url: URL,
 ): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
-    return <MyIssuesPage scope={scope} initialData={yield* loadMyIssues(api, scope, url)} />
+    return <MyIssuesPage scope={scope} initialData={yield* loadMyIssues(scope, url)} />
   })
 }
 export function loadEpics(
-  _api: RequestApi,
   scope: RequestScope,
   url: URL,
 ): Effect.Effect<EpicsLoaderData | null, ReadFailure, RequestServices> {
@@ -373,13 +362,9 @@ export function loadEpics(
     }
   })
 }
-export function renderEpics(
-  api: RequestApi,
-  scope: RequestScope,
-  url: URL,
-): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
+export function renderEpics(scope: RequestScope, url: URL): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
-    const data = yield* loadEpics(api, scope, url)
+    const data = yield* loadEpics(scope, url)
     return <EpicsPage scope={scope} {...(data ?? { workspaceSlug: '', initialData: null })} />
   })
 }

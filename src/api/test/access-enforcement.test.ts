@@ -1,7 +1,8 @@
 import { env, SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
-import { visibleProjectIds } from '../services/access'
+import { visibleProjectIds } from '#commands/access'
+
 import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers'
 
 // PROJ-311: group-based project access. Authorization lives entirely in projektor:

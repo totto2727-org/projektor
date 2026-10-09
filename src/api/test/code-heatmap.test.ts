@@ -1,7 +1,8 @@
 import { env, SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
-import type { CodeHeatmapEntry, ContentionHeatmapEntry } from '../services/code-heatmap'
+import type { CodeHeatmapEntry, ContentionHeatmapEntry } from '#commands/code-heatmap'
+
 import { authHeaders, seedIssue, seedProjectFixture } from './helpers'
 
 interface CodeHeatmapResponse {

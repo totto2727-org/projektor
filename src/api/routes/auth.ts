@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
 
+import { createUserToken, deleteUserToken, getUserWorkspaces } from '#commands/user-tokens'
 import type { HonoEnv } from '#types'
 
 import { jsonBody } from '../http/body'
 import { serviceErrToResponse } from '../http/error-adapter'
 import { authMiddleware, requireInteractiveHuman } from '../middleware/auth'
-import { createUserToken, deleteUserToken, getUserWorkspaces } from '../services/user-tokens'
 
 const router = new Hono<HonoEnv>()
 

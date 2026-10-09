@@ -4,8 +4,9 @@
 import { env, SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
-import type { ServiceCtx } from '../services/types'
-import { purgeExpiredWikiPages } from '../services/wiki'
+import type { ServiceCtx } from '#commands/types'
+import { purgeExpiredWikiPages } from '#commands/wiki'
+
 import { authHeaders, seedFixture } from './helpers'
 import { resetRateLimits } from './rate-limit-reset'
 

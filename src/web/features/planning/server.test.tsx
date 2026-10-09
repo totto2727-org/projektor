@@ -1,12 +1,14 @@
 import { Effect, Schema } from 'effect'
-import { FetchHttpClient } from 'effect/http'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vite-plus/test'
 
+import { resetProvisioningCacheForTests } from '#commands/provisioning'
+import { resetAuthCachesForTests } from '#services/authentication'
+
 import { makeRequestServices, RequestServices } from '../../request'
-import type { RequestApi } from '../../server/api-client'
 import type { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
+import { testEnvironment } from '../../server/test/resources'
 import { featureDatabase } from './action-test-fixture'
 import { defaultRange, rangeFromUrl } from './helpers'
 import { HeatmapSchema, MetricsSchema, SprintsSchema } from './schemas'
@@ -29,28 +31,21 @@ vi.hoisted(() =>
 function runWithDatabase<T>(
   database: ReturnType<typeof featureDatabase>,
   url: URL,
-  use: (api: RequestApi, scope: RequestScope) => Effect.Effect<T, ApiError | ScopeError, RequestServices>,
+  use: (scope: RequestScope) => Effect.Effect<T, ApiError | ScopeError, RequestServices>,
 ) {
-  const transport = vi.fn<typeof fetch>().mockImplementation(async (input) => {
-    expect(new URL(input instanceof Request ? input.url : input.toString()).pathname).toBe('/auth/me')
-    return Response.json({
-      user: { id: 'u1', email: 'owner@example.test', name: 'Owner' },
-      workspaces: [{ id: 'w1', slug: 'alpha', name: 'Alpha', role: 'owner' }],
-    })
-  })
+  resetAuthCachesForTests()
+  resetProvisioningCacheForTests()
+  const transport = vi.spyOn(globalThis, 'fetch')
   const result = Effect.runPromise(
     Effect.gen(function* () {
-      const services = yield* makeRequestServices(
-        new Request(url, { headers: { cookie: 'CF_Authorization=actual-user' } }),
-        { API_BASE: 'https://api.example', DB: database.db },
-      )
+      const services = yield* makeRequestServices(new Request(url), testEnvironment(database.db))
       const scope = yield* services.scope({
         requireProject: true,
         projectHint: 'p1',
         workspaceHint: 'alpha',
       })
-      return yield* use(services.api, scope).pipe(Effect.provideService(RequestServices, services))
-    }).pipe(Effect.provide(FetchHttpClient.layer), Effect.provideService(FetchHttpClient.Fetch, transport)),
+      return yield* use(scope).pipe(Effect.provideService(RequestServices, services))
+    }),
   )
   return { result, transport }
 }
@@ -71,8 +66,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
         "UPDATE sprints SET status='completed' WHERE id='s1'; UPDATE sprints SET status='active' WHERE id='s2'",
       )
       issueRows(database, 1)
-      const run = runWithDatabase(database, new URL(`https://front.example/sprints?status=${mode}`), (api, scope) =>
-        renderSprints(api, scope, new URL(`https://front.example/sprints?status=${mode}`)),
+      const run = runWithDatabase(database, new URL(`https://front.example/sprints?status=${mode}`), (scope) =>
+        renderSprints(scope, new URL(`https://front.example/sprints?status=${mode}`)),
       )
       const node = await run.result
       expect(node.props.mode).toBe(mode)
@@ -82,7 +77,7 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       )
       expect(node.props.initialIssues).toHaveLength(1)
       expect(renderToStaticMarkup(node)).toContain('Velocity')
-      expect(run.transport).toHaveBeenCalledTimes(1)
+      expect(run.transport).toHaveBeenCalledTimes(0)
     },
   )
   it('loads every issue page, including same-timestamp ties and real custom fields, for velocity', async () => {
@@ -92,34 +87,34 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       .exec(`INSERT INTO custom_field_definitions (id,workspace_id,key,label,type,created_at) VALUES ('points','w1','story_points','Story points','number',1);
 			INSERT INTO custom_field_values (issue_id,field_id,value) VALUES ('i000','points','5');
 			INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at) VALUES ('private','w2','foreign',1,'Private','u1',999,999)`)
-    const run = runWithDatabase(database, new URL('https://front.example/sprints'), (api, scope) =>
-      loadSprintIssues(api, 'p1', 'alpha', scope),
+    const run = runWithDatabase(database, new URL('https://front.example/sprints'), (scope) =>
+      loadSprintIssues('p1', 'alpha', scope),
     )
     const issues = await run.result
     expect(issues).toHaveLength(205)
     expect(new Set(issues.map((item) => item.id)).size).toBe(205)
     expect(issues.find((item) => item.id === 'i000')?.customFields).toEqual([{ key: 'story_points', value: '5' }])
     expect(issues.some((item) => item.id === 'private')).toBe(false)
-    expect(run.transport).toHaveBeenCalledTimes(1)
+    expect(run.transport).toHaveBeenCalledTimes(0)
   })
   it('rejects inaccessible selected projects before loading project data', async () => {
     const database = featureDatabase()
-    const run = runWithDatabase(database, new URL('https://front.example/sprints'), (api, scope) =>
-      renderSprints(api, { ...scope, projects: [] }, new URL('https://front.example/sprints')),
+    const run = runWithDatabase(database, new URL('https://front.example/sprints'), (scope) =>
+      renderSprints({ ...scope, projects: [] }, new URL('https://front.example/sprints')),
     )
     await expect(run.result).rejects.toMatchObject({ _tag: 'ScopeError', status: 404 })
   })
   it('rejects invalid sprint modes and metrics ranges rather than sending HTTP reads', async () => {
     const database = featureDatabase()
     await expect(
-      runWithDatabase(database, new URL('https://front.example/sprints'), (api, scope) =>
-        renderSprints(api, scope, new URL('https://front.example/sprints?status=archived')),
+      runWithDatabase(database, new URL('https://front.example/sprints'), (scope) =>
+        renderSprints(scope, new URL('https://front.example/sprints?status=archived')),
       ).result,
     ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
     for (const query of ['since=2026-10-04&until=2026-10-01', 'since=2026-02-30']) {
       await expect(
-        runWithDatabase(database, new URL('https://front.example/metrics'), (api, scope) =>
-          renderMetrics(api, scope, new URL(`https://front.example/metrics?${query}`)),
+        runWithDatabase(database, new URL('https://front.example/metrics'), (scope) =>
+          renderMetrics(scope, new URL(`https://front.example/metrics?${query}`)),
         ).result,
       ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
     }
@@ -139,7 +134,7 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     const url = new URL(
       'https://front.example/metrics?since=2026-09-01&until=2026-10-01&granularity=day&heatmapMode=contention&prefix=src',
     )
-    const run = runWithDatabase(database, url, (api, scope) => renderMetrics(api, scope, url))
+    const run = runWithDatabase(database, url, (scope) => renderMetrics(scope, url))
     const node = await run.result
     expect(node.props.initialRange).toEqual({
       since: '2026-09-01',
@@ -167,19 +162,17 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     })
     expect(node.props.initialUrl).toContain('workspace=alpha')
     expect(renderToStaticMarkup(node)).toContain('Where the fleet queues up')
-    expect(run.transport).toHaveBeenCalledTimes(1)
+    expect(run.transport).toHaveBeenCalledTimes(0)
   })
   it('retains core metrics when optional heatmap queries fail and safely reports core failures', async () => {
     const database = featureDatabase()
     database.sqlite.exec('DROP TABLE claim_conflicts')
     const url = new URL('https://front.example/metrics?heatmapMode=contention')
-    const node = await runWithDatabase(database, url, (api, scope) => renderMetrics(api, scope, url)).result
+    const node = await runWithDatabase(database, url, (scope) => renderMetrics(scope, url)).result
     expect(node.props.initialHeatmap).toBeNull()
     expect(node.props.heatmapError).toContain('Failed to load')
     database.sqlite.exec('DROP TABLE task_types')
-    await expect(
-      runWithDatabase(database, url, (api, scope) => renderMetrics(api, scope, url)).result,
-    ).rejects.toMatchObject({
+    await expect(runWithDatabase(database, url, (scope) => renderMetrics(scope, url)).result).rejects.toMatchObject({
       _tag: 'ApiError',
       status: 500,
       message: 'Unable to load project data.',
