@@ -1,11 +1,14 @@
 .markdown-content {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-.markdown-content table {
-  display: block;
-  max-width: 100%;
   overflow-x: auto;
+}
+/* Keep native table layout so rows fill the available width. Oversized content
+   scrolls inside the Markdown boundary instead of widening the document. */
+.markdown-content table {
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: normal;
 }
 .markdown-content .mermaid {
   overflow-x: auto;
@@ -38,6 +41,27 @@
 .markdown-content pre {
   overflow-x: auto;
 }
+/* Match the selected GitHub palettes rather than mixing their token colors
+   with the former renderer's gray code background. */
+.markdown-content pre.shiki {
+  background-color: #fff;
+}
+.markdown-content .shiki span {
+  color: var(--shiki-light);
+}
+:root[data-theme='dark'] .markdown-content .shiki span,
 .dark .markdown-content .shiki span {
   color: var(--shiki-dark) !important;
+}
+:root[data-theme='dark'] .markdown-content pre.shiki,
+.dark .markdown-content pre.shiki {
+  background-color: #24292e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .markdown-content pre.shiki {
+    background-color: #24292e;
+  }
+  :root:not([data-theme]) .markdown-content .shiki span {
+    color: var(--shiki-dark) !important;
+  }
 }

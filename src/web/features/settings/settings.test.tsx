@@ -185,6 +185,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
   it('retains accessible tabs, member chips/pending/admin bypass and read-only groups', () => {
     const data = groupData()
     const view = render(<GroupManager workspaceSlug='alpha' initialData={data} />)
+    expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeTruthy()
+    expect(screen.getByText(/Groups grant members access to projects/)).toBeTruthy()
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Groups' }), { key: 'ArrowRight' })
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Members' }))
     expect(screen.getByRole('tabpanel').id).toBe('group-tabpanel-groups')
@@ -200,6 +202,7 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(screen.getAllByText('Pending: no access').length).toBe(2)
     expect(screen.getAllByText('All projects (bypasses groups)').length).toBe(2)
     view.rerender(<GroupManager workspaceSlug='alpha' initialData={{ ...data, role: 'viewer', details: [] }} />)
+    expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeTruthy()
     expect(screen.queryByRole('tablist')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Create group' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Team' })).toBeNull()

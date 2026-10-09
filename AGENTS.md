@@ -43,6 +43,8 @@ Never introduce direct browser backend fetches, generic mutation dispatchers or 
 Direct DB reads must preserve workspace/project visibility, including authorized archived entity reads.
 Authentication and response/UI shaping belong at their application boundaries, not in internal retrieval queries.
 Use shadcn Base UI generated components with minimal changes.
+Keep project navigation edge-to-edge while normal page content retains desktop/mobile gutters below its border; Wiki owns its inner padding.
+Use the theme border token for shell dividers and preserve native full-width Markdown tables with overflow contained by their rendering boundary.
 Document purposeful generated-source deviations in the changed file, except formatting/linter changes.
 Use Comark for untrusted dynamic Markdown, not Effront's static Markdown renderer, and preserve sanitization.
 Do not edit README.md without a specific request.
@@ -72,6 +74,8 @@ Immutable fork point: `ab122cbea1bae7efce8abe2345ce07375b9dcd13`.
 Upstream comparison revision: the immutable fork point above.
 Previous fork SSR checkpoint: `6c4b69697ec34ec6daa7a6773b4b6db50732b585`.
 The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scoped ServerFns, Base UI and dynamic Comark rendering.
+Application-level styles adapt shared navigation spacing, sidebar/table dividers and Markdown table overflow without modifying generated Base UI primitives.
+Groups retains its page heading and access explanation; Comark code blocks use readable GitHub light/dark palettes selected by the existing theme preference.
 It adds shared internal D1 retrieval and domain commands while keeping application-specific authorization, API responses and MCP protocol behavior at their boundaries.
 Browser authentication, updates and file transfers execute against shared native D1/KV/R2 capabilities without Web-to-API HTTP or service bindings.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.

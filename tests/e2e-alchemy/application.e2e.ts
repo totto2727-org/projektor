@@ -14,6 +14,13 @@ type BrowserAudit = {
     innerWidth: number
     documentWidth: number
     viewportWidth: number
+    layout: {
+      gap: number | null
+      gutter: number | null
+      sidebarBorder: string | null
+      themeBorder: string | null
+      tables: { width: number; rowWidth: number | null; display: string; wrap: string }[]
+    }
   }[]
 }
 const pageAudits = new WeakMap<Page, BrowserAudit>()
@@ -67,6 +74,10 @@ test.afterEach(async ({ page }, testInfo) => {
 })
 
 async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
+  if (new URL(page.url()).pathname === '/settings/groups') {
+    await expect(page.getByRole('heading', { name: 'Groups', level: 1 })).toBeVisible()
+    await expect(page.getByText(/Groups grant members access to projects/)).toBeVisible()
+  }
   const dimensions = await page.evaluate(() => ({
     innerWidth,
     documentWidth: document.documentElement.scrollWidth,
@@ -74,11 +85,48 @@ async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
   const viewportWidth = page.viewportSize()?.width
   expect(viewportWidth, 'Acceptance viewport must be explicit').toBeDefined()
   if (viewportWidth === undefined) throw new Error('Acceptance viewport must be explicit.')
+  const layout = await page.evaluate(() => {
+    const content = document.querySelector<HTMLElement>('.projektor-page-content')
+    const nav = content?.querySelector<HTMLElement>(':scope > .projektor-project-nav')
+    const pageContent = nav?.nextElementSibling
+    const sidebar = document.querySelector<HTMLElement>('[data-slot="sidebar-container"]')
+    const topbar = document.querySelector<HTMLElement>('.projektor-topbar')
+    return {
+      gap:
+        nav && pageContent && !content?.hasAttribute('data-full-bleed')
+          ? pageContent.getBoundingClientRect().top - nav.getBoundingClientRect().bottom
+          : null,
+      gutter: content ? Number.parseFloat(getComputedStyle(content).paddingTop) : null,
+      sidebarBorder:
+        sidebar && sidebar.getBoundingClientRect().width > 0 ? getComputedStyle(sidebar).borderRightColor : null,
+      themeBorder: topbar ? getComputedStyle(topbar).borderBottomColor : null,
+      tables: [...document.querySelectorAll('.markdown-content table')].map((table) => ({
+        width: table.getBoundingClientRect().width,
+        rowWidth: table.querySelector('tbody')?.getBoundingClientRect().width ?? null,
+        display: getComputedStyle(table).display,
+        wrap: getComputedStyle(table).overflowWrap,
+      })),
+    }
+  })
+  if (layout.gap !== null) {
+    expect(layout.gutter, `${name}: page gutter must be positive`).toBeGreaterThan(0)
+    expect(layout.gap, `${name}: content must not touch the project navigation border`).toBeCloseTo(layout.gutter!, 1)
+  }
+  if (layout.sidebarBorder !== null) {
+    expect(layout.sidebarBorder, `${name}: sidebar divider must use the theme border color`).toBe(layout.themeBorder)
+  }
+  for (const table of layout.tables) {
+    expect(table.display, `${name}: Markdown must preserve native table layout`).toBe('table')
+    expect(table.wrap, `${name}: wide table cells must not collapse into single-letter columns`).toBe('normal')
+    if (table.rowWidth !== null)
+      expect(table.rowWidth, `${name}: Markdown rows must fill the table`).toBeCloseTo(table.width, 0)
+  }
   observeBrowser(page, testInfo).checkpoints.push({
     name,
     url: page.url(),
     ...dimensions,
     viewportWidth,
+    layout,
   })
   await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true })
   expect(dimensions.documentWidth, `${name}: document must fit viewport`).toBeLessThanOrEqual(dimensions.innerWidth)
@@ -284,12 +332,14 @@ test('native create project and issue refresh canonical reads and navigation', a
   const editor = page.getByRole('textbox', { name: 'Markdown editor', exact: true })
   await expect(editor).toBeVisible()
   await editor.fill(
-    `## Comark acceptance ${suffix}\n\nA **strong** native paragraph.\n\n- One\n- Two\n\n[Scoped project](${projectUrl})\n\n<script>window.__acceptanceInjected = true</script>`,
+    `## Comark acceptance ${suffix}\n\nA **strong** native paragraph.\n\n- One\n- Two\n\n| Surface | Status |\n| --- | --- |\n| Web | Ready |\n\n\`\`\`ts\nconst ready = true\n\`\`\`\n\n[Scoped project](${projectUrl})\n\n<script>window.__acceptanceInjected = true</script>`,
   )
   await checkpoint(page, testInfo, 'native-wiki-form')
   await page.getByRole('button', { name: 'Create page', exact: true }).click()
   await expect(page.getByRole('heading', { name: wikiTitle, exact: true, level: 1 })).toBeVisible()
   await expect(page.getByRole('heading', { name: `Comark acceptance ${suffix}`, exact: true, level: 2 })).toBeVisible()
+  await expect(page.locator('.markdown-content table')).toBeVisible()
+  await expect(page.locator('.markdown-content pre.shiki')).toBeVisible()
   await expect(page.locator('strong').filter({ hasText: /^strong$/ })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Scoped project', exact: true })).toHaveAttribute('href', projectUrl)
   expect(await page.evaluate(() => '__acceptanceInjected' in window)).toBe(false)

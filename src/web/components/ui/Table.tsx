@@ -28,7 +28,9 @@ export function TableRow({
   className,
   ...props
 }: HTMLAttributes<HTMLTableRowElement> & { class?: string; children: ReactNode }) {
-  return <PrimitiveTableRow {...props} className={[legacyClass, className].filter(Boolean).join(' ')} />
+  return (
+    <PrimitiveTableRow {...props} className={['border-border', legacyClass, className].filter(Boolean).join(' ')} />
+  )
 }
 export function TableHeaderCell({
   class: legacyClass,

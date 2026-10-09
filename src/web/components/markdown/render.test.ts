@@ -13,6 +13,8 @@ describe('untrusted runtime Comark', () => {
     expect(html).toContain('footnote')
     expect(html).toContain('katex')
     expect(html).toContain('shiki')
+    expect(html).toContain('github-light')
+    expect(html).toContain('--shiki-dark:')
     expect(html).toContain('<svg')
     expect(html).toContain('viewBox')
     expect(html).toContain('--bg:#FFFFFF')

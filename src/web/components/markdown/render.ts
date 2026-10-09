@@ -6,6 +6,8 @@ import shiki from '@comark/html/plugins/shiki'
 import toc, { type TocLink } from '@comark/html/plugins/toc'
 import { createMarkdownParser, type ComarkPlugin } from 'comark'
 import sanitizeHtml from 'sanitize-html'
+import githubDark from 'shiki/themes/github-dark.mjs'
+import githubLight from 'shiki/themes/github-light.mjs'
 
 export interface MarkdownHeading {
   readonly id: string
@@ -191,7 +193,14 @@ export async function renderMarkdownDocument(
   markdown: string,
   options: MarkdownOptions = {},
 ): Promise<RenderedMarkdown> {
-  const plugins = [footnotes(), math(), mermaid(), shiki(), wikiLinks(options), toc()] as const
+  const plugins = [
+    footnotes(),
+    math(),
+    mermaid(),
+    shiki({ themes: { light: githubLight, dark: githubDark }, registerDefaultThemes: false }),
+    wikiLinks(options),
+    toc(),
+  ] as const
   // Per invocation parser keeps tenant text out of a shared incremental parser cache.
   const document = await createMarkdownParser({ plugins })(markdown)
   const html = sanitizeMarkdownHtml(

@@ -736,6 +736,13 @@ export function GroupManager({
   )
   return (
     <div>
+      <header className='mb-6'>
+        <h1 className='m-0 mb-1 text-2xl font-bold text-text-base'>Groups</h1>
+        <p className='m-0 text-sm text-text-muted'>
+          Groups grant members access to projects. A member with no groups sees nothing until an admin adds them to a
+          group that grants a project.
+        </p>
+      </header>
       <div className={INFO}>
         <span className={ROLE_TAG}>{data.role}</span>
         <span>

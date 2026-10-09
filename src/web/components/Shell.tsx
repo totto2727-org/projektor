@@ -353,7 +353,7 @@ function ShellContent({
         </div>
         <AccountMenu scope={scope} returnTo={returnTo ?? '/'} prefs={prefs} update={update} />
       </header>
-      <Sidebar collapsible='icon' className='pt-[var(--topbar-height)]'>
+      <Sidebar collapsible='icon' className='border-border pt-[var(--topbar-height)]'>
         <SidebarHeader className='md:hidden'>
           <a href={projectsHref} className='topbar-brand' onClick={() => setOpenMobile(false)}>
             <span className='brand-mark'>{brandMark}</span>
