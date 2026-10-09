@@ -440,6 +440,21 @@ and in the fleet manifest.
 
 ---
 
+## Fork differences
+
+This repository is the [`totto2727-org/projektor` fork](https://github.com/totto2727-org/projektor) of [`TAJD/projektor`](https://github.com/TAJD/projektor).
+Comparison revision: upstream [`ab122cbea1bae7efce8abe2345ce07375b9dcd13`](https://github.com/TAJD/projektor/commit/ab122cbea1bae7efce8abe2345ce07375b9dcd13), the common ancestor of the fork and upstream `main`.
+
+- `apps/web/src/islands/ProjectList.tsx` and its tests select a writable workspace before project creation.
+  The UI hides creation for read-only users, requires selection when several workspaces allow creation, and sends the selected workspace in the POST header.
+  This changes the frontend creation flow, not the upstream API or authorization rules.
+- `package.json`, `apps/api/package.json` and `apps/web/package.json` use caret ranges for the Windows Biome CLI, Cloudflare OAuth provider and Vite PWA plugin instead of exact dependency versions.
+  `pnpm-lock.yaml` preserves the concrete resolutions and synchronizes their importer specifications.
+  This allows compatible future dependency updates without changing the currently locked runtime.
+
+Keep this maintained summary here to comply with the repository's root-document policy.
+No deployment resources, credentials or release-artifact versions change.
+
 ## MCP tool catalog
 
 All tools are available via `POST /mcp/<workspaceId>` (JSON-RPC 2.0). Connect with:
