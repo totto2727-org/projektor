@@ -1,8 +1,8 @@
-#!/usr/bin/env -S pnpm tsx
+#!/usr/bin/env -S bun x tsx
 // PROJ-841: bundle size budget for web islands/shared chunks, with a ratchet against a
 // checked-in baseline (bundle-budget.json). Run after `apps/web` builds:
 //
-//   pnpm --filter @projektor/web build && tsx scripts/bundle-budget.ts
+//   bun run --filter @projektor/web build && tsx scripts/bundle-budget.ts
 //   tsx scripts/bundle-budget.ts --update   # rewrite the baseline to the current build
 //
 // PROJ-841 references a "hygiene ratchet" (PROJ-831) it was meant to share logic with —
@@ -62,7 +62,7 @@ function fail(msg: string): never {
 }
 
 if (!existsSync(astroDir)) {
-  fail(`${astroDir} not found — run \`pnpm --filter @projektor/web build\` first.`);
+  fail(`${astroDir} not found — run \`bun run --filter @projektor/web build\` first.`);
 }
 
 function findAllPages(): string[] {

@@ -12,36 +12,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.13'
       - uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'   # pinned; apps/docs' astro 7 requires Node >= 22.12
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
       - name: Generated docs are fresh
         run: |
-          pnpm gen:docs
+          bun run gen:docs
           git diff --exit-code -- apps/docs/src/content/docs/agents/tool-catalog.md \
             apps/docs/src/content/docs/agents/workflow-spec.md \
             apps/docs/src/generated/mcp-stats.json README.md \
             apps/docs/src/content/docs/contributing/conventions.md \
             apps/docs/src/content/docs/guides/feedback-widget-integration.md \
-            || { echo "::error::Generated docs are stale. Run 'pnpm gen:docs' and commit the result."; exit 1; }
+            || { echo "::error::Generated docs are stale. Run 'bun run gen:docs' and commit the result."; exit 1; }
           # A directory, not a fixed file list (PLAYBOOKS can gain/lose entries), so
           # `git status --porcelain` (which also reports untracked new files) is the
           # right check here, not `git diff` (which misses untracked additions).
           [ -z "$(git status --porcelain -- apps/docs/src/content/docs/agents/playbooks/)" ] \
-            || { echo "::error::Generated playbook docs are stale. Run 'pnpm gen:docs' and commit the result."; exit 1; }
-      - run: pnpm lint
-      - run: pnpm turbo type-check
-      - run: pnpm --filter @projektor/db test
+            || { echo "::error::Generated playbook docs are stale. Run 'bun run gen:docs' and commit the result."; exit 1; }
+      - run: bun run lint
+      - run: bun x turbo type-check
+      - run: bun run --filter @projektor/db test
       # Coverage subsumes the plain test run (same tests, plus threshold enforcement -
       # see apps/api and apps/web vitest configs for the ratchet levels, PROJ-223).
-      - run: pnpm --filter @projektor/api test:coverage
-      - run: pnpm --filter @projektor/web test:coverage
+      - run: bun run --filter @projektor/api test:coverage
+      - run: bun run --filter @projektor/web test:coverage
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-      - run: pnpm --filter @projektor/web build
+      - run: bun run --filter @projektor/web build
       - name: Bundle size budget (PROJ-841)
         # A true inline PR comment needs a token with `pull-requests: write`, which this
         # job intentionally doesn't request — the per-chunk delta table instead goes to
@@ -51,8 +52,8 @@ jobs:
         # override would leave main permanently over budget the moment a labelled PR
         # merged. The only way to accept a deliberate size increase is `--update` plus
         # committing the new bundle-budget.json, which shows up in the PR diff for review.
-        run: pnpm bundle-budget
-      - run: pnpm --filter @projektor/docs build
-# E2E tests: run manually with 'pnpm --filter @projektor/web test:e2e'
-# Long-running freeze regression tests (PROJ-310): 'pnpm --filter @projektor/web test:e2e:long'
+        run: bun run bundle-budget
+      - run: bun run --filter @projektor/docs build
+# E2E tests: run manually with 'bun run --filter @projektor/web test:e2e'
+# Long-running freeze regression tests (PROJ-310): 'bun run --filter @projektor/web test:e2e:long'
 # Requires: E2E_BASE_URL pointing at a dev deployment with ENVIRONMENT=development and DEV_USER_EMAIL set.

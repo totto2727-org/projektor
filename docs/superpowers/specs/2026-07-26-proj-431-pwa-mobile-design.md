@@ -193,10 +193,10 @@ under it.
 
 ## Verification
 
-- `cd apps/web && pnpm vitest run` — full web suite green
-- `pnpm turbo type-check` — 7/7
-- `pnpm biome check` — clean (invoke biome directly; rtk rewrites `pnpm biome`)
-- `pnpm --filter @projektor/web build`, then assert against `dist/sw.js`:
+- `cd apps/web && bun x vitest run` — full web suite green
+- `bun x turbo type-check` — 7/7
+- `bun x biome check` — clean (invoke biome directly; rtk rewrites `bun x biome`)
+- `bun run --filter @projektor/web build`, then assert against `dist/sw.js`:
   no `NavigationRoute`, no `createHandlerBoundToURL`, `NetworkOnly` on `/api|/mcp`,
   precache under budget
 - Re-run `perf-measure.mjs` before/after and report both mobile and desktop

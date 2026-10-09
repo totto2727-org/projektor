@@ -158,7 +158,7 @@ describe("AccountMenu — signed-in state", () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `pnpm --filter @projektor/web exec vitest run src/islands/AccountMenu.test.tsx`
+Run: `bun --cwd apps/web x vitest run src/islands/AccountMenu.test.tsx`
 Expected: FAIL — `Failed to resolve import "./AccountMenu"` (the component doesn't exist yet).
 
 - [ ] **Step 3: Implement `AccountMenu`**
@@ -333,12 +333,12 @@ export function AccountMenu({ workspaceSlug }: Props) {
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `pnpm --filter @projektor/web exec vitest run src/islands/AccountMenu.test.tsx`
+Run: `bun --cwd apps/web x vitest run src/islands/AccountMenu.test.tsx`
 Expected: PASS (all 8 tests).
 
 - [ ] **Step 5: Type-check**
 
-Run: `pnpm --filter @projektor/web run type-check`
+Run: `bun run --filter @projektor/web type-check`
 Expected: no new errors attributable to `AccountMenu.tsx`.
 
 - [ ] **Step 6: Commit**
@@ -882,15 +882,15 @@ Replace with:
 
 - [ ] **Step 9: Run the full web test suite and type-check**
 
-Run: `pnpm --filter @projektor/web run test`
+Run: `bun run --filter @projektor/web test`
 Expected: PASS — no test references `.mobile-topbar`, `.sidebar-brand`, or the removed login/logout links (confirmed earlier via grep across `apps/web`).
 
-Run: `pnpm --filter @projektor/web run type-check`
+Run: `bun run --filter @projektor/web type-check`
 Expected: no new errors.
 
 - [ ] **Step 10: Manual verification (dev server)**
 
-Run: `pnpm --filter @projektor/web run dev`
+Run: `bun run --filter @projektor/web dev`
 
 Desktop (viewport ≥ 641px):
 - A top bar spans the full width above the sidebar and content, showing the "P Projektor" brand on the left and the account chip (avatar + name + caret) on the right.
@@ -994,7 +994,7 @@ Replace with:
 
 - [ ] **Step 2: Manual verification (dev server)**
 
-Run: `pnpm --filter @projektor/web run dev` (if not already running) and open a page with enough content to scroll (e.g. an issues list with several items, or resize the window short).
+Run: `bun run --filter @projektor/web dev` (if not already running) and open a page with enough content to scroll (e.g. an issues list with several items, or resize the window short).
 
 Desktop and mobile, each:
 - Scrolling down past ~8px hides the top bar (slides up, content underneath is unaffected since the bar was `position: fixed`).
@@ -1005,7 +1005,7 @@ Desktop and mobile, each:
 
 - [ ] **Step 3: Run the full web test suite once more**
 
-Run: `pnpm --filter @projektor/web run test`
+Run: `bun run --filter @projektor/web test`
 Expected: PASS (this step is a plain `<script is:inline>` addition with no new component, so no new automated coverage is expected beyond the manual check above).
 
 - [ ] **Step 4: Commit**

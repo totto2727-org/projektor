@@ -20,7 +20,7 @@ Implementation details:
 - **Runtime:** Hono on Cloudflare Workers
 - **Data:** D1 (SQLite) for relational data, KV for caching (Access certs, user-by-email), R2 for file attachments
 - **Schema:** Drizzle is the schema and primary query layer; raw `DB.prepare` remains in the auth/workspace middleware hot path, the dev bootstrap, and a handful of service queries (FTS, counters) where hand-written SQL is clearer.
-- **Monorepo:** pnpm workspaces + turbo. `apps/api` (the Worker), `apps/web` (Astro + Preact static site, served in production via CF Workers Static Assets — see below), `apps/docs` (the Astro docs site linked throughout this file), `packages/*` (db, types, plugin-sdk), `plugins/*`
+- **Monorepo:** Bun workspaces + turbo. `apps/api` (the Worker), `apps/web` (Astro + Preact static site, served in production via CF Workers Static Assets — see below), `apps/docs` (the Astro docs site linked throughout this file), `packages/*` (db, types, plugin-sdk), `plugins/*`
 - **Deploy:** projektor publishes a self-contained **release artifact** on each `v*` tag; a config-only deploy repo (e.g. `projektor-deploy-example`) downloads it and ships it with `wrangler` — no submodule, no source checkout downstream. The Worker (`apps/api`) and the built frontend (`apps/web/dist`) ship together: `wrangler.toml` declares an `[assets]` binding with `run_worker_first = ["/api/*", "/mcp/*", "/wiki", "/.well-known/*"]`, so those paths always hit the Hono Worker while every other path serves the static Astro output (per-route HTML, asset-first). The release build compiles `apps/web` and bundles the Worker into a single `worker.js`.
 
 ## Coordination model (read this first)
@@ -256,16 +256,19 @@ with `?project=`) on read, for backward compatibility with existing shared URLs.
 
 ## Dev workflow
 
+Use the Bun commands below for this fork.
+The protected human-authored `README.md` retains upstream package-manager examples and is not the fork's installation guide.
+
 ```bash
-pnpm install
-pnpm turbo type-check                  # tsc --noEmit across the monorepo
-pnpm --filter @projektor/api test      # vitest against an in-process Worker + D1
+bun install
+bun x turbo type-check                  # tsc --noEmit across the monorepo
+bun run --filter @projektor/api test      # vitest against an in-process Worker + D1
 
 # One-time local secrets so the browser frontend can auth without Cloudflare Access:
 cp apps/api/.dev.vars.example apps/api/.dev.vars   # DEV_USER_EMAIL + BOOTSTRAP_SECRET
 cp apps/web/.env.example apps/web/.env             # PUBLIC_WORKSPACE_SLUG=projektor
 
-pnpm dev                               # local dev - API on :8787, web on :4321
+bun run dev                               # local dev - API on :8787, web on :4321
 # `dev` auto-applies D1 migrations to the local Miniflare DB first (db:migrate:local),
 # so /api/* won't 500 with "no such table" on a fresh checkout.
 ```
@@ -280,7 +283,7 @@ curl -H "X-Bootstrap-Secret: localdev" http://127.0.0.1:8787/bootstrap
 Then open **http://localhost:4321** — with `DEV_USER_EMAIL` set, the dev auth bypass logs you in
 as that user (a member of the seeded `projektor` workspace), and the islands load real data.
 
-**Before opening a PR:** `pnpm lint`, `pnpm turbo type-check`, `pnpm --filter @projektor/db test`, `pnpm --filter @projektor/api test:coverage`, `pnpm --filter @projektor/web test:coverage`, `pnpm --filter @projektor/web build`, and `pnpm --filter @projektor/docs build` must all be green, and `pnpm gen:docs` must produce no diff. CI runs these plus the island API and design system convention checks (`.github/workflows/ci.yml`).
+**Before opening a PR:** `bun run lint`, `bun x turbo type-check`, `bun run --filter @projektor/db test`, `bun run --filter @projektor/api test:coverage`, `bun run --filter @projektor/web test:coverage`, `bun run --filter @projektor/web build`, and `bun run --filter @projektor/docs build` must all be green, and `bun run gen:docs` must produce no diff. CI runs these plus the island API and design system convention checks (`.github/workflows/ci.yml`).
 
 ## E2E testing (`apps/web/e2e`, Playwright)
 
@@ -292,18 +295,18 @@ Three projects, pick the narrowest one that answers your question:
 - `mobile-webkit` — real WebKit engine (`devices["iPhone 13"]`). Reach for this specifically when investigating iOS Safari engine-level behavior that Chromium can't reproduce (visual-viewport/on-screen-keyboard resize events, `position: fixed` under scroll, etc.) — it caught the PROJ-397/PROJ-566 class of mobile-modal bugs. Still not a substitute for a real device: no Safari chrome, no PWA install/Add-to-Home-Screen coverage.
 
 ```bash
-pnpm --filter @projektor/web exec playwright test --project=mobile-webkit
+bun --cwd apps/web x playwright test --project=mobile-webkit
 ```
 
 ## Git hooks (lefthook)
 
-`pnpm install` runs `prepare`, which calls `lefthook install` and wires one hook:
+`bun install` runs `prepare`, which calls `lefthook install` and wires one hook:
 
-- **pre-commit** — `pnpm turbo type-check` (fast; leverages turbo's cache, near-instant on unchanged packages) and `pnpm biome check --changed --no-errors-on-unmatched` (lint, changed files only).
+- **pre-commit** — `bun x turbo type-check` (fast; leverages turbo's cache, near-instant on unchanged packages) and `bun x biome check --changed --no-errors-on-unmatched` (lint, changed files only).
 
 There is deliberately no `pre-push` hook — CI (`.github/workflows/ci.yml`) is the authoritative gate before merge (main is PR-protected; direct pushes are rejected), so a local pre-push copy of the same checks was pure redundant overhead. It was also a source of real bugs: under concurrent local load its test step could fail while a backgrounded `git push` still reported exit code 0, masking a rejected push. It was removed for these reasons; don't re-add one without addressing both.
 
-CI runs a superset of the pre-commit checks: the generated-docs freshness check, `pnpm lint`, `pnpm turbo type-check`, `pnpm --filter @projektor/db test`, coverage-enforced test runs for `@projektor/api` and `@projektor/web`, and both the web and docs builds. New contributors get the pre-commit hook automatically after `pnpm install`. See **Before opening a PR** above for the full local command set to run before pushing.
+CI runs a superset of the pre-commit checks: the generated-docs freshness check, `bun run lint`, `bun x turbo type-check`, `bun run --filter @projektor/db test`, coverage-enforced test runs for `@projektor/api` and `@projektor/web`, and both the web and docs builds. New contributors get the pre-commit hook automatically after `bun install`. See **Before opening a PR** above for the full local command set to run before pushing.
 
 **Bypass for WIP commits:** pass `--no-verify` (or `-n`) to git:
 
@@ -423,14 +426,14 @@ it up. See the [deploy guide](https://tajd.github.io/projektor/guides/deploying/
 
 **CI commands** (must all pass before opening a PR):
 ```bash
-pnpm gen:docs   # must produce no diff
-pnpm lint
-pnpm turbo type-check
-pnpm --filter @projektor/db test
-pnpm --filter @projektor/api test:coverage
-pnpm --filter @projektor/web test:coverage
-pnpm --filter @projektor/web build
-pnpm --filter @projektor/docs build
+bun run gen:docs   # must produce no diff
+bun run lint
+bun x turbo type-check
+bun run --filter @projektor/db test
+bun run --filter @projektor/api test:coverage
+bun run --filter @projektor/web test:coverage
+bun run --filter @projektor/web build
+bun run --filter @projektor/docs build
 ```
 
 **Merge ordering rule:** if two agents both touch the same frontend file (e.g.
@@ -449,8 +452,11 @@ Comparison revision: upstream [`ab122cbea1bae7efce8abe2345ce07375b9dcd13`](https
   The UI hides creation for read-only users, requires selection when several workspaces allow creation, and sends the selected workspace in the POST header.
   This changes the frontend creation flow, not the upstream API or authorization rules.
 - Workspace npm dependencies use compatible caret ranges instead of exact dependency versions.
-  `pnpm-lock.yaml` preserves the concrete resolutions and synchronizes their importer specifications.
-  The workspace uses `minimumReleaseAge: 1440`, matching pnpm 11+'s default 24-hour safety window while this repository retains pnpm 10.18.0.
+  Bun `1.3.13` is the sole package manager, with `bun.lock` preserving concrete resolutions and root `workspaces` retaining the eight existing packages.
+  `bunfig.toml` uses `minimumReleaseAge = 86400`, preserving the existing 24-hour safety window.
+  Root `trustedDependencies` retains the reviewed esbuild, lefthook, sharp and workerd lifecycle policy.
+  CI, release scripts, hooks and contributor commands use Bun. Node remains the runtime for Node-based tools.
+  Historical test fixtures can mention other package managers without introducing executable package-manager entry points.
   No release-age exclusions, dependency overrides or resolutions are configured.
   Runtime and development dependencies are updated to their newest installable compatible releases.
   Vitest remains on the newest compatible 4.1 release because the Workers test pool requires `vitest`, `@vitest/runner` and `@vitest/snapshot` at `^4.1.0`.

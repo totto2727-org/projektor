@@ -15,7 +15,7 @@
 - `class` not `className` (Preact, matches existing codebase convention).
 - Revoked sources stay visible (muted), never hidden.
 - Every new/adapted component follows the existing desktop-table + `max-sm:` mobile-card convention where a table already exists; card-grid views are inherently responsive via `repeat(auto-fill, minmax(...))` and need no separate mobile variant.
-- Test with `pnpm --filter @projektor/web test -- <path>` from the repo root.
+- Test with `bun run --filter @projektor/web test -- <path>` from the repo root.
 
 ---
 
@@ -129,7 +129,7 @@ describe("FeedbackSourceSettings", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/FeedbackSourceSettings.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/FeedbackSourceSettings.test.tsx`
 Expected: FAIL — `Cannot find module './FeedbackSourceSettings'`
 
 - [ ] **Step 3: Write the implementation**
@@ -287,7 +287,7 @@ export default function FeedbackSourceSettings({
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/FeedbackSourceSettings.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/FeedbackSourceSettings.test.tsx`
 Expected: PASS (4 tests)
 
 - [ ] **Step 5: Commit**
@@ -373,7 +373,7 @@ describe("NewSourceModal", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/NewSourceModal.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/NewSourceModal.test.tsx`
 Expected: FAIL — `Cannot find module './NewSourceModal'`
 
 - [ ] **Step 3: Write the implementation**
@@ -552,7 +552,7 @@ export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCr
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/NewSourceModal.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/NewSourceModal.test.tsx`
 Expected: PASS (4 tests)
 
 - [ ] **Step 5: Commit**
@@ -677,7 +677,7 @@ describe("FeedbackSourceGrid", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/FeedbackSourceGrid.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/FeedbackSourceGrid.test.tsx`
 Expected: FAIL — `Cannot find module './FeedbackSourceGrid'`
 
 - [ ] **Step 3: Write the implementation**
@@ -850,7 +850,7 @@ export default function FeedbackSourceGrid({ workspaceSlug, projectId: projectId
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/FeedbackSourceGrid.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/FeedbackSourceGrid.test.tsx`
 Expected: PASS (5 tests)
 
 - [ ] **Step 5: Commit**
@@ -963,7 +963,7 @@ describe("FeedbackSummary", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/FeedbackSummary.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/FeedbackSummary.test.tsx`
 Expected: FAIL — the current component has no required `sourceId` prop / doesn't filter, so "renders only the requested source's total count" fails (both totals render).
 
 - [ ] **Step 3: Write the implementation**
@@ -1071,7 +1071,7 @@ export default function FeedbackSummary({ workspaceSlug, projectId, sourceId }: 
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/FeedbackSummary.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/FeedbackSummary.test.tsx`
 Expected: PASS (5 tests)
 
 - [ ] **Step 5: Commit**
@@ -1336,7 +1336,7 @@ describe("FeedbackList structured context", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/FeedbackList.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/FeedbackList.test.tsx`
 Expected: FAIL — `sourceId` prop isn't required/used yet, and `getByRole("combobox", { name: "Status" })` doesn't match the current native `<select>`.
 
 - [ ] **Step 3: Write the implementation**
@@ -1714,7 +1714,7 @@ export default function FeedbackList({ workspaceSlug, projectId, sourceId }: Pro
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/FeedbackList.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/FeedbackList.test.tsx`
 Expected: PASS (all tests)
 
 - [ ] **Step 5: Commit**
@@ -1836,7 +1836,7 @@ describe("FeedbackSourceDetail", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/FeedbackSourceDetail.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/FeedbackSourceDetail.test.tsx`
 Expected: FAIL — `Cannot find module './FeedbackSourceDetail'`
 
 - [ ] **Step 3: Write the implementation**
@@ -2008,7 +2008,7 @@ export default function FeedbackSourceDetail({ workspaceSlug, projectId: project
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @projektor/web test -- src/islands/FeedbackSourceDetail.test.tsx`
+Run: `bun run --filter @projektor/web test -- src/islands/FeedbackSourceDetail.test.tsx`
 Expected: PASS (5 tests)
 
 - [ ] **Step 5: Commit**
@@ -2048,7 +2048,7 @@ const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefine
 
 - [ ] **Step 2: Type-check**
 
-Run: `pnpm --filter @projektor/web exec astro check`
+Run: `bun --cwd apps/web x astro check`
 Expected: no new errors introduced by this file (pre-existing unrelated errors, if any, are out of scope).
 
 - [ ] **Step 3: Commit**
@@ -2095,7 +2095,7 @@ const workspaceSlug = import.meta.env.PUBLIC_WORKSPACE_SLUG as string | undefine
 
 - [ ] **Step 2: Build to confirm the route compiles under static output**
 
-Run: `pnpm --filter @projektor/web build`
+Run: `bun run --filter @projektor/web build`
 Expected: build succeeds; output includes `dist/feedback/[sourceId]/` or equivalent client-resolved route (static output with `getStaticPaths` returning `[]` emits no prerendered pages for this route, matching the existing issue-detail route).
 
 - [ ] **Step 3: Commit**
@@ -2128,7 +2128,7 @@ git rm apps/web/src/islands/FeedbackSourceManager.tsx apps/web/src/islands/Feedb
 
 - [ ] **Step 3: Run the full web test suite**
 
-Run: `pnpm --filter @projektor/web test`
+Run: `bun run --filter @projektor/web test`
 Expected: PASS, no references to the deleted files remain.
 
 - [ ] **Step 4: Commit**
@@ -2143,7 +2143,7 @@ git commit -m "refactor(web): remove FeedbackSourceManager, superseded by the so
 
 Not a subagent task — run this yourself against the dev server after Tasks 1-9 land, per the spec's testing section.
 
-- [ ] Start the dev server: `pnpm --filter @projektor/web dev` (proxying `/api` to the local API per `astro.config.mjs`).
+- [ ] Start the dev server: `bun run --filter @projektor/web dev` (proxying `/api` to the local API per `astro.config.mjs`).
 - [ ] Desktop viewport: navigate to `/feedback?projectId=<id>` — confirm one card per source (name, status, total, last activity) plus a trailing "+ New source" card.
 - [ ] Create a source via the modal — confirm it appears in the grid and the raw token is shown once.
 - [ ] Click a card — confirm navigation to `/feedback/<sourceId>` with header, status badge, and (if >1 source) the switch dropdown.

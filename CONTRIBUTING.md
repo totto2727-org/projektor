@@ -23,6 +23,6 @@ anything.
 Both checks must be green (CI runs a fuller set - see [AGENTS.md](./AGENTS.md)):
 
 ```bash
-pnpm --filter @projektor/api test   # vitest against an in-process Worker + Miniflare D1
-pnpm turbo type-check               # tsc --noEmit across the monorepo
+bun run --filter @projektor/api test   # vitest against an in-process Worker + Miniflare D1
+bun x turbo type-check               # tsc --noEmit across the monorepo
 ```

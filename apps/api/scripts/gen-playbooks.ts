@@ -7,7 +7,7 @@
  * CI runs this and fails if the committed files are stale (see
  * .github/workflows/ci.yml), the same pattern as gen-workflow-spec.ts.
  *
- *   pnpm --filter @projektor/api gen:playbooks
+ *   bun run --filter @projektor/api gen:playbooks
  */
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

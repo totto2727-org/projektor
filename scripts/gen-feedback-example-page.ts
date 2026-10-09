@@ -46,7 +46,7 @@ sidebar:
 > **Note:** the code below is generated from [\`apps/api/src/examples/feedback-widget-submit.ts\`][src]
 > by \`scripts/gen-feedback-example-page.ts\`, and is executed against a live projektor instance in
 > [\`apps/api/src/test/feedback-example.test.ts\`][test] — edit that source file, not this page, and
-> run \`pnpm gen:docs\`.
+> run \`bun run gen:docs\`.
 
 [src]: https://github.com/TAJD/projektor/blob/main/apps/api/src/examples/feedback-widget-submit.ts
 [test]: https://github.com/TAJD/projektor/blob/main/apps/api/src/test/feedback-example.test.ts

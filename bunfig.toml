@@ -1,0 +1,3 @@
+[install]
+# Preserve the existing 24-hour dependency release-age safety window.
+minimumReleaseAge = 86400

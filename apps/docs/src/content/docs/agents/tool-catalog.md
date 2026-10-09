@@ -9,7 +9,7 @@ All inputs and outputs are JSON. The table below is generated from
 `apps/api/src/mcp/*.ts` and freshness-checked by CI, so it always matches the
 running server.
 
-<!-- gen-mcp-catalog:start - generated block; run `pnpm --filter @projektor/api gen:catalog` to refresh -->
+<!-- gen-mcp-catalog:start - generated block; run `bun run --filter @projektor/api gen:catalog` to refresh -->
 
 **122 tools across 22 domains.**
 
