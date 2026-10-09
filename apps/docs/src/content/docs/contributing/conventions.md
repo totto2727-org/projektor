@@ -456,9 +456,14 @@ Comparison revision: upstream [`ab122cbea1bae7efce8abe2345ce07375b9dcd13`](https
 - `apps/web/src/islands/ProjectList.tsx` and its tests select a writable workspace before project creation.
   The UI hides creation for read-only users, requires selection when several workspaces allow creation, and sends the selected workspace in the POST header.
   This changes the frontend creation flow, not the upstream API or authorization rules.
-- `package.json`, `apps/api/package.json` and `apps/web/package.json` use caret ranges for the Windows Biome CLI, Cloudflare OAuth provider and Vite PWA plugin instead of exact dependency versions.
+- Workspace npm dependencies use compatible caret ranges instead of exact dependency versions.
   `pnpm-lock.yaml` preserves the concrete resolutions and synchronizes their importer specifications.
-  This allows compatible future dependency updates without changing the currently locked runtime.
+  The workspace uses `minimumReleaseAge: 1440`, matching pnpm 11+'s default 24-hour safety window while this repository retains pnpm 10.18.0.
+  No release-age exclusions, dependency overrides or resolutions are configured.
+  Runtime and development dependencies are updated to their newest installable compatible releases.
+  Vitest remains on the newest compatible 4.1 release because the Workers test pool requires `vitest`, `@vitest/runner` and `@vitest/snapshot` at `^4.1.0`.
+  `apps/web/tsconfig.json` excludes generated `dist` bundles from Astro type checks, avoiding out-of-memory analysis after a build.
+  The dependency update does not change upstream runtime source or deployment configuration.
 
 Keep this maintained summary here to comply with the repository's root-document policy.
 No deployment resources, credentials or release-artifact versions change.

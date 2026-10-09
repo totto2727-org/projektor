@@ -10,11 +10,11 @@
     "type-check": "astro check"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.41.7",
-    "astro": "^7.2.1",
+    "@astrojs/starlight": "^0.41.11",
+    "astro": "^7.3.7",
     "astro-mermaid": "^2.1.0",
-    "mermaid": "^11.16.1",
-    "sharp": "^0.35.3"
+    "mermaid": "^11.17.2",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "starlight-links-validator": "^0.25.3"

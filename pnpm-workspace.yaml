@@ -1,3 +1,6 @@
+# pnpm 10 defaults to no release delay. Use the pnpm 11+ default safety window.
+minimumReleaseAge: 1440
+
 packages:
   - 'apps/*'
   - 'packages/*'
