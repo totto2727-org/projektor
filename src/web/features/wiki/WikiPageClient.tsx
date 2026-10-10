@@ -3284,7 +3284,9 @@ const WIKI_PAGE_STYLES = `
 			/* Delay the switch to hidden until the slide-out has finished, or the drawer
 			   vanishes instantly on close instead of sliding away. */
 			transition: transform 0.22s ease, visibility 0s linear 0.22s;
-			z-index: 105;
+			/* Keep the page-tree drawer and its shadow below the shell header (z40).
+			   The app-wide Base UI Sheet remains a separate, full-height modal above it. */
+			z-index: 31;
 			box-shadow: none;
 		}
 		.wiki-sidebar.wiki-sidebar-open {
@@ -3297,12 +3299,12 @@ const WIKI_PAGE_STYLES = `
 		.wiki-drawer-overlay {
 			display: block;
 			position: fixed;
-			inset: 0;
+			inset: var(--topbar-height, 0px) 0 0;
 			background: rgba(0, 0, 0, 0.45);
 			opacity: 0;
 			pointer-events: none;
 			transition: opacity 0.22s ease;
-			z-index: 104;
+			z-index: 30;
 		}
 		.wiki-drawer-overlay.wiki-drawer-overlay-open {
 			opacity: 1;
@@ -3472,9 +3474,9 @@ function WikiPageShell(
             viewBox='0 0 24 24'
             fill='none'
             stroke='currentColor'
-            stroke-width='2'
-            stroke-linecap='round'
-            stroke-linejoin='round'
+            strokeWidth='2'
+            strokeLinecap='round'
+            strokeLinejoin='round'
             aria-hidden='true'
           >
             <line x1='3' y1='6' x2='21' y2='6' />

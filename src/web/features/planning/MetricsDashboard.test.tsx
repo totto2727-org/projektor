@@ -1,28 +1,26 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type uPlot from 'uplot'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { CodeHeatmap } from './CodeHeatmap'
 import { MetricsDashboard } from './MetricsDashboard'
 import type { FlowMetrics } from './types'
 
-const charts = vi.hoisted(() => [] as { data: uPlot.AlignedData; options: uPlot.Options }[])
 vi.hoisted(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  )
   vi.stubGlobal(
     'matchMedia',
     vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
   )
 })
-vi.mock('./UplotChart', () => ({
-  default: (props: { data: uPlot.AlignedData; buildOptions: (width: number, height: number) => uPlot.Options }) => {
-    const options = props.buildOptions(600, 220)
-    charts.push({ data: props.data, options })
-    return <div data-testid='uplot' />
-  },
-  createTooltipPlugin: () => ({ hooks: {} }),
-}))
 const distribution = { count: 2, avg: 3600, p50: 1800, p90: 7200 }
 const metrics = (): FlowMetrics => ({
   leadTime: distribution,
@@ -40,7 +38,10 @@ const metrics = (): FlowMetrics => ({
   ],
   bugTypeTracked: true,
   reviewLatencyOverTime: [{ bucketStart: '2026-10-01', p50: 1800 }],
-  cfdOverTime: [{ bucketStart: '2026-10-01', backlogTodo: 4, inProgress: 3, inReview: 2, done: 1 }],
+  cfdOverTime: [
+    { bucketStart: '2026-10-01', backlogTodo: 4, inProgress: 3, inReview: 2, done: 1 },
+    { bucketStart: '2026-10-02', backlogTodo: 3, inProgress: 3, inReview: 2, done: 2 },
+  ],
   arrivalVsCompletionOverTime: [{ bucketStart: '2026-10-01', created: 6, completed: 4, net: 2 }],
   agingWip: [
     { id: 'i1', status: 'in_progress', ageSeconds: 86400 },
@@ -59,8 +60,11 @@ const props = {
   },
 }
 afterEach(cleanup)
+// jsdom has no layout. Give the real ResponsiveContainer a representative measured rectangle.
 beforeEach(() => {
-  charts.length = 0
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    return new DOMRect(0, 0, 600, this.classList.contains('recharts-legend-wrapper') ? 24 : 220)
+  })
 })
 
 describe('full original metrics surfaces', () => {
@@ -73,9 +77,36 @@ describe('full original metrics surfaces', () => {
     expect(nativeSubmit).not.toHaveBeenCalled()
     nativeSubmit.mockRestore()
   })
-  it('renders all seven uPlot charts, distribution tiles, help controls, and factory signals without mount loads', () => {
+  it('renders all seven real Recharts surfaces, distribution tiles, help controls, and factory signals without mount loads', async () => {
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
-    expect(screen.getAllByTestId('uplot').length).toBe(7)
+    expect(screen.getAllByTestId(/^flow-chart-/).length).toBe(7)
+    expect(document.querySelectorAll('svg.recharts-surface').length).toBe(7)
+    await waitFor(() => expect(document.querySelectorAll('.recharts-area').length).toBe(4))
+    expect(document.querySelectorAll('.recharts-scatter-symbol').length).toBe(2)
+    expect(document.querySelectorAll('.recharts-reference-line').length).toBe(2)
+    expect(screen.getByTestId('flow-chart-cfd').querySelector('.recharts-legend-wrapper')?.textContent).toBe(
+      'Backlog/todoIn progressIn reviewDone',
+    )
+    expect(screen.getByTestId('flow-chart-aging-wip').querySelector('.recharts-legend-wrapper')?.textContent).toBe(
+      'Age since claimp50 cycle timep90 cycle time',
+    )
+    for (const label of [
+      'Backlog/todo',
+      'In progress',
+      'In review',
+      'Done',
+      'Created',
+      'Completed',
+      'Net (created − completed)',
+      'Age since claim',
+      'p50 cycle time',
+      'p90 cycle time',
+    ])
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0)
+    for (const chart of screen.getAllByTestId(/^flow-chart-/)) {
+      expect(chart.className).toContain('h-[220px]')
+      expect(chart.className).toContain('w-full')
+    }
     for (const title of [
       'Flow',
       'Efficiency & collaboration',
@@ -99,20 +130,6 @@ describe('full original metrics surfaces', () => {
     expect(screen.getAllByText('Count').length).toBe(7)
     for (const label of ['Lease expiries', 'Abandoned claims', 'Gate rejections', 'WIP-cap pressure'])
       expect(screen.getByRole('button', { name: `About ${label}` })).toBeTruthy()
-  })
-  it('uses exact CFD cumulative bands/legend, gapped bug fractions, and aging baseline columns', () => {
-    render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
-    const cfd = charts.find((chart) => chart.options.series[1].label === 'Backlog/todo')
-    expect(cfd?.data).toEqual([[0], [10], [6], [3], [1]])
-    const value = cfd?.options.series[1].value
-    if (typeof value !== 'function' || !cfd) throw new Error('Missing de-cumulated CFD legend')
-    expect(value({ data: cfd.data } as uPlot, 10, 1, 0)).toBe(4)
-    const bug = charts.find((chart) => chart.options.series[1].label === 'Bug share')
-    expect(bug?.data[1]).toEqual([0.25, null])
-    expect(bug?.options.scales?.y.range).toEqual([0, 1])
-    const aging = charts.find((chart) => chart.options.series[1].label === 'Age since claim')
-    expect(aging?.data[2]).toEqual([1800, 1800])
-    expect(aging?.data[3]).toEqual([7200, 7200])
   })
   it('adopts refreshed metrics while preserving unsaved range and uses shareable normal GET forms', () => {
     const view = render(<MetricsDashboard {...props} initialMetrics={metrics()} />)

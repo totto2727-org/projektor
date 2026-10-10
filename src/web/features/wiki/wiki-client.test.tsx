@@ -110,6 +110,56 @@ afterEach(() => {
   vi.mocked(saveWikiPage).mockResolvedValue({ ok: true, value: { ok: true } })
 })
 describe('Wiki server prop adoption', () => {
+  it('keeps the mobile page-tree backdrop aligned below the header and below the drawer', () => {
+    const { container } = render(<WikiPageClient initial={seed()} />)
+    const stylesheet = container.querySelector('style')?.sheet
+    const mobileRules = Array.from(stylesheet?.cssRules ?? []).find(
+      (rule) =>
+        rule instanceof CSSMediaRule &&
+        rule.conditionText === '(max-width: 640px)' &&
+        Array.from(rule.cssRules).some((child) => (child as CSSStyleRule).selectorText === '.wiki-sidebar'),
+    ) as CSSMediaRule | undefined
+    const sidebar = Array.from(mobileRules?.cssRules ?? []).find(
+      (rule) => (rule as CSSStyleRule).selectorText === '.wiki-sidebar',
+    ) as CSSStyleRule | undefined
+    const backdrop = Array.from(mobileRules?.cssRules ?? []).find(
+      (rule) => (rule as CSSStyleRule).selectorText === '.wiki-drawer-overlay',
+    ) as CSSStyleRule | undefined
+    // jsdom exposes the authored CSS geometry, not a visual layout. Worker/browser
+    // acceptance checks the actual header pixels and stacking in the mobile viewport.
+    expect(sidebar?.style.getPropertyValue('top')).toBe('var(--topbar-height, 0px)')
+    expect(backdrop?.style.getPropertyValue('inset')).toBe('var(--topbar-height, 0px) 0 0')
+    expect(backdrop?.style.getPropertyValue('z-index')).toBe('30')
+    expect(sidebar?.style.getPropertyValue('z-index')).toBe('31')
+    // Both stay below the shell header's z40, including the drawer's shadow.
+  })
+
+  it('preserves mobile page-tree focus restoration and Escape/backdrop dismissal', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }))
+    const { container } = render(<WikiPageClient initial={seed()} />)
+    const trigger = screen.getByRole('button', { name: 'Pages' })
+    const sidebar = container.querySelector<HTMLElement>('#wiki-page-tree')!
+    const backdrop = container.querySelector<HTMLElement>('.wiki-drawer-overlay')!
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(trigger)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(sidebar.contains(document.activeElement)).toBe(true)
+    expect(backdrop.classList.contains('wiki-drawer-overlay-open')).toBe(true)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(trigger)
+    fireEvent.click(trigger)
+    fireEvent.click(backdrop)
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(backdrop.classList.contains('wiki-drawer-overlay-open')).toBe(false)
+    expect(document.activeElement).toBe(trigger)
+  })
+
   it('submits search and filters through native GET and renders refreshed server result arrays directly', async () => {
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],

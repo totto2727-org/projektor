@@ -162,13 +162,20 @@ test('real API write is visible in frontend direct shared D1 read', async ({ req
 })
 
 async function assertShell(page: Page) {
-  await expect(page.getByRole('main')).toBeVisible()
+  await expect(page.locator('main#main-content')).toBeVisible()
   await expect(page.getByRole('link', { name: /skip to (main )?content/i })).toBeAttached()
   await expect(page.getByRole('button', { name: /^Account(?::|$)/ })).toBeVisible()
   const menu = page.locator('header.projektor-topbar').getByRole('button', { name: 'Toggle Sidebar', exact: true })
   if (await menu.isVisible()) {
     await menu.click()
     await expect(page.getByRole('list', { name: 'Primary navigation', exact: true })).toBeVisible()
+    const modal = await page.locator('[data-slot="sidebar"][data-mobile="true"]').evaluate((element) => ({
+      top: element.getBoundingClientRect().top,
+      height: element.getBoundingClientRect().height,
+      viewportHeight: innerHeight,
+    }))
+    expect(modal.top).toBeCloseTo(0, 0)
+    expect(modal.height).toBeCloseTo(modal.viewportHeight, 0)
     await page.keyboard.press('Escape')
     await expect(menu).toBeFocused()
   } else {
@@ -176,6 +183,142 @@ async function assertShell(page: Page) {
   }
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
+
+test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the header in front', async ({
+  request,
+  page,
+}, testInfo) => {
+  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const headers = { 'X-Workspace-Slug': 'projektor' }
+  const created = await request.post('http://127.0.0.1:4392/api/projects', {
+    headers,
+    data: { name: `Chart acceptance ${suffix}`, key: `C${suffix}` },
+  })
+  expect(created.status(), await created.text()).toBe(201)
+  const project = await created.json()
+  const query = new URLSearchParams({ projectId: project.id, workspace: 'projektor' })
+  expect((await page.goto(`/projects/view?${query}`))?.status()).toBe(200)
+  await expect(page.getByText('No issues in this window yet', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('flow-chart-cfd')).toHaveCount(0)
+  await checkpoint(page, testInfo, 'charts-empty-no-zero-band')
+
+  // Public API transitions stamp the historical timestamps consumed by both
+  // Workers. No DB edits, client props injection or chart implementation mocks.
+  for (const [index, status] of ['backlog', 'in_progress', 'in_progress', 'in_review', 'done'].entries()) {
+    const issueResponse = await request.post('http://127.0.0.1:4392/api/issues', {
+      headers,
+      data: { projectId: project.id, title: `Chart issue ${index} ${suffix}` },
+    })
+    expect(issueResponse.status(), await issueResponse.text()).toBe(201)
+    const issue = await issueResponse.json()
+    if (status !== 'backlog') {
+      const updated = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
+        headers,
+        data: { status },
+      })
+      expect(updated.status(), await updated.text()).toBe(200)
+    }
+  }
+  const metricsResponse = await request.get(`http://127.0.0.1:4392/api/projects/${project.id}/flow-metrics`, {
+    headers,
+  })
+  expect(metricsResponse.status(), await metricsResponse.text()).toBe(200)
+  const metrics = await metricsResponse.json()
+  expect(metrics.cfdOverTime.at(-1)).toMatchObject({ backlogTodo: 1, inProgress: 2, inReview: 1, done: 1 })
+  await testInfo.attach('chart-api-data', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' })
+  await page.reload()
+  const chart = page.getByTestId('flow-chart-cfd')
+  const areas = chart.locator('.recharts-area-area')
+  await expect(areas).toHaveCount(4)
+  for (const area of await areas.all()) {
+    await expect(area).toHaveAttribute('d', /[zZ]$/)
+    expect(await area.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(0)
+  }
+  for (const label of ['Backlog/todo', 'In progress', 'In review', 'Done'])
+    await expect(chart.getByText(label, { exact: true })).toBeVisible()
+  await expect(page.getByTestId('flow-chart-throughput').locator('.recharts-bar-rectangle')).not.toHaveCount(0)
+  await checkpoint(page, testInfo, 'charts-overview-filled-bands')
+  const surface = chart.locator('svg.recharts-surface')
+  const box = await surface.boundingBox()
+  if (!box) throw new Error('CFD chart has no rendered surface')
+  await page.mouse.move(box.x + box.width - 15, box.y + 80)
+  const tooltip = chart.locator('.recharts-tooltip-wrapper')
+  await expect(tooltip).toBeVisible()
+  await expect(tooltip.getByText('In progress', { exact: true }).locator('../..')).toHaveText(/In progress\s*2$/)
+  await expect(tooltip.getByText('Backlog/todo', { exact: true }).locator('../..')).toHaveText(/Backlog\/todo\s*1$/)
+  await checkpoint(page, testInfo, 'charts-tooltip-raw-not-cumulative')
+  await page.mouse.move(0, 0)
+  const lightFill = await areas.last().evaluate((element) => getComputedStyle(element).fill)
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await expect.poll(() => areas.last().evaluate((element) => getComputedStyle(element).fill)).not.toBe(lightFill)
+  await checkpoint(page, testInfo, 'charts-system-dark-theme')
+  await page.emulateMedia({ colorScheme: 'light' })
+  expect((await page.goto(`/metrics?${query}`))?.status()).toBe(200)
+  await expect(page.getByTestId('flow-chart-cfd').locator('.recharts-area-area')).toHaveCount(4)
+  await checkpoint(page, testInfo, 'charts-metrics-shared-cfd')
+
+  const wikiResponse = await request.post('http://127.0.0.1:4392/api/wiki', {
+    headers,
+    data: {
+      projectId: project.id,
+      title: `Drawer acceptance ${suffix}`,
+      slug: `drawer-${suffix.toLowerCase()}`,
+      content: Array.from(
+        { length: 30 },
+        (_, index) => `## Section ${index}\n\nScrollable persisted page content.`,
+      ).join('\n\n'),
+    },
+  })
+  expect(wikiResponse.status(), await wikiResponse.text()).toBe(201)
+  expect((await page.goto(`/wiki/view?${query}&slug=drawer-${suffix.toLowerCase()}`))?.status()).toBe(200)
+  if (testInfo.project.name === 'mobile') {
+    const trigger = page.getByRole('button', { name: 'Pages', exact: true })
+    const drawer = page.locator('.wiki-sidebar.wiki-sidebar-open')
+    const backdrop = page.locator('.wiki-drawer-overlay-open')
+    await trigger.click()
+    await expect(drawer).toBeVisible()
+    const assertHeaderLayer = async () => {
+      const layers = await page.evaluate(() => {
+        const header = document.querySelector<HTMLElement>('.projektor-topbar')!
+        const overlay = document.querySelector<HTMLElement>('.wiki-drawer-overlay-open')!
+        const sidebar = document.querySelector<HTMLElement>('.wiki-sidebar-open')!
+        const rect = header.getBoundingClientRect()
+        return {
+          headerBottom: rect.bottom,
+          overlayTop: overlay.getBoundingClientRect().top,
+          drawerTop: sidebar.getBoundingClientRect().top,
+          headerZ: Number(getComputedStyle(header).zIndex),
+          overlayZ: Number(getComputedStyle(overlay).zIndex),
+          drawerZ: Number(getComputedStyle(sidebar).zIndex),
+          headerHit: Boolean(
+            document
+              .elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+              ?.closest('.projektor-topbar'),
+          ),
+        }
+      })
+      expect(layers.overlayTop).toBeCloseTo(layers.headerBottom, 0)
+      expect(layers.drawerTop).toBeCloseTo(layers.headerBottom, 0)
+      expect(layers.headerZ).toBeGreaterThan(layers.drawerZ)
+      expect(layers.headerZ).toBeGreaterThan(layers.overlayZ)
+      expect(layers.headerHit).toBe(true)
+      await testInfo.attach('wiki-layer-observation', { body: JSON.stringify(layers), contentType: 'application/json' })
+    }
+    await assertHeaderLayer()
+    await checkpoint(page, testInfo, 'wiki-drawer-header-in-front')
+    await page.mouse.wheel(0, 300)
+    await assertHeaderLayer()
+    await page.keyboard.press('Escape')
+    await expect(drawer).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+    await trigger.click()
+    await expect(drawer).toBeVisible()
+    await backdrop.click({ position: { x: 350, y: 100 } })
+    await expect(drawer).toHaveCount(0)
+    await checkpoint(page, testInfo, 'wiki-drawer-backdrop-close')
+    await assertShell(page)
+  }
+})
 
 test('cold protected initial HTML is usable without JavaScript', async ({ browser, baseURL }, testInfo) => {
   const context = await browser.newContext({
