@@ -18,8 +18,6 @@ jobs:
           persist-credentials: false
       - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
       - uses: totto2727-org/monorepo/.github/actions/setup-typescript@main
-        with:
-          install-args: --frozen-lockfile
       - name: Verify Vite+ project
         run: |
           eval "$(nix print-dev-env "$GITHUB_WORKSPACE#default")"
@@ -40,8 +38,6 @@ jobs:
           persist-credentials: false
       - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
       - uses: totto2727-org/monorepo/.github/actions/setup-typescript@main
-        with:
-          install-args: --frozen-lockfile
       - name: Deploy production
         run: |
           eval "$(nix print-dev-env "$GITHUB_WORKSPACE#default")"
