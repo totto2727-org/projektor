@@ -79,7 +79,7 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(element)
-    document.fonts?.ready.then(measure)
+    void document.fonts?.ready.then(measure)
     return () => observer.disconnect()
   }, [project])
   useEffect(() => {

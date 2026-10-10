@@ -23,6 +23,7 @@ describe('PROJ-889: MCP mutations broadcast like REST', () => {
       idFromName: (name: string) => ({ name }),
       get: () => ({
         fetch: async (url: string, init?: RequestInit) => {
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Keep the mock's existing RequestInit body coercion without changing recorded payloads.
           broadcasts.push({ url, body: String(init?.body ?? '') })
           return new Response('ok')
         },

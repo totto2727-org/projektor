@@ -56,7 +56,7 @@ export const filesTools: MCPTool[] = [
     },
     annotations: CREATE,
     async handler(input, ctx) {
-      return createLinkAttachment(ctx, input)
+      return await createLinkAttachment(ctx, input)
     },
   },
   {

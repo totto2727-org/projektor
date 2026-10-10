@@ -62,6 +62,10 @@
     },
     "root": {
       "inputs": {
+        "bun2nix": [
+          "vite-plus-overlay",
+          "bun2nix"
+        ],
         "nixpkgs": "nixpkgs",
         "vite-plus-overlay": "vite-plus-overlay"
       }
@@ -111,11 +115,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1786516249,
-        "narHash": "sha256-twFkEmzNkHuNH1VTucx6yd0DdFbOzxutxSlYwGVICxs=",
+        "lastModified": 1791198707,
+        "narHash": "sha256-KvtcdSV7O7klcyMl9uHqJ/VJzM0gPJXSkbTWXGw0Z6g=",
         "owner": "ryoppippi",
         "repo": "nix-vite-plus",
-        "rev": "b26a41f6f9406dc490c8b5b6bf1f17668befe011",
+        "rev": "af16f6183aec0717d8975ee858c910ab43babee6",
         "type": "github"
       },
       "original": {

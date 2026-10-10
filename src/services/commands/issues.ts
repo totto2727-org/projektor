@@ -1307,8 +1307,6 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
   return { ok: true }
 }
 
-const _PRIORITY_SCORE: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1, none: 0 }
-
 type PrioritizedFilters = {
   limit: number
   includeBacklog: boolean

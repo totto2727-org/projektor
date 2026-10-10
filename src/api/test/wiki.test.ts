@@ -3995,7 +3995,9 @@ describe('Wiki write atomicity (PROJ-511)', () => {
         body: JSON.stringify({ title: 'Atomicity Race Page', content: 'see [[Race Target Beta]]' }),
       }),
     ])
-    const statuses = [resA.status, resB.status].sort()
+    const statuses = [resA.status, resB.status].sort((a, b) =>
+      String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0,
+    )
     expect(statuses).toEqual([201, 409])
 
     const brokenRes = await SELF.fetch('http://localhost/api/wiki/broken-links', {

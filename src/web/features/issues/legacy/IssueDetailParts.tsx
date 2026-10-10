@@ -276,7 +276,7 @@ export function TitleSection({
           value={editTitle}
           onInput={(e) => setEditTitle((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') saveTitle()
+            if (e.key === 'Enter') void saveTitle()
             if (e.key === 'Escape') cancelEditTitle()
           }}
           disabled={savingTitle}
@@ -441,7 +441,6 @@ export function BodySection({
     savingBody,
     saveBodyError,
     hasDraft,
-    bodyRef,
     startEditBody,
     updateBody,
     cancelEditBody,
@@ -1728,7 +1727,7 @@ function PointsField({
           value={pointsValue}
           onInput={(e) => setPointsValue((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') savePoints()
+            if (e.key === 'Enter') void savePoints()
             if (e.key === 'Escape') setEditingPoints(false)
           }}
           onBlur={savePoints}

@@ -27,7 +27,9 @@ export function deploymentBrand(env: BrandEnvironment): BrandConfig {
   const name = env.BRAND_NAME?.trim() || defaultBrand.name
   return {
     name,
-    mark: env.BRAND_MARK?.trim() ? ([...env.BRAND_MARK.trim()][0] ?? 'P') : ([...name.trim()][0]?.toUpperCase() ?? 'P'),
+    mark: env.BRAND_MARK?.trim()
+      ? (Array.from(env.BRAND_MARK.trim())[0] ?? 'P')
+      : (Array.from(name.trim())[0]?.toUpperCase() ?? 'P'),
     accent: env.BRAND_ACCENT?.trim() || null,
     onAccent: env.BRAND_ON_ACCENT?.trim() || null,
     logoUrl: env.BRAND_LOGO_URL?.trim() || null,
@@ -47,7 +49,7 @@ export function loadBrand(env: Env, scope: RequestScope | null): Effect.Effect<B
       const name = override.displayName ?? brand.name
       return {
         name,
-        mark: override.displayName ? ([...name.trim()][0]?.toUpperCase() ?? brand.mark) : brand.mark,
+        mark: override.displayName ? (Array.from(name.trim())[0]?.toUpperCase() ?? brand.mark) : brand.mark,
         accent: override.accent ?? brand.accent,
         onAccent: override.onAccent ?? brand.onAccent,
         logoUrl: override.logoUrl ?? brand.logoUrl,

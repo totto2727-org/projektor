@@ -85,14 +85,16 @@ const grant = (client = 'Claude'): ConnectorGrant => ({
   expiresAt: 2000000000,
 })
 const groupScope = { workspaceSlug: 'alpha', groupId: 'g1' }
+const writeText = vi.fn().mockResolvedValue(undefined)
 afterEach(cleanup)
 beforeEach(() => {
   request.mockReset()
   nativeSubmitted.mockReset()
+  writeText.mockClear()
   request.mockResolvedValue({ ok: true, value: { ok: true } })
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
-    value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    value: { writeText },
   })
 })
 
@@ -243,10 +245,10 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
       expiry: '90',
     })
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('pk_test_secret'))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('pk_test_secret'))
     fireEvent.click(screen.getByRole('button', { name: 'Copy command' }))
     await waitFor(() =>
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      expect(writeText).toHaveBeenCalledWith(
         'claude --header "Authorization: Bearer pk_test_secret" https://api.example/mcp/ws',
       ),
     )
@@ -312,6 +314,6 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(screen.getByText(/leave request headers empty/)).toBeTruthy()
     expect(screen.getByText(/approve the consent screen/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://api.example/mcp/second'))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://api.example/mcp/second'))
   })
 })

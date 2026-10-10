@@ -168,6 +168,7 @@ export const issuesTools: MCPTool[] = [
         result.total === undefined ? {} : { total: result.total },
       )
       return capPage(page, {
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions -- Preserve raw-row cursor coercion and the existing MCP cursor protocol.
         cursorOf: (i) => (raw[i] ? `${raw[i].created_at}:${raw[i].id}` : undefined),
       })
     },

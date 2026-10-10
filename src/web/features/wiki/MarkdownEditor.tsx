@@ -318,7 +318,7 @@ function useMarkdownEditorView(
             const files = imageFilesFromClipboard(event.clipboardData)
             if (!handler || files.length === 0) return false
             event.preventDefault()
-            insertUploadedImages(view, files, view.state.selection.main.from, handler)
+            void insertUploadedImages(view, files, view.state.selection.main.from, handler)
             return true
           },
           drop(event, view) {
@@ -327,7 +327,7 @@ function useMarkdownEditorView(
             if (!handler || files.length === 0) return false
             event.preventDefault()
             const pos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.from
-            insertUploadedImages(view, files, pos, handler)
+            void insertUploadedImages(view, files, pos, handler)
             return true
           },
         }),

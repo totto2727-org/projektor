@@ -5,7 +5,7 @@ import type { HonoEnv } from '#types'
 const router = new Hono<HonoEnv>()
 
 function firstChar(value: string): string {
-  return [...value][0] ?? ''
+  return Array.from(value)[0] ?? ''
 }
 
 export function deriveBrandMark(name: string): string {

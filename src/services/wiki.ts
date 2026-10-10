@@ -353,7 +353,7 @@ type DiffOp = { type: 'equal' | 'add' | 'remove'; line: string }
 function buildLcsTable(oldLines: readonly string[], newLines: readonly string[]): number[][] {
   const n = oldLines.length
   const m = newLines.length
-  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0))
+  const dp: number[][] = Array.from({ length: n + 1 }, () => Array.from({ length: m + 1 }, () => 0))
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
       dp[i][j] = oldLines[i] === newLines[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])

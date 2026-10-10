@@ -569,7 +569,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
 
     const first = await refresh(tokens.refresh_token)
     expect(first.status).toBe(200)
-    const second = await (await first.json<TokenResponse>()).refresh_token
+    const second = (await first.json<TokenResponse>()).refresh_token
     expect(second).not.toBe(tokens.refresh_token)
 
     // The library keeps the immediately-previous token usable on purpose: a refresh
@@ -578,7 +578,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     // window is exactly one generation wide and the next assertion depends on it.
     const graced = await refresh(tokens.refresh_token)
     expect(graced.status).toBe(200)
-    const third = await (await graced.json<TokenResponse>()).refresh_token
+    const third = (await graced.json<TokenResponse>()).refresh_token
 
     // Two rotations on, the original is out of the window. A refresh token that
     // stayed valid indefinitely would make every one ever issued a live credential.

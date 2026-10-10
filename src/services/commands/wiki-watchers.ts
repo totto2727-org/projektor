@@ -620,7 +620,7 @@ async function matchSubtreeWatches(
         .where(and(inArray(schema.wikiPages.id, chunk), eq(schema.wikiPages.workspaceId, ctx.workspaceId))),
     )
     const parentOf = new Map(rows.map((r) => [r.id, r.parentId]))
-    for (const [candidate, cur] of [...pending]) {
+    for (const [candidate, cur] of pending) {
       const parent = parentOf.get(cur) ?? null
       if (parent === null) {
         pending.delete(candidate)

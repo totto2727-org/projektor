@@ -345,7 +345,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
 
     await ensureUserProvisioned(config, user)
     await dropMembership(ws.id, user.id)
-    await resetProvisioningCacheForTests()
+    resetProvisioningCacheForTests()
 
     vi.spyOn(env.KV, 'get').mockRejectedValueOnce(new Error('KV read failed'))
     try {

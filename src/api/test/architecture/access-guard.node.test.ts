@@ -26,7 +26,9 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import ts from 'typescript'
+import * as ts from 'typescript/unstable/ast'
+import { createVirtualFileSystem } from 'typescript/unstable/fs'
+import { API } from 'typescript/unstable/sync'
 import { describe, expect, it } from 'vite-plus/test'
 
 import { ACCESS_GUARD_ALLOWLIST } from './access-guard-allowlist'
@@ -77,84 +79,105 @@ function collect(): Map<string, FnInfo> {
   const fns = new Map<string, FnInfo>()
   const files = readdirSync(SERVICES).filter((f) => f.endsWith('.ts') && !f.endsWith('.d.ts'))
 
-  for (const fileName of files) {
-    const file = fileName.replace(/\.ts$/, '')
-    const src = ts.createSourceFile(
-      fileName,
-      readFileSync(join(SERVICES, fileName), 'utf8'),
-      ts.ScriptTarget.Latest,
-      true,
-    )
+  // TS7 parses through its public API session, not the version-only root export.
+  // Explicit roots retain the original source coverage without resolving dependencies.
+  const configFile = join(SERVICES, 'tsconfig.access-guard.json')
+  const sources = Object.fromEntries(
+    files.map((file) => [join(SERVICES, file), readFileSync(join(SERVICES, file), 'utf8')]),
+  )
+  const api = new API({
+    fs: createVirtualFileSystem({
+      ...sources,
+      [configFile]: JSON.stringify({
+        compilerOptions: { target: 'esnext', noLib: true, noResolve: true, types: [] },
+        files: Object.keys(sources),
+      }),
+    }),
+  })
+  try {
+    const snapshot = api.updateSnapshot({ openProjects: [configFile] })
+    const project = snapshot.getProject(configFile)
+    if (!project) throw new Error(`Could not load architecture sources: ${configFile}`)
 
-    // import name → "file:name" (or "guard:name" for access.ts guards)
-    const imports = new Map<string, string>()
-    const locals: Array<{ name: string; node: ts.Node; exported: boolean; params: string[] }> = []
+    for (const fileName of files) {
+      const file = fileName.replace(/\.ts$/, '')
+      const src = project.program.getSourceFile(join(SERVICES, fileName))
+      if (!src) throw new Error(`Could not parse architecture source: ${fileName}`)
 
-    for (const stmt of src.statements) {
-      if (
-        ts.isImportDeclaration(stmt) &&
-        ts.isStringLiteral(stmt.moduleSpecifier) &&
-        stmt.moduleSpecifier.text.startsWith('./')
-      ) {
-        const from = stmt.moduleSpecifier.text.slice(2)
-        const named = stmt.importClause?.namedBindings
-        if (named && ts.isNamedImports(named)) {
-          for (const el of named.elements) {
-            const orig = (el.propertyName ?? el.name).text
-            imports.set(el.name.text, from === 'access' && GUARDS.has(orig) ? `guard:${orig}` : `${from}:${orig}`)
+      // import name → "file:name" (or "guard:name" for access.ts guards)
+      const imports = new Map<string, string>()
+      const locals: Array<{ name: string; node: ts.Node; exported: boolean; params: string[] }> = []
+
+      for (const stmt of src.statements) {
+        if (
+          ts.isImportDeclaration(stmt) &&
+          ts.isStringLiteral(stmt.moduleSpecifier) &&
+          stmt.moduleSpecifier.text.startsWith('./')
+        ) {
+          const from = stmt.moduleSpecifier.text.slice(2)
+          const named = stmt.importClause?.namedBindings
+          if (named && ts.isNamedImports(named)) {
+            for (const el of named.elements) {
+              const orig = (el.propertyName ?? el.name).text
+              imports.set(el.name.text, from === 'access' && GUARDS.has(orig) ? `guard:${orig}` : `${from}:${orig}`)
+            }
+          }
+        }
+        const exported =
+          (ts.isFunctionDeclaration(stmt) || ts.isVariableStatement(stmt)) &&
+          !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+        if (ts.isFunctionDeclaration(stmt) && stmt.name) {
+          locals.push({
+            name: stmt.name.text,
+            node: stmt,
+            exported,
+            params: stmt.parameters.map(paramName),
+          })
+        } else if (ts.isVariableStatement(stmt)) {
+          for (const d of stmt.declarationList.declarations) {
+            if (
+              ts.isIdentifier(d.name) &&
+              d.initializer &&
+              (ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer))
+            ) {
+              locals.push({
+                name: d.name.text,
+                node: d.initializer,
+                exported,
+                params: d.initializer.parameters.map(paramName),
+              })
+            }
           }
         }
       }
-      const exported = !!ts.getModifiers(stmt as ts.HasModifiers)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
-      if (ts.isFunctionDeclaration(stmt) && stmt.name) {
-        locals.push({
-          name: stmt.name.text,
-          node: stmt,
-          exported,
-          params: stmt.parameters.map(paramName),
+
+      const localNames = new Set(locals.map((l) => l.name))
+      for (const l of locals) {
+        const calls: string[] = []
+        const visit = (n: ts.Node) => {
+          // Any reference counts (call, or passed as a callback / predicate).
+          if (ts.isIdentifier(n) && n !== (l.node as ts.FunctionDeclaration).name) {
+            const id = n.text
+            if (file === 'access' && GUARDS.has(id)) calls.push(`guard:${id}`)
+            else if (localNames.has(id)) calls.push(`${file}:${id}`)
+            else if (imports.has(id)) calls.push(imports.get(id) as string)
+          }
+          n.forEachChild(visit)
+        }
+        l.node.forEachChild(visit)
+        fns.set(`${file}:${l.name}`, {
+          file,
+          name: l.name,
+          exported: l.exported,
+          params: l.params,
+          calls,
         })
-      } else if (ts.isVariableStatement(stmt)) {
-        for (const d of stmt.declarationList.declarations) {
-          if (
-            ts.isIdentifier(d.name) &&
-            d.initializer &&
-            (ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer))
-          ) {
-            locals.push({
-              name: d.name.text,
-              node: d.initializer,
-              exported,
-              params: d.initializer.parameters.map(paramName),
-            })
-          }
-        }
       }
     }
-
-    const localNames = new Set(locals.map((l) => l.name))
-    for (const l of locals) {
-      const calls: string[] = []
-      const visit = (n: ts.Node) => {
-        // Any reference counts (call, or passed as a callback / predicate).
-        if (ts.isIdentifier(n) && n !== (l.node as ts.FunctionDeclaration).name) {
-          const id = n.text
-          if (file === 'access' && GUARDS.has(id)) calls.push(`guard:${id}`)
-          else if (localNames.has(id)) calls.push(`${file}:${id}`)
-          else if (imports.has(id)) calls.push(imports.get(id) as string)
-        }
-        ts.forEachChild(n, visit)
-      }
-      ts.forEachChild(l.node, visit)
-      fns.set(`${file}:${l.name}`, {
-        file,
-        name: l.name,
-        exported: l.exported,
-        params: l.params,
-        calls,
-      })
-    }
+    return fns
+  } finally {
+    api.close()
   }
-  return fns
 }
 
 function guardedSet(fns: Map<string, FnInfo>): Set<string> {

@@ -30,12 +30,11 @@ export interface BrowserPrincipal {
   auth: AuthInfo
 }
 export class BrowserAuthenticationError extends Error {
+  readonly status: 401 | 503
   readonly _tag = 'BrowserAuthenticationError'
-  constructor(
-    readonly status: 401 | 503,
-    message: string,
-  ) {
+  constructor(status: 401 | 503, message: string) {
     super(message)
+    this.status = status
     this.name = 'BrowserAuthenticationError'
   }
 }

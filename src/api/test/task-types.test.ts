@@ -376,14 +376,12 @@ describe('Task Types — issue integration', () => {
 describe('Task Types — MCP parity', () => {
   let token: string
   let slug: string
-  let _workspaceId: string
   let workspaceNumericId: string
 
   beforeEach(async () => {
     const fixture = await seedFixture({ role: 'owner' })
     token = fixture.token
     slug = fixture.workspace.slug
-    _workspaceId = fixture.workspace.id
     workspaceNumericId = fixture.workspace.id
   })
 

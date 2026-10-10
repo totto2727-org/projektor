@@ -14,17 +14,24 @@ Do not recreate workspace packages, a separate infra project, Turbo, Biome or Le
 
 Use the Nix default shell and Vite+.
 `vp install --frozen-lockfile` installs dependencies.
-`vp run ci` runs formatting, typed lint and the supported API Node, Web and database/service tests.
-`vp run test:workers` preserves the native API regression entry point, currently blocked before test collection by Cloudflare pool 0.22's Vitest 5 incompatibility with Vite+ 1.1.
-Do not patch the pool, add a second test CLI or describe those blocked regressions as passing.
+`vp run ci` runs formatting, typed lint and every configured test project, including the native Workers API regressions.
+`vp run test:workers` selects the native API regression project through the supported `@cloudflare/vitest-plugin`, which supports Vite+'s Vitest 5.
+Do not patch the plugin, add a second test CLI or filter unexpected test errors.
 The separate screenshot-backed E2E workflow exercises the real API and Web Workers and shared D1 but does not replace every native API regression.
 `vp run dev` starts the whole Alchemy stack.
 `vp run plan` compares production resources but does not prove a production build or deployment.
 `vp run deploy` intentionally deploys both Workers from `alchemy.run.ts` and requires operator authorization.
 `vp run e2e` runs the real local Worker/browser acceptance workflow with screenshots.
-The native Cloudflare test pool uses its public local options directly, without a Wrangler TOML or custom parser.
+The native Cloudflare test plugin uses its public local options directly, without a Wrangler TOML or custom parser.
 CI uses the shared setup actions and Nix inputs from the Vite+ app template.
-Do not add docs, plugin or automatic deployment workflows to the minimal CI.
+The only workflow checks pull requests and main, then deploys production after successful checks on a main push.
+Do not add docs, plugin release or preview-link workflows.
+Use `vp` for supported operations, including install, update, tests and task execution; use Bun directly only for an operation Vite+ cannot perform.
+The pnpm 12 backend retains its default release-age window without exclusions; reviewed esbuild/workerd lifecycle permission lives in `pnpm-workspace.yaml`.
+The shell, locked Nix inputs, TypeScript 7, compiler preset versions and package-manager version track `template-vite-plus-app` revision `fcbfdb567154ca9264598bb5c6dd50713898184c`.
+This Worker application does not publish the template's Bun CLI executable, so CLI packing, npm publication checks and Nix CLI package outputs do not apply.
+Alchemy CLI supplies the native Worker host during development and deployment; a standalone root `vp build` lacks that host and is not an application task.
+`vp run e2e` builds both actual Worker artifacts with the official acceptance-only host and exercises them locally.
 
 ## Implementation
 
@@ -66,6 +73,11 @@ If the Worker has no existing secret, supply the initial value once; do not sile
 Cloudflare authentication selects the deployment account, without a custom fixed-account rejection or Access-confirmation flag.
 Existing Access policies remain external and unchanged.
 Worker runtime capture must never resolve deployment secrets or register local storage.
+Development uses local Alchemy state; production uses Alchemy's official encrypted Cloudflare state store so state survives ephemeral CI runners.
+CI serializes production deployments and uses the available organization `CLOUDFLARE_API_TOKEN` secret with the configured account, without injecting JWT_SECRET on every run.
+The main deployment passes Alchemy's standard `--yes` flag; Alchemy may bootstrap or upgrade its own state-store infrastructure, separate from the application's external storage and Access policies.
+Switching from local production state does not upload or migrate the local files automatically: retain those files as operator recovery evidence, and the first remote-state deployment uses the existing explicit adoption policy and fixed Worker identities.
+No deployment state or credential values belong in GitHub artifacts, caches or the repository.
 Do not deploy, rotate secrets, modify Access or destroy resources during validation.
 
 ## Fork Record
@@ -88,7 +100,11 @@ Environment differences are provided through aggregate Effect Layers rather than
 JWT secrets remain Cloudflare-owned across normal deployments through standard binding inheritance, without reading their values or storing them in project state.
 The project is consolidated into one root package and Vite+ toolchain instead of private workspace packages.
 Vite+ owns all task entry points without Just, formatting/lint settings match the Vite+ app template, and tests use standard isolated projects rather than a runtime-plugin mode branch or test-runner alias shim.
-TypeScript configuration relies on supported compiler defaults for bundled ESM resolution and DOM libraries, retaining only the app's strict checking, JSX, runtime types, aliases and maintained-source scope.
+TypeScript inherits the template's strictest and node-ts presets, with Vite's bundled module resolution, React JSX, Worker runtime types, aliases and maintained-source scope.
+The existing application/SDK contracts retain three explicit compatibility settings: exact optional properties, indexed-property syntax and unchecked index access are not additionally tightened in this toolchain migration; standard strict checking and the other preset checks remain enabled.
+Parameter properties are expanded to ordinary declarations and assignments for the template's erasable-syntax setting without changing their runtime values or error protocol.
+PR #5's compatible mature dependency updates and range policy are applied here without merging its obsolete Bun/Turbo/eight-package/docs topology; exact template versions and Alchemy's exact paired peer contracts remain intentional.
+The old Workers pool is replaced with the maintained Vitest plugin, and immediate command rejections are awaited inside the affected MCP adapters instead of suppressing unhandled errors.
 Test failures and unhandled rejections are not globally filtered by domain error kind.
 The documentation app and docs directory are intentionally removed at the user's request.
 Maintain this compact divergence record alongside behavior/configuration changes.

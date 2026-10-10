@@ -65,7 +65,7 @@ export const playbooksTools: MCPTool[] = [
     },
     annotations: PLAIN_WRITE,
     async handler(input, ctx) {
-      return composePlaybook(ctx, input)
+      return await composePlaybook(ctx, input)
     },
   },
 ]

@@ -76,7 +76,7 @@ export function ProjectLanding({
     setRequestError(null)
     const archived = project.archivedAt == null
     try {
-      await unwrapResult(await archiveProject({ workspaceSlug: effectiveSlug, projectId: project.id, archived }))
+      unwrapResult(await archiveProject({ workspaceSlug: effectiveSlug, projectId: project.id, archived }))
     } catch (cause) {
       setRequestError(`Save failed: ${cause instanceof Error ? cause.message : 'Unknown error'}`)
     } finally {

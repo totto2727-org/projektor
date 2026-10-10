@@ -211,7 +211,7 @@ async function collectAttachments(
 }
 
 function safeZipPathSegment(value: string): string {
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control chars from zip names
+  // eslint-disable-next-line no-control-regex -- Intentionally strip control characters from ZIP entry names.
   const stripped = value.replace(/[\\/]/g, '_').replace(/[\x00-\x1f]/g, '')
   return /^\.+$/.test(stripped) ? '_' : stripped
 }

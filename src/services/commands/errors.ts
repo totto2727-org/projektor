@@ -8,23 +8,24 @@ export abstract class ServiceError extends Error {
 }
 
 export class ValidationError extends ServiceError {
+  readonly issues: ZodFlattenOutput
   readonly kind = 'validation' as const
-  constructor(public readonly issues: ZodFlattenOutput) {
+  constructor(issues: ZodFlattenOutput) {
     super('Validation failed')
+    this.issues = issues
   }
 }
 
 export class NotFoundError extends ServiceError {
+  readonly details?: Record<string, unknown>
   readonly kind = 'not_found' as const
   // PROJ-490: `details` mirrors ConflictError's — structured, client-facing extra
   // fields (e.g. patch_wiki_page's currentHeadings list on a heading-not-found miss)
   // beyond the plain message. Optional so every pre-existing plain-message
   // NotFoundError is unaffected.
-  constructor(
-    message = 'Not found',
-    public readonly details?: Record<string, unknown>,
-  ) {
+  constructor(message = 'Not found', details?: Record<string, unknown>) {
     super(message)
+    this.details = details
   }
 }
 
@@ -36,15 +37,14 @@ export class ForbiddenError extends ServiceError {
 }
 
 export class ConflictError extends ServiceError {
+  readonly details?: Record<string, unknown>
   readonly kind = 'conflict' as const
   // PROJ-484: `details` carries structured, client-facing extra fields (e.g. wiki's
   // optimistic-lock conflict: currentRevisionId + a unified diff) beyond the plain
   // message. Optional so every pre-existing plain-message ConflictError is unaffected.
-  constructor(
-    message = 'Conflict',
-    public readonly details?: Record<string, unknown>,
-  ) {
+  constructor(message = 'Conflict', details?: Record<string, unknown>) {
     super(message)
+    this.details = details
   }
 }
 

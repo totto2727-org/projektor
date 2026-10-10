@@ -17,7 +17,9 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 
-import ts from 'typescript'
+import * as ts from 'typescript/unstable/ast'
+import { createVirtualFileSystem } from 'typescript/unstable/fs'
+import { API } from 'typescript/unstable/sync'
 import { describe, expect, it } from 'vite-plus/test'
 
 import { TOOL_DOMAINS } from '../mcp/catalog'
@@ -197,19 +199,39 @@ interface ServiceFn {
 const FILE_IO_WRAPPERS = ['uploadStoredAttachment', 'getStoredAttachment', 'deleteStoredAttachment'] as const
 
 function fileIoCalls(source: string): Map<string, Set<string>> {
-  const ast = ts.createSourceFile('files.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-  const calls = new Map<string, Set<string>>()
-  for (const node of ast.statements) {
-    if (!ts.isFunctionDeclaration(node) || !node.name || !node.body) continue
-    const names = new Set<string>()
-    function visit(child: ts.Node): void {
-      if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) names.add(child.expression.text)
-      ts.forEachChild(child, visit)
+  // TS7 exposes parsing through a public API session. Keep each source (including
+  // the comment/string regression fixture) isolated in an in-memory syntax-only project.
+  const fileName = join(COMMANDS, 'files.ts')
+  const configFile = join(COMMANDS, 'tsconfig.mcp-parity.json')
+  const api = new API({
+    fs: createVirtualFileSystem({
+      [fileName]: source,
+      [configFile]: JSON.stringify({
+        compilerOptions: { target: 'esnext', noLib: true, noResolve: true, types: [] },
+        files: [fileName],
+      }),
+    }),
+  })
+  try {
+    const snapshot = api.updateSnapshot({ openProjects: [configFile] })
+    const ast = snapshot.getProject(configFile)?.program.getSourceFile(fileName)
+    if (!ast) throw new Error(`Could not parse file I/O source: ${fileName}`)
+
+    const calls = new Map<string, Set<string>>()
+    for (const node of ast.statements) {
+      if (!ts.isFunctionDeclaration(node) || !node.name || !node.body) continue
+      const names = new Set<string>()
+      function visit(child: ts.Node): void {
+        if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) names.add(child.expression.text)
+        child.forEachChild(visit)
+      }
+      visit(node.body)
+      calls.set(node.name.text, names)
     }
-    visit(node.body)
-    calls.set(node.name.text, names)
+    return calls
+  } finally {
+    api.close()
   }
-  return calls
 }
 
 const fileWrapperCalls = fileIoCalls(readFileSync(join(COMMANDS, 'files.ts'), 'utf8'))

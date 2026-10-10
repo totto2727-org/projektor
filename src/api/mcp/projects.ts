@@ -39,7 +39,7 @@ export const projectsTools: MCPTool[] = [
     },
     annotations: CREATE,
     async handler(input, ctx) {
-      return createProject(ctx, input)
+      return await createProject(ctx, input)
     },
   },
   {

@@ -374,7 +374,7 @@ app.get('*', async (c) => {
     ? '/issues/view/index.html'
     : /^\/projects\/view\/[^/]+/.test(pathname)
       ? '/projects/view/index.html'
-      : /^\/share\//.test(pathname)
+      : pathname.startsWith('/share/')
         ? '/share/view/index.html'
         : /^\/feedback\/[^/]+/.test(pathname)
           ? '/feedback/view/index.html'

@@ -32,7 +32,6 @@ describe('Projects REST', () => {
   let memberToken: string
   let viewerToken: string
   let slug: string
-  let _workspaceId: string
   let ownerHeaders: Record<string, string>
   let memberHeaders: Record<string, string>
   let viewerHeaders: Record<string, string>
@@ -40,7 +39,6 @@ describe('Projects REST', () => {
   beforeEach(async () => {
     const roles = await seedWorkspaceRoles()
     slug = roles.workspace.slug
-    _workspaceId = roles.workspace.id
     ownerToken = roles.owner.token
     memberToken = roles.member.token
     viewerToken = roles.viewer.token

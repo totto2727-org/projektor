@@ -181,6 +181,8 @@ describe('settings authorized direct D1 SSR', () => {
     expect(renderToStaticMarkup(node)).toContain('Agent token')
   })
   it('denies member token reads before credential DB access while preserving personal connector and guide controls', async () => {
+    // Exercise the limiter's 1% maintenance branch rather than failing randomly.
+    vi.spyOn(Math, 'random').mockReturnValue(0)
     const member = { ...workspace, role: 'member' as const }
     const memberScope: RequestScope = {
       ...scope,
@@ -194,11 +196,13 @@ describe('settings authorized direct D1 SSR', () => {
     // Denied token management must not read any credential or domain table.
     expect(
       prepare.mock.calls.every(([query]) =>
-        /^\s*(?:INSERT INTO rate_limit \(key, count, window_start\)|SELECT count FROM rate_limit WHERE key = \?)/.test(
+        /^\s*(?:INSERT INTO rate_limit \(key, count, window_start\)|SELECT count FROM rate_limit WHERE key = \?|DELETE FROM rate_limit WHERE window_start < \?)/.test(
           query,
         ),
       ),
+      prepare.mock.calls.map(([query]) => query).join('\n'),
     ).toBe(true)
+    expect(prepare).toHaveBeenCalledWith('DELETE FROM rate_limit WHERE window_start < ?')
     expect(node.props.initialTokens).toEqual([])
     expect(node.props.tokensDenied).toBe(true)
     expect(node.props.initialGrants).toEqual([connector])

@@ -14,11 +14,12 @@ import { NotFoundError } from './errors'
 
 export class OAuthRequestError extends Error {
   /** The OAuth error code to report back to the client (RFC 6749 §4.1.2.1). */
-  constructor(
-    readonly code: 'invalid_target' | 'invalid_scope',
-    readonly reason: string,
-  ) {
+  readonly code: 'invalid_target' | 'invalid_scope'
+  readonly reason: string
+  constructor(code: 'invalid_target' | 'invalid_scope', reason: string) {
     super(reason)
+    this.code = code
+    this.reason = reason
     this.name = 'OAuthRequestError'
   }
 }
@@ -117,7 +118,7 @@ export function isLoopbackOnlyClient(redirectUris: readonly string[]): boolean {
   return redirectUris.every((uri) => {
     try {
       const { hostname } = new URL(uri)
-      return hostname === 'localhost' || hostname === '::1' || /^127\./.test(hostname)
+      return hostname === 'localhost' || hostname === '::1' || hostname.startsWith('127.')
     } catch {
       return false
     }

@@ -63,7 +63,7 @@ export const groupsTools: MCPTool[] = [
     },
     annotations: CREATE,
     async handler(input, ctx) {
-      return createGroup(ctx, input)
+      return await createGroup(ctx, input)
     },
   },
   {

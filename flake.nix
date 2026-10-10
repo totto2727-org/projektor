@@ -7,12 +7,14 @@
       url = "github:ryoppippi/nix-vite-plus";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    bun2nix.follows = "vite-plus-overlay/bun2nix";
   };
 
   outputs =
     {
       nixpkgs,
       vite-plus-overlay,
+      bun2nix,
       ...
     }:
     let
@@ -36,7 +38,10 @@
           default = pkgs.mkShell {
             packages = [
               pkgs.nodejs_24
+              pkgs.bun
+              bun2nix.packages.${system}.default
               pkgs.vite-plus
+              pkgs.nixfmt
             ];
           };
         }

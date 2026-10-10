@@ -3,9 +3,10 @@
 ## カスタマイズの範囲
 
 2026-10-10 に shadcn CLI **4.21.1** と、その日に取得した公式 **base-nova / Base UI** レジストリを比較した。
-書式・lint による import 並べ替えを除くと、生成 UI 23 ファイルのうち **22 ファイルの独自変更は `cn` の import 接続先だけ**で、`chart.tsx` は公式生成結果と一致する。
+書式・lint による変更を除くと、生成 UI 23 ファイルのうち **22 ファイルの独自変更は `cn` の import 接続先だけ**で、`chart.tsx` の製品固有のカスタマイズはない。
 公式の設定変換を適用した比較では、生成コンポーネントの JSX 構造・クラス文字列・処理に、それ以外の差分は検出されなかった。
-`use-mobile.ts` も一致する。
+ツールチェーン更新後の `chart.tsx` には、型付き lint が要求する文字列補間3箇所の `String(...)` 明示化だけが追加されている。
+これは従来の文字列補間と同じ変換であり、色・構造・Chart の処理を差し替える製品固有の変更ではない。
 見た目や既存画面との互換性の調整は、主に生成物の外側のテーマ、ラッパー、画面構成に置いている。
 「アプリの表示が公式デモと同じ」という意味ではない。
 
@@ -33,14 +34,14 @@
 `src/web/components/generated/` は **24 ファイル**で、内訳は公式 UI ソース **23** とアプリ独自テスト **1**。
 次の名前はすべて同ディレクトリ内の `.tsx` ファイルを指す。
 
-| ファイル                                                               | 公式生成結果に対する独自変更                                             |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `alert`, `avatar`, `badge`, `button`, `card`                           | `cn` の import 接続のみ                                                  |
-| `checkbox`, `dialog`, `dropdown-menu`, `empty`, `field`                | `cn` の import 接続のみ                                                  |
-| `input`, `label`, `popover`, `select`, `separator`                     | `cn` の import 接続のみ                                                  |
-| `sheet`, `sidebar`, `skeleton`, `table`, `tabs`, `textarea`, `tooltip` | `cn` の import 接続のみ                                                  |
-| `chart`                                                                | 独自変更なし。公式どおり `cn` パッケージを直接 import                    |
-| `generated.test`                                                       | 公式生成物ではない。アプリの SSR、フォーム、クラス結合、設定の統合テスト |
+| ファイル                                                               | 公式生成結果に対する独自変更                                                        |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `alert`, `avatar`, `badge`, `button`, `card`                           | `cn` の import 接続のみ                                                             |
+| `checkbox`, `dialog`, `dropdown-menu`, `empty`, `field`                | `cn` の import 接続のみ                                                             |
+| `input`, `label`, `popover`, `select`, `separator`                     | `cn` の import 接続のみ                                                             |
+| `sheet`, `sidebar`, `skeleton`, `table`, `tabs`, `textarea`, `tooltip` | `cn` の import 接続のみ                                                             |
+| `chart`                                                                | 独自ロジック変更なし。`cn` パッケージを直接 import。文字列補間3箇所の lint 対応のみ |
+| `generated.test`                                                       | 公式生成物ではない。アプリの SSR、フォーム、クラス結合、設定の統合テスト            |
 
 生成 hook は [`src/web/hooks/use-mobile.ts`](src/web/hooks/use-mobile.ts) の **1 ファイル**で、768px の判定と `matchMedia` の購読を含めて公式結果と一致する。
 UI と hook を合わせた公式由来ソースは **24 ファイル**、独自テストを含めた対象総数は **25 ファイル**。
@@ -90,7 +91,7 @@ WIP は数値の time 軸、Aging WIP は ID 由来の安定した jitter と p5
 
 1. `components.json`、この一覧、対象ソースの独自コメントを読む。CLI と runtime dependencies の更新だけではコピー済みソースは更新されない。
 2. 依存の最小 release age を守って更新候補を選ぶ。CLI の版、取得日、対象レジストリを記録する。
-3. まず `nix develop --command node_modules/.bin/shadcn view <component>` で公式ソースを読む。応答は ignored `tmp/shadcn-audit/` に保存し、アプリへの `add --overwrite` は最初から実行しない。
+3. まず `nix develop --command vp exec shadcn view <component>` で公式ソースを読む。応答は ignored `tmp/shadcn-audit/` に保存し、アプリへの `add --overwrite` は最初から実行しない。
 4. 生成が必要なら `tmp/` の隔離した出力先と設定を使う。アプリの deps/config を変更したり install したりせず、公式の icon/font/menu/RTL/import 変換後の結果と比較する。
 5. 引用符、改行、末尾 comma、import 整列等を除いて差分を見る。22 ファイルの utility 接続とコメントを保持し、必要な公式変更だけを取り込む。`ui/`、CSS、hook、独自テストを生成ファイルとして上書きしない。
 6. 更新した部品に対応する `generated.test.tsx` / `ui/adapters.test.tsx`、必要なら Shell や画面の既存テストを確認する。実装更新時の標準入口は `nix develop --command vp run ci`。modal focus、選択、mobile sidebar、明暗テーマ、table overflow 等、影響のある UI 操作も確認する。
@@ -101,7 +102,7 @@ WIP は数値の time 軸、Aging WIP は ID 由来の安定した jitter と p5
 - 取得日: **2026-10-10**。CLI: **shadcn 4.21.1**。`view` で UI 23 項目と `use-mobile` を取得し、`registry/base-nova/...` の返却 path を確認した。
 - 公式データの入口: [`https://ui.shadcn.com/r/styles/base-nova/{name}.json`](https://ui.shadcn.com/r/styles/base-nova/button.json)。[Base UI Button](https://ui.shadcn.com/docs/components/base/button)、[Chart](https://ui.shadcn.com/docs/components/base/chart)、[CLI](https://ui.shadcn.com/docs/cli)、[components.json](https://ui.shadcn.com/docs/components-json) も参照。
 - 比較方法: CLI 同梱 `@shadcn/registry` の `transformIcons`, `transformFont`, `transformMenu`, `transformRtl`, `transformCleanup` を比較元に適用し、内部 UI/hook import を設定の alias に正規化した。その後 TypeScript AST の node kind・literal・子構造を比較し、コメント、引用符、末尾 comma、JSX の改行由来の空白、return の括弧、lint の import 整列を除いた。
-- 結果: 生の独自差分は 22 件とも `cn` → `@/lib/utils` の import だけ。この接続変更を分離すると 22 ファイルすべて一致し、Chart と hook は分離前から一致した。実行時や見た目の検証ではなく、ソース比較の結果である。
+- 取得時の結果: 生の独自差分は 22 件とも `cn` → `@/lib/utils` の import だけ。この接続変更を分離すると 22 ファイルすべて一致し、Chart と hook は分離前から一致した。後続の型付き lint で Chart に追加した3箇所の文字列変換は上記のとおり別記している。実行時や見た目の検証ではなく、取得時点のソース比較の結果である。
 - 一時根拠: ignored `tmp/shadcn-audit/registry.json`、`compare.mjs`、`results.txt` と AST 差分。取得 JSON の SHA-256 は `86234ceefc8d8707c50b8a955a548046d682319410d54bee58c760f636e7d469`。
 - CLI の版を固定しても公開レジストリ応答は可変である。過去の全コンポーネントの生成時点の immutable snapshot は確認できていないため、今回の一致を「歴史的生成元と完全一致」とは表現しない。
 - 生成ソース比較作業では依存 install、アプリソース変更、build、ブラウザ/E2E、deploy は行っていない。

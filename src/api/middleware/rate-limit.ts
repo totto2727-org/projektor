@@ -14,4 +14,5 @@ export async function rateLimitMiddleware(c: Context<HonoEnv>, next: Next): Prom
     return c.json({ error: 'Too Many Requests' }, 429)
   }
   await next()
+  return undefined
 }

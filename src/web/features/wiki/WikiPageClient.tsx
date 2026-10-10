@@ -3107,6 +3107,7 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
     } finally {
       setCreateSaving(false)
     }
+    return undefined
   }
 
   return {
@@ -3808,7 +3809,7 @@ function useAssembledWikiPageProps(state: ReturnType<typeof useWikiPageState>, w
 
   function startEdit() {
     move.cancelMove()
-    editState.startEdit()
+    void editState.startEdit()
   }
 
   const createProps = buildCreateFormProps({

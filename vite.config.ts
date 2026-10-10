@@ -1,4 +1,4 @@
-import { cloudflareTest } from '@cloudflare/vitest-pool-workers'
+import { cloudflareTest } from '@cloudflare/vitest-plugin'
 import { effrontAlchemy } from '@effront/alchemy/cloudflare/vite'
 import { effrontTailwind } from '@effront/tailwind'
 import { effront } from '@effront/vite'
@@ -19,10 +19,7 @@ export default defineConfig({
       ci: { command: '', dependsOn: ['check', 'test'] },
       check: 'vp check',
       fix: 'vp check --fix',
-      // Cloudflare pool 0.22 supports Vitest 4, while Vite+ 1.1 bundles Vitest 5.
-      // Preserve native regressions explicitly until upstream support lands.
-      // Real Worker browser acceptance is the separate `vp run e2e` workflow.
-      test: 'vp test run --project api-node --project web --project data',
+      test: 'vp test run',
       'test:workers': 'vp test run --project workers',
       dev: { command: 'alchemy dev --config alchemy.run.ts', cache: false },
       plan: { command: 'alchemy plan --config alchemy.run.ts --stage production', cache: false },

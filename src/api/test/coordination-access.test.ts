@@ -10,6 +10,14 @@ import { authHeaders, seedAgentLease, seedGroupGrant, seedIssue, seedProject, se
 
 type ListResult = { items: Array<Record<string, unknown>> }
 
+function lexicalCompare(a: unknown, b: unknown): number {
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Match default sort's string coercion without changing the asserted values.
+  const left = String(a)
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Match default sort's string coercion without changing the asserted values.
+  const right = String(b)
+  return left < right ? -1 : left > right ? 1 : 0
+}
+
 async function mcpList(tool: string, token: string, slug: string, workspaceId: string): Promise<ListResult> {
   const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
@@ -79,13 +87,13 @@ describe('PROJ-316 coordination data respects project visibility', () => {
   it('owner sees leases/claims/agents across every project', async () => {
     const t = ws.owner.token
     const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
-    expect(leases.items.map((l) => l.issueId).sort()).toEqual([issueA, issueB].sort())
+    expect(leases.items.map((l) => l.issueId).sort(lexicalCompare)).toEqual([issueA, issueB].sort(lexicalCompare))
 
     const claims = await mcpList('list_file_claims', t, slug, ws.workspace.id)
-    expect(claims.items.map((c) => c.path).sort()).toEqual(['a/only.ts', 'b/secret.ts'])
+    expect(claims.items.map((c) => c.path).sort(lexicalCompare)).toEqual(['a/only.ts', 'b/secret.ts'])
 
     const agents = await mcpList('list_active_agents', t, slug, ws.workspace.id)
-    expect(agents.items.map((a) => a.name).sort()).toEqual(['agent-A', 'agent-B', 'floating'])
+    expect(agents.items.map((a) => a.name).sort(lexicalCompare)).toEqual(['agent-A', 'agent-B', 'floating'])
   })
 
   it("a member sees only the granted project's leases and file claims", async () => {
@@ -99,7 +107,7 @@ describe('PROJ-316 coordination data respects project visibility', () => {
 
   it('a member sees agents on granted projects plus issue-less agents, never hidden-project agents', async () => {
     const agents = await mcpList('list_active_agents', ws.member.token, slug, ws.workspace.id)
-    const names = agents.items.map((a) => a.name).sort()
+    const names = agents.items.map((a) => a.name).sort(lexicalCompare)
     expect(names).toEqual(['agent-A', 'floating'])
     expect(names).not.toContain('agent-B')
   })

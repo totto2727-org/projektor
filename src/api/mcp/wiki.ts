@@ -188,7 +188,7 @@ export const wikiTools: MCPTool[] = [
           section,
           content: w.text,
           totalChars: w.totalChars,
-          ...{ contentTruncated: true },
+          contentTruncated: true,
           ...(w.next ? { next: w.next } : {}),
         }
       }
@@ -244,7 +244,7 @@ export const wikiTools: MCPTool[] = [
     },
     annotations: CREATE,
     async handler(input, ctx) {
-      return wikiService.createWikiPage(ctx, input)
+      return await wikiService.createWikiPage(ctx, input)
     },
   },
   {
@@ -314,7 +314,7 @@ export const wikiTools: MCPTool[] = [
         })
       }
       const payload = newSlug !== undefined ? { ...rest, slug: newSlug } : rest
-      return wikiService.updateWikiPage(ctx, idOrSlug, payload)
+      return await wikiService.updateWikiPage(ctx, idOrSlug, payload)
     },
   },
   {
@@ -390,7 +390,7 @@ export const wikiTools: MCPTool[] = [
           fieldErrors: {},
         })
       }
-      return wikiService.patchWikiPage(ctx, idOrSlug, rest)
+      return await wikiService.patchWikiPage(ctx, idOrSlug, rest)
     },
   },
   {
@@ -503,7 +503,7 @@ export const wikiTools: MCPTool[] = [
     },
     annotations: PLAIN_WRITE,
     async handler(input, ctx) {
-      return wikiService.backfillWikiLinks(ctx, input)
+      return await wikiService.backfillWikiLinks(ctx, input)
     },
   },
   {

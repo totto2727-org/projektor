@@ -88,17 +88,22 @@ function plainTextExcerpt(markdown: string, maxLen = 200): string {
 }
 
 class AttrSetter {
-  constructor(
-    private attr: string,
-    private value: string,
-  ) {}
+  private attr: string
+  private value: string
+  constructor(attr: string, value: string) {
+    this.attr = attr
+    this.value = value
+  }
   element(el: Element) {
     el.setAttribute(this.attr, this.value)
   }
 }
 
 class TextSetter {
-  constructor(private value: string) {}
+  private value: string
+  constructor(value: string) {
+    this.value = value
+  }
   element(el: Element) {
     el.setInnerContent(this.value)
   }

@@ -44,7 +44,7 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
   ],
   webServer: {
-    command: `corepack pnpm exec vp build --config "${apiConfig}" && corepack pnpm exec vp build --config "${frontendConfig}" && corepack pnpm exec vp preview --config "${frontendConfig}" --host 127.0.0.1 --port 4393 --strictPort`,
+    command: `vp build --config "${apiConfig}" && vp build --config "${frontendConfig}" && vp preview --config "${frontendConfig}" --host 127.0.0.1 --port 4393 --strictPort`,
     env: { PROJEKTOR_E2E_STORAGE_DIRECTORY: storageDirectory },
     cwd: fileURLToPath(new URL('../../', import.meta.url)),
     // The API-only test adapter applies migrations on its first request.

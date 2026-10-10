@@ -47,13 +47,14 @@ export async function checkRateLimit(
     ;({ count, slot } = await incrementCounter(env, key, windowSecs, now))
   } catch (err) {
     console.error('rate-limit counter unavailable, failing open', { key, err: String(err) })
-    return
+    return undefined
   }
 
   if (count > limit) {
     const windowRemaining = slot + windowSecs - now
     return { retryAfter: windowRemaining > 0 ? windowRemaining : windowSecs }
   }
+  return undefined
 }
 
 // PROJ-658: token rotation must not refresh an OAuth grant's budget. The random

@@ -136,7 +136,7 @@ export async function updateGroup(ctx: ServiceCtx, groupId: string, input: unkno
       .from(schema.userGroups)
       .where(and(eq(schema.userGroups.workspaceId, ctx.workspaceId), eq(schema.userGroups.name, setObj.name as string)))
       .get()
-    if (clash && clash.id !== groupId) throw new ConflictError(`Group "${setObj.name}" already exists`)
+    if (clash && clash.id !== groupId) throw new ConflictError(`Group "${parsed.data.name}" already exists`)
   }
 
   await orm

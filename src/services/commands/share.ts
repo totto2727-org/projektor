@@ -146,7 +146,7 @@ export async function getSharedIssue(
 
   const brandDto = await getWorkspaceBrandForShare(db, row.workspace_id, row.workspace_slug)
   const brand = brandDto.logoUrl ? { ...brandDto, logoUrl: `/api/share/${token}/logo` } : brandDto
-  const { workspace_id, workspace_slug, ...rest } = row
+  const { workspace_id: _workspaceId, workspace_slug: _workspaceSlug, ...rest } = row
 
   return { ...rest, customFields: cfRows.results ?? [], brand }
 }

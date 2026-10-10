@@ -315,15 +315,15 @@ describe('Agents API', () => {
           // including the earlier successful claimIssue/claimFiles calls — untouched.
           if (/update .*agent_sessions/i.test(sql)) {
             const origBind = stmt.bind.bind(stmt)
-            return {
-              ...stmt,
+            // Copy only the same enumerable own properties as the original spread, not prototype methods.
+            return Object.assign({}, stmt, {
               bind: (...args: unknown[]) => {
                 if (args.includes('ended')) {
                   throw new Error('simulated D1 outage during compensating endAgent')
                 }
                 return origBind(...args)
               },
-            } as D1PreparedStatement
+            }) as D1PreparedStatement
           }
           return stmt
         })

@@ -85,7 +85,7 @@ export const workspacesTools: MCPTool[] = [
       // middleware) can be deleted. Never retarget ctx at a slug-resolved workspace —
       // ctx.role and token confinement belong to the URL's workspace, not the target.
       // deleteWorkspace 404s when workspaceSlug isn't ctx's workspace.
-      return deleteWorkspace(ctx, workspaceSlug, 'projektor')
+      return await deleteWorkspace(ctx, workspaceSlug, 'projektor')
     },
   },
   {
@@ -100,7 +100,7 @@ export const workspacesTools: MCPTool[] = [
     },
     annotations: IDEMPOTENT_WRITE,
     async handler(input, ctx) {
-      return updateWorkspace(ctx, input)
+      return await updateWorkspace(ctx, input)
     },
   },
   {

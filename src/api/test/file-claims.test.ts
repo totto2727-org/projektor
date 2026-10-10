@@ -259,7 +259,15 @@ describe('File Claims API', () => {
       .bind(workspaceId, issue2.id)
       .all()
     expect(rows.results).toHaveLength(2)
-    const paths = rows.results.map((r) => (r as Record<string, unknown>).path).sort()
+    const paths = rows.results
+      .map((r) => (r as Record<string, unknown>).path)
+      .sort((a, b) => {
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Preserve default sort's coercion without changing the asserted row values.
+        const left = String(a)
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Preserve default sort's coercion without changing the asserted row values.
+        const right = String(b)
+        return left < right ? -1 : left > right ? 1 : 0
+      })
     expect(paths).toEqual(['src/multi-a.ts', 'src/multi-b.ts'])
   })
 
