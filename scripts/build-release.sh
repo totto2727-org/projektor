@@ -28,14 +28,14 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE" "$OUT"
 
 echo "==> Building frontend (apps/web)"
-bun run --filter @projektor/web build
+pnpm --filter @projektor/web build
 
 echo "==> Bundling worker (apps/api → self-contained worker.js)"
 # Strip a leading "v" (tags are v1.2.0; serverInfo.version should read "1.2.0").
-# Call Wrangler directly through Bun, not a build script's shell passthrough,
+# Call the locked Wrangler directly through pnpm exec, not a build script's shell passthrough,
 # so the quoted version definition remains a single argv value on every platform.
 RELEASE_VERSION="${VERSION#v}"
-( cd apps/api && bun x wrangler deploy --dry-run --outdir dist \
+( cd apps/api && pnpm exec wrangler deploy --dry-run --outdir dist \
     --define "__PROJEKTOR_VERSION__:\"$RELEASE_VERSION\"" )
 
 echo "==> Staging artifact"

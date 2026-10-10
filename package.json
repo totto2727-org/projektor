@@ -9,7 +9,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "gen:docs": "bun run --filter @projektor/api gen:catalog && bun run --filter @projektor/api gen:workflow-spec && bun run --filter @projektor/api gen:playbooks && tsx scripts/gen-conventions-page.ts && tsx scripts/gen-feedback-example-page.ts",
+    "gen:docs": "pnpm --filter @projektor/api gen:catalog && pnpm --filter @projektor/api gen:workflow-spec && pnpm --filter @projektor/api gen:playbooks && tsx scripts/gen-conventions-page.ts && tsx scripts/gen-feedback-example-page.ts",
     "bundle-budget": "tsx scripts/bundle-budget.ts",
     "bundle-budget:update": "tsx scripts/bundle-budget.ts --update",
     "prepare": "lefthook install"
@@ -23,15 +23,9 @@
     "turbo": "^2.11.7",
     "typescript": "^6.0.3"
   },
-  "packageManager": "bun@1.3.13",
-  "workspaces": [
-    "apps/*",
-    "packages/*",
-    "plugins/*"
-  ],
-  "trustedDependencies": ["esbuild", "lefthook", "sharp", "workerd"],
+  "packageManager": "pnpm@11.28.5",
   "engines": {
-    "node": ">=22.12",
-    "bun": ">=1.3.13"
+    "node": ">=22.13",
+    "pnpm": ">=11 <12"
   }
 }

@@ -5,7 +5,7 @@
  *
  * CI runs this and fails if the committed file is stale (see .github/workflows/ci.yml).
  *
- *   bun run --filter @projektor/api gen:workflow-spec
+ *   pnpm --filter @projektor/api gen:workflow-spec
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

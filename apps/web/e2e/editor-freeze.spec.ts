@@ -12,8 +12,8 @@
  * at every step rather than relying on the overall test timeout to catch a
  * hang.
  *
- * Tagged `@long` in the test titles: excluded from `bun run test:e2e`, run via
- * `bun run test:e2e:long`. Desktop project only (see test.skip below) - this is
+ * Tagged `@long` in the test titles: excluded from `pnpm run test:e2e`, run via
+ * `pnpm run test:e2e:long`. Desktop project only (see test.skip below) - this is
  * about typing/layout timing, not mobile-specific behavior.
  *
  * Prerequisites: globalSetup must have written e2e/.e2e-ctx.json.

@@ -19,7 +19,7 @@
 // Graph logic lives in eager-chunk-graph.mjs so it can be unit-tested without a real
 // `dist/` build — see apps/web/src/test/eager-chunk-graph.test.ts.
 //
-// Run as a post-build step, wired into `bun run --filter @projektor/web build` (like
+// Run as a post-build step, wired into `pnpm --filter @projektor/web build` (like
 // assert-sw.mjs) — see apps/web/package.json.
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';

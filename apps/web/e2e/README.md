@@ -10,7 +10,7 @@ These tests target a **deployed dev instance**, not a local dev server.
 | Requirement | Detail |
 |---|---|
 | Node ≥ 18 | Built-in `fetch` used in global setup |
-| Playwright browsers | `bun --cwd apps/web x playwright install --with-deps chromium webkit` |
+| Playwright browsers | `pnpm --dir apps/web exec playwright install --with-deps chromium webkit` |
 | Dev deployment | `ENVIRONMENT=development`, `DEV_USER_EMAIL` set on the Worker |
 
 ### Why a deployed dev instance?
@@ -35,15 +35,15 @@ No credentials are needed in the test runner itself.
 export E2E_BASE_URL=https://your-dev-instance.workers.dev
 
 # (From monorepo root)
-bun --cwd apps/web x playwright test
+pnpm --dir apps/web exec playwright test
 
 # Run a single project:
-bun --cwd apps/web x playwright test --project=desktop
-bun --cwd apps/web x playwright test --project=mobile
-bun --cwd apps/web x playwright test --project=mobile-webkit
+pnpm --dir apps/web exec playwright test --project=desktop
+pnpm --dir apps/web exec playwright test --project=mobile
+pnpm --dir apps/web exec playwright test --project=mobile-webkit
 
 # Show the HTML report:
-bun --cwd apps/web x playwright show-report
+pnpm --dir apps/web exec playwright show-report
 ```
 
 ---
@@ -59,7 +59,7 @@ separately:
 
 ```bash
 export E2E_BASE_URL=https://your-dev-instance.workers.dev
-bun run --filter @projektor/web test:e2e:long
+pnpm --filter @projektor/web test:e2e:long
 ```
 
 Tests tagged `@long` in their title are excluded from `test:e2e`
@@ -201,9 +201,9 @@ member-scoped `APIRequestContext` and asserts:
 
 | Check | Status |
 |---|---|
-| `bun run lint` (Biome) | ✅ Run against this codebase |
-| `bun run --filter @projektor/web type-check` (astro check) | ✅ Run - e2e/ is outside `src/` so not processed |
-| `playwright test --list` (config parse) | ✅ Run after `bun install` |
+| `pnpm run lint` (Biome) | ✅ Run against this codebase |
+| `pnpm --filter @projektor/web type-check` (astro check) | ✅ Run - e2e/ is outside `src/` so not processed |
+| `playwright test --list` (config parse) | ✅ Run after `pnpm install` |
 | Actual browser tests (drag, PATCH, mobile layout) | ⏳ **Requires** `E2E_BASE_URL` pointing at a live dev deployment |
 
 ---

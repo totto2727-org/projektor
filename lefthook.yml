@@ -1,6 +1,6 @@
 pre-commit:
   commands:
     type-check:
-      run: bun x turbo type-check
+      run: pnpm exec turbo type-check
     lint:
-      run: bun x biome check --changed --no-errors-on-unmatched
+      run: pnpm exec biome check --changed --no-errors-on-unmatched

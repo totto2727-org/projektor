@@ -1,0 +1,15 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'plugins/*'
+
+# Require publication timestamps and wait at least 24 hours, without exclusions.
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+
+# Preserve the existing, reviewed lifecycle-script trust set.
+allowBuilds:
+  esbuild: true
+  lefthook: true
+  sharp: true
+  workerd: true

@@ -11,7 +11,7 @@
  * The tool arrays in apps/api/src/mcp/*.ts are the source of truth. CI runs this
  * and fails if the committed file is stale (see .github/workflows/ci.yml).
  *
- *   bun run --filter @projektor/api gen:catalog
+ *   pnpm --filter @projektor/api gen:catalog
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

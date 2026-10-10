@@ -28,16 +28,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: '1.3.13'
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22.12.0"   # pinned; astro 7 requires Node >= 22.12
-      - run: bun install --frozen-lockfile
+          node-version: '24'   # pnpm 11 requires Node >= 22.13
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       # Generate the tool catalog + contributor-conventions mirror before building, so the site is fresh.
-      - run: bun run gen:docs
-      - run: bun run --filter @projektor/docs build
+      - run: pnpm run gen:docs
+      - run: pnpm --filter @projektor/docs build
       - run: node scripts/submit-indexnow.mjs
         working-directory: apps/docs
       - uses: actions/upload-pages-artifact@v3

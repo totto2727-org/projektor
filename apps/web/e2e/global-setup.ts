@@ -94,7 +94,7 @@ export default async function globalSetup(): Promise<void> {
 		throw new Error(
 			"E2E_BASE_URL is required.\n" +
 				"Point it at a dev deployment (ENVIRONMENT=development, DEV_USER_EMAIL set).\n" +
-				"Example: E2E_BASE_URL=https://dev.your-instance.workers.dev bun --cwd apps/web x playwright test"
+				"Example: E2E_BASE_URL=https://dev.your-instance.workers.dev pnpm --dir apps/web exec playwright test"
 		);
 	}
 

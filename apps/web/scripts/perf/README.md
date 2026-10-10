@@ -10,7 +10,7 @@ and replicates the Worker's fallback for pretty issue URLs, which have no preren
 page.
 
 ```sh
-bun run --filter @projektor/web build
+pnpm --filter @projektor/web build
 cd apps/web
 PROJEKTOR_API_TOKEN=<token> node scripts/perf/measure-load.mjs
 PROJEKTOR_API_TOKEN=<token> node scripts/perf/check-interactive.mjs
