@@ -15,8 +15,11 @@ dist/
 dev-server.log
 coverage/
 
-# npm lockfiles accidentally generated inside pnpm-workspace plugin dirs
+# npm lockfiles accidentally generated inside pnpm workspace plugin dirs
 plugins/**/package-lock.json
+
+# Local validation reports and temporary toolchain.
+tmp/
 
 # local agent tooling state (spawn-claude worktrees, scratch plans/research) — a nested
 # biome.json under here otherwise trips `biome check .`'s nested-root-config detection

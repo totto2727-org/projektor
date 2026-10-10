@@ -40,7 +40,7 @@ flowchart LR
   [`projektor-deploy-example`](https://github.com/TAJD/projektor-deploy-example) is
   the public template; copy it.
 
-The deploy machine needs only **`wrangler`** and **`gh`** — never `pnpm`,
+The deploy machine needs only **`wrangler`** and **`gh`**, not the source workspace's `pnpm` dependencies,
 `node_modules`, or the projektor source.
 
 ## What's in a release

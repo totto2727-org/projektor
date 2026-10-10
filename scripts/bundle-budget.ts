@@ -1,4 +1,4 @@
-#!/usr/bin/env -S pnpm tsx
+#!/usr/bin/env -S pnpm exec tsx
 // PROJ-841: bundle size budget for web islands/shared chunks, with a ratchet against a
 // checked-in baseline (bundle-budget.json). Run after `apps/web` builds:
 //

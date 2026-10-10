@@ -264,16 +264,24 @@ with `?project=`) on read, for backward compatibility with existing shared URLs.
 
 ## Dev workflow
 
+Use Node.js >=22.13 and pnpm 11.28.5 for this fork.
+pnpm manages installation, workspace scripts, and locked CLI execution. With global Vite+ (`vp`) installed, `vp install --frozen-lockfile` forwards installation to the pinned pnpm version and uses the same lockfile and safety policy.
+Existing Turbo and Biome entry points remain unchanged. There is no project-local Vite+ dependency or configuration, so `vp check` and `vp test` do not replace those tools.
+TypeScript tooling continues to run with the existing Node.js `tsx` scripts. No script requires Bun's direct TypeScript execution, so Bun is not a prerequisite.
+`pnpm-workspace.yaml` enforces a strict 24-hour dependency release-age window without exclusions and permits lifecycle scripts only for esbuild, lefthook, sharp, and workerd.
+See the maintained fork-specific policy and upstream baseline in [Fork differences](#fork-differences).
+The protected human-authored `README.md` retains upstream package-manager examples and is not the fork's installation guide.
+
 ```bash
 pnpm install
-pnpm turbo type-check                  # tsc --noEmit across the monorepo
+pnpm exec turbo type-check                  # tsc --noEmit across the monorepo
 pnpm --filter @projektor/api test      # vitest against an in-process Worker + D1
 
 # One-time local secrets so the browser frontend can auth without Cloudflare Access:
 cp apps/api/.dev.vars.example apps/api/.dev.vars   # DEV_USER_EMAIL + BOOTSTRAP_SECRET
 cp apps/web/.env.example apps/web/.env             # PUBLIC_WORKSPACE_SLUG=projektor
 
-pnpm dev                               # local dev - API on :8787, web on :4321
+pnpm run dev                               # local dev - API on :8787, web on :4321
 # `dev` auto-applies D1 migrations to the local Miniflare DB first (db:migrate:local),
 # so /api/* won't 500 with "no such table" on a fresh checkout.
 ```
@@ -288,7 +296,7 @@ curl -H "X-Bootstrap-Secret: localdev" http://127.0.0.1:8787/bootstrap
 Then open **http://localhost:4321** — with `DEV_USER_EMAIL` set, the dev auth bypass logs you in
 as that user (a member of the seeded `projektor` workspace), and the islands load real data.
 
-**Before opening a PR:** `pnpm lint`, `pnpm turbo type-check`, `pnpm --filter @projektor/db test`, `pnpm --filter @projektor/api test:coverage`, `pnpm --filter @projektor/web test:coverage`, `pnpm --filter @projektor/web build`, and `pnpm --filter @projektor/docs build` must all be green, and `pnpm gen:docs` must produce no diff. CI runs these plus the island API and design system convention checks (`.github/workflows/ci.yml`).
+**Before opening a PR:** `pnpm run lint`, `pnpm exec turbo type-check`, `pnpm --filter @projektor/db test`, `pnpm --filter @projektor/api test:coverage`, `pnpm --filter @projektor/web test:coverage`, `pnpm --filter @projektor/web build`, and `pnpm --filter @projektor/docs build` must all be green, and `pnpm run gen:docs` must produce no diff. CI runs these plus the island API and design system convention checks (`.github/workflows/ci.yml`).
 
 ## E2E testing (`apps/web/e2e`, Playwright)
 
@@ -300,18 +308,18 @@ Three projects, pick the narrowest one that answers your question:
 - `mobile-webkit` — real WebKit engine (`devices["iPhone 13"]`). Reach for this specifically when investigating iOS Safari engine-level behavior that Chromium can't reproduce (visual-viewport/on-screen-keyboard resize events, `position: fixed` under scroll, etc.) — it caught the PROJ-397/PROJ-566 class of mobile-modal bugs. Still not a substitute for a real device: no Safari chrome, no PWA install/Add-to-Home-Screen coverage.
 
 ```bash
-pnpm --filter @projektor/web exec playwright test --project=mobile-webkit
+pnpm --dir apps/web exec playwright test --project=mobile-webkit
 ```
 
 ## Git hooks (lefthook)
 
 `pnpm install` runs `prepare`, which calls `lefthook install` and wires one hook:
 
-- **pre-commit** — `pnpm turbo type-check` (fast; leverages turbo's cache, near-instant on unchanged packages) and `pnpm biome check --changed --no-errors-on-unmatched` (lint, changed files only).
+- **pre-commit** — `pnpm exec turbo type-check` (fast; leverages turbo's cache, near-instant on unchanged packages) and `pnpm exec biome check --changed --no-errors-on-unmatched` (lint, changed files only).
 
 There is deliberately no `pre-push` hook — CI (`.github/workflows/ci.yml`) is the authoritative gate before merge (main is PR-protected; direct pushes are rejected), so a local pre-push copy of the same checks was pure redundant overhead. It was also a source of real bugs: under concurrent local load its test step could fail while a backgrounded `git push` still reported exit code 0, masking a rejected push. It was removed for these reasons; don't re-add one without addressing both.
 
-CI runs a superset of the pre-commit checks: the generated-docs freshness check, `pnpm lint`, `pnpm turbo type-check`, `pnpm --filter @projektor/db test`, coverage-enforced test runs for `@projektor/api` and `@projektor/web`, and both the web and docs builds. New contributors get the pre-commit hook automatically after `pnpm install`. See **Before opening a PR** above for the full local command set to run before pushing.
+CI runs a superset of the pre-commit checks: the generated-docs freshness check, `pnpm run lint`, `pnpm exec turbo type-check`, `pnpm --filter @projektor/db test`, coverage-enforced test runs for `@projektor/api` and `@projektor/web`, and both the web and docs builds. New contributors get the pre-commit hook automatically after `pnpm install`. See **Before opening a PR** above for the full local command set to run before pushing.
 
 **Bypass for WIP commits:** pass `--no-verify` (or `-n`) to git:
 
@@ -431,9 +439,9 @@ it up. See the [deploy guide](https://tajd.github.io/projektor/guides/deploying/
 
 **CI commands** (must all pass before opening a PR):
 ```bash
-pnpm gen:docs   # must produce no diff
-pnpm lint
-pnpm turbo type-check
+pnpm run gen:docs   # must produce no diff
+pnpm run lint
+pnpm exec turbo type-check
 pnpm --filter @projektor/db test
 pnpm --filter @projektor/api test:coverage
 pnpm --filter @projektor/web test:coverage
@@ -447,6 +455,30 @@ first; secondary rebases onto main before merging. Document this in the spawn pr
 and in the fleet manifest.
 
 ---
+
+## Fork differences
+
+This repository is the [`totto2727-org/projektor` fork](https://github.com/totto2727-org/projektor) of [`TAJD/projektor`](https://github.com/TAJD/projektor).
+Comparison revision: upstream [`ab122cbea1bae7efce8abe2345ce07375b9dcd13`](https://github.com/TAJD/projektor/commit/ab122cbea1bae7efce8abe2345ce07375b9dcd13), the common ancestor of the fork and upstream `main`.
+
+- `apps/web/src/islands/ProjectList.tsx` and its tests select a writable workspace before project creation.
+  The UI hides creation for read-only users, requires selection when several workspaces allow creation, and sends the selected workspace in the POST header.
+  This changes the frontend creation flow, not the upstream API or authorization rules.
+- Workspace npm dependencies use compatible caret ranges instead of exact dependency versions.
+  pnpm `11.28.5` is the sole package manager, with `pnpm-lock.yaml` preserving concrete resolutions and `pnpm-workspace.yaml` retaining the eight existing packages.
+  `pnpm-workspace.yaml` uses `minimumReleaseAge: 1440` and `minimumReleaseAgeStrict: true`, preserving the existing 24-hour safety window without automatic exceptions.
+  `allowBuilds` retains only the reviewed esbuild, lefthook, sharp and workerd lifecycle approvals.
+  CI, release scripts, hooks and contributor commands use pnpm. Node.js >=22.13 runs the existing Node-based tools and `tsx` scripts.
+  Global `vp install --frozen-lockfile` forwards to the pinned pnpm version without adding project-local Vite+ dependencies. Turbo and Biome remain in place, and Bun is not required by any executable script.
+  Historical test fixtures can mention other package managers without introducing executable package-manager entry points.
+  No release-age exclusions, dependency overrides or resolutions are configured.
+  Runtime and development dependencies are updated to their newest installable compatible releases.
+  Vitest remains on the newest compatible 4.1 release because the Workers test pool requires `vitest`, `@vitest/runner` and `@vitest/snapshot` at `^4.1.0`.
+  `apps/web/tsconfig.json` excludes generated `dist` bundles from Astro type checks, avoiding out-of-memory analysis after a build.
+  The dependency update does not change upstream runtime source or deployment configuration.
+
+Keep this maintained summary here to comply with the repository's root-document policy.
+No deployment resources, credentials or release-artifact versions change.
 
 ## MCP tool catalog
 

@@ -11,7 +11,7 @@
  * Also covers the mobile navigation drawer (hamburger menu), which has no
  * existing coverage.
  *
- * Run with: pnpm --filter @projektor/web exec playwright test --project=mobile mobile-issue-list
+ * Run with: pnpm --dir apps/web exec playwright test --project=mobile mobile-issue-list
  *
  * Prerequisites: globalSetup must have written e2e/.e2e-ctx.json.
  * Target: E2E_BASE_URL pointing at a dev deployment (ENVIRONMENT=development,

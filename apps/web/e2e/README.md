@@ -10,7 +10,7 @@ These tests target a **deployed dev instance**, not a local dev server.
 | Requirement | Detail |
 |---|---|
 | Node ≥ 18 | Built-in `fetch` used in global setup |
-| Playwright browsers | `pnpm --filter @projektor/web exec playwright install --with-deps chromium webkit` |
+| Playwright browsers | `pnpm --dir apps/web exec playwright install --with-deps chromium webkit` |
 | Dev deployment | `ENVIRONMENT=development`, `DEV_USER_EMAIL` set on the Worker |
 
 ### Why a deployed dev instance?
@@ -35,15 +35,15 @@ No credentials are needed in the test runner itself.
 export E2E_BASE_URL=https://your-dev-instance.workers.dev
 
 # (From monorepo root)
-pnpm --filter @projektor/web exec playwright test
+pnpm --dir apps/web exec playwright test
 
 # Run a single project:
-pnpm --filter @projektor/web exec playwright test --project=desktop
-pnpm --filter @projektor/web exec playwright test --project=mobile
-pnpm --filter @projektor/web exec playwright test --project=mobile-webkit
+pnpm --dir apps/web exec playwright test --project=desktop
+pnpm --dir apps/web exec playwright test --project=mobile
+pnpm --dir apps/web exec playwright test --project=mobile-webkit
 
 # Show the HTML report:
-pnpm --filter @projektor/web exec playwright show-report
+pnpm --dir apps/web exec playwright show-report
 ```
 
 ---
@@ -201,7 +201,7 @@ member-scoped `APIRequestContext` and asserts:
 
 | Check | Status |
 |---|---|
-| `pnpm lint` (Biome) | ✅ Run against this codebase |
+| `pnpm run lint` (Biome) | ✅ Run against this codebase |
 | `pnpm --filter @projektor/web type-check` (astro check) | ✅ Run - e2e/ is outside `src/` so not processed |
 | `playwright test --list` (config parse) | ✅ Run after `pnpm install` |
 | Actual browser tests (drag, PATCH, mobile layout) | ⏳ **Requires** `E2E_BASE_URL` pointing at a live dev deployment |

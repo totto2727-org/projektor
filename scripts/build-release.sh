@@ -32,9 +32,8 @@ pnpm --filter @projektor/web build
 
 echo "==> Bundling worker (apps/api → self-contained worker.js)"
 # Strip a leading "v" (tags are v1.2.0; serverInfo.version should read "1.2.0").
-# Called directly (not via the "build" script's `--` passthrough) - pnpm re-quotes
-# npm-script strings through the OS shell, which mangles the escaped defined value
-# on Windows. Direct `pnpm exec` invocation passes argv through untouched.
+# Call the locked Wrangler directly through pnpm exec, not a build script's shell passthrough,
+# so the quoted version definition remains a single argv value on every platform.
 RELEASE_VERSION="${VERSION#v}"
 ( cd apps/api && pnpm exec wrangler deploy --dry-run --outdir dist \
     --define "__PROJEKTOR_VERSION__:\"$RELEASE_VERSION\"" )

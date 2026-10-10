@@ -15,25 +15,25 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.12.0'   # pinned; apps/docs' astro 7 requires Node >= 22.12
-          cache: 'pnpm'
+          node-version: '24'   # pnpm 11 requires Node >= 22.13
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Generated docs are fresh
         run: |
-          pnpm gen:docs
+          pnpm run gen:docs
           git diff --exit-code -- apps/docs/src/content/docs/agents/tool-catalog.md \
             apps/docs/src/content/docs/agents/workflow-spec.md \
             apps/docs/src/generated/mcp-stats.json README.md \
             apps/docs/src/content/docs/contributing/conventions.md \
             apps/docs/src/content/docs/guides/feedback-widget-integration.md \
-            || { echo "::error::Generated docs are stale. Run 'pnpm gen:docs' and commit the result."; exit 1; }
+            || { echo "::error::Generated docs are stale. Run 'pnpm run gen:docs' and commit the result."; exit 1; }
           # A directory, not a fixed file list (PLAYBOOKS can gain/lose entries), so
           # `git status --porcelain` (which also reports untracked new files) is the
           # right check here, not `git diff` (which misses untracked additions).
           [ -z "$(git status --porcelain -- apps/docs/src/content/docs/agents/playbooks/)" ] \
-            || { echo "::error::Generated playbook docs are stale. Run 'pnpm gen:docs' and commit the result."; exit 1; }
-      - run: pnpm lint
-      - run: pnpm turbo type-check
+            || { echo "::error::Generated playbook docs are stale. Run 'pnpm run gen:docs' and commit the result."; exit 1; }
+      - run: pnpm run lint
+      - run: pnpm exec turbo type-check
       - run: pnpm --filter @projektor/db test
       # Coverage subsumes the plain test run (same tests, plus threshold enforcement -
       # see apps/api and apps/web vitest configs for the ratchet levels, PROJ-223).
@@ -51,7 +51,7 @@ jobs:
         # override would leave main permanently over budget the moment a labelled PR
         # merged. The only way to accept a deliberate size increase is `--update` plus
         # committing the new bundle-budget.json, which shows up in the PR diff for review.
-        run: pnpm bundle-budget
+        run: pnpm run bundle-budget
       - run: pnpm --filter @projektor/docs build
 # E2E tests: run manually with 'pnpm --filter @projektor/web test:e2e'
 # Long-running freeze regression tests (PROJ-310): 'pnpm --filter @projektor/web test:e2e:long'
