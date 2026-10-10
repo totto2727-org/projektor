@@ -1,0 +1,155 @@
+@import './shadcn.css';
+@import './tokens.css';
+@import './global.css';
+
+/* Include server-rendered component and feature sources in the Effront build. */
+@source "../";
+
+@font-face {
+  font-family: 'Projektor Mono';
+  src: url('/fonts/MonaspaceNeon-Variable.woff2') format('woff2-variations');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0020-007E, U+00A0-00FF, U+0100-017F, U+20AC, U+2000-206F, U+2190-21FF, U+2200-22FF, U+2500-257F, U+2580-259F,
+    U+25A0-25FF, U+2713, U+2715, U+2717;
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans Var';
+  src: url('/fonts/IBMPlexSans-Variable.woff2') format('woff2-variations');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* The root document owns metadata. This stylesheet keeps the shared shell's
+   former inline rules local to the React renderer. */
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1000;
+  transform: translateY(-150%);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 120;
+  padding: 0.375rem 0.75rem;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Application composition only. Generated Base UI owns sidebar gaps, drawers and popover positioning. */
+.projektor-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  height: var(--topbar-height);
+  padding: 0 0.75rem;
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--border);
+}
+.projektor-page-content {
+  min-width: 0;
+  padding: 2rem;
+}
+/* Project navigation spans the shell, while its following page keeps the same
+   content gutter on every side. Wiki already supplies its own inner spacing. */
+.projektor-page-content:not([data-full-bleed]) > .projektor-project-nav {
+  margin: -2rem -2rem 2rem;
+}
+/* Existing page containers keep their max-width, but the shell supplies the one outer gutter. */
+.projektor-page-content > .page-container {
+  padding: 0;
+}
+/* Wiki already owns a nested sidebar and responsive content padding. */
+.projektor-page-content[data-full-bleed] {
+  padding: 0;
+}
+@media (max-width: 767px) {
+  .projektor-page-content {
+    padding: 1rem;
+  }
+  .projektor-page-content:not([data-full-bleed]) > .projektor-project-nav {
+    margin: -1rem -1rem 1rem;
+  }
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+.empty-state h2,
+.empty-state p {
+  margin: 0;
+}
+.empty-state h2 {
+  color: var(--text);
+  font-size: 1rem;
+}
+.empty-state-action {
+  margin-top: 0.5rem;
+}
+.field {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.field-label {
+  font-weight: 600;
+}
+.field-hint {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+.field-error {
+  color: var(--danger-text);
+  font-size: 0.75rem;
+}
+.input,
+.textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  padding: 0.375rem 0.5rem;
+}
+.textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

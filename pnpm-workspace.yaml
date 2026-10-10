@@ -1,10 +1,4 @@
-packages:
-  - 'apps/*'
-  - 'packages/*'
-  - 'plugins/*'
-
-onlyBuiltDependencies:
-  - esbuild
-  - lefthook
-  - sharp
-  - workerd
+allowBuilds:
+  esbuild: true
+  workerd: true
+minimumReleaseAgeStrict: true

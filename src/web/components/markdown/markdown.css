@@ -1,0 +1,67 @@
+.markdown-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+}
+/* Keep native table layout so rows fill the available width. Oversized content
+   scrolls inside the Markdown boundary instead of widening the document. */
+.markdown-content table {
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: normal;
+}
+.markdown-content .mermaid {
+  overflow-x: auto;
+}
+/* Mermaid's emitted style includes a remote font import. Strip it at the HTML boundary,
+   and scope its palette locally so diagrams remain visible without network CSS. */
+.markdown-content .mermaid svg {
+  max-width: 100%;
+  height: auto;
+  --_text: var(--fg, #27272a);
+  --_text-sec: var(--muted, color-mix(in srgb, var(--_text) 60%, var(--bg, #fff)));
+  --_text-muted: var(--muted, color-mix(in srgb, var(--_text) 40%, var(--bg, #fff)));
+  --_text-faint: color-mix(in srgb, var(--_text) 25%, var(--bg, #fff));
+  --_line: var(--line, color-mix(in srgb, var(--_text) 50%, var(--bg, #fff)));
+  --_arrow: var(--accent, color-mix(in srgb, var(--_text) 85%, var(--bg, #fff)));
+  --_node-fill: var(--surface, color-mix(in srgb, var(--_text) 3%, var(--bg, #fff)));
+  --_node-stroke: var(--border, color-mix(in srgb, var(--_text) 20%, var(--bg, #fff)));
+  --_group-fill: var(--bg, #fff);
+  --_group-hdr: color-mix(in srgb, var(--_text) 5%, var(--bg, #fff));
+  --_inner-stroke: color-mix(in srgb, var(--_text) 12%, var(--bg, #fff));
+  --_key-badge: color-mix(in srgb, var(--_text) 10%, var(--bg, #fff));
+  background: var(--bg, #fff);
+}
+.markdown-content .mermaid text {
+  font-family: inherit;
+}
+.markdown-content .math.block {
+  overflow-x: auto;
+}
+.markdown-content pre {
+  overflow-x: auto;
+}
+/* Match the selected GitHub palettes rather than mixing their token colors
+   with the former renderer's gray code background. */
+.markdown-content pre.shiki {
+  background-color: #fff;
+}
+.markdown-content .shiki span {
+  color: var(--shiki-light);
+}
+:root[data-theme='dark'] .markdown-content .shiki span,
+.dark .markdown-content .shiki span {
+  color: var(--shiki-dark) !important;
+}
+:root[data-theme='dark'] .markdown-content pre.shiki,
+.dark .markdown-content pre.shiki {
+  background-color: #24292e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .markdown-content pre.shiki {
+    background-color: #24292e;
+  }
+  :root:not([data-theme]) .markdown-content .shiki span {
+    color: var(--shiki-dark) !important;
+  }
+}

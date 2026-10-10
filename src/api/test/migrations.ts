@@ -1,0 +1,141 @@
+// Static ?raw imports — Vite inlines each file as a string literal at bundle time.
+// Add a new import here whenever a migration is added to root migrations/.
+import m0000 from '../../../migrations/0000_tidy_jigsaw.sql?raw'
+import m0001 from '../../../migrations/0001_attachments.sql?raw'
+import m0002 from '../../../migrations/0002_issue_number_unique.sql?raw'
+import m0003 from '../../../migrations/0003_issue_parent_id.sql?raw'
+import m0004 from '../../../migrations/0004_task_types.sql?raw'
+import m0005 from '../../../migrations/0005_missing_indexes.sql?raw'
+import m0006 from '../../../migrations/0006_rate_limit.sql?raw'
+import m0007 from '../../../migrations/0007_issue_fts.sql?raw'
+import m0008 from '../../../migrations/0008_issue_links.sql?raw'
+import m0009 from '../../../migrations/0009_task_statuses.sql?raw'
+import m0010 from '../../../migrations/0010_custom_fields.sql?raw'
+import m0011 from '../../../migrations/0011_status_category.sql?raw'
+import m0012 from '../../../migrations/0012_task_type_backfill.sql?raw'
+import m0013 from '../../../migrations/0013_sprints.sql?raw'
+import m0014 from '../../../migrations/0014_user_scoped_tokens.sql?raw'
+import m0015 from '../../../migrations/0015_wiki_project_scope.sql?raw'
+import m0016 from '../../../migrations/0016_seed_missing_task_types.sql?raw'
+import m0017 from '../../../migrations/0017_share_tokens.sql?raw'
+import m0018 from '../../../migrations/0018_agent_sessions.sql?raw'
+import m0019 from '../../../migrations/0019_issue_file_claims.sql?raw'
+import m0020 from '../../../migrations/0020_agent_messages.sql?raw'
+import m0021 from '../../../migrations/0021_issue_leases.sql?raw'
+import m0022 from '../../../migrations/0022_issue_completed_at.sql?raw'
+import m0023 from '../../../migrations/0023_issue_flow_timestamps.sql?raw'
+import m0024 from '../../../migrations/0024_project_agent_wip_limit.sql?raw'
+import m0025 from '../../../migrations/0025_issue_completion_report.sql?raw'
+import m0026 from '../../../migrations/0026_backfill_flow_timestamps.sql?raw'
+import m0027 from '../../../migrations/0027_user_groups.sql?raw'
+import m0028 from '../../../migrations/0028_downgrade_viewer_grants.sql?raw'
+import m0029 from '../../../migrations/0029_issue_review_timestamp.sql?raw'
+import m0030 from '../../../migrations/0030_backfill_review_timestamp.sql?raw'
+import m0031 from '../../../migrations/0031_factory_health.sql?raw'
+import m0032 from '../../../migrations/0032_claim_conflicts.sql?raw'
+import m0033 from '../../../migrations/0033_custom_field_is_internal.sql?raw'
+import m0034 from '../../../migrations/0034_issue_needs_audit.sql?raw'
+import m0035 from '../../../migrations/0035_project_slug.sql?raw'
+import m0036 from '../../../migrations/0036_feedback.sql?raw'
+import m0037 from '../../../migrations/0037_issue_author_kind.sql?raw'
+import m0038 from '../../../migrations/0038_attachment_kinds.sql?raw'
+import m0039 from '../../../migrations/0039_wip_cap_denials.sql?raw'
+import m0040 from '../../../migrations/0040_provisioning_removals.sql?raw'
+import m0041 from '../../../migrations/0041_wiki_slug_unique.sql?raw'
+import m0042 from '../../../migrations/0042_wiki_revision_title_summary.sql?raw'
+import m0043 from '../../../migrations/0043_wiki_fts.sql?raw'
+import m0044 from '../../../migrations/0044_wiki_links.sql?raw'
+import m0045 from '../../../migrations/0045_wiki_frontmatter.sql?raw'
+import m0046 from '../../../migrations/0046_wiki_page_templates.sql?raw'
+import m0047 from '../../../migrations/0047_seed_wiki_templates.sql?raw'
+import m0048 from '../../../migrations/0048_wiki_watchers.sql?raw'
+import m0049 from '../../../migrations/0049_wiki_drafts.sql?raw'
+import m0050 from '../../../migrations/0050_wiki_slug_slash_backfill.sql?raw'
+import m0051 from '../../../migrations/0051_wiki_trash.sql?raw'
+import m0052 from '../../../migrations/0052_wiki_trash_batch_id.sql?raw'
+import m0053 from '../../../migrations/0053_backfill_templates_page_fts.sql?raw'
+import m0054 from '../../../migrations/0054_project_archived_at.sql?raw'
+import m0055 from '../../../migrations/0055_workspace_brand.sql?raw'
+import m0056 from '../../../migrations/0056_hot_path_indexes.sql?raw'
+import m0057 from '../../../migrations/0057_wiki_title_lower_index.sql?raw'
+import m0058 from '../../../migrations/0058_issue_definition_of_ready.sql?raw'
+import m0059 from '../../../migrations/0059_wiki_page_version.sql?raw'
+import m0060 from '../../../migrations/0060_wiki_reserved_slug_rename.sql?raw'
+import m0061 from '../../../migrations/0061_task_status_review_step.sql?raw'
+import m0062 from '../../../migrations/0062_repair_zero_lead_time.sql?raw'
+import m0063 from '../../../migrations/0063_wiki_title_fold.sql?raw'
+import m0064 from '../../../migrations/0064_strip_large_activity_diffs.sql?raw'
+import m0065 from '../../../migrations/0065_wiki_fts_rowid.sql?raw'
+import m0066 from '../../../migrations/0066_repair_status_category.sql?raw'
+import m0067 from '../../../migrations/0067_agent_session_credential.sql?raw'
+
+export const MIGRATIONS = [
+  m0000,
+  m0001,
+  m0002,
+  m0003,
+  m0004,
+  m0005,
+  m0006,
+  m0007,
+  m0008,
+  m0009,
+  m0010,
+  m0011,
+  m0012,
+  m0013,
+  m0014,
+  m0015,
+  m0016,
+  m0017,
+  m0018,
+  m0019,
+  m0020,
+  m0021,
+  m0022,
+  m0023,
+  m0024,
+  m0025,
+  m0026,
+  m0027,
+  m0028,
+  m0029,
+  m0030,
+  m0031,
+  m0032,
+  m0033,
+  m0034,
+  m0035,
+  m0036,
+  m0037,
+  m0038,
+  m0039,
+  m0040,
+  m0041,
+  m0042,
+  m0043,
+  m0044,
+  m0045,
+  m0046,
+  m0047,
+  m0048,
+  m0049,
+  m0050,
+  m0051,
+  m0052,
+  m0053,
+  m0054,
+  m0055,
+  m0056,
+  m0057,
+  m0058,
+  m0059,
+  m0060,
+  m0061,
+  m0062,
+  m0063,
+  m0064,
+  m0065,
+  m0066,
+  m0067,
+]
