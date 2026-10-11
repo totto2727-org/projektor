@@ -14,6 +14,9 @@ Do not recreate workspace packages, a separate infra project, Turbo, Biome or Le
 
 Use the Nix default shell and Vite+.
 `vp install --frozen-lockfile` installs dependencies.
+`.node-version` pins Node.js 24.11.0 for Vite+ managed Node mode (`vp env on node`).
+In system-first mode, the Nix shell's Node.js takes precedence. Use `vp env exec --node 24.11.0 node --version` to verify the pinned runtime explicitly.
+`packageManager` pins pnpm independently; `package.json` has no `engines` constraints.
 `vp run ci` runs formatting, typed lint and every configured test project, including the native Workers API regressions.
 `vp run test:workers` selects the native API regression project through the supported `@cloudflare/vitest-plugin`, which supports Vite+'s Vitest 5.
 Do not patch the plugin, add a second test CLI or filter unexpected test errors.
@@ -99,6 +102,7 @@ Deployment uses standard Alchemy configuration without custom confirmation flags
 Environment differences are provided through aggregate Effect Layers rather than leaf-level local/production branches, and runtime request handling stays outside Worker declarations.
 JWT secrets remain Cloudflare-owned across normal deployments through standard binding inheritance, without reading their values or storing them in project state.
 The project is consolidated into one root package and Vite+ toolchain instead of private workspace packages.
+`.node-version` pins Node.js 24.11.0 for Vite+ managed mode instead of declaring Node/pnpm compatibility ranges through `engines`; the existing pnpm `packageManager` pin remains unchanged.
 Vite+ owns all task entry points without Just, formatting/lint settings match the Vite+ app template, and tests use standard isolated projects rather than a runtime-plugin mode branch or test-runner alias shim.
 TypeScript inherits the template's strictest and node-ts presets, with Vite's bundled module resolution, React JSX, Worker runtime types, aliases and maintained-source scope.
 The existing application/SDK contracts retain three explicit compatibility settings: exact optional properties, indexed-property syntax and unchecked index access are not additionally tightened in this toolchain migration; standard strict checking and the other preset checks remain enabled.
