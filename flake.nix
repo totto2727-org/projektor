@@ -26,7 +26,7 @@
             inherit system;
           };
         in
-        {
+        rec {
           default = pkgs.mkShell {
             packages = [
               pkgs.nixfmt
@@ -37,6 +37,9 @@
               vp config
             '';
           };
+          ci = default.overrideAttrs (_: {
+            shellHook = "";
+          });
         }
       );
     };

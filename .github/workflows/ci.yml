@@ -17,10 +17,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
+        with:
+          dev-shell: ci
       - uses: totto2727-org/monorepo/.github/actions/setup-typescript@main
       - name: Verify Vite+ project
         run: |
-          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#default")"
+          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#ci")"
           vp run ci
 
   deploy:
@@ -37,10 +39,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
+        with:
+          dev-shell: ci
       - uses: totto2727-org/monorepo/.github/actions/setup-typescript@main
       - name: Deploy production
         run: |
-          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#default")"
+          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#ci")"
           vp run deploy --yes
         env:
           CLOUDFLARE_ACCOUNT_ID: '5643a837ef66765e7881c0831a36ebed'
