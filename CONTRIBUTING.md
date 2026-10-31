@@ -20,9 +20,16 @@ conventions: file layout, the service-layer contract (REST and MCP must stay at
 parity), and how to work in parallel without conflicts. Read it before changing
 anything.
 
-Both checks must be green (CI runs a fuller set - see [AGENTS.md](./AGENTS.md)):
+Run the checks through the Nix shell and Vite+ (see [AGENTS.md](./AGENTS.md) for the maintained task and deployment conventions):
 
 ```bash
-pnpm --filter @projektor/api test   # vitest against an in-process Worker + Miniflare D1
-pnpm turbo type-check               # tsc --noEmit across the monorepo
+nix develop
+vp install --frozen-lockfile
+vp run ci
 ```
+
+`vp run ci` checks formatting and types, then runs every configured test project, including the native Workers API regressions.
+Use `vp run test:workers` for the Workers project alone and `vp run e2e` for the real local API/Web Worker browser workflow.
+Use `vp run dev` for local development.
+CI checks pull requests and main, then deploys production only after successful checks on a main push.
+The application is one root package, without Turbo or a docs workspace.
