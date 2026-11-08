@@ -90,6 +90,7 @@ Fork: https://github.com/totto2727-org/projektor
 Immutable fork point: `ab122cbea1bae7efce8abe2345ce07375b9dcd13`.
 Upstream comparison revision: the immutable fork point above.
 Previous fork SSR checkpoint: `6c4b69697ec34ec6daa7a6773b4b6db50732b585`.
+The Web Worker uses Effront 0.4's configured `@effront/alchemy/cloudflare/application` helper with the actual application's type-only import, preserving construction capabilities and per-request application Layers without an application-owned dynamic loader.
 The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scoped ServerFns, Base UI and dynamic Comark rendering.
 Application-level styles adapt shared navigation spacing, sidebar/table dividers and Markdown table overflow without modifying generated Base UI primitives.
 The official shadcn Chart/Recharts integration replaces uPlot and the overview's independent thick-stroke SVG; Overview and Metrics share seven flow-chart implementations with raw-count stacking, native tooltips and theme tokens.
