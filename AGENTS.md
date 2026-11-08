@@ -91,6 +91,7 @@ Immutable fork point: `ab122cbea1bae7efce8abe2345ce07375b9dcd13`.
 Upstream comparison revision: the immutable fork point above.
 Previous fork SSR checkpoint: `6c4b69697ec34ec6daa7a6773b4b6db50732b585`.
 The Web Worker uses Effront 0.4's configured `@effront/alchemy/cloudflare/application` helper with the actual application's type-only import, preserving construction capabilities and per-request application Layers without an application-owned dynamic loader.
+An exact pnpm patch for `@effront/alchemy@0.4.0` corrects only four published Cloudflare declaration files to use Alchemy's public root and Workers subpaths, preserving typed construction/request requirements without changing JavaScript or runtime behavior; remove the patch and registration after adopting a fixed release from `totto2727-org/effront#33`.
 The Effect runtime and browser/Node platform packages stay on the mature 4.0.7 patch line to satisfy Effront 0.4's minimum 4.0.2 peer contracts without breaking Alchemy beta.81's `effect/Crypto` import, which Effect 4.1 removes; a scoped Node shared-platform override keeps its transitive implementation on that same line.
 The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scoped ServerFns, Base UI and dynamic Comark rendering.
 Application-level styles adapt shared navigation spacing, sidebar/table dividers and Markdown table overflow without modifying generated Base UI primitives.
