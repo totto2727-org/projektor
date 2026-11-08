@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@effect/platform-node>@effect/platform-node-shared': ~4.0.7
+
 importers:
 
   .:
@@ -188,20 +191,20 @@ importers:
         specifier: ^0.6.2
         version: 0.6.2(beautiful-mermaid@1.1.3)(katex@0.17.0)(shiki@4.4.3)
       '@effect/platform-browser':
-        specifier: ^4.0.1
-        version: 4.0.1(effect@4.0.1)
+        specifier: ~4.0.7
+        version: 4.0.7(effect@4.0.7)
       '@effront/alchemy':
-        specifier: ^0.3.1
-        version: 0.3.1(a4a38ba4d8c5a767c49f91fb49f51d3d)
+        specifier: ^0.4.0
+        version: 0.4.0(b3eb6c3f489fb021fbb9580561c6370d)
       '@effront/core':
-        specifier: ^0.3.1
-        version: 0.3.1(@effect/platform-browser@4.0.1(effect@4.0.1))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.1)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
+        specifier: ^0.4.0
+        version: 0.4.0(@effect/platform-browser@4.0.7(effect@4.0.7))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.7)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
       '@tanstack/react-form':
         specifier: ^1.33.5
         version: 1.33.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       alchemy:
         specifier: 2.0.0-beta.81
-        version: 2.0.0-beta.81(@effect/platform-node@4.0.1(effect@4.0.1)(redis@6.3.0))(@effect/vitest@4.0.1(effect@4.0.1)(vitest@5.0.3))(@types/node@24.13.4)(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261009.1)(@electric-sql/pglite@0.3.15)(@libsql/client@0.17.4))(effect@4.0.1)(hono@4.13.13)(typescript@7.0.2)(ws@8.22.0)
+        version: 2.0.0-beta.81(@effect/platform-node@4.0.7(effect@4.0.7)(redis@6.3.0))(@effect/vitest@4.0.1(effect@4.0.7)(vitest@5.0.3))(@types/node@24.13.4)(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261009.1)(@electric-sql/pglite@0.3.15)(@libsql/client@0.17.4))(effect@4.0.7)(hono@4.13.13)(typescript@7.0.2)(ws@8.22.0)
       beautiful-mermaid:
         specifier: ^1.1.3
         version: 1.1.3
@@ -218,8 +221,8 @@ importers:
         specifier: ^0.45.4
         version: 0.45.4(@cloudflare/workers-types@5.20261009.1)(@electric-sql/pglite@0.3.15)(@libsql/client@0.17.4)
       effect:
-        specifier: ^4.0.1
-        version: 4.0.1
+        specifier: ~4.0.7
+        version: 4.0.7
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
@@ -265,7 +268,7 @@ importers:
     devDependencies:
       '@alchemy.run/cloudflare-runtime':
         specifier: 2.0.0-beta.81
-        version: 2.0.0-beta.81(@distilled.cloud/cloudflare@1.0.0-rc.13(effect@4.0.1))(@effect/platform-node@4.0.1(effect@4.0.1)(redis@6.3.0))(@types/node@24.13.4)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.1)(rolldown@1.2.5)(typescript@7.0.2)
+        version: 2.0.0-beta.81(@distilled.cloud/cloudflare@1.0.0-rc.13(effect@4.0.7))(@effect/platform-node@4.0.7(effect@4.0.7)(redis@6.3.0))(@types/node@24.13.4)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.7)(rolldown@1.2.5)(typescript@7.0.2)
       '@cloudflare/vitest-plugin':
         specifier: ^1.4.0
         version: 1.4.0(@cloudflare/workers-types@5.20261009.1)(@types/node@24.13.4)(vitest@5.0.3)
@@ -274,16 +277,16 @@ importers:
         version: 5.20261009.1
       '@distilled.cloud/cloudflare':
         specifier: 1.0.0-rc.13
-        version: 1.0.0-rc.13(effect@4.0.1)
+        version: 1.0.0-rc.13(effect@4.0.7)
       '@effect/platform-node':
-        specifier: ^4.0.1
-        version: 4.0.1(effect@4.0.1)(redis@6.3.0)
+        specifier: ~4.0.7
+        version: 4.0.7(effect@4.0.7)(redis@6.3.0)
       '@effront/tailwind':
-        specifier: ^0.3.1
-        version: 0.3.1(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))
+        specifier: ^0.4.0
+        version: 0.4.0(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))
       '@effront/vite':
-        specifier: ^0.3.1
-        version: 0.3.1(@effront/core@0.3.1(@effect/platform-browser@4.0.1(effect@4.0.1))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.1)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
+        specifier: ^0.4.0
+        version: 0.4.0(@effront/core@0.4.0(@effect/platform-browser@4.0.7(effect@4.0.7))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.7)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
       '@playwright/test':
         specifier: ^1.64.0
         version: 1.64.0
@@ -672,17 +675,11 @@ packages:
   '@codemirror/lint@6.9.7':
     resolution: {integrity: sha512-28/+iWLYxKxsvGYhSYL7zaCZqLz5+FFFDq9tVsvGv9kv8RY4fFAchJ5WX9M3YrrRlTIsECjsXPqeNgnSmNP2dg==}
 
-  '@codemirror/state@6.7.1':
-    resolution: {integrity: sha512-9QzNDgE4EYDnAHfrTlR2lwiPciiOymLtwKK+8yHQzCc7GXhAP9xdEbEJFy2IWB1j9UGUl9BsgMmTo/ImA02T7A==}
-
   '@codemirror/state@6.7.6':
     resolution: {integrity: sha512-kAz+AncRtKuIknedxT1bq4XwXv4UowhbkHU1myPrtVb/jZtImWuV5BXzv5vK6i3kYACsdiZiQKFQQ5Mq7elW8w==}
 
   '@codemirror/view@6.43.14':
     resolution: {integrity: sha512-hC45YnmJNR1rz42OF57BLoQNFMV12/13drnvibDsR2quNDmldcb4WvYVV81hFQg56i9lcqQMEDqilhX2QDcGQQ==}
-
-  '@codemirror/view@6.43.8':
-    resolution: {integrity: sha512-qtItTDssZ/5GFfi94hrILu9j/VUeFPDPkhovEfmWFj2ipTxnzPB8DdHgfbb8HYTzLTYhrndKmyQxXUz/PDLenw==}
 
   '@comark/html@0.6.2':
     resolution: {integrity: sha512-ke1/rxpgsrRdfx/4LFURFQCqc2Bv/eVZd+Eenk8x/8IX4346HOGReiWuWWs11mpzHibkKFaPq56zWsnn7Eu8lw==}
@@ -825,22 +822,22 @@ packages:
   '@dotenvx/primitives@0.8.0':
     resolution: {integrity: sha512-VYJy0uhFm9zTJ1TxBaW/pA8bjbOM/OttaNMwZ1RHG4JKyRG7DhSdiqD1ipQoAyoD22olUtxbP78W9xY3Wd11bg==}
 
-  '@effect/platform-browser@4.0.1':
-    resolution: {integrity: sha512-RsnobWEnffdkRH/wZ3ARIAgMxtGLyfrD0R3iVS+dwQCdYrSbotlJHEoVHEgzcOn5RzMsHG6FHkfdgRMwvcM7kg==}
+  '@effect/platform-browser@4.0.7':
+    resolution: {integrity: sha512-FHzX6Q8pUwAB8fL8Jw75NXsXcOAe/iT7KVhb5ricaCcCNqVeIrhWUTM677HqVkRONzQPH09RB9r5NbNUa2YtFg==}
     peerDependencies:
-      effect: ^4.0.1
+      effect: ^4.0.7
 
-  '@effect/platform-node-shared@4.0.1':
-    resolution: {integrity: sha512-VanaejudEhKJ4mpmqnEzdncVUhN6sGSO9ZDND54mRxAlZxj+4dYAWjDTYAy9o4tJo9aALeP2U8cVcOFzEdSeLg==}
+  '@effect/platform-node-shared@4.0.7':
+    resolution: {integrity: sha512-uCeBJ00hliKQsb7gMfvyEXUL1XmUKQcRzKi1X8ISG0UxTDMAdPRigOyKDnKxUTxE5PoT4kxLHQvOxo6U405FGg==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      effect: ^4.0.1
+      effect: ^4.0.7
 
-  '@effect/platform-node@4.0.1':
-    resolution: {integrity: sha512-FT0Fu5LO0/XP9zBpj0HqrtJNLluK4StNKqf6TSulUsjp8FPBsDVXGJiDuyoN5J2yVMT7tgvhxSwaDcObWVRIaQ==}
+  '@effect/platform-node@4.0.7':
+    resolution: {integrity: sha512-YXUh0A4ZjuPAONt/yXb5zBM7zPR6eUPYUBtyj1374zq0P5SUpdcz8Lf54JSavXb8mdrc1glsXWHFVINpJyrlWA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      effect: ^4.0.1
+      effect: ^4.0.7
       redis: '>=5.0.0 <7.0.0'
 
   '@effect/sql-d1@4.0.1':
@@ -859,32 +856,32 @@ packages:
       effect: ^4.0.1
       vitest: '>=5.0.0 <6.0.0'
 
-  '@effront/alchemy@0.3.1':
-    resolution: {integrity: sha512-Jty4pn4Ijzy9jQDMifdmdURySnOhBlv4GE1LN0ZiUwcqihVg705SEBUNh0E6ZPYfh5CVc7F7DQHP0ez0tAM/zg==}
+  '@effront/alchemy@0.4.0':
+    resolution: {integrity: sha512-VNAokqJt1hkc9W9mpV6zJSGOKxSOuRJBYe6rkAFGDcHa09Wf96hPfxIilXMcO5ulbgsDerCF6HT4MlB33wqFqQ==}
     peerDependencies:
-      '@effront/core': ^0.3.1
-      '@effront/vite': ^0.3.1
-      alchemy: 2.0.0-beta.81
-      effect: ^4.0.1
+      '@effront/core': ^0.4.0
+      '@effront/vite': ^0.4.0
+      alchemy: ^2.0.0-beta.81
+      effect: ^4.0.2
       vite: '*'
 
-  '@effront/core@0.3.1':
-    resolution: {integrity: sha512-XLXX8s17CDd4M9AsW/UMSohu5dQUk+FWgTle/dJD+vRNcV3zng5yBConbLOVwKeS9enctMFu9Q09rx7sAGjXGw==}
+  '@effront/core@0.4.0':
+    resolution: {integrity: sha512-QMlw65zBd0lE6CZHwAFJQtvn+BQ2Fh5mbhiYRxPEGGbx4ccufB4UV4qggW9llyxrdRQr+A1LAxUv+mMorOoRlQ==}
     peerDependencies:
-      '@effect/platform-browser': ^4.0.1
-      effect: ^4.0.1
-      react: 19.3.0
-      react-dom: 19.3.0
+      '@effect/platform-browser': ^4.0.2
+      effect: ^4.0.2
+      react: ^19.3.0
+      react-dom: ^19.3.0
 
-  '@effront/tailwind@0.3.1':
-    resolution: {integrity: sha512-UxkGMl9xZ0U2z450tuqExhGqaQ9jrgrIUcfEhXBbH66i/ay0nKWDwIsQR63aIi4oz2c6E5IdpclbkfO5C/wp/Q==}
+  '@effront/tailwind@0.4.0':
+    resolution: {integrity: sha512-7a0KI3MNXsvmFQ7SJJCDtV7fV+vNXq0k77UvE1kOpAlFPMuqb9v4XoxWDHpZQ3t2ZgeriUSD7Ll3d10KkKG01Q==}
     peerDependencies:
       vite: '*'
 
-  '@effront/vite@0.3.1':
-    resolution: {integrity: sha512-JZSuyd3UM+jv4R3WZL9xOMBwar6ooMEJkmDsu6tuh4ItDy/eQMavDYBHlqeAd8XuUcmsbja9LwHuR9+DqEh4DA==}
+  '@effront/vite@0.4.0':
+    resolution: {integrity: sha512-OJousxDowbGlph79djmQcuMkSn2bf+8x39nTr68dLeOCe3gajUkL/vDH/966Ug73NX5uHwpI685dIs/phRh7MQ==}
     peerDependencies:
-      '@effront/core': ^0.3.1
+      '@effront/core': ^0.4.0
       vite: '*'
 
   '@electric-sql/pglite-socket@0.0.20':
@@ -2518,9 +2515,6 @@ packages:
   '@types/mdurl@2.0.0':
     resolution: {integrity: sha512-RGdgjQUZba5p6QEFAVx2OGb8rQDL/cPRG7GiedRzMcJ1tYnUANBncjbSB1NRGwbvjcPeikRABz2nshyPk1bhWg==}
 
-  '@types/node@24.13.3':
-    resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
-
   '@types/node@24.13.4':
     resolution: {integrity: sha512-YJ7EqCstVTzIr0fMr7qul/977en+pQHrfmuKIo6Zr9i75Be21dr3MovcfvGtyvi2HAUrRerWps5sMO9I7WaxDw==}
 
@@ -2670,13 +2664,13 @@ packages:
   '@ungap/structured-clone@1.3.3':
     resolution: {integrity: sha512-60YRaenCQcVjYEKOcG824+DRGGIQ3VKErcBoAEDJZz5bKIs2ZG+X/H9Nk+Q6EVkwJk5QNApxbrc5QtBSwtrXAg==}
 
-  '@vitejs/plugin-react@6.1.1':
-    resolution: {integrity: sha512-yxLaQV9gkhS8ezJqCM6+ndU7mDY6gqAg75NQ+0IjwEI8IYOmQCgkRwHKVSfWXW076DsqMo0Dk+0FK1U+M5RgFw==}
+  '@vitejs/plugin-react@6.2.1':
+    resolution: {integrity: sha512-9KyWCij3r0+qLG3Q62vBmv0VyevmYibAtxaCIVK9o0k6CXgaajZRIe8tpfchQcdZArJ5b/7OrIz4W3b2uxVRDA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
-      '@rolldown/plugin-babel': ^0.1.7 || ^0.2.0
+      '@rolldown/plugin-babel': ^0.1.7 || ^0.2.0 || ^0.3.0
       babel-plugin-react-compiler: ^1.0.0
-      oxc-transform-react: ^0.145.0
+      oxc-transform-react: '>=0.152.0 <0.157.0'
       vite: ^8.0.0
     peerDependenciesMeta:
       '@rolldown/plugin-babel':
@@ -2686,8 +2680,8 @@ packages:
       oxc-transform-react:
         optional: true
 
-  '@vitejs/plugin-rsc@0.5.35':
-    resolution: {integrity: sha512-OZtJ57o5luSeNb2lqi3xeHHF41W8jCgm4nGb/1qmKjLb5gk/szIHS0Wxfo82WWQkKIqBBu6M697ohKWXrP0qqg==}
+  '@vitejs/plugin-rsc@0.5.39':
+    resolution: {integrity: sha512-hRa6CK119r1NkwgPWlPRiDP8e4rELCsIZwjGmQK0sOnayAkYPBkyJMip0GhYEt2ukBZaO0Uw3ICHHO9T692OFw==}
     peerDependencies:
       react: '*'
       react-dom: '*'
@@ -3704,8 +3698,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  effect@4.0.1:
-    resolution: {integrity: sha512-b1VlQG9g8fwxE5QnIZuPoOP/0MsqHJSRKxUijjoM80E5q95FXrX5yWtY5XI8G+GJsBQAVSDbLS458z9a++uVvw==}
+  effect@4.0.7:
+    resolution: {integrity: sha512-47CiUzNAmeLr40pDT9vKMxxtB8o3bdpZEKU4IUM3fVxsK2GYzPsV7fQoZP0I41A308BZd71nMxqJ0KRh3s9u2g==}
 
   electron-to-chromium@1.5.405:
     resolution: {integrity: sha512-bNglH7lPH5l+yHOes7Zr4VqxhOy4BQ9ZBUX4VdoFgxMpzJk7W1ZoO3Vgd9Pxa9PyjQ76sfm2aKH/nzEcCNRlew==}
@@ -3760,6 +3754,9 @@ packages:
 
   es-module-lexer@2.3.2:
     resolution: {integrity: sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw==}
+
+  es-module-lexer@3.0.4:
+    resolution: {integrity: sha512-BldNY5mwkVu+cQ5Ymn3e6hB9Sx8XHx4ZevWbiUyZbfKxJxYO27Hf0wfzkxIaD5CAJMaGl3YspKELj0ff/7nCMA==}
 
   es-object-atoms@1.1.2:
     resolution: {integrity: sha512-HWcBoN6NileqtSydK2FqHbS/LoDd2pqrnQHLyJzBj4kOp/ky2MWMN694xOfkK8/SnUsW2DH7EfyVlydKCsm1Zw==}
@@ -4439,6 +4436,9 @@ packages:
   magic-string@1.4.2:
     resolution: {integrity: sha512-vG+rjFRj1PqdIBozIxAGMjPlOhaVe+GXpbttY/iSK7rGcJRMlwNJO7dcUwmUqkymsFLJiNGI06t4D7Fr7yRC9g==}
 
+  magic-string@1.4.5:
+    resolution: {integrity: sha512-oLLC2+YvQUfAa+vxoufE/yc1icb87M9iXIRqAoR/2EhE/8cb3SF/+Gi0c2By1B+5Vz2e2vQtUvHiu1+63Znh+w==}
+
   markdown-exit@1.1.0-beta.2:
     resolution: {integrity: sha512-8CzMGVlFZ4DEfnc8KU+4ycUW2SIOuiXqCHD7z51ecVEi/weyc0f2ylQbCm4KoKuVlTZSuMUMnWT0hTyquZ7anQ==}
 
@@ -5116,8 +5116,8 @@ packages:
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
 
-  srvx@0.12.8:
-    resolution: {integrity: sha512-7k9HoDhluTlD7UJ+F+OopZoPZXB2J8f/5nW2VMLaB8KsSlZlRQxyyoX0hWEQCxB+F+3ZvB5QX3LqB6xSBRfxQQ==}
+  srvx@1.0.8:
+    resolution: {integrity: sha512-ngFS/J6St4PJfHRHGjr78xkPPtbyXtdMOLNE4x/XZunEK3OhV7aGUWMHf9WTUEy6wm1U0W4okkd82ZFFWRVQTw==}
     engines: {node: '>=20.16.0'}
     hasBin: true
 
@@ -5301,6 +5301,10 @@ packages:
 
   undici@8.11.2:
     resolution: {integrity: sha512-u4UB2/IrKdU6lFxumHmmo1a3fCQO5tzQllRorfoRS63txhrB7xTpSn1PftwC4qEHkOaqP95fCWW4lJzwErwzhQ==}
+    engines: {node: '>=22.19.0'}
+
+  undici@8.12.4:
+    resolution: {integrity: sha512-8Mx+uNKKER2bA4AdtedkqRbwUCIJFr2nJckXRe5yrDqzePqwLP7VNcctN8/XdmDSbF7mS+jJKIszlL+vbam1VA==}
     engines: {node: '>=22.19.0'}
 
   unenv@2.0.0-rc.24:
@@ -5554,6 +5558,18 @@ packages:
       utf-8-validate:
         optional: true
 
+  ws@8.22.1:
+    resolution: {integrity: sha512-oyL6OPYme/CmiFvNuGzeoxCJ4nOrZE2O1FwM9MWM1AsGri6nLXB2pg+lNA8aLeXMSav0J6eIVS1j6vUPzUtK9g==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   wsl-utils@1.0.1:
     resolution: {integrity: sha512-c16PKLIRxBYpR3jSWsdS7SFp0COm5SOQdiFjY818dYFHJbMGuLBszpF07LBWmOS1uzrHa9VGdynsEgoeKy0oOQ==}
     engines: {node: '>=20'}
@@ -5631,14 +5647,14 @@ packages:
 
 snapshots:
 
-  '@alchemy.run/cloudflare-runtime@2.0.0-beta.81(@distilled.cloud/cloudflare@1.0.0-rc.13(effect@4.0.1))(@effect/platform-node@4.0.1(effect@4.0.1)(redis@6.3.0))(@types/node@24.13.4)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.1)(rolldown@1.2.5)(typescript@7.0.2)':
+  '@alchemy.run/cloudflare-runtime@2.0.0-beta.81(@distilled.cloud/cloudflare@1.0.0-rc.13(effect@4.0.7))(@effect/platform-node@4.0.7(effect@4.0.7)(redis@6.3.0))(@types/node@24.13.4)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.7)(rolldown@1.2.5)(typescript@7.0.2)':
     dependencies:
       '@alchemy.run/node-utils': 2.0.0-beta.81
       '@cloudflare/unenv-preset': 2.16.2(unenv@2.0.0-rc.24)(workerd@1.20260918.1)
-      '@distilled.cloud/cloudflare': 1.0.0-rc.13(effect@4.0.1)
+      '@distilled.cloud/cloudflare': 1.0.0-rc.13(effect@4.0.7)
       '@puppeteer/browsers': 3.2.3(yauzl@3.4.0)
       capnp-es: 0.0.16(typescript@7.0.2)
-      effect: 4.0.1
+      effect: 4.0.7
       magic-string: 0.30.21
       mime: 4.1.0
       sharp: 0.35.4(@types/node@24.13.4)
@@ -5646,7 +5662,7 @@ snapshots:
       workerd: 1.20260918.1
       yauzl: 3.4.0
     optionalDependencies:
-      '@effect/platform-node': 4.0.1(effect@4.0.1)(redis@6.3.0)
+      '@effect/platform-node': 4.0.7(effect@4.0.7)(redis@6.3.0)
       rolldown: 1.2.5
       vite: '@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1)'
     transitivePeerDependencies:
@@ -5654,9 +5670,9 @@ snapshots:
       - proxy-agent
       - typescript
 
-  '@alchemy.run/floci@2.0.0-beta.81(effect@4.0.1)':
+  '@alchemy.run/floci@2.0.0-beta.81(effect@4.0.7)':
     dependencies:
-      effect: 4.0.1
+      effect: 4.0.7
 
   '@alchemy.run/node-utils@2.0.0-beta.81':
     dependencies:
@@ -6045,22 +6061,11 @@ snapshots:
       '@codemirror/view': 6.43.14
       crelt: 1.0.7
 
-  '@codemirror/state@6.7.1':
-    dependencies:
-      '@marijn/find-cluster-break': 1.0.3
-
   '@codemirror/state@6.7.6':
     dependencies:
       '@marijn/find-cluster-break': 1.0.3
 
   '@codemirror/view@6.43.14':
-    dependencies:
-      '@codemirror/state': 6.7.6
-      crelt: 1.0.7
-      style-mod: 4.1.3
-      w3c-keyname: 2.2.8
-
-  '@codemirror/view@6.43.8':
     dependencies:
       '@codemirror/state': 6.7.6
       crelt: 1.0.7
@@ -6105,86 +6110,86 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.2': {}
 
-  '@distilled.cloud/acme@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/acme@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/aws@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/aws@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
       '@smithy/types': 4.19.0
-      effect: 4.0.1
+      effect: 4.0.7
 
-  '@distilled.cloud/axiom@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/axiom@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/cloudflare@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/cloudflare@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/core@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/core@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      effect: 4.0.1
+      effect: 4.0.7
       graphql: 16.11.0
 
-  '@distilled.cloud/doppler@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/doppler@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/fly-io@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/fly-io@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/gcp@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/gcp@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/hetzner@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/hetzner@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/infisical@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/infisical@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/neon@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/neon@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/planetscale@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/planetscale@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/prisma@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/prisma@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/railway@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/railway@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/stripe@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/stripe@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
-  '@distilled.cloud/zerossl@1.0.0-rc.13(effect@4.0.1)':
+  '@distilled.cloud/zerossl@1.0.0-rc.13(effect@4.0.7)':
     dependencies:
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      effect: 4.0.1
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      effect: 4.0.7
 
   '@dotenvx/dotenvx@1.75.1':
     dependencies:
@@ -6207,74 +6212,74 @@ snapshots:
 
   '@dotenvx/primitives@0.8.0': {}
 
-  '@effect/platform-browser@4.0.1(effect@4.0.1)':
+  '@effect/platform-browser@4.0.7(effect@4.0.7)':
     dependencies:
-      effect: 4.0.1
+      effect: 4.0.7
 
-  '@effect/platform-node-shared@4.0.1(effect@4.0.1)':
+  '@effect/platform-node-shared@4.0.7(effect@4.0.7)':
     dependencies:
       '@types/ws': 8.18.2
-      effect: 4.0.1
-      ws: 8.22.0
+      effect: 4.0.7
+      ws: 8.22.1
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@effect/platform-node@4.0.1(effect@4.0.1)(redis@6.3.0)':
+  '@effect/platform-node@4.0.7(effect@4.0.7)(redis@6.3.0)':
     dependencies:
-      '@effect/platform-node-shared': 4.0.1(effect@4.0.1)
-      effect: 4.0.1
+      '@effect/platform-node-shared': 4.0.7(effect@4.0.7)
+      effect: 4.0.7
       redis: 6.3.0
-      undici: 8.11.2
+      undici: 8.12.4
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@effect/sql-d1@4.0.1(effect@4.0.1)':
+  '@effect/sql-d1@4.0.1(effect@4.0.7)':
     dependencies:
       '@cloudflare/workers-types': 5.20261009.1
-      effect: 4.0.1
+      effect: 4.0.7
 
-  '@effect/sql-sqlite-do@4.0.1(effect@4.0.1)':
+  '@effect/sql-sqlite-do@4.0.1(effect@4.0.7)':
     dependencies:
-      effect: 4.0.1
+      effect: 4.0.7
 
-  '@effect/vitest@4.0.1(effect@4.0.1)(vitest@5.0.3)':
+  '@effect/vitest@4.0.1(effect@4.0.7)(vitest@5.0.3)':
     dependencies:
-      effect: 4.0.1
+      effect: 4.0.7
       vitest: 5.0.3(@types/node@24.13.4)(@vitest/browser-preview@5.0.3)(@vitest/ui@5.0.3)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(happy-dom@15.11.7)(jsdom@30.1.2)
     optional: true
 
-  '@effront/alchemy@0.3.1(a4a38ba4d8c5a767c49f91fb49f51d3d)':
+  '@effront/alchemy@0.4.0(b3eb6c3f489fb021fbb9580561c6370d)':
     dependencies:
-      '@effront/core': 0.3.1(@effect/platform-browser@4.0.1(effect@4.0.1))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.1)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
-      '@effront/vite': 0.3.1(@effront/core@0.3.1(@effect/platform-browser@4.0.1(effect@4.0.1))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.1)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
-      alchemy: 2.0.0-beta.81(@effect/platform-node@4.0.1(effect@4.0.1)(redis@6.3.0))(@effect/vitest@4.0.1(effect@4.0.1)(vitest@5.0.3))(@types/node@24.13.4)(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261009.1)(@electric-sql/pglite@0.3.15)(@libsql/client@0.17.4))(effect@4.0.1)(hono@4.13.13)(typescript@7.0.2)(ws@8.22.0)
-      effect: 4.0.1
+      '@effront/core': 0.4.0(@effect/platform-browser@4.0.7(effect@4.0.7))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.7)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
+      '@effront/vite': 0.4.0(@effront/core@0.4.0(@effect/platform-browser@4.0.7(effect@4.0.7))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.7)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
+      alchemy: 2.0.0-beta.81(@effect/platform-node@4.0.7(effect@4.0.7)(redis@6.3.0))(@effect/vitest@4.0.1(effect@4.0.7)(vitest@5.0.3))(@types/node@24.13.4)(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261009.1)(@electric-sql/pglite@0.3.15)(@libsql/client@0.17.4))(effect@4.0.7)(hono@4.13.13)(typescript@7.0.2)(ws@8.22.0)
+      effect: 4.0.7
       vite: '@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1)'
 
-  '@effront/core@0.3.1(@effect/platform-browser@4.0.1(effect@4.0.1))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.1)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)':
+  '@effront/core@0.4.0(@effect/platform-browser@4.0.7(effect@4.0.7))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.7)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)':
     dependencies:
-      '@effect/platform-browser': 4.0.1(effect@4.0.1)
-      '@vitejs/plugin-rsc': 0.5.35(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
-      effect: 4.0.1
+      '@effect/platform-browser': 4.0.7(effect@4.0.7)
+      '@vitejs/plugin-rsc': 0.5.39(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
+      effect: 4.0.7
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
     transitivePeerDependencies:
       - react-server-dom-webpack
       - vite
 
-  '@effront/tailwind@0.3.1(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))':
+  '@effront/tailwind@0.4.0(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))':
     dependencies:
       '@tailwindcss/vite': 4.3.3(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))
       tailwindcss: 4.3.3
       vite: '@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1)'
 
-  '@effront/vite@0.3.1(@effront/core@0.3.1(@effect/platform-browser@4.0.1(effect@4.0.1))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.1)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)':
+  '@effront/vite@0.4.0(@effront/core@0.4.0(@effect/platform-browser@4.0.7(effect@4.0.7))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.7)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)':
     dependencies:
-      '@effront/core': 0.3.1(@effect/platform-browser@4.0.1(effect@4.0.1))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.1)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
-      '@vitejs/plugin-react': 6.1.1(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(oxc-transform-react@0.145.0)
-      '@vitejs/plugin-rsc': 0.5.35(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
+      '@effront/core': 0.4.0(@effect/platform-browser@4.0.7(effect@4.0.7))(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.7)(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
+      '@vitejs/plugin-react': 6.2.1(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(oxc-transform-react@0.145.0)
+      '@vitejs/plugin-rsc': 0.5.39(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)
       oxc-transform-react: 0.145.0
       vite: '@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1)'
     transitivePeerDependencies:
@@ -7472,10 +7477,6 @@ snapshots:
 
   '@types/mdurl@2.0.0': {}
 
-  '@types/node@24.13.3':
-    dependencies:
-      undici-types: 7.18.2
-
   '@types/node@24.13.4':
     dependencies:
       undici-types: 7.18.2
@@ -7564,23 +7565,23 @@ snapshots:
 
   '@ungap/structured-clone@1.3.3': {}
 
-  '@vitejs/plugin-react@6.1.1(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(oxc-transform-react@0.145.0)':
+  '@vitejs/plugin-react@6.2.1(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(oxc-transform-react@0.145.0)':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
       vite: '@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1)'
     optionalDependencies:
       oxc-transform-react: 0.145.0
 
-  '@vitejs/plugin-rsc@0.5.35(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)':
+  '@vitejs/plugin-rsc@0.5.39(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.0(react@19.3.0))(react-server-dom-webpack@19.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack@5.111.1(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.5(@types/node@24.13.4))))(react@19.3.0)':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      es-module-lexer: 2.3.2
+      es-module-lexer: 3.0.4
       estree-walker: 3.0.3
-      magic-string: 1.4.2
+      magic-string: 1.4.5
       obug: 3.0.0
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
-      srvx: 0.12.8
+      srvx: 1.0.8
       strip-literal: 4.0.0
       turbo-stream: 3.2.1
       vite: '@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1)'
@@ -7909,30 +7910,30 @@ snapshots:
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
-  alchemy@2.0.0-beta.81(@effect/platform-node@4.0.1(effect@4.0.1)(redis@6.3.0))(@effect/vitest@4.0.1(effect@4.0.1)(vitest@5.0.3))(@types/node@24.13.4)(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261009.1)(@electric-sql/pglite@0.3.15)(@libsql/client@0.17.4))(effect@4.0.1)(hono@4.13.13)(typescript@7.0.2)(ws@8.22.0):
+  alchemy@2.0.0-beta.81(@effect/platform-node@4.0.7(effect@4.0.7)(redis@6.3.0))(@effect/vitest@4.0.1(effect@4.0.7)(vitest@5.0.3))(@types/node@24.13.4)(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261009.1)(@electric-sql/pglite@0.3.15)(@libsql/client@0.17.4))(effect@4.0.7)(hono@4.13.13)(typescript@7.0.2)(ws@8.22.0):
     dependencies:
-      '@alchemy.run/cloudflare-runtime': 2.0.0-beta.81(@distilled.cloud/cloudflare@1.0.0-rc.13(effect@4.0.1))(@effect/platform-node@4.0.1(effect@4.0.1)(redis@6.3.0))(@types/node@24.13.4)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.1)(rolldown@1.2.5)(typescript@7.0.2)
-      '@alchemy.run/floci': 2.0.0-beta.81(effect@4.0.1)
+      '@alchemy.run/cloudflare-runtime': 2.0.0-beta.81(@distilled.cloud/cloudflare@1.0.0-rc.13(effect@4.0.7))(@effect/platform-node@4.0.7(effect@4.0.7)(redis@6.3.0))(@types/node@24.13.4)(@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1))(effect@4.0.7)(rolldown@1.2.5)(typescript@7.0.2)
+      '@alchemy.run/floci': 2.0.0-beta.81(effect@4.0.7)
       '@alchemy.run/node-utils': 2.0.0-beta.81
       '@alchemy.run/sigil': 0.1.0-alpha.1(@types/react@19.3.0)
-      '@distilled.cloud/acme': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/aws': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/axiom': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/cloudflare': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/doppler': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/fly-io': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/gcp': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/hetzner': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/infisical': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/neon': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/planetscale': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/prisma': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/railway': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/stripe': 1.0.0-rc.13(effect@4.0.1)
-      '@distilled.cloud/zerossl': 1.0.0-rc.13(effect@4.0.1)
-      '@effect/sql-d1': 4.0.1(effect@4.0.1)
-      '@effect/sql-sqlite-do': 4.0.1(effect@4.0.1)
+      '@distilled.cloud/acme': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/aws': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/axiom': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/cloudflare': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/core': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/doppler': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/fly-io': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/gcp': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/hetzner': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/infisical': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/neon': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/planetscale': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/prisma': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/railway': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/stripe': 1.0.0-rc.13(effect@4.0.7)
+      '@distilled.cloud/zerossl': 1.0.0-rc.13(effect@4.0.7)
+      '@effect/sql-d1': 4.0.1(effect@4.0.7)
+      '@effect/sql-sqlite-do': 4.0.1(effect@4.0.7)
       '@libsql/client': 0.17.4
       '@neon/functions': 0.11.0(hono@4.13.13)
       '@octokit/rest': 22.0.1
@@ -7940,7 +7941,7 @@ snapshots:
       '@prisma/dev': 0.20.0(typescript@7.0.2)
       '@types/aws-lambda': 8.10.164
       capnweb: 0.12.0
-      effect: 4.0.1
+      effect: 4.0.7
       fflate: 0.8.3
       libsodium-wrappers: 0.8.4
       pathe: 2.0.3
@@ -7949,8 +7950,8 @@ snapshots:
       tinyglobby: 0.2.17
       yaml: 2.9.1
     optionalDependencies:
-      '@effect/platform-node': 4.0.1(effect@4.0.1)(redis@6.3.0)
-      '@effect/vitest': 4.0.1(effect@4.0.1)(vitest@5.0.3)
+      '@effect/platform-node': 4.0.7(effect@4.0.7)(redis@6.3.0)
+      '@effect/vitest': 4.0.1(effect@4.0.7)(vitest@5.0.3)
       drizzle-orm: 0.45.4(@cloudflare/workers-types@5.20261009.1)(@electric-sql/pglite@0.3.15)(@libsql/client@0.17.4)
       vite: '@voidzero-dev/vite-plus-core@1.1.0(@types/node@24.13.4)(@volar/typescript@2.4.28(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.1)'
       ws: 8.22.0
@@ -8325,7 +8326,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  effect@4.0.1: {}
+  effect@4.0.7: {}
 
   electron-to-chromium@1.5.405: {}
 
@@ -8365,6 +8366,8 @@ snapshots:
   es-errors@1.3.0: {}
 
   es-module-lexer@2.3.2: {}
+
+  es-module-lexer@3.0.4: {}
 
   es-object-atoms@1.1.2:
     dependencies:
@@ -8765,7 +8768,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 24.13.3
+      '@types/node': 24.13.4
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
@@ -9002,6 +9005,10 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.6.0
 
   magic-string@1.4.2:
+    dependencies:
+      '@jridgewell/sourcemap-codec': 1.6.0
+
+  magic-string@1.4.5:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
 
@@ -9803,7 +9810,7 @@ snapshots:
 
   space-separated-tokens@2.0.2: {}
 
-  srvx@0.12.8: {}
+  srvx@1.0.8: {}
 
   statuses@2.0.2: {}
 
@@ -9976,6 +9983,8 @@ snapshots:
 
   undici@8.11.2: {}
 
+  undici@8.12.4: {}
+
   unenv@2.0.0-rc.24:
     dependencies:
       pathe: 2.0.3
@@ -10129,7 +10138,7 @@ snapshots:
       chai: 6.2.2
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
-      magic-string: 1.4.2
+      magic-string: 1.4.5
       obug: 2.2.1
       picomatch: 4.0.7
       std-env: 4.3.0
@@ -10272,6 +10281,8 @@ snapshots:
   ws@8.21.0: {}
 
   ws@8.22.0: {}
+
+  ws@8.22.1: {}
 
   wsl-utils@1.0.1:
     dependencies:
