@@ -2,8 +2,11 @@ import { cloudflareTest } from '@cloudflare/vitest-plugin'
 import { effrontAlchemy } from '@effront/alchemy/cloudflare/vite'
 import { effrontTailwind } from '@effront/tailwind'
 import { effront } from '@effront/vite'
+import { generateIgnorePatterns } from '@totto2727/gitignore-patterns'
 import { defineConfig } from 'vite-plus'
 import { configDefaults } from 'vite-plus/test/config'
+
+const ignorePatterns = await generateIgnorePatterns(new URL('.', import.meta.url))
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
@@ -28,6 +31,7 @@ export default defineConfig({
     },
   },
   fmt: {
+    ignorePatterns,
     arrowParens: 'always',
     experimentalSortImports: { ignoreCase: true, newlinesBetween: true, order: 'asc' },
     experimentalSortPackageJson: true,
@@ -37,7 +41,7 @@ export default defineConfig({
     semi: false,
     singleQuote: true,
   },
-  lint: { options: { typeAware: true, typeCheck: true } },
+  lint: { ignorePatterns, options: { typeAware: true, typeCheck: true } },
   test: {
     projects: [
       {

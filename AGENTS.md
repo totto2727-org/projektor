@@ -104,6 +104,7 @@ JWT secrets remain Cloudflare-owned across normal deployments through standard b
 The project is consolidated into one root package and Vite+ toolchain instead of private workspace packages.
 `.node-version` pins Node.js 24.11.0 for Vite+ managed mode instead of declaring Node/pnpm compatibility ranges through `engines`; the existing pnpm `packageManager` pin remains unchanged.
 Vite+ owns all task entry points without Just, formatting/lint settings match the Vite+ app template, and tests use standard isolated projects rather than a runtime-plugin mode branch or test-runner alias shim.
+The root Vite+ config uses `@totto2727/gitignore-patterns` filesystem snapshots for formatting and lint exclusions; the frontend acceptance config inherits those settings, while the standalone build-only API config needs no check settings.
 TypeScript inherits the template's strictest and node-ts presets, with Vite's bundled module resolution, React JSX, Worker runtime types, aliases and maintained-source scope.
 The existing application/SDK contracts retain three explicit compatibility settings: exact optional properties, indexed-property syntax and unchecked index access are not additionally tightened in this toolchain migration; standard strict checking and the other preset checks remain enabled.
 Parameter properties are expanded to ordinary declarations and assignments for the template's erasable-syntax setting without changing their runtime values or error protocol.
