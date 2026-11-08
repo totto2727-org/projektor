@@ -57,6 +57,7 @@
     "@playwright/test": "^1.64.0",
     "@tailwindcss/typography": "^0.5.20",
     "@testing-library/react": "^16.3.0",
+    "@totto2727/gitignore-patterns": "^0.1.0",
     "@tsconfig/node-ts": "23.6.4",
     "@tsconfig/strictest": "2.0.8",
     "@types/markdown-it": "^14.1.2",

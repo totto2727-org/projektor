@@ -293,6 +293,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@totto2727/gitignore-patterns':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@tsconfig/node-ts':
         specifier: 23.6.4
         version: 23.6.4
@@ -2443,6 +2446,9 @@ packages:
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
 
+  '@totto2727/gitignore-patterns@0.1.0':
+    resolution: {integrity: sha512-hg8SkhlD4pDixWp3EDcsTTXkXM2KKR7H5Xl+ypqC0tced1Z7n3OG+rgBXkemOsgvYBP+TykpKztPyOrAi7ogRA==}
+
   '@ts-morph/common@0.27.0':
     resolution: {integrity: sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ==}
 
@@ -4021,6 +4027,10 @@ packages:
 
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
+    engines: {node: '>= 4'}
+
+  ignore@7.0.14:
+    resolution: {integrity: sha512-wCBiZ77u1tuWde6G/nfOtLaCTYcFDU5yCzARzK10y+rLhzYoL7a7yEemcopcc2Mzow7gZOIjnV2ym1NYmdiJOQ==}
     engines: {node: '>= 4'}
 
   immer@10.2.0:
@@ -7392,6 +7402,10 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.2
 
+  '@totto2727/gitignore-patterns@0.1.0':
+    dependencies:
+      ignore: 7.0.14
+
   '@ts-morph/common@0.27.0':
     dependencies:
       fast-glob: 3.3.3
@@ -8673,6 +8687,8 @@ snapshots:
       safer-buffer: 2.1.2
 
   ignore@5.3.2: {}
+
+  ignore@7.0.14: {}
 
   immer@10.2.0: {}
 
