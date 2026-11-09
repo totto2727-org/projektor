@@ -92,6 +92,7 @@ Upstream comparison revision: the immutable fork point above.
 Previous fork SSR checkpoint: `6c4b69697ec34ec6daa7a6773b4b6db50732b585`.
 The Web Worker uses Effront 0.4's configured `@effront/alchemy/cloudflare/application` helper with the actual application's type-only import, preserving construction capabilities and per-request application Layers without an application-owned dynamic loader.
 The four Effront consumers request `^0.4.1` without consumer declaration patches, release-age exceptions or scoped transitive overrides.
+SSR bundling uses the framework defaults without the former Markdown compatibility override of Rolldown's platform to `neutral`.
 The Effect runtime and browser/Node platform packages use normal `^4.0.2` ranges to express Effront's minimum peer requirement, without pinning around Alchemy beta.81's `effect/Crypto` compatibility.
 The permanent Worker type regression preserves concrete construction/request requirements and rejects leaked `any` types.
 The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scoped ServerFns, Base UI and dynamic Comark rendering.
