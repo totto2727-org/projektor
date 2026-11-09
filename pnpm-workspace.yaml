@@ -2,17 +2,3 @@ allowBuilds:
   esbuild: true
   workerd: true
 minimumReleaseAgeStrict: true
-# TODO: Remove after upgrading to a fixed release from https://github.com/totto2727-org/effront/pull/33.
-# Declaration paths only. The package's JavaScript and runtime behavior are unchanged.
-patchedDependencies:
-  '@effront/alchemy@0.4.0': patches/@effront__alchemy@0.4.0.patch
-# Alchemy beta.81 uses effect/Crypto, removed in Effect 4.1.
-# Keep Node's shared implementation on the same compatible 4.0 patch line.
-overrides:
-  '@effect/platform-node>@effect/platform-node-shared': '~4.0.7'
-# TODO: Remove these authorized temporary exceptions after 2026-11-09T16:30:51.871Z.
-minimumReleaseAgeExclude:
-  - '@effront/alchemy@0.4.0'
-  - '@effront/core@0.4.0'
-  - '@effront/tailwind@0.4.0'
-  - '@effront/vite@0.4.0'
