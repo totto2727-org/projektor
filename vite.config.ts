@@ -10,8 +10,6 @@ const ignorePatterns = await generateIgnorePatterns(new URL('.', import.meta.url
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
-  // Runtime Markdown's dependencies must not emit Node createRequire shims.
-  environments: { ssr: { build: { rolldownOptions: { platform: 'neutral' } } } },
   plugins: [
     effront({ application: './src/web/entry.effront.tsx' }),
     effrontAlchemy({ worker: './alchemy.ts' }),

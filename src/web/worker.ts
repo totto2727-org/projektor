@@ -1,4 +1,4 @@
-import { makeApplicationHttpEffect } from '@effront/alchemy/cloudflare'
+import { makeApplicationHttpEffect } from '@effront/alchemy/cloudflare/application'
 import { Request as WorkerRequest } from 'alchemy/Cloudflare/Workers'
 import { Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
@@ -6,6 +6,7 @@ import { HttpServerResponse } from 'effect/http'
 import { getSharedLogo } from '#commands/share'
 import { getWorkspaceLogoObject } from '#commands/workspaces'
 
+import type application from './entry.effront'
 import { downloadFile } from './file-download'
 import { RequestServices, RequestServicesLive } from './request'
 import { runCommand, commandError } from './server/command-context'
@@ -47,9 +48,7 @@ function logoResponse(request: Request) {
 /** Runtime behavior lives here, independently of deployment resources and environments. */
 export const makeWebWorker = () =>
   Effect.gen(function* () {
-    const application = yield* makeApplicationHttpEffect(() =>
-      import('./entry.effront').then((module) => module.default),
-    )
+    const applicationHttpEffect = yield* makeApplicationHttpEffect<typeof application>()
     const fetch = Effect.gen(function* () {
       const request = yield* WorkerRequest
       const url = new URL(request.url)
@@ -70,7 +69,7 @@ export const makeWebWorker = () =>
           return HttpServerResponse.empty({ status: 405, headers: { allow: 'GET, HEAD' } })
         return yield* logoResponse(request).pipe(Effect.provide(RequestServicesLive))
       }
-      return yield* application
+      return yield* applicationHttpEffect
     }).pipe(
       Effect.catchTags({
         ApiError: (error) =>

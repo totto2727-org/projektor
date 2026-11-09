@@ -30,7 +30,7 @@ CI uses the shared setup actions and Nix inputs from the Vite+ app template.
 The only workflow checks pull requests and main, then deploys production after successful checks on a main push.
 Do not add docs, plugin release or preview-link workflows.
 Use `vp` for supported operations, including install, update, tests and task execution; use Bun directly only for an operation Vite+ cannot perform.
-The pnpm 12 backend retains its default release-age window without exclusions; reviewed esbuild/workerd lifecycle permission lives in `pnpm-workspace.yaml`.
+The pnpm 12 backend retains its default release-age window and strict verification, with only the user-approved exact Effront 0.4.1 release-day exceptions until 2026-11-10T12:45:19.626Z; reviewed esbuild/workerd lifecycle permission remains in `pnpm-workspace.yaml`.
 The shell, locked Nix inputs, TypeScript 7, compiler preset versions and package-manager version track `template-vite-plus-app` revision `fcbfdb567154ca9264598bb5c6dd50713898184c`.
 This Worker application does not publish the template's Bun CLI executable, so CLI packing, npm publication checks and Nix CLI package outputs do not apply.
 Alchemy CLI supplies the native Worker host during development and deployment; a standalone root `vp build` lacks that host and is not an application task.
@@ -90,6 +90,12 @@ Fork: https://github.com/totto2727-org/projektor
 Immutable fork point: `ab122cbea1bae7efce8abe2345ce07375b9dcd13`.
 Upstream comparison revision: the immutable fork point above.
 Previous fork SSR checkpoint: `6c4b69697ec34ec6daa7a6773b4b6db50732b585`.
+The Web Worker uses Effront 0.4's configured `@effront/alchemy/cloudflare/application` helper with the actual application's type-only import, preserving construction capabilities and per-request application Layers without an application-owned dynamic loader.
+The four Effront consumers request `^0.4.1` and the official Nix/Vite+ generated lockfile resolves unpatched 0.4.1, without consumer declaration patches or scoped transitive overrides.
+Only exact `@effront/{alchemy,core,tailwind,vite}@0.4.1` have user-approved release-age exceptions, with a removal TODO after 2026-11-10T12:45:19.626Z, 24 hours after the last registry publication; old 0.4.0 exceptions were used only for stale-lock regeneration and are absent from the final policy.
+SSR bundling uses the framework defaults without the former Markdown compatibility override of Rolldown's platform to `neutral`.
+The Effect runtime and browser/Node platform packages use normal `^4.0.2` ranges to express Effront's minimum peer requirement, without pinning around Alchemy beta.81's `effect/Crypto` compatibility.
+The permanent Worker type regression preserves concrete construction/request requirements and rejects leaked `any` types.
 The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scoped ServerFns, Base UI and dynamic Comark rendering.
 Application-level styles adapt shared navigation spacing, sidebar/table dividers and Markdown table overflow without modifying generated Base UI primitives.
 The official shadcn Chart/Recharts integration replaces uPlot and the overview's independent thick-stroke SVG; Overview and Metrics share seven flow-chart implementations with raw-count stacking, native tooltips and theme tokens.
