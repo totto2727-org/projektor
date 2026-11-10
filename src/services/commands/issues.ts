@@ -1278,16 +1278,17 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 
   await ctx.db.batch(deleteStatements)
 
-  // The issue is gone once the batch commits; failing to remove its R2 bytes now only
-  // leaks storage, so log it rather than failing the request. One call for all keys.
+  // The issue is gone once the batch commits. Bound each storage request, and
+  // continue other chunks if one fails so a large issue does not strand every object.
   const r2Keys = fileAttachments.map((a) => a.r2Key).filter((k): k is string => Boolean(k))
-  if (r2Keys.length > 0) {
+  for (let offset = 0; offset < r2Keys.length; offset += 1000) {
+    const keys = r2Keys.slice(offset, offset + 1000)
     try {
-      await ctx.r2.delete(r2Keys)
+      await ctx.r2.delete(keys)
     } catch (err) {
       console.error('deleteIssue: R2 cleanup failed', {
         id,
-        count: r2Keys.length,
+        r2Keys: keys,
         err: String(err),
       })
     }

@@ -261,7 +261,11 @@ export async function uploadStoredAttachment(
     })
     return { id, filename: file.name, contentType, size: file.size }
   } catch (error) {
-    await ctx.r2.delete(r2Key)
+    try {
+      await ctx.r2.delete(r2Key)
+    } catch (cleanupError) {
+      console.error('uploadStoredAttachment: compensation failed', { r2Key, cleanupError })
+    }
     throw error
   }
 }
@@ -277,10 +281,9 @@ export async function getStoredAttachment(
   return { body: await object.arrayBuffer(), filename: metadata.filename, contentType: metadata.contentType }
 }
 
-/** Preserve metadata-first deletion and skip storage cleanup for link attachments. */
+/** The shared deletion owns both storage and metadata cleanup. */
 export async function deleteStoredAttachment(ctx: ServiceCtx, id: string): Promise<void> {
-  const { r2Key } = await deleteAttachment(ctx, { id })
-  if (r2Key) await ctx.r2.delete(r2Key)
+  await deleteAttachment(ctx, { id })
 }
 
 /** Records metadata for a file already written to R2 by the shared upload command. */
@@ -343,7 +346,7 @@ export async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<At
   return toDto(row)
 }
 
-/** Deletes the attachment row; returns the R2 key (if any) so the route can clean up storage. */
+/** Deletes bytes before metadata so a storage failure retains the authorized retry key. */
 export async function deleteAttachment(ctx: ServiceCtx, input: unknown): Promise<{ r2Key: string }> {
   const parsed = DeleteAttachmentSchema.safeParse(input)
   if (!parsed.success) throw new ValidationError(parsed.error.flatten())
@@ -360,6 +363,7 @@ export async function deleteAttachment(ctx: ServiceCtx, input: unknown): Promise
 
   if (!row) throw new NotFoundError('Not found')
   await assertEntityWritable(ctx, row.entity_type, row.entity_id)
+  if (row.r2_key) await ctx.r2.delete(row.r2_key)
 
   await ctx.db
     .prepare('DELETE FROM attachments WHERE id = ? AND workspace_id = ?')

@@ -172,6 +172,36 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     await deleteStoredAttachment(f.ctx, link.id)
     expect(f.remove).not.toHaveBeenCalled()
   })
+  it('retains metadata and quota accounting when storage deletion fails, then permits retry', async () => {
+    const f = fixture()
+    const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
+    f.remove.mockRejectedValueOnce(new Error('R2 unavailable'))
+    await expect(deleteStoredAttachment(f.ctx, uploaded.id)).rejects.toThrow('R2 unavailable')
+    expect(f.sqlite.prepare('SELECT r2_key,size FROM attachments WHERE id = ?').get(uploaded.id)).toMatchObject({
+      size: 4,
+    })
+    expect(f.objects.size).toBe(1)
+    await deleteStoredAttachment(f.ctx, uploaded.id)
+    expect(f.sqlite.prepare('SELECT id FROM attachments WHERE id = ?').get(uploaded.id)).toBeUndefined()
+    expect(f.objects.size).toBe(0)
+  })
+  it('preserves the metadata error when compensation also fails', async () => {
+    const f = fixture()
+    f.sqlite.exec(
+      "CREATE TRIGGER fail_attachment BEFORE INSERT ON attachments BEGIN SELECT RAISE(ABORT, 'original insert failure'); END",
+    )
+    f.remove.mockRejectedValueOnce(new Error('cleanup failure'))
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await expect(uploadStoredAttachment(f.ctx, input(f.file))).rejects.toThrow('original insert failure')
+      expect(log).toHaveBeenCalledWith(
+        'uploadStoredAttachment: compensation failed',
+        expect.objectContaining({ r2Key: expect.stringMatching(/^w1\//) }),
+      )
+    } finally {
+      log.mockRestore()
+    }
+  })
   it('uses finite positive configured quota or the unchanged default', () => {
     for (const value of [undefined, '', '0', '-1', 'invalid', 'Infinity'])
       expect(storageQuotaBytes({ STORAGE_QUOTA_BYTES: value })).toBe(1024 * 1024 * 1024)
