@@ -11,19 +11,10 @@ import {
 } from '#services/authentication'
 import type { AuthInfo, Role } from '#types'
 
+import { VerifiedApiOauthGrant } from '../contracts/api-auth'
 import { capabilityForOAuthScope, parseScopes, tokenAllows, type Capability } from '../contracts/auth-scopes'
 import { coreFailure } from './contract'
 import type { CoreEnvironment } from './environment'
-
-const VerifiedOauthGrant = Schema.Struct({
-  userId: Schema.String,
-  email: Schema.String,
-  name: Schema.String,
-  workspaceId: Schema.String,
-  scopes: Schema.Array(Schema.String),
-  clientId: Schema.optional(Schema.String),
-  credentialId: Schema.optional(Schema.String),
-})
 
 /** OAuth admission is supplied only by the bound API after provider verification. */
 export const CoreActor = Schema.Struct({
@@ -31,13 +22,13 @@ export const CoreActor = Schema.Struct({
   method: Schema.String,
   accessJwt: Schema.optional(Schema.String),
   bearer: Schema.optional(Schema.String),
-  verifiedOauthGrant: Schema.optional(VerifiedOauthGrant),
+  verifiedOauthGrant: Schema.optional(VerifiedApiOauthGrant),
 })
 export type CoreActor = typeof CoreActor.Type
 
 export interface CorePrincipal {
   user: AuthUser
-  auth: AuthInfo
+  auth: AuthInfo & { readonly workspaceId?: string | null }
   tokenWorkspaceId: string | null | undefined
   tokenScopes: string[] | undefined
 }
@@ -76,7 +67,14 @@ export async function resolveCorePrincipal(input: CoreActor, env: CoreEnvironmen
     const credentialId = grant.credentialId ?? (parts?.length === 3 ? parts[1] : undefined)
     return {
       user,
-      auth: { kind: 'agent', method: 'oauth', credentialId, clientId: grant.clientId, scopes },
+      auth: {
+        kind: 'agent',
+        method: 'oauth',
+        credentialId,
+        clientId: grant.clientId,
+        scopes,
+        workspaceId: grant.workspaceId,
+      },
       tokenWorkspaceId: grant.workspaceId,
       tokenScopes: scopes,
     }
@@ -141,7 +139,13 @@ async function authenticateOpaqueToken(token: string, env: CoreEnvironment): Pro
   }
   return {
     user: { id: row.user_id, email: row.email, name: row.name },
-    auth: { kind: 'agent', method: token.startsWith('pk_') ? 'pk' : 'pat', credentialId: row.id, scopes },
+    auth: {
+      kind: 'agent',
+      method: token.startsWith('pk_') ? 'pk' : 'pat',
+      credentialId: row.id,
+      scopes,
+      workspaceId: row.workspace_id,
+    },
     tokenWorkspaceId: row.workspace_id,
     tokenScopes: scopes,
   }
