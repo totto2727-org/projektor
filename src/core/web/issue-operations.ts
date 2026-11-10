@@ -5,7 +5,8 @@ import { listTaskStatuses } from '#services/task-statuses'
 import { listTaskTypes } from '#services/task-types'
 import { listWorkspaceMembers } from '#services/workspaces'
 
-import { SearchResultsSchema, WikiSearchResultsSchema } from '../../web/features/issues/action-schemas'
+import { ScopeError } from '../../contracts/errors'
+import { SearchResultsSchema, WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions'
 import {
   AttachmentsSchema,
   CommentsSchema,
@@ -17,13 +18,12 @@ import {
   TaskTypesSchema,
   normalizeStatuses,
   normalizeTaskTypes,
-} from '../../web/features/issues/types'
-import { SprintSchema } from '../../web/features/planning/schemas'
-import { authorizeDataEntity, requireDataWorkspace } from '../../web/server/data-context'
-import { ScopeError } from '../../web/server/errors'
+} from '../../contracts/web-schemas/issues'
+import { SprintSchema } from '../../contracts/web-schemas/planning'
 import { coreReply } from '../contract'
 import type { CoreEnvironment } from '../environment'
 import { loadBrowserScope, publicWebFailure } from './authentication'
+import { authorizeDataEntity, requireDataWorkspace } from './data-context'
 import * as data from './issue-data'
 import { CoreReadServices } from './read-services'
 import type { RequestScope, WebRequest } from './scope'

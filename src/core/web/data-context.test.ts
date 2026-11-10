@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vite-plus/test'
 
 import { schema } from '#db'
 
+import { ApiError } from '../../contracts/errors'
 import {
   authorizeDataEntity,
   dataError,
@@ -11,8 +12,7 @@ import {
   requireDataWorkspace,
   visibleProjectPredicate,
 } from './data-context'
-import { ApiError } from './errors'
-import type { RequestScope } from './request-context'
+import type { RequestScope } from './scope'
 
 const workspace = { id: 'wa', slug: 'alpha', name: 'Alpha', role: 'member' } as const
 const project = {

@@ -6,6 +6,7 @@ import { schema } from '#db'
 import { listAttachments } from '#services/files'
 import * as wikiData from '#services/wiki'
 
+import { ApiError, ScopeError } from '../../contracts/errors'
 import {
   Attachment,
   Draft,
@@ -16,17 +17,16 @@ import {
   StalePage,
   Template,
   Tree,
-} from '../../web/features/wiki/schemas'
+} from '../../contracts/web-schemas/wiki'
 import type { WikiSeed } from '../../web/features/wiki/WikiPageClient'
+import type { CoreEnvironment } from '../environment'
 import {
   dataError,
   requireDataDatabase,
   requireDataProject,
   requireDataWorkspace,
   visibleProjectPredicate,
-} from '../../web/server/data-context'
-import { ApiError, ScopeError } from '../../web/server/errors'
-import type { CoreEnvironment } from '../environment'
+} from './data-context'
 import type { RequestScope } from './scope'
 import { pageFreshness as freshness, readAuthorizedWikiPage } from './wiki-policy'
 

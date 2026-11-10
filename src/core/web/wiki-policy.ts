@@ -4,14 +4,9 @@ import { Effect } from 'effect'
 import { listProjects } from '#services/projects'
 import * as wikiData from '#services/wiki'
 
-import {
-  authorizeDataEntity,
-  dataError,
-  requireDataWorkspace,
-  visibleProjectPredicate,
-} from '../../web/server/data-context'
-import { ApiError, ScopeError } from '../../web/server/errors'
+import { ApiError, ScopeError } from '../../contracts/errors'
 import type { CoreEnvironment } from '../environment'
+import { authorizeDataEntity, dataError, requireDataWorkspace, visibleProjectPredicate } from './data-context'
 import type { RequestScope } from './scope'
 
 /** An existing archived page follows the same workspace/grant policy in SSR and ServerFns. */

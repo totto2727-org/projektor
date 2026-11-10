@@ -13,13 +13,13 @@ import {
   ProjectMutationResultSchema,
   ProjectOverviewSchema,
   ProjectSummariesSchema,
-} from '../../web/features/projects/schemas'
-import { requireDataProject, projectSummaryVisibility, visibleProjectPredicate } from '../../web/server/data-context'
+} from '../../contracts/web-schemas/projects'
 import { coreFailure, coreReply } from '../contract'
 import type { CoreEnvironment } from '../environment'
 import { loadBrowserScope } from './authentication'
 import { browserCommand } from './command'
 import type { BrowserCommand } from './command-contract'
+import { requireDataProject, projectSummaryVisibility, visibleProjectPredicate } from './data-context'
 import { checked } from './issue-data'
 import { webRead } from './issue-operations'
 import type { WebRequest } from './scope'

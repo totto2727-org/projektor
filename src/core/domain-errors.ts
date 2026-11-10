@@ -7,7 +7,7 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from '#commands/errors'
+} from '../contracts/errors'
 
 import { coreFailure } from './contract'
 

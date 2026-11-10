@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 
-import { WikiSeedDataSchema } from '../../web/features/wiki/schemas'
+import { WikiSeedDataSchema } from '../../contracts/web-schemas/wiki'
 import { coreReply } from '../contract'
 import type { CoreEnvironment } from '../environment'
 import { webRead } from './issue-operations'

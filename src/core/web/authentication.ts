@@ -4,7 +4,7 @@ import { getUserWorkspaces } from '#commands/user-tokens'
 import { authenticateBrowser, BrowserAuthenticationError } from '#services/authentication'
 import { listProjectSummaries } from '#services/projects'
 
-import { ApiError, ScopeError } from '../../web/server/errors'
+import { ApiError, ScopeError } from '../../contracts/errors'
 import { coreFailure } from '../contract'
 import type { CoreEnvironment } from '../environment'
 import {

@@ -9,22 +9,22 @@ import { listLinksForIssue } from '#services/issue-links'
 import * as issueQueries from '#services/issues'
 import { searchWiki } from '#services/wiki'
 
-import { WikiSearchResultsSchema } from '../../web/features/issues/action-schemas'
+import { ScopeError } from '../../contracts/errors'
+import { WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions'
 import {
   normalizeAttachments,
   normalizeComments,
   normalizeIssue,
   normalizeIssuePage,
   normalizeLinks,
-} from '../../web/features/issues/types'
+} from '../../contracts/web-schemas/issues'
 import {
   authorizeDataEntity,
   dataError,
   requireDataProject,
   requireDataWorkspace,
   visibleProjectPredicate,
-} from '../../web/server/data-context'
-import { ScopeError } from '../../web/server/errors'
+} from './data-context'
 import { CoreReadServices as RequestServices } from './read-services'
 import type { RequestScope } from './scope'
 

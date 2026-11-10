@@ -5,8 +5,8 @@ import * as wiki from '#commands/wiki'
 import * as drafts from '#commands/wiki-drafts'
 import * as data from '#services/wiki'
 
-import { Created, Deleted, Draft, Ok, Page, Restored, SavedDraft, Verified } from '../../web/features/wiki/schemas'
-import { ApiError } from '../../web/server/errors'
+import { ApiError } from '../../contracts/errors'
+import { Created, Deleted, Draft, Ok, Page, Restored, SavedDraft, Verified } from '../../contracts/web-schemas/wiki'
 import { coreFailure, coreReply } from '../contract'
 import type { CoreEnvironment } from '../environment'
 import { browserCommand } from './command'
@@ -106,7 +106,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
   }
 }
 
-import { requireDataWorkspace } from '../../web/server/data-context'
+import { requireDataWorkspace } from '../../contracts/web-data'
 import { loadBrowserScope, publicWebFailure } from './authentication'
 import { checked } from './issue-data'
 function importScope(env: CoreEnvironment, proof: BrowserCommand) {
