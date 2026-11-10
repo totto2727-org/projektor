@@ -73,6 +73,17 @@ describe('API Core authorization and presentation boundaries', () => {
     expect(f.sqlite.prepare("SELECT id FROM workspaces WHERE slug='new'").get()).toBeUndefined()
   })
 
+  it('enforces read capability independently on global catalogs and auth bootstrap', async () => {
+    const f = await fixture()
+    f.sqlite.exec("UPDATE api_tokens SET scopes='[]' WHERE id='token'")
+    await expect(reply(ApiResults.apiListWorkspaces, f.handlers.apiListWorkspaces(f.actor))).rejects.toMatchObject({
+      status: 403,
+    })
+    await expect(reply(ApiUserBootstrap, f.handlers.apiUserBootstrap(f.actor))).rejects.toMatchObject({
+      status: 403,
+    })
+  })
+
   it('authenticates before revealing whether a target workspace exists', async () => {
     const f = await fixture()
     const unauthorized = { ...f.actor, bearer: 'invalid' }
