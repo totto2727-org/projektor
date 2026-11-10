@@ -1,5 +1,6 @@
 import { Effect, Schema } from 'effect'
 
+import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '../../../contracts/web-limits'
 import { dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context'
 import { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
@@ -32,7 +33,7 @@ export function loadSprintIssues(projectId: string, workspaceSlug: string, scope
     let cursor: string | undefined
     let nextCursor: string | null
     do {
-      const query = new URLSearchParams({ projectId, limit: '100' })
+      const query = new URLSearchParams({ project: projectId, limit: String(AGGREGATE_PAGE_SIZE) })
       if (cursor) query.set('cursor', cursor)
       const page = yield* readDataIssuePage(scope, workspace.id, query).pipe(
         Effect.flatMap(Schema.decodeUnknownEffect(IssuePageSchema)),
@@ -40,6 +41,12 @@ export function loadSprintIssues(projectId: string, workspaceSlug: string, scope
       )
       issues.push(...page.items)
       nextCursor = page.nextCursor
+      if (issues.length > MAX_AGGREGATE_ISSUES || (issues.length === MAX_AGGREGATE_ISSUES && nextCursor))
+        return yield* new ApiError(
+          'request',
+          422,
+          `Sprint overview supports at most ${MAX_AGGREGATE_ISSUES} issues. Use the paginated issue list for larger projects.`,
+        )
       if (nextCursor && cursors.has(nextCursor))
         return yield* new ApiError('schema', 502, 'Repeated issue pagination cursor')
       if (nextCursor) {

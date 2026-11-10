@@ -64,8 +64,12 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
       ),
     webIssuePage: (request: WebRequest, workspaceId: string, query: string) =>
       reply('webIssuePage', IssuePageSchema, (env) =>
-        webRead(env, request, workspaceId, (scope) =>
-          data.readDataIssuePage(scope, workspaceId, new URLSearchParams(query)),
+        webRead(
+          env,
+          request,
+          workspaceId,
+          (scope) => data.readDataIssuePage(scope, workspaceId, new URLSearchParams(query)),
+          new URLSearchParams(query).get('project') ?? undefined,
         ),
       ),
     webIssueSearch: (request: WebRequest, workspaceId: string, query: string, projectId?: string) =>

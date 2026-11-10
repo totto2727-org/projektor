@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vite-plus/test'
 import { resetProvisioningCacheForTests } from '#commands/provisioning'
 import { resetAuthCachesForTests } from '#services/authentication'
 
+import { coreResult, browserRequest } from '../../core'
 import { makeRequestServices, RequestServices } from '../../request'
 import type { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
@@ -87,15 +88,28 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       .exec(`INSERT INTO custom_field_definitions (id,workspace_id,key,label,type,created_at) VALUES ('points','w1','story_points','Story points','number',1);
 			INSERT INTO custom_field_values (issue_id,field_id,value) VALUES ('i000','points','5');
 			INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at) VALUES ('private','w2','foreign',1,'Private','u1',999,999)`)
+    database.sqlite.exec(
+      "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at) VALUES ('other-project-issue','w1','other',1,'Other project','u1',998,998)",
+    )
     const run = runWithDatabase(database, new URL('https://front.example/sprints'), (scope) =>
       loadSprintIssues('p1', 'alpha', scope),
     )
     const issues = await run.result
+    expect(issues.some((item) => item.id === 'other-project-issue')).toBe(false)
     expect(issues).toHaveLength(205)
     expect(new Set(issues.map((item) => item.id)).size).toBe(205)
     expect(issues.find((item) => item.id === 'i000')?.customFields).toEqual([{ key: 'story_points', value: '5' }])
     expect(issues.some((item) => item.id === 'private')).toBe(false)
     expect(run.transport).toHaveBeenCalledTimes(0)
+  })
+  it('rejects aggregates over the explicit budget instead of returning partial velocity', async () => {
+    const database = featureDatabase()
+    issueRows(database, 1001)
+    await expect(
+      runWithDatabase(database, new URL('https://front.example/sprints'), (scope) =>
+        loadSprintIssues('p1', 'alpha', scope),
+      ).result,
+    ).rejects.toMatchObject({ _tag: 'ApiError', status: 422 })
   })
   it('rejects inaccessible selected projects before loading project data', async () => {
     const database = featureDatabase()
@@ -111,13 +125,37 @@ describe('planning SSR named shared queries on real migrated D1', () => {
         renderSprints(scope, new URL('https://front.example/sprints?status=archived')),
       ).result,
     ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
-    for (const query of ['since=2026-10-04&until=2026-10-01', 'since=2026-02-30']) {
+    for (const query of [
+      'since=2026-10-04&until=2026-10-01',
+      'since=2026-02-30',
+      'since=2020-01-01&until=2026-01-01',
+    ]) {
       await expect(
         runWithDatabase(database, new URL('https://front.example/metrics'), (scope) =>
           renderMetrics(scope, new URL(`https://front.example/metrics?${query}`)),
         ).result,
       ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
     }
+  })
+  it('private Core rejects excessive metrics ranges with HTTP 400 before chart allocation', async () => {
+    const database = featureDatabase()
+    const run = runWithDatabase(database, new URL('https://front.example/metrics'), () =>
+      Effect.gen(function* () {
+        const services = yield* RequestServices
+        return yield* coreResult(
+          MetricsSchema,
+          services.core.webFlowMetrics(browserRequest(services.request), 'w1', {
+            projectId: 'p1',
+            since: 0,
+            until: 366 * 86400,
+            granularity: 'day',
+            mode: 'claims',
+            prefix: '',
+          }),
+        )
+      }),
+    )
+    await expect(run.result).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
   })
   it('uses the exact UTC metrics window and contention prefix from the URL against real rows', async () => {
     const database = featureDatabase()

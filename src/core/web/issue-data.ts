@@ -63,7 +63,17 @@ const IssueListQuerySchema = Schema.fromURLSearchParams(
     cfKey: Schema.optional(Schema.String),
     cfValue: Schema.optional(Schema.String),
     cfOp: Schema.optional(Schema.Literals(['eq', 'gt', 'gte', 'lt', 'lte'])),
-  }),
+  }).check(
+    Schema.makeFilter(
+      (query) =>
+        (query.completedAfter === undefined ||
+          query.completedBefore === undefined ||
+          query.completedAfter <= query.completedBefore) &&
+        (query.updatedAfter === undefined ||
+          query.updatedBefore === undefined ||
+          query.updatedAfter <= query.updatedBefore),
+    ),
+  ),
 )
 function listOptions(params: URLSearchParams, scope: RequestScope) {
   return Schema.decodeUnknownEffect(IssueListQuerySchema)(params).pipe(

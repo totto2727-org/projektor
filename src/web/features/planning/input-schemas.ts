@@ -1,5 +1,7 @@
 import { Schema } from 'effect'
 
+import { MAX_METRICS_DAYS } from '../../../contracts/web-limits'
+
 export const SprintListModeSchema = Schema.Literals(['all', 'planned', 'active', 'completed'])
 export type SprintListMode = typeof SprintListModeSchema.Type
 
@@ -102,6 +104,13 @@ export const MetricsWindowSchema = Schema.Struct({
       value.since <= value.until || {
         path: ['until'],
         issue: 'To date must not precede From date.',
+      },
+  ),
+  Schema.makeFilter(
+    (value) =>
+      (Date.parse(value.until) - Date.parse(value.since)) / 86400000 < MAX_METRICS_DAYS || {
+        path: ['until'],
+        issue: `Choose a range of at most ${MAX_METRICS_DAYS} days.`,
       },
   ),
 )

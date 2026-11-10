@@ -113,6 +113,15 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(html).toContain('Original issue')
     expect(html).toContain('<strong>Original description</strong>')
   })
+  it('preserves an explicit archived project filter without granting hidden archived projects', async () => {
+    const data = fixture()
+    data.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id IN ('project-a', 'hidden-project')")
+    const page = await data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams({ project: project.id })))
+    expect(page.items.map((item) => item.id)).toContain('issue-a')
+    await expect(
+      data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams({ project: 'hidden-project' }))),
+    ).rejects.toMatchObject({ status: 404 })
+  })
   it('does not fetch an unauthorized workspace or expand an unauthorized catalog project', async () => {
     const data = fixture()
     expect(
@@ -173,6 +182,29 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(new Set(result.issues.map((entry) => entry.id)).size).toBe(105)
     expect(new Set(result.issues.map((entry) => entry.workspaceSlug))).toEqual(new Set([workspace.slug, other.slug]))
   })
+  it('rejects oversized board aggregates but keeps the ordinary list paginated', async () => {
+    const data = fixture()
+    for (let i = 0; i < 1000; i++) data.insertIssue({ id: `budget-${i}`, number: 100 + i })
+    await expect(
+      data.run(
+        loadIssues(selected, new URL('https://front.test/issues?workspace=workspace&projectId=project-a&view=board')),
+      ),
+    ).rejects.toMatchObject({ status: 422 })
+    const result = await data.run(
+      loadIssues(selected, new URL('https://front.test/issues?workspace=workspace&projectId=project-a&view=list')),
+    )
+    expect(result?.initialData.page.items).toHaveLength(30)
+    expect(result?.initialData.page.nextCursor).not.toBeNull()
+  })
+  it.each(['dateField=updated&dateFrom=2026-02-30', 'dateField=completed&dateFrom=2026-10-04&dateTo=2026-10-01'])(
+    'rejects invalid calendar query %s',
+    async (query) => {
+      const data = fixture()
+      await expect(
+        data.run(loadIssues(scope, new URL(`https://front.test/issues?workspace=workspace&${query}`))),
+      ).rejects.toMatchObject({ status: 400 })
+    },
+  )
   it('loads complete board sets and performs project-scoped real FTS search', async () => {
     const data = fixture()
     for (let i = 0; i < 102; i++)

@@ -16,12 +16,16 @@ interface KeyedById {
   id: string
 }
 
-// Convert a YYYY-MM-DD date-input value to epoch seconds in local time
-// (PROJ-212). `endOfDay` makes the upper bound inclusive of the whole day.
+// Date filters use UTC calendar days consistently during SSR and in the browser.
 function dateInputToTs(dateStr: string, endOfDay: boolean): number {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  const date = endOfDay ? new Date(y, m - 1, d, 23, 59, 59) : new Date(y, m - 1, d, 0, 0, 0)
-  return Math.floor(date.getTime() / 1000)
+  const timestamp = Date.parse(`${dateStr}T00:00:00Z`)
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ||
+    !Number.isFinite(timestamp) ||
+    new Date(timestamp).toISOString().slice(0, 10) !== dateStr
+  )
+    return Number.NaN
+  return timestamp / 1000 + (endOfDay ? 86399 : 0)
 }
 
 function applyEpicParams(

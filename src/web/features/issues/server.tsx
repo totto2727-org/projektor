@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 import type { ReactElement } from 'react'
 
+import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '../../../contracts/web-limits'
 import { renderMarkdownDocument } from '../../components/markdown/render'
 import { RequestServices } from '../../request'
 import { requireDataProject, requireDataWorkspace } from '../../server/data-context'
@@ -86,11 +87,19 @@ function allPages(
   query: URLSearchParams,
 ): Effect.Effect<IssuePage, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
+    query = new URLSearchParams(query)
+    query.set('limit', String(AGGREGATE_PAGE_SIZE))
     const page = yield* readDataIssuePage(scope, workspaceId, query)
     const items = [...page.items]
     let cursor = page.nextCursor
     const seen = new Set<string>()
     while (cursor != null) {
+      if (items.length >= MAX_AGGREGATE_ISSUES)
+        return yield* new ApiError(
+          'request',
+          422,
+          `This view supports at most ${MAX_AGGREGATE_ISSUES} issues. Narrow the filters or use the paginated list.`,
+        )
       if (seen.has(String(cursor)))
         return yield* new ApiError('schema', 502, 'The data query returned a repeated issue cursor.')
       seen.add(String(cursor))

@@ -37,9 +37,11 @@ function errorResponse(error: PageFailure) {
         ? 'You do not have access to this workspace or project.'
         : status === 404
           ? 'The requested page was not found.'
-          : status === 400
-            ? 'The page address is invalid.'
-            : 'The page is temporarily unavailable. Please try again.'
+          : status === 422
+            ? 'This view exceeds its supported data range. Narrow the date or issue filters, or use the paginated issue list.'
+            : status === 400
+              ? 'The page address is invalid.'
+              : 'The page is temporarily unavailable. Please try again.'
   return HttpServerResponse.text(
     `<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Projektor</title><main><h1>${message}</h1><a href="/">View projects</a></main></html>`,
     {

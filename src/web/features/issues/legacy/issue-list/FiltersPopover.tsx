@@ -143,7 +143,7 @@ function DateRangeFilter({
       {filterDateField && (
         <div className='flex gap-2 mt-2'>
           <label className='flex-1 text-[0.7rem] text-text-muted'>
-            From
+            From (UTC){' '}
             <input
               type='date'
               aria-label='From date'
@@ -153,7 +153,7 @@ function DateRangeFilter({
             />
           </label>
           <label className='flex-1 text-[0.7rem] text-text-muted'>
-            To
+            To (UTC){' '}
             <input
               type='date'
               aria-label='To date'
