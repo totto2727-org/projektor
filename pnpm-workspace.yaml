@@ -1,10 +1,11 @@
-packages:
-  - 'apps/*'
-  - 'packages/*'
-  - 'plugins/*'
-
-onlyBuiltDependencies:
-  - esbuild
-  - lefthook
-  - sharp
-  - workerd
+allowBuilds:
+  esbuild: true
+  workerd: true
+minimumReleaseAgeStrict: true
+# User-approved release-day exception for the published 0.4.1 fixes only.
+# TODO: Remove after 2026-11-10T12:45:19.626Z, 24h after the last publication.
+minimumReleaseAgeExclude:
+  - '@effront/alchemy@0.4.1'
+  - '@effront/core@0.4.1'
+  - '@effront/tailwind@0.4.1'
+  - '@effront/vite@0.4.1'

@@ -1,0 +1,18 @@
+dist/
+test-results/
+playwright-report/
+.runtime/
+# Temporary local runtime diagnostic evidence, not maintained source.
+acceptance-run.log
+acceptance-diagnostic.log
+acceptance-neutral.log
+acceptance-workflows.log
+acceptance-workflows-retry.log
+acceptance-final.log
+acceptance-audited.log
+acceptance-single-runtime.log
+discovery-audited/
+api-auth.headers
+api-auth.json
+frontend-failure.headers
+initial-response.html

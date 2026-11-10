@@ -17,6 +17,7 @@
 Projektor is an issue tracker and wiki that an AI coding agent runs as well as you do.
 It holds issues, boards, sprints and a wiki, and it exposes
 <!-- gen-mcp-stats:start -->122 tools across 22 domains<!-- gen-mcp-stats:end --> over MCP,
+
 so the agent files the ticket, moves it and writes the page instead of asking you to.
 The whole thing is one Cloudflare Worker in your own account.
 
@@ -47,7 +48,7 @@ work, a coordination layer so two agents do not edit the same file, and worktree
 tooling to keep their checkouts apart. That leaves two or three sources of truth about
 what is being worked on, and nothing that can answer a question spanning them.
 
-In Projektor the coordination state *is* the work graph. The lease is on the issue and
+In Projektor the coordination state _is_ the work graph. The lease is on the issue and
 the claim is on the file, in one schema behind one auth boundary:
 
 - **Issue leases** — an agent takes a work-item lease before starting, and a
@@ -84,8 +85,8 @@ about what each of those does better.
 
 When a claim collides, most systems return an error and forget it. Projektor writes the
 contended path to an event log — whether the claim was refused or forced through — and
-ranks it, so the code heatmap has two modes: where the fleet is *working*, and where the
-fleet is *colliding*.
+ranks it, so the code heatmap has two modes: where the fleet is _working_, and where the
+fleet is _colliding_.
 
 That closes a loop back into the backlog. A directory that shows up hot in contention
 week after week is telling you something about how the work is sliced — two tickets that
@@ -165,16 +166,16 @@ the protocol reference and the full tool catalog.
 
 ## Where to go next
 
-| | |
-|---|---|
-| [Getting started](https://tajd.github.io/projektor/guides/getting-started/) | first workspace, projects, issues |
-| [Self-hosting](https://tajd.github.io/projektor/guides/self-hosting/) and [deploying](https://tajd.github.io/projektor/guides/deploying/) | Cloudflare setup, API token scopes, updates |
-| [MCP connection](https://tajd.github.io/projektor/agents/mcp-connection/) and [tool catalog](https://tajd.github.io/projektor/agents/tool-catalog/) | wiring an agent up, every tool it gets |
-| [Agentic workflows](https://tajd.github.io/projektor/agents/agent-workflows/) | how agents are meant to use the tracker |
-| [Coordination model](https://tajd.github.io/projektor/philosophy/coordination-model/) | leases, claims, liveness and contention as a designed system |
-| [How Projektor differs](https://tajd.github.io/projektor/philosophy/alternatives/) | compared against beads, MCP Agent Mail, Hiveship, Linear |
-| [System design](https://tajd.github.io/projektor/architecture/system-design/) | the two surfaces and the service layer beneath them |
-| [AGENTS.md](./AGENTS.md) | contributor guide: conventions, file layout, the service-layer contract |
+|                                                                                                                                                     |                                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [Getting started](https://tajd.github.io/projektor/guides/getting-started/)                                                                         | first workspace, projects, issues                                       |
+| [Self-hosting](https://tajd.github.io/projektor/guides/self-hosting/) and [deploying](https://tajd.github.io/projektor/guides/deploying/)           | Cloudflare setup, API token scopes, updates                             |
+| [MCP connection](https://tajd.github.io/projektor/agents/mcp-connection/) and [tool catalog](https://tajd.github.io/projektor/agents/tool-catalog/) | wiring an agent up, every tool it gets                                  |
+| [Agentic workflows](https://tajd.github.io/projektor/agents/agent-workflows/)                                                                       | how agents are meant to use the tracker                                 |
+| [Coordination model](https://tajd.github.io/projektor/philosophy/coordination-model/)                                                               | leases, claims, liveness and contention as a designed system            |
+| [How Projektor differs](https://tajd.github.io/projektor/philosophy/alternatives/)                                                                  | compared against beads, MCP Agent Mail, Hiveship, Linear                |
+| [System design](https://tajd.github.io/projektor/architecture/system-design/)                                                                       | the two surfaces and the service layer beneath them                     |
+| [AGENTS.md](./AGENTS.md)                                                                                                                            | contributor guide: conventions, file layout, the service-layer contract |
 
 ## Development
 
