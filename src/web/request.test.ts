@@ -56,6 +56,29 @@ describe('request-scoped native services', () => {
     expect(await Effect.runPromise(getRouteParams)).toEqual({})
   })
 
+  it('keeps request-local cache key classes out of native browserScope arguments', async () => {
+    const database = fixture()
+    const env = testEnvironment(database.db, 'first@example.test')
+    const original = env.CORE.browserScope
+    let checked = false
+    env.CORE.browserScope = (request, options) => {
+      expect(Object.getPrototypeOf(options)).toBe(Object.prototype)
+      expect(Object.keys(options).sort()).toEqual([
+        'projectHint',
+        'requireProject',
+        'requireWorkspace',
+        'workspaceHint',
+      ])
+      checked = true
+      return original(request, options)
+    }
+    const services = await Effect.runPromise(makeRequestServices(incoming(), env))
+    await expect(
+      Effect.runPromise(services.scope({ workspaceHint: 'alpha', requireWorkspace: true })),
+    ).resolves.toMatchObject({ selection: { kind: 'workspace' } })
+    expect(checked).toBe(true)
+  })
+
   it('shares concurrent work only inside one verified identity request', async () => {
     const database = fixture()
     const result = await Effect.runPromise(

@@ -125,6 +125,27 @@ describe('Core native RPC public boundary', () => {
     expect(result.message).toBe('The Core service is temporarily unavailable.')
   })
 
+  it.each(['transport', 'reply'] as const)(
+    'records %s diagnostic correlation without exposing it in the public error',
+    async (stage) => {
+      const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      try {
+        const invocation =
+          stage === 'transport' ? Effect.fail(new Error('private detail')) : Effect.succeed('invalid wire')
+        const problem = await Effect.runPromise(Effect.flip(decodeCoreReply(Success, invocation)))
+        expect(problem).toMatchObject({ status: 502 })
+        expect(JSON.stringify(problem)).not.toContain('private detail')
+        expect(JSON.stringify(problem)).not.toContain('invalid wire')
+        expect(log).toHaveBeenCalledWith(
+          '[core-client]',
+          expect.objectContaining({ stage, occurrenceId: problem.occurrenceId, diagnostic: expect.any(String) }),
+        )
+      } finally {
+        log.mockRestore()
+      }
+    },
+  )
+
   it('preserves interruption rather than returning an application failure', async () => {
     const reply = await Effect.runPromiseExit(coreReply('load', Success, Effect.interrupt))
     expect(Exit.isFailure(reply) && Cause.hasInterruptsOnly(reply.cause)).toBe(true)
