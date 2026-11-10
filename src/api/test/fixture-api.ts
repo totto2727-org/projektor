@@ -13,6 +13,9 @@ type FixtureOperations = Pick<
   | 'fixtureR2'
   | 'fixtureSession'
   | 'fixtureLimiterCalls'
+  | 'fixtureObservations'
+  | 'fixtureResetObservations'
+  | 'fixtureResetAuthCaches'
 >
 type FixtureCore = {
   [Key in keyof FixtureOperations]: (
@@ -73,6 +76,18 @@ const directCore = new Proxy(
     },
   },
 )
+
+export async function resetCoreAuthCaches(): Promise<void> {
+  await originalCore.fixtureResetAuthCaches()
+}
+
+export async function resetCoreObservations(): Promise<void> {
+  await originalCore.fixtureResetObservations(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')
+}
+
+export async function getCoreObservations() {
+  return originalCore.fixtureObservations(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')
+}
 
 export async function getCoreLimiterCalls(): Promise<number> {
   return originalCore.fixtureLimiterCalls(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')

@@ -5,6 +5,7 @@ import { Effect } from 'effect'
 
 import { isCoreEnvironment, type CoreEnvironment, type CoreEnvironmentSource } from '../../src/core/environment'
 import { makeCoreHandlersWithEnvironment } from '../../src/core/worker'
+import { resetAuthCachesForTests } from '../../src/services/authentication'
 import { Core as CoreIdentity } from '../../src/workers/identities'
 
 // Test-only composition uses the same named domain handlers and official bridge.
@@ -18,12 +19,22 @@ const fixtureEnvironmentSource: CoreEnvironmentSource = Effect.gen(function* () 
     invocation: { waitUntil: (promise: Promise<unknown>) => context.raw.waitUntil(promise) },
   }
   if (!isCoreEnvironment(environment)) return yield* Effect.die(new Error('Invalid native fixture bindings'))
-  return environment
+  return instrumentEnvironment(environment, context.raw.props)
 })
 
 const FixtureCoreLive = CoreIdentity.make(
   Effect.succeed({ name: 'projektor-native-core', main: import.meta.url }),
-  makeCoreHandlersWithEnvironment(fixtureEnvironmentSource),
+  makeCoreHandlersWithEnvironment(fixtureEnvironmentSource).pipe(
+    Effect.map((handlers) => ({
+      ...handlers,
+      apiAuthenticate: (...args: Parameters<typeof handlers.apiAuthenticate>) =>
+        Effect.gen(function* () {
+          const context = yield* WorkerExecutionContext
+          observationFor(context.raw.props).authenticateCalls++
+          return yield* handlers.apiAuthenticate(...args)
+        }),
+    })),
+  ),
 )
 const FixtureCore = makeWorkerBridge(WorkerEntrypoint, {
   entrypoint: CoreIdentity.pipe(Effect.provide(FixtureCoreLive)),
@@ -44,6 +55,99 @@ export interface FixtureQuery extends FixtureStatement {
 export type FixtureConfiguration = Readonly<Record<string, string | null>>
 
 export type FixtureLimiterMode = 'native' | 'absent' | 'reject' | 'hang'
+
+export interface FixtureObservations {
+  authenticateCalls: number
+  jwksFetches: string[]
+  authCacheGets: string[]
+  authCachePuts: string[]
+  cacheDeletes: string[]
+  broadcasts: { url: string; body: string }[]
+}
+
+const observations = new Map<string, FixtureObservations>()
+function observationFor(props: unknown): FixtureObservations {
+  const epoch = configuration(props ?? {}).RATE_LIMIT_TEST_EPOCH ?? ''
+  let observation = observations.get(epoch)
+  if (!observation) {
+    observation = {
+      authenticateCalls: 0,
+      jwksFetches: [],
+      authCacheGets: [],
+      authCachePuts: [],
+      cacheDeletes: [],
+      broadcasts: [],
+    }
+    observations.set(epoch, observation)
+  }
+  return observation
+}
+
+function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnvironment {
+  const observation = observationFor(props)
+  const settings = configuration(props ?? {})
+  const rejectDelete = settings.FIXTURE_CACHE_DELETE_MODE === 'reject'
+  const matches = (name: string, prefix: string | undefined) =>
+    prefix !== undefined && (name === prefix || name.startsWith(`${prefix}:`))
+  return {
+    ...env,
+    KV: new Proxy(env.KV, {
+      get(target, key): unknown {
+        if (key === 'get')
+          return (...args: unknown[]) => {
+            const name = args[0]
+            if (typeof name === 'string') {
+              observation.authCacheGets.push(name)
+              if (matches(name, settings.FIXTURE_AUTH_KV_GET_FAILURE))
+                return Promise.reject(new Error('Fixture auth KV read unavailable'))
+            }
+            const get: unknown = Reflect.get(target, 'get')
+            if (typeof get !== 'function') throw new Error('Missing native KV get')
+            return Reflect.apply(get, target, args)
+          }
+        if (key === 'put')
+          return (...args: Parameters<typeof target.put>) => {
+            observation.authCachePuts.push(args[0])
+            if (matches(args[0], settings.FIXTURE_AUTH_KV_PUT_FAILURE))
+              return Promise.reject(new Error('Fixture auth KV write unavailable'))
+            return target.put(...args)
+          }
+        if (key === 'delete')
+          return async (name: string) => {
+            observation.cacheDeletes.push(name)
+            if (rejectDelete) throw new Error('10048: your account has reached the free usage limit')
+            return target.delete(name)
+          }
+        const value: unknown = Reflect.get(target, key)
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    }),
+    WORKSPACE_HUB:
+      env.WORKSPACE_HUB &&
+      new Proxy(env.WORKSPACE_HUB, {
+        get(target, key): unknown {
+          if (key === 'get')
+            return (...args: Parameters<typeof target.get>) => {
+              const stub = target.get(...args)
+              return new Proxy(stub, {
+                get(inner, member): unknown {
+                  if (member === 'fetch')
+                    return async (...fetchArgs: Parameters<typeof inner.fetch>) => {
+                      const request = new Request(...fetchArgs)
+                      observation.broadcasts.push({ url: request.url, body: await request.clone().text() })
+                      return inner.fetch(request)
+                    }
+                  const value: unknown = Reflect.get(inner, member)
+                  return typeof value === 'function' ? value.bind(inner) : value
+                },
+              })
+            }
+          const value: unknown = Reflect.get(target, key)
+          return typeof value === 'function' ? value.bind(target) : value
+        },
+      }),
+  }
+}
 
 const fixtureLimiterCalls = new Map<string, number>()
 
@@ -164,6 +268,27 @@ export default class NativeFixtureCore extends FixtureCore {
       Session: (options: { props: FixtureConfiguration }) => Fetcher
     }
     return exports.Session({ props: settings })
+  }
+
+  fixtureResetAuthCaches(): void {
+    resetAuthCachesForTests()
+  }
+
+  fixtureObservations(epoch: string): FixtureObservations {
+    return (
+      observations.get(epoch) ?? {
+        authenticateCalls: 0,
+        jwksFetches: [],
+        authCacheGets: [],
+        authCachePuts: [],
+        cacheDeletes: [],
+        broadcasts: [],
+      }
+    )
+  }
+
+  fixtureResetObservations(epoch: string): void {
+    observations.delete(epoch)
   }
 
   fixtureLimiterCalls(epoch: string): number {
