@@ -46,6 +46,33 @@ function fixture() {
 }
 
 describe('agent session ownership at shared command boundaries', () => {
+  it('denies foreign admin act-as but permits explicit administrative cleanup', async () => {
+    const f = fixture()
+    const session = await registerAgent(f.ctx, { name: 'holder', issueId: f.issueId })
+    await claimIssue(f.ctx, { issueId: f.issueId, agentId: session.id })
+    await claimFiles(f.ctx, { issueId: f.issueId, agentId: session.id, paths: ['src/admin.ts'] })
+    const admin: ServiceCtx = {
+      ...f.ctx,
+      role: 'admin',
+      auth: { kind: 'agent', method: 'oauth', credentialId: 'foreign-admin' },
+    }
+    const actions = [
+      () => heartbeatAgent(admin, { id: session.id, allowAdministrativeOverride: true }),
+      () => postMessage(admin, { scope: 'workspace', agentId: session.id, body: 'spoofed' }),
+      () => claimIssue(admin, { issueId: f.issueId, agentId: session.id }),
+      () => claimFiles(admin, { issueId: f.issueId, agentId: session.id, paths: ['src/foreign.ts'], force: true }),
+      () => updateIssue(admin, f.issueId, { title: 'Spoofed', agentSessionId: session.id }),
+      () => finishWork(admin, { sessionId: session.id, issue: f.issueId, status: 'done' }),
+    ]
+    for (const action of actions) await expect(action()).rejects.toMatchObject({ kind: 'forbidden' })
+    await releaseIssue(admin, { issueId: f.issueId })
+    expect(await releaseFiles(admin, { paths: ['src/admin.ts'] })).toMatchObject({ count: 1 })
+    expect(await endAgent(admin, { id: session.id })).toMatchObject({ status: 'ended' })
+    expect(f.sqlite.prepare('SELECT title FROM issues WHERE id = ?').get(f.issueId)).toMatchObject({
+      title: 'Original',
+    })
+  })
+
   it('uses a legacy token owner only when no newer credential owner exists', async () => {
     const f = fixture()
     f.sqlite.exec(`INSERT INTO api_tokens (id,workspace_id,user_id,name,token_hash,scopes,created_at)
@@ -99,10 +126,12 @@ describe('agent session ownership at shared command boundaries', () => {
 
   it('preserves shared-credential fleet operations but applies current project grants', async () => {
     const f = fixture()
+    f.ctx.role = 'admin'
     const first = await registerAgent(f.ctx, { name: 'one', issueId: f.issueId })
     const second = await registerAgent(f.ctx, { name: 'two', issueId: f.issueId })
     expect(await heartbeatAgent(f.ctx, { id: first.id })).toMatchObject({ id: first.id })
     expect(await heartbeatAgent(f.ctx, { id: second.id })).toMatchObject({ id: second.id })
+    f.ctx.role = 'member'
     f.sqlite.exec("DELETE FROM group_project_grants WHERE project_id = 'p'")
     await expect(heartbeatAgent(f.ctx, { id: first.id })).rejects.toMatchObject({ kind: 'not_found' })
     await expect(endAgent(f.ctx, { id: second.id })).rejects.toMatchObject({ kind: 'not_found' })
@@ -119,6 +148,7 @@ describe('agent session ownership at shared command boundaries', () => {
     f.sqlite.prepare('UPDATE agent_sessions SET credential_id = NULL WHERE id = ?').run(session.id)
     await expect(heartbeatAgent(f.ctx, { id: session.id })).rejects.toMatchObject({ kind: 'forbidden' })
     f.ctx.role = 'admin'
+    await expect(heartbeatAgent(f.ctx, { id: session.id })).rejects.toMatchObject({ kind: 'forbidden' })
     expect(await endAgent(f.ctx, { id: session.id })).toMatchObject({ status: 'ended' })
     await expect(assertAgentSessionAccess({ ...f.ctx, workspaceId: 'another' }, session.id)).rejects.toMatchObject({
       kind: 'not_found',

@@ -23,7 +23,11 @@ export function agentSessionCredential(ctx: ServiceCtx): string | undefined {
  * Legacy sessions without an ownership key are manageable only by workspace administrators.
  * New browser sessions use a namespaced user key, not a fabricated API-token foreign key.
  */
-export async function assertAgentSessionAccess(ctx: ServiceCtx, id: string): Promise<void> {
+export async function assertAgentSessionAccess(
+  ctx: ServiceCtx,
+  id: string,
+  options: { allowAdministrativeOverride?: boolean } = {},
+): Promise<void> {
   const session = await drizzle(ctx.db, { schema })
     .select({
       credentialId: schema.agentSessions.credentialId,
@@ -34,7 +38,7 @@ export async function assertAgentSessionAccess(ctx: ServiceCtx, id: string): Pro
     .where(and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
     .get()
   if (!session) throw new NotFoundError('Agent session not found')
-  if (!isWorkspaceAdmin(ctx.role)) {
+  if (!(options.allowAdministrativeOverride && isWorkspaceAdmin(ctx.role))) {
     const credential = agentSessionCredential(ctx)
     if (!credential || credential !== (session.credentialId ?? session.tokenId)) {
       throw new ForbiddenError('Agent session belongs to another credential')
@@ -46,7 +50,8 @@ export async function assertAgentSessionAccess(ctx: ServiceCtx, id: string): Pro
 /**
  * PROJ-894: resolve the agent session a call acts as.
  *
- * An explicit `agentId` selects an owned session (or an administrative override).
+ * An explicit `agentId` selects an owned session, even for administrators.
+ * Only internal cleanup callers may explicitly enable administrative override.
  * Without one, the credential the call authenticated
  * with (ctx.auth.credentialId, recorded on the session by register_agent) is looked up:
  * exactly one matching session means "that one". Zero or several is a validation error
@@ -63,10 +68,10 @@ export async function assertAgentSessionAccess(ctx: ServiceCtx, id: string): Pro
 export async function resolveAgentSessionId(
   ctx: ServiceCtx,
   provided: string | undefined,
-  opts: { includeStale?: boolean } = {},
+  opts: { includeStale?: boolean; allowAdministrativeOverride?: boolean } = {},
 ): Promise<string> {
   if (provided) {
-    await assertAgentSessionAccess(ctx, provided)
+    await assertAgentSessionAccess(ctx, provided, opts)
     return provided
   }
 
@@ -106,7 +111,7 @@ export async function resolveAgentSessionId(
   if (rows.length === 0 && opts.includeStale) rows = await find([])
 
   if (rows.length === 1) {
-    await assertAgentSessionAccess(ctx, rows[0].id)
+    await assertAgentSessionAccess(ctx, rows[0].id, opts)
     return rows[0].id
   }
 

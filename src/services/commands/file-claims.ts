@@ -455,7 +455,7 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
   }
 
   for (const agentId of new Set(toRelease.map((claim) => claim.agentId))) {
-    if (agentId) await assertAgentSessionAccess(ctx, agentId)
+    if (agentId) await assertAgentSessionAccess(ctx, agentId, { allowAdministrativeOverride: true })
   }
 
   const releaseIds = toRelease.map((r) => r.id)

@@ -281,7 +281,7 @@ export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
     .where(and(...conditions))
     .get()
   if (!active) throw new NotFoundError('No active lease on this issue')
-  await assertAgentSessionAccess(ctx, active.agentSessionId)
+  await assertAgentSessionAccess(ctx, active.agentSessionId, { allowAdministrativeOverride: true })
 
   await orm
     .update(schema.issueLeases)

@@ -174,7 +174,10 @@ export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
 export async function endAgent(ctx: ServiceCtx, raw: unknown) {
   const result = EndAgentSchema.safeParse(raw)
   if (!result.success) throw new ValidationError(result.error.flatten())
-  const id = await resolveAgentSessionId(ctx, result.data.id, { includeStale: true })
+  const id = await resolveAgentSessionId(ctx, result.data.id, {
+    includeStale: true,
+    allowAdministrativeOverride: true,
+  })
 
   const orm = drizzle(ctx.db, { schema })
   const existing = await orm
