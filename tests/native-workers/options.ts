@@ -60,7 +60,12 @@ export async function nativeCoreWorker(runnerName: string) {
     d1Databases: { DB: 'projektor-native-db' },
     kvNamespaces: { KV: 'projektor-native-kv', OAUTH_KV: 'projektor-native-oauth' },
     r2Buckets: { R2: 'projektor-native-r2' },
-    durableObjects: { RATE_LIMITER: { className: 'RateLimiter', scriptName: runnerName } },
+    // Exercise the optional hub against its actual exported class in native tests.
+    // This local fixture registration does not bind or migrate it in production.
+    durableObjects: {
+      RATE_LIMITER: { className: 'RateLimiter', scriptName: runnerName },
+      WORKSPACE_HUB: { className: 'WorkspaceHub', scriptName: runnerName },
+    },
     bindings: {
       ENVIRONMENT: 'development',
       CF_ACCESS_TEAM_DOMAIN: '',

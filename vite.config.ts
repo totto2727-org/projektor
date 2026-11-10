@@ -64,7 +64,11 @@ export default defineConfig({
               serviceBindings: { CORE: 'projektor-native-core' },
               kvNamespaces: { OAUTH_KV: 'projektor-native-oauth' },
               workers: [await nativeCoreWorker(nativeRunnerName)],
-              durableObjects: { RATE_LIMITER: { className: 'RateLimiter', useSQLite: true } },
+              durableObjects: {
+                RATE_LIMITER: { className: 'RateLimiter', useSQLite: true },
+                // Native regression fixture only. Production keeps this optional hub unbound.
+                FIXTURE_WORKSPACE_HUB: { className: 'WorkspaceHub', useSQLite: true },
+              },
               bindings: {
                 CORE_FIXTURE_CONFIGURATION: '{}',
                 ENVIRONMENT: 'development',
