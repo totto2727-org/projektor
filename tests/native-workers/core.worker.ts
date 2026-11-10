@@ -1,7 +1,9 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
+
 import { makeWorkerBridge } from 'alchemy/Cloudflare/Bridge'
 import { WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
 import { WorkerEntrypoint } from 'cloudflare:workers'
-import { Effect } from 'effect'
+import { Effect, Exit } from 'effect'
 
 import { isCoreEnvironment, type CoreEnvironment, type CoreEnvironmentSource } from '../../src/core/environment'
 import { makeCoreHandlersWithEnvironment } from '../../src/core/worker'
@@ -22,18 +24,70 @@ const fixtureEnvironmentSource: CoreEnvironmentSource = Effect.gen(function* () 
   return instrumentEnvironment(environment, context.raw.props)
 })
 
+const fixtureRequest = new AsyncLocalStorage<unknown>()
+const nativeFetch = globalThis.fetch
+// Installed once in this test-only artifact. Async-local invocation settings,
+// rather than mutable global policy, select a fixture for the real HTTP client.
+globalThis.fetch = async (input, init) => {
+  const props = fixtureRequest.getStore()
+  const settings = configuration(props ?? {})
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  if (
+    url === `https://${settings.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs` &&
+    (settings.FIXTURE_JWKS_BODY !== undefined || settings.FIXTURE_JWKS_MODE !== undefined)
+  ) {
+    observationFor(props).jwksFetches.push(url)
+    if (settings.FIXTURE_JWKS_MODE === 'reject') throw new Error('Fixture JWKS transport unavailable')
+    return new Response(settings.FIXTURE_JWKS_BODY, { headers: { 'Content-Type': 'application/json' } })
+  }
+  return nativeFetch(input, init)
+}
+
+function withFixtureRequest<A, E>(effect: Effect.Effect<A, E, WorkerEnvironment | WorkerExecutionContext>) {
+  return Effect.gen(function* () {
+    const env = yield* WorkerEnvironment
+    const context = yield* WorkerExecutionContext
+    const exit = yield* Effect.promise((signal) =>
+      fixtureRequest.run(context.raw.props, () =>
+        Effect.runPromiseExit(
+          effect.pipe(
+            Effect.provideService(WorkerEnvironment, env),
+            Effect.provideService(WorkerExecutionContext, context),
+          ),
+          { signal },
+        ),
+      ),
+    )
+    return yield* Exit.isSuccess(exit) ? Effect.succeed(exit.value) : Effect.failCause(exit.cause)
+  })
+}
+
 const FixtureCoreLive = CoreIdentity.make(
   Effect.succeed({ name: 'projektor-native-core', main: import.meta.url }),
   makeCoreHandlersWithEnvironment(fixtureEnvironmentSource).pipe(
-    Effect.map((handlers) => ({
-      ...handlers,
-      apiAuthenticate: (...args: Parameters<typeof handlers.apiAuthenticate>) =>
-        Effect.gen(function* () {
-          const context = yield* WorkerExecutionContext
-          observationFor(context.raw.props).authenticateCalls++
-          return yield* handlers.apiAuthenticate(...args)
+    Effect.map(
+      (handlers) =>
+        new Proxy(handlers, {
+          get(target, key, receiver): unknown {
+            const method: unknown = Reflect.get(target, key, receiver)
+            if (key === 'fetch' || typeof method !== 'function') return method
+            return (...args: unknown[]) => {
+              const invocation = Reflect.apply(method, target, args) as Effect.Effect<
+                unknown,
+                unknown,
+                WorkerEnvironment | WorkerExecutionContext
+              >
+              return withFixtureRequest(
+                key === 'apiAuthenticate'
+                  ? Effect.sync(() => observationFor(fixtureRequest.getStore()).authenticateCalls++).pipe(
+                      Effect.andThen(invocation),
+                    )
+                  : invocation,
+              )
+            }
+          },
         }),
-    })),
+    ),
   ),
 )
 const FixtureCore = makeWorkerBridge(WorkerEntrypoint, {
