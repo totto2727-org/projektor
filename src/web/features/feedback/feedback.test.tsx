@@ -108,6 +108,7 @@ describe('feedback request-local database SSR', () => {
   })
   it('checks source project catalog before loading protected sources or feedback', async () => {
     const f = await fixture()
+    f.sqlite.exec("UPDATE projects SET archived_at = 1 WHERE id = 'outside'")
     const prepare = vi.spyOn(f.db, 'prepare')
     const node = await f.run(
       renderFeedbackDetail(scope, new URL('https://app.test/feedback'), {
@@ -115,7 +116,9 @@ describe('feedback request-local database SSR', () => {
       }),
     )
     expect(renderToStaticMarkup(node)).toContain('Feedback source not found')
-    expect(prepare).toHaveBeenCalledTimes(1)
+    expect(
+      prepare.mock.calls.map(([sql]) => sql).filter((sql) => /from\s+["`]?feedback["`]?\s/i.test(sql)),
+    ).toHaveLength(0)
   })
   it("does not resolve another workspace's source", async () => {
     const f = await fixture()
@@ -158,7 +161,7 @@ describe('feedback request-local database SSR', () => {
     expect(result).toMatchObject({
       _tag: 'ApiError',
       status: 500,
-      message: 'Unable to load project data.',
+      message: 'An unexpected error occurred.',
     })
     expect(JSON.stringify(result)).not.toContain('private invalid JSON')
   })

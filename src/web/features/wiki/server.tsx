@@ -44,7 +44,7 @@ export function renderWiki(
       workspaceSlug: data.workspaceSlug,
       projectId: data.projectId,
     }).pipe(Effect.mapError((cause) => new ApiError('request', 500, cause.message, cause.cause)))
-    const brand = yield* loadBrand(services.env, scope)
+    const brand = yield* loadBrand(services.env, scope, services.request)
     const initial: WikiSeed = { ...data, renderedMarkdown, brandName: brand.name }
     return <WikiPageClient initial={initial} />
   })

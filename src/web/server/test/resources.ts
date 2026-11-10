@@ -1,8 +1,15 @@
 import { Effect } from 'effect'
 
+import { handleApiBinaryRequest } from '../../../core/api/files'
+import type { CoreEnvironment } from '../../../core/environment'
+import { handleCoreFileRequest } from '../../../core/files'
 import { makeWebCoreHandlers, type WebCoreRpcShape } from '../../../core/web/operations'
 import type { WebRequest, ScopeOptions } from '../../../core/web/scope'
 import type { Env } from '../../request'
+export type TestEnvironment = CoreEnvironment &
+  Omit<Env, 'CORE'> & {
+    CORE: Env['CORE'] & { [K in keyof WebCoreRpcShape]: (...args: Parameters<WebCoreRpcShape[K]>) => Promise<string> }
+  }
 
 /** Unit-test storage doubles only. Worker acceptance uses actual native KV/R2 bindings. */
 export function inMemoryKV(): KVNamespace {
@@ -104,9 +111,13 @@ export function createTestResources() {
   return { kv, oauthKv, r2, KV: kv, OAUTH_KV: oauthKv, R2: r2 }
 }
 
-export function testEnvironment(db: D1Database, email = 'owner@example.test', overrides: Partial<Env> = {}): Env {
+export function testEnvironment(
+  db: D1Database,
+  email = 'owner@example.test',
+  overrides: Partial<TestEnvironment> = {},
+): TestEnvironment {
   const resources = createTestResources()
-  const env: Omit<Env, 'CORE'> = {
+  const env: Omit<TestEnvironment, 'CORE'> = {
     KV: resources.kv,
     OAUTH_KV: resources.oauthKv,
     R2: resources.r2,
@@ -117,9 +128,35 @@ export function testEnvironment(db: D1Database, email = 'owner@example.test', ov
     ...overrides,
     DB: db,
   }
-  const result: Env = {
+  const result: TestEnvironment = {
     ...env,
     CORE: overrides.CORE ?? {
+      fetch: async (request: Request) =>
+        (await handleApiBinaryRequest(request, result)) ?? handleCoreFileRequest(request, result),
+      browserWorkspaceBrand: (...args: Parameters<WebCoreRpcShape['browserWorkspaceBrand']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).browserWorkspaceBrand(...args)),
+      webFeedbackIndex: (...args: Parameters<WebCoreRpcShape['webFeedbackIndex']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webFeedbackIndex(...args)),
+      webFeedbackDetail: (...args: Parameters<WebCoreRpcShape['webFeedbackDetail']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webFeedbackDetail(...args)),
+      webCreateFeedbackSource: (...args: Parameters<WebCoreRpcShape['webCreateFeedbackSource']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateFeedbackSource(...args)),
+      webUpdateFeedbackSource: (...args: Parameters<WebCoreRpcShape['webUpdateFeedbackSource']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateFeedbackSource(...args)),
+      webRotateFeedbackSourceToken: (...args: Parameters<WebCoreRpcShape['webRotateFeedbackSourceToken']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRotateFeedbackSourceToken(...args)),
+      webRevokeFeedbackSource: (...args: Parameters<WebCoreRpcShape['webRevokeFeedbackSource']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRevokeFeedbackSource(...args)),
+      webUpdateFeedbackStatus: (...args: Parameters<WebCoreRpcShape['webUpdateFeedbackStatus']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateFeedbackStatus(...args)),
+      webConvertFeedback: (...args: Parameters<WebCoreRpcShape['webConvertFeedback']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webConvertFeedback(...args)),
+      webBulkReviewFeedback: (...args: Parameters<WebCoreRpcShape['webBulkReviewFeedback']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webBulkReviewFeedback(...args)),
+      webBulkConvertFeedback: (...args: Parameters<WebCoreRpcShape['webBulkConvertFeedback']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webBulkConvertFeedback(...args)),
+      webSharedIssue: (...args: Parameters<WebCoreRpcShape['webSharedIssue']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSharedIssue(...args)),
       webWikiPage: (...args: Parameters<WebCoreRpcShape['webWikiPage']>) =>
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiPage(...args)),
       webWikiDiff: (...args: Parameters<WebCoreRpcShape['webWikiDiff']>) =>
@@ -208,7 +245,7 @@ export function testEnvironment(db: D1Database, email = 'owner@example.test', ov
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSprints(...args)),
       webSprint: (...args: Parameters<WebCoreRpcShape['webSprint']>) =>
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSprint(...args)),
-      browserScope: (request: WebRequest, options: ScopeOptions) =>
+      browserScope: (request: WebRequest, options: ScopeOptions = {}) =>
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).browserScope(request, options)),
     },
   }

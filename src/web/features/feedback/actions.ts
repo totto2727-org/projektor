@@ -2,14 +2,12 @@
 
 import { Effect, Schema } from 'effect'
 
-import * as feedbackCommands from '#commands/feedback'
-import * as sourceCommands from '#commands/feedback-sources'
-
 import { EFFRONT } from '../../effront'
 import { RequestServices } from '../../request'
-import { runCommand } from '../../server/command-context'
+import { runBrowserCommand as runCommand } from '../../server/browser-command'
 import { FunctionSelectorSchema, resolveFunctionContext } from '../../server/function-context'
 import { checkSameOriginMutation } from '../../server/mutation'
+import { feedbackCommands, sourceCommands } from './data'
 import { SourceFields } from './schemas'
 
 const identifier = Schema.String.check(Schema.isMinLength(1))

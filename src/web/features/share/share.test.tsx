@@ -2,6 +2,7 @@ import { Effect } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { testEnvironment } from '../../server/test/resources'
 import { createTestDatabase } from '../../test/database'
 import { DEFAULT_BRAND, layerBrand } from './brand'
 import { renderShare as renderShareEffect } from './server'
@@ -44,7 +45,7 @@ async function fixture() {
       'INSERT INTO share_tokens (id,issue_id,workspace_id,created_by,expires_at,created_at) VALUES (?,?,?,?,?,?)',
     )
     .run(hash, 'issue', 'workspace', 'user', Math.floor(Date.now() / 1000) + 86400, 1)
-  return { ...database, token, env: { DB: database.db } }
+  return { ...database, token, env: testEnvironment(database.db) }
 }
 describe('public Share SSR', () => {
   it('reads the public token without browser credentials and renders the exact sanitized DTO and workspace branding', async () => {
@@ -104,7 +105,7 @@ describe('public Share SSR', () => {
     })
     await expect(
       renderShare(test.env, null, new URL('https://app.test/share/token?token=ignored'), { token: test.token }),
-    ).rejects.toMatchObject({ kind: 'request', status: 500, message: 'The operation could not be completed.' })
+    ).rejects.toMatchObject({ kind: 'request', status: 500, message: 'An unexpected error occurred.' })
   })
   it('layers null workspace fields over native deployment defaults', async () => {
     expect(layerBrand(DEFAULT_BRAND, { ...workspaceBrand, displayName: null, accent: null, logoUrl: null }).name).toBe(
@@ -139,6 +140,6 @@ describe('public Share SSR', () => {
     test.sqlite.exec("UPDATE issues SET created_at = 'not-a-number' WHERE id = 'issue'")
     await expect(
       renderShare(test.env, null, new URL('https://app.test/share/token'), { token: test.token }),
-    ).rejects.toMatchObject({ kind: 'schema', status: 502 })
+    ).rejects.toMatchObject({ kind: 'request', status: 500, message: 'An unexpected error occurred.' })
   })
 })

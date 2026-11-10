@@ -43,7 +43,7 @@ const RootLayout = EFFRONT.Layout.make({
       const services = yield* RequestServices
       const publicRoute = /^\/share(?:\/|$)/.test(services.url.pathname) || /^\/help\/?$/.test(services.url.pathname)
       const scope = publicRoute ? null : yield* services.scope()
-      const brand = yield* loadBrand(services.env, scope)
+      const brand = yield* loadBrand(services.env, scope, services.request)
       return (
         <html lang='en' style={brandStyles(brand)} suppressHydrationWarning>
           <head>

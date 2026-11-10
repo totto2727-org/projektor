@@ -2,8 +2,8 @@ import { Effect, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 import { afterEach, vi } from 'vite-plus/test'
 
-import { type Env, makeRequestServices, RequestServices } from '../../request'
-import { inMemoryKV, inMemoryR2, testEnvironment } from '../../server/test/resources'
+import { makeRequestServices, RequestServices } from '../../request'
+import { inMemoryKV, inMemoryR2, testEnvironment, type TestEnvironment } from '../../server/test/resources'
 import { createTestDatabase } from '../../test/database'
 
 type InputSchema = Schema.Constraint & Schema.Decoder<unknown>
@@ -66,7 +66,7 @@ export function actionFixture(
     throw new Error('Web actions must not use an API transport.')
   },
   origin = 'https://front.example',
-  overrides: Partial<Env> = {},
+  overrides: Partial<TestEnvironment> = {},
 ) {
   const database = featureDatabase()
   const kv = inMemoryKV()

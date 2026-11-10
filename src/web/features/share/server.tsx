@@ -1,38 +1,16 @@
-import { Effect, Schema } from 'effect'
+import { Effect } from 'effect'
 import type React from 'react'
 
-import { getSharedIssue } from '#commands/share'
+import { makeCoreClient } from 'projektor/core-client'
 
 import { deploymentBrand } from '../../brand'
 import { renderMarkdownEffect } from '../../components/markdown/effect'
+import { coreResult } from '../../core'
 import type { Env, PageFailure } from '../../request'
-import { commandError } from '../../server/command-context'
-import { ApiError, responseError } from '../../server/errors'
-import { layerBrand, WorkspaceBrand } from './brand'
+import { ApiError } from '../../server/errors'
+import { layerBrand } from './brand'
+import { SharedIssue } from './schemas'
 import ShareView, { ErrorState } from './ShareView'
-
-const nullable = Schema.NullOr(Schema.String)
-const SharedIssue = Schema.Struct({
-  title: Schema.String,
-  body: nullable,
-  priority: Schema.String,
-  status_name: nullable,
-  status_category: nullable,
-  project_key: nullable,
-  project_name: nullable,
-  assignee_name: nullable,
-  created_at: Schema.Number,
-  expires_at: Schema.Number,
-  customFields: Schema.Array(
-    Schema.Struct({
-      key: Schema.String,
-      label: Schema.String,
-      type: Schema.String,
-      value: Schema.String,
-    }),
-  ),
-  brand: WorkspaceBrand,
-})
 const SHARE_STYLES = `
 @font-face { font-family: 'Projektor Mono'; src: url('/fonts/MonaspaceNeon-Variable.woff2') format('woff2-variations'); font-weight: 400 700; font-style: normal; font-display: swap; unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+20AC, U+2000-206F, U+2190-21FF, U+2200-22FF, U+2500-257F, U+2580-259F, U+25A0-25FF, U+2713, U+2715, U+2717; }
 .share-page, .share-page *, .share-page *::before, .share-page *::after { box-sizing: border-box; }
@@ -59,7 +37,7 @@ const SHARE_STYLES = `
 
 /** Token-authorized public view. Never requests a protected workspace/session lookup. */
 export function renderShare(
-  env: Pick<Env, 'DB' | 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>,
+  env: Pick<Env, 'CORE' | 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>,
   _scope: null,
   url: URL,
   params: Readonly<Record<string, string | undefined>> = {},
@@ -67,11 +45,7 @@ export function renderShare(
   return Effect.gen(function* () {
     const shareToken = params.token ?? url.searchParams.get('token')
     if (!shareToken) return <ErrorState error='not_found' />
-    const issue = yield* Effect.tryPromise({
-      try: () => getSharedIssue(env.DB, shareToken),
-      catch: commandError,
-    }).pipe(
-      Effect.flatMap((value) => Schema.decodeUnknownEffect(SharedIssue)(value).pipe(Effect.mapError(responseError))),
+    const issue = yield* coreResult(SharedIssue, makeCoreClient(env.CORE).webSharedIssue(shareToken)).pipe(
       Effect.catchIf(
         (cause) => [404, 410].includes(cause.status),
         () => Effect.succeed(null),
