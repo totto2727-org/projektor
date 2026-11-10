@@ -85,8 +85,12 @@ export async function resetCoreObservations(): Promise<void> {
   await originalCore.fixtureResetObservations(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')
 }
 
-export async function getCoreObservations() {
-  return originalCore.fixtureObservations(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')
+export async function createCoreFixtureSession(settings: Readonly<Record<string, string | null>>) {
+  return originalCore.fixtureSession({ ...settingsSnapshot, ...settings })
+}
+
+export async function getCoreObservations(epoch = nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '') {
+  return originalCore.fixtureObservations(epoch)
 }
 
 export async function getCoreLimiterCalls(): Promise<number> {
