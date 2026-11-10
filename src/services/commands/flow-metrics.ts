@@ -4,7 +4,7 @@ import { Effect } from 'effect'
 import { drizzle, schema } from '#db'
 import { getFlowMetrics as queryFlowMetrics } from '#services/flow-metrics'
 
-import { GetFlowMetricsSchema } from '../../api/schemas/flow-metrics'
+import { GetFlowMetricsSchema } from '../../contracts/inputs/flow-metrics'
 import { effectiveProjectRole, isWorkspaceAdmin } from './access'
 import { NotFoundError, ValidationError } from './errors'
 import type { ServiceCtx } from './types'

@@ -9,8 +9,8 @@ import {
   ListActiveAgentsSchema,
   RegisterAgentSchema,
   StartWorkSchema,
-} from '../../api/schemas/agents'
-import { visibleProjectPredicate } from './access'
+} from '../../contracts/inputs/agents'
+import { assertIssueAccess, visibleProjectPredicate } from './access'
 import { resolveAgentSessionId } from './agent-identity'
 import { postMessage } from './agent-messages'
 import { NotFoundError, ValidationError } from './errors'
@@ -50,14 +50,7 @@ export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
 
   const orm = drizzle(ctx.db, { schema })
 
-  if (issueId) {
-    const issue = await orm
-      .select({ id: schema.issues.id })
-      .from(schema.issues)
-      .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, ctx.workspaceId)))
-      .get()
-    if (!issue) throw new NotFoundError('Issue not found')
-  }
+  if (issueId) await assertIssueAccess(ctx, issueId, 'edit')
 
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)

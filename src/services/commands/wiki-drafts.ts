@@ -9,7 +9,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm'
 // services/wiki-watchers.ts's resolveWatchTarget precedent.
 import { drizzle, schema } from '#db'
 
-import { SaveWikiDraftInputSchema } from '../../api/schemas/wiki'
+import { SaveWikiDraftInputSchema } from '../../contracts/inputs/wiki'
 import { assertProjectAccess } from './access'
 import { NotFoundError, ValidationError } from './errors'
 import { inChunks } from './sql'

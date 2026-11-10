@@ -2,14 +2,14 @@ import { Effect } from 'effect'
 
 import * as attachmentData from '#services/files'
 
-import { wikiPagePath } from '../../api/lib/urls'
 import {
   CreateLinkAttachmentSchema,
   DeleteAttachmentSchema,
   GetAttachmentSchema,
   ListAttachmentsSchema,
   RecordFileUploadSchema,
-} from '../../api/schemas/files'
+} from '../../contracts/inputs/files'
+import { wikiPagePath } from '../../contracts/urls'
 import { canWriteProject, requireProjectAccess, visibleProjectSqlFragment } from './access'
 import {
   ForbiddenError,

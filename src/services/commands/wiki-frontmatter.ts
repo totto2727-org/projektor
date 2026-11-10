@@ -1,6 +1,6 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 
-import { WikiFrontmatterSchema } from '../../api/schemas/wiki'
+import { WikiFrontmatterSchema } from '../../contracts/inputs/wiki'
 import { ValidationError } from './errors'
 
 // PROJ-488 (R6): matches a leading `---\n<yaml>\n---\n` block, the standard frontmatter

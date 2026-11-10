@@ -12,11 +12,11 @@ import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 // don't need a single resolved page so they're self-contained here.
 import { drizzle, schema } from '#db'
 
+import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '../../contracts/inputs/wiki'
 // PROJ-496 (R14): a trashed page is treated as gone for link resolution purposes — see
 // resolveTitleTargets/resolveSlugTargets/backlinksForResolvedPage/listBrokenWikiLinks
 // below for the `isNull(schema.wikiPages.deletedAt)` filters this adds.
-import { safeDecodeURIComponent, wikiPagePath } from '../../api/lib/urls'
-import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '../../api/schemas/wiki'
+import { safeDecodeURIComponent, wikiPagePath } from '../../contracts/urls'
 import { hasProjectAccess, isWorkspaceAdmin, visibleProjectPredicate } from './access'
 import { ForbiddenError, ValidationError } from './errors'
 import { inChunks } from './sql'

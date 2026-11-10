@@ -1,4 +1,4 @@
-import { GetWorkflowSchema } from '../../api/schemas/workflow'
+import { GetWorkflowSchema } from '../../contracts/inputs/workflow'
 import { ValidationError } from './errors'
 import { WORKFLOW_SPEC } from './workflow-content'
 

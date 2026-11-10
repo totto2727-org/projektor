@@ -306,7 +306,7 @@ describe('Agent Messages API', () => {
     await postMessage({ scope, body: 'workspace-X message' })
 
     // Workspace Y should not see workspace X's messages
-    const other = await seedFixture()
+    const other = await seedFixture({ role: 'owner' })
     const otherProject = await seedProject(other.workspace.id)
     const otherIssue = await seedIssue(other.workspace.id, otherProject.id, other.user.id, {
       title: 'Other',

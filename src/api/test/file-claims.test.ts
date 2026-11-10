@@ -797,7 +797,13 @@ describe('PROJ-932: list_file_claims projectId + visibility for a non-admin memb
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId: hiddenIssue.id, paths: ['hidden/secret.ts'] }),
     })
-    expect(claimRes.status).toBe(201)
+    expect(claimRes.status).toBe(404)
+    // Seed existing state directly. A member may not create a claim in a hidden project.
+    await env.DB.prepare(`INSERT INTO issue_file_claims
+      (id, workspace_id, issue_id, path, claimed_at)
+      VALUES (?, ?, ?, 'hidden/secret.ts', ?)`)
+      .bind(crypto.randomUUID(), workspaceId, hiddenIssue.id, Math.floor(Date.now() / 1000))
+      .run()
 
     async function list(params: Record<string, string>) {
       const qs = new URLSearchParams(params).toString()

@@ -2,8 +2,9 @@ import { and, asc, eq, gt, sql } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { ListMessagesSchema, PostMessageSchema } from '../../api/schemas/agent-messages'
-import { NotFoundError, ValidationError } from './errors'
+import { ListMessagesSchema, PostMessageSchema } from '../../contracts/inputs/agent-messages'
+import { assertIssueAccess } from './access'
+import { ForbiddenError, NotFoundError, ValidationError } from './errors'
 import type { ServiceCtx } from './types'
 
 // PROJ-929: mirrors ACTIVE_TTL in services/agents.ts (and SESSION_TTL_SECONDS in
@@ -81,15 +82,10 @@ export async function postMessage(ctx: ServiceCtx, raw: unknown) {
 
   const orm = drizzle(ctx.db, { schema })
 
-  // If scope is an issue scope, verify the issue belongs to this workspace
   if (scope.startsWith('issue:')) {
-    const issueId = scope.slice('issue:'.length)
-    const issue = await orm
-      .select({ id: schema.issues.id })
-      .from(schema.issues)
-      .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, ctx.workspaceId)))
-      .get()
-    if (!issue) throw new NotFoundError('Issue not found')
+    await assertIssueAccess(ctx, scope.slice('issue:'.length), 'edit')
+  } else if (ctx.role !== 'owner' && ctx.role !== 'admin' && ctx.role !== 'member') {
+    throw new ForbiddenError('Insufficient permissions')
   }
 
   // If agentId given, verify the agent session belongs to this workspace
@@ -129,6 +125,7 @@ export async function listMessages(ctx: ServiceCtx, raw: unknown) {
   const result = ListMessagesSchema.safeParse(raw)
   if (!result.success) throw new ValidationError(result.error.flatten())
   const { scope, cursor, limit } = result.data
+  if (scope.startsWith('issue:')) await assertIssueAccess(ctx, scope.slice('issue:'.length), 'read')
 
   const orm = drizzle(ctx.db, { schema })
 

@@ -1,6 +1,6 @@
 import { drizzle, schema } from '#db'
 
-import { ComposePlaybookSchema } from '../../api/schemas/playbooks'
+import { ComposePlaybookSchema } from '../../contracts/inputs/playbooks'
 import { NotFoundError, ValidationError } from './errors'
 import { fetchAgentWipCap } from './issue-leases'
 import { getIssue } from './issues'

@@ -4,7 +4,7 @@ import { Effect } from 'effect'
 import { drizzle, schema } from '#db'
 import { getCodeHeatmap as queryCodeHeatmap } from '#services/code-heatmap'
 
-import { GetCodeHeatmapSchema } from '../../api/schemas/code-heatmap'
+import { GetCodeHeatmapSchema } from '../../contracts/inputs/code-heatmap'
 import { effectiveProjectRole, isWorkspaceAdmin } from './access'
 import { NotFoundError, ValidationError } from './errors'
 import type { ServiceCtx } from './types'

@@ -9,13 +9,13 @@ import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
 // resolveSlugTargets precedent.
 import { drizzle, schema } from '#db'
 
-import { wikiPagePath } from '../../api/lib/urls'
 import {
   ListWikiChangesInputSchema,
   ListWikiNotificationsInputSchema,
   MarkWikiNotificationsReadInputSchema,
   WatchWikiPageInputSchema,
-} from '../../api/schemas/wiki'
+} from '../../contracts/inputs/wiki'
+import { wikiPagePath } from '../../contracts/urls'
 import { assertProjectAccess, hasProjectAccess, usersWithProjectReadAccess } from './access'
 import { NotFoundError, ValidationError } from './errors'
 import { inChunks } from './sql'

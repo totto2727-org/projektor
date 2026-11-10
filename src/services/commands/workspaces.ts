@@ -6,7 +6,7 @@ import { drizzle, schema } from '#db'
 import * as data from '#services'
 import { buildMcpAddCommand } from '#types'
 
-import { IdSchema } from '../../api/schemas/common'
+import { IdSchema } from '../../contracts/inputs/common'
 import {
   CreateTokenSchema,
   CreateWorkspaceSchema,
@@ -14,7 +14,7 @@ import {
   UpdateRoleSchema,
   UpdateWorkspaceBrandSchema,
   UpdateWorkspaceSchema,
-} from '../../api/schemas/workspaces'
+} from '../../contracts/inputs/workspaces'
 import { seedDefaultCustomFields } from './custom-fields'
 import {
   ConflictError,

@@ -10,7 +10,7 @@ import {
   DeleteIssueLinkSchema,
   type LinkTypeStoredEnum,
   ListIssueLinksSchema,
-} from '../../api/schemas/issues'
+} from '../../contracts/inputs/issues'
 import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access'
 import * as cache from './cache'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'

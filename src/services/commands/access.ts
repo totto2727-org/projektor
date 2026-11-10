@@ -118,6 +118,20 @@ export async function requireProjectInWorkspace(ctx: ServiceCtx, projectId: stri
 
 export type AccessMode = 'read' | 'edit'
 
+export async function assertIssueAccess(ctx: ServiceCtx, issueId: string, mode: AccessMode): Promise<string> {
+  const issue = await drizzle(ctx.db, { schema })
+    .select({ projectId: schema.issues.projectId })
+    .from(schema.issues)
+    .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, ctx.workspaceId)))
+    .get()
+  if (!issue) throw new NotFoundError('Issue not found')
+  await assertProjectAccess(ctx, issue.projectId, mode, {
+    notFoundMessage: 'Issue not found',
+    projectLoadedFromWorkspaceRow: true,
+  })
+  return issue.projectId
+}
+
 export interface AssertProjectAccessOptions {
   /** Message for the 404. Default "Not found" — name the resource the caller asked for. */
   notFoundMessage?: string

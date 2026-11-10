@@ -9,7 +9,7 @@ import {
   RevokeFeedbackSourceSchema,
   RotateFeedbackSourceSchema,
   UpdateFeedbackSourceSchema,
-} from '../../api/schemas/feedback'
+} from '../../contracts/inputs/feedback'
 import { assertProjectAccess, isWorkspaceAdmin, requireProjectInWorkspace } from './access'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
 import type { ServiceCtx } from './types'

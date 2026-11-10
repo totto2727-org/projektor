@@ -2,8 +2,8 @@ import { and, eq, gt, isNull } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '../../api/schemas/issue-leases'
-import { visibleProjectPredicate } from './access'
+import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '../../contracts/inputs/issue-leases'
+import { assertIssueAccess, visibleProjectPredicate } from './access'
 import { resolveAgentSessionId } from './agent-identity'
 import { ConflictError, NotFoundError, ValidationError } from './errors'
 import { resolveVisibleProjectIdParam } from './projects'
@@ -20,20 +20,6 @@ const liveCutoff = () => Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
 // PROJ-253: per-project agent WIP cap, used when a project doesn't set its own
 // projects.agent_wip_limit.
 const DEFAULT_AGENT_WIP_LIMIT = 3
-
-async function assertIssueExists(
-  orm: ReturnType<typeof drizzle>,
-  ctx: ServiceCtx,
-  issueId: string,
-): Promise<{ projectId: string }> {
-  const issue = await orm
-    .select({ id: schema.issues.id, projectId: schema.issues.projectId })
-    .from(schema.issues)
-    .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, ctx.workspaceId)))
-    .get()
-  if (!issue) throw new NotFoundError('Issue not found')
-  return { projectId: issue.projectId }
-}
 
 // The project's agent WIP cap (its own agent_wip_limit, else the default).
 export async function fetchAgentWipCap(
@@ -200,13 +186,13 @@ export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ClaimIssueSchema.safeParse(raw)
   if (!result.success) throw new ValidationError(result.error.flatten())
   const { issueId } = result.data
+  const projectId = await assertIssueAccess(ctx, issueId, 'edit')
   // PROJ-894: an omitted agentId resolves to the credential's single live session.
   const agentId = await resolveAgentSessionId(ctx, result.data.agentId)
 
   const orm = drizzle(ctx.db, { schema })
   const cutoff = liveCutoff()
 
-  const { projectId } = await assertIssueExists(orm, ctx, issueId)
   await assertAgentSessionLive(orm, ctx, agentId, cutoff)
   // PROJ-929: this call carries a live agentId, so it refreshes the session's heartbeat
   // (see touchAgentHeartbeat) — done even if the claim itself is later rejected below,
@@ -277,6 +263,7 @@ export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ReleaseIssueSchema.safeParse(raw)
   if (!result.success) throw new ValidationError(result.error.flatten())
   const { issueId, agentId } = result.data
+  const projectId = await assertIssueAccess(ctx, issueId, 'edit')
 
   const orm = drizzle(ctx.db, { schema })
   const now = Math.floor(Date.now() / 1000)
@@ -295,13 +282,6 @@ export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
     .get()
   if (!active) throw new NotFoundError('No active lease on this issue')
 
-  const issue = await orm
-    .select({ projectId: schema.issues.projectId })
-    .from(schema.issues)
-    .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, ctx.workspaceId)))
-    .get()
-  if (!issue) throw new NotFoundError('Issue not found')
-
   await orm
     .update(schema.issueLeases)
     .set({ releasedAt: now, releaseReason: 'released' })
@@ -309,7 +289,7 @@ export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
 
   await broadcastWorkspaceEvent(ctx, {
     type: 'lease.released',
-    projectId: issue.projectId,
+    projectId,
     data: { issueId, agentId },
   })
 

@@ -9,7 +9,7 @@ import {
   DeleteCommentSchema,
   ListCommentsSchema,
   UpdateCommentSchema,
-} from '../../api/schemas/comments'
+} from '../../contracts/inputs/comments'
 import { assertProjectAccess, type AccessMode } from './access'
 import { ForbiddenError, NotFoundError, ValidationError } from './errors'
 import { broadcastWorkspaceEvent } from './realtime'

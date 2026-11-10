@@ -9,7 +9,7 @@ import {
   CreateGroupSchema,
   SetGroupGrantSchema,
   UpdateGroupSchema,
-} from '../../api/schemas/groups'
+} from '../../contracts/inputs/groups'
 import { isWorkspaceAdmin } from './access'
 import { recordActivity } from './activity'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'

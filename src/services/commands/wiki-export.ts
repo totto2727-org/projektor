@@ -4,7 +4,7 @@ import { stringify as stringifyYaml } from 'yaml'
 
 import { drizzle, schema } from '#db'
 
-import { ExportWikiInputSchema } from '../../api/schemas/wiki'
+import { ExportWikiInputSchema } from '../../contracts/inputs/wiki'
 import { assertProjectAccess } from './access'
 import { NotFoundError, ValidationError } from './errors'
 import { inChunks } from './sql'

@@ -1,4 +1,4 @@
-import { CreateUserTokenSchema } from '../../api/schemas/user-tokens'
+import { CreateUserTokenSchema } from '../../contracts/inputs/user-tokens'
 import { ForbiddenError, ValidationError } from './errors'
 
 // These handlers run pre-workspace-context (login/token minting are user-scoped,

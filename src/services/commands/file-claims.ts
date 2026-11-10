@@ -2,29 +2,15 @@ import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { PostMessageSchema } from '../../api/schemas/agent-messages'
-import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '../../api/schemas/file-claims'
-import { visibleProjectPredicate } from './access'
+import { PostMessageSchema } from '../../contracts/inputs/agent-messages'
+import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '../../contracts/inputs/file-claims'
+import { assertIssueAccess, assertProjectAccess, visibleProjectPredicate } from './access'
 import { buildPostMessageStatements } from './agent-messages'
 import { ConflictError, NotFoundError, ValidationError } from './errors'
 import { resolveVisibleProjectIdParam } from './projects'
 import { broadcastWorkspaceEvent } from './realtime'
 import { inChunks } from './sql'
 import type { ServiceCtx } from './types'
-
-async function assertIssueInWorkspace(
-  orm: ReturnType<typeof drizzle>,
-  workspaceId: string,
-  issueId: string,
-): Promise<string> {
-  const issue = await orm
-    .select({ projectId: schema.issues.projectId })
-    .from(schema.issues)
-    .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, workspaceId)))
-    .get()
-  if (!issue) throw new NotFoundError('Issue not found')
-  return issue.projectId
-}
 
 async function assertAgentInWorkspace(orm: ReturnType<typeof drizzle>, workspaceId: string, agentId: string) {
   const agent = await orm
@@ -275,7 +261,7 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
 
   const orm = drizzle(ctx.db, { schema })
 
-  const projectId = await assertIssueInWorkspace(orm, ctx.workspaceId, issueId)
+  const projectId = await assertIssueAccess(ctx, issueId, 'edit')
   if (agentId) {
     await assertAgentInWorkspace(orm, ctx.workspaceId, agentId)
     // PROJ-929: refresh the acting session's heartbeat if it's already live (see
@@ -292,6 +278,10 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
     liveCutoff(),
     fileClaimAgentlessCutoff(ctx, now),
   )
+
+  for (const issue of new Set([...claimsByPath.values()].map((claim) => claim.issueId))) {
+    await assertIssueAccess(ctx, issue, force ? 'edit' : 'read')
+  }
 
   // PROJ-636: split stale holders out before conflict evaluation — a dead holder neither
   // blocks the claim nor lands in claim_conflicts. Same semantics as before reclaimStaleClaims
@@ -430,6 +420,7 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
   const result = ReleaseFilesSchema.safeParse(raw)
   if (!result.success) throw new ValidationError(result.error.flatten())
   const { paths, issueId } = result.data
+  if (issueId) await assertIssueAccess(ctx, issueId, 'edit')
 
   const orm = drizzle(ctx.db, { schema })
   const now = Math.floor(Date.now() / 1000)
@@ -465,6 +456,10 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
 
   if (toRelease.length === 0) {
     return { released: [], count: 0 }
+  }
+
+  for (const projectId of new Set(toRelease.map((claim) => claim.projectId))) {
+    await assertProjectAccess(ctx, projectId, 'edit', { projectLoadedFromWorkspaceRow: true })
   }
 
   const releaseIds = toRelease.map((r) => r.id)

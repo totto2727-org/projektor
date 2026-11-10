@@ -8,7 +8,7 @@ import {
   ListFeedbackSchema,
   SubmitFeedbackSchema,
   UpdateFeedbackSchema,
-} from '../../api/schemas/feedback'
+} from '../../contracts/inputs/feedback'
 import { canWriteProject, requireProjectAccess, requireProjectInWorkspace } from './access'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
 import { createIssue } from './issues'

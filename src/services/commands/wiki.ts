@@ -4,8 +4,7 @@ import { Effect } from 'effect'
 import { drizzle, schema } from '#db'
 import * as wikiData from '#services/wiki'
 
-import { wikiPagePath } from '../../api/lib/urls'
-import { IdSchema } from '../../api/schemas/common'
+import { IdSchema } from '../../contracts/inputs/common'
 import {
   CreatePageSchema,
   DeleteWikiPageOptionsSchema,
@@ -20,7 +19,8 @@ import {
   UpdatePageSchema,
   WikiRevisionDiffInputSchema,
   WikiTreeInputSchema,
-} from '../../api/schemas/wiki'
+} from '../../contracts/inputs/wiki'
+import { wikiPagePath } from '../../contracts/urls'
 import {
   assertProjectAccess,
   effectiveProjectRole,

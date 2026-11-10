@@ -1,6 +1,6 @@
 import type { AuthRequest, OAuthHelpers } from '@cloudflare/workers-oauth-provider'
 
-import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from '../../api/auth/scopes'
+import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from '../../contracts/auth-scopes'
 import { NotFoundError } from './errors'
 
 // PROJ-656: the parts of the authorization request that are projektor's business

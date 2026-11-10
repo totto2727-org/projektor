@@ -5,9 +5,8 @@ import type { z } from 'zod'
 import { drizzle, schema } from '#db'
 import * as issueQueries from '#services/issues'
 
-import { issuePath } from '../../api/lib/urls'
-import { AddCommentSchema } from '../../api/schemas/comments'
-import { BooleanQueryParam, IdSchema } from '../../api/schemas/common'
+import { AddCommentSchema } from '../../contracts/inputs/comments'
+import { BooleanQueryParam, IdSchema } from '../../contracts/inputs/common'
 import {
   CreateIssueSchema,
   GetIssueSchema,
@@ -15,7 +14,8 @@ import {
   ListIssuesSchema,
   SearchIssuesInputSchema,
   UpdateIssueSchema,
-} from '../../api/schemas/issues'
+} from '../../contracts/inputs/issues'
+import { issuePath } from '../../contracts/urls'
 import {
   canWriteProject,
   effectiveProjectRole,

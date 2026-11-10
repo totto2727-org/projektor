@@ -33,32 +33,44 @@ function fixture() {
     INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g','p','member');
   `)
   const binds: number[] = []
-  const db: D1Database = {
-    ...database.db,
-    prepare(query: string) {
-      const statement = database.db.prepare(query)
-      return {
-        ...statement,
-        bind(...values: unknown[]) {
-          binds.push(values.length)
-          if (values.length > 100) throw new Error('D1 bind budget exceeded')
-          return statement.bind(...values)
-        },
+  const db = new Proxy(database.db, {
+    get(target, property, receiver) {
+      if (property === 'prepare') {
+        return (query: string) => {
+          const statement = target.prepare(query)
+          return new Proxy(statement, {
+            get(prepared, key, preparedReceiver) {
+              if (key === 'bind') {
+                return (...values: unknown[]) => {
+                  binds.push(values.length)
+                  if (values.length > 100) throw new Error('D1 bind budget exceeded')
+                  return prepared.bind(...values)
+                }
+              }
+              const value = Reflect.get(prepared, key, preparedReceiver)
+              return typeof value === 'function' ? value.bind(prepared) : value
+            },
+          })
+        }
       }
-    },
-    async batch(statements: D1PreparedStatement[]) {
-      database.sqlite.exec('BEGIN')
-      try {
-        const results = []
-        for (const statement of statements) results.push(await statement.all())
-        database.sqlite.exec('COMMIT')
-        return results
-      } catch (error) {
-        database.sqlite.exec('ROLLBACK')
-        throw error
+      if (property === 'batch') {
+        return async (statements: D1PreparedStatement[]) => {
+          database.sqlite.exec('BEGIN')
+          try {
+            const results = []
+            for (const statement of statements) results.push(await statement.all())
+            database.sqlite.exec('COMMIT')
+            return results
+          } catch (error) {
+            database.sqlite.exec('ROLLBACK')
+            throw error
+          }
+        }
       }
+      const value = Reflect.get(target, property, receiver)
+      return typeof value === 'function' ? value.bind(target) : value
     },
-  } as D1Database
+  })
   const ctx: ServiceCtx = {
     db,
     kv: { get: vi.fn(async () => null), put: vi.fn(), delete: vi.fn() } as unknown as KVNamespace,

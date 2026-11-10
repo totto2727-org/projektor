@@ -5,13 +5,13 @@ import type { z } from 'zod'
 import { drizzle, schema } from '#db'
 import * as sprintQueries from '#services/sprints'
 
-import { IdSchema } from '../../api/schemas/common'
+import { IdSchema } from '../../contracts/inputs/common'
 import {
   CreateSprintSchema,
   ListSprintsSchema,
   MoveIssuesToSprintSchema,
   UpdateSprintSchema,
-} from '../../api/schemas/sprints'
+} from '../../contracts/inputs/sprints'
 import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin } from './access'
 import { ForbiddenError, NotFoundError, ValidationError } from './errors'
 import { inChunks } from './sql'

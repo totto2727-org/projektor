@@ -2,7 +2,7 @@ import { getOAuthApi, type OAuthHelpers, type OAuthProviderOptions } from '@clou
 
 import type { Env } from '#types'
 
-import { OAUTH_SCOPES_SUPPORTED } from '../api/auth/scopes'
+import { OAUTH_SCOPES_SUPPORTED } from '../contracts/auth-scopes'
 
 export const TOKEN_ENDPOINT = '/oauth/token'
 export const AUTHORIZE_ENDPOINT = '/oauth/authorize'
