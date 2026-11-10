@@ -2,10 +2,12 @@
 
 ## Project
 
-This is one private Vite+ project with two Cloudflare Workers in one Alchemy stack.
-`src/api` owns the Hono API, authentication and API response shaping.
-`src/web` owns the Effront application, ServerFns, UI and browser-session authorization.
-`src/services` contains internal retrieval queries, browser authentication and shared domain commands for API and Web, not a published package.
+This is one private Vite+ project with three Cloudflare Workers in one Alchemy stack.
+`src/api` owns the external Hono REST, MCP and OAuth interfaces and API response shaping.
+`src/web` owns the Effront application, ServerFns, UI and browser request boundaries.
+The private Core Worker owns shared domain operations, persistent authorization, provisioning and all D1 access.
+API and Web call Core directly through native service bindings, never through each other's public URLs.
+`src/services` and `src/db` are Core implementation modules, not published packages or adapter capabilities.
 `src/db` contains the schema, `migrations/` the maintained SQL migrations, and `src/types` the shared internal types.
 Private `#db`, `#services`, `#commands`, `#types` and `#plugin-sdk` imports resolve inside this project.
 Do not recreate workspace packages, a separate infra project, Turbo, Biome or Lefthook.
@@ -20,10 +22,10 @@ In system-first mode, the Nix shell's Node.js takes precedence. Use `vp env exec
 `vp run ci` runs formatting, typed lint and every configured test project, including the native Workers API regressions.
 `vp run test:workers` selects the native API regression project through the supported `@cloudflare/vitest-plugin`, which supports Vite+'s Vitest 5.
 Do not patch the plugin, add a second test CLI or filter unexpected test errors.
-The separate screenshot-backed E2E workflow exercises the real API and Web Workers and shared D1 but does not replace every native API regression.
+The screenshot-backed E2E workflow exercises the real Worker application and persistent storage but does not replace every native API regression.
 `vp run dev` starts the whole Alchemy stack.
 `vp run plan` compares production resources but does not prove a production build or deployment.
-`vp run deploy` intentionally deploys both Workers from `alchemy.run.ts` and requires operator authorization.
+`vp run deploy` intentionally deploys the whole Worker stack from `alchemy.run.ts` and requires operator authorization.
 `vp run e2e` runs the real local Worker/browser acceptance workflow with screenshots.
 The native Cloudflare test plugin uses its public local options directly, without a Wrangler TOML or custom parser.
 CI uses the shared setup actions and Nix inputs from the Vite+ app template.
@@ -36,7 +38,7 @@ Reviewed esbuild/workerd lifecycle permission remains in `pnpm-workspace.yaml`.
 The shell, locked Nix inputs, TypeScript 7, compiler preset versions and package-manager version track `template-vite-plus-app` revision `fcbfdb567154ca9264598bb5c6dd50713898184c`.
 This Worker application does not publish the template's Bun CLI executable, so CLI packing, npm publication checks and Nix CLI package outputs do not apply.
 Alchemy CLI supplies the native Worker host during development and deployment; a standalone root `vp build` lacks that host and is not an application task.
-`vp run e2e` builds both actual Worker artifacts with the official acceptance-only host and exercises them locally.
+`vp run e2e` builds the actual Worker artifacts with the official acceptance-only host and exercises them locally.
 
 ## Implementation
 
@@ -45,15 +47,21 @@ Define each operation separately with `ServerFn.make`, with concrete Effect sche
 Keep SSR data canonical and client state limited to drafts, selections and transient feedback.
 Use TanStack Form with Effect standard schemas for client-managed forms.
 Resolve native request dependencies only at execution boundaries.
-Entity retrieval and pre-mutation visibility checks use shared direct D1 queries.
-Each browser ServerFn calls its concrete shared command with verified request identity and workspace capabilities, not HTTP endpoints or a generic dispatcher.
-Browser Access/development authentication and D1/R2 file storage are shared with API adapters without a Web-to-API service binding.
-The API retains bearer/OAuth authentication and HTTP shaping, while Web retains browser-only session, same-origin, UI and upload-limit boundaries.
-Web has no API binding, API_BASE or OAuth signing JWT secret.
-Both Workers share the existing storage identities and rate-limiter namespace, with environment differences resolved by aggregate Layers.
-Never introduce direct browser backend fetches, generic mutation dispatchers or upload-size bypasses.
-Direct DB reads must preserve workspace/project visibility, including authorized archived entity reads.
-Authentication and response/UI shaping belong at their application boundaries, not in internal retrieval queries.
+Entity retrieval, authorization and mutations execute in Core through concrete, typed domain operations.
+Each browser ServerFn calls its named Core operation, not a public HTTP endpoint, generic dispatcher or remote SQL interface.
+Core verifies credentials and resolves current membership, credential confinement and effective project permissions.
+Never accept a caller-supplied user ID, role, SQL predicate or storage capability as authorization.
+API retains bearer/OAuth protocol and HTTP shaping, while Web retains browser-only request, same-origin, UI and upload-limit boundaries.
+Web has no API binding, API_BASE, D1 binding or OAuth signing JWT secret.
+API has no D1 binding, including in scheduled handlers, authentication, rate-limit fallbacks and Durable Objects.
+Keep native bindings request-local and resolve them lazily rather than capturing an earlier request's environment.
+Return validated public success or failure data across RPC, not custom Error instances, stacks, causes or database diagnostics.
+Log unexpected diagnostics at their origin and expose only a safe error and occurrence ID.
+Stream binary transfers through the same private service binding without JSON or base64 buffering.
+Preserve the existing physical storage and rate-limiter namespace identities.
+Never introduce direct browser backend fetches, blind mutation retries or upload-size bypasses.
+Core reads preserve workspace/project visibility, including authorized archived entity reads.
+HTTP, MCP and UI response shaping remain in their external adapters.
 Use shadcn Base UI generated components with minimal changes.
 See [SHADCN.md](SHADCN.md) for the generated component inventory, purposeful customizations and update procedure.
 Overview and Metrics share the official shadcn/Recharts flow charts; CFD stacks raw status counts once, not pre-cumulative values.
@@ -64,12 +72,37 @@ Use Comark for untrusted dynamic Markdown, not Effront's static Markdown rendere
 Do not edit README.md without a specific request.
 Keep temporary reports and screenshots under ignored `tmp/` or acceptance-output directories.
 
+## Review gates
+
+- Verify the actual API, Web and Core artifacts together with native service bindings and no DB binding at either public adapter.
+- Check current membership and project grants inside Core, including credential workspace confinement, revoked grants, archived reads and interactive-human-only operations.
+- Test safe expected errors, malformed replies, native transport failures, cancellation and concurrent requests using different bindings.
+- Verify browser same-origin rules, SSR and ServerFn parity, cold no-JavaScript navigation, and desktop/mobile keyboard behavior.
+- Exercise file authorization before bytes, metadata-only HEAD, streaming integrity and cancellation without JSON/base64 transfer.
+- Keep failed writes non-destructive, bound D1 statement parameters and cleanup batches, and preserve retry information when storage deletion fails.
+- Test delayed UI mutations with edits made while the request is pending, rather than checking only immediate success.
+- Keep cron bounded and single-owned, and verify the deployed names, domains, storage IDs and Durable Object identities independently of application tests.
+- Do not turn inventory coverage or passing unit tests into a claim of complete security assurance or measured performance improvement.
+
+## Migration safety
+
+Keep applied historical SQL and migration bookkeeping unchanged.
+The installed Alchemy host skips an applied file by name, not by matching its stored hash, so editing history can silently produce different databases.
+Populated legacy upgrades through `0035`, `0041`, `0050` and `0060` can encounter generated-slug collisions with already occupied names.
+An appended migration cannot repair a database that fails before reaching it.
+Before resuming such a legacy upgrade, use an offline restored copy and an explicitly approved old-to-new mapping against the complete workspace namespace.
+Preserve page identity, redirect ownership, versions and foreign keys, then replay the unchanged remaining history and verify the result.
+Do not automatically rename user content, fabricate ledger entries, replay production migrations or treat fresh empty replay as populated-upgrade proof.
+Production migration or data repair requires separate operator authorization and a recoverable backup.
+
 ## Production Safety
 
-`alchemy.ts` declares both Workers and `alchemy.run.ts` deploys them together.
+`alchemy.ts` declares the public API, public Web and private Core Workers, and `alchemy.run.ts` deploys the stack together.
 LocalLayer and ProductionLayer aggregate environment-specific settings, adoption and storage/secret bindings, selected once at the composition boundary.
 Worker declarations resolve dependencies and dynamic imports only; Web routing and response behavior belong in `src/web/worker.ts`.
 Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed account, storage IDs, API cron and the existing `RATE_LIMITER` / `RateLimiter` binding.
+Core has no public domain, route, workers.dev URL or preview URL.
+Only Core receives D1, and API's existing cron forwards maintenance to Core without moving the schedule or adding a second trigger.
 Existing production D1/KV/R2 are external bindings, not resources to recreate or migrate automatically.
 Do not replay the historical unbound WorkspaceHub migration.
 Production inherits the existing JWT_SECRET through a standard Cloudflare `inherit` binding when no local value is supplied.
@@ -104,8 +137,9 @@ Application-level styles adapt shared navigation spacing, sidebar/table dividers
 The official shadcn Chart/Recharts integration replaces uPlot and the overview's independent thick-stroke SVG; Overview and Metrics share seven flow-chart implementations with raw-count stacking, native tooltips and theme tokens.
 The Wiki mobile page-tree drawer and backdrop begin below the header and remain below its z-index, while the native application Sidebar keeps its full-height modal behavior.
 Groups retains its page heading and access explanation; Comark code blocks use readable GitHub light/dark palettes selected by the existing theme preference.
-It adds shared internal D1 retrieval and domain commands while keeping application-specific authorization, API responses and MCP protocol behavior at their boundaries.
-Browser authentication, updates and file transfers execute against shared native D1/KV/R2 capabilities without Web-to-API HTTP or service bindings.
+It adds shared internal retrieval and domain commands behind a private Core Worker, while REST, MCP and Effront remain external adapters.
+Native Core service bindings replace the former direct Web/API D1 access to centralize persistent policy and storage ownership.
+This architecture does not imply a performance improvement.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
 Production deployment is a separate workflow gated on successful main-push CI, with the tested revision, production environment and serialized deployments preserved.
 Deployment uses standard Alchemy configuration without custom confirmation flags, preflight gates or secret-value validation.
