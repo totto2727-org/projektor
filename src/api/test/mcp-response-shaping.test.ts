@@ -1,10 +1,11 @@
 // PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
 // one `{items, next}` pagination shape, and a hard per-result size cap.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import { capPage, shapeIssue, splitShapeOpts, toPage } from '../mcp/serialize'
+import { env } from './fixture-api'
 import { seedIssue, seedProjectFixture } from './helpers'
 
 type Rpc = { result?: { content?: Array<{ text: string }>; isError?: boolean } }

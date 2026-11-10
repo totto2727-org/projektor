@@ -1,13 +1,13 @@
 // PROJ-859: get_prioritized_issues ranks in SQL. Parity with the previous in-memory
 // algorithm (reimplemented below as the reference) and a bounded query count.
 
-import { env } from 'cloudflare:test'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { checkDefinitionOfReady } from '#commands/definition-of-ready'
 import { getPrioritizedIssues } from '#commands/issues'
 import type { ServiceCtx } from '#commands/types'
 
+import { env } from './fixture-api'
 import { seedFixture, seedProject } from './helpers'
 
 const READY_BODY = 'Do the thing.\n\n## Acceptance criteria\n- [ ] it works\n\n## Scope\n`apps/api/src/x.ts`'

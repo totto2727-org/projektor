@@ -2,9 +2,10 @@
 // bare collection paths. Hono's `/x/*` also matches `/x`, so registering both `/x` and
 // `/x/*` ran the pair twice — two wasted, sequential D1 round trips per request.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedIssueFixture } from './helpers'
 
 describe('PROJ-856: middleware runs once per request', () => {

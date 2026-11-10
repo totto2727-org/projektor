@@ -5,9 +5,10 @@
 // cascade here — those assertions are end-state checks. The non-FK references (share
 // tokens, R2 objects, FTS) are what this proves; fk-cleanup.node.test.ts guards the rest.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import {
   authHeaders,
   seedAgentLease,

@@ -1,9 +1,10 @@
 // PROJ-858: saving a page resolves its slug links in a fixed number of queries,
 // not 1–3 per link, and produces the same wiki_links rows as before.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture } from './helpers'
 
 describe('PROJ-858: batched slug link resolution on save', () => {

@@ -1,6 +1,7 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture, seedMember, seedProject, seedUserToken, seedWorkspace } from './helpers'
 
 describe('credential confinement for user-level operations', () => {

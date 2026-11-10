@@ -1,8 +1,9 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
 import { hashFeedbackToken } from '#commands/feedback'
 
+import { env } from './fixture-api'
 import {
   authHeaders,
   type JsonRpcError,

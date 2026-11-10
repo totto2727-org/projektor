@@ -1,6 +1,7 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedProjectFixture } from './helpers'
 
 async function mintSource(

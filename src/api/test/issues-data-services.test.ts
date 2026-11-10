@@ -1,4 +1,4 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
@@ -11,6 +11,7 @@ import * as queries from '#services/issues'
 import { listTaskStatuses } from '#services/task-statuses'
 import { listTaskTypes } from '#services/task-types'
 
+import { env } from './fixture-api'
 import {
   authHeaders,
   seedComment,

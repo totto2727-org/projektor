@@ -1,7 +1,7 @@
-import { env } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import m0030 from '../../../migrations/0030_backfill_review_timestamp.sql?raw'
+import { env } from './fixture-api'
 import { seedIssue, seedProject, seedUser, seedWorkspace } from './helpers'
 
 // PROJ-328: 0030 backfills in_review_at (added by 0029) for issues that were already

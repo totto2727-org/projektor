@@ -1,9 +1,10 @@
 // PROJ-815: backfillWikiLinks batches reads/writes, skips trashed pages, and is
 // incremental/resumable via a cursor + page budget, with an updatedSince scope filter.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture } from './helpers'
 
 async function insertPage(

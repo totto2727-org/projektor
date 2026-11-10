@@ -1,7 +1,8 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test'
 
 import { validateToolArgs } from '../mcp/validate-args'
+import { env } from './fixture-api'
 import { authHeaders, seedFixture, toolError } from './helpers'
 
 // PROJ-920: MCP arguments are validated against each tool's inputSchema (types, enums,

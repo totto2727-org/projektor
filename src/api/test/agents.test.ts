@@ -1,9 +1,10 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { startWork as startWorkDirect } from '#commands/agents'
 import type { ServiceCtx } from '#commands/types'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedProjectFixture } from './helpers'
 
 describe('Agents API', () => {

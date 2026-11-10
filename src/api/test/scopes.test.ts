@@ -8,7 +8,7 @@
  *  - scope validation + membership check at token creation (/auth/tokens).
  */
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import {
@@ -19,6 +19,7 @@ import {
   parseScopes,
   tokenAllows,
 } from '../auth/scopes'
+import { env } from './fixture-api'
 import {
   authHeaders,
   type JsonRpcError,

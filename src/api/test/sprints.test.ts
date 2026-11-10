@@ -1,6 +1,7 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import {
   authHeaders,
   seedFixture,

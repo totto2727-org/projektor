@@ -1,4 +1,3 @@
-import { env } from 'cloudflare:test'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import {
@@ -9,6 +8,7 @@ import {
 } from '#commands/provisioning'
 import type { Env } from '#types'
 
+import { env } from './fixture-api'
 import { seedMember, seedUser, seedWorkspace } from './helpers'
 
 // PROJ-433: provisioning short-circuits on a cached marker, which is module state and

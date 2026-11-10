@@ -1,6 +1,7 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture, seedProjectFixture } from './helpers'
 
 describe('Activity audit log', () => {

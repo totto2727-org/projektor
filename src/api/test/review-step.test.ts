@@ -1,7 +1,8 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import m0061 from '../../../migrations/0061_task_status_review_step.sql?raw'
+import { env } from './fixture-api'
 import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskStatus } from './helpers'
 
 // PROJ-749: a status is a review step because the workspace flagged it

@@ -1,4 +1,3 @@
-import { env } from 'cloudflare:test'
 import { describe, expect, it, vi } from 'vite-plus/test'
 
 import { addComment, deleteComment, updateComment } from '#commands/comments'
@@ -9,6 +8,7 @@ import { updateTaskType } from '#commands/task-types'
 import type { ServiceCtx } from '#commands/types'
 import { markWikiNotificationsRead } from '#commands/wiki-watchers'
 
+import { env } from './fixture-api'
 import { seedFixture, seedGroupGrant, seedIssue, seedProject, seedTaskStatus, seedTaskType } from './helpers'
 
 async function fixture() {

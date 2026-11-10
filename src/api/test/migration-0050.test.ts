@@ -1,7 +1,7 @@
-import { env } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import m0050 from '../../../migrations/0050_wiki_slug_slash_backfill.sql?raw'
+import { env } from './fixture-api'
 import { seedUser, seedWorkspace } from './helpers'
 
 // PROJ-517/512: runs the actual 0050 migration SQL against seeded rows, rather than

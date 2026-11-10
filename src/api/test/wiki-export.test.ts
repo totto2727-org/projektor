@@ -1,7 +1,8 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { unzipSync } from 'fflate'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture, seedProject, seedProjectFixture } from './helpers'
 
 // MAX_EXPORT_PAGES in services/wiki-export.ts — kept in sync manually since the

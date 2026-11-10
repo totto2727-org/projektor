@@ -1,7 +1,8 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import m0062 from '../../../migrations/0062_repair_zero_lead_time.sql?raw'
+import { env } from './fixture-api'
 import { authHeaders, seedProjectFixture } from './helpers'
 
 // PROJ-921: lead time (ready -> done) came out as a 0s median because an issue moved

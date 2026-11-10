@@ -1,6 +1,5 @@
-import { env } from 'cloudflare:test'
-
 import { rateLimiterObjectName } from '../middleware/rate-limit'
+import { env } from './fixture-api'
 
 /**
  * Start every rate-limit counter afresh (PROJ-867).

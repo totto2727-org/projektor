@@ -1,8 +1,9 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import type { Distribution } from '#commands/flow-metrics'
 
+import { env } from './fixture-api'
 import { authHeaders, type JsonRpcResult, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers'
 
 interface FlowMetrics {

@@ -1,12 +1,13 @@
 // PROJ-863: GET of an issue never shows stale data about OTHER entities (linked
 // issues, status/type names, project key, sprint) after those change.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { getIssue } from '#commands/issues'
 import type { ServiceCtx } from '#commands/types'
 
+import { env } from './fixture-api'
 import { authHeaders, seedIssue, seedIssueFixture, seedTaskStatus } from './helpers'
 
 type IssueBody = {

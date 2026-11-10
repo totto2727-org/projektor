@@ -1,6 +1,6 @@
-import { env } from 'cloudflare:test'
 import { beforeAll, beforeEach } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { MIGRATIONS } from './migrations'
 import { resetRateLimits } from './rate-limit-reset'
 
@@ -16,6 +16,8 @@ function splitStatements(sql: string): string[] {
     .filter((s) => s.length > 0)
 }
 
+// Migrations run through the test-only Core fixture entrypoint. The actual public
+// API Worker has no persistent storage bindings.
 beforeAll(async () => {
   for (const sql of MIGRATIONS) {
     for (const stmt of splitStatements(sql)) {

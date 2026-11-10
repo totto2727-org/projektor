@@ -1,4 +1,3 @@
-import { env } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
 import { listMessages, postMessage } from '#commands/agent-messages'
@@ -7,6 +6,7 @@ import { claimFiles, releaseFiles } from '#commands/file-claims'
 import { claimIssue, releaseIssue } from '#commands/issue-leases'
 import type { ServiceCtx } from '#commands/types'
 
+import { env } from './fixture-api'
 import { seedFixture, seedGroupGrant, seedIssue, seedProject } from './helpers'
 
 async function fixture() {

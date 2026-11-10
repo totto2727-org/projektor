@@ -5,12 +5,13 @@
 // can't do: FTS mirrors, share tokens, R2 objects and references without an FK.
 // fk-cleanup.node.test.ts is the guard that the app-level cleanup exists.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
 import type { ServiceCtx } from '#commands/types'
 import { createWikiPage, updateWikiPage } from '#commands/wiki'
 
+import { env } from './fixture-api'
 import {
   authHeaders,
   seedAgentLease,

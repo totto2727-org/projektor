@@ -1,7 +1,8 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { submitFeedback } from '../examples/feedback-widget-submit'
+import { env } from './fixture-api'
 import { authHeaders, seedProjectFixture } from './helpers'
 
 // Proves the maintained client example works against the real API Worker,

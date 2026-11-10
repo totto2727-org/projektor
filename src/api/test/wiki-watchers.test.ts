@@ -1,6 +1,7 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture, seedGroupGrant, seedMember, seedProject, seedToken, seedUser } from './helpers'
 import { resetRateLimits } from './rate-limit-reset'
 

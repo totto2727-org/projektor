@@ -7,9 +7,10 @@
 // In tests the human session is the dev bypass: ENVIRONMENT=development +
 // DEV_USER_EMAIL, no Authorization header.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture, seedUserToken } from './helpers'
 
 async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {

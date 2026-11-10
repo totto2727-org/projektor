@@ -1,13 +1,14 @@
 // PROJ-889: MCP calls get the full ServiceCtx (realtime hub, waitUntil) and every auth
 // strategy records its method + credential on the request context.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { Hono } from 'hono'
 import { afterEach, describe, expect, it } from 'vite-plus/test'
 
 import type { AuthInfo, HonoEnv } from '#types'
 
 import { authMiddleware } from '../middleware/auth'
+import { env } from './fixture-api'
 import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers'
 
 describe('PROJ-889: MCP mutations broadcast like REST', () => {

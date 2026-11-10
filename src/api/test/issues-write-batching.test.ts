@@ -12,12 +12,13 @@
 // review transition with completion report 7 -> 4, and the parent walk no longer grows
 // with depth (a 4-ancestor parent cost 3 more round trips than a 1-ancestor one; now equal).
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { createIssue, updateIssue } from '#commands/issues'
 import type { ServiceCtx } from '#commands/types'
 
+import { env } from './fixture-api'
 import {
   authHeaders,
   seedAgentLease,

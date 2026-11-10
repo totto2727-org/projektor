@@ -1,8 +1,9 @@
 // PROJ-857: issue list pagination + query plans.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedIssueFixture } from './helpers'
 
 describe('PROJ-857: issue list cursor', () => {

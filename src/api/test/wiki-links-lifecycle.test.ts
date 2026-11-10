@@ -1,12 +1,13 @@
 // PROJ-814: creating, renaming, restoring or purging a page re-resolves OTHER pages'
 // [[Target]] links that match its title/slug, without those pages being re-saved.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
 import type { ServiceCtx } from '#commands/types'
 import { purgeExpiredWikiPages } from '#commands/wiki'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture } from './helpers'
 import { resetRateLimits } from './rate-limit-reset'
 

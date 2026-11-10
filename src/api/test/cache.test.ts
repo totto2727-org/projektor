@@ -1,8 +1,9 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import * as cache from '#commands/cache'
 
+import { env } from './fixture-api'
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus, seedTaskType } from './helpers'
 
 describe('KV caching', () => {

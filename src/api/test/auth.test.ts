@@ -8,11 +8,12 @@
  *  4. MCP error contract — serviceErr → JSON-RPC error codes, malformed bodies, unknown workspace
  */
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { resetAuthCachesForTests, verifyJwtPayload } from '#services/authentication'
 
+import { env } from './fixture-api'
 import {
   authHeaders,
   hashToken,

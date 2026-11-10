@@ -2,9 +2,10 @@
 // next-step hint, so the model can self-correct. JSON-RPC errors are reserved for protocol
 // faults; scope denials stay an HTTP 403 with a WWW-Authenticate challenge (PROJ-651).
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { seedIssueFixture, seedProjectFixture, seedToken, type ToolErrorBody, toolError } from './helpers'
 
 type Rpc = {

@@ -10,12 +10,13 @@
 //   number of D1 queries — proving the issue SELECT and lease lookup are now scoped to
 //   the window instead of the whole project.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { getFlowMetrics } from '#commands/flow-metrics'
 import type { ServiceCtx } from '#commands/types'
 
+import { env } from './fixture-api'
 import { authHeaders, seedProjectFixture } from './helpers'
 
 describe('PROJ-866: flow-metrics window validation', () => {

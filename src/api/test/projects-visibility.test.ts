@@ -4,7 +4,6 @@
 // agree. The public viewer is placed in a "Public viewers" group, so publishing a
 // project to anonymous visitors is one explicit grant to that group.
 
-import { env } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
 import { updateIssue } from '#commands/issues'
@@ -13,6 +12,7 @@ import { PUBLIC_VIEWERS_GROUP_NAME, provisionPublicViewer } from '#commands/prov
 import type { ServiceCtx } from '#commands/types'
 import type { Env } from '#types'
 
+import { env } from './fixture-api'
 import { seedGroupGrant, seedIssue, seedMember, seedProject, seedUser, seedWorkspace } from './helpers'
 
 function viewerCtx(workspaceId: string, userId: string): ServiceCtx {

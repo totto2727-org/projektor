@@ -2,12 +2,12 @@
 // deletes its FTS row by rowid (a direct lookup) rather than scanning the UNINDEXED
 // page_id column across every tenant's pages.
 
-import { env } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
 import type { ServiceCtx } from '#commands/types'
 import { createWikiPage, updateWikiPage } from '#commands/wiki'
 
+import { env } from './fixture-api'
 import { seedFixture } from './helpers'
 
 async function ctxFor(): Promise<ServiceCtx> {

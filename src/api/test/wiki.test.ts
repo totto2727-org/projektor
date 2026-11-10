@@ -1,9 +1,10 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import { computeFreshness } from '#commands/wiki-freshness'
 import { listWikiChanges } from '#commands/wiki-watchers'
 
+import { env } from './fixture-api'
 import {
   authHeaders,
   type JsonRpcError,

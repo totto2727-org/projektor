@@ -1,7 +1,7 @@
-import { env } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import m0028 from '../../../migrations/0028_downgrade_viewer_grants.sql?raw'
+import { env } from './fixture-api'
 import { seedMember, seedProject, seedUser, seedWorkspace } from './helpers'
 
 // PROJ-318: 0028 splits the 0027 all-projects backfill so a pre-existing workspace

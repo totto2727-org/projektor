@@ -1,6 +1,7 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskStatus } from './helpers'
 
 // PROJ-254 gate, hardened by PROJ-287/289/292/293: the in_review report requirement is

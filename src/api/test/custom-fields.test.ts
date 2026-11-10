@@ -1,8 +1,9 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import { batchLoadCustomFields } from '#commands/custom-fields'
 
+import { env } from './fixture-api'
 import {
   authHeaders,
   seedCustomFieldDef,

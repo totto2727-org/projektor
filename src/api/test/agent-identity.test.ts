@@ -2,9 +2,10 @@
 // call; claim_issue / heartbeat_agent / end_agent may then omit the agent id when that
 // credential owns exactly one (live) session, and must pass it otherwise.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { hashToken, seedIssue, seedProjectFixture, seedToken } from './helpers'
 
 type RpcBody = {

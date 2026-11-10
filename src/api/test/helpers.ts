@@ -1,4 +1,4 @@
-import { env } from 'cloudflare:test'
+import { env } from './fixture-api'
 
 export type JsonRpcResult<T = unknown> = { jsonrpc: '2.0'; id: unknown; result: T }
 export type JsonRpcError = {

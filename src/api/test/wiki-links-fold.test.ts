@@ -2,9 +2,10 @@
 // accented Latin titles resolve; and link reads never reveal pages in projects the
 // caller can't see.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture, seedProject, seedWorkspaceRoles } from './helpers'
 import { resetRateLimits } from './rate-limit-reset'
 

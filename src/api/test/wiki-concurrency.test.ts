@@ -1,13 +1,14 @@
 // PROJ-809 / PROJ-810: wiki reads carry their revision pointer, and every content
 // write is guarded so a concurrent write can't be silently reverted.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { ConflictError } from '#commands/errors'
 import type { ServiceCtx } from '#commands/types'
 import { createWikiPage, getWikiPage, listWikiRevisions, patchWikiPage, updateWikiPage } from '#commands/wiki'
 
+import { env } from './fixture-api'
 import { authHeaders, seedFixture } from './helpers'
 
 async function setup() {

@@ -1,6 +1,7 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, type JsonRpcResult, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers'
 
 describe('compose_playbook', () => {

@@ -1,7 +1,8 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { subdomainRoutingEnabled } from '../middleware/workspace'
+import { env } from './fixture-api'
 import { seedFixture } from './helpers'
 
 describe('subdomainRoutingEnabled', () => {

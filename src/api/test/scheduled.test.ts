@@ -1,4 +1,4 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import type { Env } from '#types'
@@ -8,6 +8,7 @@ import {
   purgeExpiredRetentionData,
   runFtsDedupeOnce,
 } from '../../core/api/maintenance'
+import { env } from './fixture-api'
 import { authHeaders, seedAgentLease, seedFixture, seedIssueFixture, seedUser, seedWorkspace } from './helpers'
 import { resetRateLimits } from './rate-limit-reset'
 

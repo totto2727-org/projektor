@@ -6,9 +6,10 @@
 // bills a batch as a single request) and a behavioural check that conflict/force/stale
 // semantics are unchanged at 100-path scale.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedIssue, seedIssueFixture } from './helpers'
 
 /**

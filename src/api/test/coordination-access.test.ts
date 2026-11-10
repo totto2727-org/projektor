@@ -1,6 +1,7 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { env } from './fixture-api'
 import { authHeaders, seedAgentLease, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers'
 
 // PROJ-316: the fleet-coordination list surfaces (issue-leases, file-claims,

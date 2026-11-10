@@ -1,10 +1,11 @@
 // PROJ-892: windowed reads — bodyChars previews on lists, get_wiki_page maxChars/cursor/
 // section/outline, and get_issue's long-body cursor.
 
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import { outlineOf, sectionOf, windowText } from '../mcp/windowing'
+import { env } from './fixture-api'
 import { seedProjectFixture } from './helpers'
 
 type Rpc = { result?: { content?: Array<{ text: string }>; isError?: boolean } }

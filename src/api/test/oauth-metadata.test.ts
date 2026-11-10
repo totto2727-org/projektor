@@ -1,5 +1,7 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { describe, expect, it } from 'vite-plus/test'
+
+import { env } from './fixture-api'
 
 // PROJ-655: the two public OAuth discovery documents.
 //
