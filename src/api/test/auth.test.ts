@@ -9,11 +9,21 @@
  */
 
 import { SELF } from 'cloudflare:test'
+import { Effect } from 'effect'
+import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import { verifyJwtPayload } from '#services/authentication'
 
-import { configureCore, env, getCoreObservations, resetCoreAuthCaches, resetCoreObservations } from './fixture-api'
+import { ApiPrincipal } from '../../contracts/api-auth'
+import {
+  configureCore,
+  createCoreFixtureSession,
+  env,
+  getCoreObservations,
+  resetCoreAuthCaches,
+  resetCoreObservations,
+} from './fixture-api'
 import {
   authHeaders,
   hashToken,
@@ -440,12 +450,72 @@ describe('PROJ-354: CF Access auth caches are isolate-local', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// PROJ-358: a signature that doesn't match any cached JWKS key forces one
-// rate-limited refetch and retry, instead of failing every login until both
-// cache layers expire on their own.
-// ---------------------------------------------------------------------------
+// Concurrent native requests retain their own test-only network policy.
 
+describe('native Core authentication invocation isolation', () => {
+  it('concurrent signed Access sessions fetch only their own configured JWKS endpoint', async () => {
+    const sessions = await Promise.all(
+      ['first', 'second'].map(async (name) => {
+        const pair = await crypto.subtle.generateKey(
+          {
+            name: 'RSASSA-PKCS1-v1_5',
+            modulusLength: 2048,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: 'SHA-256',
+          },
+          true,
+          ['sign', 'verify'],
+        )
+        const epoch = crypto.randomUUID()
+        const domain = `${name}-${epoch}.example.com`
+        const email = `${name}-${epoch}@example.com`
+        const audience = `${name}-${epoch}`
+        const publicJwk = await crypto.subtle.exportKey('jwk', pair.publicKey)
+        const jwt = await signTestJwt(pair.privateKey, {
+          exp: Math.floor(Date.now() / 1000) + 3600,
+          aud: audience,
+          iss: `https://${domain}`,
+          email,
+        })
+        const binding = await createCoreFixtureSession({
+          RATE_LIMIT_TEST_EPOCH: epoch,
+          CF_ACCESS_TEAM_DOMAIN: domain,
+          CF_ACCESS_AUDIENCE: audience,
+          FIXTURE_JWKS_BODY: JSON.stringify({ keys: [publicJwk] }),
+          FIXTURE_AUTH_KV_GET_FAILURE: 'cf-access-certs',
+        })
+        return { binding, epoch, domain, email, jwt }
+      }),
+    )
+
+    await resetCoreAuthCaches()
+    const principals = await Promise.all(
+      sessions.map(({ binding, jwt }) =>
+        Effect.runPromise(
+          decodeCoreReply(
+            ApiPrincipal,
+            makeCoreClient(binding).apiAuthenticate({
+              requestUrl: 'http://localhost/auth/me',
+              method: 'GET',
+              accessJwt: jwt,
+            }),
+          ),
+        ),
+      ),
+    )
+
+    expect(principals.map((principal) => principal.user.email)).toEqual(sessions.map(({ email }) => email))
+    for (const { epoch, domain } of sessions) {
+      const observation = await getCoreObservations(epoch)
+      expect(observation.authenticateCalls).toBe(1)
+      expect(observation.jwksFetches).toEqual([`https://${domain}/cdn-cgi/access/certs`])
+      expect(observation.authCacheGets).toContain('cf-access-certs')
+    }
+    await resetCoreAuthCaches()
+  })
+})
+
+// A stale signing key forces one refresh, with a cooldown for invalid signatures.
 describe('PROJ-358: JWKS force-refresh on signature verification failure', () => {
   it("uncached-key token authenticates via forced refresh; bad sig within cooldown doesn't refetch again", async () => {
     const genKeyPair = () =>
