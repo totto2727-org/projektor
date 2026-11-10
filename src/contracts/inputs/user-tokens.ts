@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { ScopeSchema } from '../auth/scopes'
+import { ScopeSchema } from '../auth-scopes'
 
 export const CreateUserTokenSchema = z.object({
   name: z.string().min(1).max(100),

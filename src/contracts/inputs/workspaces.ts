@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { ScopeSchema } from '../auth/scopes'
+import { ScopeSchema } from '../auth-scopes'
 import { RoleEnum } from './common'
 
 export const CreateWorkspaceSchema = z.object({

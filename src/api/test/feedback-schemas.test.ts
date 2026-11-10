@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { CreateFeedbackSourceSchema, SubmitFeedbackSchema, UpdateFeedbackSourceSchema } from '../schemas/feedback'
+import { CreateFeedbackSourceSchema, SubmitFeedbackSchema, UpdateFeedbackSourceSchema } from '../../contracts/inputs/feedback'
 
 describe('SubmitFeedbackSchema', () => {
   it('accepts a body-only submission', () => {

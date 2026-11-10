@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { safeDecodeURIComponent, wikiPagePath } from '../lib/urls'
+import { safeDecodeURIComponent, wikiPagePath } from '../../contracts/urls'
 
 // PROJ-512 finding 6: the server-side branch that calls safeDecodeURIComponent
 // (index.ts's SSR fallback) is unreachable in this test env — ASSETS is absent, so
