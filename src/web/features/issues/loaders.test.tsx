@@ -1,11 +1,20 @@
 import { Effect } from 'effect'
-import { renderToString } from 'react-dom/server'
+import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
 import { readDataIssuePage, searchDataIssues } from './data'
-import { filteredIssueQuery, loadEpics, loadIssue, loadIssues, loadMyIssues, renderIssue, renderIssues } from './server'
+import {
+  filteredIssueQuery,
+  loadEpics,
+  loadIssue,
+  loadIssues,
+  loadMyIssues,
+  renderIssue,
+  renderIssues,
+  renderMyIssues,
+} from './server'
 import { issueDataFixture } from './test/data-fixture'
 import { project, scope, secondProject, taskTypes, workspace } from './test/fixtures'
 
@@ -205,6 +214,45 @@ describe('complete direct D1 issues SSR loaders', () => {
       ).rejects.toMatchObject({ status: 400 })
     },
   )
+  it('SSR-renders later-page review work first while excluding closed and unassigned work', async () => {
+    const data = fixture()
+    data.sqlite.exec(
+      "INSERT INTO task_statuses (id,workspace_id,key,name,category,position,is_default) VALUES ('review','workspace-a','in_review','In Review','in_progress',2,0)",
+    )
+    data.insertIssue({
+      id: 'review',
+      number: 200,
+      title: 'Old review first',
+      statusId: 'review',
+      assigneeId: scope.user.id,
+      priority: 'low',
+      createdAt: 0,
+    })
+    for (let index = 0; index < 103; index++)
+      data.insertIssue({
+        id: `new-${index}`,
+        number: index + 2,
+        title: `New todo ${index}`,
+        assigneeId: scope.user.id,
+        createdAt: 10,
+      })
+    data.insertIssue({
+      id: 'closed',
+      number: 201,
+      title: 'Closed work excluded',
+      statusId: 'done',
+      assigneeId: scope.user.id,
+    })
+    const html = renderToStaticMarkup(await data.run(renderMyIssues(selected, new URL('https://front.test/my-issues'))))
+    expect(html.match(/<table/g)).toHaveLength(1)
+    expect(html).toContain('105 issues')
+    expect(html.indexOf('Old review first')).toBeLessThan(html.indexOf('New todo'))
+    expect(html).not.toContain('Closed work excluded')
+    expect(html).not.toContain('Second project issue')
+    expect(html).not.toContain('Hidden secret')
+    expect(html).not.toContain('Other membership issue')
+    expect(html).not.toContain('Include done')
+  })
   it('loads complete board sets and performs project-scoped real FTS search', async () => {
     const data = fixture()
     for (let i = 0; i < 102; i++)

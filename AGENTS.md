@@ -144,6 +144,8 @@ SSR bundling uses the framework defaults without the former Markdown compatibili
 The Effect runtime and browser/Node platform packages use normal `^4.0.2` ranges to express Effront's minimum peer requirement, without pinning around Alchemy beta.81's `effect/Crypto` compatibility.
 The permanent Worker type regression preserves concrete construction/request requirements and rejects leaked `any` types.
 The fork replaces Astro/Preact Web with Effront/React SSR, native forms and scoped ServerFns, Base UI and dynamic Comark rendering.
+My Issues uses one cross-project table with no extra project column, excludes completed/cancelled work, and prioritizes review, progress, todo and backlog before urgency and latest updates.
+Canonical SSR pagination and workspace-scoped links are preserved.
 Application-level styles adapt shared navigation spacing, sidebar/table dividers and Markdown table overflow without modifying generated Base UI primitives.
 The official shadcn Chart/Recharts integration replaces uPlot and the overview's independent thick-stroke SVG; Overview and Metrics share seven flow-chart implementations with raw-count stacking, native tooltips and theme tokens.
 The Wiki mobile page-tree drawer and backdrop begin below the header and remain below its z-index, while the native application Sidebar keeps its full-height modal behavior.
