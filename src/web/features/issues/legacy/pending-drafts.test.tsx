@@ -85,6 +85,35 @@ it('keeps a description edited while the submitted description is saving', async
   expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBe('Newer body')
 })
 
+it('keeps the saved draft visible until canonical description props commit', async () => {
+  const pending = deferred<Awaited<ReturnType<typeof updateIssue>>>()
+  vi.mocked(updateIssue).mockReturnValue(pending.promise)
+  const emptyIssue = { ...issue, body: '' }
+  const { rerender } = render(
+    <BodySection issue={emptyIssue} issueId='issue' workspaceSlug='workspace' currentUserId='user' />,
+  )
+  fireEvent.click(screen.getByTitle('Edit description'))
+  fireEvent.change(screen.getByLabelText('Markdown draft'), { target: { value: 'Canonical saved body' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(updateIssue).toHaveBeenCalled())
+  await act(async () => pending.resolve({ ok: true, value: { ok: true } }))
+  expect(screen.getByDisplayValue('Canonical saved body')).toBeTruthy()
+  expect(screen.queryByText('No description.')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Saving…' })).toHaveProperty('disabled', true)
+  expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBe('Canonical saved body')
+  rerender(
+    <BodySection
+      issue={{ ...emptyIssue, body: 'Canonical saved body' }}
+      issueId='issue'
+      workspaceSlug='workspace'
+      currentUserId='user'
+    />,
+  )
+  expect(screen.queryByLabelText('Markdown draft')).toBeNull()
+  expect(screen.getByText('Canonical saved body')).toBeTruthy()
+  expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBeNull()
+})
+
 it('keeps the next comment typed while a previous comment is posting', async () => {
   const pending = deferred<Awaited<ReturnType<typeof addComment>>>()
   vi.mocked(addComment).mockReturnValue(pending.promise)

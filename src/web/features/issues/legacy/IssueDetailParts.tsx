@@ -332,6 +332,7 @@ function useBodyEditor(
   const bodyForm = useIssueForm({ body: '' }, Schema.Struct({ body: BodyText }))
   const [editBody, setEditBody] = bodyForm.field('body')
   const [savingBody, setSavingBody] = useState(false)
+  const [awaitingBody, setAwaitingBody] = useState<{ body: string; revision: number } | null>(null)
   const [saveBodyError, setSaveBodyError] = useState<string | null>(null)
   useUnsavedUnloadGuard(editingBody && editBody !== (issue.body ?? ''))
   const key = draftKey(workspaceSlug, `${currentUserId ?? '-'}:${issueId}`, 'body')
@@ -344,6 +345,21 @@ function useBodyEditor(
   useEffect(() => {
     setHasDraft(loadDraft(key) !== null)
   }, [key])
+
+  useEffect(() => {
+    if (!awaitingBody) return
+    if (bodyRevision.current !== awaitingBody.revision) {
+      setAwaitingBody(null)
+      setSavingBody(false)
+      return
+    }
+    if ((issue.body ?? '') !== awaitingBody.body) return
+    clearDraft(key)
+    setHasDraft(false)
+    setEditingBody(false)
+    setSavingBody(false)
+    setAwaitingBody(null)
+  }, [awaitingBody, editBody, issue.body, key])
 
   function startEditBody(fromDraft = false) {
     setEditBody((fromDraft ? loadDraft(key) : null) ?? issue.body ?? '')
@@ -373,14 +389,15 @@ function useBodyEditor(
     setSaveBodyError(null)
     try {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { body: submittedBody } }))
-      // A successful save owns only the submitted draft, not subsequent edits.
-      if (bodyRevision.current !== revision) return
-      clearDraft(key)
-      setHasDraft(false)
-      setEditingBody(false)
+      // Native ServerFn results settle before the refreshed React tree commits.
+      // Keep the draft visible until canonical props acknowledge this exact save.
+      if (bodyRevision.current !== revision) {
+        setSavingBody(false)
+        return
+      }
+      setAwaitingBody({ body: submittedBody, revision })
     } catch (e) {
       setSaveBodyError(`Save failed: ${String(e)}`)
-    } finally {
       setSavingBody(false)
     }
   }

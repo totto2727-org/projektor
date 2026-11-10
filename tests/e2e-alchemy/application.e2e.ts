@@ -409,9 +409,11 @@ test('native create project and issue refresh canonical reads and navigation', a
   await page.getByRole('textbox', { name: 'Markdown editor', exact: true }).fill(issueBody)
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText(issueBody, { exact: true })).toBeVisible()
+  await expect(page.locator('.markdown-content').getByText(issueBody, { exact: true })).toBeVisible()
   await checkpoint(page, testInfo, 'issue-updated-canonical-body')
   await page.reload()
   await expect(page.getByText(issueBody, { exact: true })).toBeVisible()
+  await expect(page.locator('.markdown-content').getByText(issueBody, { exact: true })).toBeVisible()
   await checkpoint(page, testInfo, 'issue-updated-body-reload')
   const filename = `native-attachment-${suffix}.txt`
   const bytes = Buffer.alloc(65_536, 'native-effront-attachment\n')
