@@ -170,7 +170,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
     expect(await test.invoke(actions.archiveSprint, { ...scope, sprintId: planningIds.source })).toMatchObject({
       ok: false,
       status: 500,
-      message: 'Unable to load project data.',
+      message: 'An unexpected error occurred.',
     })
     expect(test.transport).not.toHaveBeenCalled()
     expect(test.invalidated).toHaveBeenCalledTimes(1)

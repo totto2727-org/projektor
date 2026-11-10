@@ -120,6 +120,16 @@ export function testEnvironment(db: D1Database, email = 'owner@example.test', ov
   const result: Env = {
     ...env,
     CORE: overrides.CORE ?? {
+      webFlowMetrics: (...args: Parameters<WebCoreRpcShape['webFlowMetrics']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webFlowMetrics(...args)),
+      webCodeHeatmap: (...args: Parameters<WebCoreRpcShape['webCodeHeatmap']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCodeHeatmap(...args)),
+      webCreateSprint: (...args: Parameters<WebCoreRpcShape['webCreateSprint']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateSprint(...args)),
+      webDeleteSprint: (...args: Parameters<WebCoreRpcShape['webDeleteSprint']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteSprint(...args)),
+      webMoveSprintIssues: (...args: Parameters<WebCoreRpcShape['webMoveSprintIssues']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webMoveSprintIssues(...args)),
       webCreateIssue: (...args: Parameters<WebCoreRpcShape['webCreateIssue']>) =>
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateIssue(...args)),
       webUpdateIssue: (...args: Parameters<WebCoreRpcShape['webUpdateIssue']>) =>

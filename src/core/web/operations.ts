@@ -5,11 +5,13 @@ import type { CoreEnvironment } from '../environment'
 import { loadBrowserScope } from './authentication'
 import { makeIssueCommandHandlers } from './issue-commands'
 import { makeIssueReadHandlers } from './issue-operations'
+import { makePlanningHandlers } from './planning'
 import { RequestScopeSchema, type ScopeOptions, type WebRequest } from './scope'
 
 export const makeWebCoreHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => ({
   ...makeIssueReadHandlers(envSource),
   ...makeIssueCommandHandlers(envSource),
+  ...makePlanningHandlers(envSource),
   browserScope: (request: WebRequest, options: ScopeOptions = {}) =>
     Effect.flatMap(envSource, (env) =>
       coreReply('browserScope', RequestScopeSchema, loadBrowserScope(env, request, options)),

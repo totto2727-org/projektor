@@ -175,7 +175,7 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     await expect(runWithDatabase(database, url, (scope) => renderMetrics(scope, url)).result).rejects.toMatchObject({
       _tag: 'ApiError',
       status: 500,
-      message: 'Unable to load project data.',
+      message: 'An unexpected error occurred.',
     })
   })
   it('decodes the existing concrete sprint, metrics and heatmap DTO contracts', () => {

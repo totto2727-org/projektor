@@ -1,18 +1,13 @@
-import { sql } from 'drizzle-orm'
 import { Effect, Schema } from 'effect'
 
-import { getCodeHeatmap } from '#services/code-heatmap'
-import { getFlowMetrics } from '#services/flow-metrics'
-import { listIssues, type IssueListOptions } from '#services/issues'
-import { listSprints } from '#services/sprints'
-
-import { RequestServices } from '../../request'
-import { dataError, requireDataProject, requireDataWorkspace, visibleProjectPredicate } from '../../server/data-context'
+import { dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context'
 import { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
+import { readDataIssuePage, readSprints } from '../issues/data'
+import { readFlowMetrics, readCodeHeatmap } from './data'
 import { dateEpochEnd, dateEpochStart, rangeFromUrl } from './helpers'
 import { MetricsWindowSchema, SprintListModeSchema } from './input-schemas'
-import { HeatmapSchema, IssuePageSchema, MetricsSchema, SprintSchema } from './schemas'
+import { IssuePageSchema } from './schemas'
 import type { SprintIssue } from './types'
 import { MetricsDashboard, SprintManager } from './widgets'
 
@@ -29,29 +24,27 @@ function selectedProject(scope: RequestScope, projectId: string, workspaceId: st
 /** Fully page scoped issue DTOs on the server, including completed velocity history. */
 export function loadSprintIssues(projectId: string, workspaceSlug: string, scope: RequestScope) {
   return Effect.gen(function* () {
-    const services = yield* RequestServices
     const workspace = scope.workspaces.find((item) => item.slug === workspaceSlug)
     if (!workspace) return yield* new ScopeError(403, 'Selected workspace is not accessible.')
     yield* selectedProject(scope, projectId, workspace.id)
     const issues: SprintIssue[] = []
     const cursors = new Set<string>()
-    let cursor: IssueListOptions['cursor']
+    let cursor: string | undefined
     let nextCursor: string | null
     do {
-      const page = yield* listIssues(
-        services.db,
-        workspace.id,
-        { projectId, limit: 100, cursor },
-        visibleProjectPredicate(scope, workspace.id, sql`issues.project_id`),
-      ).pipe(Effect.flatMap(Schema.decodeUnknownEffect(IssuePageSchema)), Effect.mapError(dataError))
+      const query = new URLSearchParams({ projectId, limit: '100' })
+      if (cursor) query.set('cursor', cursor)
+      const page = yield* readDataIssuePage(scope, workspace.id, query).pipe(
+        Effect.flatMap(Schema.decodeUnknownEffect(IssuePageSchema)),
+        Effect.mapError(dataError),
+      )
       issues.push(...page.items)
       nextCursor = page.nextCursor
       if (nextCursor && cursors.has(nextCursor))
         return yield* new ApiError('schema', 502, 'Repeated issue pagination cursor')
       if (nextCursor) {
         cursors.add(nextCursor)
-        const [createdAt, id] = nextCursor.split(':')
-        cursor = { createdAt: Number(createdAt), ...(id ? { id } : {}) }
+        cursor = nextCursor
       }
     } while (nextCursor)
     return issues
@@ -63,18 +56,11 @@ export function renderSprints(scope: RequestScope, url: URL) {
       return <p className='text-text-muted'>Select a project to view its sprints.</p>
     const { project, workspace } = scope.selection
     yield* selectedProject(scope, project.id, workspace.id)
-    const services = yield* RequestServices
     const mode = yield* Schema.decodeUnknownEffect(SprintListModeSchema)(url.searchParams.get('status') ?? 'all').pipe(
       Effect.mapError(() => new ScopeError(400, 'Invalid sprint status view.')),
     )
     const [sprints, issues] = yield* Effect.all(
-      [
-        listSprints(services.db, workspace.id, { projectId: project.id }).pipe(
-          Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(SprintSchema))),
-          Effect.mapError(dataError),
-        ),
-        loadSprintIssues(project.id, workspace.slug, scope),
-      ],
+      [readSprints(workspace.id, project.id), loadSprintIssues(project.id, workspace.slug, scope)],
       { concurrency: 2 },
     )
     return (
@@ -96,7 +82,6 @@ export function renderMetrics(scope: RequestScope, url: URL) {
     if (scope.selection.kind !== 'project') return <p className='text-text-muted'>Select a project to view metrics.</p>
     const { project, workspace } = scope.selection
     yield* selectedProject(scope, project.id, workspace.id)
-    const services = yield* RequestServices
     const fallback = rangeFromUrl(new URL(url.pathname, url.origin))
     const window = yield* Schema.decodeUnknownEffect(MetricsWindowSchema)({
       projectId: project.id,
@@ -117,13 +102,8 @@ export function renderMetrics(scope: RequestScope, url: URL) {
     }
     const [metrics, heatmap] = yield* Effect.all(
       [
-        getFlowMetrics(services.db, workspace.id, {
-          ...queryRange,
-          granularity: range.granularity,
-        }).pipe(Effect.flatMap(Schema.decodeUnknownEffect(MetricsSchema)), Effect.mapError(dataError)),
-        getCodeHeatmap(services.db, workspace.id, { ...queryRange, mode, prefix }).pipe(
-          Effect.flatMap(Schema.decodeUnknownEffect(HeatmapSchema)),
-          Effect.mapError(dataError),
+        readFlowMetrics(workspace.id, { ...queryRange, granularity: range.granularity, mode, prefix }),
+        readCodeHeatmap(workspace.id, { ...queryRange, granularity: range.granularity, mode, prefix }).pipe(
           Effect.map((data) => ({ data, error: null })),
           Effect.catch(() =>
             Effect.succeed({
