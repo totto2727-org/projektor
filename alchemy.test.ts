@@ -1,6 +1,7 @@
 import { Stack } from 'alchemy'
 import { AdoptPolicy } from 'alchemy/AdoptPolicy'
 import { CloudflareEnvironment, Providers } from 'alchemy/Cloudflare'
+import type { WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
 import { dedupeBindings, diffBindings } from 'alchemy/Diff'
 import * as Output from 'alchemy/Output'
 import { ConfigProvider, Effect, Redacted } from 'effect'
@@ -20,12 +21,12 @@ function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<stri
   return effect.pipe(Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromUnknown(values)))
 }
 
-async function registerApi(
+async function register(
   local: boolean,
-  accountId = deployment.accountId,
   productionSecret: string | null = 'test-existing-production-value',
   environmentLayer?: typeof LocalLayer | typeof ProductionLayer,
   extraConfig: Record<string, string> = {},
+  accountId = deployment.accountId,
 ) {
   const stack: Stack['Service'] = {
     name: 'projektor',
@@ -34,7 +35,7 @@ async function registerApi(
     bindings: {},
     actions: {},
   }
-  const { api, frontend } = await Effect.runPromise(
+  const resources = await Effect.runPromise(
     configured(environmentLayer ? WorkerResources.pipe(Effect.provide(environmentLayer)) : workers, {
       ALCHEMY_DEV: local ? 'true' : 'false',
       ...(productionSecret === null ? {} : { JWT_SECRET: productionSecret }),
@@ -51,359 +52,269 @@ async function registerApi(
           source: { type: 'env' },
         }),
       ),
-      // Registration must not call any provider. A deliberately empty
-      // collection keeps these tests independent of credentials/cloud APIs.
-      Effect.provideService(Providers, {
-        kind: 'ProviderCollection',
-        providers: {},
-        get: () => undefined,
-      }),
+      // Registration must not resolve providers, credentials or cloud APIs.
+      Effect.provideService(Providers, { kind: 'ProviderCollection', providers: {}, get: () => undefined }),
     ),
   )
-  return { api, frontend, stack }
+  return { ...resources, stack }
 }
 
-describe('source-owned deployment configuration', () => {
-  it.each([false, true])(
-    'captures the symbolic namespace graph without deployment inputs in runtime (dev=%s)',
-    async (local) => {
-      const stack: Stack['Service'] = {
-        name: 'projektor',
-        stage: 'testhost',
-        resources: {},
-        bindings: {},
-        actions: {},
-      }
-      const reads: string[] = []
-      const provider = ConfigProvider.make((path) => {
-        const key = path.join('.')
-        reads.push(key)
-        if (key === 'ALCHEMY_PHASE') return Effect.succeed(ConfigProvider.makeValue('runtime'))
-        if (key === 'ALCHEMY_DEV') return Effect.succeed(ConfigProvider.makeValue(String(local)))
-        return Effect.die(new Error(`Runtime read deployment input ${key}`))
-      })
-      await Effect.runPromise(
-        Frontend.pipe(
-          Effect.map((frontend) => ({ frontend })),
-          Effect.provideService(Stack, stack),
-          Effect.provideService(ConfigProvider.ConfigProvider, provider),
-          Effect.provideService(CloudflareEnvironment, Effect.die(new Error('Runtime resolved deployment profile'))),
-          Effect.provideService(Providers, {
-            kind: 'ProviderCollection',
-            providers: {},
-            get: () => {
-              throw new Error('Runtime resolved lifecycle provider')
-            },
-          }),
-        ),
-      )
-      expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Frontend'])
-      expect(stack.resources.Api.Props).not.toHaveProperty('env')
-      expect(stack.resources.Frontend.Props.env).not.toHaveProperty('DB')
-      expect(stack.bindings.Frontend.some((entry) => entry.sid === 'external-storage')).toBe(false)
-      expect(stack.bindings.Api ?? []).toEqual([])
-      expect(new Set(reads)).toEqual(new Set(['ALCHEMY_PHASE']))
-      const binding = stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? [])[0]
-      expect(binding.type).toBe('durable_object_namespace')
-      expect(binding.name).toBe('RATE_LIMITER')
-      expect(binding.className).toBe('RateLimiter')
-      expect(Output.isOutput(binding.scriptName)).toBe(true)
-      expect(binding.scriptName.kind).toBe('PropExpr')
-      expect(binding.scriptName.identifier).toBe('workerName')
-      expect(binding.scriptName.expr.src.LogicalId).toBe('Api')
-      expect(stack.resources.Frontend.Props.env).not.toHaveProperty('API')
-      expect(stack.resources.Frontend.Props.env).not.toHaveProperty('API_BASE')
-      expect(stack.resources.Frontend.Props.env).not.toHaveProperty('JWT_SECRET')
-      expect(stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? [])).toHaveLength(1)
-    },
-  )
+function bindings(stack: Stack['Service'], id: string) {
+  return dedupeBindings(stack.bindings[id] ?? []).flatMap((entry) => entry.data.bindings ?? [])
+}
 
-  it('registers both retained production Workers with storage scoped to each', async () => {
-    const { frontend, stack } = await registerApi(false)
-    if (!frontend) throw new Error('Missing Frontend')
-    expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Frontend'])
-    expect(frontend.RemovalPolicy).toBe('retain')
-    expect(frontend.Adopt).toBe(true)
-    expect(frontend.Props).toMatchObject({
-      name: 'projektor-frontend',
-      workersDev: { enabled: false, previewsEnabled: false },
-      domain: { name: 'projektor.totto2727.dev', previews: false },
-      vite: { rootDir: '.', viteEnvironments: { entry: 'rsc', children: ['ssr'] } },
-    })
-    expect(frontend.Props.main).toMatch(/\/alchemy\.ts$/)
-    expect(frontend.Props).not.toHaveProperty('access')
-    expect(frontend.Props).not.toHaveProperty('migrations')
-    const bindings = stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? [])
-    for (const binding of existingStorageBindings()) expect(bindings).toContainEqual(binding)
-    expect(bindings.filter((binding) => ['d1', 'kv_namespace', 'r2_bucket'].includes(binding.type))).toHaveLength(4)
-    expect(bindings.some((binding) => binding.type === 'service')).toBe(false)
-    for (const name of ['API', 'API_BASE', 'JWT_SECRET']) {
-      expect(frontend.Props.env).not.toHaveProperty(name)
-      expect(bindings.some((binding) => binding.name === name)).toBe(false)
-    }
-    expect(frontend.Props.env).toMatchObject({
-      ENVIRONMENT: 'production',
-      CF_ACCESS_TEAM_DOMAIN: deployment.access.teamDomain,
-      CF_ACCESS_AUDIENCE: deployment.access.audience,
-      ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
-      DEFAULT_WORKSPACE_SLUG: 'projektor',
-      DEFAULT_WORKSPACE_NAME: 'Projektor',
-      AUTO_JOIN_ROLE: 'none',
-    })
-  })
+const storageNames = ['DB', 'KV', 'OAUTH_KV', 'R2']
 
-  it('shares all four genuine native local storage resources between API and Frontend', async () => {
-    const { api, frontend, stack } = await registerApi(true)
-    if (!frontend) throw new Error('Missing Frontend')
-    for (const [name, id] of [
-      ['DB', 'LocalDatabase'],
-      ['KV', 'LocalCache'],
-      ['OAUTH_KV', 'LocalOAuth'],
-      ['R2', 'LocalFiles'],
-    ]) {
-      expect(api.Props.env?.[name]).toBe(stack.resources[id])
-      expect(frontend.Props.env?.[name]).toBe(stack.resources[id])
-      expect(Object.keys(stack.resources).filter((resourceId) => resourceId === id)).toHaveLength(1)
-    }
-    expect(frontend.Props.env).toMatchObject({
-      ENVIRONMENT: 'development',
-      DEV_USER_EMAIL: localDevelopment.userEmail,
-      ADMIN_EMAILS: localDevelopment.userEmail,
-    })
-    const bindings = stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? [])
-    expect(bindings.some((binding) => binding.type === 'service')).toBe(false)
-    for (const name of ['API', 'API_BASE', 'JWT_SECRET']) {
-      expect(frontend.Props.env).not.toHaveProperty(name)
-      expect(bindings.some((binding) => binding.name === name)).toBe(false)
-    }
-  })
+function expectNoStorage(stack: Stack['Service'], id: 'Api' | 'Frontend') {
+  const resource = stack.resources[id]
+  for (const name of storageNames) {
+    expect(resource.Props.env).not.toHaveProperty(name)
+    expect(bindings(stack, id).some((binding) => binding.name === name)).toBe(false)
+  }
+  expect(bindings(stack, id).some((binding) => ['d1', 'kv_namespace', 'r2_bucket'].includes(binding.type))).toBe(false)
+}
 
-  it.each([false, true])(
-    'references the API-owned RateLimiter without a frontend namespace migration (dev=%s)',
-    async (local) => {
-      const { api, frontend, stack } = await registerApi(local)
-      const apiBindings = dedupeBindings(stack.bindings.Api).flatMap((entry) => entry.data.bindings ?? [])
-      const frontendBindings = dedupeBindings(stack.bindings.Frontend).flatMap((entry) => entry.data.bindings ?? [])
-      const apiLimiter = apiBindings.filter((binding) => binding.type === 'durable_object_namespace')
-      const frontendLimiter = frontendBindings.filter((binding) => binding.type === 'durable_object_namespace')
-      expect(apiLimiter).toHaveLength(1)
-      expect(frontendLimiter).toHaveLength(1)
-      expect(apiLimiter[0]).toMatchObject({ name: 'RATE_LIMITER', className: 'RateLimiter' })
-      expect(apiLimiter[0].scriptName).toBeUndefined()
-      expect(frontendLimiter[0]).toMatchObject({ name: 'RATE_LIMITER', className: 'RateLimiter' })
-      const scriptName = frontendLimiter[0].scriptName
-      expect(Output.isOutput(scriptName)).toBe(true)
-      expect(scriptName.kind).toBe('PropExpr')
-      expect(scriptName.identifier).toBe('workerName')
-      expect(scriptName.expr.src.LogicalId).toBe(api.LogicalId)
-      expect(scriptName.expr.src.Props.name).toBe('projektor')
-      expect(frontendLimiter[0]).not.toHaveProperty('namespaceId')
-      expect(frontendLimiter[0].transferredFrom).toBeUndefined()
-      expect(frontend.Props).not.toHaveProperty('migrations')
-    },
-  )
-  it('registers both production Workers without custom account or Access confirmation gates', async () => {
-    const { stack } = await registerApi(false, 'different-account')
-    expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Frontend'])
-  })
-
-  it('inherits the existing production JWT secret without requiring or reading its value', async () => {
-    const { api, stack } = await registerApi(false, deployment.accountId, null)
-    expect(api.Props.env).not.toHaveProperty('JWT_SECRET')
-    const bindings = dedupeBindings(stack.bindings.Api).flatMap((entry) => entry.data.bindings ?? [])
-    expect(bindings.filter((binding) => binding.name === 'JWT_SECRET')).toEqual([
-      { type: 'inherit', name: 'JWT_SECRET' },
-    ])
-    const frontendBindings = stack.bindings.Frontend.flatMap((entry) => entry.data.bindings ?? [])
-    expect(frontendBindings.some((binding) => binding.name === 'JWT_SECRET')).toBe(false)
-    for (const binding of existingStorageBindings()) expect(bindings).toContainEqual(binding)
-  })
-
-  it('switches initial secret configuration to stable inheritance on subsequent deployments', async () => {
-    const initial = await registerApi(false)
-    const inherited = await registerApi(false, deployment.accountId, null)
-    const repeated = await registerApi(false, deployment.accountId, null)
-    const changes = diffBindings(initial.stack.bindings.Api, inherited.stack.bindings.Api)
-    // Alchemy's apply path excludes deleted binding rows before provider reconciliation.
-    const activeJwt = changes
-      .filter((entry) => entry.action !== 'delete')
-      .flatMap((entry) => entry.data.bindings ?? [])
-      .filter((binding) => binding.name === 'JWT_SECRET')
-    expect(activeJwt).toEqual([{ type: 'inherit', name: 'JWT_SECRET' }])
-    expect(changes.some((entry) => entry.action === 'delete')).toBe(true)
-    expect(
-      diffBindings(inherited.stack.bindings.Api, repeated.stack.bindings.Api).every((entry) => entry.action === 'noop'),
-    ).toBe(true)
-  })
-
-  it('registers the retained native API Worker and external storage in production', async () => {
-    const { api, stack } = await registerApi(false)
-    expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Frontend'])
-    expect(api.RemovalPolicy).toBe('retain')
-    expect(api.Adopt).toBe(true)
-    const env = api.Props.env
-    if (!env) throw new Error('Production Worker is missing its environment')
-    if (!('JWT_SECRET' in env) || !Redacted.isRedacted(env.JWT_SECRET)) {
-      throw new Error('Expected a redacted JWT secret')
-    }
-    expect(Redacted.value(env.JWT_SECRET)).toBe('test-existing-production-value')
-    expect(api.Props).toMatchObject({
+describe('source-owned private Core deployment', () => {
+  it.each([false, true])('captures the private graph without deployment inputs (dev=%s)', async (local) => {
+    const stack: Stack['Service'] = {
       name: 'projektor',
-      main: './src/api/index.ts',
-      workersDev: { enabled: false, previewsEnabled: false },
-      domain: { name: 'projektor-api.totto2727.dev', previews: false },
-      crons: ['0 3 * * *'],
-    })
-    expect(api.Props).not.toHaveProperty('access')
-    expect(api.Props).not.toHaveProperty('migrations')
-    const bindings = dedupeBindings(stack.bindings.Api).flatMap((entry) => entry.data.bindings ?? [])
-    expect(bindings.filter((binding) => binding.name === 'JWT_SECRET')).toEqual([
-      { type: 'secret_text', name: 'JWT_SECRET', text: 'test-existing-production-value' },
-    ])
-    for (const binding of existingStorageBindings()) expect(bindings).toContainEqual(binding)
-    expect(bindings).toContainEqual(
-      expect.objectContaining({
-        type: 'durable_object_namespace',
-        name: 'RATE_LIMITER',
-        className: 'RateLimiter',
-      }),
-    )
-    expect(bindings.some((binding) => binding.className === 'WorkspaceHub')).toBe(false)
-  })
-
-  it('declares separate local storage with local-only migrations for dev', async () => {
-    const { api, stack } = await registerApi(true)
-    expect(Object.keys(stack.resources).sort()).toEqual([
-      'Api',
-      'Frontend',
-      'LocalCache',
-      'LocalDatabase',
-      'LocalFiles',
-      'LocalOAuth',
-    ])
-    expect(stack.resources.LocalDatabase.Props).toMatchObject({
-      name: 'projektor-local',
-      migrations: './migrations',
-    })
-    expect(api.Adopt).toBe(false)
-    expect(api.Props.env).toMatchObject({
-      ENVIRONMENT: 'development',
-      DEV_USER_EMAIL: localDevelopment.userEmail,
-    })
-    expect(stack.bindings.Api.some((entry) => entry.sid === 'external-storage')).toBe(false)
-    for (const id of ['LocalDatabase', 'LocalCache', 'LocalOAuth', 'LocalFiles']) {
-      expect(stack.resources[id].Adopt).toBe(false)
-      expect(stack.resources[id].RemovalPolicy).toBe('retain')
+      stage: 'testhost',
+      resources: {},
+      bindings: {},
+      actions: {},
     }
-  })
-
-  it('preserves the production Worker names, domains, account and API entrypoint', () => {
-    expect(deployment.accountId).toBe('5643a837ef66765e7881c0831a36ebed')
-    expect(deployment.api.name).toBe('projektor')
-    expect(deployment.frontend.name).toBe('projektor-frontend')
-    expect(deployment.api.origin).toBe('https://projektor-api.totto2727.dev')
-    expect(deployment.frontend.hostname).toBe('projektor.totto2727.dev')
-    expect(deployment.api.main).toBe('./src/api/index.ts')
-    expect(deployment.api.compatibility).toEqual({
-      date: '2024-09-23',
-      flags: ['nodejs_compat', 'global_fetch_strictly_public', 'cache_option_enabled'],
+    const reads: string[] = []
+    const provider = ConfigProvider.make((path) => {
+      const key = path.join('.')
+      reads.push(key)
+      if (key === 'ALCHEMY_PHASE') return Effect.succeed(ConfigProvider.makeValue('runtime'))
+      if (key === 'ALCHEMY_DEV') return Effect.succeed(ConfigProvider.makeValue(String(local)))
+      return Effect.die(new Error(`Runtime read deployment input ${key}`))
     })
-    expect(deployment.api.crons).toEqual(['0 3 * * *'])
+    await Effect.runPromise(
+      Frontend.pipe(
+        Effect.map((frontend) => ({ frontend })),
+        Effect.provideService(Stack, stack),
+        Effect.provideService(ConfigProvider.ConfigProvider, provider),
+        Effect.provideService(CloudflareEnvironment, Effect.die(new Error('Runtime resolved deployment profile'))),
+        Effect.provideService(Providers, {
+          kind: 'ProviderCollection',
+          providers: {},
+          get: () => {
+            throw new Error('Runtime resolved lifecycle provider')
+          },
+        }),
+      ),
+    )
+    expect(Object.keys(stack.resources).sort()).toEqual(['Core', 'Frontend'])
+    expect(new Set(reads)).toEqual(new Set(['ALCHEMY_PHASE']))
+    expect(stack.resources.Core.Props.env).not.toHaveProperty('DB')
+    expect(bindings(stack, 'Core').some((binding) => binding.type === 'd1')).toBe(false)
+    expectNoStorage(stack, 'Frontend')
+    expect(bindings(stack, 'Frontend')).toContainEqual(expect.objectContaining({ type: 'service', name: 'CORE' }))
+    for (const name of ['API', 'API_BASE', 'JWT_SECRET'])
+      expect(stack.resources.Frontend.Props.env).not.toHaveProperty(name)
   })
 
-  it('uses exact external storage bindings without declaring a storage lifecycle', () => {
+  it.each([false, true])('binds both public adapters natively to the same private Core (dev=%s)', async (local) => {
+    const { core, api, frontend, stack } = await register(local)
+    expect(core.RemovalPolicy).toBe('retain')
+    expect(core.Props).toMatchObject({
+      name: 'projektor-core',
+      main: deployment.core.main,
+      workersDev: { enabled: false, previewsEnabled: false },
+    })
+    for (const property of ['domain', 'routes', 'crons', 'migrations', 'access'])
+      expect(core.Props).not.toHaveProperty(property)
+    for (const [id, adapter] of [
+      ['Api', api],
+      ['Frontend', frontend],
+    ] as const) {
+      expectNoStorage(stack, id)
+      expect(adapter.Props.env?.CORE).toBe(core)
+      const services = bindings(stack, id).filter((binding) => binding.type === 'service')
+      expect(services).toHaveLength(1)
+      expect(services[0].name).toBe('CORE')
+      expect(Output.isOutput(services[0].service)).toBe(true)
+      expect(services[0].service.kind).toBe('PropExpr')
+      expect(services[0].service.identifier).toBe('workerName')
+      expect(services[0].service.expr.src.LogicalId).toBe('Core')
+      expect(adapter.Props).not.toHaveProperty('migrations')
+    }
+    for (const name of ['JWT_SECRET', 'API', 'API_BASE']) expect(frontend.Props.env).not.toHaveProperty(name)
+    expect(core.Props.env).not.toHaveProperty('JWT_SECRET')
+  })
+
+  it('grants existing external storage exclusively to Core without declaring its lifecycle', async () => {
+    const { core, stack } = await register(false)
+    expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Core', 'Frontend'])
+    expect(core.Adopt).toBe(true)
+    const storage = bindings(stack, 'Core').filter((binding) =>
+      ['d1', 'kv_namespace', 'r2_bucket'].includes(binding.type),
+    )
+    expect(storage).toEqual(existingStorageBindings())
+    expectNoStorage(stack, 'Api')
+    expectNoStorage(stack, 'Frontend')
     expect(existingStorageBindings()).toEqual([
       { type: 'd1', name: 'DB', databaseId: 'e852f9c2-e817-409e-bbf0-3168e82a1afc' },
       { type: 'kv_namespace', name: 'KV', namespaceId: 'b5598fbbbc2e48e3beab8bf9aecfc4bd' },
       { type: 'kv_namespace', name: 'OAUTH_KV', namespaceId: 'b187546f271142419343787032f6ca9b' },
       { type: 'r2_bucket', name: 'R2', bucketName: 'projektor-files' },
     ])
-    const bindings = existingStorageBindings()
-    bindings.pop()
+    const copy = existingStorageBindings()
+    copy.pop()
     expect(existingStorageBindings()).toHaveLength(4)
   })
 
-  it('retains the existing Access audience and does not enable production bypasses', async () => {
-    const { api } = await registerApi(false, deployment.accountId, null, undefined, {
-      DEV_USER_EMAIL: 'untrusted-dev@example.com',
-    })
-    const vars = api.Props.env
-    expect(vars).toMatchObject({
-      ENVIRONMENT: 'production',
-      CF_ACCESS_TEAM_DOMAIN: 'totto2727.cloudflareaccess.com',
-      CF_ACCESS_AUDIENCE: '327e65a1c53f85fa45155ffe4b7e1e8c35740cce3efc70b1f161392f5144ddb9',
-      ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
-      AUTO_JOIN_ROLE: 'none',
-    })
-    for (const name of [
-      'DEV_USER_EMAIL',
-      'BOOTSTRAP_SECRET',
-      'PUBLIC_READ_ONLY',
-      'WORKSPACE_SUBDOMAIN_ROUTING',
-      'JWT_SECRET',
+  it('declares retained local storage once, only on Core, with local migrations', async () => {
+    const { core, api, frontend, stack } = await register(true)
+    expect(Object.keys(stack.resources).sort()).toEqual([
+      'Api',
+      'Core',
+      'Frontend',
+      'LocalCache',
+      'LocalDatabase',
+      'LocalFiles',
+      'LocalOAuth',
+    ])
+    expect(stack.resources.LocalDatabase.Props).toMatchObject({ name: 'projektor-local', migrations: './migrations' })
+    for (const [name, id] of [
+      ['DB', 'LocalDatabase'],
+      ['KV', 'LocalCache'],
+      ['OAUTH_KV', 'LocalOAuth'],
+      ['R2', 'LocalFiles'],
     ]) {
-      expect(vars).not.toHaveProperty(name)
+      expect((core.Props.env as WorkerBindingProps)[name]).toBe(stack.resources[id])
+      expect(stack.resources[id].Adopt).toBe(false)
+      expect(stack.resources[id].RemovalPolicy).toBe('retain')
+      expect(api.Props.env).not.toHaveProperty(name)
+      expect(frontend.Props.env).not.toHaveProperty(name)
     }
+    expect(api.Adopt).toBe(false)
+    expect(core.Adopt).toBe(false)
+    expect(bindings(stack, 'Core').some((binding) => binding.type === 'd1')).toBe(true)
+  })
+
+  it.each([false, true])('keeps the API-owned RateLimiter namespace and sole cron (dev=%s)', async (local) => {
+    const { api, stack } = await register(local)
+    expect(api.Props.crons).toEqual(['0 3 * * *'])
+    for (const id of ['Api', 'Core', 'Frontend']) {
+      const namespaces = bindings(stack, id).filter((binding) => binding.type === 'durable_object_namespace')
+      expect(namespaces).toHaveLength(1)
+      expect(namespaces[0]).toMatchObject({ name: 'RATE_LIMITER', className: 'RateLimiter' })
+      expect(namespaces[0].scriptName).toBe(id === 'Api' ? undefined : deployment.api.name)
+      expect(namespaces[0].transferredFrom).toBeUndefined()
+      expect(namespaces[0]).not.toHaveProperty('namespaceId')
+      expect(bindings(stack, id).some((binding) => binding.className === 'WorkspaceHub')).toBe(false)
+      if (id !== 'Api') expect(stack.resources[id].Props).not.toHaveProperty('crons')
+    }
+  })
+
+  it('preserves exact public identities, compatibility, adoption and external Access policies', async () => {
+    const { api, frontend } = await register(false)
+    expect(api.Props).toMatchObject({
+      name: 'projektor',
+      main: './src/api/index.ts',
+      domain: { name: 'projektor-api.totto2727.dev', previews: false },
+      workersDev: { enabled: false, previewsEnabled: false },
+      compatibility: {
+        date: '2024-09-23',
+        flags: ['nodejs_compat', 'global_fetch_strictly_public', 'cache_option_enabled'],
+      },
+    })
+    expect(frontend.Props).toMatchObject({
+      name: 'projektor-frontend',
+      domain: { name: 'projektor.totto2727.dev', previews: false },
+      workersDev: { enabled: false, previewsEnabled: false },
+      vite: { rootDir: '.', viteEnvironments: { entry: 'rsc', children: ['ssr'] } },
+    })
+    expect(frontend.Props.main).toMatch(/\/alchemy\.ts$/)
+    for (const resource of [api, frontend]) {
+      expect(resource.RemovalPolicy).toBe('retain')
+      expect(resource.Adopt).toBe(true)
+      expect(resource.Props).not.toHaveProperty('access')
+    }
+    expect(deployment.accountId).toBe('5643a837ef66765e7881c0831a36ebed')
+    expect(deployment.api.origin).toBe('https://projektor-api.totto2727.dev')
+    expect(deployment.frontend.origin).toBe('https://projektor.totto2727.dev')
     expect(deployment.access.domain).toBe(deployment.frontend.hostname)
   })
 
-  it('provides the identity bypass only through the local Layer', async () => {
-    const local = await registerApi(true)
+  it('inherits the existing API signing secret without granting it to Core or Web', async () => {
+    const { api, core, frontend, stack } = await register(false, null)
+    for (const resource of [api, core, frontend]) expect(resource.Props.env).not.toHaveProperty('JWT_SECRET')
+    expect(bindings(stack, 'Api').filter((binding) => binding.name === 'JWT_SECRET')).toEqual([
+      { type: 'inherit', name: 'JWT_SECRET' },
+    ])
+    for (const id of ['Core', 'Frontend'])
+      expect(bindings(stack, id).some((binding) => binding.name === 'JWT_SECRET')).toBe(false)
+  })
+
+  it('accepts explicit initial API secret configuration then transitions to stable inheritance', async () => {
+    const initial = await register(false)
+    const secret = (initial.api.Props.env as WorkerBindingProps).JWT_SECRET
+    if (!Redacted.isRedacted(secret)) throw new Error('Expected configured redacted secret')
+    expect(Redacted.value(secret)).toBe('test-existing-production-value')
+    expect(JSON.stringify(secret)).not.toContain('test-existing-production-value')
+    const inherited = await register(false, null)
+    const repeated = await register(false, null)
+    const changes = diffBindings(initial.stack.bindings.Api, inherited.stack.bindings.Api)
+    expect(
+      changes
+        .filter((entry) => entry.action !== 'delete')
+        .flatMap((entry) => entry.data.bindings ?? [])
+        .filter((binding) => binding.name === 'JWT_SECRET'),
+    ).toEqual([{ type: 'inherit', name: 'JWT_SECRET' }])
+    expect(changes.some((entry) => entry.action === 'delete')).toBe(true)
+    const inheritedSecretBindings = inherited.stack.bindings.Api.filter((entry) => entry.sid === 'existing-jwt-secret')
+    const repeatedSecretBindings = repeated.stack.bindings.Api.filter((entry) => entry.sid === 'existing-jwt-secret')
+    expect(
+      diffBindings(inheritedSecretBindings, repeatedSecretBindings).every((entry) => entry.action === 'noop'),
+    ).toBe(true)
+  })
+
+  it('uses development bypass/secret only in the local aggregate Layer', async () => {
+    const local = await register(true, null, undefined, { DEV_USER_EMAIL: 'local@example.com' })
+    for (const resource of [local.api, local.core, local.frontend])
+      expect(resource.Props.env).toMatchObject({
+        ENVIRONMENT: 'development',
+        DEV_USER_EMAIL: 'local@example.com',
+        ADMIN_EMAILS: 'local@example.com',
+      })
+    const secret = (local.api.Props.env as WorkerBindingProps).JWT_SECRET
+    if (!Redacted.isRedacted(secret)) throw new Error('Expected local redacted secret')
+    expect(Redacted.value(secret)).toBe(localDevelopment.jwtSecret)
+    const production = await register(false, null, undefined, { DEV_USER_EMAIL: 'untrusted@example.com' })
+    for (const resource of [production.api, production.core, production.frontend]) {
+      expect(resource.Props.env).toMatchObject({
+        ENVIRONMENT: 'production',
+        AUTO_JOIN_ROLE: 'none',
+        CF_ACCESS_TEAM_DOMAIN: deployment.access.teamDomain,
+        CF_ACCESS_AUDIENCE: deployment.access.audience,
+      })
+      for (const name of ['DEV_USER_EMAIL', 'BOOTSTRAP_SECRET', 'PUBLIC_READ_ONLY', 'WORKSPACE_SUBDOMAIN_ROUTING'])
+        expect(resource.Props.env).not.toHaveProperty(name)
+    }
+  })
+
+  it('selects explicit aggregate Layers without leaf-level environment branching', async () => {
+    const local = await register(false, null, LocalLayer)
+    expect((local.core.Props.env as WorkerBindingProps).DB).toBe(local.stack.resources.LocalDatabase)
     expect(local.api.Props.env).toMatchObject({
       ENVIRONMENT: 'development',
       DEV_USER_EMAIL: localDevelopment.userEmail,
-      ADMIN_EMAILS: localDevelopment.userEmail,
     })
-    const customized = await registerApi(true, deployment.accountId, null, undefined, {
-      DEV_USER_EMAIL: 'local@example.com',
-    })
-    expect(customized.api.Props.env).toMatchObject({
-      DEV_USER_EMAIL: 'local@example.com',
-    })
+    const production = await register(true, null, ProductionLayer)
+    expect(Object.keys(production.stack.resources).sort()).toEqual(['Api', 'Core', 'Frontend'])
+    expect(production.api.Adopt).toBe(true)
+    expect(production.core.Props.env).toMatchObject({ ENVIRONMENT: 'production' })
+    expect(bindings(production.stack, 'Core')).toEqual(expect.arrayContaining(existingStorageBindings()))
+    expectNoStorage(production.stack, 'Api')
+    expectNoStorage(production.stack, 'Frontend')
   })
 
-  it('leaves an omitted production secret unchanged and accepts explicit initial configuration', async () => {
-    const missing = await registerApi(false, deployment.accountId, null)
-    expect(missing.api.Props.env).not.toHaveProperty('JWT_SECRET')
-    const supplied = await registerApi(false)
-    const preserved = supplied.api.Props.env?.JWT_SECRET
-    if (!Redacted.isRedacted(preserved)) throw new Error('Expected the configured secret')
-    expect(Redacted.value(preserved)).toBe('test-existing-production-value')
-    expect(JSON.stringify(preserved)).not.toContain('test-existing-production-value')
-  })
-
-  it('uses the known development secret only locally, without production configuration', async () => {
-    const { api } = await registerApi(true, deployment.accountId, null)
-    const secret = api.Props.env?.JWT_SECRET
-    if (!Redacted.isRedacted(secret)) throw new Error('Expected the development secret')
-    expect(Redacted.value(secret)).toBe(localDevelopment.jwtSecret)
-  })
-
-  it('accepts an explicit aggregate LocalLayer without reading a production secret', async () => {
-    // The injected Layer, not leaf-level ALCHEMY_DEV reads, determines both Workers' dependencies.
-    const { api, frontend, stack } = await registerApi(false, deployment.accountId, null, LocalLayer)
-    expect(api.Adopt).toBe(false)
-    expect(api.Props.env).toMatchObject({
-      ENVIRONMENT: 'development',
-      DEV_USER_EMAIL: localDevelopment.userEmail,
-    })
-    expect(api.Props.env?.DB).toBe(stack.resources.LocalDatabase)
-    expect(frontend.Props.env?.DB).toBe(stack.resources.LocalDatabase)
-    expect(stack.bindings.Api.some((entry) => entry.sid === 'external-storage')).toBe(false)
-  })
-
-  it('accepts an explicit aggregate ProductionLayer without registering local resources', async () => {
-    const { api, frontend, stack } = await registerApi(true, deployment.accountId, null, ProductionLayer)
-    expect(api.Adopt).toBe(true)
-    expect(api.Props.env).toMatchObject({ ENVIRONMENT: 'production' })
-    expect(api.Props.env).not.toHaveProperty('DEV_USER_EMAIL')
-    expect(frontend.Props.env).not.toHaveProperty('JWT_SECRET')
-    expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Frontend'])
-    const bindings = dedupeBindings(stack.bindings.Api).flatMap((entry) => entry.data.bindings ?? [])
-    expect(bindings.filter((binding) => binding.name === 'JWT_SECRET')).toEqual([
-      { type: 'inherit', name: 'JWT_SECRET' },
-    ])
-    expect(stack.bindings.Api.filter((entry) => entry.sid === 'existing-jwt-secret')).toHaveLength(1)
-    expect(stack.bindings.Frontend.filter((entry) => entry.sid === 'external-storage')).toHaveLength(1)
+  it('does not add custom account-selection gates', async () => {
+    const { stack } = await register(false, null, undefined, {}, 'different-account')
+    expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Core', 'Frontend'])
   })
 })

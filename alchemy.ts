@@ -1,7 +1,7 @@
 import { ALCHEMY_DEV, ALCHEMY_PHASE, RemovalPolicy } from 'alchemy'
 import { AdoptPolicy, adopt } from 'alchemy/AdoptPolicy'
 import * as Cloudflare from 'alchemy/Cloudflare'
-import { type Worker, type WorkerBinding, type WorkerBindingProps, type WorkerProps } from 'alchemy/Cloudflare/Workers'
+import { type Worker, type WorkerBinding, type WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
 import { Config, Context, Effect, Layer, Option, Redacted } from 'effect'
 
 import { apiOrigin } from './src/deployment'
@@ -24,6 +24,12 @@ export const deployment = {
     name: 'projektor-frontend',
     hostname: 'projektor.totto2727.dev',
     origin: 'https://projektor.totto2727.dev',
+    compatibility: { date: '2026-09-01', flags: ['nodejs_compat'] },
+  },
+  core: {
+    name: 'projektor-core',
+    main: './src/core/worker.ts',
+    compatibility: { date: '2026-09-01', flags: ['nodejs_compat'] },
   },
   storage: {
     database: { id: 'e852f9c2-e817-409e-bbf0-3168e82a1afc', name: 'projektor' },
@@ -43,7 +49,7 @@ export const localDevelopment = {
   jwtSecret: 'projektor-local-development-only-secret',
 }
 
-/** Public bindings grant access to existing IDs without declaring a storage lifecycle. */
+/** Only Core receives these external capabilities, never either public adapter. */
 export function existingStorageBindings(): WorkerBinding[] {
   return [
     { type: 'd1', name: 'DB', databaseId: deployment.storage.database.id },
@@ -61,11 +67,12 @@ const commonApplicationEnvironment = {
   AUTO_JOIN_ROLE: 'none',
 }
 
-const commonApiEnvironment = {
-  ...commonApplicationEnvironment,
-  // Preserve the deployed name/class. WorkspaceHub stays unbound, no old migrations replay.
-  RATE_LIMITER: Cloudflare.DurableObject('RateLimiter', { className: 'RateLimiter' }),
-}
+const rateLimiterReference = () =>
+  Cloudflare.DurableObject('RateLimiter', {
+    className: 'RateLimiter',
+    // Preserve the deployed namespace without a Core -> Api -> Core resource cycle.
+    scriptName: deployment.api.name,
+  })
 
 export const LocalDatabase = Cloudflare.D1.Database('LocalDatabase', {
   name: 'projektor-local',
@@ -75,14 +82,15 @@ export const LocalDatabase = Cloudflare.D1.Database('LocalDatabase', {
 class DeploymentEnvironment extends Context.Service<
   DeploymentEnvironment,
   {
-    readonly apiProps: Pick<WorkerProps, 'env'>
+    readonly apiEnv: WorkerBindingProps
     readonly frontendEnv: WorkerBindingProps
+    readonly coreEnv: WorkerBindingProps
     readonly bindApi: (api: Worker) => Effect.Effect<void>
-    readonly bindFrontend: (frontend: Worker) => Effect.Effect<void>
+    readonly bindCore: (core: Worker) => Effect.Effect<void>
   }
 >()('projektor/DeploymentEnvironment') {}
 
-/** All development inputs and native local resources belong to this one Layer. */
+/** Development storage is registered once and is available exclusively to Core. */
 export const LocalLayer = Layer.mergeAll(
   Layer.succeed(AdoptPolicy, false),
   Layer.effect(
@@ -92,34 +100,30 @@ export const LocalLayer = Layer.mergeAll(
         Config.withDefault(localDevelopment.userEmail),
         Effect.orDie,
       )
-      const db = yield* LocalDatabase
       const sharedEnvironment = {
         ...commonApplicationEnvironment,
         ENVIRONMENT: 'development',
         ADMIN_EMAILS: email,
         DEV_USER_EMAIL: email,
-        DB: db,
-        KV: yield* Cloudflare.KV.Namespace('LocalCache', { title: 'projektor-local' }),
-        OAUTH_KV: yield* Cloudflare.KV.Namespace('LocalOAuth', { title: 'projektor-oauth-local' }),
-        R2: yield* Cloudflare.R2.Bucket('LocalFiles', { name: 'projektor-files-local' }),
       }
       return {
-        apiProps: {
-          env: {
-            ...commonApiEnvironment,
-            ...sharedEnvironment,
-            JWT_SECRET: Redacted.make(localDevelopment.jwtSecret),
-          },
-        },
+        apiEnv: { ...sharedEnvironment, JWT_SECRET: Redacted.make(localDevelopment.jwtSecret) },
         frontendEnv: sharedEnvironment,
+        coreEnv: {
+          ...sharedEnvironment,
+          DB: yield* LocalDatabase,
+          KV: yield* Cloudflare.KV.Namespace('LocalCache', { title: 'projektor-local' }),
+          OAUTH_KV: yield* Cloudflare.KV.Namespace('LocalOAuth', { title: 'projektor-oauth-local' }),
+          R2: yield* Cloudflare.R2.Bucket('LocalFiles', { name: 'projektor-files-local' }),
+        },
         bindApi: () => Effect.void,
-        bindFrontend: () => Effect.void,
+        bindCore: () => Effect.void,
       }
     }).pipe(adopt(false), RemovalPolicy.retain()),
   ),
 )
 
-/** Existing storage and optional initial secret input are production-only dependencies. */
+/** Existing storage and optional initial API signing secret are production-only inputs. */
 export const ProductionLayer = Layer.mergeAll(
   Layer.succeed(AdoptPolicy, true),
   Layer.effect(
@@ -133,44 +137,31 @@ export const ProductionLayer = Layer.mergeAll(
         ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
       }
       return {
-        apiProps: {
-          env: {
-            ...commonApiEnvironment,
-            ...sharedEnvironment,
-            ...secretEnv,
-          },
-        },
+        apiEnv: { ...sharedEnvironment, ...secretEnv },
         frontendEnv: sharedEnvironment,
+        coreEnv: sharedEnvironment,
         bindApi: (api: Worker) =>
-          Effect.gen(function* () {
-            yield* api.bind('external-storage', { bindings: existingStorageBindings() })
-            if (Option.isNone(secret)) {
-              yield* api.bind('existing-jwt-secret', {
-                bindings: [{ type: 'inherit', name: 'JWT_SECRET' }],
-              })
-            }
-          }),
-        bindFrontend: (frontend: Worker) =>
-          frontend.bind('external-storage', {
-            bindings: existingStorageBindings(),
-          }),
+          Option.isNone(secret)
+            ? api.bind('existing-jwt-secret', { bindings: [{ type: 'inherit', name: 'JWT_SECRET' }] })
+            : Effect.void,
+        bindCore: (core: Worker) => core.bind('external-storage', { bindings: existingStorageBindings() }),
       }
     }),
   ),
 )
 
-// Worker capture must construct symbolic identities without secrets, profiles or storage.
+// Runtime capture constructs symbolic identities without secrets, profiles or local storage.
 const RuntimeLayer = Layer.mergeAll(
   Layer.succeed(AdoptPolicy, false),
   Layer.succeed(DeploymentEnvironment, {
-    apiProps: {},
+    apiEnv: {},
     frontendEnv: {},
+    coreEnv: {},
     bindApi: () => Effect.void,
-    bindFrontend: () => Effect.void,
+    bindCore: () => Effect.void,
   }),
 )
 
-/** Select the aggregate environment only at the composition boundary, never in Workers. */
 export const DeploymentLayer = Layer.unwrap(
   Effect.gen(function* () {
     if ((yield* ALCHEMY_PHASE) === 'runtime') return RuntimeLayer
@@ -178,20 +169,46 @@ export const DeploymentLayer = Layer.unwrap(
   }),
 )
 
-const apiIdentity = {
-  name: deployment.api.name,
-  main: deployment.api.main,
-  compatibility: deployment.api.compatibility,
-  workersDev: { enabled: false, previewsEnabled: false },
-  domain: { name: deployment.api.hostname, previews: false },
-  crons: deployment.api.crons,
-}
+export const Core = Cloudflare.Worker(
+  'Core',
+  Effect.gen(function* () {
+    const environment = yield* DeploymentEnvironment
+    return {
+      name: deployment.core.name,
+      main: deployment.core.main,
+      compatibility: deployment.core.compatibility,
+      workersDev: { enabled: false, previewsEnabled: false },
+      env: { ...environment.coreEnv, RATE_LIMITER: rateLimiterReference() },
+    }
+  }),
+).pipe(
+  RemovalPolicy.retain(),
+  Effect.tap((core) =>
+    Effect.gen(function* () {
+      const environment = yield* DeploymentEnvironment
+      yield* environment.bindCore(core)
+    }),
+  ),
+)
 
 export const Api = Cloudflare.Worker(
   'Api',
   Effect.gen(function* () {
     const environment = yield* DeploymentEnvironment
-    return { ...apiIdentity, ...environment.apiProps }
+    return {
+      name: deployment.api.name,
+      main: deployment.api.main,
+      compatibility: deployment.api.compatibility,
+      workersDev: { enabled: false, previewsEnabled: false },
+      domain: { name: deployment.api.hostname, previews: false },
+      crons: deployment.api.crons,
+      env: {
+        ...environment.apiEnv,
+        CORE: yield* Core,
+        // Keep the existing namespace hosted on its original physical Worker.
+        RATE_LIMITER: Cloudflare.DurableObject('RateLimiter', { className: 'RateLimiter' }),
+      },
+    }
   }),
 ).pipe(RemovalPolicy.retain())
 
@@ -199,45 +216,28 @@ class Frontend extends Cloudflare.Worker<Frontend>()(
   'Frontend',
   Effect.gen(function* () {
     const environment = yield* DeploymentEnvironment
-    const api = yield* Api
     return {
       name: deployment.frontend.name,
       main: import.meta.url,
-      compatibility: { date: '2026-09-01', flags: ['nodejs_compat'] },
+      compatibility: deployment.frontend.compatibility,
       workersDev: { enabled: false, previewsEnabled: false },
       domain: { name: deployment.frontend.hostname, previews: false },
-      env: {
-        ...environment.frontendEnv,
-        // Reference the API-owned namespace, never host or migrate another RateLimiter.
-        RATE_LIMITER: Cloudflare.DurableObject('RateLimiter', {
-          className: 'RateLimiter',
-          scriptName: api.workerName,
-        }),
-      },
+      env: { ...environment.frontendEnv, CORE: yield* Core, RATE_LIMITER: rateLimiterReference() },
       vite: { rootDir: '.', viteEnvironments: { entry: 'rsc', children: ['ssr'] } },
     }
   }),
   Effect.promise(() => import('./src/web/worker')).pipe(Effect.flatMap(({ makeWebWorker }) => makeWebWorker())),
 ) {}
 
-const frontend = Frontend.pipe(
-  adopt(true),
-  RemovalPolicy.retain(),
-  Effect.tap((frontend) =>
-    Effect.gen(function* () {
-      const environment = yield* DeploymentEnvironment
-      yield* environment.bindFrontend(frontend)
-    }),
-  ),
-)
+const frontend = Frontend.pipe(adopt(true), RemovalPolicy.retain())
 
 export const WorkerResources = Effect.gen(function* () {
+  const core = yield* Core
   const api = yield* Api
   const web = yield* frontend
   const environment = yield* DeploymentEnvironment
-  // Wire the API once after both declarations. The frontend references only its RateLimiter namespace.
   yield* environment.bindApi(api)
-  return { api, frontend: web }
+  return { core, api, frontend: web }
 })
 
 export default frontend.pipe(Effect.provide(DeploymentLayer))
