@@ -120,6 +120,28 @@ export function testEnvironment(db: D1Database, email = 'owner@example.test', ov
   const result: Env = {
     ...env,
     CORE: overrides.CORE ?? {
+      webCreateIssue: (...args: Parameters<WebCoreRpcShape['webCreateIssue']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateIssue(...args)),
+      webUpdateIssue: (...args: Parameters<WebCoreRpcShape['webUpdateIssue']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateIssue(...args)),
+      webAddComment: (...args: Parameters<WebCoreRpcShape['webAddComment']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webAddComment(...args)),
+      webUpdateComment: (...args: Parameters<WebCoreRpcShape['webUpdateComment']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateComment(...args)),
+      webDeleteComment: (...args: Parameters<WebCoreRpcShape['webDeleteComment']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteComment(...args)),
+      webCreateIssueLink: (...args: Parameters<WebCoreRpcShape['webCreateIssueLink']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateIssueLink(...args)),
+      webDeleteIssueLink: (...args: Parameters<WebCoreRpcShape['webDeleteIssueLink']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteIssueLink(...args)),
+      webCreateShareToken: (...args: Parameters<WebCoreRpcShape['webCreateShareToken']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateShareToken(...args)),
+      webCreateLinkAttachment: (...args: Parameters<WebCoreRpcShape['webCreateLinkAttachment']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateLinkAttachment(...args)),
+      webDeleteStoredAttachment: (...args: Parameters<WebCoreRpcShape['webDeleteStoredAttachment']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteStoredAttachment(...args)),
+      webUpdateSprint: (...args: Parameters<WebCoreRpcShape['webUpdateSprint']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateSprint(...args)),
       webIssue: (...args: Parameters<WebCoreRpcShape['webIssue']>) =>
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssue(...args)),
       webIssuePage: (...args: Parameters<WebCoreRpcShape['webIssuePage']>) =>

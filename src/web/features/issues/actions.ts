@@ -1,16 +1,9 @@
 'use server'
 import { Effect, Schema } from 'effect'
 
-import * as comments from '#commands/comments'
-import * as files from '#commands/files'
-import * as links from '#commands/issue-links'
-import * as issues from '#commands/issues'
-import { createShareToken } from '#commands/share'
-import * as sprints from '#commands/sprints'
-
 import { EFFRONT } from '../../effront'
 import { RequestServices } from '../../request'
-import { runCommand } from '../../server/command-context'
+import { runBrowserCommand as runCommand } from '../../server/browser-command'
 import { requireDataWorkspace } from '../../server/data-context'
 import { ApiError, ScopeError } from '../../server/errors'
 import { type FunctionContext, resolveFunctionContext } from '../../server/function-context'
@@ -23,6 +16,7 @@ import {
   OkSchema,
   SelectorFields,
 } from './action-schemas'
+import { comments, files, links, issues, createShareToken, sprints } from './commands'
 import {
   readDataAttachments,
   readDataComments,
