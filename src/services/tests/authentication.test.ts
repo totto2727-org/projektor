@@ -1,12 +1,16 @@
 import { Buffer } from 'node:buffer'
 
+import { Effect } from 'effect'
 import { Hono } from 'hono'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning'
-import type { Env, HonoEnv } from '#types'
+import type { ApiEnv, HonoEnv } from '#types'
 
-import { authMiddleware, verifyJwtPayload as apiVerifyJwtPayload } from '../../api/middleware/auth'
+import { authMiddleware } from '../../api/middleware/auth'
+import { makeApiIdentityHandlers } from '../../core/api/identity-operations'
+import type { CoreEnvironment } from '../../core/environment'
+import { createTestResources } from '../../web/server/test/resources'
 import { createTestDatabase } from '../../web/test/database'
 import {
   authenticateBrowser,
@@ -94,11 +98,21 @@ describe('shared browser authentication without API transport or signing secrets
     database.close()
   })
   function api(request: Request, settings: BrowserAuthEnvironment & { PUBLIC_READ_ONLY?: string } = env) {
-    // Exercise the real Hono strategy adapter, not an in-process HTTP production fallback.
+    // The API sees only a native-style RPC binding. Its method runs the real Core
+    // handler and returns the application's wire reply through the public SDK.
+    const coreEnv: CoreEnvironment = { ...createTestResources(), ...settings }
+    const handlers = makeApiIdentityHandlers(Effect.succeed(coreEnv))
+    const CORE = {
+      apiAuthenticate: (...args: Parameters<typeof handlers.apiAuthenticate>) =>
+        Effect.runPromise(handlers.apiAuthenticate(...args)),
+    }
+    const apiEnv = { CORE } as unknown as ApiEnv
+    expect(apiEnv).not.toHaveProperty('DB')
+    expect(apiEnv).not.toHaveProperty('KV')
     const application = new Hono<HonoEnv>()
     application.use('*', authMiddleware)
     application.get('*', (context) => context.json({ user: context.get('user'), auth: context.get('auth') }))
-    return application.fetch(request, settings as Env, {
+    return application.fetch(request, apiEnv, {
       props: {},
       waitUntil: () => {},
       passThroughOnException: () => {},
@@ -122,9 +136,10 @@ describe('shared browser authentication without API transport or signing secrets
       expect(externalFetch).not.toHaveBeenCalled()
     },
   )
-  it('keeps the API verifier re-export on the same implementation', async () => {
-    expect(apiVerifyJwtPayload).toBe(verifyJwtPayload)
-    expect(await apiVerifyJwtPayload(await token(), [key], audience, issuer)).toEqual({ email: 'person@example.test' })
+  it('verifies signed claims directly through the shared verifier', async () => {
+    expect(await verifyJwtPayload(await token(), [key], audience, issuer)).toEqual({ email: 'person@example.test' })
+    expect(await verifyJwtPayload(await token({}, otherPair), [key], audience, issuer)).toBeNull()
+    expect(await verifyJwtPayload(await token({ aud: ['wrong-audience'] }), [key], audience, issuer)).toBeNull()
   })
   it('preserves exact API Access success and invalid-token response contracts', async () => {
     const allowed = await api(browser(await token(), true))
