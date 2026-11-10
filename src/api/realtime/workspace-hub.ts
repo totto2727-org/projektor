@@ -172,7 +172,10 @@ export class WorkspaceHub {
   }
 
   async webSocketClose(ws: WebSocket, code: number, _reason: string, _wasClean: boolean): Promise<void> {
-    ws.close(code, 'Closed')
+    const registered = code >= 1000 && code <= 1014 && ![1004, 1005, 1006].includes(code)
+    const application = code >= 3000 && code <= 4999
+    const replyCode = Number.isInteger(code) && (registered || application) ? code : 1000
+    ws.close(replyCode, 'Closed')
   }
 
   async webSocketError(ws: WebSocket, _error: unknown): Promise<void> {

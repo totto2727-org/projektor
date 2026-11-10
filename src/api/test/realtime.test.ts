@@ -1,14 +1,16 @@
-import { SELF } from 'cloudflare:test'
+import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
+import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { createIssue } from '#commands/issues'
 import { broadcastWorkspaceEvent } from '#commands/realtime'
 import type { ServiceCtx } from '#commands/types'
-import type { ApiEnv, RealtimeEvent } from '#types'
+import type { ApiEnv, HonoEnv, RealtimeEvent } from '#types'
 
 import type { CoreActor } from '../../core/authorization'
 import { CORE_ACTOR_HEADER } from '../../core/contract'
 import { WorkspaceHub, type SocketAttachment } from '../realtime/workspace-hub'
+import { realtimeRouter } from '../routes/realtime'
 import { env } from './fixture-api'
 import { authHeaders, hashToken, seedGroupGrant, seedProject, seedWorkspaceRoles } from './helpers'
 
@@ -92,14 +94,48 @@ describe('Realtime WebSockets (Opt-In)', () => {
   }
 
   it('returns 501 when WORKSPACE_HUB is not configured (graceful degradation)', async () => {
-    const response = await SELF.fetch(`http://localhost/api/workspaces/${roles.workspace.slug}/realtime`, {
-      headers: { ...authHeaders(roles.owner.token, roles.workspace.slug), Upgrade: 'websocket' },
-    })
+    const app = new Hono<HonoEnv>()
+    app.route('/api', realtimeRouter)
+    const unconfigured = { ...env, WORKSPACE_HUB: undefined } as unknown as ApiEnv
+    const executionContext = createExecutionContext()
+    const response = await app.request(
+      `http://localhost/api/workspaces/${roles.workspace.slug}/realtime`,
+      { headers: { ...authHeaders(roles.owner.token, roles.workspace.slug), Upgrade: 'websocket' } },
+      unconfigured,
+      executionContext,
+    )
+    await waitOnExecutionContext(executionContext)
     expect(response.status).toBe(501)
     expect(await response.json()).toEqual({
       error:
         'Realtime WebSockets are not enabled on this instance. Configure WORKSPACE_HUB in wrangler.toml to enable.',
     })
+  })
+
+  it('completes an authenticated native Hub connection and close handshake when configured', async () => {
+    const app = new Hono<HonoEnv>()
+    app.route('/api', realtimeRouter)
+    const configured = {
+      ...env,
+      WORKSPACE_HUB: Reflect.get(env, 'FIXTURE_WORKSPACE_HUB'),
+    } as unknown as ApiEnv
+    const executionContext = createExecutionContext()
+    const response = await app.request(
+      `http://localhost/api/workspaces/${roles.workspace.slug}/realtime`,
+      { headers: { ...authHeaders(roles.owner.token, roles.workspace.slug), Upgrade: 'websocket' } },
+      configured,
+      executionContext,
+    )
+    await waitOnExecutionContext(executionContext)
+    expect(response.status).toBe(101)
+    const client = response.webSocket
+    if (!client) throw new Error('Expected an upgraded WebSocket')
+    client.accept()
+    const closed = new Promise<CloseEvent>((resolve) => {
+      client.addEventListener('close', resolve, { once: true })
+    })
+    client.close(1000, 'Finished')
+    expect(await closed).toMatchObject({ code: 1000 })
   })
 
   it('broadcastWorkspaceEvent is a silent no-op when WORKSPACE_HUB is undefined', async () => {
@@ -322,5 +358,39 @@ describe('Realtime WebSockets (Opt-In)', () => {
       'http://do/broadcast',
       expect.objectContaining({ method: 'POST', body: expect.stringContaining('"type":"issue.created"') }),
     )
+  })
+})
+
+describe('WorkspaceHub native WebSocket close handling', () => {
+  it.each([
+    [1000, 1000],
+    [1001, 1001],
+    [1011, 1011],
+    [3000, 3000],
+    [4999, 4999],
+    [1004, 1000],
+    [1005, 1000],
+    [1006, 1000],
+    [1015, 1000],
+    [1016, 1000],
+    [2000, 1000],
+    [2999, 1000],
+    [5000, 1000],
+  ])('answers peer close code %i with sendable code %i', async (peerCode, expectedCode) => {
+    const pair = new WebSocketPair()
+    const [client, server] = Object.values(pair)
+    client.accept()
+    server.accept()
+    const closed = new Promise<CloseEvent>((resolve) => {
+      client.addEventListener('close', resolve, { once: true })
+    })
+    const { hub } = hubFor()
+    try {
+      await expect(hub.webSocketClose(server, peerCode, 'Peer disconnected', false)).resolves.toBeUndefined()
+      expect(await closed).toMatchObject({ code: expectedCode, reason: 'Closed' })
+    } finally {
+      client.close(1000, 'Finished')
+      server.close(1000, 'Finished')
+    }
   })
 })
