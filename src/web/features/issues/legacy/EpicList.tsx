@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from 'react'
 
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
+import { Dialog } from '../../../components/ui/Dialog'
 import { EmptyState } from '../../../components/ui/EmptyState'
 import { Input } from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
@@ -44,15 +45,7 @@ const TH_CLASS =
   'text-left px-3 py-2 text-xs font-semibold text-text-muted uppercase tracking-[0.05em] border-b-2 border-border'
 const CELL_CLASS =
   'px-3 py-[0.625rem] border-b border-border align-middle group-hover:bg-surface [tr:last-child_&]:border-b-0'
-// CD-294: the panel had no max-height and no scroll region, so inside the
-// `fixed inset-0` backdrop (bottom-anchored on phones) anything taller than the
-// visual viewport overflowed off the top with no way to scroll to it — the Title
-// field first. `dvh`, not `vh`: iOS never shrinks `vh` for the keyboard or an
-// expanded URL bar, which is exactly when this panel runs out of room.
-const MODAL_CLASS =
-  'bg-bg border border-border rounded-lg p-6 w-full max-w-[480px] mx-4 ' +
-  'max-h-[80dvh] overflow-y-auto overscroll-contain ' +
-  'max-sm:rounded-t-lg max-sm:rounded-b-none max-sm:mx-0 max-sm:max-h-[90dvh]'
+const MODAL_CLASS = 'bg-bg border border-border rounded-lg p-6 w-full sm:max-w-[480px] overscroll-contain'
 
 function defaultCreateProjectId(projectId: string | null, projects: readonly ProjectMeta[]): string {
   if (projectId) return projects.find((p) => p.id === projectId)?.id ?? projects[0]?.id ?? ''
@@ -426,96 +419,85 @@ function CreateEpicModal({
 }: CreateEpicModalProps) {
   if (!showCreate) return null
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop closes on click; Escape on the dialog covers keyboard
-    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop closes on click; Escape on the dialog covers keyboard
-    <div
-      // CD-294: above the topbar (z-index: 110), below popovers (200).
-      className='fixed inset-0 z-[120] flex items-start justify-center pt-12 bg-black/40 max-sm:items-end max-sm:pt-0'
-      onClick={(e) => {
-        if (e.target === e.currentTarget) setShowCreate(false)
-      }}
-    >
-      <div className={MODAL_CLASS} role='dialog' aria-modal='true' aria-label='Create new epic'>
-        <h2 className='mb-5 text-lg font-bold text-text-base'>New Epic</h2>
+    <Dialog open={showCreate} onClose={() => setShowCreate(false)} ariaLabel='Create new epic' className={MODAL_CLASS}>
+      <h2 className='mb-5 text-lg font-bold text-text-base'>New Epic</h2>
 
-        {createError && (
-          <p role='alert' className='text-danger-text mb-3 text-sm'>
-            {createError}
-          </p>
-        )}
+      {createError && (
+        <p role='alert' className='text-danger-text mb-3 text-sm'>
+          {createError}
+        </p>
+      )}
 
-        <form action={submitCreate}>
-          {workspaceSlug && <input type='hidden' name='workspaceSlug' value={workspaceSlug} />}
-          <input type='hidden' name='projectId' value={createProjectId} />
-          <input type='hidden' name='priority' value={createPriority} />
-          {epicTypeId && <input type='hidden' name='typeId' value={epicTypeId} />}
-          <div className='mb-[0.875rem]'>
-            <label
-              htmlFor='create-epic-title'
-              className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'
-            >
-              Title *
-            </label>
-            <Input
-              id='create-epic-title'
-              name='title'
-              maxLength={500}
-              type='text'
-              value={createTitle}
-              onInput={(e) => setCreateTitle((e.target as HTMLInputElement).value)}
-              placeholder='Epic title'
-              required
-              autoFocus
-            />
-          </div>
+      <form action={submitCreate}>
+        {workspaceSlug && <input type='hidden' name='workspaceSlug' value={workspaceSlug} />}
+        <input type='hidden' name='projectId' value={createProjectId} />
+        <input type='hidden' name='priority' value={createPriority} />
+        {epicTypeId && <input type='hidden' name='typeId' value={epicTypeId} />}
+        <div className='mb-[0.875rem]'>
+          <label
+            htmlFor='create-epic-title'
+            className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'
+          >
+            Title *
+          </label>
+          <Input
+            id='create-epic-title'
+            name='title'
+            maxLength={500}
+            type='text'
+            value={createTitle}
+            onInput={(e) => setCreateTitle((e.target as HTMLInputElement).value)}
+            placeholder='Epic title'
+            required
+          />
+        </div>
 
-          <div className='flex gap-3 mb-5 flex-wrap items-end'>
-            {projects.length > 1 && (
-              <div>
-                {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
-                <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
-                  Project
-                </label>
-                <Select
-                  ariaLabel='Select project'
-                  value={createProjectId}
-                  onChange={setCreateProjectId}
-                  options={projects.map((p) => ({ value: p.id, label: p.name }))}
-                />
-              </div>
-            )}
-
+        <div className='flex gap-3 mb-5 flex-wrap items-end'>
+          {projects.length > 1 && (
             <div>
               {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
               <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
-                Priority
+                Project
               </label>
               <Select
-                ariaLabel='Select priority'
-                value={createPriority}
-                onChange={setCreatePriority}
-                capitalize
-                options={PRIORITY_OPTIONS}
-                buttonStyle={{
-                  background: `var(--priority-${createPriority}-bg, var(--priority-low-bg))`,
-                  color: `var(--priority-${createPriority}-text, var(--text-muted))`,
-                  fontWeight: 500,
-                  borderColor: 'transparent',
-                }}
+                ariaLabel='Select project'
+                value={createProjectId}
+                onChange={setCreateProjectId}
+                options={projects.map((p) => ({ value: p.id, label: p.name }))}
               />
             </div>
-          </div>
+          )}
 
-          <div className='flex gap-2'>
-            <Button type='submit' variant='primary' disabled={submitting || !createValid}>
-              {submitting ? 'Creating…' : 'Create Epic'}
-            </Button>
-            <Button variant='outline' onClick={() => setShowCreate(false)}>
-              Cancel
-            </Button>
+          <div>
+            {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
+            <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
+              Priority
+            </label>
+            <Select
+              ariaLabel='Select priority'
+              value={createPriority}
+              onChange={setCreatePriority}
+              capitalize
+              options={PRIORITY_OPTIONS}
+              buttonStyle={{
+                background: `var(--priority-${createPriority}-bg, var(--priority-low-bg))`,
+                color: `var(--priority-${createPriority}-text, var(--text-muted))`,
+                fontWeight: 500,
+                borderColor: 'transparent',
+              }}
+            />
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div className='flex gap-2'>
+          <Button type='submit' variant='primary' disabled={submitting || !createValid}>
+            {submitting ? 'Creating…' : 'Create Epic'}
+          </Button>
+          <Button variant='outline' onClick={() => setShowCreate(false)}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   )
 }

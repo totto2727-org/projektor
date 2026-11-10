@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import { unwrapResult } from '../../client/functions'
 import { Button } from '../../components/ui/Button'
@@ -53,12 +53,14 @@ function NewTokenReveal({ token, onDismiss }: { token: string; onDismiss: () => 
 }
 
 function DangerZone({
+  busy,
   rotating,
   onRotateStart,
   onRotateCancel,
   onRotateConfirm,
   onRevoke,
 }: {
+  busy: boolean
   rotating: boolean
   onRotateStart: () => void
   onRotateCancel: () => void
@@ -71,10 +73,10 @@ function DangerZone({
       {rotating ? (
         <span className='inline-flex gap-[0.375rem] items-center flex-wrap'>
           <span className='text-[0.8rem] text-text-muted'>Rotate? Old token dies.</span>
-          <Button variant='danger' size='sm' onClick={onRotateConfirm}>
-            Yes
+          <Button variant='danger' size='sm' onClick={onRotateConfirm} disabled={busy}>
+            {busy ? 'Rotating…' : 'Yes'}
           </Button>
-          <Button variant='outline' size='sm' onClick={onRotateCancel}>
+          <Button variant='outline' size='sm' onClick={onRotateCancel} disabled={busy}>
             No
           </Button>
         </span>
@@ -93,6 +95,8 @@ function DangerZone({
 }
 
 export default function FeedbackSourceSettings({ source, projectId, workspaceSlug, onChanged }: Props) {
+  const rotationInFlight = useRef(false)
+  const [rotationBusy, setRotationBusy] = useState(false)
   const [rotating, setRotating] = useState(false)
   const [newToken, setNewToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -114,6 +118,10 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
   }
 
   async function confirmRotate() {
+    if (rotationInFlight.current) return
+    rotationInFlight.current = true
+    setRotationBusy(true)
+    setError(null)
     try {
       const result = unwrapResult(await rotateFeedbackSourceToken({ workspaceSlug, projectId, sourceId: source.id }))
       setRotating(false)
@@ -121,6 +129,9 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
       onChanged?.()
     } catch (e) {
       setError(String(e))
+    } finally {
+      rotationInFlight.current = false
+      setRotationBusy(false)
     }
   }
 
@@ -162,6 +173,7 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
       </div>
 
       <DangerZone
+        busy={rotationBusy}
         rotating={rotating}
         onRotateStart={() => setRotating(true)}
         onRotateCancel={() => setRotating(false)}

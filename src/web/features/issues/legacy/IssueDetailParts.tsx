@@ -336,6 +336,7 @@ function useBodyEditor(
   useUnsavedUnloadGuard(editingBody && editBody !== (issue.body ?? ''))
   const key = draftKey(workspaceSlug, `${currentUserId ?? '-'}:${issueId}`, 'body')
   const [hasDraft, setHasDraft] = useState(false)
+  const bodyRevision = useRef(0)
   const bodyRef = useRef<HTMLDivElement>(null)
 
   // Surface an unsaved edit from a previous visit, rather than silently reopening the
@@ -351,6 +352,7 @@ function useBodyEditor(
   }
 
   function updateBody(value: string) {
+    bodyRevision.current += 1
     setEditBody(value)
     saveDraft(key, value)
     setHasDraft(!!value.trim())
@@ -364,12 +366,15 @@ function useBodyEditor(
   }
 
   async function saveBody() {
+    const revision = bodyRevision.current
+    const submittedBody = editBody
     if (!(await bodyForm.validate())) return
     setSavingBody(true)
     setSaveBodyError(null)
     try {
-      unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { body: editBody } }))
-      // Only discard once the server has it — a failed save keeps the text.
+      unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { body: submittedBody } }))
+      // A successful save owns only the submitted draft, not subsequent edits.
+      if (bodyRevision.current !== revision) return
       clearDraft(key)
       setHasDraft(false)
       setEditingBody(false)
@@ -1425,10 +1430,12 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
   const [editCommentBody, setEditCommentBody] = editForm.field('body')
   const [savingComment, setSavingComment] = useState(false)
   const [editCommentError, setEditCommentError] = useState<string | null>(null)
+  const commentRevision = useRef(0)
   const originalCommentBody = useRef('')
   useUnsavedUnloadGuard(editingCommentId !== null && editCommentBody !== originalCommentBody.current)
 
   function startEditComment(comment: Comment) {
+    commentRevision.current += 1
     originalCommentBody.current = comment.body
     setEditingCommentId(comment.id)
     setEditCommentBody(comment.body)
@@ -1440,7 +1447,14 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
     setEditCommentError(null)
   }
 
+  function updateEditComment(value: string) {
+    commentRevision.current += 1
+    setEditCommentBody(value)
+  }
+
   async function saveEditComment(commentId: string) {
+    const revision = commentRevision.current
+    const submittedBody = editCommentBody
     if (!(await editForm.validate())) {
       setEditCommentError('Enter a comment.')
       return
@@ -1448,7 +1462,8 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
     setSavingComment(true)
     setEditCommentError(null)
     try {
-      unwrapResult(await editComment({ workspaceSlug, issueId, commentId, body: editCommentBody }))
+      unwrapResult(await editComment({ workspaceSlug, issueId, commentId, body: submittedBody }))
+      if (commentRevision.current !== revision) return
       setEditingCommentId(null)
     } catch (e) {
       setEditCommentError(`Save failed: ${String(e)}`)
@@ -1469,7 +1484,7 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
   return {
     editingCommentId,
     editCommentBody,
-    setEditCommentBody,
+    setEditCommentBody: updateEditComment,
     savingComment,
     editCommentError,
     startEditComment,
@@ -1482,6 +1497,7 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
 function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, currentUserId: string | null) {
   const commentForm = useIssueForm({ body: '' }, Schema.Struct({ body: CommentText }))
   const [newComment, setNewComment] = commentForm.field('body')
+  const newCommentRevision = useRef(0)
   const [postingComment, setPostingComment] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
   useUnsavedUnloadGuard(newComment.trim().length > 0)
@@ -1494,12 +1510,15 @@ function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, c
   }, [key, setNewComment])
 
   function updateComment(value: string) {
+    newCommentRevision.current += 1
     setNewComment(value)
     saveDraft(key, value)
   }
 
   async function submitComment(e: import('react').FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    const revision = newCommentRevision.current
+    const submittedBody = newComment.trim()
     if (!(await commentForm.validate())) {
       setCommentError('Enter a comment.')
       return
@@ -1507,8 +1526,8 @@ function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, c
     setPostingComment(true)
     setCommentError(null)
     try {
-      unwrapResult(await addComment({ workspaceSlug, issueId, body: newComment.trim() }))
-      // Only discard the draft once the server has it — a failed post keeps the text.
+      unwrapResult(await addComment({ workspaceSlug, issueId, body: submittedBody }))
+      if (newCommentRevision.current !== revision) return
       clearDraft(key)
       setNewComment('')
     } catch (e) {
