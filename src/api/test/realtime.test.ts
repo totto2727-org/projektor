@@ -1,4 +1,4 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { createIssue } from '#commands/issues'
@@ -9,6 +9,7 @@ import type { ApiEnv, RealtimeEvent } from '#types'
 import type { CoreActor } from '../../core/authorization'
 import { CORE_ACTOR_HEADER } from '../../core/contract'
 import { WorkspaceHub, type SocketAttachment } from '../realtime/workspace-hub'
+import { env } from './fixture-api'
 import { authHeaders, hashToken, seedGroupGrant, seedProject, seedWorkspaceRoles } from './helpers'
 
 function actorFor(token: string): CoreActor {
