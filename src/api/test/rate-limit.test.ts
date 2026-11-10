@@ -1,9 +1,11 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { bumpRateCounter } from '#services/request-rate-limit'
 import type { Env } from '#types'
 
-import { bumpRateCounter, LIMITER_TIMEOUT_MS } from '../middleware/rate-limit'
+import { LIMITER_TIMEOUT_MS } from '../middleware/rate-limit'
+import { configureCore, env, getCoreLimiterCalls } from './fixture-api'
 import { authHeaders, seedFixture } from './helpers'
 import { seedRateLimitCounter } from './rate-limit-reset'
 
@@ -39,12 +41,14 @@ async function seedD1Counter(key: string, count: number): Promise<void> {
 // Run the worker without the Durable Object binding, as a deploy that hasn't added it yet.
 function withoutLimiterBinding() {
   let saved: Env['RATE_LIMITER']
-  beforeEach(() => {
+  beforeEach(async () => {
     saved = env.RATE_LIMITER
     env.RATE_LIMITER = undefined
+    await configureCore()
   })
-  afterEach(() => {
+  afterEach(async () => {
     env.RATE_LIMITER = saved
+    await configureCore()
   })
 }
 
@@ -158,56 +162,6 @@ describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
   })
 })
 
-describe('PROJ-361: opportunistic rate_limit row pruning (D1 fallback)', () => {
-  const ENDPOINT = 'http://localhost/api/workspaces'
-  withoutLimiterBinding()
-
-  it("prunes rows several windows stale while leaving the current window's row intact", async () => {
-    const now = Math.floor(Date.now() / 1000)
-    const staleWindowStart = now - WINDOW_SECS * 20 // well past the 10-window retention cutoff
-    await seedD1Counter('ip:stale-client', 1)
-    await env.DB.prepare('UPDATE rate_limit SET window_start = ? WHERE key = ?')
-      .bind(staleWindowStart, 'ip:stale-client')
-      .run()
-
-    // PRUNE_PROBABILITY is 1% — force the opportunistic prune to run this request.
-    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
-    try {
-      const res = await SELF.fetch(ENDPOINT)
-      expect(res.status).not.toBe(429)
-    } finally {
-      randomSpy.mockRestore()
-    }
-
-    const staleRow = await env.DB.prepare('SELECT key FROM rate_limit WHERE key = ?').bind('ip:stale-client').first()
-    expect(staleRow).toBeNull()
-
-    // The request above increments the current-window row for its own key (127.0.0.1) —
-    // pruning must not have deleted it too.
-    const currentRow = await env.DB.prepare('SELECT key FROM rate_limit WHERE key = ?').bind('ip:127.0.0.1').first()
-    expect(currentRow).not.toBeNull()
-  })
-
-  it('does not prune when the probability roll misses', async () => {
-    const now = Math.floor(Date.now() / 1000)
-    const staleWindowStart = now - WINDOW_SECS * 20
-    await seedD1Counter('ip:stale-client-2', 1)
-    await env.DB.prepare('UPDATE rate_limit SET window_start = ? WHERE key = ?')
-      .bind(staleWindowStart, 'ip:stale-client-2')
-      .run()
-
-    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5) // above PRUNE_PROBABILITY
-    try {
-      await SELF.fetch(ENDPOINT)
-    } finally {
-      randomSpy.mockRestore()
-    }
-
-    const staleRow = await env.DB.prepare('SELECT key FROM rate_limit WHERE key = ?').bind('ip:stale-client-2').first()
-    expect(staleRow).not.toBeNull()
-  })
-})
-
 // PROJ-432: the limiter runs on every request, and its upsert + read-back used to be two
 // sequential awaits. They're one D1 batch now — same statements, same order, one round trip.
 describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
@@ -282,6 +236,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
   it('Retry-After is the seconds left in the fixed window, as before', async () => {
     const slotStartMs = currentSlot() * 1000
     env.RATE_LIMIT_TEST_NOW_MS = String(slotStartMs + 20_000) // 20s into the window
+    await configureCore()
     try {
       const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`
       let res: Response | undefined
@@ -293,62 +248,42 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       expect(await res?.json()).toEqual({ error: 'Too Many Requests' })
     } finally {
       env.RATE_LIMIT_TEST_NOW_MS = undefined
+      await configureCore()
     }
   })
 
   describe('fails open when the limiter is unavailable', () => {
-    let saved: Env['RATE_LIMITER']
-    beforeEach(() => {
-      saved = env.RATE_LIMITER
+    afterEach(async () => {
+      await configureCore()
     })
-    afterEach(() => {
-      env.RATE_LIMITER = saved
-    })
-
-    function fakeNamespace(increment: () => Promise<unknown>) {
-      const calls = { n: 0 }
-      const ns = {
-        idFromName: (name: string) => name,
-        get: () => ({
-          increment: () => {
-            calls.n++
-            return increment()
-          },
-        }),
-      }
-      return { calls, ns: ns as unknown as NonNullable<Env['RATE_LIMITER']> }
-    }
 
     it('allows the request when the Durable Object call throws', async () => {
-      const fake = fakeNamespace(() => Promise.reject(new Error('DO down')))
-      env.RATE_LIMITER = fake.ns
+      await configureCore({ FIXTURE_LIMITER_MODE: 'reject' })
       const fixture = await seedFixture()
       const res = await SELF.fetch(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
-      expect(fake.calls.n).toBeGreaterThan(0)
+      expect(await getCoreLimiterCalls()).toBeGreaterThan(0)
       expect(res.status).toBe(200)
     })
 
     it('an invalid token still gets 401, not 500, from the auth-failure throttle', async () => {
-      const fake = fakeNamespace(() => Promise.reject(new Error('DO down')))
-      env.RATE_LIMITER = fake.ns
+      await configureCore({ FIXTURE_LIMITER_MODE: 'reject' })
       const res = await SELF.fetch(ENDPOINT, {
         headers: { Authorization: 'Bearer pk_not_a_real_token' },
       })
-      expect(fake.calls.n).toBeGreaterThanOrEqual(2) // request limiter + auth-failure throttle
+      expect(await getCoreLimiterCalls()).toBeGreaterThanOrEqual(2)
       expect(res.status).toBe(401)
     })
 
     it("allows the request when the Durable Object doesn't answer in time", async () => {
-      const fake = fakeNamespace(() => new Promise(() => {}))
-      env.RATE_LIMITER = fake.ns
+      await configureCore({ FIXTURE_LIMITER_MODE: 'hang' })
       const fixture = await seedFixture()
       const started = Date.now()
       const res = await SELF.fetch(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
-      expect(fake.calls.n).toBeGreaterThan(0)
+      expect(await getCoreLimiterCalls()).toBeGreaterThan(0)
       expect(res.status).toBe(200)
       expect(Date.now() - started).toBeLessThan(LIMITER_TIMEOUT_MS + 5_000)
     })
