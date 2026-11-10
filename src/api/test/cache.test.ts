@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import * as cache from '#commands/cache'
 
-import { env } from './fixture-api'
+import { configureCore, env, getCoreObservations, resetCoreObservations } from './fixture-api'
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus, seedTaskType } from './helpers'
 
 describe('KV caching', () => {
@@ -284,9 +284,8 @@ describe('KV caching', () => {
       })
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Before' })
 
-      const spy = vi
-        .spyOn(env.KV, 'delete')
-        .mockRejectedValueOnce(new Error('10048: your account has reached the free usage limit'))
+      await configureCore({ FIXTURE_CACHE_DELETE_MODE: 'reject' })
+      await resetCoreObservations()
 
       const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
         method: 'POST',
@@ -298,10 +297,12 @@ describe('KV caching', () => {
           params: { name: 'update_issue', arguments: { id: issue.id, title: 'After' } },
         }),
       })
-      expect(spy).toHaveBeenCalled()
+      expect((await getCoreObservations()).cacheDeletes).toContain(`issue:${workspaceId}:${issue.id}`)
       expect(res.status).toBe(200)
-      const rpc = (await res.json()) as { result?: unknown; error?: unknown }
+      const rpc = (await res.json()) as { result?: { isError?: boolean }; error?: unknown }
       expect(rpc.error).toBeUndefined()
+      expect(rpc.result).toBeDefined()
+      expect(rpc.result?.isError).not.toBe(true)
 
       const row = await env.DB.prepare('SELECT title FROM issues WHERE id = ?')
         .bind(issue.id)

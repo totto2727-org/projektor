@@ -1,29 +1,20 @@
 // PROJ-856: auth + workspace middleware must run exactly once per request, including on
 // bare collection paths. Hono's `/x/*` also matches `/x`, so registering both `/x` and
-// `/x/*` ran the pair twice — two wasted, sequential D1 round trips per request.
+// `/x/*` ran the pair twice. Observe only the middleware's named authenticate
+// dispatch. Domain operations must still independently reauthorize inside Core.
 
 import { SELF } from 'cloudflare:test'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { getCoreObservations, resetCoreObservations } from './fixture-api'
 import { authHeaders, seedIssueFixture } from './helpers'
 
 describe('PROJ-856: middleware runs once per request', () => {
   let f: Awaited<ReturnType<typeof seedIssueFixture>>
-  let sqls: string[]
-
   beforeEach(async () => {
     f = await seedIssueFixture()
-    sqls = []
-    const orig = env.DB.prepare.bind(env.DB)
-    vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => {
-      sqls.push(q)
-      return orig(q)
-    })
+    await resetCoreObservations()
   })
-  afterEach(() => vi.restoreAllMocks())
-
-  const tokenLookups = () => sqls.filter((q) => /FROM api_tokens/i.test(q)).length
 
   it.each([
     ['GET', '/api/issues'],
@@ -39,7 +30,7 @@ describe('PROJ-856: middleware runs once per request', () => {
       headers: authHeaders(f.token, f.slug),
     })
     expect([401, 403]).not.toContain(res.status)
-    expect(tokenLookups()).toBe(1)
+    expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
   it('GET /api/issues/:id authenticates once', async () => {
@@ -47,7 +38,7 @@ describe('PROJ-856: middleware runs once per request', () => {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)
-    expect(tokenLookups()).toBe(1)
+    expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
   it('GET /api/workspaces/:slug authenticates once', async () => {
@@ -55,7 +46,7 @@ describe('PROJ-856: middleware runs once per request', () => {
       headers: authHeaders(f.token, f.slug),
     })
     expect([401, 403]).not.toContain(res.status)
-    expect(tokenLookups()).toBe(1)
+    expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
   it('POST /api/issues authenticates once', async () => {
@@ -65,7 +56,7 @@ describe('PROJ-856: middleware runs once per request', () => {
       body: JSON.stringify({ projectId: f.projectId, title: 'once' }),
     })
     expect(res.status).toBe(201)
-    expect(tokenLookups()).toBe(1)
+    expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
   it.each(['/api/issues', '/api/wiki', '/api/files', '/api/sprints'])(
