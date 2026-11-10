@@ -7,6 +7,8 @@ import type { ReactNode } from 'react'
 import type { BrowserAuthEnvironment } from '#services/authentication'
 import type { Env as ApiEnvironment } from '#types'
 
+import { makeCoreClient } from '../core/client'
+import type { CoreRpcShape } from '../core/contract'
 import { type ApiError, loadRequestScope, type RequestScope, type ScopeError, type ScopeOptions } from './server'
 
 export interface Env
@@ -48,6 +50,7 @@ export class RequestServices extends Context.Service<
   RequestServices,
   {
     readonly request: Request
+    readonly core: CoreRpcShape
     readonly env: Env
     readonly url: URL
     readonly db: D1Database
@@ -72,6 +75,7 @@ export const makeRequestServices = (request: Request, env: Env) =>
     })
     return {
       request,
+      core: makeCoreClient(env.CORE),
       env,
       url,
       db: env.DB,

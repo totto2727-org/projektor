@@ -1,22 +1,27 @@
 import { Effect } from 'effect'
 import type { ReactElement } from 'react'
 
-import { listComments } from '#services/comments'
-import { listLinksForIssue } from '#services/issue-links'
-import { findSprintById, listSprints } from '#services/sprints'
-import { listTaskStatuses } from '#services/task-statuses'
-import { listTaskTypes } from '#services/task-types'
-import { listWorkspaceMembers } from '#services/workspaces'
-
 import { renderMarkdownDocument } from '../../components/markdown/render'
 import { RequestServices } from '../../request'
-import { authorizeDataEntity, dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context'
+import { requireDataProject, requireDataWorkspace } from '../../server/data-context'
 import { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
-import { checked, readDataAttachments, readDataIssue, readDataIssuePage, searchDataIssues } from './data'
+import {
+  checked,
+  readDataAttachments,
+  readDataComments,
+  readDataLinks,
+  readDataIssue,
+  readDataIssuePage,
+  readIssueLookups,
+  readIssueMembers,
+  readSprint,
+  readSprints,
+  searchDataIssues,
+} from './data'
 import { buildFilterQueryParams } from './legacy/IssueList-helpers'
 import { issueListQuery } from './query'
-import { type IssuePage, normalizeComments, normalizeLinks, normalizeStatuses, normalizeTaskTypes } from './types'
+import { type IssuePage } from './types'
 import { type EpicsInitialData, EpicsPage } from './views/EpicsPage'
 import { type IssueDetailInitialData, IssueDetailPage } from './views/IssueDetailPage'
 import { type IssuesInitialData, IssuesPage } from './views/IssuesPage'
@@ -105,15 +110,8 @@ function allPages(
 }
 function lookups(scope: RequestScope, workspaceId: string) {
   return Effect.gen(function* () {
-    const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
-    return yield* Effect.all(
-      {
-        statuses: listTaskStatuses(db, workspaceId).pipe(Effect.mapError(dataError), Effect.map(normalizeStatuses)),
-        taskTypes: listTaskTypes(db, workspaceId).pipe(Effect.mapError(dataError), Effect.map(normalizeTaskTypes)),
-      },
-      { concurrency: CONCURRENCY },
-    )
+    return yield* readIssueLookups(workspaceId)
   })
 }
 
@@ -125,7 +123,6 @@ export function loadIssues(
     const workspace = workspaceSelection(scope)
     if (!workspace) return null
     yield* checked(() => requireDataWorkspace(scope, workspace.id))
-    const { db } = yield* RequestServices
     const workspaceSlug = workspace.slug,
       project = selectedProject(scope),
       projects = scope.projects.filter((entry) => entry.workspace_id === workspace.id)
@@ -151,15 +148,8 @@ export function loadIssues(
       {
         page: view === 'list' ? readDataIssuePage(scope, workspace.id, query) : allPages(scope, workspace.id, query),
         epics: epicType ? allPages(scope, workspace.id, epicQuery) : Effect.succeed({ items: [] } as IssuePage),
-        sprints: project
-          ? listSprints(db, workspace.id, { projectId: project.id }).pipe(Effect.mapError(dataError))
-          : Effect.succeed([]),
-        sprintDetail: sprintId
-          ? findSprintById(db, workspace.id, sprintId).pipe(
-              Effect.mapError(dataError),
-              Effect.flatMap((row) => checked(() => authorizeDataEntity(scope, workspace.id, row))),
-            )
-          : Effect.succeed(null),
+        sprints: project ? readSprints(workspace.id, project.id) : Effect.succeed([]),
+        sprintDetail: sprintId ? readSprint(workspace.id, sprintId) : Effect.succeed(null),
         search: q ? searchDataIssues(scope, workspace.id, q, project?.id) : Effect.succeed(null),
       },
       { concurrency: CONCURRENCY },
@@ -226,7 +216,6 @@ export function loadIssue(
       ? scope.workspaces.find((entry) => entry.slug === hint)
       : (workspaceSelection(scope) ?? (scope.workspaces.length === 1 ? scope.workspaces[0] : null))
     if (!workspace) return null
-    const { db } = yield* RequestServices
     const workspaceSlug = workspace.slug
     const issue = yield* readDataIssue(scope, workspace.id, identifier)
     const project = yield* checked(() => requireDataProject(scope, issue.project_id ?? '', workspace.id))
@@ -236,17 +225,11 @@ export function loadIssue(
     }
     const { comments, links, attachments, metadata, members, parent, children } = yield* Effect.all(
       {
-        comments: listComments(db, workspace.id, issue.id).pipe(
-          Effect.mapError(dataError),
-          Effect.map(normalizeComments),
-        ),
-        links: listLinksForIssue(db, workspace.id, issue.id).pipe(
-          Effect.mapError(dataError),
-          Effect.map(normalizeLinks),
-        ),
+        comments: readDataComments(scope, workspace.id, issue.id),
+        links: readDataLinks(scope, workspace.id, issue.id),
         attachments: readDataAttachments(scope, workspace.id, issue.id),
         metadata: lookups(scope, workspace.id),
-        members: listWorkspaceMembers(db, workspace.id).pipe(Effect.mapError(dataError)),
+        members: readIssueMembers(workspace.id),
         parent: issue.parent_id ? readDataIssue(scope, workspace.id, issue.parent_id) : Effect.succeed(null),
         children:
           issue.type_key === 'epic'

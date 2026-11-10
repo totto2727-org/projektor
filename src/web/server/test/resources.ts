@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 
-import { makeWebCoreHandlers } from '../../../core/web/operations'
+import { makeWebCoreHandlers, type WebCoreRpcShape } from '../../../core/web/operations'
 import type { WebRequest, ScopeOptions } from '../../../core/web/scope'
 import type { Env } from '../../request'
 
@@ -120,8 +120,30 @@ export function testEnvironment(db: D1Database, email = 'owner@example.test', ov
   const result: Env = {
     ...env,
     CORE: overrides.CORE ?? {
+      webIssue: (...args: Parameters<WebCoreRpcShape['webIssue']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssue(...args)),
+      webIssuePage: (...args: Parameters<WebCoreRpcShape['webIssuePage']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssuePage(...args)),
+      webIssueSearch: (...args: Parameters<WebCoreRpcShape['webIssueSearch']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueSearch(...args)),
+      webIssueComments: (...args: Parameters<WebCoreRpcShape['webIssueComments']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueComments(...args)),
+      webIssueLinks: (...args: Parameters<WebCoreRpcShape['webIssueLinks']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueLinks(...args)),
+      webIssueAttachments: (...args: Parameters<WebCoreRpcShape['webIssueAttachments']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueAttachments(...args)),
+      webWikiAttachmentSearch: (...args: Parameters<WebCoreRpcShape['webWikiAttachmentSearch']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiAttachmentSearch(...args)),
+      webIssueLookups: (...args: Parameters<WebCoreRpcShape['webIssueLookups']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueLookups(...args)),
+      webIssueMembers: (...args: Parameters<WebCoreRpcShape['webIssueMembers']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webIssueMembers(...args)),
+      webSprints: (...args: Parameters<WebCoreRpcShape['webSprints']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSprints(...args)),
+      webSprint: (...args: Parameters<WebCoreRpcShape['webSprint']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSprint(...args)),
       browserScope: (request: WebRequest, options: ScopeOptions) =>
-        Effect.runPromise(makeWebCoreHandlers(result).browserScope(request, options)),
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).browserScope(request, options)),
     },
   }
   return result

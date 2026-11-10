@@ -13,7 +13,7 @@ export function coreResult<S extends Schema.Top, E, R>(schema: S, invocation: Ef
     Effect.mapError((error) =>
       error.status === 400 || error.status === 403 || error.status === 404
         ? new ScopeError(error.status, error.message)
-        : new ApiError('request', error.status, error.message),
+        : new ApiError('request', error.status, error.message, undefined, error.details),
     ),
   )
 }
