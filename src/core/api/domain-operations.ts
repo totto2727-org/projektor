@@ -32,7 +32,6 @@ import * as workflow from '#commands/workflow'
 import * as workspaces from '#commands/workspaces'
 
 import { ApiResults } from '../../contracts/api-results'
-import { oauthApi } from '../../contracts/oauth-provider'
 import { type CoreActor, requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '../authorization'
 import { coreFailure, coreReply } from '../contract'
 import { publicDomainFailure } from '../domain-errors'
@@ -244,12 +243,14 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
     apiListTokens: operation('apiListTokens', 'read', workspaces.listTokens),
     apiCreateToken: operation('apiCreateToken', 'write', workspaces.createToken, true),
     apiRevokeToken: operation('apiRevokeToken', 'write', workspaces.revokeToken, true),
-    apiListConnectorGrants: connectors('apiListConnectorGrants', 'read', (env, ctx) =>
-      oauth.listConnectorGrants(oauthApi(env), ctx.userId, ctx.workspaceId),
-    ),
-    apiRevokeConnectorGrant: connectors('apiRevokeConnectorGrant', 'write', (env, ctx, grantId: string) =>
-      oauth.revokeConnectorGrant(oauthApi(env), ctx.userId, ctx.workspaceId, grantId),
-    ),
+    apiListConnectorGrants: connectors('apiListConnectorGrants', 'read', async (env, ctx) => {
+      const { oauthApi } = await import('../../contracts/oauth-provider')
+      return oauth.listConnectorGrants(oauthApi(env), ctx.userId, ctx.workspaceId)
+    }),
+    apiRevokeConnectorGrant: connectors('apiRevokeConnectorGrant', 'write', async (env, ctx, grantId: string) => {
+      const { oauthApi } = await import('../../contracts/oauth-provider')
+      return oauth.revokeConnectorGrant(oauthApi(env), ctx.userId, ctx.workspaceId, grantId)
+    }),
     apiDeleteWorkspace: operation('apiDeleteWorkspace', 'write', workspaces.deleteWorkspace),
     apiGetWorkspaceMcpInfo: operation('apiGetWorkspaceMcpInfo', 'read', workspaces.getWorkspaceMcpInfo),
     apiGetWorkspaceBrand: operation('apiGetWorkspaceBrand', 'read', workspaces.getWorkspaceBrand),

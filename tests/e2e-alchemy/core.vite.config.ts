@@ -3,14 +3,13 @@ import { fileURLToPath } from 'node:url'
 
 import cloudflare from '@alchemy.run/cloudflare-runtime/vite'
 import { readD1Migrations } from '@cloudflare/vitest-plugin'
-import { defineConfig } from 'vite-plus'
+import { defineConfig, type UserConfig } from 'vite-plus'
 
 import { deployment } from '../../worker-graph'
 import { coreWorkerOptions } from './api-host'
 
 /** Compile official-parser migration records into the acceptance-only Core artifact. */
-export default defineConfig(async (environment) => {
-  if (environment.isPreview) throw new Error('Core runs only inside the single three-Worker acceptance preview.')
+export async function makeCoreFixtureConfig(main: string, outDir: string): Promise<UserConfig> {
   const migrations = (await readD1Migrations(fileURLToPath(new URL('../../migrations/', import.meta.url)))).map(
     (migration) => ({
       ...migration,
@@ -28,12 +27,17 @@ export default defineConfig(async (environment) => {
           id === '\0virtual:fixture-migrations' ? `export default ${JSON.stringify(migrations)}` : undefined,
       },
       cloudflare({
-        main: './core.worker.ts',
+        main,
         compatibilityDate: deployment.core.compatibility.date,
         compatibilityFlags: deployment.core.compatibility.flags,
         worker: coreWorkerOptions,
       }),
     ],
-    build: { outDir: 'core-dist' },
+    build: { outDir },
   }
+}
+
+export default defineConfig(async (environment) => {
+  if (environment.isPreview) throw new Error('Core runs only inside the single three-Worker acceptance preview.')
+  return makeCoreFixtureConfig('./core.worker.ts', 'core-dist')
 })

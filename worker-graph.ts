@@ -22,7 +22,6 @@ export const deployment = {
   },
   core: {
     name: 'projektor-core',
-    main: new URL('./alchemy.ts', import.meta.url).href,
     compatibility: { date: '2026-09-01', flags: ['nodejs_compat'] },
   },
   storage: {

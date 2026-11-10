@@ -1,4 +1,6 @@
-import { cloudflareTest } from '@cloudflare/vitest-plugin'
+import { builtinModules } from 'node:module'
+
+import { cloudflareTest, getRunnerName } from '@cloudflare/vitest-plugin'
 import { effrontAlchemy } from '@effront/alchemy/cloudflare/vite'
 import { effrontTailwind } from '@effront/tailwind'
 import { effront } from '@effront/vite'
@@ -6,7 +8,10 @@ import { generateIgnorePatterns } from '@totto2727/gitignore-patterns'
 import { defineConfig } from 'vite-plus'
 import { configDefaults } from 'vite-plus/test/config'
 
+import { nativeCoreWorker } from './tests/native-workers/options'
+
 const ignorePatterns = await generateIgnorePatterns(new URL('.', import.meta.url))
+let nativeRunnerName = ''
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
@@ -45,17 +50,25 @@ export default defineConfig({
       {
         extends: false,
         plugins: [
-          cloudflareTest({
+          {
+            name: 'projektor-native-core-topology',
+            configureVitest({ project }) {
+              nativeRunnerName = getRunnerName(project)
+            },
+          },
+          cloudflareTest(async () => ({
             main: './src/api/index.ts',
             miniflare: {
               compatibilityDate: '2024-09-23',
               compatibilityFlags: ['nodejs_compat', 'global_fetch_strictly_public', 'cache_option_enabled'],
-              d1Databases: ['DB'],
-              kvNamespaces: ['KV', 'OAUTH_KV'],
-              r2Buckets: ['R2'],
+              serviceBindings: { CORE: 'projektor-native-core' },
+              kvNamespaces: { OAUTH_KV: 'projektor-native-oauth' },
+              workers: [await nativeCoreWorker(nativeRunnerName)],
               durableObjects: { RATE_LIMITER: { className: 'RateLimiter', useSQLite: true } },
               bindings: {
                 ENVIRONMENT: 'development',
+                CF_ACCESS_TEAM_DOMAIN: '',
+                CF_ACCESS_AUDIENCE: '',
                 DEV_USER_EMAIL: '',
                 JWT_SECRET: 'test-secret-do-not-use-in-production',
                 BOOTSTRAP_SECRET: 'test-bootstrap-secret-do-not-use-in-production',
@@ -69,11 +82,24 @@ export default defineConfig({
                 BRAND_ACCENT: '#123456',
               },
             },
-          }),
+          })),
         ],
         test: {
           name: 'workers',
-          include: ['src/api/**/*.test.ts'],
+          // The public SDK barrel includes deployment providers. Prebundle only the
+          // application's named runtime exports so real Workers execute the same
+          // tree-shaken native RPC client as production, without provider imports.
+          deps: {
+            optimizer: {
+              ssr: {
+                enabled: true,
+                include: ['projektor/core-client'],
+                exclude: ['effect'],
+                rolldownOptions: { external: [...builtinModules, /^node:/, /^cloudflare:/] },
+              },
+            },
+          },
+          include: ['src/api/**/*.test.ts', 'tests/native-workers/*.test.ts'],
           exclude: [...configDefaults.exclude, 'src/api/**/*.node.test.ts'],
           setupFiles: ['./src/api/test/setup.ts'],
           testTimeout: 30_000,

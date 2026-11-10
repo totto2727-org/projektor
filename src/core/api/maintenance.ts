@@ -1,9 +1,6 @@
-import { OAuthProvider } from '@cloudflare/workers-oauth-provider'
-
 import type { ServiceCtx } from '#commands/types'
 import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki'
 
-import { providerOptions } from '../../contracts/oauth-provider'
 import type { CoreEnvironment } from '../environment'
 
 const FTS_DEDUPE_ONCE_KV_KEY = 'maint:fts-dedupe-0065'
@@ -106,14 +103,17 @@ export async function purgeExpiredRetentionData(env: CoreEnvironment): Promise<v
   console.log('scheduled retention purge complete', { deleted: counts, failed: failures })
 }
 
-const oauthProvider = new OAuthProvider(
-  providerOptions<Pick<CoreEnvironment, 'OAUTH_KV'>>({
-    fetch: () => new Response('Not found', { status: 404 }),
-  }),
-)
-
 export async function purgeExpiredOAuthData(env: CoreEnvironment): Promise<void> {
   try {
+    const [{ OAuthProvider }, { providerOptions }] = await Promise.all([
+      import('@cloudflare/workers-oauth-provider'),
+      import('../../contracts/oauth-provider'),
+    ])
+    const oauthProvider = new OAuthProvider(
+      providerOptions<Pick<CoreEnvironment, 'OAUTH_KV'>>({
+        fetch: () => new Response('Not found', { status: 404 }),
+      }),
+    )
     // One bounded call only. Repeating it would relist the same live grants.
     const result = await oauthProvider.purgeExpiredData(env, { batchSize: OAUTH_PURGE_BATCH_SIZE })
     console.log('scheduled OAuth purge complete', {

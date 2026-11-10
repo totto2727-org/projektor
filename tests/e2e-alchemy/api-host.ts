@@ -13,6 +13,8 @@ export const fixtureServices = {
 
 export const applicationTextBindings = Object.entries({
   ENVIRONMENT: 'development',
+  CF_ACCESS_TEAM_DOMAIN: '',
+  CF_ACCESS_AUDIENCE: '',
   DEV_USER_EMAIL: 'e2e@projektor.local',
   ADMIN_EMAILS: 'e2e@projektor.local',
   DEFAULT_WORKSPACE_SLUG: 'projektor',

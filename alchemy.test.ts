@@ -121,7 +121,7 @@ describe('source-owned private Core deployment', () => {
     expect(core.RemovalPolicy).toBe('retain')
     expect(core.Props).toMatchObject({
       name: 'projektor-core',
-      main: deployment.core.main,
+      main: new URL('./alchemy.ts', import.meta.url).href,
       workersDev: { enabled: false, previewsEnabled: false },
     })
     for (const property of ['domain', 'routes', 'crons', 'migrations', 'access'])

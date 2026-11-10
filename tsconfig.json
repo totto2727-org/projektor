@@ -16,6 +16,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "tests/e2e-alchemy/**/*.ts",
+    "tests/native-workers/**/*.ts",
     "alchemy.ts",
     "alchemy.run.ts",
     "alchemy.test.ts",

@@ -12,6 +12,9 @@
     "#types": "./src/types/index.ts",
     "#plugin-sdk": "./src/plugin-sdk/index.ts"
   },
+  "exports": {
+    "./core-client": "./src/core/client.ts"
+  },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@cloudflare/workers-oauth-provider": "^0.10.4",
