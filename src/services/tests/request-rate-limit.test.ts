@@ -161,6 +161,29 @@ describe('shared request rate-limit policy', () => {
     expect(await checkRateLimit(request(), f.env)).toBeUndefined()
   })
 
+  it.each([
+    { roll: 0, pruned: true },
+    { roll: 0.5, pruned: false },
+  ])('PROJ-361: prunes only stale D1 rows when the Core probability roll is $roll', async ({ roll, pruned }) => {
+    const f = fixture()
+    delete f.env.RATE_LIMITER
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(Date, 'now').mockReturnValue(125000)
+    vi.spyOn(Math, 'random').mockReturnValue(roll)
+    f.sqlite.exec("INSERT INTO rate_limit (key,count,window_start) VALUES ('stale-client',1,-1000)")
+
+    expect(await checkRateLimit(request(), f.env)).toBeUndefined()
+
+    expect(f.sqlite.prepare('SELECT key FROM rate_limit WHERE key = ?').get('stale-client') === undefined).toBe(pruned)
+    expect(
+      f.sqlite.prepare('SELECT key, count, window_start FROM rate_limit WHERE key = ?').get('ip:127.0.0.1'),
+    ).toEqual({
+      key: 'ip:127.0.0.1',
+      count: 1,
+      window_start: 120,
+    })
+  })
+
   it('shares the same counter between the API HTTP wrapper and another kernel caller', async () => {
     const f = fixture()
     f.env.RATE_LIMIT_AUTH_MAX = '1'

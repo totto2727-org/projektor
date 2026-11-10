@@ -28,6 +28,10 @@ The screenshot-backed E2E workflow exercises the real Worker application and per
 `vp run deploy` intentionally deploys the whole Worker stack from `alchemy.run.ts` and requires operator authorization.
 `vp run e2e` runs the real local Worker/browser acceptance workflow with screenshots.
 The native Cloudflare test plugin uses its public local options directly, without a Wrangler TOML or custom parser.
+The native API test Worker has no D1 or file-storage binding, while its private Core test Worker owns the real storage.
+`src/api/test/fixture-api.ts` supplies storage setup proxies through the test-only Core entrypoint, not through production RPC operations.
+Confine fixture SQL, request-local configuration sessions and failure-injection modes to native test entrypoints and test helpers, outside production Core exports.
+Runtime consumers import `projektor/core-client` so the supported Vite dependency optimizer can bundle the public SDK's runtime exports without its deployment providers.
 CI uses the shared setup actions and Nix inputs from the Vite+ app template.
 The CI workflow checks pull requests and main without deployment credentials.
 The separate production deployment workflow runs only after successful CI for a main push in this repository and checks out that CI run's exact commit.
@@ -54,6 +58,9 @@ Never accept a caller-supplied user ID, role, SQL predicate or storage capabilit
 API retains bearer/OAuth protocol and HTTP shaping, while Web retains browser-only request, same-origin, UI and upload-limit boundaries.
 Web has no API binding, API_BASE, D1 binding or OAuth signing JWT secret.
 API has no D1 binding, including in scheduled handlers, authentication, rate-limit fallbacks and Durable Objects.
+The official OAuth provider retains API's dedicated `OAUTH_KV` protocol binding and signing secret.
+Core shares that same OAuth KV namespace for current grant authorization and maintenance, while business KV and R2 remain exclusive to Core.
+Do not replace the provider's token lifecycle with a custom protocol or expose generic KV operations through production RPC.
 Keep native bindings request-local and resolve them lazily rather than capturing an earlier request's environment.
 Return validated public success or failure data across RPC, not custom Error instances, stacks, causes or database diagnostics.
 Log unexpected diagnostics at their origin and expose only a safe error and occurrence ID.
@@ -103,6 +110,7 @@ Worker declarations resolve dependencies and dynamic imports only; Web routing a
 Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed account, storage IDs, API cron and the existing `RATE_LIMITER` / `RateLimiter` binding.
 Core has no public domain, route, workers.dev URL or preview URL.
 Only Core receives D1, and API's existing cron forwards maintenance to Core without moving the schedule or adding a second trigger.
+Preserve the dedicated `OAUTH_KV` binding on API for the official provider and on Core for grant checks and cleanup, using the same existing namespace in both Workers.
 Existing production D1/KV/R2 are external bindings, not resources to recreate or migrate automatically.
 Do not replay the historical unbound WorkspaceHub migration.
 Production inherits the existing JWT_SECRET through a standard Cloudflare `inherit` binding when no local value is supplied.
