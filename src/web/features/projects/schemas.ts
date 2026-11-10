@@ -109,3 +109,9 @@ export const FlowMetricsSchema = Schema.Struct({
 export type FlowMetrics = typeof FlowMetricsSchema.Type
 
 export const RecentWikiPagesSchema = Schema.Array(RecentWikiPageSchema)
+export const ProjectOverviewSchema = Schema.Struct({
+  project: ProjectSchema,
+  issues: Schema.Array(RecentIssueSchema),
+  wiki: RecentWikiPagesSchema,
+  flow: FlowMetricsSchema,
+})

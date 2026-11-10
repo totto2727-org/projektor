@@ -96,6 +96,25 @@ describe('project pages read named shared queries against migrated D1', () => {
     expect(node.props.workspaceSlug).toBe('alpha')
     expect(run.transport).toHaveBeenCalledTimes(0)
   })
+  it('includes an old issue edited after more than thirty newer issues and deterministically limits recency', async () => {
+    const database = featureDatabase()
+    const insert = database.sqlite.prepare(
+      "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at) VALUES (?,'w1','p1',?,?,'u1',?,?)",
+    )
+    for (let index = 0; index < 40; index++)
+      insert.run(`recent-${index}`, index + 1, `Issue ${index}`, index + 100, index + 100)
+    insert.run('old-edited', 41, 'Old edited issue', 1, 1000)
+    const url = new URL('https://front.example/projects/view?projectId=p1&workspace=alpha')
+    const node = await runWithDatabase(database, url, (scope) => renderOverview(scope, url)).result
+    if (!isValidElement<ComponentProps<typeof ProjectLanding>>(node)) throw new Error('Expected project landing')
+    expect(node.props.initialIssues.map((issue) => issue.id)).toEqual([
+      'old-edited',
+      'recent-39',
+      'recent-38',
+      'recent-37',
+      'recent-36',
+    ])
+  })
   it('rejects a selection absent from the authorized catalog before overview queries', async () => {
     const database = featureDatabase()
     const url = new URL('https://front.example/projects/view?projectId=p1')
@@ -114,7 +133,7 @@ describe('project pages read named shared queries against migrated D1', () => {
     ).rejects.toMatchObject({
       _tag: 'ApiError',
       status: 500,
-      message: 'Unable to load project data.',
+      message: 'An unexpected error occurred.',
     })
   })
 })

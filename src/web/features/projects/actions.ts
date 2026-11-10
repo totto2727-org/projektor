@@ -2,14 +2,13 @@
 
 import { Effect, Schema } from 'effect'
 
-import * as projectCommands from '#commands/projects'
-
 import { EFFRONT } from '../../effront'
 import type { ActionResult } from '../../function-result'
 import { RequestServices } from '../../request'
-import { runCommand } from '../../server/command-context'
+import { runBrowserCommand as runCommand } from '../../server/browser-command'
 import { resolveFunctionContext } from '../../server/function-context'
 import { checkSameOriginMutation } from '../../server/mutation'
+import * as projectCommands from './commands'
 import {
   type ArchiveProjectInput,
   ArchiveProjectInputSchema,

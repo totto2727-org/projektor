@@ -120,6 +120,14 @@ export function testEnvironment(db: D1Database, email = 'owner@example.test', ov
   const result: Env = {
     ...env,
     CORE: overrides.CORE ?? {
+      webProjectCatalog: (...args: Parameters<WebCoreRpcShape['webProjectCatalog']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webProjectCatalog(...args)),
+      webProjectOverview: (...args: Parameters<WebCoreRpcShape['webProjectOverview']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webProjectOverview(...args)),
+      webCreateProject: (...args: Parameters<WebCoreRpcShape['webCreateProject']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateProject(...args)),
+      webUpdateProject: (...args: Parameters<WebCoreRpcShape['webUpdateProject']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateProject(...args)),
       webFlowMetrics: (...args: Parameters<WebCoreRpcShape['webFlowMetrics']>) =>
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webFlowMetrics(...args)),
       webCodeHeatmap: (...args: Parameters<WebCoreRpcShape['webCodeHeatmap']>) =>
