@@ -15,7 +15,10 @@ export const FK_CLEANUP_ALLOWLIST: Record<string, FkCleanupEntry> = {
     cleanedBy: ['../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
   },
   'agent_messages -> agent_sessions (SET NULL)': {
-    cleanedBy: ['index.ts#purgeExpiredRetentionData', '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
+    cleanedBy: [
+      '../core/api/maintenance.ts#purgeExpiredRetentionData',
+      '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL',
+    ],
   },
   'agent_messages -> workspaces (CASCADE)': {
     cleanedBy: ['../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
@@ -55,7 +58,10 @@ export const FK_CLEANUP_ALLOWLIST: Record<string, FkCleanupEntry> = {
     cleanedBy: ['../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
   },
   'claim_conflicts -> agent_sessions (SET NULL)': {
-    cleanedBy: ['index.ts#purgeExpiredRetentionData', '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
+    cleanedBy: [
+      '../core/api/maintenance.ts#purgeExpiredRetentionData',
+      '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL',
+    ],
   },
   'claim_conflicts -> issues (CASCADE)': {
     cleanedBy: ['../services/commands/issues.ts#deleteIssue', '../services/commands/projects.ts#PROJECT_CLEANUP_SQL'],
@@ -111,7 +117,10 @@ export const FK_CLEANUP_ALLOWLIST: Record<string, FkCleanupEntry> = {
     cleanedBy: ['../services/commands/issues.ts#deleteIssue', '../services/commands/projects.ts#PROJECT_CLEANUP_SQL'],
   },
   'issue_file_claims -> agent_sessions (SET NULL)': {
-    cleanedBy: ['index.ts#purgeExpiredRetentionData', '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
+    cleanedBy: [
+      '../core/api/maintenance.ts#purgeExpiredRetentionData',
+      '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL',
+    ],
   },
   'issue_file_claims -> issues (CASCADE)': {
     cleanedBy: ['../services/commands/issues.ts#deleteIssue', '../services/commands/projects.ts#PROJECT_CLEANUP_SQL'],
@@ -126,7 +135,10 @@ export const FK_CLEANUP_ALLOWLIST: Record<string, FkCleanupEntry> = {
     cleanedBy: ['../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
   },
   'issue_leases -> agent_sessions (CASCADE)': {
-    cleanedBy: ['index.ts#purgeExpiredRetentionData', '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
+    cleanedBy: [
+      '../core/api/maintenance.ts#purgeExpiredRetentionData',
+      '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL',
+    ],
   },
   'issue_leases -> issues (CASCADE)': {
     cleanedBy: ['../services/commands/issues.ts#deleteIssue', '../services/commands/projects.ts#PROJECT_CLEANUP_SQL'],
@@ -262,7 +274,10 @@ export const FK_CLEANUP_ALLOWLIST: Record<string, FkCleanupEntry> = {
     cleanedBy: ['../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
   },
   'wip_cap_denials -> agent_sessions (SET NULL)': {
-    cleanedBy: ['index.ts#purgeExpiredRetentionData', '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
+    cleanedBy: [
+      '../core/api/maintenance.ts#purgeExpiredRetentionData',
+      '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL',
+    ],
   },
   'wip_cap_denials -> issues (CASCADE)': {
     cleanedBy: ['../services/commands/issues.ts#deleteIssue', '../services/commands/projects.ts#PROJECT_CLEANUP_SQL'],
