@@ -22,6 +22,18 @@ function clientFor(wire: () => Promise<string>) {
 const issue = { id: 'issue', title: 'Public issue', links: [{ id: 'linked', title: 'Linked issue' }] }
 
 describe('API facade reply boundary', () => {
+  it('preserves maintenance cursor compatibility and conditional workflow variants', () => {
+    const backfill = { processed: 2, pagesProcessed: 2, nextCursor: { updatedAt: 9, id: 'page' } }
+    expect(Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)(backfill)).toEqual(backfill)
+    const unchanged = { unchanged: true, version: 'current' }
+    expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(unchanged)).toEqual(unchanged)
+    const full = { title: 'Workflow', description: 'Rules', content: 'Do work', version: 'current' }
+    expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(full)).toEqual(full)
+    expect(() => Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)({ version: 'current' })).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)({ ...backfill, nextCursor: { id: 'page' } }),
+    ).toThrow()
+  })
   it('dispatches a concrete issue operation with the current actor and workspace only', async () => {
     const actor = { requestUrl: 'https://example.test/api/workspaces/team/issues/issue', method: 'GET' }
     const publicIssue = {

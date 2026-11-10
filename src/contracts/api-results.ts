@@ -593,4 +593,28 @@ export const ApiResults = {
   ),
   apiMarkWikiNotificationsRead: Ok,
   apiListWikiChanges: Schema.Struct({ changes: array(WikiChange), nextSince: N }),
+  apiDeleteStoredAttachment: Schema.Void,
+  apiCreateToken: Schema.Struct({ id: S, token: S, name: S, scopes: array(S), expiresAt: NN }),
+  apiRevokeToken: Ok,
+  apiResolveProjectIdParam: S,
+  apiResolveVisibleProjectIdParam: S,
+  apiListConnectorGrants: array(
+    Schema.Struct({ id: S, client: S, clientId: S, scopes: array(S), grantedAt: N, expiresAt: N }),
+  ),
+  apiRevokeConnectorGrant: Ok,
+  apiListPlaybooks: array(Schema.Struct({ name: S, title: S, description: S, whenToUse: S })),
+  apiGetPlaybook: Schema.Struct({ name: S, title: S, description: S, whenToUse: S, content: S }),
+  apiGetWorkflow: Schema.Union([
+    Schema.Struct({ unchanged: Schema.Literal(true), version: S }),
+    Schema.Struct({ title: S, description: S, content: S, version: S }),
+  ]),
+  apiListBrokenWikiLinks: array(
+    Schema.Struct({ linkId: S, sourcePageId: S, sourceSlug: S, sourceTitle: S, targetTitle: S }),
+  ),
+  apiBackfillWikiLinks: Schema.Struct({
+    processed: N,
+    nextCursor: Schema.NullOr(Schema.Struct({ updatedAt: N, id: S })),
+    pagesProcessed: N,
+  }),
+  apiPurgeExpiredWikiPages: Schema.Struct({ purgedCount: N, purgedIds: array(S), moreExpired: B }),
 }
