@@ -67,11 +67,18 @@ const storageNames = ['DB', 'KV', 'OAUTH_KV', 'R2']
 
 function expectNoStorage(stack: Stack['Service'], id: 'Api' | 'Frontend') {
   const resource = stack.resources[id]
-  for (const name of storageNames) {
+  const deniedNames = id === 'Api' ? storageNames.filter((name) => name !== 'OAUTH_KV') : storageNames
+  for (const name of deniedNames) {
     expect(resource.Props.env).not.toHaveProperty(name)
     expect(bindings(stack, id).some((binding) => binding.name === name)).toBe(false)
   }
-  expect(bindings(stack, id).some((binding) => ['d1', 'kv_namespace', 'r2_bucket'].includes(binding.type))).toBe(false)
+  expect(
+    bindings(stack, id).some(
+      (binding) =>
+        ['d1', 'kv_namespace', 'r2_bucket'].includes(binding.type) &&
+        !(id === 'Api' && binding.type === 'kv_namespace' && binding.name === 'OAUTH_KV'),
+    ),
+  ).toBe(false)
 }
 
 describe('source-owned private Core deployment', () => {
@@ -145,7 +152,7 @@ describe('source-owned private Core deployment', () => {
     expect(core.Props.env).not.toHaveProperty('JWT_SECRET')
   })
 
-  it('grants existing external storage exclusively to Core without declaring its lifecycle', async () => {
+  it('grants business storage only to Core and shares only official OAuth protocol KV with API', async () => {
     const { core, stack } = await register(false)
     expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Core', 'Frontend'])
     expect(core.Adopt).toBe(true)
@@ -153,6 +160,9 @@ describe('source-owned private Core deployment', () => {
       ['d1', 'kv_namespace', 'r2_bucket'].includes(binding.type),
     )
     expect(storage).toEqual(existingStorageBindings())
+    expect(bindings(stack, 'Api').filter((binding) => binding.type === 'kv_namespace')).toEqual([
+      { type: 'kv_namespace', name: 'OAUTH_KV', namespaceId: 'b187546f271142419343787032f6ca9b' },
+    ])
     expectNoStorage(stack, 'Api')
     expectNoStorage(stack, 'Frontend')
     expect(existingStorageBindings()).toEqual([
@@ -187,7 +197,8 @@ describe('source-owned private Core deployment', () => {
       expect((core.Props.env as WorkerBindingProps)[name]).toBe(stack.resources[id])
       expect(stack.resources[id].Adopt).toBe(false)
       expect(stack.resources[id].RemovalPolicy).toBe('retain')
-      expect(api.Props.env).not.toHaveProperty(name)
+      if (name === 'OAUTH_KV') expect((api.Props.env as WorkerBindingProps)[name]).toBe(stack.resources.LocalOAuth)
+      else expect(api.Props.env).not.toHaveProperty(name)
       expect(frontend.Props.env).not.toHaveProperty(name)
     }
     expect(api.Adopt).toBe(false)

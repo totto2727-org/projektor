@@ -11,7 +11,7 @@ import { makePreviewContext } from './runtime-context'
 
 // The official test-only host wraps the application's own Effront plugins.
 // Web and API use native bindings to the same private Core artifact.
-// Neither public adapter has storage bindings, including in this acceptance host.
+// Both adapters lack business storage. Only API retains the official OAuth protocol KV.
 export default defineConfig(async (environment) => {
   const preview = await makePreviewContext(environment.isPreview)
   const application = applicationConfig

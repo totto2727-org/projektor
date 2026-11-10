@@ -81,7 +81,7 @@ export async function makeInlineApiLayer(directory: string) {
             }),
           )
           for (const binding of apiBindings) {
-            if (binding.name !== undefined && ['DB', 'KV', 'OAUTH_KV', 'R2'].includes(binding.name)) {
+            if (binding.name !== undefined && ['DB', 'KV', 'R2'].includes(binding.name)) {
               throw new Error(`Public API fixture unexpectedly received storage: ${binding.name}`)
             }
           }

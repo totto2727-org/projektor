@@ -31,7 +31,7 @@ export const foreignRateLimiterBinding = Effect.succeed({
   durableObjectNamespace: { className: 'RateLimiter', serviceName: fixtureServices.api },
 })
 
-/** Only the Core artifact receives native storage capabilities. */
+/** Core owns business storage. API shares only the official OAuth protocol namespace. */
 export const coreWorkerOptions = {
   name: 'projektor-e2e-core',
   bindings: [
@@ -51,6 +51,7 @@ export const apiWorkerOptions = {
   bindings: [
     ...applicationTextBindings,
     coreServiceBinding,
+    KvNamespace.local({ binding: 'OAUTH_KV', id: 'projektor-e2e-oauth' }),
     DurableObjectNamespace.local({ binding: 'RATE_LIMITER', className: 'RateLimiter' }),
     Text.local('JWT_SECRET', 'test-only-not-a-production-secret'),
   ],

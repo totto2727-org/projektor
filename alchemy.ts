@@ -14,7 +14,7 @@ export const localDevelopment = {
   jwtSecret: 'projektor-local-development-only-secret',
 }
 
-/** Only Core receives these external capabilities, never either public adapter. */
+/** Core owns business storage. The OAuth adapter also receives its dedicated protocol KV. */
 export function existingStorageBindings(): WorkerBinding[] {
   return [
     { type: 'd1', name: 'DB', databaseId: deployment.storage.database.id },
@@ -55,7 +55,7 @@ class DeploymentEnvironment extends Context.Service<
   }
 >()('projektor/DeploymentEnvironment') {}
 
-/** Development storage is registered once and is available exclusively to Core. */
+/** Development storage is registered once, with only protocol OAuth KV shared with API. */
 export const LocalLayer = Layer.mergeAll(
   Layer.succeed(AdoptPolicy, false),
   Layer.effect(
@@ -71,14 +71,15 @@ export const LocalLayer = Layer.mergeAll(
         ADMIN_EMAILS: email,
         DEV_USER_EMAIL: email,
       }
+      const oauth = yield* Cloudflare.KV.Namespace('LocalOAuth', { title: 'projektor-oauth-local' })
       return {
-        apiEnv: { ...sharedEnvironment, JWT_SECRET: Redacted.make(localDevelopment.jwtSecret) },
+        apiEnv: { ...sharedEnvironment, OAUTH_KV: oauth, JWT_SECRET: Redacted.make(localDevelopment.jwtSecret) },
         frontendEnv: sharedEnvironment,
         coreEnv: {
           ...sharedEnvironment,
           DB: yield* LocalDatabase,
           KV: yield* Cloudflare.KV.Namespace('LocalCache', { title: 'projektor-local' }),
-          OAUTH_KV: yield* Cloudflare.KV.Namespace('LocalOAuth', { title: 'projektor-oauth-local' }),
+          OAUTH_KV: oauth,
           R2: yield* Cloudflare.R2.Bucket('LocalFiles', { name: 'projektor-files-local' }),
         },
         bindApi: () => Effect.void,
@@ -106,9 +107,14 @@ export const ProductionLayer = Layer.mergeAll(
         frontendEnv: sharedEnvironment,
         coreEnv: sharedEnvironment,
         bindApi: (api: Worker) =>
-          Option.isNone(secret)
-            ? api.bind('existing-jwt-secret', { bindings: [{ type: 'inherit', name: 'JWT_SECRET' }] })
-            : Effect.void,
+          Effect.gen(function* () {
+            yield* api.bind('oauth-protocol-storage', {
+              bindings: [{ type: 'kv_namespace', name: 'OAUTH_KV', namespaceId: deployment.storage.oauth.id }],
+            })
+            if (Option.isNone(secret)) {
+              yield* api.bind('existing-jwt-secret', { bindings: [{ type: 'inherit', name: 'JWT_SECRET' }] })
+            }
+          }),
         bindCore: (core: Worker) => core.bind('external-storage', { bindings: existingStorageBindings() }),
       }
     }),
