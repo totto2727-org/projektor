@@ -9,6 +9,7 @@ import { IdSchema } from '../../contracts/inputs/common'
 import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '../../contracts/inputs/task-statuses'
 import * as cache from './cache'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
+import { prepareQuery } from './sql'
 import type { ServiceCtx } from './types'
 
 const WS_META_TTL = 60
@@ -167,7 +168,7 @@ export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export async function seedDefaultTaskStatuses(db: D1Database, workspaceId: string) {
+export function buildDefaultTaskStatusStatements(db: D1Database, workspaceId: string): D1PreparedStatement[] {
   const defaults = [
     {
       key: 'backlog',
@@ -205,22 +206,30 @@ export async function seedDefaultTaskStatuses(db: D1Database, workspaceId: strin
     },
   ]
   const orm = drizzle(db, { schema })
-  for (const s of defaults) {
-    await orm
-      .insert(schema.taskStatuses)
-      .values({
-        id: crypto.randomUUID(),
-        workspaceId,
-        key: s.key,
-        name: s.name,
-        category: s.category as 'todo' | 'in_progress' | 'done' | 'cancelled',
-        color: null,
-        position: s.position,
-        isDefault: s.isDefault,
-        isReviewStep: s.isReviewStep,
-      })
-      .onConflictDoNothing()
-  }
+  return defaults.map((s) =>
+    prepareQuery(
+      db,
+      orm
+        .insert(schema.taskStatuses)
+        .values({
+          id: crypto.randomUUID(),
+          workspaceId,
+          key: s.key,
+          name: s.name,
+          category: s.category as 'todo' | 'in_progress' | 'done' | 'cancelled',
+          color: null,
+          position: s.position,
+          isDefault: s.isDefault,
+          isReviewStep: s.isReviewStep,
+        })
+        .onConflictDoNothing()
+        .toSQL(),
+    ),
+  )
+}
+
+export async function seedDefaultTaskStatuses(db: D1Database, workspaceId: string) {
+  await db.batch(buildDefaultTaskStatusStatements(db, workspaceId))
 }
 
 // PROJ-870: also returns the resolved status's category, read from the same row lookup —

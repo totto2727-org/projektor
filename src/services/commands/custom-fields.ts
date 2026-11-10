@@ -194,36 +194,20 @@ export async function deleteCustomFieldDef(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export async function seedDefaultCustomFields(db: D1Database, workspaceId: string) {
-  const orm = drizzle(db, { schema })
-  const existing = await orm
-    .select({ id: schema.customFieldDefinitions.id })
-    .from(schema.customFieldDefinitions)
-    .where(
-      and(
-        eq(schema.customFieldDefinitions.workspaceId, workspaceId),
-        eq(schema.customFieldDefinitions.key, 'story_points'),
-        isNull(schema.customFieldDefinitions.projectId),
-      ),
-    )
-    .get()
-  if (existing) return
+export function buildDefaultCustomFieldStatements(db: D1Database, workspaceId: string): D1PreparedStatement[] {
+  return [
+    db
+      .prepare(`INSERT INTO custom_field_definitions
+    (id,workspace_id,project_id,key,label,type,options,created_at)
+    SELECT ?, ?, NULL, 'story_points', 'Story Points', 'number', NULL, ?
+    WHERE NOT EXISTS (SELECT 1 FROM custom_field_definitions
+      WHERE workspace_id = ? AND project_id IS NULL AND key = 'story_points')`)
+      .bind(crypto.randomUUID(), workspaceId, Math.floor(Date.now() / 1000), workspaceId),
+  ]
+}
 
-  const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
-  await orm
-    .insert(schema.customFieldDefinitions)
-    .values({
-      id,
-      workspaceId,
-      projectId: null,
-      key: 'story_points',
-      label: 'Story Points',
-      type: 'number',
-      options: null,
-      createdAt: now,
-    })
-    .onConflictDoNothing()
+export async function seedDefaultCustomFields(db: D1Database, workspaceId: string) {
+  await db.batch(buildDefaultCustomFieldStatements(db, workspaceId))
 }
 
 function assertValidCustomFieldValue(

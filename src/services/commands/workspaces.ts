@@ -15,7 +15,7 @@ import {
   UpdateWorkspaceBrandSchema,
   UpdateWorkspaceSchema,
 } from '../../contracts/inputs/workspaces'
-import { seedDefaultCustomFields } from './custom-fields'
+import { buildDefaultCustomFieldStatements } from './custom-fields'
 import {
   ConflictError,
   ForbiddenError,
@@ -24,10 +24,11 @@ import {
   UnsupportedMediaTypeError,
   ValidationError,
 } from './errors'
-import { seedDefaultTaskStatuses } from './task-statuses'
-import { seedDefaultTaskTypes } from './task-types'
+import { prepareQuery } from './sql'
+import { buildDefaultTaskStatusStatements } from './task-statuses'
+import { buildDefaultTaskTypeStatements } from './task-types'
 import type { ServiceCtx } from './types'
-import { seedDefaultWikiTemplates } from './wiki'
+import { buildDefaultWikiTemplateStatements } from './wiki'
 
 async function sha256hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
@@ -55,12 +56,17 @@ export async function createWorkspace(db: D1Database, userId: string, input: unk
 
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
-  await orm.insert(schema.workspaces).values({ id, name, slug, createdAt: now })
-  await orm.insert(schema.workspaceMembers).values({ workspaceId: id, userId, role: 'owner', joinedAt: now })
-  await seedDefaultTaskTypes(db, id)
-  await seedDefaultTaskStatuses(db, id)
-  await seedDefaultCustomFields(db, id)
-  await seedDefaultWikiTemplates(db, id, userId)
+  await db.batch([
+    prepareQuery(db, orm.insert(schema.workspaces).values({ id, name, slug, createdAt: now }).toSQL()),
+    prepareQuery(
+      db,
+      orm.insert(schema.workspaceMembers).values({ workspaceId: id, userId, role: 'owner', joinedAt: now }).toSQL(),
+    ),
+    ...buildDefaultTaskTypeStatements(db, id),
+    ...buildDefaultTaskStatusStatements(db, id),
+    ...buildDefaultCustomFieldStatements(db, id),
+    ...buildDefaultWikiTemplateStatements(db, id, userId),
+  ])
 
   return { id, name, slug }
 }

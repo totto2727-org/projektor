@@ -9,6 +9,7 @@ import { IdSchema } from '../../contracts/inputs/common'
 import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from '../../contracts/inputs/task-types'
 import * as cache from './cache'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
+import { prepareQuery } from './sql'
 import type { ServiceCtx } from './types'
 
 const WS_META_TTL = 60
@@ -144,7 +145,7 @@ export async function deleteTaskType(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export async function seedDefaultTaskTypes(db: D1Database, workspaceId: string) {
+export function buildDefaultTaskTypeStatements(db: D1Database, workspaceId: string): D1PreparedStatement[] {
   const defaults = [
     { key: 'epic', name: 'Epic', position: 1, isDefault: 0 },
     { key: 'story', name: 'Story', position: 2, isDefault: 0 },
@@ -152,19 +153,27 @@ export async function seedDefaultTaskTypes(db: D1Database, workspaceId: string) 
     { key: 'bug', name: 'Bug', position: 4, isDefault: 0 },
   ]
   const orm = drizzle(db, { schema })
-  for (const t of defaults) {
-    await orm
-      .insert(schema.taskTypes)
-      .values({
-        id: crypto.randomUUID(),
-        workspaceId,
-        key: t.key,
-        name: t.name,
-        color: null,
-        icon: null,
-        position: t.position,
-        isDefault: t.isDefault,
-      })
-      .onConflictDoNothing()
-  }
+  return defaults.map((t) =>
+    prepareQuery(
+      db,
+      orm
+        .insert(schema.taskTypes)
+        .values({
+          id: crypto.randomUUID(),
+          workspaceId,
+          key: t.key,
+          name: t.name,
+          color: null,
+          icon: null,
+          position: t.position,
+          isDefault: t.isDefault,
+        })
+        .onConflictDoNothing()
+        .toSQL(),
+    ),
+  )
+}
+
+export async function seedDefaultTaskTypes(db: D1Database, workspaceId: string) {
+  await db.batch(buildDefaultTaskTypeStatements(db, workspaceId))
 }

@@ -31,7 +31,7 @@ import {
 } from './access'
 import { recordActivity } from './activity'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { inChunks, sanitizeFtsQuery } from './sql'
+import { inChunks, prepareQuery, sanitizeFtsQuery } from './sql'
 import type { ServiceCtx } from './types'
 import { deleteWikiDraftsForPages } from './wiki-drafts'
 import { computeFreshness } from './wiki-freshness'
@@ -1812,59 +1812,85 @@ const DEFAULT_WIKI_TEMPLATES: Array<{ slug: string; title: string; type: string;
 // RESERVED_WIKI_SLUGS) — same content the 0047 migration backfills
 // for pre-existing workspaces (kept in sync by hand, same as seedDefaultTaskTypes/0016 for
 // task types). Authored as the workspace's creator (the only user guaranteed to exist yet).
-export async function seedDefaultWikiTemplates(db: D1Database, workspaceId: string, userId: string): Promise<void> {
+export function buildDefaultWikiTemplateStatements(
+  db: D1Database,
+  workspaceId: string,
+  userId: string,
+): D1PreparedStatement[] {
   const orm = drizzle(db, { schema })
   const now = Math.floor(Date.now() / 1000)
 
   const parentId = crypto.randomUUID()
-  await orm.insert(schema.wikiPages).values({
-    id: parentId,
-    searchRowid: newSearchRowid(), // PROJ-816
-    workspaceId,
-    projectId: null,
-    slug: 'page-templates',
-    title: 'Templates',
-    titleFold: foldWikiTitle('Templates'),
-    content: '',
-    parentId: null,
-    createdById: userId,
-    updatedById: userId,
-    createdAt: now,
-    updatedAt: now,
-  })
+  const statements: D1PreparedStatement[] = [
+    prepareQuery(
+      db,
+      orm
+        .insert(schema.wikiPages)
+        .values({
+          id: parentId,
+          searchRowid: newSearchRowid(), // PROJ-816
+          workspaceId,
+          projectId: null,
+          slug: 'page-templates',
+          title: 'Templates',
+          titleFold: foldWikiTitle('Templates'),
+          content: '',
+          parentId: null,
+          createdById: userId,
+          updatedById: userId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .toSQL(),
+    ),
+  ]
   // PROJ-522: unlike the three templates below (search-excluded by is_template=0/1),
   // this parent page is a real browsable, non-template page — it needs the same
   // wiki_fts mirror row every other write path maintains (reindexWikiFts), or it's
   // invisible to search_wiki until someone happens to edit it.
-  await db
-    .prepare(
-      `INSERT INTO wiki_fts (rowid, page_id, workspace_id, title, content, tags)
+  statements.push(
+    db
+      .prepare(
+        `INSERT INTO wiki_fts (rowid, page_id, workspace_id, title, content, tags)
 			 VALUES ((SELECT search_rowid FROM wiki_pages WHERE id = ?), ?, ?, ?, ?, ?)`,
-    )
-    .bind(parentId, parentId, workspaceId, 'Templates', '', '')
-    .run()
+      )
+      .bind(parentId, parentId, workspaceId, 'Templates', '', ''),
+  )
 
   for (const t of DEFAULT_WIKI_TEMPLATES) {
     const content = `---\ntype: ${t.type}\nstatus: draft\ntemplate: true\n---\n${t.body}`
-    await orm.insert(schema.wikiPages).values({
-      id: crypto.randomUUID(),
-      searchRowid: newSearchRowid(), // PROJ-816
-      workspaceId,
-      projectId: null,
-      slug: t.slug,
-      title: t.title,
-      titleFold: foldWikiTitle(t.title),
-      content,
-      parentId,
-      createdById: userId,
-      updatedById: userId,
-      createdAt: now,
-      updatedAt: now,
-      type: t.type,
-      status: 'draft',
-      isTemplate: true,
-    })
+    statements.push(
+      prepareQuery(
+        db,
+        orm
+          .insert(schema.wikiPages)
+          .values({
+            id: crypto.randomUUID(),
+            searchRowid: newSearchRowid(), // PROJ-816
+            workspaceId,
+            projectId: null,
+            slug: t.slug,
+            title: t.title,
+            titleFold: foldWikiTitle(t.title),
+            content,
+            parentId,
+            createdById: userId,
+            updatedById: userId,
+            createdAt: now,
+            updatedAt: now,
+            type: t.type,
+            status: 'draft',
+            isTemplate: true,
+          })
+          .toSQL(),
+      ),
+    )
   }
+  return statements
+}
+
+export async function seedDefaultWikiTemplates(db: D1Database, workspaceId: string, userId: string): Promise<void> {
+  await db.batch(buildDefaultWikiTemplateStatements(db, workspaceId, userId))
 }
 
 // PROJ-238: breadth-first walk of parent_id children, chunked to stay under D1's

@@ -1,3 +1,7 @@
+export function prepareQuery(db: D1Database, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
+  return db.prepare(query.sql).bind(...query.params)
+}
+
 // Cloudflare D1 rejects any query carrying more than 100 bound parameters. A query
 // whose parameter count grows with an input array — drizzle `inArray`, a raw `IN (...)`,
 // or a batched mutation keyed by ids — will therefore throw at runtime once the array is
