@@ -50,8 +50,16 @@ describe('actual native API and Core topology', () => {
   it('applies each session policy inside actual named Core handlers, not only fixture inspection', async () => {
     const epoch = `native-session-policy-${crypto.randomUUID()}`
     const [restricted, ordinary] = await Promise.all([
-      core.fixtureSession({ RATE_LIMIT_TEST_EPOCH: epoch, RATE_LIMIT_AUTH_MAX: '1' }),
-      core.fixtureSession({ RATE_LIMIT_TEST_EPOCH: epoch, RATE_LIMIT_AUTH_MAX: '10' }),
+      core.fixtureSession({
+        RATE_LIMIT_TEST_EPOCH: epoch,
+        RATE_LIMIT_TEST_NOW_MS: '1700000000000',
+        RATE_LIMIT_AUTH_MAX: '1',
+      }),
+      core.fixtureSession({
+        RATE_LIMIT_TEST_EPOCH: epoch,
+        RATE_LIMIT_TEST_NOW_MS: '1700000000000',
+        RATE_LIMIT_AUTH_MAX: '10',
+      }),
     ])
     const check = (binding: FixtureBinding) =>
       Effect.runPromise(
