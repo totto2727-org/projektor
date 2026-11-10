@@ -10,6 +10,34 @@ interface Props {
 }
 
 const OPEN_CATEGORIES = new Set(["todo", "in_progress", "in_review"]);
+const STATUS_ORDER = new Map([
+	["in_review", 0],
+	["in_progress", 1],
+	["todo", 2],
+	["backlog", 3],
+]);
+const PRIORITY_ORDER = new Map([
+	["urgent", 0],
+	["high", 1],
+	["medium", 2],
+	["low", 3],
+	["none", 4],
+]);
+
+function statusOrder(issue: Issue): number {
+	if (issue.status_key === "backlog" || issue.status_key === "in_review") {
+		return STATUS_ORDER.get(issue.status_key) ?? 4;
+	}
+	return STATUS_ORDER.get(issue.status_category ?? "") ?? 4;
+}
+
+function compareIssues(a: Issue, b: Issue): number {
+	return (
+		statusOrder(a) - statusOrder(b) ||
+		(PRIORITY_ORDER.get(a.priority) ?? 5) - (PRIORITY_ORDER.get(b.priority) ?? 5) ||
+		b.updated_at - a.updated_at
+	);
+}
 
 function getStoryPoints(issue: Issue): string | null {
 	const field = (issue.customFields ?? []).find((f) => f.key === "story_points");
@@ -41,10 +69,6 @@ function priorityBadge(issue: Issue) {
 	);
 }
 
-function isVisible(issue: Issue, includeDone: boolean): boolean {
-	return includeDone ? true : OPEN_CATEGORIES.has(issue.status_category ?? "");
-}
-
 function statusBadge(issue: Issue) {
 	return (
 		<span class="font-medium text-sm" style={{ color: categoryColor(issue.status_category) }}>
@@ -53,38 +77,9 @@ function statusBadge(issue: Issue) {
 	);
 }
 
-interface ProjectGroup {
-	name: string;
-	issues: Issue[];
-}
-
-function groupIssuesByProject(visible: readonly Issue[]): {
-	order: string[];
-	byProject: Map<string, ProjectGroup>;
-} {
-	const order: string[] = [];
-	const byProject = new Map<string, ProjectGroup>();
-	for (const issue of visible) {
-		const key = issue.project_key ?? "__none__";
-		const name = issue.project_name ?? issue.project_key ?? "No project";
-		let group = byProject.get(key);
-		if (!group) {
-			group = { name, issues: [] };
-			byProject.set(key, group);
-			order.push(key);
-		}
-		group.issues.push(issue);
-	}
-	return { order, byProject };
-}
-
-function ProjectIssuesSection({ name, issues }: { name: string; issues: Issue[] }) {
+function IssuesTable({ issues }: { issues: Issue[] }) {
 	return (
-		<section>
-			<h2 class="text-sm font-semibold text-text-muted uppercase tracking-[0.05em] mb-2 pb-1 border-b border-border">
-				{name}
-			</h2>
-
+		<div>
 			{/* Desktop table */}
 			<div class="overflow-x-auto max-sm:hidden">
 				<table class="w-full border-collapse text-[0.9rem]">
@@ -162,7 +157,7 @@ function ProjectIssuesSection({ name, issues }: { name: string; issues: Issue[] 
 					</div>
 				))}
 			</div>
-		</section>
+		</div>
 	);
 }
 
@@ -170,7 +165,6 @@ export default function MyIssues({ workspaceSlug }: Props) {
 	const [issues, setIssues] = useState<Issue[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [includeDone, setIncludeDone] = useState(false);
 
 	useEffect(() => {
 		(async () => {
@@ -179,10 +173,19 @@ export default function MyIssues({ workspaceSlug }: Props) {
 			try {
 				// PROJ-444: "me" resolves server-side to the calling user — no more
 				// /auth/me round trip before this fetch can even start.
-				const data = await apiFetch<{ items: Issue[] }>("/api/issues?assignee=me", {
-					workspaceSlug,
-				});
-				setIssues(Array.isArray(data.items) ? data.items : []);
+				const loaded: Issue[] = [];
+				let cursor: string | null = null;
+				do {
+					const query = new URLSearchParams({ assignee: "me", limit: "100" });
+					if (cursor) query.set("cursor", cursor);
+					const data = await apiFetch<{ items: Issue[]; nextCursor?: string | null }>(
+						`/api/issues?${query}`,
+						{ workspaceSlug }
+					);
+					loaded.push(...(Array.isArray(data.items) ? data.items : []));
+					cursor = data.nextCursor ?? null;
+				} while (cursor);
+				setIssues(loaded);
 			} catch (e) {
 				setError(String(e));
 			} finally {
@@ -199,22 +202,14 @@ export default function MyIssues({ workspaceSlug }: Props) {
 			</p>
 		);
 
-	const visible = issues.filter((i) => isVisible(i, includeDone));
-	const { order: projectOrder, byProject } = groupIssuesByProject(visible);
+	const visible = issues
+		.filter((i) => OPEN_CATEGORIES.has(i.status_category ?? ""))
+		.sort(compareIssues);
 	const hasAny = visible.length > 0;
 
 	return (
 		<div>
-			<div class="flex items-center gap-3 mb-5">
-				<label class="flex items-center gap-2 text-sm text-text-muted cursor-pointer select-none">
-					<input
-						type="checkbox"
-						checked={includeDone}
-						onChange={(e) => setIncludeDone((e.target as HTMLInputElement).checked)}
-						class="accent-accent w-4 h-4"
-					/>
-					Include done
-				</label>
+			<div class="mb-5">
 				<span class="text-sm text-text-muted">
 					{visible.length} issue{visible.length !== 1 ? "s" : ""}
 				</span>
@@ -222,21 +217,11 @@ export default function MyIssues({ workspaceSlug }: Props) {
 
 			{!hasAny ? (
 				<div class="text-center py-16 text-text-muted">
-					<p class="text-lg font-medium mb-1">No issues assigned to you</p>
-					<p class="text-sm">
-						{includeDone
-							? "You have no issues across any project."
-							: 'You have no open issues. Toggle "Include done" to see completed ones.'}
-					</p>
+					<p class="text-lg font-medium mb-1">No open issues assigned to you</p>
+					<p class="text-sm">You have no open issues across any project.</p>
 				</div>
 			) : (
-				<div class="flex flex-col gap-8">
-					{projectOrder.map((key) => {
-						const group = byProject.get(key);
-						if (!group) return null;
-						return <ProjectIssuesSection key={key} name={group.name} issues={group.issues} />;
-					})}
-				</div>
+				<IssuesTable issues={visible} />
 			)}
 		</div>
 	);

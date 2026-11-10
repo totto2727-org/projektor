@@ -1,11 +1,11 @@
 // MyIssues island — mock-fetch tests.
 //
 // MyIssues fetches /api/issues?assignee=me (server-resolved to the calling
-// user, PROJ-444) and groups the results by project. The pattern: stub
+// user, PROJ-444) and displays the results in one table. The pattern: stub
 // global fetch to branch on URL, render, and await the post-load UI
 // (view-mode buttons in IssueList's pattern don't apply here — instead wait
-// for the "Include done" checkbox which only renders post-load).
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/preact";
+// for the issue count which only renders post-load).
+import { cleanup, render, screen, waitFor, within } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Issue } from "./board-utils";
 import MyIssues from "./MyIssues";
@@ -88,7 +88,14 @@ function setupFetch(
 }
 
 async function waitForLoaded() {
-	await waitFor(() => screen.getByLabelText(/Include done/i));
+	await screen.findByText(/^\d+ issues?$/);
+}
+
+function tableIssueTitles() {
+	return within(screen.getByRole("table"))
+		.getAllByRole("row")
+		.slice(1)
+		.map((row) => within(row).getAllByRole("cell")[1]?.textContent);
 }
 
 afterEach(() => {
@@ -114,7 +121,7 @@ describe("MyIssues — loading and error states", () => {
 	});
 });
 
-describe("MyIssues — cross-project fetch and grouping", () => {
+describe("MyIssues — cross-project table", () => {
 	it("fetches issues scoped to assignee=me (server resolves the calling user)", async () => {
 		const mockFetch = setupFetch();
 		vi.stubGlobal("fetch", mockFetch);
@@ -125,51 +132,173 @@ describe("MyIssues — cross-project fetch and grouping", () => {
 		expect(calls.some((u) => u.includes("/api/issues?assignee=me"))).toBe(true);
 	});
 
-	it("groups issues by project under a heading per project", async () => {
+	it("shows issues from different projects in one table without project headings or extra columns", async () => {
 		vi.stubGlobal("fetch", setupFetch());
 		render(<MyIssues />);
 		await waitForLoaded();
 
-		// Titles render twice (desktop table + mobile card, toggled via CSS), so
-		// assert on the unique project heading and count of title occurrences.
-		expect(await screen.findByText("Alpha Project")).toBeTruthy();
-		expect(screen.getByText("Beta Project")).toBeTruthy();
-		expect(screen.getAllByText("Open issue in Alpha").length).toBeGreaterThan(0);
-		expect(screen.getAllByText("Open issue in Beta").length).toBeGreaterThan(0);
-	});
-
-	it("hides done issues by default", async () => {
-		vi.stubGlobal("fetch", setupFetch());
-		render(<MyIssues />);
-		await waitForLoaded();
-
-		await waitFor(() =>
-			expect(screen.getAllByText("Open issue in Alpha").length).toBeGreaterThan(0)
+		const table = screen.getByRole("table");
+		expect(
+			within(table)
+				.getAllByRole("columnheader")
+				.map((header) => header.textContent)
+		).toEqual(["#", "Title", "Priority", "Status"]);
+		expect(within(table).getAllByRole("row")).toHaveLength(3);
+		expect(within(table).getByRole("link", { name: "ALPHA-1" }).getAttribute("href")).toBe(
+			"/projects/ALPHA/issues/1/open-issue-in-alpha"
 		);
-		expect(screen.queryAllByText("Done issue in Alpha")).toHaveLength(0);
+		expect(within(table).getByRole("link", { name: "BETA-5" }).getAttribute("href")).toBe(
+			"/projects/BETA/issues/5/open-issue-in-beta"
+		);
+		expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+		expect(screen.queryByText("Alpha Project")).toBeNull();
+		expect(screen.queryByText("Beta Project")).toBeNull();
 	});
 
-	it("shows done issues once 'Include done' is checked", async () => {
-		vi.stubGlobal("fetch", setupFetch());
+	it("sorts interleaved projects by progress before priority or recency", async () => {
+		const statuses = [
+			{ key: "backlog", category: "todo", priority: "urgent", updatedAt: 9000 },
+			{ key: "todo", category: "todo", priority: "urgent", updatedAt: 8000 },
+			{ key: "in_progress", category: "in_progress", priority: "high", updatedAt: 7000 },
+			{ key: "in_review", category: "in_progress", priority: "low", updatedAt: 1000 },
+		];
+		vi.stubGlobal(
+			"fetch",
+			setupFetch(
+				statuses.map((status, index) => ({
+					...(index % 2 === 0 ? OPEN_ISSUE_PROJ_A : OPEN_ISSUE_PROJ_B),
+					id: status.key,
+					title: status.key,
+					status_key: status.key,
+					status_category: status.category,
+					priority: status.priority,
+					updated_at: status.updatedAt,
+				}))
+			)
+		);
 		render(<MyIssues />);
 		await waitForLoaded();
 
-		fireEvent.click(screen.getByLabelText(/Include done/i));
-
-		await waitFor(() =>
-			expect(screen.getAllByText("Done issue in Alpha").length).toBeGreaterThan(0)
-		);
+		expect(tableIssueTitles()).toEqual(["in_review", "in_progress", "todo", "backlog"]);
 	});
 
-	it("shows the issue count reflecting the current filter", async () => {
+	it("sorts the same status by priority before recency", async () => {
+		const priorities = ["none", "low", "medium", "high", "urgent"];
+		vi.stubGlobal(
+			"fetch",
+			setupFetch(
+				priorities.map((priority, index) => ({
+					...OPEN_ISSUE_PROJ_A,
+					id: priority,
+					title: priority,
+					priority,
+					updated_at: 5000 - index * 1000,
+				}))
+			)
+		);
+		render(<MyIssues />);
+		await waitForLoaded();
+
+		expect(tableIssueTitles()).toEqual(["urgent", "high", "medium", "low", "none"]);
+	});
+
+	it("sorts the same status and priority by most recently updated first", async () => {
+		vi.stubGlobal(
+			"fetch",
+			setupFetch(
+				[1000, 3000, 2000].map((updatedAt) => ({
+					...OPEN_ISSUE_PROJ_A,
+					id: String(updatedAt),
+					title: String(updatedAt),
+					updated_at: updatedAt,
+				}))
+			)
+		);
+		render(<MyIssues />);
+		await waitForLoaded();
+
+		expect(tableIssueTitles()).toEqual(["3000", "2000", "1000"]);
+	});
+
+	it("uses progress categories for custom status keys", async () => {
+		vi.stubGlobal(
+			"fetch",
+			setupFetch([
+				OPEN_ISSUE_PROJ_A,
+				{ ...OPEN_ISSUE_PROJ_B, status_key: "doing", status_category: "in_progress" },
+				{
+					...OPEN_ISSUE_PROJ_A,
+					id: "review",
+					title: "Custom review",
+					status_key: "qa",
+					status_category: "in_progress",
+				},
+			])
+		);
+		render(<MyIssues />);
+		await waitForLoaded();
+
+		expect(tableIssueTitles()).toEqual([
+			"Custom review",
+			"Open issue in Beta",
+			"Open issue in Alpha",
+		]);
+	});
+
+	it("excludes completed and cancelled issues without an include-done control", async () => {
+		vi.stubGlobal(
+			"fetch",
+			setupFetch([
+				OPEN_ISSUE_PROJ_A,
+				DONE_ISSUE_PROJ_A,
+				{ ...OPEN_ISSUE_PROJ_B, status_key: "cancelled", status_category: "cancelled" },
+			])
+		);
+		render(<MyIssues />);
+		await waitForLoaded();
+
+		expect(tableIssueTitles()).toEqual(["Open issue in Alpha"]);
+		expect(screen.queryByText("Done issue in Alpha")).toBeNull();
+		expect(screen.queryByText("Open issue in Beta")).toBeNull();
+		expect(screen.getByText("1 issue")).toBeTruthy();
+		expect(screen.queryByRole("checkbox")).toBeNull();
+	});
+
+	it("counts only open issues", async () => {
 		vi.stubGlobal("fetch", setupFetch());
 		render(<MyIssues />);
 		await waitForLoaded();
 
 		await waitFor(() => expect(screen.getByText("2 issues")).toBeTruthy());
+	});
 
-		fireEvent.click(screen.getByLabelText(/Include done/i));
-		await waitFor(() => expect(screen.getByText("3 issues")).toBeTruthy());
+	it("loads subsequent pages before sorting so older actionable issues are not omitted", async () => {
+		const laterPageIssue = {
+			...OPEN_ISSUE_PROJ_B,
+			status_key: "in_review",
+			status_category: "in_progress",
+		};
+		const mockFetch = vi
+			.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					items: [DONE_ISSUE_PROJ_A, OPEN_ISSUE_PROJ_A],
+					nextCursor: "1000:i1",
+				}),
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ items: [laterPageIssue], nextCursor: null }),
+			});
+		vi.stubGlobal("fetch", mockFetch);
+		render(<MyIssues />);
+		await waitForLoaded();
+
+		expect(mockFetch).toHaveBeenCalledTimes(2);
+		expect(mockFetch.mock.calls[1]?.[0]).toContain("cursor=1000%3Ai1");
+		expect(tableIssueTitles()).toEqual(["Open issue in Beta", "Open issue in Alpha"]);
+		expect(screen.getByText("2 issues")).toBeTruthy();
 	});
 });
 
@@ -179,20 +308,19 @@ describe("MyIssues — empty states", () => {
 		render(<MyIssues />);
 		await waitForLoaded();
 
-		expect(await screen.findByText("No issues assigned to you")).toBeTruthy();
-		expect(screen.getByText(/Toggle "Include done"/i)).toBeTruthy();
+		expect(screen.getByText("No open issues assigned to you")).toBeTruthy();
+		expect(screen.getByText("0 issues")).toBeTruthy();
+		expect(screen.queryByRole("table")).toBeNull();
 	});
 
-	it("shows the all-projects empty state once 'Include done' is toggled with no issues at all", async () => {
-		vi.stubGlobal("fetch", setupFetch([]));
+	it("shows the open-issues empty state when all assigned issues are completed", async () => {
+		vi.stubGlobal("fetch", setupFetch([DONE_ISSUE_PROJ_A]));
 		render(<MyIssues />);
 		await waitForLoaded();
 
-		fireEvent.click(screen.getByLabelText(/Include done/i));
-
-		await waitFor(() =>
-			expect(screen.getByText("You have no issues across any project.")).toBeTruthy()
-		);
+		expect(screen.getByText("You have no open issues across any project.")).toBeTruthy();
+		expect(screen.getByText("0 issues")).toBeTruthy();
+		expect(screen.queryByRole("table")).toBeNull();
 	});
 });
 

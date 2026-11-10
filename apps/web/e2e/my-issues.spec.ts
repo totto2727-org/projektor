@@ -3,9 +3,9 @@
  *
  * Tests:
  *  1. Create an issue assigned to the dev-bypass user via the API.
- *  2. Navigate to /my-issues and confirm the issue appears grouped under its project.
+ *  2. Navigate to /my-issues and confirm the issue appears in a single cross-project table.
  *  3. Mark the issue done, confirm it disappears from the default (open-only) view.
- *  4. Toggle "Include done" and confirm it reappears.
+ *  4. Confirm completed issues cannot be included in the view.
  *
  * Prerequisites: globalSetup must have written e2e/.e2e-ctx.json.
  * Target: E2E_BASE_URL pointing at a dev deployment (ENVIRONMENT=development,
@@ -84,8 +84,11 @@ test.describe("My Issues page", () => {
 		await openMyIssues(page, ctx);
 		await expect(page.locator("h1", { hasText: "My Issues" })).toBeVisible({ timeout: 15_000 });
 
-		const issueEntry = page.getByText(ISSUE_TITLE).first();
+		const issueEntry = page.getByText(ISSUE_TITLE).filter({ visible: true });
 		await expect(issueEntry).toBeVisible({ timeout: 15_000 });
+		await expect(page.locator("table")).toHaveCount(1);
+		await expect(page.locator("thead th")).toHaveText(["#", "Title", "Priority", "Status"]);
+		await expect(page.getByRole("heading", { level: 2 })).toHaveCount(0);
 
 		// -----------------------------------------------------------------------
 		// Step 2: Mark the issue done via the API, reload — it should disappear
@@ -101,9 +104,8 @@ test.describe("My Issues page", () => {
 		await expect(page.getByText(ISSUE_TITLE)).toHaveCount(0, { timeout: 10_000 });
 
 		// -----------------------------------------------------------------------
-		// Step 3: Toggle "Include done" — the issue reappears
+		// Step 3: Completed issues cannot be included in this view.
 		// -----------------------------------------------------------------------
-		await page.getByLabel(/Include done/i).check();
-		await expect(page.getByText(ISSUE_TITLE).first()).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByLabel(/Include done/i)).toHaveCount(0);
 	});
 });
