@@ -8,28 +8,13 @@ import { afterEach, describe, expect, it } from 'vite-plus/test'
 import type { AuthInfo, HonoEnv } from '#types'
 
 import { authMiddleware } from '../middleware/auth'
-import { env } from './fixture-api'
+import { env, getCoreObservations, resetCoreObservations } from './fixture-api'
 import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers'
 
 describe('PROJ-889: MCP mutations broadcast like REST', () => {
-  const prevHub = env.WORKSPACE_HUB
-  afterEach(() => {
-    env.WORKSPACE_HUB = prevHub
-  })
-
   it('add_comment over MCP posts a realtime event to the workspace hub', async () => {
     const f = await seedIssueFixture()
-    const broadcasts: Array<{ url: string; body: string }> = []
-    env.WORKSPACE_HUB = {
-      idFromName: (name: string) => ({ name }),
-      get: () => ({
-        fetch: async (url: string, init?: RequestInit) => {
-          // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Keep the mock's existing RequestInit body coercion without changing recorded payloads.
-          broadcasts.push({ url, body: String(init?.body ?? '') })
-          return new Response('ok')
-        },
-      }),
-    } as unknown as DurableObjectNamespace
+    await resetCoreObservations()
 
     const res = await SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
@@ -42,11 +27,21 @@ describe('PROJ-889: MCP mutations broadcast like REST', () => {
       }),
     })
     expect(res.status).toBe(200)
-    expect(((await res.json()) as { error?: unknown }).error).toBeUndefined()
+    const rpc = (await res.json()) as { error?: unknown; result?: { isError?: boolean } }
+    expect(rpc.error).toBeUndefined()
+    expect(rpc.result).toBeDefined()
+    expect(rpc.result?.isError).not.toBe(true)
 
+    await expect.poll(async () => (await getCoreObservations()).broadcasts.length).toBeGreaterThan(0)
+    const { broadcasts } = await getCoreObservations()
     expect(broadcasts.length).toBeGreaterThan(0)
     expect(broadcasts[0].url).toMatch(/\/broadcast$/)
-    expect(JSON.parse(broadcasts[0].body)).toMatchObject({ workspaceId: f.workspaceId })
+    expect(JSON.parse(broadcasts[0].body)).toMatchObject({
+      workspaceId: f.workspaceId,
+      projectId: f.projectId,
+      type: 'comment.created',
+      data: { issueId: f.issueId },
+    })
   })
 })
 
