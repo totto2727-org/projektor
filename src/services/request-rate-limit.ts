@@ -1,5 +1,9 @@
 import type { Env } from '#types'
 
+import { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../contracts/request-rate-limit'
+
+export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../contracts/request-rate-limit'
+
 /** Native counter bindings and request policy only, with no application auth secrets. */
 export type RequestRateLimitEnv = Pick<
   Env,
@@ -85,15 +89,6 @@ const PRUNE_RETENTION_WINDOWS = 10
 function pruneStaleRateLimitRows(db: D1Database, windowSecs: number): D1PreparedStatement {
   const cutoff = Math.floor(Date.now() / 1000) - windowSecs * PRUNE_RETENTION_WINDOWS
   return db.prepare('DELETE FROM rate_limit WHERE window_start < ?').bind(cutoff)
-}
-
-// Bound DO outage latency before failing open.
-export const LIMITER_TIMEOUT_MS = 500
-
-/** Test epochs isolate counters outside production only. */
-export function rateLimiterObjectName(env: RequestRateLimitEnv, key: string): string {
-  const epoch = env.ENVIRONMENT !== 'production' ? env.RATE_LIMIT_TEST_EPOCH : undefined
-  return epoch ? `${epoch}|${key}` : key
 }
 
 let warnedD1Fallback = false

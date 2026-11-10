@@ -1,7 +1,8 @@
+import { Effect, Schema } from 'effect'
 import { Hono } from 'hono'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import type { HonoEnv } from '#types'
+import type { ApiEnv, HonoEnv } from '#types'
 
 import {
   bumpRateCounter as apiBumpRateCounter,
@@ -9,6 +10,9 @@ import {
   rateLimiterObjectName as apiObjectName,
   rateLimitMiddleware,
 } from '../../api/middleware/rate-limit'
+import { RateLimitRequest, RateCounterRequest, RateLimitResult } from '../../contracts/request-rate-limit'
+import { makeApiRateLimitHandlers } from '../../core/api/rate-limit'
+import { decodeCoreReply } from '../../core/client'
 import { createTestDatabase } from '../../web/test/database'
 import { bumpRateCounter, checkRateLimit, LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../request-rate-limit'
 import type { RequestRateLimitEnv } from '../request-rate-limit'
@@ -43,7 +47,23 @@ function fixture() {
     RATE_LIMITER: namespace,
     RATE_LIMIT_TEST_NOW_MS: '125000',
   }
-  return { ...database, env, increment, idFromName }
+  // An SDK-compatible binding substitute executes the real Core handlers against this SQLite fixture.
+  const handlers = makeApiRateLimitHandlers(Effect.sync(() => env))
+  const binding = {
+    fetch: async () => new Response(null, { status: 404 }),
+    apiCheckRateLimit: (input: typeof RateLimitRequest.Type) => Effect.runPromise(handlers.apiCheckRateLimit(input)),
+    apiBumpRateCounter: (input: typeof RateCounterRequest.Type) =>
+      Effect.runPromise(handlers.apiBumpRateCounter(input)),
+  } as unknown as Fetcher
+  const apiEnv: ApiEnv = {
+    ...env,
+    CORE: binding,
+    OAUTH_KV: {} as KVNamespace,
+    JWT_SECRET: 'unused-by-rate-limit',
+    CF_ACCESS_TEAM_DOMAIN: '',
+    CF_ACCESS_AUDIENCE: '',
+  }
+  return { ...database, env, apiEnv, handlers, increment, idFromName }
 }
 const request = (headers: HeadersInit = {}) => new Request('https://example.test/api/issues', { headers })
 
@@ -91,7 +111,7 @@ describe('shared request rate-limit policy', () => {
     expect(await checkRateLimit(request(), f.env)).toEqual({ retryAfter: 30 })
   })
 
-  it('ignores test epochs and clocks in production and preserves API helper identities', async () => {
+  it('ignores test epochs and clocks in production and shares counter naming across adapters', async () => {
     const f = fixture()
     vi.spyOn(Date, 'now').mockReturnValue(185000)
     f.env.RATE_LIMIT_TEST_EPOCH = 'epoch'
@@ -99,10 +119,10 @@ describe('shared request rate-limit policy', () => {
     f.env.ENVIRONMENT = 'production'
     await checkRateLimit(request(), f.env)
     expect(f.increment).toHaveBeenCalledWith('ip:127.0.0.1', 60, 185)
-    expect(apiBumpRateCounter).toBe(bumpRateCounter)
+    expect(await apiBumpRateCounter({ ...f.apiEnv, ENVIRONMENT: 'production' }, 'authfail:ip:test', 60)).toBe(1)
     expect(apiTimeout).toBe(LIMITER_TIMEOUT_MS)
     expect(apiObjectName).toBe(rateLimiterObjectName)
-    expect(await bumpRateCounter(f.env, 'authfail:ip:test', 60)).toBe(1)
+    expect(await bumpRateCounter(f.env, 'authfail:ip:test', 60)).toBe(2)
     expect(f.increment).toHaveBeenCalledWith('authfail:ip:test', 60, 185)
   })
 
@@ -144,14 +164,70 @@ describe('shared request rate-limit policy', () => {
   it('shares the same counter between the API HTTP wrapper and another kernel caller', async () => {
     const f = fixture()
     f.env.RATE_LIMIT_AUTH_MAX = '1'
+    f.apiEnv.RATE_LIMIT_AUTH_MAX = '1'
     const app = new Hono<HonoEnv>()
     app.use('*', rateLimitMiddleware)
     app.get('*', (c) => c.json({ ok: true }))
-    expect((await app.request(request(), undefined, f.env)).status).toBe(200)
+    expect((await app.request(request(), undefined, f.apiEnv)).status).toBe(200)
     expect(await checkRateLimit(request(), f.env)).toEqual({ retryAfter: 55 })
-    const denied = await app.request(request(), undefined, f.env)
+    const denied = await app.request(request(), undefined, f.apiEnv)
     expect(denied.status).toBe(429)
     expect(denied.headers.get('Retry-After')).toBe('55')
     expect(await denied.json()).toEqual({ error: 'Too Many Requests' })
+  })
+
+  it('never lets a caller override production budgets, epochs or clocks through Core', async () => {
+    const f = fixture()
+    f.env.ENVIRONMENT = 'production'
+    f.env.RATE_LIMIT_AUTH_MAX = '1'
+    vi.spyOn(Date, 'now').mockReturnValue(185000)
+    const input = { testPolicy: { authMax: '9999', epoch: 'untrusted', nowMs: '0', windowSecs: '1' } }
+    const reply = () => Effect.runPromise(decodeCoreReply(RateLimitResult, f.handlers.apiCheckRateLimit(input)))
+    expect(await reply()).toBeNull()
+    expect(await reply()).toEqual({ retryAfter: 55 })
+    expect(f.increment).toHaveBeenCalledWith('ip:127.0.0.1', 60, 185)
+    expect(f.idFromName).not.toHaveBeenCalledWith(expect.stringContaining('untrusted'))
+  })
+
+  it('retains the D1 fallback through the API without giving the adapter a DB binding', async () => {
+    const f = fixture()
+    delete f.env.RATE_LIMITER
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { DB: _db, ...withoutDatabase } = { ...f.apiEnv, DB: f.db }
+    expect(withoutDatabase).not.toHaveProperty('DB')
+    expect(await apiBumpRateCounter(withoutDatabase, 'authfail:ip:test', 60)).toBe(1)
+    expect(await apiBumpRateCounter(withoutDatabase, 'authfail:ip:test', 60)).toBe(2)
+    expect(f.sqlite.prepare('SELECT count FROM rate_limit WHERE key = ?').get('authfail:ip:test')).toEqual({ count: 2 })
+  })
+
+  it('fails open when the native Core transport fails without exposing its diagnostics', async () => {
+    const f = fixture()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const env = {
+      ...f.apiEnv,
+      CORE: {
+        apiCheckRateLimit: async () => {
+          throw new Error('private-driver-detail')
+        },
+      } as unknown as Fetcher,
+    }
+    const app = new Hono<HonoEnv>()
+    app.use('*', rateLimitMiddleware)
+    app.get('*', (c) => c.json({ ok: true }))
+    const response = await app.request(request(), undefined, env)
+    expect(response.status).toBe(200)
+    expect(JSON.stringify(log.mock.calls)).not.toContain('private-driver-detail')
+  })
+
+  it('rejects malformed counter requests before touching storage', async () => {
+    const f = fixture()
+    const result = await Effect.runPromise(
+      Effect.flip(
+        decodeCoreReply(Schema.Number, f.handlers.apiBumpRateCounter({ key: 'authfail:ip:test', windowSecs: 0 })),
+      ),
+    )
+    expect(result.status).toBe(400)
+    expect(f.increment).not.toHaveBeenCalled()
+    expect(f.sqlite.prepare('SELECT COUNT(*) AS count FROM rate_limit').get()).toEqual({ count: 0 })
   })
 })
