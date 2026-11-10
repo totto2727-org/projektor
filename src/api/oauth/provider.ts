@@ -1,9 +1,10 @@
 import { OAuthProvider } from '@cloudflare/workers-oauth-provider'
 
-import { AUTHORIZE_ENDPOINT, providerOptions, TOKEN_ENDPOINT } from '#services/oauth-provider'
-import type { Env } from '#types'
+import type { ApiEnv } from '#types'
 
-export { AUTHORIZE_ENDPOINT, oauthApi, TOKEN_ENDPOINT } from '#services/oauth-provider'
+import { AUTHORIZE_ENDPOINT, providerOptions, TOKEN_ENDPOINT } from '../../contracts/oauth-provider'
+
+export { AUTHORIZE_ENDPOINT, oauthApi, TOKEN_ENDPOINT } from '../../contracts/oauth-provider'
 import { bumpRateCounter } from '../middleware/rate-limit'
 
 // PROJ-656/657: the OAuth 2.1 token lifecycle, delegated to Cloudflare's provider.
@@ -43,8 +44,8 @@ export function isOAuthProviderPath(pathname: string): boolean {
 // Revocation shares this URL: the provider handles issuance, refresh and RFC 7009
 // revocation on the one token endpoint, which is why the discovery document
 // advertises `revocation_endpoint` as the same path rather than a separate /oauth/revoke.
-export function createOAuthProvider(app: ExportedHandler<Env>) {
-  return new OAuthProvider<Env>(providerOptions(app))
+export function createOAuthProvider(app: ExportedHandler<ApiEnv>) {
+  return new OAuthProvider<ApiEnv>(providerOptions(app))
 }
 
 /**
@@ -58,7 +59,7 @@ export function createOAuthProvider(app: ExportedHandler<Env>) {
  * turning it into a blanket 500 would break every live connector rather than the
  * abusive one.
  */
-export async function tokenEndpointRateLimited(request: Request, env: Env): Promise<Response | null> {
+export async function tokenEndpointRateLimited(request: Request, env: ApiEnv): Promise<Response | null> {
   if (new URL(request.url).pathname !== TOKEN_ENDPOINT) return null
 
   const ip = request.headers.get('CF-Connecting-IP') ?? '127.0.0.1'

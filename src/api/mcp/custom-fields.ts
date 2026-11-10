@@ -1,13 +1,12 @@
+import { ValidationError } from '../../contracts/errors'
 import {
   createCustomFieldDef,
   deleteCustomFieldDef,
   listCustomFieldDefs,
   updateCustomFieldDef,
-} from '#commands/custom-fields'
-import { ValidationError } from '#commands/errors'
-import type { MCPTool } from '#types'
-
+} from '../services/custom-fields'
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
+import type { MCPTool } from './types'
 
 export const customFieldsTools: MCPTool[] = [
   {

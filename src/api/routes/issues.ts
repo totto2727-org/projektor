@@ -1,21 +1,21 @@
 import { Hono } from 'hono'
 
-import { claimIssue, listIssueLeases, releaseIssue } from '#commands/issue-leases'
+import type { HonoEnv } from '#types'
+
+import { ISSUE_REF_PATTERN } from '../../contracts/issue-ref'
+import { jsonBody } from '../http/body'
+import { serviceErrToResponse } from '../http/error-adapter'
+import { claimIssue, listIssueLeases, releaseIssue } from '../services/issue-leases'
 import {
   createIssue,
   deleteIssue,
   getIssue,
   getIssuesBatch,
   getPrioritizedIssues,
-  ISSUE_REF_PATTERN,
   listIssues,
   searchIssues,
   updateIssue,
-} from '#commands/issues'
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
+} from '../services/issues'
 import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()

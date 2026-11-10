@@ -1,9 +1,8 @@
 import { type Context, Hono } from 'hono'
 
-import { ValidationError } from '#commands/errors'
-import { getWorkflow } from '#commands/workflow'
-import type { HonoEnv, MCPTool } from '#types'
+import type { HonoEnv } from '#types'
 
+import { ValidationError } from '../../contracts/errors'
 import { insufficientScopeChallenge } from '../auth/challenge'
 import { type Capability, capabilityForMcpTool, tokenAllows } from '../auth/scopes'
 import { agentMessagesTools } from '../mcp/agent-messages'
@@ -28,12 +27,14 @@ import { getPrompt, listPrompts } from '../mcp/prompts'
 import { sprintsTools } from '../mcp/sprints'
 import { taskStatusesTools } from '../mcp/task-statuses'
 import { taskTypesTools } from '../mcp/task-types'
+import type { MCPTool } from '../mcp/types'
 import { validateToolArgs } from '../mcp/validate-args'
 import { wikiTools } from '../mcp/wiki'
 import { workflowTools } from '../mcp/workflow'
 import { workspacesTools } from '../mcp/workspaces'
 import { pluginRegistry } from '../plugins/registry'
 import { ctxFromHono } from '../services/types'
+import { getWorkflow } from '../services/workflow'
 
 // __PROJEKTOR_VERSION__ is injected by esbuild --define at release-build time
 // (scripts/build-release.sh); it's absent in local `wrangler dev` and tests.
@@ -135,7 +136,7 @@ router.post('/:workspaceId', async (c) => {
           capabilities: { tools: {}, prompts: {} },
           serverInfo: { name: 'projektor', version: SERVER_VERSION },
           instructions: buildServerInstructions(
-            await getWorkflow().then(
+            await getWorkflow(ctx).then(
               (w) => w.version,
               () => null,
             ),

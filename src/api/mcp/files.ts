@@ -1,7 +1,6 @@
-import { createLinkAttachment, deleteAttachment, getAttachment, listAttachments } from '#commands/files'
-import type { MCPTool } from '#types'
-
+import { createLinkAttachment, deleteAttachment, getAttachment, listAttachments } from '../services/files'
 import { CREATE, DESTRUCTIVE, READ } from './annotations'
+import type { MCPTool } from './types'
 
 // Binary upload and streamed download can't cross JSON-RPC, so those two operations
 // stay REST-only (POST /api/files, GET /api/files/:id) — a deliberate parity exception
@@ -69,10 +68,7 @@ export const filesTools: MCPTool[] = [
     },
     annotations: DESTRUCTIVE,
     async handler(input, ctx) {
-      const { r2Key } = await deleteAttachment(ctx, input)
-      // R2 object I/O is streaming-specific in the REST route; do the equivalent
-      // cleanup here so the MCP path doesn't leave the blob orphaned in storage.
-      if (r2Key) await ctx.r2.delete(r2Key)
+      await deleteAttachment(ctx, input)
       return { ok: true }
     },
   },

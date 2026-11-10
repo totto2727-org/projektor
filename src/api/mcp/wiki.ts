@@ -1,12 +1,11 @@
-import { ValidationError } from '#commands/errors'
-import * as wikiService from '#commands/wiki'
-import * as wikiDraftsService from '#commands/wiki-drafts'
-import * as wikiWatchersService from '#commands/wiki-watchers'
-import type { MCPTool } from '#types'
-
-import { WIKI_WELL_KNOWN_TYPES } from '../schemas/wiki'
+import { ValidationError } from '../../contracts/errors'
+import { WIKI_WELL_KNOWN_TYPES } from '../../contracts/inputs/wiki'
+import * as wikiService from '../services/wiki'
+import * as wikiDraftsService from '../services/wiki-drafts'
+import * as wikiWatchersService from '../services/wiki-watchers'
 import { CREATE, DESTRUCTIVE, PLAIN_WRITE, READ } from './annotations'
 import { capPage, toPage } from './serialize'
+import type { MCPTool } from './types'
 import { outlineOf, sectionOf, WIKI_DEFAULT_MAX_CHARS, WIKI_MAX_CHARS, windowText } from './windowing'
 
 // PROJ-513: `type` is freeform — these are advertised as hints, never as an

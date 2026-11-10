@@ -11,13 +11,15 @@
 import { env, SELF } from 'cloudflare:test'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { resetAuthCachesForTests, verifyJwtPayload } from '../middleware/auth'
+import { resetAuthCachesForTests, verifyJwtPayload } from '#services/authentication'
+
 import {
   authHeaders,
   hashToken,
   seedFixture,
   seedMember,
   seedToken,
+  seedUserToken,
   seedWorkspace,
   seedWorkspaceRoles,
   toolError,
@@ -967,9 +969,10 @@ describe('PROJ-79: GET /auth/me', () => {
     const fixture = await seedFixture()
     const ws2 = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
     await seedMember(ws2.id, fixture.user.id, 'viewer')
+    const token = await seedUserToken(fixture.user.id)
 
     const res = await SELF.fetch('http://localhost/auth/me', {
-      headers: { Authorization: `Bearer ${fixture.token}` },
+      headers: { Authorization: `Bearer ${token}` },
     })
     const body = (await res.json()) as { workspaces: Array<{ id: string }> }
     const ids = body.workspaces.map((w) => w.id)
@@ -1123,7 +1126,7 @@ describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () =
     const fixture = await seedFixture({ role: 'owner' })
     workspaceId = fixture.workspace.id
     slug = fixture.workspace.slug
-    ownerHeaders = authHeaders(fixture.token, slug)
+    ownerHeaders = authHeaders(await seedUserToken(fixture.user.id), slug)
   })
 
   async function mcp(name: string, args: unknown, headers = ownerHeaders, wsId = workspaceId) {

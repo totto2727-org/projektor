@@ -1,8 +1,7 @@
-import { endAgent, finishWork, heartbeatAgent, listActiveAgents, registerAgent, startWork } from '#commands/agents'
-import { ValidationError } from '#commands/errors'
-import type { MCPTool } from '#types'
-
+import { ValidationError } from '../../contracts/errors'
+import { endAgent, finishWork, heartbeatAgent, listActiveAgents, registerAgent, startWork } from '../services/agents'
 import { PLAIN_WRITE, READ } from './annotations'
+import type { MCPTool } from './types'
 
 /** claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both. */
 function withIdAlias(input: unknown): unknown {

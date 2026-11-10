@@ -1,33 +1,27 @@
-import { eq } from 'drizzle-orm'
-
-import { NotFoundError, ValidationError } from '#commands/errors'
+import { ApiWorkspace } from '../../contracts/api-auth'
+import { ApiResults } from '../../contracts/api-results'
+import { ValidationError } from '../../contracts/errors'
+import { DeleteWorkspaceInput } from '../../contracts/inputs/workspaces'
+import { apiReply } from '../services/reply'
 import {
-  createWorkspace,
   deleteWorkspace,
   getWorkspaceBrand,
   getWorkspaceWithMembers,
   inviteMember,
-  listWorkspaces,
   removeMember,
   updateMemberRole,
   updateWorkspace,
   updateWorkspaceBrand,
-} from '#commands/workspaces'
-import { drizzle, schema } from '#db'
-import type { MCPTool, PluginContext } from '#types'
-
-import { DeleteWorkspaceInput } from '../schemas/workspaces'
+} from '../services/workspaces'
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
+import type { MCPTool, PluginContext } from './types'
+
+async function currentWorkspace(ctx: PluginContext) {
+  return apiReply(ApiWorkspace, ctx.core.apiResolveWorkspace(ctx.actor, { kind: 'id', value: ctx.workspaceId }))
+}
 
 async function currentWorkspaceSlug(ctx: PluginContext): Promise<string> {
-  const orm = drizzle(ctx.db, { schema })
-  const ws = await orm
-    .select({ slug: schema.workspaces.slug })
-    .from(schema.workspaces)
-    .where(eq(schema.workspaces.id, ctx.workspaceId))
-    .get()
-  if (!ws) throw new NotFoundError('Workspace not found')
-  return ws.slug
+  return (await currentWorkspace(ctx)).slug
 }
 
 export const workspacesTools: MCPTool[] = [
@@ -37,7 +31,7 @@ export const workspacesTools: MCPTool[] = [
     inputSchema: { type: 'object', properties: {} },
     annotations: READ,
     async handler(_input, ctx) {
-      return listWorkspaces(ctx.db, ctx.userId)
+      return apiReply(ApiResults.apiListWorkspaces, ctx.core.apiListWorkspaces(ctx.actor))
     },
   },
   {
@@ -57,7 +51,7 @@ export const workspacesTools: MCPTool[] = [
     },
     annotations: CREATE,
     async handler(input, ctx) {
-      return createWorkspace(ctx.db, ctx.userId, input)
+      return apiReply(ApiResults.apiCreateWorkspace, ctx.core.apiCreateWorkspace(ctx.actor, input))
     },
   },
   {
@@ -109,17 +103,7 @@ export const workspacesTools: MCPTool[] = [
     inputSchema: { type: 'object', properties: {} },
     annotations: READ,
     async handler(_input, ctx) {
-      const orm = drizzle(ctx.db, { schema })
-      const ws = await orm
-        .select({
-          id: schema.workspaces.id,
-          name: schema.workspaces.name,
-          slug: schema.workspaces.slug,
-        })
-        .from(schema.workspaces)
-        .where(eq(schema.workspaces.id, ctx.workspaceId))
-        .get()
-      if (!ws) throw new NotFoundError('Workspace not found')
+      const ws = await currentWorkspace(ctx)
       const result = await getWorkspaceWithMembers(ctx, ws)
       return result.members
     },

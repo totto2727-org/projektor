@@ -1,23 +1,24 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
+import { makeCoreClient } from 'projektor/core-client'
 
-import { ForbiddenError, NotFoundError, ValidationError } from '#commands/errors'
+import type { HonoEnv } from '#types'
+
+import { ApiSubmittedFeedback } from '../../contracts/api-public'
+import { CorePublicError } from '../../core/contract'
+import { jsonBody } from '../http/body'
+import { serviceErrToResponse } from '../http/error-adapter'
+import { bumpRateCounter } from '../middleware/rate-limit'
 import {
   bulkConvertToIssue,
   bulkMarkReviewed,
   convertFeedbackToIssue,
   getFeedbackSummary,
-  hashFeedbackToken,
   listFeedback,
-  submitFeedback,
   updateFeedbackStatus,
-} from '#commands/feedback'
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { bumpRateCounter } from '../middleware/rate-limit'
+} from '../services/feedback'
+import { apiReply } from '../services/reply'
 import { ctxFromHono } from '../services/types'
 
 const publicRouter = new Hono<HonoEnv>()
@@ -50,7 +51,8 @@ async function checkFeedbackRateLimit(c: Context<HonoEnv>, token: string): Promi
   const tokenLimit = parseInt(c.env.RATE_LIMIT_FEEDBACK_MAX ?? '30', 10)
   const ipLimit = parseInt(c.env.RATE_LIMIT_FEEDBACK_IP_MAX ?? '100', 10)
   const ip = c.req.header('CF-Connecting-IP') ?? '127.0.0.1'
-  const tokenHash = await hashFeedbackToken(token)
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
+  const tokenHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
   // PROJ-867: both counters in parallel; a limiter outage fails open rather than 500ing.
   let tokenCount: number
   let ipCount: number
@@ -81,9 +83,11 @@ function submitFeedbackErrorResponse(c: Context<HonoEnv>, e: unknown): Response 
   // Endpoint-specific mapping: an unknown/revoked source is an invalid
   // credential (401), an inactive source is a paused resource (403), a bad
   // body is 400. (NotFound → 401 here, unlike every other endpoint.)
-  if (e instanceof ValidationError) return c.json({ error: e.issues }, 400)
-  if (e instanceof ForbiddenError) return c.json({ error: e.message }, 403)
-  if (e instanceof NotFoundError) return c.json({ error: e.message }, 401)
+  if (e instanceof CorePublicError) {
+    if (e.kind === 'validation') return c.json({ error: e.details }, 400)
+    if (e.status === 403 || e.status === 404) return c.json({ error: e.message }, e.status === 404 ? 401 : 403)
+    return serviceErrToResponse(c, e)
+  }
   throw e
 }
 
@@ -99,7 +103,10 @@ publicRouter.post('/submit', async (c) => {
   const rawBody = await parseFeedbackBody(c)
 
   try {
-    const { id, corsAllowOrigin } = await submitFeedback(c.env.DB, token, rawBody, origin)
+    const { id, corsAllowOrigin } = await apiReply(
+      ApiSubmittedFeedback,
+      makeCoreClient(c.env.CORE).apiSubmitFeedback(token, rawBody, origin),
+    )
     if (corsAllowOrigin) c.header('Access-Control-Allow-Origin', corsAllowOrigin)
     return c.json({ id }, 201)
   } catch (e) {

@@ -1,7 +1,6 @@
-import { getWorkflow } from '#commands/workflow'
-import type { MCPTool } from '#types'
-
+import { getWorkflow } from '../services/workflow'
 import { READ } from './annotations'
+import type { MCPTool } from './types'
 
 export const workflowTools: MCPTool[] = [
   {
@@ -25,8 +24,8 @@ export const workflowTools: MCPTool[] = [
       },
     },
     annotations: READ,
-    async handler(input) {
-      return getWorkflow(input)
+    async handler(input, ctx) {
+      return getWorkflow(ctx, input)
     },
   },
 ]

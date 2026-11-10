@@ -10,6 +10,7 @@ import {
   seedProject,
   seedToken,
   seedUser,
+  seedUserToken,
   seedWorkspace,
   toolError,
 } from './helpers'
@@ -49,7 +50,7 @@ describe('Workspaces MCP', () => {
     workspaceId = fixture.workspace.id
     slug = fixture.workspace.slug
     userId = fixture.user.id
-    userToken = fixture.token
+    userToken = await seedUserToken(fixture.user.id)
     userHeaders = authHeaders(userToken, slug)
   })
 

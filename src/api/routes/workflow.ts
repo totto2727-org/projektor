@@ -1,9 +1,10 @@
 import { Hono } from 'hono'
+import { makeCoreClient } from 'projektor/core-client'
 
-import { getWorkflow } from '#commands/workflow'
 import type { HonoEnv } from '#types'
 
 import { serviceErrToResponse } from '../http/error-adapter'
+import { getWorkflow } from '../services/workflow'
 
 const router = new Hono<HonoEnv>()
 
@@ -15,7 +16,7 @@ router.get('/', async (c) => {
     const ifVersionValues = c.req.queries('ifVersion')
     const ifVersion =
       ifVersionValues === undefined ? undefined : ifVersionValues.length === 1 ? ifVersionValues[0] : ifVersionValues
-    return c.json(await getWorkflow({ ifVersion }))
+    return c.json(await getWorkflow({ core: makeCoreClient(c.env.CORE), actor: c.get('coreActor') }, { ifVersion }))
   } catch (e) {
     return serviceErrToResponse(c, e)
   }

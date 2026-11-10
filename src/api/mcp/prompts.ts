@@ -1,6 +1,6 @@
-import { NotFoundError } from '#commands/errors'
-import { composePlaybook } from '#commands/playbook-compose'
-import type { PluginContext } from '#types'
+import { NotFoundError } from '../../contracts/errors'
+import { composePlaybook } from '../services/playbook-compose'
+import type { PluginContext } from './types'
 
 interface MCPPromptArgument {
   name: string

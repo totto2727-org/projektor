@@ -1,12 +1,18 @@
 import { Hono } from 'hono'
 
-import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth'
+import type { HonoEnv } from '#types'
+
+import { jsonBody } from '../http/body'
+import { coreFileRequest } from '../http/core-files'
+import { serviceErrToResponse } from '../http/error-adapter'
+import { requireInteractiveHuman } from '../middleware/auth'
+import { listConnectorGrants, revokeConnectorGrant } from '../services/oauth'
+import { ctxFromHono } from '../services/types'
 import {
   createToken,
   deleteWorkspace,
   deleteWorkspaceLogo,
   getWorkspaceBrand,
-  getWorkspaceLogoObject,
   getWorkspaceMcpInfo,
   getWorkspaceWithMembers,
   inviteMember,
@@ -16,15 +22,7 @@ import {
   updateMemberRole,
   updateWorkspace,
   updateWorkspaceBrand,
-  uploadWorkspaceLogo,
-} from '#commands/workspaces'
-import type { HonoEnv } from '#types'
-
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { isPublicViewer, requireInteractiveHuman } from '../middleware/auth'
-import { oauthApi } from '../oauth/provider'
-import { ctxFromHono } from '../services/types'
+} from '../services/workspaces'
 
 const router = new Hono<HonoEnv>()
 
@@ -126,11 +124,10 @@ router.delete('/:slug/tokens/:tokenId', async (c) => {
 // (routes/oauth.ts), which makes the list provably empty today — but that is an
 // invariant enforced two files away, and this endpoint should not depend on it.
 function connectorsDenied(c: Parameters<typeof ctxFromHono>[0]): Response | null {
-  const user = c.get('user') as { email: string } | undefined
-  if (!user || isPublicViewer(user)) {
-    return c.json({ error: 'Connectors are personal credentials and need a signed-in user' }, 403)
-  }
-  return null
+  return requireInteractiveHuman(
+    c,
+    'Connectors are personal credentials and need a signed-in browser session, not an API token or connected app',
+  )
 }
 
 router.get('/:slug/connectors', async (c) => {
@@ -138,7 +135,7 @@ router.get('/:slug/connectors', async (c) => {
   if (denied) return denied
   const ctx = ctxFromHono(c)
   try {
-    return c.json(await listConnectorGrants(oauthApi(c.env), ctx.userId, ctx.workspaceId))
+    return c.json(await listConnectorGrants(ctx))
   } catch (e) {
     return serviceErrToResponse(c, e)
   }
@@ -149,7 +146,7 @@ router.delete('/:slug/connectors/:grantId', async (c) => {
   if (denied) return denied
   const ctx = ctxFromHono(c)
   try {
-    return c.json(await revokeConnectorGrant(oauthApi(c.env), ctx.userId, ctx.workspaceId, c.req.param('grantId')))
+    return c.json(await revokeConnectorGrant(ctx, c.req.param('grantId')))
   } catch (e) {
     return serviceErrToResponse(c, e)
   }
@@ -184,18 +181,9 @@ router.patch('/:slug/brand', async (c) => {
   }
 })
 
-router.post('/:slug/brand/logo', async (c) => {
-  const ctx = ctxFromHono(c)
-  const formData = await c.req.formData().catch(() => null)
-  if (!formData) return c.json({ error: 'Expected multipart/form-data' }, 400)
-  const fileRaw = formData.get('file')
-  if (!fileRaw || typeof fileRaw === 'string') return c.json({ error: 'Missing file field' }, 400)
-  try {
-    return c.json(await uploadWorkspaceLogo(ctx, fileRaw as File), 201)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
-  }
-})
+router.post('/:slug/brand/logo', (c) =>
+  coreFileRequest(c, '/workspace-logo', c.req.raw.body, c.req.header('Content-Type')),
+)
 
 router.delete('/:slug/brand/logo', async (c) => {
   const ctx = ctxFromHono(c)
@@ -207,24 +195,7 @@ router.delete('/:slug/brand/logo', async (c) => {
   }
 })
 
-router.get('/:slug/brand/logo', async (c) => {
-  const ctx = ctxFromHono(c)
-  let obj: Awaited<ReturnType<typeof getWorkspaceLogoObject>>
-  try {
-    obj = await getWorkspaceLogoObject(ctx)
-  } catch (e) {
-    return serviceErrToResponse(c, e)
-  }
-  if (!obj) return c.json({ error: 'No logo set' }, 404)
-  const body = await obj.arrayBuffer()
-  return new Response(body, {
-    headers: {
-      'Content-Type': obj.httpMetadata?.contentType ?? 'application/octet-stream',
-      'Cache-Control': 'public, max-age=300',
-      'X-Content-Type-Options': 'nosniff',
-    },
-  })
-})
+router.get('/:slug/brand/logo', (c) => coreFileRequest(c, '/workspace-logo'))
 
 router.get('/:slug/mcp-info', async (c) => {
   const ctx = ctxFromHono(c)

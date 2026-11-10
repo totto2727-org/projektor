@@ -1,9 +1,11 @@
-import { and, eq } from 'drizzle-orm'
+import { makeCoreClient } from 'projektor/core-client'
 
-import { visibleProjectIds } from '#commands/access'
-import type { ServiceCtx } from '#commands/types'
-import { drizzle, schema } from '#db'
-import type { Env, RealtimeEvent, Role } from '#types'
+import type { ApiEnv, RealtimeEvent, Role } from '#types'
+
+import { ApiRealtimeSnapshot } from '../../contracts/api-public'
+import type { CoreActor } from '../../core/authorization'
+import { CORE_ACTOR_HEADER } from '../../core/contract'
+import { apiReply } from '../services/reply'
 
 export interface SubscriptionFilters {
   projects?: string[]
@@ -11,6 +13,7 @@ export interface SubscriptionFilters {
 }
 
 export interface SocketAttachment {
+  actor: CoreActor
   userId: string
   workspaceId: string
   role?: Role
@@ -20,13 +23,7 @@ export interface SocketAttachment {
   filters?: SubscriptionFilters
 }
 
-const INTERNAL_USER_ID_HEADER = 'X-Internal-User-Id'
 const INTERNAL_WORKSPACE_ID_HEADER = 'X-Internal-Workspace-Id'
-const INTERNAL_ROLE_HEADER = 'X-Internal-Role'
-
-// How long a visibility/role snapshot is trusted on a hibernated socket before
-// it is refreshed from D1. Bounds stale access after admin demotion or removal.
-const SNAPSHOT_TTL_SECONDS = 300
 
 function isWorkspaceAdmin(role: Role | undefined): boolean {
   return role === 'owner' || role === 'admin'
@@ -34,9 +31,9 @@ function isWorkspaceAdmin(role: Role | undefined): boolean {
 
 export class WorkspaceHub {
   ctx: DurableObjectState
-  env: Env
+  env: ApiEnv
 
-  constructor(ctx: DurableObjectState, env: Env) {
+  constructor(ctx: DurableObjectState, env: ApiEnv) {
     this.ctx = ctx
     this.env = env
   }
@@ -63,12 +60,17 @@ export class WorkspaceHub {
       return new Response('Expected Upgrade: websocket', { status: 426 })
     }
 
-    const identity = this.resolveIdentity(request)
-    if (!identity) {
+    let snapshot: typeof ApiRealtimeSnapshot.Type
+    let actor: CoreActor
+    try {
+      const serialized = request.headers.get(CORE_ACTOR_HEADER)
+      const workspaceId = request.headers.get(INTERNAL_WORKSPACE_ID_HEADER)
+      if (!serialized || !workspaceId) return new Response('Unauthorized', { status: 401 })
+      actor = JSON.parse(serialized) as CoreActor
+      snapshot = await this.loadSnapshot(actor, workspaceId)
+    } catch {
       return new Response('Unauthorized', { status: 401 })
     }
-
-    const visibleIds = await this.loadVisibleProjectIds(identity)
 
     const pair = new WebSocketPair()
     const [client, server] = Object.values(pair)
@@ -77,10 +79,11 @@ export class WorkspaceHub {
 
     const now = Math.floor(Date.now() / 1000)
     const initialAttachment: SocketAttachment = {
-      userId: identity.userId,
-      workspaceId: identity.workspaceId,
-      role: identity.role,
-      visibleProjectIds: visibleIds,
+      actor,
+      userId: snapshot.userId,
+      workspaceId: snapshot.workspaceId,
+      role: snapshot.role,
+      visibleProjectIds: [...snapshot.visibleProjectIds],
       subscribedAt: now,
       snapshotAt: now,
     }
@@ -92,65 +95,18 @@ export class WorkspaceHub {
     })
   }
 
-  private resolveIdentity(request: Request): { userId: string; workspaceId: string; role: Role } | null {
-    const userId = request.headers.get(INTERNAL_USER_ID_HEADER)
-    const workspaceId = request.headers.get(INTERNAL_WORKSPACE_ID_HEADER)
-    const role = request.headers.get(INTERNAL_ROLE_HEADER) as Role | null
-    if (!userId || !workspaceId || !role) return null
-    return { userId, workspaceId, role }
-  }
-
-  private buildServiceCtx(identity: { userId: string; workspaceId: string; role?: Role }): ServiceCtx {
-    return {
-      db: this.env.DB,
-      kv: this.env.KV,
-      r2: this.env.R2,
-      workspaceId: identity.workspaceId,
-      userId: identity.userId,
-      role: identity.role,
-    }
-  }
-
-  private async loadVisibleProjectIds(identity: {
-    userId: string
-    workspaceId: string
-    role?: Role
-  }): Promise<string[]> {
-    return visibleProjectIds(this.buildServiceCtx(identity))
+  private loadSnapshot(actor: CoreActor, workspaceId: string) {
+    return apiReply(ApiRealtimeSnapshot, makeCoreClient(this.env.CORE).apiRealtimeSnapshot(actor, workspaceId))
   }
 
   private async refreshSnapshot(attachment: SocketAttachment): Promise<SocketAttachment> {
-    const orm = drizzle(this.env.DB, { schema })
-    const membership = await orm
-      .select({ role: schema.workspaceMembers.role })
-      .from(schema.workspaceMembers)
-      .where(
-        and(
-          eq(schema.workspaceMembers.workspaceId, attachment.workspaceId),
-          eq(schema.workspaceMembers.userId, attachment.userId),
-        ),
-      )
-      .get()
-
-    const role = membership ? (membership.role as Role) : undefined
-    const visibleProjectIds = membership
-      ? await this.loadVisibleProjectIds({
-          userId: attachment.userId,
-          workspaceId: attachment.workspaceId,
-          role,
-        })
-      : []
-
+    const snapshot = await this.loadSnapshot(attachment.actor, attachment.workspaceId)
     return {
       ...attachment,
-      role,
-      visibleProjectIds,
+      role: snapshot.role,
+      visibleProjectIds: [...snapshot.visibleProjectIds],
       snapshotAt: Math.floor(Date.now() / 1000),
     }
-  }
-
-  private isSnapshotStale(attachment: SocketAttachment): boolean {
-    return Math.floor(Date.now() / 1000) - attachment.snapshotAt > SNAPSHOT_TTL_SECONDS
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
@@ -166,10 +122,8 @@ export class WorkspaceHub {
       let attachment = ws.deserializeAttachment() as SocketAttachment | null
       if (!attachment) return
 
-      if (this.isSnapshotStale(attachment)) {
-        attachment = await this.refreshSnapshot(attachment)
-        ws.serializeAttachment(attachment)
-      }
+      attachment = await this.refreshSnapshot(attachment)
+      ws.serializeAttachment(attachment)
 
       if (data.action === 'ping') {
         ws.send(JSON.stringify({ type: 'pong', timestamp: Math.floor(Date.now() / 1000) }))
@@ -232,8 +186,10 @@ export class WorkspaceHub {
 
     for (const ws of sockets) {
       try {
-        const attachment = ws.deserializeAttachment() as SocketAttachment | null
-        if (!attachment) continue
+        let attachment = ws.deserializeAttachment() as SocketAttachment | null
+        if (!attachment || attachment.workspaceId !== event.workspaceId) continue
+        attachment = await this.refreshSnapshot(attachment)
+        ws.serializeAttachment(attachment)
 
         // Server-side project visibility check: non-admins must receive only
         // events scoped to a project they can see. Missing projectId is treated

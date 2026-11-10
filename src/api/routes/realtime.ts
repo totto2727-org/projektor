@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
+import { CORE_ACTOR_HEADER } from '../../core/contract'
 import { authMiddleware } from '../middleware/auth'
 import { workspaceMiddleware } from '../middleware/workspace'
 
@@ -23,11 +24,13 @@ function buildHubRequest(c: Context<HonoEnv>): Request {
   headers.delete(INTERNAL_USER_ID_HEADER)
   headers.delete(INTERNAL_WORKSPACE_ID_HEADER)
   headers.delete(INTERNAL_ROLE_HEADER)
+  headers.delete(CORE_ACTOR_HEADER)
 
   const user = c.get('user')
   const workspace = c.get('workspace')
   const role = c.get('role')
 
+  headers.set(CORE_ACTOR_HEADER, JSON.stringify(c.get('coreActor')))
   headers.set(INTERNAL_USER_ID_HEADER, user.id)
   headers.set(INTERNAL_WORKSPACE_ID_HEADER, workspace.id)
   if (role) headers.set(INTERNAL_ROLE_HEADER, role)

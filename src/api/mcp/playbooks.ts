@@ -1,9 +1,8 @@
-import { ValidationError } from '#commands/errors'
-import { composePlaybook } from '#commands/playbook-compose'
-import { getPlaybook, listPlaybooks } from '#commands/playbooks'
-import type { MCPTool } from '#types'
-
+import { ValidationError } from '../../contracts/errors'
+import { composePlaybook } from '../services/playbook-compose'
+import { getPlaybook, listPlaybooks } from '../services/playbooks'
 import { PLAIN_WRITE, READ } from './annotations'
+import type { MCPTool } from './types'
 
 export const playbooksTools: MCPTool[] = [
   {
@@ -16,8 +15,8 @@ export const playbooksTools: MCPTool[] = [
       properties: {},
     },
     annotations: READ,
-    async handler() {
-      return listPlaybooks()
+    async handler(_input, ctx) {
+      return listPlaybooks(ctx)
     },
   },
   {
@@ -31,12 +30,12 @@ export const playbooksTools: MCPTool[] = [
       required: ['name'],
     },
     annotations: READ,
-    async handler(input) {
+    async handler(input, ctx) {
       const { name } = input as { name?: unknown }
       if (!name || typeof name !== 'string') {
         throw new ValidationError({ formErrors: ['name is required'], fieldErrors: {} })
       }
-      return getPlaybook(name)
+      return getPlaybook(ctx, name)
     },
   },
   {

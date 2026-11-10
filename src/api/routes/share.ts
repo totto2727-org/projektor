@@ -1,9 +1,12 @@
 import { Hono } from 'hono'
+import { makeCoreClient } from 'projektor/core-client'
 
-import { createShareToken, getSharedIssue, getSharedLogo, revokeShareToken } from '#commands/share'
 import type { HonoEnv } from '#types'
 
+import { ApiSharedIssue } from '../../contracts/api-public'
 import { serviceErrToResponse } from '../http/error-adapter'
+import { apiReply } from '../services/reply'
+import { createShareToken, revokeShareToken } from '../services/share'
 import { ctxFromHono } from '../services/types'
 
 // Authenticated router — POST/DELETE /api/issues/:id/share
@@ -39,7 +42,7 @@ const publicRouter = new Hono<HonoEnv>()
 publicRouter.get('/:token', async (c) => {
   const token = c.req.param('token')
   try {
-    const issue = await getSharedIssue(c.env.DB, token)
+    const issue = await apiReply(ApiSharedIssue, makeCoreClient(c.env.CORE).apiGetSharedIssue(token))
     return c.json(issue)
   } catch (e) {
     return serviceErrToResponse(c, e)
@@ -48,16 +51,7 @@ publicRouter.get('/:token', async (c) => {
 
 publicRouter.get('/:token/logo', async (c) => {
   const token = c.req.param('token')
-  const obj = await getSharedLogo(c.env.DB, c.env.R2, token)
-  if (!obj) return c.json({ error: 'No logo set' }, 404)
-  const body = await obj.arrayBuffer()
-  return new Response(body, {
-    headers: {
-      'Content-Type': obj.httpMetadata?.contentType ?? 'application/octet-stream',
-      'Cache-Control': 'public, max-age=300',
-      'X-Content-Type-Options': 'nosniff',
-    },
-  })
+  return c.env.CORE.fetch(new Request(`https://core.internal/share-logo/${encodeURIComponent(token)}`))
 })
 
 export { publicRouter as sharePublicRouter }

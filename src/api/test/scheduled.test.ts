@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import type { Env } from '#types'
 
-import { purgeAllWorkspacesExpiredWikiPages, purgeExpiredRetentionData, runFtsDedupeOnce } from '../index'
+import {
+  purgeAllWorkspacesExpiredWikiPages,
+  purgeExpiredRetentionData,
+  runFtsDedupeOnce,
+} from '../../core/api/maintenance'
 import { authHeaders, seedAgentLease, seedFixture, seedIssueFixture, seedUser, seedWorkspace } from './helpers'
 import { resetRateLimits } from './rate-limit-reset'
 

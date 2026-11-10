@@ -1,4 +1,8 @@
-import type { MCPTool, Plugin } from '#types'
+import type { Plugin as DomainPlugin } from '#types'
+
+import type { MCPTool } from '../mcp/types'
+
+type Plugin = Omit<DomainPlugin, 'mcpTools'> & { mcpTools?: MCPTool[] }
 
 class PluginRegistry {
   private plugins = new Map<string, Plugin>()

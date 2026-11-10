@@ -1,7 +1,6 @@
-import { claimIssue, listIssueLeases, releaseIssue } from '#commands/issue-leases'
-import type { MCPTool } from '#types'
-
+import { claimIssue, listIssueLeases, releaseIssue } from '../services/issue-leases'
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
+import type { MCPTool } from './types'
 
 export const issueLeasesTools: MCPTool[] = [
   {

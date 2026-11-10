@@ -1,5 +1,3 @@
-import type { MCPTool } from '#types'
-
 import { agentMessagesTools } from './agent-messages'
 import { agentsTools } from './agents'
 import { codeHeatmapTools } from './code-heatmap'
@@ -19,6 +17,7 @@ import { projectsTools } from './projects'
 import { sprintsTools } from './sprints'
 import { taskStatusesTools } from './task-statuses'
 import { taskTypesTools } from './task-types'
+import type { MCPTool } from './types'
 import { wikiTools } from './wiki'
 import { workflowTools } from './workflow'
 import { workspacesTools } from './workspaces'

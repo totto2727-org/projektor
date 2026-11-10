@@ -1,7 +1,12 @@
 import { z } from 'zod'
 
-import { ConflictError, NotFoundError, ServiceError, ValidationError, type ZodFlattenOutput } from '#commands/errors'
-
+import {
+  ConflictError,
+  NotFoundError,
+  ServiceError,
+  ValidationError,
+  type ZodFlattenOutput,
+} from '../../contracts/errors'
 import { CorePublicError } from '../../core/contract'
 
 const ValidationIssues = z.object({

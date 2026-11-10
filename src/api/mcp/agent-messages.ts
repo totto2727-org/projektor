@@ -1,7 +1,6 @@
-import { listMessages, postMessage } from '#commands/agent-messages'
-import type { MCPTool } from '#types'
-
+import { listMessages, postMessage } from '../services/agent-messages'
 import { PLAIN_WRITE, READ } from './annotations'
+import type { MCPTool } from './types'
 
 export const agentMessagesTools: MCPTool[] = [
   {

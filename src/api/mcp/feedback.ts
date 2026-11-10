@@ -1,4 +1,4 @@
-import { convertFeedbackToIssue, listFeedback, updateFeedbackStatus } from '#commands/feedback'
+import { convertFeedbackToIssue, listFeedback, updateFeedbackStatus } from '../services/feedback'
 import {
   createFeedbackSource,
   getFeedbackSource,
@@ -6,10 +6,9 @@ import {
   revokeFeedbackSource,
   rotateFeedbackSourceToken,
   updateFeedbackSource,
-} from '#commands/feedback-sources'
-import type { MCPTool } from '#types'
-
+} from '../services/feedback-sources'
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
+import type { MCPTool } from './types'
 
 export const feedbackTools: MCPTool[] = [
   {

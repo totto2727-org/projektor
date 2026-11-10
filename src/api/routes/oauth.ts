@@ -1,20 +1,22 @@
 import type { AuthRequest, OAuthHelpers } from '@cloudflare/workers-oauth-provider'
 import { AuthorizationError } from '@cloudflare/workers-oauth-provider'
 import { type Context, Hono } from 'hono'
+import { makeCoreClient } from 'projektor/core-client'
 
+import type { HonoEnv } from '#types'
+
+import { ApiConsentWorkspace } from '../../contracts/api-public'
 import {
   describeScope,
   isLoopbackOnlyClient,
-  lookupConsentWorkspace,
   OAuthRequestError,
   parseConsentRequest,
   relyingPartyHost,
-} from '#commands/oauth'
-import type { HonoEnv } from '#types'
-
+} from '../../contracts/oauth-consent'
 import type { AuthUser } from '../middleware/auth'
 import { isPublicViewer } from '../middleware/auth'
 import { signConsentToken, verifyConsentToken } from '../oauth/consent-token'
+import { apiReply } from '../services/reply'
 
 // PROJ-656: the consent screen.
 //
@@ -196,10 +198,14 @@ function authorizationFailure(c: Context<HonoEnv>, err: AuthorizationError) {
  * rather than silently issuing a grant as the public viewer.
  */
 function consentingUser(c: Context<HonoEnv>): AuthUser | null {
-  if (c.get('authKind') !== 'human') return null
+  if (c.get('authKind') !== 'human' || !['access', 'dev'].includes(c.get('auth')?.method ?? '')) return null
   const user = c.get('user') as AuthUser | undefined
   if (!user || isPublicViewer(user)) return null
   return user
+}
+
+async function consentWorkspace(c: Context<HonoEnv>, workspaceId: string) {
+  return apiReply(ApiConsentWorkspace, makeCoreClient(c.env.CORE).apiConsentWorkspace(c.get('coreActor'), workspaceId))
 }
 
 const NO_CONSENTER =
@@ -247,7 +253,7 @@ oauthRouter.get('/authorize', async (c) => {
     return errorPage(c, 400, 'Unknown application', 'This application is not registered with projektor.')
   }
 
-  const workspace = await lookupConsentWorkspace(c.env.DB, user.id, consent.workspaceId)
+  const workspace = await consentWorkspace(c, consent.workspaceId)
   if (!workspace) {
     // Rendered locally, not redirected: whether this user is a member of that
     // workspace is not the client's business, and an `access_denied` bounce would
@@ -324,6 +330,10 @@ oauthRouter.post('/authorize', async (c) => {
       }),
     )
   }
+
+  const workspace = await consentWorkspace(c, payload.workspaceId)
+  if (!workspace)
+    return errorPage(c, 403, 'Workspace unavailable', 'That workspace does not exist, or you are not a member of it.')
 
   const { redirectTo } = await helpers(c).completeAuthorization({
     request: payload.authRequest,

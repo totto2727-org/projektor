@@ -1,11 +1,14 @@
+import { Effect } from 'effect'
 import type { Context } from 'hono'
+import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 
-import { getWikiPage } from '#commands/wiki'
 import type { HonoEnv } from '#types'
 
+import { ApiWorkspace } from '../../contracts/api-auth'
 import { authMiddleware } from '../middleware/auth'
 import { subdomainRoutingEnabled } from '../middleware/workspace'
 import { ctxFromHono } from '../services/types'
+import { getWikiPage } from '../services/wiki'
 
 // PROJ-487 fix-up: server-side redirect + metadata injection for the /wiki catch-all
 // need a workspace-scoped ServiceCtx, but a plain top-level browser navigation carries
@@ -29,17 +32,16 @@ async function resolveWikiWorkspaceContext(
   const user = c.get('user') as { id: string } | undefined
   if (!user) return null
 
-  const row = await c.env.DB.prepare(
-    `SELECT w.id, w.name, w.slug, m.role
-		 FROM workspaces w
-		 LEFT JOIN workspace_members m ON m.workspace_id = w.id AND m.user_id = ?
-		 WHERE w.slug = ?`,
-  )
-    .bind(user.id, slug)
-    .first<{ id: string; name: string; slug: string; role: string | null }>()
-  if (!row?.role) return null
-
-  return { id: row.id, name: row.name, slug: row.slug, role: row.role }
+  try {
+    return await Effect.runPromise(
+      decodeCoreReply(
+        ApiWorkspace,
+        makeCoreClient(c.env.CORE).apiResolveWorkspace(c.get('coreActor'), { kind: 'slug', value: slug }),
+      ),
+    )
+  } catch {
+    return null
+  }
 }
 
 export interface WikiSsrPage {

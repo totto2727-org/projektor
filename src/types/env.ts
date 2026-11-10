@@ -1,6 +1,7 @@
+import type { CoreActor } from '../core/authorization'
 import type { AuthInfo } from './plugin'
 
-export interface Env {
+export interface CoreEnv {
   DB: D1Database
   KV: KVNamespace
   // PROJ-656/657: OAuth grants, authorization codes and access/refresh tokens.
@@ -89,6 +90,12 @@ export interface Env {
   FILE_CLAIM_TTL_SECONDS?: string
 }
 
+/** Persistent application capabilities belong exclusively to Core. */
+export type Env = CoreEnv
+
+/** Public API has protocol configuration and native bindings, never D1 or R2. */
+export type ApiEnv = Omit<CoreEnv, 'DB' | 'KV' | 'R2'> & { CORE: Fetcher }
+
 export interface RealtimeEvent<T = unknown> {
   type: string
   workspaceId: string
@@ -98,6 +105,7 @@ export interface RealtimeEvent<T = unknown> {
 }
 
 export interface Variables {
+  coreActor: CoreActor
   user: { id: string; email: string; name: string }
   workspace: { id: string; name: string; slug: string }
   role: string
@@ -119,7 +127,7 @@ export interface Variables {
   allowQueryWorkspaceFallback: boolean | undefined
 }
 
-export type HonoEnv = { Bindings: Env; Variables: Variables }
+export type HonoEnv = { Bindings: ApiEnv; Variables: Variables }
 
 /** RPC surface of the RateLimiter Durable Object (src/api/lib/rate-limiter-do.ts). */
 export interface RateLimiterRpc extends Rpc.DurableObjectBranded {
