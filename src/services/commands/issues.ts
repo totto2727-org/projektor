@@ -31,7 +31,7 @@ import * as cache from './cache'
 import { buildAddCommentInsertStatement } from './comments'
 import { buildCustomFieldUpsertStatements, validateCustomFields } from './custom-fields'
 import { dorColumns } from './definition-of-ready'
-import { ForbiddenError, NotFoundError, ValidationError } from './errors'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
 import { isExternallyVerifiableEvidence } from './evidence-classification'
 import { buildReleaseClaimsForClosedIssueStatement } from './file-claims'
 import {
@@ -331,21 +331,30 @@ function buildInsertIssueStatement(
     // PROJ-921: set when the issue is created straight into a ready status.
     readyAt: number | null
     now: number
+    feedbackIds?: readonly string[]
   }>,
 ): D1PreparedStatement {
   // Atomic number allocation: the subquery for MAX(number) and the INSERT run as
   // a single SQLite statement, eliminating the read-then-write race that existed
   // when they were two separate operations. The UNIQUE index on (project_id, number)
   // is a hard safety net — see migration 0002_issue_number_unique.sql.
+  // The feedback guard runs at the write boundary, not at the earlier display-data read.
+  // json_each keeps a 500-item selection to one bound parameter under D1's 100-bind cap.
   return ctx.db
     .prepare(
       `INSERT INTO issues
 			   (id, workspace_id, project_id, number, title, body, status, status_id,
 			    status_category, priority, assignee_id, labels, parent_id, type_id,
 			    created_by_id, author_kind, created_at, updated_at, dor_ready, dor_missing, ready_at)
-			 VALUES
-			   (?, ?, ?, (SELECT COALESCE(MAX(number), 0) + 1 FROM issues WHERE project_id = ?),
-			    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			 SELECT
+			   ?, ?, ?, (SELECT COALESCE(MAX(number), 0) + 1 FROM issues WHERE project_id = ?),
+			    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+       ${
+         params.feedbackIds
+           ? `WHERE (SELECT COUNT(*) FROM feedback WHERE workspace_id = ? AND project_id = ?
+         AND linked_issue_id IS NULL AND id IN (SELECT value FROM json_each(?))) = ?`
+           : ''
+       }
 			 RETURNING number`,
     )
     .bind(
@@ -371,13 +380,29 @@ function buildInsertIssueStatement(
       params.now,
       ...dorColumns(params.resolvedBody),
       params.readyAt,
+      ...(params.feedbackIds
+        ? [ctx.workspaceId, params.projectId, JSON.stringify(params.feedbackIds), params.feedbackIds.length]
+        : []),
     )
 }
 
-function buildFtsInsertStatement(ctx: ServiceCtx, id: string, title: string, body: string): D1PreparedStatement {
+function buildFtsInsertStatement(
+  ctx: ServiceCtx,
+  id: string,
+  title: string,
+  body: string,
+  requireExistingIssue = false,
+): D1PreparedStatement {
+  if (!requireExistingIssue) {
+    return ctx.db
+      .prepare('INSERT INTO issues_fts (issue_id, workspace_id, title, body) VALUES (?, ?, ?, ?)')
+      .bind(id, ctx.workspaceId, title, body)
+  }
   return ctx.db
-    .prepare('INSERT INTO issues_fts (issue_id, workspace_id, title, body) VALUES (?, ?, ?, ?)')
-    .bind(id, ctx.workspaceId, title, body)
+    .prepare(
+      'INSERT INTO issues_fts (issue_id, workspace_id, title, body) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM issues WHERE id = ? AND workspace_id = ?)',
+    )
+    .bind(id, ctx.workspaceId, title, body, id, ctx.workspaceId)
 }
 
 // PROJ-870: build (without executing) an activity-log INSERT identical in shape to
@@ -392,8 +417,26 @@ function buildActivityInsertStatement(
     entityId: string
     action: 'created' | 'updated'
     diff?: Record<string, unknown>
+    requireExistingIssue?: boolean
   }>,
 ): D1PreparedStatement {
+  if (opts.requireExistingIssue) {
+    return ctx.db
+      .prepare(`INSERT INTO activity (id,workspace_id,entity_type,entity_id,actor_id,action,diff,created_at)
+      SELECT ?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM issues WHERE id=? AND workspace_id=?)`)
+      .bind(
+        crypto.randomUUID(),
+        ctx.workspaceId,
+        opts.entityType,
+        opts.entityId,
+        ctx.userId,
+        opts.action,
+        opts.diff ? JSON.stringify(opts.diff) : null,
+        now(),
+        opts.entityId,
+        ctx.workspaceId,
+      )
+  }
   const query = orm
     .insert(schema.activity)
     .values({
@@ -427,6 +470,23 @@ async function resolveCreateIssueDeps(ctx: ServiceCtx, data: CreateIssueData) {
 }
 
 export async function createIssue(ctx: ServiceCtx, raw: unknown) {
+  return createIssueInternal(ctx, raw)
+}
+
+/** Internal workflow entry point. Its narrow input excludes parent/custom-field writes that would need their own guard. */
+export async function createIssueFromFeedback(
+  ctx: ServiceCtx,
+  input: Readonly<{ projectId: string; title: string; body: string; priority: 'medium' }>,
+  feedbackIds: readonly string[],
+) {
+  if (!feedbackIds.length || feedbackIds.length > 500 || new Set(feedbackIds).size !== feedbackIds.length) {
+    throw new ValidationError({ formErrors: ['Invalid feedback selection'], fieldErrors: {} })
+  }
+  const { projectId, title, body, priority } = input
+  return createIssueInternal(ctx, { projectId, title, body, priority }, feedbackIds)
+}
+
+async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: readonly string[]) {
   const result = CreateIssueSchema.safeParse(raw)
   if (!result.success) throw new ValidationError(result.error.flatten())
   const projectId = await resolveProjectIdParam(ctx, result.data.projectId)
@@ -482,18 +542,33 @@ export async function createIssue(ctx: ServiceCtx, raw: unknown) {
       resolvedTypeId,
       readyAt: isOpenPastBacklog(resolvedStatusKey, resolvedStatusCategory) ? nowTs : null,
       now: nowTs,
+      feedbackIds,
     }),
-    buildFtsInsertStatement(ctx, id, title, resolvedBody),
+    buildFtsInsertStatement(ctx, id, title, resolvedBody, feedbackIds !== undefined),
     ...buildCustomFieldUpsertStatements(ctx.db, id, cfWrites),
     buildActivityInsertStatement(ctx, orm, {
       entityType: 'issue',
       entityId: id,
       action: 'created',
+      requireExistingIssue: feedbackIds !== undefined,
     }),
   ]
 
+  if (feedbackIds) {
+    // D1 batch is atomic: the guarded issue insert and this link cannot interleave with another conversion.
+    // When the guard loses, every dependent write is a no-op and no event is emitted.
+    statements.push(
+      ctx.db
+        .prepare(`UPDATE feedback SET linked_issue_id=?, status='actioned'
+      WHERE workspace_id=? AND project_id=? AND id IN (SELECT value FROM json_each(?))
+      AND EXISTS (SELECT 1 FROM issues WHERE id=? AND workspace_id=? AND project_id=?)`)
+        .bind(id, ctx.workspaceId, projectId, JSON.stringify(feedbackIds), id, ctx.workspaceId, projectId),
+    )
+  }
+
   const results = await ctx.db.batch(statements)
   const number = (results[0]?.results as Array<{ number: number }> | undefined)?.[0]?.number
+  if (feedbackIds && number === undefined) throw new ConflictError('Feedback already converted or no longer available')
 
   if (parentId) {
     await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${parentId}`)

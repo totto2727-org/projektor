@@ -11,7 +11,7 @@ import {
 } from '../../contracts/inputs/feedback'
 import { canWriteProject, requireProjectAccess, requireProjectInWorkspace } from './access'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { createIssue } from './issues'
+import { createIssueFromFeedback } from './issues'
 import { inChunks } from './sql'
 import type { ServiceCtx } from './types'
 
@@ -237,19 +237,16 @@ export async function convertFeedbackToIssue(
     `— submitted via feedback source${fb.submitter_label ? ` by ${fb.submitter_label}` : ''}` +
     (fb.rating !== null ? `, rating: ${fb.rating} (${fb.rating_scale})` : '')
 
-  const issue = await createIssue(ctx, {
-    projectId: resolvedProjectId,
-    title,
-    body: [fb.body ?? '', '', footer].join('\n'),
-    priority: 'medium',
-  })
-
-  await ctx.db
-    .prepare("UPDATE feedback SET linked_issue_id = ?, status = 'actioned' WHERE id = ? AND workspace_id = ?")
-    .bind(issue.id, feedbackId, ctx.workspaceId)
-    .run()
-
-  return issue
+  return createIssueFromFeedback(
+    ctx,
+    {
+      projectId: resolvedProjectId,
+      title,
+      body: [fb.body ?? '', '', footer].join('\n'),
+      priority: 'medium',
+    },
+    [feedbackId],
+  )
 }
 
 export async function bulkMarkReviewed(ctx: ServiceCtx, input: unknown): Promise<{ updated: number }> {
@@ -324,24 +321,16 @@ export async function bulkConvertToIssue(
     })
     .join('\n\n')
 
-  const issue = await createIssue(ctx, {
-    projectId,
-    title: `${feedbackIds.length} feedback items`,
-    body,
-    priority: 'medium',
-  })
-
-  await inChunks(feedbackIds, (chunk) => {
-    const placeholders = chunk.map(() => '?').join(', ')
-    return ctx.db
-      .prepare(
-        `UPDATE feedback SET linked_issue_id = ?, status = 'actioned'
-         WHERE id IN (${placeholders}) AND workspace_id = ?`,
-      )
-      .bind(issue.id, ...chunk, ctx.workspaceId)
-      .run()
-      .then(() => [])
-  })
+  const issue = await createIssueFromFeedback(
+    ctx,
+    {
+      projectId,
+      title: `${feedbackIds.length} feedback items`,
+      body,
+      priority: 'medium',
+    },
+    feedbackIds,
+  )
 
   return { ...issue, convertedCount: feedbackIds.length }
 }
