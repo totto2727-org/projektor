@@ -9,11 +9,11 @@
  */
 
 import { SELF } from 'cloudflare:test'
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
 
-import { resetAuthCachesForTests, verifyJwtPayload } from '#services/authentication'
+import { verifyJwtPayload } from '#services/authentication'
 
-import { env } from './fixture-api'
+import { configureCore, env, getCoreObservations, resetCoreAuthCaches, resetCoreObservations } from './fixture-api'
 import {
   authHeaders,
   hashToken,
@@ -400,8 +400,10 @@ describe('PROJ-354: CF Access auth caches are isolate-local', () => {
     env.CF_ACCESS_TEAM_DOMAIN = domain
     env.CF_ACCESS_AUDIENCE = audience
 
-    // Pre-seed the JWKS cache directly in KV, bypassing the real network fetch
-    // that getCfAccessKeys would otherwise make on a cold cache.
+    await resetCoreAuthCaches()
+    await resetCoreObservations()
+    await configureCore({ FIXTURE_JWKS_MODE: 'reject' })
+    // Pre-seed Core's KV. Any network fetch in this case is a fixture failure.
     await env.KV.put('cf-access-certs', JSON.stringify([publicJwk]))
 
     const jwt = await signTestJwt(keyPair.privateKey, {
@@ -433,6 +435,8 @@ describe('PROJ-354: CF Access auth caches are isolate-local', () => {
     const secondBody = (await second.json()) as { user: { id: string; email: string } }
     expect(secondBody.user.email).toBe(email)
     expect(secondBody.user.id).toBe(firstBody.user.id)
+    expect((await getCoreObservations()).jwksFetches).toHaveLength(0)
+    await configureCore()
   })
 })
 
@@ -456,7 +460,7 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
         ['sign', 'verify'],
       ) as Promise<CryptoKeyPair>
 
-    // `otherKeyPair` is never returned by the stub below, so a token signed
+    // `otherKeyPair` is never returned by the Core network fixture, so a token signed
     // with it never matches whatever the cache holds — used for the
     // cooldown assertion without needing a second real refresh.
     const currentKeyPair = await genKeyPair()
@@ -471,22 +475,16 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
     env.CF_ACCESS_TEAM_DOMAIN = domain
     env.CF_ACCESS_AUDIENCE = audience
 
-    let fetchCalls = 0
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        fetchCalls++
-        return new Response(JSON.stringify({ keys: [currentPublicJwk] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      }),
-    )
+    await resetCoreAuthCaches()
+    await resetCoreObservations()
+    // A real but stale signing key makes the initial verification fail, so
+    // success requires the production force-refresh path rather than a cold fetch.
+    await env.KV.put('cf-access-certs', JSON.stringify([await crypto.subtle.exportKey('jwk', otherKeyPair.publicKey)]))
+    await configureCore({ FIXTURE_JWKS_BODY: JSON.stringify({ keys: [currentPublicJwk] }) })
 
     try {
-      // Whatever's already cached (isolate-local from an earlier test, or
-      // nothing) certainly doesn't verify a brand-new key pair's signature —
-      // this forces getCfAccessKeys to refetch (via the stub) and retry.
+      // The pre-seeded stale key cannot verify this token. Core must fetch the
+      // current keys and retry the real signature verification.
       const currentJwt = await signTestJwt(currentKeyPair.privateKey, {
         exp: now + 3600,
         aud: audience,
@@ -497,7 +495,7 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
         headers: { 'Cf-Access-Jwt-Assertion': currentJwt },
       })
       expect(rotated.status).toBe(200)
-      expect(fetchCalls).toBe(1)
+      expect((await getCoreObservations()).jwksFetches).toHaveLength(1)
 
       // The cache now holds only currentPublicJwk, so a token signed by an
       // unrelated key still doesn't verify — but the forced refresh above
@@ -512,9 +510,9 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
         headers: { 'Cf-Access-Jwt-Assertion': badJwt },
       })
       expect(stillBad.status).toBe(401)
-      expect(fetchCalls).toBe(1)
+      expect((await getCoreObservations()).jwksFetches).toHaveLength(1)
     } finally {
-      vi.unstubAllGlobals()
+      await configureCore()
     }
   })
 })
@@ -538,21 +536,14 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
     env.CF_ACCESS_TEAM_DOMAIN = domain
     env.CF_ACCESS_AUDIENCE = audience
 
-    resetAuthCachesForTests()
+    await resetCoreAuthCaches()
     await env.KV.delete('cf-access-certs')
 
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        return new Response(JSON.stringify({ keys: [publicJwk] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      }),
-    )
-    const putSpy = vi
-      .spyOn(env.KV, 'put')
-      .mockRejectedValueOnce(new Error('10048: your account has reached the free usage limit'))
+    await resetCoreObservations()
+    await configureCore({
+      FIXTURE_JWKS_BODY: JSON.stringify({ keys: [publicJwk] }),
+      FIXTURE_AUTH_KV_PUT_FAILURE: 'cf-access-certs',
+    })
 
     try {
       const jwt = await signTestJwt(keyPair.privateKey, {
@@ -567,14 +558,10 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
       })
 
       expect(res.status).toBe(200)
-      expect(putSpy).toHaveBeenCalledWith(
-        'cf-access-certs',
-        expect.any(String),
-        expect.objectContaining({ expirationTtl: 3600 }),
-      )
+      expect((await getCoreObservations()).authCachePuts).toContain('cf-access-certs')
+      expect(await env.KV.get('cf-access-certs')).toBeNull()
     } finally {
-      vi.unstubAllGlobals()
-      vi.restoreAllMocks()
+      await configureCore()
     }
   })
 })
@@ -598,16 +585,13 @@ describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => 
     env.CF_ACCESS_TEAM_DOMAIN = domain
     env.CF_ACCESS_AUDIENCE = audience
 
-    resetAuthCachesForTests()
+    await resetCoreAuthCaches()
 
-    const fetchSpy = vi.fn(async () => {
-      return new Response(JSON.stringify({ keys: [publicJwk] }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
+    await resetCoreObservations()
+    await configureCore({
+      FIXTURE_JWKS_BODY: JSON.stringify({ keys: [publicJwk] }),
+      FIXTURE_AUTH_KV_GET_FAILURE: 'cf-access-certs',
     })
-    vi.stubGlobal('fetch', fetchSpy)
-    vi.spyOn(env.KV, 'get').mockRejectedValueOnce(new Error('KV read failed'))
 
     try {
       const jwt = await signTestJwt(keyPair.privateKey, {
@@ -622,10 +606,11 @@ describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => 
       })
 
       expect(res.status).toBe(200)
-      expect(fetchSpy).toHaveBeenCalled()
+      const observation = await getCoreObservations()
+      expect(observation.authCacheGets).toContain('cf-access-certs')
+      expect(observation.jwksFetches).toHaveLength(1)
     } finally {
-      vi.unstubAllGlobals()
-      vi.restoreAllMocks()
+      await configureCore()
     }
   })
 })
@@ -649,19 +634,12 @@ describe('PROJ-746: user-by-email cache read failure falls back to the DB upsert
     env.CF_ACCESS_TEAM_DOMAIN = domain
     env.CF_ACCESS_AUDIENCE = audience
 
-    resetAuthCachesForTests()
+    await resetCoreAuthCaches()
     await env.KV.delete('cf-access-certs')
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response(JSON.stringify({ keys: [publicJwk] }), { status: 200 })),
-    )
-    const originalGet = env.KV.get.bind(env.KV)
-    vi.spyOn(env.KV, 'get').mockImplementation(async (key: unknown, ...rest: unknown[]) => {
-      if (typeof key === 'string' && key.startsWith('user-by-email:')) {
-        throw new Error('KV read failed')
-      }
-      // biome-ignore lint/suspicious/noExplicitAny: forwarding to the real KVNamespace.get overloads
-      return (originalGet as any)(key, ...rest)
+    await resetCoreObservations()
+    await configureCore({
+      FIXTURE_JWKS_BODY: JSON.stringify({ keys: [publicJwk] }),
+      FIXTURE_AUTH_KV_GET_FAILURE: 'user-by-email',
     })
 
     try {
@@ -680,9 +658,9 @@ describe('PROJ-746: user-by-email cache read failure falls back to the DB upsert
       expect(res.status).toBe(200)
       const row = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first()
       expect(row).not.toBeNull()
+      expect((await getCoreObservations()).authCacheGets).toContain(`user-by-email:${email}`)
     } finally {
-      vi.unstubAllGlobals()
-      vi.restoreAllMocks()
+      await configureCore()
     }
   })
 })
@@ -896,10 +874,8 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
     env.CF_ACCESS_TEAM_DOMAIN = domain
     env.CF_ACCESS_AUDIENCE = audience
     env.PUBLIC_READ_ONLY = 'true'
-    // The PROJ-354 test above already warmed the isolate-local certs cache with its own
-    // keypair; without a reset, getCfAccessKeys would serve those stale keys instead of
-    // fetching the ones seeded below, and this JWT would fail to verify.
-    resetAuthCachesForTests()
+    // Reset Core's isolate-local cache before installing this case's signing key.
+    await resetCoreAuthCaches()
     await env.KV.put('cf-access-certs', JSON.stringify([publicJwk]))
 
     const jwt = await signTestJwt(keyPair.privateKey, {
@@ -1313,19 +1289,12 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
     env.CF_ACCESS_AUDIENCE = audience
 
     // Cold both cache layers so validateCfAccessJwt has to hit the network.
-    resetAuthCachesForTests()
+    await resetCoreAuthCaches()
     await env.KV.delete('cf-access-certs')
 
-    // Stub fetch to simulate the certs endpoint being unreachable, rather
-    // than letting a real DNS lookup for this non-existent domain happen:
-    // a real lookup here triggers a workerd `jsg.Error: internal error`
-    // under vitest-pool-workers and can hang a full test run (PROJ-640).
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new TypeError('Network connection lost')
-      }),
-    )
+    // Simulate the outage in Core's isolate, where certificate retrieval runs.
+    await resetCoreObservations()
+    await configureCore({ FIXTURE_JWKS_MODE: 'reject' })
 
     try {
       // Claims are entirely valid — only the certs fetch is broken.
@@ -1341,11 +1310,12 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
       })
 
       expect(res.status).toBe(503)
+      expect((await getCoreObservations()).jwksFetches).toEqual([`https://${domain}/cdn-cgi/access/certs`])
       expect((await res.json()) as { error: string }).toEqual({
         error: 'Authentication temporarily unavailable',
       })
     } finally {
-      vi.unstubAllGlobals()
+      await configureCore()
     }
   })
 
