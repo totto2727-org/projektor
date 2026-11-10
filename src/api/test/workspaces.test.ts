@@ -731,7 +731,7 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 
   it('review finding 3: GET logo 404s when the stored R2 key belongs to another workspace', async () => {
-    const { env } = await import('cloudflare:test')
+    const { env } = await import('./fixture-api')
     const foreignKey = `${crypto.randomUUID()}/brand-logo/${crypto.randomUUID()}`
     await env.R2.put(foreignKey, new Uint8Array([1, 2, 3]))
     await env.DB.prepare('UPDATE workspaces SET brand = ? WHERE slug = ?')
@@ -785,7 +785,7 @@ describe('Workspace brand R2 cleanup (review finding 5)', () => {
       body: form,
     })
 
-    const { env } = await import('cloudflare:test')
+    const { env } = await import('./fixture-api')
     const row = await env.DB.prepare('SELECT brand FROM workspaces WHERE id = ?')
       .bind(owner.workspace.id)
       .first<{ brand: string }>()

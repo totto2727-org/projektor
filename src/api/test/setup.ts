@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { configureCore, env } from './fixture-api'
 import { MIGRATIONS } from './migrations'
 import { resetRateLimits } from './rate-limit-reset'
 
@@ -33,4 +33,5 @@ beforeAll(async () => {
 // from a clean window — restoring the per-test freshness the old isolation gave.
 beforeEach(async () => {
   await resetRateLimits()
+  await configureCore()
 })

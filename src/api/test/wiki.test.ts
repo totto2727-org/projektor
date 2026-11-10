@@ -674,7 +674,7 @@ describe('Wiki API', () => {
   })
 
   it('project-scoped pages are isolated from workspace-level list', async () => {
-    const { env } = await import('cloudflare:test')
+    const { env } = await import('./fixture-api')
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     const project = await seedProject(ws!.id, 'WIKI')
     await seedGroupGrant(ws!.id, userId, project.id)
@@ -757,7 +757,7 @@ describe('Wiki API', () => {
   })
 
   it('POST /api/wiki stores projectId and GET returns it', async () => {
-    const { env } = await import('cloudflare:test')
+    const { env } = await import('./fixture-api')
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     const project = await seedProject(ws!.id, 'P2')
     await seedGroupGrant(ws!.id, userId, project.id)
@@ -1163,7 +1163,7 @@ describe('Wiki API', () => {
       body: JSON.stringify({ title: 'Protected Page', content: 'secret' }),
     })
 
-    const { env } = await import('cloudflare:test')
+    const { env } = await import('./fixture-api')
     const { seedUser, seedMember, seedToken } = await import('./helpers')
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     const viewerUser = await seedUser(`viewer-wiki-${crypto.randomUUID().slice(0, 8)}@example.com`)

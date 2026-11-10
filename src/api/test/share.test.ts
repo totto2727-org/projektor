@@ -60,7 +60,7 @@ describe('Share tokens', () => {
   it('GET /api/share/<expired-token> returns 404', async () => {
     const now = Math.floor(Date.now() / 1000)
     const expiredToken = '00000000000000000000000000000001'
-    const { env } = await import('cloudflare:test')
+    const { env } = await import('./fixture-api')
     await env.DB.prepare(
       'INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     )
@@ -78,7 +78,7 @@ describe('Share tokens', () => {
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
-    const { env } = await import('cloudflare:test')
+    const { env } = await import('./fixture-api')
     const row = await env.DB.prepare('SELECT id FROM share_tokens WHERE issue_id = ?')
       .bind(issueId)
       .first<{ id: string }>()
@@ -153,7 +153,7 @@ describe('Share tokens', () => {
   })
 
   it('PROJ-241: public share payload excludes internal custom fields, includes non-internal ones', async () => {
-    const { env } = await import('cloudflare:test')
+    const { env } = await import('./fixture-api')
     const now = Math.floor(Date.now() / 1000)
 
     const internalFieldId = crypto.randomUUID()
@@ -298,7 +298,7 @@ describe('Share tokens', () => {
 
   it('PROJ-242: viewer role cannot revoke a share link', async () => {
     const viewerFixture = await seedIssueFixture({ role: 'viewer' })
-    const { env } = await import('cloudflare:test')
+    const { env } = await import('./fixture-api')
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
       'INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
@@ -342,7 +342,7 @@ describe('Share tokens', () => {
         headers: authHeaders(f.token, f.slug),
       })
       expect(res.status).toBe(404)
-      const { env } = await import('cloudflare:test')
+      const { env } = await import('./fixture-api')
       const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?')
         .bind(f.issueId)
         .first<{ n: number }>()
@@ -351,7 +351,7 @@ describe('Share tokens', () => {
 
     it("member without a grant cannot revoke someone else's share link", async () => {
       const f = await restrictedIssue('none')
-      const { env } = await import('cloudflare:test')
+      const { env } = await import('./fixture-api')
       const now = Math.floor(Date.now() / 1000)
       await env.DB.prepare(
         'INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',

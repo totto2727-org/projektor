@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vite-plus/test'
 
 import { hashFeedbackToken } from '#commands/feedback'
 
-import { env } from './fixture-api'
+import { configureCore, env, getCoreLimiterCalls } from './fixture-api'
 import {
   authHeaders,
   type JsonRpcError,
@@ -145,27 +145,18 @@ describe('Feedback submit (public)', () => {
   it('fails open (201, not 500) when the rate limiter is unavailable (PROJ-867)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
-    const saved = env.RATE_LIMITER
-    let calls = 0
-    env.RATE_LIMITER = {
-      idFromName: (name: string) => name,
-      get: () => ({
-        increment: () => {
-          calls++
-          return Promise.reject(new Error('DO down'))
-        },
-      }),
-    } as unknown as typeof env.RATE_LIMITER
+    await configureCore({ FIXTURE_LIMITER_MODE: 'reject' })
     try {
       const res = await SELF.fetch('http://localhost/api/feedback/submit', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ body: 'Still works' }),
       })
+      const calls = await getCoreLimiterCalls()
       expect(calls).toBe(2)
       expect(res.status).toBe(201)
     } finally {
-      env.RATE_LIMITER = saved
+      await configureCore()
     }
   })
 

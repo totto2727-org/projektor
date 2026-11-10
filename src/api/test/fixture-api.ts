@@ -4,11 +4,56 @@ import type { Env } from '#types'
 
 import type NativeFixtureCore from '../../../tests/native-workers/core.worker'
 
-type FixtureCore = Pick<NativeFixtureCore, 'fixtureD1' | 'fixtureD1Batch' | 'fixtureD1Exec' | 'fixtureKV' | 'fixtureR2'>
+type FixtureOperations = Pick<
+  NativeFixtureCore,
+  | 'fixtureD1'
+  | 'fixtureD1Batch'
+  | 'fixtureD1Exec'
+  | 'fixtureKV'
+  | 'fixtureR2'
+  | 'fixtureSession'
+  | 'fixtureLimiterCalls'
+>
+type FixtureCore = {
+  [Key in keyof FixtureOperations]: (
+    ...args: Parameters<FixtureOperations[Key]>
+  ) => Promise<Awaited<ReturnType<FixtureOperations[Key]>>>
+}
 
 function core(): FixtureCore {
   // Only the native test Core entrypoint exposes these fixture operations.
   return Reflect.get(nativeEnv, 'CORE') as FixtureCore
+}
+
+const originalCore = core()
+let configuredCore: Fetcher | undefined
+
+/** Apply test policy explicitly before invoking the real API Worker. Native Core
+ * sessions retain their own configuration, rather than changing shared Core state. */
+export async function configureCore(settings: Readonly<Record<string, string | null>> = {}): Promise<void> {
+  const configuration: Record<string, string | null> = {}
+  for (const [key, value] of Object.entries(nativeEnv)) {
+    if (key !== 'CORE_FIXTURE_CONFIGURATION' && (typeof value === 'string' || value === undefined)) {
+      configuration[key] = value ?? null
+    }
+  }
+  const settingsSnapshot = {
+    ...configuration,
+    FIXTURE_LIMITER_MODE: nativeEnv.RATE_LIMITER ? 'native' : 'absent',
+    ...settings,
+  }
+  const serialized = JSON.stringify(settingsSnapshot)
+  if (
+    !Reflect.set(nativeEnv, 'CORE_FIXTURE_CONFIGURATION', serialized) ||
+    Reflect.get(nativeEnv, 'CORE_FIXTURE_CONFIGURATION') !== serialized
+  ) {
+    throw new Error('The native API fixture configuration binding is not writable')
+  }
+  configuredCore = await originalCore.fixtureSession(settingsSnapshot)
+}
+
+export async function getCoreLimiterCalls(): Promise<number> {
+  return originalCore.fixtureLimiterCalls(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')
 }
 
 class FixturePreparedStatement {
@@ -119,6 +164,7 @@ const fixtures = { DB: db, KV: fixtureKV('KV'), R2: r2 }
 export const env: Env = new Proxy(nativeEnv, {
   get(target, key, receiver): unknown {
     if (key === 'DB' || key === 'KV' || key === 'R2') return fixtures[key]
+    if (key === 'CORE' && configuredCore) return configuredCore
     return Reflect.get(target, key, receiver)
   },
   set(target, key, value): boolean {
