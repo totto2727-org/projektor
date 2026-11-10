@@ -161,6 +161,78 @@ test('real API write is visible in frontend direct shared D1 read', async ({ req
   await checkpoint(page, testInfo, 'shared-db-project-reload')
 })
 
+test('My Issues uses one open-work table ordered by progress, priority and latest update', async ({
+  request,
+  page,
+}, testInfo) => {
+  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const headers = { 'X-Workspace-Slug': 'projektor' }
+  const session = await request.get('http://127.0.0.1:4392/auth/me')
+  expect(session.status()).toBe(200)
+  const { user } = await session.json()
+  const projects: { id: string; key: string; name: string }[] = []
+  for (const prefix of ['A', 'B']) {
+    const created = await request.post('http://127.0.0.1:4392/api/projects', {
+      headers,
+      data: { name: `Focus ${prefix} ${suffix}`, key: `${prefix}${suffix}` },
+    })
+    expect(created.status(), await created.text()).toBe(201)
+    projects.push(await created.json())
+  }
+  const fixtures = [
+    { title: 'Review first', status: 'in_review', priority: 'low', project: 1 },
+    { title: 'Progress high old', status: 'in_progress', priority: 'high', project: 1 },
+    { title: 'Progress low', status: 'in_progress', priority: 'low', project: 0 },
+    { title: 'Todo urgent', status: 'todo', priority: 'urgent', project: 1 },
+    { title: 'Todo high', status: 'todo', priority: 'high', project: 0 },
+    { title: 'Backlog last', status: 'backlog', priority: 'urgent', project: 1 },
+    { title: 'Completed hidden', status: 'done', priority: 'urgent', project: 0 },
+    { title: 'Cancelled hidden', status: 'cancelled', priority: 'urgent', project: 1 },
+  ]
+  const create = async (fixture: (typeof fixtures)[number], assigned = true) => {
+    const created = await request.post('http://127.0.0.1:4392/api/issues', {
+      headers,
+      data: {
+        projectId: projects[fixture.project].id,
+        title: `${fixture.title} ${suffix}`,
+        status: fixture.status,
+        priority: fixture.priority,
+        ...(assigned ? { assigneeId: user.id } : {}),
+      },
+    })
+    expect(created.status(), await created.text()).toBe(201)
+  }
+  for (const fixture of fixtures) await create(fixture)
+  await create({ title: 'Unassigned hidden', status: 'todo', priority: 'urgent', project: 0 }, false)
+  // API timestamps have second precision. Ensure the new equal-priority work has a later persisted update.
+  await new Promise((resolve) => setTimeout(resolve, 1100))
+  await create({ title: 'Progress high new', status: 'in_progress', priority: 'high', project: 0 })
+  await page.goto('/my-issues?workspace=projektor')
+  await expect(page.getByRole('heading', { name: 'My Issues', exact: true })).toBeVisible()
+  await expect(page.locator('table')).toHaveCount(1)
+  await expect(page.locator('table th')).toHaveText(['#', 'Title', 'Priority', 'Status'])
+  for (const project of projects) await expect(page.getByRole('heading', { name: project.name })).toHaveCount(0)
+  await expect(page.getByText('Include done', { exact: true })).toHaveCount(0)
+  for (const title of ['Completed hidden', 'Cancelled hidden', 'Unassigned hidden'])
+    await expect(page.getByRole('link', { name: `${title} ${suffix}`, exact: true })).toHaveCount(0)
+  const expected = [
+    'Review first',
+    'Progress high new',
+    'Progress high old',
+    'Progress low',
+    'Todo urgent',
+    'Todo high',
+    'Backlog last',
+  ].map((title) => `${title} ${suffix}`)
+  const titles = page.getByRole('link', { name: new RegExp(` ${suffix}$`) })
+  await expect(titles).toHaveText(expected)
+  for (const link of await titles.all())
+    expect(new URL((await link.getAttribute('href')) ?? '', page.url()).searchParams.get('workspace')).toBe('projektor')
+  await checkpoint(page, testInfo, 'my-issues-open-focus-order')
+  await page.reload()
+  await expect(titles).toHaveText(expected)
+})
+
 async function assertShell(page: Page) {
   await expect(page.locator('main#main-content')).toBeVisible()
   await expect(page.getByRole('link', { name: /skip to (main )?content/i })).toBeAttached()

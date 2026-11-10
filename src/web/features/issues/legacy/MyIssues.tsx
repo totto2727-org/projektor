@@ -1,5 +1,4 @@
 'use client'
-import { useState } from 'react'
 
 import { formatIssueRef } from '../lib/issue-ref'
 import { statusDisplayName } from '../lib/status'
@@ -8,6 +7,32 @@ import type { MyIssuesInitialData, ScopedIssue } from '../views/MyIssuesPage'
 import { categoryColor, type Issue } from './board-utils'
 
 const OPEN_CATEGORIES = new Set(['todo', 'in_progress', 'in_review'])
+const STATUS_ORDER = new Map([
+  ['in_review', 0],
+  ['in_progress', 1],
+  ['todo', 2],
+  ['backlog', 3],
+])
+const PRIORITY_ORDER = new Map([
+  ['urgent', 0],
+  ['high', 1],
+  ['medium', 2],
+  ['low', 3],
+  ['none', 4],
+])
+
+function statusOrder(issue: Issue): number {
+  if (issue.status_key === 'backlog' || issue.status_key === 'in_review') return STATUS_ORDER.get(issue.status_key) ?? 4
+  return STATUS_ORDER.get(issue.status_category ?? '') ?? 4
+}
+
+function compareIssues(a: Issue, b: Issue): number {
+  return (
+    statusOrder(a) - statusOrder(b) ||
+    (PRIORITY_ORDER.get(a.priority) ?? 5) - (PRIORITY_ORDER.get(b.priority) ?? 5) ||
+    b.updated_at - a.updated_at
+  )
+}
 function getStoryPoints(issue: Issue): string | null {
   const field = (issue.customFields ?? []).find((f) => f.key === 'story_points')
   return field?.value ?? null
@@ -38,10 +63,6 @@ function priorityBadge(issue: Issue) {
   )
 }
 
-function isVisible(issue: Issue, includeDone: boolean): boolean {
-  return includeDone ? true : OPEN_CATEGORIES.has(issue.status_category ?? '')
-}
-
 function statusBadge(issue: Issue) {
   return (
     <span className='font-medium text-sm' style={{ color: categoryColor(issue.status_category) }}>
@@ -50,38 +71,9 @@ function statusBadge(issue: Issue) {
   )
 }
 
-interface ProjectGroup {
-  name: string
-  issues: ScopedIssue[]
-}
-
-function groupIssuesByProject(visible: readonly ScopedIssue[]): {
-  order: string[]
-  byProject: Map<string, ProjectGroup>
-} {
-  const order: string[] = []
-  const byProject = new Map<string, ProjectGroup>()
-  for (const issue of visible) {
-    const key = `${issue.workspaceSlug}:${issue.project_key ?? '__none__'}`
-    const name = issue.project_name ?? issue.project_key ?? 'No project'
-    let group = byProject.get(key)
-    if (!group) {
-      group = { name, issues: [] }
-      byProject.set(key, group)
-      order.push(key)
-    }
-    group.issues.push(issue)
-  }
-  return { order, byProject }
-}
-
-function ProjectIssuesSection({ name, issues }: { name: string; issues: ScopedIssue[] }) {
+function IssuesTable({ issues }: { issues: ScopedIssue[] }) {
   return (
     <section>
-      <h2 className='text-sm font-semibold text-text-muted uppercase tracking-[0.05em] mb-2 pb-1 border-b border-border'>
-        {name}
-      </h2>
-
       {/* Desktop table */}
       <div className='overflow-x-auto max-sm:hidden'>
         <table className='w-full border-collapse text-[0.9rem]'>
@@ -164,24 +156,14 @@ function ProjectIssuesSection({ name, issues }: { name: string; issues: ScopedIs
 }
 
 export default function MyIssues({ initialData }: { initialData: MyIssuesInitialData }) {
-  const issues = initialData.issues
-  const [includeDone, setIncludeDone] = useState(false)
-  const visible = issues.filter((i) => isVisible(i, includeDone))
-  const { order: projectOrder, byProject } = groupIssuesByProject(visible)
+  const visible = initialData.issues
+    .filter((issue) => OPEN_CATEGORIES.has(issue.status_category ?? ''))
+    .sort(compareIssues)
   const hasAny = visible.length > 0
 
   return (
     <div>
       <div className='flex items-center gap-3 mb-5'>
-        <label className='flex items-center gap-2 text-sm text-text-muted cursor-pointer select-none'>
-          <input
-            type='checkbox'
-            checked={includeDone}
-            onChange={(e) => setIncludeDone((e.target as HTMLInputElement).checked)}
-            className='accent-accent w-4 h-4'
-          />
-          Include done
-        </label>
         <span className='text-sm text-text-muted'>
           {visible.length} issue{visible.length !== 1 ? 's' : ''}
         </span>
@@ -189,21 +171,11 @@ export default function MyIssues({ initialData }: { initialData: MyIssuesInitial
 
       {!hasAny ? (
         <div className='text-center py-16 text-text-muted'>
-          <p className='text-lg font-medium mb-1'>No issues assigned to you</p>
-          <p className='text-sm'>
-            {includeDone
-              ? 'You have no issues across any project.'
-              : 'You have no open issues. Toggle "Include done" to see completed ones.'}
-          </p>
+          <p className='text-lg font-medium mb-1'>No open issues assigned to you</p>
+          <p className='text-sm'>You have no open issues across any project.</p>
         </div>
       ) : (
-        <div className='flex flex-col gap-8'>
-          {projectOrder.map((key) => {
-            const group = byProject.get(key)
-            if (!group) return null
-            return <ProjectIssuesSection key={key} name={group.name} issues={group.issues} />
-          })}
-        </div>
+        <IssuesTable issues={visible} />
       )}
     </div>
   )
