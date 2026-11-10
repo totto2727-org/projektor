@@ -101,6 +101,9 @@ Before resuming such a legacy upgrade, use an offline restored copy and an expli
 Preserve page identity, redirect ownership, versions and foreign keys, then replay the unchanged remaining history and verify the result.
 Do not automatically rename user content, fabricate ledger entries, replay production migrations or treat fresh empty replay as populated-upgrade proof.
 Production migration or data repair requires separate operator authorization and a recoverable backup.
+The versioned Wiki editor requires `0068_wiki_draft_heads.sql` before its first production request.
+Local and acceptance fixtures apply this appended migration, but production's external D1 binding does not apply it automatically.
+Treat production schema readiness as a rollout prerequisite, not as something a successful CI run or Worker deployment proves.
 
 ## Production Safety
 
@@ -147,6 +150,8 @@ The Wiki mobile page-tree drawer and backdrop begin below the header and remain 
 Groups retains its page heading and access explanation; Comark code blocks use readable GitHub light/dark palettes selected by the existing theme preference.
 It adds shared internal retrieval and domain commands behind a private Core Worker, while REST, MCP and Effront remain external adapters.
 Native Core service bindings replace the former direct Web/API D1 access to centralize persistent policy and storage ownership.
+The Wiki editor serializes autosave, discard and publication, with durable per-user/page draft heads enforcing browser revision preconditions in D1.
+Legacy unversioned REST and MCP draft writes retain last-write-wins behavior but advance the same heads, invalidating stale versioned browser writes.
 This architecture does not imply a performance improvement.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
 Production deployment is a separate workflow gated on successful main-push CI, with the tested revision, production environment and serialized deployments preserved.

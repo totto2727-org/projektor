@@ -30,7 +30,7 @@ function decodeFailure(stage: 'transport' | 'reply', cause: Cause.Cause<unknown>
       ? 'The Core service is temporarily unavailable.'
       : 'The Core service returned an invalid response.',
   )
-  console.error('[core-client]', { stage, occurrenceId: problem.occurrenceId, diagnostic: Cause.pretty(cause) })
+  console.error('[core-client]', { stage, occurrenceId: problem.occurrenceId })
   return Effect.fail(problem)
 }
 

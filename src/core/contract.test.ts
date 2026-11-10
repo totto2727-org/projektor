@@ -126,7 +126,7 @@ describe('Core native RPC public boundary', () => {
   })
 
   it.each(['transport', 'reply'] as const)(
-    'records %s diagnostic correlation without exposing it in the public error',
+    'records safe %s correlation without copying private diagnostics',
     async (stage) => {
       const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       try {
@@ -136,10 +136,9 @@ describe('Core native RPC public boundary', () => {
         expect(problem).toMatchObject({ status: 502 })
         expect(JSON.stringify(problem)).not.toContain('private detail')
         expect(JSON.stringify(problem)).not.toContain('invalid wire')
-        expect(log).toHaveBeenCalledWith(
-          '[core-client]',
-          expect.objectContaining({ stage, occurrenceId: problem.occurrenceId, diagnostic: expect.any(String) }),
-        )
+        expect(log).toHaveBeenCalledWith('[core-client]', { stage, occurrenceId: problem.occurrenceId })
+        expect(JSON.stringify(log.mock.calls)).not.toContain('private detail')
+        expect(JSON.stringify(log.mock.calls)).not.toContain('invalid wire')
       } finally {
         log.mockRestore()
       }
