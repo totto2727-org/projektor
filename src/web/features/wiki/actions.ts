@@ -14,10 +14,21 @@ import {
   wikiDraftCommands,
   readWikiPage,
   readWikiDraft,
+  readWikiDraftState,
   readWikiDiff,
 } from './data'
 import { EditFields } from './form-schemas'
-import { Created, Deleted, Ok, Restored, SavedDraft, Verified } from './schemas'
+import {
+  Created,
+  Deleted,
+  DraftPrecondition,
+  DraftRevision,
+  Ok,
+  Published,
+  Restored,
+  SavedDraft,
+  Verified,
+} from './schemas'
 
 const identifier = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200))
 const Reference = Schema.Struct({ ...FunctionSelectorSchema.fields, slug: identifier })
@@ -99,6 +110,21 @@ export const getWikiDraft = EFFRONT.ServerFn.make({
     ),
 })
 
+export const getWikiDraftState = EFFRONT.ServerFn.make({
+  input: Reference,
+  handler: (input) =>
+    Effect.gen(function* () {
+      const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
+      const value = yield* readWikiDraftState(ctx, input.slug)
+      return { ok: true, value } as const
+    }).pipe(
+      Effect.catchTags({
+        ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
+        ScopeError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
+      }),
+    ),
+})
+
 export const createWikiPage = EFFRONT.ServerFn.make({
   input: Create,
   handler: (input) =>
@@ -169,7 +195,7 @@ export const duplicateWikiPage = EFFRONT.ServerFn.make({
 })
 
 export const saveWikiPage = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...Reference.fields, ...EditFields.fields }),
+  input: Schema.Struct({ ...Reference.fields, ...EditFields.fields, ...DraftPrecondition.fields }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -180,9 +206,10 @@ export const saveWikiPage = EFFRONT.ServerFn.make({
           wikiCommands.publishWikiPage(command, input.slug, {
             title: input.title,
             content: input.content,
+            expectedDraftRevision: input.expectedDraftRevision,
             ...(input.baseRevisionId !== undefined ? { baseRevisionId: input.baseRevisionId } : {}),
           }),
-        ).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Ok)(value).pipe(Effect.mapError(dataError))))
+        ).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Published)(value).pipe(Effect.mapError(dataError))))
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -201,7 +228,7 @@ export const saveWikiPage = EFFRONT.ServerFn.make({
 })
 
 export const saveWikiDraft = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...Reference.fields, ...EditFields.fields }),
+  input: Schema.Struct({ ...Reference.fields, ...EditFields.fields, ...DraftPrecondition.fields }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -213,6 +240,7 @@ export const saveWikiDraft = EFFRONT.ServerFn.make({
             title: input.title,
             content: input.content,
             baseRevisionId: input.baseRevisionId ?? null,
+            expectedDraftRevision: input.expectedDraftRevision,
           }),
         ).pipe(
           Effect.flatMap((value) => Schema.decodeUnknownEffect(SavedDraft)(value).pipe(Effect.mapError(dataError))),
@@ -235,15 +263,19 @@ export const saveWikiDraft = EFFRONT.ServerFn.make({
 })
 
 export const discardWikiDraft = EFFRONT.ServerFn.make({
-  input: Reference,
+  input: Schema.Struct({ ...Reference.fields, ...DraftPrecondition.fields }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        const value = yield* runCommand(ctx, (command) => wikiDraftCommands.discardWikiDraft(command, input.slug)).pipe(
-          Effect.flatMap((value) => Schema.decodeUnknownEffect(Ok)(value).pipe(Effect.mapError(dataError))),
+        const value = yield* runCommand(ctx, (command) =>
+          wikiDraftCommands.discardWikiDraft(command, input.slug, {
+            expectedDraftRevision: input.expectedDraftRevision,
+          }),
+        ).pipe(
+          Effect.flatMap((value) => Schema.decodeUnknownEffect(DraftRevision)(value).pipe(Effect.mapError(dataError))),
         )
         return { ok: true, value } as const
       }).pipe(

@@ -80,6 +80,11 @@ export const Draft = Schema.NullOr(
     updatedAt: Schema.Number,
   }),
 )
+export const DraftState = Schema.Struct({ draft: Draft, revision: nullable })
+export const DraftRevision = Schema.Struct({ ok: Schema.Literal(true), revision: Schema.String })
+export const Published = Schema.Struct({ ok: Schema.Literal(true), draftRevision: nullable })
+export const DraftPrecondition = Schema.Struct({ expectedDraftRevision: nullable })
+
 export const TreeNode: Schema.Codec<WikiSeed['tree'][number]> = Schema.suspend(() =>
   Schema.Struct({
     id: Schema.String,
@@ -100,6 +105,7 @@ export const WikiSeedDataSchema = Schema.Struct({
   revisions: Schema.mutable(Schema.Array(Revision)),
   attachments: Schema.mutable(Schema.Array(Attachment)),
   draft: Draft,
+  draftRevision: Schema.optional(nullable),
   draftStatus: Schema.Literals(['ready', 'failed']),
   projects: Schema.mutable(
     Schema.Array(
@@ -134,6 +140,7 @@ export const SavedDraft = Schema.Struct({
   ok: Schema.Literal(true),
   pageId: Schema.String,
   updatedAt: Schema.Number,
+  revision: Schema.String,
 })
 export const Verified = Schema.Struct({
   ok: Schema.Literal(true),

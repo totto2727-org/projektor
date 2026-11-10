@@ -31,7 +31,7 @@ import {
   deleteWikiAttachment,
   discardWikiDraft,
   duplicateWikiPage,
-  getWikiDraft,
+  getWikiDraftState,
   getWikiPage,
   getWikiRevisionDiff,
   moveWikiPage,
@@ -66,6 +66,7 @@ export interface WikiSeed {
   filteredPages: WikiListItem[]
   searchResults: SearchResult[]
   draft: ServerDraft | null
+  draftRevision?: string | null
   draftStatus: DraftStatus
   workspaceSlug: string
   projectId: string
@@ -1451,9 +1452,11 @@ function DraftRestoreBanner({
   pageChangedSince,
   onRestore,
   onDiscard,
+  busy,
 }: {
   updatedAt: number
   pageChangedSince?: boolean
+  busy: boolean
   onRestore: () => void
   onDiscard: () => void
 }) {
@@ -1472,10 +1475,10 @@ function DraftRestoreBanner({
         )}
       </span>
       <div className='flex gap-2 shrink-0'>
-        <Button variant='primary' size='sm' onClick={onRestore}>
+        <Button variant='primary' size='sm' onClick={onRestore} disabled={busy}>
           Restore
         </Button>
-        <Button variant='outline' size='sm' onClick={onDiscard}>
+        <Button variant='outline' size='sm' onClick={onDiscard} disabled={busy} aria-busy={busy}>
           Discard
         </Button>
       </div>
@@ -2005,6 +2008,7 @@ function PageArticleMeta(
 
       {props.editing && props.draftBanner && (
         <DraftRestoreBanner
+          busy={props.saving}
           updatedAt={props.draftBanner.updatedAt}
           pageChangedSince={props.draftBanner.pageChangedSince}
           onRestore={props.onRestoreDraft}
@@ -2512,7 +2516,7 @@ export function differsFromPublished(
 }
 
 function mayWrite(s: UseServerDraftAutosaveOptions): s is UseServerDraftAutosaveOptions & { page: WikiPageData } {
-  return !!s.page && !s.draftBanner && !s.saving && s.draftStatus === 'ready'
+  return !!s.page && !s.draftBanner && s.draftStatus === 'ready'
 }
 
 function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
@@ -2531,38 +2535,156 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   // to the published text issue a DELETE — never for a draft this session hasn't seen.
   const seed = useWikiSeed()
   const serverHasDraftRef = useRef(seed.mode === 'edit' && !!seed.draft)
+  const revisionRef = useRef(seed.draftRevision ?? null)
   const lastPersistedRef = useRef<string | null>(null)
+  const tailRef = useRef<Promise<unknown>>(Promise.resolve())
+  type Snapshot = { page: WikiPageData; title: string; content: string; base: string | null | undefined }
+  const pendingRef = useRef<Snapshot | null>(null)
+  const drainingRef = useRef(false)
+  const blockedRef = useRef(false)
+  const suspendedRef = useRef(false)
+  const [writeWarning, setWriteWarning] = useState<string | null>(null)
+
+  // One page-local chain orders autosave, explicit discard and publication. Only
+  // its pending snapshot is replaceable, so typing B/C while A saves writes C next.
+  const drainDrafts = useCallback(() => {
+    if (drainingRef.current) return
+    drainingRef.current = true
+    const task = tailRef.current
+      .then(async () => {
+        while (pendingRef.current && !suspendedRef.current && !blockedRef.current) {
+          const { page: p, title, content, base } = pendingRef.current
+          pendingRef.current = null
+          const fingerprint = JSON.stringify([p.id, title, content, base ?? null])
+          if (lastPersistedRef.current === fingerprint) continue
+          try {
+            if (differsFromPublished(p, title, content)) {
+              const result = unwrapResult(
+                await saveWikiDraft({
+                  workspaceSlug,
+                  slug: p.slug,
+                  title,
+                  content,
+                  baseRevisionId: base ?? null,
+                  expectedDraftRevision: revisionRef.current,
+                }),
+              )
+              revisionRef.current = result.revision
+              serverHasDraftRef.current = true
+            } else if (serverHasDraftRef.current) {
+              const result = unwrapResult(
+                await discardWikiDraft({
+                  workspaceSlug,
+                  slug: p.slug,
+                  expectedDraftRevision: revisionRef.current,
+                }),
+              )
+              revisionRef.current = result.revision
+              serverHasDraftRef.current = false
+            }
+            // Failed or unacknowledged writes never mark a fingerprint persisted.
+            lastPersistedRef.current = fingerprint
+            setWriteWarning(null)
+          } catch {
+            blockedRef.current = true
+            setWriteWarning('Autosave did not complete. Your text is still here. Save before leaving this page.')
+            pendingRef.current = null
+            break
+          }
+        }
+      })
+      .finally(() => {
+        drainingRef.current = false
+      })
+    tailRef.current = task.catch(() => {})
+  }, [workspaceSlug])
 
   const persistDraft = useCallback(
     (p: WikiPageData, title: string, content: string, base: string | null | undefined) => {
-      // Best-effort: a failed autosave shouldn't interrupt editing or surface an
-      // error — the explicit Save button remains the source of truth.
-      if (differsFromPublished(p, title, content)) {
-        const fingerprint = JSON.stringify([p.id, title, content, base ?? null])
-        if (lastPersistedRef.current === fingerprint) return
-        lastPersistedRef.current = fingerprint
-        serverHasDraftRef.current = true
-        void saveWikiDraft({
-          workspaceSlug,
-          slug: p.slug,
-          title,
-          content,
-          baseRevisionId: base ?? null,
-        })
-          .then(unwrapResult)
-          .catch(() => {
-            lastPersistedRef.current = null
-          })
-      } else if (serverHasDraftRef.current) {
-        lastPersistedRef.current = null
-        serverHasDraftRef.current = false
-        void discardWikiDraft({ workspaceSlug, slug: p.slug })
-          .then(unwrapResult)
-          .catch(() => {})
-      }
+      pendingRef.current = { page: p, title, content, base }
+      drainDrafts()
     },
-    [workspaceSlug],
+    [drainDrafts],
   )
+
+  function adoptDraftState(state: { revision: string | null; draft: ServerDraft | null }) {
+    revisionRef.current = state.revision
+    blockedRef.current = false
+    serverHasDraftRef.current = state.draft !== null
+    lastPersistedRef.current = null
+    setWriteWarning(null)
+  }
+
+  function discardDraftNow(p: WikiPageData, title: string, content: string) {
+    suspendedRef.current = true
+    pendingRef.current = null
+    const task = tailRef.current
+      .then(async () => {
+        const result = unwrapResult(
+          await discardWikiDraft({
+            workspaceSlug,
+            slug: p.slug,
+            expectedDraftRevision: revisionRef.current,
+          }),
+        )
+        revisionRef.current = result.revision
+        serverHasDraftRef.current = false
+        lastPersistedRef.current = null
+        if (pendingRef.current?.title === title && pendingRef.current.content === content) pendingRef.current = null
+      })
+      .catch((error: unknown) => {
+        blockedRef.current = true
+        pendingRef.current = null
+        throw error
+      })
+      .finally(() => {
+        suspendedRef.current = false
+        if (pendingRef.current) drainDrafts()
+      })
+    tailRef.current = task.catch(() => {})
+    return task
+  }
+
+  function publishDraft(snapshot: Snapshot) {
+    suspendedRef.current = true
+    pendingRef.current = null
+    const task = tailRef.current
+      .then(async () => {
+        const result = await saveWikiPageEdit({
+          workspaceSlug,
+          page: snapshot.page,
+          editTitle: snapshot.title,
+          editContent: snapshot.content,
+          baseRevisionId: snapshot.base,
+          expectedDraftRevision: revisionRef.current,
+        })
+        if (result.draftRevision === null) {
+          blockedRef.current = true
+          pendingRef.current = null
+          setWriteWarning(
+            'The page was published, but its saved draft changed. Reopen editing to reconcile it before autosaving.',
+          )
+        } else {
+          revisionRef.current = result.draftRevision
+          serverHasDraftRef.current = false
+          lastPersistedRef.current = null
+        }
+        if (pendingRef.current?.title === snapshot.title && pendingRef.current.content === snapshot.content)
+          pendingRef.current = null
+        return result
+      })
+      .catch((error: unknown) => {
+        blockedRef.current = true
+        pendingRef.current = null
+        throw error
+      })
+      .finally(() => {
+        suspendedRef.current = false
+        if (pendingRef.current) drainDrafts()
+      })
+    tailRef.current = task.catch(() => {})
+    return task
+  }
 
   useEffect(() => {
     if (!editing || !page || draftBanner || saving || draftStatus !== 'ready') return
@@ -2601,7 +2723,16 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     persistDraft(s.page, s.editTitle, s.editContent, s.baseRevisionId)
   }
 
-  return { skipLeaveFlushRef, serverHasDraftRef, flushDraftNow }
+  return {
+    skipLeaveFlushRef,
+    serverHasDraftRef,
+    flushDraftNow,
+    adoptDraftState,
+    discardDraftNow,
+    publishDraft,
+    writeWarning,
+    needsReconciliation: () => blockedRef.current,
+  }
 }
 
 // PROJ-800: closing or reloading the tab mid-edit asks first when there are unsaved
@@ -2645,16 +2776,18 @@ async function saveWikiPageEdit(
     editTitle: string
     editContent: string
     baseRevisionId: string | null | undefined
+    expectedDraftRevision: string | null
   }>,
-): Promise<void> {
-  const { workspaceSlug, page, editTitle, editContent, baseRevisionId } = params
-  unwrapResult(
+) {
+  const { workspaceSlug, page, editTitle, editContent, baseRevisionId, expectedDraftRevision } = params
+  return unwrapResult(
     await saveWikiPage({
       workspaceSlug,
       slug: page.slug,
       title: editTitle,
       content: editContent,
       baseRevisionId,
+      expectedDraftRevision,
     }),
   )
 }
@@ -2693,8 +2826,23 @@ function useWikiEditing(
     validators: { onChange: Schema.toStandardSchemaV1(EditFields) },
   })
   const { title: editTitle, content: editContent, baseRevisionId } = useStore(editForm.store, (state) => state.values)
-  const setEditTitle = (value: string) => editForm.setFieldValue('title', value)
-  const setEditContent = (value: string) => editForm.setFieldValue('content', value)
+  const editVersionRef = useRef(0)
+  const operationRef = useRef(false)
+  const sessionRef = useRef(0)
+  useEffect(
+    () => () => {
+      sessionRef.current += 1
+    },
+    [],
+  )
+  const setEditTitle = (value: string) => {
+    editVersionRef.current += 1
+    editForm.setFieldValue('title', value)
+  }
+  const setEditContent = (value: string) => {
+    editVersionRef.current += 1
+    editForm.setFieldValue('content', value)
+  }
   const setBaseRevisionId = (value: string | null | undefined) => editForm.setFieldValue('baseRevisionId', value)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -2724,7 +2872,16 @@ function useWikiEditing(
 
   const [draftStatus, setDraftStatus] = useState<DraftStatus>(seed.draftStatus)
 
-  const { skipLeaveFlushRef, serverHasDraftRef, flushDraftNow } = useServerDraftAutosave({
+  const {
+    skipLeaveFlushRef,
+    serverHasDraftRef,
+    flushDraftNow,
+    adoptDraftState,
+    discardDraftNow,
+    publishDraft,
+    writeWarning,
+    needsReconciliation,
+  } = useServerDraftAutosave({
     workspaceSlug,
     editing,
     editTitle,
@@ -2744,6 +2901,7 @@ function useWikiEditing(
   // silently applying.
   async function startEdit() {
     if (!page) return
+    const session = ++sessionRef.current
     setSaveError(null)
     setDraftBanner(null)
     setDraftStatus('loading')
@@ -2755,7 +2913,10 @@ function useWikiEditing(
     setEditContent(page.content)
     setEditing(true)
     try {
-      const draft = unwrapResult(await Effect.runPromise(query(getWikiDraft)({ workspaceSlug, slug: page.slug })))
+      const state = unwrapResult(await Effect.runPromise(query(getWikiDraftState)({ workspaceSlug, slug: page.slug })))
+      if (sessionRef.current !== session) return
+      adoptDraftState(state)
+      const draft = state.draft
       // PROJ-797: offer any draft that differs from what's published, regardless
       // of timestamp order — a publish by someone else after the last autosave
       // used to hide the user's draft silently. The banner notes when the page
@@ -2770,6 +2931,7 @@ function useWikiEditing(
       serverHasDraftRef.current = !!draft
       setDraftStatus('ready')
     } catch {
+      if (sessionRef.current !== session) return
       // PROJ-799: we can't tell whether a draft from another device exists, so
       // autosaving now could silently overwrite it. Keep editing, but don't autosave.
       setDraftStatus('failed')
@@ -2786,19 +2948,30 @@ function useWikiEditing(
   }
 
   async function discardDraft() {
-    if (!page) return
-    setEditTitle(page.title)
-    setEditContent(page.content)
-    setDraftBanner(null)
-    serverHasDraftRef.current = false
+    if (!page || operationRef.current) return
+    operationRef.current = true
+    setSaving(true)
+    const version = editVersionRef.current
+    const session = sessionRef.current
     try {
-      unwrapResult(await discardWikiDraft({ workspaceSlug, slug: page.slug }))
-    } catch {
-      // non-fatal
+      await discardDraftNow(page, editTitle, editContent)
+      if (sessionRef.current !== session) return
+      if (editVersionRef.current === version) {
+        setEditTitle(page.title)
+        setEditContent(page.content)
+      }
+      setDraftBanner(null)
+      setDraftStatus('ready')
+    } catch (error) {
+      if (sessionRef.current === session) setSaveError(wikiSaveErrorMessage(error))
+    } finally {
+      operationRef.current = false
+      if (sessionRef.current === session) setSaving(false)
     }
   }
 
   function cancelEdit() {
+    sessionRef.current += 1
     // PROJ-796: while the restore banner is unresolved, the server draft is the
     // user's unsaved work from elsewhere — leaving must not overwrite it with the
     // published text the editor was opened with.
@@ -2815,31 +2988,65 @@ function useWikiEditing(
   }
 
   async function saveWithBase(baseOverride: string | null | undefined) {
-    if (!page) return
-    await editForm.validate('change')
-    if (!editForm.state.isValid) {
-      setSaveError('Use a title between 1 and 300 characters and content at most 500000 characters.')
-      return
+    if (!page || operationRef.current) return
+    operationRef.current = true
+    const version = editVersionRef.current
+    const session = sessionRef.current
+    const snapshot = {
+      page,
+      title: editTitle,
+      content: editContent,
+      base: baseOverride !== undefined ? baseOverride : baseRevisionId,
     }
     setSaving(true)
     setSaveError(null)
     setConflict(false)
     try {
-      await saveWikiPageEdit({
-        workspaceSlug,
-        page,
-        editTitle,
-        editContent,
-        baseRevisionId: baseOverride !== undefined ? baseOverride : baseRevisionId,
-      })
-      serverHasDraftRef.current = false
-      skipLeaveFlushRef.current = true
-      setEditing(false)
+      if (!Schema.is(EditFields)({ title: snapshot.title, content: snapshot.content, baseRevisionId: snapshot.base })) {
+        setSaveError('Use a title between 1 and 300 characters and content at most 500000 characters.')
+        return
+      }
+      if (draftStatus === 'failed' || needsReconciliation()) {
+        const state = unwrapResult(
+          await Effect.runPromise(query(getWikiDraftState)({ workspaceSlug, slug: page.slug })),
+        )
+        if (sessionRef.current !== session) return
+        adoptDraftState(state)
+        setDraftStatus('ready')
+        if (state.draft && differsFromPublished(snapshot, state.draft.title, state.draft.content)) {
+          setDraftBanner({ ...state.draft, pageChangedSince: state.draft.baseRevisionId !== snapshot.base })
+          setSaveError('Review the saved draft before publishing. Your current text has been kept.')
+          return
+        }
+      }
+      const published = await publishDraft(snapshot)
+      if (sessionRef.current !== session) return
+      if (editVersionRef.current === version) {
+        skipLeaveFlushRef.current = true
+        setEditing(false)
+      } else {
+        if (published.draftRevision === null) setDraftStatus('failed')
+        try {
+          const current = unwrapResult(await Effect.runPromise(query(getWikiPage)({ workspaceSlug, slug: page.slug })))
+          if (
+            sessionRef.current === session &&
+            current.title === snapshot.title &&
+            current.content === snapshot.content
+          ) {
+            setBaseRevisionId(current.revisionId)
+          }
+        } catch {
+          // Keep the prior publication precondition if the refreshed page cannot be read.
+        }
+      }
     } catch (e) {
+      if (sessionRef.current !== session) return
       setSaveError(wikiSaveErrorMessage(e))
       setConflict(isWikiSaveConflict(e))
+      setDraftStatus('failed')
     } finally {
-      setSaving(false)
+      operationRef.current = false
+      if (sessionRef.current === session) setSaving(false)
     }
   }
 
@@ -2849,6 +3056,9 @@ function useWikiEditing(
   async function overwriteWithMine() {
     if (!page) return
     try {
+      const state = unwrapResult(await Effect.runPromise(query(getWikiDraftState)({ workspaceSlug, slug: page.slug })))
+      adoptDraftState(state)
+      setDraftStatus('ready')
       const current = unwrapResult(await Effect.runPromise(query(getWikiPage)({ workspaceSlug, slug: page.slug })))
       const base = current.revisionId !== undefined ? current.revisionId : undefined
       setBaseRevisionId(base)
@@ -2874,7 +3084,7 @@ function useWikiEditing(
     draftWarning:
       editing && draftStatus === 'failed'
         ? "Couldn't check for an unsaved draft from another device, so autosave is off for this edit. Save when you're done."
-        : null,
+        : writeWarning,
     flushDraftNow,
     startEdit,
     restoreDraft,

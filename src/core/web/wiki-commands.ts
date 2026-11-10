@@ -6,7 +6,19 @@ import * as drafts from '#commands/wiki-drafts'
 import * as data from '#services/wiki'
 
 import { ApiError } from '../../contracts/errors'
-import { Created, Deleted, Draft, Ok, Page, Restored, SavedDraft, Verified } from '../../contracts/web-schemas/wiki'
+import { VersionedWikiDraftInputSchema, WikiDraftRevisionInputSchema } from '../../contracts/inputs/wiki'
+import {
+  Created,
+  Deleted,
+  DraftState,
+  DraftRevision,
+  Ok,
+  Page,
+  Published,
+  Restored,
+  SavedDraft,
+  Verified,
+} from '../../contracts/web-schemas/wiki'
 import { coreFailure, coreReply } from '../contract'
 import type { CoreEnvironment } from '../environment'
 import { browserCommand } from './command'
@@ -63,10 +75,13 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         }),
       ),
     webWikiDraft: (proof: BrowserCommand, slug: string) =>
-      read('webWikiDraft', Draft, proof, (env, scope) =>
+      read('webWikiDraft', DraftState, proof, (env, scope) =>
         Effect.gen(function* () {
           const { workspace, page } = yield* readAuthorizedWikiPage(env.DB, scope, slug)
-          return yield* data.getWikiDraft(env.DB, workspace.id, page.id, scope.user.id)
+          return yield* Effect.tryPromise({
+            try: () => drafts.readWikiDraftState(env.DB, workspace.id, page.id, scope.user.id),
+            catch: (cause) => new ApiError('network', 500, 'Could not read the saved draft.', cause),
+          })
         }),
       ),
     webCreateWikiPage: (proof: BrowserCommand, input: unknown) =>
@@ -74,17 +89,26 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
     webUpdateWikiPage: (proof: BrowserCommand, slug: string, input: unknown) =>
       mutation('webUpdateWikiPage', Ok, proof, (ctx) => wiki.updateWikiPage(ctx, slug, input)),
     webPublishWikiPage: (proof: BrowserCommand, slug: string, input: unknown) =>
-      mutation('webPublishWikiPage', Ok, proof, async (ctx) => {
-        const result = await wiki.updateWikiPage(ctx, slug, input)
-        await drafts.discardWikiDraft(ctx, slug).catch(() => {
-          console.error('[core] wiki draft cleanup failed after publication')
+      mutation('webPublishWikiPage', Published, proof, async (ctx) => {
+        const reserved = await drafts.beginWikiDraftPublish(ctx, slug, input)
+        await wiki.updateWikiPage(ctx, slug, reserved.input)
+        return drafts.finishWikiDraftPublish(ctx, reserved.pageId, reserved.revision).catch((cause: unknown) => {
+          console.error('[core] wiki draft cleanup failed after publication', cause)
+          return { ok: true as const, draftRevision: null }
         })
-        return result
       }),
     webSaveWikiDraft: (proof: BrowserCommand, slug: string, input: unknown) =>
-      mutation('webSaveWikiDraft', SavedDraft, proof, (ctx) => drafts.saveWikiDraft(ctx, slug, input)),
-    webDiscardWikiDraft: (proof: BrowserCommand, slug: string) =>
-      mutation('webDiscardWikiDraft', Ok, proof, (ctx) => drafts.discardWikiDraft(ctx, slug)),
+      mutation('webSaveWikiDraft', SavedDraft, proof, (ctx) => {
+        const parsed = VersionedWikiDraftInputSchema.safeParse(input)
+        if (!parsed.success) throw coreFailure(400, 'A draft revision precondition is required.')
+        return drafts.saveWikiDraft(ctx, slug, parsed.data)
+      }),
+    webDiscardWikiDraft: (proof: BrowserCommand, slug: string, input: unknown) =>
+      mutation('webDiscardWikiDraft', DraftRevision, proof, (ctx) => {
+        const parsed = WikiDraftRevisionInputSchema.safeParse(input)
+        if (!parsed.success) throw coreFailure(400, 'A draft revision precondition is required.')
+        return drafts.discardWikiDraft(ctx, slug, parsed.data)
+      }),
     webVerifyWikiPage: (proof: BrowserCommand, slug: string) =>
       mutation('webVerifyWikiPage', Verified, proof, (ctx) => wiki.verifyWikiPage(ctx, slug)),
     webDeleteWikiPage: (proof: BrowserCommand, slug: string, input: unknown) =>

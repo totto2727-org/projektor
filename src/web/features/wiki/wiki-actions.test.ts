@@ -12,6 +12,7 @@ import {
   discardWikiDraft,
   duplicateWikiPage,
   getWikiDraft,
+  getWikiDraftState,
   getWikiPage,
   getWikiRevisionDiff,
   moveWikiPage,
@@ -133,6 +134,46 @@ async function fixture(
   return { run, invalidate, sqlite: database.sqlite, resources }
 }
 describe('Wiki semantic ServerFn contracts', () => {
+  it('requires browser draft preconditions and returns conflicts without altering a newer draft', async () => {
+    const test = await fixture()
+    await expect(
+      test.run(saveWikiDraft, { workspaceSlug: 'team', slug: 'guide', title: 'Missing token', content: 'No write' }),
+    ).rejects.toThrow()
+    expect(test.sqlite.prepare('SELECT count(*) AS count FROM wiki_drafts').get()).toEqual({ count: 0 })
+    expect(await test.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).toEqual({
+      ok: true,
+      value: { draft: null, revision: null },
+    })
+    await test.run(saveWikiDraft, {
+      workspaceSlug: 'team',
+      slug: 'guide',
+      title: 'Newer',
+      content: 'Keep B',
+      expectedDraftRevision: null,
+    })
+    const head = test.sqlite.prepare('SELECT revision FROM wiki_draft_heads').get()?.revision
+    for (const operation of [saveWikiDraft, discardWikiDraft, saveWikiPage]) {
+      expect(
+        await test.run(operation, {
+          workspaceSlug: 'team',
+          slug: 'guide',
+          title: 'Stale',
+          content: 'Late A',
+          baseRevisionId: 'revision',
+          expectedDraftRevision: null,
+        }),
+      ).toMatchObject({ ok: false, status: 409 })
+    }
+    expect(await test.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
+      ok: true,
+      value: { revision: head, draft: { content: 'Keep B' } },
+    })
+    expect(
+      test.sqlite
+        .prepare('SELECT content FROM wiki_pages WHERE slug = ? AND workspace_id = ?')
+        .get('guide', 'workspace'),
+    ).toEqual({ content: 'Body' })
+  })
   it.each(['owner', 'admin', 'member'] as const)(
     'reads archived project pages, revisions and personal drafts from a workspace-only selector for %s',
     async (role) => {
@@ -173,6 +214,7 @@ describe('Wiki semantic ServerFn contracts', () => {
     const test = await fixture({ origin: 'https://attacker.test' })
     expect(
       await test.run(saveWikiPage, {
+        expectedDraftRevision: null,
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'Draft',
@@ -194,6 +236,7 @@ describe('Wiki semantic ServerFn contracts', () => {
     const test = await fixture()
     expect(
       await test.run(saveWikiPage, {
+        expectedDraftRevision: null,
         workspaceSlug: 'other',
         slug: 'guide',
         title: 'Draft',
@@ -218,6 +261,7 @@ describe('Wiki semantic ServerFn contracts', () => {
     `)
     expect(
       await test.run(saveWikiPage, {
+        expectedDraftRevision: null,
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'My title',
@@ -346,9 +390,12 @@ describe('Wiki semantic ServerFn contracts', () => {
   it.each([
     [createWikiPage, { title: 'New', slug: 'new-page' }],
     [duplicateWikiPage, { slug: 'guide' }],
-    [saveWikiPage, { slug: 'guide', title: 'New', content: 'New', baseRevisionId: 'revision' }],
-    [saveWikiDraft, { slug: 'guide', title: 'Draft', content: 'Draft' }],
-    [discardWikiDraft, { slug: 'guide' }],
+    [
+      saveWikiPage,
+      { expectedDraftRevision: null, slug: 'guide', title: 'New', content: 'New', baseRevisionId: 'revision' },
+    ],
+    [saveWikiDraft, { expectedDraftRevision: null, slug: 'guide', title: 'Draft', content: 'Draft' }],
+    [discardWikiDraft, { expectedDraftRevision: null, slug: 'guide' }],
     [moveWikiPage, { slug: 'guide', parentId: null }],
     [verifyWikiPage, { slug: 'guide' }],
     [trashWikiPage, { slug: 'guide' }],
@@ -370,7 +417,13 @@ describe('Wiki semantic ServerFn contracts', () => {
   it.each(['public', 'pk'] as const)('does not grant browser mutation capabilities to %s principals', async (auth) => {
     const test = await fixture({ auth })
     expect(
-      await test.run(saveWikiPage, { workspaceSlug: 'team', slug: 'guide', title: 'New', content: 'New' }),
+      await test.run(saveWikiPage, {
+        expectedDraftRevision: null,
+        workspaceSlug: 'team',
+        slug: 'guide',
+        title: 'New',
+        content: 'New',
+      }),
     ).toMatchObject({ ok: false, status: 403 })
     expect(
       test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
@@ -381,6 +434,7 @@ describe('Wiki semantic ServerFn contracts', () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Wiki must not use HTTP'))
     expect(
       await test.run(saveWikiDraft, {
+        expectedDraftRevision: null,
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'Draft',
@@ -396,13 +450,14 @@ describe('Wiki semantic ServerFn contracts', () => {
     )
     expect(
       await test.run(saveWikiPage, {
+        expectedDraftRevision: test.sqlite.prepare('SELECT revision FROM wiki_draft_heads').get()?.revision,
         workspaceSlug: 'team',
         slug: 'guide',
         title: 'Published',
         content: '## Canonical\n\n**Body**',
         baseRevisionId: 'revision',
       }),
-    ).toEqual({ ok: true, value: { ok: true } })
+    ).toEqual({ ok: true, value: { ok: true, draftRevision: expect.any(String) } })
     expect(await test.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
       ok: true,
       value: { title: 'Published', content: '## Canonical\n\n**Body**', revisionId: expect.any(String) },
@@ -468,7 +523,13 @@ describe('Wiki semantic ServerFn contracts', () => {
   it('enforces actual mutation project permissions and workspace selectors', async () => {
     const hidden = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', inaccessible: true })
     expect(
-      await hidden.run(saveWikiPage, { workspaceSlug: 'team', slug: 'guide', title: 'Hidden', content: 'Hidden' }),
+      await hidden.run(saveWikiPage, {
+        expectedDraftRevision: null,
+        workspaceSlug: 'team',
+        slug: 'guide',
+        title: 'Hidden',
+        content: 'Hidden',
+      }),
     ).toMatchObject({ ok: false, status: 404 })
     expect(
       await hidden.run(createWikiPage, {
@@ -480,7 +541,13 @@ describe('Wiki semantic ServerFn contracts', () => {
     ).toMatchObject({ ok: false, status: 404 })
     const viewer = await fixture({ role: 'viewer' })
     expect(
-      await viewer.run(saveWikiPage, { workspaceSlug: 'team', slug: 'guide', title: 'New', content: 'New' }),
+      await viewer.run(saveWikiPage, {
+        expectedDraftRevision: null,
+        workspaceSlug: 'team',
+        slug: 'guide',
+        title: 'New',
+        content: 'New',
+      }),
     ).toMatchObject({ ok: false, status: 403 })
   })
   it('deletes visible attachment metadata and native R2 objects while hiding foreign and ungranted owners', async () => {

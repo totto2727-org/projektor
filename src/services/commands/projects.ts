@@ -253,6 +253,7 @@ const PROJECT_CLEANUP_SQL: readonly string[] = [
   // Wiki page dependents.
   `DELETE FROM wiki_fts WHERE rowid IN (SELECT search_rowid FROM wiki_pages WHERE project_id = ?1 AND workspace_id = ?2)`,
   `DELETE FROM wiki_revisions WHERE page_id IN (${PAGES_OF_PROJECT})`,
+  `DELETE FROM wiki_draft_heads WHERE page_id IN (${PAGES_OF_PROJECT})`,
   `DELETE FROM wiki_drafts WHERE page_id IN (${PAGES_OF_PROJECT})`,
   `DELETE FROM wiki_watchers WHERE page_id IN (${PAGES_OF_PROJECT})`,
   `DELETE FROM wiki_notifications WHERE page_id IN (${PAGES_OF_PROJECT})`,

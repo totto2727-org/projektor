@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 import { users, workspaces } from './core'
 import { projects } from './issues'
@@ -215,6 +215,24 @@ export const wikiNotifications = sqliteTable(
   (t) => ({
     userIdx: index('wiki_notifications_user_idx').on(t.workspaceId, t.userId, t.createdAt),
   }),
+)
+
+// Heads outlive scratch rows so CAS remains meaningful after discard/publication.
+export const wikiDraftHeads = sqliteTable(
+  'wiki_draft_heads',
+  {
+    workspaceId: text('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    pageId: text('page_id')
+      .notNull()
+      .references(() => wikiPages.id, { onDelete: 'cascade' }),
+    revision: text('revision').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.userId, t.pageId] })],
 )
 
 // PROJ-495 (R13): per-user scratch draft, one row per (page, user) — saveWikiDraft

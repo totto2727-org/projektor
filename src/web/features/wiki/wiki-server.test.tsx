@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning'
+import type { ServiceCtx } from '#commands/types'
+import { discardWikiDraft, saveWikiDraft } from '#commands/wiki-drafts'
 import { resetAuthCachesForTests } from '#services/authentication'
 
 import { makeRequestServices, RequestServices } from '../../request'
@@ -98,6 +100,34 @@ async function fixture(currentScope: RequestScope = scope) {
 }
 
 describe('Wiki direct request-owned queries', () => {
+  it('reopens editing with the current personal draft head, including after legacy scratch and discard', async () => {
+    const test = await fixture()
+    const reopen = async () => initialData(await Effect.runPromise(test.effect('https://app.test/wiki/guide/edit')))
+    const initial = await reopen()
+    expect(initial.draftRevision).toBeNull()
+    expect(initial.draft).toMatchObject({ content: 'Personal body' })
+    const ctx = { db: test.db, workspaceId: 'workspace', userId: 'user', role: 'member' } as ServiceCtx
+    const first = await saveWikiDraft(ctx, 'guide', {
+      title: 'Draft A',
+      content: 'A',
+      expectedDraftRevision: initial.draftRevision,
+    })
+    const next = await reopen()
+    expect(next.draftRevision).toBe(first.revision)
+    expect(next.draft).toMatchObject({ content: 'A' })
+    const discarded = await discardWikiDraft(ctx, 'guide', { expectedDraftRevision: next.draftRevision })
+    const empty = await reopen()
+    expect(empty.draft).toBeNull()
+    expect(empty.draftRevision).toBe(discarded.revision)
+    const saved = await saveWikiDraft(ctx, 'guide', {
+      title: 'Fresh edit',
+      content: 'B',
+      expectedDraftRevision: empty.draftRevision,
+    })
+    const fresh = await reopen()
+    expect(fresh.draftRevision).toBe(saved.revision)
+    expect(fresh.draft).toMatchObject({ title: 'Fresh edit', content: 'B' })
+  })
   it('is lazy, preserves real SSR HTML and ToC, tree shaping, revision pointer and user-only draft without wiki HTTP', async () => {
     const test = await fixture()
     const effect = test.effect('https://app.test/wiki/guide?workspace=team&slug=untrusted-hint')

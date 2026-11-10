@@ -310,7 +310,11 @@ export const SaveWikiDraftInputSchema = z.object({
   title: z.string().min(1).max(300),
   content: z.string().max(500000),
   baseRevisionId: z.string().nullable().optional(),
+  expectedDraftRevision: z.string().uuid().nullable().optional(),
 })
+
+export const WikiDraftRevisionInputSchema = z.object({ expectedDraftRevision: z.string().uuid().nullable() })
+export const VersionedWikiDraftInputSchema = SaveWikiDraftInputSchema.required({ expectedDraftRevision: true })
 
 // PROJ-496 (R14): trash listing (services/wiki.ts#listWikiTrash) — same shape/limits as
 // ListStaleWikiPagesInputSchema.

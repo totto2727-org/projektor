@@ -232,6 +232,7 @@ const WORKSPACE_CLEANUP_SQL: readonly string[] = [
   'DELETE FROM issues_fts WHERE workspace_id = ?1',
   'DELETE FROM share_tokens WHERE workspace_id = ?1',
   `DELETE FROM wiki_revisions WHERE page_id IN (${WS_PAGES})`,
+  'DELETE FROM wiki_draft_heads WHERE workspace_id = ?1',
   'DELETE FROM wiki_drafts WHERE workspace_id = ?1',
   'DELETE FROM wiki_watchers WHERE workspace_id = ?1',
   'DELETE FROM wiki_notifications WHERE workspace_id = ?1',

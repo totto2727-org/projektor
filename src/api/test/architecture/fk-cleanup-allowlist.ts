@@ -200,6 +200,19 @@ export const FK_CLEANUP_ALLOWLIST: Record<string, FkCleanupEntry> = {
   'user_groups -> workspaces (CASCADE)': {
     cleanedBy: ['../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
   },
+  'wiki_draft_heads -> users (CASCADE)': {
+    guarded: 'users are never deleted: removeMember only removes the workspace membership row',
+  },
+  'wiki_draft_heads -> wiki_pages (CASCADE)': {
+    cleanedBy: [
+      '../services/commands/wiki-drafts.ts#deleteWikiDraftsForPages',
+      '../services/commands/projects.ts#PROJECT_CLEANUP_SQL',
+      '../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL',
+    ],
+  },
+  'wiki_draft_heads -> workspaces (CASCADE)': {
+    cleanedBy: ['../services/commands/workspaces.ts#WORKSPACE_CLEANUP_SQL'],
+  },
   'wiki_drafts -> users (CASCADE)': {
     guarded: 'users are never deleted: removeMember only removes the workspace membership row',
   },

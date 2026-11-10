@@ -2,6 +2,7 @@ import { isNull, or, sql, type SQL } from 'drizzle-orm'
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
 import { Effect, Schema } from 'effect'
 
+import { readWikiDraftState } from '#commands/wiki-drafts'
 import { schema } from '#db'
 import { listAttachments } from '#services/files'
 import * as wikiData from '#services/wiki'
@@ -9,7 +10,7 @@ import * as wikiData from '#services/wiki'
 import { ApiError, ScopeError } from '../../contracts/errors'
 import {
   Attachment,
-  Draft,
+  DraftState,
   ListItem,
   Page,
   Revision,
@@ -200,13 +201,16 @@ export function loadWikiData(
           : Effect.succeed([]),
         draftResult:
           page && scope.user.email !== 'public-viewer@projektor.local'
-            ? wikiData.getWikiDraft(db, workspace.id, page.id, scope.user.id).pipe(
-                Effect.flatMap(Schema.decodeUnknownEffect(Draft)),
+            ? Effect.tryPromise({
+                try: () => readWikiDraftState(db, workspace.id, page.id, scope.user.id),
+                catch: dataError,
+              }).pipe(
+                Effect.flatMap(Schema.decodeUnknownEffect(DraftState)),
                 Effect.mapError(dataError),
-                Effect.map((draft) => ({ draft, status: 'ready' as const })),
-                Effect.catch(() => Effect.succeed({ draft: null, status: 'failed' as const })),
+                Effect.map((state) => ({ ...state, status: 'ready' as const })),
+                Effect.catch(() => Effect.succeed({ draft: null, revision: null, status: 'failed' as const })),
               )
-            : Effect.succeed({ draft: null, status: 'ready' as const }),
+            : Effect.succeed({ draft: null, revision: null, status: 'ready' as const }),
       },
       { concurrency: 4 },
     )
@@ -220,6 +224,7 @@ export function loadWikiData(
       revisions: data.revisions,
       attachments: data.attachments,
       draft: data.draftResult.draft,
+      draftRevision: data.draftResult.revision,
       draftStatus: data.draftResult.status,
       projects: scope.projects
         .filter((project) => project.workspace_slug === workspaceSlug)

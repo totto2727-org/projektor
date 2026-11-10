@@ -4,7 +4,7 @@ import { Effect } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { uploadInlineImage } from '../../attachment-actions'
-import { getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions'
+import { discardWikiDraft, getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions'
 import { navigateFeature } from './navigation'
 import { WikiPageClient, type WikiSeed } from './WikiPageClient'
 
@@ -18,16 +18,19 @@ vi.mock('./navigation', () => ({ navigateFeature: vi.fn() }))
 vi.mock('./actions', () => ({
   createWikiPage: vi.fn(),
   deleteWikiAttachment: vi.fn(),
-  discardWikiDraft: vi.fn().mockResolvedValue({ ok: true, value: { ok: true } }),
+  discardWikiDraft: vi.fn().mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } }),
   duplicateWikiPage: vi.fn(),
+  getWikiDraftState: vi.fn().mockResolvedValue({ ok: true, value: { draft: null, revision: null } }),
   getWikiDraft: vi.fn().mockResolvedValue({ ok: true, value: null }),
   getWikiPage: vi.fn(),
   getWikiRevisionDiff: vi.fn(),
   moveWikiPage: vi.fn(),
   restoreTrashedWikiPage: vi.fn(),
   restoreWikiRevision: vi.fn(),
-  saveWikiDraft: vi.fn().mockResolvedValue({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1 } }),
-  saveWikiPage: vi.fn().mockResolvedValue({ ok: true, value: { ok: true } }),
+  saveWikiDraft: vi
+    .fn()
+    .mockResolvedValue({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'saved' } }),
+  saveWikiPage: vi.fn().mockResolvedValue({ ok: true, value: { ok: true, draftRevision: 'published' } }),
   trashWikiPage: vi.fn(),
   verifyWikiPage: vi.fn(),
 }))
@@ -107,7 +110,198 @@ afterEach(() => {
   vi.useRealTimers()
   vi.clearAllMocks()
   vi.unstubAllGlobals()
-  vi.mocked(saveWikiPage).mockResolvedValue({ ok: true, value: { ok: true } })
+  vi.mocked(saveWikiPage).mockResolvedValue({ ok: true, value: { ok: true, draftRevision: 'published' } })
+  vi.mocked(saveWikiDraft).mockResolvedValue({
+    ok: true,
+    value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'saved' },
+  })
+  vi.mocked(discardWikiDraft).mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } })
+})
+describe('Wiki delayed draft lifecycle', () => {
+  async function debounce() {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1100)
+    })
+  }
+  function timers() {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
+  }
+  it('does not resurrect submitted A when unmounted during publication without newer typing', async () => {
+    const publication = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiPage>>>()
+    vi.mocked(saveWikiPage).mockReturnValueOnce(publication.promise)
+    const view = render(<WikiPageClient initial={seed()} />)
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Submitted A' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    })
+    view.unmount()
+    await act(async () => {
+      publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
+    })
+    expect(saveWikiDraft).not.toHaveBeenCalled()
+  })
+  it('does not resurrect the discarded snapshot when unmounted during deletion', async () => {
+    const deletion = Promise.withResolvers<Awaited<ReturnType<typeof discardWikiDraft>>>()
+    vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
+    const view = render(
+      <WikiPageClient
+        initial={{ ...seed(), draft: { title: 'Saved', content: 'Recover me', baseRevisionId: 'rev', updatedAt: 2 } }}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Discarded A' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+    })
+    view.unmount()
+    await act(async () => {
+      deletion.resolve({ ok: true, value: { ok: true, revision: 'discard-head' } })
+    })
+    expect(saveWikiDraft).not.toHaveBeenCalled()
+  })
+  it('serializes autosaves and coalesces B/C behind delayed A using acknowledged revisions', async () => {
+    timers()
+    const pending = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiDraft>>>()
+    vi.mocked(saveWikiDraft).mockReturnValueOnce(pending.promise)
+    render(<WikiPageClient initial={seed()} />)
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'A' } })
+    await debounce()
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'B' } })
+    await debounce()
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'C' } })
+    await debounce()
+    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      pending.resolve({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'A-revision' } })
+    })
+    expect(saveWikiDraft).toHaveBeenCalledTimes(2)
+    expect(saveWikiDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({ content: 'C', expectedDraftRevision: 'A-revision' }),
+    )
+  })
+  it('keeps failed autosaves unacknowledged without blindly retrying on leave', async () => {
+    timers()
+    vi.mocked(saveWikiDraft).mockResolvedValueOnce({ ok: false, status: 503, message: 'Unavailable' })
+    const view = render(<WikiPageClient initial={seed()} />)
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Keep A' } })
+    await debounce()
+    expect(screen.getByText(/Autosave did not complete/)).toBeTruthy()
+    await act(async () => {
+      view.unmount()
+    })
+    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({ content: 'Keep A', expectedDraftRevision: null }),
+    )
+  })
+  it('waits for autosave before publication and keeps newer typing after delayed publication', async () => {
+    timers()
+    const draft = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiDraft>>>()
+    const publication = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiPage>>>()
+    vi.mocked(saveWikiDraft).mockReturnValueOnce(draft.promise)
+    vi.mocked(saveWikiPage).mockReturnValueOnce(publication.promise)
+    const initial = seed()
+    vi.mocked(getWikiPage).mockResolvedValue({
+      ok: true,
+      value: {
+        ...initial.page,
+        project_id: initial.page.project_id ?? null,
+        content: 'A',
+        revisionId: 'published-page',
+      },
+    })
+    render(<WikiPageClient initial={initial} />)
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'A' } })
+    await debounce()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    })
+    expect(saveWikiPage).not.toHaveBeenCalled()
+    await act(async () => {
+      draft.resolve({ ok: true, value: { ok: true, pageId: 'page', updatedAt: 1, revision: 'A-head' } })
+    })
+    expect(saveWikiPage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: 'A', expectedDraftRevision: 'A-head' }),
+    )
+    expect(saveWikiPage).toHaveBeenCalledTimes(1)
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Newer B' } })
+    await act(async () => {
+      publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
+    })
+    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Newer B')
+    await debounce()
+    expect(saveWikiDraft).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        content: 'Newer B',
+        expectedDraftRevision: 'published-head',
+        baseRevisionId: 'published-page',
+      }),
+    )
+  })
+  it('flushes newer typing on unmount after pending publication without resurrecting the submitted snapshot', async () => {
+    const publication = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiPage>>>()
+    vi.mocked(saveWikiPage).mockReturnValueOnce(publication.promise)
+    const view = render(<WikiPageClient initial={seed()} />)
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Submitted A' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    })
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Leaving B' } })
+    view.unmount()
+    expect(saveWikiDraft).not.toHaveBeenCalled()
+    await act(async () => {
+      publication.resolve({ ok: true, value: { ok: true, draftRevision: 'published-head' } })
+    })
+    expect(saveWikiDraft).toHaveBeenCalledTimes(1)
+    expect(saveWikiDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ content: 'Leaving B', expectedDraftRevision: 'published-head' }),
+    )
+  })
+  it('keeps text and the restore choice when a delayed discard fails', async () => {
+    const deletion = Promise.withResolvers<Awaited<ReturnType<typeof discardWikiDraft>>>()
+    vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
+    const initial = seed()
+    render(
+      <WikiPageClient
+        initial={{ ...initial, draft: { title: 'Saved', content: 'Recover me', baseRevisionId: 'rev', updatedAt: 2 } }}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Local A' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+    })
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Local B' } })
+    await act(async () => {
+      deletion.resolve({ ok: false, status: 503, message: 'Unavailable' })
+    })
+    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Local B')
+    expect(screen.getByRole('button', { name: 'Restore' })).toBeTruthy()
+    expect(screen.getByText(/Save failed/)).toBeTruthy()
+  })
+  it('preserves newer local typing when discard succeeds, then autosaves it under the new head', async () => {
+    timers()
+    const deletion = Promise.withResolvers<Awaited<ReturnType<typeof discardWikiDraft>>>()
+    vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
+    render(
+      <WikiPageClient
+        initial={{ ...seed(), draft: { title: 'Saved', content: 'Recover me', baseRevisionId: 'rev', updatedAt: 2 } }}
+      />,
+    )
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+    })
+    expect(screen.getByRole('button', { name: 'Discard' }).hasAttribute('disabled')).toBe(true)
+    fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Newer B' } })
+    await act(async () => {
+      deletion.resolve({ ok: true, value: { ok: true, revision: 'discard-head' } })
+    })
+    expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Newer B')
+    expect(screen.queryByRole('button', { name: 'Restore' })).toBeNull()
+    await debounce()
+    expect(saveWikiDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ content: 'Newer B', expectedDraftRevision: 'discard-head' }),
+    )
+  })
 })
 describe('Wiki server prop adoption', () => {
   it('keeps the mobile page-tree backdrop aligned below the header and below the drawer', () => {
@@ -349,6 +543,7 @@ describe('Wiki server prop adoption', () => {
       title: 'Guide',
       content: 'Unsaved body',
       baseRevisionId: 'rev',
+      expectedDraftRevision: null,
     })
     view.rerender(<WikiPageClient initial={{ ...initial, page: { ...initial.page } }} />)
     await act(async () => {
