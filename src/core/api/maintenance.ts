@@ -2,11 +2,11 @@ import type { ServiceCtx } from '#commands/types'
 import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki'
 
 import type { CoreEnvironment } from '../environment'
+import { purgeOAuthPage } from './oauth-purge'
 
 const FTS_DEDUPE_ONCE_KV_KEY = 'maint:fts-dedupe-0065'
 const RETENTION_CHUNK_SIZE = 500
 const RETENTION_MAX_CHUNKS_PER_CATEGORY = 20
-const OAUTH_PURGE_BATCH_SIZE = 200
 const WIKI_TRASH_PURGE_CURSOR_KV_KEY = 'cron:wiki-trash-purge:cursor'
 const WIKI_TRASH_SUBREQUEST_BUDGET = 100
 const WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE = 45
@@ -114,10 +114,12 @@ export async function purgeExpiredOAuthData(env: CoreEnvironment): Promise<void>
         fetch: () => new Response('Not found', { status: 404 }),
       }),
     )
-    // One bounded call only. Repeating it would relist the same live grants.
-    const result = await oauthProvider.purgeExpiredData(env, { batchSize: OAUTH_PURGE_BATCH_SIZE })
+    const result = await purgeOAuthPage(env, oauthProvider)
     console.log('scheduled OAuth purge complete', {
       done: result.done,
+      phase: result.phase,
+      nextPhase: result.nextPhase,
+      kvCalls: result.kvCalls,
       grantsPurged: result.grantsPurged,
       tokensPurged: result.tokensPurged,
     })
