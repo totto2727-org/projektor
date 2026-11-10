@@ -21,8 +21,12 @@ function fixture(contentType = 'image/png', filename = 'diagram.png') {
     .run(filename, contentType)
   const bytes = new Uint8Array([0, 255, 7, 128])
   const consume = vi.fn(async () => bytes.buffer)
-  const get = vi.fn(async (): Promise<{ arrayBuffer: typeof consume } | null> => ({ arrayBuffer: consume }))
-  const r2 = { get } as unknown as R2Bucket
+  const get = vi.fn(async (): Promise<{ body: ReadableStream<Uint8Array>; arrayBuffer: typeof consume } | null> => ({
+    body: new Response(bytes).body!,
+    arrayBuffer: consume,
+  }))
+  const head = vi.fn(async () => ({ size: bytes.length }))
+  const r2 = { get, head } as unknown as R2Bucket
   const transport = vi.fn<typeof fetch>(async () => {
     throw new Error('Direct downloads must not use API HTTP.')
   })
@@ -49,10 +53,10 @@ function fixture(contentType = 'image/png', filename = 'diagram.png') {
       }).pipe(Effect.provide(FetchHttpClient.layer), Effect.provideService(FetchHttpClient.Fetch, transport)),
     )
   }
-  return { ...database, get, consume, bytes, transport, execute, env }
+  return { ...database, get, head, consume, bytes, transport, execute, env }
 }
 
-describe('direct authenticated Web file delivery', () => {
+describe('native Core authenticated Web file delivery', () => {
   it('delivers exact archived-owner bytes with protected browser headers and no API HTTP', async () => {
     const f = fixture()
     const response = await f.execute()
@@ -63,7 +67,7 @@ describe('direct authenticated Web file delivery', () => {
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
     expect(response.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'")
-    expect(f.consume).toHaveBeenCalledOnce()
+    expect(f.consume).not.toHaveBeenCalled()
     expect(f.transport).not.toHaveBeenCalled()
   })
   it('forces SVG download and sanitizes dangerous filename characters', async () => {
@@ -72,13 +76,15 @@ describe('direct authenticated Web file delivery', () => {
     expect(response.headers.get('content-type')).toBe('application/octet-stream')
     expect(response.headers.get('content-disposition')).toBe('attachment; filename="bad____.svg"')
   })
-  it('returns HEAD headers without response bytes after closing the R2 handle', async () => {
+  it('returns HEAD headers through R2 metadata without opening the R2 body', async () => {
     const f = fixture()
     const response = await f.execute(undefined, 'HEAD')
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('')
     expect(response.headers.get('content-type')).toBe('image/png')
-    expect(f.consume).toHaveBeenCalledOnce()
+    expect(f.consume).not.toHaveBeenCalled()
+    expect(f.get).not.toHaveBeenCalled()
+    expect(f.head).toHaveBeenCalledOnce()
   })
   it('preserves hintless file links for a verified single-workspace member', async () => {
     const f = fixture()

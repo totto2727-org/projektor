@@ -3,13 +3,10 @@ import { Request as WorkerRequest } from 'alchemy/Cloudflare/Workers'
 import { Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 
-import { getSharedLogo } from '#commands/share'
-import { getWorkspaceLogoObject } from '#commands/workspaces'
-
+import { transferCoreBinary } from './core-binary'
 import type application from './entry.effront'
 import { downloadFile } from './file-download'
 import { RequestServices, RequestServicesLive } from './request'
-import { runCommand, commandError } from './server/command-context'
 import { ScopeError } from './server/errors'
 import { sessionNavigation } from './session-navigation'
 
@@ -25,23 +22,25 @@ function logoResponse(request: Request) {
       try: () => decodeURIComponent(value),
       catch: () => new ScopeError(400, 'Invalid logo address.'),
     })
-    const object = publicLogo
-      ? yield* Effect.tryPromise({
-          try: () => getSharedLogo(services.db, services.env.R2, selector),
-          catch: commandError,
-        })
+    const path = publicLogo
+      ? `/share-logo/${encodeURIComponent(selector)}`
       : yield* services
           .scope({ workspaceHint: selector, projectHint: '', requireWorkspace: true })
-          .pipe(Effect.flatMap((scope) => runCommand({ scope, workspaceSlug: selector }, getWorkspaceLogoObject)))
-    if (!object) return yield* new ScopeError(404, 'No logo set')
+          .pipe(
+            Effect.flatMap((scope) =>
+              scope.selection.kind === 'workspace' || scope.selection.kind === 'project'
+                ? Effect.succeed(`/workspace-logo?workspaceId=${encodeURIComponent(scope.selection.workspace.id)}`)
+                : Effect.fail(new ScopeError(403, 'Selected workspace is not accessible.')),
+            ),
+          )
+    const object = yield* transferCoreBinary(path, { method: request.method })
     const headers = {
-      'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
+      'content-type': object.headers.get('content-type') ?? 'application/octet-stream',
       'cache-control': 'private, no-store',
       'x-content-type-options': 'nosniff',
     }
     if (request.method === 'HEAD') return HttpServerResponse.empty({ headers })
-    const body = yield* Effect.tryPromise({ try: () => object.arrayBuffer(), catch: commandError })
-    return HttpServerResponse.uint8Array(new Uint8Array(body), { headers })
+    return HttpServerResponse.fromWeb(new Response(object.body, { headers }))
   })
 }
 

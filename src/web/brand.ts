@@ -1,20 +1,15 @@
 import { Effect, Schema } from 'effect'
 import type { CSSProperties } from 'react'
 
-import { getWorkspaceBrandForShare } from '#commands/workspaces'
-
+import { WorkspaceBrand } from '../contracts/web-brand'
+import { makeCoreClient } from '../core/client'
+import { browserRequest, coreResult } from './core'
 import type { Env } from './request'
 import type { RequestScope } from './server'
 
 const DeploymentBrand = Schema.Struct({
   name: Schema.String,
   mark: Schema.String,
-  accent: Schema.NullOr(Schema.String),
-  onAccent: Schema.NullOr(Schema.String),
-  logoUrl: Schema.NullOr(Schema.String),
-})
-const WorkspaceBrand = Schema.Struct({
-  displayName: Schema.NullOr(Schema.String),
   accent: Schema.NullOr(Schema.String),
   onAccent: Schema.NullOr(Schema.String),
   logoUrl: Schema.NullOr(Schema.String),
@@ -37,14 +32,17 @@ export function deploymentBrand(env: BrandEnvironment): BrandConfig {
 }
 
 /** Cosmetic failures do not turn otherwise valid project data into an error page. */
-export function loadBrand(env: Env, scope: RequestScope | null): Effect.Effect<BrandConfig> {
+export function loadBrand(env: Env, scope: RequestScope | null, request?: Request): Effect.Effect<BrandConfig> {
   const brand = deploymentBrand(env)
   if (scope?.selection.kind !== 'workspace' && scope?.selection.kind !== 'project') return Effect.succeed(brand)
   const workspace = scope.selection.workspace
   if (!scope.workspaces.some((member) => member.id === workspace.id && member.slug === workspace.slug))
     return Effect.succeed(brand)
-  return Effect.tryPromise(() => getWorkspaceBrandForShare(env.DB, workspace.id, workspace.slug)).pipe(
-    Effect.flatMap(Schema.decodeUnknownEffect(WorkspaceBrand)),
+  if (!request) return Effect.succeed(brand)
+  return coreResult(
+    WorkspaceBrand,
+    makeCoreClient(env.CORE).browserWorkspaceBrand(browserRequest(request), workspace.slug),
+  ).pipe(
     Effect.map((override) => {
       const name = override.displayName ?? brand.name
       return {

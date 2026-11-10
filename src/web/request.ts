@@ -1,38 +1,62 @@
-import type { D1Database } from '@cloudflare/workers-types'
 import { Request as WorkerRequest, WorkerEnvironment } from 'alchemy/Cloudflare/Workers'
 import { Cache, Context, Data, Effect, Exit, Layer, Option } from 'effect'
 import { HttpRouter } from 'effect/http'
+import { makeCoreClient } from 'projektor/core-client'
 import type { ReactNode } from 'react'
 
-import type { BrowserAuthEnvironment } from '#services/authentication'
 import type { Env as ApiEnvironment } from '#types'
 
-import { makeCoreClient } from '../core/client'
 import type { CoreRpcShape } from '../core/contract'
 import { type ApiError, loadRequestScope, type RequestScope, type ScopeError, type ScopeOptions } from './server'
 
-export interface Env
-  extends
-    BrowserAuthEnvironment,
-    Pick<
-      ApiEnvironment,
-      | 'R2'
-      | 'OAUTH_KV'
-      | 'RATE_LIMITER'
-      | 'WORKSPACE_HUB'
-      | 'STORAGE_QUOTA_BYTES'
-      | 'RATE_LIMIT_AUTH_MAX'
-      | 'RATE_LIMIT_API_MAX'
-      | 'RATE_LIMIT_WINDOW_SECS'
-      | 'RATE_LIMIT_TEST_EPOCH'
-      | 'RATE_LIMIT_TEST_NOW_MS'
-      | 'BRAND_NAME'
-      | 'BRAND_MARK'
-      | 'BRAND_ACCENT'
-      | 'BRAND_ON_ACCENT'
-      | 'BRAND_LOGO_URL'
-    > {
-  readonly CORE: unknown
+export interface Env extends Pick<
+  ApiEnvironment,
+  | 'ENVIRONMENT'
+  | 'RATE_LIMITER'
+  | 'RATE_LIMIT_AUTH_MAX'
+  | 'RATE_LIMIT_API_MAX'
+  | 'RATE_LIMIT_WINDOW_SECS'
+  | 'RATE_LIMIT_TEST_EPOCH'
+  | 'RATE_LIMIT_TEST_NOW_MS'
+  | 'BRAND_NAME'
+  | 'BRAND_MARK'
+  | 'BRAND_ACCENT'
+  | 'BRAND_ON_ACCENT'
+  | 'BRAND_LOGO_URL'
+> {
+  readonly CORE: { readonly fetch: (request: Request) => Promise<Response> }
+}
+
+export function isWebEnvironment(value: unknown): value is Env {
+  if (typeof value !== 'object' || value === null) return false
+  const core: unknown = Reflect.get(value, 'CORE')
+  if (typeof core !== 'object' || core === null || typeof Reflect.get(core, 'fetch') !== 'function') return false
+  if (
+    !['development', 'staging', 'production'].some((environment) => environment === Reflect.get(value, 'ENVIRONMENT'))
+  )
+    return false
+  const limiter: unknown = Reflect.get(value, 'RATE_LIMITER')
+  if (
+    limiter !== undefined &&
+    (typeof limiter !== 'object' ||
+      limiter === null ||
+      typeof Reflect.get(limiter, 'get') !== 'function' ||
+      typeof Reflect.get(limiter, 'idFromName') !== 'function')
+  )
+    return false
+  const strings = [
+    'RATE_LIMIT_AUTH_MAX',
+    'RATE_LIMIT_API_MAX',
+    'RATE_LIMIT_WINDOW_SECS',
+    'RATE_LIMIT_TEST_EPOCH',
+    'RATE_LIMIT_TEST_NOW_MS',
+    'BRAND_NAME',
+    'BRAND_MARK',
+    'BRAND_ACCENT',
+    'BRAND_ON_ACCENT',
+    'BRAND_LOGO_URL',
+  ] satisfies readonly (keyof Env)[]
+  return strings.every((key) => Reflect.get(value, key) === undefined || typeof Reflect.get(value, key) === 'string')
 }
 
 export type PageFailure = ApiError | ScopeError
@@ -53,7 +77,6 @@ export class RequestServices extends Context.Service<
     readonly core: CoreRpcShape
     readonly env: Env
     readonly url: URL
-    readonly db: D1Database
     readonly scope: (options?: ScopeOptions) => Effect.Effect<RequestScope, PageFailure>
     readonly prepare: (view: PreparedView) => PreparedView
     readonly invalidate: Effect.Effect<void>
@@ -78,7 +101,6 @@ export const makeRequestServices = (request: Request, env: Env) =>
       core: makeCoreClient(env.CORE),
       env,
       url,
-      db: env.DB,
       scope: (options: ScopeOptions = {}) =>
         getRouteParams.pipe(
           Effect.flatMap((params) =>
@@ -99,6 +121,7 @@ export const RequestServicesLive = Layer.effect(
   Effect.gen(function* () {
     const request = yield* WorkerRequest
     const env = yield* WorkerEnvironment
-    return yield* makeRequestServices(request, env as unknown as Env)
+    if (!isWebEnvironment(env)) return yield* Effect.die(new Error('Invalid Web Worker bindings'))
+    return yield* makeRequestServices(request, env)
   }),
 )

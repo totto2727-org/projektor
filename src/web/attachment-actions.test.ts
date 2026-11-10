@@ -7,8 +7,8 @@ const { uploadAttachment, uploadInlineImage } = await import('./attachment-actio
 function fileFixture(origin = 'https://front.example', quotaBytes?: string) {
   const objects = new Map<string, ArrayBuffer>()
   // A bounded R2 double, with the real migrated database and command authorization.
-  const put = vi.fn(async (key: string, body: ArrayBuffer) => {
-    objects.set(key, body)
+  const put = vi.fn(async (key: string, body: ReadableStream<Uint8Array>) => {
+    objects.set(key, await new Response(body).arrayBuffer())
     return null
   })
   const remove = vi.fn(async (key: string) => {
@@ -43,7 +43,7 @@ function invoke(
   return fixture.invoke(uploadAttachment, null, fields)
 }
 
-describe('direct attachment ServerFns with shared guarded D1/R2 commands', () => {
+describe('native Core attachment ServerFns with guarded storage commands', () => {
   it.each(['native', 'inline'] as const)(
     'preserves exact 64 KiB bytes and concrete metadata without API transfer (%s)',
     async (kind) => {
@@ -60,9 +60,10 @@ describe('direct attachment ServerFns with shared guarded D1/R2 commands', () =>
           size: bytes.length,
         },
       })
-      expect(fixture.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//), await upload.arrayBuffer(), {
+      expect(fixture.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//), expect.any(ReadableStream), {
         httpMetadata: { contentType: 'image/png' },
       })
+      expect(new Uint8Array([...fixture.objects.values()][0])).toEqual(bytes)
       expect(fixture.sqlite.prepare('SELECT workspace_id,entity_type,entity_id,size FROM attachments').get()).toEqual({
         workspace_id: 'w1',
         entity_type: 'wiki_page',

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vite-plus/test'
 
 import { resetAuthCachesForTests } from '#services/authentication'
 
-import { getRouteParams, makeRequestServices, type PreparedView, RequestServices } from './request'
+import { getRouteParams, isWebEnvironment, makeRequestServices, type PreparedView, RequestServices } from './request'
 import { ApiError } from './server'
 import { testEnvironment } from './server/test/resources'
 import { createTestDatabase } from './test/database'
@@ -29,6 +29,15 @@ function fixture() {
 const incoming = () => new Request('https://front.example.test/')
 
 describe('request-scoped native services', () => {
+  it('requires a native Core fetch capability and valid browser-only configuration', () => {
+    expect(isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'production' })).toBe(true)
+    expect(isWebEnvironment({ CORE: {}, ENVIRONMENT: 'production' })).toBe(false)
+    expect(isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'invalid' })).toBe(false)
+    expect(
+      isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'production', BRAND_NAME: 42 }),
+    ).toBe(false)
+    expect(isWebEnvironment(null)).toBe(false)
+  })
   it('reads matched framework parameters without another URL parser', async () => {
     const params = { projectSlug: 'already%decoded', issueNumber: '12' }
     const result = await Effect.runPromise(
@@ -64,6 +73,7 @@ describe('request-scoped native services', () => {
     expect(result.b.workspaces).toEqual([])
     expect(result.a.auth).toEqual({ kind: 'human', method: 'dev' })
     expect(result.first).not.toHaveProperty('api')
+    expect(result.first).not.toHaveProperty('db')
   })
 
   it('invalidates only request-owned scope state and reloads authoritative database memberships', async () => {

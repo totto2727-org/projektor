@@ -11,6 +11,7 @@ afterEach(() => {
   for (const database of databases.splice(0)) database.close()
 })
 const workspace = { id: 'w', slug: 'beta', name: 'Beta', role: 'owner' as const }
+const request = new Request('https://front.example/?workspace=beta')
 const scope: RequestScope = {
   user: { id: 'u', email: 'u@example.test', name: 'User' },
   workspaces: [workspace],
@@ -28,6 +29,9 @@ function fixture() {
       'beta',
       JSON.stringify({ displayName: 'Beta', onAccent: '#ffffff', logoR2Key: 'w/brand-logo/logo' }),
     )
+  database.sqlite.exec(
+    "INSERT INTO users (id,email,name,created_at) VALUES ('u','u@example.test','User',1); INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES ('w','u','owner',1)",
+  )
   return {
     database,
     env: testEnvironment(database.db, 'u@example.test', { BRAND_NAME: 'Deploy', BRAND_ACCENT: '#123456' }),
@@ -50,7 +54,7 @@ describe('server-rendered native brand', () => {
 
   it('layers only the explicitly resolved workspace over deployment bindings', async () => {
     const { env } = fixture()
-    const brand = await Effect.runPromise(loadBrand(env, scope))
+    const brand = await Effect.runPromise(loadBrand(env, scope, request))
     expect(brand).toEqual({
       name: 'Beta',
       mark: 'B',
@@ -86,15 +90,15 @@ describe('server-rendered native brand', () => {
   it('keeps cosmetic database failures optional', async () => {
     const { env, database } = fixture()
     database.sqlite.exec('DROP TABLE workspaces')
-    expect(await Effect.runPromise(loadBrand(env, scope))).toEqual(deploymentBrand(env))
+    expect(await Effect.runPromise(loadBrand(env, scope, request))).toEqual(deploymentBrand(env))
   })
 
   it('reads workspace branding afresh instead of sharing a cross-request cache', async () => {
     const { env, database } = fixture()
-    expect((await Effect.runPromise(loadBrand(env, scope))).name).toBe('Beta')
+    expect((await Effect.runPromise(loadBrand(env, scope, request))).name).toBe('Beta')
     database.sqlite
       .prepare('UPDATE workspaces SET brand = ? WHERE id = ?')
       .run(JSON.stringify({ displayName: 'Changed' }), 'w')
-    expect((await Effect.runPromise(loadBrand(env, scope))).name).toBe('Changed')
+    expect((await Effect.runPromise(loadBrand(env, scope, request))).name).toBe('Changed')
   })
 })

@@ -27,18 +27,18 @@ export async function handleCoreFileRequest(request: Request, env: CoreEnvironme
     if (workspaceIds.length !== 1 || !workspaceIds[0]) throw coreFailure(400, 'Workspace not specified')
     const ctx = await resolveCoreServiceCtx(actor, workspaceIds[0], upload ? 'write' : 'read', env)
     if (upload) {
-      const form = await request.formData()
+      const form = await request.formData().catch(() => null)
+      if (!form) throw coreFailure(400, 'Expected multipart/form-data')
       const file = form.get('file')
       const entityType = form.get('entity_type') ?? form.get('entityType')
       const entityId = form.get('entity_id') ?? form.get('entityId')
-      if (
-        !(file instanceof File) ||
-        (entityType !== 'issue' && entityType !== 'wiki_page') ||
-        typeof entityId !== 'string'
-      ) {
-        throw coreFailure(400, 'Invalid upload request')
-      }
-      return Response.json(await uploadStoredAttachment(ctx, { file, entityType, entityId }, storageQuotaBytes(env)))
+      if (!(file instanceof File)) throw coreFailure(400, 'Missing file field')
+      if (entityType !== 'issue' && entityType !== 'wiki_page')
+        throw coreFailure(400, 'entityType must be issue or wiki_page')
+      if (typeof entityId !== 'string' || !entityId) throw coreFailure(400, 'entityId is required')
+      return Response.json(await uploadStoredAttachment(ctx, { file, entityType, entityId }, storageQuotaBytes(env)), {
+        status: 201,
+      })
     }
     let id: string
     try {
