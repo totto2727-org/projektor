@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vite-plus/test'
 import { env } from './fixture-api'
 import {
   authHeaders,
+  hashToken,
   seedAgentLease,
   seedFixture,
   seedIssue,
@@ -12,6 +13,7 @@ import {
   seedToken,
   toolError,
 } from './helpers'
+import { resetRateLimits } from './rate-limit-reset'
 
 describe('Agent Messages API', () => {
   let token: string
@@ -215,8 +217,10 @@ describe('Agent Messages API', () => {
     })
     expect(postMsgRes.status).toBe(200)
 
-    // Phase 2 (token2): agent1 reads the message, releases, agent2 re-claims
-    const token2 = await seedToken(workspaceId, userId)
+    // A fleet session belongs to its credential, not every token owned by this user.
+    // Reset the fixture budget between phases without impersonating the fleet from a new token.
+    await resetRateLimits()
+    const token2 = token
 
     const readRes = await mcpCall('list_messages', { scope }, token2, slug)
     expect(readRes.status).toBe(200)
@@ -264,7 +268,8 @@ describe('Agent Messages API', () => {
     expect(claimBRes.status).toBe(200)
 
     // Phase 3 (token3): agent2 force-claims path B; assert override notice in list_messages
-    const token3 = await seedToken(workspaceId, userId)
+    await resetRateLimits()
+    const token3 = token
     const issue3 = await seedIssue(workspaceId, projectId, userId, { title: 'Force Issue' })
 
     const forceRes = await mcpCall(
@@ -350,8 +355,16 @@ describe('Agent Messages API', () => {
     return row!.last_heartbeat_at
   }
 
+  async function ownSession(id: string) {
+    await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
+      (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)
+      .bind(await hashToken(token), id)
+      .run()
+  }
+
   it("post_message refreshes a live agentId's heartbeat, but never revives a stale one", async () => {
     const { agentSessionId: live } = await seedAgentLease(workspaceId, issueId)
+    await ownSession(live)
     const backdated = Math.floor(Date.now() / 1000) - 10
     await env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(backdated, live).run()
 
@@ -360,6 +373,7 @@ describe('Agent Messages API', () => {
     expect(await heartbeatOf(live)).toBeGreaterThan(backdated)
 
     const { agentSessionId: dead } = await seedAgentLease(workspaceId, issueId, { live: false })
+    await ownSession(dead)
     const deadBefore = await heartbeatOf(dead)
 
     const res2 = await postMessage({

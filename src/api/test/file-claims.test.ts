@@ -1,8 +1,8 @@
 import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers'
+import { configureCore, env } from './fixture-api'
+import { authHeaders, hashToken, seedFixture, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers'
 
 describe('File Claims API', () => {
   let token: string
@@ -407,6 +407,10 @@ describe('File Claims API', () => {
           now - (opts.heartbeatAgeSecs ?? 0),
         )
         .run()
+      await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
+        (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)
+        .bind(await hashToken(token), id)
+        .run()
       return id
     }
 
@@ -601,6 +605,7 @@ describe('File Claims API', () => {
       it('FILE_CLAIM_TTL_SECONDS overrides the default', async () => {
         const previous = env.FILE_CLAIM_TTL_SECONDS
         env.FILE_CLAIM_TTL_SECONDS = '60'
+        await configureCore({ FILE_CLAIM_TTL_SECONDS: '60' })
         try {
           await claimFiles({ issueId, paths: ['src/ttl-short.ts'] })
           await backdateClaim('src/ttl-short.ts', 61)
@@ -610,6 +615,7 @@ describe('File Claims API', () => {
           expect(res.status).toBe(201)
         } finally {
           env.FILE_CLAIM_TTL_SECONDS = previous
+          await configureCore()
         }
       })
     })
@@ -739,6 +745,10 @@ describe('File Claims API', () => {
 				 VALUES (?, ?, NULL, NULL, ?, 'agent', 'active', ?, ?, NULL)`,
       )
         .bind(id, workspaceId, 'stale-session-932', now, now - 200) // 200s > the 120s TTL
+        .run()
+      await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
+        (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)
+        .bind(await hashToken(token), id)
         .run()
       return id
     }

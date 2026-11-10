@@ -303,7 +303,15 @@ describe('Agents API', () => {
         const issue1 = await seedIssue(workspaceId, projectId, userId, { title: 'Holds file' })
         const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Wants file' })
         await startWorkDirect(
-          { db: env.DB, kv: env.KV, r2: env.R2, workspaceId, userId, role: 'owner' } as ServiceCtx,
+          {
+            db: env.DB,
+            kv: env.KV,
+            r2: env.R2,
+            workspaceId,
+            userId,
+            role: 'owner',
+            auth: { kind: 'human', method: 'dev' },
+          } as ServiceCtx,
           { issue: issue1.id, paths: ['src/contended.ts'], name: 'holder' },
         )
 
@@ -336,6 +344,7 @@ describe('Agents API', () => {
           workspaceId,
           userId,
           role: 'owner',
+          auth: { kind: 'human', method: 'dev' },
         } as ServiceCtx
 
         await expect(

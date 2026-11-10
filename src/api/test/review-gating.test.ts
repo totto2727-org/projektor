@@ -2,7 +2,14 @@ import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import { env } from './fixture-api'
-import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskStatus } from './helpers'
+import {
+  authHeaders,
+  hashToken,
+  seedAgentLease as seedLease,
+  seedIssue,
+  seedProjectFixture,
+  seedTaskStatus,
+} from './helpers'
 
 // PROJ-254 gate, hardened by PROJ-287/289/292/293: the in_review report requirement is
 // bound to the issue's LIVE AGENT LEASE (an agent can't spoof it by omitting
@@ -20,6 +27,15 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
   beforeEach(async () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
+
+  async function seedAgentLease(workspace: string, issue: string, options?: Parameters<typeof seedLease>[2]) {
+    const seeded = await seedLease(workspace, issue, options)
+    await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
+      (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)
+      .bind(await hashToken(token), seeded.agentSessionId)
+      .run()
+    return seeded
+  }
 
   function patch(id: string, body: Record<string, unknown>) {
     return SELF.fetch(`http://localhost/api/issues/${id}`, {
