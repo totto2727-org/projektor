@@ -33,7 +33,7 @@ import * as workspaces from '#commands/workspaces'
 
 import { ApiResults } from '../../contracts/api-results'
 import { oauthApi } from '../../contracts/oauth-provider'
-import { type CoreActor, resolveCoreServiceCtx } from '../authorization'
+import { type CoreActor, requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '../authorization'
 import { coreFailure, coreReply } from '../contract'
 import { publicDomainFailure } from '../domain-errors'
 import type { CoreEnvironment } from '../environment'
@@ -78,6 +78,27 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
               const ctx = await resolveCoreServiceCtx(actor, workspaceId, capability, env)
               requireInteractive(ctx)
               return command(env, ctx, ...args)
+            },
+            catch: publicDomainFailure,
+          }),
+        ),
+      )
+  }
+
+  function globalRead<Args extends unknown[], A>(
+    name: 'apiListPlaybooks' | 'apiGetPlaybook' | 'apiGetWorkflow',
+    command: (...args: Args) => A | Promise<A>,
+  ) {
+    return (actor: CoreActor, ...args: Args) =>
+      coreReply(
+        name,
+        ApiResults[name],
+        Effect.flatMap(envSource, (env) =>
+          Effect.tryPromise({
+            try: async () => {
+              const principal = await resolveCorePrincipal(actor, env)
+              requireCoreCapability(principal, 'read')
+              return command(...args)
             },
             catch: publicDomainFailure,
           }),
@@ -149,9 +170,9 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
     apiGetPrioritizedIssues: operation('apiGetPrioritizedIssues', 'read', issues.getPrioritizedIssues),
     apiSearchIssues: operation('apiSearchIssues', 'read', issues.searchIssues),
     apiComposePlaybook: operation('apiComposePlaybook', 'read', compose.composePlaybook),
-    apiListPlaybooks: operation('apiListPlaybooks', 'read', () => playbooks.listPlaybooks()),
-    apiGetPlaybook: operation('apiGetPlaybook', 'read', (_ctx, name: string) => playbooks.getPlaybook(name)),
-    apiGetWorkflow: operation('apiGetWorkflow', 'read', (_ctx, input: unknown = {}) => workflow.getWorkflow(input)),
+    apiListPlaybooks: globalRead('apiListPlaybooks', playbooks.listPlaybooks),
+    apiGetPlaybook: globalRead('apiGetPlaybook', playbooks.getPlaybook),
+    apiGetWorkflow: globalRead('apiGetWorkflow', workflow.getWorkflow),
     apiListProjectActivity: operation('apiListProjectActivity', 'read', activity.listProjectActivity),
     apiListProjectsInWorkspace: operation('apiListProjectsInWorkspace', 'read', projects.listProjects),
     apiGetProject: operation('apiGetProject', 'read', projects.getProject),

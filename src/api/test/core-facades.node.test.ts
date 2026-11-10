@@ -90,26 +90,24 @@ describe('API facade reply boundary', () => {
         apiReply(ApiResults.apiRevokeToken, humanHandlers.apiRevokeToken(human, 'facade-workspace', created.id)),
       ).resolves.toEqual({ ok: true })
       expect(database.sqlite.prepare('SELECT count(*) AS count FROM api_tokens').get()).toEqual({ count: 1 })
-      const playbooks = await apiReply(
-        ApiResults.apiListPlaybooks,
-        handlers.apiListPlaybooks(actor, 'facade-workspace'),
-      )
+      const playbooks = await apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor))
       expect(playbooks.length).toBeGreaterThan(0)
-      const workflow = await apiReply(ApiResults.apiGetWorkflow, handlers.apiGetWorkflow(actor, 'facade-workspace', {}))
+      const workflow = await apiReply(ApiResults.apiGetWorkflow, handlers.apiGetWorkflow(actor, {}))
       expect(workflow).toHaveProperty('version')
       await expect(
-        apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor, 'another-workspace')),
+        apiReply(ApiResults.apiListTokens, handlers.apiListTokens(actor, 'another-workspace')),
       ).rejects.toMatchObject({ status: 403 })
       database.sqlite.exec("UPDATE api_tokens SET scopes = '[]' WHERE id = 'facade-token'")
-      await expect(
-        apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor, 'facade-workspace')),
-      ).rejects.toMatchObject({ status: 403 })
+      await expect(apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor))).rejects.toMatchObject({
+        status: 403,
+      })
       database.sqlite.exec(
         "UPDATE api_tokens SET scopes = '[\"write\"]' WHERE id = 'facade-token'; DELETE FROM workspace_members WHERE workspace_id = 'facade-workspace'",
       )
       await expect(
-        apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor, 'facade-workspace')),
+        apiReply(ApiResults.apiListTokens, handlers.apiListTokens(actor, 'facade-workspace')),
       ).rejects.toMatchObject({ status: 403 })
+      await expect(apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor))).resolves.toEqual(playbooks)
     } finally {
       database.close()
       resetAuthCachesForTests()
