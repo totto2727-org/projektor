@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
+import { readdir, writeFile } from 'node:fs/promises'
 
 import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
 
@@ -148,10 +148,14 @@ test('API and Web share private Core persistence without adapter DB bindings', a
   expect(response?.status()).toBe(200)
   // Both actual adapters reach the same private Core through native service bindings.
   // Reapplying the Core-owned fixture ledger must not replay historical DDL or lose data.
+  const migrationNames = (await readdir(new URL('../../migrations/', import.meta.url))).filter((name) =>
+    /^\d{4}_.+\.sql$/.test(name),
+  )
+  expect(migrationNames.length).toBeGreaterThan(0)
   for (let attempt = 0; attempt < 2; attempt++) {
     const initialized = await request.post('http://127.0.0.1:4392/_fixture/reinitialize')
     expect(initialized.status(), await initialized.text()).toBe(200)
-    expect(await initialized.json()).toEqual({ migrations: 68 })
+    expect(await initialized.json()).toEqual({ migrations: migrationNames.length })
   }
   const link = page.getByRole('link').filter({ has: page.getByText(name, { exact: true }) })
   await expect(link).toHaveCount(1)
