@@ -249,7 +249,7 @@ export async function uploadStoredAttachment(
   await assertUploadAllowed(ctx, { size: file.size, contentType: file.type, quotaBytes })
   const contentType = file.type || 'application/octet-stream'
   const r2Key = `${ctx.workspaceId}/${crypto.randomUUID()}`
-  await ctx.r2.put(r2Key, await file.arrayBuffer(), { httpMetadata: { contentType } })
+  await ctx.r2.put(r2Key, file.stream(), { httpMetadata: { contentType } })
   try {
     const { id } = await recordUpload(ctx, {
       entityType,

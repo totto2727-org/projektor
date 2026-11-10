@@ -31,8 +31,8 @@ function fixture() {
   `)
   const objects = new Map<string, ArrayBuffer>()
   // Deliberately bounded storage double: only the R2 operations used by file commands.
-  const put = vi.fn(async (key: string, body: ArrayBuffer) => {
-    objects.set(key, body)
+  const put = vi.fn(async (key: string, body: ReadableStream<Uint8Array>) => {
+    objects.set(key, await new Response(body).arrayBuffer())
     return null
   })
   const get = vi.fn(async (key: string) => {
@@ -56,15 +56,23 @@ function fixture() {
 const input = (file: File, entityId = 'i1') => ({ file, entityType: 'issue' as const, entityId })
 
 describe('shared file transfer commands over migrated SQLite and bounded R2', () => {
+  it('streams upload bytes without materializing the File as an ArrayBuffer', async () => {
+    const f = fixture()
+    const buffer = vi.spyOn(f.file, 'arrayBuffer').mockRejectedValue(new Error('must not buffer upload'))
+    await uploadStoredAttachment(f.ctx, input(f.file))
+    expect(buffer).not.toHaveBeenCalled()
+    expect(new Uint8Array([...f.objects.values()][0])).toEqual(new Uint8Array([0, 255, 7, 128]))
+  })
   it('uploads exact bytes and metadata, reads archived-owner bytes, then deletes both stores', async () => {
     const f = fixture()
     const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
     expect(uploaded).toEqual({ id: expect.any(String), filename: 'diagram.png', contentType: 'image/png', size: 4 })
     const row = f.sqlite.prepare('SELECT * FROM attachments WHERE id = ?').get(uploaded.id)
     expect(row).toMatchObject({ workspace_id: 'w1', entity_id: 'i1', created_by_id: 'u1', size: 4 })
-    expect(f.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//), await f.file.arrayBuffer(), {
+    expect(f.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//), expect.any(ReadableStream), {
       httpMetadata: { contentType: 'image/png' },
     })
+    expect([...f.objects.values()]).toEqual([await f.file.arrayBuffer()])
     const stored = await getStoredAttachment(f.ctx, uploaded.id)
     expect(stored).toEqual({ body: await f.file.arrayBuffer(), filename: f.file.name, contentType: f.file.type })
     await deleteStoredAttachment(f.ctx, uploaded.id)
