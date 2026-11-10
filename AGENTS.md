@@ -153,6 +153,7 @@ Groups retains its page heading and access explanation; Comark code blocks use r
 It adds shared internal retrieval and domain commands behind a private Core Worker, while REST, MCP and Effront remain external adapters.
 Native Core service bindings replace the former direct Web/API D1 access to centralize persistent policy and storage ownership.
 The Wiki editor serializes autosave, discard and publication, with durable per-user/page draft heads enforcing browser revision preconditions in D1.
+An active description editor keeps its native fallback across lazy chunk completion and retains the submitted draft until canonical issue props acknowledge the saved body.
 Legacy unversioned REST and MCP draft writes retain last-write-wins behavior but advance the same heads, invalidating stale versioned browser writes.
 This architecture does not imply a performance improvement.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
