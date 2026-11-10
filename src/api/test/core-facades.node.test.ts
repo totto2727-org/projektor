@@ -143,6 +143,47 @@ describe('API facade reply boundary', () => {
     ).resolves.toBeUndefined()
   })
 
+  it('preserves the complete recursive Wiki tree', async () => {
+    const tree = [
+      {
+        id: 'root',
+        slug: 'root',
+        title: 'Root',
+        url: '/wiki/root',
+        type: null,
+        children: [{ id: 'child', slug: 'child', title: 'Child', url: '/wiki/child', type: 'guide', children: [] }],
+      },
+    ]
+    await expect(
+      apiReply(ApiResults.apiGetWikiTree, coreReply('tree', ApiResults.apiGetWikiTree, Effect.succeed(tree))),
+    ).resolves.toEqual(tree)
+  })
+
+  it('validates nested Wiki children instead of trusting the outer array', async () => {
+    const wire = JSON.stringify({
+      _tag: 'Success',
+      success: [
+        {
+          id: 'root',
+          slug: 'root',
+          title: 'Root',
+          url: '/wiki/root',
+          type: null,
+          children: [{ privateDiagnostic: 'not a page' }],
+        },
+      ],
+    })
+    await expect(apiReply(ApiResults.apiGetWikiTree, Effect.succeed(wire))).rejects.toMatchObject({
+      _tag: 'CorePublicError',
+      status: 502,
+      message: 'The Core service returned an invalid response.',
+    })
+  })
+
+  it('does not turn cancellation into an application or transport error', async () => {
+    await expect(apiReply(PublicIssue, Effect.interrupt)).rejects.not.toMatchObject({ _tag: 'CorePublicError' })
+  })
+
   it('preserves the declared public success fields', async () => {
     const client = clientFor(() => Effect.runPromise(coreReply('load', PublicIssue, Effect.succeed(issue))))
     await expect(apiReply(PublicIssue, client.load())).resolves.toEqual(issue)

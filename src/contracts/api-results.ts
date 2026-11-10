@@ -2,6 +2,8 @@ import { Schema } from 'effect'
 
 import { ApiPrincipal, ApiUserBootstrap, ApiWorkspace } from './api-auth'
 
+const array = <Item extends Schema.Top>(item: Item) => Schema.mutable(Schema.Array(item))
+
 const S = Schema.String
 const N = Schema.Number
 const B = Schema.Boolean
@@ -40,9 +42,9 @@ const Message = Schema.Struct({ id: S, workspaceId: S, scope: S, agentId: NS, bo
 const ReleasedClaim = Schema.Struct({ ...ClaimFields, releaseReason: NS })
 const ActiveClaim = Schema.Struct({ ...ClaimFields, releaseReason: NS, live: B })
 const Claims = Schema.Struct({
-  created: Schema.Array(Claim),
-  overridden: Schema.Array(ActiveClaim),
-  reclaimed: Schema.Array(ActiveClaim),
+  created: array(Claim),
+  overridden: array(ActiveClaim),
+  reclaimed: array(ActiveClaim),
 })
 const Comment = Schema.Struct({
   id: S,
@@ -70,7 +72,7 @@ const CustomField = Schema.Struct({
   key: S,
   label: S,
   type: Schema.Literals(['text', 'number', 'select', 'date', 'user']),
-  options: Schema.NullOr(Schema.Array(S)),
+  options: Schema.NullOr(array(S)),
   createdAt: N,
   isInternal: B,
 })
@@ -79,8 +81,8 @@ const Group = Schema.Struct({ ...GroupFields, memberCount: N, grantCount: N })
 const GroupDetail = Schema.Struct({
   ...GroupFields,
   workspaceId: S,
-  members: Schema.Array(Schema.Struct({ userId: S, email: S, name: S, addedAt: N, addedBy: S })),
-  grants: Schema.Array(
+  members: array(Schema.Struct({ userId: S, email: S, name: S, addedAt: N, addedBy: S })),
+  grants: array(
     Schema.Struct({
       projectId: S,
       projectName: S,
@@ -120,18 +122,18 @@ const FeedbackSourceFields = {
   name: S,
   description: NS,
   isActive: B,
-  allowedOrigins: Schema.NullOr(Schema.Array(S)),
+  allowedOrigins: Schema.NullOr(array(S)),
   tokenPreview: S,
   createdAt: N,
   revokedAt: NN,
 }
 const FeedbackSource = Schema.Struct(FeedbackSourceFields)
-const FeedbackSummary = Schema.Array(
+const FeedbackSummary = array(
   Schema.Struct({
     sourceId: S,
     sourceName: NS,
     totalCount: N,
-    versions: Schema.Array(
+    versions: array(
       Schema.Struct({
         appVersion: NS,
         totalCount: N,
@@ -160,13 +162,13 @@ const Heatmap = Schema.Union([
     prefix: S,
     mode: Schema.Literal('claims'),
     totalDistinctIssues: N,
-    entries: Schema.Array(Schema.Struct({ ...HeatmapEntryFields, distinctIssueCount: N, claimCount: N })),
+    entries: array(Schema.Struct({ ...HeatmapEntryFields, distinctIssueCount: N, claimCount: N })),
   }),
   Schema.Struct({
     prefix: S,
     mode: Schema.Literal('contention'),
     totalDistinctIssues: N,
-    entries: Schema.Array(Schema.Struct({ ...HeatmapEntryFields, distinctRejectedIssueCount: N, conflictCount: N })),
+    entries: array(Schema.Struct({ ...HeatmapEntryFields, distinctRejectedIssueCount: N, conflictCount: N })),
   }),
 ])
 const Project = Schema.Struct({
@@ -262,7 +264,7 @@ const IssueListItem = Schema.Struct({
   ...IssueFields,
   body: Schema.optional(S),
   assignee_name: NS,
-  customFields: Schema.Array(FieldValue),
+  customFields: array(FieldValue),
   rollup: Schema.optional(Rollup),
   url: S,
 })
@@ -270,8 +272,8 @@ const IssueDetail = Schema.Struct({
   ...IssueFields,
   body: S,
   rollup: Rollup,
-  links: Schema.Array(IssueLink),
-  customFields: Schema.Array(FieldValue),
+  links: array(IssueLink),
+  customFields: array(FieldValue),
   url: S,
 })
 const PrioritizedIssue = Schema.Struct({
@@ -286,27 +288,25 @@ const PrioritizedIssue = Schema.Struct({
   _score: N,
   _score_breakdown: Schema.Struct({ centrality: N, priority: N, story_points: N }),
   needsGrooming: Schema.optional(Schema.Literal(true)),
-  missingCriteria: Schema.optional(Schema.Array(S)),
+  missingCriteria: Schema.optional(array(S)),
 })
 const FlowMetrics = Schema.Struct({
   leadTime: Distribution,
   leadTimeExcluded: N,
   cycleTime: Distribution,
-  wipOverTime: Schema.Array(Schema.Struct({ date: S, count: N })),
-  throughputOverTime: Schema.Array(Schema.Struct({ bucketStart: S, count: N })),
-  bugShareOverTime: Schema.Array(Schema.Struct({ bucketStart: S, total: N, bugCount: N, bugSharePercent: NN })),
+  wipOverTime: array(Schema.Struct({ date: S, count: N })),
+  throughputOverTime: array(Schema.Struct({ bucketStart: S, count: N })),
+  bugShareOverTime: array(Schema.Struct({ bucketStart: S, total: N, bugCount: N, bugSharePercent: NN })),
   bugTypeTracked: B,
   reviewLatency: Distribution,
-  reviewLatencyOverTime: Schema.Array(Schema.Struct({ bucketStart: S, p50: NN })),
+  reviewLatencyOverTime: array(Schema.Struct({ bucketStart: S, p50: NN })),
   humanInterventions: Distribution,
   autonomyRatio: Distribution,
-  cfdOverTime: Schema.Array(Schema.Struct({ bucketStart: S, backlogTodo: N, inProgress: N, inReview: N, done: N })),
+  cfdOverTime: array(Schema.Struct({ bucketStart: S, backlogTodo: N, inProgress: N, inReview: N, done: N })),
   timeInProgress: Distribution,
-  arrivalVsCompletionOverTime: Schema.Array(Schema.Struct({ bucketStart: S, created: N, completed: N, net: N })),
+  arrivalVsCompletionOverTime: array(Schema.Struct({ bucketStart: S, created: N, completed: N, net: N })),
   flowEfficiency: Distribution,
-  agingWip: Schema.Array(
-    Schema.Struct({ id: S, status: Schema.Literals(['in_progress', 'in_review']), ageSeconds: N }),
-  ),
+  agingWip: array(Schema.Struct({ id: S, status: Schema.Literals(['in_progress', 'in_review']), ageSeconds: N })),
   factoryHealth: Schema.Struct({ leaseExpiries: N, abandonedClaims: N, gateRejections: N, wipCapPressure: N }),
 })
 const Freshness = Schema.NullOr(
@@ -314,11 +314,11 @@ const Freshness = Schema.NullOr(
 )
 const WikiMetadataFields = {
   type: NS,
-  tags: Schema.Array(S),
+  tags: array(S),
   status: NS,
   verified_at: NN,
   verified_by: NS,
-  owners: Schema.Array(S),
+  owners: array(S),
   verify_interval: NN,
   is_template: B,
 }
@@ -340,7 +340,7 @@ interface WikiTreeNode {
   readonly title: string
   readonly url: string
   readonly type: string | null
-  readonly children: readonly WikiTreeNode[]
+  readonly children: WikiTreeNode[]
 }
 const WikiTreeNode: Schema.Codec<WikiTreeNode> = Schema.suspend(() =>
   Schema.Struct({
@@ -349,7 +349,7 @@ const WikiTreeNode: Schema.Codec<WikiTreeNode> = Schema.suspend(() =>
     title: S,
     url: S,
     type: NS,
-    children: Schema.Array(WikiTreeNode),
+    children: array(WikiTreeNode),
   }),
 )
 const WikiDraft = Schema.NullOr(Schema.Struct({ title: S, content: S, baseRevisionId: NS, updatedAt: N }))
@@ -362,7 +362,7 @@ const WikiChange = Schema.Struct({
   projectId: NS,
   actorId: NS,
   createdAt: N,
-  deletedPageIds: Schema.NullOr(Schema.Array(S)),
+  deletedPageIds: Schema.NullOr(array(S)),
   deletedPageIdsTruncated: B,
 })
 
@@ -370,30 +370,30 @@ const WikiChange = Schema.Struct({
 export const ApiResults = {
   apiAuthenticate: ApiPrincipal,
   apiResolveWorkspace: ApiWorkspace,
-  apiListWorkspaces: Schema.Array(Schema.Struct({ id: S, name: S, slug: S, role: S, createdAt: N })),
+  apiListWorkspaces: array(Schema.Struct({ id: S, name: S, slug: S, role: S, createdAt: N })),
   apiUserBootstrap: ApiUserBootstrap,
   apiCreateWorkspace: Schema.Struct({ id: S, name: S, slug: S }),
   apiCreateUserToken: Schema.Struct({ token: S }),
   apiDeleteUserToken: Ok,
   apiRegisterAgent: Session,
-  apiStartWork: Schema.Struct({ sessionId: S, lease: Lease, claimedFiles: Schema.Array(Claim) }),
+  apiStartWork: Schema.Struct({ sessionId: S, lease: Lease, claimedFiles: array(Claim) }),
   apiHeartbeatAgent: Session,
   apiEndAgent: Session,
   apiFinishWork: Session,
   apiListActiveAgents: Schema.Struct({
-    items: Schema.Array(Schema.Struct({ ...SessionFields, issueRef: NS, live: B })),
+    items: array(Schema.Struct({ ...SessionFields, issueRef: NS, live: B })),
   }),
   apiPostMessage: Message,
-  apiListMessages: Schema.Struct({ items: Schema.Array(Message), nextCursor: NS }),
+  apiListMessages: Schema.Struct({ items: array(Message), nextCursor: NS }),
   apiClaimFiles: Claims,
-  apiReleaseFiles: Schema.Struct({ released: Schema.Array(ReleasedClaim), count: N }),
+  apiReleaseFiles: Schema.Struct({ released: array(ReleasedClaim), count: N }),
   apiListFileClaims: Schema.Struct({
-    items: Schema.Array(Schema.Struct({ ...ClaimFields, releaseReason: NS, issueRef: S, live: B })),
+    items: array(Schema.Struct({ ...ClaimFields, releaseReason: NS, issueRef: S, live: B })),
   }),
   apiClaimIssue: Lease,
   apiReleaseIssue: Ok,
   apiListIssueLeases: Schema.Struct({
-    items: Schema.Array(
+    items: array(
       Schema.Struct({
         id: S,
         issueId: S,
@@ -405,21 +405,21 @@ export const ApiResults = {
       }),
     ),
   }),
-  apiListComments: Schema.Array(Comment),
+  apiListComments: array(Comment),
   apiAddComment: Id,
   apiUpdateComment: Ok,
   apiDeleteComment: Ok,
-  apiListAttachments: Schema.Array(Attachment),
+  apiListAttachments: array(Attachment),
   apiCreateLinkAttachment: Id,
   apiGetAttachment: Attachment,
   apiDeleteAttachment: Schema.Struct({ r2Key: S }),
-  apiListCustomFieldDefs: Schema.Array(CustomField),
+  apiListCustomFieldDefs: array(CustomField),
   apiCreateCustomFieldDef: Schema.Struct({ id: S, key: S, label: S, type: S }),
   apiUpdateCustomFieldDef: Ok,
   apiDeleteCustomFieldDef: Ok,
-  apiListGroups: Schema.Array(Group),
+  apiListGroups: array(Group),
   apiGetGroup: GroupDetail,
-  apiListMemberGroups: Schema.Array(Schema.Struct({ userId: S, groups: Schema.Array(Named) })),
+  apiListMemberGroups: array(Schema.Struct({ userId: S, groups: array(Named) })),
   apiCreateGroup: Schema.Struct({ id: S, name: S, description: NS }),
   apiUpdateGroup: Ok,
   apiDeleteGroup: Ok,
@@ -427,31 +427,31 @@ export const ApiResults = {
   apiRemoveGroupMember: Ok,
   apiSetGroupGrant: Ok,
   apiRemoveGroupGrant: Ok,
-  apiListSprints: Schema.Struct({ items: Schema.Array(Sprint) }),
+  apiListSprints: Schema.Struct({ items: array(Sprint) }),
   apiGetSprint: Sprint,
   apiCreateSprint: Id,
   apiUpdateSprint: Ok,
   apiCompleteSprint: Ok,
   apiDeleteSprint: Ok,
-  apiMoveIssuesToSprint: Schema.Union([Schema.Array(Schema.Never), Schema.Struct({ ok: B, count: N })]),
-  apiListFeedback: Schema.Array(Feedback),
+  apiMoveIssuesToSprint: Schema.Union([array(Schema.Never), Schema.Struct({ ok: B, count: N })]),
+  apiListFeedback: array(Feedback),
   apiUpdateFeedbackStatus: Ok,
   apiConvertFeedbackToIssue: CreatedIssue,
   apiBulkMarkReviewed: Schema.Struct({ updated: N }),
   apiBulkConvertToIssue: Schema.Struct({ id: S, number: Schema.optional(N), convertedCount: N }),
   apiGetFeedbackSummary: FeedbackSummary,
   apiCreateFeedbackSource: Schema.Struct({ id: S, token: S }),
-  apiListFeedbackSources: Schema.Array(FeedbackSource),
+  apiListFeedbackSources: array(FeedbackSource),
   apiGetFeedbackSource: Schema.Struct({ ...FeedbackSourceFields, projectId: S }),
   apiUpdateFeedbackSource: Ok,
   apiRotateFeedbackSourceToken: Schema.Struct({ token: S }),
   apiRevokeFeedbackSource: Ok,
   apiGetCodeHeatmap: Heatmap,
   apiGetFlowMetrics: FlowMetrics,
-  apiListProjectActivity: Schema.Array(Activity),
+  apiListProjectActivity: array(Activity),
   apiComposePlaybook: Schema.Struct({ name: S, variant: S, directive: S }),
-  apiListProjects: Schema.Array(ProjectSummary),
-  apiListProjectsInWorkspace: Schema.Array(Project),
+  apiListProjects: array(ProjectSummary),
+  apiListProjectsInWorkspace: array(Project),
   apiGetProject: Project,
   apiGetProjectBySlug: Project,
   apiCreateProject: Schema.Struct({ id: S, name: S, key: S, slug: S }),
@@ -459,25 +459,23 @@ export const ApiResults = {
   apiDeleteProject: Ok,
   apiCreateLink: Id,
   apiDeleteLink: Ok,
-  apiListLinksForIssue: Schema.Array(IssueLink),
-  apiListIssues: Schema.Struct({ items: Schema.Array(IssueListItem), total: NN, nextCursor: NS }),
+  apiListLinksForIssue: array(IssueLink),
+  apiListIssues: Schema.Struct({ items: array(IssueListItem), total: NN, nextCursor: NS }),
   apiResolveIssueIdParam: S,
   apiGetIssue: IssueDetail,
   apiGetIssuesBatch: Schema.Struct({
-    items: Schema.Array(
-      Schema.Struct({ ...IssueFields, body: Schema.optional(S), customFields: Schema.Array(FieldValue), url: S }),
-    ),
-    missing: Schema.Array(S),
+    items: array(Schema.Struct({ ...IssueFields, body: Schema.optional(S), customFields: array(FieldValue), url: S })),
+    missing: array(S),
   }),
   apiCreateIssue: Schema.Struct({ id: S, number: N }),
   apiUpdateIssue: Ok,
   apiDeleteIssue: Ok,
   apiGetPrioritizedIssues: Schema.Struct({
-    issues: Schema.Array(PrioritizedIssue),
+    issues: array(PrioritizedIssue),
     droppedNotReady: Schema.optional(N),
     degraded: Schema.optional(B),
   }),
-  apiSearchIssues: Schema.Array(
+  apiSearchIssues: array(
     Schema.Struct({
       id: S,
       number: N,
@@ -489,12 +487,12 @@ export const ApiResults = {
       project_name: NS,
     }),
   ),
-  apiListTaskStatuses: Schema.Array(TaskStatus),
+  apiListTaskStatuses: array(TaskStatus),
   apiCreateTaskStatus: Keyed,
   apiUpdateTaskStatus: Ok,
   apiDeleteTaskStatus: Ok,
   apiCreateTaskType: Keyed,
-  apiListTaskTypes: Schema.Array(TaskType),
+  apiListTaskTypes: array(TaskType),
   apiUpdateTaskType: Ok,
   apiDeleteTaskType: Ok,
   apiCreateShareToken: Schema.Struct({ token: S, url: S }),
@@ -505,10 +503,10 @@ export const ApiResults = {
     name: S,
     slug: S,
     currentUserRole: Schema.optional(S),
-    members: Schema.Array(Schema.Struct({ id: S, name: S, email: S, avatarUrl: NS, role: S, joinedAt: N })),
+    members: array(Schema.Struct({ id: S, name: S, email: S, avatarUrl: NS, role: S, joinedAt: N })),
   }),
-  apiListTokens: Schema.Array(
-    Schema.Struct({ id: S, name: S, scopes: Schema.Array(S), lastUsedAt: NN, expiresAt: NN, createdAt: N }),
+  apiListTokens: array(
+    Schema.Struct({ id: S, name: S, scopes: array(S), lastUsedAt: NN, expiresAt: NN, createdAt: N }),
   ),
   apiInviteMember: Ok,
   apiRemoveMember: Ok,
@@ -518,16 +516,16 @@ export const ApiResults = {
   apiGetWorkspaceBrand: Brand,
   apiUpdateWorkspaceBrand: Brand,
   apiDeleteWorkspaceLogo: Ok,
-  apiListWikiPages: Schema.Array(WikiSummary),
-  apiSearchWiki: Schema.Array(
+  apiListWikiPages: array(WikiSummary),
+  apiSearchWiki: array(
     Schema.Struct({
       ...WikiIdentityFields,
       type: NS,
-      tags: Schema.Array(S),
+      tags: array(S),
       status: NS,
       verified_at: NN,
       verified_by: NS,
-      owners: Schema.Array(S),
+      owners: array(S),
       verify_interval: NN,
       excerpt: S,
       rank: N,
@@ -535,24 +533,24 @@ export const ApiResults = {
     }),
   ),
   apiGetWikiPage: WikiPage,
-  apiGetWikiBacklinks: Schema.Array(Schema.Struct({ linkId: S, pageId: S, slug: S, title: S, url: S, snippet: NS })),
+  apiGetWikiBacklinks: array(Schema.Struct({ linkId: S, pageId: S, slug: S, title: S, url: S, snippet: NS })),
   apiCreateWikiPage: Schema.Struct({
     id: S,
     slug: S,
     projectId: NS,
     url: S,
     type: NS,
-    tags: Schema.Array(S),
+    tags: array(S),
     status: NS,
     verifiedAt: NN,
     verifiedBy: NS,
-    owners: Schema.Array(S),
+    owners: array(S),
     verifyInterval: NN,
     isTemplate: B,
   }),
   apiUpdateWikiPage: Schema.Struct({ ok: B, url: S }),
   apiVerifyWikiPage: Schema.Struct({ ok: B, verifiedAt: NN, verifiedBy: NS, url: S, freshness: Freshness }),
-  apiListStaleWikiPages: Schema.Array(
+  apiListStaleWikiPages: array(
     Schema.Struct({
       ...WikiIdentityFields,
       status: NS,
@@ -565,14 +563,12 @@ export const ApiResults = {
     }),
   ),
   apiPatchWikiPage: Schema.Struct({ ok: B, url: S }),
-  apiListWikiTemplates: Schema.Array(Schema.Struct({ ...WikiIdentityFields, type: NS, url: S })),
+  apiListWikiTemplates: array(Schema.Struct({ ...WikiIdentityFields, type: NS, url: S })),
   apiDeleteWikiPage: Schema.Struct({ ok: B, deletedCount: N, linkedByCount: N }),
   apiUndeleteWikiPage: Schema.Struct({ ok: B, id: S, slug: S, url: S, restoredCount: N }),
-  apiListWikiTrash: Schema.Array(
-    Schema.Struct({ ...WikiIdentityFields, parent_id: NS, deleted_at: NN, purgeAfter: N }),
-  ),
-  apiGetWikiTree: Schema.Array(WikiTreeNode),
-  apiListWikiRevisions: Schema.Array(Schema.Struct({ ...WikiRevisionFields, author_name: NS })),
+  apiListWikiTrash: array(Schema.Struct({ ...WikiIdentityFields, parent_id: NS, deleted_at: NN, purgeAfter: N })),
+  apiGetWikiTree: array(WikiTreeNode),
+  apiListWikiRevisions: array(Schema.Struct({ ...WikiRevisionFields, author_name: NS })),
   apiGetWikiRevision: Schema.Struct({ ...WikiRevisionFields, content: S }),
   apiGetWikiRevisionDiff: Schema.Struct({ from: S, to: S, diff: S }),
   apiGetWikiDraft: WikiDraft,
@@ -580,10 +576,8 @@ export const ApiResults = {
   apiDiscardWikiDraft: Ok,
   apiWatchWikiPage: Schema.Struct({ ok: B, pageId: S, subtree: B, url: S }),
   apiUnwatchWikiPage: Ok,
-  apiListWikiWatches: Schema.Array(
-    Schema.Struct({ id: S, pageId: S, subtree: B, createdAt: N, slug: S, title: S, url: S }),
-  ),
-  apiListWikiNotifications: Schema.Array(
+  apiListWikiWatches: array(Schema.Struct({ id: S, pageId: S, subtree: B, createdAt: N, slug: S, title: S, url: S })),
+  apiListWikiNotifications: array(
     Schema.Struct({
       id: S,
       pageId: NS,
@@ -598,5 +592,5 @@ export const ApiResults = {
     }),
   ),
   apiMarkWikiNotificationsRead: Ok,
-  apiListWikiChanges: Schema.Struct({ changes: Schema.Array(WikiChange), nextSince: N }),
+  apiListWikiChanges: Schema.Struct({ changes: array(WikiChange), nextSince: N }),
 }
