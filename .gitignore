@@ -22,7 +22,7 @@ plugins/**/package-lock.json
 
 # Local agent tooling and temporary acceptance artifacts.
 .claude/
-tmp/
+/tmp/
 test-results/
 playwright-report/
 
