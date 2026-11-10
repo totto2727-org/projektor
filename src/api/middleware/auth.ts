@@ -1,13 +1,13 @@
 import { Effect, Schema } from 'effect'
 import type { Context, Next } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { CorePublicError } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
 import { ApiPrincipal, type ApiUser, VerifiedApiOauthGrant } from '../../contracts/api-auth'
 import { capabilityForMethod, tokenAllows } from '../../contracts/auth-scopes'
 import type { CoreActor } from '../../core/authorization'
-import { CorePublicError } from '../../core/contract'
 import { unauthorizedChallenge } from '../auth/challenge'
 import { bumpRateCounter } from './rate-limit'
 import { mcpWorkspaceIdFromPath } from './workspace'

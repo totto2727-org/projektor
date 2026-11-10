@@ -2,11 +2,11 @@ import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
 import { makeCoreClient } from 'projektor/core-client'
+import { CorePublicError } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
 import { ApiSubmittedFeedback } from '../../contracts/api-public'
-import { CorePublicError } from '../../core/contract'
 import { jsonBody } from '../http/body'
 import { serviceErrToResponse } from '../http/error-adapter'
 import { bumpRateCounter } from '../middleware/rate-limit'

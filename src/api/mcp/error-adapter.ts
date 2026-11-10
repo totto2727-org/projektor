@@ -1,3 +1,4 @@
+import { CorePublicError } from 'projektor/core-client'
 import { z } from 'zod'
 
 import {
@@ -7,7 +8,6 @@ import {
   ValidationError,
   type ZodFlattenOutput,
 } from '../../contracts/errors'
-import { CorePublicError } from '../../core/contract'
 
 const ValidationIssues = z.object({
   formErrors: z.array(z.string()),

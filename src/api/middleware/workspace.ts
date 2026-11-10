@@ -1,11 +1,11 @@
 import { Effect } from 'effect'
 import type { Context, Next } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
+import { CorePublicError } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
 import { ApiWorkspace } from '../../contracts/api-auth'
-import { CorePublicError } from '../../core/contract'
 
 export function subdomainRoutingEnabled(value: string | undefined): boolean {
   return ['true', '1', 'yes'].includes(value?.trim().toLowerCase() ?? '')
