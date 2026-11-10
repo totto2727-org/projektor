@@ -1,6 +1,9 @@
 import { env as nativeApiEnv } from 'cloudflare:test'
+import { Effect } from 'effect'
+import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { describe, expect, it } from 'vite-plus/test'
 
+import { RateLimitResult } from '../../src/contracts/request-rate-limit'
 import type NativeFixtureCore from './core.worker'
 
 interface FixtureBinding {
@@ -29,6 +32,19 @@ describe('actual native API and Core topology', () => {
 
   it('keeps real native storage in the private Core isolate', async () => {
     expect(await core.fixtureEnvironment()).toMatchObject({ database: true, cache: true, files: true })
+  })
+
+  it('dispatches the official named Core RPC protocol through root and configured session bindings', async () => {
+    const session = await core.fixtureSession({ DEV_USER_EMAIL: '' })
+    for (const binding of [core, session]) {
+      const wire = await Effect.runPromise(makeCoreClient(binding).apiCheckRateLimit({}))
+      expect(typeof wire).toBe('string')
+      expect(JSON.parse(wire)).toHaveProperty('_tag')
+      const decoded = await Effect.runPromise(
+        decodeCoreReply(RateLimitResult, makeCoreClient(binding).apiCheckRateLimit({})),
+      )
+      expect(decoded).toBe(null)
+    }
   })
 
   it('creates independently configured native Core sessions without shared policy state', async () => {

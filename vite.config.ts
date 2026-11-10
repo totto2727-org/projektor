@@ -57,7 +57,7 @@ export default defineConfig({
             },
           },
           cloudflareTest(async () => ({
-            main: './src/api/index.ts',
+            main: './tests/native-workers/api.worker.ts',
             miniflare: {
               compatibilityDate: '2024-09-23',
               compatibilityFlags: ['nodejs_compat', 'global_fetch_strictly_public', 'cache_option_enabled'],
@@ -66,6 +66,7 @@ export default defineConfig({
               workers: [await nativeCoreWorker(nativeRunnerName)],
               durableObjects: { RATE_LIMITER: { className: 'RateLimiter', useSQLite: true } },
               bindings: {
+                CORE_FIXTURE_CONFIGURATION: '{}',
                 ENVIRONMENT: 'development',
                 CF_ACCESS_TEAM_DOMAIN: '',
                 CF_ACCESS_AUDIENCE: '',
