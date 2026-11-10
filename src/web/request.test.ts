@@ -61,7 +61,7 @@ describe('request-scoped native services', () => {
     const env = testEnvironment(database.db, 'first@example.test')
     const original = env.CORE.browserScope
     let checked = false
-    env.CORE.browserScope = (request, options) => {
+    env.CORE.browserScope = (request, options = {}) => {
       expect(Object.getPrototypeOf(options)).toBe(Object.prototype)
       expect(Object.keys(options).sort()).toEqual([
         'projectHint',
