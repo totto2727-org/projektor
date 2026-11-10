@@ -56,6 +56,32 @@ function fixture() {
 const input = (file: File, entityId = 'i1') => ({ file, entityType: 'issue' as const, entityId })
 
 describe('shared file transfer commands over migrated SQLite and bounded R2', () => {
+  it('accepts only one concurrent upload when both preflights see the same remaining quota', async () => {
+    const f = fixture()
+    const ready = Promise.withResolvers<void>()
+    let arrivals = 0
+    f.put.mockImplementation(async (key, body) => {
+      f.objects.set(key, await new Response(body).arrayBuffer())
+      if (++arrivals === 2) ready.resolve()
+      await ready.promise
+      return null
+    })
+    const results = await Promise.allSettled([
+      uploadStoredAttachment(f.ctx, input(f.file), 4),
+      uploadStoredAttachment(f.ctx, input(f.file), 4),
+    ])
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.find((result) => result.status === 'rejected')).toMatchObject({
+      reason: { kind: 'payload_too_large' },
+    })
+    expect(f.sqlite.prepare('SELECT COUNT(*) AS n, SUM(size) AS total FROM attachments').get()).toMatchObject({
+      n: 1,
+      total: 4,
+    })
+    expect(f.objects.size).toBe(1)
+    expect(f.remove).toHaveBeenCalledOnce()
+  })
+
   it('streams upload bytes without materializing the File as an ArrayBuffer', async () => {
     const f = fixture()
     const buffer = vi.spyOn(f.file, 'arrayBuffer').mockRejectedValue(new Error('must not buffer upload'))

@@ -1,10 +1,11 @@
 import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
+import { z } from 'zod'
 
 import { drizzle, schema } from '#db'
 import * as data from '#services'
 
-import { IdSchema } from '../../contracts/inputs/common'
+import { BooleanQueryParam, IdSchema } from '../../contracts/inputs/common'
 import { CreateProjectSchema, UpdateProjectSchema } from '../../contracts/inputs/projects'
 import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access'
 import { recordActivity } from './activity'
@@ -23,10 +24,14 @@ async function invalidateProjectsCache(ctx: ServiceCtx) {
   localCache.invalidate(cacheKey)
 }
 
-export async function listProjects(ctx: ServiceCtx, opts: { includeArchived?: boolean } = {}) {
+const ListProjectsOptionsSchema = z.object({ includeArchived: BooleanQueryParam.optional() })
+
+export async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
+  const parsed = ListProjectsOptionsSchema.safeParse(opts)
+  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
   // PROJ-311: owner/admin share the cached workspace list; others get an uncached per-user set.
   const visible = visibleProjectPredicate(ctx, schema.projects.id)
-  const includeArchived = opts.includeArchived ?? false
+  const includeArchived = parsed.data.includeArchived ?? false
   if (!visible) {
     if (includeArchived) {
       return Effect.runPromise(data.listProjects(ctx.db, ctx.workspaceId, { includeArchived }))

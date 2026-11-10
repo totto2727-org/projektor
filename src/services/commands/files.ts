@@ -251,14 +251,18 @@ export async function uploadStoredAttachment(
   const r2Key = `${ctx.workspaceId}/${crypto.randomUUID()}`
   await ctx.r2.put(r2Key, file.stream(), { httpMetadata: { contentType } })
   try {
-    const { id } = await recordUpload(ctx, {
-      entityType,
-      entityId,
-      filename: file.name,
-      contentType,
-      size: file.size,
-      r2Key,
-    })
+    const { id } = await recordUpload(
+      ctx,
+      {
+        entityType,
+        entityId,
+        filename: file.name,
+        contentType,
+        size: file.size,
+        r2Key,
+      },
+      quotaBytes,
+    )
     return { id, filename: file.name, contentType, size: file.size }
   } catch (error) {
     try {
@@ -287,7 +291,11 @@ export async function deleteStoredAttachment(ctx: ServiceCtx, id: string): Promi
 }
 
 /** Records metadata for a file already written to R2 by the shared upload command. */
-export async function recordUpload(ctx: ServiceCtx, input: unknown): Promise<{ id: string }> {
+export async function recordUpload(
+  ctx: ServiceCtx,
+  input: unknown,
+  quotaBytes = DEFAULT_STORAGE_QUOTA_BYTES,
+): Promise<{ id: string }> {
   const parsed = RecordFileUploadSchema.safeParse(input)
   if (!parsed.success) throw new ValidationError(parsed.error.flatten())
   const { entityType, entityId, filename, contentType, size, r2Key } = parsed.data
@@ -297,14 +305,35 @@ export async function recordUpload(ctx: ServiceCtx, input: unknown): Promise<{ i
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
 
-  await ctx.db
+  // This final write, not the advisory preflight, serializes concurrent quota decisions.
+  // A losing upload is compensated by uploadStoredAttachment before its error escapes.
+  const recorded = await ctx.db
     .prepare(
       `INSERT INTO attachments
 	       (id, workspace_id, r2_key, filename, content_type, size, entity_type, entity_id, created_by_id, created_at)
-	     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE (SELECT COALESCE(SUM(size), 0) FROM attachments WHERE workspace_id = ?) + ? <= ?
+         RETURNING id`,
     )
-    .bind(id, ctx.workspaceId, r2Key, filename, contentType, size, entityType, entityId, ctx.userId, now)
-    .run()
+    .bind(
+      id,
+      ctx.workspaceId,
+      r2Key,
+      filename,
+      contentType,
+      size,
+      entityType,
+      entityId,
+      ctx.userId,
+      now,
+      ctx.workspaceId,
+      size,
+      quotaBytes,
+    )
+    .first<{ id: string }>()
+  if (!recorded) {
+    throw new PayloadTooLargeError(`Workspace storage quota exceeded (${Math.round(quotaBytes / (1024 * 1024))} MB)`)
+  }
 
   return { id }
 }

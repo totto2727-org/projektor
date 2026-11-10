@@ -4,6 +4,7 @@ import { addComment, deleteComment, updateComment } from '#commands/comments'
 import { getFeedbackSource } from '#commands/feedback-sources'
 import { listLinksForIssue } from '#commands/issue-links'
 import { getIssue } from '#commands/issues'
+import { listProjects } from '#commands/projects'
 import { updateTaskStatus } from '#commands/task-statuses'
 import { updateTaskType } from '#commands/task-types'
 import type { ServiceCtx } from '#commands/types'
@@ -83,6 +84,17 @@ function fixture() {
 }
 
 describe('current effective grants at shared command boundaries', () => {
+  it('normalizes MCP project archive booleans rather than treating string false as truthy', async () => {
+    const f = fixture()
+    f.sqlite.exec(`UPDATE projects SET archived_at = 1 WHERE id = 'hidden';
+      INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g','hidden','member')`)
+    expect(await listProjects(f.ctx, { includeArchived: 'false' })).toHaveLength(1)
+    expect(await listProjects(f.ctx, { includeArchived: false })).toHaveLength(1)
+    expect(await listProjects(f.ctx, { includeArchived: 'true' })).toHaveLength(2)
+    await expect(listProjects(f.ctx, { includeArchived: 'garbage' })).rejects.toMatchObject({ kind: 'validation' })
+    await expect(listProjects(f.ctx, null)).rejects.toMatchObject({ kind: 'validation' })
+  })
+
   it('rejects every comment write after downgrade, including the existing author', async () => {
     const f = fixture()
     const { id } = await addComment(f.ctx, { issueId: 'i', body: 'Original' })
