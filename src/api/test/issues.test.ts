@@ -1,8 +1,9 @@
-import { env, SELF } from 'cloudflare:test'
+import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
+import { ListIssuesSchema } from '../../contracts/inputs/issues'
 import { issuesTools } from '../mcp/issues'
-import { ListIssuesSchema } from '../schemas/issues'
+import { env } from './fixture-api'
 import {
   authHeaders,
   seedCustomFieldDef,
