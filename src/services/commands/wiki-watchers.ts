@@ -425,12 +425,20 @@ export async function markWikiNotificationsRead(ctx: ServiceCtx, input: unknown)
     eq(schema.wikiNotifications.workspaceId, ctx.workspaceId),
     eq(schema.wikiNotifications.userId, ctx.userId),
   ]
-  if (!all && ids) conditions.push(inArray(schema.wikiNotifications.id, ids))
-
-  await orm
-    .update(schema.wikiNotifications)
-    .set({ readAt: now })
-    .where(and(...conditions))
+  if (!all && ids) {
+    await inChunks(ids, async (chunk) => {
+      await orm
+        .update(schema.wikiNotifications)
+        .set({ readAt: now })
+        .where(and(...conditions, inArray(schema.wikiNotifications.id, chunk)))
+      return []
+    })
+  } else {
+    await orm
+      .update(schema.wikiNotifications)
+      .set({ readAt: now })
+      .where(and(...conditions))
+  }
 
   return { ok: true }
 }

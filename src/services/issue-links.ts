@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, or } from 'drizzle-orm'
+import { and, asc, eq, inArray, or, type SQL } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
@@ -17,8 +17,8 @@ export interface IssueLinkRow {
   createdAt: number
 }
 
-/** Application authorizes the parent issue. Linked metadata retains the API's workspace-only semantics. */
-export function listLinksForIssue(db: D1Database, workspaceId: string, issueId: string) {
+/** The application supplies current linked-project visibility alongside parent authorization. */
+export function listLinksForIssue(db: D1Database, workspaceId: string, issueId: string, visibility?: SQL) {
   return queryEffect('listLinksForIssue', async (): Promise<IssueLinkRow[]> => {
     const orm = drizzle(db, { schema })
     const rows = await orm
@@ -49,22 +49,24 @@ export function listLinksForIssue(db: D1Database, workspaceId: string, issueId: 
         })
         .from(schema.issues)
         .leftJoin(schema.projects, eq(schema.issues.projectId, schema.projects.id))
-        .where(and(inArray(schema.issues.id, chunk), eq(schema.issues.workspaceId, workspaceId))),
+        .where(and(inArray(schema.issues.id, chunk), eq(schema.issues.workspaceId, workspaceId), visibility)),
     )
     const byId = new Map(issueRows.map((r) => [r.id, r]))
-    return enriched.map((r) => {
-      const linked = byId.get(r.linkedIssueId)
-      return {
-        id: r.id,
-        type: r.type,
-        linkedIssueId: r.linkedIssueId,
-        linkedIssueTitle: linked?.title ?? '',
-        linkedIssueNumber: linked?.number ?? 0,
-        linkedIssueProjectKey: linked?.projectKey ?? '',
-        linkedIssueStatusCategory: linked?.statusCategory ?? '',
-        createdById: r.createdById,
-        createdAt: r.createdAt,
-      }
-    })
+    return enriched
+      .filter((r) => !visibility || byId.has(r.linkedIssueId))
+      .map((r) => {
+        const linked = byId.get(r.linkedIssueId)
+        return {
+          id: r.id,
+          type: r.type,
+          linkedIssueId: r.linkedIssueId,
+          linkedIssueTitle: linked?.title ?? '',
+          linkedIssueNumber: linked?.number ?? 0,
+          linkedIssueProjectKey: linked?.projectKey ?? '',
+          linkedIssueStatusCategory: linked?.statusCategory ?? '',
+          createdById: r.createdById,
+          createdAt: r.createdAt,
+        }
+      })
   })
 }

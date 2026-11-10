@@ -78,7 +78,10 @@ async function assertEntityWritable(
     .bind(entityId, ctx.workspaceId)
     .first<{ project_id: string | null }>()
 
-  if (!row?.project_id) return
+  if (!row?.project_id) {
+    requireAttachmentWrite(ctx)
+    return
+  }
   if (!canWriteProject(await requireProjectAccess(ctx, row.project_id))) {
     throw new ForbiddenError('Insufficient permissions')
   }
@@ -163,7 +166,6 @@ export async function createLinkAttachment(
   if (!parsed.success) throw new ValidationError(parsed.error.flatten())
   const data = parsed.data
 
-  requireAttachmentWrite(ctx)
   await assertEntityWritable(ctx, data.entityType, data.entityId)
 
   if (data.kind === 'wiki_ref') {
@@ -243,6 +245,7 @@ export async function uploadStoredAttachment(
   quotaBytes?: number,
 ): Promise<{ id: string; filename: string; contentType: string; size: number }> {
   const { file, entityType, entityId } = input
+  await assertEntityWritable(ctx, entityType, entityId)
   await assertUploadAllowed(ctx, { size: file.size, contentType: file.type, quotaBytes })
   const contentType = file.type || 'application/octet-stream'
   const r2Key = `${ctx.workspaceId}/${crypto.randomUUID()}`
@@ -286,7 +289,6 @@ export async function recordUpload(ctx: ServiceCtx, input: unknown): Promise<{ i
   if (!parsed.success) throw new ValidationError(parsed.error.flatten())
   const { entityType, entityId, filename, contentType, size, r2Key } = parsed.data
 
-  requireAttachmentWrite(ctx)
   await assertEntityWritable(ctx, entityType, entityId)
 
   const id = crypto.randomUUID()
@@ -346,20 +348,23 @@ export async function deleteAttachment(ctx: ServiceCtx, input: unknown): Promise
   const parsed = DeleteAttachmentSchema.safeParse(input)
   if (!parsed.success) throw new ValidationError(parsed.error.flatten())
 
-  requireAttachmentWrite(ctx)
   const owner = ownerVisibleFilter(ctx)
 
   const row = await ctx.db
     .prepare(
-      `SELECT a.r2_key FROM attachments a
+      `SELECT a.r2_key, a.entity_type, a.entity_id FROM attachments a
 	     WHERE a.id = ? AND a.workspace_id = ? ${owner ? `AND ${owner.sql}` : ''}`,
     )
     .bind(parsed.data.id, ctx.workspaceId, ...(owner ? owner.params : []))
-    .first<{ r2_key: string }>()
+    .first<{ r2_key: string; entity_type: 'issue' | 'wiki_page'; entity_id: string }>()
 
   if (!row) throw new NotFoundError('Not found')
+  await assertEntityWritable(ctx, row.entity_type, row.entity_id)
 
-  await ctx.db.prepare('DELETE FROM attachments WHERE id = ?').bind(parsed.data.id).run()
+  await ctx.db
+    .prepare('DELETE FROM attachments WHERE id = ? AND workspace_id = ?')
+    .bind(parsed.data.id, ctx.workspaceId)
+    .run()
 
   return { r2Key: row.r2_key }
 }

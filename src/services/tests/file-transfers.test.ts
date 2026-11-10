@@ -103,7 +103,7 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     expect(f.objects.size).toBe(0)
   })
   it.each(['viewer', 'ungranted', 'project-viewer'] as const)(
-    'cleans bytes after %s write authorization rejection',
+    'rejects %s writes before storing bytes',
     async (kind) => {
       const f = fixture()
       f.ctx.role = kind === 'viewer' ? 'viewer' : 'member'
@@ -114,10 +114,11 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','viewer');
     `)
       await expect(uploadStoredAttachment(f.ctx, input(f.file))).rejects.toMatchObject({
-        kind: kind === 'ungranted' ? 'not_found' : 'forbidden',
+        kind: kind === 'project-viewer' ? 'forbidden' : 'not_found',
       })
       expect(f.objects.size).toBe(0)
-      expect(f.remove).toHaveBeenCalledOnce()
+      expect(f.put).not.toHaveBeenCalled()
+      expect(f.remove).not.toHaveBeenCalled()
     },
   )
   it('requires owner visibility and tenant scope before reading or deleting stored bytes', async () => {
@@ -139,7 +140,10 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','viewer');
     `)
     expect(await getStoredAttachment(f.ctx, uploaded.id)).not.toBeNull()
-    // Existing deletion policy is flat workspace-write plus owner read visibility.
+    await expect(deleteStoredAttachment(f.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'forbidden' })
+    expect(f.objects.size).toBe(1)
+    f.sqlite.exec("UPDATE group_project_grants SET role = 'member' WHERE group_id = 'g1'")
+    f.ctx.role = 'viewer'
     await deleteStoredAttachment(f.ctx, uploaded.id)
     expect(f.objects.size).toBe(0)
   })

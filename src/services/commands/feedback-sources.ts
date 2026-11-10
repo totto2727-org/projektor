@@ -10,7 +10,7 @@ import {
   RotateFeedbackSourceSchema,
   UpdateFeedbackSourceSchema,
 } from '../../api/schemas/feedback'
-import { isWorkspaceAdmin, requireProjectInWorkspace } from './access'
+import { assertProjectAccess, isWorkspaceAdmin, requireProjectInWorkspace } from './access'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
 import type { ServiceCtx } from './types'
 
@@ -141,6 +141,11 @@ export async function getFeedbackSource(ctx: ServiceCtx, input: unknown): Promis
     feedbackQueries.findFeedbackSourceById(ctx.db, ctx.workspaceId, parsed.data.sourceId),
   )
   if (!row) throw new NotFoundError('Feedback source not found')
+  await assertProjectAccess(ctx, row.project_id, 'read', {
+    notFoundMessage: 'Feedback source not found',
+    projectLoadedFromWorkspaceRow: true,
+  })
+  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
   return {
     id: row.id,
     projectId: row.project_id,

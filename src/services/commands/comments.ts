@@ -10,7 +10,7 @@ import {
   ListCommentsSchema,
   UpdateCommentSchema,
 } from '../../api/schemas/comments'
-import { effectiveProjectRole, isWorkspaceAdmin } from './access'
+import { assertProjectAccess, type AccessMode } from './access'
 import { ForbiddenError, NotFoundError, ValidationError } from './errors'
 import { broadcastWorkspaceEvent } from './realtime'
 import type { ServiceCtx } from './types'
@@ -28,7 +28,7 @@ interface CommentRow {
 // PROJ-311: a comment is reachable only if its issue's project is visible to the
 // user (owner/admin bypass). Throw the issue-not-found error to avoid leaking that
 // an issue exists in a project the user was never granted.
-async function assertIssueVisible(ctx: ServiceCtx, issueId: string): Promise<string> {
+async function assertIssueVisible(ctx: ServiceCtx, issueId: string, mode: AccessMode = 'read'): Promise<string> {
   const orm = drizzle(ctx.db, { schema })
   const issue = await orm
     .select({ projectId: schema.issues.projectId })
@@ -36,9 +36,10 @@ async function assertIssueVisible(ctx: ServiceCtx, issueId: string): Promise<str
     .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, ctx.workspaceId)))
     .get()
   if (!issue) throw new NotFoundError('Issue not found')
-  if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, issue.projectId)) === null) {
-    throw new NotFoundError('Issue not found')
-  }
+  await assertProjectAccess(ctx, issue.projectId, mode, {
+    notFoundMessage: 'Issue not found',
+    projectLoadedFromWorkspaceRow: true,
+  })
   return issue.projectId
 }
 
@@ -56,8 +57,7 @@ export async function addComment(ctx: ServiceCtx, input: unknown): Promise<{ id:
   if (!parsed.success) throw new ValidationError(parsed.error.flatten())
   const { issueId, body } = parsed.data
 
-  const projectId = await assertIssueVisible(ctx, issueId)
-  if (ctx.role === 'viewer') throw new ForbiddenError('Insufficient permissions')
+  const projectId = await assertIssueVisible(ctx, issueId, 'edit')
 
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
@@ -106,7 +106,7 @@ export async function updateComment(ctx: ServiceCtx, input: unknown): Promise<{ 
   if (!parsed.success) throw new ValidationError(parsed.error.flatten())
   const { issueId, commentId, body } = parsed.data
 
-  const projectId = await assertIssueVisible(ctx, issueId)
+  const projectId = await assertIssueVisible(ctx, issueId, 'edit')
 
   const orm = drizzle(ctx.db, { schema })
   const comment = await orm
@@ -137,7 +137,7 @@ export async function deleteComment(ctx: ServiceCtx, input: unknown): Promise<{ 
   if (!parsed.success) throw new ValidationError(parsed.error.flatten())
   const { issueId, commentId } = parsed.data
 
-  const projectId = await assertIssueVisible(ctx, issueId)
+  const projectId = await assertIssueVisible(ctx, issueId, 'edit')
 
   const orm = drizzle(ctx.db, { schema })
   const comment = await orm

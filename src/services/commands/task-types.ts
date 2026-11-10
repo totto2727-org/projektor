@@ -92,10 +92,6 @@ export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) 
 
   const orm = drizzle(ctx.db, { schema })
 
-  if (data.isDefault) {
-    await orm.update(schema.taskTypes).set({ isDefault: 0 }).where(eq(schema.taskTypes.workspaceId, ctx.workspaceId))
-  }
-
   const existing = await orm
     .select({ id: schema.taskTypes.id })
     .from(schema.taskTypes)
@@ -103,10 +99,18 @@ export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) 
     .get()
   if (!existing) throw new NotFoundError('Task type not found')
 
-  await orm
+  const update = orm
     .update(schema.taskTypes)
     .set(setObj)
     .where(and(eq(schema.taskTypes.id, id), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
+  if (data.isDefault) {
+    await orm.batch([
+      orm.update(schema.taskTypes).set({ isDefault: 0 }).where(eq(schema.taskTypes.workspaceId, ctx.workspaceId)),
+      update,
+    ])
+  } else {
+    await update
+  }
 
   await invalidateTaskTypesCache(ctx)
   return { ok: true }

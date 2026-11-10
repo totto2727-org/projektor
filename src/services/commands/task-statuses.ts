@@ -99,13 +99,6 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
   const setObj = buildTaskStatusSetObj(data)
   const orm = drizzle(ctx.db, { schema })
 
-  if (data.isDefault) {
-    await orm
-      .update(schema.taskStatuses)
-      .set({ isDefault: 0 })
-      .where(eq(schema.taskStatuses.workspaceId, ctx.workspaceId))
-  }
-
   const existing = await orm
     .select({ id: schema.taskStatuses.id, category: schema.taskStatuses.category })
     .from(schema.taskStatuses)
@@ -124,12 +117,19 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
     .set(setObj)
     .where(and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)))
 
+  const clearDefaults = orm
+    .update(schema.taskStatuses)
+    .set({ isDefault: 0 })
+    .where(eq(schema.taskStatuses.workspaceId, ctx.workspaceId))
   if (categoryChanged) {
     const issuesResync = orm
       .update(schema.issues)
       .set({ statusCategory: setObj.category as string })
       .where(and(eq(schema.issues.statusId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-    await orm.batch([statusUpdate, issuesResync])
+    if (data.isDefault) await orm.batch([clearDefaults, statusUpdate, issuesResync])
+    else await orm.batch([statusUpdate, issuesResync])
+  } else if (data.isDefault) {
+    await orm.batch([clearDefaults, statusUpdate])
   } else {
     await statusUpdate
   }

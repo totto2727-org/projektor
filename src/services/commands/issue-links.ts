@@ -11,7 +11,7 @@ import {
   type LinkTypeStoredEnum,
   ListIssueLinksSchema,
 } from '../../api/schemas/issues'
-import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin } from './access'
+import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access'
 import * as cache from './cache'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
 import { resolveIssueIdParam } from './issues'
@@ -175,5 +175,7 @@ export async function listLinksForIssue(ctx: ServiceCtx, raw: unknown) {
     }
   }
 
-  return Effect.runPromise(queryLinks(ctx.db, ctx.workspaceId, issueId))
+  return Effect.runPromise(
+    queryLinks(ctx.db, ctx.workspaceId, issueId, visibleProjectPredicate(ctx, schema.projects.id) ?? undefined),
+  )
 }
