@@ -86,6 +86,14 @@ async function fixture(currentScope = scope) {
 		INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','member');
 		INSERT INTO api_tokens (id,user_id,workspace_id,name,token_hash,scopes,created_at) VALUES ('t1','u1','w1','Agent token','secret-token-hash','["read"]',1),('foreign-token','u1','w2','Private token','private-hash','["read"]',1);
 	`)
+  const selectedWorkspace =
+    currentScope.selection.kind === 'workspace' || currentScope.selection.kind === 'project'
+      ? currentScope.selection.workspace
+      : null
+  if (selectedWorkspace)
+    database.sqlite
+      .prepare('UPDATE workspace_members SET role = ? WHERE workspace_id = ? AND user_id = ?')
+      .run(selectedWorkspace.role, selectedWorkspace.id, 'u1')
   const calls = vi.spyOn(globalThis, 'fetch')
   const oauthKV = inMemoryKV()
   await oauthKV.put(
@@ -166,7 +174,8 @@ describe('settings authorized direct D1 SSR', () => {
     expect(node.props.initialData.groups.map((group: { id: string }) => group.id)).toEqual(['g1'])
     expect(node.props.initialData.details).toEqual([])
     expect(node.props.initialData.memberGroups).toEqual([])
-    expect(prepare).toHaveBeenCalledTimes(2)
+    expect(prepare.mock.calls.some(([query]) => /left join "user_group_members"/i.test(query))).toBe(false)
+    expect(prepare.mock.calls.some(([query]) => /"added_by".*inner join "users"/s.test(query))).toBe(false)
     expect(renderToStaticMarkup(node)).toContain('Only owners and admins manage groups.')
   })
   it('loads token metadata only from selected workspace and never serializes credential hashes', async () => {
@@ -181,8 +190,6 @@ describe('settings authorized direct D1 SSR', () => {
     expect(renderToStaticMarkup(node)).toContain('Agent token')
   })
   it('denies member token reads before credential DB access while preserving personal connector and guide controls', async () => {
-    // Exercise the limiter's 1% maintenance branch rather than failing randomly.
-    vi.spyOn(Math, 'random').mockReturnValue(0)
     const member = { ...workspace, role: 'member' as const }
     const memberScope: RequestScope = {
       ...scope,
@@ -192,17 +199,8 @@ describe('settings authorized direct D1 SSR', () => {
     const f = await fixture(memberScope)
     const prepare = vi.spyOn(f.db, 'prepare')
     const node = await f.run(renderTokens(f.scope, url))
-    // Authorized personal connector/MCP commands still use the shared rate counter.
-    // Denied token management must not read any credential or domain table.
-    expect(
-      prepare.mock.calls.every(([query]) =>
-        /^\s*(?:INSERT INTO rate_limit \(key, count, window_start\)|SELECT count FROM rate_limit WHERE key = \?|DELETE FROM rate_limit WHERE window_start < \?)/.test(
-          query,
-        ),
-      ),
-      prepare.mock.calls.map(([query]) => query).join('\n'),
-    ).toBe(true)
-    expect(prepare).toHaveBeenCalledWith('DELETE FROM rate_limit WHERE window_start < ?')
+    // Core rechecks live membership, but must not load token metadata for a member.
+    expect(prepare.mock.calls.some(([query]) => /\bapi_tokens\b/.test(query))).toBe(false)
     expect(node.props.initialTokens).toEqual([])
     expect(node.props.tokensDenied).toBe(true)
     expect(node.props.initialGrants).toEqual([connector])
@@ -230,10 +228,8 @@ describe('settings authorized direct D1 SSR', () => {
     const f = await fixture()
     const unverified: RequestScope = { ...f.scope, auth: undefined }
     const node = await f.run(renderTokens(unverified, url))
-    expect(node.props.initialTokens).toEqual([token])
-    expect(node.props.connectorsDenied).toBe(true)
-    expect(node.props.mcpUrl).toBeNull()
-    expect(renderToStaticMarkup(node)).toContain('Signed-in members only.')
+    expect(node.props.initialTokens).toBeUndefined()
+    expect(renderToStaticMarkup(node)).toContain('Access denied.')
     expect(renderToStaticMarkup(await f.run(renderConnectors(unverified, url)))).toContain('Signed-in members only.')
   })
   it('propagates core DB failures with redacted diagnostics', async () => {
@@ -243,7 +239,7 @@ describe('settings authorized direct D1 SSR', () => {
     expect(error).toMatchObject({
       _tag: 'ApiError',
       status: 500,
-      message: 'Unable to load project data.',
+      message: 'An unexpected error occurred.',
     })
     expect(JSON.stringify(error)).not.toContain('user_groups')
   })

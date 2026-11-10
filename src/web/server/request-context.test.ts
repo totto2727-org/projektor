@@ -9,8 +9,8 @@ import { schema } from '#db'
 import { listProjects } from '#services'
 import { type BrowserAuthEnvironment, resetAuthCachesForTests } from '#services/authentication'
 
+import { visibleProjectPredicate } from '../../core/web/data-context'
 import { createTestDatabase } from '../test/database'
-import { visibleProjectPredicate } from './data-context'
 import {
   type AuthSession,
   decodeAuthSession,

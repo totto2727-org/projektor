@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 
 import { handleApiBinaryRequest } from '../../../core/api/files'
+import { makeApiRateLimitHandlers } from '../../../core/api/rate-limit'
 import type { CoreEnvironment } from '../../../core/environment'
 import { handleCoreFileRequest } from '../../../core/files'
 import { makeWebCoreHandlers, type WebCoreRpcShape } from '../../../core/web/operations'
@@ -8,7 +9,11 @@ import type { WebRequest, ScopeOptions } from '../../../core/web/scope'
 import type { Env } from '../../request'
 export type TestEnvironment = CoreEnvironment &
   Omit<Env, 'CORE'> & {
-    CORE: Env['CORE'] & { [K in keyof WebCoreRpcShape]: (...args: Parameters<WebCoreRpcShape[K]>) => Promise<string> }
+    CORE: Env['CORE'] & {
+      apiCheckRateLimit: (
+        ...args: Parameters<ReturnType<typeof makeApiRateLimitHandlers<never>>['apiCheckRateLimit']>
+      ) => Promise<string>
+    } & { [K in keyof WebCoreRpcShape]: (...args: Parameters<WebCoreRpcShape[K]>) => Promise<string> }
   }
 
 /** Unit-test storage doubles only. Worker acceptance uses actual native KV/R2 bindings. */
@@ -131,6 +136,37 @@ export function testEnvironment(
   const result: TestEnvironment = {
     ...env,
     CORE: overrides.CORE ?? {
+      webSettingsGroups: (...args: Parameters<WebCoreRpcShape['webSettingsGroups']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSettingsGroups(...args)),
+      webSettingsTokens: (...args: Parameters<WebCoreRpcShape['webSettingsTokens']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSettingsTokens(...args)),
+      webSettingsConnectors: (...args: Parameters<WebCoreRpcShape['webSettingsConnectors']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSettingsConnectors(...args)),
+      webSettingsMcp: (...args: Parameters<WebCoreRpcShape['webSettingsMcp']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSettingsMcp(...args)),
+      webCreateGroup: (...args: Parameters<WebCoreRpcShape['webCreateGroup']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateGroup(...args)),
+      webUpdateGroup: (...args: Parameters<WebCoreRpcShape['webUpdateGroup']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateGroup(...args)),
+      webDeleteGroup: (...args: Parameters<WebCoreRpcShape['webDeleteGroup']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteGroup(...args)),
+      webAddGroupMember: (...args: Parameters<WebCoreRpcShape['webAddGroupMember']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webAddGroupMember(...args)),
+      webRemoveGroupMember: (...args: Parameters<WebCoreRpcShape['webRemoveGroupMember']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRemoveGroupMember(...args)),
+      webSetGroupGrant: (...args: Parameters<WebCoreRpcShape['webSetGroupGrant']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSetGroupGrant(...args)),
+      webRemoveGroupGrant: (...args: Parameters<WebCoreRpcShape['webRemoveGroupGrant']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRemoveGroupGrant(...args)),
+      webCreateToken: (...args: Parameters<WebCoreRpcShape['webCreateToken']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateToken(...args)),
+      webRevokeToken: (...args: Parameters<WebCoreRpcShape['webRevokeToken']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRevokeToken(...args)),
+      webDisconnectConnector: (...args: Parameters<WebCoreRpcShape['webDisconnectConnector']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDisconnectConnector(...args)),
+      apiCheckRateLimit: (
+        ...args: Parameters<ReturnType<typeof makeApiRateLimitHandlers<never>>['apiCheckRateLimit']>
+      ) => Effect.runPromise(makeApiRateLimitHandlers(Effect.succeed(result)).apiCheckRateLimit(...args)),
       fetch: async (request: Request) =>
         (await handleApiBinaryRequest(request, result)) ?? handleCoreFileRequest(request, result),
       browserWorkspaceBrand: (...args: Parameters<WebCoreRpcShape['browserWorkspaceBrand']>) =>

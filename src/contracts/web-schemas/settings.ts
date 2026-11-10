@@ -75,3 +75,27 @@ export const McpInfoSchema = Schema.Struct({
   mcpUrl: Schema.String,
   mcpAddCommandTemplate: Schema.optionalKey(nullableText),
 })
+export const SettingsGroupsSchema = Schema.Struct({
+  groups: GroupsSchema,
+  details: array(GroupDetailSchema),
+  members: WorkspaceSchema.fields.members,
+  memberGroups: MemberGroupsSchema,
+  projects: ProjectsSchema,
+  role: Schema.String,
+})
+export const SettingsTokensSchema = Schema.Struct({
+  tokens: TokensSchema,
+  tokensDenied: Schema.Boolean,
+  grants: ConnectorsSchema,
+  connectorsDenied: Schema.Boolean,
+  info: Schema.NullOr(McpInfoSchema),
+})
+export const NewTokenSchema = Schema.Struct({
+  id: Schema.String,
+  token: Schema.String,
+  name: Schema.String,
+  scopes: array(Schema.String),
+  expiresAt: nullableNumber,
+})
+export const CreatedGroupSchema = Schema.Struct({ id: Schema.String, name: Schema.String, description: nullableText })
+export const SettingsOkSchema = Schema.Struct({ ok: Schema.Literal(true) })

@@ -10,6 +10,7 @@ import { makeIssueReadHandlers } from './issue-operations'
 import { makePlanningHandlers } from './planning'
 import { makeProjectHandlers } from './projects'
 import { RequestScopeSchema, type ScopeOptions, type WebRequest } from './scope'
+import { makeSettingsHandlers } from './settings'
 import { makeShareHandlers } from './share'
 import { makeWikiHandlers } from './wiki'
 import { makeWikiCommandHandlers } from './wiki-commands'
@@ -23,6 +24,7 @@ export const makeWebCoreHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
   ...makeProjectHandlers(envSource),
   ...makeWikiHandlers(envSource),
   ...makeWikiCommandHandlers(envSource),
+  ...makeSettingsHandlers(envSource),
   ...makeShareHandlers(envSource),
   browserScope: (request: WebRequest, options: ScopeOptions = {}) =>
     Effect.flatMap(envSource, (env) =>

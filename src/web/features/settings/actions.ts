@@ -1,23 +1,14 @@
 'use server'
 
-import { and, eq } from 'drizzle-orm'
 import { Effect, Schema } from 'effect'
-
-import * as groupCommands from '#commands/groups'
-import { revokeConnectorGrant } from '#commands/oauth'
-import * as workspaceCommands from '#commands/workspaces'
-import { schema } from '#db'
-import { oauthApi } from '#services/oauth-provider'
-import { listProjects } from '#services/projects'
 
 import { EFFRONT } from '../../effront'
 import { RequestServices } from '../../request'
-import { runCommand } from '../../server/command-context'
-import { dataError, visibleProjectPredicate } from '../../server/data-context'
+import { runBrowserCommand as runCommand } from '../../server/browser-command'
 import { ScopeError } from '../../server/errors'
 import { resolveFunctionContext } from '../../server/function-context'
 import { checkSameOriginMutation } from '../../server/mutation'
-import type { RequestScope } from '../../server/request-context'
+import { groupCommands, revokeConnectorGrant, workspaceCommands } from './data'
 import {
   ConnectorIdentitySchema,
   CreateGroupInputSchema,
@@ -30,24 +21,6 @@ import {
   RenameGroupInputSchema,
   TokenIdentitySchema,
 } from './input-schemas'
-
-/** Grant targets are explicit IDs, including archived projects outside the active page catalog. */
-function authorizeGrantProject(db: Parameters<typeof listProjects>[0], scope: RequestScope, projectId: string) {
-  return Effect.gen(function* () {
-    if (scope.selection.kind !== 'workspace')
-      return yield* new ScopeError(404, 'Project not found in the selected workspace.')
-    const workspaceId = scope.selection.workspace.id
-    const visibility = yield* Effect.try({
-      try: () =>
-        and(visibleProjectPredicate(scope, workspaceId, schema.projects.id), eq(schema.projects.id, projectId)),
-      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
-    })
-    const [project] = yield* listProjects(db, workspaceId, { includeArchived: true, visibility }).pipe(
-      Effect.mapError(dataError),
-    )
-    if (!project) return yield* new ScopeError(404, 'Project not found in the selected workspace.')
-  })
-}
 
 export const createGroup = EFFRONT.ServerFn.make({
   input: [Schema.Unknown, Schema.fromFormData(CreateGroupInputSchema)] as const,
@@ -191,7 +164,6 @@ export const setGroupGrant = EFFRONT.ServerFn.make({
           { requireWorkspace: true },
         )
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        yield* authorizeGrantProject(services.db, context.scope, input.projectId)
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.setGroupGrant(ctx, input.groupId, { projectId: input.projectId, role: input.role }),
         )
@@ -218,7 +190,6 @@ export const createGroupGrant = EFFRONT.ServerFn.make({
           { requireWorkspace: true },
         )
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        yield* authorizeGrantProject(services.db, context.scope, input.projectId)
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.setGroupGrant(ctx, input.groupId, { projectId: input.projectId, role: input.role }),
         )
@@ -244,7 +215,6 @@ export const removeGroupGrant = EFFRONT.ServerFn.make({
           { requireWorkspace: true },
         )
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        yield* authorizeGrantProject(services.db, context.scope, input.projectId)
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.removeGroupGrant(ctx, input.groupId, input.projectId),
         )
@@ -313,9 +283,7 @@ export const disconnectConnector = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
         if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
-        const value = yield* runCommand(context, (ctx) =>
-          revokeConnectorGrant(oauthApi(services.env), ctx.userId, ctx.workspaceId, input.connectorId),
-        )
+        const value = yield* runCommand(context, (ctx) => revokeConnectorGrant(ctx, input.connectorId))
         return { ok: true as const, value }
       }).pipe(
         Effect.catchTags({
