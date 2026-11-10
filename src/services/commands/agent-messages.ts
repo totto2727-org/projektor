@@ -4,7 +4,8 @@ import { drizzle, schema } from '#db'
 
 import { ListMessagesSchema, PostMessageSchema } from '../../contracts/inputs/agent-messages'
 import { assertIssueAccess } from './access'
-import { ForbiddenError, NotFoundError, ValidationError } from './errors'
+import { assertAgentSessionAccess } from './agent-identity'
+import { ForbiddenError, ValidationError } from './errors'
 import type { ServiceCtx } from './types'
 
 // PROJ-929: mirrors ACTIVE_TTL in services/agents.ts (and SESSION_TTL_SECONDS in
@@ -90,12 +91,7 @@ export async function postMessage(ctx: ServiceCtx, raw: unknown) {
 
   // If agentId given, verify the agent session belongs to this workspace
   if (agentId) {
-    const agent = await orm
-      .select({ id: schema.agentSessions.id })
-      .from(schema.agentSessions)
-      .where(and(eq(schema.agentSessions.id, agentId), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
-      .get()
-    if (!agent) throw new NotFoundError('Agent session not found')
+    await assertAgentSessionAccess(ctx, agentId)
 
     // PROJ-929: refresh the poster's heartbeat, live sessions only.
     await touchAgentHeartbeatIfLive(orm, ctx, agentId)

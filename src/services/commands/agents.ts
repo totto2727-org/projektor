@@ -11,7 +11,7 @@ import {
   StartWorkSchema,
 } from '../../contracts/inputs/agents'
 import { assertIssueAccess, visibleProjectPredicate } from './access'
-import { resolveAgentSessionId } from './agent-identity'
+import { agentSessionCredential, assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity'
 import { postMessage } from './agent-messages'
 import { NotFoundError, ValidationError } from './errors'
 import { claimFiles, releaseClaimsForAgent } from './file-claims'
@@ -67,7 +67,7 @@ export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
     // for pk/pat credentials; an OAuth grant id lives in credential_id alone.
     tokenId: ctx.auth?.credentialId && isApiTokenMethod(ctx.auth.method) ? ctx.auth.credentialId : null,
     authMethod: ctx.auth?.method ?? null,
-    credentialId: ctx.auth?.credentialId ?? null,
+    credentialId: agentSessionCredential(ctx) ?? null,
     name,
     status: 'active',
     startedAt: now,
@@ -214,6 +214,8 @@ export async function finishWork(ctx: ServiceCtx, raw: unknown) {
   const result = FinishWorkSchema.safeParse(raw)
   if (!result.success) throw new ValidationError(result.error.flatten())
   const { sessionId, issue: issueId, completionReport, status } = result.data
+  await assertIssueAccess(ctx, issueId, 'edit')
+  await assertAgentSessionAccess(ctx, sessionId)
 
   if (status !== undefined || completionReport !== undefined) {
     await updateIssue(ctx, issueId, {

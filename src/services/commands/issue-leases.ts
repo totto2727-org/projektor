@@ -4,7 +4,7 @@ import { drizzle, schema } from '#db'
 
 import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '../../contracts/inputs/issue-leases'
 import { assertIssueAccess, visibleProjectPredicate } from './access'
-import { resolveAgentSessionId } from './agent-identity'
+import { assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity'
 import { ConflictError, NotFoundError, ValidationError } from './errors'
 import { resolveVisibleProjectIdParam } from './projects'
 import { broadcastWorkspaceEvent } from './realtime'
@@ -276,11 +276,12 @@ export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
   if (agentId) conditions.push(eq(schema.issueLeases.agentSessionId, agentId))
 
   const active = await orm
-    .select({ id: schema.issueLeases.id })
+    .select({ id: schema.issueLeases.id, agentSessionId: schema.issueLeases.agentSessionId })
     .from(schema.issueLeases)
     .where(and(...conditions))
     .get()
   if (!active) throw new NotFoundError('No active lease on this issue')
+  await assertAgentSessionAccess(ctx, active.agentSessionId)
 
   await orm
     .update(schema.issueLeases)

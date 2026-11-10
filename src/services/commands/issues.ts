@@ -26,6 +26,7 @@ import {
   visibleProjectSqlFragment,
 } from './access'
 import { recordActivity } from './activity'
+import { assertAgentSessionAccess } from './agent-identity'
 import * as cache from './cache'
 import { buildAddCommentInsertStatement } from './comments'
 import { buildCustomFieldUpsertStatements, validateCustomFields } from './custom-fields'
@@ -1032,6 +1033,8 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
     if (projRole === null) throw new NotFoundError('Issue not found')
     if (!canWriteProject(projRole)) throw new ForbiddenError('Insufficient permissions')
   }
+
+  if (data.agentSessionId) await assertAgentSessionAccess(ctx, data.agentSessionId)
 
   // PROJ-785: a non-null assigneeId must be a member of this workspace —
   // otherwise we'd persist a dangling or wrong-workspace user reference. `null`

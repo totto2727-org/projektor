@@ -5,21 +5,13 @@ import { drizzle, schema } from '#db'
 import { PostMessageSchema } from '../../contracts/inputs/agent-messages'
 import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '../../contracts/inputs/file-claims'
 import { assertIssueAccess, assertProjectAccess, visibleProjectPredicate } from './access'
+import { assertAgentSessionAccess } from './agent-identity'
 import { buildPostMessageStatements } from './agent-messages'
-import { ConflictError, NotFoundError, ValidationError } from './errors'
+import { ConflictError, ValidationError } from './errors'
 import { resolveVisibleProjectIdParam } from './projects'
 import { broadcastWorkspaceEvent } from './realtime'
 import { inChunks } from './sql'
 import type { ServiceCtx } from './types'
-
-async function assertAgentInWorkspace(orm: ReturnType<typeof drizzle>, workspaceId: string, agentId: string) {
-  const agent = await orm
-    .select({ id: schema.agentSessions.id })
-    .from(schema.agentSessions)
-    .where(and(eq(schema.agentSessions.id, agentId), eq(schema.agentSessions.workspaceId, workspaceId)))
-    .get()
-  if (!agent) throw new NotFoundError('Agent session not found')
-}
 
 // PROJ-929: a call that carries an already-live agentId implicitly refreshes that
 // session's heartbeat, so explicit heartbeat_agent calls become optional during a claim
@@ -263,7 +255,7 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
 
   const projectId = await assertIssueAccess(ctx, issueId, 'edit')
   if (agentId) {
-    await assertAgentInWorkspace(orm, ctx.workspaceId, agentId)
+    await assertAgentSessionAccess(ctx, agentId)
     // PROJ-929: refresh the acting session's heartbeat if it's already live (see
     // touchAgentHeartbeatIfLive) — done even if the claim itself is later rejected below.
     await touchAgentHeartbeatIfLive(orm, ctx, agentId, liveCutoff())
@@ -460,6 +452,10 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
 
   for (const projectId of new Set(toRelease.map((claim) => claim.projectId))) {
     await assertProjectAccess(ctx, projectId, 'edit', { projectLoadedFromWorkspaceRow: true })
+  }
+
+  for (const agentId of new Set(toRelease.map((claim) => claim.agentId))) {
+    if (agentId) await assertAgentSessionAccess(ctx, agentId)
   }
 
   const releaseIds = toRelease.map((r) => r.id)
