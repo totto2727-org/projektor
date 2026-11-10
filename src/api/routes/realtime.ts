@@ -14,10 +14,9 @@ const INTERNAL_ROLE_HEADER = 'X-Internal-Role'
 /**
  * Build the request forwarded to the Durable Object stub.
  *
- * The DO runs in the same isolate and cannot be reached directly by clients,
- * so we safely inject the already-authenticated caller identity as internal
- * headers. Any client-supplied internal headers are stripped first to prevent
- * spoofing.
+ * The private hub receives the original authentication proof. Core reauthorizes it
+ * on upgrade and every message or broadcast. Legacy identity hints and any
+ * client-supplied proof header are stripped before the adapter sets its own proof.
  */
 function buildHubRequest(c: Context<HonoEnv>): Request {
   const headers = new Headers(c.req.raw.headers)
@@ -26,14 +25,10 @@ function buildHubRequest(c: Context<HonoEnv>): Request {
   headers.delete(INTERNAL_ROLE_HEADER)
   headers.delete(CORE_ACTOR_HEADER)
 
-  const user = c.get('user')
   const workspace = c.get('workspace')
-  const role = c.get('role')
 
   headers.set(CORE_ACTOR_HEADER, JSON.stringify(c.get('coreActor')))
-  headers.set(INTERNAL_USER_ID_HEADER, user.id)
   headers.set(INTERNAL_WORKSPACE_ID_HEADER, workspace.id)
-  if (role) headers.set(INTERNAL_ROLE_HEADER, role)
 
   return new Request(c.req.raw.url, {
     method: c.req.raw.method,
