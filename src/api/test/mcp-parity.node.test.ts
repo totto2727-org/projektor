@@ -51,7 +51,6 @@ const MCP_ONLY: Record<string, string> = {
  */
 const REST_ONLY: Record<string, string> = {
   // Auth / token plumbing — an agent authenticates, it does not mint credentials.
-  'types.ts:ctxFromHono': 'adapter from Hono context to ServiceCtx, not an operation',
   'user-tokens.ts:getUserWorkspaces': 'session bootstrap for the browser',
   'user-tokens.ts:createUserToken': 'personal access tokens are minted by a human in the UI',
   'user-tokens.ts:deleteUserToken': "revoking a human's own PAT is a UI action",
@@ -86,11 +85,7 @@ const REST_ONLY: Record<string, string> = {
   'task-types.ts:seedDefaultTaskTypes': 'bootstrap seed for a new workspace',
   // OAuth consent (PROJ-656) — the browser-only half of the connector flow. An agent
   // is the *subject* of these, never the caller: it cannot decide who may connect it.
-  'oauth.ts:parseConsentRequest': 'validates a browser authorization request before consent',
   'oauth.ts:lookupConsentWorkspace': 'membership check for the human on the consent screen',
-  'oauth.ts:describeScope': 'consent-screen copy',
-  'oauth.ts:relyingPartyHost': 'consent-screen copy',
-  'oauth.ts:isLoopbackOnlyClient': 'consent-screen warning',
   'oauth.ts:listConnectorGrants': 'settings-only: a connector must not enumerate credentials',
   'oauth.ts:revokeConnectorGrant': 'settings-only: revoking a credential is a browser action',
   // Misc.
@@ -140,41 +135,286 @@ function snakeCase(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
 }
 
-/**
- * Every service identifier referenced by any file in `dir`, covering the binding styles
- * that can wire a surface up: named (`import { listIssues } from "#commands/issues"`),
- * re-export (`export { listIssues } from "#commands/issues"`), and namespace
- * (`import * as wikiService` then `wikiService.listWikiPages(...)`).
- *
- * The re-export form isn't used in this codebase today, but it binds a service function
- * to a surface just as effectively as an import, and missing it would be a false
- * negative — the one failure mode this test cannot afford.
- */
-function serviceIdentifiersUsedIn(...paths: string[]): Set<string> {
-  const names = new Set<string>()
-  for (const path of paths.flatMap(expandToFiles)) {
-    const src = readFileSync(path, 'utf8')
-    for (const m of src.matchAll(
-      /(?:import|export)\s*(?:type\s*)?\{([^}]+)\}\s*from\s*["'][^"']*(?:services|#commands)\/[^"']+["']/g,
-    )) {
-      for (const part of m[1].split(',')) {
-        const id = part
-          .trim()
-          .replace(/^type\s+/, '')
-          .split(/\s+as\s+/)[0]
-          .trim()
-        if (id) names.add(id)
-      }
-    }
-    for (const m of src.matchAll(
-      /import\s*\*\s*as\s+([A-Za-z0-9_$]+)\s*from\s*["'][^"']*(?:services|#commands)\/[^"']+["']/g,
-    )) {
-      for (const use of src.matchAll(new RegExp(`\\b${m[1]}\\.([A-Za-z0-9_$]+)`, 'g'))) {
-        names.add(use[1])
-      }
+/** Qualified import bindings keep facade names distinct from their canonical domain operations. */
+interface SourceModule {
+  path: string
+  ast: ts.SourceFile
+  imports: Map<string, { path: string; name?: string }>
+  functions: Map<string, ts.Node>
+}
+
+function parseSource(path: string, source: string): ts.SourceFile {
+  const configFile = `${path}.parity.json`
+  const api = new API({
+    fs: createVirtualFileSystem({
+      [path]: source,
+      [configFile]: JSON.stringify({
+        compilerOptions: { target: 'esnext', noLib: true, noResolve: true, types: [] },
+        files: [path],
+      }),
+    }),
+  })
+  try {
+    const ast = api
+      .updateSnapshot({ openProjects: [configFile] })
+      .getProject(configFile)
+      ?.program.getSourceFile(path)
+    if (!ast) throw new Error(`Could not parse parity source: ${path}`)
+    return ast
+  } finally {
+    api.close()
+  }
+}
+
+const modules = new Map<string, SourceModule>()
+function sourceModule(path: string, sourceOverride?: string): SourceModule {
+  const cached = modules.get(path)
+  if (cached) return cached
+  const source = sourceOverride ?? readFileSync(path, 'utf8')
+  const ast = parseSource(path, source)
+  const imports: SourceModule['imports'] = new Map()
+  for (const declaration of ast.statements) {
+    if (!ts.isImportDeclaration(declaration) && !ts.isExportDeclaration(declaration)) continue
+    if (!declaration.moduleSpecifier || !ts.isStringLiteral(declaration.moduleSpecifier)) continue
+    const specifier = declaration.moduleSpecifier.text
+    const target = specifier.startsWith('#commands/')
+      ? join(COMMANDS, `${specifier.slice(10)}.ts`)
+      : specifier.startsWith('.')
+        ? join(path, '..', `${specifier.replace(/\.ts$/, '')}.ts`)
+        : undefined
+    if (!target) continue
+    const bindings = ts.isImportDeclaration(declaration)
+      ? declaration.importClause?.namedBindings
+      : declaration.exportClause
+    if (bindings && ts.isNamespaceImport(bindings)) imports.set(bindings.name.text, { path: target })
+    if (bindings && (ts.isNamedImports(bindings) || ts.isNamedExports(bindings))) {
+      for (const binding of bindings.elements)
+        imports.set(binding.name.text, { path: target, name: binding.propertyName?.text ?? binding.name.text })
     }
   }
-  return names
+  const functions = new Map<string, ts.Node>()
+  for (const node of ast.statements) {
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) functions.set(node.name.text, node.body)
+    if (ts.isVariableStatement(node))
+      for (const declaration of node.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name) && declaration.initializer)
+          functions.set(declaration.name.text, declaration.initializer)
+      }
+  }
+  const module = { path, ast, imports, functions }
+  modules.set(path, module)
+  return module
+}
+
+function importedSymbol(module: SourceModule, expression: ts.Node): { path: string; name: string } | undefined {
+  if (ts.isIdentifier(expression)) {
+    const target = module.imports.get(expression.text)
+    if (target?.name) return { path: target.path, name: target.name }
+    if (module.functions.has(expression.text)) return { path: module.path, name: expression.text }
+  }
+  if (ts.isPropertyAccessExpression(expression) && ts.isIdentifier(expression.expression)) {
+    const target = module.imports.get(expression.expression.text)
+    if (target && !target.name) return { path: target.path, name: expression.name.text }
+  }
+  return undefined
+}
+
+const coreMethods = new Map<string, { module: SourceModule; node: ts.Node }>()
+for (const path of expandToFiles(join(SRC, '..', 'core', 'api')).filter((path) => !path.endsWith('.test.ts'))) {
+  const module = sourceModule(path)
+  function visit(node: ts.Node): void {
+    if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && /^api[A-Z]/.test(node.name.text)) {
+      if (coreMethods.has(node.name.text)) throw new Error(`Duplicate named Core operation: ${node.name.text}`)
+      coreMethods.set(node.name.text, { module, node: node.initializer })
+    }
+    node.forEachChild(visit)
+  }
+  visit(module.ast)
+}
+
+interface BinaryContext {
+  pathname: string
+  method: string
+  values: Map<string, unknown>
+}
+function valueOf(node: ts.Node, context: BinaryContext): unknown {
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text
+  if (ts.isIdentifier(node)) return context.values.get(node.text)
+  if (ts.isPropertyAccessExpression(node) && node.name.text === 'pathname' && ts.isNewExpression(node.expression))
+    return context.pathname
+  if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
+    if (node.expression.text === 'url' && node.name.text === 'pathname') return context.pathname
+    if (node.expression.text === 'request' && node.name.text === 'method') return context.method
+  }
+  if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) {
+    const value = valueOf(node.operand, context)
+    return value === undefined ? undefined : !value
+  }
+  if (ts.isBinaryExpression(node)) {
+    const left = valueOf(node.left, context),
+      right = valueOf(node.right, context)
+    switch (node.operatorToken.kind) {
+      case ts.SyntaxKind.AmpersandAmpersandToken:
+        return left === false || right === false
+          ? false
+          : left === undefined || right === undefined
+            ? undefined
+            : Boolean(left && right)
+      case ts.SyntaxKind.BarBarToken:
+        return left === true || right === true
+          ? true
+          : left === undefined || right === undefined
+            ? undefined
+            : Boolean(left || right)
+      case ts.SyntaxKind.EqualsEqualsEqualsToken:
+        return left === undefined || right === undefined ? undefined : left === right
+      case ts.SyntaxKind.ExclamationEqualsEqualsToken:
+        return left === undefined || right === undefined ? undefined : left !== right
+    }
+  }
+  if (
+    ts.isCallExpression(node) &&
+    ts.isPropertyAccessExpression(node.expression) &&
+    node.expression.name.text === 'exec' &&
+    ts.isRegularExpressionLiteral(node.expression.expression)
+  ) {
+    const text = node.expression.expression.text
+    const end = text.lastIndexOf('/')
+    const input = node.arguments[0] && valueOf(node.arguments[0], context)
+    if (typeof input === 'string') return new RegExp(text.slice(1, end), text.slice(end + 1)).test(input)
+  }
+  return undefined
+}
+
+function pathLiteral(node: ts.Node | undefined): string | undefined {
+  if (!node) return undefined
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text
+  if (ts.isTemplateExpression(node)) return `${node.head.text}__value__`
+  return undefined
+}
+
+/** Trace named functions, native method bindings and only the selected binary request branch. */
+function domainOperations(
+  module: SourceModule,
+  node: ts.Node,
+  binary?: BinaryContext,
+  visited = new Set<string>(),
+): Set<string> {
+  const keys = new Set<string>()
+  const merge = (items: Iterable<string>) => {
+    for (const key of items) keys.add(key)
+  }
+  function target(path: string, name: string): void {
+    const id = `${path}:${name}`
+    if (visited.has(id)) return
+    if (path.startsWith(`${COMMANDS}/`)) {
+      keys.add(`${basename(path)}:${name}`)
+      if (!(FILE_IO_WRAPPERS as readonly string[]).includes(name)) return
+    } else if (
+      !(
+        path.startsWith(join(SRC, 'services')) ||
+        path.startsWith(join(SRC, '..', 'core', 'api')) ||
+        (binary && [join(SRC, '..', 'core', 'files.ts'), join(SRC, '..', 'core', 'shared-logo.ts')].includes(path))
+      )
+    )
+      return
+    visited.add(id)
+    const implementation = sourceModule(path)
+    const body = implementation.functions.get(name)
+    if (body) merge(domainOperations(implementation, body, binary, new Set([...visited, id])))
+    else {
+      const reexport = implementation.imports.get(name)
+      if (reexport?.name) target(reexport.path, reexport.name)
+    }
+  }
+  function native(name: string): void {
+    const handler = coreMethods.get(name)
+    if (handler) merge(domainOperations(handler.module, handler.node, undefined, new Set([...visited, name])))
+    else throw new Error(`No concrete Core handler for ${name}`)
+  }
+  function binaryRequest(pathname: string, method: string): void {
+    const worker = sourceModule(join(SRC, '..', 'core', 'worker.ts'))
+    function findFetch(child: ts.Node): void {
+      if (ts.isPropertyAssignment(child) && ts.isIdentifier(child.name) && child.name.text === 'fetch') {
+        merge(
+          domainOperations(worker, child.initializer, { pathname: pathname.split('?')[0], method, values: new Map() }),
+        )
+        return
+      }
+      child.forEachChild(findFetch)
+    }
+    findFetch(worker.ast)
+  }
+  function visit(child: ts.Node, method = binary?.method ?? 'GET'): boolean {
+    if (binary && ts.isIfStatement(child)) {
+      const condition = valueOf(child.expression, binary)
+      if (condition !== undefined)
+        return condition
+          ? visit(child.thenStatement, method)
+          : child.elseStatement
+            ? visit(child.elseStatement, method)
+            : false
+      const thenReturns = visit(child.thenStatement, method)
+      const elseReturns = child.elseStatement ? visit(child.elseStatement, method) : false
+      return thenReturns && elseReturns
+    }
+    if (binary && ts.isBlock(child)) {
+      for (const statement of child.statements) if (visit(statement, method)) return true
+      return false
+    }
+    if (binary && ts.isTryStatement(child)) return visit(child.tryBlock, method)
+    if (binary && ts.isVariableDeclaration(child) && ts.isIdentifier(child.name) && child.initializer)
+      binary.values.set(child.name.text, valueOf(child.initializer, binary))
+    if (ts.isCallExpression(child)) {
+      const expression = child.expression
+      const imported = importedSymbol(module, expression)
+      if (imported?.name === 'coreFileRequest') {
+        const pathname = pathLiteral(child.arguments[1])
+        if (!pathname) throw new Error(`Unresolved Core file path in ${module.path}`)
+        binaryRequest(pathname, method)
+      } else if (ts.isPropertyAccessExpression(expression) && /^api[A-Z]/.test(expression.name.text)) {
+        native(expression.name.text)
+      } else if (
+        ts.isPropertyAccessExpression(expression) &&
+        expression.name.text === 'fetch' &&
+        ts.isPropertyAccessExpression(expression.expression) &&
+        expression.expression.name.text === 'CORE'
+      ) {
+        const request = child.arguments[0]
+        const pathname = request && ts.isNewExpression(request) ? pathLiteral(request.arguments?.[0]) : undefined
+        if (!pathname) throw new Error(`Unresolved native fetch address in ${module.path}`)
+        binaryRequest(new URL(pathname).pathname, method)
+      } else if (imported) target(imported.path, imported.name)
+      // Factory arguments bind commands just as calls do: operation(..., agents.registerAgent).
+      for (const argument of child.arguments) {
+        const reference = importedSymbol(module, argument)
+        if (reference) target(reference.path, reference.name)
+      }
+      if (
+        ts.isPropertyAccessExpression(expression) &&
+        /^(get|post|put|patch|delete|head|all)$/.test(expression.name.text)
+      )
+        method = expression.name.text.toUpperCase()
+    }
+    child.forEachChild((nested) => {
+      visit(nested, method)
+    })
+    return binary !== undefined && ts.isReturnStatement(child)
+  }
+  visit(node)
+  return keys
+}
+
+function serviceOperationsUsedIn(...paths: string[]): Set<string> {
+  const keys = new Set<string>()
+  for (const path of paths.flatMap(expandToFiles).filter((path) => !path.endsWith('.test.ts'))) {
+    const module = sourceModule(path)
+    for (const statement of module.ast.statements) {
+      if (ts.isImportDeclaration(statement) || ts.isFunctionDeclaration(statement)) continue
+      for (const key of domainOperations(module, statement)) keys.add(key)
+    }
+  }
+  return keys
 }
 
 interface ServiceFn {
@@ -199,51 +439,54 @@ interface ServiceFn {
 const FILE_IO_WRAPPERS = ['uploadStoredAttachment', 'getStoredAttachment', 'deleteStoredAttachment'] as const
 
 function fileIoCalls(source: string): Map<string, Set<string>> {
-  // TS7 exposes parsing through a public API session. Keep each source (including
-  // the comment/string regression fixture) isolated in an in-memory syntax-only project.
-  const fileName = join(COMMANDS, 'files.ts')
-  const configFile = join(COMMANDS, 'tsconfig.mcp-parity.json')
-  const api = new API({
-    fs: createVirtualFileSystem({
-      [fileName]: source,
-      [configFile]: JSON.stringify({
-        compilerOptions: { target: 'esnext', noLib: true, noResolve: true, types: [] },
-        files: [fileName],
-      }),
-    }),
-  })
-  try {
-    const snapshot = api.updateSnapshot({ openProjects: [configFile] })
-    const ast = snapshot.getProject(configFile)?.program.getSourceFile(fileName)
-    if (!ast) throw new Error(`Could not parse file I/O source: ${fileName}`)
-
-    const calls = new Map<string, Set<string>>()
-    for (const node of ast.statements) {
-      if (!ts.isFunctionDeclaration(node) || !node.name || !node.body) continue
-      const names = new Set<string>()
-      function visit(child: ts.Node): void {
-        if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) names.add(child.expression.text)
-        child.forEachChild(visit)
-      }
-      visit(node.body)
-      calls.set(node.name.text, names)
+  const ast = parseSource(join(COMMANDS, 'files.ts'), source)
+  const calls = new Map<string, Set<string>>()
+  for (const node of ast.statements) {
+    if (!ts.isFunctionDeclaration(node) || !node.name || !node.body) continue
+    const names = new Set<string>()
+    function visit(child: ts.Node): void {
+      if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) names.add(child.expression.text)
+      child.forEachChild(visit)
     }
-    return calls
-  } finally {
-    api.close()
+    visit(node.body)
+    calls.set(node.name.text, names)
   }
+  return calls
 }
 
 const fileWrapperCalls = fileIoCalls(readFileSync(join(COMMANDS, 'files.ts'), 'utf8'))
-const restIdentifiers = serviceIdentifiersUsedIn(join(SRC, 'routes'), join(SRC, 'index.ts'))
-for (const wrapper of FILE_IO_WRAPPERS) {
-  if (!restIdentifiers.has(wrapper)) continue
-  for (const called of fileWrapperCalls.get(wrapper) ?? []) restIdentifiers.add(called)
+const restOperations = serviceOperationsUsedIn(join(SRC, 'routes'), join(SRC, 'index.ts'))
+const mcpOperations = serviceOperationsUsedIn(join(SRC, 'mcp'))
+const toolOperations = new Map<string, Set<string>>()
+for (const path of expandToFiles(join(SRC, 'mcp'))) {
+  const module = sourceModule(path)
+  function visit(node: ts.Node): void {
+    if (ts.isObjectLiteralExpression(node)) {
+      const name = node.properties.find(
+        (property) =>
+          ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === 'name',
+      )
+      const handler = node.properties.find(
+        (property) =>
+          (ts.isMethodDeclaration(property) || ts.isPropertyAssignment(property)) &&
+          ts.isIdentifier(property.name) &&
+          property.name.text === 'handler',
+      )
+      if (name && ts.isPropertyAssignment(name) && ts.isStringLiteral(name.initializer) && handler) {
+        if (toolOperations.has(name.initializer.text))
+          throw new Error(`Duplicate MCP tool source: ${name.initializer.text}`)
+        toolOperations.set(name.initializer.text, domainOperations(module, handler))
+      }
+    }
+    node.forEachChild(visit)
+  }
+  visit(module.ast)
 }
-const mcpIdentifiers = serviceIdentifiersUsedIn(join(SRC, 'mcp'))
+const restIdentifiers = new Set([...restOperations].map((key) => key.split(':')[1]))
+const mcpIdentifiers = new Set([...mcpOperations].map((key) => key.split(':')[1]))
 
 const serviceFns: ServiceFn[] = []
-for (const path of [COMMANDS, join(SRC, 'services')].flatMap(expandToFiles)) {
+for (const path of expandToFiles(COMMANDS)) {
   const file = basename(path)
   const src = readFileSync(path, 'utf8')
   for (const m of src.matchAll(/^export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/gm)) {
@@ -251,8 +494,8 @@ for (const path of [COMMANDS, join(SRC, 'services')].flatMap(expandToFiles)) {
     serviceFns.push({
       key: `${file}:${fn}`,
       fn,
-      onMcp: mcpIdentifiers.has(fn),
-      onRest: restIdentifiers.has(fn),
+      onMcp: mcpOperations.has(`${file}:${fn}`),
+      onRest: restOperations.has(`${file}:${fn}`),
     })
   }
 }
@@ -263,6 +506,66 @@ const runtimeToolNames = coreMCPTools.map((t) => t.name)
 // ---------------------------------------------------------------------------
 
 describe('MCP surface parity (PROJ-623)', () => {
+  it('traces qualified aliases and namespace facade calls to their actual Core commands', () => {
+    const module = sourceModule(
+      join(SRC, 'routes', 'parity-alias-fixture.ts'),
+      `
+      import { getIssue as load } from '../services/issues'
+      import * as wiki from '../services/wiki'
+      import type { getProject } from '../services/projects'
+      // import { getProject as load } from '../services/projects'
+      const example = "getProject(ctx, 'project')"
+      type Ignored = typeof getProject
+      load(ctx, 'issue')
+      wiki.getWikiPage(ctx, 'page')
+    `,
+    )
+    expect([...domainOperations(module, module.ast)].sort()).toEqual(['issues.ts:getIssue', 'wiki.ts:getWikiPage'])
+  })
+
+  it('follows facade reexports without conflating equal local function names', () => {
+    const facade = sourceModule(
+      join(SRC, 'services', 'parity-reexport-fixture.ts'),
+      `export { getProject as load } from './projects'`,
+    )
+    const module = sourceModule(
+      join(SRC, 'routes', 'parity-reexport-fixture.ts'),
+      `
+      import { getIssue as load } from '../services/issues'
+      import { load as project } from '../services/parity-reexport-fixture'
+      load(ctx, 'issue')
+      project(ctx, 'project')
+    `,
+    )
+    expect(facade.imports.get('load')?.name).toBe('getProject')
+    expect([...domainOperations(module, module.ast)].sort()).toEqual(['issues.ts:getIssue', 'projects.ts:getProject'])
+  })
+
+  it('fails closed for an unresolved native named operation', () => {
+    const module = sourceModule(join(SRC, 'routes', 'parity-missing-fixture.ts'), `client.apiMissingOperation(actor)`)
+    expect(() => domainOperations(module, module.ast)).toThrow('No concrete Core handler for apiMissingOperation')
+  })
+
+  it('traces only the selected native binary pathname and HTTP method', () => {
+    function operations(method: string, pathname: string) {
+      const module = sourceModule(
+        join(SRC, 'routes', `parity-binary-${method}-${encodeURIComponent(pathname)}.ts`),
+        `
+        import { coreFileRequest } from '../http/core-files'
+        router.${method}('/surface', (ctx) => coreFileRequest(ctx, '${pathname}'))
+      `,
+      )
+      return domainOperations(module, module.ast)
+    }
+    expect([...operations('get', '/files/attachment')]).toEqual(['files.ts:getAttachmentForDownload'])
+    const upload = operations('post', '/files')
+    expect(upload.has('files.ts:uploadStoredAttachment')).toBe(true)
+    expect(upload.has('files.ts:recordUpload')).toBe(true)
+    expect(upload.has('files.ts:getAttachmentForDownload')).toBe(false)
+    expect([...operations('get', '/wiki-export')]).toEqual(['wiki-export.ts:exportWiki'])
+    expect([...operations('get', '/unregistered')]).toEqual([])
+  })
+
   it('finds the source it is meant to be checking', () => {
     // Guards against the scanners silently matching nothing — a regex that stops
     // matching would otherwise turn every assertion below into a vacuous pass.
@@ -284,6 +587,7 @@ describe('MCP surface parity (PROJ-623)', () => {
 
   it('traces concrete file I/O wrappers to metadata operations without creating binary MCP contracts', () => {
     expect([...(fileWrapperCalls.get('uploadStoredAttachment') ?? [])].sort()).toEqual([
+      'assertEntityWritable',
       'assertUploadAllowed',
       'recordUpload',
     ])
@@ -293,10 +597,11 @@ describe('MCP surface parity (PROJ-623)', () => {
       expect(restIdentifiers.has(fn)).toBe(true)
     }
     expect(mcpIdentifiers.has('deleteAttachment')).toBe(true)
-    for (const wrapper of FILE_IO_WRAPPERS) {
-      expect(restIdentifiers.has(wrapper)).toBe(true)
-      expect(mcpIdentifiers.has(wrapper)).toBe(false)
+    expect(restIdentifiers.has('uploadStoredAttachment')).toBe(true)
+    for (const wrapper of ['getStoredAttachment', 'deleteStoredAttachment']) {
+      expect(restIdentifiers.has(wrapper)).toBe(false)
     }
+    for (const wrapper of FILE_IO_WRAPPERS) expect(mcpIdentifiers.has(wrapper)).toBe(false)
   })
 
   it('ignores comments, type references and unrelated function bodies when tracing wrapper calls', () => {
@@ -312,12 +617,7 @@ describe('MCP surface parity (PROJ-623)', () => {
   })
 
   it('has no service function name exported from two different files', () => {
-    // Wiring is keyed by bare function name, not (file, name), because resolving
-    // each import specifier back to a service file would mean half a module
-    // resolver. That shortcut is only sound while names are globally unique: two
-    // files both exporting `list`, one MCP-only and one REST-only, would be
-    // conflated and read as "wired on both surfaces" — a false negative that
-    // hides exactly the drift this file exists to catch. Fail loudly here instead.
+    // Count only canonical domain exports, not the intentional same-named adapter facades.
     const byName = new Map<string, string[]>()
     for (const { fn, key } of serviceFns) {
       byName.set(fn, [...(byName.get(fn) ?? []), key.split(':')[0]])
@@ -332,6 +632,11 @@ describe('MCP surface parity (PROJ-623)', () => {
       // returns the runtime order and the docs table renders the catalog order, so
       // reordering one without the other makes the docs lie about dispatch.
       expect(runtimeToolNames).toEqual(catalogToolNames)
+    })
+
+    it('resolves every runtime tool handler to an actual domain operation', () => {
+      expect([...toolOperations.keys()].sort()).toEqual([...runtimeToolNames].sort())
+      expect([...toolOperations].filter(([, operations]) => operations.size === 0).map(([name]) => name)).toEqual([])
     })
 
     it('has no duplicate tool names', () => {
@@ -379,7 +684,7 @@ describe('MCP surface parity (PROJ-623)', () => {
         .filter((s) => s.onMcp)
         .filter((s) => {
           const expected = TOOL_NAME_ALIASES[s.key] ?? snakeCase(s.fn)
-          return !catalogToolNames.includes(expected)
+          return !catalogToolNames.includes(expected) || !toolOperations.get(expected)?.has(s.key)
         })
         .map((s) => `${s.key} -> ${TOOL_NAME_ALIASES[s.key] ?? snakeCase(s.fn)}`)
       expect(mismatched).toEqual([])
