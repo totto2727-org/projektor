@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { loadMigrations } from '#db/test/helpers'
 
 import { makeRequestServices, RequestServices } from '../../request'
-import { createTestResources } from '../../server/test/resources'
+import { createTestResources, testEnvironment } from '../../server/test/resources'
 import { createTestDatabase } from '../../test/database'
 import {
   createWikiPage,
@@ -97,16 +97,14 @@ async function fixture(
     headers: { Origin: options.origin ?? 'https://app.test' },
   })
   const native = await Effect.runPromise(
-    makeRequestServices(request, {
-      DB: database.db,
-      KV: resources.kv,
-      R2: resources.r2,
-      OAUTH_KV: resources.oauthKv,
-      ENVIRONMENT: 'development',
-      DEV_USER_EMAIL: 'alice@example.test',
-      CF_ACCESS_TEAM_DOMAIN: '',
-      CF_ACCESS_AUDIENCE: '',
-    }),
+    makeRequestServices(
+      request,
+      testEnvironment(database.db, 'alice@example.test', {
+        KV: resources.kv,
+        R2: resources.r2,
+        OAUTH_KV: resources.oauthKv,
+      }),
+    ),
   )
   const services = {
     ...native,

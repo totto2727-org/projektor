@@ -20,6 +20,7 @@ import {
   readProjectHint,
   resolveScope,
 } from './request-context'
+import { testEnvironment } from './test/resources'
 
 const session: AuthSession = {
   user: { id: 'user-a', email: 'a@example.test', name: 'A' },
@@ -225,7 +226,9 @@ describe('server scope loading', () => {
     sqlite.close()
   })
   function load(request = new Request(page('/')), database = db) {
-    return Effect.runPromise(loadRequestScope(new URL(request.url), {}, { db: database, request, env }))
+    return Effect.runPromise(
+      loadRequestScope(new URL(request.url), {}, { request, env: testEnvironment(database, env.DEV_USER_EMAIL, env) }),
+    )
   }
   function catalogReads() {
     return prepare.mock.calls.filter(([query]) => typeof query === 'string' && query.includes('COUNT(CASE')).length
@@ -308,12 +311,12 @@ describe('server scope loading', () => {
   it('fails closed on missing DB and redacts SQL failures without API catalog fallback', async () => {
     await expect(load(new Request(page('/')), null as unknown as D1Database)).rejects.toMatchObject({
       _tag: 'ApiError',
-      kind: 'configuration',
+      kind: 'request',
       status: 500,
     })
     await expect(load(new Request(page('/')), {} as D1Database)).rejects.toMatchObject({
       _tag: 'ApiError',
-      kind: 'configuration',
+      kind: 'request',
       status: 500,
     })
     prepare.mockImplementationOnce(() => {
@@ -323,7 +326,7 @@ describe('server scope loading', () => {
       await load()
       throw new Error('expected failure')
     } catch (error) {
-      expect(error).toMatchObject({ _tag: 'ApiError', status: 500, message: 'Unable to load project data.' })
+      expect(error).toMatchObject({ _tag: 'ApiError', status: 500, message: 'An unexpected error occurred.' })
       expect(JSON.stringify(error)).not.toContain('secret SQL credential')
     }
   })

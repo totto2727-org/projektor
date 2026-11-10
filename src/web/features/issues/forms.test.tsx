@@ -2,11 +2,17 @@
 import './test/browser'
 import { act, renderHook } from '@testing-library/react'
 import { Schema } from 'effect'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, expectTypeOf, it } from 'vite-plus/test'
 
 import { PointsText, TitleText, useIssueForm } from './forms'
 
 describe('TanStack issue forms with Effect Standard Schema validators', () => {
+  it('requires the schema encoded shape to match the editable fields', () => {
+    type TitleSchema = Parameters<typeof useIssueForm<{ title: string }>>[1]
+    expectTypeOf(Schema.Struct({ title: TitleText })).toExtend<TitleSchema>()
+    expectTypeOf(Schema.Struct({ title: Schema.Number })).not.toExtend<TitleSchema>()
+    expectTypeOf(Schema.Struct({ different: TitleText })).not.toExtend<TitleSchema>()
+  })
   it('validates through TanStack without field useState and preserves dirty values across canonical defaults', async () => {
     const hook = renderHook(({ title }) => useIssueForm({ title }, Schema.Struct({ title: TitleText })), {
       initialProps: { title: 'Initial title' },

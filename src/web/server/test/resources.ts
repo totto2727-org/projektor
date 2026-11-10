@@ -1,3 +1,7 @@
+import { Effect } from 'effect'
+
+import { makeWebCoreHandlers } from '../../../core/web/operations'
+import type { WebRequest, ScopeOptions } from '../../../core/web/scope'
 import type { Env } from '../../request'
 
 /** Unit-test storage doubles only. Worker acceptance uses actual native KV/R2 bindings. */
@@ -102,7 +106,7 @@ export function createTestResources() {
 
 export function testEnvironment(db: D1Database, email = 'owner@example.test', overrides: Partial<Env> = {}): Env {
   const resources = createTestResources()
-  return {
+  const env: Omit<Env, 'CORE'> = {
     KV: resources.kv,
     OAUTH_KV: resources.oauthKv,
     R2: resources.r2,
@@ -113,4 +117,12 @@ export function testEnvironment(db: D1Database, email = 'owner@example.test', ov
     ...overrides,
     DB: db,
   }
+  const result: Env = {
+    ...env,
+    CORE: overrides.CORE ?? {
+      browserScope: (request: WebRequest, options: ScopeOptions) =>
+        Effect.runPromise(makeWebCoreHandlers(result).browserScope(request, options)),
+    },
+  }
+  return result
 }

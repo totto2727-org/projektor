@@ -29,7 +29,9 @@ export interface Env
       | 'BRAND_ACCENT'
       | 'BRAND_ON_ACCENT'
       | 'BRAND_LOGO_URL'
-    > {}
+    > {
+  readonly CORE: unknown
+}
 
 export type PageFailure = ApiError | ScopeError
 export type PreparedView = Effect.Effect<Awaited<ReactNode>, PageFailure, RequestServices>
@@ -59,10 +61,10 @@ export class RequestServices extends Context.Service<
 export const makeRequestServices = (request: Request, env: Env) =>
   Effect.gen(function* () {
     const url = new URL(request.url)
-    const scopes = yield* Cache.makeWith(
-      (options: ScopeOptions) => loadRequestScope(url, options, { db: env.DB, request, env }),
-      { capacity: 32, timeToLive: (exit) => (Exit.isSuccess(exit) ? Infinity : 0) },
-    )
+    const scopes = yield* Cache.makeWith((options: ScopeOptions) => loadRequestScope(url, options, { request, env }), {
+      capacity: 32,
+      timeToLive: (exit) => (Exit.isSuccess(exit) ? Infinity : 0),
+    })
     const views = yield* Cache.makeWith((view: PreparedView) => view, {
       capacity: 32,
       requireServicesAt: 'lookup',
