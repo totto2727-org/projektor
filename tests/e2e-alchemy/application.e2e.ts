@@ -128,7 +128,7 @@ async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
     viewportWidth,
     layout,
   })
-  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true })
+  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' })
   expect(dimensions.documentWidth, `${name}: document must fit viewport`).toBeLessThanOrEqual(dimensions.innerWidth)
   expect(dimensions.innerWidth, `${name}: layout viewport must not expand`).toBeLessThanOrEqual(viewportWidth)
   expect(dimensions.documentWidth, `${name}: document must fit configured viewport`).toBeLessThanOrEqual(viewportWidth)
