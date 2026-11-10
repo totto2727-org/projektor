@@ -12,6 +12,25 @@ export function listProjects(
     ctx.core.apiListProjectsInWorkspace(ctx.actor, ctx.workspaceId, ...args),
   )
 }
+export function resolveProjectIdParam(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiResolveProjectIdParam']>
+) {
+  return apiReply(
+    ApiResults.apiResolveProjectIdParam,
+    ctx.core.apiResolveProjectIdParam(ctx.actor, ctx.workspaceId, ...args),
+  )
+}
+export function resolveVisibleProjectIdParam(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiResolveVisibleProjectIdParam']>
+) {
+  return apiReply(
+    ApiResults.apiResolveVisibleProjectIdParam,
+    ctx.core.apiResolveVisibleProjectIdParam(ctx.actor, ctx.workspaceId, ...args),
+  )
+}
+
 export function listProjectsAcrossWorkspaces(ctx: ApiServiceCtx, includeArchived = false) {
   return apiReply(ApiResults.apiListProjects, ctx.core.apiListProjects(ctx.actor, includeArchived))
 }

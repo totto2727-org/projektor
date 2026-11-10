@@ -3,6 +3,28 @@ import type { CoreRpcShape } from '../../core/contract'
 import { apiReply } from './reply'
 import type { ApiOperationArgs, ApiServiceCtx } from './types'
 
+export function listBrokenWikiLinks(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiListBrokenWikiLinks']>
+) {
+  return apiReply(
+    ApiResults.apiListBrokenWikiLinks,
+    ctx.core.apiListBrokenWikiLinks(ctx.actor, ctx.workspaceId, ...args),
+  )
+}
+export function backfillWikiLinks(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiBackfillWikiLinks']>) {
+  return apiReply(ApiResults.apiBackfillWikiLinks, ctx.core.apiBackfillWikiLinks(ctx.actor, ctx.workspaceId, ...args))
+}
+export function purgeExpiredWikiPages(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiPurgeExpiredWikiPages']>
+) {
+  return apiReply(
+    ApiResults.apiPurgeExpiredWikiPages,
+    ctx.core.apiPurgeExpiredWikiPages(ctx.actor, ctx.workspaceId, ...args),
+  )
+}
+
 export function listWikiPages(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiListWikiPages']>) {
   return apiReply(ApiResults.apiListWikiPages, ctx.core.apiListWikiPages(ctx.actor, ctx.workspaceId, ...args))
 }

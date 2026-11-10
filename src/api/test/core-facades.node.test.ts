@@ -1,12 +1,23 @@
 import { makeRpcStub } from 'alchemy/Cloudflare/Workers'
 import { Effect, Schema } from 'effect'
-import { describe, expect, it } from 'vite-plus/test'
+import { makeCoreClient } from 'projektor/core-client'
+import { describe, expect, it, vi } from 'vite-plus/test'
+
+import { resetAuthCachesForTests } from '#services/authentication'
 
 import { ApiResults } from '../../contracts/api-results'
-import { makeCoreClient } from '../../core/client'
+import { makeApiDomainHandlers } from '../../core/api/domain-operations'
 import { coreFailure, coreReply } from '../../core/contract'
+import type { CoreEnvironment } from '../../core/environment'
+import { createTestDatabase } from '../../web/test/database'
 import { getIssue } from '../services/issues'
 import { apiReply } from '../services/reply'
+
+vi.mock('../../contracts/oauth-provider', () => ({
+  oauthApi: () => {
+    throw new Error('OAuth provider must not resolve before interactive authorization')
+  },
+}))
 
 const PublicIssue = Schema.Struct({
   id: Schema.String,
@@ -22,6 +33,88 @@ function clientFor(wire: () => Promise<string>) {
 const issue = { id: 'issue', title: 'Public issue', links: [{ id: 'linked', title: 'Linked issue' }] }
 
 describe('API facade reply boundary', () => {
+  it('runs actual named Core handlers with fresh credential checks and human-only token controls', async () => {
+    const database = createTestDatabase()
+    try {
+      database.sqlite.exec(`
+        INSERT INTO users (id,email,name,created_at) VALUES ('facade-user','facade@example.test','Facade',1);
+        INSERT INTO workspaces (id,name,slug,created_at) VALUES ('facade-workspace','Workspace','facade',1);
+        INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES ('facade-workspace','facade-user','owner',1);
+      `)
+      const bearer = 'pk_facade-core'
+      const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bearer))))
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('')
+      database.sqlite
+        .prepare(`INSERT INTO api_tokens (id,user_id,workspace_id,token_hash,name,scopes,created_at)
+        VALUES ('facade-token','facade-user','facade-workspace',?,'Test','["write"]',1)`)
+        .run(hash)
+      // SQLite and these partial binding substitutes are a local harness, not native Worker acceptance.
+      const env = {
+        DB: database.db,
+        KV: { get: async () => null, put: async () => undefined },
+        R2: {},
+        ENVIRONMENT: 'production',
+        CF_ACCESS_TEAM_DOMAIN: '',
+        CF_ACCESS_AUDIENCE: '',
+      } as unknown as CoreEnvironment
+      const handlers = makeApiDomainHandlers(Effect.succeed(env))
+      const actor = { requestUrl: 'https://api.test/api/workspaces/facade', method: 'POST', bearer }
+      await expect(
+        apiReply(ApiResults.apiCreateToken, handlers.apiCreateToken(actor, 'facade-workspace', { name: 'Forbidden' })),
+      ).rejects.toMatchObject({ status: 403 })
+      await expect(
+        apiReply(ApiResults.apiRevokeToken, handlers.apiRevokeToken(actor, 'facade-workspace', 'facade-token')),
+      ).rejects.toMatchObject({ status: 403 })
+      await expect(
+        apiReply(ApiResults.apiListConnectorGrants, handlers.apiListConnectorGrants(actor, 'facade-workspace')),
+      ).rejects.toMatchObject({ status: 403 })
+      await expect(
+        apiReply(
+          ApiResults.apiRevokeConnectorGrant,
+          handlers.apiRevokeConnectorGrant(actor, 'facade-workspace', 'grant'),
+        ),
+      ).rejects.toMatchObject({ status: 403 })
+      expect(database.sqlite.prepare('SELECT count(*) AS count FROM api_tokens').get()).toEqual({ count: 1 })
+      const humanHandlers = makeApiDomainHandlers(
+        Effect.succeed({ ...env, ENVIRONMENT: 'development' as const, DEV_USER_EMAIL: 'facade@example.test' }),
+      )
+      const human = { requestUrl: actor.requestUrl, method: 'POST' }
+      const created = await apiReply(
+        ApiResults.apiCreateToken,
+        humanHandlers.apiCreateToken(human, 'facade-workspace', { name: 'Human credential', scopes: ['read'] }),
+      )
+      expect(created).toMatchObject({ name: 'Human credential', scopes: ['read'], expiresAt: null })
+      expect(created.token).toMatch(/^pk_[a-f0-9]{64}$/)
+      await expect(
+        apiReply(ApiResults.apiRevokeToken, humanHandlers.apiRevokeToken(human, 'facade-workspace', created.id)),
+      ).resolves.toEqual({ ok: true })
+      expect(database.sqlite.prepare('SELECT count(*) AS count FROM api_tokens').get()).toEqual({ count: 1 })
+      const playbooks = await apiReply(
+        ApiResults.apiListPlaybooks,
+        handlers.apiListPlaybooks(actor, 'facade-workspace'),
+      )
+      expect(playbooks.length).toBeGreaterThan(0)
+      const workflow = await apiReply(ApiResults.apiGetWorkflow, handlers.apiGetWorkflow(actor, 'facade-workspace', {}))
+      expect(workflow).toHaveProperty('version')
+      await expect(
+        apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor, 'another-workspace')),
+      ).rejects.toMatchObject({ status: 403 })
+      database.sqlite.exec("UPDATE api_tokens SET scopes = '[]' WHERE id = 'facade-token'")
+      await expect(
+        apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor, 'facade-workspace')),
+      ).rejects.toMatchObject({ status: 403 })
+      database.sqlite.exec(
+        "UPDATE api_tokens SET scopes = '[\"write\"]' WHERE id = 'facade-token'; DELETE FROM workspace_members WHERE workspace_id = 'facade-workspace'",
+      )
+      await expect(
+        apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor, 'facade-workspace')),
+      ).rejects.toMatchObject({ status: 403 })
+    } finally {
+      database.close()
+      resetAuthCachesForTests()
+    }
+  })
   it('preserves maintenance cursor compatibility and conditional workflow variants', () => {
     const backfill = { processed: 2, pagesProcessed: 2, nextCursor: { updatedAt: 9, id: 'page' } }
     expect(Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)(backfill)).toEqual(backfill)

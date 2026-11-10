@@ -30,6 +30,12 @@ export function removeMember(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreR
 export function updateMemberRole(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiUpdateMemberRole']>) {
   return apiReply(ApiResults.apiUpdateMemberRole, ctx.core.apiUpdateMemberRole(ctx.actor, ctx.workspaceId, ...args))
 }
+export function createToken(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiCreateToken']>) {
+  return apiReply(ApiResults.apiCreateToken, ctx.core.apiCreateToken(ctx.actor, ctx.workspaceId, ...args))
+}
+export function revokeToken(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiRevokeToken']>) {
+  return apiReply(ApiResults.apiRevokeToken, ctx.core.apiRevokeToken(ctx.actor, ctx.workspaceId, ...args))
+}
 export function listTokens(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiListTokens']>) {
   return apiReply(ApiResults.apiListTokens, ctx.core.apiListTokens(ctx.actor, ctx.workspaceId, ...args))
 }
