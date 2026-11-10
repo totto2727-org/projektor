@@ -1,4 +1,5 @@
 import type { Context } from 'hono'
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
 
 import {
   ConflictError,
@@ -10,7 +11,14 @@ import {
 } from '#commands/errors'
 import type { HonoEnv } from '#types'
 
+import { CorePublicError } from '../../core/contract'
+
 export function serviceErrToResponse(c: Context<HonoEnv>, err: unknown) {
+  if (err instanceof CorePublicError) {
+    if (err.retryAfter !== undefined) c.header('Retry-After', String(err.retryAfter))
+    const error = err.kind === 'validation' && err.details !== undefined ? err.details : err.message
+    return c.json({ error, ...(err.kind === 'validation' ? {} : err.details) }, err.status as ContentfulStatusCode)
+  }
   if (err instanceof ValidationError) {
     return c.json({ error: err.issues }, 400)
   }

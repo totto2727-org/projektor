@@ -1,4 +1,13 @@
+import { z } from 'zod'
+
 import { ConflictError, NotFoundError, ServiceError, ValidationError, type ZodFlattenOutput } from '#commands/errors'
+
+import { CorePublicError } from '../../core/contract'
+
+const ValidationIssues = z.object({
+  formErrors: z.array(z.string()),
+  fieldErrors: z.record(z.string(), z.array(z.string()).optional()),
+})
 
 const MAX_DETAIL_VALUE_CHARS = 80
 const MAX_DETAIL_SUMMARY_CHARS = 300
@@ -57,7 +66,7 @@ function hasIssues(issues: ZodFlattenOutput): boolean {
 // *why* its params were rejected, not just that they were. A bounded summary is also
 // folded into `message` — same fallback as NotFoundError/ConflictError below — for MCP
 // hosts that don't surface `data`.
-function toMcpValidationError(err: ValidationError): {
+function toMcpValidationError(err: { issues: ZodFlattenOutput }): {
   code: number
   message: string
   data?: unknown
@@ -85,6 +94,13 @@ function toMcpServiceErrorWithDetails(
 }
 
 export function toMcpError(err: unknown, requestId: string): { code: number; message: string; data?: unknown } {
+  if (err instanceof CorePublicError && err.status < 500) {
+    if (err.kind === 'validation') {
+      const parsed = ValidationIssues.safeParse(err.details)
+      if (parsed.success) return toMcpValidationError({ issues: parsed.data })
+    }
+    return toMcpServiceErrorWithDetails(err.message, err.details)
+  }
   if (err instanceof ValidationError) return toMcpValidationError(err)
   if (err instanceof ServiceError) {
     // Only the kinds whose messages are deliberately client-facing are
@@ -207,6 +223,48 @@ function conflictHint(message: string, details: Record<string, unknown> | undefi
  * "Internal error (request: …)" for those, which never leaks internals).
  */
 export function toToolError(err: unknown, ctx: ToolErrorContext = {}): ToolErrorResult | null {
+  if (err instanceof CorePublicError) {
+    if (err.status >= 500) return null
+    if (err.kind === 'validation') {
+      const parsed = ValidationIssues.safeParse(err.details)
+      if (!parsed.success) return null
+      const fields = definedFields(parsed.data.fieldErrors)
+      return toolErrorResult({
+        code: 'validation',
+        message: parsed.data.formErrors.join('; ') || 'Invalid arguments',
+        ...(fields ? { fields, hint: `Fix ${Object.keys(fields).join(', ')} and retry.` } : {}),
+      })
+    }
+    if (err.kind === 'not_found')
+      return toolErrorResult({
+        code: 'not_found',
+        message: err.message,
+        hint: notFoundHint(err.message, ctx.toolName),
+        ...(hasDetails(err.details) ? { details: err.details } : {}),
+      })
+    if (err.kind === 'conflict')
+      return toolErrorResult({
+        code: 'conflict',
+        message: err.message,
+        hint: conflictHint(err.message, err.details),
+        ...(hasDetails(err.details) ? { details: err.details } : {}),
+      })
+    if (err.kind === 'forbidden')
+      return toolErrorResult({
+        code: 'forbidden',
+        message: err.message,
+        hint: ctx.role
+          ? `Your workspace role is ${ctx.role}; this may need a higher workspace or project role (members write, admins and owners manage).`
+          : 'Your role does not allow this; members write, admins and owners manage.',
+      })
+    if (err.kind === 'payload_too_large')
+      return toolErrorResult({
+        code: 'payload_too_large',
+        message: err.message,
+        hint: 'Send less data, or split it across several calls.',
+      })
+    return null
+  }
   if (err instanceof ValidationError) {
     const fields = definedFields(err.issues.fieldErrors)
     const message = err.issues.formErrors.length > 0 ? err.issues.formErrors.join('; ') : 'Invalid arguments'
