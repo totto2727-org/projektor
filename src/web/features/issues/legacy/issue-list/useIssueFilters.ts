@@ -45,8 +45,8 @@ export function useIssueFilters(
       filterSprintId: initial.sprintId,
     },
     Schema.Struct({
-      filterStatuses: Schema.Array(Text),
-      filterPriorities: Schema.Array(Text),
+      filterStatuses: Schema.mutable(Schema.Array(Text)),
+      filterPriorities: Schema.mutable(Schema.Array(Text)),
       filterProject: Text,
       filterType: Text,
       filterEpicId: Text,

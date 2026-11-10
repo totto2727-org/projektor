@@ -16,10 +16,9 @@ export const UrlText = Schema.String.check(Schema.isPattern(/^https?:\/\/\S+$/i)
 /** TanStack owns editable values and Effect owns validation. Canonical DTO refreshes never reset unsaved input. */
 export function useIssueForm<Values extends Record<string, unknown>>(
   defaultValues: Values,
-  schema: Schema.ConstraintDecoder<unknown>,
+  schema: Schema.Codec<unknown, NoInfer<Values>>,
 ) {
-  // Effect decoders accept unknown input. TanStack supplies the narrower Values type.
-  const validator = Schema.toStandardSchemaV1(schema as Schema.Codec<unknown, Values>)
+  const validator = Schema.toStandardSchemaV1(schema)
   const form = useForm({
     defaultValues,
     validators: { onChange: validator, onSubmit: validator },
