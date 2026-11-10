@@ -27,7 +27,8 @@ The separate screenshot-backed E2E workflow exercises the real API and Web Worke
 `vp run e2e` runs the real local Worker/browser acceptance workflow with screenshots.
 The native Cloudflare test plugin uses its public local options directly, without a Wrangler TOML or custom parser.
 CI uses the shared setup actions and Nix inputs from the Vite+ app template.
-The only workflow checks pull requests and main, then deploys production after successful checks on a main push.
+The CI workflow checks pull requests and main without deployment credentials.
+The separate production deployment workflow runs only after successful CI for a main push in this repository and checks out that CI run's exact commit.
 Do not add docs, plugin release or preview-link workflows.
 Use `vp` for supported operations, including install, update, tests and task execution; use Bun directly only for an operation Vite+ cannot perform.
 The pnpm 12 backend retains its default release-age window and strict verification, with only the user-approved exact Effront 0.4.1 release-day exceptions until 2026-11-10T12:45:19.626Z; reviewed esbuild/workerd lifecycle permission remains in `pnpm-workspace.yaml`.
@@ -77,7 +78,7 @@ Cloudflare authentication selects the deployment account, without a custom fixed
 Existing Access policies remain external and unchanged.
 Worker runtime capture must never resolve deployment secrets or register local storage.
 Development uses local Alchemy state; production uses Alchemy's official encrypted Cloudflare state store so state survives ephemeral CI runners.
-CI serializes production deployments and uses the available organization `CLOUDFLARE_API_TOKEN` secret with the configured account, without injecting JWT_SECRET on every run.
+The deployment workflow serializes production deployments and uses the available organization `CLOUDFLARE_API_TOKEN` secret with the configured account, without injecting JWT_SECRET on every run.
 The main deployment passes Alchemy's standard `--yes` flag; Alchemy may bootstrap or upgrade its own state-store infrastructure, separate from the application's external storage and Access policies.
 Switching from local production state does not upload or migrate the local files automatically: retain those files as operator recovery evidence, and the first remote-state deployment uses the existing explicit adoption policy and fixed Worker identities.
 No deployment state or credential values belong in GitHub artifacts, caches or the repository.
@@ -106,6 +107,7 @@ Groups retains its page heading and access explanation; Comark code blocks use r
 It adds shared internal D1 retrieval and domain commands while keeping application-specific authorization, API responses and MCP protocol behavior at their boundaries.
 Browser authentication, updates and file transfers execute against shared native D1/KV/R2 capabilities without Web-to-API HTTP or service bindings.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
+Production deployment is a separate workflow gated on successful main-push CI, with the tested revision, production environment and serialized deployments preserved.
 Deployment uses standard Alchemy configuration without custom confirmation flags, preflight gates or secret-value validation.
 Environment differences are provided through aggregate Effect Layers rather than leaf-level local/production branches, and runtime request handling stays outside Worker declarations.
 JWT secrets remain Cloudflare-owned across normal deployments through standard binding inheritance, without reading their values or storing them in project state.
