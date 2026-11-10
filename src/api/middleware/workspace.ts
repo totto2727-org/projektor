@@ -15,6 +15,27 @@ export function mcpWorkspaceIdFromPath(path: string): string | undefined {
   return /^\/mcp\/([^/]+)$/.exec(path)?.[1]
 }
 
+async function warnIfIgnoredSubdomain(c: Context<HonoEnv>, routingEnabled: boolean): Promise<void> {
+  if (routingEnabled) return
+  const hostname = c.req.header('host')?.split(':')[0]
+  if (!hostname || hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return
+  const labels = hostname.split('.')
+  if (labels.length < 3 || !labels[0]) return
+  try {
+    await Effect.runPromise(
+      decodeCoreReply(
+        ApiWorkspace,
+        makeCoreClient(c.env.CORE).apiResolveWorkspace(c.get('coreActor'), { kind: 'slug', value: labels[0] }),
+      ),
+    )
+    console.warn(
+      'An authorized workspace subdomain was ignored because WORKSPACE_SUBDOMAIN_ROUTING is off; rejecting request',
+    )
+  } catch {
+    // This optional diagnostic must not replace the fail-closed missing-target response.
+  }
+}
+
 /** Routing chooses a target only. Core resolves membership and scope for every operation. */
 export async function workspaceMiddleware(c: Context<HonoEnv>, next: Next) {
   const routingEnabled = subdomainRoutingEnabled(c.env.WORKSPACE_SUBDOMAIN_ROUTING)
@@ -24,6 +45,7 @@ export async function workspaceMiddleware(c: Context<HonoEnv>, next: Next) {
     (c.get('allowQueryWorkspaceFallback') ? c.req.query('workspace') : undefined)
   const workspaceId = slug ? undefined : mcpWorkspaceIdFromPath(c.req.path)
   if (!slug && !workspaceId) {
+    await warnIfIgnoredSubdomain(c, routingEnabled)
     return c.json(
       {
         error: routingEnabled ? 'Workspace not specified' : 'Workspace not specified: missing X-Workspace-Slug header',

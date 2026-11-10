@@ -1,7 +1,11 @@
-import { SELF } from 'cloudflare:test'
+import { createExecutionContext, SELF, waitOnExecutionContext } from 'cloudflare:test'
+import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { subdomainRoutingEnabled } from '../middleware/workspace'
+import type { HonoEnv } from '#types'
+
+import { authMiddleware } from '../middleware/auth'
+import { subdomainRoutingEnabled, workspaceMiddleware } from '../middleware/workspace'
 import { env } from './fixture-api'
 import { seedFixture } from './helpers'
 
@@ -94,15 +98,33 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
   it('flag off + no header + a resolvable subdomain warns before the 400', async () => {
     const fixture = await seedFixture()
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const res = await SELF.fetch('http://localhost/api/task-types', {
-      headers: {
+    try {
+      const headers = {
         Authorization: `Bearer ${fixture.token}`,
         Host: `${fixture.workspace.slug}.example.com`,
-      },
-    })
-    expect(res.status).toBe(400)
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(fixture.workspace.slug))
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('WORKSPACE_SUBDOMAIN_ROUTING'))
-    warnSpy.mockRestore()
+      }
+      const res = await SELF.fetch('http://localhost/api/task-types', { headers })
+      expect(res.status).toBe(400)
+      expect(await res.json()).toMatchObject({ error: 'Workspace not specified: missing X-Workspace-Slug header' })
+
+      // Observe the routing adapter's diagnostic locally while resolution still
+      // executes against the native Core binding, not a primary DB fixture spy.
+      const app = new Hono<HonoEnv>()
+      app.use('*', authMiddleware, workspaceMiddleware)
+      app.get('/api/task-types', (c) => c.json({ unexpected: true }))
+      const executionContext = createExecutionContext()
+      const direct = await app.request('http://localhost/api/task-types', { headers }, env, executionContext)
+      await waitOnExecutionContext(executionContext)
+      expect(direct.status).toBe(400)
+      expect(warnSpy).toHaveBeenCalledWith(
+        'An authorized workspace subdomain was ignored because WORKSPACE_SUBDOMAIN_ROUTING is off; rejecting request',
+      )
+      for (const [warning] of warnSpy.mock.calls) {
+        expect(String(warning)).not.toContain(fixture.token)
+        expect(String(warning)).not.toContain(fixture.workspace.slug)
+      }
+    } finally {
+      warnSpy.mockRestore()
+    }
   })
 })
