@@ -74,6 +74,9 @@ test.afterEach(async ({ page }, testInfo) => {
 })
 
 async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
+  await page.evaluate(async () => {
+    while (document.activeViewTransition) await document.activeViewTransition.finished
+  })
   if (new URL(page.url()).pathname === '/settings/groups') {
     await expect(page.getByRole('heading', { name: 'Groups', level: 1 })).toBeVisible()
     await expect(page.getByText(/Groups grant members access to projects/)).toBeVisible()
@@ -128,7 +131,7 @@ async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
     viewportWidth,
     layout,
   })
-  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' })
+  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true })
   expect(dimensions.documentWidth, `${name}: document must fit viewport`).toBeLessThanOrEqual(dimensions.innerWidth)
   expect(dimensions.innerWidth, `${name}: layout viewport must not expand`).toBeLessThanOrEqual(viewportWidth)
   expect(dimensions.documentWidth, `${name}: document must fit configured viewport`).toBeLessThanOrEqual(viewportWidth)
