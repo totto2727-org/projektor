@@ -134,7 +134,7 @@ async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
   expect(dimensions.documentWidth, `${name}: document must fit configured viewport`).toBeLessThanOrEqual(viewportWidth)
 }
 
-test('real API write is visible in frontend direct shared D1 read', async ({ request, page }, testInfo) => {
+test('API and Web share private Core persistence without adapter DB bindings', async ({ request, page }, testInfo) => {
   const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
   const name = `Shared D1 ${suffix}`
   const write = await request.post('http://127.0.0.1:4392/api/projects', {
@@ -146,14 +146,17 @@ test('real API write is visible in frontend direct shared D1 read', async ({ req
   expect(project.id).toBeTruthy()
   const response = await page.goto('/?workspace=projektor')
   expect(response?.status()).toBe(200)
-  // The application catalog loader reads the frontend DB binding directly.
-  // This server-side fixture write reached the separate actual API Worker
-  // service through its loopback socket, not hydrated component state. It is
-  // not claimed as a native browser mutation.
+  // Both actual adapters reach the same private Core through native service bindings.
+  // Reapplying the Core-owned fixture ledger must not replay historical DDL or lose data.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const initialized = await request.post('http://127.0.0.1:4392/_fixture/reinitialize')
+    expect(initialized.status(), await initialized.text()).toBe(200)
+    expect(await initialized.json()).toEqual({ migrations: 68 })
+  }
   const link = page.getByRole('link').filter({ has: page.getByText(name, { exact: true }) })
   await expect(link).toHaveCount(1)
   expect(new URL((await link.getAttribute('href')) ?? '', page.url()).searchParams.get('projectId')).toBe(project.id)
-  await checkpoint(page, testInfo, 'api-write-frontend-shared-db-read')
+  await checkpoint(page, testInfo, 'api-write-core-web-read')
   await link.click()
   await expect(page.getByRole('heading', { name, exact: true, level: 1 })).toBeVisible()
   await page.reload()
@@ -202,8 +205,8 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   await expect(page.getByTestId('flow-chart-cfd')).toHaveCount(0)
   await checkpoint(page, testInfo, 'charts-empty-no-zero-band')
 
-  // Public API transitions stamp the historical timestamps consumed by both
-  // Workers. No DB edits, client props injection or chart implementation mocks.
+  // Public API transitions stamp the persisted timestamps read through Core by Web.
+  // No DB edits, client props injection or chart implementation mocks.
   for (const [index, status] of ['backlog', 'in_progress', 'in_progress', 'in_review', 'done'].entries()) {
     const issueResponse = await request.post('http://127.0.0.1:4392/api/issues', {
       headers,
@@ -397,7 +400,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   await page.reload()
   await expect(page.getByRole('heading', { name: issueTitle, exact: true })).toBeVisible()
   await checkpoint(page, testInfo, 'issue')
-  const issueBody = `Native direct-read update ${suffix}`
+  const issueBody = `Native Core-backed update ${suffix}`
   await page.getByTitle('Edit description', { exact: true }).click()
   await page.getByRole('textbox', { name: 'Markdown editor', exact: true }).fill(issueBody)
   await page.getByRole('button', { name: 'Save', exact: true }).click()
@@ -554,7 +557,7 @@ async function createReaderFixtures(request: APIRequestContext) {
   })
   expect(createdIssue.status(), await createdIssue.text()).toBe(201)
   const issue = { ...(await createdIssue.json()), title: `Reader issue ${suffix}` }
-  // Reciprocal file parity: the real API writes/deletes, while Web reads directly.
+  // Reciprocal file parity: both real adapters delegate to private Core.
   // This fixture does not replace the separate browser-native upload/delete flow.
   const fileBytes = Buffer.alloc(65_536, `api-web-file-${suffix}\n`)
   const uploadedFile = await request.post('http://127.0.0.1:4392/api/files', {

@@ -12,5 +12,14 @@
     "types": ["node", "@cloudflare/workers-types", "@cloudflare/vitest-plugin/types", "vite/client"],
     "paths": { "@/*": ["./src/web/*"] }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "alchemy.ts", "alchemy.run.ts", "alchemy.test.ts", "vite.config.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/e2e-alchemy/**/*.ts",
+    "alchemy.ts",
+    "alchemy.run.ts",
+    "alchemy.test.ts",
+    "vite.config.ts",
+    "worker-graph.ts"
+  ]
 }

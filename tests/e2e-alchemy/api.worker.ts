@@ -1,28 +1,29 @@
-import api from '../../src/api/index'
-import { MIGRATIONS } from '../../src/api/test/migrations'
+import type { ExecutionContext } from '@cloudflare/workers-types'
 
-// Preserve the real Worker's DO exports and scheduled handler. The only adapter
-// work is applying the maintained schema to this host's empty temporary D1.
+import api from '../../src/api/index'
+import type FixtureCore from './core.worker'
+
+// Preserve the real API's hosted namespace and scheduled forwarding.
 export { RateLimiter, WorkspaceHub } from '../../src/api/index'
-let ready: Promise<void> | undefined
+
+let ready: Promise<{ migrations: number }> | undefined
+
+type FixtureApiEnv = Parameters<typeof api.fetch>[1] & {
+  CORE: Pick<FixtureCore, 'initializeFixture' | 'reinitializeFixture'>
+}
 
 export default {
-  async fetch(...args: Parameters<typeof api.fetch>) {
-    const [, env] = args
-    ready ??= (async () => {
-      for (const sql of MIGRATIONS) {
-        // Same statement convention as the maintained API test setup.
-        for (const statement of sql
-          .replace(/--[^\n]*/g, '')
-          .split(';')
-          .map((part: string) => part.trim())
-          .filter(Boolean)) {
-          await env.DB.prepare(statement).run()
-        }
-      }
-    })()
+  async fetch(request: Request, env: FixtureApiEnv, context: ExecutionContext) {
+    // The adapter only invokes Core RPC. It has no DB binding, even for fixtures.
+    ready ??= env.CORE.initializeFixture().catch((error: unknown) => {
+      ready = undefined
+      throw error
+    })
     await ready
-    return api.fetch(...args)
+    if (new URL(request.url).pathname === '/_fixture/reinitialize' && request.method === 'POST') {
+      return Response.json(await env.CORE.reinitializeFixture())
+    }
+    return api.fetch(request, env, context)
   },
   scheduled: api.scheduled,
 }

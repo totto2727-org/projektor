@@ -8,23 +8,22 @@ import type * as RuntimeServices from '@alchemy.run/cloudflare-runtime/core/Runt
 import type * as WorkerdConfig from '@alchemy.run/cloudflare-runtime/core/workerd/Config'
 import { Effect, Layer } from 'effect'
 
-import { apiWorkerOptions } from './api-host'
+import { deployment } from '../../worker-graph'
+import { apiWorkerOptions, coreServiceBinding, coreWorkerOptions, fixtureServices } from './api-host'
 
-const apiService = 'projektor-e2e-api-inline'
 const apiStorage = 'projektor-e2e-api-do-storage'
 const loopbackNetwork = 'projektor-e2e-loopback-only'
 
-/** Public runtime extension. No Vite/Alchemy bridge patch or second Runtime.start. */
+/** Public runtime extension hosts both actual backend artifacts in the frontend workerd. */
 export class InlineApi extends Plugin.Service<
   InlineApi,
   { readonly bind: PluginContext.BindingHook<RuntimeServices.BindingServices> }
 >()('cloudflare-runtime/plugin/ProjektorInlineApi') {}
 
-export const inlineApiRateLimiterBinding = Plugin.use(InlineApi, (plugin) => plugin.api.bind)
+export const inlineCoreBinding = Plugin.use(InlineApi, (plugin) => plugin.api.bind)
 
-/** Read the real official API build, entry first, without rewriting its modules. */
-async function readApiModules(): Promise<WorkerdConfig.Worker_Module[]> {
-  const directory = fileURLToPath(new URL('./dist/ssr/', import.meta.url))
+/** Read official build artifacts unchanged. Entry module must be first for workerd. */
+async function readWorkerModules(directory: string, entryName: string): Promise<WorkerdConfig.Worker_Module[]> {
   const files = await readdir(directory, { recursive: true, withFileTypes: true })
   const modules: WorkerdConfig.Worker_Module[] = []
   for (const entry of files.filter((file) => file.isFile())) {
@@ -43,65 +42,76 @@ async function readApiModules(): Promise<WorkerdConfig.Worker_Module[]> {
     } else if (['.txt', '.html', '.css'].includes(extension)) {
       modules.push({ name, text: await readFile(file, 'utf8') })
     } else {
-      throw new Error(`Unsupported official API build module: ${name}`)
+      throw new Error(`Unsupported official Worker build module: ${name}`)
     }
   }
-  const index = modules.findIndex((module) => module.name === 'api.worker.js')
-  if (index < 0) throw new Error('Build the official API artifact before previewing the E2E host.')
+  const index = modules.findIndex((module) => module.name === entryName)
+  if (index < 0) throw new Error(`Build the official Worker artifact before previewing: ${entryName}`)
   const [entry] = modules.splice(index, 1)
-  if (!entry) throw new Error('The official API entry module is missing.')
+  if (!entry) throw new Error(`The official Worker entry module is missing: ${entryName}`)
   return [entry, ...modules]
 }
 
 export async function makeInlineApiLayer(directory: string) {
-  const modules = await readApiModules()
+  const [apiModules, coreModules] = await Promise.all([
+    readWorkerModules(fileURLToPath(new URL('./dist/ssr/', import.meta.url)), 'api.worker.js'),
+    readWorkerModules(fileURLToPath(new URL('./core-dist/ssr/', import.meta.url)), 'core.worker.js'),
+  ])
   const doDirectory = join(directory, 'api-do')
   await mkdir(doDirectory, { recursive: true })
-  let bindings: WorkerdConfig.Worker_Binding[] | undefined
+  let apiBindings: WorkerdConfig.Worker_Binding[] | undefined
+  let coreBindings: WorkerdConfig.Worker_Binding[] | undefined
   return Layer.succeed(
     InlineApi,
     InlineApi.of({
       api: {
         bind: Effect.gen(function* () {
           const context = yield* PluginContext.PluginContext
-          // Use this SAME plugin map/D1 service. Only the metadata used to
-          // validate own-worker DO hooks describes the inline API worker.
-          bindings = yield* Effect.all(apiWorkerOptions.bindings).pipe(
+          // Resolve native storage hooks only for Core, in this runtime's plugin map.
+          coreBindings = yield* Effect.all(coreWorkerOptions.bindings)
+          apiBindings = yield* Effect.all(apiWorkerOptions.bindings).pipe(
             Effect.provideService(PluginContext.PluginContext, {
               ...context,
               worker: {
                 ...apiWorkerOptions,
-                compatibilityDate: '2026-09-01',
-                compatibilityFlags: ['nodejs_compat'],
+                compatibilityDate: deployment.api.compatibility.date,
+                compatibilityFlags: deployment.api.compatibility.flags,
                 modules: [],
               },
             }),
           )
-          // Native foreign namespace within this SAME workerd. No Web API
-          // service binding and no registry/network proxy for the RateLimiter.
-          return {
-            name: 'RATE_LIMITER',
-            durableObjectNamespace: { className: 'RateLimiter', serviceName: apiService },
+          for (const binding of apiBindings) {
+            if (binding.name !== undefined && ['DB', 'KV', 'OAUTH_KV', 'R2'].includes(binding.name)) {
+              throw new Error(`Public API fixture unexpectedly received storage: ${binding.name}`)
+            }
           }
+          return yield* coreServiceBinding
         }),
       },
       defer: Effect.sync((): Plugin.PluginConfig => {
-        if (!bindings) throw new Error('The inline API RateLimiter binding was not initialized.')
-        console.log(
-          `[e2e-host] One workerd, two actual user Workers, shared D1/KV/R2/OAuth, native foreign RateLimiter. API modules: ${modules.length}`,
-        )
+        if (!apiBindings || !coreBindings) throw new Error('The native three-Worker graph was not initialized.')
         return {
           userWorker: { globalOutbound: { name: loopbackNetwork } },
           services: [
             { name: loopbackNetwork, network: { allow: ['127.0.0.1/32', '::1/128'] } },
             { name: apiStorage, disk: { path: doDirectory, writable: true } },
             {
-              name: apiService,
+              name: fixtureServices.core,
               worker: {
-                modules,
-                compatibilityDate: '2026-09-01',
-                compatibilityFlags: ['nodejs_compat'],
-                bindings,
+                modules: coreModules,
+                compatibilityDate: deployment.core.compatibility.date,
+                compatibilityFlags: deployment.core.compatibility.flags,
+                bindings: coreBindings,
+                globalOutbound: { name: loopbackNetwork },
+              },
+            },
+            {
+              name: fixtureServices.api,
+              worker: {
+                modules: apiModules,
+                compatibilityDate: deployment.api.compatibility.date,
+                compatibilityFlags: deployment.api.compatibility.flags,
+                bindings: apiBindings,
                 globalOutbound: { name: loopbackNetwork },
                 durableObjectStorage: { localDisk: apiStorage },
                 durableObjectNamespaces: apiWorkerOptions.durableObjectNamespaces.map((namespace) => ({
@@ -112,11 +122,12 @@ export async function makeInlineApiLayer(directory: string) {
               },
             },
           ],
+          // Only API has a fixture socket. Core has no public or loopback HTTP listener.
           sockets: [
             {
               name: 'projektor-e2e-api-fixture',
               address: '127.0.0.1:4392',
-              service: { name: apiService },
+              service: { name: fixtureServices.api },
               http: {},
             },
           ],

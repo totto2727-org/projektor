@@ -97,7 +97,7 @@ export default defineConfig({
         test: {
           name: 'data',
           environment: 'node',
-          include: ['src/db/**/*.test.ts', 'src/services/tests/*.test.ts', 'alchemy.test.ts'],
+          include: ['src/db/**/*.test.ts', 'src/services/tests/*.test.ts', 'src/core/**/*.test.ts', 'alchemy.test.ts'],
         },
       },
     ],

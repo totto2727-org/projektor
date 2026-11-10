@@ -3,9 +3,10 @@ import { fileURLToPath } from 'node:url'
 
 import { defineConfig, devices } from '@playwright/test'
 
+const coreConfig = fileURLToPath(new URL('./core.vite.config.ts', import.meta.url))
 const apiConfig = fileURLToPath(new URL('./api.vite.config.ts', import.meta.url))
 const frontendConfig = fileURLToPath(new URL('./vite.config.ts', import.meta.url))
-// One workerd hosts two actual user Workers and one native D1 service.
+// One workerd hosts three actual user Workers. Only private Core has D1.
 // Every run gets fresh disk storage. No second process opens its SQLite file.
 // Keep historical ignored failure/report evidence intact when Playwright cleans outputs.
 // Worker processes re-evaluate this config, so inherit the runner's ID rather
@@ -44,12 +45,11 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
   ],
   webServer: {
-    command: `vp build --config "${apiConfig}" && vp build --config "${frontendConfig}" && vp preview --config "${frontendConfig}" --host 127.0.0.1 --port 4393 --strictPort`,
+    command: `vp build --config "${coreConfig}" && vp build --config "${apiConfig}" && vp build --config "${frontendConfig}" && vp preview --config "${frontendConfig}" --host 127.0.0.1 --port 4393 --strictPort`,
     env: { PROJEKTOR_E2E_STORAGE_DIRECTORY: storageDirectory },
     cwd: fileURLToPath(new URL('../../', import.meta.url)),
-    // The API-only test adapter applies migrations on its first request.
-    // Bootstrap it explicitly: Web no longer calls the API to initialize D1.
-    // Every browser case then exercises the independently authenticated Web Worker.
+    // The API fixture initializes Core over native RPC. Only Core applies its
+    // ledger-backed temporary schema. Neither external adapter receives DB.
     url: 'http://127.0.0.1:4392/auth/me',
     timeout: 180_000,
     reuseExistingServer: false,

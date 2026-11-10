@@ -24,3 +24,22 @@ jobs:
         run: |
           eval "$(nix print-dev-env "$GITHUB_WORKSPACE#ci")"
           vp run ci
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
+        with:
+          dev-shell: ci
+      - uses: totto2727-org/monorepo/.github/actions/setup-typescript@main
+      - name: Provision Chromium for local acceptance
+        run: |
+          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#ci")"
+          vp exec playwright install --with-deps chromium
+      - name: Exercise native API, Web and private Core Workers
+        run: |
+          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#ci")"
+          vp run e2e

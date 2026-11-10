@@ -1,4 +1,5 @@
 dist/
+core-dist/
 test-results/
 playwright-report/
 .runtime/

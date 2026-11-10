@@ -4,45 +4,10 @@ import * as Cloudflare from 'alchemy/Cloudflare'
 import { type Worker, type WorkerBinding, type WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
 import { Config, Context, Effect, Layer, Option, Redacted } from 'effect'
 
-import { apiOrigin } from './src/deployment'
+import { Core as CoreIdentity } from './src/workers/identities'
+import { deployment } from './worker-graph'
 
-/** Existing production identities. Storage and Access remain operator-owned. */
-export const deployment = {
-  accountId: '5643a837ef66765e7881c0831a36ebed',
-  api: {
-    name: 'projektor',
-    hostname: 'projektor-api.totto2727.dev',
-    origin: apiOrigin,
-    main: './src/api/index.ts',
-    compatibility: {
-      date: '2024-09-23',
-      flags: ['nodejs_compat', 'global_fetch_strictly_public', 'cache_option_enabled'],
-    },
-    crons: ['0 3 * * *'],
-  },
-  frontend: {
-    name: 'projektor-frontend',
-    hostname: 'projektor.totto2727.dev',
-    origin: 'https://projektor.totto2727.dev',
-    compatibility: { date: '2026-09-01', flags: ['nodejs_compat'] },
-  },
-  core: {
-    name: 'projektor-core',
-    main: './src/core/worker.ts',
-    compatibility: { date: '2026-09-01', flags: ['nodejs_compat'] },
-  },
-  storage: {
-    database: { id: 'e852f9c2-e817-409e-bbf0-3168e82a1afc', name: 'projektor' },
-    cache: { id: 'b5598fbbbc2e48e3beab8bf9aecfc4bd', title: 'projektor' },
-    oauth: { id: 'b187546f271142419343787032f6ca9b', title: 'projektor-oauth' },
-    files: { name: 'projektor-files' },
-  },
-  access: {
-    teamDomain: 'totto2727.cloudflareaccess.com',
-    audience: '327e65a1c53f85fa45155ffe4b7e1e8c35740cce3efc70b1f161392f5144ddb9',
-    domain: 'projektor.totto2727.dev',
-  },
-}
+export { deployment } from './worker-graph'
 
 export const localDevelopment = {
   userEmail: 'dev@projektor.local',
@@ -169,19 +134,22 @@ export const DeploymentLayer = Layer.unwrap(
   }),
 )
 
-export const Core = Cloudflare.Worker(
-  'Core',
+const CoreLive = CoreIdentity.make(
   Effect.gen(function* () {
     const environment = yield* DeploymentEnvironment
     return {
       name: deployment.core.name,
-      main: deployment.core.main,
+      main: import.meta.url,
       compatibility: deployment.core.compatibility,
       workersDev: { enabled: false, previewsEnabled: false },
       env: { ...environment.coreEnv, RATE_LIMITER: rateLimiterReference() },
     }
   }),
-).pipe(
+  Effect.promise(() => import('./src/core/worker')).pipe(Effect.flatMap(({ makeCoreHandlers }) => makeCoreHandlers)),
+)
+
+export const Core = CoreIdentity.pipe(
+  Effect.provide(CoreLive),
   RemovalPolicy.retain(),
   Effect.tap((core) =>
     Effect.gen(function* () {

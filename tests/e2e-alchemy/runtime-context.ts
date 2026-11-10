@@ -13,7 +13,7 @@ export async function makePreviewContext(isPreview: boolean | undefined) {
   const directory = process.env.PROJEKTOR_E2E_STORAGE_DIRECTORY
   if (!directory) {
     throw new Error(
-      'Run previews through the E2E config so both Workers use one isolated runtime and storage directory.',
+      'Run previews through the E2E config so all three Workers use one isolated runtime and storage directory.',
     )
   }
   const scope = Scope.makeUnsafe()
