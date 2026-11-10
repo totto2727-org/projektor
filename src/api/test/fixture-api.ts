@@ -26,21 +26,20 @@ function core(): FixtureCore {
 }
 
 const originalCore = core()
-let configuredCore: Fetcher | undefined
+let explicitSettings: Readonly<Record<string, string | null>> = {}
+let settingsSnapshot: Record<string, string | null> = {}
 
-/** Apply test policy explicitly before invoking the real API Worker. Native Core
- * sessions retain their own configuration, rather than changing shared Core state. */
-export async function configureCore(settings: Readonly<Record<string, string | null>> = {}): Promise<void> {
+function synchronizeConfiguration(): void {
   const configuration: Record<string, string | null> = {}
   for (const [key, value] of Object.entries(nativeEnv)) {
     if (key !== 'CORE_FIXTURE_CONFIGURATION' && (typeof value === 'string' || value === undefined)) {
       configuration[key] = value ?? null
     }
   }
-  const settingsSnapshot = {
+  settingsSnapshot = {
     ...configuration,
     FIXTURE_LIMITER_MODE: nativeEnv.RATE_LIMITER ? 'native' : 'absent',
-    ...settings,
+    ...explicitSettings,
   }
   const serialized = JSON.stringify(settingsSnapshot)
   if (
@@ -49,8 +48,31 @@ export async function configureCore(settings: Readonly<Record<string, string | n
   ) {
     throw new Error('The native API fixture configuration binding is not writable')
   }
-  configuredCore = await originalCore.fixtureSession(settingsSnapshot)
 }
+
+/** Explicit failure modes survive subsequent ordinary scalar fixture mutations. */
+export async function configureCore(settings: Readonly<Record<string, string | null>> = {}): Promise<void> {
+  explicitSettings = { ...settings }
+  synchronizeConfiguration()
+  await originalCore.fixtureSession(settingsSnapshot)
+}
+
+// Direct Hono calls run in the driver's context. Resolve their native session at
+// dispatch, never retain an I/O capability created by an earlier test invocation.
+const directCore = new Proxy(
+  {},
+  {
+    get(_target, key): unknown {
+      if (key === 'then') return undefined
+      return async (...args: unknown[]): Promise<unknown> => {
+        const session = await originalCore.fixtureSession({ ...settingsSnapshot })
+        const method: unknown = Reflect.get(session, key)
+        if (typeof method !== 'function') throw new Error(`Missing native fixture method: ${String(key)}`)
+        return Reflect.apply(method, session, args)
+      }
+    },
+  },
+)
 
 export async function getCoreLimiterCalls(): Promise<number> {
   return originalCore.fixtureLimiterCalls(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')
@@ -164,11 +186,25 @@ const fixtures = { DB: db, KV: fixtureKV('KV'), R2: r2 }
 export const env: Env = new Proxy(nativeEnv, {
   get(target, key, receiver): unknown {
     if (key === 'DB' || key === 'KV' || key === 'R2') return fixtures[key]
-    if (key === 'CORE' && configuredCore) return configuredCore
+    if (key === 'CORE') return directCore
     return Reflect.get(target, key, receiver)
   },
   set(target, key, value): boolean {
-    return Reflect.set(target, key, value)
+    const applied = Reflect.set(target, key, value)
+    if (applied && key !== 'CORE_FIXTURE_CONFIGURATION' && (typeof value === 'string' || value === undefined)) {
+      if (typeof key === 'string') explicitSettings = { ...explicitSettings, [key]: value ?? null }
+      synchronizeConfiguration()
+    }
+    return applied
+  },
+  deleteProperty(target, key): boolean {
+    const value: unknown = Reflect.get(target, key)
+    const applied = Reflect.deleteProperty(target, key)
+    if (applied && typeof key === 'string' && (typeof value === 'string' || value === undefined)) {
+      explicitSettings = { ...explicitSettings, [key]: null }
+      synchronizeConfiguration()
+    }
+    return applied
   },
   ownKeys(target) {
     return [...new Set([...Reflect.ownKeys(target), ...Object.keys(fixtures)])]
