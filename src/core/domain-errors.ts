@@ -8,7 +8,6 @@ import {
   UnsupportedMediaTypeError,
   ValidationError,
 } from '../contracts/errors'
-
 import { coreFailure } from './contract'
 
 function jsonDetails(input: unknown): Schema.JsonObject | undefined {

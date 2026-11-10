@@ -1,7 +1,6 @@
 import { Effect } from 'effect'
-import type React from 'react'
-
 import { makeCoreClient } from 'projektor/core-client'
+import type React from 'react'
 
 import { deploymentBrand } from '../../brand'
 import { renderMarkdownEffect } from '../../components/markdown/effect'

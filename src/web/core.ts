@@ -1,6 +1,6 @@
 import { Effect, Schema } from 'effect'
+import { decodeCoreReply } from 'projektor/core-client'
 
-import { decodeCoreReply } from '../core/client'
 import type { WebRequest } from '../core/web/scope'
 import { ApiError, ScopeError } from './server/errors'
 
