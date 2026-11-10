@@ -2,11 +2,10 @@ import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vite-plus/test'
 
 import { relyingPartyHost } from '#commands/oauth'
-import { resetAuthCachesForTests } from '#services/authentication'
 import type { Env } from '#types'
 
 import { purgeExpiredOAuthData } from '../../core/api/maintenance'
-import { env } from './fixture-api'
+import { env, resetCoreAuthCaches } from './fixture-api'
 import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers'
 
 // PROJ-656/657: the OAuth 2.1 authorization code flow, end to end.
@@ -57,7 +56,7 @@ async function installAccessKeys(): Promise<void> {
     ['sign', 'verify'],
   )) as CryptoKeyPair
   signingKey = pair.privateKey
-  resetAuthCachesForTests()
+  await resetCoreAuthCaches()
   env.CF_ACCESS_TEAM_DOMAIN = CF_DOMAIN
   env.CF_ACCESS_AUDIENCE = CF_AUDIENCE
   await env.KV.put('cf-access-certs', JSON.stringify([await crypto.subtle.exportKey('jwk', pair.publicKey)]))
