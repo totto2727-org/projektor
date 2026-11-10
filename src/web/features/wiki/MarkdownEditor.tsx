@@ -7,6 +7,7 @@ import { EditorView, keymap } from '@codemirror/view'
 import { useEffect, useRef, useState } from 'react'
 
 import { useMarkdownPreview } from '../../components/markdown/MarkdownPreview'
+import { imageUploads, insertUploadedImages } from './image-uploads'
 
 export interface Props {
   value: string
@@ -45,29 +46,6 @@ function imageFilesFromClipboard(data: DataTransfer | null): File[] {
 function imageFilesFromDrop(data: DataTransfer | null): File[] {
   if (!data) return []
   return Array.from(data.files).filter((f) => PASTE_IMAGE_TYPES.has(f.type))
-}
-
-// Uploads sequentially and inserts each `![name](url)` right after the previous one, so a
-// multi-file paste/drop lands as consecutive image refs instead of racing to overlapping
-// positions. A file whose upload fails (onImageFile resolves null) is silently skipped.
-async function insertUploadedImages(
-  view: EditorView,
-  files: readonly File[],
-  pos: number,
-  onImageFile: (file: File) => Promise<string | null>,
-): Promise<void> {
-  let insertAt = pos
-  for (const file of files) {
-    const url = await onImageFile(file)
-    if (!url) continue
-    const insert = `![${file.name}](${url})\n`
-    view.dispatch({
-      changes: { from: insertAt, insert },
-      selection: EditorSelection.cursor(insertAt + insert.length),
-    })
-    insertAt += insert.length
-  }
-  view.focus()
 }
 
 // Sub-640px gets a 44px-square touch target (the toolbar was ~24px tall, well under
@@ -278,6 +256,7 @@ function useMarkdownEditorView(
       doc: config.value,
       extensions: [
         history(),
+        imageUploads,
         markdown(),
         keymap.of([...customKeymap, ...historyKeymap, ...defaultKeymap]),
         EditorView.updateListener.of((update) => {
@@ -354,6 +333,7 @@ function useMarkdownEditorView(
     if (!view) return
     const current = view.state.doc.toString()
     if (current === value) return
+    view.plugin(imageUploads)?.cancel()
     applyingExternal.current = true
     try {
       view.dispatch({
