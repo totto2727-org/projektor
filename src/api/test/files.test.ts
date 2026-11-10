@@ -40,12 +40,15 @@ async function mcpToolResult<T>(
   toolArgs: unknown,
   headers: Record<string, string>,
 ): Promise<T> {
-  const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  const res = await mcpCall<{ content: Array<{ text: string }>; isError?: boolean }>(
     workspaceId,
     'tools/call',
     { name, arguments: toolArgs },
     headers,
-  )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+  )
+  if ('error' in res) throw new Error(`${name} failed: ${JSON.stringify(res.error)}`)
+  expect(res.result.isError, `${name}: ${JSON.stringify(res.result.content)}`).not.toBe(true)
+  expect(res.result.content).toHaveLength(1)
   return JSON.parse(res.result.content[0].text) as T
 }
 
@@ -431,6 +434,7 @@ describe('Files API', () => {
         }),
       })
       expect(res.status).toBe(201)
+      expect(await res.json()).toMatchObject({ id: expect.any(String), kind: 'wiki_ref' })
 
       const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
@@ -471,6 +475,7 @@ describe('Files API', () => {
         }),
       })
       expect(res.status).toBe(201)
+      expect(await res.json()).toMatchObject({ id: expect.any(String), kind: 'url' })
 
       const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),

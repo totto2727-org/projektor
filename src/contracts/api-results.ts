@@ -410,7 +410,7 @@ export const ApiResults = {
   apiUpdateComment: Ok,
   apiDeleteComment: Ok,
   apiListAttachments: array(Attachment),
-  apiCreateLinkAttachment: Id,
+  apiCreateLinkAttachment: Schema.Struct({ id: S, kind: Schema.Literals(['wiki_ref', 'url']) }),
   apiGetAttachment: Attachment,
   apiDeleteAttachment: Schema.Struct({ r2Key: S }),
   apiListCustomFieldDefs: array(CustomField),
