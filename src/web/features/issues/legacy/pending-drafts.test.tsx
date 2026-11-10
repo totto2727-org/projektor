@@ -114,6 +114,31 @@ it('keeps the saved draft visible until canonical description props commit', asy
   expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBeNull()
 })
 
+it('keeps edits made after mutation success while canonical refresh is pending', async () => {
+  const pending = deferred<Awaited<ReturnType<typeof updateIssue>>>()
+  vi.mocked(updateIssue).mockReturnValue(pending.promise)
+  const { rerender } = render(
+    <BodySection issue={issue} issueId='issue' workspaceSlug='workspace' currentUserId='user' />,
+  )
+  fireEvent.click(screen.getByTitle('Edit description'))
+  fireEvent.change(screen.getByLabelText('Markdown draft'), { target: { value: 'Submitted body' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(updateIssue).toHaveBeenCalled())
+  await act(async () => pending.resolve({ ok: true, value: { ok: true } }))
+  fireEvent.change(screen.getByLabelText('Markdown draft'), { target: { value: 'Newer local body' } })
+  rerender(
+    <BodySection
+      issue={{ ...issue, body: 'Submitted body' }}
+      issueId='issue'
+      workspaceSlug='workspace'
+      currentUserId='user'
+    />,
+  )
+  expect(screen.getByDisplayValue('Newer local body')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', false)
+  expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBe('Newer local body')
+})
+
 it('keeps the next comment typed while a previous comment is posting', async () => {
   const pending = deferred<Awaited<ReturnType<typeof addComment>>>()
   vi.mocked(addComment).mockReturnValue(pending.promise)
