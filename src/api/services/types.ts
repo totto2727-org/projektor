@@ -1,10 +1,10 @@
 import { Schema } from 'effect'
 import type { Context } from 'hono'
+import { makeCoreClient } from 'projektor/core-client'
 
 import type { AuthInfo, HonoEnv, Role } from '#types'
 
 import type { CoreActor } from '../../core/authorization'
-import { makeCoreClient } from '../../core/client'
 import type { CoreRpcShape } from '../../core/contract'
 
 /** Adapter context contains identity hints for presentation, never storage or domain authority. */

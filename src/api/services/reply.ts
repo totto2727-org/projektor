@@ -1,6 +1,5 @@
 import { Effect, type Schema } from 'effect'
-
-import { decodeCoreReply } from '../../core/client'
+import { decodeCoreReply } from 'projektor/core-client'
 
 /** The only shared adapter machinery is envelope decoding, never operation dispatch. */
 export function apiReply<S extends Schema.Top & { readonly DecodingServices: never }, E>(
