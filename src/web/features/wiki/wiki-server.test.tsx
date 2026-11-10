@@ -122,6 +122,27 @@ describe('Wiki direct request-owned queries', () => {
     expect(html).toContain('initial-body')
     expect(test.calls).not.toHaveBeenCalled()
   })
+  it.each(['owner', 'admin', 'member'])(
+    'reads an existing archived page with the same grant policy as ServerFns for %s',
+    async (role) => {
+      const test = await fixture()
+      test.sqlite
+        .prepare('UPDATE workspace_members SET role=? WHERE workspace_id=? AND user_id=?')
+        .run(role, 'workspace', 'user')
+      test.sqlite.exec("UPDATE projects SET archived_at=99 WHERE id='allowed'")
+      const initial = initialData(
+        await Effect.runPromise(test.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
+      )
+      expect(initial.page).toMatchObject({ id: 'visible-page', project_id: 'allowed' })
+    },
+  )
+  it('does not widen archived page visibility to an ungranted member', async () => {
+    const test = await fixture()
+    test.sqlite.exec("UPDATE projects SET archived_at=99 WHERE id='allowed'; DELETE FROM group_project_grants")
+    await expect(
+      Effect.runPromise(test.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
+    ).rejects.toMatchObject({ status: 404 })
+  })
   it('disables autosave after an actual optional draft query failure', async () => {
     const test = await fixture()
     test.sqlite.exec('DROP TABLE wiki_drafts')

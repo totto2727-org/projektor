@@ -1,31 +1,23 @@
 'use server'
 
-import type { D1Database } from '@cloudflare/workers-types'
-import { and, sql } from 'drizzle-orm'
 import { Effect, Schema } from 'effect'
-
-import { deleteStoredAttachment } from '#commands/files'
-import * as wikiCommands from '#commands/wiki'
-import * as wikiDraftCommands from '#commands/wiki-drafts'
-import { listProjects } from '#services/projects'
-import * as wikiData from '#services/wiki'
 
 import { EFFRONT } from '../../effront'
 import { RequestServices } from '../../request'
-import { runCommand } from '../../server/command-context'
-import {
-  authorizeDataEntity,
-  dataError,
-  requireDataDatabase,
-  requireDataWorkspace,
-  visibleProjectPredicate,
-} from '../../server/data-context'
-import { ApiError, ScopeError } from '../../server/errors'
+import { runBrowserCommand as runCommand } from '../../server/browser-command'
+import { dataError } from '../../server/data-context'
 import { FunctionSelectorSchema, resolveFunctionContext } from '../../server/function-context'
 import { checkSameOriginMutation } from '../../server/mutation'
-import type { RequestScope } from '../../server/request-context'
+import {
+  deleteStoredAttachment,
+  wikiCommands,
+  wikiDraftCommands,
+  readWikiPage,
+  readWikiDraft,
+  readWikiDiff,
+} from './data'
 import { EditFields } from './form-schemas'
-import { Created, Deleted, Draft, Ok, Page, Restored, SavedDraft, Verified } from './schemas'
+import { Created, Deleted, Ok, Restored, SavedDraft, Verified } from './schemas'
 
 const identifier = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200))
 const Reference = Schema.Struct({ ...FunctionSelectorSchema.fields, slug: identifier })
@@ -44,67 +36,12 @@ const Create = Schema.Struct({
   ),
 )
 
-/** A semantic wiki read boundary, not a request-path dispatcher. */
-function readAuthorizedWikiPage(database: D1Database, scope: RequestScope, ref: string) {
-  return Effect.gen(function* () {
-    const { db, workspace } = yield* Effect.try({
-      try: () => ({ db: requireDataDatabase(database), workspace: requireDataWorkspace(scope) }),
-      catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
-    })
-    const page = yield* wikiData.findWikiPage(db, workspace.id, ref).pipe(Effect.mapError(dataError))
-    if (!page) return yield* new ApiError('http', 404, 'Wiki page not found.')
-    if (
-      page.project_id !== null &&
-      !scope.projects.some((project) => project.id === page.project_id && project.workspace_id === workspace.id)
-    ) {
-      // Navigation catalogs omit archived projects. Reading an existing page
-      // still follows the API's workspace/grant policy, without widening that catalog.
-      const visibility = yield* Effect.try({
-        try: () =>
-          and(sql`projects.id = ${page.project_id}`, visibleProjectPredicate(scope, workspace.id, sql`projects.id`)),
-        catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
-      })
-      const projects = yield* listProjects(db, workspace.id, {
-        includeArchived: true,
-        visibility,
-      }).pipe(Effect.mapError(dataError))
-      if (projects.length === 0) return yield* new ScopeError(404, 'Selected project is not accessible.')
-    } else {
-      yield* Effect.try({
-        try: () => authorizeDataEntity(scope, workspace.id, { ...page, projectId: page.project_id }),
-        catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
-      })
-    }
-    return { db, workspace, page }
-  })
-}
-
-function pageFreshness(page: { verified_at: number | null; verify_interval: number | null; status: string | null }) {
-  const now = Math.floor(Date.now() / 1000)
-  const due =
-    page.verified_at !== null && page.verify_interval !== null ? page.verified_at + page.verify_interval * 86400 : null
-  if (page.status === null && page.verify_interval === null) return null
-  if (page.status === 'stale' || page.status === 'deprecated')
-    return { state: 'stale' as const, staleSince: due !== null && due <= now ? due : null }
-  if (page.verify_interval !== null && page.verified_at === null)
-    return { state: 'unverified' as const, staleSince: null }
-  return due !== null && due <= now
-    ? { state: 'stale' as const, staleSince: due }
-    : { state: 'fresh' as const, staleSince: null }
-}
-
 export const getWikiPage = EFFRONT.ServerFn.make({
   input: Reference,
   handler: (input) =>
     Effect.gen(function* () {
-      const services = yield* RequestServices
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-      const { db, workspace, page } = yield* readAuthorizedWikiPage(services.db, ctx.scope, input.slug)
-      const value = yield* Schema.decodeUnknownEffect(Page)({
-        ...page,
-        revisionId: yield* wikiData.getLatestWikiRevisionId(db, workspace.id, page.id).pipe(Effect.mapError(dataError)),
-        freshness: pageFreshness(page),
-      }).pipe(Effect.mapError(dataError))
+      const value = yield* readWikiPage(ctx, input.slug)
       return { ok: true, value } as const
     }).pipe(
       Effect.catchTags({
@@ -124,14 +61,8 @@ export const getWikiRevisionDiff = EFFRONT.ServerFn.make({
   input: RevisionReference,
   handler: (input) =>
     Effect.gen(function* () {
-      const services = yield* RequestServices
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-      const { db, workspace, page } = yield* readAuthorizedWikiPage(services.db, ctx.scope, input.slug)
-      const revision = yield* wikiData
-        .getWikiRevision(db, workspace.id, page.id, input.revisionId)
-        .pipe(Effect.mapError(dataError))
-      if (!revision) return yield* new ApiError('http', 404, 'Revision not found.')
-      const value = { diff: wikiData.buildUnifiedDiff(revision.content, page.content) }
+      const value = yield* readWikiDiff(ctx, input.slug, input.revisionId)
       return { ok: true, value } as const
     }).pipe(
       Effect.catchTags({
@@ -151,12 +82,8 @@ export const getWikiDraft = EFFRONT.ServerFn.make({
   input: Reference,
   handler: (input) =>
     Effect.gen(function* () {
-      const services = yield* RequestServices
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-      const { db, workspace, page } = yield* readAuthorizedWikiPage(services.db, ctx.scope, input.slug)
-      const value = yield* wikiData
-        .getWikiDraft(db, workspace.id, page.id, ctx.scope.user.id)
-        .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Draft)), Effect.mapError(dataError))
+      const value = yield* readWikiDraft(ctx, input.slug)
       return { ok: true, value } as const
     }).pipe(
       Effect.catchTags({
@@ -214,7 +141,7 @@ export const duplicateWikiPage = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        const { page } = yield* readAuthorizedWikiPage(services.db, ctx.scope, input.slug)
+        const page = yield* readWikiPage(ctx, input.slug)
         const value = yield* runCommand(ctx, (command) =>
           wikiCommands.createWikiPage(command, {
             title: `${page.title} (copy)`,
@@ -250,15 +177,12 @@ export const saveWikiPage = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         const value = yield* runCommand(ctx, (command) =>
-          wikiCommands.updateWikiPage(command, input.slug, {
+          wikiCommands.publishWikiPage(command, input.slug, {
             title: input.title,
             content: input.content,
             ...(input.baseRevisionId !== undefined ? { baseRevisionId: input.baseRevisionId } : {}),
           }),
         ).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Ok)(value).pipe(Effect.mapError(dataError))))
-        yield* runCommand(ctx, (command) => wikiDraftCommands.discardWikiDraft(command, input.slug)).pipe(
-          Effect.catchTag('ApiError', () => Effect.succeed(null)),
-        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({
@@ -461,17 +385,8 @@ export const restoreWikiRevision = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        const { db, workspace, page } = yield* readAuthorizedWikiPage(services.db, ctx.scope, input.slug)
-        const revision = yield* wikiData
-          .getWikiRevision(db, workspace.id, page.id, input.revisionId)
-          .pipe(Effect.mapError(dataError))
-        if (!revision) return yield* new ApiError('http', 404, 'Revision not found.')
         const value = yield* runCommand(ctx, (command) =>
-          wikiCommands.updateWikiPage(command, input.slug, {
-            content: revision.content,
-            baseRevisionId: input.baseRevisionId,
-            summary: `Restored from revision dated ${new Date(revision.created_at * 1000).toISOString()}`,
-          }),
+          wikiCommands.restoreWikiRevision(command, input.slug, input.revisionId, input.baseRevisionId),
         ).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Ok)(value).pipe(Effect.mapError(dataError))))
         return { ok: true, value } as const
       }).pipe(
@@ -498,10 +413,9 @@ export const deleteWikiAttachment = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        const value = yield* runCommand(ctx, async (command) => {
-          await deleteStoredAttachment(command, input.attachmentId)
-          return { ok: true }
-        }).pipe(Effect.flatMap((value) => Schema.decodeUnknownEffect(Ok)(value).pipe(Effect.mapError(dataError))))
+        const value = yield* runCommand(ctx, (command) => deleteStoredAttachment(command, input.attachmentId)).pipe(
+          Effect.flatMap((value) => Schema.decodeUnknownEffect(Ok)(value).pipe(Effect.mapError(dataError))),
+        )
         return { ok: true, value } as const
       }).pipe(
         Effect.catchTags({

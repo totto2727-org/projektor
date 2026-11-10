@@ -80,7 +80,7 @@ export const Draft = Schema.NullOr(
     updatedAt: Schema.Number,
   }),
 )
-export const TreeNode: Schema.Decoder<WikiSeed['tree'][number]> = Schema.suspend(() =>
+export const TreeNode: Schema.Codec<WikiSeed['tree'][number]> = Schema.suspend(() =>
   Schema.Struct({
     id: Schema.String,
     slug: Schema.String,
@@ -90,6 +90,33 @@ export const TreeNode: Schema.Decoder<WikiSeed['tree'][number]> = Schema.suspend
   }),
 )
 export const Tree = Schema.mutable(Schema.Array(TreeNode))
+export const WikiSeedDataSchema = Schema.Struct({
+  page: Schema.NullOr(Page),
+  tree: Tree,
+  templates: Schema.mutable(Schema.Array(Template)),
+  stalePages: Schema.mutable(Schema.Array(StalePage)),
+  filteredPages: Schema.mutable(Schema.Array(ListItem)),
+  searchResults: Schema.mutable(Schema.Array(SearchResult)),
+  revisions: Schema.mutable(Schema.Array(Revision)),
+  attachments: Schema.mutable(Schema.Array(Attachment)),
+  draft: Draft,
+  draftStatus: Schema.Literals(['ready', 'failed']),
+  projects: Schema.mutable(
+    Schema.Array(
+      Schema.Struct({ id: Schema.String, key: Schema.String, name: Schema.String, workspace_slug: Schema.String }),
+    ),
+  ),
+  workspaceSlug: Schema.String,
+  projectId: Schema.String,
+  slug: Schema.String,
+  filterType: Schema.String,
+  filterStatus: Schema.String,
+  filterTags: Schema.String,
+  searchQuery: Schema.String,
+  createTitle: Schema.String,
+  mode: Schema.Literals(['create', 'edit', 'read']),
+  publicViewer: Schema.Boolean,
+})
 export const Ok = Schema.Struct({ ok: Schema.Literal(true) })
 export const Created = Schema.Struct({ id: Schema.String, slug: Schema.String })
 export const Deleted = Schema.Struct({

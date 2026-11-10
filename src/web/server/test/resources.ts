@@ -120,6 +120,32 @@ export function testEnvironment(db: D1Database, email = 'owner@example.test', ov
   const result: Env = {
     ...env,
     CORE: overrides.CORE ?? {
+      webWikiPage: (...args: Parameters<WebCoreRpcShape['webWikiPage']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiPage(...args)),
+      webWikiDiff: (...args: Parameters<WebCoreRpcShape['webWikiDiff']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiDiff(...args)),
+      webWikiDraft: (...args: Parameters<WebCoreRpcShape['webWikiDraft']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiDraft(...args)),
+      webCreateWikiPage: (...args: Parameters<WebCoreRpcShape['webCreateWikiPage']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateWikiPage(...args)),
+      webUpdateWikiPage: (...args: Parameters<WebCoreRpcShape['webUpdateWikiPage']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateWikiPage(...args)),
+      webPublishWikiPage: (...args: Parameters<WebCoreRpcShape['webPublishWikiPage']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webPublishWikiPage(...args)),
+      webSaveWikiDraft: (...args: Parameters<WebCoreRpcShape['webSaveWikiDraft']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSaveWikiDraft(...args)),
+      webDiscardWikiDraft: (...args: Parameters<WebCoreRpcShape['webDiscardWikiDraft']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDiscardWikiDraft(...args)),
+      webVerifyWikiPage: (...args: Parameters<WebCoreRpcShape['webVerifyWikiPage']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webVerifyWikiPage(...args)),
+      webDeleteWikiPage: (...args: Parameters<WebCoreRpcShape['webDeleteWikiPage']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteWikiPage(...args)),
+      webUndeleteWikiPage: (...args: Parameters<WebCoreRpcShape['webUndeleteWikiPage']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUndeleteWikiPage(...args)),
+      webRestoreWikiRevision: (...args: Parameters<WebCoreRpcShape['webRestoreWikiRevision']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webRestoreWikiRevision(...args)),
+      webWikiSeed: (...args: Parameters<WebCoreRpcShape['webWikiSeed']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webWikiSeed(...args)),
       webProjectCatalog: (...args: Parameters<WebCoreRpcShape['webProjectCatalog']>) =>
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webProjectCatalog(...args)),
       webProjectOverview: (...args: Parameters<WebCoreRpcShape['webProjectOverview']>) =>
