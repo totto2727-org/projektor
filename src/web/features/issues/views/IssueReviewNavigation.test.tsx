@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, expect, it, vi } from 'vite-plus/test'
 
-vi.mock('../legacy/IssueList', () => ({
+vi.mock('../components/IssueList', () => ({
   default: ({ initialData }: { initialData: IssuesInitialData }) => (
     <ul aria-label='Canonical issues'>
       {initialData.page.items.map((entry) => (

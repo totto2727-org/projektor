@@ -1,6 +1,6 @@
 'use client'
 import type { RequestScope } from '../../../server/request-context'
-import IssueDetail from '../legacy/IssueDetail'
+import IssueDetail from '../components/IssueDetail'
 import type { Attachment, Comment, Issue, IssueLink, Member, Status, TaskType } from '../types'
 import { SelectionRequired } from './shared'
 export interface IssueDetailInitialData {
