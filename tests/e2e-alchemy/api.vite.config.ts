@@ -15,6 +15,13 @@ export default defineConfig((environment) => {
   return {
     root: fileURLToPath(new URL('.', import.meta.url)),
     publicDir: false,
+    resolve: {
+      alias: {
+        'virtual:production-api-entrypoint': fileURLToPath(
+          new URL(deployment.api.main, new URL('../../', import.meta.url)),
+        ),
+      },
+    },
     plugins: [
       cloudflare({
         main: './api.worker.ts',

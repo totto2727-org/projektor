@@ -1,10 +1,10 @@
 import type { ExecutionContext } from '@cloudflare/workers-types'
+import api from 'virtual:production-api-entrypoint'
 
-import api from '../../src/api/index'
 import type FixtureCore from './core.worker'
 
 // Preserve the real API's hosted namespace and scheduled forwarding.
-export { RateLimiter, WorkspaceHub } from '../../src/api/index'
+export { RateLimiter, WorkspaceHub } from 'virtual:production-api-entrypoint'
 
 let ready: Promise<{ migrations: number }> | undefined
 

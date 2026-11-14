@@ -9,16 +9,12 @@ import * as Output from 'alchemy/Output'
 import { ConfigProvider, Effect, Redacted } from 'effect'
 import { describe, expect, it } from 'vite-plus/test'
 
-import Frontend, {
-  LocalLayer,
-  ProductionLayer,
-  WorkerResources,
-  deployment,
-  existingStorageBindings,
-  localDevelopment,
-} from './alchemy'
+import { WorkerResources } from './alchemy'
 import { workers } from './alchemy.run'
-import CoreEntrypoint from './core'
+import { LocalLayer, ProductionLayer, existingStorageBindings, localDevelopment } from './worker-environment'
+import { deployment } from './worker-graph'
+import CoreEntrypoint from './workers/core'
+import Frontend from './workers/frontend'
 
 function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<string, string>) {
   return effect.pipe(Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromUnknown(values)))
@@ -85,14 +81,23 @@ function expectNoStorage(stack: Stack['Service'], id: 'Api' | 'Frontend') {
 }
 
 describe('source-owned private Core deployment', () => {
-  it('selects the Core default export from the configured production module', async () => {
-    const { core } = await register(false)
-    assert.ok(core.Props.main)
-    const module: unknown = await import(core.Props.main)
-    expect(module).toHaveProperty('default', CoreEntrypoint)
+  it.each([
+    { id: 'Core', entrypoint: CoreEntrypoint },
+    { id: 'Frontend', entrypoint: Frontend },
+  ])('selects the $id default export from its configured production module', async ({ id, entrypoint }) => {
+    const { stack } = await register(false)
+    const main = stack.resources[id].Props.main
+    assert.ok(main)
+    const module: unknown = await import(main)
+    expect(module).toHaveProperty('default', entrypoint)
   })
 
-  it.each([false, true])('captures the private graph without deployment inputs (dev=%s)', async (local) => {
+  it.each([
+    { local: false, entrypoint: CoreEntrypoint.pipe(Effect.asVoid), ids: ['Core'] },
+    { local: true, entrypoint: CoreEntrypoint.pipe(Effect.asVoid), ids: ['Core'] },
+    { local: false, entrypoint: Frontend.pipe(Effect.asVoid), ids: ['Core', 'Frontend'] },
+    { local: true, entrypoint: Frontend.pipe(Effect.asVoid), ids: ['Core', 'Frontend'] },
+  ])('captures $ids without deployment inputs (dev=$local)', async ({ local, entrypoint, ids }) => {
     const stack: Stack['Service'] = {
       name: 'projektor',
       stage: 'testhost',
@@ -109,8 +114,7 @@ describe('source-owned private Core deployment', () => {
       return Effect.die(new Error(`Runtime read deployment input ${key}`))
     })
     await Effect.runPromise(
-      Frontend.pipe(
-        Effect.map((frontend) => ({ frontend })),
+      entrypoint.pipe(
         Effect.provideService(Stack, stack),
         Effect.provideService(ConfigProvider.ConfigProvider, provider),
         Effect.provideService(CloudflareEnvironment, Effect.die(new Error('Runtime resolved deployment profile'))),
@@ -123,14 +127,16 @@ describe('source-owned private Core deployment', () => {
         }),
       ),
     )
-    expect(Object.keys(stack.resources).sort()).toEqual(['Core', 'Frontend'])
+    expect(Object.keys(stack.resources).sort()).toEqual(ids)
     expect(new Set(reads)).toEqual(new Set(['ALCHEMY_PHASE']))
     expect(stack.resources.Core.Props.env).not.toHaveProperty('DB')
     expect(bindings(stack, 'Core').some((binding) => binding.type === 'd1')).toBe(false)
-    expectNoStorage(stack, 'Frontend')
-    expect(bindings(stack, 'Frontend')).toContainEqual(expect.objectContaining({ type: 'service', name: 'CORE' }))
-    for (const name of ['API', 'API_BASE', 'JWT_SECRET'])
-      expect(stack.resources.Frontend.Props.env).not.toHaveProperty(name)
+    if (ids.includes('Frontend')) {
+      expectNoStorage(stack, 'Frontend')
+      expect(bindings(stack, 'Frontend')).toContainEqual(expect.objectContaining({ type: 'service', name: 'CORE' }))
+      for (const name of ['API', 'API_BASE', 'JWT_SECRET'])
+        expect(stack.resources.Frontend.Props.env).not.toHaveProperty(name)
+    }
   })
 
   it.each([false, true])('binds both public adapters natively to the same private Core (dev=%s)', async (local) => {
@@ -138,7 +144,7 @@ describe('source-owned private Core deployment', () => {
     expect(core.RemovalPolicy).toBe('retain')
     expect(core.Props).toMatchObject({
       name: 'projektor-core',
-      main: './core.ts',
+      main: './workers/core.ts',
       workersDev: { enabled: false, previewsEnabled: false },
     })
     for (const property of ['domain', 'routes', 'crons', 'migrations', 'access'])
@@ -245,11 +251,11 @@ describe('source-owned private Core deployment', () => {
     })
     expect(frontend.Props).toMatchObject({
       name: 'projektor-frontend',
+      main: './workers/frontend.ts',
       domain: { name: 'projektor.totto2727.dev', previews: false },
       workersDev: { enabled: false, previewsEnabled: false },
       vite: { rootDir: '.', viteEnvironments: { entry: 'rsc', children: ['ssr'] } },
     })
-    expect(frontend.Props.main).toMatch(/\/alchemy\.ts$/)
     for (const resource of [api, frontend]) {
       expect(resource.RemovalPolicy).toBe('retain')
       expect(resource.Adopt).toBe(true)

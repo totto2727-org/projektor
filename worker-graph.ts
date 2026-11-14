@@ -5,9 +5,9 @@ export const deployment = {
   accountId: '5643a837ef66765e7881c0831a36ebed',
   api: {
     name: 'projektor',
+    main: './src/api/index.ts',
     hostname: 'projektor-api.totto2727.dev',
     origin: apiOrigin,
-    main: './src/api/index.ts',
     compatibility: {
       date: '2024-09-23',
       flags: ['nodejs_compat', 'global_fetch_strictly_public', 'cache_option_enabled'],
@@ -16,13 +16,14 @@ export const deployment = {
   },
   frontend: {
     name: 'projektor-frontend',
+    main: './workers/frontend.ts',
     hostname: 'projektor.totto2727.dev',
     origin: 'https://projektor.totto2727.dev',
     compatibility: { date: '2026-09-01', flags: ['nodejs_compat'] },
   },
   core: {
     name: 'projektor-core',
-    main: './core.ts',
+    main: './workers/core.ts',
     compatibility: { date: '2026-09-01', flags: ['nodejs_compat'] },
   },
   storage: {
