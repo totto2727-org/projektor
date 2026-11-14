@@ -1211,7 +1211,7 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
 
   async function addUrl() {
     if (!(await urlForm.validate())) {
-      setLinkError('Enter an http or https URL.')
+      setLinkError('Enter a valid URL.')
       return
     }
     setLinking(true)

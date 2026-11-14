@@ -97,7 +97,7 @@ export interface AttachmentDto {
   size: number
   url: string | null
   createdAt: number
-  reviewStatus?: ReviewStatus | null
+  reviewStatus: ReviewStatus | null
   wikiPage: { id: string; title: string | null; url: string } | null
 }
 
@@ -132,7 +132,7 @@ function toDto(r: attachmentData.AttachmentMetadata): AttachmentDto {
     size: r.size,
     url: r.url,
     createdAt: r.createdAt,
-    reviewStatus: r.reviewStatus ?? null,
+    reviewStatus: r.reviewStatus,
     wikiPage: r.wikiPage
       ? { id: r.wikiPage.id, title: r.wikiPage.title, url: wikiPagePath(r.wikiPage.slug ?? '') }
       : null,

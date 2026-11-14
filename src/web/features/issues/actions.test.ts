@@ -257,6 +257,36 @@ describe('individual issue ServerFn authorization and contracts', () => {
     ).toEqual({ entity_type: 'issue', entity_id: 'issue-a', url: 'https://example.test/direct' })
     expect(invalidated).toHaveBeenCalledTimes(2)
   })
+  it.each(['http://example.test/path', 'https://example.test/path', 'mailto:review@example.test'])(
+    'persists a standard URL through the decoded Web boundary: %s',
+    async (url) => {
+      const { invoke, database } = fixture()
+      expect(
+        await invoke(addAttachmentLink, {
+          workspaceSlug: workspace.slug,
+          issueId: 'issue-a',
+          link: { kind: 'url', url },
+        }),
+      ).toMatchObject({ ok: true, value: { id: expect.any(String), kind: 'url' } })
+      expect(database.sqlite.prepare('SELECT url FROM attachments WHERE url = ?').get(url)).toEqual({ url })
+    },
+  )
+  it.each(['not-a-url', 'https://[broken', '/relative/path'])(
+    'rejects malformed URLs before Web command execution: %s',
+    async (url) => {
+      const { invoke, database, invalidated } = fixture()
+      const before = database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()
+      await expect(
+        invoke(addAttachmentLink, {
+          workspaceSlug: workspace.slug,
+          issueId: 'issue-a',
+          link: { kind: 'url', url },
+        }),
+      ).rejects.toThrow()
+      expect(database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()).toEqual(before)
+      expect(invalidated).not.toHaveBeenCalled()
+    },
+  )
   it('enforces actual read-only project grants for issue, link, share and attachment commands', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec("UPDATE group_project_grants SET role = 'viewer' WHERE project_id = 'project-a'")

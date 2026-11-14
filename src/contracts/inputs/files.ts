@@ -20,10 +20,7 @@ export const CreateLinkAttachmentSchema = z.discriminatedUnion('kind', [
     kind: z.literal('url'),
     entityType: EntityTypeSchema,
     entityId: z.string().min(1),
-    url: z
-      .string()
-      .url()
-      .refine((u) => /^https?:\/\//i.test(u), 'URL must be http or https'),
+    url: z.url(),
     label: z.string().trim().max(200).optional(),
   }),
 ])

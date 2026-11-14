@@ -407,7 +407,7 @@ export const addAttachmentLink = EFFRONT.ServerFn.make({
       Schema.Struct({ kind: Schema.Literal('wiki_ref'), wikiPageId: Schema.String }),
       Schema.Struct({
         kind: Schema.Literal('url'),
-        url: Schema.String.check(Schema.isPattern(/^https?:\/\/\S+$/i)),
+        url: Schema.URLFromString,
         label: Schema.optional(Schema.String.check(Schema.isMaxLength(200))),
       }),
     ]),
@@ -420,7 +420,12 @@ export const addAttachmentLink = EFFRONT.ServerFn.make({
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         yield* authorizedIssue(ctx, input.issueId)
         const value = yield* runCommand(ctx, (command) =>
-          files.createLinkAttachment(command, { ...input.link, entityType: 'issue', entityId: input.issueId }),
+          files.createLinkAttachment(command, {
+            ...input.link,
+            ...(input.link.kind === 'url' ? { url: input.link.url.href } : {}),
+            entityType: 'issue',
+            entityId: input.issueId,
+          }),
         )
         return { ok: true as const, value }
       }).pipe(

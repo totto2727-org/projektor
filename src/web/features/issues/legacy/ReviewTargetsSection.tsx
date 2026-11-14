@@ -22,7 +22,7 @@ function ReviewTargetRow({
   workspaceSlug: string
   issueId: string
 }) {
-  const status = attachment.reviewStatus ?? null
+  const status = attachment.reviewStatus
   const [pending, setPending] = useState<{ attachment: Attachment; saved: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const busy = useRef(false)
@@ -147,14 +147,16 @@ export function ReviewTargetsSection({
 }) {
   const eligible = attachments.filter((attachment) => attachment.kind === 'file' || attachment.kind === 'url')
   const selected = eligible
-    .filter((attachment) => attachment.reviewStatus != null && attachment.reviewStatus !== 'done')
+    .filter((attachment) => attachment.reviewStatus !== null && attachment.reviewStatus !== 'done')
     .sort((left, right) => {
       const priority = Number(right.reviewStatus === 'in_review') - Number(left.reviewStatus === 'in_review')
       return priority || left.createdAt - right.createdAt || left.id.localeCompare(right.id, 'en')
     })
-  const available = eligible.filter((attachment) => attachment.reviewStatus == null)
+  const available = eligible.filter((attachment) => attachment.reviewStatus === null)
   const inReview = selected.filter((attachment) => attachment.reviewStatus === 'in_review').length
-  const reviewHref = `${issueHref}${issueHref.includes('?') ? '&' : '?'}tab=review-targets`
+  const reviewUrl = new URL(issueHref, 'https://frontend.invalid')
+  reviewUrl.searchParams.set('tab', 'review-targets')
+  const reviewHref = `${reviewUrl.pathname}${reviewUrl.search}${reviewUrl.hash}`
   const rows = (items: readonly Attachment[], label: string) => (
     <ul aria-label={label} className='list-none p-0 m-0 flex flex-col gap-2'>
       {items.map((attachment) => (

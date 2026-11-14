@@ -143,7 +143,7 @@ export const AttachmentSchema = Schema.Struct({
   contentType: Schema.String,
   size: Schema.Number,
   createdAt: Schema.Number,
-  reviewStatus: Schema.optional(Schema.NullOr(ReviewStatusSchema)),
+  reviewStatus: Schema.NullOr(ReviewStatusSchema),
   url: Schema.optional(nullable),
   wikiPage: Schema.optional(
     Schema.NullOr(Schema.Struct({ id: Schema.String, title: Schema.String, url: Schema.String })),
@@ -154,7 +154,6 @@ export function normalizeAttachments(dto: typeof AttachmentsSchema.Type): Attach
   return dto.map((entry) => ({
     ...entry,
     kind: entry.kind ?? 'file',
-    reviewStatus: entry.reviewStatus ?? null,
     url: entry.url ?? null,
     wikiPage: entry.wikiPage ? { ...entry.wikiPage } : null,
   }))

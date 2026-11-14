@@ -24,7 +24,7 @@ export interface AttachmentMetadata {
   size: number
   url: string | null
   createdAt: number
-  reviewStatus?: ReviewStatus | null
+  reviewStatus: ReviewStatus | null
   wikiPage: {
     id: string
     title: string | null

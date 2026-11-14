@@ -2,8 +2,9 @@ import { Effect, Schema } from 'effect'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { ApiResults } from '../../../contracts/api-results'
 import { SearchResultsSchema } from '../../../contracts/web-schemas/issue-actions'
-import { IssueSchema } from '../../../contracts/web-schemas/issues'
+import { AttachmentSchema, IssueSchema, normalizeAttachments } from '../../../contracts/web-schemas/issues'
 import { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
 import { readDataIssuePage, searchDataIssues } from './data'
@@ -59,6 +60,32 @@ const listUrl = new URL('https://front.test/issues?workspace=workspace')
 const detailUrl = new URL('https://front.test/issues/view?id=issue-a&workspace=workspace')
 
 describe('complete direct D1 issues SSR loaders', () => {
+  it('requires an explicit nullable review status in API and Web attachment replies', () => {
+    const attachment = {
+      id: 'file',
+      kind: 'file' as const,
+      filename: 'review.pdf',
+      contentType: 'application/pdf',
+      size: 1,
+      url: null,
+      createdAt: 1,
+      reviewStatus: null,
+      wikiPage: null,
+    }
+    for (const reviewStatus of [null, 'fixing', 'in_review', 'changes_requested', 'done']) {
+      const value = { ...attachment, reviewStatus }
+      expect(Schema.is(AttachmentSchema)(value)).toBe(true)
+      expect(Schema.is(ApiResults.apiGetAttachment)(value)).toBe(true)
+      expect(normalizeAttachments([Schema.decodeUnknownSync(AttachmentSchema)(value)])[0]?.reviewStatus).toBe(
+        reviewStatus,
+      )
+    }
+    const { reviewStatus: _status, ...omitted } = attachment
+    expect(Schema.is(AttachmentSchema)(omitted)).toBe(false)
+    expect(Schema.is(ApiResults.apiGetAttachment)(omitted)).toBe(false)
+    expect(Schema.is(AttachmentSchema)({ ...attachment, reviewStatus: undefined })).toBe(false)
+    expect(Schema.is(ApiResults.apiGetAttachment)({ ...attachment, reviewStatus: undefined })).toBe(false)
+  })
   it('requires review target arrays in issue and search replies, including empty selections', () => {
     const value = issue()
     const result = { ...value, status: 'todo' }

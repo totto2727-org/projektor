@@ -7,8 +7,14 @@ export function issueUrl(
   fallbackId?: string,
   workspaceSlug?: string,
 ): string {
-  const scope = workspaceSlug ? `workspace=${encodeURIComponent(workspaceSlug)}` : ''
-  if (!projectSlug)
-    return fallbackId ? `/issues/view?id=${encodeURIComponent(fallbackId)}${scope ? `&${scope}` : ''}` : '#'
-  return `/projects/${encodeURIComponent(projectSlug)}/issues/${issueNumber}/${slugify(title)}${scope ? `?${scope}` : ''}`
+  if (!projectSlug && !fallbackId) return '#'
+  const url = new URL(
+    projectSlug
+      ? `/projects/${encodeURIComponent(projectSlug)}/issues/${issueNumber}/${slugify(title)}`
+      : '/issues/view',
+    'https://frontend.invalid',
+  )
+  if (!projectSlug && fallbackId) url.searchParams.set('id', fallbackId)
+  if (workspaceSlug) url.searchParams.set('workspace', workspaceSlug)
+  return `${url.pathname}${url.search}${url.hash}`
 }

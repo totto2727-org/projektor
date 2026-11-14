@@ -490,7 +490,7 @@ describe('Files API', () => {
       expect(entry?.url).toBe('https://example.com/doc')
     })
 
-    it('rejects a malformed URL → 400', async () => {
+    it.each(['not-a-url', 'https://[broken', '/relative/path'])('rejects a malformed URL → 400: %s', async (url) => {
       const res = await SELF.fetch('http://localhost/api/files/links', {
         method: 'POST',
         headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
@@ -498,25 +498,28 @@ describe('Files API', () => {
           kind: 'url',
           entityType: 'issue',
           entityId: ENTITY_ID,
-          url: 'not-a-url',
+          url,
         }),
       })
       expect(res.status).toBe(400)
     })
 
-    it('rejects a non-http(s) URL scheme → 400', async () => {
-      const res = await SELF.fetch('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'url',
-          entityType: 'issue',
-          entityId: ENTITY_ID,
-          url: 'javascript:alert(1)',
-        }),
-      })
-      expect(res.status).toBe(400)
-    })
+    it.each(['http://example.com/doc', 'mailto:review@example.com'])(
+      'accepts URLs supported by the standard validator: %s',
+      async (url) => {
+        const res = await SELF.fetch('http://localhost/api/files/links', {
+          method: 'POST',
+          headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kind: 'url',
+            entityType: 'issue',
+            entityId: ENTITY_ID,
+            url,
+          }),
+        })
+        expect(res.status).toBe(201)
+      },
+    )
 
     it('DELETE removes a link attachment without touching R2', async () => {
       const headers = { ...authHeaders(token, slug), 'Content-Type': 'application/json' }

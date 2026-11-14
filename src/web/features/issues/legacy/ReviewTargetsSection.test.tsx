@@ -24,7 +24,7 @@ import type { IssueDetailInitialData } from '../views/IssueDetailPage'
 import IssueDetail from './IssueDetail'
 import { ReviewTargetsSection } from './ReviewTargetsSection'
 
-function attachment(id: string, status?: ReviewStatus | null, kind: Attachment['kind'] = 'file'): Attachment {
+function attachment(id: string, status: ReviewStatus | null = null, kind: Attachment['kind'] = 'file'): Attachment {
   return {
     id,
     kind,
@@ -282,6 +282,15 @@ it.each([false, true])(
     expect(screen.queryAllByRole('checkbox', { hidden: true })).toHaveLength(2)
   },
 )
+
+it('retains React standard protection for executable URLs in browser and server rendering', () => {
+  const target = { ...attachment('unsafe', 'in_review', 'url'), url: 'javascript:alert(1)' }
+  render(<ReviewTargetsSection {...props} attachments={[target]} />)
+  const link = screen.getByRole('link', { name: 'unsafe.pdf' })
+  expect(link.getAttribute('href')).not.toContain('alert(1)')
+  expect(link.getAttribute('href')).toContain('React has blocked')
+  expect(renderToStaticMarkup(<ReviewTargetsSection {...props} attachments={[target]} />)).not.toContain('alert(1)')
+})
 
 it('shows active-empty guidance when every selected target is completed', () => {
   render(<ReviewTargetsSection {...props} focused attachments={[attachment('finished', 'done')]} />)

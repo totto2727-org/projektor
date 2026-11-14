@@ -25,7 +25,7 @@ export interface Attachment {
   size: number
   url: string | null
   createdAt: number
-  reviewStatus?: ReviewStatus | null
+  reviewStatus: ReviewStatus | null
   wikiPage: { id: string; title: string; url: string } | null
 }
 

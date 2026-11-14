@@ -64,7 +64,7 @@ const Attachment = Schema.Struct({
   size: N,
   url: NS,
   createdAt: N,
-  reviewStatus: Schema.optional(Schema.NullOr(ReviewStatusSchema)),
+  reviewStatus: Schema.NullOr(ReviewStatusSchema),
   wikiPage: Schema.NullOr(Schema.Struct({ id: S, title: NS, url: S })),
 })
 const CustomField = Schema.Struct({
