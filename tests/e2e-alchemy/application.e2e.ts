@@ -325,6 +325,27 @@ test('issue review targets persist optional selection and four statuses across f
     attachmentFixtures.push({ id: linkedAttachment.id, filename: label })
   }
   const scope = new URLSearchParams({ workspace: 'projektor', projectId: project.id }).toString()
+  await page.goto(`/issues/view?id=${emptyIssue.id}&${scope}`)
+  await page.getByRole('button', { name: /Add URL/ }).click()
+  const urlInput = page.getByPlaceholder('https://example.com/…', { exact: true })
+  await urlInput.fill('https://[broken')
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.getByRole('alert')).toHaveText('Enter a valid URL.')
+  const browserUrl = `http://example.com/${suffix}/browser`
+  const browserLabel = `Browser reference ${suffix}`
+  await urlInput.fill(browserUrl)
+  await page.getByPlaceholder('Label (optional)', { exact: true }).fill(browserLabel)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.getByRole('link', { name: browserLabel, exact: true })).toHaveAttribute('href', browserUrl)
+  await page.reload()
+  await expect(page.getByRole('link', { name: browserLabel, exact: true })).toBeVisible()
+  const browserAttachments = await request.get(
+    `http://127.0.0.1:4392/api/files?entityType=issue&entityId=${emptyIssue.id}`,
+    { headers },
+  )
+  expect(browserAttachments.status(), await browserAttachments.text()).toBe(200)
+  expect(await browserAttachments.json()).toMatchObject([{ url: browserUrl, reviewStatus: null }])
+  await checkpoint(page, testInfo, 'review-targets-browser-url-standard-validation')
   await page.goto(`/issues/view?id=${issue.id}&${scope}`)
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
   const issueUrl = page.url()
