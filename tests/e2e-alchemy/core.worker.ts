@@ -1,14 +1,13 @@
 import { makeWorkerBridge } from 'alchemy/Cloudflare/Bridge'
 import { WorkerEntrypoint } from 'cloudflare:workers'
-import { Effect } from 'effect'
 import migrations from 'virtual:fixture-migrations'
+import entrypoint from 'virtual:production-core-entrypoint'
 
-import { Core, DeploymentLayer } from '../../alchemy'
 import type { CoreEnvironment } from '../../src/core/environment'
 
-// Exactly the public bridge emitted by Alchemy's production Worker bundler.
+// Use the configured production module's default export, just like Alchemy's bundler.
 const NativeCore = makeWorkerBridge(WorkerEntrypoint, {
-  entrypoint: Core.pipe(Effect.provide(DeploymentLayer)),
+  entrypoint,
   stack: { name: 'projektor-e2e', stage: 'test' },
 })
 

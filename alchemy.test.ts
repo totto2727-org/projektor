@@ -1,3 +1,5 @@
+import assert from 'node:assert/strict'
+
 import { Stack } from 'alchemy'
 import { AdoptPolicy } from 'alchemy/AdoptPolicy'
 import { CloudflareEnvironment, Providers } from 'alchemy/Cloudflare'
@@ -16,6 +18,7 @@ import Frontend, {
   localDevelopment,
 } from './alchemy'
 import { workers } from './alchemy.run'
+import CoreEntrypoint from './src/core/entry'
 
 function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<string, string>) {
   return effect.pipe(Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromUnknown(values)))
@@ -82,6 +85,13 @@ function expectNoStorage(stack: Stack['Service'], id: 'Api' | 'Frontend') {
 }
 
 describe('source-owned private Core deployment', () => {
+  it('selects the Core default export from the configured production module', async () => {
+    const { core } = await register(false)
+    assert.ok(core.Props.main)
+    const module: unknown = await import(core.Props.main)
+    expect(module).toHaveProperty('default', CoreEntrypoint)
+  })
+
   it.each([false, true])('captures the private graph without deployment inputs (dev=%s)', async (local) => {
     const stack: Stack['Service'] = {
       name: 'projektor',
@@ -128,7 +138,7 @@ describe('source-owned private Core deployment', () => {
     expect(core.RemovalPolicy).toBe('retain')
     expect(core.Props).toMatchObject({
       name: 'projektor-core',
-      main: new URL('./alchemy.ts', import.meta.url).href,
+      main: './src/core/entry.ts',
       workersDev: { enabled: false, previewsEnabled: false },
     })
     for (const property of ['domain', 'routes', 'crons', 'migrations', 'access'])
