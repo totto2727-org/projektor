@@ -7,7 +7,7 @@ interface ReviewableIssue {
   title: string
   project_key: string | null
   workspaceSlug?: string
-  reviewTargets?: readonly ReviewTarget[]
+  reviewTargets: readonly ReviewTarget[]
 }
 
 const STATUS_LABELS = {
@@ -19,12 +19,16 @@ const STATUS_LABELS = {
 
 /** One native link keeps review context visible in every issue layout, including empty selection. */
 export function ReviewTargetsSummary({ issue }: { issue: ReviewableIssue }) {
-  const targets = (issue.reviewTargets ?? []).filter((entry) => entry.status !== 'done')
+  const targets = issue.reviewTargets.filter((entry) => entry.status !== 'done')
   const target = targets.find((entry) => entry.status === 'in_review') ?? targets[0]
   const needsReview = target?.status === 'in_review'
   const label = target ? target.filename || target.url || 'File' : '対象なし'
-  const url = issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)
-  const href = `${url}${url.includes('?') ? '&' : '?'}tab=review-targets`
+  const url = new URL(
+    issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug),
+    'https://frontend.invalid',
+  )
+  url.searchParams.set('tab', 'review-targets')
+  const href = `${url.pathname}${url.search}${url.hash}`
   const additional = targets.length > 1 ? ` +${targets.length - 1}` : ''
 
   return (

@@ -44,7 +44,7 @@ export interface Issue {
   updated_at: number
   created_at: number
   customFields?: CustomFieldValue[]
-  reviewTargets?: readonly ReviewTarget[]
+  reviewTargets: readonly ReviewTarget[]
 }
 
 export type SortKey = 'number' | 'priority' | 'updated' | 'status' | 'assignee' | 'created_at' | 'title'

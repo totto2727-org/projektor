@@ -121,7 +121,8 @@ export function readDataIssue(scope: RequestScope, workspaceId: string, identifi
     if (projectId && row.project_id !== projectId)
       return yield* new ScopeError(404, 'Issue not found in the selected project.')
     const extras = yield* issueQueries.getIssueExtras(db, workspaceId, row.id).pipe(Effect.mapError(dataError))
-    return normalizeIssue({ ...row, ...extras })
+    const targets = yield* listIssueReviewTargets(db, workspaceId, [row.id]).pipe(Effect.mapError(dataError))
+    return normalizeIssue({ ...row, ...extras, reviewTargets: targets.get(row.id) ?? [] })
   })
 }
 export function readDataIssuePage(scope: RequestScope, workspaceId: string, params: URLSearchParams) {

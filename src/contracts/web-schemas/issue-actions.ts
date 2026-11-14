@@ -54,7 +54,7 @@ export const SearchResultsSchema = Schema.Array(
     project_id: Schema.NullOr(Schema.String),
     project_key: Schema.NullOr(Schema.String),
     project_name: Schema.NullOr(Schema.String),
-    reviewTargets: Schema.optional(Schema.Array(ReviewTargetSchema)),
+    reviewTargets: Schema.Array(ReviewTargetSchema),
   }),
 )
 export const WikiSearchResultsSchema = Schema.Array(

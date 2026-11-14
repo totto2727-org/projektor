@@ -357,6 +357,7 @@ it('renders focused issue context, status, access links, and back navigation on 
       created_at: 1,
       updated_at: 1,
       customFields: [],
+      reviewTargets: [],
     },
     attachments: [attachment('spec', 'in_review')],
     comments: [],

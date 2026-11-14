@@ -1,7 +1,9 @@
-import { Effect } from 'effect'
+import { Effect, Schema } from 'effect'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { SearchResultsSchema } from '../../../contracts/web-schemas/issue-actions'
+import { IssueSchema } from '../../../contracts/web-schemas/issues'
 import { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
 import { readDataIssuePage, searchDataIssues } from './data'
@@ -16,7 +18,7 @@ import {
   renderMyIssues,
 } from './server'
 import { issueDataFixture } from './test/data-fixture'
-import { project, scope, secondProject, taskTypes, workspace } from './test/fixtures'
+import { issue, project, scope, secondProject, taskTypes, workspace } from './test/fixtures'
 
 vi.mock('../../attachment-actions', () => ({
   uploadAttachment: vi.fn(),
@@ -57,6 +59,27 @@ const listUrl = new URL('https://front.test/issues?workspace=workspace')
 const detailUrl = new URL('https://front.test/issues/view?id=issue-a&workspace=workspace')
 
 describe('complete direct D1 issues SSR loaders', () => {
+  it('requires review target arrays in issue and search replies, including empty selections', () => {
+    const value = issue()
+    const result = { ...value, status: 'todo' }
+    expect(Schema.is(IssueSchema)(value)).toBe(true)
+    expect(Schema.is(SearchResultsSchema)([result])).toBe(true)
+    for (const reviewTargets of [undefined, null]) {
+      expect(Schema.is(IssueSchema)({ ...value, reviewTargets })).toBe(false)
+      expect(Schema.is(SearchResultsSchema)([{ ...result, reviewTargets }])).toBe(false)
+    }
+  })
+  it('returns empty review target arrays from detail, list and search when no attachments are selected', async () => {
+    const data = fixture()
+    const detail = await data.run(loadIssue(scope, detailUrl))
+    expect(detail?.initialData.issue.reviewTargets).toEqual([])
+    const page = await data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams()))
+    expect(page.items.length).toBeGreaterThan(0)
+    expect(page.items.map((entry) => entry.reviewTargets)).toEqual(page.items.map(() => []))
+    const results = await data.run(searchDataIssues(scope, workspace.id, 'Original'))
+    expect(results.length).toBeGreaterThan(0)
+    expect(results.map((entry) => entry.reviewTargets)).toEqual(results.map(() => []))
+  })
   it('includes only explicitly selected targets in canonical list, search, My Issues and focused detail reads', async () => {
     const data = fixture()
     data.sqlite.exec(`
@@ -74,7 +97,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     ])
     expect(
       list?.initialData.page.items
-        .flatMap((entry) => entry.reviewTargets ?? [])
+        .flatMap((entry) => entry.reviewTargets)
         .some((entry) => entry.id === 'hidden-target'),
     ).toBe(false)
     const search = await data.run(searchDataIssues(scope, workspace.id, 'Original'))
@@ -83,6 +106,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(mine.issues.find((entry) => entry.id === 'issue-a')?.reviewTargets).toEqual(targets)
     const focused = await data.run(loadIssue(scope, new URL(`${detailUrl}&tab=review-targets`)))
     expect(focused?.initialData.reviewTargetsFocused).toBe(true)
+    expect(focused?.initialData.issue.reviewTargets).toEqual(targets)
     expect(focused?.initialData.attachments.find((entry) => entry.id === 'file-a')?.reviewStatus).toBe('fixing')
     const html = renderToString(await data.run(renderIssues(scope, listUrl)))
     expect(html).toContain('Review targets: Review first +1 (レビュー中)')

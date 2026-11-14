@@ -31,6 +31,20 @@ describe('issue review target summary', () => {
     expect(renderToStaticMarkup(<ReviewTargetsSummary issue={value} />)).toContain('対象なし')
   })
 
+  it.each([undefined, 'team space', 'team & space?#'])(
+    'opens the focused page within workspace %s',
+    (workspaceSlug) => {
+      render(<ReviewTargetsSummary issue={{ ...issue(), workspaceSlug }} />)
+      const href = screen.getByRole('link', { name: 'Review targets: 対象なし' }).getAttribute('href')
+      expect(href).toMatch(/^\//)
+      const url = new URL(href ?? '', 'https://front.test')
+      expect(url.origin).toBe('https://front.test')
+      expect(url.pathname).toMatch(/^\/projects\//)
+      expect(url.searchParams.get('workspace')).toBe(workspaceSlug ?? null)
+      expect(url.searchParams.getAll('tab')).toEqual(['review-targets'])
+    },
+  )
+
   it('prioritizes a reviewing target over earlier attachments and shows the remaining count', () => {
     const targets = Object.freeze([
       target(),

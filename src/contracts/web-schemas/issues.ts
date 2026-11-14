@@ -48,7 +48,7 @@ export const IssueSchema = Schema.Struct({
   sprint_id: Schema.optional(nullable),
   created_at: Schema.Number,
   updated_at: Schema.Number,
-  reviewTargets: Schema.optional(Schema.Array(ReviewTargetSchema)),
+  reviewTargets: Schema.Array(ReviewTargetSchema),
   customFields: Schema.optional(Schema.Array(field)),
   rollup: Schema.optional(
     Schema.Struct({
@@ -68,7 +68,7 @@ export function normalizeIssue(dto: typeof IssueSchema.Type): Issue {
     type_id: dto.type_id ?? null,
     sprint_id: dto.sprint_id ?? null,
     customFields: dto.customFields?.map((entry) => ({ ...entry })) ?? [],
-    reviewTargets: dto.reviewTargets?.map((entry) => ({ ...entry })) ?? [],
+    reviewTargets: dto.reviewTargets.map((entry) => ({ ...entry })),
     rollup: dto.rollup ? { ...dto.rollup, byStatus: { ...dto.rollup.byStatus } } : undefined,
   }
 }

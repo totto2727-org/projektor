@@ -15,7 +15,7 @@ export interface SearchResult {
   project_key: string | null
   project_name: string | null
   workspaceSlug?: string
-  reviewTargets?: readonly ReviewTarget[]
+  reviewTargets: readonly ReviewTarget[]
 }
 export interface IssueSearchSeed {
   query: string
