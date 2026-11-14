@@ -3,6 +3,7 @@ import type { ProjectSummary, RequestScope } from '../../../server/request-conte
 import type { SprintDetail } from '../legacy/issue-list/SprintBannerSection'
 import IssueList from '../legacy/IssueList'
 import type { Issue, IssuePage, Status, TaskType } from '../types'
+import { IssueReviewNavigation } from './IssueReviewNavigation'
 import { SelectionRequired } from './shared'
 export interface IssuesInitialData {
   readonly currentUserId: string
@@ -35,7 +36,8 @@ export function IssuesPage({
   if (!initialData) return <SelectionRequired scope={scope} label='Issues' />
   return (
     <section>
-      <h1 className='text-2xl font-bold mb-6'>Issues</h1>
+      <h1 className='text-2xl font-bold mb-3'>Issues</h1>
+      <IssueReviewNavigation route={route} workspaceSlug={workspaceSlug} project={initialData.project} />
       <IssueList
         key={`${scope.user.id}:${workspaceSlug}:${route.pathname}:${route.search}`}
         workspaceSlug={workspaceSlug}

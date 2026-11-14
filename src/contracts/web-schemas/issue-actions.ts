@@ -1,5 +1,7 @@
 import { Schema } from 'effect'
 
+import { ReviewTargetSchema } from '../review-targets'
+
 const NonEmpty = Schema.String.check(Schema.isMinLength(1))
 export const SelectorFields = {
   workspaceSlug: Schema.optional(NonEmpty),
@@ -52,6 +54,7 @@ export const SearchResultsSchema = Schema.Array(
     project_id: Schema.NullOr(Schema.String),
     project_key: Schema.NullOr(Schema.String),
     project_name: Schema.NullOr(Schema.String),
+    reviewTargets: Schema.Array(ReviewTargetSchema),
   }),
 )
 export const WikiSearchResultsSchema = Schema.Array(

@@ -19,6 +19,7 @@ import {
   SidebarPanel,
   TitleSection,
 } from './IssueDetailParts'
+import { ReviewTargetsSection } from './ReviewTargetsSection'
 
 function useIssueMutations(issueId: string, workspaceSlug: string) {
   const [updatingStatus, setUpdatingStatus] = useState(false)
@@ -109,7 +110,8 @@ function IssueDetailView(
   props: Readonly<{
     issue: IssueData
     issueId: string
-    workspaceSlug?: string
+    workspaceSlug: string
+    reviewTargetsFocused: boolean
     backHref: string | null
     issueRef: string
     copyUrl: string
@@ -174,49 +176,66 @@ function IssueDetailView(
       </header>
 
       {/* Two-column body */}
-      <div className='flex gap-8 items-start max-sm:flex-col'>
-        {/* ── Main column ── */}
-        <div className='flex-1 min-w-0 max-sm:w-full'>
-          <BodySection
+      {props.reviewTargetsFocused ? (
+        <ReviewTargetsSection
+          attachments={props.attachments}
+          workspaceSlug={workspaceSlug}
+          issueId={issueId}
+          issueHref={props.copyUrl}
+          focused
+        />
+      ) : (
+        <div className='flex gap-8 items-start max-sm:flex-col'>
+          {/* ── Main column ── */}
+          <div className='flex-1 min-w-0 max-sm:w-full'>
+            <BodySection
+              issue={issue}
+              issueId={issueId}
+              workspaceSlug={workspaceSlug}
+              currentUserId={props.currentUserId}
+            />
+
+            <ChildIssuesSection issue={issue} childIssues={props.childIssues} />
+
+            <RelationsSection issueId={issueId} workspaceSlug={workspaceSlug} links={props.links} />
+
+            <ReviewTargetsSection
+              attachments={props.attachments}
+              workspaceSlug={workspaceSlug}
+              issueId={issueId}
+              issueHref={props.copyUrl}
+            />
+
+            <AttachmentsSection issueId={issueId} workspaceSlug={workspaceSlug} attachments={props.attachments} />
+
+            <CommentsSection
+              issueId={issueId}
+              workspaceSlug={workspaceSlug}
+              comments={props.comments}
+              currentUserId={props.currentUserId}
+            />
+          </div>
+
+          {/* ── Sidebar ── */}
+          <SidebarPanel
             issue={issue}
             issueId={issueId}
             workspaceSlug={workspaceSlug}
-            currentUserId={props.currentUserId}
-          />
-
-          <ChildIssuesSection issue={issue} childIssues={props.childIssues} />
-
-          <RelationsSection issueId={issueId} workspaceSlug={workspaceSlug} links={props.links} />
-
-          <AttachmentsSection issueId={issueId} workspaceSlug={workspaceSlug} attachments={props.attachments} />
-
-          <CommentsSection
-            issueId={issueId}
-            workspaceSlug={workspaceSlug}
-            comments={props.comments}
-            currentUserId={props.currentUserId}
+            statuses={props.statuses}
+            taskTypes={props.taskTypes}
+            members={props.members}
+            updatingStatus={props.updatingStatus}
+            updatingPriority={props.updatingPriority}
+            updatingAssignee={props.updatingAssignee}
+            updatingType={props.updatingType}
+            typeChangeError={props.typeChangeError}
+            changeStatus={props.changeStatus}
+            changePriority={props.changePriority}
+            changeAssignee={props.changeAssignee}
+            changeType={props.changeType}
           />
         </div>
-
-        {/* ── Sidebar ── */}
-        <SidebarPanel
-          issue={issue}
-          issueId={issueId}
-          workspaceSlug={workspaceSlug}
-          statuses={props.statuses}
-          taskTypes={props.taskTypes}
-          members={props.members}
-          updatingStatus={props.updatingStatus}
-          updatingPriority={props.updatingPriority}
-          updatingAssignee={props.updatingAssignee}
-          updatingType={props.updatingType}
-          typeChangeError={props.typeChangeError}
-          changeStatus={props.changeStatus}
-          changePriority={props.changePriority}
-          changeAssignee={props.changeAssignee}
-          changeType={props.changeType}
-        />
-      </div>
+      )}
     </article>
   )
 }
@@ -253,6 +272,7 @@ export default function IssueDetail({
         issue={issue}
         issueId={issueId}
         workspaceSlug={workspaceSlug}
+        reviewTargetsFocused={initialData.reviewTargetsFocused ?? false}
         backHref={backHref}
         issueRef={formatIssueRef(issue.project_key, issue.number)}
         copyUrl={copyUrl}

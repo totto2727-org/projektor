@@ -1,6 +1,7 @@
-import { Effect } from 'effect'
+import { Effect, Schema } from 'effect'
 import type { ReactElement } from 'react'
 
+import { ReviewFilterSchema } from '../../../contracts/review-targets'
 import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '../../../contracts/web-limits'
 import { renderMarkdownDocument } from '../../components/markdown/render'
 import { RequestServices } from '../../request'
@@ -75,7 +76,7 @@ export function filteredIssueQuery(
     projects,
     [...taskTypes],
   )
-  for (const key of ['cursor', 'limit', 'assignee', 'parentId', 'noParent', 'typeId'])
+  for (const key of ['cursor', 'limit', 'assignee', 'parentId', 'noParent', 'typeId', 'review'])
     if (p.has(key)) query.set(key, p.get(key) ?? '')
   if (!query.has('limit')) query.set('limit', '30')
   return query
@@ -137,6 +138,11 @@ export function loadIssues(
       projects = scope.projects.filter((entry) => entry.workspace_id === workspace.id)
     if (project) yield* checked(() => requireDataProject(scope, project.id, workspace.id))
     const { statuses, taskTypes } = yield* lookups(scope, workspace.id)
+    const review = url.searchParams.has('review')
+      ? yield* Schema.decodeUnknownEffect(ReviewFilterSchema)(url.searchParams.get('review')).pipe(
+          Effect.mapError(() => new ScopeError(400, 'Invalid review filter.')),
+        )
+      : undefined
     const query = filteredIssueQuery(url, projects, taskTypes, project),
       epicType = taskTypes.find((entry) => entry.key === 'epic')
     const view =
@@ -159,7 +165,7 @@ export function loadIssues(
         epics: epicType ? allPages(scope, workspace.id, epicQuery) : Effect.succeed({ items: [] } as IssuePage),
         sprints: project ? readSprints(workspace.id, project.id) : Effect.succeed([]),
         sprintDetail: sprintId ? readSprint(workspace.id, sprintId) : Effect.succeed(null),
-        search: q ? searchDataIssues(scope, workspace.id, q, project?.id) : Effect.succeed(null),
+        search: q ? searchDataIssues(scope, workspace.id, q, project?.id, review) : Effect.succeed(null),
       },
       { concurrency: CONCURRENCY },
     )
@@ -282,6 +288,7 @@ export function loadIssue(
         parent: parent ? { ...parent, workspaceSlug } : null,
         children: children.items,
         currentUserId: scope.user.id,
+        reviewTargetsFocused: url.searchParams.get('tab') === 'review-targets',
       },
     }
   })

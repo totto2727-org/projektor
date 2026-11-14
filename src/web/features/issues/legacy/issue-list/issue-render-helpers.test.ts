@@ -24,6 +24,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
     sprint_id: null,
     updated_at: 1000,
     created_at: 1000,
+    reviewTargets: [],
     ...overrides,
   }
 }

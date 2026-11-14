@@ -205,28 +205,26 @@ describe('Flow metrics (PROJ-252)', () => {
   })
 
   it('buckets throughput weekly and excludes issues outside the window', async () => {
+    const thisWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'This week' })
+    const lastWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Last week' })
+    const outsideWindowIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Too old' })
     const WEEK = 7 * 86400
     const now = Math.floor(Date.now() / 1000)
     const since = now - 3 * WEEK
     const until = now
 
-    const thisWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'This week' })
     await stampFlowTimestamps(thisWeekIssue.id, {
       readyAt: now - 100,
       claimedAt: now - 50,
       doneAt: now,
     })
 
-    const lastWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Last week' })
     await stampFlowTimestamps(lastWeekIssue.id, {
       readyAt: now - WEEK - 100,
       claimedAt: now - WEEK - 50,
       doneAt: now - WEEK,
     })
 
-    const outsideWindowIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Too old',
-    })
     await stampFlowTimestamps(outsideWindowIssue.id, {
       readyAt: now - 10 * WEEK,
       claimedAt: now - 10 * WEEK + 50,
@@ -299,17 +297,17 @@ describe('Flow metrics (PROJ-252)', () => {
 
   it('daily buckets sum to the same total as weekly buckets for the same window', async () => {
     const WEEK = 7 * 86400
+    const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
+    const issueB = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
     const now = Math.floor(Date.now() / 1000)
     const since = now - 2 * WEEK
     const until = now
 
-    const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     await stampFlowTimestamps(issueA.id, {
       readyAt: now - WEEK - 100,
       claimedAt: now - WEEK - 50,
       doneAt: now - WEEK,
     })
-    const issueB = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
     await stampFlowTimestamps(issueB.id, {
       readyAt: now - 100,
       claimedAt: now - 50,

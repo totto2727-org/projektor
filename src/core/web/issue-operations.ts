@@ -6,6 +6,7 @@ import { listTaskTypes } from '#services/task-types'
 import { listWorkspaceMembers } from '#services/workspaces'
 
 import { ScopeError } from '../../contracts/errors'
+import type { ReviewFilter } from '../../contracts/review-targets'
 import { SearchResultsSchema, WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions'
 import {
   AttachmentsSchema,
@@ -72,13 +73,19 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           new URLSearchParams(query).get('project') ?? undefined,
         ),
       ),
-    webIssueSearch: (request: WebRequest, workspaceId: string, query: string, projectId?: string) =>
+    webIssueSearch: (
+      request: WebRequest,
+      workspaceId: string,
+      query: string,
+      projectId?: string,
+      review?: ReviewFilter,
+    ) =>
       reply('webIssueSearch', SearchResultsSchema, (env) =>
         webRead(
           env,
           request,
           workspaceId,
-          (scope) => data.searchDataIssues(scope, workspaceId, query, projectId),
+          (scope) => data.searchDataIssues(scope, workspaceId, query, projectId, review),
           projectId,
         ),
       ),

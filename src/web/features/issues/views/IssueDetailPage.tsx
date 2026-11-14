@@ -14,6 +14,7 @@ export interface IssueDetailInitialData {
   readonly parent: Issue | null
   readonly children: readonly Issue[]
   readonly currentUserId: string
+  readonly reviewTargetsFocused?: boolean
 }
 export function IssueDetailPage({
   scope,

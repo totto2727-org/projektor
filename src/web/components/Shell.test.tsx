@@ -5,6 +5,7 @@ import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import pkg from '../../../package.json'
+import { project as fixtureProject } from '../features/issues/test/fixtures'
 import type { RequestScope } from '../server/request-context'
 import { Shell } from './Shell'
 
@@ -14,6 +15,14 @@ const scope: RequestScope = {
   workspaces: [workspace],
   projects: [],
   selection: { kind: 'workspace', workspace },
+}
+const projectScope: RequestScope = {
+  ...scope,
+  selection: {
+    kind: 'project',
+    workspace,
+    project: { ...fixtureProject, workspace_id: workspace.id, workspace_slug: workspace.slug },
+  },
 }
 
 function viewport(width: number) {
@@ -65,7 +74,7 @@ describe('generated Base UI Shell', () => {
     expect(element.querySelector('main[data-slot="sidebar-inset"]')?.id).toBe('main-content')
     expect(element.querySelector('.app-main, .drawer-overlay, .sidebar')).toBeNull()
     const links = element.querySelectorAll('[data-slot="sidebar-menu-button"]')
-    expect(links.length).toBe(4)
+    expect(links.length).toBe(5)
     for (const link of links)
       expect(new URL(link.getAttribute('href')!, 'https://app.test').searchParams.get('workspace')).toBe('team')
     expect(element.querySelector('a[aria-current="page"]')?.textContent).toBe('Groups')
@@ -84,6 +93,53 @@ describe('generated Base UI Shell', () => {
     expect(new FormData(form).get('action')).toBe('login')
     expect(new FormData(form).get('redirect_url')).toBe('/help?workspace=team')
   })
+
+  it('server renders a workspace-wide Issues entry even while a project is selected', () => {
+    const element = document.createElement('div')
+    element.innerHTML = renderToString(
+      <Shell
+        scope={projectScope}
+        pathname='/issues'
+        returnTo='/issues?workspace=team&projectId=project-a&assignee=user-1'
+      >
+        <h1>Issues</h1>
+      </Shell>,
+    )
+    const link = Array.from(element.querySelectorAll('a')).find((entry) => entry.textContent === 'Issues')
+    expect(link?.getAttribute('href')).toBe('/issues?workspace=team')
+    expect(link?.getAttribute('aria-current')).toBe('page')
+  })
+
+  it.each([1440, 390])(
+    'offers native workspace-wide Issues navigation without project or assignee leakage at %spx',
+    async (width) => {
+      viewport(width)
+      render(
+        <Shell
+          scope={projectScope}
+          pathname='/issues'
+          returnTo='/issues?workspace=team&projectId=project-a&assignee=user-1&review=fixing'
+        >
+          <h1>Scoped issues</h1>
+        </Shell>,
+      )
+      if (width < 768) {
+        fireEvent.click(screen.getByRole('button', { name: 'Toggle Sidebar' }))
+        await screen.findByRole('dialog', { name: 'Sidebar' })
+      }
+      const link = screen.getByRole('link', { name: 'Issues' })
+      expect(link.getAttribute('href')).toBe('/issues?workspace=team')
+      expect(link.getAttribute('aria-current')).toBe('page')
+      expect(link.tagName).toBe('A')
+      link.focus()
+      expect(document.activeElement).toBe(link)
+      if (width < 768) {
+        link.addEventListener('click', (event) => event.preventDefault())
+        fireEvent.click(link)
+        await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sidebar' })).toBeNull())
+      }
+    },
+  )
 
   it('uses the generated portal menu while auth controls stay associated with persistent native forms', async () => {
     render(

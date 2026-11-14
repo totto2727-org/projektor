@@ -1,6 +1,7 @@
 'use client'
 import { formatIssueRef } from '../../lib/issue-ref'
 import { issueUrl } from '../../utils/issue-url'
+import { ReviewTargetsSummary } from '../ReviewTargetsSummary'
 import type { SearchResult } from './useIssueSearch'
 
 function priorityBadge(r: SearchResult) {
@@ -54,6 +55,7 @@ function SearchResultsTable({ results }: { results: SearchResult[] }) {
                 >
                   {r.title}
                 </a>
+                <ReviewTargetsSummary issue={r} />
               </td>
               <td className='px-3 py-2 align-middle whitespace-nowrap'>{priorityBadge(r)}</td>
               <td className='px-3 py-2 align-middle whitespace-nowrap'>{statusBadge(r)}</td>
@@ -76,6 +78,7 @@ function SearchResultsMobileCards({ results }: { results: SearchResult[] }) {
           <a href={issueUrl(r.project_key, r.number, r.title, r.id, r.workspaceSlug)} className='no-underline'>
             <div className='text-[0.9rem] text-text-base font-medium mb-2'>{r.title}</div>
           </a>
+          <ReviewTargetsSummary issue={r} />
           <div className='flex gap-[0.375rem] flex-wrap items-center'>
             {priorityBadge(r)}
             {statusBadge(r)}

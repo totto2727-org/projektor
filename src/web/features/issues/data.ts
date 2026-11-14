@@ -1,5 +1,6 @@
 import { Effect, Schema } from 'effect'
 
+import type { ReviewFilter } from '../../../contracts/review-targets'
 import { browserRequest, coreResult } from '../../core'
 import { RequestServices } from '../../request'
 import { dataError } from '../../server/data-context'
@@ -47,12 +48,18 @@ export function readDataIssuePage(_scope: RequestScope, workspaceId: string, par
     ).pipe(Effect.map(normalizeIssuePage))
   })
 }
-export function searchDataIssues(_scope: RequestScope, workspaceId: string, query: string, projectId?: string) {
+export function searchDataIssues(
+  _scope: RequestScope,
+  workspaceId: string,
+  query: string,
+  projectId?: string,
+  review?: ReviewFilter,
+) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
       SearchResultsSchema,
-      services.core.webIssueSearch(browserRequest(services.request), workspaceId, query, projectId),
+      services.core.webIssueSearch(browserRequest(services.request), workspaceId, query, projectId, review),
     ).pipe(Effect.map((rows) => rows.map((row) => ({ ...row }))))
   })
 }

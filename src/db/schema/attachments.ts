@@ -1,5 +1,6 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
+import { REVIEW_STATUSES } from '../../contracts/review-targets'
 import { users, workspaces } from './core'
 import { wikiPages } from './wiki'
 
@@ -22,6 +23,7 @@ export const attachments = sqliteTable(
     contentType: text('content_type').notNull(),
     size: integer('size').notNull(),
     url: text('url'),
+    reviewStatus: text('review_status', { enum: REVIEW_STATUSES }),
     linkedWikiPageId: text('linked_wiki_page_id').references(() => wikiPages.id, {
       onDelete: 'cascade',
     }),

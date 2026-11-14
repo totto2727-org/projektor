@@ -1,7 +1,10 @@
-import { Effect } from 'effect'
+import { Effect, Schema } from 'effect'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
+import { ApiResults } from '../../../contracts/api-results'
+import { SearchResultsSchema } from '../../../contracts/web-schemas/issue-actions'
+import { AttachmentSchema, IssueSchema, normalizeAttachments } from '../../../contracts/web-schemas/issues'
 import { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
 import { readDataIssuePage, searchDataIssues } from './data'
@@ -16,7 +19,7 @@ import {
   renderMyIssues,
 } from './server'
 import { issueDataFixture } from './test/data-fixture'
-import { project, scope, secondProject, taskTypes, workspace } from './test/fixtures'
+import { issue, project, scope, secondProject, taskTypes, workspace } from './test/fixtures'
 
 vi.mock('../../attachment-actions', () => ({
   uploadAttachment: vi.fn(),
@@ -39,6 +42,7 @@ vi.mock('./actions', () => ({
   readAttachments: vi.fn(),
   addAttachmentLink: vi.fn(),
   deleteAttachment: vi.fn(),
+  setAttachmentReviewStatus: vi.fn(),
   searchWikiAttachments: vi.fn(),
   updateSprint: vi.fn(),
 }))
@@ -56,6 +60,125 @@ const listUrl = new URL('https://front.test/issues?workspace=workspace')
 const detailUrl = new URL('https://front.test/issues/view?id=issue-a&workspace=workspace')
 
 describe('complete direct D1 issues SSR loaders', () => {
+  it('requires an explicit nullable review status in API and Web attachment replies', () => {
+    const attachment = {
+      id: 'file',
+      kind: 'file' as const,
+      filename: 'review.pdf',
+      contentType: 'application/pdf',
+      size: 1,
+      url: null,
+      createdAt: 1,
+      reviewStatus: null,
+      wikiPage: null,
+    }
+    for (const reviewStatus of [null, 'fixing', 'in_review', 'changes_requested', 'done']) {
+      const value = { ...attachment, reviewStatus }
+      expect(Schema.is(AttachmentSchema)(value)).toBe(true)
+      expect(Schema.is(ApiResults.apiGetAttachment)(value)).toBe(true)
+      expect(normalizeAttachments([Schema.decodeUnknownSync(AttachmentSchema)(value)])[0]?.reviewStatus).toBe(
+        reviewStatus,
+      )
+    }
+    const { reviewStatus: _status, ...omitted } = attachment
+    expect(Schema.is(AttachmentSchema)(omitted)).toBe(false)
+    expect(Schema.is(ApiResults.apiGetAttachment)(omitted)).toBe(false)
+    expect(Schema.is(AttachmentSchema)({ ...attachment, reviewStatus: undefined })).toBe(false)
+    expect(Schema.is(ApiResults.apiGetAttachment)({ ...attachment, reviewStatus: undefined })).toBe(false)
+  })
+  it('requires review target arrays in issue and search replies, including empty selections', () => {
+    const value = issue()
+    const result = { ...value, status: 'todo' }
+    expect(Schema.is(IssueSchema)(value)).toBe(true)
+    expect(Schema.is(SearchResultsSchema)([result])).toBe(true)
+    for (const reviewTargets of [undefined, null]) {
+      expect(Schema.is(IssueSchema)({ ...value, reviewTargets })).toBe(false)
+      expect(Schema.is(SearchResultsSchema)([{ ...result, reviewTargets }])).toBe(false)
+    }
+  })
+  it('returns empty review target arrays from detail, list and search when no attachments are selected', async () => {
+    const data = fixture()
+    const detail = await data.run(loadIssue(scope, detailUrl))
+    expect(detail?.initialData.issue.reviewTargets).toEqual([])
+    const page = await data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams()))
+    expect(page.items.length).toBeGreaterThan(0)
+    expect(page.items.map((entry) => entry.reviewTargets)).toEqual(page.items.map(() => []))
+    const results = await data.run(searchDataIssues(scope, workspace.id, 'Original'))
+    expect(results.length).toBeGreaterThan(0)
+    expect(results.map((entry) => entry.reviewTargets)).toEqual(results.map(() => []))
+  })
+  it('includes only explicitly selected targets in canonical list, search, My Issues and focused detail reads', async () => {
+    const data = fixture()
+    data.sqlite.exec(`
+      UPDATE attachments SET review_status = 'fixing' WHERE id = 'file-a';
+      INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,entity_type,entity_id,created_by_id,created_at,review_status) VALUES
+        ('review-a','workspace-a','url','','Review first','text/uri-list',0,'https://example.test/review','issue','issue-a','user-a',2,'in_review'),
+        ('not-selected','workspace-a','file','file-key','Not selected.txt','text/plain',10,NULL,'issue','issue-a','user-a',3,NULL),
+        ('hidden-target','workspace-a','url','','Hidden target','text/uri-list',0,'https://example.test/secret','issue','hidden-issue','user-a',4,'in_review');
+    `)
+    const list = await data.run(loadIssues(scope, listUrl))
+    const targets = list?.initialData.page.items.find((entry) => entry.id === 'issue-a')?.reviewTargets
+    expect(targets?.map((entry) => [entry.id, entry.status])).toEqual([
+      ['review-a', 'in_review'],
+      ['file-a', 'fixing'],
+    ])
+    expect(
+      list?.initialData.page.items
+        .flatMap((entry) => entry.reviewTargets)
+        .some((entry) => entry.id === 'hidden-target'),
+    ).toBe(false)
+    const search = await data.run(searchDataIssues(scope, workspace.id, 'Original'))
+    expect(search.find((entry) => entry.id === 'issue-a')?.reviewTargets).toEqual(targets)
+    const mine = await data.run(loadMyIssues(scope, new URL('https://front.test/my-issues')))
+    expect(mine.issues.find((entry) => entry.id === 'issue-a')?.reviewTargets).toEqual(targets)
+    const focused = await data.run(loadIssue(scope, new URL(`${detailUrl}&tab=review-targets`)))
+    expect(focused?.initialData.reviewTargetsFocused).toBe(true)
+    expect(focused?.initialData.issue.reviewTargets).toEqual(targets)
+    expect(focused?.initialData.attachments.find((entry) => entry.id === 'file-a')?.reviewStatus).toBe('fixing')
+    const html = renderToString(await data.run(renderIssues(scope, listUrl)))
+    expect(html).toContain('Review targets: Review first +1 (レビュー中)')
+    expect(html).not.toContain('Hidden target')
+  })
+  it('loads cross-project review matches before pagination and applies the same filter to search', async () => {
+    const data = fixture()
+    data.sqlite.exec(`
+      UPDATE attachments SET review_status='in_review' WHERE id='file-a';
+      INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,entity_type,entity_id,created_by_id,created_at,review_status) VALUES
+        ('review-b','workspace-a','url','','Project B review','text/uri-list',0,'https://example.test/b','issue','issue-b','user-a',2,'in_review'),
+        ('hidden-review','workspace-a','url','','Secret review','text/uri-list',0,'https://example.test/hidden','issue','hidden-issue','user-a',3,'in_review');
+    `)
+    data.insertIssue({ id: 'newest-ordinary', number: 2, title: 'Ordinary issue', createdAt: 99 })
+    const url = new URL(`${listUrl}&review=in_review&limit=1`)
+    const first = await data.run(loadIssues(scope, url))
+    expect(first?.initialData.project).toBeNull()
+    expect(first?.initialData.page.total).toBe(2)
+    expect(first?.initialData.page.items.map((entry) => entry.id)).toEqual(['issue-b'])
+    expect(first?.initialData.page.items[0].assignee_id).toBeNull()
+    url.searchParams.set('cursor', String(first?.initialData.page.nextCursor))
+    const second = await data.run(loadIssues(scope, url))
+    expect(second?.initialData.page.items.map((entry) => entry.id)).toEqual(['issue-a'])
+    expect(second?.initialData.page.nextCursor).toBeNull()
+    const searchUrl = new URL(`${listUrl}&review=in_review&q=issue`)
+    const search = await data.run(loadIssues(scope, searchUrl))
+    expect(search?.initialData.search.results?.map((entry) => entry.id).sort()).toEqual(['issue-a', 'issue-b'])
+    data.sqlite.exec("UPDATE attachments SET review_status='done' WHERE id='review-b'")
+    const refreshed = await data.run(loadIssues(scope, searchUrl))
+    expect(refreshed?.initialData.search.results?.map((entry) => entry.id)).toEqual(['issue-a'])
+    expect(refreshed?.initialData.page.total).toBe(1)
+    const html = renderToString(await data.run(renderIssues(scope, searchUrl)))
+    expect(html).toContain('Original issue')
+    expect(html).not.toContain('Second project issue')
+    expect(html).not.toContain('Secret review')
+  })
+  it.each(['done', 'all', '', 'invalid'])(
+    'rejects unsupported review mode %s instead of silently broadening results',
+    async (review) => {
+      const data = fixture()
+      await expect(data.run(loadIssues(scope, new URL(`${listUrl}&review=${review}&q=issue`)))).rejects.toMatchObject({
+        status: 400,
+      })
+    },
+  )
   it('keeps workspace-wide issues and the full authorized project selector', async () => {
     const data = fixture()
     const result = await data.run(loadIssues(scope, listUrl))

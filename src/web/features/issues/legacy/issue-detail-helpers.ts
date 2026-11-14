@@ -1,4 +1,5 @@
 'use client'
+import type { ReviewStatus } from '../../../../contracts/review-targets'
 import type { RenderedMarkdown } from '../../../components/markdown/render'
 import type { CustomFieldValue, TaskStatus } from './board-utils'
 
@@ -24,6 +25,7 @@ export interface Attachment {
   size: number
   url: string | null
   createdAt: number
+  reviewStatus: ReviewStatus | null
   wikiPage: { id: string; title: string; url: string } | null
 }
 

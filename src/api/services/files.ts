@@ -21,3 +21,12 @@ export function getAttachment(ctx: ApiServiceCtx, ...args: ApiOperationArgs<Core
 export function deleteAttachment(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiDeleteAttachment']>) {
   return apiReply(ApiResults.apiDeleteAttachment, ctx.core.apiDeleteAttachment(ctx.actor, ctx.workspaceId, ...args))
 }
+export function setAttachmentReviewStatus(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiSetAttachmentReviewStatus']>
+) {
+  return apiReply(
+    ApiResults.apiSetAttachmentReviewStatus,
+    ctx.core.apiSetAttachmentReviewStatus(ctx.actor, ctx.workspaceId, ...args),
+  )
+}

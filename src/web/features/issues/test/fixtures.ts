@@ -51,6 +51,7 @@ export function issue(overrides: Partial<Issue> = {}): Issue {
     sprint_id: null,
     created_at: 1,
     updated_at: 1,
+    reviewTargets: [],
     customFields: [{ key: 'story_points', label: 'Story points', type: 'number', value: '3' }],
     workspaceSlug: workspace.slug,
     ...overrides,

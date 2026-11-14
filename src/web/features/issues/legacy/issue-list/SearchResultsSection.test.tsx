@@ -23,6 +23,7 @@ const RESULTS: SearchResult[] = [
     project_id: 'p1',
     project_key: 'PROJ',
     project_name: 'Projektor',
+    reviewTargets: [],
   },
 ]
 

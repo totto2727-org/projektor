@@ -9,6 +9,7 @@ import type {
   Member,
   TaskType,
 } from '../../web/features/issues/legacy/issue-detail-helpers'
+import { ReviewStatusSchema, ReviewTargetSchema } from '../review-targets'
 export type Issue = IssueData & ListIssue
 export type { Attachment, Comment, IssueLink, Member, TaskType }
 export type Status = TaskStatus
@@ -47,6 +48,7 @@ export const IssueSchema = Schema.Struct({
   sprint_id: Schema.optional(nullable),
   created_at: Schema.Number,
   updated_at: Schema.Number,
+  reviewTargets: Schema.Array(ReviewTargetSchema),
   customFields: Schema.optional(Schema.Array(field)),
   rollup: Schema.optional(
     Schema.Struct({
@@ -66,6 +68,7 @@ export function normalizeIssue(dto: typeof IssueSchema.Type): Issue {
     type_id: dto.type_id ?? null,
     sprint_id: dto.sprint_id ?? null,
     customFields: dto.customFields?.map((entry) => ({ ...entry })) ?? [],
+    reviewTargets: dto.reviewTargets.map((entry) => ({ ...entry })),
     rollup: dto.rollup ? { ...dto.rollup, byStatus: { ...dto.rollup.byStatus } } : undefined,
   }
 }
@@ -140,6 +143,7 @@ export const AttachmentSchema = Schema.Struct({
   contentType: Schema.String,
   size: Schema.Number,
   createdAt: Schema.Number,
+  reviewStatus: Schema.NullOr(ReviewStatusSchema),
   url: Schema.optional(nullable),
   wikiPage: Schema.optional(
     Schema.NullOr(Schema.Struct({ id: Schema.String, title: Schema.String, url: Schema.String })),

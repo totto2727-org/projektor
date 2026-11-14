@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { makeRequestServices, RequestServices } from '../../request'
 import { inMemoryKV, inMemoryR2, testEnvironment } from '../../server/test/resources'
 import {
+  setAttachmentReviewStatus,
   addComment,
   editComment,
   deleteComment,
@@ -80,6 +81,43 @@ function fixture(options: { origin?: string } = {}) {
 }
 
 describe('individual issue ServerFn authorization and contracts', () => {
+  it('sets and clears review status through the named Core command under selected issue ownership', async () => {
+    const { invoke, database, invalidated } = fixture()
+    database.sqlite.exec(
+      "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('review-file','workspace-a','file','w/file','review.pdf','application/pdf',1,'issue','issue-a','user-a',1)",
+    )
+    const input = { workspaceSlug: workspace.slug, issueId: 'issue-a', attachmentId: 'review-file', status: 'fixing' }
+    expect(await invoke(setAttachmentReviewStatus, input)).toEqual({ ok: true, value: { ok: true } })
+    expect(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()).toEqual({
+      review_status: 'fixing',
+    })
+    expect(await invoke(setAttachmentReviewStatus, { ...input, issueId: 'issue-b', status: 'done' })).toMatchObject({
+      ok: false,
+      status: 404,
+    })
+    expect(await invoke(setAttachmentReviewStatus, { ...input, status: null })).toEqual({
+      ok: true,
+      value: { ok: true },
+    })
+    expect(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()).toEqual({
+      review_status: null,
+    })
+    expect(invalidated).toHaveBeenCalledTimes(3)
+  })
+
+  it('rejects cross-origin review status mutations before command execution', async () => {
+    const { invoke, invalidated } = fixture({ origin: 'https://evil.test' })
+    expect(
+      await invoke(setAttachmentReviewStatus, {
+        workspaceSlug: workspace.slug,
+        issueId: 'issue-a',
+        attachmentId: 'missing',
+        status: 'fixing',
+      }),
+    ).toMatchObject({ ok: false, status: 403 })
+    expect(invalidated).toHaveBeenCalledOnce()
+  })
+
   it('updates a sprint directly while preserving tenant and project grant checks', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(
@@ -219,6 +257,36 @@ describe('individual issue ServerFn authorization and contracts', () => {
     ).toEqual({ entity_type: 'issue', entity_id: 'issue-a', url: 'https://example.test/direct' })
     expect(invalidated).toHaveBeenCalledTimes(2)
   })
+  it.each(['http://example.test/path', 'https://example.test/path', 'mailto:review@example.test'])(
+    'persists a standard URL through the decoded Web boundary: %s',
+    async (url) => {
+      const { invoke, database } = fixture()
+      expect(
+        await invoke(addAttachmentLink, {
+          workspaceSlug: workspace.slug,
+          issueId: 'issue-a',
+          link: { kind: 'url', url },
+        }),
+      ).toMatchObject({ ok: true, value: { id: expect.any(String), kind: 'url' } })
+      expect(database.sqlite.prepare('SELECT url FROM attachments WHERE url = ?').get(url)).toEqual({ url })
+    },
+  )
+  it.each(['not-a-url', 'https://[broken', '/relative/path'])(
+    'rejects malformed URLs before Web command execution: %s',
+    async (url) => {
+      const { invoke, database, invalidated } = fixture()
+      const before = database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()
+      await expect(
+        invoke(addAttachmentLink, {
+          workspaceSlug: workspace.slug,
+          issueId: 'issue-a',
+          link: { kind: 'url', url },
+        }),
+      ).rejects.toThrow()
+      expect(database.sqlite.prepare('SELECT id,url FROM attachments ORDER BY id').all()).toEqual(before)
+      expect(invalidated).not.toHaveBeenCalled()
+    },
+  )
   it('enforces actual read-only project grants for issue, link, share and attachment commands', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec("UPDATE group_project_grants SET role = 'viewer' WHERE project_id = 'project-a'")

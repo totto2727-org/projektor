@@ -9,6 +9,7 @@ import { IdSchema } from '../../contracts/inputs/common'
 import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '../../contracts/inputs/task-statuses'
 import * as cache from './cache'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
+import { buildCloseIssueReviewTargetsStatement } from './review-targets'
 import { prepareQuery } from './sql'
 import type { ServiceCtx } from './types'
 
@@ -127,8 +128,13 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
       .update(schema.issues)
       .set({ statusCategory: setObj.category as string })
       .where(and(eq(schema.issues.statusId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
-    if (data.isDefault) await orm.batch([clearDefaults, statusUpdate, issuesResync])
-    else await orm.batch([statusUpdate, issuesResync])
+    const statements = [
+      ...(data.isDefault ? [prepareQuery(ctx.db, clearDefaults.toSQL())] : []),
+      prepareQuery(ctx.db, statusUpdate.toSQL()),
+      prepareQuery(ctx.db, issuesResync.toSQL()),
+      buildCloseIssueReviewTargetsStatement(ctx, { statusId: id }),
+    ]
+    await ctx.db.batch(statements)
   } else if (data.isDefault) {
     await orm.batch([clearDefaults, statusUpdate])
   } else {

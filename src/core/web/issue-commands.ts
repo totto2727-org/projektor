@@ -55,6 +55,10 @@ export const makeIssueCommandHandlers = <R>(envSource: Effect.Effect<CoreEnviron
         await files.deleteStoredAttachment(ctx, id)
         return { ok: true }
       }),
+    webSetAttachmentReviewStatus: (proof: BrowserCommand, input: unknown) =>
+      reply('webSetAttachmentReviewStatus', CommandOkSchema, proof, (ctx) =>
+        files.setAttachmentReviewStatus(ctx, input),
+      ),
     webUpdateSprint: (proof: BrowserCommand, id: string, input: unknown) =>
       reply('webUpdateSprint', CommandOkSchema, proof, (ctx) => sprints.updateSprint(ctx, id, input)),
   }
