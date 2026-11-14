@@ -1,6 +1,6 @@
 'use client'
 import type { ProjectSummary, RequestScope } from '../../../server/request-context'
-import EpicList from '../legacy/EpicList'
+import EpicList from '../components/EpicList'
 import type { IssuePage, Status, TaskType } from '../types'
 import { SelectionRequired } from './shared'
 export interface EpicsInitialData {

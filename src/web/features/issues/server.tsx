@@ -8,6 +8,7 @@ import { RequestServices } from '../../request'
 import { requireDataProject, requireDataWorkspace } from '../../server/data-context'
 import { ApiError, ScopeError } from '../../server/errors'
 import type { RequestScope } from '../../server/request-context'
+import { buildFilterQueryParams } from './components/IssueList-helpers'
 import {
   checked,
   readDataAttachments,
@@ -21,7 +22,6 @@ import {
   readSprints,
   searchDataIssues,
 } from './data'
-import { buildFilterQueryParams } from './legacy/IssueList-helpers'
 import { issueListQuery } from './query'
 import { type IssuePage } from './types'
 import { type EpicsInitialData, EpicsPage } from './views/EpicsPage'

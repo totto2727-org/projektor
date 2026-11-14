@@ -1,13 +1,13 @@
 'use client'
 import type { ProjectSummary, RequestScope } from '../../../server/request-context'
-import type { SprintDetail } from '../legacy/issue-list/SprintBannerSection'
-import IssueList from '../legacy/IssueList'
+import type { SprintDetail } from '../components/issue-list/SprintBannerSection'
+import IssueList from '../components/IssueList'
 import type { Issue, IssuePage, Status, TaskType } from '../types'
 import { IssueReviewNavigation } from './IssueReviewNavigation'
 import { SelectionRequired } from './shared'
 export interface IssuesInitialData {
   readonly currentUserId: string
-  readonly view: import('../legacy/issue-list/types-view').ViewMode
+  readonly view: import('../components/issue-list/types-view').ViewMode
   readonly page: IssuePage
   readonly statuses: readonly Status[]
   readonly taskTypes: readonly TaskType[]
@@ -16,7 +16,7 @@ export interface IssuesInitialData {
   readonly epics: readonly Issue[]
   readonly sprints: readonly { id: string; name: string; status: string }[]
   readonly sprintDetail: SprintDetail | null
-  readonly search: import('../legacy/issue-list/useIssueSearch').IssueSearchSeed
+  readonly search: import('../components/issue-list/useIssueSearch').IssueSearchSeed
 }
 export interface IssuesRoute {
   readonly pathname: string

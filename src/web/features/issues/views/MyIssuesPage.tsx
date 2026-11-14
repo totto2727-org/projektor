@@ -1,6 +1,6 @@
 'use client'
 import type { RequestScope, WorkspaceMembership } from '../../../server/request-context'
-import MyIssues from '../legacy/MyIssues'
+import MyIssues from '../components/MyIssues'
 import type { Issue } from '../types'
 export type ScopedIssue = Issue & { readonly workspaceSlug: string }
 export interface MyIssuesInitialData {

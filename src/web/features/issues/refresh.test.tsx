@@ -4,16 +4,16 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@te
 import { describe, expect, it, vi } from 'vite-plus/test'
 
 import { createIssue, readIssuePage, searchIssues, updateIssue } from './actions'
-import { IssueBulkProvider, IssueSelectionControl } from './legacy/issue-list/BulkActions'
-import { useSavedViews } from './legacy/issue-list/useSavedViews'
-import type { SavedViewFilters } from './legacy/saved-views'
+import { IssueBulkProvider, IssueSelectionControl } from './components/issue-list/BulkActions'
+import { useSavedViews } from './components/issue-list/useSavedViews'
+import type { SavedViewFilters } from './components/saved-views'
 import { comment, issue, project, scope, secondProject, statuses, taskTypes, workspace } from './test/fixtures'
 import { useUnsavedUnloadGuard } from './utils/use-unsaved-unload-guard'
 import { type EpicsInitialData, EpicsPage } from './views/EpicsPage'
 import { type IssueDetailInitialData, IssueDetailPage } from './views/IssueDetailPage'
 import { type IssuesInitialData, IssuesPage } from './views/IssuesPage'
 
-vi.mock('./legacy/LazyMarkdownEditor', () => ({
+vi.mock('./components/LazyMarkdownEditor', () => ({
   default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
     <textarea aria-label='Markdown editor' value={value} onChange={(event) => onChange(event.currentTarget.value)} />
   ),
