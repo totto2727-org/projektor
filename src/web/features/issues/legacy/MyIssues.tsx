@@ -5,6 +5,7 @@ import { statusDisplayName } from '../lib/status'
 import { issueUrl } from '../utils/issue-url'
 import type { MyIssuesInitialData, ScopedIssue } from '../views/MyIssuesPage'
 import { categoryColor, type Issue } from './board-utils'
+import { ReviewTargetsSummary } from './ReviewTargetsSummary'
 
 const OPEN_CATEGORIES = new Set(['todo', 'in_progress', 'in_review'])
 const STATUS_ORDER = new Map([
@@ -113,6 +114,7 @@ function IssuesTable({ issues }: { issues: ScopedIssue[] }) {
                     >
                       {issue.title}
                     </a>
+                    <ReviewTargetsSummary issue={issue} />
                   </td>
                   <td className='px-3 py-2 align-middle whitespace-nowrap'>
                     <div className='flex items-center gap-[0.375rem]'>
@@ -144,6 +146,7 @@ function IssuesTable({ issues }: { issues: ScopedIssue[] }) {
             >
               <div className='text-[0.9rem] text-text-base font-medium mb-2'>{issue.title}</div>
             </a>
+            <ReviewTargetsSummary issue={issue} />
             <div className='flex gap-[0.375rem] flex-wrap items-center'>
               {priorityBadge(issue)}
               {statusBadge(issue)}

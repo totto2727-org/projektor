@@ -1,5 +1,3 @@
-// Static ?raw imports — Vite inlines each file as a string literal at bundle time.
-// Add a new import here whenever a migration is added to root migrations/.
 import m0000 from '../../../migrations/0000_tidy_jigsaw.sql?raw'
 import m0001 from '../../../migrations/0001_attachments.sql?raw'
 import m0002 from '../../../migrations/0002_issue_number_unique.sql?raw'
@@ -69,6 +67,9 @@ import m0065 from '../../../migrations/0065_wiki_fts_rowid.sql?raw'
 import m0066 from '../../../migrations/0066_repair_status_category.sql?raw'
 import m0067 from '../../../migrations/0067_agent_session_credential.sql?raw'
 import m0068 from '../../../migrations/0068_wiki_draft_heads.sql?raw'
+// Static ?raw imports — Vite inlines each file as a string literal at bundle time.
+// Add a new import here whenever a migration is added to root migrations/.
+import m0069 from '../../../migrations/0069_attachment_review_status.sql?raw'
 
 export const MIGRATIONS = [
   m0000,
@@ -140,4 +141,5 @@ export const MIGRATIONS = [
   m0066,
   m0067,
   m0068,
+  m0069,
 ]

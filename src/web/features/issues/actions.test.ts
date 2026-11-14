@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { makeRequestServices, RequestServices } from '../../request'
 import { inMemoryKV, inMemoryR2, testEnvironment } from '../../server/test/resources'
 import {
+  setAttachmentReviewStatus,
   addComment,
   editComment,
   deleteComment,
@@ -80,6 +81,43 @@ function fixture(options: { origin?: string } = {}) {
 }
 
 describe('individual issue ServerFn authorization and contracts', () => {
+  it('sets and clears review status through the named Core command under selected issue ownership', async () => {
+    const { invoke, database, invalidated } = fixture()
+    database.sqlite.exec(
+      "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('review-file','workspace-a','file','w/file','review.pdf','application/pdf',1,'issue','issue-a','user-a',1)",
+    )
+    const input = { workspaceSlug: workspace.slug, issueId: 'issue-a', attachmentId: 'review-file', status: 'fixing' }
+    expect(await invoke(setAttachmentReviewStatus, input)).toEqual({ ok: true, value: { ok: true } })
+    expect(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()).toEqual({
+      review_status: 'fixing',
+    })
+    expect(await invoke(setAttachmentReviewStatus, { ...input, issueId: 'issue-b', status: 'done' })).toMatchObject({
+      ok: false,
+      status: 404,
+    })
+    expect(await invoke(setAttachmentReviewStatus, { ...input, status: null })).toEqual({
+      ok: true,
+      value: { ok: true },
+    })
+    expect(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()).toEqual({
+      review_status: null,
+    })
+    expect(invalidated).toHaveBeenCalledTimes(3)
+  })
+
+  it('rejects cross-origin review status mutations before command execution', async () => {
+    const { invoke, invalidated } = fixture({ origin: 'https://evil.test' })
+    expect(
+      await invoke(setAttachmentReviewStatus, {
+        workspaceSlug: workspace.slug,
+        issueId: 'issue-a',
+        attachmentId: 'missing',
+        status: 'fixing',
+      }),
+    ).toMatchObject({ ok: false, status: 403 })
+    expect(invalidated).toHaveBeenCalledOnce()
+  })
+
   it('updates a sprint directly while preserving tenant and project grant checks', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(

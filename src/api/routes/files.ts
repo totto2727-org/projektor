@@ -2,6 +2,8 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
+import { ValidationError } from '../../contracts/errors'
+import { SetAttachmentReviewStatusSchema } from '../../contracts/inputs/files'
 import { jsonBody } from '../http/body'
 import { coreFileRequest } from '../http/core-files'
 import { serviceErrToResponse } from '../http/error-adapter'
@@ -10,6 +12,7 @@ import { ctxFromHono } from '../services/types'
 
 const router = new Hono<HonoEnv>()
 const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
+const ReviewStatusBodySchema = SetAttachmentReviewStatusSchema.omit({ attachmentId: true })
 router.get('/', async (c) => {
   try {
     return c.json(
@@ -32,6 +35,20 @@ router.post('/links', async (c) => {
 router.post('/', async (c) => {
   const response = await coreFileRequest(c, '/files', c.req.raw.body, c.req.header('Content-Type'))
   return new Response(response.body, { status: response.ok ? 201 : response.status, headers: response.headers })
+})
+router.patch('/:id/review-status', async (c) => {
+  try {
+    const parsed = ReviewStatusBodySchema.safeParse(await jsonBody(c))
+    if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+    return c.json(
+      await filesService.setAttachmentReviewStatus(ctxFromHono(c), {
+        ...parsed.data,
+        attachmentId: c.req.param('id'),
+      }),
+    )
+  } catch (error) {
+    return serviceErrToResponse(c, error)
+  }
 })
 router.get('/:id/metadata', async (c) => {
   try {

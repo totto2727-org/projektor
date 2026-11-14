@@ -45,6 +45,7 @@ import {
 import { listLinksForIssue } from './issue-links'
 import { resolveProjectIdParam, resolveVisibleProjectIdParam } from './projects'
 import { broadcastWorkspaceEvent } from './realtime'
+import { buildCloseIssueReviewTargetsStatement } from './review-targets'
 import { resolveStatus } from './task-statuses'
 import type { ServiceCtx } from './types'
 
@@ -1190,6 +1191,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
     statements.push(
       buildReleaseLeaseForClosedIssueStatement(ctx, id),
       buildReleaseClaimsForClosedIssueStatement(ctx, id),
+      buildCloseIssueReviewTargetsStatement(ctx, { issueId: id }),
     )
   }
 

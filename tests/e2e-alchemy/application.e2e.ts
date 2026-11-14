@@ -266,6 +266,256 @@ async function assertShell(page: Page) {
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
 
+test('issue review targets persist optional selection and four statuses across focused views and issue summaries', async ({
+  request,
+  page,
+  browser,
+  baseURL,
+}, testInfo) => {
+  test.setTimeout(120_000)
+  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const headers = { 'X-Workspace-Slug': 'projektor' }
+  const session = await request.get('http://127.0.0.1:4392/auth/me')
+  expect(session.status()).toBe(200)
+  const { user } = await session.json()
+  const createdProject = await request.post('http://127.0.0.1:4392/api/projects', {
+    headers,
+    data: { name: `Review acceptance ${suffix}`, key: `V${suffix}` },
+  })
+  expect(createdProject.status(), await createdProject.text()).toBe(201)
+  const project = await createdProject.json()
+  const createIssue = async (title: string) => {
+    const response = await request.post('http://127.0.0.1:4392/api/issues', {
+      headers,
+      data: { projectId: project.id, title, status: 'backlog', assigneeId: user.id },
+    })
+    expect(response.status(), await response.text()).toBe(201)
+    return response.json()
+  }
+  const title = `Review target primary ${suffix}`
+  const issue = await createIssue(title)
+  const emptyIssue = await createIssue(`Review target empty ${suffix}`)
+  const filename = `review-file-${suffix}.txt`
+  const urlLabel = `Review design ${suffix}`
+  const ordinaryLabel = `Ordinary reference ${suffix}`
+  const uploaded = await request.post('http://127.0.0.1:4392/api/files', {
+    headers,
+    multipart: {
+      file: { name: filename, mimeType: 'text/plain', buffer: Buffer.from('Real review attachment\n') },
+      entityType: 'issue',
+      entityId: issue.id,
+    },
+  })
+  expect(uploaded.status(), await uploaded.text()).toBe(201)
+  const uploadedAttachment = await uploaded.json()
+  const attachmentFixtures: { id: string; filename: string }[] = [{ id: uploadedAttachment.id, filename }]
+  for (const label of [urlLabel, ordinaryLabel]) {
+    const linked = await request.post('http://127.0.0.1:4392/api/files/links', {
+      headers,
+      data: {
+        entityType: 'issue',
+        entityId: issue.id,
+        kind: 'url',
+        url: `https://example.com/${suffix}/${encodeURIComponent(label)}`,
+        label,
+      },
+    })
+    expect(linked.status(), await linked.text()).toBe(201)
+    const linkedAttachment = await linked.json()
+    attachmentFixtures.push({ id: linkedAttachment.id, filename: label })
+  }
+  const scope = new URLSearchParams({ workspace: 'projektor', projectId: project.id }).toString()
+  await page.goto(`/issues/view?id=${issue.id}&${scope}`)
+  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
+  const issueUrl = page.url()
+  const targets = page.getByRole('region', { name: 'レビュー対象', exact: true })
+  const selected = (name: string) => targets.getByRole('checkbox', { name: `${name}をレビュー対象にする`, exact: true })
+  const status = (name: string) => targets.getByRole('combobox', { name: `${name}のレビューステータス`, exact: true })
+  for (const name of [filename, urlLabel, ordinaryLabel]) {
+    await expect(selected(name)).not.toBeChecked()
+    await expect(status(name)).toHaveCount(0)
+  }
+  await expect(targets.getByText('表示するレビュー対象はありません。', { exact: true })).toBeVisible()
+  await checkpoint(page, testInfo, 'review-targets-default-optional')
+
+  // These writes use the real browser ServerFn and private Core, not fixture SQL or API mutations.
+  await selected(filename).click()
+  await expect(status(filename)).toHaveValue('fixing')
+  await expect(status(filename)).toBeEnabled()
+  await expect(status(filename).locator('option')).toHaveText(['修正中', 'レビュー中', '要修正', '完了'])
+  await page.reload()
+  await expect(selected(filename)).toBeChecked()
+  await expect(status(filename)).toHaveValue('fixing')
+  await page.goto(`/issues?${scope}&view=list`)
+  await expect(
+    page.getByRole('link', { name: `Review targets: ${filename} (修正中)`, exact: true }).filter({ visible: true }),
+  ).toContainText('レビュー不要')
+  await page.goto(issueUrl)
+  for (const [value, label] of [
+    ['in_review', 'レビュー中'],
+    ['changes_requested', '要修正'],
+  ]) {
+    await status(filename).selectOption(value)
+    await expect(status(filename)).toHaveValue(value)
+    await expect(status(filename)).toBeEnabled()
+    await expect(
+      targets
+        .getByRole('listitem')
+        .filter({ has: page.getByRole('checkbox', { name: `${filename}をレビュー対象にする`, exact: true }) })
+        .locator('span')
+        .filter({ hasText: new RegExp(`^${label}$`) }),
+    ).toBeVisible()
+    await page.reload()
+    await expect(status(filename)).toHaveValue(value)
+    await checkpoint(page, testInfo, `review-targets-persisted-${value}`)
+  }
+  await selected(filename).click()
+  await expect(status(filename)).toHaveCount(0)
+  await page.reload()
+  await expect(selected(filename)).not.toBeChecked()
+  const attachments = page.locator('section').filter({ has: page.getByText('Attachments (3)', { exact: true }) })
+  await expect(attachments.getByRole('link', { name: filename, exact: true })).toBeVisible()
+  await expect(attachments.getByRole('link', { name: ordinaryLabel, exact: true })).toBeVisible()
+
+  await selected(filename).click()
+  await expect(status(filename)).toBeEnabled()
+  await selected(urlLabel).click()
+  await expect(status(urlLabel)).toBeEnabled()
+  await status(urlLabel).selectOption('in_review')
+  await expect(status(urlLabel)).toBeEnabled()
+  await page.reload()
+  await expect(status(filename)).toHaveValue('fixing')
+  await expect(status(urlLabel)).toHaveValue('in_review')
+  await expect(selected(ordinaryLabel)).not.toBeChecked()
+  const prioritySummary = `Review targets: ${urlLabel} +1 (レビュー中)`
+  const routes = [
+    { name: 'list', path: `/issues?${scope}&view=list` },
+    { name: 'backlog', path: `/issues?${scope}&view=backlog` },
+    { name: 'board', path: `/issues?${scope}&view=board` },
+    { name: 'my-issues', path: '/my-issues?workspace=projektor' },
+    { name: 'search', path: `/issues?${scope}&q=${suffix}` },
+  ]
+  for (const route of routes) {
+    // Board intentionally excludes backlog. Move only the fixture's issue workflow,
+    // leaving review selection and review statuses exclusively browser-mutated.
+    if (route.name === 'board' || route.name === 'my-issues') {
+      for (const fixture of [issue, emptyIssue]) {
+        const moved = await request.patch(`http://127.0.0.1:4392/api/issues/${fixture.id}`, {
+          headers,
+          data: { status: route.name === 'board' ? 'todo' : 'backlog' },
+        })
+        expect(moved.status(), await moved.text()).toBe(200)
+      }
+    }
+    await page.goto(route.path)
+    const summary = page.getByRole('link', { name: prioritySummary, exact: true }).filter({ visible: true })
+    await expect(summary).toHaveCount(1)
+    await expect(summary).toContainText('+1')
+    await expect(summary).not.toContainText('レビュー不要')
+    await expect(
+      page.getByRole('link', { name: 'Review targets: 対象なし', exact: true }).filter({ visible: true }).first(),
+    ).toBeVisible()
+    await checkpoint(page, testInfo, `review-targets-summary-${route.name}`)
+    // Both the priority target and +N share a native focused-view link.
+    await summary.getByText('+1', { exact: true }).click()
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get('tab') === 'review-targets' && url.searchParams.get('workspace') === 'projektor',
+    )
+    await expect(targets.getByRole('heading', { name: 'レビュー対象 (2)', exact: true })).toBeVisible()
+    await expect(status(urlLabel)).toHaveValue('in_review')
+  }
+  await status(filename).selectOption('in_review')
+  await expect(status(filename)).toBeEnabled()
+  await page.reload()
+  await expect(targets.getByText('レビュー待ち: 2件', { exact: true })).toBeVisible()
+  await checkpoint(page, testInfo, 'review-targets-focused-multiple-in-review')
+  const focusedUrl = page.url()
+  const coldContext = await browser.newContext({ baseURL, javaScriptEnabled: false, viewport: page.viewportSize() })
+  try {
+    const cold = await coldContext.newPage()
+    observeBrowser(cold, testInfo)
+    expect((await cold.goto(focusedUrl))?.status()).toBe(200)
+    const coldTargets = cold.getByRole('region', { name: 'レビュー対象', exact: true })
+    await expect(coldTargets.getByRole('heading', { name: 'レビュー対象 (2)', exact: true })).toBeVisible()
+    await expect(coldTargets.getByText('レビュー待ち: 2件', { exact: true })).toBeVisible()
+    await expect(coldTargets.getByRole('link', { name: filename, exact: true })).toBeVisible()
+    await expect(coldTargets.getByRole('link', { name: urlLabel, exact: true })).toBeVisible()
+    await expect(
+      coldTargets.getByText('対象とステータスの変更にはJavaScriptが必要です。リンクから対象を開けます。', {
+        exact: true,
+      }),
+    ).toBeVisible()
+    await checkpoint(cold, testInfo, 'review-targets-cold-focused-no-js')
+  } finally {
+    await coldContext.close()
+  }
+  for (const name of [filename, urlLabel]) {
+    await status(name).selectOption('done')
+    await expect(status(name)).toHaveCount(0)
+  }
+  await page.goto(`/issues?${scope}&view=list`)
+  const completedSummary = page
+    .getByRole('link', { name: title, exact: true })
+    .filter({ visible: true })
+    .locator('..')
+    .getByRole('link', { name: 'Review targets: 対象なし', exact: true })
+  await expect(completedSummary).toBeVisible()
+  await expect(completedSummary).not.toContainText('+1')
+  await page.goto(issueUrl)
+  await expect(status(filename)).toHaveCount(0)
+  await expect(status(urlLabel)).toHaveCount(0)
+  await expect(selected(filename)).toHaveCount(0)
+  await expect(selected(urlLabel)).toHaveCount(0)
+  await expect(targets.getByText('表示するレビュー対象はありません。', { exact: true })).toBeVisible()
+  await expect(selected(ordinaryLabel)).not.toBeChecked()
+  await expect(attachments.getByRole('link', { name: ordinaryLabel, exact: true })).toBeVisible()
+  await checkpoint(page, testInfo, 'review-targets-complete-normal-attachments-preserved')
+
+  // Completed targets are intentionally hidden in Web. The supported external
+  // review API reopens them before each owning-issue terminal transition.
+  for (const terminal of ['done', 'cancelled']) {
+    const reopened = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
+      headers,
+      data: { status: 'backlog' },
+    })
+    expect(reopened.status(), await reopened.text()).toBe(200)
+    for (const attachment of attachmentFixtures.filter((entry) => entry.filename !== ordinaryLabel)) {
+      const review = await request.patch(`http://127.0.0.1:4392/api/files/${attachment.id}/review-status`, {
+        headers,
+        data: { issueId: issue.id, status: 'in_review' },
+      })
+      expect(review.status(), await review.text()).toBe(200)
+    }
+    await page.reload()
+    await expect(status(filename)).toHaveValue('in_review')
+    await expect(status(urlLabel)).toHaveValue('in_review')
+    const closed = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
+      headers,
+      data: { status: terminal },
+    })
+    expect(closed.status(), await closed.text()).toBe(200)
+    await page.reload()
+    await expect(targets.getByText('表示するレビュー対象はありません。', { exact: true })).toBeVisible()
+    for (const attachment of attachmentFixtures) {
+      const metadata = await request.get(`http://127.0.0.1:4392/api/files/${attachment.id}/metadata`, { headers })
+      expect(metadata.status(), await metadata.text()).toBe(200)
+      expect(await metadata.json()).toMatchObject({
+        id: attachment.id,
+        filename: attachment.filename,
+        reviewStatus: terminal === 'done' && attachment.filename !== ordinaryLabel ? 'done' : null,
+      })
+      await expect(attachments.getByRole('link', { name: attachment.filename, exact: true })).toBeVisible()
+      await expect(status(attachment.filename)).toHaveCount(0)
+      if (terminal === 'cancelled' || attachment.filename === ordinaryLabel) {
+        await expect(selected(attachment.filename)).not.toBeChecked()
+      } else {
+        await expect(selected(attachment.filename)).toHaveCount(0)
+      }
+    }
+    await checkpoint(page, testInfo, `review-targets-owner-${terminal}-attachments-preserved`)
+  }
+})
+
 test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the header in front', async ({
   request,
   page,

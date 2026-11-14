@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 
 import { ApiPrincipal, ApiUserBootstrap, ApiWorkspace } from './api-auth'
+import { ReviewStatusSchema } from './review-targets'
 
 const array = <Item extends Schema.Top>(item: Item) => Schema.mutable(Schema.Array(item))
 
@@ -63,6 +64,7 @@ const Attachment = Schema.Struct({
   size: N,
   url: NS,
   createdAt: N,
+  reviewStatus: Schema.optional(Schema.NullOr(ReviewStatusSchema)),
   wikiPage: Schema.NullOr(Schema.Struct({ id: S, title: NS, url: S })),
 })
 const CustomField = Schema.Struct({
@@ -413,6 +415,7 @@ export const ApiResults = {
   apiCreateLinkAttachment: Schema.Struct({ id: S, kind: Schema.Literals(['wiki_ref', 'url']) }),
   apiGetAttachment: Attachment,
   apiDeleteAttachment: Schema.Struct({ r2Key: S }),
+  apiSetAttachmentReviewStatus: Ok,
   apiListCustomFieldDefs: array(CustomField),
   apiCreateCustomFieldDef: Schema.Struct({ id: S, key: S, label: S, type: S }),
   apiUpdateCustomFieldDef: Ok,

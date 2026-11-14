@@ -107,6 +107,7 @@ describe('groups and attachment pure retrieval', () => {
       size: 0,
       url: null,
       createdAt: 10,
+      reviewStatus: null,
       wikiPage: { id: 'w1', title: 'Hello', slug: 'hello world', projectId: 'p1' },
     })
     expect(rows[1].wikiPage).toBeNull()
@@ -119,6 +120,7 @@ describe('groups and attachment pure retrieval', () => {
       size: 123,
       url: null,
       createdAt: 30,
+      reviewStatus: null,
       wikiPage: null,
     })
     expect(await Effect.runPromise(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'missing' }))).toEqual([])

@@ -29,6 +29,8 @@ export const links = {
     coreResult(CommandOkSchema, core.webDeleteIssueLink(proof, input)),
 }
 export const files = {
+  setAttachmentReviewStatus: ({ core, proof }: BrowserCommandClient, input: unknown) =>
+    coreResult(CommandOkSchema, core.webSetAttachmentReviewStatus(proof, input)),
   createLinkAttachment: ({ core, proof }: BrowserCommandClient, input: unknown) =>
     coreResult(CreatedLinkAttachmentSchema, core.webCreateLinkAttachment(proof, input)),
   deleteStoredAttachment: ({ core, proof }: BrowserCommandClient, id: string) =>

@@ -11,6 +11,7 @@ import {
   type Issue,
   type TaskStatus,
 } from '../board-utils'
+import { ReviewTargetsSummary } from '../ReviewTargetsSummary'
 import { IssueSelectionControl } from './BulkActions'
 import { getStoryPoints, priorityBadge, StatusSelect, spBadge } from './issue-render-helpers'
 
@@ -74,6 +75,7 @@ function BoardCard({
           )}
         </div>
       </a>
+      <ReviewTargetsSummary issue={issue} />
       {/* Mobile-only: native HTML5 drag-and-drop (used above 640px) doesn't
 			    work on touch devices, so narrow viewports get a tap-to-open status
 			    menu instead (PROJ-416). Rendered as a sibling of the <a>, not

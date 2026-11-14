@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { REVIEW_STATUSES } from '../review-targets'
+
 export const EntityTypeSchema = z.enum(['issue', 'wiki_page'])
 
 export const ListAttachmentsSchema = z.object({
@@ -38,3 +40,9 @@ export const RecordFileUploadSchema = z.object({
 export const GetAttachmentSchema = z.object({ id: z.string().min(1) })
 
 export const DeleteAttachmentSchema = z.object({ id: z.string().min(1) })
+
+export const SetAttachmentReviewStatusSchema = z.object({
+  issueId: z.string().min(1),
+  attachmentId: z.string().min(1),
+  status: z.enum(REVIEW_STATUSES).nullable(),
+})

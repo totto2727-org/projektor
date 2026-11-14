@@ -4,7 +4,7 @@ import { Effect, Schema } from 'effect'
 
 import { schema } from '#db'
 import { listComments } from '#services/comments'
-import { type AttachmentMetadata, listAttachments } from '#services/files'
+import { type AttachmentMetadata, listAttachments, listIssueReviewTargets } from '#services/files'
 import { listLinksForIssue } from '#services/issue-links'
 import * as issueQueries from '#services/issues'
 import { searchWiki } from '#services/wiki'
@@ -144,9 +144,16 @@ export function readDataIssuePage(scope: RequestScope, workspaceId: string, para
       options.customField = { id: field.id, op: cfOp ?? 'eq', value: cfValue ?? '' }
     }
     const visibility = yield* checked(() => visibleProjectPredicate(scope, workspaceId, schema.issues.projectId))
-    return normalizeIssuePage(
-      yield* issueQueries.listIssues(db, workspaceId, options, visibility).pipe(Effect.mapError(dataError)),
-    )
+    const page = yield* issueQueries.listIssues(db, workspaceId, options, visibility).pipe(Effect.mapError(dataError))
+    const targets = yield* listIssueReviewTargets(
+      db,
+      workspaceId,
+      page.items.map((entry) => entry.id),
+    ).pipe(Effect.mapError(dataError))
+    return normalizeIssuePage({
+      ...page,
+      items: page.items.map((entry) => ({ ...entry, reviewTargets: targets.get(entry.id) ?? [] })),
+    })
   })
 }
 export function searchDataIssues(scope: RequestScope, workspaceId: string, query: string, projectId?: string) {
@@ -157,9 +164,15 @@ export function searchDataIssues(scope: RequestScope, workspaceId: string, query
     if (!query.length) return yield* new ScopeError(400, 'A search query is required.')
     const predicate = yield* checked(() => visibleProjectPredicate(scope, workspaceId, sql`i.project_id`))
     const visibility = predicate ? new SQLiteSyncDialect().sqlToQuery(predicate) : undefined
-    return yield* issueQueries
+    const rows = yield* issueQueries
       .searchIssues(db, workspaceId, { query, projectId, limit: 20 }, visibility)
       .pipe(Effect.mapError(dataError))
+    const targets = yield* listIssueReviewTargets(
+      db,
+      workspaceId,
+      rows.map((entry) => entry.id),
+    ).pipe(Effect.mapError(dataError))
+    return rows.map((entry) => ({ ...entry, reviewTargets: targets.get(entry.id) ?? [] }))
   })
 }
 export function readDataComments(scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {

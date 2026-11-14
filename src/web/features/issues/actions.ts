@@ -1,6 +1,7 @@
 'use server'
 import { Effect, Schema } from 'effect'
 
+import { ReviewStatusSchema } from '../../../contracts/review-targets'
 import { EFFRONT } from '../../effront'
 import { RequestServices } from '../../request'
 import { runBrowserCommand as runCommand } from '../../server/browser-command'
@@ -44,6 +45,38 @@ function dataWorkspaceId(context: FunctionContext) {
     catch: () => new ScopeError(403, 'Selected workspace is not accessible.'),
   })
 }
+
+export const setAttachmentReviewStatus = EFFRONT.ServerFn.make({
+  input: Schema.Struct({
+    ...SelectorFields,
+    issueId: Schema.String.check(Schema.isMinLength(1)),
+    attachmentId: Schema.String.check(Schema.isMinLength(1)),
+    status: Schema.NullOr(ReviewStatusSchema),
+  }),
+  handler: (input) =>
+    Effect.gen(function* () {
+      const services = yield* RequestServices
+      return yield* Effect.gen(function* () {
+        yield* checkSameOriginMutation(services.request)
+        const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
+        yield* authorizedIssue(ctx, input.issueId)
+        const value = yield* runCommand(ctx, (command) =>
+          files.setAttachmentReviewStatus(command, {
+            issueId: input.issueId,
+            attachmentId: input.attachmentId,
+            status: input.status,
+          }),
+        )
+        return { ok: true as const, value }
+      }).pipe(
+        Effect.catchTags({
+          ApiError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+          ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
+        }),
+        Effect.ensuring(services.invalidate),
+      )
+    }),
+})
 
 export const createIssue = EFFRONT.ServerFn.make({
   input: [Schema.Unknown, Schema.fromFormData(CreateIssueSchema)],

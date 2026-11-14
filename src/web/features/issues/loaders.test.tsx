@@ -39,6 +39,7 @@ vi.mock('./actions', () => ({
   readAttachments: vi.fn(),
   addAttachmentLink: vi.fn(),
   deleteAttachment: vi.fn(),
+  setAttachmentReviewStatus: vi.fn(),
   searchWikiAttachments: vi.fn(),
   updateSprint: vi.fn(),
 }))
@@ -56,6 +57,37 @@ const listUrl = new URL('https://front.test/issues?workspace=workspace')
 const detailUrl = new URL('https://front.test/issues/view?id=issue-a&workspace=workspace')
 
 describe('complete direct D1 issues SSR loaders', () => {
+  it('includes only explicitly selected targets in canonical list, search, My Issues and focused detail reads', async () => {
+    const data = fixture()
+    data.sqlite.exec(`
+      UPDATE attachments SET review_status = 'fixing' WHERE id = 'file-a';
+      INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,entity_type,entity_id,created_by_id,created_at,review_status) VALUES
+        ('review-a','workspace-a','url','','Review first','text/uri-list',0,'https://example.test/review','issue','issue-a','user-a',2,'in_review'),
+        ('not-selected','workspace-a','file','file-key','Not selected.txt','text/plain',10,NULL,'issue','issue-a','user-a',3,NULL),
+        ('hidden-target','workspace-a','url','','Hidden target','text/uri-list',0,'https://example.test/secret','issue','hidden-issue','user-a',4,'in_review');
+    `)
+    const list = await data.run(loadIssues(scope, listUrl))
+    const targets = list?.initialData.page.items.find((entry) => entry.id === 'issue-a')?.reviewTargets
+    expect(targets?.map((entry) => [entry.id, entry.status])).toEqual([
+      ['review-a', 'in_review'],
+      ['file-a', 'fixing'],
+    ])
+    expect(
+      list?.initialData.page.items
+        .flatMap((entry) => entry.reviewTargets ?? [])
+        .some((entry) => entry.id === 'hidden-target'),
+    ).toBe(false)
+    const search = await data.run(searchDataIssues(scope, workspace.id, 'Original'))
+    expect(search.find((entry) => entry.id === 'issue-a')?.reviewTargets).toEqual(targets)
+    const mine = await data.run(loadMyIssues(scope, new URL('https://front.test/my-issues')))
+    expect(mine.issues.find((entry) => entry.id === 'issue-a')?.reviewTargets).toEqual(targets)
+    const focused = await data.run(loadIssue(scope, new URL(`${detailUrl}&tab=review-targets`)))
+    expect(focused?.initialData.reviewTargetsFocused).toBe(true)
+    expect(focused?.initialData.attachments.find((entry) => entry.id === 'file-a')?.reviewStatus).toBe('fixing')
+    const html = renderToString(await data.run(renderIssues(scope, listUrl)))
+    expect(html).toContain('Review targets: Review first +1 (レビュー中)')
+    expect(html).not.toContain('Hidden target')
+  })
   it('keeps workspace-wide issues and the full authorized project selector', async () => {
     const data = fixture()
     const result = await data.run(loadIssues(scope, listUrl))

@@ -257,6 +257,8 @@ export function testEnvironment(
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webCreateLinkAttachment(...args)),
       webDeleteStoredAttachment: (...args: Parameters<WebCoreRpcShape['webDeleteStoredAttachment']>) =>
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webDeleteStoredAttachment(...args)),
+      webSetAttachmentReviewStatus: (...args: Parameters<WebCoreRpcShape['webSetAttachmentReviewStatus']>) =>
+        Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webSetAttachmentReviewStatus(...args)),
       webUpdateSprint: (...args: Parameters<WebCoreRpcShape['webUpdateSprint']>) =>
         Effect.runPromise(makeWebCoreHandlers(Effect.succeed(result)).webUpdateSprint(...args)),
       webIssue: (...args: Parameters<WebCoreRpcShape['webIssue']>) =>

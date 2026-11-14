@@ -2,6 +2,7 @@
 import { Schema } from 'effect'
 import { useEffect, useRef } from 'react'
 
+import type { ReviewTarget } from '../../../../../contracts/review-targets'
 import { Text, useIssueForm } from '../../forms'
 import type { IssuesRoute } from '../../views/IssuesPage'
 export interface SearchResult {
@@ -14,6 +15,7 @@ export interface SearchResult {
   project_key: string | null
   project_name: string | null
   workspaceSlug?: string
+  reviewTargets?: readonly ReviewTarget[]
 }
 export interface IssueSearchSeed {
   query: string

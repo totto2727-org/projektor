@@ -1,12 +1,37 @@
-import { createLinkAttachment, deleteAttachment, getAttachment, listAttachments } from '../services/files'
-import { CREATE, DESTRUCTIVE, READ } from './annotations'
+import { REVIEW_STATUSES } from '../../contracts/review-targets'
+import {
+  createLinkAttachment,
+  deleteAttachment,
+  getAttachment,
+  listAttachments,
+  setAttachmentReviewStatus,
+} from '../services/files'
+import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
 import type { MCPTool } from './types'
 
 // Binary upload and streamed download can't cross JSON-RPC, so those two operations
 // stay REST-only (POST /api/files, GET /api/files/:id) — a deliberate parity exception
-// (AGENTS.md). Everything else (list, metadata, link-create, delete) is metadata-only
+// (AGENTS.md). Everything else, including review-status updates, is metadata-only
 // and gets full MCP parity here (PROJ-234).
 export const filesTools: MCPTool[] = [
+  {
+    name: 'set_attachment_review_status',
+    description:
+      'Select or update an issue-owned file or URL review target. Set status to null to remove it from review targets. Wiki references are not eligible.',
+    inputSchema: {
+      type: 'object',
+      required: ['issueId', 'attachmentId', 'status'],
+      properties: {
+        issueId: { type: 'string' },
+        attachmentId: { type: 'string' },
+        status: { type: ['string', 'null'], enum: [...REVIEW_STATUSES, null] },
+      },
+    },
+    annotations: IDEMPOTENT_WRITE,
+    async handler(input, ctx) {
+      return await setAttachmentReviewStatus(ctx, input)
+    },
+  },
   {
     name: 'list_attachments',
     description: 'List attachments (files, wiki-page links, URLs) on an issue or wiki page',

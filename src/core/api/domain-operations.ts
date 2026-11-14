@@ -142,6 +142,7 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
     apiCreateLinkAttachment: operation('apiCreateLinkAttachment', 'write', files.createLinkAttachment),
     apiGetAttachment: operation('apiGetAttachment', 'read', files.getAttachment),
     apiDeleteAttachment: operation('apiDeleteAttachment', 'write', files.deleteAttachment),
+    apiSetAttachmentReviewStatus: operation('apiSetAttachmentReviewStatus', 'write', files.setAttachmentReviewStatus),
     apiGetFlowMetrics: operation('apiGetFlowMetrics', 'read', metrics.getFlowMetrics),
     apiListGroups: operation('apiListGroups', 'read', groups.listGroups),
     apiGetGroup: operation('apiGetGroup', 'read', groups.getGroup),

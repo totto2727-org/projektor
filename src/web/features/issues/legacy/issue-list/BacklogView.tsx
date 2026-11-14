@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { formatIssueRef } from '../../lib/issue-ref'
 import { issueUrl } from '../../utils/issue-url'
 import { getBacklogIssues, type Issue, type SortKey, type TaskStatus } from '../board-utils'
+import { ReviewTargetsSummary } from '../ReviewTargetsSummary'
 import { IssueSelectionControl } from './BulkActions'
 import {
   getStoryPoints,
@@ -124,6 +125,7 @@ function BacklogRow({
         >
           {issue.title}
         </a>
+        <ReviewTargetsSummary issue={issue} />
       </td>
       <td className='px-3 py-2 align-middle whitespace-nowrap'>
         <div className='flex items-center gap-[0.375rem]'>
@@ -176,6 +178,7 @@ function BacklogMobileCards({
           >
             <div className='text-[0.9rem] text-text-base font-medium mb-2'>{issue.title}</div>
           </a>
+          <ReviewTargetsSummary issue={issue} />
           <div className='flex gap-[0.375rem] flex-wrap'>
             <PrioritySelect
               issue={issue}

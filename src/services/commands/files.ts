@@ -8,9 +8,11 @@ import {
   GetAttachmentSchema,
   ListAttachmentsSchema,
   RecordFileUploadSchema,
+  SetAttachmentReviewStatusSchema,
 } from '../../contracts/inputs/files'
+import type { ReviewStatus } from '../../contracts/review-targets'
 import { wikiPagePath } from '../../contracts/urls'
-import { canWriteProject, requireProjectAccess, visibleProjectSqlFragment } from './access'
+import { assertIssueAccess, canWriteProject, requireProjectAccess, visibleProjectSqlFragment } from './access'
 import {
   ForbiddenError,
   NotFoundError,
@@ -95,6 +97,7 @@ export interface AttachmentDto {
   size: number
   url: string | null
   createdAt: number
+  reviewStatus?: ReviewStatus | null
   wikiPage: { id: string; title: string | null; url: string } | null
 }
 
@@ -129,6 +132,7 @@ function toDto(r: attachmentData.AttachmentMetadata): AttachmentDto {
     size: r.size,
     url: r.url,
     createdAt: r.createdAt,
+    reviewStatus: r.reviewStatus ?? null,
     wikiPage: r.wikiPage
       ? { id: r.wikiPage.id, title: r.wikiPage.title, url: wikiPagePath(r.wikiPage.slug ?? '') }
       : null,
@@ -156,6 +160,27 @@ export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<
     }),
   )
   return rows.map(toDto)
+}
+
+/** Review selection requires a real writable issue in an active project, unlike legacy free-floating attachments. */
+export async function setAttachmentReviewStatus(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
+  const parsed = SetAttachmentReviewStatusSchema.safeParse(input)
+  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  const { issueId, attachmentId, status } = parsed.data
+  await assertIssueAccess(ctx, issueId, 'edit')
+  const updated = await ctx.db
+    .prepare(`UPDATE attachments SET review_status = ?
+    WHERE id = ? AND workspace_id = ? AND entity_type = 'issue' AND entity_id = ?
+      AND kind IN ('file', 'url')
+      AND EXISTS (SELECT 1 FROM issues i INNER JOIN projects p ON p.id = i.project_id
+        AND p.workspace_id = i.workspace_id
+        WHERE i.id = attachments.entity_id AND i.workspace_id = attachments.workspace_id
+          AND p.archived_at IS NULL)
+    RETURNING id`)
+    .bind(status, attachmentId, ctx.workspaceId, issueId)
+    .first<{ id: string }>()
+  if (!updated) throw new NotFoundError('Review target not found')
+  return { ok: true }
 }
 
 export async function createLinkAttachment(

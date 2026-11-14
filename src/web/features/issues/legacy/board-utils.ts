@@ -1,3 +1,5 @@
+import type { ReviewTarget } from '../../../../contracts/review-targets'
+
 export interface TaskStatus {
   id: string
   key: string
@@ -42,6 +44,7 @@ export interface Issue {
   updated_at: number
   created_at: number
   customFields?: CustomFieldValue[]
+  reviewTargets?: readonly ReviewTarget[]
 }
 
 export type SortKey = 'number' | 'priority' | 'updated' | 'status' | 'assignee' | 'created_at' | 'title'

@@ -282,6 +282,7 @@ export function loadIssue(
         parent: parent ? { ...parent, workspaceSlug } : null,
         children: children.items,
         currentUserId: scope.user.id,
+        reviewTargetsFocused: url.searchParams.get('tab') === 'review-targets',
       },
     }
   })
