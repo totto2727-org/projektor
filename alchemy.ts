@@ -145,7 +145,7 @@ const CoreLive = CoreIdentity.make(
     const environment = yield* DeploymentEnvironment
     return {
       name: deployment.core.name,
-      main: import.meta.url,
+      main: deployment.core.main,
       compatibility: deployment.core.compatibility,
       workersDev: { enabled: false, previewsEnabled: false },
       env: { ...environment.coreEnv, RATE_LIMITER: rateLimiterReference() },

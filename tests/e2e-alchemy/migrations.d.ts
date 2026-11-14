@@ -6,3 +6,8 @@ declare module 'virtual:fixture-migrations' {
   }[]
   export default migrations
 }
+
+declare module 'virtual:production-core-entrypoint' {
+  const entrypoint: typeof import('../../core').default
+  export default entrypoint
+}

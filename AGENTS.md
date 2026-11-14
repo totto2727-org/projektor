@@ -110,6 +110,8 @@ Treat production schema readiness as a rollout prerequisite, not as something a 
 `alchemy.ts` declares the public API, public Web and private Core Workers, and `alchemy.run.ts` deploys the stack together.
 LocalLayer and ProductionLayer aggregate environment-specific settings, adoption and storage/secret bindings, selected once at the composition boundary.
 Worker declarations resolve dependencies and dynamic imports only; Web routing and response behavior belong in `src/web/worker.ts`.
+Core's `main` selects the root `core.ts` composition module, whose default export provides DeploymentLayer; `alchemy.ts` defaults to Frontend and is not a Core runtime entrypoint.
+The native acceptance Core resolves the same configured production module before applying its test-only fixture wrapper.
 Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed account, storage IDs, API cron and the existing `RATE_LIMITER` / `RateLimiter` binding.
 Core has no public domain, route, workers.dev URL or preview URL.
 Only Core receives D1, and API's existing cron forwards maintenance to Core without moving the schedule or adding a second trigger.
@@ -152,6 +154,7 @@ The Wiki mobile page-tree drawer and backdrop begin below the header and remain 
 Groups retains its page heading and access explanation; Comark code blocks use readable GitHub light/dark palettes selected by the existing theme preference.
 It adds shared internal retrieval and domain commands behind a private Core Worker, while REST, MCP and Effront remain external adapters.
 Native Core service bindings replace the former direct Web/API D1 access to centralize persistent policy and storage ownership.
+Core has a dedicated default-export runtime entrypoint because Alchemy bundles the configured module's default, independently of the named resources declared by the stack.
 The Wiki editor serializes autosave, discard and publication, with durable per-user/page draft heads enforcing browser revision preconditions in D1.
 An active description editor keeps its native fallback across lazy chunk completion and retains the submitted draft until canonical issue props acknowledge the saved body.
 Legacy unversioned REST and MCP draft writes retain last-write-wins behavior but advance the same heads, invalidating stale versioned browser writes.

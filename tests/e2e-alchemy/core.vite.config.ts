@@ -19,6 +19,13 @@ export async function makeCoreFixtureConfig(main: string, outDir: string): Promi
   return {
     root: fileURLToPath(new URL('.', import.meta.url)),
     publicDir: false,
+    resolve: {
+      alias: {
+        'virtual:production-core-entrypoint': fileURLToPath(
+          new URL(deployment.core.main, new URL('../../', import.meta.url)),
+        ),
+      },
+    },
     plugins: [
       {
         name: 'projektor-e2e-core-fixture-migrations',
