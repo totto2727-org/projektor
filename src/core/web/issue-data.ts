@@ -10,6 +10,7 @@ import * as issueQueries from '#services/issues'
 import { searchWiki } from '#services/wiki'
 
 import { ScopeError } from '../../contracts/errors'
+import { ReviewFilterSchema, type ReviewFilter } from '../../contracts/review-targets'
 import { WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions'
 import {
   normalizeAttachments,
@@ -39,6 +40,7 @@ const BooleanQuery = Schema.Literals(['true', '1', 'false', '0', ''])
 const NumericQuery = Schema.NumberFromString.check(Schema.isFinite())
 const IssueListQuerySchema = Schema.fromURLSearchParams(
   Schema.Struct({
+    review: Schema.optional(ReviewFilterSchema),
     status: Schema.optional(Schema.Literals(['backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled'])),
     priority: Schema.optional(Schema.Literals(['urgent', 'high', 'medium', 'low', 'none'])),
     category: Schema.optional(Schema.Literals(['todo', 'in_progress', 'done', 'cancelled'])),
@@ -156,16 +158,25 @@ export function readDataIssuePage(scope: RequestScope, workspaceId: string, para
     })
   })
 }
-export function searchDataIssues(scope: RequestScope, workspaceId: string, query: string, projectId?: string) {
+export function searchDataIssues(
+  scope: RequestScope,
+  workspaceId: string,
+  query: string,
+  projectId?: string,
+  review?: ReviewFilter,
+) {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
+    const reviewFilter = yield* Schema.decodeUnknownEffect(Schema.optional(ReviewFilterSchema))(review).pipe(
+      Effect.mapError(() => new ScopeError(400, 'Invalid review filter.')),
+    )
     if (projectId) yield* checked(() => requireDataProject(scope, projectId, workspaceId))
     if (!query.length) return yield* new ScopeError(400, 'A search query is required.')
     const predicate = yield* checked(() => visibleProjectPredicate(scope, workspaceId, sql`i.project_id`))
     const visibility = predicate ? new SQLiteSyncDialect().sqlToQuery(predicate) : undefined
     const rows = yield* issueQueries
-      .searchIssues(db, workspaceId, { query, projectId, limit: 20 }, visibility)
+      .searchIssues(db, workspaceId, { query, projectId, review: reviewFilter, limit: 20 }, visibility)
       .pipe(Effect.mapError(dataError))
     const targets = yield* listIssueReviewTargets(
       db,

@@ -3,11 +3,13 @@ import { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
+import type { ReviewFilter } from '../contracts/review-targets'
 import { batchLoadCustomFields, inChunks, type CustomFieldValue } from './custom-fields'
 import { queryEffect } from './errors'
 
 export const ISSUE_REF_PATTERN = /^([A-Z][A-Z0-9]*)-(\d{1,9})$/
 export interface IssueListOptions {
+  review?: ReviewFilter
   status?: typeof schema.issues.$inferSelect.status
   statusId?: string
   statusIds?: string
@@ -148,6 +150,17 @@ export function findIssueCustomField(db: D1Database, workspaceId: string, key: s
 function listConditions(workspaceId: string, options: IssueListOptions, visibility?: SQL): SQL[] {
   const conditions: SQL[] = [eq(schema.issues.workspaceId, workspaceId)]
   if (visibility) conditions.push(visibility)
+  if (options.review) {
+    const status =
+      options.review === 'active'
+        ? sql`review_attachment.review_status IN ('fixing', 'in_review', 'changes_requested')`
+        : sql`review_attachment.review_status = ${options.review}`
+    conditions.push(sql`EXISTS (SELECT 1 FROM attachments review_attachment
+      WHERE review_attachment.entity_id = ${schema.issues.id}
+        AND review_attachment.workspace_id = ${schema.issues.workspaceId}
+        AND review_attachment.entity_type = 'issue' AND review_attachment.kind IN ('file', 'url')
+        AND ${status})`)
+  }
   if (options.status) conditions.push(eq(schema.issues.status, options.status))
   if (options.statusId) conditions.push(eq(schema.issues.statusId, options.statusId))
   const statusIds = options.statusIds
@@ -349,6 +362,7 @@ export function getIssuesBatch(db: D1Database, workspaceId: string, options: Iss
 }
 
 export interface IssueSearchOptions {
+  review?: ReviewFilter
   query: string
   limit: number
   projectId?: string
@@ -390,6 +404,18 @@ export function searchIssues(
     if (visibility) {
       statement += ` AND ${visibility.sql}`
       params.push(...visibility.params)
+    }
+    if (options.review) {
+      statement += ` AND EXISTS (SELECT 1 FROM attachments review_attachment
+        WHERE review_attachment.entity_id = i.id AND review_attachment.workspace_id = i.workspace_id
+          AND review_attachment.workspace_id = ? AND review_attachment.entity_type = 'issue'
+          AND review_attachment.kind IN ('file', 'url') AND ${
+            options.review === 'active'
+              ? "review_attachment.review_status IN ('fixing', 'in_review', 'changes_requested')"
+              : 'review_attachment.review_status = ?'
+          })`
+      params.push(workspaceId)
+      if (options.review !== 'active') params.push(options.review)
     }
     statement += ' ORDER BY bm25(issues_fts) LIMIT ?'
     params.push(options.limit)

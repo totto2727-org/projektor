@@ -88,6 +88,46 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(html).toContain('Review targets: Review first +1 (レビュー中)')
     expect(html).not.toContain('Hidden target')
   })
+  it('loads cross-project review matches before pagination and applies the same filter to search', async () => {
+    const data = fixture()
+    data.sqlite.exec(`
+      UPDATE attachments SET review_status='in_review' WHERE id='file-a';
+      INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,entity_type,entity_id,created_by_id,created_at,review_status) VALUES
+        ('review-b','workspace-a','url','','Project B review','text/uri-list',0,'https://example.test/b','issue','issue-b','user-a',2,'in_review'),
+        ('hidden-review','workspace-a','url','','Secret review','text/uri-list',0,'https://example.test/hidden','issue','hidden-issue','user-a',3,'in_review');
+    `)
+    data.insertIssue({ id: 'newest-ordinary', number: 2, title: 'Ordinary issue', createdAt: 99 })
+    const url = new URL(`${listUrl}&review=in_review&limit=1`)
+    const first = await data.run(loadIssues(scope, url))
+    expect(first?.initialData.project).toBeNull()
+    expect(first?.initialData.page.total).toBe(2)
+    expect(first?.initialData.page.items.map((entry) => entry.id)).toEqual(['issue-b'])
+    expect(first?.initialData.page.items[0].assignee_id).toBeNull()
+    url.searchParams.set('cursor', String(first?.initialData.page.nextCursor))
+    const second = await data.run(loadIssues(scope, url))
+    expect(second?.initialData.page.items.map((entry) => entry.id)).toEqual(['issue-a'])
+    expect(second?.initialData.page.nextCursor).toBeNull()
+    const searchUrl = new URL(`${listUrl}&review=in_review&q=issue`)
+    const search = await data.run(loadIssues(scope, searchUrl))
+    expect(search?.initialData.search.results?.map((entry) => entry.id).sort()).toEqual(['issue-a', 'issue-b'])
+    data.sqlite.exec("UPDATE attachments SET review_status='done' WHERE id='review-b'")
+    const refreshed = await data.run(loadIssues(scope, searchUrl))
+    expect(refreshed?.initialData.search.results?.map((entry) => entry.id)).toEqual(['issue-a'])
+    expect(refreshed?.initialData.page.total).toBe(1)
+    const html = renderToString(await data.run(renderIssues(scope, searchUrl)))
+    expect(html).toContain('Original issue')
+    expect(html).not.toContain('Second project issue')
+    expect(html).not.toContain('Secret review')
+  })
+  it.each(['done', 'all', '', 'invalid'])(
+    'rejects unsupported review mode %s instead of silently broadening results',
+    async (review) => {
+      const data = fixture()
+      await expect(data.run(loadIssues(scope, new URL(`${listUrl}&review=${review}&q=issue`)))).rejects.toMatchObject({
+        status: 400,
+      })
+    },
+  )
   it('keeps workspace-wide issues and the full authorized project selector', async () => {
     const data = fixture()
     const result = await data.run(loadIssues(scope, listUrl))

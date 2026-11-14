@@ -516,6 +516,197 @@ test('issue review targets persist optional selection and four statuses across f
   }
 })
 
+test('workspace review spans projects and unassigned issues with native filtered pagination and search', async ({
+  request,
+  page,
+  browser,
+  baseURL,
+}, testInfo) => {
+  test.setTimeout(120_000)
+  const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
+  const workspaceSlug = `review-${suffix.toLowerCase()}`
+  const createdWorkspace = await request.post('http://127.0.0.1:4392/api/workspaces', {
+    data: { name: `Cross review workspace ${suffix}`, slug: workspaceSlug },
+  })
+  expect(createdWorkspace.status(), await createdWorkspace.text()).toBe(201)
+  const headers = { 'X-Workspace-Slug': workspaceSlug }
+  const session = await request.get('http://127.0.0.1:4392/auth/me')
+  expect(session.status()).toBe(200)
+  const { user } = await session.json()
+  const projects: { id: string; key: string; name: string }[] = []
+  for (const prefix of ['A', 'B']) {
+    const created = await request.post('http://127.0.0.1:4392/api/projects', {
+      headers,
+      data: { name: `Cross project ${prefix} ${suffix}`, key: `${prefix}${suffix}` },
+    })
+    expect(created.status(), await created.text()).toBe(201)
+    projects.push(await created.json())
+  }
+  const cases = [
+    { tag: 'Review assigned', project: 0, review: 'in_review', assigned: true },
+    { tag: 'Review unassigned', project: 1, review: 'in_review', assigned: false },
+    { tag: 'Fixing', project: 0, review: 'fixing', assigned: false },
+    { tag: 'Changes requested', project: 1, review: 'changes_requested', assigned: true },
+    { tag: 'Completed target', project: 0, review: 'done', assigned: false },
+    { tag: 'Ordinary newest', project: 1, review: null, assigned: false },
+  ]
+  const issues: {
+    id: string
+    number: number
+    title: string
+    targetLabel: string
+    review: string | null
+    project: (typeof projects)[number]
+  }[] = []
+  for (const fixture of cases) {
+    const project = projects[fixture.project]
+    const title = `Cross review ${suffix} ${fixture.tag}`
+    const created = await request.post('http://127.0.0.1:4392/api/issues', {
+      headers,
+      data: { projectId: project.id, title, status: 'backlog', ...(fixture.assigned ? { assigneeId: user.id } : {}) },
+    })
+    expect(created.status(), await created.text()).toBe(201)
+    const issue = await created.json()
+    const targetLabel = `${fixture.tag} target ${suffix}`
+    if (fixture.review !== null) {
+      const linked = await request.post('http://127.0.0.1:4392/api/files/links', {
+        headers,
+        data: {
+          kind: 'url',
+          entityType: 'issue',
+          entityId: issue.id,
+          url: `https://example.com/cross-review/${issue.id}`,
+          label: targetLabel,
+        },
+      })
+      expect(linked.status(), await linked.text()).toBe(201)
+      const attachment = await linked.json()
+      const selected = await request.patch(`http://127.0.0.1:4392/api/files/${attachment.id}/review-status`, {
+        headers,
+        data: { issueId: issue.id, status: fixture.review },
+      })
+      expect(selected.status(), await selected.text()).toBe(200)
+    }
+    issues.push({ id: issue.id, number: issue.number, title, targetLabel, review: fixture.review, project })
+  }
+  const visibleTitles = () =>
+    page.getByRole('link', { name: new RegExp(`^Cross review ${suffix} `) }).filter({ visible: true })
+  const assertReviewResults = async (review: string) => {
+    const expected = issues.filter((issue) =>
+      review === 'active' ? issue.review !== null && issue.review !== 'done' : issue.review === review,
+    )
+    await expect(visibleTitles()).toHaveCount(expected.length)
+    for (const issue of issues) {
+      const link = page.getByRole('link', { name: issue.title, exact: true }).filter({ visible: true })
+      if (expected.includes(issue)) await expect(link).toBeVisible()
+      else await expect(link).toHaveCount(0)
+    }
+  }
+  await page.goto(`/issues?workspace=${workspaceSlug}&projectId=${projects[0].id}`)
+  await expect(page.getByText(`表示範囲: ${projects[0].key} · ${projects[0].name}`, { exact: true })).toBeVisible()
+  await page.getByRole('link', { name: '全プロジェクトのレビュー', exact: true }).click()
+  await expect(page).toHaveURL(
+    (url) =>
+      url.searchParams.get('workspace') === workspaceSlug &&
+      url.searchParams.get('review') === 'in_review' &&
+      !url.searchParams.has('projectId') &&
+      !url.searchParams.has('project'),
+  )
+  await expect(page.getByText('表示範囲: アクセスできる全プロジェクト', { exact: true })).toBeVisible()
+  await assertReviewResults('in_review')
+  const reviewUrl = page.url()
+  for (const issue of issues.filter((entry) => entry.review === 'in_review')) {
+    await expect(
+      page.getByText(`${issue.project.key}-${issue.number}`, { exact: true }).filter({ visible: true }),
+    ).toBeVisible()
+    const summary = page
+      .getByRole('link', { name: `Review targets: ${issue.targetLabel} (レビュー中)`, exact: true })
+      .filter({ visible: true })
+    await summary.click()
+    await expect(page).toHaveURL(
+      (url) =>
+        url.searchParams.get('workspace') === workspaceSlug &&
+        url.searchParams.get('tab') === 'review-targets' &&
+        url.pathname.startsWith(`/projects/${issue.project.key}/issues/${issue.number}/`),
+    )
+    await expect(page.getByRole('heading', { name: issue.title, exact: true })).toBeVisible()
+    await expect(page.getByText(issue.project.name, { exact: true }).filter({ visible: true })).toBeVisible()
+    await page.goto(reviewUrl)
+  }
+  await checkpoint(page, testInfo, 'cross-project-review-assigned-and-unassigned')
+
+  const paged = new URL(reviewUrl)
+  paged.searchParams.set('limit', '1')
+  await page.goto(paged.href)
+  await expect(visibleTitles()).toHaveCount(1)
+  const firstTitle = await visibleTitles().innerText()
+  const pagination = page.getByRole('navigation', { name: 'Issue pagination', exact: true })
+  await pagination.getByRole('button', { name: 'Next page', exact: true }).click()
+  await expect(page).toHaveURL(
+    (url) =>
+      url.searchParams.has('cursor') &&
+      url.searchParams.get('review') === 'in_review' &&
+      url.searchParams.get('limit') === '1',
+  )
+  await expect(visibleTitles()).toHaveCount(1)
+  await expect(visibleTitles()).not.toHaveText(firstTitle)
+  await expect(pagination.getByRole('link', { name: 'First page', exact: true })).toBeVisible()
+  await checkpoint(page, testInfo, 'cross-project-review-native-next-page')
+
+  const tabs = page.getByRole('navigation', { name: 'レビューステータスで課題を絞り込む', exact: true })
+  await tabs.getByRole('link', { name: '修正中', exact: true }).click()
+  await expect(page).toHaveURL((url) => url.searchParams.get('review') === 'fixing' && !url.searchParams.has('cursor'))
+  await assertReviewResults('fixing')
+  const fullPage = new URL(page.url())
+  fullPage.searchParams.set('limit', '30')
+  await page.goto(fullPage.href)
+  for (const [review, label] of [
+    ['in_review', 'レビュー中'],
+    ['fixing', '修正中'],
+    ['changes_requested', '要修正'],
+    ['active', '未完了の対象'],
+  ]) {
+    await tabs.getByRole('link', { name: label, exact: true }).click()
+    await expect(page).toHaveURL((url) => url.searchParams.get('review') === review && !url.searchParams.has('cursor'))
+    await expect(tabs.getByRole('link', { name: label, exact: true })).toHaveAttribute('aria-current', 'page')
+    await assertReviewResults(review)
+    await page.getByRole('searchbox', { name: 'Search issues', exact: true }).fill(suffix)
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get('q') === suffix && url.searchParams.get('review') === review,
+    )
+    await assertReviewResults(review)
+    await page.reload()
+    await assertReviewResults(review)
+    await checkpoint(page, testInfo, `cross-project-review-search-${review}`)
+  }
+  const coldContext = await browser.newContext({ baseURL, javaScriptEnabled: false, viewport: page.viewportSize() })
+  try {
+    const cold = await coldContext.newPage()
+    observeBrowser(cold, testInfo)
+    expect((await cold.goto(page.url()))?.status()).toBe(200)
+    for (const issue of issues) {
+      const link = cold.getByRole('link', { name: issue.title, exact: true }).filter({ visible: true })
+      if (issue.review !== null && issue.review !== 'done') await expect(link).toBeVisible()
+      else await expect(link).toHaveCount(0)
+    }
+    await cold
+      .getByRole('navigation', { name: 'レビューステータスで課題を絞り込む', exact: true })
+      .getByRole('link', { name: '要修正', exact: true })
+      .click()
+    await expect(cold).toHaveURL(
+      (url) => url.searchParams.get('review') === 'changes_requested' && url.searchParams.get('q') === suffix,
+    )
+    await expect(
+      cold
+        .getByRole('link', { name: `Cross review ${suffix} Changes requested`, exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible()
+    await checkpoint(cold, testInfo, 'cross-project-review-cold-no-js-native-tab')
+  } finally {
+    await coldContext.close()
+  }
+})
+
 test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the header in front', async ({
   request,
   page,
