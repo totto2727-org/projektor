@@ -8,6 +8,6 @@ declare module 'virtual:fixture-migrations' {
 }
 
 declare module 'virtual:production-core-entrypoint' {
-  const entrypoint: typeof import('../../src/core/entry').default
+  const entrypoint: typeof import('../../core').default
   export default entrypoint
 }

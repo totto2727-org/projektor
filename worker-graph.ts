@@ -22,7 +22,7 @@ export const deployment = {
   },
   core: {
     name: 'projektor-core',
-    main: './src/core/entry.ts',
+    main: './core.ts',
     compatibility: { date: '2026-09-01', flags: ['nodejs_compat'] },
   },
   storage: {

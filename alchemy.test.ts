@@ -18,7 +18,7 @@ import Frontend, {
   localDevelopment,
 } from './alchemy'
 import { workers } from './alchemy.run'
-import CoreEntrypoint from './src/core/entry'
+import CoreEntrypoint from './core'
 
 function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<string, string>) {
   return effect.pipe(Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromUnknown(values)))
@@ -138,7 +138,7 @@ describe('source-owned private Core deployment', () => {
     expect(core.RemovalPolicy).toBe('retain')
     expect(core.Props).toMatchObject({
       name: 'projektor-core',
-      main: './src/core/entry.ts',
+      main: './core.ts',
       workersDev: { enabled: false, previewsEnabled: false },
     })
     for (const property of ['domain', 'routes', 'crons', 'migrations', 'access'])

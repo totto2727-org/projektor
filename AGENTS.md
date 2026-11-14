@@ -110,7 +110,7 @@ Treat production schema readiness as a rollout prerequisite, not as something a 
 `alchemy.ts` declares the public API, public Web and private Core Workers, and `alchemy.run.ts` deploys the stack together.
 LocalLayer and ProductionLayer aggregate environment-specific settings, adoption and storage/secret bindings, selected once at the composition boundary.
 Worker declarations resolve dependencies and dynamic imports only; Web routing and response behavior belong in `src/web/worker.ts`.
-Core's `main` selects `src/core/entry.ts`, whose default export composes Core with DeploymentLayer; `alchemy.ts` defaults to Frontend and is not a Core runtime entrypoint.
+Core's `main` selects the root `core.ts` composition module, whose default export provides DeploymentLayer; `alchemy.ts` defaults to Frontend and is not a Core runtime entrypoint.
 The native acceptance Core resolves the same configured production module before applying its test-only fixture wrapper.
 Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed account, storage IDs, API cron and the existing `RATE_LIMITER` / `RateLimiter` binding.
 Core has no public domain, route, workers.dev URL or preview URL.
