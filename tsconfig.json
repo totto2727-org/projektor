@@ -1,0 +1,26 @@
+{
+  "extends": ["@tsconfig/strictest/tsconfig.json", "@tsconfig/node-ts/tsconfig.json"],
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "exactOptionalPropertyTypes": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "noUncheckedIndexedAccess": false,
+    "types": ["node", "@cloudflare/workers-types", "@cloudflare/vitest-plugin/types", "vite/client"],
+    "paths": { "@/*": ["./src/web/*"] }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/e2e-alchemy/**/*.ts",
+    "tests/native-workers/**/*.ts",
+    "alchemy.ts",
+    "alchemy.run.ts",
+    "alchemy.test.ts",
+    "vite.config.ts",
+    "worker-graph.ts"
+  ]
+}

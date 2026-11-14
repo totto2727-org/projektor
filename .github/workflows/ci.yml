@@ -9,38 +9,37 @@ permissions:
   contents: read
 
 jobs:
-  retirement:
-    name: Verify legacy source retirement
+  check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - name: Verify retired sources and unchanged migration history
-        env:
-          RETIRED_REVISION: 841fd00c97eab7fb67c62b6a645b514e6c6989c9
-        shell: bash
+      - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
+        with:
+          dev-shell: ci
+      - uses: totto2727-org/monorepo/.github/actions/setup-typescript@main
+      - name: Verify Vite+ project
         run: |
-          set -euo pipefail
-          retired=(
-            apps/api apps/web packages plugins/github
-            package.json pnpm-lock.yaml pnpm-workspace.yaml
-            biome.json lefthook.yml tsconfig.base.json turbo.json
-            scripts/build-release.sh scripts/bundle-budget-lib.ts scripts/bundle-budget.ts
-            scripts/gen-conventions-page.ts scripts/gen-feedback-example-page.ts
-            scripts/release-assets/wrangler.example.toml
-            .github/workflows/docs.yml .github/workflows/release-prepare.yml
-            .github/workflows/release-tag.yml .github/workflows/release.yml
-          )
-          for path in "${retired[@]}"; do
-            if test -e "$path"; then
-              printf 'Retired source remains: %s\n' "$path" >&2
-              exit 1
-            fi
-          done
-          git diff --exit-code "$RETIRED_REVISION:packages/db/migrations" HEAD:migrations
-          git diff --exit-code "$RETIRED_REVISION" HEAD -- README.md apps/docs docs
-          git diff --check "$RETIRED_REVISION" HEAD
-          printf 'Legacy sources retired. Historical SQL and documentation are unchanged.\n'
-          printf 'This source-only transition has no runnable application. Application tests are not run.\n'
+          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#ci")"
+          vp run ci
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
+        with:
+          dev-shell: ci
+      - uses: totto2727-org/monorepo/.github/actions/setup-typescript@main
+      - name: Provision Chromium for local acceptance
+        run: |
+          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#ci")"
+          vp exec playwright install --with-deps chromium
+      - name: Exercise native API, Web and private Core Workers
+        run: |
+          eval "$(nix print-dev-env "$GITHUB_WORKSPACE#ci")"
+          vp run e2e

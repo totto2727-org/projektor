@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["./**/*.ts"],
+  "exclude": ["dist", "core-dist", ".runtime", "test-results", "playwright-report", "discovery-audited"]
+}

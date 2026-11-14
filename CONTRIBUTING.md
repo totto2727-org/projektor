@@ -15,14 +15,21 @@ via a public issue).
 
 ## Working in the code
 
-For this source transition, [AGENTS.md](./AGENTS.md) describes the retained files, validation, and production safety constraints.
-Read it before changing the removal scope.
+If you're modifying a fork, [AGENTS.md](./AGENTS.md) is the source of truth for
+conventions: file layout, the service-layer contract (REST and MCP must stay at
+parity), and how to work in parallel without conflicts. Read it before changing
+anything.
 
-This intermediate branch removes the original application before the replacement in [PR #4](https://github.com/totto2727-org/projektor/pull/4).
-It has no runnable API or Web application and no dependency installation, build, or deployment command.
-The `CI` workflow validates source removal, unchanged historical SQL, and unchanged documentation only.
-It does not run application tests.
+Run the checks through the Nix shell and Vite+ (see [AGENTS.md](./AGENTS.md) for the maintained task and deployment conventions):
 
-Review the source-removal PR first, then review PR #4 against that branch.
-After the removal PR reaches `main`, retarget PR #4 to `main` and verify its application CI and Worker acceptance again.
-Keep production unchanged until the replacement and its migration prerequisites have operator approval.
+```bash
+nix develop
+vp install --frozen-lockfile
+vp run ci
+```
+
+`vp run ci` checks formatting and types, then runs every configured test project, including the native Workers API regressions.
+Use `vp run test:workers` for the Workers project alone and `vp run e2e` for the real local API/Web Worker browser workflow.
+Use `vp run dev` for local development.
+CI checks pull requests and main, then deploys production only after successful checks on a main push.
+The application is one root package, without Turbo or a docs workspace.
