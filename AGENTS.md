@@ -107,11 +107,14 @@ Treat production schema readiness as a rollout prerequisite, not as something a 
 
 ## Production Safety
 
-`alchemy.ts` declares the public API, public Web and private Core Workers, and `alchemy.run.ts` deploys the stack together.
-LocalLayer and ProductionLayer aggregate environment-specific settings, adoption and storage/secret bindings, selected once at the composition boundary.
+`workers/api.ts`, `workers/frontend.ts` and `workers/core.ts` declare one Worker each; `alchemy.ts` assembles their resources and `alchemy.run.ts` deploys the stack together.
+`worker-environment.ts` owns LocalLayer and ProductionLayer, which aggregate environment-specific settings, adoption and storage/secret bindings, selected once at the composition boundary.
 Worker declarations resolve dependencies and dynamic imports only; Web routing and response behavior belong in `src/web/worker.ts`.
-Core's `main` selects the root `core.ts` composition module, whose default export provides DeploymentLayer; `alchemy.ts` defaults to Frontend and is not a Core runtime entrypoint.
-The native acceptance Core resolves the same configured production module before applying its test-only fixture wrapper.
+API, Frontend and Core declare their `main` in `worker-graph.ts`; Alchemy, the Frontend Vite plugin and browser acceptance consume those same entries rather than duplicating runtime paths.
+Frontend and Core default-export their own runtime resource with DeploymentLayer in the same module as its declaration; the stack imports their unprovided named resources so explicit environment Layer overrides still work.
+API retains its native HTTP default and Durable Object exports in `src/api/index.ts`; converting it to an Effect runtime is not required for consistency.
+`alchemy.ts` has no runtime default export and must not be used as a Worker main.
+The native acceptance API and Core resolve their configured production modules before applying test-only fixture wrappers.
 Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed account, storage IDs, API cron and the existing `RATE_LIMITER` / `RateLimiter` binding.
 Core has no public domain, route, workers.dev URL or preview URL.
 Only Core receives D1, and API's existing cron forwards maintenance to Core without moving the schedule or adding a second trigger.
@@ -154,7 +157,9 @@ The Wiki mobile page-tree drawer and backdrop begin below the header and remain 
 Groups retains its page heading and access explanation; Comark code blocks use readable GitHub light/dark palettes selected by the existing theme preference.
 It adds shared internal retrieval and domain commands behind a private Core Worker, while REST, MCP and Effront remain external adapters.
 Native Core service bindings replace the former direct Web/API D1 access to centralize persistent policy and storage ownership.
-Core has a dedicated default-export runtime entrypoint because Alchemy bundles the configured module's default, independently of the named resources declared by the stack.
+Each Worker has a dedicated default-export runtime entrypoint because Alchemy bundles the configured module's default, independently of the named resources declared by the stack.
+Worker declarations share dedicated modules under `workers/`, environment Layers are separate, and the stack assembly no longer doubles as Frontend's runtime entrypoint.
+All three Worker entry paths are centralized in `worker-graph.ts`, including acceptance's native API/Core wrappers and the application's Frontend Vite plugin.
 The Wiki editor serializes autosave, discard and publication, with durable per-user/page draft heads enforcing browser revision preconditions in D1.
 An active description editor keeps its native fallback across lazy chunk completion and retains the submitted draft until canonical issue props acknowledge the saved body.
 Legacy unversioned REST and MCP draft writes retain last-write-wins behavior but advance the same heads, invalidating stale versioned browser writes.
@@ -176,4 +181,4 @@ The old Workers pool is replaced with the maintained Vitest plugin, and immediat
 Test failures and unhandled rejections are not globally filtered by domain error kind.
 The documentation app and docs directory are intentionally removed at the user's request.
 Maintain this compact divergence record alongside behavior/configuration changes.
-Use `git diff ab122cbea1bae7efce8abe2345ce07375b9dcd13 -- src migrations alchemy.ts alchemy.run.ts vite.config.ts package.json .github` when reviewing fork changes.
+Use `git diff ab122cbea1bae7efce8abe2345ce07375b9dcd13 -- src migrations workers worker-environment.ts worker-graph.ts alchemy.ts alchemy.run.ts vite.config.ts package.json .github` when reviewing fork changes.

@@ -9,6 +9,7 @@ import { defineConfig } from 'vite-plus'
 import { configDefaults } from 'vite-plus/test/config'
 
 import { nativeCoreWorker } from './tests/native-workers/options'
+import { deployment } from './worker-graph'
 
 const ignorePatterns = await generateIgnorePatterns(new URL('.', import.meta.url))
 let nativeRunnerName = ''
@@ -17,7 +18,7 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
     effront({ application: './src/web/entry.effront.tsx' }),
-    effrontAlchemy({ worker: './alchemy.ts' }),
+    effrontAlchemy({ worker: deployment.frontend.main }),
     ...effrontTailwind({ stylesheet: './src/web/styles/app.css' }),
   ],
   run: {

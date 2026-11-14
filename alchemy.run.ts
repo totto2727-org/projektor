@@ -2,7 +2,8 @@ import { ALCHEMY_DEV, localState, Stack } from 'alchemy'
 import * as Cloudflare from 'alchemy/Cloudflare'
 import { Effect, Layer } from 'effect'
 
-import { DeploymentLayer, WorkerResources } from './alchemy'
+import { WorkerResources } from './alchemy'
+import { DeploymentLayer } from './worker-environment'
 
 export const workers = WorkerResources.pipe(Effect.provide(DeploymentLayer))
 
