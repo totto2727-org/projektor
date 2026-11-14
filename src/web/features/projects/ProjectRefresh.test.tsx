@@ -116,6 +116,38 @@ describe('project server-prop refresh', () => {
     expect(form && new FormData(form).get('projectId')).toBe('project-1')
   })
 
+  it('bounds the native workspace selector without losing explicit second-workspace submission', async () => {
+    const memberships = [
+      { id: 'workspace-1', name: 'Projektor', slug: 'projektor', role: 'owner' as const },
+      {
+        id: 'workspace-2',
+        name: 'Second workspace abc123',
+        slug: 'second-abc123',
+        role: 'owner' as const,
+      },
+    ]
+    render(withRuntime(<ProjectList initialProjects={[]} memberships={memberships} />))
+    fireEvent.click(screen.getByText('+ New project'))
+    const workspace = screen.getByRole('combobox', { name: 'Workspace' })
+    if (!(workspace instanceof HTMLSelectElement)) throw new Error('Workspace must remain a native select')
+    // JSDOM cannot measure layout. Guard the sizing contract used by the real mobile acceptance test.
+    expect(workspace.classList.contains('w-full')).toBe(true)
+    expect(workspace.classList.contains('min-w-0')).toBe(true)
+    expect(workspace.value).toBe('')
+    expect(workspace.required).toBe(true)
+    expect(screen.getByRole('option', { name: 'Second workspace abc123 (second-abc123)' })).toBeTruthy()
+
+    fireEvent.change(screen.getByPlaceholderText('My Project'), { target: { value: 'Second native abc123' } })
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Create project' }).hasAttribute('disabled')).toBe(true),
+    )
+    fireEvent.change(workspace, { target: { value: 'second-abc123' } })
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Create project' }).hasAttribute('disabled')).toBe(false),
+    )
+    expect(workspace.form && new FormData(workspace.form).get('workspaceSlug')).toBe('second-abc123')
+  })
+
   it('adopts refreshed overview props without erasing an active description draft', () => {
     const view = render(
       withRuntime(

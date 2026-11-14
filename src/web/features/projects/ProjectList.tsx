@@ -158,6 +158,8 @@ export function ProjectList({
                 {(field) =>
                   writable.length > 1 ? (
                     <select
+                      // Native selects otherwise size to their longest option, overflowing narrow forms.
+                      className='w-full min-w-0'
                       name='workspaceSlug'
                       required
                       aria-label='Workspace'
