@@ -2,7 +2,7 @@
 import '../../test/browser'
 // Native ActionState keeps typed server failures in the open form without discarding its TanStack draft.
 // Unexpected browser transport failures belong to the root React error boundary.
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vite-plus/test'
 
 import { createIssue } from '../../actions'
@@ -26,6 +26,12 @@ function Harness() {
   )
 }
 
+async function submitCreateForm() {
+  const submit = screen.getByRole('button', { name: /create issue/i })
+  await waitFor(() => expect(submit).toHaveProperty('disabled', false))
+  fireEvent.click(submit)
+}
+
 describe('useCreateIssueModal native ActionState failures', () => {
   it('keeps the entered draft when the server reports backend unavailability', async () => {
     vi.mocked(createIssue).mockResolvedValueOnce({
@@ -39,7 +45,7 @@ describe('useCreateIssueModal native ActionState failures', () => {
     fireEvent.input(screen.getByPlaceholderText('Issue title'), {
       target: { value: 'Fix the thing' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /create issue/i }))
+    await submitCreateForm()
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toMatch(/API is currently unreachable/i)
@@ -62,7 +68,7 @@ describe('useCreateIssueModal native ActionState failures', () => {
     fireEvent.input(screen.getByPlaceholderText('Issue title'), {
       target: { value: 'Fix the thing' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /create issue/i }))
+    await submitCreateForm()
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toMatch(/failed to create issue/i)
@@ -77,14 +83,14 @@ describe('useCreateIssueModal native ActionState failures', () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole('button', { name: 'New issue' }))
     fireEvent.input(screen.getByPlaceholderText('Issue title'), { target: { value: 'First draft' } })
-    fireEvent.click(screen.getByRole('button', { name: /create issue/i }))
+    await submitCreateForm()
     expect((await screen.findByRole('alert')).textContent).toContain('First attempt failed')
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     fireEvent.click(screen.getByRole('button', { name: 'New issue' }))
     expect(screen.queryByRole('alert')).toBeNull()
     expect((screen.getByPlaceholderText('Issue title') as HTMLInputElement).value).toBe('')
     fireEvent.input(screen.getByPlaceholderText('Issue title'), { target: { value: 'Second draft' } })
-    fireEvent.click(screen.getByRole('button', { name: /create issue/i }))
+    await submitCreateForm()
     expect((await screen.findByRole('alert')).textContent).toContain('Second attempt failed')
     expect((screen.getByPlaceholderText('Issue title') as HTMLInputElement).value).toBe('Second draft')
   })
