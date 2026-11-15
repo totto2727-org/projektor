@@ -1,6 +1,6 @@
 'use client'
 import { Schema } from 'effect'
-import { useActionState, useEffect, useRef, useState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 
 import { createIssue } from '../../actions'
 import { BodyText, Priority, RequiredText, Text, TitleText, useIssueForm } from '../../forms'
@@ -41,9 +41,9 @@ export function useCreateIssueModal({ workspaceSlug, filterProject, projects }: 
   const [createProjectId, setCreateProjectId] = createForm.field('createProjectId')
   const [createTypeId, setCreateTypeId] = createForm.field('createTypeId')
   const [result, submitCreate, submittingCreate] = useActionState(createIssue, null)
-  const openedResult = useRef(result)
+  const [openedResult, setOpenedResult] = useState(result)
   const createError =
-    result && result !== openedResult.current && !result.ok ? `Failed to create issue: ${result.message}` : null
+    result && result !== openedResult && !result.ok ? `Failed to create issue: ${result.message}` : null
   useEffect(() => {
     if (result?.ok) setShowCreateModal(false)
   }, [result])
@@ -69,7 +69,7 @@ export function useCreateIssueModal({ workspaceSlug, filterProject, projects }: 
     setCreatePriority('medium')
     setCreateStatusId('')
     setCreateTypeId('')
-    openedResult.current = result
+    setOpenedResult(result)
     setShowCreateModal(true)
   }
 

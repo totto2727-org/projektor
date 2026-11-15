@@ -19,9 +19,8 @@ export function useIssueMutations(workspaceSlug: string | undefined, statuses: r
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { statusId } }))
     } catch (cause) {
       setUpdateError(`Status update failed: ${String(cause)}`)
-    } finally {
-      setUpdatingId(null)
     }
+    setUpdatingId(null)
   }
 
   async function changePriority(issueId: string, priority: string) {
@@ -31,9 +30,8 @@ export function useIssueMutations(workspaceSlug: string | undefined, statuses: r
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { priority } }))
     } catch (cause) {
       setUpdateError(`Priority update failed: ${String(cause)}`)
-    } finally {
-      setUpdatingPriorityId(null)
     }
+    setUpdatingPriorityId(null)
   }
   return { updatingId, updatingPriorityId, updateError, changeStatus, changePriority }
 }

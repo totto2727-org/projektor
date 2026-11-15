@@ -148,9 +148,8 @@ export function ShareButton({ issueId, workspaceSlug }: { issueId: string; works
       setShareUrl(`${window.location.origin}${data.url}`)
     } catch {
       // non-fatal
-    } finally {
-      setSharingLoading(false)
     }
+    setSharingLoading(false)
   }
 
   function copyShareUrl() {
@@ -258,9 +257,8 @@ export function TitleSection({
       setEditingTitle(false)
     } catch (e) {
       setSaveTitleError(`Save failed: ${String(e)}`)
-    } finally {
-      setSavingTitle(false)
     }
+    setSavingTitle(false)
   }
 
   if (editingTitle) {
@@ -735,6 +733,7 @@ export function RelationsSection({
         resolved = unwrapResult(await Effect.runPromise(serverQuery(readIssue)({ issueId: ref, workspaceSlug })))
       } catch {
         setLinkFormError(`Issue ${ref} not found`)
+        setAddingLink(false)
         return
       }
 
@@ -746,9 +745,8 @@ export function RelationsSection({
       setLinkFormOpen(false)
     } catch (e) {
       setLinkFormError(String(e))
-    } finally {
-      setAddingLink(false)
     }
+    setAddingLink(false)
   }
 
   async function removeLink(linkId: string) {
@@ -1027,6 +1025,7 @@ function WikiPageLinkForm({
   useEffect(() => {
     if (!query.trim()) {
       setResults([])
+      setSearching(false)
       return
     }
     let cancelled = false
@@ -1039,9 +1038,8 @@ function WikiPageLinkForm({
         if (!cancelled) setResults(Array.isArray(data) ? data : [])
       } catch {
         if (!cancelled) setResults([])
-      } finally {
-        if (!cancelled) setSearching(false)
       }
+      if (!cancelled) setSearching(false)
     }, 250)
     return () => {
       cancelled = true
@@ -1201,12 +1199,12 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
     setLinkError(null)
     try {
       unwrapResult(await addAttachmentLink({ workspaceSlug, issueId, link: { kind: 'wiki_ref', wikiPageId } }))
+      reset()
       onDone()
     } catch (e) {
       setLinkError(String(e))
-    } finally {
-      setLinking(false)
     }
+    setLinking(false)
   }
 
   async function addUrl() {
@@ -1224,12 +1222,12 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
           link: { kind: 'url', url: urlValue.trim(), label: labelValue.trim() || undefined },
         }),
       )
+      reset()
       onDone()
     } catch (e) {
       setLinkError(String(e))
-    } finally {
-      setLinking(false)
     }
+    setLinking(false)
   }
 
   return {
@@ -1249,12 +1247,12 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
 function useAttachmentForms(issueId: string, workspaceSlug: string | undefined) {
   const [mode, setMode] = useState<AttachMode>('none')
 
+  const links = useAttachmentLinks(issueId, workspaceSlug, () => setMode('none'))
+
   function resetForms() {
     setMode('none')
     links.reset()
   }
-
-  const links = useAttachmentLinks(issueId, workspaceSlug, resetForms)
 
   // PROJ-876: a failed delete is shown, not swallowed.
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -1448,12 +1446,12 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
   const [savingComment, setSavingComment] = useState(false)
   const [editCommentError, setEditCommentError] = useState<string | null>(null)
   const commentRevision = useRef(0)
-  const originalCommentBody = useRef('')
-  useUnsavedUnloadGuard(editingCommentId !== null && editCommentBody !== originalCommentBody.current)
+  const [originalCommentBody, setOriginalCommentBody] = useState('')
+  useUnsavedUnloadGuard(editingCommentId !== null && editCommentBody !== originalCommentBody)
 
   function startEditComment(comment: Comment) {
     commentRevision.current += 1
-    originalCommentBody.current = comment.body
+    setOriginalCommentBody(comment.body)
     setEditingCommentId(comment.id)
     setEditCommentBody(comment.body)
     setEditCommentError(null)
@@ -1480,13 +1478,11 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
     setEditCommentError(null)
     try {
       unwrapResult(await editComment({ workspaceSlug, issueId, commentId, body: submittedBody }))
-      if (commentRevision.current !== revision) return
-      setEditingCommentId(null)
+      if (commentRevision.current === revision) setEditingCommentId(null)
     } catch (e) {
       setEditCommentError(`Save failed: ${String(e)}`)
-    } finally {
-      setSavingComment(false)
     }
+    setSavingComment(false)
   }
 
   async function doDeleteComment(commentId: string) {
@@ -1544,14 +1540,14 @@ function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, c
     setCommentError(null)
     try {
       unwrapResult(await addComment({ workspaceSlug, issueId, body: submittedBody }))
-      if (newCommentRevision.current !== revision) return
-      clearDraft(key)
-      setNewComment('')
+      if (newCommentRevision.current === revision) {
+        clearDraft(key)
+        setNewComment('')
+      }
     } catch (e) {
       setCommentError(`Failed to post comment: ${String(e)}`)
-    } finally {
-      setPostingComment(false)
     }
+    setPostingComment(false)
   }
 
   return { newComment, setNewComment: updateComment, postingComment, commentError, submitComment }
@@ -1749,10 +1745,9 @@ function PointsField({
       )
     } catch {
       // Keep the canonical display on failure. Unsaved editing values are local form state.
-    } finally {
-      setSavingPoints(false)
-      setEditingPoints(false)
     }
+    setSavingPoints(false)
+    setEditingPoints(false)
   }
 
   if (editingPoints) {

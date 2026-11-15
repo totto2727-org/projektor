@@ -2,7 +2,7 @@
 
 import { useForm } from '@tanstack/react-form'
 import { Schema } from 'effect'
-import { type ReactNode, useRef } from 'react'
+import { type ReactNode, useRef, useState } from 'react'
 
 import { Button } from '../../components/ui/Button'
 import { Select } from '../../components/ui/Select'
@@ -210,13 +210,13 @@ export function MetricsDashboard({
   heatmapMode?: HeatmapMode
   heatmapError?: string | null
 }) {
-  const defaults = useRef({
+  const [defaults] = useState(() => ({
     workspaceSlug,
     projectId,
     ...(initialRange ?? rangeFromUrl(new URL(initialUrl))),
     heatmapMode,
     prefix: new URL(initialUrl).searchParams.get('prefix') ?? '',
-  }).current
+  }))
   const element = useRef<HTMLFormElement>(null)
   const standard = Schema.toStandardSchemaV1(MetricsWindowSchema)
   const form = useForm({

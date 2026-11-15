@@ -78,10 +78,11 @@ export function ProjectLanding({
     try {
       unwrapResult(await archiveProject({ workspaceSlug: effectiveSlug, projectId: project.id, archived }))
     } catch (cause) {
-      setRequestError(`Save failed: ${cause instanceof Error ? cause.message : 'Unknown error'}`)
-    } finally {
       setArchiveBusy(false)
+      setRequestError(`Save failed: ${cause instanceof Error ? cause.message : 'Unknown error'}`)
+      return
     }
+    setArchiveBusy(false)
   }
 
   function startEditing() {

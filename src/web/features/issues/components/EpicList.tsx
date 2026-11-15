@@ -1,6 +1,6 @@
 'use client'
 import { Schema } from 'effect'
-import { useActionState, useEffect, useRef, useState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
@@ -131,9 +131,9 @@ function useCreateEpicForm(projectId: string | null, projects: readonly ProjectM
   const [createProjectId, setCreateProjectId] = createForm.field('createProjectId')
   const [createPriority, setCreatePriority] = createForm.field('createPriority')
   const [result, submitCreate, submitting] = useActionState(createIssue, null)
-  const openedResult = useRef(result)
+  const [openedResult, setOpenedResult] = useState(result)
   const createError =
-    result && result !== openedResult.current && !result.ok ? `Failed to create epic: ${result.message}` : null
+    result && result !== openedResult && !result.ok ? `Failed to create epic: ${result.message}` : null
   useEffect(() => {
     if (result?.ok) setShowCreate(false)
   }, [result])
@@ -143,7 +143,7 @@ function useCreateEpicForm(projectId: string | null, projects: readonly ProjectM
     setCreateProjectId(defaultCreateProjectId(projectId, projects))
     setCreateTitle('')
     setCreatePriority('medium')
-    openedResult.current = result
+    setOpenedResult(result)
     setShowCreate(true)
   }
 

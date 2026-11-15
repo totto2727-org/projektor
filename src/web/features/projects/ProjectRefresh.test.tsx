@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
 vi.mock('../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
@@ -18,7 +18,7 @@ vi.mock('../../client/functions', () => ({
 }))
 
 import { RuntimeProvider } from '../../client/runtime'
-import { createProject } from './actions'
+import { archiveProject, createProject } from './actions'
 import { ProjectLanding } from './ProjectLanding'
 import { ProjectList } from './ProjectList'
 import type { FlowMetrics, Project, RecentIssue, RecentWikiPage } from './schemas'
@@ -181,5 +181,34 @@ describe('project server-prop refresh', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     return waitFor(() => expect(screen.getByText('Canonical server description')).toBeTruthy())
+  })
+
+  it('releases a failed archive request without erasing the active description draft', async () => {
+    const pending = Promise.withResolvers<Awaited<ReturnType<typeof archiveProject>>>()
+    vi.mocked(archiveProject).mockReturnValueOnce(pending.promise)
+    vi.mocked(archiveProject).mockResolvedValueOnce({ ok: true, value: { ok: true } })
+    render(
+      withRuntime(
+        <ProjectLanding
+          initialProject={project('Original description')}
+          initialIssues={emptyIssues}
+          initialWiki={emptyWiki}
+          initialFlow={emptyFlow}
+          workspaceSlug='workspace'
+          canEdit
+        />,
+      ),
+    )
+    fireEvent.click(screen.getByLabelText('Edit project description'))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+    expect(screen.getByRole('button', { name: 'Archive' }).hasAttribute('disabled')).toBe(true)
+    fireEvent.change(screen.getByLabelText('Project description'), { target: { value: 'Draft during archive' } })
+    await act(async () => pending.reject(new Error('Archive unavailable')))
+    expect(screen.getByRole('alert').textContent).toContain('Archive unavailable')
+    expect(screen.getByRole('button', { name: 'Archive' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByLabelText('Project description')).toHaveProperty('value', 'Draft during archive')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Archive' })))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Archive' }).hasAttribute('disabled')).toBe(false)
   })
 })

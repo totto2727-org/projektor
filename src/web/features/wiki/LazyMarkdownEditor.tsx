@@ -5,6 +5,10 @@ import { useEffect, useState } from 'react'
 
 import type { Props } from './MarkdownEditor'
 
+// React Compiler does not yet lower dynamic imports inside components or effects.
+// This module loader is still called lazily by the mount effect below.
+const loadMarkdownEditor = () => import('./MarkdownEditor')
+
 // Keep the native input usable while the enhanced editor loads.
 // Once editing starts, retain that control until this editor unmounts.
 function EditorFallback({
@@ -43,7 +47,7 @@ export default function LazyMarkdownEditor(props: Props) {
 
   useEffect(() => {
     let cancelled = false
-    import('./MarkdownEditor')
+    loadMarkdownEditor()
       .then((m) => {
         // Wrapped in a thunk: a bare component would be read as a state updater.
         if (!cancelled) setEditor(() => m.default)

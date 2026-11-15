@@ -2,7 +2,7 @@
 
 import { useForm } from '@tanstack/react-form'
 import { Schema } from 'effect'
-import { useActionState, useEffect, useRef, useState } from 'react'
+import { useActionState, useEffect, useEffectEvent, useState } from 'react'
 
 import { unwrapResult } from '../../client/functions'
 import { Badge } from '../../components/ui/Badge'
@@ -89,9 +89,8 @@ export function SprintManager({
       setSummary({ sprint, issues: completedIssues })
     } catch (error) {
       setCompleteError(String(error))
-    } finally {
-      setCompleting(false)
     }
+    setCompleting(false)
   }
   const scopeQuery = new URLSearchParams({ projectId, workspace: workspaceSlug })
   return (
@@ -224,15 +223,14 @@ function SprintForm({
   onCancel: () => void
   submitLabel: string
 }) {
-  const defaults = useRef(initialValues).current
+  const [defaults] = useState(() => initialValues)
   const [result, formAction, busy] = useActionState<ActionResult<{ id: string } | { ok: true }> | null, FormData>(
     sprintId ? editSprint : createSprint,
     null,
   )
-  const success = useRef(onSuccess)
-  success.current = onSuccess
+  const success = useEffectEvent(onSuccess)
   useEffect(() => {
-    if (result?.ok) success.current()
+    if (result?.ok) success()
   }, [result])
   const standard = Schema.toStandardSchemaV1(SprintFormSchema)
   const form = useForm({
@@ -402,9 +400,8 @@ function SprintRow({
       unwrapResult(await setSprintStatus({ workspaceSlug, projectId, sprintId: sprint.id, status }))
     } catch (cause) {
       setError(String(cause))
-    } finally {
-      setBusy(false)
     }
+    setBusy(false)
   }
   async function archiveConfirmed() {
     if (busy) return
@@ -415,9 +412,8 @@ function SprintRow({
       setArchive(false)
     } catch (cause) {
       setError(String(cause))
-    } finally {
-      setBusy(false)
     }
+    setBusy(false)
   }
   const query = new URLSearchParams({ projectId, workspace: workspaceSlug, sprintId: sprint.id })
   return (
@@ -570,13 +566,13 @@ function MoveIssuesForm({
   projectId: string
   onClose: () => void
 }) {
-  const defaults = useRef({
+  const [defaults] = useState(() => ({
     workspaceSlug,
     projectId,
     sprintId: sprint.id,
     targetId: '',
     issueIds: issues.filter((issue) => issue.status_category !== 'done').map((issue) => issue.id),
-  }).current
+  }))
   const standard = Schema.toStandardSchemaV1(MoveSprintIssuesSchema)
   const [error, setError] = useState<string | null>(null)
   const form = useForm({

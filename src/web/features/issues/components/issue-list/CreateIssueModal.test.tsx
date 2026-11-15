@@ -5,7 +5,6 @@ import '../../test/browser'
 // MarkdownEditor is the toolbar's Bold button — so every click in the editor body
 // was forwarded to Bold and wrapped subsequent typing in `**`.
 import { render, screen } from '@testing-library/react'
-import { useEffect } from 'react'
 import { describe, expect, it } from 'vite-plus/test'
 
 import type { TaskStatus } from '../board-utils'
@@ -19,10 +18,6 @@ function Harness() {
     filterProject: '',
     projects: PROJECTS,
   })
-  // biome-ignore lint/correctness/useExhaustiveDependencies: test harness opens the modal exactly once, as a user click would.
-  useEffect(() => {
-    modal.openCreateModal()
-  }, [])
   return <CreateIssueModal {...modal} projects={PROJECTS} taskTypes={[]} statuses={[]} />
 }
 
@@ -56,10 +51,6 @@ function FieldsHarness() {
     filterProject: '',
     projects: TWO_PROJECTS,
   })
-  // biome-ignore lint/correctness/useExhaustiveDependencies: test harness opens the modal exactly once, as a user click would.
-  useEffect(() => {
-    modal.openCreateModal()
-  }, [])
   return <CreateIssueModal {...modal} projects={TWO_PROJECTS} taskTypes={TASK_TYPES} statuses={STATUSES} />
 }
 
