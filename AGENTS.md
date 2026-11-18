@@ -100,10 +100,15 @@ An appended migration cannot repair a database that fails before reaching it.
 Before resuming such a legacy upgrade, use an offline restored copy and an explicitly approved old-to-new mapping against the complete workspace namespace.
 Preserve page identity, redirect ownership, versions and foreign keys, then replay the unchanged remaining history and verify the result.
 Do not automatically rename user content, fabricate ledger entries, replay production migrations or treat fresh empty replay as populated-upgrade proof.
-Production migration or data repair requires separate operator authorization and a recoverable backup.
+Normal authorized production deployments apply pending migrations after `0067` through the Alchemy Actions in `deployment-migrations.ts`, retaining the existing `d1_migrations` table and every applied row.
+The checkpoint Action saves a pre-write D1 Time Travel bookmark in encrypted deployment state before the migration Action runs.
+A durable `__projektor_migration_attempts` row is inserted before each migration, and an attempt without a matching applied ledger entry blocks later deployments rather than blindly retrying ambiguous SQL.
+Inspect the database and the saved checkpoint before any operator-approved recovery of an unconfirmed attempt; never delete its marker just to make a deployment pass.
+Legacy upgrades through `0067`, data repair and production restoration still require separate operator authorization and a recoverable backup.
+The only allowed out-of-order gap is the independent `0068_wiki_draft_heads.sql` after incident-applied `0069_attachment_review_status.sql`; other gaps fail closed.
 The versioned Wiki editor requires `0068_wiki_draft_heads.sql` before its first production request.
-Local and acceptance fixtures apply this appended migration, but production's external D1 binding does not apply it automatically.
-Treat production schema readiness as a rollout prerequisite, not as something a successful CI run or Worker deployment proves.
+Local and acceptance fixtures apply it, and production applies it as part of the next authorized deployment before normal Worker updates.
+A successful CI run or read-only plan does not prove production schema readiness.
 
 ## Production Safety
 
@@ -119,7 +124,7 @@ Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed a
 Core has no public domain, route, workers.dev URL or preview URL.
 Only Core receives D1, and API's existing cron forwards maintenance to Core without moving the schedule or adding a second trigger.
 Preserve the dedicated `OAUTH_KV` binding on API for the official provider and on Core for grant checks and cleanup, using the same existing namespace in both Workers.
-Existing production D1/KV/R2 are external bindings, not resources to recreate or migrate automatically.
+Existing production D1/KV/R2 remain external bindings, not resources to recreate or adopt; only pending D1 SQL migrations are applied automatically during an authorized deployment.
 Do not replay the historical unbound WorkspaceHub migration.
 Production inherits the existing JWT_SECRET through a standard Cloudflare `inherit` binding when no local value is supplied.
 Only initial secret creation needs JWT_SECRET through Alchemy's standard redacted configuration; explicitly supplying a value updates it.
@@ -168,6 +173,9 @@ Legacy unversioned REST and MCP draft writes retain last-write-wins behavior but
 This architecture does not imply a performance improvement.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
 Production deployment is a separate workflow gated on successful main-push CI, with the tested revision, production environment and serialized deployments preserved.
+Production-only Alchemy Actions migrate the fixed external D1 before normal updates of all three Workers, using a direct shared `ENVIRONMENT` output dependency on each Worker rather than relying on an unchanged Core.
+The custom Action retains Wrangler's existing migration ledger because the installed native Alchemy D1 runner would convert it to `__alchemy_migrations`.
+Planning and runtime capture never execute migration Action bodies, and application runtime source and public storage boundaries are unchanged.
 Deployment uses standard Alchemy configuration without custom confirmation flags, preflight gates or secret-value validation.
 Environment differences are provided through aggregate Effect Layers rather than leaf-level local/production branches, and runtime request handling stays outside Worker declarations.
 JWT secrets remain Cloudflare-owned across normal deployments through standard binding inheritance, without reading their values or storing them in project state.

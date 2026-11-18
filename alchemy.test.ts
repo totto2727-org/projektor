@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 
+import { Credentials } from '@distilled.cloud/cloudflare/Credentials'
+import { NodeServices } from '@effect/platform-node'
 import { Stack } from 'alchemy'
 import { AdoptPolicy } from 'alchemy/AdoptPolicy'
 import { CloudflareEnvironment, Providers } from 'alchemy/Cloudflare'
@@ -7,11 +9,18 @@ import type { WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
 import { dedupeBindings, diffBindings } from 'alchemy/Diff'
 import * as Output from 'alchemy/Output'
 import { ConfigProvider, Effect, Redacted } from 'effect'
+import * as HttpClient from 'effect/http/HttpClient'
 import { describe, expect, it } from 'vite-plus/test'
 
 import { WorkerResources } from './alchemy'
 import { workers } from './alchemy.run'
-import { LocalLayer, ProductionLayer, existingStorageBindings, localDevelopment } from './worker-environment'
+import {
+  type EnvironmentLayer,
+  LocalLayer,
+  ProductionLayer,
+  existingStorageBindings,
+  localDevelopment,
+} from './worker-environment'
 import { deployment } from './worker-graph'
 import CoreEntrypoint from './workers/core'
 import Frontend from './workers/frontend'
@@ -23,7 +32,7 @@ function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<stri
 async function register(
   local: boolean,
   productionSecret: string | null = 'test-existing-production-value',
-  environmentLayer?: typeof LocalLayer | typeof ProductionLayer,
+  environmentLayer?: EnvironmentLayer,
   extraConfig: Record<string, string> = {},
   accountId = deployment.accountId,
 ) {
@@ -40,6 +49,12 @@ async function register(
       ...(productionSecret === null ? {} : { JWT_SECRET: productionSecret }),
       ...extraConfig,
     }).pipe(
+      Effect.provide(NodeServices.layer),
+      Effect.provideService(Credentials, Effect.die(new Error('Registration resolved Cloudflare credentials'))),
+      Effect.provideService(
+        HttpClient.HttpClient,
+        HttpClient.make(() => Effect.die(new Error('Registration called a cloud API'))),
+      ),
       Effect.provideService(Stack, stack),
       Effect.provideService(AdoptPolicy, true),
       Effect.provideService(
@@ -115,6 +130,12 @@ describe('source-owned private Core deployment', () => {
     })
     await Effect.runPromise(
       entrypoint.pipe(
+        Effect.provide(NodeServices.layer),
+        Effect.provideService(Credentials, Effect.die(new Error('Registration resolved Cloudflare credentials'))),
+        Effect.provideService(
+          HttpClient.HttpClient,
+          HttpClient.make(() => Effect.die(new Error('Registration called a cloud API'))),
+        ),
         Effect.provideService(Stack, stack),
         Effect.provideService(ConfigProvider.ConfigProvider, provider),
         Effect.provideService(CloudflareEnvironment, Effect.die(new Error('Runtime resolved deployment profile'))),
@@ -128,6 +149,7 @@ describe('source-owned private Core deployment', () => {
       ),
     )
     expect(Object.keys(stack.resources).sort()).toEqual(ids)
+    expect(stack.actions).toEqual({})
     expect(new Set(reads)).toEqual(new Set(['ALCHEMY_PHASE']))
     expect(stack.resources.Core.Props.env).not.toHaveProperty('DB')
     expect(bindings(stack, 'Core').some((binding) => binding.type === 'd1')).toBe(false)
@@ -166,6 +188,31 @@ describe('source-owned private Core deployment', () => {
     }
     for (const name of ['JWT_SECRET', 'API', 'API_BASE']) expect(frontend.Props.env).not.toHaveProperty(name)
     expect(core.Props.env).not.toHaveProperty('JWT_SECRET')
+  })
+
+  it('registers read-only production migration Actions and directly gates every Worker update', async () => {
+    const { stack } = await register(false)
+    expect(Object.keys(stack.actions).sort()).toEqual(['DatabaseMigrationCheckpoint', 'DatabaseMigrations'])
+    const checkpoint = stack.actions.DatabaseMigrationCheckpoint
+    const migrations = stack.actions.DatabaseMigrations
+    expect(checkpoint.Type).toBe('projektor/PrepareDatabaseMigrations')
+    expect(Output.isOutput(migrations.Input.checkpoint)).toBe(true)
+    expect(migrations.Input.checkpoint.kind).toBe('ResourceExpr')
+    expect(migrations.Input.checkpoint.src.LogicalId).toBe(checkpoint.LogicalId)
+    expect(checkpoint.Input).toMatchObject({
+      accountId: deployment.accountId,
+      databaseId: deployment.storage.database.id,
+    })
+    expect(checkpoint.Input.files.map((file: { name: string }) => file.name)).toContain('0068_wiki_draft_heads.sql')
+    for (const id of ['Core', 'Api', 'Frontend']) {
+      const environment = stack.resources[id].Props.env?.ENVIRONMENT
+      expect(Output.isOutput(environment)).toBe(true)
+      expect(environment.kind).toBe('PropExpr')
+      expect(environment.identifier).toBe('environment')
+      expect(environment.expr.src.LogicalId).toBe(migrations.LogicalId)
+    }
+    const local = await register(true)
+    expect(local.stack.actions).toEqual({})
   })
 
   it('grants business storage only to Core and shares only official OAuth protocol KV with API', async () => {
@@ -314,7 +361,7 @@ describe('source-owned private Core deployment', () => {
     const production = await register(false, null, undefined, { DEV_USER_EMAIL: 'untrusted@example.com' })
     for (const resource of [production.api, production.core, production.frontend]) {
       expect(resource.Props.env).toMatchObject({
-        ENVIRONMENT: 'production',
+        ENVIRONMENT: expect.objectContaining({ kind: 'PropExpr', identifier: 'environment' }),
         AUTO_JOIN_ROLE: 'none',
         CF_ACCESS_TEAM_DOMAIN: deployment.access.teamDomain,
         CF_ACCESS_AUDIENCE: deployment.access.audience,
@@ -334,7 +381,9 @@ describe('source-owned private Core deployment', () => {
     const production = await register(true, null, ProductionLayer)
     expect(Object.keys(production.stack.resources).sort()).toEqual(['Api', 'Core', 'Frontend'])
     expect(production.api.Adopt).toBe(true)
-    expect(production.core.Props.env).toMatchObject({ ENVIRONMENT: 'production' })
+    expect(production.core.Props.env).toMatchObject({
+      ENVIRONMENT: expect.objectContaining({ kind: 'PropExpr', identifier: 'environment' }),
+    })
     expect(bindings(production.stack, 'Core')).toEqual(expect.arrayContaining(existingStorageBindings()))
     expectNoStorage(production.stack, 'Api')
     expectNoStorage(production.stack, 'Frontend')

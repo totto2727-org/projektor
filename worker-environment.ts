@@ -4,6 +4,7 @@ import * as Cloudflare from 'alchemy/Cloudflare'
 import { type Worker, type WorkerBinding, type WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
 import { Config, Context, Effect, Layer, Option, Redacted } from 'effect'
 
+import { productionMigrations } from './deployment-migrations'
 import { deployment } from './worker-graph'
 
 export const localDevelopment = {
@@ -92,11 +93,13 @@ export const ProductionLayer = Layer.mergeAll(
   Layer.effect(
     DeploymentEnvironment,
     Effect.gen(function* () {
+      const migrations = yield* productionMigrations
       const secret = yield* Config.Redacted('JWT_SECRET').pipe(Config.option, Effect.orDie)
       const secretEnv: WorkerBindingProps = Option.isSome(secret) ? { JWT_SECRET: secret.value } : {}
       const sharedEnvironment = {
         ...commonApplicationEnvironment,
-        ENVIRONMENT: 'production',
+        // Each Worker needs its own Action edge: an unchanged Core does not gate adapters.
+        ENVIRONMENT: migrations.environment,
         ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
       }
       return {
@@ -130,9 +133,17 @@ const RuntimeLayer = Layer.mergeAll(
   }),
 )
 
+type EnvironmentLayers = typeof LocalLayer | typeof ProductionLayer | typeof RuntimeLayer
+export type EnvironmentLayer = Layer.Layer<
+  Layer.Success<EnvironmentLayers>,
+  Layer.Error<EnvironmentLayers>,
+  Layer.Services<EnvironmentLayers>
+>
+
 export const DeploymentLayer = Layer.unwrap(
   Effect.gen(function* () {
-    if ((yield* ALCHEMY_PHASE) === 'runtime') return RuntimeLayer
-    return (yield* ALCHEMY_DEV) ? LocalLayer : ProductionLayer
+    const layer: EnvironmentLayer =
+      (yield* ALCHEMY_PHASE) === 'runtime' ? RuntimeLayer : (yield* ALCHEMY_DEV) ? LocalLayer : ProductionLayer
+    return layer
   }),
 )

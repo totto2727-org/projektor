@@ -20,6 +20,9 @@
     "alchemy.ts",
     "alchemy.run.ts",
     "alchemy.test.ts",
+    "deployment-migrations.ts",
+    "deployment-migrations*.test.ts",
+    "worker-environment.ts",
     "vite.config.ts",
     "worker-graph.ts"
   ]
