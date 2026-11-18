@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { dateInputToUnix, getStoryPoints, unixToDateInput } from './helpers'
@@ -61,6 +61,38 @@ beforeEach(() => {
 })
 
 describe('original SprintManager with TanStack schemas and semantic Effront calls', () => {
+  it('retains a pending native edit across canonical refresh and closes after the result arrives', async () => {
+    const pending = Promise.withResolvers<{ ok: true; value: { ok: true } }>()
+    request.mockReturnValueOnce(pending.promise)
+    const view = render(<SprintManager {...props} initialSprints={[sprint()]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'Submitted draft' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save sprint' }))
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(1))
+    view.rerender(<SprintManager {...props} initialSprints={[sprint('sprint-a', 'active', 'Canonical refresh')]} />)
+    const name = screen.getByLabelText<HTMLInputElement>('Name *')
+    expect(name.value).toBe('Submitted draft')
+    expect(name.disabled).toBe(true)
+    expect(screen.getAllByText('Canonical refresh')).toHaveLength(2)
+    await act(async () => pending.resolve({ ok: true, value: { ok: true } }))
+    await waitFor(() => expect(screen.queryByLabelText('Name *')).toBeNull())
+    expect(screen.getAllByText('Canonical refresh')).toHaveLength(2)
+    expect(request).toHaveBeenCalledTimes(1)
+  })
+  it('releases pending status and archive controls after rejected requests for a safe retry', async () => {
+    request.mockRejectedValueOnce(new Error('Status transport failure'))
+    render(<SprintManager {...props} initialSprints={[sprint('sprint-a', 'planned')]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start sprint' }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Status transport failure'))
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Start sprint' }).disabled).toBe(false)
+    request.mockRejectedValueOnce(new Error('Archive transport failure'))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, archive' }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Archive transport failure'))
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Yes, archive' }).disabled).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, archive' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Yes, archive' })).toBeNull())
+  })
   it('keeps native create drafts and exposes typed failure until a successful retry', async () => {
     request.mockResolvedValueOnce({ ok: false, status: 409, message: 'Sprint conflict' })
     render(<SprintManager {...props} initialSprints={[]} />)

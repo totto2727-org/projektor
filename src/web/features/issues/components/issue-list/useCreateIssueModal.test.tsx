@@ -2,8 +2,7 @@
 import '../../test/browser'
 // Native ActionState keeps typed server failures in the open form without discarding its TanStack draft.
 // Unexpected browser transport failures belong to the root React error boundary.
-import { fireEvent, render, screen } from '@testing-library/react'
-import { useEffect } from 'react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vite-plus/test'
 
 import { createIssue } from '../../actions'
@@ -17,13 +16,20 @@ function Harness() {
     filterProject: '',
     projects: PROJECTS,
   })
-  // The real flow sets createProjectId via openCreateModal() when the "New issue"
-  // button is clicked; this harness skips that button and opens the modal directly.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: test harness opens the modal exactly once, as a user click would.
-  useEffect(() => {
-    modal.openCreateModal()
-  }, [])
-  return <CreateIssueModal {...modal} projects={PROJECTS} taskTypes={[]} statuses={[]} />
+  return (
+    <>
+      <button type='button' onClick={modal.openCreateModal}>
+        New issue
+      </button>
+      {modal.showCreateModal && <CreateIssueModal {...modal} projects={PROJECTS} taskTypes={[]} statuses={[]} />}
+    </>
+  )
+}
+
+async function submitCreateForm() {
+  const submit = screen.getByRole('button', { name: /create issue/i })
+  await waitFor(() => expect(submit).toHaveProperty('disabled', false))
+  fireEvent.click(submit)
 }
 
 describe('useCreateIssueModal native ActionState failures', () => {
@@ -35,10 +41,11 @@ describe('useCreateIssueModal native ActionState failures', () => {
     })
 
     render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'New issue' }))
     fireEvent.input(screen.getByPlaceholderText('Issue title'), {
       target: { value: 'Fix the thing' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /create issue/i }))
+    await submitCreateForm()
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toMatch(/API is currently unreachable/i)
@@ -57,13 +64,34 @@ describe('useCreateIssueModal native ActionState failures', () => {
     })
 
     render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'New issue' }))
     fireEvent.input(screen.getByPlaceholderText('Issue title'), {
       target: { value: 'Fix the thing' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /create issue/i }))
+    await submitCreateForm()
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toMatch(/failed to create issue/i)
     expect(alert.textContent).not.toMatch(/you're offline/i)
+  })
+
+  it('clears a previous failure when reopening and displays a new failed attempt', async () => {
+    vi.mocked(createIssue)
+      .mockResolvedValueOnce({ ok: false, status: 500, message: 'First attempt failed' })
+      .mockResolvedValueOnce({ ok: false, status: 502, message: 'Second attempt failed' })
+
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'New issue' }))
+    fireEvent.input(screen.getByPlaceholderText('Issue title'), { target: { value: 'First draft' } })
+    await submitCreateForm()
+    expect((await screen.findByRole('alert')).textContent).toContain('First attempt failed')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New issue' }))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect((screen.getByPlaceholderText('Issue title') as HTMLInputElement).value).toBe('')
+    fireEvent.input(screen.getByPlaceholderText('Issue title'), { target: { value: 'Second draft' } })
+    await submitCreateForm()
+    expect((await screen.findByRole('alert')).textContent).toContain('Second attempt failed')
+    expect((screen.getByPlaceholderText('Issue title') as HTMLInputElement).value).toBe('Second draft')
   })
 })

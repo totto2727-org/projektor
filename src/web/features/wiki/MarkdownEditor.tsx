@@ -4,7 +4,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { EditorSelection, EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { useMarkdownPreview } from '../../components/markdown/MarkdownPreview'
 import { imageUploads, insertUploadedImages } from './image-uploads'
@@ -216,10 +216,9 @@ function useMarkdownEditorView(
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   // The domEventHandlers extension below is installed once, in the mount effect — read
-  // through a ref (updated every render, not just on mount) so it always calls whichever
+  // through a ref (updated at commit, not just on mount) so it always calls whichever
   // onImageFile the latest render passed, rather than closing over the first one forever.
   const onImageFileRef = useRef(onImageFile)
-  onImageFileRef.current = onImageFile
   // The last doc content WE emitted via onChange. The "sync externally-driven value"
   // effect below compares the incoming `value` prop against this — not against the
   // live doc — so a same-tick echo of our own change (however delayed by Preact's
@@ -236,7 +235,10 @@ function useMarkdownEditorView(
   const applyingExternal = useRef(false)
   const initialConfigRef = useRef({ value, minHeight, ariaLabel })
   const onChangeRef = useRef(onChange)
-  onChangeRef.current = onChange
+  useLayoutEffect(() => {
+    onImageFileRef.current = onImageFile
+    onChangeRef.current = onChange
+  }, [onImageFile, onChange])
 
   useEffect(() => {
     // PROJ-506: this effect is scheduled via Preact's rAF-batched effect flush, so it
@@ -320,7 +322,6 @@ function useMarkdownEditorView(
       view.destroy()
       viewRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Sync externally-driven value changes (e.g. switching issues). If `value` matches
@@ -339,9 +340,11 @@ function useMarkdownEditorView(
       view.dispatch({
         changes: { from: 0, to: current.length, insert: value },
       })
-    } finally {
+    } catch (error) {
       applyingExternal.current = false
+      throw error
     }
+    applyingExternal.current = false
   }, [value])
 
   return { containerRef, viewRef }

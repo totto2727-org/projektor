@@ -223,12 +223,12 @@ function GroupDetailEditor({
   const [memberResult, memberAction, memberPending] = useActionState(addGroupMember, null)
   const [grantResult, grantAction, grantPending] = useActionState(createGroupGrant, null)
   const busy = operationBusy || namePending || descriptionPending || memberPending || grantPending
-  const defaults = useRef({
+  const [defaults] = useState(() => ({
     name: { workspaceSlug: slug, groupId: detail.id, name: detail.name },
     description: { workspaceSlug: slug, groupId: detail.id, description: detail.description ?? '' },
     member: { workspaceSlug: slug, groupId: detail.id, userId: '' },
     grant: { workspaceSlug: slug, groupId: detail.id, projectId: '', role: 'member' as GrantRole },
-  }).current
+  }))
   const nameValidator = Schema.toStandardSchemaV1(RenameGroupInputSchema)
   const descriptionValidator = Schema.toStandardSchemaV1(GroupDescriptionInputSchema)
   const memberValidator = Schema.toStandardSchemaV1(GroupMemberInputSchema)
@@ -270,10 +270,11 @@ function GroupDetailEditor({
     try {
       unwrapResult(await removeGroupMember({ workspaceSlug: slug, groupId: detail.id, userId }))
     } catch (cause) {
-      setError(String(cause))
-    } finally {
       setBusy(false)
+      setError(String(cause))
+      return
     }
+    setBusy(false)
   }
   async function removeGrant(projectId: string) {
     if (busy) return
@@ -282,10 +283,11 @@ function GroupDetailEditor({
     try {
       unwrapResult(await removeGroupGrant({ workspaceSlug: slug, groupId: detail.id, projectId }))
     } catch (cause) {
-      setError(String(cause))
-    } finally {
       setBusy(false)
+      setError(String(cause))
+      return
     }
+    setBusy(false)
   }
   return (
     <section className={CARD}>
@@ -565,12 +567,12 @@ function GrantRoleForm({
   onBusy: (busy: boolean) => void
   onError: (error: string | null) => void
 }) {
-  const defaults = useRef({
+  const [defaults] = useState(() => ({
     workspaceSlug,
     groupId,
     projectId: grant.projectId,
     role: grant.role,
-  }).current
+  }))
   const standard = Schema.toStandardSchemaV1(GroupGrantInputSchema)
   const form = useForm({
     defaultValues: defaults,
@@ -581,10 +583,11 @@ function GrantRoleForm({
       try {
         unwrapResult(await setGroupGrant(value))
       } catch (cause) {
-        onError(String(cause))
-      } finally {
         onBusy(false)
+        onError(String(cause))
+        return
       }
+      onBusy(false)
     },
   })
   return (
@@ -639,7 +642,7 @@ export function GroupManager({
   const tabs: Tab[] = admin ? ['members', 'groups'] : ['groups']
   const activeTab = admin ? view : 'groups'
   const detail = data.details.find((item) => item.id === selected)
-  const defaults = useRef({ workspaceSlug, name: '' }).current
+  const [defaults] = useState(() => ({ workspaceSlug, name: '' }))
   const standard = Schema.toStandardSchemaV1(CreateGroupInputSchema)
   const form = useForm({
     defaultValues: defaults,
@@ -656,10 +659,11 @@ export function GroupManager({
       unwrapResult(await deleteGroup({ workspaceSlug, groupId: id }))
       if (selected === id) setSelected(null)
     } catch (cause) {
-      setError(String(cause))
-    } finally {
       setBusy(false)
+      setError(String(cause))
+      return
     }
+    setBusy(false)
   }
   function onTabKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const next = nextTabId(tabs, activeTab, event.key)

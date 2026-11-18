@@ -55,9 +55,8 @@ export function IssueBulkProvider({
       setSelected(new Set())
     } catch (cause) {
       setError(`Bulk update failed: ${cause instanceof Error ? cause.message : String(cause)}`)
-    } finally {
-      setBusy(false)
     }
+    setBusy(false)
   }
   return (
     <Selection.Provider value={{ selected, toggle }}>

@@ -36,9 +36,8 @@ function useIssueMutations(issueId: string, workspaceSlug: string) {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { statusId } }))
     } catch (cause) {
       setMutationError(`Status update failed: ${String(cause)}`)
-    } finally {
-      setUpdatingStatus(false)
     }
+    setUpdatingStatus(false)
   }
   async function changePriority(priority: string) {
     setUpdatingPriority(true)
@@ -47,9 +46,8 @@ function useIssueMutations(issueId: string, workspaceSlug: string) {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { priority } }))
     } catch (cause) {
       setMutationError(`Priority update failed: ${String(cause)}`)
-    } finally {
-      setUpdatingPriority(false)
     }
+    setUpdatingPriority(false)
   }
   async function changeType(typeId: string) {
     setUpdatingType(true)
@@ -58,9 +56,8 @@ function useIssueMutations(issueId: string, workspaceSlug: string) {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { typeId: typeId || null } }))
     } catch (cause) {
       setTypeChangeError(cause instanceof FunctionError ? cause.message : String(cause))
-    } finally {
-      setUpdatingType(false)
     }
+    setUpdatingType(false)
   }
   async function changeAssignee(assigneeId: string) {
     setUpdatingAssignee(true)
@@ -69,9 +66,8 @@ function useIssueMutations(issueId: string, workspaceSlug: string) {
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { assigneeId: assigneeId || null } }))
     } catch (cause) {
       setMutationError(`Assignee update failed: ${String(cause)}`)
-    } finally {
-      setUpdatingAssignee(false)
     }
+    setUpdatingAssignee(false)
   }
   return {
     updatingStatus,

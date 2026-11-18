@@ -10,6 +10,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useId,
   useMemo,
   useRef,
@@ -458,6 +459,7 @@ interface WikiRevision {
 // PROJ-807: state for the "page moved to trash" toast shown after a delete, with an
 // Undo action wired to the existing trash-undelete endpoint.
 interface UndoToast {
+  id: string
   message: string
   /** The undo itself. Only a rejection here is reported as "Undo failed". */
   undo: () => Promise<string>
@@ -1193,9 +1195,8 @@ function useDuplicateWikiPage() {
       navigateFeature(wikiHref(seed, `/wiki/${encodeURIComponent(copy.slug)}`))
     } catch (error) {
       window.alert(`Could not duplicate page: ${String(error)}`)
-    } finally {
-      setDuplicating(false)
     }
+    setDuplicating(false)
   }
   return { duplicate, duplicating }
 }
@@ -1557,9 +1558,8 @@ function RevisionRow({
       setDiff(result.diff)
     } catch (e) {
       setDiffError(String(e))
-    } finally {
-      setDiffLoading(false)
     }
+    setDiffLoading(false)
   }
 
   return (
@@ -2020,19 +2020,19 @@ function PageArticleMeta(
 }
 
 function PageArticle(props: PageArticleProps) {
-  const { page } = props
+  const { page, setContentRef, renderedHtml } = props
   // PROJ-860: memoise the rendered-content vnode itself, keyed on the already-memoised
   // Keep the sanitized article element stable across unrelated sidebar and scroll updates.
   const articleContent = useMemo(
     () => (
       <div
-        ref={props.setContentRef}
+        ref={setContentRef}
         className='markdown-content prose prose-sm max-w-none'
         // Comark output is sanitized after plugins, heading IDs and scoped wiki links.
-        dangerouslySetInnerHTML={{ __html: props.renderedHtml }}
+        dangerouslySetInnerHTML={{ __html: renderedHtml }}
       />
     ),
-    [props.renderedHtml, props.setContentRef],
+    [renderedHtml, setContentRef],
   )
   return (
     <div className='flex gap-8 items-start'>
@@ -2352,7 +2352,7 @@ function useTableOfContents(
       observer.observe(h)
     })
     return () => observer.disconnect()
-  }, [toc, contentRef.current, contentMountToken])
+  }, [toc, contentRef, contentMountToken])
 
   return { toc, activeHeadingId }
 }
@@ -2385,15 +2385,13 @@ function useHashScroll(
   pageSlug: string | undefined,
 ) {
   const handledRef = useRef<string | null>(null)
-  const slugRef = useRef(pageSlug)
-  slugRef.current = pageSlug
 
   const scrollToHash = useCallback(() => {
     // PROJ-802: some call sites (and this file's own tests, see PROJ-487) swap
     // `window.location` for a partial stand-in that may not define `hash` at all.
     const raw = (window.location.hash ?? '').slice(1)
     if (!raw) return
-    const key = `${slugRef.current ?? ''}#${raw}`
+    const key = `${pageSlug ?? ''}#${raw}`
     if (handledRef.current === key) return
     const container = contentRef.current
     if (!container) return
@@ -2408,7 +2406,7 @@ function useHashScroll(
     // the normal Tab order.
     heading.setAttribute('tabindex', '-1')
     heading.focus({ preventScroll: true })
-  }, [contentRef])
+  }, [contentRef, pageSlug])
 
   useEffect(() => {
     if (toc.length > 0) scrollToHash()
@@ -2525,7 +2523,9 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   // Latest edit state for the flush-on-leave effect below, since its cleanup
   // closure would otherwise only see the values from when `editing` last changed.
   const latestDraftStateRef = useRef(options)
-  latestDraftStateRef.current = options
+  useLayoutEffect(() => {
+    latestDraftStateRef.current = options
+  }, [options])
 
   // save() clears the draft itself right before leaving edit mode; set this to
   // suppress the flush below so it doesn't resurrect the just-cleared draft.
@@ -2953,21 +2953,23 @@ function useWikiEditing(
     setSaving(true)
     const version = editVersionRef.current
     const session = sessionRef.current
-    try {
-      await discardDraftNow(page, editTitle, editContent)
-      if (sessionRef.current !== session) return
-      if (editVersionRef.current === version) {
-        setEditTitle(page.title)
-        setEditContent(page.content)
+    await (async () => {
+      try {
+        await discardDraftNow(page, editTitle, editContent)
+        if (sessionRef.current !== session) return
+        if (editVersionRef.current === version) {
+          setEditTitle(page.title)
+          setEditContent(page.content)
+        }
+        setDraftBanner(null)
+        setDraftStatus('ready')
+      } catch (error) {
+        if (sessionRef.current === session) setSaveError(wikiSaveErrorMessage(error))
       }
-      setDraftBanner(null)
-      setDraftStatus('ready')
-    } catch (error) {
-      if (sessionRef.current === session) setSaveError(wikiSaveErrorMessage(error))
-    } finally {
+    })().finally(() => {
       operationRef.current = false
       if (sessionRef.current === session) setSaving(false)
-    }
+    })
   }
 
   function cancelEdit() {
@@ -2980,11 +2982,6 @@ function useWikiEditing(
     setSaveError(null)
     setConflict(false)
     setDraftBanner(null)
-  }
-
-  // Wired straight to onClick, so it must not take the event as an argument.
-  function save() {
-    return saveWithBase(undefined)
   }
 
   async function saveWithBase(baseOverride: string | null | undefined) {
@@ -3001,53 +2998,64 @@ function useWikiEditing(
     setSaving(true)
     setSaveError(null)
     setConflict(false)
-    try {
-      if (!Schema.is(EditFields)({ title: snapshot.title, content: snapshot.content, baseRevisionId: snapshot.base })) {
-        setSaveError('Use a title between 1 and 300 characters and content at most 500000 characters.')
-        return
-      }
-      if (draftStatus === 'failed' || needsReconciliation()) {
-        const state = unwrapResult(
-          await Effect.runPromise(query(getWikiDraftState)({ workspaceSlug, slug: page.slug })),
-        )
-        if (sessionRef.current !== session) return
-        adoptDraftState(state)
-        setDraftStatus('ready')
-        if (state.draft && differsFromPublished(snapshot, state.draft.title, state.draft.content)) {
-          setDraftBanner({ ...state.draft, pageChangedSince: state.draft.baseRevisionId !== snapshot.base })
-          setSaveError('Review the saved draft before publishing. Your current text has been kept.')
+    await (async () => {
+      try {
+        if (
+          !Schema.is(EditFields)({ title: snapshot.title, content: snapshot.content, baseRevisionId: snapshot.base })
+        ) {
+          setSaveError('Use a title between 1 and 300 characters and content at most 500000 characters.')
           return
         }
-      }
-      const published = await publishDraft(snapshot)
-      if (sessionRef.current !== session) return
-      if (editVersionRef.current === version) {
-        skipLeaveFlushRef.current = true
-        setEditing(false)
-      } else {
-        if (published.draftRevision === null) setDraftStatus('failed')
-        try {
-          const current = unwrapResult(await Effect.runPromise(query(getWikiPage)({ workspaceSlug, slug: page.slug })))
-          if (
-            sessionRef.current === session &&
-            current.title === snapshot.title &&
-            current.content === snapshot.content
-          ) {
-            setBaseRevisionId(current.revisionId)
+        if (draftStatus === 'failed' || needsReconciliation()) {
+          const state = unwrapResult(
+            await Effect.runPromise(query(getWikiDraftState)({ workspaceSlug, slug: page.slug })),
+          )
+          if (sessionRef.current !== session) return
+          adoptDraftState(state)
+          setDraftStatus('ready')
+          if (state.draft && differsFromPublished(snapshot, state.draft.title, state.draft.content)) {
+            setDraftBanner({ ...state.draft, pageChangedSince: state.draft.baseRevisionId !== snapshot.base })
+            setSaveError('Review the saved draft before publishing. Your current text has been kept.')
+            return
           }
-        } catch {
-          // Keep the prior publication precondition if the refreshed page cannot be read.
         }
+        const published = await publishDraft(snapshot)
+        if (sessionRef.current !== session) return
+        if (editVersionRef.current === version) {
+          skipLeaveFlushRef.current = true
+          setEditing(false)
+        } else {
+          if (published.draftRevision === null) setDraftStatus('failed')
+          try {
+            const current = unwrapResult(
+              await Effect.runPromise(query(getWikiPage)({ workspaceSlug, slug: page.slug })),
+            )
+            if (
+              sessionRef.current === session &&
+              current.title === snapshot.title &&
+              current.content === snapshot.content
+            ) {
+              setBaseRevisionId(current.revisionId)
+            }
+          } catch {
+            // Keep the prior publication precondition if the refreshed page cannot be read.
+          }
+        }
+      } catch (e) {
+        if (sessionRef.current !== session) return
+        setSaveError(wikiSaveErrorMessage(e))
+        setConflict(isWikiSaveConflict(e))
+        setDraftStatus('failed')
       }
-    } catch (e) {
-      if (sessionRef.current !== session) return
-      setSaveError(wikiSaveErrorMessage(e))
-      setConflict(isWikiSaveConflict(e))
-      setDraftStatus('failed')
-    } finally {
+    })().finally(() => {
       operationRef.current = false
       if (sessionRef.current === session) setSaving(false)
-    }
+    })
+  }
+
+  // Wired straight to onClick, so it must not take the event as an argument.
+  function save() {
+    return saveWithBase(undefined)
   }
 
   // PROJ-797: after a 409 the user is never stuck — this re-reads the page's current
@@ -3137,9 +3145,8 @@ function useWikiRestore(
       } else {
         alert(`Restore failed: ${String(e)}`)
       }
-    } finally {
-      setRestoringId(null)
     }
+    setRestoringId(null)
   }
 
   return { restoringId, restore }
@@ -3179,9 +3186,8 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
       setMoving(false)
     } catch (e) {
       setMoveError(`Move failed: ${String(e)}`)
-    } finally {
-      setMoveSaving(false)
     }
+    setMoveSaving(false)
   }
 
   return {
@@ -3211,9 +3217,8 @@ function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | n
       unwrapResult(await verifyWikiPage({ workspaceSlug, slug: page.slug }))
     } catch (e) {
       setVerifyError(`Verify failed: ${String(e)}`)
-    } finally {
-      setVerifying(false)
     }
+    setVerifying(false)
   }
 
   return { verifying, verifyError, verifyPage }
@@ -3311,12 +3316,12 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
         }),
       )
       setCreating(false)
+      setCreateSaving(false)
       return created.slug
     } catch (e) {
       setCreateError(`Create failed: ${String(e)}`)
-    } finally {
-      setCreateSaving(false)
     }
+    setCreateSaving(false)
     return undefined
   }
 
@@ -3397,6 +3402,7 @@ function createWikiActions(
       setSlug('')
 
       showUndoToast({
+        id: crypto.randomUUID(),
         message: `"${deletedPage.title}" moved to trash.`,
         undo: async () => (await undeleteWikiPage(deletedPage.id, workspaceSlug)).slug,
         afterUndo: async (restoredSlug) => {
@@ -3651,21 +3657,22 @@ function WikiPageShell(
     }
   }>,
 ) {
-  const drawer = useWikiSidebarDrawer()
+  const { close, open, setOpen, triggerRef, sidebarRef } = useWikiSidebarDrawer()
+  const { onNavigate, onCreate } = props
   const isMobile = useIsMobileViewport()
   // PROJ-664: picking a page or starting a create must close the drawer, or
   // tapping a page in the tree leaves the drawer covering the page just opened.
   const navigateAndClose = useCallback(
     (s: string) => {
-      drawer.close()
-      props.onNavigate(s)
+      close()
+      onNavigate(s)
     },
-    [drawer.close, props.onNavigate],
+    [close, onNavigate],
   )
   const createAndClose = useCallback(() => {
-    drawer.close()
-    props.onCreate()
-  }, [drawer.close, props.onCreate])
+    close()
+    onCreate()
+  }, [close, onCreate])
 
   return (
     <div className='flex min-h-screen max-sm:flex-col'>
@@ -3673,11 +3680,11 @@ function WikiPageShell(
       {isMobile && (
         <button
           type='button'
-          ref={drawer.triggerRef}
+          ref={triggerRef}
           className='wiki-drawer-trigger'
-          aria-expanded={drawer.open}
+          aria-expanded={open}
           aria-controls='wiki-page-tree'
-          onClick={() => drawer.setOpen((o) => !o)}
+          onClick={() => setOpen((o) => !o)}
         >
           <svg
             width='16'
@@ -3698,9 +3705,9 @@ function WikiPageShell(
         </button>
       )}
       <div
-        className={`wiki-drawer-overlay ${drawer.open ? 'wiki-drawer-overlay-open' : ''}`}
+        className={`wiki-drawer-overlay ${open ? 'wiki-drawer-overlay-open' : ''}`}
         aria-hidden='true'
-        onClick={drawer.close}
+        onClick={close}
       />
       <WikiSidebar
         workspaceSlug={props.workspaceSlug}
@@ -3728,9 +3735,9 @@ function WikiPageShell(
         onToggleStale={props.stale.setStaleOpen}
         stalePages={props.stale.stalePages}
         staleLoading={props.stale.staleLoading}
-        drawerOpen={drawer.open}
+        drawerOpen={open}
         isMobile={isMobile}
-        sidebarRef={drawer.sidebarRef}
+        sidebarRef={sidebarRef}
       />
 
       <main className='flex-1 p-8 max-sm:p-4 min-w-0'>
@@ -4087,20 +4094,12 @@ function useAssembledWikiPageProps(state: ReturnType<typeof useWikiPageState>, w
 // rather than introducing a new shared abstraction for a single call site.
 const UNDO_TOAST_TIMEOUT_MS = 8000
 
-// Each toast gets its own UndoToastBar instance (keyed per toast object), so undo/hover/
+// Each toast gets its own UndoToastBar instance (keyed when deletion succeeds), so undo/hover/
 // focus state always starts fresh — no reset effect that could race a hover or focus
 // arriving before it runs.
-const undoToastKeys = new WeakMap<UndoToast, number>()
-let nextUndoToastKey = 0
-
 function UndoToastView({ toast, onDismiss }: { toast: UndoToast | null; onDismiss: () => void }) {
   if (!toast) return null
-  let key = undoToastKeys.get(toast)
-  if (key === undefined) {
-    key = ++nextUndoToastKey
-    undoToastKeys.set(toast, key)
-  }
-  return <UndoToastBar key={key} toast={toast} onDismiss={onDismiss} />
+  return <UndoToastBar key={toast.id} toast={toast} onDismiss={onDismiss} />
 }
 
 function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () => void }) {

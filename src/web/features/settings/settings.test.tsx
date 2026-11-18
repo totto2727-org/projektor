@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 
 import { ConnectAgentGuide } from './ConnectAgentGuide'
@@ -99,6 +99,28 @@ beforeEach(() => {
 })
 
 describe('original settings controls with TanStack schemas and semantic ServerFns', () => {
+  it('releases delayed member-removal failures and preserves editor drafts through canonical refresh', async () => {
+    const pending = Promise.withResolvers<unknown>()
+    request.mockReturnValueOnce(pending.promise)
+    const view = render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Team' })[0])
+    fireEvent.change(screen.getByLabelText('Group name'), { target: { value: 'Unsaved rename' } })
+    fireEvent.click(screen.getByLabelText('Remove Alice'))
+    expect(screen.getByRole('button', { name: 'Close' }).hasAttribute('disabled')).toBe(true)
+    fireEvent.change(screen.getByLabelText('New group name'), { target: { value: 'New draft while pending' } })
+    const next = groupData()
+    next.details[0].name = 'Canonical name'
+    view.rerender(<GroupManager workspaceSlug='alpha' initialData={next} />)
+    await act(async () => pending.reject(new Error('Removal unavailable')))
+    expect(screen.getByRole('alert').textContent).toContain('Removal unavailable')
+    expect(screen.getByRole('button', { name: 'Close' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByLabelText('Group name')).toHaveProperty('value', 'Unsaved rename')
+    expect(screen.getByLabelText('New group name')).toHaveProperty('value', 'New draft while pending')
+    request.mockResolvedValueOnce({ ok: true, value: { ok: true } })
+    await act(async () => fireEvent.click(screen.getByLabelText('Remove Alice')))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Close' }).hasAttribute('disabled')).toBe(false)
+  })
   it('keeps native group creation drafts after typed failure and clears them only after success', async () => {
     request.mockResolvedValueOnce({ ok: false, status: 409, message: 'Group conflict' })
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)

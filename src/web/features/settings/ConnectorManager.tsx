@@ -73,10 +73,11 @@ export function ConnectorManager({
       unwrapResult(await disconnectConnector({ workspaceSlug, connectorId: id }))
       setRevokeId(null)
     } catch (cause) {
-      setError(String(cause))
-    } finally {
       setRevoking(false)
+      setError(String(cause))
+      return
     }
+    setRevoking(false)
   }
   const state: RevokeState = {
     id: revokeId,

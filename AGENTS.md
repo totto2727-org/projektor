@@ -161,6 +161,8 @@ Each Worker has a dedicated default-export runtime entrypoint because Alchemy bu
 Worker declarations share dedicated modules under `workers/`, environment Layers are separate, and the stack assembly no longer doubles as Frontend's runtime entrypoint.
 All three Worker entry paths are centralized in `worker-graph.ts`, including acceptance's native API/Core wrappers and the application's Frontend Vite plugin.
 The Wiki editor serializes autosave, discard and publication, with durable per-user/page draft heads enforcing browser revision preconditions in D1.
+React Compiler remains enabled without React rule suppressions: render-visible form snapshots and dialog result baselines use state, DOM refs stay outside render reads, and editor callbacks update after commit while preserving the mounted editor and pending drafts.
+Compiler-supported asynchronous cleanup preserves busy-state release on success, failure and early exit without disabling optimization or weakening Hook dependencies.
 An active description editor keeps its native fallback across lazy chunk completion and retains the submitted draft until canonical issue props acknowledge the saved body.
 Legacy unversioned REST and MCP draft writes retain last-write-wins behavior but advance the same heads, invalidating stale versioned browser writes.
 This architecture does not imply a performance improvement.

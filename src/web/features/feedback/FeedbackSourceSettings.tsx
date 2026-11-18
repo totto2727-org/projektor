@@ -128,11 +128,13 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
       setNewToken(result.token)
       onChanged?.()
     } catch (e) {
-      setError(String(e))
-    } finally {
       rotationInFlight.current = false
       setRotationBusy(false)
+      setError(String(e))
+      return
     }
+    rotationInFlight.current = false
+    setRotationBusy(false)
   }
 
   async function revoke() {

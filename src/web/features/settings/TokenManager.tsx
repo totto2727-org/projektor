@@ -223,12 +223,12 @@ export function TokenManager({
     } else setError(createResult.message)
   }, [createResult])
   const inputRef = useRef<HTMLInputElement>(null)
-  const defaults = useRef({
+  const [defaults] = useState(() => ({
     workspaceSlug,
     name: '',
     scope: 'readwrite' as 'read' | 'readwrite',
     expiry: '',
-  }).current
+  }))
   const standard = Schema.toStandardSchemaV1(CreateTokenInputSchema)
   const form = useForm({
     defaultValues: defaults,
@@ -254,10 +254,11 @@ export function TokenManager({
       unwrapResult(await revokeToken({ workspaceSlug, tokenId: id }))
       setRevokeId(null)
     } catch (cause) {
-      setRevokeError(String(cause))
-    } finally {
       setRevoking(false)
+      setRevokeError(String(cause))
+      return
     }
+    setRevoking(false)
   }
   const state: RevokeState = {
     id: revokeId,

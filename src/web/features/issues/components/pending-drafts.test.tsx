@@ -156,6 +156,7 @@ it('keeps the next comment typed while a previous comment is posting', async () 
   await act(async () => pending.resolve({ ok: true, value: { id: 'created-comment' } }))
   expect(screen.getByDisplayValue('Next comment')).toBeTruthy()
   expect(loadDraft(draftKey('workspace', 'user:issue', 'comment'))).toBe('Next comment')
+  expect(screen.getByRole('button', { name: 'Comment' })).toHaveProperty('disabled', false)
 })
 
 it('keeps a newer comment edit visible after the submitted edit saves', async () => {
@@ -191,4 +192,114 @@ it('keeps a newer comment edit visible after the submitted edit saves', async ()
   fireEvent.input(screen.getAllByRole('textbox')[0], { target: { value: 'Newer edit' } })
   await act(async () => pending.resolve({ ok: true, value: { ok: true } }))
   expect(screen.getByDisplayValue('Newer edit')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', false)
+})
+
+it('retains a failed description draft and allows retry until canonical acknowledgement', async () => {
+  vi.mocked(updateIssue)
+    .mockRejectedValueOnce(new Error('Temporary failure'))
+    .mockResolvedValueOnce({ ok: true, value: { ok: true } })
+  const { rerender } = render(
+    <BodySection issue={issue} issueId='issue' workspaceSlug='workspace' currentUserId='user' />,
+  )
+  fireEvent.click(screen.getByTitle('Edit description'))
+  fireEvent.change(screen.getByLabelText('Markdown draft'), { target: { value: 'Retry body' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await screen.findByRole('alert')
+  expect(screen.getByDisplayValue('Retry body')).toBeTruthy()
+  expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBe('Retry body')
+  expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', false)
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(updateIssue).toHaveBeenCalledTimes(2))
+  rerender(
+    <BodySection
+      issue={{ ...issue, body: 'Retry body' }}
+      issueId='issue'
+      workspaceSlug='workspace'
+      currentUserId='user'
+    />,
+  )
+  await waitFor(() => expect(screen.queryByLabelText('Markdown draft')).toBeNull())
+  expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBeNull()
+})
+
+it('retains a failed comment draft and clears it only after a successful retry', async () => {
+  vi.mocked(addComment)
+    .mockRejectedValueOnce(new Error('Temporary failure'))
+    .mockResolvedValueOnce({ ok: true, value: { id: 'created-comment' } })
+  render(<CommentsSection issueId='issue' workspaceSlug='workspace' comments={[]} currentUserId='user' />)
+  fireEvent.input(screen.getByPlaceholderText('Add a comment…'), { target: { value: 'Retry comment' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
+  await screen.findByRole('alert')
+  expect(screen.getByDisplayValue('Retry comment')).toBeTruthy()
+  expect(loadDraft(draftKey('workspace', 'user:issue', 'comment'))).toBe('Retry comment')
+  expect(screen.getByRole('button', { name: 'Comment' })).toHaveProperty('disabled', false)
+  fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
+  await waitFor(() => expect(screen.getByPlaceholderText('Add a comment…')).toHaveProperty('value', ''))
+  expect(addComment).toHaveBeenCalledTimes(2)
+  expect(loadDraft(draftKey('workspace', 'user:issue', 'comment'))).toBeNull()
+})
+
+it('retains a failed comment edit and allows it to be retried', async () => {
+  vi.mocked(editComment)
+    .mockRejectedValueOnce(new Error('Temporary failure'))
+    .mockResolvedValueOnce({ ok: true, value: { ok: true } })
+  render(
+    <CommentsSection
+      issueId='issue'
+      comments={[
+        {
+          id: 'comment',
+          body: 'Original comment',
+          author_id: 'user',
+          author_name: 'User',
+          author_email: 'user@example.com',
+          created_at: 1,
+        },
+      ]}
+      currentUserId='user'
+    />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  fireEvent.input(screen.getAllByRole('textbox')[0], { target: { value: 'Retry edit' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await screen.findByRole('alert')
+  expect(screen.getByDisplayValue('Retry edit')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', false)
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(screen.queryByDisplayValue('Retry edit')).toBeNull())
+  expect(editComment).toHaveBeenCalledTimes(2)
+})
+
+it('protects only comment edits that differ from their original body', () => {
+  render(
+    <CommentsSection
+      issueId='issue'
+      comments={[
+        {
+          id: 'comment',
+          body: 'Original comment',
+          author_id: 'user',
+          author_name: 'User',
+          author_email: 'user@example.com',
+          created_at: 1,
+        },
+      ]}
+      currentUserId='user'
+    />,
+  )
+  function unloadPrevented() {
+    const event = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(event)
+    return event.defaultPrevented
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  expect(unloadPrevented()).toBe(false)
+  fireEvent.input(screen.getAllByRole('textbox')[0], { target: { value: 'Changed comment' } })
+  expect(unloadPrevented()).toBe(true)
+  fireEvent.input(screen.getAllByRole('textbox')[0], { target: { value: 'Original comment' } })
+  expect(unloadPrevented()).toBe(false)
+  fireEvent.input(screen.getAllByRole('textbox')[0], { target: { value: 'Changed again' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(unloadPrevented()).toBe(false)
 })

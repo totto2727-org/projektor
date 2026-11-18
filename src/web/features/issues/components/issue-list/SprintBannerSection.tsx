@@ -358,9 +358,8 @@ export default function SprintBannerSection({
       setSprintEditing(false)
     } catch (err) {
       setSprintEditError(String(err))
-    } finally {
-      setSprintEditSaving(false)
     }
+    setSprintEditSaving(false)
   }
 
   if (!filterSprintId || !sprintDetail) return null
