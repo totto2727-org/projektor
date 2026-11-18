@@ -190,20 +190,16 @@ describe('source-owned private Core deployment', () => {
     expect(core.Props.env).not.toHaveProperty('JWT_SECRET')
   })
 
-  it('registers read-only production migration Actions and directly gates every Worker update', async () => {
+  it('registers one read-only production migration Action and directly gates every Worker update', async () => {
     const { stack } = await register(false)
-    expect(Object.keys(stack.actions).sort()).toEqual(['DatabaseMigrationCheckpoint', 'DatabaseMigrations'])
-    const checkpoint = stack.actions.DatabaseMigrationCheckpoint
+    expect(Object.keys(stack.actions)).toEqual(['DatabaseMigrations'])
     const migrations = stack.actions.DatabaseMigrations
-    expect(checkpoint.Type).toBe('projektor/PrepareDatabaseMigrations')
-    expect(Output.isOutput(migrations.Input.checkpoint)).toBe(true)
-    expect(migrations.Input.checkpoint.kind).toBe('ResourceExpr')
-    expect(migrations.Input.checkpoint.src.LogicalId).toBe(checkpoint.LogicalId)
-    expect(checkpoint.Input).toMatchObject({
+    expect(migrations.Type).toBe('projektor/ApplyDatabaseMigrations')
+    expect(migrations.Input).toMatchObject({
       accountId: deployment.accountId,
       databaseId: deployment.storage.database.id,
     })
-    expect(checkpoint.Input.files.map((file: { name: string }) => file.name)).toContain('0068_wiki_draft_heads.sql')
+    expect(migrations.Input.files.map((file: { name: string }) => file.name)).toContain('0068_wiki_draft_heads.sql')
     for (const id of ['Core', 'Api', 'Frontend']) {
       const environment = stack.resources[id].Props.env?.ENVIRONMENT
       expect(Output.isOutput(environment)).toBe(true)

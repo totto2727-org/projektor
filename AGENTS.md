@@ -100,10 +100,10 @@ An appended migration cannot repair a database that fails before reaching it.
 Before resuming such a legacy upgrade, use an offline restored copy and an explicitly approved old-to-new mapping against the complete workspace namespace.
 Preserve page identity, redirect ownership, versions and foreign keys, then replay the unchanged remaining history and verify the result.
 Do not automatically rename user content, fabricate ledger entries, replay production migrations or treat fresh empty replay as populated-upgrade proof.
-Normal authorized production deployments apply pending migrations after `0067` through the Alchemy Actions in `deployment-migrations.ts`, retaining the existing `d1_migrations` table and every applied row.
-The checkpoint Action saves a pre-write D1 Time Travel bookmark in encrypted deployment state before the migration Action runs.
-A durable `__projektor_migration_attempts` row is inserted before each migration, and an attempt without a matching applied ledger entry blocks later deployments rather than blindly retrying ambiguous SQL.
-Inspect the database and the saved checkpoint before any operator-approved recovery of an unconfirmed attempt; never delete its marker just to make a deployment pass.
+Normal authorized production deployments apply pending migrations after `0067` through one Alchemy Action in `deployment-migrations.ts`, using Alchemy's standard SQL file reader and the public Cloudflare D1 SDK while retaining the existing `d1_migrations` table and every applied row.
+A separately confirmed `__projektor_migration_attempts` primary-key insert precedes each migration so a failed or ambiguous SQL write cannot be blindly replayed by a later deployment.
+Inspect D1 and available recovery evidence before operator-approved recovery of an unconfirmed attempt; never delete its marker just to make a deployment pass.
+There is no application-owned checkpoint lifecycle, expiry policy or second migration Action.
 Legacy upgrades through `0067`, data repair and production restoration still require separate operator authorization and a recoverable backup.
 The only allowed out-of-order gap is the independent `0068_wiki_draft_heads.sql` after incident-applied `0069_attachment_review_status.sql`; other gaps fail closed.
 The versioned Wiki editor requires `0068_wiki_draft_heads.sql` before its first production request.
@@ -173,9 +173,9 @@ Legacy unversioned REST and MCP draft writes retain last-write-wins behavior but
 This architecture does not imply a performance improvement.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
 Production deployment is a separate workflow gated on successful main-push CI, with the tested revision, production environment and serialized deployments preserved.
-Production-only Alchemy Actions migrate the fixed external D1 before normal updates of all three Workers, using a direct shared `ENVIRONMENT` output dependency on each Worker rather than relying on an unchanged Core.
-The custom Action retains Wrangler's existing migration ledger because the installed native Alchemy D1 runner would convert it to `__alchemy_migrations`.
-Planning and runtime capture never execute migration Action bodies, and application runtime source and public storage boundaries are unchanged.
+One production-only Alchemy Action migrates the fixed external D1 before normal updates of all three Workers, using a direct shared `ENVIRONMENT` output dependency on each Worker rather than relying on an unchanged Core.
+It reuses Alchemy's standard SQL reader and parameter formatting with the public Cloudflare D1 SDK, with only existing-ledger selection and failed-write replay prevention kept locally because the native runner would convert Wrangler's ledger.
+Planning and runtime capture never execute the migration Action body, and application runtime source and public storage boundaries are unchanged.
 Deployment uses standard Alchemy configuration without custom confirmation flags, preflight gates or secret-value validation.
 Environment differences are provided through aggregate Effect Layers rather than leaf-level local/production branches, and runtime request handling stays outside Worker declarations.
 JWT secrets remain Cloudflare-owned across normal deployments through standard binding inheritance, without reading their values or storing them in project state.

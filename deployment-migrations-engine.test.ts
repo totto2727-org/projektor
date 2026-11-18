@@ -1,62 +1,67 @@
+import { DatabaseSync } from 'node:sqlite'
+
 import { NodeServices } from '@effect/platform-node'
 import { Action, AlchemyContext, apply, inMemoryState, Plan, Resource, Stack } from 'alchemy'
 import { provideFreshArtifactStore } from 'alchemy/Artifacts'
 import { layerNonInteractive } from 'alchemy/Interaction'
 import * as Provider from 'alchemy/Provider'
+import type { MigrationRecord } from 'alchemy/SQL/Migrations/index'
 import { evalStack } from 'alchemy/Stack'
 import { run } from 'alchemy/Test/Core'
 import { Effect } from 'effect'
 import { expect, it } from 'vite-plus/test'
 
-import { applyMigrations, prepareMigrations, type MigrationFile, type MigrationStore } from './deployment-migrations'
+import { applyMigrations, type MigrationQuery } from './deployment-migrations'
 
 const Worker = Resource<Resource<'Fixture.Worker', { environment: string }, { name: string }>>('Fixture.Worker')
+const legacy = '0067_agent_session_credential.sql'
+const migration = '0070_fixture.sql'
+const body = 'CREATE TABLE fixture_write(id INTEGER PRIMARY KEY)'
+const workerIds = ['Core', 'Api', 'Frontend']
 
-it('runs the migration Actions only on apply and blocks every dependent update after an uncertain write', async () => {
-  const legacy = '0067_agent_session_credential.sql'
-  const files = [
-    { name: legacy, sql: 'SELECT 1;', hash: 'legacy' },
-    { name: '0070_fixture.sql', sql: 'SELECT 1;', hash: 'fixture' },
-  ] satisfies MigrationFile[]
-  const events: string[] = []
-  const attempts: { name: string; hash: string }[] = []
-  const store: MigrationStore = {
-    ledger: Effect.sync(() => {
-      events.push('ledger')
-      return [{ id: 1, name: legacy, applied_at: 'fixture' }]
-    }),
-    attempts: Effect.sync(() => attempts.slice()),
-    checkpoint: Effect.sync(() => {
-      events.push('checkpoint')
-      return 'test-bookmark'
-    }),
-    begin: ({ name, hash }) =>
-      Effect.sync(() => {
-        events.push('begin')
-        attempts.push({ name, hash })
-      }),
-    apply: () =>
-      Effect.sync(() => {
-        events.push('write')
-      }).pipe(Effect.andThen(Effect.fail(new Error('response lost')))),
-  }
-  const Prepare = Action('Fixture.Prepare', ({ files }: { files: readonly MigrationFile[] }) =>
-    prepareMigrations(files, store),
-  )
-  const Migrate = Action(
-    'Fixture.Migrate',
-    ({
-      files,
-      checkpoint,
-    }: {
-      files: readonly MigrationFile[]
-      checkpoint: Effect.Success<ReturnType<typeof prepareMigrations>>
-    }) => applyMigrations(files, checkpoint, store).pipe(Effect.as({ environment: 'production' })),
+it.each(['success', 'partial write'])('gates all Worker updates on migration apply: %s', async (outcome) => {
+  using database = new DatabaseSync(':memory:')
+  database.exec(`
+    CREATE TABLE d1_migrations(id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, applied_at TEXT DEFAULT CURRENT_TIMESTAMP);
+    INSERT INTO d1_migrations(name, applied_at) VALUES ('${legacy}', 'baseline');
+  `)
+  const ledger = () => database.prepare('SELECT id, name, applied_at FROM d1_migrations ORDER BY id').all()
+  const baseline = ledger()
+  const statements = outcome === 'success' ? [body] : [body, 'INSERT INTO absent_fixture_table VALUES (1)']
+  const record = (name: string, statements: string[]): MigrationRecord => ({
+    name,
+    hash: name,
+    createdAtMillis: undefined,
+    sql: statements.join(';\n'),
+    statements,
+  })
+  const files = [record(legacy, ['SELECT 1']), record(migration, statements)]
+
+  const events: { type: 'sql' | 'worker'; value: string }[] = []
+  const query: MigrationQuery = ({ sql, params }) =>
+    Effect.try(() => {
+      if (!sql) throw new Error('Missing fixture SQL')
+      events.push({ type: 'sql', value: sql })
+      if (sql.startsWith('SELECT')) return { result: [{ success: true, results: database.prepare(sql).all() }] }
+      if (params) {
+        const bindings = params.map((value) => {
+          if (typeof value !== 'string') throw new Error('Fixture requires string parameters')
+          return value
+        })
+        database.prepare(sql).run(...bindings)
+      } else {
+        // SQLite exec does not open a transaction, so the first write remains on failure.
+        database.exec(sql)
+      }
+      return { result: [{ success: true }] }
+    })
+  const Migrate = Action('Fixture.Migrate', ({ files }: { files: readonly MigrationRecord[] }) =>
+    applyMigrations(files, query).pipe(Effect.as({ environment: 'production' })),
   )
   const providers = Provider.succeed(Worker, {
     reconcile: ({ id }) =>
       Effect.sync(() => {
-        events.push(id)
+        events.push({ type: 'worker', value: id })
         return { name: id }
       }),
     delete: () => Effect.void,
@@ -67,10 +72,8 @@ it('runs the migration Actions only on apply and blocks every dependent update a
       'migration-engine-test',
       { providers, state },
       Effect.gen(function* () {
-        const environment = withMigration
-          ? (yield* Migrate({ files, checkpoint: yield* Prepare({ files }) })).environment
-          : 'baseline'
-        for (const id of ['Core', 'Api', 'Frontend']) yield* Worker(id, { environment })
+        const environment = withMigration ? (yield* Migrate({ files })).environment : 'baseline'
+        for (const id of workerIds) yield* Worker(id, { environment })
         return {}
       }),
     )
@@ -95,12 +98,35 @@ it('runs the migration Actions only on apply and blocks every dependent update a
     )
   }
 
+  const workerEvents = () =>
+    events
+      .filter(({ type }) => type === 'worker')
+      .map(({ value }) => value)
+      .sort()
+  const bodyRequests = () => events.filter(({ type, value }) => type === 'sql' && value.includes(body))
   await deploy(false)
-  expect([...events].sort()).toEqual(['Api', 'Core', 'Frontend'])
+  expect(workerEvents()).toEqual(workerIds.toSorted())
   events.length = 0
-  await expect(deploy(true)).rejects.toThrow()
-  expect(events).toEqual(['ledger', 'checkpoint', 'ledger', 'begin', 'write'])
-  events.length = 0
-  await expect(deploy(true)).rejects.toThrow()
-  expect(events).toEqual(['ledger'])
+
+  if (outcome === 'success') {
+    await deploy(true)
+    expect(bodyRequests()).toHaveLength(1)
+    expect(workerEvents()).toEqual(workerIds.toSorted())
+    expect(events.findLastIndex(({ type }) => type === 'sql')).toBeLessThan(
+      events.findIndex(({ type }) => type === 'worker'),
+    )
+    expect(ledger()).toEqual([...baseline, { id: 2, name: migration, applied_at: expect.any(String) }])
+  } else {
+    await expect(deploy(true)).rejects.toThrow(/Migration 0070_fixture.sql failed/)
+    expect(bodyRequests()).toHaveLength(1)
+    expect(workerEvents()).toEqual([])
+    expect(database.prepare('SELECT id FROM fixture_write').all()).toEqual([])
+    expect(ledger()).toEqual(baseline)
+
+    events.length = 0
+    await expect(deploy(true)).rejects.toThrow(/Cannot start migration 0070_fixture.sql/)
+    expect(bodyRequests()).toEqual([])
+    expect(workerEvents()).toEqual([])
+    expect(ledger()).toEqual(baseline)
+  }
 })

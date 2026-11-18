@@ -1,97 +1,87 @@
-import { createHash } from 'node:crypto'
-import { readdirSync, readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 
-import { Effect } from 'effect'
+import { NodeServices } from '@effect/platform-node'
+import { readFlatRecords, type MigrationRecord } from 'alchemy/SQL/Migrations/index'
+import { Effect, Schema } from 'effect'
 import { describe, expect, it } from 'vite-plus/test'
 
-import {
-  applyMigrations,
-  type MigrationFile,
-  type MigrationStore,
-  pendingMigrations,
-  prepareMigrations,
-} from './deployment-migrations'
+import { applyMigrations, pendingMigrations, type MigrationQuery } from './deployment-migrations'
 
-const files: MigrationFile[] = readdirSync(new URL('./migrations/', import.meta.url))
-  .filter((name) => name.endsWith('.sql'))
-  .sort()
-  .map((name) => {
-    const sql = readFileSync(new URL(`./migrations/${name}`, import.meta.url), 'utf8')
-    return { name, sql, hash: createHash('sha256').update(sql).digest('hex') }
-  })
+const files = await Effect.runPromise(readFlatRecords('./migrations').pipe(Effect.provide(NodeServices.layer)))
+const file = (name: string, sql: string): MigrationRecord => ({
+  name,
+  sql,
+  hash: sql,
+  statements: [sql],
+  createdAtMillis: undefined,
+})
 
 function fixture() {
   const db = new DatabaseSync(':memory:')
   db.exec(
     'PRAGMA foreign_keys=ON; CREATE TABLE d1_migrations(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)',
   )
-  for (const file of files.filter((file) => file.name.slice(0, 4) <= '0067')) {
-    db.exec(file.sql)
-    db.prepare('INSERT INTO d1_migrations(name) VALUES (?)').run(file.name)
+  for (const migration of files.filter((migration) => migration.name.slice(0, 4) <= '0067')) {
+    db.exec(migration.sql)
+    db.prepare('INSERT INTO d1_migrations(name) VALUES (?)').run(migration.name)
   }
   db.exec(`INSERT INTO users(id,email,name,created_at) VALUES ('u','migration@example.test','User',1);
     INSERT INTO workspaces(id,name,slug,created_at) VALUES ('w','Workspace','workspace',1);
     INSERT INTO attachments(id,workspace_id,kind,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at)
     VALUES ('a','w','file','w/a','a.txt','text/plain',4,'issue','i','u',1)`)
-  const read = () =>
-    db
-      .prepare('SELECT id,name,applied_at FROM d1_migrations ORDER BY id')
-      .all()
-      .map((row) => ({ id: Number(row.id), name: String(row.name), applied_at: String(row.applied_at) }))
-  let writes = 0
-  const store: MigrationStore = {
-    attempts: Effect.sync(() => {
-      const exists = db.prepare("SELECT name FROM sqlite_schema WHERE name='__projektor_migration_attempts'").get()
-      return exists
-        ? db
-            .prepare('SELECT name,hash FROM __projektor_migration_attempts ORDER BY name')
-            .all()
-            .map((row) => ({ name: String(row.name), hash: String(row.hash) }))
-        : []
-    }),
-    begin: (file) =>
-      Effect.try(() => {
-        db.exec('CREATE TABLE IF NOT EXISTS __projektor_migration_attempts(name TEXT PRIMARY KEY, hash TEXT NOT NULL)')
-        db.prepare('INSERT INTO __projektor_migration_attempts(name,hash) VALUES (?,?)').run(file.name, file.hash)
-      }),
-    ledger: Effect.sync(read),
-    checkpoint: Effect.succeed('local-test-checkpoint'),
-    apply: (file) =>
-      Effect.try(() => {
-        writes++
-        db.exec(`${file.sql}\n;\nINSERT INTO d1_migrations(name) VALUES ('${file.name}');`)
-      }),
+  const history = () => db.prepare('SELECT id,name,applied_at FROM d1_migrations ORDER BY id').all()
+  const queries: string[] = []
+  let loseResponse = false
+  const query: MigrationQuery = ({ sql, params }) =>
+    Effect.try(() => {
+      if (!sql) throw new Error('Missing SQL')
+      queries.push(sql)
+      if (sql.startsWith('SELECT ')) return { result: [{ success: true, results: db.prepare(sql).all() }] }
+      if (params) db.prepare(sql).run(...Schema.decodeUnknownSync(Schema.Array(Schema.String))(params))
+      else db.exec(sql)
+      if (loseResponse && sql.includes('INSERT INTO d1_migrations')) {
+        loseResponse = false
+        throw new Error('response lost after committed SQL')
+      }
+      return { result: [{ success: true, results: [] }] }
+    })
+  const migrate = (migrations = files) => Effect.runPromise(applyMigrations(migrations, query))
+  const writes = () => queries.filter((sql) => sql.includes('INSERT INTO d1_migrations')).length
+  return {
+    db,
+    query,
+    queries,
+    history,
+    migrate,
+    writes,
+    loseNextResponse: () => {
+      loseResponse = true
+    },
+    close: () => db.close(),
   }
-  return { db, store, read, writes: () => writes, close: () => db.close() }
 }
 
-async function migrate(store: MigrationStore, migrations = files) {
-  const checkpoint = await Effect.runPromise(prepareMigrations(migrations, store))
-  await Effect.runPromise(applyMigrations(migrations, checkpoint, store))
-  return checkpoint
-}
-
-describe('production deployment migrations using the existing D1 ledger', () => {
-  it('applies actual 0068/0069 SQL once to a populated 0067 database without converting history', async () => {
+describe('single-Action production migrations using Alchemy SQL records and the D1 query contract', () => {
+  it('applies actual 0068/0069 once and preserves populated data and every existing ledger row', async () => {
     const f = fixture()
     try {
-      const history = f.read()
+      const before = f.history()
       const attachment = f.db.prepare('SELECT * FROM attachments').get()
-      await migrate(f.store)
+      await f.migrate()
       expect(f.writes()).toBe(2)
-      expect(f.read().slice(0, history.length)).toEqual(history)
+      expect(f.history().slice(0, before.length)).toEqual(before)
       expect(
         f
-          .read()
-          .slice(history.length)
+          .history()
+          .slice(before.length)
           .map((row) => row.name),
       ).toEqual(['0068_wiki_draft_heads.sql', '0069_attachment_review_status.sql'])
       expect(f.db.prepare('SELECT * FROM attachments').get()).toEqual({ ...attachment, review_status: null })
       expect(f.db.prepare('SELECT * FROM wiki_draft_heads').all()).toEqual([])
       expect(f.db.prepare("SELECT name FROM sqlite_schema WHERE name='__alchemy_migrations'").all()).toEqual([])
-      await migrate({ ...f.store, checkpoint: Effect.die('An up-to-date database must not create a checkpoint') })
-      expect(f.writes()).toBe(2)
+      const queryCount = f.queries.length
+      await f.migrate()
+      expect(f.queries.slice(queryCount)).toEqual(['SELECT name FROM d1_migrations ORDER BY id'])
       expect(f.db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
       expect(f.db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
     } finally {
@@ -99,122 +89,148 @@ describe('production deployment migrations using the existing D1 ledger', () => 
     }
   })
 
-  it('fills the real production 0068 gap without replaying already applied 0069', async () => {
+  it('fills the known independent 0068 gap without replaying incident-applied 0069', async () => {
     const f = fixture()
     try {
-      const migration = files.find((file) => file.name.startsWith('0069_'))!
-      await Effect.runPromise(f.store.apply(migration))
-      const before = f.read()
-      await migrate(f.store)
-      expect(f.writes()).toBe(2)
-      expect(f.read().slice(0, before.length)).toEqual(before)
-      expect(f.read().at(-1)?.name).toBe('0068_wiki_draft_heads.sql')
+      const migration = files.find((migration) => migration.name.startsWith('0069_'))!
+      f.db.exec(migration.sql)
+      f.db.prepare('INSERT INTO d1_migrations(name) VALUES (?)').run(migration.name)
+      const before = f.history()
+      await f.migrate()
+      expect(f.writes()).toBe(1)
+      expect(f.history().slice(0, before.length)).toEqual(before)
+      expect(f.history().at(-1)?.name).toBe('0068_wiki_draft_heads.sql')
     } finally {
       f.close()
     }
   })
 
-  it('blocks an incomplete populated legacy upgrade before obtaining a checkpoint or writing', async () => {
-    const f = fixture()
-    try {
-      f.db
-        .prepare('DELETE FROM d1_migrations WHERE name=?')
-        .run(files.find((file) => file.name.startsWith('0060_'))!.name)
-      await expect(migrate({ ...f.store, checkpoint: Effect.die('Must not reach checkpoint') })).rejects.toThrow(
-        /offline reviewed upgrade/,
-      )
-      expect(f.writes()).toBe(0)
-    } finally {
-      f.close()
-    }
-  })
-
-  it('blocks writes when recovery is unavailable or the ledger changes after preparation', async () => {
-    const f = fixture()
-    try {
-      await expect(
-        migrate({ ...f.store, checkpoint: Effect.fail(new Error('Time Travel unavailable')) }),
-      ).rejects.toThrow(/Time Travel unavailable/)
-      await expect(migrate({ ...f.store, checkpoint: Effect.succeed('') })).rejects.toThrow(/checkpoint is required/)
-      const checkpoint = await Effect.runPromise(prepareMigrations(files, f.store))
-      await expect(
-        Effect.runPromise(applyMigrations(files, { ...checkpoint, bookmark: null }, f.store)),
-      ).rejects.toThrow(/persisted/)
-      await expect(Effect.runPromise(applyMigrations(files, { ...checkpoint, createdAt: 0 }, f.store))).rejects.toThrow(
-        /older than 24 hours/,
-      )
-      f.db.prepare('UPDATE d1_migrations SET applied_at=? WHERE id=1').run('changed')
-      await expect(Effect.runPromise(applyMigrations(files, checkpoint, f.store))).rejects.toThrow(/history changed/)
-      expect(f.writes()).toBe(0)
-    } finally {
-      f.close()
-    }
-  })
-
-  it('stops on a SQL failure, does not record success or attempt a second migration', async () => {
-    const f = fixture()
-    try {
-      await migrate(f.store)
-      const history = f.read()
-      const failed = { name: '0070_failure.sql', sql: 'SELECT * FROM missing_table;', hash: 'test' }
-      const never = { name: '0071_not_attempted.sql', sql: 'CREATE TABLE not_attempted(id);', hash: 'test' }
-      await expect(migrate(f.store, [...files, failed, never])).rejects.toThrow(/0070_failure.sql failed/)
-      expect(f.writes()).toBe(3)
-      expect(f.read()).toEqual(history)
-      await expect(migrate(f.store, [...files, failed, never])).rejects.toThrow(/Unconfirmed migration attempt/)
-      expect(f.writes()).toBe(3)
-      expect(f.db.prepare("SELECT name FROM sqlite_schema WHERE name='not_attempted'").all()).toEqual([])
-    } finally {
-      f.close()
-    }
-  })
-
-  it('blocks a partial SQL write on later deployments instead of executing it again', async () => {
-    const f = fixture()
-    try {
-      await migrate(f.store)
-      const partial = {
-        name: '0070_partial.sql',
-        sql: 'CREATE TABLE partial_write(id); SELECT * FROM missing_table;',
-        hash: 'test',
-      }
-      const migrations = [...files, partial]
-      await expect(migrate(f.store, migrations)).rejects.toThrow(/0070_partial.sql failed/)
-      expect(f.db.prepare("SELECT name FROM sqlite_schema WHERE name='partial_write'").get()).toEqual({
-        name: 'partial_write',
-      })
-      await expect(migrate(f.store, migrations)).rejects.toThrow(/Unconfirmed migration attempt/)
-      expect(f.writes()).toBe(3)
-      expect(f.read().some((row) => row.name === partial.name)).toBe(false)
-    } finally {
-      f.close()
-    }
-  })
-
-  it('rejects unreviewed out-of-order gaps and changed previously attempted files', async () => {
-    const f = fixture()
-    try {
-      await migrate(f.store)
-      const later = { name: '0070_later.sql', sql: 'CREATE TABLE later(id);', hash: 'test' }
-      const skipped = { name: '0069_z_skipped.sql', sql: 'CREATE TABLE skipped(id);', hash: 'test' }
-      await migrate(f.store, [...files, later])
-      await expect(migrate(f.store, [...files, skipped, later])).rejects.toThrow(/precede applied history/)
-      const changed = files.map((file) => (file.name.startsWith('0068_') ? { ...file, hash: 'changed' } : file))
-      await expect(migrate(f.store, [...changed, later])).rejects.toThrow(/has changed/)
-      expect(f.writes()).toBe(3)
-    } finally {
-      f.close()
-    }
-  })
-
-  it('rejects empty manifests, unexpected ledger entries and duplicate filenames', () => {
+  it('blocks incomplete legacy history, unknown rows, duplicate names and unreviewed gaps before writes', async () => {
     const f = fixture()
     try {
       expect(() => pendingMigrations([], [])).toThrow(/inconsistent/)
-      expect(() => pendingMigrations([...files, files[0]!], f.read())).toThrow(/inconsistent/)
-      expect(() =>
-        pendingMigrations(files, [...f.read(), { id: 999, name: 'missing.sql', applied_at: 'now' }]),
-      ).toThrow(/inconsistent/)
+      expect(() => pendingMigrations([...files, files[0]!], [])).toThrow(/inconsistent/)
+      const invalid = [
+        f
+          .history()
+          .filter((row) => !String(row.name).startsWith('0060_'))
+          .map((row) => ({ name: String(row.name) })),
+        [...f.history().map((row) => ({ name: String(row.name) })), { name: 'missing.sql' }],
+      ]
+      for (const ledger of invalid) expect(() => pendingMigrations(files, ledger)).toThrow()
+      f.db
+        .prepare('DELETE FROM d1_migrations WHERE name=?')
+        .run(files.find((migration) => migration.name.startsWith('0060_'))!.name)
+      await expect(f.migrate()).rejects.toThrow(/offline reviewed upgrade/)
+      expect(f.queries).toEqual(['SELECT name FROM d1_migrations ORDER BY id'])
+    } finally {
+      f.close()
+    }
+    const g = fixture()
+    try {
+      await g.migrate()
+      const later = file('0070_later.sql', 'CREATE TABLE later(id);')
+      await g.migrate([...files, later])
+      await expect(g.migrate([...files, file('0069_z_skipped.sql', 'SELECT 1;'), later])).rejects.toThrow(
+        /precede applied history/,
+      )
+      expect(g.writes()).toBe(3)
+    } finally {
+      g.close()
+    }
+  })
+
+  it('does not resend a failed or partially applied migration and never advances to the next file', async () => {
+    for (const sql of [
+      'SELECT * FROM missing_table;',
+      'CREATE TABLE partial_write(id); SELECT * FROM missing_table;',
+    ]) {
+      const f = fixture()
+      try {
+        await f.migrate()
+        const before = f.history()
+        const failed = file('0070_failure.sql', sql)
+        const never = file('0071_never.sql', 'CREATE TABLE never_applied(id);')
+        await expect(f.migrate([...files, failed, never])).rejects.toThrow(/0070_failure.sql failed/)
+        expect(f.history()).toEqual(before)
+        expect(f.writes()).toBe(3)
+        await expect(f.migrate([...files, failed, never])).rejects.toThrow(/unconfirmed earlier attempt/)
+        expect(f.writes()).toBe(3)
+        expect(f.db.prepare("SELECT name FROM sqlite_schema WHERE name='never_applied'").all()).toEqual([])
+        expect(
+          f.db.prepare('SELECT name,hash FROM __projektor_migration_attempts WHERE name=?').get(failed.name),
+        ).toEqual({ name: failed.name, hash: failed.hash })
+      } finally {
+        f.close()
+      }
+    }
+  })
+
+  it('skips a completed migration after a lost response and resumes only genuinely pending files', async () => {
+    const f = fixture()
+    try {
+      f.loseNextResponse()
+      await expect(f.migrate()).rejects.toThrow(/0068_wiki_draft_heads.sql failed/)
+      expect(f.history().at(-1)?.name).toBe('0068_wiki_draft_heads.sql')
+      await f.migrate()
+      expect(f.writes()).toBe(2)
+      expect(f.history().at(-1)?.name).toBe('0069_attachment_review_status.sql')
+    } finally {
+      f.close()
+    }
+  })
+
+  it('rejects empty, unsuccessful and malformed ledger replies before sending any mutation', async () => {
+    for (const reply of [
+      { result: [] },
+      { result: [{ success: false, results: [] }] },
+      { result: [{ success: true, results: [{ unexpected: 'row' }] }] },
+    ]) {
+      let calls = 0
+      await expect(
+        Effect.runPromise(
+          applyMigrations(files, () =>
+            Effect.sync(() => {
+              calls++
+              return reply
+            }),
+          ),
+        ),
+      ).rejects.toThrow()
+      expect(calls).toBe(1)
+    }
+  })
+
+  it('does not send migration SQL if the separate marker request is unconfirmed', async () => {
+    const f = fixture()
+    try {
+      await expect(
+        Effect.runPromise(
+          applyMigrations(files, (request) =>
+            request.sql?.startsWith('INSERT INTO __projektor_migration_attempts')
+              ? Effect.succeed({ result: [{ success: false }] })
+              : f.query(request),
+          ),
+        ),
+      ).rejects.toThrow(/Cannot start migration/)
+      expect(f.writes()).toBe(0)
+      expect(f.db.prepare("SELECT name FROM sqlite_schema WHERE name='wiki_draft_heads'").all()).toEqual([])
+    } finally {
+      f.close()
+    }
+  })
+
+  it('keeps the ledger insert outside a trailing SQL comment and supports statement breakpoints', async () => {
+    const f = fixture()
+    try {
+      await f.migrate()
+      const migration = file(
+        '0070_comments.sql',
+        'CREATE TABLE comment_boundary(id) -- trailing comment\n;\n--> statement-breakpoint\nINSERT INTO comment_boundary VALUES (1); -- second comment',
+      )
+      await f.migrate([...files, migration])
+      expect(f.history().at(-1)?.name).toBe(migration.name)
+      expect(f.db.prepare('SELECT * FROM comment_boundary').all()).toEqual([{ id: 1 }])
     } finally {
       f.close()
     }
