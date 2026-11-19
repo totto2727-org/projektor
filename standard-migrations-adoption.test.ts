@@ -12,7 +12,10 @@ const directory = new URL('./migrations/', import.meta.url)
 const pending = '0068_wiki_draft_heads.sql'
 const alreadyApplied = '0069_attachment_review_status.sql'
 
-it('adopts Wrangler history and fills the 0068 gap without replaying applied migrations', async () => {
+it.each([
+  { description: 'adopts Wrangler history and fills the 0068 gap', unknown: false },
+  { description: 'rejects an unknown Wrangler filename without writing', unknown: true },
+])('$description', async ({ unknown }) => {
   using db = new DatabaseSync(':memory:')
   db.exec(`
     CREATE TABLE d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL);
@@ -29,6 +32,8 @@ it('adopts Wrangler history and fills the 0068 gap without replaying applied mig
     db.exec(sql)
     insertApplied.run(name, '2026-11-19 00:00:00')
   }
+  const unknownName = 'unrecognized_fixture_migration.sql'
+  if (unknown) insertApplied.run(unknownName, '2026-11-19 00:00:00')
   db.exec(`
     INSERT INTO users(id, email, name, created_at) VALUES ('fixture', 'fixture@example.test', 'Fixture', 123);
     INSERT INTO workspaces(id, name, slug, created_at) VALUES ('workspace', 'Workspace', 'fixture-workspace', 123);
@@ -53,7 +58,7 @@ it('adopts Wrangler history and fills the 0068 gap without replaying applied mig
   const initialUsers = users()
   const initialAttachments = attachments()
   expect(initialAttachments).toMatchObject([{ id: 'attachment', review_status: 'in_review' }])
-  expect(initialHistory.at(-1)?.name).toBe(alreadyApplied)
+  expect(initialHistory.at(-1)?.name).toBe(unknown ? unknownName : alreadyApplied)
   expect(initialHistory.map(({ name }) => name)).not.toContain(pending)
   expect(draftHeads()).toEqual([])
 
@@ -75,6 +80,21 @@ it('adopts Wrangler history and fills the 0068 gap without replaying applied mig
         withExecutor: (apply) => apply(executor),
       }).pipe(Effect.provide(NodeServices.layer)),
     )
+  if (unknown) {
+    await expect(run({})).rejects.toMatchObject({
+      _tag: 'MigrationHistoryConflictError',
+      table: 'd1_migrations',
+      unmatched: [unknownName],
+    })
+    expect(draftHeads()).toEqual([])
+    expect(db.prepare('PRAGMA table_info(__alchemy_migrations)').all()).toEqual([])
+    expect(originals()).toEqual(initialHistory)
+    expect(users()).toEqual(initialUsers)
+    expect(attachments()).toEqual(initialAttachments)
+    checkIntegrity()
+    return
+  }
+
   const first = await run({})
   expect(first.resolved.table).toBe('__alchemy_migrations')
   expect(originals()).toEqual(initialHistory)
