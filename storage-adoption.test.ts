@@ -123,14 +123,18 @@ it.each([storage.cache, storage.oauth])('adopts KV namespace $title by exact tit
 it('reconciles an existing private R2 bucket with matching settings without writes', async () => {
   const { name } = storage.files
   const path = `r2/buckets/${name}`
+  const rule = {
+    id: 'Default Multipart Abort Rule',
+    abortMultipartUploadsTransition: { condition: { type: 'Age' as const, maxAge: 604800 } },
+  }
   const { run, calls } = fakeCloudflare({
-    [`GET ${path}`]: { name, storage_class: 'Standard', jurisdiction: 'default' },
+    [`GET ${path}`]: { name, storage_class: 'Standard', jurisdiction: 'default', location: 'APAC' },
     [`GET ${path}/domains/custom`]: { domains: [] },
     [`GET ${path}/domains/managed`]: { bucketId: 'existing-bucket', domain: 'existing.r2.dev', enabled: false },
     [`GET ${path}/cors`]: { rules: [] },
-    [`GET ${path}/lifecycle`]: { rules: [] },
+    [`GET ${path}/lifecycle`]: { rules: [{ ...rule, enabled: true, conditions: {} }] },
   })
-  const props = { name }
+  const props = { name, publicAccess: false, lifecycleRules: [rule] }
   await run(
     Effect.gen(function* () {
       const provider = yield* R2.Bucket.Provider
