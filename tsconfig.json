@@ -21,13 +21,5 @@
     "workers/**/*.tsx",
     "tests/**/*.ts",
     "tests/**/*.tsx"
-  ],
-  "exclude": [
-    "**/node_modules",
-    "**/dist",
-    "**/core-dist",
-    "**/test-results",
-    "**/playwright-report",
-    "tests/e2e-alchemy/discovery-audited"
   ]
 }
