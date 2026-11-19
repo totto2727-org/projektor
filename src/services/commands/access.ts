@@ -114,7 +114,7 @@ export async function requireProjectInWorkspace(ctx: ServiceCtx, projectId: stri
 // New service code should call `assertProjectAccess` (single resource) or
 // `hasProjectAccess` (a soft check that returns false instead of throwing, for
 // "unknown project → empty list" read paths), and `visibleProjectFilter` for
-// list queries. `test/architecture/access-guard.test.ts` enforces this.
+// list queries. The Node API architecture tests enforce this.
 
 export type AccessMode = 'read' | 'edit'
 

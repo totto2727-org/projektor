@@ -13,14 +13,13 @@
     "paths": { "@/*": ["./src/web/*"] }
   },
   "include": [
+    "*.ts",
+    "*.tsx",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "tests/e2e-alchemy/**/*.ts",
-    "tests/native-workers/**/*.ts",
-    "alchemy.ts",
-    "alchemy.run.ts",
-    "alchemy.test.ts",
-    "vite.config.ts",
-    "worker-graph.ts"
+    "workers/**/*.ts",
+    "workers/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx"
   ]
 }

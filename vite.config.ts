@@ -6,7 +6,6 @@ import { effrontTailwind } from '@effront/tailwind'
 import { effront } from '@effront/vite'
 import { generateIgnorePatterns } from '@totto2727/gitignore-patterns'
 import { defineConfig } from 'vite-plus'
-import { configDefaults } from 'vite-plus/test/config'
 
 import { nativeCoreWorker } from './tests/native-workers/options'
 import { deployment } from './worker-graph'
@@ -105,21 +104,19 @@ export default defineConfig({
               },
             },
           },
-          include: ['src/api/**/*.test.ts', 'tests/native-workers/*.test.ts'],
-          exclude: [...configDefaults.exclude, 'src/api/**/*.node.test.ts'],
+          include: ['src/api/test/**/*.test.ts', 'tests/native-workers/**/*.test.ts'],
           setupFiles: ['./src/api/test/setup.ts'],
           testTimeout: 30_000,
           hookTimeout: 30_000,
         },
       },
-      { extends: false, test: { name: 'api-node', environment: 'node', include: ['src/api/**/*.node.test.ts'] } },
       {
         extends: false,
         resolve: { tsconfigPaths: true },
         test: {
           name: 'web',
           environment: 'node',
-          include: ['src/web/**/*.test.ts', 'src/web/**/*.test.tsx'],
+          dir: 'src/web',
           restoreMocks: true,
           server: { deps: { inline: ['@cloudflare/workers-oauth-provider'] } },
         },
@@ -127,9 +124,9 @@ export default defineConfig({
       {
         extends: false,
         test: {
-          name: 'data',
+          name: 'node',
           environment: 'node',
-          include: ['src/db/**/*.test.ts', 'src/services/tests/*.test.ts', 'src/core/**/*.test.ts', 'alchemy.test.ts'],
+          include: ['*.test.ts', 'src/api/test-node/**/*.test.ts', 'src/{core,db,services}/**/*.test.ts'],
         },
       },
     ],

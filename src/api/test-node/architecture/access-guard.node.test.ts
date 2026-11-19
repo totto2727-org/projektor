@@ -224,7 +224,7 @@ describe('PROJ-837: project-scoped service operations reach the access guard', (
       unguarded,
       'These exported services take a project-scoped id but never reach services/access.ts. ' +
         'Call assertProjectAccess/hasProjectAccess (or a helper that does), or — if the ' +
-        'function is genuinely safe — add it to test/architecture/access-guard-allowlist.ts with a reason.',
+        'function is genuinely safe, add it to src/api/test-node/architecture/access-guard-allowlist.ts with a reason.',
     ).toEqual([])
   })
 

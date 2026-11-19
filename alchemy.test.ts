@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 
+import { Credentials } from '@distilled.cloud/cloudflare/Credentials'
+import { NodeServices } from '@effect/platform-node'
 import { Stack } from 'alchemy'
 import { AdoptPolicy } from 'alchemy/AdoptPolicy'
 import { CloudflareEnvironment, Providers } from 'alchemy/Cloudflare'
@@ -7,11 +9,12 @@ import type { WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
 import { dedupeBindings, diffBindings } from 'alchemy/Diff'
 import * as Output from 'alchemy/Output'
 import { ConfigProvider, Effect, Redacted } from 'effect'
+import * as HttpClient from 'effect/http/HttpClient'
 import { describe, expect, it } from 'vite-plus/test'
 
 import { WorkerResources } from './alchemy'
 import { workers } from './alchemy.run'
-import { LocalLayer, ProductionLayer, existingStorageBindings, localDevelopment } from './worker-environment'
+import { type EnvironmentLayer, LocalLayer, ProductionLayer, localDevelopment } from './worker-environment'
 import { deployment } from './worker-graph'
 import CoreEntrypoint from './workers/core'
 import Frontend from './workers/frontend'
@@ -23,7 +26,7 @@ function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<stri
 async function register(
   local: boolean,
   productionSecret: string | null = 'test-existing-production-value',
-  environmentLayer?: typeof LocalLayer | typeof ProductionLayer,
+  environmentLayer?: EnvironmentLayer,
   extraConfig: Record<string, string> = {},
   accountId = deployment.accountId,
 ) {
@@ -40,6 +43,12 @@ async function register(
       ...(productionSecret === null ? {} : { JWT_SECRET: productionSecret }),
       ...extraConfig,
     }).pipe(
+      Effect.provide(NodeServices.layer),
+      Effect.provideService(Credentials, Effect.die(new Error('Registration resolved Cloudflare credentials'))),
+      Effect.provideService(
+        HttpClient.HttpClient,
+        HttpClient.make(() => Effect.die(new Error('Registration called a cloud API'))),
+      ),
       Effect.provideService(Stack, stack),
       Effect.provideService(AdoptPolicy, true),
       Effect.provideService(
@@ -115,6 +124,12 @@ describe('source-owned private Core deployment', () => {
     })
     await Effect.runPromise(
       entrypoint.pipe(
+        Effect.provide(NodeServices.layer),
+        Effect.provideService(Credentials, Effect.die(new Error('Registration resolved Cloudflare credentials'))),
+        Effect.provideService(
+          HttpClient.HttpClient,
+          HttpClient.make(() => Effect.die(new Error('Registration called a cloud API'))),
+        ),
         Effect.provideService(Stack, stack),
         Effect.provideService(ConfigProvider.ConfigProvider, provider),
         Effect.provideService(CloudflareEnvironment, Effect.die(new Error('Runtime resolved deployment profile'))),
@@ -128,6 +143,7 @@ describe('source-owned private Core deployment', () => {
       ),
     )
     expect(Object.keys(stack.resources).sort()).toEqual(ids)
+    expect(stack.actions).toEqual({})
     expect(new Set(reads)).toEqual(new Set(['ALCHEMY_PHASE']))
     expect(stack.resources.Core.Props.env).not.toHaveProperty('DB')
     expect(bindings(stack, 'Core').some((binding) => binding.type === 'd1')).toBe(false)
@@ -168,28 +184,58 @@ describe('source-owned private Core deployment', () => {
     expect(core.Props.env).not.toHaveProperty('JWT_SECRET')
   })
 
+  it('uses native D1 migrations without custom Actions and directly gates every Worker update', async () => {
+    const { stack } = await register(false)
+    expect(stack.actions).toEqual({})
+    expect(stack.resources.Database.Props).toEqual({ name: 'projektor', migrations: './migrations' })
+    for (const id of ['Core', 'Api', 'Frontend']) {
+      const environment = stack.resources[id].Props.env?.ENVIRONMENT
+      expect(Output.isOutput(environment)).toBe(true)
+      expect(environment.kind).toBe('ApplyExpr')
+      expect(environment.expr.identifier).toBe('migrationsHashes')
+      expect(environment.expr.expr.src.LogicalId).toBe('Database')
+    }
+    const local = await register(true)
+    expect(local.stack.actions).toEqual({})
+  })
+
   it('grants business storage only to Core and shares only official OAuth protocol KV with API', async () => {
-    const { core, stack } = await register(false)
-    expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Core', 'Frontend'])
-    expect(core.Adopt).toBe(true)
-    const storage = bindings(stack, 'Core').filter((binding) =>
-      ['d1', 'kv_namespace', 'r2_bucket'].includes(binding.type),
-    )
-    expect(storage).toEqual(existingStorageBindings())
-    expect(bindings(stack, 'Api').filter((binding) => binding.type === 'kv_namespace')).toEqual([
-      { type: 'kv_namespace', name: 'OAUTH_KV', namespaceId: 'b187546f271142419343787032f6ca9b' },
+    const { core, api, stack } = await register(false)
+    expect(Object.keys(stack.resources).sort()).toEqual([
+      'Api',
+      'Cache',
+      'Core',
+      'Database',
+      'Files',
+      'Frontend',
+      'OAuth',
     ])
+    expect(core.Adopt).toBe(true)
+    for (const [name, id] of [
+      ['DB', 'Database'],
+      ['KV', 'Cache'],
+      ['OAUTH_KV', 'OAuth'],
+      ['R2', 'Files'],
+    ]) {
+      expect((core.Props.env as WorkerBindingProps)[name]).toBe(stack.resources[id])
+      expect(stack.resources[id].Adopt).toBe(true)
+      expect(stack.resources[id].RemovalPolicy).toBe('retain')
+    }
+    expect((api.Props.env as WorkerBindingProps).OAUTH_KV).toBe(stack.resources.OAuth)
+    expect(stack.resources.Cache.Props).toEqual({ title: 'projektor' })
+    expect(stack.resources.OAuth.Props).toEqual({ title: 'projektor-oauth' })
+    expect(stack.resources.Files.Props).toEqual({
+      name: 'projektor-files',
+      publicAccess: false,
+      lifecycleRules: [
+        {
+          id: 'Default Multipart Abort Rule',
+          abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 604800 } },
+        },
+      ],
+    })
     expectNoStorage(stack, 'Api')
     expectNoStorage(stack, 'Frontend')
-    expect(existingStorageBindings()).toEqual([
-      { type: 'd1', name: 'DB', databaseId: 'e852f9c2-e817-409e-bbf0-3168e82a1afc' },
-      { type: 'kv_namespace', name: 'KV', namespaceId: 'b5598fbbbc2e48e3beab8bf9aecfc4bd' },
-      { type: 'kv_namespace', name: 'OAUTH_KV', namespaceId: 'b187546f271142419343787032f6ca9b' },
-      { type: 'r2_bucket', name: 'R2', bucketName: 'projektor-files' },
-    ])
-    const copy = existingStorageBindings()
-    copy.pop()
-    expect(existingStorageBindings()).toHaveLength(4)
   })
 
   it('declares retained local storage once, only on Core, with local migrations', async () => {
@@ -314,7 +360,7 @@ describe('source-owned private Core deployment', () => {
     const production = await register(false, null, undefined, { DEV_USER_EMAIL: 'untrusted@example.com' })
     for (const resource of [production.api, production.core, production.frontend]) {
       expect(resource.Props.env).toMatchObject({
-        ENVIRONMENT: 'production',
+        ENVIRONMENT: expect.objectContaining({ kind: 'ApplyExpr' }),
         AUTO_JOIN_ROLE: 'none',
         CF_ACCESS_TEAM_DOMAIN: deployment.access.teamDomain,
         CF_ACCESS_AUDIENCE: deployment.access.audience,
@@ -332,16 +378,34 @@ describe('source-owned private Core deployment', () => {
       DEV_USER_EMAIL: localDevelopment.userEmail,
     })
     const production = await register(true, null, ProductionLayer)
-    expect(Object.keys(production.stack.resources).sort()).toEqual(['Api', 'Core', 'Frontend'])
+    expect(Object.keys(production.stack.resources).sort()).toEqual([
+      'Api',
+      'Cache',
+      'Core',
+      'Database',
+      'Files',
+      'Frontend',
+      'OAuth',
+    ])
     expect(production.api.Adopt).toBe(true)
-    expect(production.core.Props.env).toMatchObject({ ENVIRONMENT: 'production' })
-    expect(bindings(production.stack, 'Core')).toEqual(expect.arrayContaining(existingStorageBindings()))
+    expect(production.core.Props.env).toMatchObject({
+      ENVIRONMENT: expect.objectContaining({ kind: 'ApplyExpr' }),
+    })
+    expect((production.core.Props.env as WorkerBindingProps).DB).toBe(production.stack.resources.Database)
     expectNoStorage(production.stack, 'Api')
     expectNoStorage(production.stack, 'Frontend')
   })
 
   it('does not add custom account-selection gates', async () => {
     const { stack } = await register(false, null, undefined, {}, 'different-account')
-    expect(Object.keys(stack.resources).sort()).toEqual(['Api', 'Core', 'Frontend'])
+    expect(Object.keys(stack.resources).sort()).toEqual([
+      'Api',
+      'Cache',
+      'Core',
+      'Database',
+      'Files',
+      'Frontend',
+      'OAuth',
+    ])
   })
 })
