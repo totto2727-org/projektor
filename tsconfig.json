@@ -12,9 +12,18 @@
     "types": ["node", "@cloudflare/workers-types", "@cloudflare/vitest-plugin/types", "vite/client"],
     "paths": { "@/*": ["./src/web/*"] }
   },
+  "include": [
+    "*.ts",
+    "*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "workers/**/*.ts",
+    "workers/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx"
+  ],
   "exclude": [
     "**/node_modules",
-    "tmp",
     "**/dist",
     "**/core-dist",
     "**/test-results",

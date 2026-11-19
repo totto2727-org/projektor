@@ -210,7 +210,8 @@ Use Vitest's default discovery for Node and Web tests without listing individual
 Keep native Worker tests under `src/api` and `tests/native-workers`, and use the `.node.test.ts` suffix for API tests that require Node.
 The root Vite+ config uses `@totto2727/gitignore-patterns` filesystem snapshots for formatting and lint exclusions; the frontend acceptance config inherits those settings, while the standalone build-only API config needs no check settings.
 TypeScript inherits the template's strictest and node-ts presets, with Vite's bundled module resolution, React JSX, Worker runtime types and aliases.
-Use TypeScript's default discovery and exclude dependency, generated and temporary directories rather than listing source files.
+Use directory-level TypeScript `include` globs for maintained `.ts` and `.tsx` files rather than listing individual files.
+Exclude dependencies and generated outputs within the included directories.
 The existing application/SDK contracts retain three explicit compatibility settings: exact optional properties, indexed-property syntax and unchecked index access are not additionally tightened in this toolchain migration; standard strict checking and the other preset checks remain enabled.
 Parameter properties are expanded to ordinary declarations and assignments for the template's erasable-syntax setting without changing their runtime values or error protocol.
 PR #5's compatible mature dependency updates and range policy are applied here without merging its obsolete Bun/Turbo/eight-package/docs topology; exact template versions and Alchemy's exact paired peer contracts remain intentional.
