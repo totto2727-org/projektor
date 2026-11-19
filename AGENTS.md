@@ -206,8 +206,8 @@ JWT secrets remain Cloudflare-owned across normal deployments through standard b
 The project is consolidated into one root package and Vite+ toolchain instead of private workspace packages.
 `.node-version` pins Node.js 24.11.0 for Vite+ managed mode instead of declaring Node/pnpm compatibility ranges through `engines`; the existing pnpm `packageManager` pin remains unchanged.
 Vite+ owns all task entry points without Just, formatting/lint settings match the Vite+ app template, and tests use standard isolated projects rather than a runtime-plugin mode branch or test-runner alias shim.
-Use Vitest's default discovery for Node and Web tests without listing individual files.
-Keep native Worker tests under `src/api` and `tests/native-workers`, and use the `.node.test.ts` suffix for API tests that require Node.
+Scope Vitest projects with source directory globs instead of file lists or test exclusions.
+Keep native Worker tests under `src/api/test` and `tests/native-workers`, and keep API tests that require Node under `src/api/test-node`.
 The root Vite+ config uses `@totto2727/gitignore-patterns` filesystem snapshots for formatting and lint exclusions; the frontend acceptance config inherits those settings, while the standalone build-only API config needs no check settings.
 TypeScript inherits the template's strictest and node-ts presets, with Vite's bundled module resolution, React JSX, Worker runtime types and aliases.
 Use directory-level TypeScript `include` globs for maintained `.ts` and `.tsx` files rather than listing individual files.

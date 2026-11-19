@@ -6,16 +6,11 @@ import { effrontTailwind } from '@effront/tailwind'
 import { effront } from '@effront/vite'
 import { generateIgnorePatterns } from '@totto2727/gitignore-patterns'
 import { defineConfig } from 'vite-plus'
-import { configDefaults } from 'vite-plus/test/config'
 
 import { nativeCoreWorker } from './tests/native-workers/options'
 import { deployment } from './worker-graph'
 
 const ignorePatterns = await generateIgnorePatterns(new URL('.', import.meta.url))
-const nativeWorkerTests = [
-  'src/api/**/!(*.node).{test,spec}.?(c|m)[jt]s?(x)',
-  'tests/native-workers/**/*.{test,spec}.?(c|m)[jt]s?(x)',
-]
 let nativeRunnerName = ''
 
 export default defineConfig({
@@ -109,7 +104,7 @@ export default defineConfig({
               },
             },
           },
-          include: nativeWorkerTests,
+          include: ['src/api/test/**/*.test.ts', 'tests/native-workers/**/*.test.ts'],
           setupFiles: ['./src/api/test/setup.ts'],
           testTimeout: 30_000,
           hookTimeout: 30_000,
@@ -131,14 +126,7 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          exclude: [
-            ...configDefaults.exclude,
-            ...nativeWorkerTests,
-            'src/web/**',
-            'tmp/**',
-            '**/{dist,core-dist,test-results,playwright-report}/**',
-            'tests/e2e-alchemy/{.runtime,discovery-audited}/**',
-          ],
+          include: ['*.test.ts', 'src/api/test-node/**/*.test.ts', 'src/{core,db,services}/**/*.test.ts'],
         },
       },
     ],

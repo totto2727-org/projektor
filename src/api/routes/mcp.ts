@@ -307,7 +307,7 @@ function getAllTools(workspaceId: string): MCPTool[] {
   return [...coreMCPTools, ...pluginRegistry.getToolsForWorkspace(workspaceId)]
 }
 
-// Exported for the parity test (src/test/mcp-parity.node.test.ts), which asserts this
+// Exported for the parity test in src/api/test-node, which asserts this
 // array agrees with mcp/catalog.ts on both membership and order. Not part of the
 // runtime surface — nothing else should import it.
 export const coreMCPTools: MCPTool[] = [
