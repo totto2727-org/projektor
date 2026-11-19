@@ -12,6 +12,10 @@ import { nativeCoreWorker } from './tests/native-workers/options'
 import { deployment } from './worker-graph'
 
 const ignorePatterns = await generateIgnorePatterns(new URL('.', import.meta.url))
+const nativeWorkerTests = [
+  'src/api/**/!(*.node).{test,spec}.?(c|m)[jt]s?(x)',
+  'tests/native-workers/**/*.{test,spec}.?(c|m)[jt]s?(x)',
+]
 let nativeRunnerName = ''
 
 export default defineConfig({
@@ -105,21 +109,19 @@ export default defineConfig({
               },
             },
           },
-          include: ['src/api/**/*.test.ts', 'tests/native-workers/*.test.ts'],
-          exclude: [...configDefaults.exclude, 'src/api/**/*.node.test.ts'],
+          include: nativeWorkerTests,
           setupFiles: ['./src/api/test/setup.ts'],
           testTimeout: 30_000,
           hookTimeout: 30_000,
         },
       },
-      { extends: false, test: { name: 'api-node', environment: 'node', include: ['src/api/**/*.node.test.ts'] } },
       {
         extends: false,
         resolve: { tsconfigPaths: true },
         test: {
           name: 'web',
           environment: 'node',
-          include: ['src/web/**/*.test.ts', 'src/web/**/*.test.tsx'],
+          dir: 'src/web',
           restoreMocks: true,
           server: { deps: { inline: ['@cloudflare/workers-oauth-provider'] } },
         },
@@ -127,16 +129,15 @@ export default defineConfig({
       {
         extends: false,
         test: {
-          name: 'data',
+          name: 'node',
           environment: 'node',
-          include: [
-            'src/db/**/*.test.ts',
-            'src/services/tests/*.test.ts',
-            'src/core/**/*.test.ts',
-            'alchemy.test.ts',
-            'standard-migrations-adoption.test.ts',
-            'storage-adoption.test.ts',
-            'storage-dependency-engine.test.ts',
+          exclude: [
+            ...configDefaults.exclude,
+            ...nativeWorkerTests,
+            'src/web/**',
+            'tmp/**',
+            '**/{dist,core-dist,test-results,playwright-report}/**',
+            'tests/e2e-alchemy/{.runtime,discovery-audited}/**',
           ],
         },
       },
