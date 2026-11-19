@@ -1,25 +1,15 @@
 import { ALCHEMY_DEV, ALCHEMY_PHASE, RemovalPolicy } from 'alchemy'
 import { AdoptPolicy, adopt } from 'alchemy/AdoptPolicy'
 import * as Cloudflare from 'alchemy/Cloudflare'
-import { type Worker, type WorkerBinding, type WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
+import { type Worker, type WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
+import * as Output from 'alchemy/Output'
 import { Config, Context, Effect, Layer, Option, Redacted } from 'effect'
 
-import { productionMigrations } from './deployment-migrations'
 import { deployment } from './worker-graph'
 
 export const localDevelopment = {
   userEmail: 'dev@projektor.local',
   jwtSecret: 'projektor-local-development-only-secret',
-}
-
-/** Core owns business storage. The OAuth adapter also receives its dedicated protocol KV. */
-export function existingStorageBindings(): WorkerBinding[] {
-  return [
-    { type: 'd1', name: 'DB', databaseId: deployment.storage.database.id },
-    { type: 'kv_namespace', name: 'KV', namespaceId: deployment.storage.cache.id },
-    { type: 'kv_namespace', name: 'OAUTH_KV', namespaceId: deployment.storage.oauth.id },
-    { type: 'r2_bucket', name: 'R2', bucketName: deployment.storage.files.name },
-  ]
 }
 
 const commonApplicationEnvironment = {
@@ -87,37 +77,55 @@ export const LocalLayer = Layer.mergeAll(
   ),
 )
 
-/** Existing storage and optional initial API signing secret are production-only inputs. */
+/** Adopt existing physical storage and use the same native migration provider as development. */
 export const ProductionLayer = Layer.mergeAll(
   Layer.succeed(AdoptPolicy, true),
   Layer.effect(
     DeploymentEnvironment,
     Effect.gen(function* () {
-      const migrations = yield* productionMigrations
+      const database = yield* Cloudflare.D1.Database('Database', {
+        name: deployment.storage.database.name,
+        migrations: './migrations',
+      })
+      const oauth = yield* Cloudflare.KV.Namespace('OAuth', { title: deployment.storage.oauth.title })
       const secret = yield* Config.Redacted('JWT_SECRET').pipe(Config.option, Effect.orDie)
       const secretEnv: WorkerBindingProps = Option.isSome(secret) ? { JWT_SECRET: secret.value } : {}
       const sharedEnvironment = {
         ...commonApplicationEnvironment,
-        // Each Worker needs its own Action edge: an unchanged Core does not gate adapters.
-        ENVIRONMENT: migrations.environment,
+        // databaseId is stable and resolves before migrations. This nonstable output
+        // gates every Worker on completed D1 reconciliation, even with unchanged Core.
+        ENVIRONMENT: Output.map(database.migrationsHashes, () => 'production'),
         ADMIN_EMAILS: 'kaihatu.totto2727@gmail.com',
       }
       return {
-        apiEnv: { ...sharedEnvironment, ...secretEnv },
+        apiEnv: { ...sharedEnvironment, ...secretEnv, OAUTH_KV: oauth },
         frontendEnv: sharedEnvironment,
-        coreEnv: sharedEnvironment,
+        coreEnv: {
+          ...sharedEnvironment,
+          DB: database,
+          KV: yield* Cloudflare.KV.Namespace('Cache', { title: deployment.storage.cache.title }),
+          OAUTH_KV: oauth,
+          R2: yield* Cloudflare.R2.Bucket('Files', {
+            name: deployment.storage.files.name,
+            publicAccess: false,
+            // Preserve the existing Cloudflare rule during adoption rather than clearing it.
+            lifecycleRules: [
+              {
+                id: 'Default Multipart Abort Rule',
+                abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 604800 } },
+              },
+            ],
+          }),
+        },
         bindApi: (api: Worker) =>
           Effect.gen(function* () {
-            yield* api.bind('oauth-protocol-storage', {
-              bindings: [{ type: 'kv_namespace', name: 'OAUTH_KV', namespaceId: deployment.storage.oauth.id }],
-            })
             if (Option.isNone(secret)) {
               yield* api.bind('existing-jwt-secret', { bindings: [{ type: 'inherit', name: 'JWT_SECRET' }] })
             }
           }),
-        bindCore: (core: Worker) => core.bind('external-storage', { bindings: existingStorageBindings() }),
+        bindCore: () => Effect.void,
       }
-    }),
+    }).pipe(adopt(true), RemovalPolicy.retain()),
   ),
 )
 
@@ -133,7 +141,7 @@ const RuntimeLayer = Layer.mergeAll(
   }),
 )
 
-type EnvironmentLayers = typeof LocalLayer | typeof ProductionLayer | typeof RuntimeLayer
+type EnvironmentLayers = typeof LocalLayer | typeof RuntimeLayer
 export type EnvironmentLayer = Layer.Layer<
   Layer.Success<EnvironmentLayers>,
   Layer.Error<EnvironmentLayers>,

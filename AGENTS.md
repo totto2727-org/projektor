@@ -93,19 +93,21 @@ Keep temporary reports and screenshots under ignored `tmp/` or acceptance-output
 
 ## Migration safety
 
-Keep applied historical SQL and migration bookkeeping unchanged.
+Keep applied historical SQL unchanged and preserve every applied migration record.
 The installed Alchemy host skips an applied file by name, not by matching its stored hash, so editing history can silently produce different databases.
 Populated legacy upgrades through `0035`, `0041`, `0050` and `0060` can encounter generated-slug collisions with already occupied names.
 An appended migration cannot repair a database that fails before reaching it.
 Before resuming such a legacy upgrade, use an offline restored copy and an explicitly approved old-to-new mapping against the complete workspace namespace.
 Preserve page identity, redirect ownership, versions and foreign keys, then replay the unchanged remaining history and verify the result.
 Do not automatically rename user content, fabricate ledger entries, replay production migrations or treat fresh empty replay as populated-upgrade proof.
-Normal authorized production deployments apply pending migrations after `0067` through one Alchemy Action in `deployment-migrations.ts`, using Alchemy's standard SQL file reader and the public Cloudflare D1 SDK while retaining the existing `d1_migrations` table and every applied row.
-A separately confirmed `__projektor_migration_attempts` primary-key insert precedes each migration so a failed or ambiguous SQL write cannot be blindly replayed by a later deployment.
-Inspect D1 and available recovery evidence before operator-approved recovery of an unconfirmed attempt; never delete its marker just to make a deployment pass.
-There is no application-owned checkpoint lifecycle, expiry policy or second migration Action.
+Both local and production D1 resources declare `migrations: './migrations'` and use Alchemy's native migration provider, without an application-owned migration runner or Action.
+On first adoption, Alchemy copies and validates Wrangler's `d1_migrations` history into `__alchemy_migrations`, leaving the old table and every original row frozen, not dropped or rewritten.
+Subsequent deployments use `__alchemy_migrations`; never resume Wrangler migration writes after this one-way ownership transfer.
+Before the first authorized adoption, verify the live database identity, complete history through `0067`, schema and recoverable backup.
+The standard provider does not retain the removed custom runner's durable attempt-marker guarantee: inspect live schema and ledger after any failed or ambiguous migration before authorizing another deployment.
+Never clear existing recovery evidence, including `__projektor_migration_attempts` if present, merely to make deployment pass.
 Legacy upgrades through `0067`, data repair and production restoration still require separate operator authorization and a recoverable backup.
-The only allowed out-of-order gap is the independent `0068_wiki_draft_heads.sql` after incident-applied `0069_attachment_review_status.sql`; other gaps fail closed.
+The only reviewed out-of-order gap is the independent `0068_wiki_draft_heads.sql` after incident-applied `0069_attachment_review_status.sql`; other gaps require offline review before deployment.
 The versioned Wiki editor requires `0068_wiki_draft_heads.sql` before its first production request.
 Local and acceptance fixtures apply it, and production applies it as part of the next authorized deployment before normal Worker updates.
 A successful CI run or read-only plan does not prove production schema readiness.
@@ -124,20 +126,40 @@ Preserve physical Worker names `projektor` and `projektor-frontend`, the fixed a
 Core has no public domain, route, workers.dev URL or preview URL.
 Only Core receives D1, and API's existing cron forwards maintenance to Core without moving the schedule or adding a second trigger.
 Preserve the dedicated `OAUTH_KV` binding on API for the official provider and on Core for grant checks and cleanup, using the same existing namespace in both Workers.
-Existing production D1/KV/R2 remain external bindings, not resources to recreate or adopt; only pending D1 SQL migrations are applied automatically during an authorized deployment.
+All Projektor resources, including existing resources, are managed by Alchemy unless they are owned by the sibling Pulumi infrastructure.
+Production declares adopted, retained D1, cache KV, OAuth KV and R2 resources using their existing physical names; never rename or replace them to import them.
+Every Worker directly depends on D1's nonstable `migrationsHashes` output through its shared `ENVIRONMENT` binding so migration reconciliation precedes normal updates even when Core is unchanged; the stable `databaseId` output does not provide this ordering.
+Check adoption plans and observed D1 read replication and R2 CORS, lifecycle, domains, storage class and public-access settings before first apply because omitted provider properties can converge to defaults.
+The production R2 declaration preserves the observed private bucket and its existing seven-day incomplete-multipart-upload abort rule.
 Do not replay the historical unbound WorkspaceHub migration.
 Production inherits the existing JWT_SECRET through a standard Cloudflare `inherit` binding when no local value is supplied.
 Only initial secret creation needs JWT_SECRET through Alchemy's standard redacted configuration; explicitly supplying a value updates it.
 If the Worker has no existing secret, supply the initial value once; do not silently generate a replacement.
 Cloudflare authentication selects the deployment account, without a custom fixed-account rejection or Access-confirmation flag.
-Existing Access policies remain external and unchanged.
+Pulumi-owned Access policies and shared infrastructure remain outside this stack and unchanged; do not introduce dual ownership.
 Worker runtime capture must never resolve deployment secrets or register local storage.
 Development uses local Alchemy state; production uses Alchemy's official encrypted Cloudflare state store so state survives ephemeral CI runners.
 The deployment workflow serializes production deployments and uses the available organization `CLOUDFLARE_API_TOKEN` secret with the configured account, without injecting JWT_SECRET on every run.
-The main deployment passes Alchemy's standard `--yes` flag; Alchemy may bootstrap or upgrade its own state-store infrastructure, separate from the application's external storage and Access policies.
+The main deployment passes Alchemy's standard `--yes` flag; Alchemy may bootstrap or upgrade its own state-store infrastructure, separate from the application's retained storage and Pulumi-owned Access policies.
 Switching from local production state does not upload or migrate the local files automatically: retain those files as operator recovery evidence, and the first remote-state deployment uses the existing explicit adoption policy and fixed Worker identities.
 No deployment state or credential values belong in GitHub artifacts, caches or the repository.
 Do not deploy, rotate secrets, modify Access or destroy resources during validation.
+
+### Resource ownership
+
+| Resources                                                                        | Owner and declaration                                                                                                     |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| API, Frontend, private Core Workers                                              | Alchemy `workers/`, with retained physical identities                                                                     |
+| Worker custom domains, cron, service bindings, RateLimiter Durable Object        | Alchemy Worker properties and bindings, preserving the existing Worker and class identity                                 |
+| D1 `projektor`, KV `projektor` and `projektor-oauth`, R2 `projektor-files`       | Alchemy `ProductionLayer`, standard adoption and retention                                                                |
+| API `JWT_SECRET`                                                                 | Alchemy Worker binding, standard `inherit` for an existing value or explicit redacted initial configuration               |
+| Encrypted deployment state Worker and its storage                                | Alchemy's official Cloudflare state-store stack                                                                           |
+| Projektor Access application and its shared policies, identity provider and zone | Pulumi `../../infra/cloudflare/src/access-application.ts`, `access-policy.ts`, `identity-provider.ts`, `shared-assets.ts` |
+| Projektor GitHub repository, ruleset and vulnerability alerts                    | Pulumi `../../infra/github/src/totto2727-org.ts` and `repository.ts`                                                      |
+
+Cloudflare does not return an existing Worker secret's plaintext, so importing its value into declarative configuration is technically impossible without separately supplying it.
+Standard secret inheritance still manages the binding without exporting or rotating that value.
+Resource adoption is performed by an authorized apply, not by registration, tests or a read-only plan.
 
 ## Fork Record
 
@@ -173,9 +195,11 @@ Legacy unversioned REST and MCP draft writes retain last-write-wins behavior but
 This architecture does not imply a performance improvement.
 Deployment uses one source-owned Alchemy stack instead of example-repository deployment artifacts or operator Wrangler commands.
 Production deployment is a separate workflow gated on successful main-push CI, with the tested revision, production environment and serialized deployments preserved.
-One production-only Alchemy Action migrates the fixed external D1 before normal updates of all three Workers, using a direct shared `ENVIRONMENT` output dependency on each Worker rather than relying on an unchanged Core.
-It reuses Alchemy's standard SQL reader and parameter formatting with the public Cloudflare D1 SDK, with only existing-ledger selection and failed-write replay prevention kept locally because the native runner would convert Wrangler's ledger.
-Planning and runtime capture never execute the migration Action body, and application runtime source and public storage boundaries are unchanged.
+Production storage is declared as standard adopted, retained Alchemy D1/KV/R2 resources rather than external binding literals.
+The native D1 provider adopts Wrangler history into its own ledger and applies pending unchanged SQL, including the reviewed `0068` gap, with no custom migration runner or Action.
+Each Worker directly depends on the native D1 output rather than relying on an unchanged Core to gate updates.
+The sole ownership exception is infrastructure already managed by Pulumi, including Access and GitHub configuration.
+Application runtime source and public storage boundaries are unchanged by this deployment customization.
 Deployment uses standard Alchemy configuration without custom confirmation flags, preflight gates or secret-value validation.
 Environment differences are provided through aggregate Effect Layers rather than leaf-level local/production branches, and runtime request handling stays outside Worker declarations.
 JWT secrets remain Cloudflare-owned across normal deployments through standard binding inheritance, without reading their values or storing them in project state.
