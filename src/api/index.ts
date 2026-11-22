@@ -23,7 +23,7 @@ import {
   createOAuthProvider,
   isOAuthAccessToken,
   isOAuthProviderPath,
-  tokenEndpointRateLimited,
+  oauthProviderRateLimited,
 } from './oauth/provider'
 import { agentMessagesRouter } from './routes/agent-messages'
 import { agentsRouter } from './routes/agents'
@@ -240,7 +240,7 @@ export default {
   async fetch(request: Request, env: ApiEnv, ctx: ExecutionContext): Promise<Response> {
     const { pathname } = new URL(request.url)
     if (isOAuthProviderPath(pathname)) {
-      const limited = await tokenEndpointRateLimited(request, env)
+      const limited = await oauthProviderRateLimited(request, env)
       return limited ?? oauthProvider.fetch(request, env, ctx)
     }
     if (isOAuthAccessToken(request)) return oauthProvider.fetch(request, env, ctx)

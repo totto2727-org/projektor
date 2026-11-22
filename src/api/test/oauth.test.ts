@@ -18,6 +18,7 @@ import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './h
 
 const HOST = 'https://projektor.example.com'
 const CLIENT_REDIRECT = 'https://claude.ai/api/mcp/auth_callback'
+const ORCA_REDIRECT = 'http://127.0.0.1:40927/callback'
 
 // The rate limiter is IP-keyed for requests with no bearer token, and
 // vite.config.ts sets RATE_LIMIT_AUTH_MAX=3. A whole authorization flow is more
@@ -169,6 +170,21 @@ async function exchange(body: Record<string, string>, ip?: string): Promise<Resp
   })
 }
 
+function registerClient(metadata: Record<string, unknown> = {}) {
+  return SELF.fetch(`${HOST}/oauth/register`, {
+    method: 'POST',
+    headers: browserHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({
+      client_name: 'Orca',
+      redirect_uris: [ORCA_REDIRECT],
+      token_endpoint_auth_method: 'none',
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+      ...metadata,
+    }),
+  })
+}
+
 type TokenResponse = {
   access_token: string
   refresh_token: string
@@ -182,11 +198,12 @@ async function connect(opts: {
   email: string
   workspaceId: string
   scope?: string
+  clientId?: string
   redirectUris?: string[]
   redirectUri?: string
 }): Promise<{ tokens: TokenResponse; clientId: string; resource: string }> {
   const jwt = await accessJwt(opts.email)
-  const { clientId } = await seedOAuthClient(opts.redirectUris)
+  const clientId = opts.clientId ?? (await seedOAuthClient(opts.redirectUris)).clientId
   const { verifier, challenge } = await pkce()
   const resource = `${HOST}/mcp/${opts.workspaceId}`
 
@@ -205,8 +222,12 @@ async function connect(opts: {
   const approved = await postConsent(consentTokenFrom(await consentPage.text()), 'approve', jwt)
   expect(approved.status).toBe(302)
 
-  const code = new URL(approved.headers.get('Location') as string).searchParams.get('code')
+  const callback = new URL(approved.headers.get('Location') as string)
+  const code = callback.searchParams.get('code')
   expect(code).toBeTruthy()
+  expect(`${callback.origin}${callback.pathname}`).toBe(opts.redirectUri ?? CLIENT_REDIRECT)
+  expect(callback.searchParams.get('state')).toBe('opaque-state')
+  expect(callback.searchParams.get('iss')).toBe(HOST)
 
   const res = await exchange({
     grant_type: 'authorization_code',
@@ -236,6 +257,25 @@ function mcpCall(workspaceId: string, token: string, name: string, args: unknown
 beforeEach(async () => {
   clientIp = `203.0.113.${Math.floor(Math.random() * 200) + 10}`
   await installAccessKeys()
+})
+
+describe('dynamic client registration', () => {
+  it.each([
+    { redirect_uris: [CLIENT_REDIRECT] },
+    { redirect_uris: [ORCA_REDIRECT, CLIENT_REDIRECT] },
+    { token_endpoint_auth_method: 'client_secret_basic' },
+  ])('rejects metadata outside the public loopback flow: %j', async (metadata) => {
+    const response = await registerClient(metadata)
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: 'invalid_client_metadata' })
+  })
+
+  it('rate limits anonymous registrations independently of token requests', async () => {
+    for (let i = 0; i < 3; i++) expect((await registerClient()).status).toBe(201)
+    expect((await registerClient()).status).toBe(429)
+    const response = await exchange({ grant_type: 'authorization_code', code: 'nope', client_id: 'nope' }, clientIp)
+    expect(response.status).toBe(401)
+  })
 })
 
 describe('only a signed-in human reaches the consent screen', () => {
@@ -523,8 +563,13 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     await seedMember(workspaceId, user.id, 'admin')
   })
 
-  it('completes the flow and authorizes an MCP call', async () => {
-    const { tokens } = await connect({ email, workspaceId })
+  it('registers Orca and completes consent, the loopback callback and an MCP call', async () => {
+    const response = await registerClient()
+    expect(response.status).toBe(201)
+    const client = await response.json<{ client_id: string }>()
+    expect(client).toMatchObject({ redirect_uris: [ORCA_REDIRECT], token_endpoint_auth_method: 'none' })
+    expect(client).not.toHaveProperty('client_secret')
+    const { tokens } = await connect({ email, workspaceId, clientId: client.client_id, redirectUri: ORCA_REDIRECT })
 
     expect(tokens.token_type).toBe('bearer')
     // `<userId>:<grantId>:<secret>` — the shape index.ts's dispatcher keys on.

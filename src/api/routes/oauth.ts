@@ -268,6 +268,7 @@ oauthRouter.get('/authorize', async (c) => {
 
   const host = relyingPartyHost(authRequest.clientId)
   const name = client.clientName ?? host
+  const identity = authRequest.clientId.startsWith('https://') ? 'Verified identity' : 'Registered client ID'
   const scopeItems = consent.scopes.map((s) => `<li>${escapeHtml(describeScope(s))}</li>`).join('')
   const loopbackWarning = isLoopbackOnlyClient(client.redirectUris)
     ? `<div class="warn">This application receives its response on your own machine
@@ -294,8 +295,7 @@ oauthRouter.get('/authorize', async (c) => {
            <button type="submit" name="decision" value="approve">Allow access</button>
          </div>
        </form>
-       <p class="meta">Verified identity: <strong>${escapeHtml(host)}</strong>. The
-       application's name is self-declared; the address above is not.</p>`,
+       <p class="meta">${identity}: <strong>${escapeHtml(host)}</strong>. The application's name is self-declared.</p>`,
     200,
     authRequest.redirectUri,
   )
