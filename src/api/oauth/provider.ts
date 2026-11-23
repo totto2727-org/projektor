@@ -2,9 +2,16 @@ import { OAuthProvider } from '@cloudflare/workers-oauth-provider'
 
 import type { ApiEnv } from '#types'
 
-import { AUTHORIZE_ENDPOINT, providerOptions, TOKEN_ENDPOINT } from '../../contracts/oauth-provider'
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+import {
+  AUTHORIZE_ENDPOINT,
+  providerOptions,
+  REGISTRATION_ENDPOINT,
+  TOKEN_ENDPOINT,
+} from '../../contracts/oauth-provider'
 
-export { AUTHORIZE_ENDPOINT, oauthApi, TOKEN_ENDPOINT } from '../../contracts/oauth-provider'
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+export { AUTHORIZE_ENDPOINT, oauthApi, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '../../contracts/oauth-provider'
 import { bumpRateCounter } from '../middleware/rate-limit'
 
 // PROJ-656/657: the OAuth 2.1 token lifecycle, delegated to Cloudflare's provider.
@@ -32,13 +39,12 @@ export function isOAuthAccessToken(request: Request): boolean {
   return header.slice(7).split(':').length === 3
 }
 
-// Paths routed into the provider regardless of credential. The token endpoint it
-// answers itself; the authorize endpoint it does NOT answer — it passes straight
-// through to projektor's consent route — but it must still be routed here, because
-// that pass-through is what injects `env.OAUTH_PROVIDER` (the OAuthHelpers the
-// consent screen needs to parse the request and complete the grant).
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+// The provider serves registration and token requests and injects its helpers
+// before passing authorization requests to Projektor's consent route.
 export function isOAuthProviderPath(pathname: string): boolean {
-  return pathname === TOKEN_ENDPOINT || pathname === AUTHORIZE_ENDPOINT
+  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+  return pathname === TOKEN_ENDPOINT || pathname === AUTHORIZE_ENDPOINT || pathname === REGISTRATION_ENDPOINT
 }
 
 // Revocation shares this URL: the provider handles issuance, refresh and RFC 7009
@@ -48,37 +54,38 @@ export function createOAuthProvider(app: ExportedHandler<ApiEnv>) {
   return new OAuthProvider<ApiEnv>(providerOptions(app))
 }
 
-/**
- * IP-keyed bound on the token endpoint, which the provider serves itself and which
- * therefore never passes through Hono's rateLimitMiddleware.
- *
- * A no-op for any other path — the authorize endpoint goes through Hono and is already
- * limited there, and limiting it twice would halve its effective budget.
- *
- * Fails open, matching rateLimitMiddleware: a D1 outage is a limiter problem, and
- * turning it into a blanket 500 would break every live connector rather than the
- * abusive one.
- */
-export async function tokenEndpointRateLimited(request: Request, env: ApiEnv): Promise<Response | null> {
-  if (new URL(request.url).pathname !== TOKEN_ENDPOINT) return null
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+/** The provider serves these endpoints before Hono's rate limiter. */
+export async function oauthProviderRateLimited(request: Request, env: ApiEnv): Promise<Response | null> {
+  const { pathname } = new URL(request.url)
+  const isRegistration = pathname === REGISTRATION_ENDPOINT && request.method === 'POST'
+  if (pathname !== TOKEN_ENDPOINT && !isRegistration) return null
 
   const ip = request.headers.get('CF-Connecting-IP') ?? '127.0.0.1'
   const windowSecs = parseInt(env.RATE_LIMIT_WINDOW_SECS ?? '60', 10)
   const limit = parseInt(env.RATE_LIMIT_AUTH_MAX ?? '300', 10)
+  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+  const endpoint = isRegistration ? 'oauth-registration' : 'oauth-token'
 
   let count: number
   try {
-    count = await bumpRateCounter(env, `oauth-token:${ip}`, windowSecs)
+    // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+    count = await bumpRateCounter(env, `${endpoint}:${ip}`, windowSecs)
   } catch (err) {
-    console.error('oauth token rate-limit counter unavailable, failing open', {
-      err: String(err),
-    })
+    // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+    console.error('OAuth rate-limit counter unavailable', { endpoint, err: String(err) })
+    // A registration creates a new KV record for an anonymous caller.
+    if (isRegistration) return Response.json({ error: 'temporarily_unavailable' }, { status: 503 })
     return null
   }
   if (count <= limit) return null
 
   return Response.json(
-    { error: 'slow_down', error_description: 'Too many token requests' },
+    // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+    {
+      error: 'slow_down',
+      error_description: isRegistration ? 'Too many registration requests' : 'Too many token requests',
+    },
     { status: 429, headers: { 'Retry-After': String(windowSecs) } },
   )
 }

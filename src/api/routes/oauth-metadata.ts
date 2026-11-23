@@ -3,7 +3,8 @@ import { type Context, Hono } from 'hono'
 import type { HonoEnv } from '#types'
 
 import { OAUTH_SCOPES_SUPPORTED } from '../auth/scopes'
-import { AUTHORIZE_ENDPOINT, TOKEN_ENDPOINT } from '../oauth/provider'
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+import { AUTHORIZE_ENDPOINT, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '../oauth/provider'
 
 // PROJ-655: the two public OAuth discovery documents, mounted under /.well-known.
 //
@@ -83,6 +84,8 @@ router.get('/oauth-authorization-server', (c) => {
       issuer: origin,
       authorization_endpoint: `${origin}${AUTHORIZE_ENDPOINT}`,
       token_endpoint: `${origin}${TOKEN_ENDPOINT}`,
+      // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+      registration_endpoint: `${origin}${REGISTRATION_ENDPOINT}`,
       // Same URL as the token endpoint, not a separate /oauth/revoke: the
       // provider answers RFC 7009 revocation on the token endpoint itself.
       // Advertising a path nothing serves would send every revocation to the
@@ -105,9 +108,7 @@ router.get('/oauth-authorization-server', (c) => {
       // responses; a client may reject an `iss` it was not told to expect.
       authorization_response_iss_parameter_supported: true,
       scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
-      // Deliberately absent: `registration_endpoint`. RFC 7591 Dynamic Client
-      // Registration is deprecated, and advertising it would make clients prefer
-      // DCR over CIMD — the opposite of what the flags above are arranging.
+      // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
     },
     200,
     PUBLIC_HEADERS,

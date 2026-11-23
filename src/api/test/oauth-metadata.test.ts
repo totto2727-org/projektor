@@ -128,7 +128,8 @@ describe('RFC 8414 authorization server metadata', () => {
     expect(body.code_challenge_methods_supported).toEqual(['S256'])
   })
 
-  it('sets both CIMD gating flags — Claude needs both or it falls back to DCR', async () => {
+  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+  it('offers dynamic registration alongside both CIMD flags', async () => {
     const res = await SELF.fetch(AS_URL)
     const body = await res.json<{
       client_id_metadata_document_supported: boolean
@@ -138,9 +139,8 @@ describe('RFC 8414 authorization server metadata', () => {
 
     expect(body.client_id_metadata_document_supported).toBe(true)
     expect(body.token_endpoint_auth_methods_supported).toContain('none')
-    // Advertising a registration endpoint would make clients prefer deprecated
-    // RFC 7591 DCR over CIMD, defeating the two flags above.
-    expect(body.registration_endpoint).toBeUndefined()
+    // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+    expect(body.registration_endpoint).toBe(`${HOST}/oauth/register`)
   })
 
   it('advertises RFC 9207 iss support, since PROJ-656 emits it', async () => {

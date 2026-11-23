@@ -217,5 +217,9 @@ PR #5's compatible mature dependency updates and range policy are applied here w
 The old Workers pool is replaced with the maintained Vitest plugin, and immediate command rejections are awaited inside the affected MCP adapters instead of suppressing unhandled errors.
 Test failures and unhandled rejections are not globally filtered by domain error kind.
 The documentation app and docs directory are intentionally removed at the user's request.
+<!-- TODO: Orca lacks CIMD, so DCR is temporary.
+Once Orca supports CIMD, restore the pre-fix fork record or revert the original DCR change commit bae1f501aa93b678148968b16c09738470a7d4fe. -->
+
+Projektor offers rate-limited dynamic OAuth registration for public clients with one HTTP loopback IP redirect URI, alongside Client ID Metadata Documents.
 Maintain this compact divergence record alongside behavior/configuration changes.
 Use `git diff ab122cbea1bae7efce8abe2345ce07375b9dcd13 -- src migrations workers worker-environment.ts worker-graph.ts alchemy.ts alchemy.run.ts vite.config.ts package.json .github` when reviewing fork changes.
