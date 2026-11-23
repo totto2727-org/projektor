@@ -1279,6 +1279,10 @@ export function AttachmentsSection({
   attachments: Attachment[]
 }) {
   const { mode, setMode, links, resetForms, deleteAttachment, deleteError } = useAttachmentForms(issueId, workspaceSlug)
+  const [canAddAttachment, setCanAddAttachment] = useState(false)
+  useEffect(() => {
+    setCanAddAttachment(true)
+  }, [])
 
   return (
     <section className='mb-8'>
@@ -1330,7 +1334,11 @@ export function AttachmentsSection({
       )}
 
       {mode === 'none' && (
-        <div className='flex flex-wrap gap-x-4 gap-y-2 max-sm:flex-col max-sm:gap-2'>
+        <fieldset
+          aria-label='Add an attachment'
+          disabled={!canAddAttachment}
+          className='flex min-w-0 flex-wrap gap-x-4 gap-y-2 disabled:opacity-50 max-sm:flex-col max-sm:gap-2'
+        >
           <button
             type='button'
             onClick={() => setMode('file')}
@@ -1355,7 +1363,7 @@ export function AttachmentsSection({
             <span className='text-base leading-none'>+</span>
             <span>Add URL</span>
           </button>
-        </div>
+        </fieldset>
       )}
     </section>
   )

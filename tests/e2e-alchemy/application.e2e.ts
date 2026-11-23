@@ -325,7 +325,8 @@ test('issue review targets persist optional selection and four statuses across f
     attachmentFixtures.push({ id: linkedAttachment.id, filename: label })
   }
   const scope = new URLSearchParams({ workspace: 'projektor', projectId: project.id }).toString()
-  await page.goto(`/issues/view?id=${emptyIssue.id}&${scope}`)
+  const emptyIssueUrl = `/issues/view?id=${emptyIssue.id}&${scope}`
+  await page.goto(emptyIssueUrl)
   await page.getByRole('button', { name: /Add URL/ }).click()
   const urlInput = page.getByPlaceholder('https://example.com/…', { exact: true })
   await urlInput.fill('https://[broken')
@@ -467,6 +468,8 @@ test('issue review targets persist optional selection and four statuses across f
       }),
     ).toBeVisible()
     await checkpoint(cold, testInfo, 'review-targets-cold-focused-no-js')
+    expect((await cold.goto(emptyIssueUrl))?.status()).toBe(200)
+    await expect(cold.getByRole('button', { name: /Add URL/ })).toBeDisabled()
   } finally {
     await coldContext.close()
   }
