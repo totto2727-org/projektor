@@ -60,10 +60,9 @@ function seed(): WikiSeed {
   }
 }
 
-// Preserve the originals unbound so each mock calls them with its own Date instance below.
-// eslint-disable-next-line typescript/unbound-method
+// oxlint-disable-next-line typescript/unbound-method -- Each mock calls this original on its own Date instance.
 const localeString = Date.prototype.toLocaleString
-// eslint-disable-next-line typescript/unbound-method
+// oxlint-disable-next-line typescript/unbound-method -- Each mock calls this original on its own Date instance.
 const localeDateString = Date.prototype.toLocaleDateString
 function environment(locale: string, timeZone: string) {
   vi.spyOn(Date.prototype, 'toLocaleString').mockImplementation(function (this: Date, locales, options) {

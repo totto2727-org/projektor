@@ -263,9 +263,7 @@ describe('File Claims API', () => {
     const paths = rows.results
       .map((r) => (r as Record<string, unknown>).path)
       .sort((a, b) => {
-        // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Preserve default sort's coercion without changing the asserted row values.
         const left = String(a)
-        // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Preserve default sort's coercion without changing the asserted row values.
         const right = String(b)
         return left < right ? -1 : left > right ? 1 : 0
       })

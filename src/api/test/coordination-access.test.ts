@@ -12,9 +12,7 @@ import { authHeaders, seedAgentLease, seedGroupGrant, seedIssue, seedProject, se
 type ListResult = { items: Array<Record<string, unknown>> }
 
 function lexicalCompare(a: unknown, b: unknown): number {
-  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Match default sort's string coercion without changing the asserted values.
   const left = String(a)
-  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Match default sort's string coercion without changing the asserted values.
   const right = String(b)
   return left < right ? -1 : left > right ? 1 : 0
 }

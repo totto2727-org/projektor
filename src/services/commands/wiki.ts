@@ -233,11 +233,8 @@ async function resolvePageByIdOrSlug(
       slug: redirected.slug,
       title: redirected.title,
       content: redirected.content,
-      // eslint-disable-next-line camelcase
       projectId: redirected.project_id,
-      // eslint-disable-next-line camelcase
       parentId: redirected.parent_id,
-      // eslint-disable-next-line camelcase
       isTemplate: redirected.is_template,
       version: redirected.version,
     }
@@ -499,24 +496,17 @@ const wikiPageDetailColumns = {
   slug: schema.wikiPages.slug,
   title: schema.wikiPages.title,
   content: schema.wikiPages.content,
-  // eslint-disable-next-line camelcase
   parent_id: schema.wikiPages.parentId,
-  // eslint-disable-next-line camelcase
   project_id: schema.wikiPages.projectId,
-  // eslint-disable-next-line camelcase
   updated_at: schema.wikiPages.updatedAt,
   // PROJ-488 (R6): denormalized frontmatter metadata.
   type: schema.wikiPages.type,
   tags: schema.wikiPages.tags,
   status: schema.wikiPages.status,
-  // eslint-disable-next-line camelcase
   verified_at: schema.wikiPages.verifiedAt,
-  // eslint-disable-next-line camelcase
   verified_by: schema.wikiPages.verifiedBy,
   owners: schema.wikiPages.owners,
-  // eslint-disable-next-line camelcase
   verify_interval: schema.wikiPages.verifyInterval,
-  // eslint-disable-next-line camelcase
   is_template: schema.wikiPages.isTemplate,
 }
 

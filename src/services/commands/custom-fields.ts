@@ -270,7 +270,7 @@ export async function validateCustomFields(
       continue
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Preserve existing custom-field coercion before validation, including object values.
+    // oxlint-disable-next-line @typescript-eslint/no-base-to-string -- Preserve existing custom-field coercion before validation, including object values.
     const value = String(rawValue)
     assertValidCustomFieldValue(key, value, def)
 
