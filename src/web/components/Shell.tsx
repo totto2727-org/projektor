@@ -342,7 +342,7 @@ function ShellContent({
   prefs,
   update,
 }: ShellProps & { prefs: Prefs; update: (patch: Partial<Prefs>) => void }) {
-  const { setOpenMobile } = useSidebar()
+  const { isMobile, setOpenMobile } = useSidebar()
   const brandName = brand?.name ?? 'Projektor'
   const brandMark = brand?.mark ?? 'P'
   const projectsHref = workspaceHref('/', scope)
@@ -355,7 +355,8 @@ function ShellContent({
     <>
       <header className='projektor-topbar'>
         <div className='flex min-w-0 items-center gap-2'>
-          <SidebarTrigger className='md:hidden' />
+          {/* CSS shows the trigger before the provider detects the mobile viewport. */}
+          <SidebarTrigger className='md:hidden' disabled={!isMobile} />
           <a href={projectsHref} className='topbar-brand min-w-0'>
             <span className='brand-mark'>{brandMark}</span>
             <span className='truncate'>{brandName}</span>

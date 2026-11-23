@@ -879,6 +879,11 @@ test('cold protected initial HTML is usable without JavaScript', async ({ browse
     await expect(page.getByRole('main')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /^Account(?::|$)/ })).toBeVisible()
+    if (testInfo.project.name === 'mobile') {
+      const menu = page.getByRole('button', { name: 'Toggle Sidebar', exact: true })
+      await expect(menu).toBeVisible()
+      await expect(menu).toBeDisabled()
+    }
     await expect(page.getByText(/temporarily unavailable|session has expired/i)).toHaveCount(0)
     await checkpoint(page, testInfo, 'initial-no-js')
   } finally {
