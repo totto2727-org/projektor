@@ -128,6 +128,8 @@ describe('RFC 8414 authorization server metadata', () => {
     expect(body.code_challenge_methods_supported).toEqual(['S256'])
   })
 
+  // TODO: Orca needs DCR until it supports CIMD. Then restore the discovery test
+  // from 604289e82fa7cef7dddafe38be2b9125749cfb44.
   it('offers dynamic registration alongside both CIMD flags', async () => {
     const res = await SELF.fetch(AS_URL)
     const body = await res.json<{

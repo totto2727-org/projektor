@@ -83,6 +83,8 @@ router.get('/oauth-authorization-server', (c) => {
       issuer: origin,
       authorization_endpoint: `${origin}${AUTHORIZE_ENDPOINT}`,
       token_endpoint: `${origin}${TOKEN_ENDPOINT}`,
+      // TODO: Orca needs DCR until it supports CIMD. Then restore the discovery metadata
+      // and endpoint imports from 604289e82fa7cef7dddafe38be2b9125749cfb44.
       registration_endpoint: `${origin}${REGISTRATION_ENDPOINT}`,
       // Same URL as the token endpoint, not a separate /oauth/revoke: the
       // provider answers RFC 7009 revocation on the token endpoint itself.

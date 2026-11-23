@@ -37,6 +37,8 @@ export function isOAuthAccessToken(request: Request): boolean {
   return header.slice(7).split(':').length === 3
 }
 
+// TODO: Orca needs DCR until it supports CIMD. Then restore provider path matching
+// and endpoint imports and exports from 604289e82fa7cef7dddafe38be2b9125749cfb44.
 // The provider serves registration and token requests and injects its helpers
 // before passing authorization requests to Projektor's consent route.
 export function isOAuthProviderPath(pathname: string): boolean {
@@ -50,6 +52,8 @@ export function createOAuthProvider(app: ExportedHandler<ApiEnv>) {
   return new OAuthProvider<ApiEnv>(providerOptions(app))
 }
 
+// TODO: Orca needs DCR until it supports CIMD. Then restore the token-only limiter
+// from 604289e82fa7cef7dddafe38be2b9125749cfb44.
 /** The provider serves these endpoints before Hono's rate limiter. */
 export async function oauthProviderRateLimited(request: Request, env: ApiEnv): Promise<Response | null> {
   const { pathname } = new URL(request.url)

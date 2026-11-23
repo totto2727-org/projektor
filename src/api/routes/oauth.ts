@@ -268,6 +268,8 @@ oauthRouter.get('/authorize', async (c) => {
 
   const host = relyingPartyHost(authRequest.clientId)
   const name = client.clientName ?? host
+  // TODO: Orca needs DCR until it supports CIMD. Then restore the consent identity text
+  // from 604289e82fa7cef7dddafe38be2b9125749cfb44.
   const identity = authRequest.clientId.startsWith('https://') ? 'Verified identity' : 'Registered client ID'
   const scopeItems = consent.scopes.map((s) => `<li>${escapeHtml(describeScope(s))}</li>`).join('')
   const loopbackWarning = isLoopbackOnlyClient(client.redirectUris)

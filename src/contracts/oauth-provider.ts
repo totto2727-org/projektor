@@ -9,6 +9,8 @@ import { OAUTH_SCOPES_SUPPORTED } from './auth-scopes'
 
 export const TOKEN_ENDPOINT = '/oauth/token'
 export const AUTHORIZE_ENDPOINT = '/oauth/authorize'
+// TODO: Orca needs DCR until it supports CIMD. Then remove the registration endpoint and
+// validator below, and restore the provider imports from 604289e82fa7cef7dddafe38be2b9125749cfb44.
 export const REGISTRATION_ENDPOINT = '/oauth/register'
 export interface OAuthEnvironment {
   OAUTH_KV: KVNamespace
@@ -39,6 +41,8 @@ export function providerOptions<E extends OAuthEnvironment>(app: ExportedHandler
     defaultHandler: app,
     authorizeEndpoint: AUTHORIZE_ENDPOINT,
     tokenEndpoint: TOKEN_ENDPOINT,
+    // TODO: Orca needs DCR until it supports CIMD. Then restore the provider options
+    // from 604289e82fa7cef7dddafe38be2b9125749cfb44.
     clientRegistrationEndpoint: REGISTRATION_ENDPOINT,
     clientRegistrationCallback: validateNativeClient,
     clientIdMetadataDocumentEnabled: true,
