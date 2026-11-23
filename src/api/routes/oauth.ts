@@ -268,8 +268,10 @@ oauthRouter.get('/authorize', async (c) => {
 
   const host = relyingPartyHost(authRequest.clientId)
   const name = client.clientName ?? host
-  // TODO: Orca needs DCR until it supports CIMD. Then restore the consent identity text
-  // from 604289e82fa7cef7dddafe38be2b9125749cfb44.
+  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+  // lookupClient returns ClientInfo without a registration method in workers-oauth-provider v0.10.4.
+  // CIMD uses validated HTTPS document URLs, while DCR issues opaque IDs here.
+  // The prefix only selects the consent label after parseAuthRequest validates the request.
   const identity = authRequest.clientId.startsWith('https://') ? 'Verified identity' : 'Registered client ID'
   const scopeItems = consent.scopes.map((s) => `<li>${escapeHtml(describeScope(s))}</li>`).join('')
   const loopbackWarning = isLoopbackOnlyClient(client.redirectUris)
@@ -297,7 +299,10 @@ oauthRouter.get('/authorize', async (c) => {
            <button type="submit" name="decision" value="approve">Allow access</button>
          </div>
        </form>
-       <p class="meta">${identity}: <strong>${escapeHtml(host)}</strong>. The application's name is self-declared.</p>`,
+       <p class="meta">${
+         /* TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD. */
+         identity
+       }: <strong>${escapeHtml(host)}</strong>. The application's name is self-declared.</p>`,
     200,
     authRequest.redirectUri,
   )

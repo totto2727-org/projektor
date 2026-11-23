@@ -217,8 +217,8 @@ PR #5's compatible mature dependency updates and range policy are applied here w
 The old Workers pool is replaced with the maintained Vitest plugin, and immediate command rejections are awaited inside the affected MCP adapters instead of suppressing unhandled errors.
 Test failures and unhandled rejections are not globally filtered by domain error kind.
 The documentation app and docs directory are intentionally removed at the user's request.
-<!-- TODO: Orca needs DCR until it supports CIMD.
-Then restore this part of the fork record from 604289e82fa7cef7dddafe38be2b9125749cfb44. -->
+<!-- TODO: Orca lacks CIMD, so DCR is temporary.
+Once Orca supports CIMD, restore the pre-fix fork record or revert the original DCR change commit bae1f501aa93b678148968b16c09738470a7d4fe. -->
 
 Projektor offers rate-limited dynamic OAuth registration for public clients with one HTTP loopback IP redirect URI, alongside Client ID Metadata Documents.
 Maintain this compact divergence record alongside behavior/configuration changes.

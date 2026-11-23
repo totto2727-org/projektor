@@ -23,6 +23,7 @@ import {
   createOAuthProvider,
   isOAuthAccessToken,
   isOAuthProviderPath,
+  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   oauthProviderRateLimited,
 } from './oauth/provider'
 import { agentMessagesRouter } from './routes/agent-messages'
@@ -240,8 +241,7 @@ export default {
   async fetch(request: Request, env: ApiEnv, ctx: ExecutionContext): Promise<Response> {
     const { pathname } = new URL(request.url)
     if (isOAuthProviderPath(pathname)) {
-      // TODO: Orca needs DCR until it supports CIMD. Then restore the token-only limiter call
-      // and import from 604289e82fa7cef7dddafe38be2b9125749cfb44.
+      // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
       const limited = await oauthProviderRateLimited(request, env)
       return limited ?? oauthProvider.fetch(request, env, ctx)
     }

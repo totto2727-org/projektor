@@ -3,6 +3,7 @@ import { type Context, Hono } from 'hono'
 import type { HonoEnv } from '#types'
 
 import { OAUTH_SCOPES_SUPPORTED } from '../auth/scopes'
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 import { AUTHORIZE_ENDPOINT, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '../oauth/provider'
 
 // PROJ-655: the two public OAuth discovery documents, mounted under /.well-known.
@@ -83,8 +84,7 @@ router.get('/oauth-authorization-server', (c) => {
       issuer: origin,
       authorization_endpoint: `${origin}${AUTHORIZE_ENDPOINT}`,
       token_endpoint: `${origin}${TOKEN_ENDPOINT}`,
-      // TODO: Orca needs DCR until it supports CIMD. Then restore the discovery metadata
-      // and endpoint imports from 604289e82fa7cef7dddafe38be2b9125749cfb44.
+      // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
       registration_endpoint: `${origin}${REGISTRATION_ENDPOINT}`,
       // Same URL as the token endpoint, not a separate /oauth/revoke: the
       // provider answers RFC 7009 revocation on the token endpoint itself.
@@ -108,6 +108,7 @@ router.get('/oauth-authorization-server', (c) => {
       // responses; a client may reject an `iss` it was not told to expect.
       authorization_response_iss_parameter_supported: true,
       scopes_supported: [...OAUTH_SCOPES_SUPPORTED],
+      // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
     },
     200,
     PUBLIC_HEADERS,

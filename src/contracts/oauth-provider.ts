@@ -1,3 +1,4 @@
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 import {
   type ClientRegistrationCallbackOptions,
   getOAuthApi,
@@ -9,13 +10,13 @@ import { OAUTH_SCOPES_SUPPORTED } from './auth-scopes'
 
 export const TOKEN_ENDPOINT = '/oauth/token'
 export const AUTHORIZE_ENDPOINT = '/oauth/authorize'
-// TODO: Orca needs DCR until it supports CIMD. Then remove the registration endpoint and
-// validator below, and restore the provider imports from 604289e82fa7cef7dddafe38be2b9125749cfb44.
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 export const REGISTRATION_ENDPOINT = '/oauth/register'
 export interface OAuthEnvironment {
   OAUTH_KV: KVNamespace
 }
 
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 function validateNativeClient({ clientMetadata }: ClientRegistrationCallbackOptions) {
   const redirects = clientMetadata.redirect_uris
   const redirect = Array.isArray(redirects) && redirects.length === 1 ? redirects[0] : undefined
@@ -41,8 +42,7 @@ export function providerOptions<E extends OAuthEnvironment>(app: ExportedHandler
     defaultHandler: app,
     authorizeEndpoint: AUTHORIZE_ENDPOINT,
     tokenEndpoint: TOKEN_ENDPOINT,
-    // TODO: Orca needs DCR until it supports CIMD. Then restore the provider options
-    // from 604289e82fa7cef7dddafe38be2b9125749cfb44.
+    // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
     clientRegistrationEndpoint: REGISTRATION_ENDPOINT,
     clientRegistrationCallback: validateNativeClient,
     clientIdMetadataDocumentEnabled: true,

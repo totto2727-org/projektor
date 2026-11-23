@@ -18,8 +18,7 @@ import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './h
 
 const HOST = 'https://projektor.example.com'
 const CLIENT_REDIRECT = 'https://claude.ai/api/mcp/auth_callback'
-// TODO: Orca needs DCR until it supports CIMD. Then remove this loopback fixture
-// to restore the fixtures from 604289e82fa7cef7dddafe38be2b9125749cfb44.
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 const ORCA_REDIRECT = 'http://127.0.0.1:40927/callback'
 
 // The rate limiter is IP-keyed for requests with no bearer token, and
@@ -172,8 +171,7 @@ async function exchange(body: Record<string, string>, ip?: string): Promise<Resp
   })
 }
 
-// TODO: Orca needs DCR until it supports CIMD. Then remove this registration helper
-// to restore the test setup from 604289e82fa7cef7dddafe38be2b9125749cfb44.
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 function registerClient(metadata: Record<string, unknown> = {}) {
   return SELF.fetch(`${HOST}/oauth/register`, {
     method: 'POST',
@@ -198,17 +196,17 @@ type TokenResponse = {
 }
 
 /** Consent and exchange in one go — the whole flow a connector performs. */
-// TODO: Orca needs DCR until it supports CIMD. Then restore the seeded-client
-// connection helper and callback assertions from 604289e82fa7cef7dddafe38be2b9125749cfb44.
 async function connect(opts: {
   email: string
   workspaceId: string
   scope?: string
+  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   clientId?: string
   redirectUris?: string[]
   redirectUri?: string
 }): Promise<{ tokens: TokenResponse; clientId: string; resource: string }> {
   const jwt = await accessJwt(opts.email)
+  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   const clientId = opts.clientId ?? (await seedOAuthClient(opts.redirectUris)).clientId
   const { verifier, challenge } = await pkce()
   const resource = `${HOST}/mcp/${opts.workspaceId}`
@@ -228,9 +226,11 @@ async function connect(opts: {
   const approved = await postConsent(consentTokenFrom(await consentPage.text()), 'approve', jwt)
   expect(approved.status).toBe(302)
 
+  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   const callback = new URL(approved.headers.get('Location') as string)
   const code = callback.searchParams.get('code')
   expect(code).toBeTruthy()
+  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   expect(`${callback.origin}${callback.pathname}`).toBe(opts.redirectUri ?? CLIENT_REDIRECT)
   expect(callback.searchParams.get('state')).toBe('opaque-state')
   expect(callback.searchParams.get('iss')).toBe(HOST)
@@ -265,8 +265,7 @@ beforeEach(async () => {
   await installAccessKeys()
 })
 
-// TODO: Orca needs DCR until it supports CIMD. Then remove the registration tests
-// to restore the coverage from 604289e82fa7cef7dddafe38be2b9125749cfb44.
+// TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 describe('dynamic client registration', () => {
   it.each([
     { redirect_uris: [CLIENT_REDIRECT] },
@@ -571,8 +570,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     await seedMember(workspaceId, user.id, 'admin')
   })
 
-  // TODO: Orca needs DCR until it supports CIMD. Then restore the seeded-client MCP test
-  // from 604289e82fa7cef7dddafe38be2b9125749cfb44.
+  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   it('registers Orca and completes consent, the loopback callback and an MCP call', async () => {
     const response = await registerClient()
     expect(response.status).toBe(201)
