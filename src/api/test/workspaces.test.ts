@@ -228,32 +228,32 @@ describe('workspaces MCP', () => {
     }
 
     test("owner of A cannot delete B (not a member of B) via A's MCP URL", async () => {
-      const a = await seedFixture({ role: 'owner' })
+      const testFixture = await seedFixture({ role: 'owner' })
       const victim = await seedWorkspace(`victim-${crypto.randomUUID().slice(0, 8)}`)
 
       const res = await mcpCall(
-        a.workspace.id,
+        testFixture.workspace.id,
         'delete_workspace',
         { workspaceSlug: victim.slug },
-        authHeaders(a.token, a.workspace.slug),
+        authHeaders(testFixture.token, testFixture.workspace.slug),
       )
 
       expect(toolError(res)?.code).toBe('not_found')
       expect(toolError(res)?.message).toMatch(/not found/i)
       await expect(workspaceExists(victim.id)).resolves.toBe(true)
-      await expect(workspaceExists(a.workspace.id)).resolves.toBe(true)
+      await expect(workspaceExists(testFixture.workspace.id)).resolves.toBe(true)
     })
 
     test("owner of A and B, using a token confined to A, cannot delete B via A's MCP URL", async () => {
-      const a = await seedFixture({ role: 'owner' })
+      const testFixture = await seedFixture({ role: 'owner' })
       const b = await seedWorkspace(`both-${crypto.randomUUID().slice(0, 8)}`)
-      await seedMember(b.id, a.user.id, 'owner')
+      await seedMember(b.id, testFixture.user.id, 'owner')
 
       const res = await mcpCall(
-        a.workspace.id,
+        testFixture.workspace.id,
         'delete_workspace',
         { workspaceSlug: b.slug },
-        authHeaders(a.token, a.workspace.slug),
+        authHeaders(testFixture.token, testFixture.workspace.slug),
       )
 
       expect(toolError(res)?.code).toBe('not_found')

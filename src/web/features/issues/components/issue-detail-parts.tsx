@@ -1761,7 +1761,10 @@ function TypeField({
           value={issue.type_id ?? ''}
           disabled={updatingType}
           onChange={(v) => changeType(v)}
-          options={[{ value: '', label: 'No type' }, ...taskTypes.map((t) => ({ value: t.id, label: t.name }))]}
+          options={[
+            { value: '', label: 'No type' },
+            ...taskTypes.map((taskType) => ({ value: taskType.id, label: taskType.name })),
+          ]}
         />
         {/* PROJ-602: without this, a rejected type change (e.g. demoting an epic
 					that still has children) reverts the dropdown with zero explanation. */}
@@ -1941,7 +1944,7 @@ export function SidebarPanel({
               onChange={changeAssignee}
               options={[
                 { value: '', label: 'Unassigned' },
-                ...members.map((m) => ({ value: m.id, label: m.name ?? m.email })),
+                ...members.map((member) => ({ value: member.id, label: member.name ?? member.email })),
               ]}
             />
           ) : (

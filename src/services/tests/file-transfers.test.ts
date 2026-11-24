@@ -59,11 +59,11 @@ const input = (file: File, entityId = 'i1') => ({ file, entityType: 'issue' as c
 
 describe('shared file transfer commands over migrated SQLite and bounded R2', () => {
   test('accepts only one concurrent upload when both preflights see the same remaining quota', async () => {
-    const f = fixture()
+    const testFixture = fixture()
     const ready = Promise.withResolvers<void>()
     let arrivals = 0
-    f.put.mockImplementation(async (key, body) => {
-      f.objects.set(key, await new Response(body).arrayBuffer())
+    testFixture.put.mockImplementation(async (key, body) => {
+      testFixture.objects.set(key, await new Response(body).arrayBuffer())
       if (++arrivals === 2) {
         ready.resolve()
       }
@@ -71,177 +71,191 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
       return null
     })
     const results = await Promise.allSettled([
-      uploadStoredAttachment(f.ctx, input(f.file), 4),
-      uploadStoredAttachment(f.ctx, input(f.file), 4),
+      uploadStoredAttachment(testFixture.ctx, input(testFixture.file), 4),
+      uploadStoredAttachment(testFixture.ctx, input(testFixture.file), 4),
     ])
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
     expect(results.find((result) => result.status === 'rejected')).toMatchObject({
       reason: { kind: 'payload_too_large' },
     })
-    expect(f.sqlite.prepare('SELECT COUNT(*) AS n, SUM(size) AS total FROM attachments').get()).toMatchObject({
-      n: 1,
-      total: 4,
-    })
-    expect(f.objects.size).toBe(1)
-    expect(f.remove).toHaveBeenCalledOnce()
+    expect(testFixture.sqlite.prepare('SELECT COUNT(*) AS n, SUM(size) AS total FROM attachments').get()).toMatchObject(
+      {
+        n: 1,
+        total: 4,
+      },
+    )
+    expect(testFixture.objects.size).toBe(1)
+    expect(testFixture.remove).toHaveBeenCalledOnce()
   })
 
   test('streams upload bytes without materializing the File as an ArrayBuffer', async () => {
-    const f = fixture()
-    const buffer = vi.spyOn(f.file, 'arrayBuffer').mockRejectedValue(new Error('must not buffer upload'))
-    await uploadStoredAttachment(f.ctx, input(f.file))
+    const testFixture = fixture()
+    const buffer = vi.spyOn(testFixture.file, 'arrayBuffer').mockRejectedValue(new Error('must not buffer upload'))
+    await uploadStoredAttachment(testFixture.ctx, input(testFixture.file))
     expect(buffer).not.toHaveBeenCalled()
-    expect(new Uint8Array([...f.objects.values()][0])).toEqual(new Uint8Array([0, 255, 7, 128]))
+    expect(new Uint8Array([...testFixture.objects.values()][0])).toEqual(new Uint8Array([0, 255, 7, 128]))
   })
 
   test('uploads exact bytes and metadata, reads archived-owner bytes, then deletes both stores', async () => {
-    const f = fixture()
-    const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
+    const testFixture = fixture()
+    const uploaded = await uploadStoredAttachment(testFixture.ctx, input(testFixture.file))
     expect(uploaded).toEqual({ id: expect.any(String), filename: 'diagram.png', contentType: 'image/png', size: 4 })
-    const row = f.sqlite.prepare('SELECT * FROM attachments WHERE id = ?').get(uploaded.id)
+    const row = testFixture.sqlite.prepare('SELECT * FROM attachments WHERE id = ?').get(uploaded.id)
     expect(row).toMatchObject({ created_by_id: 'u1', entity_id: 'i1', size: 4, workspace_id: 'w1' })
-    expect(f.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//), expect.any(ReadableStream), {
+    expect(testFixture.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//), expect.any(ReadableStream), {
       httpMetadata: { contentType: 'image/png' },
     })
-    expect([...f.objects.values()]).toEqual([await f.file.arrayBuffer()])
-    const stored = await getStoredAttachment(f.ctx, uploaded.id)
-    expect(stored).toEqual({ body: await f.file.arrayBuffer(), filename: f.file.name, contentType: f.file.type })
-    await deleteStoredAttachment(f.ctx, uploaded.id)
-    expect(f.sqlite.prepare('SELECT id FROM attachments WHERE id = ?').get(uploaded.id)).toBeUndefined()
-    expect(f.objects.size).toBe(0)
+    expect([...testFixture.objects.values()]).toEqual([await testFixture.file.arrayBuffer()])
+    const stored = await getStoredAttachment(testFixture.ctx, uploaded.id)
+    expect(stored).toEqual({
+      body: await testFixture.file.arrayBuffer(),
+      filename: testFixture.file.name,
+      contentType: testFixture.file.type,
+    })
+    await deleteStoredAttachment(testFixture.ctx, uploaded.id)
+    expect(testFixture.sqlite.prepare('SELECT id FROM attachments WHERE id = ?').get(uploaded.id)).toBeUndefined()
+    expect(testFixture.objects.size).toBe(0)
   })
 
   test('keeps the API 50 MiB boundary, MIME and quota checks before writing storage', async () => {
-    const f = fixture()
+    const testFixture = fixture()
     const unsupported = new File(['x'], 'bad.bin', { type: 'application/octet-stream' })
-    await expect(uploadStoredAttachment(f.ctx, input(unsupported))).rejects.toMatchObject({
+    await expect(uploadStoredAttachment(testFixture.ctx, input(unsupported))).rejects.toMatchObject({
       kind: 'unsupported_media_type',
     })
     const oversized = new File([new Uint8Array(MAX_UPLOAD_SIZE + 1)], 'large.png', { type: 'image/png' })
-    await expect(uploadStoredAttachment(f.ctx, input(oversized))).rejects.toMatchObject({
+    await expect(uploadStoredAttachment(testFixture.ctx, input(oversized))).rejects.toMatchObject({
       kind: 'payload_too_large',
     })
-    await expect(uploadStoredAttachment(f.ctx, input(f.file), 3)).rejects.toMatchObject({
+    await expect(uploadStoredAttachment(testFixture.ctx, input(testFixture.file), 3)).rejects.toMatchObject({
       kind: 'payload_too_large',
     })
-    expect(f.put).not.toHaveBeenCalled()
-    const uploaded = await uploadStoredAttachment(f.ctx, input(f.file), 4)
+    expect(testFixture.put).not.toHaveBeenCalled()
+    const uploaded = await uploadStoredAttachment(testFixture.ctx, input(testFixture.file), 4)
     expect(uploaded.size).toBe(4)
-    await expect(uploadStoredAttachment(f.ctx, input(f.file), 4)).rejects.toMatchObject({
+    await expect(uploadStoredAttachment(testFixture.ctx, input(testFixture.file), 4)).rejects.toMatchObject({
       kind: 'payload_too_large',
     })
-    expect(f.put).toHaveBeenCalledOnce()
+    expect(testFixture.put).toHaveBeenCalledOnce()
   })
 
   test('removes newly stored bytes when metadata insertion fails', async () => {
-    const f = fixture()
-    f.sqlite.exec(
+    const testFixture = fixture()
+    testFixture.sqlite.exec(
       "CREATE TRIGGER fail_attachment BEFORE INSERT ON attachments BEGIN SELECT RAISE(ABORT, 'insert failure'); END",
     )
-    await expect(uploadStoredAttachment(f.ctx, input(f.file))).rejects.toThrow('insert failure')
-    expect(f.put).toHaveBeenCalledOnce()
-    expect(f.remove).toHaveBeenCalledOnce()
-    expect(f.objects.size).toBe(0)
+    await expect(uploadStoredAttachment(testFixture.ctx, input(testFixture.file))).rejects.toThrow('insert failure')
+    expect(testFixture.put).toHaveBeenCalledOnce()
+    expect(testFixture.remove).toHaveBeenCalledOnce()
+    expect(testFixture.objects.size).toBe(0)
   })
 
   test.each(['viewer', 'ungranted', 'project-viewer'] as const)(
     'rejects %s writes before storing bytes',
     async (kind) => {
-      const f = fixture()
-      f.ctx.role = kind === 'viewer' ? 'viewer' : 'member'
+      const testFixture = fixture()
+      testFixture.ctx.role = kind === 'viewer' ? 'viewer' : 'member'
       if (kind === 'project-viewer') {
-        f.sqlite.exec(`
+        testFixture.sqlite.exec(`
       INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('g1','w1','Readers',1);
       INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1);
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','viewer');
     `)
       }
-      await expect(uploadStoredAttachment(f.ctx, input(f.file))).rejects.toMatchObject({
+      await expect(uploadStoredAttachment(testFixture.ctx, input(testFixture.file))).rejects.toMatchObject({
         kind: kind === 'project-viewer' ? 'forbidden' : 'not_found',
       })
-      expect(f.objects.size).toBe(0)
-      expect(f.put).not.toHaveBeenCalled()
-      expect(f.remove).not.toHaveBeenCalled()
+      expect(testFixture.objects.size).toBe(0)
+      expect(testFixture.put).not.toHaveBeenCalled()
+      expect(testFixture.remove).not.toHaveBeenCalled()
     },
   )
 
   test('requires owner visibility and tenant scope before reading or deleting stored bytes', async () => {
-    const f = fixture()
-    const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
-    f.ctx.workspaceId = 'w2'
-    await expect(getStoredAttachment(f.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'not_found' })
-    await expect(deleteStoredAttachment(f.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'not_found' })
-    f.ctx.workspaceId = 'w1'
-    f.ctx.role = 'member'
-    await expect(getStoredAttachment(f.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'not_found' })
-    await expect(deleteStoredAttachment(f.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'not_found' })
-    expect(f.get).not.toHaveBeenCalled()
-    expect(f.remove).not.toHaveBeenCalled()
-    expect(f.objects.size).toBe(1)
-    f.sqlite.exec(`
+    const testFixture = fixture()
+    const uploaded = await uploadStoredAttachment(testFixture.ctx, input(testFixture.file))
+    testFixture.ctx.workspaceId = 'w2'
+    await expect(getStoredAttachment(testFixture.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'not_found' })
+    await expect(deleteStoredAttachment(testFixture.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'not_found' })
+    testFixture.ctx.workspaceId = 'w1'
+    testFixture.ctx.role = 'member'
+    await expect(getStoredAttachment(testFixture.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'not_found' })
+    await expect(deleteStoredAttachment(testFixture.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'not_found' })
+    expect(testFixture.get).not.toHaveBeenCalled()
+    expect(testFixture.remove).not.toHaveBeenCalled()
+    expect(testFixture.objects.size).toBe(1)
+    testFixture.sqlite.exec(`
       INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('g1','w1','Readers',1);
       INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1);
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','viewer');
     `)
-    await expect(getStoredAttachment(f.ctx, uploaded.id)).resolves.not.toBeNull()
-    await expect(deleteStoredAttachment(f.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'forbidden' })
-    expect(f.objects.size).toBe(1)
-    f.sqlite.exec("UPDATE group_project_grants SET role = 'member' WHERE group_id = 'g1'")
-    f.ctx.role = 'viewer'
-    await deleteStoredAttachment(f.ctx, uploaded.id)
-    expect(f.objects.size).toBe(0)
+    await expect(getStoredAttachment(testFixture.ctx, uploaded.id)).resolves.not.toBeNull()
+    await expect(deleteStoredAttachment(testFixture.ctx, uploaded.id)).rejects.toMatchObject({ kind: 'forbidden' })
+    expect(testFixture.objects.size).toBe(1)
+    testFixture.sqlite.exec("UPDATE group_project_grants SET role = 'member' WHERE group_id = 'g1'")
+    testFixture.ctx.role = 'viewer'
+    await deleteStoredAttachment(testFixture.ctx, uploaded.id)
+    expect(testFixture.objects.size).toBe(0)
   })
 
   test('preserves free-floating entity compatibility and null-project wiki uploads', async () => {
-    const f = fixture()
-    f.ctx.role = 'member'
-    const orphan = await uploadStoredAttachment(f.ctx, input(f.file, 'missing-owner'))
-    await expect(getStoredAttachment(f.ctx, orphan.id)).resolves.not.toBeNull()
-    f.sqlite.exec(`INSERT INTO wiki_pages
+    const testFixture = fixture()
+    testFixture.ctx.role = 'member'
+    const orphan = await uploadStoredAttachment(testFixture.ctx, input(testFixture.file, 'missing-owner'))
+    await expect(getStoredAttachment(testFixture.ctx, orphan.id)).resolves.not.toBeNull()
+    testFixture.sqlite.exec(`INSERT INTO wiki_pages
       (id,workspace_id,slug,title,created_by_id,updated_by_id,created_at,updated_at)
       VALUES ('page','w1','page','Page','u1','u1',1,1)`)
-    const page = await uploadStoredAttachment(f.ctx, { file: f.file, entityType: 'wiki_page', entityId: 'page' })
-    await expect(getStoredAttachment(f.ctx, page.id)).resolves.not.toBeNull()
+    const page = await uploadStoredAttachment(testFixture.ctx, {
+      file: testFixture.file,
+      entityType: 'wiki_page',
+      entityId: 'page',
+    })
+    await expect(getStoredAttachment(testFixture.ctx, page.id)).resolves.not.toBeNull()
   })
 
   test('returns null for missing objects and skips R2 deletion for non-file metadata', async () => {
-    const f = fixture()
-    const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
-    f.objects.clear()
-    await expect(getStoredAttachment(f.ctx, uploaded.id)).resolves.toBeNull()
-    const link = await createLinkAttachment(f.ctx, {
+    const testFixture = fixture()
+    const uploaded = await uploadStoredAttachment(testFixture.ctx, input(testFixture.file))
+    testFixture.objects.clear()
+    await expect(getStoredAttachment(testFixture.ctx, uploaded.id)).resolves.toBeNull()
+    const link = await createLinkAttachment(testFixture.ctx, {
       kind: 'url',
       entityType: 'issue',
       entityId: 'i1',
       url: 'https://example.test',
     })
-    await deleteStoredAttachment(f.ctx, link.id)
-    expect(f.remove).not.toHaveBeenCalled()
+    await deleteStoredAttachment(testFixture.ctx, link.id)
+    expect(testFixture.remove).not.toHaveBeenCalled()
   })
 
   test('retains metadata and quota accounting when storage deletion fails, then permits retry', async () => {
-    const f = fixture()
-    const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
-    f.remove.mockRejectedValueOnce(new Error('R2 unavailable'))
-    await expect(deleteStoredAttachment(f.ctx, uploaded.id)).rejects.toThrow('R2 unavailable')
-    expect(f.sqlite.prepare('SELECT r2_key,size FROM attachments WHERE id = ?').get(uploaded.id)).toMatchObject({
+    const testFixture = fixture()
+    const uploaded = await uploadStoredAttachment(testFixture.ctx, input(testFixture.file))
+    testFixture.remove.mockRejectedValueOnce(new Error('R2 unavailable'))
+    await expect(deleteStoredAttachment(testFixture.ctx, uploaded.id)).rejects.toThrow('R2 unavailable')
+    expect(
+      testFixture.sqlite.prepare('SELECT r2_key,size FROM attachments WHERE id = ?').get(uploaded.id),
+    ).toMatchObject({
       size: 4,
     })
-    expect(f.objects.size).toBe(1)
-    await deleteStoredAttachment(f.ctx, uploaded.id)
-    expect(f.sqlite.prepare('SELECT id FROM attachments WHERE id = ?').get(uploaded.id)).toBeUndefined()
-    expect(f.objects.size).toBe(0)
+    expect(testFixture.objects.size).toBe(1)
+    await deleteStoredAttachment(testFixture.ctx, uploaded.id)
+    expect(testFixture.sqlite.prepare('SELECT id FROM attachments WHERE id = ?').get(uploaded.id)).toBeUndefined()
+    expect(testFixture.objects.size).toBe(0)
   })
 
   test('preserves the metadata error when compensation also fails', async () => {
-    const f = fixture()
-    f.sqlite.exec(
+    const testFixture = fixture()
+    testFixture.sqlite.exec(
       "CREATE TRIGGER fail_attachment BEFORE INSERT ON attachments BEGIN SELECT RAISE(ABORT, 'original insert failure'); END",
     )
-    f.remove.mockRejectedValueOnce(new Error('cleanup failure'))
+    testFixture.remove.mockRejectedValueOnce(new Error('cleanup failure'))
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      await expect(uploadStoredAttachment(f.ctx, input(f.file))).rejects.toThrow('original insert failure')
+      await expect(uploadStoredAttachment(testFixture.ctx, input(testFixture.file))).rejects.toThrow(
+        'original insert failure',
+      )
       expect(log).toHaveBeenCalledWith(
         'uploadStoredAttachment: compensation failed',
         expect.objectContaining({ r2Key: expect.stringMatching(/^w1\//) }),

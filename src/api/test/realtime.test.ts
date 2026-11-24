@@ -172,7 +172,8 @@ describe('realtime WebSockets (Opt-In)', () => {
 
   test('requires a WebSocket upgrade before accepting a connection', async () => {
     const { hub, state } = hubFor()
-    expect((await hub.fetch(new Request('http://localhost/realtime'))).status).toBe(426)
+    const result = await hub.fetch(new Request('http://localhost/realtime'))
+    expect(result.status).toBe(426)
     expect(state.acceptWebSocket).not.toHaveBeenCalled()
   })
 
@@ -196,7 +197,8 @@ describe('realtime WebSockets (Opt-In)', () => {
 
   test('computes all project IDs for an owner on upgrade', async () => {
     const { hub, state } = hubFor()
-    expect((await hub.fetch(upgradeRequest(roles.owner.token))).status).toBe(101)
+    const resolvedValue = await hub.fetch(upgradeRequest(roles.owner.token))
+    expect(resolvedValue.status).toBe(101)
     const accepted = state.acceptWebSocket.mock.calls[0][0]
     expect(accepted.deserializeAttachment()).toMatchObject({
       role: 'owner',

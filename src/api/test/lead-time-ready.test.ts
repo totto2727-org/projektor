@@ -48,7 +48,8 @@ describe('covers PROJ-921: ready_at and lead time', () => {
 
   test('an issue created in todo is ready from creation', async () => {
     const id = await create('todo')
-    expect((await stamps(id))?.ready_at).not.toBeNull()
+    const result = await stamps(id)
+    expect(result?.ready_at).not.toBeNull()
   })
 
   test('backlog -> done in one update never passed through ready: no ready_at', async () => {
@@ -62,7 +63,8 @@ describe('covers PROJ-921: ready_at and lead time', () => {
   test('backlog -> todo and backlog -> in_progress (fast-tracked, PROJ-252) both stamp it', async () => {
     const readied = await create('backlog')
     await patch(readied, 'todo')
-    expect((await stamps(readied))?.ready_at).not.toBeNull()
+    const resolvedValue = await stamps(readied)
+    expect(resolvedValue?.ready_at).not.toBeNull()
 
     const fastTracked = await create('backlog')
     await patch(fastTracked, 'in_progress')

@@ -3,7 +3,8 @@ import type { MarkdownOptions } from '@/components/markdown/render.ts'
 
 /** Untrusted dynamic Markdown uses the same async Comark pipeline on server and client. */
 export const renderMd = async function renderMd(markdown: string): Promise<string> {
-  return (await renderMarkdownDocument(markdown)).html
+  const document = await renderMarkdownDocument(markdown)
+  return document.html
 }
 
 const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/
@@ -15,5 +16,6 @@ export const renderMdWithWikilinks = async function renderMdWithWikilinks(
   markdown: string,
   pages: NonNullable<MarkdownOptions['pages']>,
 ): Promise<string> {
-  return (await renderMarkdownDocument(markdown, { pages })).html
+  const rendered = await renderMarkdownDocument(markdown, { pages })
+  return rendered.html
 }

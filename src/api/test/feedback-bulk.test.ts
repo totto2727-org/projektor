@@ -62,17 +62,20 @@ const firstSourceId = async function firstSourceId(projectId: string): Promise<s
 
 describe('handles POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
   test('marks all selected rows reviewed regardless of starting status', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    await mintSource(f)
-    const src = await firstSourceId(f.projectId)
-    const id1 = await seedFeedbackRow(src, f.workspaceId, f.projectId, { status: 'new' })
-    const id2 = await seedFeedbackRow(src, f.workspaceId, f.projectId, { status: 'actioned' })
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    await mintSource(testFixture)
+    const src = await firstSourceId(testFixture.projectId)
+    const id1 = await seedFeedbackRow(src, testFixture.workspaceId, testFixture.projectId, { status: 'new' })
+    const id2 = await seedFeedbackRow(src, testFixture.workspaceId, testFixture.projectId, { status: 'actioned' })
 
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-mark-reviewed`, {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-      body: JSON.stringify({ feedbackIds: [id1, id2] }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-mark-reviewed`,
+      {
+        method: 'POST',
+        headers: authHeaders(testFixture.token, testFixture.slug),
+        body: JSON.stringify({ feedbackIds: [id1, id2] }),
+      },
+    )
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toStrictEqual({ updated: 2 })
 
@@ -83,17 +86,20 @@ describe('handles POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
   })
 
   test('ignores feedbackIds from another project', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
+    const testFixture = await seedProjectFixture({ role: 'owner' })
     const other = await seedProjectFixture({ role: 'owner' })
     await mintSource(other)
     const otherSrc = await firstSourceId(other.projectId)
     const foreignId = await seedFeedbackRow(otherSrc, other.workspaceId, other.projectId)
 
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-mark-reviewed`, {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-      body: JSON.stringify({ feedbackIds: [foreignId] }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-mark-reviewed`,
+      {
+        method: 'POST',
+        headers: authHeaders(testFixture.token, testFixture.slug),
+        body: JSON.stringify({ feedbackIds: [foreignId] }),
+      },
+    )
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toStrictEqual({ updated: 0 })
 
@@ -104,37 +110,43 @@ describe('handles POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
   })
 
   test('403s for a viewer', async () => {
-    const f = await seedProjectFixture({ role: 'viewer' })
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-mark-reviewed`, {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-      body: JSON.stringify({ feedbackIds: ['nonexistent'] }),
-    })
+    const testFixture = await seedProjectFixture({ role: 'viewer' })
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-mark-reviewed`,
+      {
+        method: 'POST',
+        headers: authHeaders(testFixture.token, testFixture.slug),
+        body: JSON.stringify({ feedbackIds: ['nonexistent'] }),
+      },
+    )
     expect(res.status).toBe(403)
   })
 })
 
 describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
   test('creates one combined issue and links all selected rows', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    await mintSource(f)
-    const src = await firstSourceId(f.projectId)
-    const id1 = await seedFeedbackRow(src, f.workspaceId, f.projectId, {
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    await mintSource(testFixture)
+    const src = await firstSourceId(testFixture.projectId)
+    const id1 = await seedFeedbackRow(src, testFixture.workspaceId, testFixture.projectId, {
       rating: 1,
       ratingScale: 'thumbs',
       body: 'Love it',
       submitterLabel: 'a@b.com',
     })
-    const id2 = await seedFeedbackRow(src, f.workspaceId, f.projectId, {
+    const id2 = await seedFeedbackRow(src, testFixture.workspaceId, testFixture.projectId, {
       rating: -1,
       ratingScale: 'thumbs',
     })
 
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-      body: JSON.stringify({ feedbackIds: [id1, id2] }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-convert-to-issue`,
+      {
+        method: 'POST',
+        headers: authHeaders(testFixture.token, testFixture.slug),
+        body: JSON.stringify({ feedbackIds: [id1, id2] }),
+      },
+    )
     expect(res.status).toBe(201)
     const created = (await res.json()) as { id: string; convertedCount: number }
     expect(created.convertedCount).toBe(2)
@@ -157,25 +169,28 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
   })
 
   test('rejects the whole batch (creates no issue, mutates nothing) if any row is already converted', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    await mintSource(f)
-    const src = await firstSourceId(f.projectId)
-    const freshId = await seedFeedbackRow(src, f.workspaceId, f.projectId)
-    const existingIssue = await seedIssue(f.workspaceId, f.projectId, f.userId)
-    const convertedId = await seedFeedbackRow(src, f.workspaceId, f.projectId, {
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    await mintSource(testFixture)
+    const src = await firstSourceId(testFixture.projectId)
+    const freshId = await seedFeedbackRow(src, testFixture.workspaceId, testFixture.projectId)
+    const existingIssue = await seedIssue(testFixture.workspaceId, testFixture.projectId, testFixture.userId)
+    const convertedId = await seedFeedbackRow(src, testFixture.workspaceId, testFixture.projectId, {
       linkedIssueId: existingIssue.id,
       status: 'actioned',
     })
 
     const issueCountBefore = await env.DB.prepare('SELECT COUNT(*) as count FROM issues WHERE project_id = ?')
-      .bind(f.projectId)
+      .bind(testFixture.projectId)
       .first<{ count: number }>()
 
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-      body: JSON.stringify({ feedbackIds: [freshId, convertedId] }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-convert-to-issue`,
+      {
+        method: 'POST',
+        headers: authHeaders(testFixture.token, testFixture.slug),
+        body: JSON.stringify({ feedbackIds: [freshId, convertedId] }),
+      },
+    )
     expect(res.status).toBe(409)
 
     const fresh = await env.DB.prepare('SELECT linked_issue_id, status FROM feedback WHERE id = ?')
@@ -185,32 +200,38 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
     expect(fresh!.status).toBe('new')
 
     const issueCountAfter = await env.DB.prepare('SELECT COUNT(*) as count FROM issues WHERE project_id = ?')
-      .bind(f.projectId)
+      .bind(testFixture.projectId)
       .first<{ count: number }>()
     expect(issueCountAfter!.count).toBe(issueCountBefore!.count)
   })
 
   test("404s if a feedbackId doesn't belong to the project", async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    await mintSource(f)
-    const src = await firstSourceId(f.projectId)
-    const id1 = await seedFeedbackRow(src, f.workspaceId, f.projectId)
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    await mintSource(testFixture)
+    const src = await firstSourceId(testFixture.projectId)
+    const id1 = await seedFeedbackRow(src, testFixture.workspaceId, testFixture.projectId)
 
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-      body: JSON.stringify({ feedbackIds: [id1, 'nonexistent-id'] }),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-convert-to-issue`,
+      {
+        method: 'POST',
+        headers: authHeaders(testFixture.token, testFixture.slug),
+        body: JSON.stringify({ feedbackIds: [id1, 'nonexistent-id'] }),
+      },
+    )
     expect(res.status).toBe(404)
   })
 
   test('403s for a viewer', async () => {
-    const f = await seedProjectFixture({ role: 'viewer' })
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-      body: JSON.stringify({ feedbackIds: ['nonexistent'] }),
-    })
+    const testFixture = await seedProjectFixture({ role: 'viewer' })
+    const res = await fetchNativeApi(
+      `http://localhost/api/projects/${testFixture.projectId}/feedback/bulk-convert-to-issue`,
+      {
+        method: 'POST',
+        headers: authHeaders(testFixture.token, testFixture.slug),
+        body: JSON.stringify({ feedbackIds: ['nonexistent'] }),
+      },
+    )
     expect(res.status).toBe(403)
   })
 })

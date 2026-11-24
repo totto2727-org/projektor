@@ -138,9 +138,9 @@ async function fixture(currentScope = scope) {
 
 describe('settings authorized direct D1 SSR', () => {
   test.each(['groups', 'members'] as const)('keeps canonical native URL %s view and original DTOs', async (view) => {
-    const f = await fixture()
-    const node = await f.run(
-      renderGroups(f.scope, new URL(`https://front.example/settings/groups?workspace=alpha&view=${view}`)),
+    const testFixture = await fixture()
+    const node = await testFixture.run(
+      renderGroups(testFixture.scope, new URL(`https://front.example/settings/groups?workspace=alpha&view=${view}`)),
     )
     expect(node.props.view).toBe(view)
     expect(node.props.initialData.groups.map((group: { id: string }) => group.id)).toEqual(['g2', 'g1'])
@@ -153,15 +153,15 @@ describe('settings authorized direct D1 SSR', () => {
     })
     expect(node.props.initialData.projects.map((project: { id: string }) => project.id)).toEqual(['p1'])
     expect(node.props.initialData.memberGroups).toEqual([{ groups: [{ id: 'g1', name: 'Team' }], userId: 'u1' }])
-    expect(f.calls).not.toHaveBeenCalled()
+    expect(testFixture.calls).not.toHaveBeenCalled()
     expect(renderToStaticMarkup(node)).toContain(`id="group-tabpanel-${view}"`)
   })
 
   test('rejects malformed view before database queries', async () => {
-    const f = await fixture()
-    const prepare = vi.spyOn(f.db, 'prepare')
+    const testFixture = await fixture()
+    const prepare = vi.spyOn(testFixture.db, 'prepare')
     await expect(
-      f.run(renderGroups(f.scope, new URL('https://front.example/settings/groups?view=unknown'))),
+      testFixture.run(renderGroups(testFixture.scope, new URL('https://front.example/settings/groups?view=unknown'))),
     ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
     expect(prepare).not.toHaveBeenCalled()
   })
@@ -173,9 +173,11 @@ describe('settings authorized direct D1 SSR', () => {
       workspaces: [member],
       selection: { kind: 'workspace', workspace: member },
     }
-    const f = await fixture(memberScope)
-    const prepare = vi.spyOn(f.db, 'prepare')
-    const node = await f.run(renderGroups(f.scope, new URL('https://front.example/settings/groups?view=members')))
+    const testFixture = await fixture(memberScope)
+    const prepare = vi.spyOn(testFixture.db, 'prepare')
+    const node = await testFixture.run(
+      renderGroups(testFixture.scope, new URL('https://front.example/settings/groups?view=members')),
+    )
     expect(node.props.view).toBe('groups')
     expect(node.props.initialData.groups.map((group: { id: string }) => group.id)).toEqual(['g1'])
     expect(node.props.initialData.details).toEqual([])
@@ -186,14 +188,14 @@ describe('settings authorized direct D1 SSR', () => {
   })
 
   test('loads token metadata only from selected workspace and never serializes credential hashes', async () => {
-    const f = await fixture()
-    const node = await f.run(renderTokens(f.scope, url))
+    const testFixture = await fixture()
+    const node = await testFixture.run(renderTokens(testFixture.scope, url))
     expect(node.props.initialTokens).toEqual([token])
     expect(node.props.initialGrants).toEqual([connector])
     expect(node.props.mcpCommandTemplate).toContain('--header "Authorization: Bearer {{TOKEN}}"')
     expect(node.props.mcpCommandTemplate).toContain('--header "X-Workspace-Slug: alpha"')
     expect(JSON.stringify(node.props)).not.toContain('secret-token-hash')
-    expect(f.calls).not.toHaveBeenCalled()
+    expect(testFixture.calls).not.toHaveBeenCalled()
     expect(renderToStaticMarkup(node)).toContain('Agent token')
   })
 
@@ -204,9 +206,9 @@ describe('settings authorized direct D1 SSR', () => {
       workspaces: [member],
       selection: { kind: 'workspace', workspace: member },
     }
-    const f = await fixture(memberScope)
-    const prepare = vi.spyOn(f.db, 'prepare')
-    const node = await f.run(renderTokens(f.scope, url))
+    const testFixture = await fixture(memberScope)
+    const prepare = vi.spyOn(testFixture.db, 'prepare')
+    const node = await testFixture.run(renderTokens(testFixture.scope, url))
     // Core rechecks live membership, but must not load token metadata for a member.
     expect(prepare.mock.calls.some(([query]) => /\bapi_tokens\b/.test(query))).toBe(false)
     expect(node.props.initialTokens).toEqual([])
@@ -219,35 +221,41 @@ describe('settings authorized direct D1 SSR', () => {
   })
 
   test('uses verified native auth for connector credentials and deployment MCP configuration without HTTP', async () => {
-    const f = await fixture()
-    const connectors = await f.run(renderConnectors(f.scope, url))
+    const testFixture = await fixture()
+    const connectors = await testFixture.run(renderConnectors(testFixture.scope, url))
     expect(connectors.props.initialGrants).toEqual([connector])
-    const guide = await f.run(renderConnectAgent(f.scope, url))
+    const guide = await testFixture.run(renderConnectAgent(testFixture.scope, url))
     expect(guide.props.mcpUrl).toBe(`${apiOrigin}/mcp/w1`)
-    expect(f.calls).not.toHaveBeenCalled()
+    expect(testFixture.calls).not.toHaveBeenCalled()
   })
 
   test('rejects forged selected workspace membership before DB', async () => {
     const deniedScope: RequestScope = { ...scope, workspaces: [] }
-    const f = await fixture(deniedScope)
-    const prepare = vi.spyOn(f.db, 'prepare')
-    expect(renderToStaticMarkup(await f.run(renderGroups(f.scope, url)))).toContain('Only workspace owners and admins')
+    const testFixture = await fixture(deniedScope)
+    const prepare = vi.spyOn(testFixture.db, 'prepare')
+    expect(renderToStaticMarkup(await testFixture.run(renderGroups(testFixture.scope, url)))).toContain(
+      'Only workspace owners and admins',
+    )
     expect(prepare).not.toHaveBeenCalled()
   })
 
   test('preserves forbidden connector guidance and optional unavailable MCP metadata', async () => {
-    const f = await fixture()
-    const unverified: RequestScope = { ...f.scope, auth: undefined }
-    const node = await f.run(renderTokens(unverified, url))
+    const testFixture = await fixture()
+    const unverified: RequestScope = { ...testFixture.scope, auth: undefined }
+    const node = await testFixture.run(renderTokens(unverified, url))
     expect(node.props.initialTokens).toBeUndefined()
     expect(renderToStaticMarkup(node)).toContain('Access denied.')
-    expect(renderToStaticMarkup(await f.run(renderConnectors(unverified, url)))).toContain('Signed-in members only.')
+    expect(renderToStaticMarkup(await testFixture.run(renderConnectors(unverified, url)))).toContain(
+      'Signed-in members only.',
+    )
   })
 
   test('propagates core DB failures with redacted diagnostics', async () => {
-    const f = await fixture()
-    f.sqlite.exec('DROP TABLE user_groups')
-    const error = await f.run(renderGroups(f.scope, url).pipe(Effect.catch((error) => Effect.succeed(error))))
+    const testFixture = await fixture()
+    testFixture.sqlite.exec('DROP TABLE user_groups')
+    const error = await testFixture.run(
+      renderGroups(testFixture.scope, url).pipe(Effect.catch((error) => Effect.succeed(error))),
+    )
     expect(error).toMatchObject({
       _tag: 'ApiError',
       message: 'An unexpected error occurred.',

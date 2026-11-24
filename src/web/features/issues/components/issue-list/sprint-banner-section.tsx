@@ -46,7 +46,7 @@ function sprintStatusStyle(status: SprintDetail['status']): {
 }
 
 function SprintProgress({ issues }: { issues: Issue[] }) {
-  const doneCount = issues.filter((i) => i.status_category === 'done').length
+  const doneCount = issues.filter((issue) => issue.status_category === 'done').length
   const totalCount = issues.length
   if (totalCount === 0) {
     return null

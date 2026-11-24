@@ -41,8 +41,8 @@ describe('storage-free browser command composition', () => {
   test('creates only request proof and a named Core client, never a storage capability', async () => {
     const { run, context } = fixture()
     const client = await run(context.pipe(Effect.flatMap((ctx) => runCommand(ctx, Effect.succeed))))
-    expect(Object.keys(client).sort()).toEqual(['core', 'proof'])
-    expect(Object.keys(client.proof).sort()).toEqual(['projectId', 'request', 'workspaceSlug'])
+    expect(Object.keys(client).toSorted()).toEqual(['core', 'proof'])
+    expect(Object.keys(client.proof).toSorted()).toEqual(['projectId', 'request', 'workspaceSlug'])
     expect(client.proof).toMatchObject({
       projectId: 'project-a',
       request: { method: 'POST' },

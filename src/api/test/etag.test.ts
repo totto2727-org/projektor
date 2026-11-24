@@ -34,15 +34,15 @@ const get = async function get(
 
 describe('covers PROJ-439 — ETag / conditional GET', () => {
   test('tags a 200 and answers a matching If-None-Match with an empty 304', async () => {
-    const f = await seedIssueFixture({ role: 'owner' })
+    const testFixture = await seedIssueFixture({ role: 'owner' })
 
-    const first = await get(`/api/issues/${f.issueId}`, f.token, f.slug)
+    const first = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug)
     expect(first.status).toBe(200)
     const etag = first.headers.get('ETag')
     expect(etag).toMatch(/^"[0-9a-f]{32}"$/)
     expect(first.headers.get('Cache-Control')).toBe('private, no-cache')
 
-    const second = await get(`/api/issues/${f.issueId}`, f.token, f.slug, etag)
+    const second = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug, etag)
     expect(second.status).toBe(304)
     await expect(second.text()).resolves.toBe('')
     expect(second.headers.get('ETag')).toBe(etag)
@@ -54,70 +54,80 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
   })
 
   test('accepts a weak validator and a comma-separated If-None-Match list', async () => {
-    const f = await seedIssueFixture({ role: 'owner' })
-    const etag = (await get(`/api/issues/${f.issueId}`, f.token, f.slug)).headers.get('ETag')
+    const testFixture = await seedIssueFixture({ role: 'owner' })
+    const etag = (await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug)).headers.get(
+      'ETag',
+    )
 
-    const weak = await get(`/api/issues/${f.issueId}`, f.token, f.slug, `W/${etag}`)
+    const weak = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug, `W/${etag}`)
     expect(weak.status).toBe(304)
 
-    const list = await get(`/api/issues/${f.issueId}`, f.token, f.slug, `"other", ${etag}`)
+    const list = await get(
+      `/api/issues/${testFixture.issueId}`,
+      testFixture.token,
+      testFixture.slug,
+      `"other", ${etag}`,
+    )
     expect(list.status).toBe(304)
   })
 
   test('does not 304 a stale validator', async () => {
-    const f = await seedIssueFixture({ role: 'owner' })
-    const res = await get(`/api/issues/${f.issueId}`, f.token, f.slug, '"deadbeef"')
+    const testFixture = await seedIssueFixture({ role: 'owner' })
+    const res = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug, '"deadbeef"')
     expect(res.status).toBe(200)
   })
 
   // ---- a mutation must never leave a stale 304 behind ----
 
   test('handles PATCH to an issue makes the next conditional GET a 200 with the new content', async () => {
-    const f = await seedIssueFixture({ role: 'owner', issueTitle: 'Before' })
-    const etag = (await get(`/api/issues/${f.issueId}`, f.token, f.slug)).headers.get('ETag')
+    const testFixture = await seedIssueFixture({ role: 'owner', issueTitle: 'Before' })
+    const etag = (await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug)).headers.get(
+      'ETag',
+    )
 
-    const patch = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}`, {
+    const patch = await fetchNativeApi(`http://localhost/api/issues/${testFixture.issueId}`, {
       method: 'PATCH',
-      headers: authHeaders(f.token, f.slug),
+      headers: authHeaders(testFixture.token, testFixture.slug),
       body: JSON.stringify({ title: 'After' }),
     })
     expect(patch.status).toBe(200)
 
-    const after = await get(`/api/issues/${f.issueId}`, f.token, f.slug, etag)
+    const after = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug, etag)
     expect(after.status).toBe(200)
-    expect((await after.json<{ title: string }>()).title).toBe('After')
+    const body = await after.json<{ title: string }>()
+    expect(body.title).toBe('After')
     expect(after.headers.get('ETag')).not.toBe(etag)
   })
 
   test('a new comment makes the next conditional GET of the comment list a 200', async () => {
-    const f = await seedIssueFixture({ role: 'owner' })
-    const path = `/api/issues/${f.issueId}/comments`
-    const etag = (await get(path, f.token, f.slug)).headers.get('ETag')
+    const testFixture = await seedIssueFixture({ role: 'owner' })
+    const path = `/api/issues/${testFixture.issueId}/comments`
+    const etag = (await get(path, testFixture.token, testFixture.slug)).headers.get('ETag')
 
     const post = await fetchNativeApi(`http://localhost${path}`, {
       method: 'POST',
-      headers: authHeaders(f.token, f.slug),
+      headers: authHeaders(testFixture.token, testFixture.slug),
       body: JSON.stringify({ body: 'new comment' }),
     })
     expect(post.status).toBe(201)
 
-    const after = await get(path, f.token, f.slug, etag)
+    const after = await get(path, testFixture.token, testFixture.slug, etag)
     expect(after.status).toBe(200)
     await expect(after.json<unknown[]>()).resolves.toHaveLength(1)
   })
 
   test('creating a task status makes the next conditional GET of the list a 200', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    const etag = (await get('/api/task-statuses', f.token, f.slug)).headers.get('ETag')
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    const etag = (await get('/api/task-statuses', testFixture.token, testFixture.slug)).headers.get('ETag')
 
     const post = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
-      headers: authHeaders(f.token, f.slug),
+      headers: authHeaders(testFixture.token, testFixture.slug),
       body: JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
     })
     expect(post.status).toBe(201)
 
-    const after = await get('/api/task-statuses', f.token, f.slug, etag)
+    const after = await get('/api/task-statuses', testFixture.token, testFixture.slug, etag)
     expect(after.status).toBe(200)
   })
 
@@ -162,19 +172,19 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
      * PROJ-311 access is default-deny per project, so this is the in-workspace
      * equivalent of the two cases above.
      */
-    const f = await seedProjectFixture({ role: 'member' })
-    const ungranted = await seedProject(f.workspaceId, 'NOGRANT')
-    const issue = await seedIssue(f.workspaceId, ungranted.id, f.userId, { title: 'Invisible' })
-    await seedComment(issue.id, f.userId, 'secret')
+    const testFixture = await seedProjectFixture({ role: 'member' })
+    const ungranted = await seedProject(testFixture.workspaceId, 'NOGRANT')
+    const issue = await seedIssue(testFixture.workspaceId, ungranted.id, testFixture.userId, { title: 'Invisible' })
+    await seedComment(issue.id, testFixture.userId, 'secret')
 
-    const denied = await get(`/api/issues/${issue.id}/comments`, f.token, f.slug, '"anything"')
+    const denied = await get(`/api/issues/${issue.id}/comments`, testFixture.token, testFixture.slug, '"anything"')
     expect(denied.status).toBe(404)
     expect(denied.headers.get('ETag')).toBeNull()
   })
 
   test('does not tag a non-200, so an error body can never become a 304', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    const missing = await get(`/api/issues/${crypto.randomUUID()}`, f.token, f.slug)
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    const missing = await get(`/api/issues/${crypto.randomUUID()}`, testFixture.token, testFixture.slug)
     expect(missing.status).toBe(404)
     expect(missing.headers.get('ETag')).toBeNull()
     expect(missing.headers.get('Cache-Control')).toBeNull()

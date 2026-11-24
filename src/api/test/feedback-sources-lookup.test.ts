@@ -17,23 +17,23 @@ const createSource = async function createSource(
 
 describe('handles GET /api/feedback-sources/:sourceId (PROJ-724)', () => {
   test('returns the source including projectId', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    const sourceId = await createSource(f)
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    const sourceId = await createSource(testFixture)
 
     const res = await fetchNativeApi(`http://localhost/api/feedback-sources/${sourceId}`, {
-      headers: authHeaders(f.token, f.slug),
+      headers: authHeaders(testFixture.token, testFixture.slug),
     })
     expect(res.status).toBe(200)
     const body = (await res.json()) as { id: string; projectId: string; name: string }
     expect(body.id).toBe(sourceId)
-    expect(body.projectId).toBe(f.projectId)
+    expect(body.projectId).toBe(testFixture.projectId)
     expect(body.name).toBe('Onboarding survey')
   })
 
   test('404s for an unknown sourceId', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
+    const testFixture = await seedProjectFixture({ role: 'owner' })
     const res = await fetchNativeApi(`http://localhost/api/feedback-sources/${crypto.randomUUID()}`, {
-      headers: authHeaders(f.token, f.slug),
+      headers: authHeaders(testFixture.token, testFixture.slug),
     })
     expect(res.status).toBe(404)
   })

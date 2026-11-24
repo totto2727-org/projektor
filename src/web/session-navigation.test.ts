@@ -52,6 +52,7 @@ describe('native session document navigation', () => {
     await expect(sessionNavigation(form({ action: 'unknown' }))).rejects.toMatchObject({
       status: 400,
     })
-    expect((await sessionNavigation(new Request(`${origin}/auth/session`))).status).toBe(405)
+    const result = await sessionNavigation(new Request(`${origin}/auth/session`))
+    expect(result.status).toBe(405)
   })
 })

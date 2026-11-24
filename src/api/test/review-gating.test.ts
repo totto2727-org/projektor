@@ -242,8 +242,10 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Agent worked' })
     await seedAgentLease(workspaceId, issue.id, { live: false })
 
-    expect((await patch(issue.id, { status: 'done' })).status).toBe(400)
-    expect((await patch(issue.id, { status: 'done', completionReport: report })).status).toBe(200)
+    const result = await patch(issue.id, { status: 'done' })
+    expect(result.status).toBe(400)
+    const resolvedValue = await patch(issue.id, { status: 'done', completionReport: report })
+    expect(resolvedValue.status).toBe(200)
   })
 
   // --- Custom review status designated as a review step (PROJ-292, PROJ-749) ---

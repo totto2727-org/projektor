@@ -181,7 +181,8 @@ describe('shared browser authentication without API transport or signing secrets
   test('keeps the API dev bypass disabled for MCP while preserving its browser strategy', async () => {
     env.ENVIRONMENT = 'development'
     env.DEV_USER_EMAIL = 'dev@example.test'
-    expect((await api(new Request('https://api.example.test/auth/me'))).status).toBe(200)
+    const result = await api(new Request('https://api.example.test/auth/me'))
+    expect(result.status).toBe(200)
     const denied = await api(new Request('https://api.example.test/mcp/workspace-a'))
     expect(denied.status).toBe(401)
     expect(denied.headers.get('www-authenticate')).toContain('Bearer')

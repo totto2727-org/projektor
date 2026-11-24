@@ -442,7 +442,8 @@ describe('file Claims API', () => {
     test("a crashed agent's claim no longer blocks another issue", async () => {
       // 200s > the 120s TTL. Status stays 'active' — that is the whole point.
       const dead = await seedSession({ heartbeatAgeSecs: 200 })
-      expect((await claimFiles({ issueId, agentId: dead, paths: ['src/abandoned.ts'] })).status).toBe(201)
+      const result = await claimFiles({ issueId, agentId: dead, paths: ['src/abandoned.ts'] })
+      expect(result.status).toBe(201)
 
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Takes over' })
       const res = await claimFiles({ issueId: issue2.id, paths: ['src/abandoned.ts'] })
@@ -490,7 +491,8 @@ describe('file Claims API', () => {
       await claimFiles({ issueId, agentId: live, paths: ['src/held.ts'] })
 
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Blocked' })
-      expect((await claimFiles({ issueId: issue2.id, paths: ['src/held.ts'] })).status).toBe(409)
+      const resolvedValue = await claimFiles({ issueId: issue2.id, paths: ['src/held.ts'] })
+      expect(resolvedValue.status).toBe(409)
       expect((await claimRow('src/held.ts'))?.released_at).toBeNull()
     })
 

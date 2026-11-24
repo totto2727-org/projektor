@@ -68,7 +68,7 @@ describe('request-scoped native services', () => {
     let checked = false
     env.CORE.browserScope = (request, options = {}) => {
       expect(Object.getPrototypeOf(options)).toBe(Object.prototype)
-      expect(Object.keys(options).sort()).toEqual([
+      expect(Object.keys(options).toSorted()).toEqual([
         'projectHint',
         'requireProject',
         'requireWorkspace',

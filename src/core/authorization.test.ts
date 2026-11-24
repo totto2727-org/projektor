@@ -48,42 +48,54 @@ const fixture = async function fixture() {
 
 describe('core persistent authorization', () => {
   test('rechecks membership and role for each named domain operation', async () => {
-    const f = await fixture()
-    const first = await resolveCoreServiceCtx(f.actor, 'w', 'write', f.env)
+    const testFixture = await fixture()
+    const first = await resolveCoreServiceCtx(testFixture.actor, 'w', 'write', testFixture.env)
     expect(first).toMatchObject({
       auth: { kind: 'agent', method: 'pk' },
       role: 'member',
       userId: 'u',
       workspaceId: 'w',
     })
-    f.sqlite.exec("UPDATE workspace_members SET role = 'viewer' WHERE workspace_id = 'w'")
-    expect((await resolveCoreServiceCtx(f.actor, 'w', 'read', f.env)).role).toBe('viewer')
-    f.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id = 'w'")
-    await expect(resolveCoreServiceCtx(f.actor, 'w', 'read', f.env)).rejects.toMatchObject({ status: 403 })
+    testFixture.sqlite.exec("UPDATE workspace_members SET role = 'viewer' WHERE workspace_id = 'w'")
+    const result = await resolveCoreServiceCtx(testFixture.actor, 'w', 'read', testFixture.env)
+    expect(result.role).toBe('viewer')
+    testFixture.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id = 'w'")
+    await expect(resolveCoreServiceCtx(testFixture.actor, 'w', 'read', testFixture.env)).rejects.toMatchObject({
+      status: 403,
+    })
   })
 
   test('rechecks token revocation and current scope rather than trusting a prior principal', async () => {
-    const f = await fixture()
-    await resolveCoreServiceCtx(f.actor, 'w', 'write', f.env)
-    f.sqlite.exec(`UPDATE api_tokens SET scopes = '["read"]' WHERE id = 't'`)
-    await expect(resolveCoreServiceCtx(f.actor, 'w', 'write', f.env)).rejects.toMatchObject({ status: 403 })
-    f.sqlite.exec("DELETE FROM api_tokens WHERE id = 't'")
-    await expect(resolveCoreServiceCtx(f.actor, 'w', 'read', f.env)).rejects.toMatchObject({ status: 401 })
+    const testFixture = await fixture()
+    await resolveCoreServiceCtx(testFixture.actor, 'w', 'write', testFixture.env)
+    testFixture.sqlite.exec(`UPDATE api_tokens SET scopes = '["read"]' WHERE id = 't'`)
+    await expect(resolveCoreServiceCtx(testFixture.actor, 'w', 'write', testFixture.env)).rejects.toMatchObject({
+      status: 403,
+    })
+    testFixture.sqlite.exec("DELETE FROM api_tokens WHERE id = 't'")
+    await expect(resolveCoreServiceCtx(testFixture.actor, 'w', 'read', testFixture.env)).rejects.toMatchObject({
+      status: 401,
+    })
   })
 
   test('confines a workspace token even when the user owns another workspace', async () => {
-    const f = await fixture()
-    await expect(resolveCoreServiceCtx(f.actor, 'other', 'read', f.env)).rejects.toMatchObject({ status: 403 })
+    const testFixture = await fixture()
+    await expect(resolveCoreServiceCtx(testFixture.actor, 'other', 'read', testFixture.env)).rejects.toMatchObject({
+      status: 403,
+    })
   })
 
   test('rejects expired credentials before domain execution', async () => {
-    const f = await fixture()
-    f.sqlite.exec('UPDATE api_tokens SET expires_at = 1')
-    await expect(resolveCorePrincipal(f.actor, f.env)).rejects.toMatchObject({ status: 401, message: 'Token expired' })
+    const testFixture = await fixture()
+    testFixture.sqlite.exec('UPDATE api_tokens SET expires_at = 1')
+    await expect(resolveCorePrincipal(testFixture.actor, testFixture.env)).rejects.toMatchObject({
+      status: 401,
+      message: 'Token expired',
+    })
   })
 
   test('preserves provider OAuth workspace, scope, grant and agent confinement', async () => {
-    const f = await fixture()
+    const testFixture = await fixture()
     const actor: CoreActor = {
       requestUrl: 'https://api.test/mcp/w',
       method: 'POST',
@@ -97,39 +109,41 @@ describe('core persistent authorization', () => {
         clientId: 'client',
       },
     }
-    const principal = await resolveCorePrincipal(actor, f.env)
+    const principal = await resolveCorePrincipal(actor, testFixture.env)
     expect(principal).toMatchObject({
       auth: { clientId: 'client', credentialId: 'grant', kind: 'agent', method: 'oauth' },
       tokenScopes: ['read'],
       tokenWorkspaceId: 'w',
     })
-    await expect(resolveCoreServiceCtx(actor, 'w', 'write', f.env)).rejects.toMatchObject({ status: 403 })
-    await expect(resolveCoreServiceCtx(actor, 'other', 'read', f.env)).rejects.toMatchObject({ status: 403 })
-    f.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id = 'w'")
-    await expect(resolveCoreServiceCtx(actor, 'w', 'read', f.env)).rejects.toMatchObject({ status: 403 })
+    await expect(resolveCoreServiceCtx(actor, 'w', 'write', testFixture.env)).rejects.toMatchObject({ status: 403 })
+    await expect(resolveCoreServiceCtx(actor, 'other', 'read', testFixture.env)).rejects.toMatchObject({ status: 403 })
+    testFixture.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id = 'w'")
+    await expect(resolveCoreServiceCtx(actor, 'w', 'read', testFixture.env)).rejects.toMatchObject({ status: 403 })
   })
 
   test('never falls back to development identity for a present invalid Access proof', async () => {
-    const f = await fixture()
-    const env = { ...f.env, ENVIRONMENT: 'development' as const, DEV_USER_EMAIL: 'dev@example.test' }
-    await expect(resolveCorePrincipal({ ...f.actor, accessJwt: 'invalid' }, env)).rejects.toMatchObject({ status: 401 })
-    expect(f.sqlite.prepare("SELECT id FROM users WHERE email = 'dev@example.test'").get()).toBeUndefined()
+    const testFixture = await fixture()
+    const env = { ...testFixture.env, ENVIRONMENT: 'development' as const, DEV_USER_EMAIL: 'dev@example.test' }
+    await expect(resolveCorePrincipal({ ...testFixture.actor, accessJwt: 'invalid' }, env)).rejects.toMatchObject({
+      status: 401,
+    })
+    expect(testFixture.sqlite.prepare("SELECT id FROM users WHERE email = 'dev@example.test'").get()).toBeUndefined()
   })
 
   test('keeps unauthenticated MCP challengeable when the development bypass is enabled', async () => {
-    const f = await fixture()
-    const env = { ...f.env, ENVIRONMENT: 'development' as const, DEV_USER_EMAIL: 'dev@example.test' }
+    const testFixture = await fixture()
+    const env = { ...testFixture.env, ENVIRONMENT: 'development' as const, DEV_USER_EMAIL: 'dev@example.test' }
     await expect(
       resolveCorePrincipal({ requestUrl: 'https://api.test/mcp/w', method: 'POST' }, env),
     ).rejects.toMatchObject({ status: 401 })
   })
 
   test('registers coarsened token audit work on the Core invocation lifecycle', async () => {
-    const f = await fixture()
-    await resolveCorePrincipal(f.actor, f.env)
-    expect(f.waitUntil).toHaveBeenCalledOnce()
-    await f.waitUntil.mock.calls[0][0]
-    await resolveCorePrincipal(f.actor, f.env)
-    expect(f.waitUntil).toHaveBeenCalledOnce()
+    const testFixture = await fixture()
+    await resolveCorePrincipal(testFixture.actor, testFixture.env)
+    expect(testFixture.waitUntil).toHaveBeenCalledOnce()
+    await testFixture.waitUntil.mock.calls[0][0]
+    await resolveCorePrincipal(testFixture.actor, testFixture.env)
+    expect(testFixture.waitUntil).toHaveBeenCalledOnce()
   })
 })

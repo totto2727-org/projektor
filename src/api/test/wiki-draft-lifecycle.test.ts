@@ -33,9 +33,11 @@ describe('native Wiki draft lifecycle preconditions', () => {
       }
       return row.revision
     }
-    expect((await save('A', null)).status).toBe(200)
+    const result = await save('A', null)
+    expect(result.status).toBe(200)
     const a = await revision()
-    expect((await save('B', a)).status).toBe(200)
+    const resolvedValue = await save('B', a)
+    expect(resolvedValue.status).toBe(200)
     const b = await revision()
     expect(b).not.toBe(a)
     expect((await save('Delayed A', a)).status).toBe(409)

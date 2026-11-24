@@ -66,43 +66,47 @@ const fixture = function fixture() {
 
 describe('core narrow same-binding binary transfer', () => {
   test('streams exact binary bytes from an authorized archived owner without buffering', async () => {
-    const f = fixture()
-    const response = await handleCoreFileRequest(f.request(), f.env)
+    const testFixture = fixture()
+    const response = await handleCoreFileRequest(testFixture.request(), testFixture.env)
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('image/png')
     expect(response.headers.get('x-projektor-filename')).toBe('image.png')
     const reader = response.body!.getReader()
-    expect((await reader.read()).value).toEqual(f.bytes)
+    const result = await reader.read()
+    expect(result.value).toEqual(testFixture.bytes)
     await reader.cancel('client canceled')
-    expect(f.cancel).toHaveBeenCalledWith('client canceled')
+    expect(testFixture.cancel).toHaveBeenCalledWith('client canceled')
   })
 
   test('authorizes before any R2 read and hides ungranted owners', async () => {
-    const f = fixture()
-    const response = await handleCoreFileRequest(f.request('secret'), f.env)
+    const testFixture = fixture()
+    const response = await handleCoreFileRequest(testFixture.request('secret'), testFixture.env)
     expect(response.status).toBe(404)
-    expect(f.get).not.toHaveBeenCalled()
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 
   test('rechecks current membership on every transfer', async () => {
-    const f = fixture()
-    f.sqlite.exec('DELETE FROM workspace_members')
-    expect((await handleCoreFileRequest(f.request(), f.env)).status).toBe(403)
-    expect(f.get).not.toHaveBeenCalled()
+    const testFixture = fixture()
+    testFixture.sqlite.exec('DELETE FROM workspace_members')
+    const resolvedValue = await handleCoreFileRequest(testFixture.request(), testFixture.env)
+    expect(resolvedValue.status).toBe(403)
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 
   test('uses R2 metadata rather than a body read for HEAD', async () => {
-    const f = fixture()
-    const response = await handleCoreFileRequest(f.request('a', 'HEAD'), f.env)
+    const testFixture = fixture()
+    const response = await handleCoreFileRequest(testFixture.request('a', 'HEAD'), testFixture.env)
     expect(response.status).toBe(200)
     expect(response.body).toBeNull()
-    expect(f.head).toHaveBeenCalledWith('w/object')
-    expect(f.get).not.toHaveBeenCalled()
+    expect(testFixture.head).toHaveBeenCalledWith('w/object')
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 
   test('never becomes a generic internal HTTP proxy', async () => {
-    const f = fixture()
-    expect((await handleCoreFileRequest(new Request('https://core.internal/api/issues'), f.env)).status).toBe(404)
-    expect(f.get).not.toHaveBeenCalled()
+    const testFixture = fixture()
+    expect((await handleCoreFileRequest(new Request('https://core.internal/api/issues'), testFixture.env)).status).toBe(
+      404,
+    )
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 })

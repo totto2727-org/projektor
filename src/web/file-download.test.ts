@@ -64,111 +64,115 @@ const fixture = function fixture(contentType = 'image/png', filename = 'diagram.
 
 describe('native Core authenticated Web file delivery', () => {
   test('delivers exact archived-owner bytes with protected browser headers and no API HTTP', async () => {
-    const f = fixture()
-    const response = await f.execute()
+    const testFixture = fixture()
+    const response = await testFixture.execute()
     expect(response.status).toBe(200)
-    expect(new Uint8Array(await response.arrayBuffer())).toEqual(f.bytes)
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(testFixture.bytes)
     expect(response.headers.get('content-type')).toBe('image/png')
     expect(response.headers.get('content-disposition')).toBe('inline; filename="diagram.png"')
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
     expect(response.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'")
-    expect(f.consume).not.toHaveBeenCalled()
-    expect(f.transport).not.toHaveBeenCalled()
+    expect(testFixture.consume).not.toHaveBeenCalled()
+    expect(testFixture.transport).not.toHaveBeenCalled()
   })
 
   test('forces SVG download and sanitizes dangerous filename characters', async () => {
-    const f = fixture('image/svg+xml', 'bad\r\n"\\.svg')
-    const response = await f.execute()
+    const testFixture = fixture('image/svg+xml', 'bad\r\n"\\.svg')
+    const response = await testFixture.execute()
     expect(response.headers.get('content-type')).toBe('application/octet-stream')
     expect(response.headers.get('content-disposition')).toBe('attachment; filename="bad____.svg"')
   })
 
   test('returns HEAD headers through R2 metadata without opening the R2 body', async () => {
-    const f = fixture()
-    const response = await f.execute(undefined, 'HEAD')
+    const testFixture = fixture()
+    const response = await testFixture.execute(undefined, 'HEAD')
     expect(response.status).toBe(200)
     await expect(response.text()).resolves.toBe('')
     expect(response.headers.get('content-type')).toBe('image/png')
-    expect(f.consume).not.toHaveBeenCalled()
-    expect(f.get).not.toHaveBeenCalled()
-    expect(f.head).toHaveBeenCalledOnce()
+    expect(testFixture.consume).not.toHaveBeenCalled()
+    expect(testFixture.get).not.toHaveBeenCalled()
+    expect(testFixture.head).toHaveBeenCalledOnce()
   })
 
   test('preserves hintless file links for a verified single-workspace member', async () => {
-    const f = fixture()
-    expect((await f.execute('/api/files/a1')).status).toBe(200)
-    expect(f.get).toHaveBeenCalledOnce()
+    const testFixture = fixture()
+    const result = await testFixture.execute('/api/files/a1')
+    expect(result.status).toBe(200)
+    expect(testFixture.get).toHaveBeenCalledOnce()
   })
 
   test('never guesses a workspace for a multi-workspace member or treats the file ID as a page selector', async () => {
-    const f = fixture()
-    f.sqlite.exec("INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES ('w2','u1','owner',1)")
-    expect((await f.execute('/api/files/a1')).status).toBe(403)
-    expect(f.get).not.toHaveBeenCalled()
-    expect((await f.execute('/api/files/a1?workspace=alpha&projectId=foreign')).status).toBe(200)
+    const testFixture = fixture()
+    testFixture.sqlite.exec(
+      "INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES ('w2','u1','owner',1)",
+    )
+    const resolvedValue = await testFixture.execute('/api/files/a1')
+    expect(resolvedValue.status).toBe(403)
+    expect(testFixture.get).not.toHaveBeenCalled()
+    expect((await testFixture.execute('/api/files/a1?workspace=alpha&projectId=foreign')).status).toBe(200)
   })
 
   test('rejects foreign workspace, ambiguous hint and malformed identifier before R2', async () => {
-    const f = fixture()
+    const testFixture = fixture()
     for (const [path, status] of [
       ['/api/files/a1?workspace=beta', 403],
       ['/api/files/a1?workspace=alpha&workspace=beta', 400],
       ['/api/files/%ZZ?workspace=alpha', 400],
       ['/api/files/missing?workspace=alpha', 404],
     ] as const) {
-      expect((await f.execute(path)).status).toBe(status)
+      expect((await testFixture.execute(path)).status).toBe(status)
     }
-    expect(f.get).not.toHaveBeenCalled()
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 
   test('rejects a foreign attachment even for an owner and does not look up its object', async () => {
-    const f = fixture()
-    f.sqlite.exec("UPDATE attachments SET workspace_id = 'w2' WHERE id = 'a1'")
-    expect((await f.execute()).status).toBe(404)
-    expect(f.get).not.toHaveBeenCalled()
+    const testFixture = fixture()
+    testFixture.sqlite.exec("UPDATE attachments SET workspace_id = 'w2' WHERE id = 'a1'")
+    expect((await testFixture.execute()).status).toBe(404)
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 
   test('default-denies an ungranted member but permits the archived granted owner project', async () => {
-    const f = fixture()
-    f.sqlite.exec("UPDATE workspace_members SET role = 'member' WHERE workspace_id = 'w1' AND user_id = 'u1'")
-    expect((await f.execute()).status).toBe(404)
-    expect(f.get).not.toHaveBeenCalled()
-    f.sqlite.exec(`
+    const testFixture = fixture()
+    testFixture.sqlite.exec("UPDATE workspace_members SET role = 'member' WHERE workspace_id = 'w1' AND user_id = 'u1'")
+    expect((await testFixture.execute()).status).toBe(404)
+    expect(testFixture.get).not.toHaveBeenCalled()
+    testFixture.sqlite.exec(`
       INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('g1','w1','Readers',1);
       INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1);
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','viewer');
     `)
-    expect((await f.execute()).status).toBe(200)
-    expect(f.transport).not.toHaveBeenCalled()
+    expect((await testFixture.execute()).status).toBe(200)
+    expect(testFixture.transport).not.toHaveBeenCalled()
   })
 
   test('rejects bearer and invalid Access credentials rather than falling back to development auth', async () => {
-    const f = fixture()
-    expect((await f.execute(undefined, 'GET', { authorization: 'Bearer token' })).status).toBe(403)
-    expect((await f.execute(undefined, 'GET', { cookie: 'CF_Authorization=invalid' })).status).toBe(401)
-    expect(f.get).not.toHaveBeenCalled()
+    const testFixture = fixture()
+    expect((await testFixture.execute(undefined, 'GET', { authorization: 'Bearer token' })).status).toBe(403)
+    expect((await testFixture.execute(undefined, 'GET', { cookie: 'CF_Authorization=invalid' })).status).toBe(401)
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 
   test('returns private safe failures and suppresses failed HEAD bodies', async () => {
-    const f = fixture()
-    f.get.mockRejectedValueOnce(new Error('private R2 diagnostic'))
-    const response = await f.execute()
+    const testFixture = fixture()
+    testFixture.get.mockRejectedValueOnce(new Error('private R2 diagnostic'))
+    const response = await testFixture.execute()
     expect(response.status).toBe(500)
     await expect(response.text()).resolves.not.toContain('private R2 diagnostic')
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
-    const head = await f.execute('/api/files/missing?workspace=alpha', 'HEAD')
+    const head = await testFixture.execute('/api/files/missing?workspace=alpha', 'HEAD')
     expect(head.status).toBe(404)
     await expect(head.text()).resolves.toBe('')
     expect(head.headers.get('cache-control')).toBe('private, no-store')
   })
 
   test('maps a missing R2 object to 404 and refuses mutation verbs on the read route', async () => {
-    const f = fixture()
-    f.get.mockResolvedValueOnce(null)
-    expect((await f.execute()).status).toBe(404)
-    const response = await f.execute(undefined, 'POST')
+    const testFixture = fixture()
+    testFixture.get.mockResolvedValueOnce(null)
+    expect((await testFixture.execute()).status).toBe(404)
+    const response = await testFixture.execute(undefined, 'POST')
     expect(response.status).toBe(405)
     expect(response.headers.get('allow')).toBe('GET, HEAD')
   })

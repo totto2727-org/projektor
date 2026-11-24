@@ -188,9 +188,11 @@ describe('discovery endpoints are rate-limited', () => {
     env.RATE_LIMIT_TEST_NOW_MS = String(Date.now())
     const ip = { 'CF-Connecting-IP': '203.0.113.7' }
     for (let index = 0; index < 3; index++) {
-      expect((await fetchNativeApi(AS_URL, { headers: ip })).status).toBe(200)
+      const response = await fetchNativeApi(AS_URL, { headers: ip })
+      expect(response.status).toBe(200)
     }
-    expect((await fetchNativeApi(AS_URL, { headers: ip })).status).toBe(429)
+    const apiResponse = await fetchNativeApi(AS_URL, { headers: ip })
+    expect(apiResponse.status).toBe(429)
     env.RATE_LIMIT_TEST_NOW_MS = undefined
   })
 })

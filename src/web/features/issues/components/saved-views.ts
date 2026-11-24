@@ -111,7 +111,7 @@ export const removeView = function removeView(views: Readonly<SavedView[]>, name
 
 /** Order-insensitive equality for the two list-valued filters. */
 const sameSet = function sameSet(a: Readonly<string[]>, b: Readonly<string[]>): boolean {
-  return JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
+  return JSON.stringify([...a].toSorted()) === JSON.stringify([...b].toSorted())
 }
 
 /** True when two filter sets are equivalent (drives the active-view indicator). */

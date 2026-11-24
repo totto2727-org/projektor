@@ -252,15 +252,15 @@ describe('covers PROJ-870: issue write batching', () => {
 
 describe('covers PROJ-870 review: completion report comment limit', () => {
   test('400s a completion report whose formatted comment exceeds the comment limit, writing nothing', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, {
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    const issue = await seedIssue(testFixture.workspaceId, testFixture.projectId, testFixture.userId, {
       title: 'Long report',
       status: 'in_progress',
     })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       method: 'PATCH',
-      headers: authHeaders(f.token, f.slug),
+      headers: authHeaders(testFixture.token, testFixture.slug),
       body: JSON.stringify({
         status: 'in_review',
         completionReport: { summary: 's'.repeat(6000), verification: 'v'.repeat(4000) },

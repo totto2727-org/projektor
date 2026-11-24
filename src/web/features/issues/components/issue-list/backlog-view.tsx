@@ -26,7 +26,7 @@ function applyBacklogOrder(issues: Readonly<Issue[]>, backlogOrder: string[]): R
     return issue ? [issue] : []
   })
   const orderedIds = new Set(backlogOrder)
-  const rest = issues.filter((i) => !orderedIds.has(i.id))
+  const rest = issues.filter((issue) => !orderedIds.has(issue.id))
   return [...inOrder, ...rest]
 }
 
@@ -248,7 +248,7 @@ export default function BacklogView({
       setBacklogDragOverId(null)
       return
     }
-    const ids = orderedIssues.map((i) => i.id)
+    const ids = orderedIssues.map((issue) => issue.id)
     const without = ids.filter((id) => id !== draggedId)
     const targetIdx = without.indexOf(targetId)
     without.splice(targetIdx, 0, draggedId)

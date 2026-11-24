@@ -69,7 +69,7 @@ const fixture = function fixture() {
 
 describe('cross-project review filters at the Core data boundary', () => {
   test('filters before counts and cursor pagination across more than one page without leaking hidden or foreign issues', async () => {
-    const f = fixture()
+    const testFixture = fixture()
     const seen: string[] = []
     let cursor: string | null | undefined
     do {
@@ -77,71 +77,75 @@ describe('cross-project review filters at the Core data boundary', () => {
       if (cursor) {
         params.set('cursor', cursor)
       }
-      const page = await f.page(params.toString())
+      const page = await testFixture.page(params.toString())
       expect(page.total).toBe(cursor ? null : 35)
       expect(page.items).toHaveLength(7)
       seen.push(...page.items.map((row) => row.id))
       cursor = Predicate.isString(page.nextCursor) ? page.nextCursor : null
     } while (cursor)
-    expect(seen).toEqual(f.selected.map((entry) => entry.id).reverse())
+    expect(seen).toEqual(testFixture.selected.map((entry) => entry.id).reverse())
     expect(new Set(seen).size).toBe(35)
   })
 
   test.each(['fixing', 'in_review', 'changes_requested'] as const)(
     'matches %s targets across authorized projects and preserves search parity',
     async (review) => {
-      const f = fixture()
-      const expected = f.selected
+      const testFixture = fixture()
+      const expected = testFixture.selected
         .filter((entry) => entry.status === review)
         .map((entry) => entry.id)
         .sort()
-      const page = await f.page(`review=${review}&limit=100`)
+      const page = await testFixture.page(`review=${review}&limit=100`)
       expect(page.total).toBe(expected.length)
       expect(page.items.map((entry) => entry.id).sort()).toEqual(expected)
-      expect((await f.search(review)).map((entry) => entry.id).sort()).toEqual(expected)
+      expect((await testFixture.search(review)).map((entry) => entry.id).sort()).toEqual(expected)
     },
   )
 
   test('applies review filtering before the FTS result limit despite higher-ranked unselected hits', async () => {
-    const f = fixture()
-    const rows = await f.search('active')
+    const testFixture = fixture()
+    const rows = await testFixture.search('active')
     expect(rows).toHaveLength(20)
-    expect(rows.every((row) => f.selected.some((entry) => entry.id === row.id))).toBe(true)
+    expect(rows.every((row) => testFixture.selected.some((entry) => entry.id === row.id))).toBe(true)
     expect(new Set(rows.map((row) => row.project_id))).toEqual(new Set(['project-a', 'project-b']))
   })
 
   test('intersects explicit project selection and review filters', async () => {
-    const f = fixture()
-    const expected = f.selected
+    const testFixture = fixture()
+    const expected = testFixture.selected
       .filter((entry) => entry.projectId === 'project-b')
       .map((entry) => entry.id)
       .sort()
-    const page = await f.page('review=active&project=project-b&limit=100')
+    const page = await testFixture.page('review=active&project=project-b&limit=100')
     expect(page.total).toBe(expected.length)
     expect(page.items.map((row) => row.id).sort()).toEqual(expected)
-    expect((await f.search('active', 'project-b')).map((row) => row.id).sort()).toEqual(expected)
+    expect((await testFixture.search('active', 'project-b')).map((row) => row.id).sort()).toEqual(expected)
   })
 
   test('does not multiply issue counts when multiple attachments match the same filter', async () => {
-    const f = fixture()
-    f.sqlite.exec(`INSERT INTO attachments
+    const testFixture = fixture()
+    testFixture.sqlite.exec(`INSERT INTO attachments
       (id,workspace_id,kind,r2_key,filename,content_type,size,review_status,entity_type,entity_id,created_by_id,created_at)
       VALUES ('second-target','workspace-a','file','w/file','Spec','text/plain',1,'fixing','issue','active-00','user-a',1)`)
-    expect((await f.page('review=active&limit=100')).total).toBe(35)
-    expect((await f.page('review=fixing&limit=100')).items.filter((row) => row.id === 'active-00')).toHaveLength(1)
+    const result = await testFixture.page('review=active&limit=100')
+    expect(result.total).toBe(35)
+    expect(
+      (await testFixture.page('review=fixing&limit=100')).items.filter((row) => row.id === 'active-00'),
+    ).toHaveLength(1)
   })
 
   test('rejects invalid review filters at the Core boundary rather than ignoring them', async () => {
-    const f = fixture()
+    const testFixture = fixture()
     for (const review of ['done', 'invalid', '']) {
-      await expect(f.page(`review=${review}`)).rejects.toMatchObject({ status: 400 })
+      await expect(testFixture.page(`review=${review}`)).rejects.toMatchObject({ status: 400 })
     }
-    await expect(f.page('review=active&review=fixing')).rejects.toMatchObject({ status: 400 })
+    await expect(testFixture.page('review=active&review=fixing')).rejects.toMatchObject({ status: 400 })
   })
 
   test('preserves unfiltered list and search behavior when review is omitted', async () => {
-    const f = fixture()
-    expect((await f.page('limit=100')).total).toBe(62)
-    expect((await f.search()).some((row) => row.id.startsWith('unselected-'))).toBe(true)
+    const testFixture = fixture()
+    const resolvedValue = await testFixture.page('limit=100')
+    expect(resolvedValue.total).toBe(62)
+    expect((await testFixture.search()).some((row) => row.id.startsWith('unselected-'))).toBe(true)
   })
 })

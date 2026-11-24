@@ -201,7 +201,8 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     expect(completed.draftRevision).toEqual(expect.any(String))
     await expect(state()).resolves.toEqual({ revision: completed.draftRevision, draft: null })
     await expect(saveWikiDraft(ctx, 'guide', snapshot('Late A', saved.revision))).rejects.toBeInstanceOf(ConflictError)
-    expect((await state()).draft).toBeNull()
+    const result = await state()
+    expect(result.draft).toBeNull()
   })
 
   test('rolls back head advancement if storing the scratch snapshot fails', async () => {

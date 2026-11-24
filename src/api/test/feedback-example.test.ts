@@ -16,10 +16,10 @@ describe('feedback widget example', () => {
   })
 
   test('submitFeedback() submits to a live feedback source', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    const created = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    const created = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback-sources`, {
       method: 'POST',
-      headers: authHeaders(f.token, f.slug),
+      headers: authHeaders(testFixture.token, testFixture.slug),
       body: JSON.stringify({ name: 'Docs example source' }),
     })
     const { token } = (await created.json()) as { token: string }

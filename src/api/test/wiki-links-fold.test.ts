@@ -97,7 +97,7 @@ describe("covers PROJ-818: link reads don't reveal pages in hidden projects", ()
 
     const asMember = await broken(member.token, workspace.slug)
     const fromIndex = asMember.filter((b) => b.sourceSlug === 'public-index').map((b) => b.targetTitle)
-    expect(fromIndex.sort()).toEqual(['Secret Plan', secretBySlug.slug].sort())
+    expect(fromIndex.sort()).toEqual(['Secret Plan', secretBySlug.slug].toSorted())
     expect(fromIndex).not.toContain('Other Secret Title')
 
     // The owner can see the project: nothing broken.

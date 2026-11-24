@@ -225,7 +225,7 @@ describe('covers PROJ-891: MCP tools', () => {
     expect(first.items).toHaveLength(2)
     expect(first.next).toBeTypeOf('string')
     expect(first).not.toHaveProperty('nextCursor')
-    expect(Object.keys(first.items[0]).sort()).toEqual(['priority', 'ref', 'status', 'title', 'updated'].sort())
+    expect(Object.keys(first.items[0]).toSorted()).toEqual(['priority', 'ref', 'status', 'title', 'updated'].toSorted())
 
     const second = await tool<{ items: Record<string, unknown>[]; next?: string }>('list_issues', {
       view: 'summary',
@@ -368,12 +368,11 @@ describe('covers PROJ-891: MCP tools', () => {
   })
 
   test('list_wiki_changes: `next` advances when the batch had changes, and a section read is flagged partial', async () => {
-    const slug = (
-      await tool<{ slug: string }>('create_wiki_page', {
-        title: 'Sect Page',
-        content: '# A\nalpha\n## B\nbeta\n',
-      })
-    ).slug
+    const result = await tool<{ slug: string }>('create_wiki_page', {
+      title: 'Sect Page',
+      content: '# A\nalpha\n## B\nbeta\n',
+    })
+    const slug = result.slug
     const changes = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
       since: 0,
     })

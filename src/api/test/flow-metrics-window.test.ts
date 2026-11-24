@@ -398,7 +398,7 @@ describe('covers PROJ-866 review: window defaults and aging WIP', () => {
       arrivalVsCompletionOverTime: { created: number; completed: number }[]
       cfdOverTime: { done: number; inProgress: number }[]
     }
-    expect(metrics.agingWip.map((w) => w.id).sort()).toEqual([newer, reopened].sort())
+    expect(metrics.agingWip.map((w) => w.id).sort()).toEqual([newer, reopened].toSorted())
     /*
      * Neither issue was active in the window: no WIP, arrivals or completions there,
      * and the reopened one sits in the CFD done band (done before since) only.

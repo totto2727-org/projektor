@@ -25,16 +25,16 @@ const count = async function count(sql: string, ...params: unknown[]): Promise<n
 }
 
 const ownerCtx = async function ownerCtx() {
-  const f = await seedFixture({ role: 'owner' })
+  const testFixture = await seedFixture({ role: 'owner' })
   const ctx: ServiceCtx = {
     db: env.DB,
     kv: env.KV,
     r2: env.R2,
-    workspaceId: f.workspace.id,
-    userId: f.user.id,
+    workspaceId: testFixture.workspace.id,
+    userId: testFixture.user.id,
     role: 'owner',
   }
-  return { ...f, ctx }
+  return { ...testFixture, ctx }
 }
 
 describe('covers PROJ-923: explicit cleanup on delete', () => {

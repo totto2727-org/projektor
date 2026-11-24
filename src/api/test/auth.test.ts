@@ -453,7 +453,8 @@ describe('covers PROJ-354: CF Access auth caches are isolate-local', () => {
     const secondBody = (await second.json()) as { user: { id: string; email: string } }
     expect(secondBody.user.email).toBe(email)
     expect(secondBody.user.id).toBe(firstBody.user.id)
-    expect((await getCoreObservations()).jwksFetches).toHaveLength(0)
+    const result = await getCoreObservations()
+    expect(result.jwksFetches).toHaveLength(0)
     await configureCore()
   })
 })
@@ -579,7 +580,8 @@ describe('covers PROJ-358: JWKS force-refresh on signature verification failure'
         headers: { 'Cf-Access-Jwt-Assertion': currentJwt },
       })
       expect(rotated.status).toBe(200)
-      expect((await getCoreObservations()).jwksFetches).toHaveLength(1)
+      const resolvedValue = await getCoreObservations()
+      expect(resolvedValue.jwksFetches).toHaveLength(1)
 
       /*
        * The cache now holds only currentPublicJwk, so a token signed by an

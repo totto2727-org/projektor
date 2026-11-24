@@ -7,7 +7,7 @@ import { fetchNativeApi } from './native-fetch.ts'
 
 describe('covers PROJ-857: issue list cursor', () => {
   test('pages through 35 issues created in the same second with no gaps or duplicates', async () => {
-    const f = await seedIssueFixture()
+    const testFixture = await seedIssueFixture()
     // The fixture issue plus 34 more, all stamped with the same created_at.
     const createdAt = Math.floor(Date.now() / 1000)
     for (let n = 2; n <= 35; n++) {
@@ -15,22 +15,33 @@ describe('covers PROJ-857: issue list cursor', () => {
         `INSERT INTO issues (id, workspace_id, project_id, number, title, status, priority, labels, created_by_id, created_at, updated_at)
 				 VALUES (?, ?, ?, ?, ?, 'todo', 'none', '[]', ?, ?, ?)`,
       )
-        .bind(crypto.randomUUID(), f.workspaceId, f.projectId, n, `same-second ${n}`, f.userId, createdAt, createdAt)
+        .bind(
+          crypto.randomUUID(),
+          testFixture.workspaceId,
+          testFixture.projectId,
+          n,
+          `same-second ${n}`,
+          testFixture.userId,
+          createdAt,
+          createdAt,
+        )
         .run()
     }
-    await env.DB.prepare('UPDATE issues SET created_at = ? WHERE workspace_id = ?').bind(createdAt, f.workspaceId).run()
+    await env.DB.prepare('UPDATE issues SET created_at = ? WHERE workspace_id = ?')
+      .bind(createdAt, testFixture.workspaceId)
+      .run()
 
     const seen: string[] = []
     let cursor: string | null = null
     let pages = 0
     let firstTotal: number | null = null
     do {
-      const qs = new URLSearchParams({ projectId: f.projectId, limit: '10' })
+      const qs = new URLSearchParams({ projectId: testFixture.projectId, limit: '10' })
       if (cursor) {
         qs.set('cursor', cursor)
       }
       const res = await fetchNativeApi(`http://localhost/api/issues?${qs}`, {
-        headers: authHeaders(f.token, f.slug),
+        headers: authHeaders(testFixture.token, testFixture.slug),
       })
       expect(res.status).toBe(200)
       const body = (await res.json()) as {
@@ -55,10 +66,10 @@ describe('covers PROJ-857: issue list cursor', () => {
   })
 
   test('still accepts a legacy numeric cursor', async () => {
-    const f = await seedIssueFixture()
+    const testFixture = await seedIssueFixture()
     const res = await fetchNativeApi(
-      `http://localhost/api/issues?projectId=${f.projectId}&cursor=${Math.floor(Date.now() / 1000) + 60}`,
-      { headers: authHeaders(f.token, f.slug) },
+      `http://localhost/api/issues?projectId=${testFixture.projectId}&cursor=${Math.floor(Date.now() / 1000) + 60}`,
+      { headers: authHeaders(testFixture.token, testFixture.slug) },
     )
     expect(res.status).toBe(200)
     expect(((await res.json()) as { items: unknown[] }).items).toHaveLength(1)

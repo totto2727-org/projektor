@@ -93,14 +93,16 @@ describe('pure wiki reads', () => {
   })
 
   test('resolves id before colliding slug and live pages before redirects, excludes trash and foreign targets', async () => {
-    expect((await runTestEffect(wiki.findWikiPage(db, 'wa', 'old-root')))?.content).toBe('Root content')
+    const result = await runTestEffect(wiki.findWikiPage(db, 'wa', 'old-root'))
+    expect(result?.content).toBe('Root content')
     await expect(runTestEffect(wiki.findWikiPage(db, 'wa', 'cross-tenant'))).resolves.toBeUndefined()
     await expect(runTestEffect(wiki.findWikiPage(db, 'wa', 'trash'))).resolves.toBeUndefined()
     await expect(runTestEffect(wiki.findWikiPage(db, 'wa', 'foreign'))).resolves.toBeUndefined()
     sqlite.exec(
       "UPDATE wiki_pages SET slug='new-root' WHERE id='root'; UPDATE wiki_pages SET slug='root' WHERE id='child';",
     )
-    expect((await runTestEffect(wiki.findWikiPage(db, 'wa', 'root')))?.id).toBe('root')
+    const resolvedValue = await runTestEffect(wiki.findWikiPage(db, 'wa', 'root'))
+    expect(resolvedValue?.id).toBe('root')
     sqlite.exec("UPDATE wiki_pages SET slug='old-root' WHERE id='child';")
     expect((await runTestEffect(wiki.findWikiPage(db, 'wa', 'old-root')))?.id).toBe('child')
   })

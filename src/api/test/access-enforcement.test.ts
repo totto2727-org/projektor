@@ -96,7 +96,8 @@ describe('covers PROJ-311 group-based project access', () => {
     )
     expect(del.status).toBe(200)
 
-    expect((await listProjects(roles.member.token, slug)).body).toHaveLength(0)
+    const result = await listProjects(roles.member.token, slug)
+    expect(result.body).toHaveLength(0)
   })
 
   test('membership in two groups yields the strongest granted role', async () => {
@@ -173,10 +174,10 @@ describe('visibleProjectIds helper', () => {
     }
 
     const ids = await visibleProjectIds(ownerCtx)
-    expect(ids.sort()).toEqual([p1.id, p2.id].sort())
+    expect(ids.sort()).toEqual([p1.id, p2.id].toSorted())
 
     const adminCtx = { ...ownerCtx, userId: roles.owner.user.id, role: 'admin' as const }
-    expect((await visibleProjectIds(adminCtx)).sort()).toEqual([p1.id, p2.id].sort())
+    expect((await visibleProjectIds(adminCtx)).sort()).toEqual([p1.id, p2.id].toSorted())
   })
 
   test('returns only granted projects for a non-admin member', async () => {

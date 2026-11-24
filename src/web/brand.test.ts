@@ -99,10 +99,12 @@ describe('server-rendered native brand', () => {
 
   test('reads workspace branding afresh instead of sharing a cross-request cache', async () => {
     const { env, database } = fixture()
-    expect((await runTestEffect(loadBrand(env, scope, request))).name).toBe('Beta')
+    const result = await runTestEffect(loadBrand(env, scope, request))
+    expect(result.name).toBe('Beta')
     database.sqlite
       .prepare('UPDATE workspaces SET brand = ? WHERE id = ?')
       .run(JSON.stringify({ displayName: 'Changed' }), 'w')
-    expect((await runTestEffect(loadBrand(env, scope, request))).name).toBe('Changed')
+    const resolvedValue = await runTestEffect(loadBrand(env, scope, request))
+    expect(resolvedValue.name).toBe('Changed')
   })
 })

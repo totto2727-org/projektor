@@ -107,11 +107,11 @@ describe('covers PROJ-819: deleteProject cleans up explicitly', () => {
   })
 
   test("404s for another workspace's project", async () => {
-    const a = await seedFixture({ role: 'owner' })
+    const testFixture = await seedFixture({ role: 'owner' })
     const b = await seedFixture({ role: 'owner' })
     const bProject = await seedProject(b.workspace.id, 'BBB')
     const res = await fetchNativeApi(`http://localhost/api/projects/${bProject.id}`, {
-      headers: authHeaders(a.token, a.workspace.slug),
+      headers: authHeaders(testFixture.token, testFixture.workspace.slug),
       method: 'DELETE',
     })
     expect(res.status).toBe(404)

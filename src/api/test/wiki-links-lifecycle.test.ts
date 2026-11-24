@@ -159,7 +159,7 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
     const lone = await createPage(token, workspace.slug, 'Lonely')
     const linker = await createPage(token, workspace.slug, 'Linker5', '[[Twin]] [[Lonely]]')
     // Oldest page wins a duplicate title.
-    await expect(targetsOf(linker.id)).resolves.toEqual([first.id, lone.id].sort())
+    await expect(targetsOf(linker.id)).resolves.toEqual([first.id, lone.id].toSorted())
 
     for (const p of [first, lone]) {
       await deletePage(token, workspace.slug, p.slug)

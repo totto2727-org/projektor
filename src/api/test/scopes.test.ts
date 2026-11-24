@@ -143,7 +143,8 @@ describe('covers PROJ-17: REST scope enforcement', () => {
     const token = await seedToken(workspaceId, userId, { scopes: ['*'] })
     const headers = authHeaders(token, slug)
 
-    expect((await fetchNativeApi('http://localhost/api/issues', { headers })).status).toBe(200)
+    const response = await fetchNativeApi('http://localhost/api/issues', { headers })
+    expect(response.status).toBe(200)
     const postRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers,

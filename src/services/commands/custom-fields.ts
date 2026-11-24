@@ -274,8 +274,8 @@ const assertValidCustomFieldValue = function assertValidCustomFieldValue(
       })
     }
   } else if (def.type === 'date') {
-    const d = new Date(value)
-    if (Number.isNaN(d.getTime())) {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) {
       throw new ValidationError({
         formErrors: [],
         fieldErrors: { [key]: [`Custom field '${key}' expects a valid date`] },

@@ -66,7 +66,8 @@ describe('issue leases API (PROJ-184)', () => {
     const a1 = await registerAgent('a1')
     const a2 = await registerAgent('a2')
 
-    expect((await claim(issue.id, a1)).status).toBe(201)
+    const result = await claim(issue.id, a1)
+    expect(result.status).toBe(201)
     const res = await claim(issue.id, a2)
     expect(res.status).toBe(409) // ConflictError
   })
@@ -76,7 +77,8 @@ describe('issue leases API (PROJ-184)', () => {
     const a1 = await registerAgent('a1')
     const a2 = await registerAgent('a2')
 
-    expect((await claim(issue.id, a1)).status).toBe(201)
+    const resolvedValue = await claim(issue.id, a1)
+    expect(resolvedValue.status).toBe(201)
     // a1 goes dark — its session is now stale, so its lease is reclaimable.
     await backdateHeartbeat(a1)
 
@@ -202,7 +204,7 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
     })
 
     const withoutFlag = await callPrioritized({ limit: 50, includeNotReady: true })
-    expect(withoutFlag.issues.map((i) => i.id).sort()).toEqual([a.id, b.id].sort())
+    expect(withoutFlag.issues.map((i) => i.id).sort()).toEqual([a.id, b.id].toSorted())
 
     const withFlag = await callPrioritized({
       limit: 50,
@@ -341,7 +343,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
      * and all proceed. The guarded INSERT must let at most `cap` (default 3) win.
      */
     const results = await Promise.all(issues.map((iss) => claim(iss.id, agent)))
-    const granted = results.filter((r) => r.status === 201).length
+    const granted = results.filter((response) => response.status === 201).length
     expect(granted).toBeLessThanOrEqual(3)
 
     const row = await env.DB.prepare(
@@ -564,15 +566,12 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Released' })
     const agent = await registerAgent('releaser')
     expect((await claim(issue.id, agent)).status).toBe(201)
-    expect(
-      (
-        await fetchNativeApi(`http://localhost/api/issues/${issue.id}/release`, {
-          method: 'POST',
-          headers: authHeaders(token, slug),
-          body: JSON.stringify({}),
-        })
-      ).status,
-    ).toBe(200)
+    const response = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/release`, {
+      method: 'POST',
+      headers: authHeaders(token, slug),
+      body: JSON.stringify({}),
+    })
+    expect(response.status).toBe(200)
 
     expect((await mcpLeases({ issueId: issue.id })).items).toHaveLength(0)
     expect((await mcpLeases({ issueId: issue.id, includeStale: true })).items).toHaveLength(0)

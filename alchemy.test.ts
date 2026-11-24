@@ -149,7 +149,7 @@ describe('source-owned private Core deployment', () => {
         }),
       ),
     )
-    expect(Object.keys(stack.resources).sort()).toEqual(ids)
+    expect(Object.keys(stack.resources).toSorted()).toEqual(ids)
     expect(stack.actions).toEqual({})
     expect(new Set(reads)).toEqual(new Set(['ALCHEMY_PHASE']))
     expect(stack.resources.Core.Props.env).not.toHaveProperty('DB')
@@ -215,7 +215,7 @@ describe('source-owned private Core deployment', () => {
 
   test('grants business storage only to Core and shares only official OAuth protocol KV with API', async () => {
     const { core, api, stack } = await register(false)
-    expect(Object.keys(stack.resources).sort()).toEqual([
+    expect(Object.keys(stack.resources).toSorted()).toEqual([
       'Api',
       'Cache',
       'Core',
@@ -257,7 +257,7 @@ describe('source-owned private Core deployment', () => {
 
   test('declares retained local storage once, only on Core, with local migrations', async () => {
     const { core, api, frontend, stack } = await register(true)
-    expect(Object.keys(stack.resources).sort()).toEqual([
+    expect(Object.keys(stack.resources).toSorted()).toEqual([
       'Api',
       'Core',
       'Frontend',
@@ -415,7 +415,7 @@ describe('source-owned private Core deployment', () => {
       DEV_USER_EMAIL: localDevelopment.userEmail,
     })
     const production = await register(true, null, ProductionLayer)
-    expect(Object.keys(production.stack.resources).sort()).toEqual([
+    expect(Object.keys(production.stack.resources).toSorted()).toEqual([
       'Api',
       'Cache',
       'Core',
@@ -435,7 +435,7 @@ describe('source-owned private Core deployment', () => {
 
   test('does not add custom account-selection gates', async () => {
     const { stack } = await register(false, null, undefined, {}, 'different-account')
-    expect(Object.keys(stack.resources).sort()).toEqual([
+    expect(Object.keys(stack.resources).toSorted()).toEqual([
       'Api',
       'Cache',
       'Core',

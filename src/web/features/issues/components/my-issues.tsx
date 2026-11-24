@@ -31,11 +31,11 @@ function statusOrder(issue: Issue): number {
   return STATUS_ORDER.get(issue.status_category ?? '') ?? 4
 }
 
-function compareIssues(a: Issue, b: Issue): number {
+function compareIssues(issue: Issue, b: Issue): number {
   return (
-    statusOrder(a) - statusOrder(b) ||
-    (PRIORITY_ORDER.get(a.priority) ?? 5) - (PRIORITY_ORDER.get(b.priority) ?? 5) ||
-    b.updated_at - a.updated_at
+    statusOrder(issue) - statusOrder(b) ||
+    (PRIORITY_ORDER.get(issue.priority) ?? 5) - (PRIORITY_ORDER.get(b.priority) ?? 5) ||
+    b.updated_at - issue.updated_at
   )
 }
 function getStoryPoints(issue: Issue): string | null {

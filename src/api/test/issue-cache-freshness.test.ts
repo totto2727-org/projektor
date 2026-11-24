@@ -58,7 +58,8 @@ afterEach(() => vi.restoreAllMocks())
 describe('covers PROJ-863: no stale embedded data', () => {
   test('renaming the linked issue', async () => {
     await call('PATCH', `/api/issues/${otherId}`, { title: 'Other (renamed)' })
-    expect((await get(f.issueId)).links[0].linkedIssueTitle).toBe('Other (renamed)')
+    const result = await get(f.issueId)
+    expect(result.links[0].linkedIssueTitle).toBe('Other (renamed)')
   })
 
   test("changing the linked issue's status", async () => {
@@ -67,7 +68,8 @@ describe('covers PROJ-863: no stale embedded data', () => {
     await env.DB.prepare("UPDATE issues SET status_id = ?, status_category = 'todo' WHERE id = ?")
       .bind(todo.id, otherId)
       .run()
-    expect((await get(f.issueId)).links[0].linkedIssueStatusCategory).toBe('todo')
+    const resolvedValue = await get(f.issueId)
+    expect(resolvedValue.links[0].linkedIssueStatusCategory).toBe('todo')
     await call('PATCH', `/api/issues/${otherId}`, { statusId: done.id })
     expect((await get(f.issueId)).links[0].linkedIssueStatusCategory).toBe('done')
   })

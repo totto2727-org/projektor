@@ -51,41 +51,43 @@ const fixture = async function fixture() {
 
 describe('core shared logo binary delivery', () => {
   test('streams the exact body and forwards cancellation without buffering', async () => {
-    const f = await fixture()
-    const response = await handleSharedLogoRequest(f.request(), f.env)
+    const testFixture = await fixture()
+    const response = await handleSharedLogoRequest(testFixture.request(), testFixture.env)
     expect(response?.status).toBe(200)
     expect(response?.headers.get('content-type')).toBe('image/png')
     const reader = response!.body!.getReader()
-    expect((await reader.read()).value).toEqual(f.bytes)
+    const result = await reader.read()
+    expect(result.value).toEqual(testFixture.bytes)
     await reader.cancel('disconnected')
-    expect(f.cancel).toHaveBeenCalledWith('disconnected')
-    expect(f.buffer).not.toHaveBeenCalled()
+    expect(testFixture.cancel).toHaveBeenCalledWith('disconnected')
+    expect(testFixture.buffer).not.toHaveBeenCalled()
   })
 
   test('rechecks the share creator membership before touching storage', async () => {
-    const f = await fixture()
-    f.sqlite.exec('DELETE FROM workspace_members')
-    expect((await handleSharedLogoRequest(f.request(), f.env))?.status).toBe(404)
-    expect(f.get).not.toHaveBeenCalled()
+    const testFixture = await fixture()
+    testFixture.sqlite.exec('DELETE FROM workspace_members')
+    const resolvedValue = await handleSharedLogoRequest(testFixture.request(), testFixture.env)
+    expect(resolvedValue?.status).toBe(404)
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 
   test('closes the authorized logo stream on HEAD without buffering it', async () => {
-    const f = await fixture()
-    const response = await handleSharedLogoRequest(f.request('HEAD'), f.env)
+    const testFixture = await fixture()
+    const response = await handleSharedLogoRequest(testFixture.request('HEAD'), testFixture.env)
     expect(response?.status).toBe(200)
     expect(response?.body).toBeNull()
-    expect(f.cancel).toHaveBeenCalledOnce()
-    expect(f.buffer).not.toHaveBeenCalled()
+    expect(testFixture.cancel).toHaveBeenCalledOnce()
+    expect(testFixture.buffer).not.toHaveBeenCalled()
   })
 
   test('refuses revoked or archived share sources and unsupported methods', async () => {
-    const f = await fixture()
-    f.sqlite.exec('UPDATE projects SET archived_at = 2')
-    expect((await handleSharedLogoRequest(f.request(), f.env))?.status).toBe(404)
-    expect((await handleSharedLogoRequest(f.request('POST'), f.env))?.status).toBe(405)
+    const testFixture = await fixture()
+    testFixture.sqlite.exec('UPDATE projects SET archived_at = 2')
+    expect((await handleSharedLogoRequest(testFixture.request(), testFixture.env))?.status).toBe(404)
+    expect((await handleSharedLogoRequest(testFixture.request('POST'), testFixture.env))?.status).toBe(405)
     await expect(
-      handleSharedLogoRequest(new Request('https://core.internal/unrelated'), f.env),
+      handleSharedLogoRequest(new Request('https://core.internal/unrelated'), testFixture.env),
     ).resolves.toBeUndefined()
-    expect(f.get).not.toHaveBeenCalled()
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 })

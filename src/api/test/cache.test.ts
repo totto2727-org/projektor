@@ -299,7 +299,8 @@ describe('covers KV caching', () => {
           params: { name: 'update_issue', arguments: { id: issue.id, title: 'After' } },
         }),
       })
-      expect((await getCoreObservations()).cacheDeletes).toContain(`issue:${workspaceId}:${issue.id}`)
+      const result = await getCoreObservations()
+      expect(result.cacheDeletes).toContain(`issue:${workspaceId}:${issue.id}`)
       expect(res.status).toBe(200)
       const rpc = (await res.json()) as { result?: { isError?: boolean }; error?: unknown }
       expect(rpc.error).toBeUndefined()

@@ -25,16 +25,16 @@ export const deriveStatusOptions = function deriveStatusOptions(
   return [
     ...new Map(
       issues
-        .filter((i) => i.status_id)
-        .map((i) => [
+        .filter((issue) => issue.status_id)
+        .map((issue) => [
           // biome-ignore lint/style/noNonNullAssertion: filter above guarantees status_id is set
-          i.status_id!,
+          issue.status_id!,
           {
             // biome-ignore lint/style/noNonNullAssertion: filter above guarantees status_id is set
-            id: i.status_id!,
-            key: i.status_key ?? '',
-            name: i.status_name ?? i.status_key ?? '',
-            category: i.status_category ?? '',
+            id: issue.status_id!,
+            key: issue.status_key ?? '',
+            name: issue.status_name ?? issue.status_key ?? '',
+            category: issue.status_category ?? '',
             color: null,
           },
         ]),
@@ -48,12 +48,12 @@ export const deriveProjectOptions = function deriveProjectOptions(
   return [
     ...new Map(
       issues
-        .filter((i) => i.project_key)
-        .map((i) => [
+        .filter((issue) => issue.project_key)
+        .map((issue) => [
           // biome-ignore lint/style/noNonNullAssertion: filter above guarantees project_key is set
-          i.project_key!,
+          issue.project_key!,
           // biome-ignore lint/style/noNonNullAssertion: filter above guarantees project_key is set
-          { key: i.project_key!, name: i.project_name ?? i.project_key! },
+          { key: issue.project_key!, name: issue.project_name ?? issue.project_key! },
         ]),
     ).values(),
   ]
@@ -63,12 +63,12 @@ export const deriveTypeOptions = function deriveTypeOptions(issues: Readonly<Iss
   return [
     ...new Map(
       issues
-        .filter((i) => i.type_key)
-        .map((i) => [
+        .filter((issue) => issue.type_key)
+        .map((issue) => [
           // biome-ignore lint/style/noNonNullAssertion: filter above guarantees type_key is set
-          i.type_key!,
+          issue.type_key!,
           // biome-ignore lint/style/noNonNullAssertion: filter above guarantees type_key is set
-          i.type_name ?? i.type_key!,
+          issue.type_name ?? issue.type_key!,
         ]),
     ).entries(),
   ]

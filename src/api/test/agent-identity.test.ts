@@ -146,7 +146,8 @@ describe('covers PROJ-894: stateless agent identity', () => {
 
   test('an ended session no longer counts, so a fresh register_agent becomes the single session again', async () => {
     const first = await register(token, 'first')
-    expect((await call(token, 'end_agent', {})).ok).toBe(true)
+    const result = await call(token, 'end_agent', {})
+    expect(result.ok).toBe(true)
     const second = await register(token, 'second')
 
     const beat = await call(token, 'heartbeat_agent', {})
@@ -169,7 +170,8 @@ describe('covers PROJ-894: stateless agent identity', () => {
     expect(beat.ok).toBe(true)
     expect(beat.value.id).toBe(sessionId)
 
-    expect((await call(token, 'claim_issue', { issueId: issue.id })).ok).toBe(true)
+    const resolvedValue = await call(token, 'claim_issue', { issueId: issue.id })
+    expect(resolvedValue.ok).toBe(true)
   })
 
   test('an explicit id still works exactly as before', async () => {

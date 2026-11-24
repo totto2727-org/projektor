@@ -46,10 +46,10 @@ const tokenRow = async function tokenRow(name: string) {
 
 describe('covers PROJ-917: workspace tokens require a human session', () => {
   test("an owner's pk_ token cannot mint a workspace token", async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
+    const testFixture = await seedFixture({ role: 'owner' })
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${testFixture.workspace.slug}/tokens`, {
       method: 'POST',
-      headers: authHeaders(f.token, f.workspace.slug),
+      headers: authHeaders(testFixture.token, testFixture.workspace.slug),
       body: JSON.stringify({ name: 'sibling', scopes: ['*'] }),
     })
     expect(res.status).toBe(403)
@@ -58,11 +58,11 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
   })
 
   test('a user-scoped PAT cannot mint a workspace token either', async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const pat = await seedUserToken(f.user.id)
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
+    const testFixture = await seedFixture({ role: 'owner' })
+    const pat = await seedUserToken(testFixture.user.id)
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${testFixture.workspace.slug}/tokens`, {
       method: 'POST',
-      headers: authHeaders(pat, f.workspace.slug),
+      headers: authHeaders(pat, testFixture.workspace.slug),
       body: JSON.stringify({ name: 'via-pat', scopes: ['read'] }),
     })
     expect(res.status).toBe(403)
@@ -70,21 +70,25 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
   })
 
   test('a human session mints; a pk_ token cannot revoke; the human can', async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const slug = f.workspace.slug
-    const mint = await mintAsHuman(f.user.email, slug, JSON.stringify({ name: 'human-minted', scopes: ['read'] }))
+    const testFixture = await seedFixture({ role: 'owner' })
+    const slug = testFixture.workspace.slug
+    const mint = await mintAsHuman(
+      testFixture.user.email,
+      slug,
+      JSON.stringify({ name: 'human-minted', scopes: ['read'] }),
+    )
     expect(mint.status).toBe(201)
     const { id, token } = (await mint.json()) as { id: string; token: string }
     expect(token).toMatch(/^pk_/)
 
     const byToken = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
-      headers: authHeaders(f.token, slug),
+      headers: authHeaders(testFixture.token, slug),
       method: 'DELETE',
     })
     expect(byToken.status).toBe(403)
     await expect(tokenRow('human-minted')).resolves.not.toBeNull()
 
-    const byHuman = await asHuman(f.user.email, () =>
+    const byHuman = await asHuman(testFixture.user.email, () =>
       fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
         headers: humanHeaders(slug),
         method: 'DELETE',
@@ -95,10 +99,10 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
   })
 
   test('a human session still gets role checks: a member is refused', async () => {
-    const f = await seedFixture({ role: 'member' })
+    const testFixture = await seedFixture({ role: 'member' })
     const res = await mintAsHuman(
-      f.user.email,
-      f.workspace.slug,
+      testFixture.user.email,
+      testFixture.workspace.slug,
       JSON.stringify({ name: 'member-minted', scopes: ['read'] }),
     )
     expect(res.status).toBe(403)
@@ -106,16 +110,16 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
   })
 
   test('malformed JSON from a human session is a 400, not a 500', async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const res = await mintAsHuman(f.user.email, f.workspace.slug, '{bad json')
+    const testFixture = await seedFixture({ role: 'owner' })
+    const res = await mintAsHuman(testFixture.user.email, testFixture.workspace.slug, '{bad json')
     expect(res.status).toBe(400)
     expect(JSON.stringify(await res.json())).toMatch(/valid JSON/)
   })
 
   test("listing stays available to an admin's pk_ token (no secrets returned)", async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
-      headers: authHeaders(f.token, f.workspace.slug),
+    const testFixture = await seedFixture({ role: 'owner' })
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${testFixture.workspace.slug}/tokens`, {
+      headers: authHeaders(testFixture.token, testFixture.workspace.slug),
     })
     expect(res.status).toBe(200)
   })

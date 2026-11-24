@@ -57,53 +57,55 @@ describe('native custom status category review-target resync', () => {
   ] as const)(
     'atomically handles %s category with isDefault=%s without removing attachments',
     async (category, isDefault) => {
-      const f = await fixture()
-      const before = await f.attachments()
-      const response = await f.patch({ category, isDefault })
+      const testFixture = await fixture()
+      const before = await testFixture.attachments()
+      const response = await testFixture.patch({ category, isDefault })
       expect(response.status, await response.text()).toBe(200)
       await expect(
-        env.DB.prepare('SELECT status_category FROM issues WHERE id=?').bind(f.issue.id).first(),
+        env.DB.prepare('SELECT status_category FROM issues WHERE id=?').bind(testFixture.issue.id).first(),
       ).resolves.toEqual({
         status_category: category,
       })
-      expect((await f.attachments()).results).toEqual(
+      const result = await testFixture.attachments()
+      expect(result.results).toEqual(
         before.results.map((row) =>
-          row.id === f.selected || row.id === f.done
+          row.id === testFixture.selected || row.id === testFixture.done
             ? { ...row, review_status: category === 'done' ? 'done' : null }
             : row,
         ),
       )
       // Later independent review selections survive a no-op category save and reopening.
-      await env.DB.prepare("UPDATE attachments SET review_status='fixing' WHERE id=?").bind(f.selected).run()
-      expect((await f.patch({ category })).status).toBe(200)
-      expect((await f.patch({ category: 'todo' })).status).toBe(200)
+      await env.DB.prepare("UPDATE attachments SET review_status='fixing' WHERE id=?").bind(testFixture.selected).run()
+      const resolvedValue = await testFixture.patch({ category })
+      expect(resolvedValue.status).toBe(200)
+      expect((await testFixture.patch({ category: 'todo' })).status).toBe(200)
       await expect(
-        env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(f.selected).first(),
+        env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(testFixture.selected).first(),
       ).resolves.toEqual({ review_status: 'fixing' })
     },
   )
 
   test('rolls back status, default selection and issue resync if the target write fails', async () => {
-    const f = await fixture()
-    const before = await f.attachments()
+    const testFixture = await fixture()
+    const before = await testFixture.attachments()
     const trigger = `reject_review_${crypto.randomUUID().replaceAll('-', '')}`
     // Test-only storage failure injection exercises the actual native D1 transaction.
     await env.DB.prepare(`CREATE TRIGGER ${trigger} BEFORE UPDATE OF review_status ON attachments
-      WHEN OLD.id = '${f.selected}' BEGIN SELECT RAISE(ABORT, 'injected review write failure'); END`).run()
+      WHEN OLD.id = '${testFixture.selected}' BEGIN SELECT RAISE(ABORT, 'injected review write failure'); END`).run()
     try {
-      expect((await f.patch({ category: 'done', isDefault: true })).status).toBe(500)
+      expect((await testFixture.patch({ category: 'done', isDefault: true })).status).toBe(500)
       await expect(
-        env.DB.prepare('SELECT category,is_default FROM task_statuses WHERE id=?').bind(f.status.id).first(),
+        env.DB.prepare('SELECT category,is_default FROM task_statuses WHERE id=?').bind(testFixture.status.id).first(),
       ).resolves.toEqual({ category: 'in_progress', is_default: 0 })
       await expect(
-        env.DB.prepare('SELECT is_default FROM task_statuses WHERE id=?').bind(f.otherStatus.id).first(),
+        env.DB.prepare('SELECT is_default FROM task_statuses WHERE id=?').bind(testFixture.otherStatus.id).first(),
       ).resolves.toEqual({ is_default: 1 })
       await expect(
-        env.DB.prepare('SELECT status_category FROM issues WHERE id=?').bind(f.issue.id).first(),
+        env.DB.prepare('SELECT status_category FROM issues WHERE id=?').bind(testFixture.issue.id).first(),
       ).resolves.toEqual({
         status_category: 'in_progress',
       })
-      expect((await f.attachments()).results).toEqual(before.results)
+      expect((await testFixture.attachments()).results).toEqual(before.results)
     } finally {
       await env.DB.prepare(`DROP TRIGGER ${trigger}`).run()
     }

@@ -42,8 +42,8 @@ const PRIORITY_COLORS: Record<string, { bg: string; text: string }> = {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function formatDate(unixSeconds: number): string {
-  const d = new Date(unixSeconds * 1000)
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+  const date = new Date(unixSeconds * 1000)
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
 }
 
 export function ErrorState({ error }: { error: string }) {

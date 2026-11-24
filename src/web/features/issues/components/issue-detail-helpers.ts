@@ -103,8 +103,8 @@ export const LINK_TYPE_OPTIONS = [
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export const formatDate = function formatDate(unixSeconds: number): string {
-  const d = new Date(unixSeconds * 1000)
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+  const date = new Date(unixSeconds * 1000)
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
 }
 
 export const relativeTime = function relativeTime(unixSeconds: number): string {

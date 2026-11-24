@@ -191,7 +191,7 @@ const resolveTitleTargets = async function resolveTitleTargets(
         isNull(schema.wikiPages.deletedAt),
       ),
     )
-  const candidates = [...rows, ...unhealed.filter((r) => wanted.has(foldWikiTitle(r.title)))].sort(
+  const candidates = [...rows, ...unhealed.filter((r) => wanted.has(foldWikiTitle(r.title)))].toSorted(
     (left, right) => left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
   )
   /*

@@ -10,84 +10,96 @@ import { env } from './fixture-api.ts'
 import { seedFixture, seedGroupGrant, seedIssue, seedProject } from './helpers.ts'
 
 const fixture = async function fixture() {
-  const f = await seedFixture({ role: 'member' })
-  const project = await seedProject(f.workspace.id)
-  const issue = await seedIssue(f.workspace.id, project.id, f.user.id)
+  const testFixture = await seedFixture({ role: 'member' })
+  const project = await seedProject(testFixture.workspace.id)
+  const issue = await seedIssue(testFixture.workspace.id, project.id, testFixture.user.id)
   const ctx: ServiceCtx = {
     db: env.DB,
     kv: env.KV,
     r2: env.R2,
-    workspaceId: f.workspace.id,
-    userId: f.user.id,
+    workspaceId: testFixture.workspace.id,
+    userId: testFixture.user.id,
     role: 'member',
   }
-  return { ...f, project, issue, ctx }
+  return { ...testFixture, project, issue, ctx }
 }
 
 describe('coordination project authorization', () => {
   test('does not expose or displace a hidden project claim through a visible issue', async () => {
-    const f = await fixture()
-    await seedGroupGrant(f.workspace.id, f.user.id, f.project.id, 'member')
-    const hiddenProject = await seedProject(f.workspace.id, 'HIDDEN')
-    const hiddenIssue = await seedIssue(f.workspace.id, hiddenProject.id, f.user.id)
+    const testFixture = await fixture()
+    await seedGroupGrant(testFixture.workspace.id, testFixture.user.id, testFixture.project.id, 'member')
+    const hiddenProject = await seedProject(testFixture.workspace.id, 'HIDDEN')
+    const hiddenIssue = await seedIssue(testFixture.workspace.id, hiddenProject.id, testFixture.user.id)
     const id = crypto.randomUUID()
     await env.DB.prepare(`INSERT INTO issue_file_claims (id,workspace_id,issue_id,path,claimed_at)
       VALUES (?, ?, ?, 'src/shared.ts', ?)`)
-      .bind(id, f.workspace.id, hiddenIssue.id, Math.floor(Date.now() / 1000))
+      .bind(id, testFixture.workspace.id, hiddenIssue.id, Math.floor(Date.now() / 1000))
       .run()
     for (const force of [false, true]) {
-      await expect(claimFiles(f.ctx, { issueId: f.issue.id, paths: ['src/shared.ts'], force })).rejects.toMatchObject({
+      await expect(
+        claimFiles(testFixture.ctx, { issueId: testFixture.issue.id, paths: ['src/shared.ts'], force }),
+      ).rejects.toMatchObject({
         kind: 'not_found',
       })
     }
-    await expect(releaseFiles(f.ctx, { paths: ['src/shared.ts'] })).rejects.toMatchObject({ kind: 'not_found' })
+    await expect(releaseFiles(testFixture.ctx, { paths: ['src/shared.ts'] })).rejects.toMatchObject({
+      kind: 'not_found',
+    })
     await expect(
       env.DB.prepare('SELECT released_at FROM issue_file_claims WHERE id = ?').bind(id).first(),
     ).resolves.toMatchObject({ released_at: null })
     await expect(
-      env.DB.prepare('SELECT COUNT(*) AS n FROM claim_conflicts WHERE workspace_id = ?').bind(f.workspace.id).first(),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM claim_conflicts WHERE workspace_id = ?')
+        .bind(testFixture.workspace.id)
+        .first(),
     ).resolves.toMatchObject({ n: 0 })
   })
 
   test('rejects hidden project coordination before any side effect', async () => {
-    const f = await fixture()
+    const testFixture = await fixture()
     const actions = [
-      () => registerAgent(f.ctx, { name: 'agent', issueId: f.issue.id }),
-      () => claimIssue(f.ctx, { issueId: f.issue.id, agentId: crypto.randomUUID() }),
-      () => releaseIssue(f.ctx, { issueId: f.issue.id }),
-      () => claimFiles(f.ctx, { issueId: f.issue.id, paths: ['src/a.ts'] }),
-      () => releaseFiles(f.ctx, { issueId: f.issue.id, paths: ['src/a.ts'] }),
-      () => postMessage(f.ctx, { scope: `issue:${f.issue.id}`, body: 'secret' }),
-      () => listMessages(f.ctx, { scope: `issue:${f.issue.id}` }),
+      () => registerAgent(testFixture.ctx, { name: 'agent', issueId: testFixture.issue.id }),
+      () => claimIssue(testFixture.ctx, { issueId: testFixture.issue.id, agentId: crypto.randomUUID() }),
+      () => releaseIssue(testFixture.ctx, { issueId: testFixture.issue.id }),
+      () => claimFiles(testFixture.ctx, { issueId: testFixture.issue.id, paths: ['src/a.ts'] }),
+      () => releaseFiles(testFixture.ctx, { issueId: testFixture.issue.id, paths: ['src/a.ts'] }),
+      () => postMessage(testFixture.ctx, { scope: `issue:${testFixture.issue.id}`, body: 'secret' }),
+      () => listMessages(testFixture.ctx, { scope: `issue:${testFixture.issue.id}` }),
     ]
     for (const action of actions) {
       await expect(action()).rejects.toMatchObject({ kind: 'not_found' })
     }
     for (const table of ['agent_sessions', 'issue_leases', 'issue_file_claims', 'agent_messages']) {
       await expect(
-        env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE workspace_id = ?`).bind(f.workspace.id).first(),
+        env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE workspace_id = ?`)
+          .bind(testFixture.workspace.id)
+          .first(),
       ).resolves.toMatchObject({ n: 0 })
     }
   })
 
   test('lets a workspace viewer use an effective member grant, then blocks mutations after downgrade', async () => {
-    const f = await fixture()
-    await seedGroupGrant(f.workspace.id, f.user.id, f.project.id, 'member')
-    f.ctx.role = 'viewer'
-    const claim = await claimFiles(f.ctx, { issueId: f.issue.id, paths: ['src/a.ts'] })
+    const testFixture = await fixture()
+    await seedGroupGrant(testFixture.workspace.id, testFixture.user.id, testFixture.project.id, 'member')
+    testFixture.ctx.role = 'viewer'
+    const claim = await claimFiles(testFixture.ctx, { issueId: testFixture.issue.id, paths: ['src/a.ts'] })
     expect(claim.created).toHaveLength(1)
-    await postMessage(f.ctx, { scope: `issue:${f.issue.id}`, body: 'visible' })
+    await postMessage(testFixture.ctx, { scope: `issue:${testFixture.issue.id}`, body: 'visible' })
     await env.DB.prepare('UPDATE group_project_grants SET role = ? WHERE project_id = ?')
-      .bind('viewer', f.project.id)
+      .bind('viewer', testFixture.project.id)
       .run()
-    await expect(claimFiles(f.ctx, { issueId: f.issue.id, paths: ['src/b.ts'] })).rejects.toMatchObject({
+    await expect(
+      claimFiles(testFixture.ctx, { issueId: testFixture.issue.id, paths: ['src/b.ts'] }),
+    ).rejects.toMatchObject({
       kind: 'forbidden',
     })
-    await expect(releaseFiles(f.ctx, { paths: ['src/a.ts'] })).rejects.toMatchObject({ kind: 'forbidden' })
-    await expect(postMessage(f.ctx, { scope: `issue:${f.issue.id}`, body: 'blocked' })).rejects.toMatchObject({
+    await expect(releaseFiles(testFixture.ctx, { paths: ['src/a.ts'] })).rejects.toMatchObject({ kind: 'forbidden' })
+    await expect(
+      postMessage(testFixture.ctx, { scope: `issue:${testFixture.issue.id}`, body: 'blocked' }),
+    ).rejects.toMatchObject({
       kind: 'forbidden',
     })
-    await expect(listMessages(f.ctx, { scope: `issue:${f.issue.id}` })).resolves.toMatchObject({
+    await expect(listMessages(testFixture.ctx, { scope: `issue:${testFixture.issue.id}` })).resolves.toMatchObject({
       items: [{ body: 'visible' }],
     })
   })

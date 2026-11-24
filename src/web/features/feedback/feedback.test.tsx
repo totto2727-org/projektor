@@ -72,18 +72,18 @@ async function fixture(currentScope = scope) {
 
 describe('feedback request-local database SSR', () => {
   test('requires a project for grid without reading API or DB', async () => {
-    const f = await fixture()
-    const prepare = vi.spyOn(f.db, 'prepare')
-    expect(renderToStaticMarkup(await f.run(renderFeedback(scope, new URL('https://app.test/feedback'))))).toContain(
-      'Choose a project',
-    )
+    const testFixture = await fixture()
+    const prepare = vi.spyOn(testFixture.db, 'prepare')
+    expect(
+      renderToStaticMarkup(await testFixture.run(renderFeedback(scope, new URL('https://app.test/feedback')))),
+    ).toContain('Choose a project')
     expect(prepare).not.toHaveBeenCalled()
-    expect(f.execute).not.toHaveBeenCalled()
+    expect(testFixture.execute).not.toHaveBeenCalled()
   })
 
   test('derives source project independently of URL and preserves canonical DTOs without exposing credentials', async () => {
-    const f = await fixture()
-    const node = await f.run(
+    const testFixture = await fixture()
+    const node = await testFixture.run(
       renderFeedbackDetail(
         scope,
         new URL('https://app.test/feedback/view?sourceId=source&projectId=wrong&status=new&tab=summary'),
@@ -106,14 +106,14 @@ describe('feedback request-local database SSR', () => {
       ],
     })
     expect(JSON.stringify(node.props)).not.toContain('abcdef-secret')
-    expect(f.execute).not.toHaveBeenCalled()
+    expect(testFixture.execute).not.toHaveBeenCalled()
   })
 
   test('checks source project catalog before loading protected sources or feedback', async () => {
-    const f = await fixture()
-    f.sqlite.exec("UPDATE projects SET archived_at = 1 WHERE id = 'outside'")
-    const prepare = vi.spyOn(f.db, 'prepare')
-    const node = await f.run(
+    const testFixture = await fixture()
+    testFixture.sqlite.exec("UPDATE projects SET archived_at = 1 WHERE id = 'outside'")
+    const prepare = vi.spyOn(testFixture.db, 'prepare')
+    const node = await testFixture.run(
       renderFeedbackDetail(scope, new URL('https://app.test/feedback'), {
         sourceId: 'hidden',
       }),
@@ -125,10 +125,10 @@ describe('feedback request-local database SSR', () => {
   })
 
   test("does not resolve another workspace's source", async () => {
-    const f = await fixture()
+    const testFixture = await fixture()
     expect(
       renderToStaticMarkup(
-        await f.run(renderFeedbackDetail(scope, new URL('https://app.test/feedback?id=foreign-source'))),
+        await testFixture.run(renderFeedbackDetail(scope, new URL('https://app.test/feedback?id=foreign-source'))),
       ),
     ).toContain('Feedback source not found')
   })
@@ -140,9 +140,11 @@ describe('feedback request-local database SSR', () => {
       workspaces: [member],
       selection: { kind: 'project', workspace: member, project },
     }
-    const f = await fixture(memberScope)
-    const prepare = vi.spyOn(f.db, 'prepare')
-    await expect(f.run(renderFeedback(memberScope, new URL('https://app.test/feedback')))).rejects.toMatchObject({
+    const testFixture = await fixture(memberScope)
+    const prepare = vi.spyOn(testFixture.db, 'prepare')
+    await expect(
+      testFixture.run(renderFeedback(memberScope, new URL('https://app.test/feedback'))),
+    ).rejects.toMatchObject({
       _tag: 'ScopeError',
       status: 403,
     })
@@ -150,16 +152,18 @@ describe('feedback request-local database SSR', () => {
   })
 
   test('rejects malformed URL status as a validation error', async () => {
-    const f = await fixture()
+    const testFixture = await fixture()
     await expect(
-      f.run(renderFeedbackDetail(scope, new URL('https://app.test/feedback?id=source&status=unknown'))),
+      testFixture.run(renderFeedbackDetail(scope, new URL('https://app.test/feedback?id=source&status=unknown'))),
     ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
   })
 
   test('redacts malformed stored source metadata without exposing driver or credential details', async () => {
-    const f = await fixture()
-    f.sqlite.prepare("UPDATE feedback_sources SET allowed_origins = ? WHERE id = 'source'").run('private invalid JSON')
-    const result = await f.run(
+    const testFixture = await fixture()
+    testFixture.sqlite
+      .prepare("UPDATE feedback_sources SET allowed_origins = ? WHERE id = 'source'")
+      .run('private invalid JSON')
+    const result = await testFixture.run(
       renderFeedback(
         { ...scope, selection: { kind: 'project', workspace, project } },
         new URL('https://app.test/feedback'),
@@ -174,8 +178,8 @@ describe('feedback request-local database SSR', () => {
   })
 
   test('renders original grid cards from DB initial DTOs', async () => {
-    const f = await fixture()
-    const node = await f.run(
+    const testFixture = await fixture()
+    const node = await testFixture.run(
       renderFeedback(
         { ...scope, selection: { kind: 'project', workspace, project } },
         new URL('https://app.test/feedback'),

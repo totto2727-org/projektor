@@ -3577,7 +3577,8 @@ describe('wiki patch operations (PROJ-490)', () => {
     expect(body.error.formErrors.join(' ')).toContain('ambiguous')
     expect(body.error.fieldErrors.heading).toEqual(['h1', 'h2'])
     // Nothing was written.
-    expect((await getPage('patch-ambiguous')).content).toBe(content)
+    const result = await getPage('patch-ambiguous')
+    expect(result.content).toBe(content)
   })
 
   test('covers REST: repeated insert_after_heading does not accumulate blank lines', async () => {
@@ -4099,7 +4100,7 @@ describe('wiki write atomicity (PROJ-511)', () => {
         body: JSON.stringify({ title: 'Atomicity Race Page', content: 'see [[Race Target Beta]]' }),
       }),
     ])
-    const statuses = [resA.status, resB.status].sort((left, right) =>
+    const statuses = [resA.status, resB.status].toSorted((left, right) =>
       String(left) < String(right) ? -1 : String(left) > String(right) ? 1 : 0,
     )
     expect(statuses).toEqual([201, 409])
@@ -5317,7 +5318,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       changes: { action: string; pageId: string; deletedPageIds: string[] | null }[]
     }
     const deleteEvent = body.changes.find((c) => c.action === 'deleted' && c.pageId === parent.id)
-    expect(deleteEvent?.deletedPageIds?.sort()).toEqual([child.id, parent.id].sort())
+    expect(deleteEvent?.deletedPageIds?.sort()).toEqual([child.id, parent.id].toSorted())
 
     // Non-cascade events (e.g. the earlier "created" events) carry no deletedPageIds.
     const createdEvent = body.changes.find((c) => c.action === 'created' && c.pageId === parent.id)
@@ -5955,11 +5956,10 @@ describe('wiki trash (PROJ-496)', () => {
       body: oldForm,
     })
     const { id: oldAttachmentId } = (await oldUploadRes.json()) as { id: string }
-    const oldR2Key = (
-      await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?')
-        .bind(oldAttachmentId)
-        .first<{ r2_key: string }>()
-    )?.r2_key
+    const resolvedValue = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?')
+      .bind(oldAttachmentId)
+      .first<{ r2_key: string }>()
+    const oldR2Key = resolvedValue?.r2_key
     await req(`http://localhost/api/wiki/${oldPage.slug}/watch`, {
       method: 'POST',
       headers: authHeaders(token, slug),

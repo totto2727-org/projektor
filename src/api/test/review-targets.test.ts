@@ -107,7 +107,8 @@ describe('review targets REST through the real API and Core Workers', () => {
   })
 
   test.each(['invalid', '', 1, {}])('rejects malformed review status %j without a write', async (status) => {
-    expect((await update(status)).status).toBe(400)
+    const result = await update(status)
+    expect(result.status).toBe(400)
     await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
   })
 
@@ -125,7 +126,8 @@ describe('review targets REST through the real API and Core Workers', () => {
 
   test('rejects an attachment belonging to another issue even in the same project', async () => {
     const sibling = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
-    expect((await update('fixing', { issueId: sibling.id })).status).toBe(404)
+    const resolvedValue = await update('fixing', { issueId: sibling.id })
+    expect(resolvedValue.status).toBe(404)
     await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: null })
   })
 

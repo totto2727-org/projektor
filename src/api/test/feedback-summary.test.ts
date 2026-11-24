@@ -52,48 +52,48 @@ const seedFeedbackRow = async function seedFeedbackRow(
 
 describe('handles GET /api/projects/:id/feedback/summary', () => {
   test('aggregates thumbs %, five-star avg, and comment counts per source+version', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    await mintSource(f, { name: 'Widget A' })
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    await mintSource(testFixture, { name: 'Widget A' })
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
-      .bind(f.projectId)
+      .bind(testFixture.projectId)
       .first<{ id: string }>()
 
     // v1.0.0: 2 thumbs up, 1 thumbs down, 1 with a comment
-    await seedFeedbackRow(src!.id, f.workspaceId, f.projectId, {
+    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
       rating: 1,
       ratingScale: 'thumbs',
       appVersion: 'v1.0.0',
       createdAt: 100,
     })
-    await seedFeedbackRow(src!.id, f.workspaceId, f.projectId, {
+    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
       rating: 1,
       ratingScale: 'thumbs',
       appVersion: 'v1.0.0',
       body: 'Love it',
       createdAt: 101,
     })
-    await seedFeedbackRow(src!.id, f.workspaceId, f.projectId, {
+    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
       rating: -1,
       ratingScale: 'thumbs',
       appVersion: 'v1.0.0',
       createdAt: 102,
     })
     // v1.1.0 (more recent): 5-star avg of 4.5
-    await seedFeedbackRow(src!.id, f.workspaceId, f.projectId, {
+    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
       rating: 4,
       ratingScale: 'five_star',
       appVersion: 'v1.1.0',
       createdAt: 200,
     })
-    await seedFeedbackRow(src!.id, f.workspaceId, f.projectId, {
+    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
       rating: 5,
       ratingScale: 'five_star',
       appVersion: 'v1.1.0',
       createdAt: 201,
     })
 
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
-      headers: authHeaders(f.token, f.slug),
+    const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback/summary`, {
+      headers: authHeaders(testFixture.token, testFixture.slug),
     })
     expect(res.status).toBe(200)
     const summary = (await res.json()) as {
@@ -126,15 +126,15 @@ describe('handles GET /api/projects/:id/feedback/summary', () => {
   })
 
   test('groups rows with a null app_version under a null bucket', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    await mintSource(f)
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    await mintSource(testFixture)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
-      .bind(f.projectId)
+      .bind(testFixture.projectId)
       .first<{ id: string }>()
-    await seedFeedbackRow(src!.id, f.workspaceId, f.projectId, { body: 'no version here' })
+    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { body: 'no version here' })
 
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
-      headers: authHeaders(f.token, f.slug),
+    const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback/summary`, {
+      headers: authHeaders(testFixture.token, testFixture.slug),
     })
     const summary = (await res.json()) as { versions: Array<{ appVersion: string | null }> }[]
     expect(summary[0].versions[0].appVersion).toBeNull()
@@ -150,17 +150,17 @@ describe('handles GET /api/projects/:id/feedback/summary', () => {
   })
 
   test('is readable by a viewer', async () => {
-    const f = await seedProjectFixture({ role: 'viewer' })
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
-      headers: authHeaders(f.token, f.slug),
+    const testFixture = await seedProjectFixture({ role: 'viewer' })
+    const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback/summary`, {
+      headers: authHeaders(testFixture.token, testFixture.slug),
     })
     expect(res.status).toBe(200)
   })
 
   test('returns an empty array for a project with no feedback', async () => {
-    const f = await seedProjectFixture({ role: 'owner' })
-    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
-      headers: authHeaders(f.token, f.slug),
+    const testFixture = await seedProjectFixture({ role: 'owner' })
+    const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback/summary`, {
+      headers: authHeaders(testFixture.token, testFixture.slug),
     })
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toStrictEqual([])

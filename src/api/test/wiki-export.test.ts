@@ -110,7 +110,7 @@ describe('wiki export (PROJ-497)', () => {
 
     const { status, entries } = await exportZip(token, slug, 'scope=space')
     expect(status).toBe(200)
-    const names = Object.keys(entries ?? {}).sort()
+    const names = Object.keys(entries ?? {}).toSorted()
     expect(names).toEqual(['pages/note-two.md', 'pages/runbook-one.md'])
 
     expect(entryText(entries!, 'pages/runbook-one.md')).toContain('type: runbook')
@@ -150,7 +150,7 @@ describe('wiki export (PROJ-497)', () => {
     await createPage(token, slug, { title: 'Unrelated', content: 'unrelated body' })
 
     const { entries } = await exportZip(token, slug, `scope=subtree&pageId=${root.slug}`)
-    const names = Object.keys(entries ?? {}).sort()
+    const names = Object.keys(entries ?? {}).toSorted()
     expect(names).toEqual(['pages/child.md', 'pages/grandchild.md', 'pages/root.md'])
   })
 
@@ -159,7 +159,7 @@ describe('wiki export (PROJ-497)', () => {
     await uploadAttachment(token, slug, page.id, 'notes.txt', 'attachment bytes')
 
     const { entries } = await exportZip(token, slug, 'scope=space')
-    expect(Object.keys(entries ?? {}).sort()).toEqual([
+    expect(Object.keys(entries ?? {}).toSorted()).toEqual([
       'attachments/with-attachment/notes.txt',
       'pages/with-attachment.md',
     ])
@@ -233,7 +233,7 @@ describe('wiki export (PROJ-497)', () => {
     expect(status).toBe(200)
     const names = Object.keys(entries ?? {})
       .filter((n) => n.startsWith('attachments/'))
-      .sort()
+      .toSorted()
     expect(names).toHaveLength(3)
 
     const contents = names.map((n) => entryText(entries!, n)).sort()
@@ -349,14 +349,14 @@ describe('wiki export (PROJ-497)', () => {
       await createPage(token, slug, { title: 'Live Child', content: 'c', parentId: live.id })
 
       const space = await exportZip(token, slug, 'scope=space')
-      const spaceNames = Object.keys(space.entries ?? {}).sort()
+      const spaceNames = Object.keys(space.entries ?? {}).toSorted()
       expect(spaceNames).toEqual(['pages/live-child.md', `pages/${live.slug}.md`])
       expect(entryText(space.entries!, `pages/${live.slug}.md`)).toContain('live body')
       expect(entryText(space.entries!, `pages/${live.slug}.md`)).not.toContain('old secret')
 
       const sub = await exportZip(token, slug, `scope=subtree&pageId=${live.slug}`)
       expect(sub.status).toBe(200)
-      expect(Object.keys(sub.entries ?? {}).sort()).toEqual(['pages/live-child.md', `pages/${live.slug}.md`])
+      expect(Object.keys(sub.entries ?? {}).toSorted()).toEqual(['pages/live-child.md', `pages/${live.slug}.md`])
       expect(entryText(sub.entries!, `pages/${live.slug}.md`)).toContain('live body')
     })
 
@@ -371,7 +371,7 @@ describe('wiki export (PROJ-497)', () => {
       await trash(gone.id)
 
       const { entries } = await exportZip(token, slug, `scope=subtree&pageId=${root.id}`)
-      expect(Object.keys(entries ?? {}).sort()).toEqual(['pages/kept-child.md', 'pages/tree-root.md'])
+      expect(Object.keys(entries ?? {}).toSorted()).toEqual(['pages/kept-child.md', 'pages/tree-root.md'])
 
       await trash(root.id)
       const after = await exportZip(token, slug, `scope=subtree&pageId=${root.id}`)

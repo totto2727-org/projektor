@@ -249,7 +249,8 @@ describe('server scope loading', () => {
 
   test('retries archived DB catalog exactly once and leaves ordinary catalog active-only', async () => {
     sqlite.exec("UPDATE projects SET archived_at = 42 WHERE id = 'project-a'")
-    expect((await load()).projects).toEqual([])
+    const result = await load()
+    expect(result.projects).toEqual([])
     prepare.mockClear()
     const scope = await load(new Request(page('/issues?projectId=project-a')))
     expect(scope.selection).toMatchObject({ kind: 'project', project: { archived_at: 42, id: 'project-a' } })
@@ -297,7 +298,8 @@ describe('server scope loading', () => {
 
   test('retains current DB membership as an additional boundary even with valid identity', async () => {
     sqlite.exec('DELETE FROM workspace_members')
-    expect((await load()).projects).toEqual([])
+    const resolvedValue = await load()
+    expect(resolvedValue.projects).toEqual([])
   })
 
   test('applies the web app grant predicate to shared workspace-scoped list queries', async () => {

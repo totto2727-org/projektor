@@ -37,7 +37,7 @@ const summarize = function summarize(durations: Readonly<number[]>): Distributio
   if (durations.length === 0) {
     return { count: 0, avg: null, p50: null, p90: null }
   }
-  const sorted = [...durations].sort((left, right) => left - right)
+  const sorted = [...durations].toSorted((left, right) => left - right)
   const avg = sorted.reduce((sum, d) => sum + d, 0) / sorted.length
   const percentile = (p: number): number => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]
   return { count: sorted.length, avg, p50: percentile(0.5), p90: percentile(0.9) }
@@ -116,7 +116,7 @@ const groupBySortedRanges = function groupBySortedRanges<T>(
   time: (item: T) => number,
   ranges: Readonly<{ start: number; end: number }[]>,
 ): T[][] {
-  const sorted = [...items].sort((left, right) => time(left) - time(right))
+  const sorted = [...items].toSorted((left, right) => time(left) - time(right))
   const groups: T[][] = ranges.map(() => [])
   let idx = 0
   for (let r = 0; r < ranges.length; r++) {
@@ -307,7 +307,7 @@ const buildCfdEvents = function buildCfdEvents(
           Predicate.isNotNullish(t),
         ),
       ),
-    ].sort((left, right) => left - right)
+    ].toSorted((left, right) => left - right)
     let prevBand: CfdBand = 'excluded'
     for (const t of thresholds) {
       const band = classifyCfdBand(issue, t)

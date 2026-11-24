@@ -101,7 +101,9 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
                   }).pipe(
                     Effect.map((pages) =>
                       [...pages]
-                        .sort((left, right) => right.updated_at - left.updated_at || right.id.localeCompare(left.id))
+                        .toSorted(
+                          (left, right) => right.updated_at - left.updated_at || right.id.localeCompare(left.id),
+                        )
                         .slice(0, 5),
                     ),
                   ),

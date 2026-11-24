@@ -637,7 +637,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
       wiki.getWikiPage(ctx, 'page')
     `,
     )
-    expect([...domainOperations(module, module.ast)].sort()).toEqual(['issues.ts:getIssue', 'wiki.ts:getWikiPage'])
+    expect([...domainOperations(module, module.ast)].toSorted()).toEqual(['issues.ts:getIssue', 'wiki.ts:getWikiPage'])
   })
 
   test('follows facade reexports without conflating equal local function names', () => {
@@ -655,7 +655,10 @@ describe('covers MCP surface parity (PROJ-623)', () => {
     `,
     )
     expect(facade.imports.get('load')?.name).toBe('getProject')
-    expect([...domainOperations(module, module.ast)].sort()).toEqual(['issues.ts:getIssue', 'projects.ts:getProject'])
+    expect([...domainOperations(module, module.ast)].toSorted()).toEqual([
+      'issues.ts:getIssue',
+      'projects.ts:getProject',
+    ])
   })
 
   test('fails closed for an unresolved native named operation', () => {
@@ -706,7 +709,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
   })
 
   test('traces concrete file I/O wrappers to metadata operations without creating binary MCP contracts', () => {
-    expect([...(fileWrapperCalls.get('uploadStoredAttachment') ?? [])].sort()).toEqual([
+    expect([...(fileWrapperCalls.get('uploadStoredAttachment') ?? [])].toSorted()).toEqual([
       'assertEntityWritable',
       'assertUploadAllowed',
       'recordUpload',
@@ -759,7 +762,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
     })
 
     test('resolves every runtime tool handler to an actual domain operation', () => {
-      expect([...toolOperations.keys()].sort()).toEqual([...runtimeToolNames].sort())
+      expect([...toolOperations.keys()].toSorted()).toEqual([...runtimeToolNames].toSorted())
       expect([...toolOperations].filter(([, operations]) => operations.size === 0).map(([name]) => name)).toEqual([])
     })
 

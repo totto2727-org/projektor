@@ -305,9 +305,11 @@ describe('dynamic client registration', () => {
 
   test('rate limits anonymous registrations independently of token requests', async () => {
     for (let index = 0; index < 3; index++) {
-      expect((await registerClient()).status).toBe(201)
+      const result = await registerClient()
+      expect(result.status).toBe(201)
     }
-    expect((await registerClient()).status).toBe(429)
+    const resolvedValue = await registerClient()
+    expect(resolvedValue.status).toBe(429)
     const response = await exchange({ grant_type: 'authorization_code', code: 'nope', client_id: 'nope' }, clientIp)
     expect(response.status).toBe(401)
   })
@@ -670,7 +672,8 @@ describe('the issued token is bound to the workspace it was granted for', () => 
 
     const first = await refresh(tokens.refresh_token)
     expect(first.status).toBe(200)
-    const second = (await first.json<TokenResponse>()).refresh_token
+    const body = await first.json<TokenResponse>()
+    const second = body.refresh_token
     expect(second).not.toBe(tokens.refresh_token)
 
     /*
@@ -681,7 +684,8 @@ describe('the issued token is bound to the workspace it was granted for', () => 
      */
     const graced = await refresh(tokens.refresh_token)
     expect(graced.status).toBe(200)
-    const third = (await graced.json<TokenResponse>()).refresh_token
+    const responseBody = await graced.json<TokenResponse>()
+    const third = responseBody.refresh_token
 
     /*
      * Two rotations on, the original is out of the window. A refresh token that

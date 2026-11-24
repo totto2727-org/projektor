@@ -205,8 +205,10 @@ describe('covers PROJ-91: POST /auth/tokens — user-scoped minting', () => {
       .first<{ workspace_id: string | null }>()
     expect(row?.workspace_id).toBe(fixture.workspace.id)
 
-    expect((await getIssues(minted, fixture.workspace.slug)).status).toBe(200)
-    expect((await getIssues(minted, other.slug)).status).toBe(403)
+    const result = await getIssues(minted, fixture.workspace.slug)
+    expect(result.status).toBe(200)
+    const resolvedValue = await getIssues(minted, other.slug)
+    expect(resolvedValue.status).toBe(403)
   })
 })
 

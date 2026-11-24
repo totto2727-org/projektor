@@ -180,7 +180,7 @@ describe('generated Base UI Shell', () => {
     fireEvent.keyDown(window, { key: 'b', ctrlKey: true })
     expect(container.querySelector('[data-slot="sidebar"][data-state="collapsed"]')).not.toBeNull()
     expect(JSON.parse(localStorage.getItem('prefs')!).sidebar).toBe('collapsed')
-    expect(Object.keys(JSON.parse(localStorage.getItem('prefs')!)).sort()).toEqual(['density', 'sidebar', 'theme'])
+    expect(Object.keys(JSON.parse(localStorage.getItem('prefs')!)).toSorted()).toEqual(['density', 'sidebar', 'theme'])
   })
 
   test('opens and dismisses the generated mobile Sheet, not a manual drawer', async () => {

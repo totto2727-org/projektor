@@ -60,66 +60,86 @@ const reply = function reply<S extends Schema.Top & { readonly DecodingServices:
 
 describe('covers API Core authorization and presentation boundaries', () => {
   test('filters both workspace catalogs and auth bootstrap by the original credential audience', async () => {
-    const f = await fixture()
-    const workspaces = await reply(ApiResults.apiListWorkspaces, f.handlers.apiListWorkspaces(f.actor))
+    const testFixture = await fixture()
+    const workspaces = await reply(
+      ApiResults.apiListWorkspaces,
+      testFixture.handlers.apiListWorkspaces(testFixture.actor),
+    )
     expect(workspaces.map((workspace) => workspace.id)).toEqual(['w'])
     expect(workspaces[0]).toHaveProperty('createdAt')
-    const bootstrap = await reply(ApiUserBootstrap, f.handlers.apiUserBootstrap(f.actor))
+    const bootstrap = await reply(ApiUserBootstrap, testFixture.handlers.apiUserBootstrap(testFixture.actor))
     expect(bootstrap.workspaces.map((workspace) => workspace.id)).toEqual(['w'])
   })
 
   test('does not let a workspace credential mint an unconfined workspace', async () => {
-    const f = await fixture()
+    const testFixture = await fixture()
     await expect(
-      reply(ApiResults.apiCreateWorkspace, f.handlers.apiCreateWorkspace(f.actor, { name: 'New', slug: 'new' })),
+      reply(
+        ApiResults.apiCreateWorkspace,
+        testFixture.handlers.apiCreateWorkspace(testFixture.actor, { name: 'New', slug: 'new' }),
+      ),
     ).rejects.toMatchObject({ status: 403 })
-    expect(f.sqlite.prepare("SELECT id FROM workspaces WHERE slug='new'").get()).toBeUndefined()
+    expect(testFixture.sqlite.prepare("SELECT id FROM workspaces WHERE slug='new'").get()).toBeUndefined()
   })
 
   test('enforces read capability independently on global catalogs and auth bootstrap', async () => {
-    const f = await fixture()
-    f.sqlite.exec("UPDATE api_tokens SET scopes='[]' WHERE id='token'")
-    await expect(reply(ApiResults.apiListWorkspaces, f.handlers.apiListWorkspaces(f.actor))).rejects.toMatchObject({
+    const testFixture = await fixture()
+    testFixture.sqlite.exec("UPDATE api_tokens SET scopes='[]' WHERE id='token'")
+    await expect(
+      reply(ApiResults.apiListWorkspaces, testFixture.handlers.apiListWorkspaces(testFixture.actor)),
+    ).rejects.toMatchObject({
       status: 403,
     })
-    await expect(reply(ApiUserBootstrap, f.handlers.apiUserBootstrap(f.actor))).rejects.toMatchObject({
+    await expect(
+      reply(ApiUserBootstrap, testFixture.handlers.apiUserBootstrap(testFixture.actor)),
+    ).rejects.toMatchObject({
       status: 403,
     })
   })
 
   test('authenticates before revealing whether a target workspace exists', async () => {
-    const f = await fixture()
-    const unauthorized = { ...f.actor, bearer: 'invalid' }
+    const testFixture = await fixture()
+    const unauthorized = { ...testFixture.actor, bearer: 'invalid' }
     for (const value of ['w', 'missing']) {
       await expect(
-        reply(Schema.Unknown, f.handlers.apiResolveWorkspace(unauthorized, { kind: 'id', value })),
+        reply(Schema.Unknown, testFixture.handlers.apiResolveWorkspace(unauthorized, { kind: 'id', value })),
       ).rejects.toMatchObject({ status: 401 })
     }
   })
 
   test('does not authorize OAuth consent with an API token even when its owner is a workspace owner', async () => {
-    const f = await fixture()
-    await expect(reply(ApiConsentWorkspace, f.handlers.apiConsentWorkspace(f.actor, 'w'))).rejects.toMatchObject({
+    const testFixture = await fixture()
+    await expect(
+      reply(ApiConsentWorkspace, testFixture.handlers.apiConsentWorkspace(testFixture.actor, 'w')),
+    ).rejects.toMatchObject({
       status: 403,
     })
   })
 
   test('rechecks live socket membership and credential revocation on every visibility request', async () => {
-    const f = await fixture()
-    await expect(reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).resolves.toMatchObject({
+    const testFixture = await fixture()
+    await expect(
+      reply(ApiRealtimeSnapshot, testFixture.handlers.apiRealtimeSnapshot(testFixture.actor, 'w')),
+    ).resolves.toMatchObject({
       role: 'owner',
       userId: 'u',
     })
-    f.sqlite.exec("UPDATE workspace_members SET role='viewer' WHERE workspace_id='w'")
-    await expect(reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).resolves.toMatchObject({
+    testFixture.sqlite.exec("UPDATE workspace_members SET role='viewer' WHERE workspace_id='w'")
+    await expect(
+      reply(ApiRealtimeSnapshot, testFixture.handlers.apiRealtimeSnapshot(testFixture.actor, 'w')),
+    ).resolves.toMatchObject({
       role: 'viewer',
     })
-    f.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id='w'")
-    await expect(reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).rejects.toMatchObject({
+    testFixture.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id='w'")
+    await expect(
+      reply(ApiRealtimeSnapshot, testFixture.handlers.apiRealtimeSnapshot(testFixture.actor, 'w')),
+    ).rejects.toMatchObject({
       status: 403,
     })
-    f.sqlite.exec("DELETE FROM api_tokens WHERE id='token'")
-    await expect(reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).rejects.toMatchObject({
+    testFixture.sqlite.exec("DELETE FROM api_tokens WHERE id='token'")
+    await expect(
+      reply(ApiRealtimeSnapshot, testFixture.handlers.apiRealtimeSnapshot(testFixture.actor, 'w')),
+    ).rejects.toMatchObject({
       status: 401,
     })
   })

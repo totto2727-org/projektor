@@ -78,9 +78,9 @@ describe('covers PROJ-920: MCP tool arguments are type-checked before the handle
   })
 
   test('every tool rejects a wrongly-typed required argument with a validation tool error naming it', async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const headers = authHeaders(f.token, f.workspace.slug)
-    const list = await rpc(f.workspace.id, headers, 'tools/list', {})
+    const testFixture = await seedFixture({ role: 'owner' })
+    const headers = authHeaders(testFixture.token, testFixture.workspace.slug)
+    const list = await rpc(testFixture.workspace.id, headers, 'tools/list', {})
     const tools = list.result?.tools ?? []
     expect(tools.length).toBeGreaterThan(50)
 
@@ -99,7 +99,7 @@ describe('covers PROJ-920: MCP tool arguments are type-checked before the handle
       })
       args[target] = wrongValue(props[target])
 
-      const res = await rpc(f.workspace.id, headers, 'tools/call', {
+      const res = await rpc(testFixture.workspace.id, headers, 'tools/call', {
         name: tool.name,
         arguments: args,
       })
@@ -114,9 +114,9 @@ describe('covers PROJ-920: MCP tool arguments are type-checked before the handle
   })
 
   test('puts the failing field in fields like a service ValidationError', async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const headers = authHeaders(f.token, f.workspace.slug)
-    const res = await rpc(f.workspace.id, headers, 'tools/call', {
+    const testFixture = await seedFixture({ role: 'owner' })
+    const headers = authHeaders(testFixture.token, testFixture.workspace.slug)
+    const res = await rpc(testFixture.workspace.id, headers, 'tools/call', {
       name: 'get_issue',
       arguments: { id: 42 },
     })
@@ -126,9 +126,9 @@ describe('covers PROJ-920: MCP tool arguments are type-checked before the handle
   })
 
   test('still reports missing required arguments by name (PROJ-877)', async () => {
-    const f = await seedFixture({ role: 'owner' })
-    const headers = authHeaders(f.token, f.workspace.slug)
-    const res = await rpc(f.workspace.id, headers, 'tools/call', {
+    const testFixture = await seedFixture({ role: 'owner' })
+    const headers = authHeaders(testFixture.token, testFixture.workspace.slug)
+    const res = await rpc(testFixture.workspace.id, headers, 'tools/call', {
       name: 'create_issue',
       arguments: {},
     })

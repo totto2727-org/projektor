@@ -24,7 +24,8 @@ const currentWorkspace = async function currentWorkspace(ctx: PluginContext) {
 }
 
 const currentWorkspaceSlug = async function currentWorkspaceSlug(ctx: PluginContext): Promise<string> {
-  return (await currentWorkspace(ctx)).slug
+  const result = await currentWorkspace(ctx)
+  return result.slug
 }
 
 export const workspacesTools: MCPTool[] = [

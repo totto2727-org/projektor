@@ -422,7 +422,8 @@ describe('share tokens', () => {
     const shareStatus = async function shareStatus(shareToken: string): Promise<number> {
       // The public share route is rate-limited too; these tests hit it several times.
       await resetRateLimits()
-      return (await fetchNativeApi(`http://localhost/api/share/${shareToken}`)).status
+      const response = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
+      return response.status
     }
 
     test('404s once the issue is deleted', async () => {
@@ -453,7 +454,8 @@ describe('share tokens', () => {
         .run()
       await expect(shareStatus(f.shareToken)).resolves.toBe(404)
       await resetRateLimits()
-      expect((await fetchNativeApi(`http://localhost/api/share/${f.shareToken}/logo`)).status).toBe(404)
+      const apiResponse = await fetchNativeApi(`http://localhost/api/share/${f.shareToken}/logo`)
+      expect(apiResponse.status).toBe(404)
 
       await env.DB.prepare('INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, ?)')
         .bind(f.groupId, f.projectId, grant?.role ?? 'member')

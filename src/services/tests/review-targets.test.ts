@@ -59,20 +59,24 @@ const fixture = function fixture() {
 
 describe('issue attachment review target storage and authorization', () => {
   test('defaults existing metadata to null and persists every review state, then removes selection', async () => {
-    const f = fixture()
-    await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })
+    const testFixture = fixture()
+    await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })
     for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
-      await expect(f.set('a', status)).resolves.toEqual({ ok: true })
-      await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: status })
+      await expect(testFixture.set('a', status)).resolves.toEqual({ ok: true })
+      await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
+        reviewStatus: status,
+      })
     }
-    await expect(runTestEffect(listIssueReviewTargets(f.db, 'w', ['i']))).resolves.toEqual(new Map())
+    await expect(runTestEffect(listIssueReviewTargets(testFixture.db, 'w', ['i']))).resolves.toEqual(new Map())
   })
 
   test('includes selected file and URL targets only and prioritizes in-review before creation/id order', async () => {
-    const f = fixture()
-    await f.set('a', 'fixing')
-    await f.set('b', 'in_review')
-    await expect(runTestEffect(listIssueReviewTargets(f.db, 'w', ['i', 'other', 'missing']))).resolves.toEqual(
+    const testFixture = fixture()
+    await testFixture.set('a', 'fixing')
+    await testFixture.set('b', 'in_review')
+    await expect(
+      runTestEffect(listIssueReviewTargets(testFixture.db, 'w', ['i', 'other', 'missing'])),
+    ).resolves.toEqual(
       new Map([
         [
           'i',
@@ -83,9 +87,9 @@ describe('issue attachment review target storage and authorization', () => {
         ],
       ]),
     )
-    await f.set('b', 'done')
+    await testFixture.set('b', 'done')
     expect(
-      (await runTestEffect(listIssueReviewTargets(f.db, 'w', ['i']))).get('i')?.map((target) => target.id),
+      (await runTestEffect(listIssueReviewTargets(testFixture.db, 'w', ['i']))).get('i')?.map((target) => target.id),
     ).toEqual(['a', 'b'])
   })
 
@@ -97,88 +101,100 @@ describe('issue attachment review target storage and authorization', () => {
     ['other', 'other'],
     ['hidden', 'hidden'],
   ])('rejects ineligible or unowned target %s on %s without changing selection', async (attachmentId, issueId) => {
-    const f = fixture()
-    await expect(f.set(attachmentId, 'fixing', issueId)).rejects.toBeInstanceOf(NotFoundError)
-    expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments WHERE review_status IS NOT NULL').get()).toEqual({
+    const testFixture = fixture()
+    await expect(testFixture.set(attachmentId, 'fixing', issueId)).rejects.toBeInstanceOf(NotFoundError)
+    expect(
+      testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments WHERE review_status IS NOT NULL').get(),
+    ).toEqual({
       n: 0,
     })
   })
 
   test('rejects archived project mutations even for workspace admins', async () => {
-    const f = fixture()
-    f.ctx.role = 'owner'
-    f.sqlite.exec("UPDATE projects SET archived_at=2 WHERE id='p'")
-    await expect(f.set('a', 'fixing')).rejects.toBeInstanceOf(NotFoundError)
-    await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })
+    const testFixture = fixture()
+    testFixture.ctx.role = 'owner'
+    testFixture.sqlite.exec("UPDATE projects SET archived_at=2 WHERE id='p'")
+    await expect(testFixture.set('a', 'fixing')).rejects.toBeInstanceOf(NotFoundError)
+    await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: null })
   })
 
   test('rechecks current grants and forbids project viewers', async () => {
-    const f = fixture()
-    f.sqlite.exec("UPDATE group_project_grants SET role='viewer'")
-    await expect(f.set('a', 'fixing')).rejects.toBeInstanceOf(ForbiddenError)
-    f.sqlite.exec('DELETE FROM group_project_grants')
-    await expect(f.set('a', 'fixing')).rejects.toBeInstanceOf(NotFoundError)
+    const testFixture = fixture()
+    testFixture.sqlite.exec("UPDATE group_project_grants SET role='viewer'")
+    await expect(testFixture.set('a', 'fixing')).rejects.toBeInstanceOf(ForbiddenError)
+    testFixture.sqlite.exec('DELETE FROM group_project_grants')
+    await expect(testFixture.set('a', 'fixing')).rejects.toBeInstanceOf(NotFoundError)
   })
 
   test('rejects malformed review states and enforces storage eligibility', async () => {
-    const f = fixture()
-    await expect(f.set('a', 'review')).rejects.toBeInstanceOf(ValidationError)
-    expect(() => f.sqlite.exec("UPDATE attachments SET review_status='fixing' WHERE id='wiki'")).toThrow()
-    expect(() => f.sqlite.exec("UPDATE attachments SET review_status='fixing' WHERE id='page'")).toThrow()
-    expect(() => f.sqlite.exec("UPDATE attachments SET review_status='review' WHERE id='a'")).toThrow()
+    const testFixture = fixture()
+    await expect(testFixture.set('a', 'review')).rejects.toBeInstanceOf(ValidationError)
+    expect(() => testFixture.sqlite.exec("UPDATE attachments SET review_status='fixing' WHERE id='wiki'")).toThrow()
+    expect(() => testFixture.sqlite.exec("UPDATE attachments SET review_status='fixing' WHERE id='page'")).toThrow()
+    expect(() => testFixture.sqlite.exec("UPDATE attachments SET review_status='review' WHERE id='a'")).toThrow()
   })
 
   test.each(['done', 'cancelled'] as const)(
     'synchronizes selected targets when their owning issue becomes %s',
     async (status) => {
-      const f = fixture()
-      await f.set('a', 'in_review')
-      await f.set('b', 'changes_requested')
-      f.sqlite.exec(`
+      const testFixture = fixture()
+      await testFixture.set('a', 'in_review')
+      await testFixture.set('b', 'changes_requested')
+      testFixture.sqlite.exec(`
       INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at,review_status) VALUES
         ('sibling-target','w','file','w/sibling','sibling.pdf','application/pdf',1,'issue','sibling','u',1,'fixing');
       UPDATE attachments SET review_status='fixing' WHERE id='other';
     `)
-      const attachmentCount = f.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments').get()
-      await updateIssue(f.ctx, 'i', { status })
+      const attachmentCount = testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments').get()
+      await updateIssue(testFixture.ctx, 'i', { status })
       const expected = status === 'done' ? 'done' : null
-      await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: expected })
-      await expect(runTestEffect(findAttachment(f.db, 'w', 'b'))).resolves.toMatchObject({ reviewStatus: expected })
-      await expect(runTestEffect(findAttachment(f.db, 'w', 'wiki'))).resolves.toMatchObject({ reviewStatus: null })
-      await expect(runTestEffect(findAttachment(f.db, 'w', 'sibling-target'))).resolves.toMatchObject({
+      await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
+        reviewStatus: expected,
+      })
+      await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'b'))).resolves.toMatchObject({
+        reviewStatus: expected,
+      })
+      await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'wiki'))).resolves.toMatchObject({
+        reviewStatus: null,
+      })
+      await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'sibling-target'))).resolves.toMatchObject({
         reviewStatus: 'fixing',
       })
-      await expect(runTestEffect(findAttachment(f.db, 'other', 'other'))).resolves.toMatchObject({
+      await expect(runTestEffect(findAttachment(testFixture.db, 'other', 'other'))).resolves.toMatchObject({
         reviewStatus: 'fixing',
       })
-      expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments').get()).toEqual(attachmentCount)
-      await updateIssue(f.ctx, 'i', { status: 'todo' })
-      await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: expected })
+      expect(testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM attachments').get()).toEqual(attachmentCount)
+      await updateIssue(testFixture.ctx, 'i', { status: 'todo' })
+      await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
+        reviewStatus: expected,
+      })
     },
   )
 
   test('closes review targets for custom done categories but leaves open status updates alone', async () => {
-    const f = fixture()
+    const testFixture = fixture()
     const statusId = crypto.randomUUID()
-    f.sqlite
+    testFixture.sqlite
       .prepare(
         "INSERT INTO task_statuses (id,workspace_id,key,name,category,position,is_default) VALUES (?,'w','shipped','Shipped','done',0,0)",
       )
       .run(statusId)
-    await f.set('a', 'in_review')
-    await updateIssue(f.ctx, 'i', { status: 'in_progress' })
-    await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({
+    await testFixture.set('a', 'in_review')
+    await updateIssue(testFixture.ctx, 'i', { status: 'in_progress' })
+    await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
       reviewStatus: 'in_review',
     })
-    await updateIssue(f.ctx, 'i', { statusId })
-    await expect(runTestEffect(findAttachment(f.db, 'w', 'a'))).resolves.toMatchObject({ reviewStatus: 'done' })
+    await updateIssue(testFixture.ctx, 'i', { statusId })
+    await expect(runTestEffect(findAttachment(testFixture.db, 'w', 'a'))).resolves.toMatchObject({
+      reviewStatus: 'done',
+    })
   })
 
   test('keeps batched lookup below the D1 parameter ceiling and deduplicates issue ids', async () => {
-    const f = fixture()
-    await f.set('a', 'fixing')
+    const testFixture = fixture()
+    await testFixture.set('a', 'fixing')
     const bindings: number[] = []
-    const bounded = new Proxy(f.db, {
+    const bounded = new Proxy(testFixture.db, {
       get(target, key, receiver) {
         if (key !== 'prepare') {
           return Reflect.get(target, key, receiver)

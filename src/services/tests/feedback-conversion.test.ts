@@ -101,80 +101,88 @@ const fixture = function fixture(concurrentBatches = 1) {
 
 describe('feedback conversion transaction', () => {
   test('permits exactly one concurrent single conversion without orphan issues, mirrors, activity or events', async () => {
-    const f = fixture(2)
-    f.seed('f')
+    const testFixture = fixture(2)
+    testFixture.seed('f')
     const results = await Promise.allSettled([
-      convertFeedbackToIssue(f.ctx, { feedbackId: 'f' }),
-      convertFeedbackToIssue(f.ctx, { feedbackId: 'f' }),
+      convertFeedbackToIssue(testFixture.ctx, { feedbackId: 'f' }),
+      convertFeedbackToIssue(testFixture.ctx, { feedbackId: 'f' }),
     ])
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
     expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
     Iterable.forEach(['issues', 'issues_fts', 'activity'], (table) => {
-      expect(f.count(table), table).toBe(1)
+      expect(testFixture.count(table), table).toBe(1)
     })
-    expect(f.fetch).toHaveBeenCalledOnce()
-    const issue = f.sqlite.prepare('SELECT id,number FROM issues').get()
+    expect(testFixture.fetch).toHaveBeenCalledOnce()
+    const issue = testFixture.sqlite.prepare('SELECT id,number FROM issues').get()
     expect(issue?.number).toBe(1)
-    expect(f.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
+    expect(testFixture.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
       linked_issue_id: issue?.id,
       status: 'actioned',
     })
   })
 
   test('does not partially convert an overlapping bulk selection when another conversion wins', async () => {
-    const f = fixture(2)
+    const testFixture = fixture(2)
     Iterable.forEach(['a', 'b', 'c'], (id) => {
-      f.seed(id)
+      testFixture.seed(id)
     })
     const results = await Promise.allSettled([
-      bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ['a', 'b'] }),
-      bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ['b', 'c'] }),
+      bulkConvertToIssue(testFixture.ctx, { projectId: 'p', feedbackIds: ['a', 'b'] }),
+      bulkConvertToIssue(testFixture.ctx, { projectId: 'p', feedbackIds: ['b', 'c'] }),
     ])
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
     expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
-    expect(f.count('issues')).toBe(1)
-    expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id IS NOT NULL').get()?.n).toBe(2)
-    expect(f.count('issues_fts')).toBe(1)
-    expect(f.count('activity')).toBe(1)
+    expect(testFixture.count('issues')).toBe(1)
+    expect(
+      testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id IS NOT NULL').get()?.n,
+    ).toBe(2)
+    expect(testFixture.count('issues_fts')).toBe(1)
+    expect(testFixture.count('activity')).toBe(1)
   })
 
   test('rolls back issue number, FTS and activity when linking fails, then retries cleanly', async () => {
-    const f = fixture()
-    f.seed('f')
-    f.sqlite.exec(`CREATE TRIGGER fail_link BEFORE UPDATE OF linked_issue_id ON feedback
+    const testFixture = fixture()
+    testFixture.seed('f')
+    testFixture.sqlite.exec(`CREATE TRIGGER fail_link BEFORE UPDATE OF linked_issue_id ON feedback
       BEGIN SELECT RAISE(ABORT,'link failure'); END;`)
-    await expect(convertFeedbackToIssue(f.ctx, { feedbackId: 'f' })).rejects.toThrow('link failure')
+    await expect(convertFeedbackToIssue(testFixture.ctx, { feedbackId: 'f' })).rejects.toThrow('link failure')
     Iterable.forEach(['issues', 'issues_fts', 'activity'], (table) => {
-      expect(f.count(table), table).toBe(0)
+      expect(testFixture.count(table), table).toBe(0)
     })
-    expect(f.fetch).not.toHaveBeenCalled()
-    expect(f.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
+    expect(testFixture.fetch).not.toHaveBeenCalled()
+    expect(testFixture.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
       linked_issue_id: null,
       status: 'new',
     })
-    f.sqlite.exec('DROP TRIGGER fail_link')
-    await expect(convertFeedbackToIssue(f.ctx, { feedbackId: 'f' })).resolves.toMatchObject({ number: 1 })
+    testFixture.sqlite.exec('DROP TRIGGER fail_link')
+    await expect(convertFeedbackToIssue(testFixture.ctx, { feedbackId: 'f' })).resolves.toMatchObject({ number: 1 })
   })
 
   test('converts the 500-ID maximum without crossing the D1 bind cap', async () => {
-    const f = fixture()
+    const testFixture = fixture()
     const ids = Array.from({ length: 500 }, (_, i) => `f${i}`)
     Iterable.forEach(ids, (id) => {
-      f.seed(id)
+      testFixture.seed(id)
     })
-    await expect(bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ids })).resolves.toMatchObject({
+    await expect(bulkConvertToIssue(testFixture.ctx, { projectId: 'p', feedbackIds: ids })).resolves.toMatchObject({
       convertedCount: 500,
       number: 1,
     })
-    expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id IS NOT NULL').get()?.n).toBe(500)
-    expect(Math.max(...f.binds)).toBeLessThanOrEqual(100)
+    expect(
+      testFixture.sqlite.prepare('SELECT COUNT(*) AS n FROM feedback WHERE linked_issue_id IS NOT NULL').get()?.n,
+    ).toBe(500)
+    expect(Math.max(...testFixture.binds)).toBeLessThanOrEqual(100)
   })
 
   test('preserves ordinary issue creation and sequential number allocation', async () => {
-    const f = fixture()
-    await expect(createIssue(f.ctx, { projectId: 'p', title: 'Normal' })).resolves.toMatchObject({ number: 1 })
-    await expect(createIssue(f.ctx, { projectId: 'p', title: 'Normal two' })).resolves.toMatchObject({ number: 2 })
-    expect(f.count('issues_fts')).toBe(2)
-    expect(f.count('activity')).toBe(2)
+    const testFixture = fixture()
+    await expect(createIssue(testFixture.ctx, { projectId: 'p', title: 'Normal' })).resolves.toMatchObject({
+      number: 1,
+    })
+    await expect(createIssue(testFixture.ctx, { projectId: 'p', title: 'Normal two' })).resolves.toMatchObject({
+      number: 2,
+    })
+    expect(testFixture.count('issues_fts')).toBe(2)
+    expect(testFixture.count('activity')).toBe(2)
   })
 })

@@ -498,11 +498,10 @@ export const searchIssues = function searchIssues(
     }
     statement += ' ORDER BY bm25(issues_fts) LIMIT ?'
     params.push(options.limit)
-    return (
-      await db
-        .prepare(statement)
-        .bind(...params)
-        .all<IssueSearchRow>()
-    ).results
+    const result = await db
+      .prepare(statement)
+      .bind(...params)
+      .all<IssueSearchRow>()
+    return result.results
   })
 }

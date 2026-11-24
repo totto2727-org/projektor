@@ -119,12 +119,14 @@ export const getBoardColumnIssues = function getBoardColumnIssues(
   issues: Readonly<Issue[]>,
   category: string,
 ): Issue[] {
-  return issues.filter((i) => i.status_category === category && (category !== 'todo' || i.status_key !== 'backlog'))
+  return issues.filter(
+    (issue) => issue.status_category === category && (category !== 'todo' || issue.status_key !== 'backlog'),
+  )
 }
 
 /** Returns issues for the Backlog view: todo category with backlog key. */
 export const getBacklogIssues = function getBacklogIssues(issues: Readonly<Issue[]>): Issue[] {
-  return issues.filter((i) => i.status_category === 'todo' && i.status_key === 'backlog')
+  return issues.filter((issue) => issue.status_category === 'todo' && issue.status_key === 'backlog')
 }
 
 /** Applies multi-predicate filtering to an issue list (all predicates are AND-ed). */
@@ -137,12 +139,13 @@ export const filterIssues = function filterIssues(
 ): Issue[] {
   return issues
     .filter(
-      (i) =>
-        filterStatuses.length === 0 || (Predicate.isNotNullish(i.status_id) && filterStatuses.includes(i.status_id)),
+      (issue) =>
+        filterStatuses.length === 0 ||
+        (Predicate.isNotNullish(issue.status_id) && filterStatuses.includes(issue.status_id)),
     )
-    .filter((i) => filterPriorities.length === 0 || filterPriorities.includes(i.priority))
-    .filter((i) => !filterProject || i.project_key === filterProject)
-    .filter((i) => !filterType || i.type_key === filterType)
+    .filter((issue) => filterPriorities.length === 0 || filterPriorities.includes(issue.priority))
+    .filter((issue) => !filterProject || issue.project_key === filterProject)
+    .filter((issue) => !filterType || issue.type_key === filterType)
 }
 
 const statusSortOrder = function statusSortOrder(issue: Issue): number {
@@ -153,14 +156,14 @@ const statusSortOrder = function statusSortOrder(issue: Issue): number {
   return STATUS_CATEGORY_ORDER[issue.status_category ?? ''] ?? 99
 }
 
-const SORT_COMPARATORS: Record<SortKey, (a: Issue, b: Issue) => number> = {
-  number: (a, b) => a.number - b.number,
-  priority: (a, b) => (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99),
-  updated: (a, b) => a.updated_at - b.updated_at,
-  created_at: (a, b) => a.created_at - b.created_at,
-  title: (a, b) => a.title.localeCompare(b.title),
-  assignee: (a, b) => (a.assignee_name ?? '').localeCompare(b.assignee_name ?? ''),
-  status: (a, b) => statusSortOrder(a) - statusSortOrder(b),
+const SORT_COMPARATORS: Record<SortKey, (issue: Issue, b: Issue) => number> = {
+  number: (issue, b) => issue.number - b.number,
+  priority: (issue, b) => (PRIORITY_ORDER[issue.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99),
+  updated: (issue, b) => issue.updated_at - b.updated_at,
+  created_at: (issue, b) => issue.created_at - b.created_at,
+  title: (issue, b) => issue.title.localeCompare(b.title),
+  assignee: (issue, b) => (issue.assignee_name ?? '').localeCompare(b.assignee_name ?? ''),
+  status: (issue, b) => statusSortOrder(issue) - statusSortOrder(b),
 }
 
 /** Sorts a copy of an issue list by the given SortKey. */
@@ -170,7 +173,7 @@ export const sortIssues = function sortIssues(
   sortDir: 'asc' | 'desc',
 ): Issue[] {
   const compare = SORT_COMPARATORS[sortBy]
-  return [...issues].sort((left, right) => {
+  return [...issues].toSorted((left, right) => {
     const diff = compare ? compare(left, right) : 0
     return sortDir === 'asc' ? diff : -diff
   })

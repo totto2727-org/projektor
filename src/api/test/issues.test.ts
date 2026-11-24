@@ -1265,7 +1265,8 @@ describe('issues API', () => {
     await patch(rejected.id, { status: 'in_progress' })
     await expect(gateRejectionCountOf(rejected.id)).resolves.toBe(1)
     // review_bounce_count still counts it (PROJ-328's aggregate is unchanged).
-    expect((await reviewFieldsOf(rejected.id)).review_bounce_count).toBe(1)
+    const result = await reviewFieldsOf(rejected.id)
+    expect(result.review_bounce_count).toBe(1)
   })
 
   test('does not record a gate-rejection event for in_review -> cancelled', async () => {
@@ -1278,7 +1279,8 @@ describe('issues API', () => {
      * even though the aggregate reviewBounceCount still increments for it.
      */
     await expect(gateRejectionCountOf(killed.id)).resolves.toBe(0)
-    expect((await reviewFieldsOf(killed.id)).review_bounce_count).toBe(1)
+    const resolvedValue = await reviewFieldsOf(killed.id)
+    expect(resolvedValue.review_bounce_count).toBe(1)
   })
 })
 
@@ -2713,7 +2715,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     })
     expect(res.error).toBeUndefined()
     const issue = JSON.parse(res.result!.content[0].text) as Record<string, unknown>
-    expect(Object.keys(issue).sort()).toEqual(['id', 'priority', 'title'])
+    expect(Object.keys(issue).toSorted()).toEqual(['id', 'priority', 'title'])
     expect(issue.title).toBe('Fields test')
   })
 
@@ -2738,7 +2740,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     })
     expect(res.error).toBeUndefined()
     const issue = JSON.parse(res.result!.content[0].text) as Record<string, unknown>
-    expect(Object.keys(issue).sort()).toEqual(['assignee_id', 'id', 'links', 'rollup', 'sprint_id'])
+    expect(Object.keys(issue).toSorted()).toEqual(['assignee_id', 'id', 'links', 'rollup', 'sprint_id'])
     expect(issue.assignee_id).toBeNull()
     expect(issue.sprint_id).toBeNull()
     // Requested fields keep their real value — empty/zero is not the same as absent.

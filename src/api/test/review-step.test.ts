@@ -47,9 +47,11 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
     })
 
     // No completion report needed: it isn't a review step.
-    expect((await patch(issue.id, { statusId: contract.id })).status).toBe(200)
+    const result = await patch(issue.id, { statusId: contract.id })
+    expect(result.status).toBe(200)
     // Leaving it for in_progress is not a review bounce / gate rejection.
-    expect((await patch(issue.id, { status: 'in_progress' })).status).toBe(200)
+    const resolvedValue = await patch(issue.id, { status: 'in_progress' })
+    expect(resolvedValue.status).toBe(200)
 
     await expect(reviewState(issue.id)).resolves.toEqual({
       gateRejections: 0,

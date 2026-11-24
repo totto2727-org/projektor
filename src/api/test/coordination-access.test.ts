@@ -95,7 +95,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
   test('owner sees leases/claims/agents across every project', async () => {
     const t = ws.owner.token
     const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
-    expect(leases.items.map((l) => l.issueId).sort(lexicalCompare)).toEqual([issueA, issueB].sort(lexicalCompare))
+    expect(leases.items.map((l) => l.issueId).sort(lexicalCompare)).toEqual([issueA, issueB].toSorted(lexicalCompare))
 
     const claims = await mcpList('list_file_claims', t, slug, ws.workspace.id)
     expect(claims.items.map((c) => c.path).sort(lexicalCompare)).toEqual(['a/only.ts', 'b/secret.ts'])

@@ -55,29 +55,30 @@ const fixture = function fixture() {
 
 describe('covers API Core binary workspace logos', () => {
   test('streams bytes without buffering and propagates consumer cancellation', async () => {
-    const f = fixture()
-    const response = await handleApiBinaryRequest(f.request(), f.env)
+    const testFixture = fixture()
+    const response = await handleApiBinaryRequest(testFixture.request(), testFixture.env)
     expect(response?.status).toBe(200)
     expect(response?.headers.get('content-type')).toBe('image/png')
     const reader = response!.body!.getReader()
-    expect((await reader.read()).value).toEqual(f.bytes)
+    const result = await reader.read()
+    expect(result.value).toEqual(testFixture.bytes)
     await reader.cancel('consumer canceled')
-    expect(f.cancel).toHaveBeenCalledWith('consumer canceled')
+    expect(testFixture.cancel).toHaveBeenCalledWith('consumer canceled')
   })
 
   test('releases the R2 body on HEAD without reading it', async () => {
-    const f = fixture()
-    const response = await handleApiBinaryRequest(f.request('HEAD'), f.env)
+    const testFixture = fixture()
+    const response = await handleApiBinaryRequest(testFixture.request('HEAD'), testFixture.env)
     expect(response?.status).toBe(200)
     expect(response?.body).toBeNull()
-    expect(f.cancel).toHaveBeenCalledOnce()
+    expect(testFixture.cancel).toHaveBeenCalledOnce()
   })
 
   test('checks current membership before accessing R2', async () => {
-    const f = fixture()
-    f.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id='w'")
-    const response = await handleApiBinaryRequest(f.request(), f.env)
+    const testFixture = fixture()
+    testFixture.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id='w'")
+    const response = await handleApiBinaryRequest(testFixture.request(), testFixture.env)
     expect(response?.status).toBe(403)
-    expect(f.get).not.toHaveBeenCalled()
+    expect(testFixture.get).not.toHaveBeenCalled()
   })
 })

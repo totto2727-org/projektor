@@ -16,8 +16,8 @@ export const dateInputToUnix = function dateInputToUnix(value: string): number |
   if (!m) {
     return null
   }
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  return Number.isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 1000)
+  const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / 1000)
 }
 
 /** unix seconds → "YYYY-MM-DD" in local time; null → "". */
@@ -25,10 +25,10 @@ export const unixToDateInput = function unixToDateInput(ts: number | null | unde
   if (ts === null || Predicate.isNullish(ts)) {
     return ''
   }
-  const d = new Date(ts * 1000)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
+  const date = new Date(ts * 1000)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
 

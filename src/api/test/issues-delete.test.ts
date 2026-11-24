@@ -147,9 +147,10 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
     })
     expect(uploadRes.status).toBe(201)
     const { id: attachmentId } = (await uploadRes.json()) as { id: string }
-    const r2Key = (
-      await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?').bind(attachmentId).first<{ r2_key: string }>()
-    )?.r2_key
+    const result = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?')
+      .bind(attachmentId)
+      .first<{ r2_key: string }>()
+    const r2Key = result?.r2_key
     expect(r2Key).toBeTruthy()
     await expect(env.R2.get(r2Key!)).resolves.not.toBeNull()
 
@@ -263,13 +264,13 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
 describe("covers PROJ-922: deleteIssue refuses another workspace's issue", () => {
   test("404s and leaves the other workspace's rows intact", async () => {
     const { seedComment, seedIssue, seedProjectFixture, authHeaders } = await import('./helpers.ts')
-    const a = await seedProjectFixture({ role: 'owner' })
+    const testFixture = await seedProjectFixture({ role: 'owner' })
     const b = await seedProjectFixture({ role: 'owner' })
     const bIssue = await seedIssue(b.workspaceId, b.projectId, b.userId, { title: "B's" })
     await seedComment(bIssue.id, b.userId, 'keep me')
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${bIssue.id}`, {
-      headers: authHeaders(a.token, a.slug),
+      headers: authHeaders(testFixture.token, testFixture.slug),
       method: 'DELETE',
     })
     expect(res.status).toBe(404)

@@ -14,17 +14,17 @@ import { fetchNativeApi } from './native-fetch.ts'
 
 describe('covers PROJ-889: MCP mutations broadcast like REST', () => {
   test('add_comment over MCP posts a realtime event to the workspace hub', async () => {
-    const f = await seedIssueFixture()
+    const testFixture = await seedIssueFixture()
     await resetCoreObservations()
 
-    const res = await fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${testFixture.workspaceId}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${testFixture.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
         method: 'tools/call',
-        params: { name: 'add_comment', arguments: { issueId: f.issueId, body: 'hi' } },
+        params: { name: 'add_comment', arguments: { issueId: testFixture.issueId, body: 'hi' } },
       }),
     })
     expect(res.status).toBe(200)
@@ -38,10 +38,10 @@ describe('covers PROJ-889: MCP mutations broadcast like REST', () => {
     expect(broadcasts.length).toBeGreaterThan(0)
     expect(broadcasts[0].url).toMatch(/\/broadcast$/)
     expect(JSON.parse(broadcasts[0].body)).toMatchObject({
-      workspaceId: f.workspaceId,
-      projectId: f.projectId,
+      workspaceId: testFixture.workspaceId,
+      projectId: testFixture.projectId,
       type: 'comment.created',
-      data: { issueId: f.issueId },
+      data: { issueId: testFixture.issueId },
     })
   })
 })
