@@ -97,7 +97,7 @@ test.each([
       .getAllByRole('link')
       .filter((link) => link.getAttribute('aria-current') === 'page')
       .map((link) => link.textContent),
-  ).toEqual([label])
+  ).toStrictEqual([label])
 })
 
 test('offers cross-project review navigation that cannot inherit project, assignee, epic, sprint or search confinement', () => {

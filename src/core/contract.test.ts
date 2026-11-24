@@ -15,13 +15,13 @@ describe('core native RPC public boundary', () => {
       load: async () => runTestEffect(coreReply('load', Success, Effect.succeed({ id: 'project' }))),
     }
     const client = makeRpcStub<{ load(): Effect.Effect<string> }>(binding)
-    await expect(runTestEffect(decodeCoreReply(Success, client.load()))).resolves.toEqual({ id: 'project' })
+    await expect(runTestEffect(decodeCoreReply(Success, client.load()))).resolves.toStrictEqual({ id: 'project' })
   })
 
   test('returns only explicitly selected public failure fields', async () => {
     const publicError = coreFailure(403, 'Forbidden')
     const wire = await runTestEffect(coreReply('load', Success, Effect.fail(publicError)))
-    expect(JSON.parse(wire)).toEqual({
+    expect(JSON.parse(wire)).toStrictEqual({
       _tag: 'Failure',
       failure: {
         status: 403,
@@ -165,7 +165,7 @@ describe('core native RPC public boundary', () => {
           CORE: { load: async () => runTestEffect(coreReply('load', Success, Effect.succeed({ id }))) },
         }),
       )
-    await expect(Promise.all(['first', 'second'].map((id) => runTestEffect(invocation(id))))).resolves.toEqual([
+    await expect(Promise.all(['first', 'second'].map((id) => runTestEffect(invocation(id))))).resolves.toStrictEqual([
       { id: 'first' },
       { id: 'second' },
     ])

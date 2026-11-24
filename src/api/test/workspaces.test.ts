@@ -661,7 +661,7 @@ describe('workspace brand (PROJ-761)', () => {
     })
     expect(logoRes.status).toBe(200)
     expect(logoRes.headers.get('Content-Type')).toBe('image/png')
-    expect(new Uint8Array(await logoRes.arrayBuffer())).toEqual(pngBytes)
+    expect(new Uint8Array(await logoRes.arrayBuffer())).toStrictEqual(pngBytes)
 
     const form2 = new FormData()
     form2.append('file', new File([pngBytes], 'logo2.png', { type: 'image/png' }))

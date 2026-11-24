@@ -67,7 +67,7 @@ describe('issue attachment review target storage and authorization', () => {
         reviewStatus: status,
       })
     }
-    await expect(runTestEffect(listIssueReviewTargets(testFixture.db, 'w', ['i']))).resolves.toEqual(new Map())
+    await expect(runTestEffect(listIssueReviewTargets(testFixture.db, 'w', ['i']))).resolves.toStrictEqual(new Map())
   })
 
   test('includes selected file and URL targets only and prioritizes in-review before creation/id order', async () => {
@@ -76,7 +76,7 @@ describe('issue attachment review target storage and authorization', () => {
     await testFixture.set('b', 'in_review')
     await expect(
       runTestEffect(listIssueReviewTargets(testFixture.db, 'w', ['i', 'other', 'missing'])),
-    ).resolves.toEqual(
+    ).resolves.toStrictEqual(
       new Map([
         [
           'i',
@@ -90,7 +90,7 @@ describe('issue attachment review target storage and authorization', () => {
     await testFixture.set('b', 'done')
     expect(
       (await runTestEffect(listIssueReviewTargets(testFixture.db, 'w', ['i']))).get('i')?.map((target) => target.id),
-    ).toEqual(['a', 'b'])
+    ).toStrictEqual(['a', 'b'])
   })
 
   test.each([
@@ -221,7 +221,7 @@ describe('issue attachment review target storage and authorization', () => {
     const ids = ['i', ...Array.from({ length: 205 }, (_value, index) => `missing-${index}`), 'i']
     expect((await runTestEffect(listIssueReviewTargets(bounded, 'w', ids))).get('i')).toHaveLength(1)
     expect(bindings).toStrictEqual([100, 100, 9])
-    await expect(runTestEffect(listIssueReviewTargets(bounded, 'w', []))).resolves.toEqual(new Map())
+    await expect(runTestEffect(listIssueReviewTargets(bounded, 'w', []))).resolves.toStrictEqual(new Map())
     expect(bindings).toStrictEqual([100, 100, 9])
   })
 })

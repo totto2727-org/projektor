@@ -62,14 +62,14 @@ describe('request scope selection', () => {
   test.each(['/', '/my-issues', '/settings/groups', '/settings/tokens'])(
     'does not require a project or choose a default tenant on %s',
     (path) => {
-      expect(resolveScope(session, projects, page(path)).selection).toEqual({ kind: 'global' })
+      expect(resolveScope(session, projects, page(path)).selection).toStrictEqual({ kind: 'global' })
     },
   )
 
   test.each(['project-a', 'ALPHA', 'alpha-project'])(
     'resolves explicit project %s from its authenticated catalog',
     (hint) => {
-      expect(resolveScope(session, projects, page(`/issues?projectId=${hint}`)).selection).toEqual({
+      expect(resolveScope(session, projects, page(`/issues?projectId=${hint}`)).selection).toStrictEqual({
         kind: 'project',
         project,
         workspace: session.workspaces[0],
@@ -82,19 +82,21 @@ describe('request scope selection', () => {
       resolveScope(session, projects, page('/settings/groups?workspace=beta'), {
         requireWorkspace: true,
       }).selection,
-    ).toEqual({
+    ).toStrictEqual({
       kind: 'workspace',
       workspace: session.workspaces[1],
     })
   })
 
   test('does not pick the first of multiple workspaces or projects', () => {
-    expect(resolveScope(session, projects, page('/settings/groups'), { requireWorkspace: true }).selection).toEqual({
+    expect(
+      resolveScope(session, projects, page('/settings/groups'), { requireWorkspace: true }).selection,
+    ).toStrictEqual({
       kind: 'selection-required',
       reason: 'ambiguous',
       target: 'workspace',
     })
-    expect(resolveScope(session, projects, page('/projects/view'), { requireProject: true }).selection).toEqual({
+    expect(resolveScope(session, projects, page('/projects/view'), { requireProject: true }).selection).toStrictEqual({
       kind: 'selection-required',
       reason: 'ambiguous',
       target: 'project',
@@ -103,12 +105,14 @@ describe('request scope selection', () => {
 
   test('distinguishes empty selection from ambiguity', () => {
     const noMemberships = { ...session, workspaces: [] }
-    expect(resolveScope(noMemberships, [], page('/settings/groups'), { requireWorkspace: true }).selection).toEqual({
+    expect(
+      resolveScope(noMemberships, [], page('/settings/groups'), { requireWorkspace: true }).selection,
+    ).toStrictEqual({
       kind: 'selection-required',
       reason: 'empty',
       target: 'workspace',
     })
-    expect(resolveScope(noMemberships, [], page('/issues'), { requireProject: true }).selection).toEqual({
+    expect(resolveScope(noMemberships, [], page('/issues'), { requireProject: true }).selection).toStrictEqual({
       kind: 'selection-required',
       reason: 'empty',
       target: 'project',
@@ -120,7 +124,7 @@ describe('request scope selection', () => {
       kind: 'project',
       project,
     })
-    expect(resolveScope(session, [project], page('/')).selection).toEqual({ kind: 'global' })
+    expect(resolveScope(session, [project], page('/')).selection).toStrictEqual({ kind: 'global' })
   })
 
   test('fails closed on unknown workspace or contradictory project/workspace', () => {
@@ -140,7 +144,7 @@ describe('request scope selection', () => {
 
   test('requires selection when project keys collide across workspaces', () => {
     const collision = { ...otherProject, key: 'ALPHA' }
-    expect(resolveScope(session, [project, collision], page('/issues?project=ALPHA')).selection).toEqual({
+    expect(resolveScope(session, [project, collision], page('/issues?project=ALPHA')).selection).toStrictEqual({
       kind: 'selection-required',
       reason: 'ambiguous',
       target: 'project',
@@ -241,10 +245,10 @@ describe('server scope loading', () => {
     )
     expect(scope.selection).toMatchObject({ kind: 'project', project: { id: 'project-a' } })
     expect(scope.projects.map((item) => item.id)).toStrictEqual(['project-a'])
-    expect(scope.auth).toEqual({ kind: 'human', method: 'dev' })
+    expect(scope.auth).toStrictEqual({ kind: 'human', method: 'dev' })
     expect(externalFetch).not.toHaveBeenCalled()
     expect(catalogReads()).toBe(1)
-    expect(scope.workspaces).toEqual(session.workspaces)
+    expect(scope.workspaces).toStrictEqual(session.workspaces)
   })
 
   test('retries archived DB catalog exactly once and leaves ordinary catalog active-only', async () => {

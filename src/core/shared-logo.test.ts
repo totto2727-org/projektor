@@ -58,7 +58,7 @@ describe('core shared logo binary delivery', () => {
     expect(response?.headers.get('content-type')).toBe('image/png')
     const reader = response!.body!.getReader()
     const result = await reader.read()
-    expect(result.value).toEqual(testFixture.bytes)
+    expect(result.value).toStrictEqual(testFixture.bytes)
     await reader.cancel('disconnected')
     expect(testFixture.cancel).toHaveBeenCalledWith('disconnected')
     expect(testFixture.buffer).not.toHaveBeenCalled()

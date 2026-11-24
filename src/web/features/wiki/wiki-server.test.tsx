@@ -148,7 +148,7 @@ describe('wiki direct request-owned queries', () => {
     expect(initial.attachments).toStrictEqual([
       { contentType: 'text/plain', createdAt: 1, filename: 'guide.txt', id: 'attachment', size: 4 },
     ])
-    expect(initial.tree.find((node) => node.id === 'page')?.children.map((node) => node.id)).toEqual(['child'])
+    expect(initial.tree.find((node) => node.id === 'page')?.children.map((node) => node.id)).toStrictEqual(['child'])
     expect(initial.tree.map((node) => node.id)).not.toContain('hidden-page')
     const html = renderToStaticMarkup(rendered)
     expect(html).toContain('Loaded on the <strong>server</strong>.')
@@ -202,7 +202,7 @@ describe('wiki direct request-owned queries', () => {
     const rendered = await runTestEffect(test.effect('https://app.test/wiki?q=Guide', { slug: '' }))
     const initial = initialData(rendered)
     expect(initial.searchResults.map((page) => page.id).sort()).toStrictEqual(['child', 'page', 'visible-page'])
-    expect(initial.searchResults.find((page) => page.id === 'visible-page')?.freshness).toEqual({
+    expect(initial.searchResults.find((page) => page.id === 'visible-page')?.freshness).toStrictEqual({
       staleSince: 86_401,
       state: 'stale',
     })

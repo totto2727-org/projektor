@@ -18,7 +18,7 @@ describe('credential confinement for user-level operations', () => {
       expect(response.status).toBe(200)
       const body = await response.json<{ id: string }[] | { workspaces: { id: string }[] }>()
       const workspaces = Array.isArray(body) ? body : body.workspaces
-      expect(workspaces.map((workspace) => workspace.id)).toEqual([fixture.workspace.id])
+      expect(workspaces.map((workspace) => workspace.id)).toStrictEqual([fixture.workspace.id])
     }
 
     const response = await fetchNativeApi('http://localhost/api/projects', { headers })
@@ -38,7 +38,7 @@ describe('credential confinement for user-level operations', () => {
     })
     expect(response.status).toBe(200)
     const workspaces = await response.json<{ id: string }[]>()
-    expect(workspaces.map((workspace) => workspace.id)).toEqual(
+    expect(workspaces.map((workspace) => workspace.id)).toStrictEqual(
       expect.arrayContaining([fixture.workspace.id, other.id]),
     )
   })

@@ -76,7 +76,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
       const before = await coordinationState(testFixture)
       const response = await actAs(testFixture, action)
       expect(response.status).toBe(403)
-      await expect(coordinationState(testFixture)).resolves.toEqual(before)
+      await expect(coordinationState(testFixture)).resolves.toStrictEqual(before)
     },
   )
 
@@ -98,7 +98,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
     )
     expect(response.status).toBe(200)
     expect(toolError(await response.json())).toMatchObject({ code: 'forbidden' })
-    await expect(coordinationState(testFixture)).resolves.toEqual(before)
+    await expect(coordinationState(testFixture)).resolves.toStrictEqual(before)
   })
 
   test.each(['lease', 'files', 'session'] as const)(
@@ -124,7 +124,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
           )
           expect(response.status).toBe(200)
           await expect(response.json()).resolves.toMatchObject({ count: 1 })
-          expect((await coordinationState(testFixture)).claims).toEqual([
+          expect((await coordinationState(testFixture)).claims).toStrictEqual([
             expect.objectContaining({ path: 'src/held.ts', released_at: expect.any(Number) }),
           ])
           break
@@ -140,7 +140,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
           const state = await coordinationState(testFixture)
           expect(state.session).toMatchObject({ ended_at: expect.any(Number), status: 'ended' })
           expect(state.lease).toMatchObject({ released_at: expect.any(Number) })
-          expect(state.claims).toEqual([
+          expect(state.claims).toStrictEqual([
             expect.objectContaining({ path: 'src/held.ts', released_at: expect.any(Number) }),
           ])
           break

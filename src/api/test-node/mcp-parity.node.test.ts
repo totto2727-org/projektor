@@ -770,11 +770,11 @@ describe('covers MCP surface parity (PROJ-623)', () => {
        * returns the runtime order and the docs table renders the catalog order, so
        * reordering one without the other makes the docs lie about dispatch.
        */
-      expect(runtimeToolNames).toEqual(catalogToolNames)
+      expect(runtimeToolNames).toStrictEqual(catalogToolNames)
     })
 
     test('resolves every runtime tool handler to an actual domain operation', () => {
-      expect([...toolOperations.keys()].toSorted()).toEqual([...runtimeToolNames].toSorted())
+      expect([...toolOperations.keys()].toSorted()).toStrictEqual([...runtimeToolNames].toSorted())
       expect([...toolOperations].filter(([, operations]) => operations.size === 0).map(([name]) => name)).toStrictEqual(
         [],
       )

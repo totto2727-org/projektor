@@ -151,7 +151,7 @@ describe('wiki semantic ServerFn contracts', () => {
       test.run(saveWikiDraft, { workspaceSlug: 'team', slug: 'guide', title: 'Missing token', content: 'No write' }),
     ).rejects.toThrow()
     expect(test.sqlite.prepare('SELECT count(*) AS count FROM wiki_drafts').get()).toEqual({ count: 0 })
-    await expect(test.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toEqual({
+    await expect(test.run(getWikiDraftState, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
       ok: true,
       value: { draft: null, revision: null },
     })
@@ -206,7 +206,7 @@ describe('wiki semantic ServerFn contracts', () => {
           revisionId: 'revision',
         }),
       ).resolves.toMatchObject({ ok: true, value: { diff: expect.any(String) } })
-      await expect(test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toEqual({
+      await expect(test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
         ok: true,
         value: null,
       })
@@ -235,7 +235,7 @@ describe('wiki semantic ServerFn contracts', () => {
         content: 'Body',
         baseRevisionId: 'revision',
       }),
-    ).resolves.toEqual({ message: expect.any(String), ok: false, status: 403 })
+    ).resolves.toStrictEqual({ message: expect.any(String), ok: false, status: 403 })
     expect(
       test.sqlite
         .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
@@ -257,7 +257,7 @@ describe('wiki semantic ServerFn contracts', () => {
         title: 'Draft',
         content: 'Body',
       }),
-    ).resolves.toEqual({ message: expect.any(String), ok: false, status: 403 })
+    ).resolves.toStrictEqual({ message: expect.any(String), ok: false, status: 403 })
     expect(
       test.sqlite
         .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
@@ -284,7 +284,7 @@ describe('wiki semantic ServerFn contracts', () => {
         content: 'Mine',
         baseRevisionId: 'revision',
       }),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       details: { currentRevisionId: 'latest', diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Body\n+Concurrent edit' },
       message: 'Wiki page has been modified since baseRevisionId; rebase and retry',
       ok: false,
@@ -301,7 +301,7 @@ describe('wiki semantic ServerFn contracts', () => {
 
   test('reads a draft without invalidating and resolves the explicit authorized workspace', async () => {
     const test = await fixture()
-    await expect(test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toEqual({
+    await expect(test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
       ok: true,
       value: null,
     })
@@ -310,7 +310,7 @@ describe('wiki semantic ServerFn contracts', () => {
 
   test('duplicates server-authorized content and preserves the source entity project', async () => {
     const test = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002' })
-    await expect(test.run(duplicateWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toEqual({
+    await expect(test.run(duplicateWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
       ok: true,
       value: { id: expect.any(String), slug: expect.stringMatching(/^guide-copy-/u) },
     })
@@ -336,7 +336,7 @@ describe('wiki semantic ServerFn contracts', () => {
     test.sqlite.exec(
       `INSERT INTO wiki_drafts (id,workspace_id,user_id,page_id,title,content,base_revision_id,updated_at) VALUES ('mine','workspace','user','00000000-0000-4000-8000-000000000001','Mine','Personal','revision',2),('theirs','workspace','other-user','00000000-0000-4000-8000-000000000001','Secret','Private','revision',3)`,
     )
-    await expect(test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toEqual({
+    await expect(test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).resolves.toStrictEqual({
       ok: true,
       value: { baseRevisionId: 'revision', content: 'Personal', title: 'Mine', updatedAt: 2 },
     })
@@ -370,7 +370,7 @@ describe('wiki semantic ServerFn contracts', () => {
         slug: 'guide',
         revisionId: 'revision',
       }),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       ok: true,
       value: { diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Body\n+Current' },
     })
@@ -396,7 +396,7 @@ describe('wiki semantic ServerFn contracts', () => {
         revisionId: 'revision',
         baseRevisionId: 'revision',
       }),
-    ).resolves.toEqual({ ok: true, value: { ok: true } })
+    ).resolves.toStrictEqual({ ok: true, value: { ok: true } })
     expect(
       test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
     ).toEqual({ content: 'Body' })
@@ -512,7 +512,9 @@ describe('wiki semantic ServerFn contracts', () => {
         content: 'Child body',
       }),
     ).resolves.toMatchObject({ ok: true, value: { id: expect.any(String), slug: 'child' } })
-    await expect(test.run(moveWikiPage, { workspaceSlug: 'team', slug: 'child', parentId: null })).resolves.toEqual({
+    await expect(
+      test.run(moveWikiPage, { workspaceSlug: 'team', slug: 'child', parentId: null }),
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
@@ -525,7 +527,7 @@ describe('wiki semantic ServerFn contracts', () => {
         slug: 'child',
         parentId: '00000000-0000-4000-8000-000000000001',
       }),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
@@ -598,7 +600,9 @@ describe('wiki semantic ServerFn contracts', () => {
       status: 404,
     })
     expect(remove).not.toHaveBeenCalled()
-    await expect(test.run(deleteWikiAttachment, { workspaceSlug: 'team', attachmentId: 'mine' })).resolves.toEqual({
+    await expect(
+      test.run(deleteWikiAttachment, { workspaceSlug: 'team', attachmentId: 'mine' }),
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })

@@ -56,7 +56,7 @@ describe('native Core attachment ServerFns with guarded storage commands', () =>
       const bytes = Uint8Array.from({ length: 64 * 1024 }, (_, index) => index % 256)
       const upload = file(bytes)
       const result = await invoke(fixture, kind, upload)
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         ok: true,
         value: {
           id: expect.any(String),
@@ -68,7 +68,7 @@ describe('native Core attachment ServerFns with guarded storage commands', () =>
       expect(fixture.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//u), expect.any(ReadableStream), {
         httpMetadata: { contentType: 'image/png' },
       })
-      expect(new Uint8Array([...fixture.objects.values()][0])).toEqual(bytes)
+      expect(new Uint8Array([...fixture.objects.values()][0])).toStrictEqual(bytes)
       expect(fixture.sqlite.prepare('SELECT workspace_id,entity_type,entity_id,size FROM attachments').get()).toEqual({
         workspace_id: 'w1',
         entity_type: 'wiki_page',

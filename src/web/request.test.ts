@@ -58,7 +58,7 @@ describe('request-scoped native services', () => {
       ),
     )
     expect(result).toBe(params)
-    await expect(runTestEffect(getRouteParams)).resolves.toEqual({})
+    await expect(runTestEffect(getRouteParams)).resolves.toStrictEqual({})
   })
 
   test('keeps request-local cache key classes out of native browserScope arguments', async () => {
@@ -99,7 +99,7 @@ describe('request-scoped native services', () => {
     expect(result.b.user.id).toBe('second')
     expect(result.a.workspaces.map((workspace) => workspace.slug)).toStrictEqual(['alpha'])
     expect(result.b.workspaces).toStrictEqual([])
-    expect(result.a.auth).toEqual({ kind: 'human', method: 'dev' })
+    expect(result.a.auth).toStrictEqual({ kind: 'human', method: 'dev' })
     expect(result.first).not.toHaveProperty('api')
     expect(result.first).not.toHaveProperty('db')
   })

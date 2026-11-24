@@ -303,7 +303,7 @@ describe('share tokens', () => {
     const logoRes = await fetchNativeApi(`http://localhost${shareData.brand.logoUrl}`)
     expect(logoRes.status).toBe(200)
     expect(logoRes.headers.get('Content-Type')).toBe('image/png')
-    expect(new Uint8Array(await logoRes.arrayBuffer())).toEqual(pngBytes)
+    expect(new Uint8Array(await logoRes.arrayBuffer())).toStrictEqual(pngBytes)
   })
 
   test('review finding 1: GET /api/share/:token/logo 404s when the workspace has no logo set', async () => {

@@ -99,30 +99,30 @@ test.each([
     })
     expect(draftHeads()).toStrictEqual([])
     expect(db.prepare('PRAGMA table_info(__alchemy_migrations)').all()).toStrictEqual([])
-    expect(originals()).toEqual(initialHistory)
-    expect(users()).toEqual(initialUsers)
-    expect(attachments()).toEqual(initialAttachments)
+    expect(originals()).toStrictEqual(initialHistory)
+    expect(users()).toStrictEqual(initialUsers)
+    expect(attachments()).toStrictEqual(initialAttachments)
     checkIntegrity()
     return
   }
 
   const first = await run({})
   expect(first.resolved.table).toBe('__alchemy_migrations')
-  expect(originals()).toEqual(initialHistory)
-  expect(users()).toEqual(initialUsers)
-  expect(attachments()).toEqual(initialAttachments)
+  expect(originals()).toStrictEqual(initialHistory)
+  expect(users()).toStrictEqual(initialUsers)
+  expect(attachments()).toStrictEqual(initialAttachments)
   checkIntegrity()
   expect(draftHeads()).toStrictEqual(['workspace_id', 'user_id', 'page_id', 'revision'])
   const adopted = ledger()
-  expect(adopted.map(({ name, hash, applied_at }) => ({ name, hash, applied_at }))).toEqual([
+  expect(adopted.map(({ name, hash, applied_at }) => ({ name, hash, applied_at }))).toStrictEqual([
     ...initialHistory.map(({ name, applied_at }) => ({ name, hash: hashes.get(String(name)), applied_at })),
     { name: pending, hash: hashes.get(pending), applied_at: expect.any(String) },
   ])
 
-  await expect(run({ table: first.resolved.table })).resolves.toEqual(first)
-  expect(ledger()).toEqual(adopted)
-  expect(originals()).toEqual(initialHistory)
-  expect(users()).toEqual(initialUsers)
-  expect(attachments()).toEqual(initialAttachments)
+  await expect(run({ table: first.resolved.table })).resolves.toStrictEqual(first)
+  expect(ledger()).toStrictEqual(adopted)
+  expect(originals()).toStrictEqual(initialHistory)
+  expect(users()).toStrictEqual(initialUsers)
+  expect(attachments()).toStrictEqual(initialAttachments)
   checkIntegrity()
 })

@@ -314,7 +314,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     const raced = await env.DB.prepare('SELECT released_at, release_reason FROM issue_file_claims WHERE path = ?')
       .bind('src/race-0.ts')
       .first()
-    expect(raced).toEqual({ release_reason: 'expired', released_at: 1 })
+    expect(raced).toStrictEqual({ release_reason: 'expired', released_at: 1 })
     const observed = await fetchNativeApi('http://localhost/api/file-claims?includeStale=true', {
       headers: authHeaders(token, slug),
     })

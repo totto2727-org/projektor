@@ -59,7 +59,7 @@ describe('covers MCP tool annotations (PROJ-887)', () => {
       .filter((tool) => tool.annotations?.destructiveHint === true)
       .map((tool) => tool.name)
       .sort()
-    expect(actualDestructive).toEqual([...DESTRUCTIVE_TOOLS].toSorted())
+    expect(actualDestructive).toStrictEqual([...DESTRUCTIVE_TOOLS].toSorted())
     expect(actualDestructive).toHaveLength(22)
   })
 

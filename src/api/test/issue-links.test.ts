@@ -332,7 +332,7 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
       res,
       Schema.Array(Schema.Struct({ linkedIssueId: Schema.String })).pipe(Schema.mutable),
     )
-    expect(links.map((link) => link.linkedIssueId)).toEqual([currentIssue.id])
+    expect(links.map((link) => link.linkedIssueId)).toStrictEqual([currentIssue.id])
   })
 
   test('a ref that exists only in another workspace is 404', async () => {

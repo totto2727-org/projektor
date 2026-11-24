@@ -28,7 +28,7 @@ describe('covers RFC 9728 protected resource metadata', () => {
     // The exact-match requirement: this must equal the URL a user types into
     // Claude's connector dialog, path component included. An origin-level
     // `resource` here is the failure this ticket exists to prevent.
-    expect(body).toEqual({
+    expect(body).toStrictEqual({
       resource: `${HOST}/mcp/${WORKSPACE_ID}`,
       authorization_servers: [HOST],
       bearer_methods_supported: ['header'],

@@ -89,7 +89,7 @@ describe('covers API facade reply boundary', () => {
       expect(created.token).toMatch(/^pk_[a-f0-9]{64}$/u)
       await expect(
         apiReply(ApiResults.apiRevokeToken, humanHandlers.apiRevokeToken(human, 'facade-workspace', created.id)),
-      ).resolves.toEqual({ ok: true })
+      ).resolves.toStrictEqual({ ok: true })
       expect(database.sqlite.prepare('SELECT count(*) AS count FROM api_tokens').get()).toEqual({ count: 1 })
       const playbooks = await apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor))
       expect(playbooks.length).toBeGreaterThan(0)
@@ -108,7 +108,9 @@ describe('covers API facade reply boundary', () => {
       await expect(
         apiReply(ApiResults.apiListTokens, handlers.apiListTokens(actor, 'facade-workspace')),
       ).rejects.toMatchObject({ status: 403 })
-      await expect(apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor))).resolves.toEqual(playbooks)
+      await expect(apiReply(ApiResults.apiListPlaybooks, handlers.apiListPlaybooks(actor))).resolves.toStrictEqual(
+        playbooks,
+      )
     } finally {
       database.close()
       resetAuthCachesForTests()
@@ -117,11 +119,11 @@ describe('covers API facade reply boundary', () => {
 
   test('preserves maintenance cursor compatibility and conditional workflow variants', () => {
     const backfill = { processed: 2, pagesProcessed: 2, nextCursor: { updatedAt: 9, id: 'page' } }
-    expect(Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)(backfill)).toEqual(backfill)
+    expect(Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)(backfill)).toStrictEqual(backfill)
     const unchanged = { unchanged: true, version: 'current' }
-    expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(unchanged)).toEqual(unchanged)
+    expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(unchanged)).toStrictEqual(unchanged)
     const full = { title: 'Workflow', description: 'Rules', content: 'Do work', version: 'current' }
-    expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(full)).toEqual(full)
+    expect(Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)(full)).toStrictEqual(full)
     expect(() => Schema.decodeUnknownSync(ApiResults.apiGetWorkflow)({ version: 'current' })).toThrow()
     expect(() =>
       Schema.decodeUnknownSync(ApiResults.apiBackfillWikiLinks)({ ...backfill, nextCursor: { id: 'page' } }),
@@ -177,7 +179,7 @@ describe('covers API facade reply boundary', () => {
     }
     const core = makeCoreClient({
       apiGetIssue: async (actualActor: unknown, workspaceId: unknown, input: unknown) => {
-        expect({ actor: actualActor, workspaceId, input }).toEqual({
+        expect({ actor: actualActor, workspaceId, input }).toStrictEqual({
           actor,
           input: { id: 'issue' },
           workspaceId: 'workspace',
@@ -187,7 +189,7 @@ describe('covers API facade reply boundary', () => {
     })
     await expect(
       getIssue({ core, actor, workspaceId: 'workspace', userId: 'presentation-user' }, { id: 'issue' }),
-    ).resolves.toEqual(publicIssue)
+    ).resolves.toStrictEqual(publicIssue)
   })
 
   test('preserves custom-field casing, options and internal metadata', async () => {
@@ -205,7 +207,7 @@ describe('covers API facade reply boundary', () => {
       },
     ]
     const wire = coreReply('fields', ApiResults.apiListCustomFieldDefs, Effect.succeed(fields))
-    await expect(apiReply(ApiResults.apiListCustomFieldDefs, wire)).resolves.toEqual(fields)
+    await expect(apiReply(ApiResults.apiListCustomFieldDefs, wire)).resolves.toStrictEqual(fields)
   })
 
   test('preserves displaced and reclaimed claim snapshots rather than just their paths', async () => {
@@ -227,7 +229,7 @@ describe('covers API facade reply boundary', () => {
     }
     await expect(
       apiReply(ApiResults.apiClaimFiles, coreReply('claimFiles', ApiResults.apiClaimFiles, Effect.succeed(result))),
-    ).resolves.toEqual(result)
+    ).resolves.toStrictEqual(result)
   })
 
   test('retains membership creation timestamps in the workspace catalog', async () => {
@@ -237,7 +239,7 @@ describe('covers API facade reply boundary', () => {
         ApiResults.apiListWorkspaces,
         coreReply('listWorkspaces', ApiResults.apiListWorkspaces, Effect.succeed(workspaces)),
       ),
-    ).resolves.toEqual(workspaces)
+    ).resolves.toStrictEqual(workspaces)
   })
 
   test('round trips a command that deliberately returns no data', async () => {
@@ -262,7 +264,7 @@ describe('covers API facade reply boundary', () => {
     ]
     await expect(
       apiReply(ApiResults.apiGetWikiTree, coreReply('tree', ApiResults.apiGetWikiTree, Effect.succeed(tree))),
-    ).resolves.toEqual(tree)
+    ).resolves.toStrictEqual(tree)
   })
 
   test('validates nested Wiki children instead of trusting the outer array', async () => {
@@ -292,7 +294,7 @@ describe('covers API facade reply boundary', () => {
 
   test('preserves the declared public success fields', async () => {
     const client = clientFor(() => runTestEffect(coreReply('load', PublicIssue, Effect.succeed(issue))))
-    await expect(apiReply(PublicIssue, client.load())).resolves.toEqual(issue)
+    await expect(apiReply(PublicIssue, client.load())).resolves.toStrictEqual(issue)
   })
 
   test('rejects a success value that violates the operation output codec', async () => {
@@ -346,7 +348,7 @@ describe('covers API facade reply boundary', () => {
     )
     await expect(
       Promise.all([apiReply(PublicIssue, first.load()), apiReply(PublicIssue, second.load())]),
-    ).resolves.toEqual([
+    ).resolves.toStrictEqual([
       { ...issue, id: 'first' },
       { ...issue, id: 'second' },
     ])

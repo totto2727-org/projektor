@@ -97,21 +97,26 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     const buffer = vi.spyOn(testFixture.file, 'arrayBuffer').mockRejectedValue(new Error('must not buffer upload'))
     await uploadStoredAttachment(testFixture.ctx, input(testFixture.file))
     expect(buffer).not.toHaveBeenCalled()
-    expect(new Uint8Array([...testFixture.objects.values()][0])).toEqual(new Uint8Array([0, 255, 7, 128]))
+    expect(new Uint8Array([...testFixture.objects.values()][0])).toStrictEqual(new Uint8Array([0, 255, 7, 128]))
   })
 
   test('uploads exact bytes and metadata, reads archived-owner bytes, then deletes both stores', async () => {
     const testFixture = fixture()
     const uploaded = await uploadStoredAttachment(testFixture.ctx, input(testFixture.file))
-    expect(uploaded).toEqual({ contentType: 'image/png', filename: 'diagram.png', id: expect.any(String), size: 4 })
+    expect(uploaded).toStrictEqual({
+      contentType: 'image/png',
+      filename: 'diagram.png',
+      id: expect.any(String),
+      size: 4,
+    })
     const row = testFixture.sqlite.prepare('SELECT * FROM attachments WHERE id = ?').get(uploaded.id)
     expect(row).toMatchObject({ created_by_id: 'u1', entity_id: 'i1', size: 4, workspace_id: 'w1' })
     expect(testFixture.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//u), expect.any(ReadableStream), {
       httpMetadata: { contentType: 'image/png' },
     })
-    expect([...testFixture.objects.values()]).toEqual([await testFixture.file.arrayBuffer()])
+    expect([...testFixture.objects.values()]).toStrictEqual([await testFixture.file.arrayBuffer()])
     const stored = await getStoredAttachment(testFixture.ctx, uploaded.id)
-    expect(stored).toEqual({
+    expect(stored).toStrictEqual({
       body: await testFixture.file.arrayBuffer(),
       filename: testFixture.file.name,
       contentType: testFixture.file.type,

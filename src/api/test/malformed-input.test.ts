@@ -14,7 +14,7 @@ beforeEach(async () => {
 })
 afterEach(() => {
   const escaped = unhandled.mock.calls.filter((args: unknown[]) => args[0] === 'unhandled error')
-  expect(escaped).toEqual([])
+  expect(escaped).toStrictEqual([])
   vi.restoreAllMocks()
 })
 

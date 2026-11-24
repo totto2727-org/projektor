@@ -152,9 +152,9 @@ describe('source-owned private Core deployment', () => {
         }),
       ),
     )
-    expect(Object.keys(stack.resources).toSorted()).toEqual(ids)
+    expect(Object.keys(stack.resources).toSorted()).toStrictEqual(ids)
     expect(stack.actions).toStrictEqual({})
-    expect(new Set(reads)).toEqual(new Set(['ALCHEMY_PHASE']))
+    expect(new Set(reads)).toStrictEqual(new Set(['ALCHEMY_PHASE']))
     expect(stack.resources.Core.Props.env).not.toHaveProperty('DB')
     expect(bindings(stack, 'Core').some((binding) => binding.type === 'd1')).toBe(false)
     if (ids.includes('Frontend')) {
@@ -203,8 +203,8 @@ describe('source-owned private Core deployment', () => {
 
   test('uses native D1 migrations without custom Actions and directly gates every Worker update', async () => {
     const { stack } = await register(false)
-    expect(stack.actions).toEqual({})
-    expect(stack.resources.Database.Props).toEqual({ migrations: './migrations', name: 'projektor' })
+    expect(stack.actions).toStrictEqual({})
+    expect(stack.resources.Database.Props).toStrictEqual({ migrations: './migrations', name: 'projektor' })
     Iterable.forEach(['Core', 'Api', 'Frontend'], (id) => {
       const environment = stack.resources[id].Props.env?.ENVIRONMENT
       expect(Output.isOutput(environment)).toBe(true)
@@ -213,7 +213,7 @@ describe('source-owned private Core deployment', () => {
       expect(environment.expr.expr.src.LogicalId).toBe('Database')
     })
     const local = await register(true)
-    expect(local.stack.actions).toEqual({})
+    expect(local.stack.actions).toStrictEqual({})
   })
 
   test('grants business storage only to Core and shares only official OAuth protocol KV with API', async () => {
@@ -242,9 +242,9 @@ describe('source-owned private Core deployment', () => {
       },
     )
     expect((api.Props.env as WorkerBindingProps).OAUTH_KV).toBe(stack.resources.OAuth)
-    expect(stack.resources.Cache.Props).toEqual({ title: 'projektor' })
-    expect(stack.resources.OAuth.Props).toEqual({ title: 'projektor-oauth' })
-    expect(stack.resources.Files.Props).toEqual({
+    expect(stack.resources.Cache.Props).toStrictEqual({ title: 'projektor' })
+    expect(stack.resources.OAuth.Props).toStrictEqual({ title: 'projektor-oauth' })
+    expect(stack.resources.Files.Props).toStrictEqual({
       lifecycleRules: [
         {
           abortMultipartUploadsTransition: { condition: { maxAge: 604_800, type: 'Age' } },
@@ -296,7 +296,7 @@ describe('source-owned private Core deployment', () => {
 
   test.each([false, true])('keeps the API-owned RateLimiter namespace and sole cron (dev=%s)', async (local) => {
     const { api, stack } = await register(local)
-    expect(api.Props.crons).toEqual(['0 3 * * *'])
+    expect(api.Props.crons).toStrictEqual(['0 3 * * *'])
     Iterable.forEach(['Api', 'Core', 'Frontend'], (id) => {
       const namespaces = bindings(stack, id).filter((binding) => binding.type === 'durable_object_namespace')
       expect(namespaces).toHaveLength(1)
@@ -346,7 +346,7 @@ describe('source-owned private Core deployment', () => {
     Iterable.forEach([api, core, frontend], (resource) => {
       expect(resource.Props.env).not.toHaveProperty('JWT_SECRET')
     })
-    expect(bindings(stack, 'Api').filter((binding) => binding.name === 'JWT_SECRET')).toEqual([
+    expect(bindings(stack, 'Api').filter((binding) => binding.name === 'JWT_SECRET')).toStrictEqual([
       { name: 'JWT_SECRET', type: 'inherit' },
     ])
     Iterable.forEach(['Core', 'Frontend'], (id) => {
@@ -370,7 +370,7 @@ describe('source-owned private Core deployment', () => {
         .filter((entry) => entry.action !== 'delete')
         .flatMap((entry) => entry.data.bindings ?? [])
         .filter((binding) => binding.name === 'JWT_SECRET'),
-    ).toEqual([{ name: 'JWT_SECRET', type: 'inherit' }])
+    ).toStrictEqual([{ name: 'JWT_SECRET', type: 'inherit' }])
     expect(changes.some((entry) => entry.action === 'delete')).toBe(true)
     const inheritedSecretBindings = inherited.stack.bindings.Api.filter((entry) => entry.sid === 'existing-jwt-secret')
     const repeatedSecretBindings = repeated.stack.bindings.Api.filter((entry) => entry.sid === 'existing-jwt-secret')

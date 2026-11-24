@@ -125,7 +125,7 @@ describe('flow chart public data and primitive semantics', () => {
     render(<BugShareChart data={data} bugTypeTracked />)
     expect(first('LineChart').data).toBe(data)
     expect(first('Line').connectNulls).toBe(false)
-    expect(first('YAxis').domain).toEqual([0, 1])
+    expect(first('YAxis').domain).toStrictEqual([0, 1])
     expect(first('Line').dataKey).toBe('bugSharePercent')
   })
 
@@ -149,7 +149,7 @@ describe('flow chart public data and primitive semantics', () => {
         ]}
       />,
     )
-    expect(first('LineChart').data).toEqual([
+    expect(first('LineChart').data).toStrictEqual([
       { date: '2026-10-01', count: 3, timestamp: Date.parse('2026-10-01') },
       { date: '2026-10-04', count: 1, timestamp: Date.parse('2026-10-04') },
     ])
@@ -161,7 +161,7 @@ describe('flow chart public data and primitive semantics', () => {
     const data = [{ bucketStart: '2026-10-01', created: 2, completed: 4, net: -2 }]
     render(<ArrivalVsCompletionChart data={data} />)
     expect(first('LineChart').data).toBe(data)
-    expect(calls.get('Line')?.map((line) => line.dataKey)).toEqual(['created', 'completed', 'net'])
+    expect(calls.get('Line')?.map((line) => line.dataKey)).toStrictEqual(['created', 'completed', 'net'])
     expect(calls.get('Line')?.[2].strokeDasharray).toBe('4 4')
   })
 
@@ -171,11 +171,11 @@ describe('flow chart public data and primitive semantics', () => {
       { id: 'i2', status: 'in_review' as const, ageSeconds: 200 },
     ]
     render(<AgingWipScatter data={data} p50={0} p90={300} />)
-    expect(first('XAxis').domain).toEqual([-0.5, 1.5])
-    expect(first('XAxis').ticks).toEqual([0, 1])
-    expect(first('YAxis').domain).toEqual([0, 330])
-    expect(calls.get('ReferenceLine')?.map((line) => line.y)).toEqual([0, 300])
-    expect(first('ComposedChart').data).toEqual(
+    expect(first('XAxis').domain).toStrictEqual([-0.5, 1.5])
+    expect(first('XAxis').ticks).toStrictEqual([0, 1])
+    expect(first('YAxis').domain).toStrictEqual([0, 330])
+    expect(calls.get('ReferenceLine')?.map((line) => line.y)).toStrictEqual([0, 300])
+    expect(first('ComposedChart').data).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({ ageSeconds: 100, id: 'i1', x: expect.any(Number) }),
         expect.objectContaining({ ageSeconds: 200, id: 'i2', x: expect.any(Number) }),
@@ -186,7 +186,7 @@ describe('flow chart public data and primitive semantics', () => {
   test('omits unavailable aging guides and keeps all-zero ages renderable', () => {
     render(<AgingWipScatter data={[{ id: 'i1', status: 'in_progress', ageSeconds: 0 }]} p50={null} p90={null} />)
     expect(calls.get('ReferenceLine')).toBeUndefined()
-    expect(first('YAxis').domain).toEqual([0, 1])
+    expect(first('YAxis').domain).toStrictEqual([0, 1])
     const props = tooltipProps()
     expect(
       props.formatter?.(0.125, 'x', { graphicalItemId: 'test', dataKey: 'x', name: 'x', value: 0.125 }, 0, []),

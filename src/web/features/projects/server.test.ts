@@ -51,7 +51,7 @@ describe('project pages read named shared queries against migrated D1', () => {
       if (!isValidElement<ComponentProps<typeof ProjectList>>(node)) {
         throw new Error('Expected project list')
       }
-      expect(node.props.initialProjects.map((project) => project.id)).toEqual(archived ? ['other', 'p1'] : ['p1'])
+      expect(node.props.initialProjects.map((project) => project.id)).toStrictEqual(archived ? ['other', 'p1'] : ['p1'])
       expect(node.props.showArchived).toBe(archived)
       expect(run.transport).toHaveBeenCalledTimes(0)
     }
@@ -89,7 +89,7 @@ describe('project pages read named shared queries against migrated D1', () => {
     if (!isValidElement<ComponentProps<typeof ProjectLanding>>(node)) {
       throw new Error('Expected project landing')
     }
-    expect(node.props.initialProject).toEqual({
+    expect(node.props.initialProject).toStrictEqual({
       archivedAt: null,
       createdAt: 1,
       description: 'From actual D1',

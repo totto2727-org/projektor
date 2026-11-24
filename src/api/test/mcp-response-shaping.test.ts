@@ -54,7 +54,7 @@ describe('covers PROJ-891: serializer (unit)', () => {
     const out = shapeIssue(raw, {})
     expect(out.ref).toBe('PROJ-7')
     expect(out.type).toBe('bug')
-    expect(out.labels).toEqual(['a', 'b'])
+    expect(out.labels).toStrictEqual(['a', 'b'])
     Iterable.forEach(
       [
         'workspace_id',
@@ -85,7 +85,7 @@ describe('covers PROJ-891: serializer (unit)', () => {
   })
 
   test('summary view is {ref,title,status,priority,type,parent?,assignee?,updated}', () => {
-    expect(shapeIssue(raw, { view: 'summary' })).toEqual({
+    expect(shapeIssue(raw, { view: 'summary' })).toStrictEqual({
       priority: 'high',
       ref: 'PROJ-7',
       status: 'todo',
@@ -101,7 +101,7 @@ describe('covers PROJ-891: serializer (unit)', () => {
 
   test('verbose returns the raw row; fields picks (incl. derived ref) with null for absent values', () => {
     expect(shapeIssue(raw, { verbose: true })).toBe(raw)
-    expect(shapeIssue(raw, { fields: ['ref', 'assignee_id', 'updated'] })).toEqual({
+    expect(shapeIssue(raw, { fields: ['ref', 'assignee_id', 'updated'] })).toStrictEqual({
       assignee_id: null,
       ref: 'PROJ-7',
       updated: 2,
@@ -109,14 +109,14 @@ describe('covers PROJ-891: serializer (unit)', () => {
   })
 
   test('fields accepts a comma-separated string and rejects unknown names', () => {
-    expect(splitShapeOpts({ fields: 'ref, title' }).fields).toEqual(['ref', 'title'])
+    expect(splitShapeOpts({ fields: 'ref, title' }).fields).toStrictEqual(['ref', 'title'])
     expect(() => splitShapeOpts({ fields: 'ref,nope' })).toThrow()
     expect(() => splitShapeOpts({ view: 'tiny' })).toThrow()
   })
 
   test('toPage omits next when there is no further page', () => {
-    expect(toPage([1])).toEqual({ items: [1] })
-    expect(toPage([1], 5)).toEqual({ items: [1], next: '5' })
+    expect(toPage([1])).toStrictEqual({ items: [1] })
+    expect(toPage([1], 5)).toStrictEqual({ items: [1], next: '5' })
   })
 
   test('capPage keeps valid JSON under the cap, marks truncated, and resumes from the last kept item', () => {
@@ -240,7 +240,9 @@ describe('covers PROJ-891: MCP tools', () => {
     expect(first.items).toHaveLength(2)
     expect(first.next).toBeTypeOf('string')
     expect(first).not.toHaveProperty('nextCursor')
-    expect(Object.keys(first.items[0]).toSorted()).toEqual(['priority', 'ref', 'status', 'title', 'updated'].toSorted())
+    expect(Object.keys(first.items[0]).toSorted()).toStrictEqual(
+      ['priority', 'ref', 'status', 'title', 'updated'].toSorted(),
+    )
 
     const second = await tool<{ items: Record<string, unknown>[]; next?: string }>('list_issues', {
       view: 'summary',

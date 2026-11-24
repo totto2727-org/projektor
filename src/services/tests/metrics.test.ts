@@ -116,7 +116,7 @@ describe('shared metrics migrated SQLite reads', () => {
     const result = await runTestEffect(
       getFlowMetrics(db, 'wa', { projectId: 'pa', since: DAY, until: now - 1, granularity: 'day' }, now),
     )
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       leadTime: distribution(50),
       leadTimeExcluded: 0,
       cycleTime: distribution(40),
@@ -157,12 +157,12 @@ describe('shared metrics migrated SQLite reads', () => {
 
   test('retains unbounded default distributions and deterministic default day/ISO-week buckets', async () => {
     const result = await runTestEffect(getFlowMetrics(db, 'wa', { projectId: 'pa', granularity: 'week' }, now))
-    expect(result.leadTime).toEqual(distribution(50))
+    expect(result.leadTime).toStrictEqual(distribution(50))
     expect(result.leadTimeExcluded).toBe(1)
     expect(result.humanInterventions.count).toBe(2)
     expect(result.throughputOverTime).toHaveLength(6)
     expect(result.wipOverTime).toHaveLength(31)
-    expect(result.throughputOverTime.at(-1)).toEqual({ bucketStart: '1969-12-29', count: 2 })
+    expect(result.throughputOverTime.at(-1)).toStrictEqual({ bucketStart: '1969-12-29', count: 2 })
   })
 
   test('clamps partial weekly edges and returns empty data without cross-workspace leakage', async () => {

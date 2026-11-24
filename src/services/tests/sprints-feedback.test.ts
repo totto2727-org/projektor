@@ -63,7 +63,7 @@ describe('sprint and feedback database read models', () => {
   test('retains sprint model columns, creation ordering and explicit workspace/project scope', async () => {
     const rows = await runTestEffect(listSprints(db, 'wa', { projectId: 'pa' }))
     expect(rows.map((row) => row.id)).toStrictEqual(['s1', 's2'])
-    expect(rows[0]).toEqual({
+    expect(rows[0]).toStrictEqual({
       createdAt: 10,
       endDate: null,
       goal: null,
@@ -78,7 +78,7 @@ describe('sprint and feedback database read models', () => {
     await expect(runTestEffect(listSprints(db, 'wa', { projectId: 'pb' }))).resolves.toStrictEqual([])
     await expect(runTestEffect(findSprintById(db, 'wa', 'sb'))).resolves.toBeUndefined()
     await expect(runTestEffect(findSprintById(db, 'wa', 'missing'))).resolves.toBeUndefined()
-    await expect(runTestEffect(findSprintById(db, 'wa', 's2'))).resolves.toEqual(rows[1])
+    await expect(runTestEffect(findSprintById(db, 'wa', 's2'))).resolves.toStrictEqual(rows[1])
   })
 
   test('retains raw feedback list rows, descending order and combined filters', async () => {
@@ -163,7 +163,8 @@ describe('sprint and feedback database read models', () => {
       revoked_at: 25,
       token_hash: 'hash-a2',
     })
-    await expect(runTestEffect(findFeedbackSourceById(db, 'wa', 'sa'))).resolves.toEqual({
+    const source = await runTestEffect(findFeedbackSourceById(db, 'wa', 'sa'))
+    expect({ ...source }).toStrictEqual({
       ...rows[1],
       project_id: 'pa',
     })

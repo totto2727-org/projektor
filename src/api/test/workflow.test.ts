@@ -135,7 +135,7 @@ describe('workflow spec', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const body = JSON.parse(second.result.content[0].text)
 
-    expect(body).toEqual({ unchanged: true, version })
+    expect(body).toStrictEqual({ unchanged: true, version })
   })
 
   test('matching ifVersion over REST returns only { unchanged: true, version }', async () => {
@@ -151,7 +151,7 @@ describe('workflow spec', () => {
     expect(second.status).toBe(200)
     const body = await second.json()
 
-    expect(body).toEqual({ unchanged: true, version })
+    expect(body).toStrictEqual({ unchanged: true, version })
   })
 
   test('a mismatched ifVersion returns the full content (MCP and REST)', async () => {

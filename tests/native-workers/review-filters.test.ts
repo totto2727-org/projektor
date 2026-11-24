@@ -148,7 +148,7 @@ describe('cross-project review filters through actual named Core bindings', () =
       seen.push(...result.items.map((row) => row.id))
       cursor = Predicate.isString(result.nextCursor) ? result.nextCursor : null
     } while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor))
-    expect(seen).toEqual(selected.map((row) => row.id).reverse())
+    expect(seen).toStrictEqual(selected.map((row) => row.id).reverse())
   })
 
   test.each(['fixing', 'in_review', 'changes_requested'] as const)(
@@ -160,8 +160,8 @@ describe('cross-project review filters through actual named Core bindings', () =
         .sort()
       const result = await page(`review=${review}&limit=100`)
       expect(result.total).toBe(expected.length)
-      expect(result.items.map((row) => row.id).sort()).toEqual(expected)
-      expect((await search(review)).map((row) => row.id).sort()).toEqual(expected)
+      expect(result.items.map((row) => row.id).sort()).toStrictEqual(expected)
+      expect((await search(review)).map((row) => row.id).sort()).toStrictEqual(expected)
     },
   )
 
@@ -169,7 +169,7 @@ describe('cross-project review filters through actual named Core bindings', () =
     const rows = await search('active')
     expect(rows).toHaveLength(20)
     expect(rows.every((row) => selected.some((entry) => entry.id === row.id))).toBe(true)
-    expect(new Set(rows.map((row) => row.project_id))).toEqual(new Set([firstProject, secondProject]))
+    expect(new Set(rows.map((row) => row.project_id))).toStrictEqual(new Set([firstProject, secondProject]))
   })
 
   test('intersects selected project filters and denies ungranted projects and foreign workspaces', async () => {
@@ -177,10 +177,10 @@ describe('cross-project review filters through actual named Core bindings', () =
       .filter((row) => row.projectId === secondProject)
       .map((row) => row.id)
       .sort()
-    expect((await page(`review=active&project=${secondProject}&limit=100`)).items.map((row) => row.id).sort()).toEqual(
-      expected,
-    )
-    expect((await search('active', secondProject)).map((row) => row.id).sort()).toEqual(expected)
+    expect(
+      (await page(`review=active&project=${secondProject}&limit=100`)).items.map((row) => row.id).sort(),
+    ).toStrictEqual(expected)
+    expect((await search('active', secondProject)).map((row) => row.id).sort()).toStrictEqual(expected)
     await expect(page(`review=active&project=${hiddenProject}`)).rejects.toMatchObject({ status: 404 })
     await expect(search('active', hiddenProject)).rejects.toMatchObject({ status: 404 })
     await expect(page('review=active', foreignWorkspaceId)).rejects.toMatchObject({ status: 403 })
@@ -197,8 +197,8 @@ describe('cross-project review filters through actual named Core bindings', () =
       .sort()
     const result = await page('review=active&limit=100')
     expect(result.total).toBe(expected.length)
-    expect(result.items.map((row) => row.id).sort()).toEqual(expected)
-    expect((await search('active')).map((row) => row.id).sort()).toEqual(expected)
+    expect(result.items.map((row) => row.id).sort()).toStrictEqual(expected)
+    expect((await search('active')).map((row) => row.id).sort()).toStrictEqual(expected)
   })
 
   test('rejects malformed review query values at the native Core boundary', async () => {

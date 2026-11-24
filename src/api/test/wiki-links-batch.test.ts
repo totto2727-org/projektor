@@ -92,7 +92,7 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
     )
     const unresolved = (rows.results ?? []).filter((result) => Predicate.isNullish(result.target_page_id))
 
-    expect(resolvedIds).toEqual(new Set([...direct, ...redirected.slice(5)]))
+    expect(resolvedIds).toStrictEqual(new Set([...direct, ...redirected.slice(5)]))
     // 80 missing slugs + 5 redirects whose page is trashed.
     expect(unresolved).toHaveLength(85)
     expect(rows.results ?? []).toHaveLength(80 + 35 + 85)

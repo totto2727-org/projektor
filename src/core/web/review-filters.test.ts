@@ -83,7 +83,7 @@ describe('cross-project review filters at the Core data boundary', () => {
       seen.push(...page.items.map((row) => row.id))
       cursor = Predicate.isString(page.nextCursor) ? page.nextCursor : null
     } while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor))
-    expect(seen).toEqual(testFixture.selected.map((entry) => entry.id).reverse())
+    expect(seen).toStrictEqual(testFixture.selected.map((entry) => entry.id).reverse())
     expect(new Set(seen).size).toBe(35)
   })
 
@@ -97,8 +97,8 @@ describe('cross-project review filters at the Core data boundary', () => {
         .sort()
       const page = await testFixture.page(`review=${review}&limit=100`)
       expect(page.total).toBe(expected.length)
-      expect(page.items.map((entry) => entry.id).sort()).toEqual(expected)
-      expect((await testFixture.search(review)).map((entry) => entry.id).sort()).toEqual(expected)
+      expect(page.items.map((entry) => entry.id).sort()).toStrictEqual(expected)
+      expect((await testFixture.search(review)).map((entry) => entry.id).sort()).toStrictEqual(expected)
     },
   )
 
@@ -107,7 +107,7 @@ describe('cross-project review filters at the Core data boundary', () => {
     const rows = await testFixture.search('active')
     expect(rows).toHaveLength(20)
     expect(rows.every((row) => testFixture.selected.some((entry) => entry.id === row.id))).toBe(true)
-    expect(new Set(rows.map((row) => row.project_id))).toEqual(new Set(['project-a', 'project-b']))
+    expect(new Set(rows.map((row) => row.project_id))).toStrictEqual(new Set(['project-a', 'project-b']))
   })
 
   test('intersects explicit project selection and review filters', async () => {
@@ -118,8 +118,8 @@ describe('cross-project review filters at the Core data boundary', () => {
       .sort()
     const page = await testFixture.page('review=active&project=project-b&limit=100')
     expect(page.total).toBe(expected.length)
-    expect(page.items.map((row) => row.id).sort()).toEqual(expected)
-    expect((await testFixture.search('active', 'project-b')).map((row) => row.id).sort()).toEqual(expected)
+    expect(page.items.map((row) => row.id).sort()).toStrictEqual(expected)
+    expect((await testFixture.search('active', 'project-b')).map((row) => row.id).sort()).toStrictEqual(expected)
   })
 
   test('does not multiply issue counts when multiple attachments match the same filter', async () => {

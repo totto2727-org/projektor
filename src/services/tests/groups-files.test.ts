@@ -61,7 +61,7 @@ describe('groups and attachment pure retrieval', () => {
   afterEach(() => sqlite.close())
 
   test('lists exact group summaries/counts and app-selected membership subset', async () => {
-    await expect(runTestEffect(listGroups(db, 'wa'))).resolves.toEqual([
+    await expect(runTestEffect(listGroups(db, 'wa'))).resolves.toStrictEqual([
       {
         createdAt: 4,
         description: 'Description',
@@ -77,7 +77,7 @@ describe('groups and attachment pure retrieval', () => {
   })
 
   test('retrieves domain group/member/grant rows with explicit tenant boundaries', async () => {
-    await expect(runTestEffect(findGroup(db, 'wa', 'g1'))).resolves.toEqual({
+    await expect(runTestEffect(findGroup(db, 'wa', 'g1'))).resolves.toStrictEqual({
       createdAt: 3,
       description: null,
       id: 'g1',
@@ -85,11 +85,11 @@ describe('groups and attachment pure retrieval', () => {
       workspaceId: 'wa',
     })
     await expect(runTestEffect(findGroup(db, 'wa', 'g3'))).resolves.toBeUndefined()
-    await expect(runTestEffect(listGroupMembers(db, 'wa', 'g1'))).resolves.toEqual([
+    await expect(runTestEffect(listGroupMembers(db, 'wa', 'g1'))).resolves.toStrictEqual([
       { addedAt: 10, addedBy: 'u1', email: 'two@example.com', name: 'Two', userId: 'u2' },
       { addedAt: 20, addedBy: 'u2', email: 'one@example.com', name: 'One', userId: 'u1' },
     ])
-    await expect(runTestEffect(listGroupGrants(db, 'wa', 'g1'))).resolves.toEqual([
+    await expect(runTestEffect(listGroupGrants(db, 'wa', 'g1'))).resolves.toStrictEqual([
       { projectId: 'p1', projectKey: 'ONE', projectName: 'Project', role: 'member' },
     ])
     await expect(runTestEffect(listGroupMembers(db, 'wa', 'g3'))).resolves.toStrictEqual([])

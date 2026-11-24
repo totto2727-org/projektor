@@ -73,7 +73,7 @@ describe('core narrow same-binding binary transfer', () => {
     expect(response.headers.get('x-projektor-filename')).toBe('image.png')
     const reader = response.body!.getReader()
     const result = await reader.read()
-    expect(result.value).toEqual(testFixture.bytes)
+    expect(result.value).toStrictEqual(testFixture.bytes)
     await reader.cancel('client canceled')
     expect(testFixture.cancel).toHaveBeenCalledWith('client canceled')
   })

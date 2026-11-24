@@ -143,7 +143,7 @@ describe('settings authorized direct D1 SSR', () => {
       renderGroups(testFixture.scope, new URL(`https://front.example/settings/groups?workspace=alpha&view=${view}`)),
     )
     expect(node.props.view).toBe(view)
-    expect(node.props.initialData.groups.map((group: { id: string }) => group.id)).toEqual(['g2', 'g1'])
+    expect(node.props.initialData.groups.map((group: { id: string }) => group.id)).toStrictEqual(['g2', 'g1'])
     expect(node.props.initialData.details.find((group: { id: string }) => group.id === 'g1')).toMatchObject({
       grantCount: 1,
       grants: [{ projectId: 'p1', projectKey: 'PROJ', projectName: 'Project', role: 'member' }],
@@ -151,8 +151,8 @@ describe('settings authorized direct D1 SSR', () => {
       memberCount: 1,
       members: [{ email: 'owner@example.test', name: 'owner', userId: 'u1' }],
     })
-    expect(node.props.initialData.projects.map((project: { id: string }) => project.id)).toEqual(['p1'])
-    expect(node.props.initialData.memberGroups).toEqual([{ groups: [{ id: 'g1', name: 'Team' }], userId: 'u1' }])
+    expect(node.props.initialData.projects.map((project: { id: string }) => project.id)).toStrictEqual(['p1'])
+    expect(node.props.initialData.memberGroups).toStrictEqual([{ groups: [{ id: 'g1', name: 'Team' }], userId: 'u1' }])
     expect(testFixture.calls).not.toHaveBeenCalled()
     expect(renderToStaticMarkup(node)).toContain(`id="group-tabpanel-${view}"`)
   })
@@ -179,9 +179,9 @@ describe('settings authorized direct D1 SSR', () => {
       renderGroups(testFixture.scope, new URL('https://front.example/settings/groups?view=members')),
     )
     expect(node.props.view).toBe('groups')
-    expect(node.props.initialData.groups.map((group: { id: string }) => group.id)).toEqual(['g1'])
-    expect(node.props.initialData.details).toEqual([])
-    expect(node.props.initialData.memberGroups).toEqual([])
+    expect(node.props.initialData.groups.map((group: { id: string }) => group.id)).toStrictEqual(['g1'])
+    expect(node.props.initialData.details).toStrictEqual([])
+    expect(node.props.initialData.memberGroups).toStrictEqual([])
     expect(prepare.mock.calls.some(([query]) => /left join "user_group_members"/i.test(query))).toBe(false)
     expect(prepare.mock.calls.some(([query]) => /"added_by".*inner join "users"/s.test(query))).toBe(false)
     expect(renderToStaticMarkup(node)).toContain('Only owners and admins manage groups.')
@@ -190,8 +190,8 @@ describe('settings authorized direct D1 SSR', () => {
   test('loads token metadata only from selected workspace and never serializes credential hashes', async () => {
     const testFixture = await fixture()
     const node = await testFixture.run(renderTokens(testFixture.scope, url))
-    expect(node.props.initialTokens).toEqual([token])
-    expect(node.props.initialGrants).toEqual([connector])
+    expect(node.props.initialTokens).toStrictEqual([token])
+    expect(node.props.initialGrants).toStrictEqual([connector])
     expect(node.props.mcpCommandTemplate).toContain('--header "Authorization: Bearer {{TOKEN}}"')
     expect(node.props.mcpCommandTemplate).toContain('--header "X-Workspace-Slug: alpha"')
     expect(JSON.stringify(node.props)).not.toContain('secret-token-hash')
@@ -211,9 +211,9 @@ describe('settings authorized direct D1 SSR', () => {
     const node = await testFixture.run(renderTokens(testFixture.scope, url))
     // Core rechecks live membership, but must not load token metadata for a member.
     expect(prepare.mock.calls.some(([query]) => /\bapi_tokens\b/.test(query))).toBe(false)
-    expect(node.props.initialTokens).toEqual([])
+    expect(node.props.initialTokens).toStrictEqual([])
     expect(node.props.tokensDenied).toBe(true)
-    expect(node.props.initialGrants).toEqual([connector])
+    expect(node.props.initialGrants).toStrictEqual([connector])
     const html = renderToStaticMarkup(node)
     expect(html).toContain('Connect Claude Code')
     expect(html).toContain('Disconnect')
@@ -223,7 +223,7 @@ describe('settings authorized direct D1 SSR', () => {
   test('uses verified native auth for connector credentials and deployment MCP configuration without HTTP', async () => {
     const testFixture = await fixture()
     const connectors = await testFixture.run(renderConnectors(testFixture.scope, url))
-    expect(connectors.props.initialGrants).toEqual([connector])
+    expect(connectors.props.initialGrants).toStrictEqual([connector])
     const guide = await testFixture.run(renderConnectAgent(testFixture.scope, url))
     expect(guide.props.mcpUrl).toBe(`${apiOrigin}/mcp/w1`)
     expect(testFixture.calls).not.toHaveBeenCalled()

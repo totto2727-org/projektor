@@ -163,7 +163,7 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     await expect(saveWikiDraft(ctx, 'guide', snapshot('Old initial request', null))).rejects.toBeInstanceOf(
       ConflictError,
     )
-    await expect(state()).resolves.toEqual({ revision: discarded.revision, draft: null })
+    await expect(state()).resolves.toStrictEqual({ revision: discarded.revision, draft: null })
     await saveWikiDraft(ctx, 'guide', snapshot('New intentional edit', discarded.revision))
     await expect(state()).resolves.toMatchObject({ draft: { content: 'New intentional edit' } })
   })
@@ -198,8 +198,8 @@ describe('durable Wiki draft lifecycle preconditions', () => {
     const saved = await saveWikiDraft(ctx, 'guide', snapshot('A', null))
     const publication = await beginWikiDraftPublish(ctx, 'guide', snapshot('A', saved.revision))
     const completed = await finishWikiDraftPublish(ctx, 'page', publication.revision)
-    expect(completed.draftRevision).toEqual(expect.any(String))
-    await expect(state()).resolves.toEqual({ revision: completed.draftRevision, draft: null })
+    expect(completed.draftRevision).toStrictEqual(expect.any(String))
+    await expect(state()).resolves.toStrictEqual({ revision: completed.draftRevision, draft: null })
     await expect(saveWikiDraft(ctx, 'guide', snapshot('Late A', saved.revision))).rejects.toBeInstanceOf(ConflictError)
     const result = await state()
     expect(result.draft).toBeNull()

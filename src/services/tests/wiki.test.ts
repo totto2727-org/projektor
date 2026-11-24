@@ -56,7 +56,7 @@ describe('pure wiki reads', () => {
   test('preserves list metadata projection, JSON decoding, filters and template exclusion', async () => {
     const rows = await runTestEffect(wiki.listWikiPages(db, 'wa'))
     expect(rows.map((row) => row.id)).toStrictEqual(['root', 'child'])
-    expect(rows[0]).toEqual({
+    expect(rows[0]).toStrictEqual({
       id: 'root',
       is_template: false,
       owners: ['u'],
@@ -112,7 +112,7 @@ describe('pure wiki reads', () => {
     ).toStrictEqual(['child'])
     expect((await runTestEffect(wiki.listWikiTemplates(db, 'wa'))).map((r) => r.id)).toStrictEqual(['template'])
     const trash = await runTestEffect(wiki.listWikiTrash(db, 'wa', { limit: 10, offset: 0 }))
-    expect(trash).toEqual([
+    expect(trash).toStrictEqual([
       {
         deleted_at: 50,
         id: 'trash',
@@ -128,7 +128,7 @@ describe('pure wiki reads', () => {
   test('orders same-second revisions by rowid and scopes every revision query to the workspace/page', async () => {
     expect((await runTestEffect(wiki.listWikiRevisions(db, 'wa', 'root'))).map((r) => r.id)).toStrictEqual(['r2', 'r1'])
     await expect(runTestEffect(wiki.getLatestWikiRevisionId(db, 'wa', 'root'))).resolves.toBe('r2')
-    await expect(runTestEffect(wiki.getWikiRevision(db, 'wa', 'root', 'r1'))).resolves.toEqual({
+    await expect(runTestEffect(wiki.getWikiRevision(db, 'wa', 'root', 'r1'))).resolves.toStrictEqual({
       author_id: 'u',
       content: 'Before',
       created_at: 100,
@@ -142,7 +142,7 @@ describe('pure wiki reads', () => {
   })
 
   test('isolates drafts by workspace, user and page', async () => {
-    await expect(runTestEffect(wiki.getWikiDraft(db, 'wa', 'root', 'u'))).resolves.toEqual({
+    await expect(runTestEffect(wiki.getWikiDraft(db, 'wa', 'root', 'u'))).resolves.toStrictEqual({
       baseRevisionId: null,
       content: 'Draft text',
       title: 'Draft',
@@ -159,7 +159,7 @@ describe('pure wiki reads', () => {
     const opts = { now: 100, limit: 10, offset: 0 }
     const rows = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', opts))
     expect(rows.map((row) => row.id).sort()).toStrictEqual(['child', 'root'])
-    expect(rows.find((row) => row.id === 'root')?.owners).toEqual(['u'])
+    expect(rows.find((row) => row.id === 'root')?.owners).toStrictEqual(['u'])
     const restricted = await runTestEffect(
       wiki.searchWiki(db, 'wa', 'needle*', {
         ...opts,
@@ -171,7 +171,7 @@ describe('pure wiki reads', () => {
     expect(noMatch).toStrictEqual([])
     const one = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, limit: 1 }))
     const two = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, limit: 1, offset: 1 }))
-    expect([one[0].id, two[0].id]).toEqual(rows.map((row) => row.id))
+    expect([one[0].id, two[0].id]).toStrictEqual(rows.map((row) => row.id))
   })
 
   test('is lazy and reports database failures as typed DataQueryError', async () => {
@@ -187,7 +187,7 @@ describe('pure wiki reads', () => {
   test('keeps API list, template, trash and tree contracts while sharing the DB read', async () => {
     const ctx = { db, workspaceId: 'wa', userId: 'u', role: 'owner' } as ServiceCtx
     const rows = await runTestEffect(wiki.listWikiPages(db, 'wa'))
-    await expect(apiWiki.listWikiPages(ctx, {})).resolves.toEqual(
+    await expect(apiWiki.listWikiPages(ctx, {})).resolves.toStrictEqual(
       rows.map((row) => ({ ...row, url: `/wiki/${row.slug}` })),
     )
     await expect(apiWiki.listWikiTemplates(ctx, {})).resolves.toStrictEqual([
@@ -200,7 +200,7 @@ describe('pure wiki reads', () => {
         url: '/wiki/template',
       },
     ])
-    await expect(apiWiki.listWikiTrash(ctx, {})).resolves.toEqual([
+    await expect(apiWiki.listWikiTrash(ctx, {})).resolves.toStrictEqual([
       {
         id: 'trash',
         slug: 'trash',
@@ -211,7 +211,7 @@ describe('pure wiki reads', () => {
         purgeAfter: 50 + apiWiki.WIKI_TRASH_RETENTION_SECONDS,
       },
     ])
-    await expect(apiWiki.getWikiTree(ctx)).resolves.toEqual([
+    await expect(apiWiki.getWikiTree(ctx)).resolves.toStrictEqual([
       {
         children: [
           {
@@ -243,17 +243,17 @@ describe('pure wiki reads', () => {
   test('preserves detail redirect extras, revision contracts and API not-found errors', async () => {
     const ctx = { db, workspaceId: 'wa', userId: 'u', role: 'owner' } as ServiceCtx
     const detail = await runTestEffect(wiki.findWikiPage(db, 'wa', 'root'))
-    await expect(apiWiki.getWikiPage(ctx, 'root')).resolves.toEqual({
+    await expect(apiWiki.getWikiPage(ctx, 'root')).resolves.toStrictEqual({
       ...detail,
       revisionId: 'r2',
       url: '/wiki/root',
       freshness: null,
     })
     await expect(apiWiki.getWikiPage(ctx, 'old-root')).resolves.toHaveProperty('version', 0)
-    await expect(apiWiki.listWikiRevisions(ctx, 'old-root')).resolves.toEqual(
+    await expect(apiWiki.listWikiRevisions(ctx, 'old-root')).resolves.toStrictEqual(
       await runTestEffect(wiki.listWikiRevisions(db, 'wa', 'root')),
     )
-    await expect(apiWiki.getWikiRevision(ctx, 'old-root', 'r1')).resolves.toEqual(
+    await expect(apiWiki.getWikiRevision(ctx, 'old-root', 'r1')).resolves.toStrictEqual(
       await runTestEffect(wiki.getWikiRevision(db, 'wa', 'root', 'r1')),
     )
     await expect(apiWiki.getWikiPage(ctx, 'foreign')).rejects.toMatchObject({
@@ -281,7 +281,7 @@ describe('pure wiki reads', () => {
     sqlite.exec(
       "CREATE VIRTUAL TABLE wiki_fts USING fts5(page_id UNINDEXED, workspace_id UNINDEXED, title, content, tags); INSERT INTO wiki_fts(page_id,workspace_id,title,content,tags) SELECT id,workspace_id,title,'needle',tags FROM wiki_pages;",
     )
-    await expect(apiWiki.searchWiki(ctx, { query: 'needle' })).resolves.toEqual([
+    await expect(apiWiki.searchWiki(ctx, { query: 'needle' })).resolves.toStrictEqual([
       expect.objectContaining({ freshness: null, id: 'root', owners: ['u'], tags: ['ops'] }),
     ])
     await expect(apiWiki.listStaleWikiPages(ctx, {})).resolves.toStrictEqual([])

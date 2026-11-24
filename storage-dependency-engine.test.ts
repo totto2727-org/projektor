@@ -103,7 +103,7 @@ test.each(['all Workers update', 'Core is unchanged', 'migration fails'] as cons
     } else {
       await deploy(2)
       expect(events.slice(0, 2)).toStrictEqual(['database:start', 'database:complete'])
-      expect(events.slice(2).sort()).toEqual(scenario === 'Core is unchanged' ? ['Api', 'Frontend'] : workers)
+      expect(events.slice(2).sort()).toStrictEqual(scenario === 'Core is unchanged' ? ['Api', 'Frontend'] : workers)
     }
   },
 )

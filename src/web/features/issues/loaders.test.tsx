@@ -104,13 +104,13 @@ describe('complete direct D1 issues SSR loaders', () => {
   test('returns empty review target arrays from detail, list and search when no attachments are selected', async () => {
     const data = fixture()
     const detail = await data.run(loadIssue(scope, detailUrl))
-    expect(detail?.initialData.issue.reviewTargets).toEqual([])
+    expect(detail?.initialData.issue.reviewTargets).toStrictEqual([])
     const page = await data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams()))
     expect(page.items.length).toBeGreaterThan(0)
-    expect(page.items.map((entry) => entry.reviewTargets)).toEqual(page.items.map(() => []))
+    expect(page.items.map((entry) => entry.reviewTargets)).toStrictEqual(page.items.map(() => []))
     const results = await data.run(searchDataIssues(scope, workspace.id, 'Original'))
     expect(results.length).toBeGreaterThan(0)
-    expect(results.map((entry) => entry.reviewTargets)).toEqual(results.map(() => []))
+    expect(results.map((entry) => entry.reviewTargets)).toStrictEqual(results.map(() => []))
   })
 
   test('includes only explicitly selected targets in canonical list, search, My Issues and focused detail reads', async () => {
@@ -124,7 +124,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     `)
     const list = await data.run(loadIssues(scope, listUrl))
     const targets = list?.initialData.page.items.find((entry) => entry.id === 'issue-a')?.reviewTargets
-    expect(targets?.map((entry) => [entry.id, entry.status])).toEqual([
+    expect(targets?.map((entry) => [entry.id, entry.status])).toStrictEqual([
       ['review-a', 'in_review'],
       ['file-a', 'fixing'],
     ])
@@ -134,12 +134,12 @@ describe('complete direct D1 issues SSR loaders', () => {
         .some((entry) => entry.id === 'hidden-target'),
     ).toBe(false)
     const search = await data.run(searchDataIssues(scope, workspace.id, 'Original'))
-    expect(search.find((entry) => entry.id === 'issue-a')?.reviewTargets).toEqual(targets)
+    expect(search.find((entry) => entry.id === 'issue-a')?.reviewTargets).toStrictEqual(targets)
     const mine = await data.run(loadMyIssues(scope, new URL('https://front.test/my-issues')))
-    expect(mine.issues.find((entry) => entry.id === 'issue-a')?.reviewTargets).toEqual(targets)
+    expect(mine.issues.find((entry) => entry.id === 'issue-a')?.reviewTargets).toStrictEqual(targets)
     const focused = await data.run(loadIssue(scope, new URL(`${detailUrl}&tab=review-targets`)))
     expect(focused?.initialData.reviewTargetsFocused).toBe(true)
-    expect(focused?.initialData.issue.reviewTargets).toEqual(targets)
+    expect(focused?.initialData.issue.reviewTargets).toStrictEqual(targets)
     expect(focused?.initialData.attachments.find((entry) => entry.id === 'file-a')?.reviewStatus).toBe('fixing')
     const html = renderToString(await data.run(renderIssues(scope, listUrl)))
     expect(html).toContain('Review targets: Review first +1 (レビュー中)')
@@ -159,18 +159,18 @@ describe('complete direct D1 issues SSR loaders', () => {
     const first = await data.run(loadIssues(scope, url))
     expect(first?.initialData.project).toBeNull()
     expect(first?.initialData.page.total).toBe(2)
-    expect(first?.initialData.page.items.map((entry) => entry.id)).toEqual(['issue-b'])
+    expect(first?.initialData.page.items.map((entry) => entry.id)).toStrictEqual(['issue-b'])
     expect(first?.initialData.page.items[0].assignee_id).toBeNull()
     url.searchParams.set('cursor', String(first?.initialData.page.nextCursor))
     const second = await data.run(loadIssues(scope, url))
-    expect(second?.initialData.page.items.map((entry) => entry.id)).toEqual(['issue-a'])
+    expect(second?.initialData.page.items.map((entry) => entry.id)).toStrictEqual(['issue-a'])
     expect(second?.initialData.page.nextCursor).toBeNull()
     const searchUrl = new URL(`${listUrl}&review=in_review&q=issue`)
     const search = await data.run(loadIssues(scope, searchUrl))
-    expect(search?.initialData.search.results?.map((entry) => entry.id).sort()).toEqual(['issue-a', 'issue-b'])
+    expect(search?.initialData.search.results?.map((entry) => entry.id).sort()).toStrictEqual(['issue-a', 'issue-b'])
     data.sqlite.exec("UPDATE attachments SET review_status='done' WHERE id='review-b'")
     const refreshed = await data.run(loadIssues(scope, searchUrl))
-    expect(refreshed?.initialData.search.results?.map((entry) => entry.id)).toEqual(['issue-a'])
+    expect(refreshed?.initialData.search.results?.map((entry) => entry.id)).toStrictEqual(['issue-a'])
     expect(refreshed?.initialData.page.total).toBe(1)
     const html = renderToString(await data.run(renderIssues(scope, searchUrl)))
     expect(html).toContain('Original issue')
@@ -192,8 +192,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     const data = fixture()
     const result = await data.run(loadIssues(scope, listUrl))
     expect(result?.initialData.project).toBeNull()
-    expect(result?.initialData.projects.map((entry) => entry.id)).toEqual([project.id, secondProject.id])
-    expect(result?.initialData.page.items.map((entry) => entry.id)).toEqual(['issue-b', 'issue-a'])
+    expect(result?.initialData.projects.map((entry) => entry.id)).toStrictEqual([project.id, secondProject.id])
+    expect(result?.initialData.page.items.map((entry) => entry.id)).toStrictEqual(['issue-b', 'issue-a'])
     expect(result?.initialData.page.items.find((entry) => entry.id === 'issue-a')?.customFields[0].value).toBe('3')
     expect(result?.initialData.page.items.every((entry) => entry.workspaceSlug === workspace.slug)).toBe(true)
   })
@@ -238,7 +238,7 @@ describe('complete direct D1 issues SSR loaders', () => {
         detailUrl,
       ),
     )
-    expect(result?.scope.selection).toEqual({ kind: 'project', project, workspace })
+    expect(result?.scope.selection).toStrictEqual({ kind: 'project', project, workspace })
     expect(result?.initialData.currentUserId).toBe(scope.user.id)
     expect(result?.initialData.comments[0].author_id).toBe(scope.user.id)
     expect(result?.initialData.attachments[0].kind).toBe('url')
@@ -330,7 +330,9 @@ describe('complete direct D1 issues SSR loaders', () => {
     )
     expect(result.issues).toHaveLength(105)
     expect(new Set(result.issues.map((entry) => entry.id)).size).toBe(105)
-    expect(new Set(result.issues.map((entry) => entry.workspaceSlug))).toEqual(new Set([workspace.slug, other.slug]))
+    expect(new Set(result.issues.map((entry) => entry.workspaceSlug))).toStrictEqual(
+      new Set([workspace.slug, other.slug]),
+    )
   })
 
   test('rejects oversized board aggregates but keeps the ordinary list paginated', async () => {
@@ -454,7 +456,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     const detail = await data.run(
       loadIssue(scope, new URL('https://front.test/issues/view?id=epic-a&workspace=workspace')),
     )
-    expect(detail?.initialData.children.map((entry) => entry.id)).toEqual(['child-a'])
+    expect(detail?.initialData.children.map((entry) => entry.id)).toStrictEqual(['child-a'])
   })
 
   test('enforces linked wiki visibility without hiding the unavailable attachment row', async () => {

@@ -44,7 +44,8 @@ const checkIntegrity = function checkIntegrity(db: DatabaseSync): void {
 }
 
 const pages = function pages(db: DatabaseSync) {
-  return db.prepare('SELECT id,workspace_id,slug,version FROM wiki_pages ORDER BY id').all()
+  const rows = db.prepare('SELECT id,workspace_id,slug,version FROM wiki_pages ORDER BY id').all()
+  return rows.map(({ id, slug, version, workspace_id }) => ({ id, slug, version, workspace_id }))
 }
 
 const cases = [
@@ -80,7 +81,7 @@ const cases = [
       ).toBe(1)
     },
     verify(this: void, db: DatabaseSync) {
-      expect(pages(db)).toEqual([
+      expect(pages(db)).toStrictEqual([
         { id: pageId, slug: 'operations', version: 0, workspace_id: 'w' },
         { id: 'other-1', slug: 'operations-legacy-copy', version: 0, workspace_id: 'w' },
         { id: 'other-2', slug: 'operations-other-1', version: 0, workspace_id: 'w' },
@@ -108,7 +109,7 @@ const cases = [
       ).toBe(1)
     },
     verify(this: void, db: DatabaseSync) {
-      expect(pages(db)).toEqual([
+      expect(pages(db)).toStrictEqual([
         { id: pageId, slug: 'a-b-legacy-copy', version: 0, workspace_id: 'w' },
         { id: 'other-1', slug: 'a-b', version: 0, workspace_id: 'w' },
         { id: 'other-2', slug: 'a-b-abcdef12', version: 0, workspace_id: 'w' },
@@ -131,7 +132,7 @@ const cases = [
       ).toBe(1)
     },
     verify(this: void, db: DatabaseSync) {
-      expect(pages(db)).toEqual([
+      expect(pages(db)).toStrictEqual([
         { id: pageId, slug: 'view-legacy-copy', version: 1, workspace_id: 'w' },
         { id: 'other-1', slug: 'view-page', version: 0, workspace_id: 'w' },
         { id: 'other-2', slug: 'view-page-abcdef12', version: 0, workspace_id: 'w' },

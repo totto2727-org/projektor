@@ -252,8 +252,8 @@ describe('groups REST', () => {
     const rows = await readNativeJson(res, rowsShape)
     const memberRow = rows.find((row) => row.userId === roles.member.user.id)
     const viewerRow = rows.find((row) => row.userId === roles.viewer.user.id)
-    expect(memberRow?.groups.map((group) => group.name)).toEqual(['Assigned'])
-    expect(viewerRow?.groups).toEqual([]) // pending / default-deny
+    expect(memberRow?.groups.map((group) => group.name)).toStrictEqual(['Assigned'])
+    expect(viewerRow?.groups).toStrictEqual([]) // pending / default-deny
   })
 
   test('delete group cascades members and grants', async () => {

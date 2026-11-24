@@ -44,7 +44,7 @@ describe('inChunks', () => {
       return chunk.map((n) => n * 2)
     })
     expect(chunks).toHaveLength(1)
-    expect(result).toEqual(items.map((item) => item * 2))
+    expect(result).toStrictEqual(items.map((item) => item * 2))
   })
 
   test("splits a 250-item array into 3 chunks, each at or under D1's 100 bound-parameter cap", async () => {
@@ -61,7 +61,7 @@ describe('inChunks', () => {
     })
     expect(chunkSizes.reduce((a, b) => a + b, 0)).toBe(250)
     // Concatenation preserves order and every item exactly once
-    expect(result).toEqual(items)
+    expect(result).toStrictEqual(items)
   })
 
   test('chunks exactly at a 100-item boundary into more than one call', async () => {
@@ -85,6 +85,6 @@ describe('inChunks', () => {
       return []
     })
     expect(result).toStrictEqual([])
-    expect(seen).toEqual(items)
+    expect(seen).toStrictEqual(items)
   })
 })

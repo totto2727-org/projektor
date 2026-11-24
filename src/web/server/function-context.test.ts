@@ -123,7 +123,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     expect(context.projectId).toBeUndefined()
     expect(context.scope.selection.kind).toBe('workspace')
     expect(context.scope.user.id).toBe('user-a')
-    expect(context.scope.auth).toEqual({ kind: 'human', method: 'dev' })
+    expect(context.scope.auth).toStrictEqual({ kind: 'human', method: 'dev' })
     expect(context).not.toHaveProperty('api')
     expect(invalidated).not.toHaveBeenCalled()
   })
@@ -140,7 +140,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
   test('does not inherit workspace/project hints from the invoking page', async () => {
     const { run } = fixture('/issues?workspace=alpha&projectId=project-a')
     const context = await run(resolveFunctionContext({}))
-    expect(context.scope.selection).toEqual({ kind: 'global' })
+    expect(context.scope.selection).toStrictEqual({ kind: 'global' })
     expect(context.workspaceSlug).toBeUndefined()
     expect(context.projectId).toBeUndefined()
   })

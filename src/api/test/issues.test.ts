@@ -1508,8 +1508,8 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     const parentItem = page.items.find((item) => item.id === parentId) as {
       rollup: { total: number; byStatus: Record<string, number>; done: number }
     }
-    expect(parentItem.rollup).toEqual(single.rollup)
-    expect(parentItem.rollup.byStatus).toEqual({ backlog: 1 })
+    expect(parentItem.rollup).toStrictEqual(single.rollup)
+    expect(parentItem.rollup.byStatus).toStrictEqual({ backlog: 1 })
     expect(parentItem.rollup.done).toBe(0)
   })
 
@@ -2263,7 +2263,7 @@ describe('get_prioritized_issues MCP tool', () => {
     )
     const notReadyRow = data.issues.find((issue) => issue.title === 'Not ready')
     expect(notReadyRow?.needsGrooming).toBe(true)
-    expect(notReadyRow?.missingCriteria).toEqual(expect.arrayContaining(['acceptance criteria', 'scope/files']))
+    expect(notReadyRow?.missingCriteria).toStrictEqual(expect.arrayContaining(['acceptance criteria', 'scope/files']))
     const readyRow = data.issues.find((issue) => issue.title === 'Ready')
     expect(readyRow?.needsGrooming).toBeUndefined()
   })
@@ -2514,7 +2514,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
       linksRes.result!.content[0].text,
       Schema.Array(Schema.Struct({ linkedIssueId: Schema.String })).pipe(Schema.mutable),
     )
-    expect(links.map((link) => link.linkedIssueId)).toEqual([currentIssue.id])
+    expect(links.map((link) => link.linkedIssueId)).toStrictEqual([currentIssue.id])
   })
 
   test('create_issue accepts a project key in place of projectId', async () => {
@@ -2895,7 +2895,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const child = parseNativeMcpText(childRes.result!.content[0].text, JsonRecordResponse)
     expect(child.assignee_id).toBe(assignee.id)
     expect(child.parent_id).toBe(parent.id)
-    expect(child.customFields).toEqual([expect.objectContaining({ key: 'proj931_cf', value: 'hello' })])
+    expect(child.customFields).toStrictEqual([expect.objectContaining({ key: 'proj931_cf', value: 'hello' })])
     expect(child.labels).toStrictEqual(['bug'])
   })
 
@@ -2981,8 +2981,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
         missing: Schema.Array(Schema.String).pipe(Schema.mutable),
       }),
     )
-    expect(data.items.map((item) => item.id)).toEqual([issue.id, currentIssue.id])
-    expect(data.missing).toEqual([missingRef, missingId])
+    expect(data.items.map((item) => item.id)).toStrictEqual([issue.id, currentIssue.id])
+    expect(data.missing).toStrictEqual([missingRef, missingId])
   })
 
   test("every compacting tool's description states the omission contract", () => {
@@ -3073,7 +3073,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
         missing: Schema.Array(Schema.String).pipe(Schema.mutable),
       }),
     )
-    expect(data.items.map((item) => item.id)).toEqual([issue.id])
+    expect(data.items.map((item) => item.id)).toStrictEqual([issue.id])
     expect(data.missing).toStrictEqual([])
   })
 
@@ -3084,7 +3084,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       res.result!.content[0].text,
       Schema.Struct({ missing: Schema.Array(Schema.String).pipe(Schema.mutable) }),
     )
-    expect(data.missing).toEqual([ref])
+    expect(data.missing).toStrictEqual([ref])
   })
 
   test('get_issues omits body unless includeBody:true', async () => {
@@ -3127,8 +3127,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       missing: Schema.Array(Schema.String).pipe(Schema.mutable),
     })
     const data = await readNativeJson(res, dataShape)
-    expect(data.items.map((item) => item.id)).toEqual([issue.id])
-    expect(data.missing).toEqual([gone])
+    expect(data.items.map((item) => item.id)).toStrictEqual([issue.id])
+    expect(data.missing).toStrictEqual([gone])
 
     const ids = Array.from({ length: 51 }, () => crypto.randomUUID()).join(',')
     const tooMany = await fetchNativeApi(`http://localhost/api/issues/batch?ids=${ids}`, {
@@ -3165,8 +3165,8 @@ describe('covers PROJ-931 — get_issues project visibility', () => {
         missing: Schema.Array(Schema.String).pipe(Schema.mutable),
       }),
     )
-    expect(data.items.map((item) => item.id)).toEqual([visible.id])
-    expect(data.missing).toEqual([hiddenRef, hidden.id])
+    expect(data.items.map((item) => item.id)).toStrictEqual([visible.id])
+    expect(data.missing).toStrictEqual([hiddenRef, hidden.id])
 
     const rest = await fetchNativeApi(
       `http://localhost/api/issues/batch?refs=${hiddenRef},${visibleRef}&ids=${hidden.id}`,
@@ -3177,8 +3177,8 @@ describe('covers PROJ-931 — get_issues project visibility', () => {
       missing: Schema.Array(Schema.String).pipe(Schema.mutable),
     })
     const restData = await readNativeJson(rest, restDataShape)
-    expect(restData.items.map((item) => item.id)).toEqual([visible.id])
-    expect(restData.missing).toEqual([hiddenRef, hidden.id])
+    expect(restData.items.map((item) => item.id)).toStrictEqual([visible.id])
+    expect(restData.missing).toStrictEqual([hiddenRef, hidden.id])
   })
 
   test('a ref whose key also exists in another workspace never resolves across workspaces', async () => {
@@ -3202,6 +3202,6 @@ describe('covers PROJ-931 — get_issues project visibility', () => {
       }),
     )
     expect(data.items).toStrictEqual([])
-    expect(data.missing).toEqual([ref, theirIssue.id])
+    expect(data.missing).toStrictEqual([ref, theirIssue.id])
   })
 })

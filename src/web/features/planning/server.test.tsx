@@ -74,8 +74,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       )
       const node = await run.result
       expect(node.props.mode).toBe(mode)
-      expect(node.props.allSprints.map((item: { id: string }) => item.id)).toEqual(['s1', 's2'])
-      expect(node.props.initialSprints.map((item: { status: string }) => item.status)).toEqual(
+      expect(node.props.allSprints.map((item: { id: string }) => item.id)).toStrictEqual(['s1', 's2'])
+      expect(node.props.initialSprints.map((item: { status: string }) => item.status)).toStrictEqual(
         ['completed', 'active'].filter((status) => mode === 'all' || status === mode),
       )
       expect(node.props.initialIssues).toHaveLength(1)
@@ -101,7 +101,7 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     expect(issues.some((item) => item.id === 'other-project-issue')).toBe(false)
     expect(issues).toHaveLength(205)
     expect(new Set(issues.map((item) => item.id)).size).toBe(205)
-    expect(issues.find((item) => item.id === 'i000')?.customFields).toEqual([{ key: 'story_points', value: '5' }])
+    expect(issues.find((item) => item.id === 'i000')?.customFields).toStrictEqual([{ key: 'story_points', value: '5' }])
     expect(issues.some((item) => item.id === 'private')).toBe(false)
     expect(run.transport).toHaveBeenCalledTimes(0)
   })
@@ -182,18 +182,18 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     )
     const run = runWithDatabase(database, url, (scope) => renderMetrics(scope, url))
     const node = await run.result
-    expect(node.props.initialRange).toEqual({
+    expect(node.props.initialRange).toStrictEqual({
       granularity: 'day',
       since: '2026-09-01',
       until: '2026-10-01',
     })
-    expect(node.props.initialMetrics.leadTime).toEqual({
+    expect(node.props.initialMetrics.leadTime).toStrictEqual({
       avg: 3600,
       count: 1,
       p50: 3600,
       p90: 3600,
     })
-    expect(node.props.initialHeatmap).toEqual({
+    expect(node.props.initialHeatmap).toStrictEqual({
       entries: [
         {
           conflictCount: 1,

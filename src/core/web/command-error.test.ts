@@ -38,7 +38,7 @@ describe('private Core browser command failure boundary', () => {
       expect(problem).toMatchObject({ message, status })
       expect(problem.occurrenceId).toMatch(/^urn:uuid:/u)
       if (cause instanceof NotFoundError || cause instanceof ConflictError) {
-        expect(problem.details).toEqual(cause.details)
+        expect(problem.details).toStrictEqual(cause.details)
       }
       expect(encoded).not.toContain('SQL/token')
     },

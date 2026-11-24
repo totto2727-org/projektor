@@ -96,7 +96,7 @@ describe('review target MCP tool through the real API and Core Workers', () => {
     expect(toolError(await mcpUpdate('fixing'))?.code).toBe('not_found')
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(attachmentId).first(),
-    ).resolves.toEqual({ review_status: null })
+    ).resolves.toStrictEqual({ review_status: null })
   })
 })
 
@@ -161,7 +161,7 @@ describe('review targets REST through the real API and Core Workers', () => {
     expect((await update('fixing', { issueId: other.issueId, id: foreignAttachmentId })).status).toBe(404)
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(foreignAttachmentId).first(),
-    ).resolves.toEqual({ review_status: null })
+    ).resolves.toStrictEqual({ review_status: null })
   })
 
   test('rechecks current project viewer grants and revoked visibility', async () => {
@@ -173,7 +173,7 @@ describe('review targets REST through the real API and Core Workers', () => {
     expect((await update('fixing')).status).toBe(404)
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(attachmentId).first(),
-    ).resolves.toEqual({ review_status: null })
+    ).resolves.toStrictEqual({ review_status: null })
   })
 
   test('rejects read-only credentials without writing', async () => {
@@ -189,7 +189,7 @@ describe('review targets REST through the real API and Core Workers', () => {
     expect((await update('fixing')).status).toBe(403)
     await expect(
       env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(attachmentId).first(),
-    ).resolves.toEqual({ review_status: null })
+    ).resolves.toStrictEqual({ review_status: null })
   })
 
   test('does not select Wiki references for review', async () => {

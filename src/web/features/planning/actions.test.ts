@@ -79,7 +79,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
     const test = fixture()
     await expect(
       test.invoke(actions.editSprint, null, formData({ ...draft, sprintId: planningIds.source, goal: '', start: '' })),
-    ).resolves.toEqual({ ok: true, value: { ok: true } })
+    ).resolves.toStrictEqual({ ok: true, value: { ok: true } })
     expect(
       test.sqlite.prepare('SELECT name,goal,start_date,end_date FROM sprints WHERE id=?').get(planningIds.source),
     ).toMatchObject({ end_date: null, goal: null, name: 'Sprint', start_date: null })
@@ -90,7 +90,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
     const test = fixture()
     await expect(
       test.invoke(actions.setSprintStatus, { ...scope, sprintId: planningIds.source, status }),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
@@ -102,10 +102,12 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
   test('deletes the matching scoped sprint and unassigns its issues', async () => {
     const test = fixture()
     const [id] = seedIssues(test, 1)
-    await expect(test.invoke(actions.archiveSprint, { ...scope, sprintId: planningIds.source })).resolves.toEqual({
-      ok: true,
-      value: { ok: true },
-    })
+    await expect(test.invoke(actions.archiveSprint, { ...scope, sprintId: planningIds.source })).resolves.toStrictEqual(
+      {
+        ok: true,
+        value: { ok: true },
+      },
+    )
     expect(test.sqlite.prepare('SELECT id FROM sprints WHERE id=?').get(planningIds.source)).toBeUndefined()
     expect(test.sqlite.prepare('SELECT sprint_id FROM issues WHERE id=?').get(id)?.sprint_id).toBeNull()
     expect(test.transport).not.toHaveBeenCalled()
@@ -144,7 +146,7 @@ describe('planning ServerFns with real D1 authentication and shared commands', (
         targetId: planningIds.target,
         issueIds: [...issueIds, issueIds[0]],
       }),
-    ).resolves.toEqual({ ok: true, value: { count: 8, ok: true } })
+    ).resolves.toStrictEqual({ ok: true, value: { count: 8, ok: true } })
     expect(
       test.sqlite.prepare('SELECT count(*) AS count FROM issues WHERE sprint_id=?').get(planningIds.target)?.count,
     ).toBe(8)

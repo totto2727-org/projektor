@@ -23,7 +23,7 @@ describe('neutral OAuth workspace audience and scope protocol', () => {
   })
 
   test('preserves default supported scopes without expanding unknown requests', () => {
-    expect(grantedScopes([])).toEqual([...OAUTH_SCOPES_SUPPORTED])
+    expect(grantedScopes([])).toStrictEqual([...OAUTH_SCOPES_SUPPORTED])
     expect(grantedScopes(['projektor:read', 'openid', 'offline_access'])).toStrictEqual(['projektor:read'])
     expect(() => grantedScopes(['openid'])).toThrow(OAuthRequestError)
   })

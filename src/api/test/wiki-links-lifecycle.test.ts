@@ -189,7 +189,7 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
     const lone = await createPage(token, workspace.slug, 'Lonely')
     const linker = await createPage(token, workspace.slug, 'Linker5', '[[Twin]] [[Lonely]]')
     // Oldest page wins a duplicate title.
-    await expect(targetsOf(linker.id)).resolves.toEqual([first.id, lone.id].toSorted())
+    await expect(targetsOf(linker.id)).resolves.toStrictEqual([first.id, lone.id].toSorted())
 
     for (const p of [first, lone]) {
       await deletePage(token, workspace.slug, p.slug)
@@ -210,7 +210,7 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
       .bind(linker.id)
       .all<{ t: string; id: string | null }>()
     const byTitle = Object.fromEntries(rows.results.map((result) => [result.t, result.id]))
-    expect(byTitle).toEqual({ Twin: second.id, Lonely: null })
+    expect(byTitle).toStrictEqual({ Twin: second.id, Lonely: null })
   })
 
   test('rename: a URL/slug link keeps its target when the title changes', async () => {

@@ -54,7 +54,7 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
     const resolvedValue = await patch(issue.id, { status: 'in_progress' })
     expect(resolvedValue.status).toBe(200)
 
-    await expect(reviewState(issue.id)).resolves.toEqual({
+    await expect(reviewState(issue.id)).resolves.toStrictEqual({
       gateRejections: 0,
       in_review_at: null,
       review_bounce_count: 0,
@@ -146,7 +146,7 @@ describe("covers PROJ-749: migration 0061 backfill preserves today's behaviour",
     )
       .bind(ws)
       .all<{ key: string; f: number }>()
-    expect(Object.fromEntries(rows.results.map((result) => [result.key, result.f]))).toEqual({
+    expect(Object.fromEntries(rows.results.map((result) => [result.key, result.f]))).toStrictEqual({
       code_review: 1,
       contract_review: 1,
       done: 0,

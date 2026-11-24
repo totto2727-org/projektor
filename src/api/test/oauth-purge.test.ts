@@ -126,7 +126,7 @@ describe('official OAuth cleanup durable pagination', () => {
 
     const first = await testFixture.run()
     expect(first).toMatchObject({ done: false, grantsChecked: 200, phase: 'grants' })
-    expect(testFixture.state()).toEqual({ cursor: 'grant:u:199', phase: 'grants' })
+    expect(testFixture.state()).toStrictEqual({ cursor: 'grant:u:199', phase: 'grants' })
     const result = await testFixture.run()
     expect(result.grantsChecked).toBe(200)
     await expect(testFixture.run()).resolves.toMatchObject({ grantsPurged: 2, nextPhase: 'tokens', phase: 'grants' })
@@ -141,7 +141,7 @@ describe('official OAuth cleanup durable pagination', () => {
     expect(testFixture.storage.scans.filter((scan) => scan.prefix === 'grant:')).toHaveLength(grantScans)
     expect(testFixture.storage.values.has('token:z:missing:access')).toBe(false)
     expect(testFixture.storage.values.has('token:u:000:404')).toBe(true)
-    expect(testFixture.state()).toEqual({ phase: 'grants' })
+    expect(testFixture.state()).toStrictEqual({ phase: 'grants' })
   })
 
   test('does not advance a saved cursor when an item in the next page fails', async () => {
@@ -154,7 +154,7 @@ describe('official OAuth cleanup durable pagination', () => {
     const before = testFixture.state()
     testFixture.storage.failGet('grant:u:202')
     await expect(testFixture.run()).rejects.toThrow('Injected KV read failure')
-    expect(testFixture.state()).toEqual(before)
+    expect(testFixture.state()).toStrictEqual(before)
     expect(testFixture.storage.values.has('grant:u:201')).toBe(false)
     expect(testFixture.storage.values.has('grant:z:expired')).toBe(true)
     testFixture.storage.failGet()

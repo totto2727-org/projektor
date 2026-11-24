@@ -63,11 +63,11 @@ describe('native custom status category review-target resync', () => {
       expect(response.status, await response.text()).toBe(200)
       await expect(
         env.DB.prepare('SELECT status_category FROM issues WHERE id=?').bind(testFixture.issue.id).first(),
-      ).resolves.toEqual({
+      ).resolves.toStrictEqual({
         status_category: category,
       })
       const result = await testFixture.attachments()
-      expect(result.results).toEqual(
+      expect(result.results).toStrictEqual(
         before.results.map((row) =>
           row.id === testFixture.selected || row.id === testFixture.done
             ? { ...row, review_status: category === 'done' ? 'done' : null }
@@ -81,7 +81,7 @@ describe('native custom status category review-target resync', () => {
       expect((await testFixture.patch({ category: 'todo' })).status).toBe(200)
       await expect(
         env.DB.prepare('SELECT review_status FROM attachments WHERE id=?').bind(testFixture.selected).first(),
-      ).resolves.toEqual({ review_status: 'fixing' })
+      ).resolves.toStrictEqual({ review_status: 'fixing' })
     },
   )
 
@@ -96,16 +96,16 @@ describe('native custom status category review-target resync', () => {
       expect((await testFixture.patch({ category: 'done', isDefault: true })).status).toBe(500)
       await expect(
         env.DB.prepare('SELECT category,is_default FROM task_statuses WHERE id=?').bind(testFixture.status.id).first(),
-      ).resolves.toEqual({ category: 'in_progress', is_default: 0 })
+      ).resolves.toStrictEqual({ category: 'in_progress', is_default: 0 })
       await expect(
         env.DB.prepare('SELECT is_default FROM task_statuses WHERE id=?').bind(testFixture.otherStatus.id).first(),
-      ).resolves.toEqual({ is_default: 1 })
+      ).resolves.toStrictEqual({ is_default: 1 })
       await expect(
         env.DB.prepare('SELECT status_category FROM issues WHERE id=?').bind(testFixture.issue.id).first(),
-      ).resolves.toEqual({
+      ).resolves.toStrictEqual({
         status_category: 'in_progress',
       })
-      expect((await testFixture.attachments()).results).toEqual(before.results)
+      expect((await testFixture.attachments()).results).toStrictEqual(before.results)
     } finally {
       await env.DB.prepare(`DROP TRIGGER ${trigger}`).run()
     }

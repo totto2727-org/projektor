@@ -67,7 +67,7 @@ describe('native Core authenticated Web file delivery', () => {
     const testFixture = fixture()
     const response = await testFixture.execute()
     expect(response.status).toBe(200)
-    expect(new Uint8Array(await response.arrayBuffer())).toEqual(testFixture.bytes)
+    expect(new Uint8Array(await response.arrayBuffer())).toStrictEqual(testFixture.bytes)
     expect(response.headers.get('content-type')).toBe('image/png')
     expect(response.headers.get('content-disposition')).toBe('inline; filename="diagram.png"')
     expect(response.headers.get('cache-control')).toBe('private, no-store')

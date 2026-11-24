@@ -522,11 +522,11 @@ describe('native Core authentication invocation isolation', () => {
       ),
     )
 
-    expect(principals.map((principal) => principal.user.email)).toEqual(sessions.map(({ email }) => email))
+    expect(principals.map((principal) => principal.user.email)).toStrictEqual(sessions.map(({ email }) => email))
     for (const { epoch, domain } of sessions) {
       const observation = await getCoreObservations(epoch)
       expect(observation.authenticateCalls).toBe(1)
-      expect(observation.jwksFetches).toEqual([`https://${domain}/cdn-cgi/access/certs`])
+      expect(observation.jwksFetches).toStrictEqual([`https://${domain}/cdn-cgi/access/certs`])
       expect(observation.authCacheGets).toContain('cf-access-certs')
     }
     await resetCoreAuthCaches()
@@ -1461,7 +1461,7 @@ describe('covers PROJ-430: CF Access certs fetch failure', () => {
       })
 
       expect(res.status).toBe(503)
-      expect((await getCoreObservations()).jwksFetches).toEqual([`https://${domain}/cdn-cgi/access/certs`])
+      expect((await getCoreObservations()).jwksFetches).toStrictEqual([`https://${domain}/cdn-cgi/access/certs`])
       expect((await res.json()) as { error: string }).toStrictEqual({
         error: 'Authentication temporarily unavailable',
       })

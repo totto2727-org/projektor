@@ -93,7 +93,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
       "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('review-file','workspace-a','file','w/file','review.pdf','application/pdf',1,'issue','issue-a','user-a',1)",
     )
     const input = { workspaceSlug: workspace.slug, issueId: 'issue-a', attachmentId: 'review-file', status: 'fixing' }
-    await expect(invoke(setAttachmentReviewStatus, input)).resolves.toEqual({ ok: true, value: { ok: true } })
+    await expect(invoke(setAttachmentReviewStatus, input)).resolves.toStrictEqual({ ok: true, value: { ok: true } })
     expect(database.sqlite.prepare("SELECT review_status FROM attachments WHERE id='review-file'").get()).toEqual({
       review_status: 'fixing',
     })
@@ -103,7 +103,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
       ok: false,
       status: 404,
     })
-    await expect(invoke(setAttachmentReviewStatus, { ...input, status: null })).resolves.toEqual({
+    await expect(invoke(setAttachmentReviewStatus, { ...input, status: null })).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
@@ -444,7 +444,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
       ok: true,
       value: [{ id: 'comment-a', author_id: scope.user.id }],
     })
-    await expect(invoke(readLinks, identity)).resolves.toEqual({ ok: true, value: [] })
+    await expect(invoke(readLinks, identity)).resolves.toStrictEqual({ ok: true, value: [] })
     await expect(invoke(readAttachments, identity)).resolves.toMatchObject({
       ok: true,
       value: [{ id: 'file-a', kind: 'url' }],

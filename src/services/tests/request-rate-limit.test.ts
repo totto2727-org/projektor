@@ -84,9 +84,9 @@ describe('shared request rate-limit policy', () => {
   test('retains 300 IP and 600 bearer defaults, with no JWT or app auth bindings', async () => {
     const testFixture = fixture()
     await consume(300, request(), testFixture.env)
-    await expect(checkRateLimit(request(), testFixture.env)).resolves.toEqual({ retryAfter: 55 })
+    await expect(checkRateLimit(request(), testFixture.env)).resolves.toStrictEqual({ retryAfter: 55 })
     await consume(600, request({ Authorization: 'Bearer token' }), testFixture.env)
-    await expect(checkRateLimit(request({ Authorization: 'Bearer token' }), testFixture.env)).resolves.toEqual({
+    await expect(checkRateLimit(request({ Authorization: 'Bearer token' }), testFixture.env)).resolves.toStrictEqual({
       retryAfter: 55,
     })
     expect(testFixture.idFromName).toHaveBeenCalledWith('ip:127.0.0.1')
@@ -103,7 +103,7 @@ describe('shared request rate-limit policy', () => {
     ).resolves.toBeUndefined()
     await expect(
       checkRateLimit(request({ Authorization: 'Bearer user:grant:rotated' }), testFixture.env),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       retryAfter: 55,
     })
     await expect(
@@ -112,7 +112,7 @@ describe('shared request rate-limit policy', () => {
     await expect(
       checkRateLimit(request({ Authorization: 'bearer token', 'CF-Connecting-IP': '1.2.3.4' }), testFixture.env),
     ).resolves.toBeUndefined()
-    await expect(checkRateLimit(request({ 'CF-Connecting-IP': '1.2.3.4' }), testFixture.env)).resolves.toEqual({
+    await expect(checkRateLimit(request({ 'CF-Connecting-IP': '1.2.3.4' }), testFixture.env)).resolves.toStrictEqual({
       retryAfter: 55,
     })
     await expect(checkRateLimit(request({ 'CF-Connecting-IP': '2.3.4.5' }), testFixture.env)).resolves.toBeUndefined()
@@ -123,11 +123,11 @@ describe('shared request rate-limit policy', () => {
     testFixture.env.RATE_LIMIT_AUTH_MAX = '1'
     testFixture.env.RATE_LIMIT_WINDOW_SECS = '30'
     await checkRateLimit(request(), testFixture.env)
-    await expect(checkRateLimit(request(), testFixture.env)).resolves.toEqual({ retryAfter: 25 })
+    await expect(checkRateLimit(request(), testFixture.env)).resolves.toStrictEqual({ retryAfter: 25 })
     testFixture.env.RATE_LIMIT_TEST_NOW_MS = '150000'
     await expect(checkRateLimit(request(), testFixture.env)).resolves.toBeUndefined()
     testFixture.increment.mockResolvedValueOnce({ count: 2, slot: 0 })
-    await expect(checkRateLimit(request(), testFixture.env)).resolves.toEqual({ retryAfter: 30 })
+    await expect(checkRateLimit(request(), testFixture.env)).resolves.toStrictEqual({ retryAfter: 30 })
   })
 
   test('ignores test epochs and clocks in production and shares counter naming across adapters', async () => {
@@ -170,7 +170,7 @@ describe('shared request rate-limit policy', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
     testFixture.sqlite.exec("INSERT INTO rate_limit (key,count,window_start) VALUES ('stale',1,-1000)")
     await expect(checkRateLimit(request(), testFixture.env)).resolves.toBeUndefined()
-    await expect(checkRateLimit(request(), testFixture.env)).resolves.toEqual({ retryAfter: 55 })
+    await expect(checkRateLimit(request(), testFixture.env)).resolves.toStrictEqual({ retryAfter: 55 })
     expect(testFixture.sqlite.prepare('SELECT * FROM rate_limit').all()).toEqual([
       { count: 2, key: 'ip:127.0.0.1', window_start: 120 },
     ])
@@ -216,7 +216,7 @@ describe('shared request rate-limit policy', () => {
     app.get('*', (httpContext) => httpContext.json({ ok: true }))
     const result = await app.request(request(), undefined, testFixture.apiEnv)
     expect(result.status).toBe(200)
-    await expect(checkRateLimit(request(), testFixture.env)).resolves.toEqual({ retryAfter: 55 })
+    await expect(checkRateLimit(request(), testFixture.env)).resolves.toStrictEqual({ retryAfter: 55 })
     const denied = await app.request(request(), undefined, testFixture.apiEnv)
     expect(denied.status).toBe(429)
     expect(denied.headers.get('Retry-After')).toBe('55')
@@ -231,7 +231,7 @@ describe('shared request rate-limit policy', () => {
     const input = { testPolicy: { authMax: '9999', epoch: 'untrusted', nowMs: '0', windowSecs: '1' } }
     const reply = () => runTestEffect(decodeCoreReply(RateLimitResult, testFixture.handlers.apiCheckRateLimit(input)))
     await expect(reply()).resolves.toBeNull()
-    await expect(reply()).resolves.toEqual({ retryAfter: 55 })
+    await expect(reply()).resolves.toStrictEqual({ retryAfter: 55 })
     expect(testFixture.increment).toHaveBeenCalledWith('ip:127.0.0.1', 60, 185)
     expect(testFixture.idFromName).not.toHaveBeenCalledWith(expect.stringContaining('untrusted'))
   })

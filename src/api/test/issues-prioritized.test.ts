@@ -158,7 +158,7 @@ describe('covers PROJ-859: prioritization parity with the in-memory algorithm', 
     }
 
     const wanted = opts.includeNotReady ? expected : expected.filter((e) => e.ready)
-    expect(got.issues.map((issue) => issue.id)).toEqual(wanted.slice(0, limit).map((e) => e.id))
+    expect(got.issues.map((issue) => issue.id)).toStrictEqual(wanted.slice(0, limit).map((e) => e.id))
     got.issues.forEach((issue, index) => {
       expect(issue._score).toBeCloseTo(wanted[index].score, 10)
       expect(issue.needsGrooming === true).toBe(!wanted[index].ready)
@@ -223,7 +223,7 @@ describe('covers PROJ-920: string flags and limit are coerced like BooleanQueryP
       includeBacklog: 'false',
       includeNotReady: '1',
     })) as { issues: { id: string }[] }
-    expect(asString.issues.map((issue) => issue.id)).toEqual(asBool.issues.map((issue) => issue.id))
+    expect(asString.issues.map((issue) => issue.id)).toStrictEqual(asBool.issues.map((issue) => issue.id))
     expect(asString.issues).toHaveLength(3)
   })
 })

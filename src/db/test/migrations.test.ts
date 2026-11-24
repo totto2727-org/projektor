@@ -22,7 +22,7 @@ describe('migrations', () => {
       .filter((file) => file.endsWith('.sql'))
       .sort()
     expect(files.length).toBeGreaterThan(0)
-    expect(loadMigrations()).toEqual(files.map((file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8')))
+    expect(loadMigrations()).toStrictEqual(files.map((file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8')))
   })
 
   test('creates the core tables', () => {
@@ -31,7 +31,9 @@ describe('migrations', () => {
       name: string
     }[]
     const tables = rows.map((row) => row.name)
-    expect(tables).toEqual(expect.arrayContaining(['workspaces', 'users', 'workspace_members', 'projects', 'issues']))
+    expect(tables).toStrictEqual(
+      expect.arrayContaining(['workspaces', 'users', 'workspace_members', 'projects', 'issues']),
+    )
   })
 })
 

@@ -193,10 +193,10 @@ describe('visibleProjectIds helper', () => {
     }
 
     const ids = await visibleProjectIds(ownerCtx)
-    expect(ids.sort()).toEqual([p1.id, p2.id].toSorted())
+    expect(ids.sort()).toStrictEqual([p1.id, p2.id].toSorted())
 
     const adminCtx = { ...ownerCtx, userId: roles.owner.user.id, role: 'admin' as const }
-    expect((await visibleProjectIds(adminCtx)).sort()).toEqual([p1.id, p2.id].toSorted())
+    expect((await visibleProjectIds(adminCtx)).sort()).toStrictEqual([p1.id, p2.id].toSorted())
   })
 
   test('returns only granted projects for a non-admin member', async () => {
@@ -215,7 +215,7 @@ describe('visibleProjectIds helper', () => {
     }
 
     const ids = await visibleProjectIds(ctx)
-    expect(ids).toEqual([granted.id])
+    expect(ids).toStrictEqual([granted.id])
   })
 
   test('returns an empty list for a member with no grants', async () => {

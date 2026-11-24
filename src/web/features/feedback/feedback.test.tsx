@@ -92,7 +92,7 @@ describe('feedback request-local database SSR', () => {
     expect(node.props.projectId).toBe('actual')
     expect(node.props.initialStatus).toBe('new')
     expect(node.props.initialTab).toBe('summary')
-    expect(node.props.initialRows.map((row: { id: string }) => row.id)).toEqual(['row'])
+    expect(node.props.initialRows.map((row: { id: string }) => row.id)).toStrictEqual(['row'])
     expect(node.props.initialSource).toMatchObject({
       isActive: true,
       allowedOrigins: ['https://example.test'],

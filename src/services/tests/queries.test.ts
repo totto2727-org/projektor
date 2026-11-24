@@ -71,7 +71,7 @@ describe('project/workspace pure queries', () => {
   test('retains camelCase project rows, ordering, archive opt-in and app-supplied visibility', async () => {
     const projects = await runTestEffect(listProjects(db, 'wa'))
     expect(projects.map((project) => project.id)).toStrictEqual(['p3', 'p1'])
-    expect(projects[1]).toEqual({
+    expect(projects[1]).toStrictEqual({
       agentWipLimit: null,
       archivedAt: null,
       createdAt: 100,
@@ -106,8 +106,8 @@ describe('project/workspace pure queries', () => {
     await expect(runTestEffect(findProjectBySlug(db, 'wb', 'same'))).resolves.toMatchObject({
       id: 'p4',
     })
-    await expect(runTestEffect(findProjectIdByKey(db, 'wa', 'SAME'))).resolves.toEqual({ id: 'p1' })
-    await expect(runTestEffect(findProjectIdByKey(db, 'wb', 'SAME'))).resolves.toEqual({ id: 'p4' })
+    await expect(runTestEffect(findProjectIdByKey(db, 'wa', 'SAME'))).resolves.toStrictEqual({ id: 'p1' })
+    await expect(runTestEffect(findProjectIdByKey(db, 'wb', 'SAME'))).resolves.toStrictEqual({ id: 'p4' })
     await expect(runTestEffect(findProjectIdByKey(db, 'wa', 'MISSING'))).resolves.toBeUndefined()
   })
 
@@ -165,7 +165,7 @@ describe('project/workspace pure queries', () => {
       slug: 'alpha',
     })
     await expect(runTestEffect(findWorkspaceBySlug(db, 'unknown'))).resolves.toBeUndefined()
-    await expect(runTestEffect(findWorkspaceMembership(db, 'wa', 'u2'))).resolves.toEqual({
+    await expect(runTestEffect(findWorkspaceMembership(db, 'wa', 'u2'))).resolves.toStrictEqual({
       joinedAt: 10,
       role: 'viewer',
       userId: 'u2',
@@ -176,11 +176,11 @@ describe('project/workspace pure queries', () => {
   })
 
   test('decodes stored brand JSON but does not synthesize API URLs', async () => {
-    await expect(runTestEffect(readWorkspaceBrand(db, 'wa'))).resolves.toEqual({
+    await expect(runTestEffect(readWorkspaceBrand(db, 'wa'))).resolves.toStrictEqual({
       accent: '#abcdef',
       logoR2Key: 'wa/brand-logo/x',
     })
-    await expect(runTestEffect(readWorkspaceBrand(db, 'missing'))).resolves.toEqual({})
+    await expect(runTestEffect(readWorkspaceBrand(db, 'missing'))).resolves.toStrictEqual({})
   })
 
   test('returns only scoped token metadata with decoded scopes and existing descending order', async () => {
@@ -188,7 +188,7 @@ describe('project/workspace pure queries', () => {
 		 ('t1','wa','u1','First','secret1','["read"]',10),
 		 ('t2','wa','u1','Second','secret2','["write"]',20),
 		 ('t3','wb','u2','Other','secret3','["read"]',30);`)
-    await expect(runTestEffect(listWorkspaceTokenMetadata(db, 'wa'))).resolves.toEqual([
+    await expect(runTestEffect(listWorkspaceTokenMetadata(db, 'wa'))).resolves.toStrictEqual([
       {
         createdAt: 20,
         expiresAt: null,

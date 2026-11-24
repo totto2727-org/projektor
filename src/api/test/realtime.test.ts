@@ -234,7 +234,7 @@ describe('realtime WebSockets (Opt-In)', () => {
       ws as unknown as WebSocket,
       JSON.stringify({ action: 'subscribe', projects: [projectId, otherProjectId], eventTypes: ['issue.*'] }),
     )
-    expect(ws.deserializeAttachment().filters).toEqual({ eventTypes: ['issue.*'], projects: [projectId] })
+    expect(ws.deserializeAttachment().filters).toStrictEqual({ eventTypes: ['issue.*'], projects: [projectId] })
     expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"subscribed"'))
   })
 
@@ -242,7 +242,7 @@ describe('realtime WebSockets (Opt-In)', () => {
     const ws = socket(attachmentFor())
     const { hub } = hubFor()
     await hub.webSocketMessage(ws as unknown as WebSocket, JSON.stringify({ action: 'subscribe' }))
-    expect(ws.deserializeAttachment().filters).toEqual({ eventTypes: undefined, projects: [projectId] })
+    expect(ws.deserializeAttachment().filters).toStrictEqual({ eventTypes: undefined, projects: [projectId] })
   })
 
   test('broadcasts to matching subscriptions and filters other projects and event types', async () => {
@@ -274,7 +274,7 @@ describe('realtime WebSockets (Opt-In)', () => {
     const ws = socket(attachmentFor('viewer', { visibleProjectIds: [projectId], filters: { projects: [projectId] } }))
     const { hub } = hubFor([ws])
     await expect(hub.broadcast(event())).resolves.toStrictEqual({ recipientCount: 0 })
-    expect(ws.deserializeAttachment().visibleProjectIds).toEqual([otherProjectId])
+    expect(ws.deserializeAttachment().visibleProjectIds).toStrictEqual([otherProjectId])
     expect(ws.send).not.toHaveBeenCalled()
   })
 

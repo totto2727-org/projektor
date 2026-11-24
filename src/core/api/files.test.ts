@@ -61,7 +61,7 @@ describe('covers API Core binary workspace logos', () => {
     expect(response?.headers.get('content-type')).toBe('image/png')
     const reader = response!.body!.getReader()
     const result = await reader.read()
-    expect(result.value).toEqual(testFixture.bytes)
+    expect(result.value).toStrictEqual(testFixture.bytes)
     await reader.cancel('consumer canceled')
     expect(testFixture.cancel).toHaveBeenCalledWith('consumer canceled')
   })

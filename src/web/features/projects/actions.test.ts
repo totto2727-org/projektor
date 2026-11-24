@@ -30,7 +30,7 @@ describe('project native forms invoke real shared commands', () => {
     test.sqlite.exec("UPDATE projects SET description='Existing' WHERE id='p1'")
     await expect(
       test.invoke(updateDescription, null, formData({ workspaceSlug: 'alpha', projectId: 'p1', description: '' })),
-    ).resolves.toEqual({ ok: true, value: { ok: true } })
+    ).resolves.toStrictEqual({ ok: true, value: { ok: true } })
     expect(test.sqlite.prepare("SELECT description FROM projects WHERE id='p1'").get()?.description).toBe('')
     expect(test.transport).not.toHaveBeenCalled()
   })
@@ -39,7 +39,7 @@ describe('project native forms invoke real shared commands', () => {
     const test = actionFixture()
     await expect(
       test.invoke(archiveProject, { workspaceSlug: 'alpha', projectId: 'p1', archived: true }),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
@@ -48,7 +48,7 @@ describe('project native forms invoke real shared commands', () => {
     )
     await expect(
       test.invoke(archiveProject, { workspaceSlug: 'alpha', projectId: 'p1', archived: false }),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })

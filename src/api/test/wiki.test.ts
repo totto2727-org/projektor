@@ -560,7 +560,7 @@ describe('wiki API', () => {
     const first = await fetchAll()
     await resetRateLimits()
     const second = await fetchAll()
-    expect(first.map((r) => r.id)).toEqual(second.map((r) => r.id))
+    expect(first.map((r) => r.id)).toStrictEqual(second.map((r) => r.id))
 
     await resetRateLimits()
     const page2 = await fetchNativeApi('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2&offset=2', {
@@ -2336,8 +2336,8 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       }),
     ).pipe(Schema.mutable)
     const [listed] = await readNativeJson(listRes, listResShape)
-    expect(hit.tags).toEqual(listed.tags)
-    expect(hit.owners).toEqual(listed.owners)
+    expect(hit.tags).toStrictEqual(listed.tags)
+    expect(hit.owners).toStrictEqual(listed.owners)
   })
 
   test('covers MCP search_wiki filters by type, parity with REST', async () => {
@@ -3726,7 +3726,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     expect(isMcpError(missingHeading)).toBe(false)
     const missingErr = toolError(missingHeading)
     expect(missingErr?.code).toBe('not_found')
-    expect(missingErr?.details?.currentHeadings).toEqual(['Alpha', 'Beta'])
+    expect(missingErr?.details?.currentHeadings).toStrictEqual(['Alpha', 'Beta'])
   })
 
   /*
@@ -3755,7 +3755,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     const err = toolError(result)
     expect(err?.code).toBe('validation')
     expect(err?.message).toContain('ambiguous')
-    expect(err?.fields?.heading).toEqual(['h1', 'h2'])
+    expect(err?.fields?.heading).toStrictEqual(['h1', 'h2'])
   })
 
   /*
@@ -4118,7 +4118,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       authHeaders(fixture.token, fixture.workspace.slug),
     )
     const backlinks = mcpData(result, SlugListResponse)
-    expect(backlinks).toEqual([expect.objectContaining({ slug: 'mcp-source' })])
+    expect(backlinks).toStrictEqual([expect.objectContaining({ slug: 'mcp-source' })])
   })
 
   test('list_broken_wiki_links (MCP) matches REST', async () => {
@@ -4469,7 +4469,7 @@ describe('wiki write atomicity (PROJ-511)', () => {
     const pageRes = await fetchNativeApi(`http://localhost/api/wiki/${source.slug}`, {
       headers: authHeaders(token, slug),
     })
-    await expect(pageRes.json()).resolves.toEqual(expect.objectContaining({ content: 'see [[Atomic Runbook]]' }))
+    await expect(pageRes.json()).resolves.toStrictEqual(expect.objectContaining({ content: 'see [[Atomic Runbook]]' }))
 
     await resetRateLimits()
     const backlinksRes = await fetchNativeApi('http://localhost/api/wiki/atomic-runbook/backlinks', {
@@ -4512,7 +4512,7 @@ describe('computeFreshness (PROJ-489)', () => {
     const now = 1_000_000
     const verifiedAt = now - 40 * 86_400 // 40 days ago
     const dueAt = verifiedAt + 30 * 86_400
-    expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toEqual({
+    expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toStrictEqual({
       staleSince: dueAt,
       state: 'stale',
     })
@@ -5713,7 +5713,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       changes: { action: string; pageId: string; deletedPageIds: string[] | null }[]
     }
     const deleteEvent = body.changes.find((change) => change.action === 'deleted' && change.pageId === parent.id)
-    expect(deleteEvent?.deletedPageIds?.sort()).toEqual([child.id, parent.id].toSorted())
+    expect(deleteEvent?.deletedPageIds?.sort()).toStrictEqual([child.id, parent.id].toSorted())
 
     // Non-cascade events (e.g. the earlier "created" events) carry no deletedPageIds.
     const createdEvent = body.changes.find((change) => change.action === 'created' && change.pageId === parent.id)
@@ -6206,7 +6206,7 @@ describe('wiki trash (PROJ-496)', () => {
     let backlinksRes = await req(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    expect((await backlinksRes.json()) as { slug: string }[]).toEqual([
+    expect((await backlinksRes.json()) as { slug: string }[]).toStrictEqual([
       expect.objectContaining({ slug: source.slug, title: 'Trash Backlink Source' }),
     ])
 
@@ -6406,7 +6406,7 @@ describe('wiki trash (PROJ-496)', () => {
       Schema.Struct({ purgedCount: Schema.Number, purgedIds: Schema.Array(Schema.String).pipe(Schema.mutable) }),
     )
     expect(purged.purgedCount).toBe(1)
-    expect(purged.purgedIds).toEqual([oldPage.id])
+    expect(purged.purgedIds).toStrictEqual([oldPage.id])
 
     await expect(env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(oldPage.id).first()).resolves.toBeNull()
     await expect(
@@ -6701,7 +6701,7 @@ describe('wiki trash (PROJ-496)', () => {
       purgeRes,
       Schema.Struct({ purgedIds: Schema.Array(Schema.String).pipe(Schema.mutable) }),
     )
-    expect(purged.purgedIds).toEqual(expect.arrayContaining([grandparent.id, parent.id]))
+    expect(purged.purgedIds).toStrictEqual(expect.arrayContaining([grandparent.id, parent.id]))
 
     const childRow = await env.DB.prepare('SELECT parent_id FROM wiki_pages WHERE id = ?')
       .bind(child.id)

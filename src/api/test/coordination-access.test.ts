@@ -102,7 +102,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
     const { issueA, issueB, slug, ws } = await seedTestData()
     const token = ws.owner.token
     const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
-    expect(leases.items.map((item) => item.issueId).sort(lexicalCompare)).toEqual(
+    expect(leases.items.map((item) => item.issueId).sort(lexicalCompare)).toStrictEqual(
       [issueA, issueB].toSorted(lexicalCompare),
     )
 
@@ -117,7 +117,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
     const { issueA, slug, ws } = await seedTestData()
     const token = ws.member.token
     const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
-    expect(leases.items.map((item) => item.issueId)).toEqual([issueA])
+    expect(leases.items.map((item) => item.issueId)).toStrictEqual([issueA])
 
     const claims = await mcpList('list_file_claims', token, slug, ws.workspace.id)
     expect(claims.items.map((item) => item.path)).toStrictEqual(['a/only.ts'])

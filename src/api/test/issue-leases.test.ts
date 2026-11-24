@@ -227,7 +227,7 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
     })
 
     const withoutFlag = await callPrioritized({ limit: 50, includeNotReady: true })
-    expect(withoutFlag.issues.map((selectedIssue) => selectedIssue.id).sort()).toEqual(
+    expect(withoutFlag.issues.map((selectedIssue) => selectedIssue.id).sort()).toStrictEqual(
       [issue.id, currentIssue.id].toSorted(),
     )
 
@@ -639,10 +639,10 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     await seedAgentLease(workspaceId, issueB.id, { name: 'b' })
 
     const byKey = await mcpLeases({ projectId: projectKey })
-    expect(byKey.items.map((item) => item.issueId)).toEqual([issueA.id])
+    expect(byKey.items.map((item) => item.issueId)).toStrictEqual([issueA.id])
 
     const byUuid = await mcpLeases({ projectId })
-    expect(byUuid.items.map((item) => item.issueId)).toEqual([issueA.id])
+    expect(byUuid.items.map((item) => item.issueId)).toStrictEqual([issueA.id])
   })
 
   test('covers REST parity: GET /api/issues/:id/leases accepts includeStale', async () => {

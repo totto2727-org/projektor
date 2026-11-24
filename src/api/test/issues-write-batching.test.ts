@@ -143,7 +143,7 @@ describe('covers PROJ-870: issue write batching', () => {
     )
       .bind(created.id)
       .first()
-    expect(row).toEqual({
+    expect(row).toStrictEqual({
       number: 5,
       status: 'doing',
       status_id: status.id,
@@ -152,21 +152,21 @@ describe('covers PROJ-870: issue write batching', () => {
       type_id: type.id,
     })
     const fts = await env.DB.prepare('SELECT title, body FROM issues_fts WHERE issue_id = ?').bind(created.id).first()
-    expect(fts).toEqual({ body: 'hello body', title: 'Batched create' })
+    expect(fts).toStrictEqual({ body: 'hello body', title: 'Batched create' })
     const cf = await env.DB.prepare(
       `SELECT d.key, v.value FROM custom_field_values v
 			 JOIN custom_field_definitions d ON d.id = v.field_id WHERE v.issue_id = ? ORDER BY d.key`,
     )
       .bind(created.id)
       .all()
-    expect(cf.results).toEqual([
+    expect(cf.results).toStrictEqual([
       { key: 'points', value: '3' },
       { key: 'team', value: 'core' },
     ])
     const activity = await env.DB.prepare("SELECT action FROM activity WHERE entity_id = ? AND entity_type = 'issue'")
       .bind(created.id)
       .all()
-    expect(activity.results).toEqual([{ action: 'created' }])
+    expect(activity.results).toStrictEqual([{ action: 'created' }])
   })
 
   test('updateIssue changing title, body, status, parent and custom fields uses ≤7 D1 round trips', async () => {
@@ -202,9 +202,9 @@ describe('covers PROJ-870: issue write batching', () => {
     expect(row?.completed_at).not.toBeNull()
     expect(row?.done_at).not.toBeNull()
     const fts = await env.DB.prepare('SELECT title, body FROM issues_fts WHERE issue_id = ?').bind(issue.id).all()
-    expect(fts.results).toEqual([{ body: 'new body', title: 'After' }])
+    expect(fts.results).toStrictEqual([{ body: 'new body', title: 'After' }])
     const cf = await env.DB.prepare('SELECT value FROM custom_field_values WHERE issue_id = ?').bind(issue.id).first()
-    expect(cf).toEqual({ value: '8' })
+    expect(cf).toStrictEqual({ value: '8' })
   })
 
   test('title-only update reindexes FTS with the untouched body (no re-SELECT needed)', async () => {
@@ -215,7 +215,7 @@ describe('covers PROJ-870: issue write batching', () => {
     })
     await updateIssue(ctx, created.id, { title: 'Renamed' })
     const fts = await env.DB.prepare('SELECT title, body FROM issues_fts WHERE issue_id = ?').bind(created.id).all()
-    expect(fts.results).toEqual([{ body: 'kept body', title: 'Renamed' }])
+    expect(fts.results).toStrictEqual([{ body: 'kept body', title: 'Renamed' }])
   })
 
   test('entering review with a completion report batches the comment; review→in_progress batches the gate rejection', async () => {
@@ -275,7 +275,7 @@ describe('covers PROJ-870 review: completion report comment limit', () => {
     const row = await env.DB.prepare('SELECT status, completion_report_at FROM issues WHERE id = ?')
       .bind(issue.id)
       .first()
-    expect(row).toEqual({ completion_report_at: null, status: 'in_progress' })
+    expect(row).toStrictEqual({ completion_report_at: null, status: 'in_progress' })
     const comments = await env.DB.prepare('SELECT COUNT(*) AS n FROM issue_comments WHERE issue_id = ?')
       .bind(issue.id)
       .first<{ n: number }>()

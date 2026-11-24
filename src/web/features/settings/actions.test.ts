@@ -182,7 +182,7 @@ describe('explicit settings ServerFns use real shared commands and authoritative
   test.each(grantCases)('$label accepts archived owner targets outside the active catalog', async (operation) => {
     const test = settingsFixture()
     test.sqlite.exec("UPDATE projects SET archived_at=2 WHERE id='p1'")
-    await expect(operation.invoke(test)).resolves.toEqual({ ok: true, value: { ok: true } })
+    await expect(operation.invoke(test)).resolves.toStrictEqual({ ok: true, value: { ok: true } })
     await operation.check(test)
     expect(test.transport).not.toHaveBeenCalled()
     expect(test.invalidated).toHaveBeenCalledOnce()
@@ -233,9 +233,9 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     await seedConnectors(test)
     const result = await operation.invoke(test)
     if (operation.label === 'create group') {
-      expect(result).toEqual({ ok: true, value: { id: expect.any(String) } })
+      expect(result).toStrictEqual({ ok: true, value: { id: expect.any(String) } })
     } else if (operation.label === 'create/reveal token') {
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         ok: true,
         value: {
           expiresAt: expect.any(Number),
@@ -246,7 +246,7 @@ describe('explicit settings ServerFns use real shared commands and authoritative
         },
       })
     } else {
-      expect(result).toEqual({ ok: true, value: { ok: true } })
+      expect(result).toStrictEqual({ ok: true, value: { ok: true } })
     }
     await operation.check(test)
     expect(test.transport).not.toHaveBeenCalled()
@@ -278,7 +278,9 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     expect(origin.transport).not.toHaveBeenCalled()
     expect(origin.invalidated).toHaveBeenCalledOnce()
     const test = settingsFixture()
-    await expect(test.invoke(actions.disconnectConnector, { ...workspace, connectorId: 'missing' })).resolves.toEqual({
+    await expect(
+      test.invoke(actions.disconnectConnector, { ...workspace, connectorId: 'missing' }),
+    ).resolves.toStrictEqual({
       message: 'Connector not found',
       ok: false,
       status: 404,

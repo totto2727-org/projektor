@@ -31,7 +31,7 @@ describe('feedback concrete ServerFn shared commands', () => {
           origins: 'https://one.test\nhttps://two.test, ',
         }),
       ),
-    ).resolves.toEqual({ ok: true, value: { id: expect.any(String), token: expect.stringMatching(/^fbk_/u) } })
+    ).resolves.toStrictEqual({ ok: true, value: { id: expect.any(String), token: expect.stringMatching(/^fbk_/u) } })
     expect(
       test.sqlite
         .prepare("SELECT name,description,allowed_origins,created_by FROM feedback_sources WHERE name='Customers'")
@@ -88,7 +88,7 @@ describe('feedback concrete ServerFn shared commands', () => {
   test('updates, rotates and revokes a real scoped feedback source', async () => {
     const test = fixture()
     const reference = { ...scope, sourceId: 'source' }
-    await expect(test.invoke(actions.setFeedbackSourceActive, { ...reference, active: false })).resolves.toEqual({
+    await expect(test.invoke(actions.setFeedbackSourceActive, { ...reference, active: false })).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
@@ -100,7 +100,7 @@ describe('feedback concrete ServerFn shared commands', () => {
     expect(test.sqlite.prepare("SELECT token_hash FROM feedback_sources WHERE id='source'").get()?.token_hash).not.toBe(
       'initial-hash',
     )
-    await expect(test.invoke(actions.revokeFeedbackSource, reference)).resolves.toEqual({
+    await expect(test.invoke(actions.revokeFeedbackSource, reference)).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
@@ -116,14 +116,16 @@ describe('feedback concrete ServerFn shared commands', () => {
 
   test('marks individual and selected feedback reviewed with concrete result counts', async () => {
     const test = fixture()
-    await expect(test.invoke(actions.markFeedbackReviewed, { ...scope, feedbackId: 'feedback' })).resolves.toEqual({
+    await expect(
+      test.invoke(actions.markFeedbackReviewed, { ...scope, feedbackId: 'feedback' }),
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })
     expect(test.sqlite.prepare("SELECT status FROM feedback WHERE id='feedback'").get()?.status).toBe('reviewed')
     await expect(
       test.invoke(actions.markSelectedFeedbackReviewed, { ...scope, feedbackIds: ['feedback2'] }),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       ok: true,
       value: { updated: 1 },
     })
@@ -184,7 +186,9 @@ describe('feedback concrete ServerFn shared commands', () => {
       status: 403,
     })
     test.sqlite.exec("UPDATE group_project_grants SET role='member' WHERE group_id='g1'")
-    await expect(test.invoke(actions.markFeedbackReviewed, { ...scope, feedbackId: 'feedback' })).resolves.toEqual({
+    await expect(
+      test.invoke(actions.markFeedbackReviewed, { ...scope, feedbackId: 'feedback' }),
+    ).resolves.toStrictEqual({
       ok: true,
       value: { ok: true },
     })

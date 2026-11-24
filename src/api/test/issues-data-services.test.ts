@@ -56,7 +56,7 @@ describe('shared issue queries over the API D1 pool', () => {
     expect(row?.labels).toBe('[]')
     expect(row?.status_name).toBeNull()
     const extras = await runTestEffect(queries.getIssueExtras(env.DB, fixture.workspaceId, issue.id))
-    expect(extras.rollup).toEqual({
+    expect(extras.rollup).toStrictEqual({
       byStatus: { cancelled: 1, done: 1 },
       done: 2,
       remaining: 0,
@@ -65,8 +65,8 @@ describe('shared issue queries over the API D1 pool', () => {
     const result = await api(`issues/${issue.id}`)
     const { url, links, ...actual } = result
     expect(typeof url).toBe('string')
-    expect(links).toEqual([])
-    expect(actual).toEqual({ ...row, ...extras })
+    expect(links).toStrictEqual([])
+    expect(actual).toStrictEqual({ ...row, ...extras })
   })
 
   test('keeps cursor tie-breaking, first-page totals, optional body/rollups and assignee metadata', async () => {
@@ -82,7 +82,7 @@ describe('shared issue queries over the API D1 pool', () => {
     expect(page.total).toBe(3)
     expect(page.items[0]).not.toHaveProperty('body')
     expect(page.items[0].assignee_name).toBe('Test User')
-    expect(page.items[0].rollup).toEqual({ byStatus: {}, done: 0, remaining: 0, total: 0 })
+    expect(page.items[0].rollup).toStrictEqual({ byStatus: {}, done: 0, remaining: 0, total: 0 })
     const [createdAt, id] = page.nextCursor!.split(':')
     const next = await runTestEffect(
       queries.listIssues(env.DB, fixture.workspaceId, {
@@ -99,7 +99,7 @@ describe('shared issue queries over the API D1 pool', () => {
     expect({
       ...actual,
       items: (actual.items as Record<string, unknown>[]).map(({ url: _url, ...row }) => row),
-    }).toEqual(page)
+    }).toStrictEqual(page)
   })
 
   test('takes app-supplied visibility and applies numeric custom-field filters without owning authorization', async () => {
@@ -118,7 +118,7 @@ describe('shared issue queries over the API D1 pool', () => {
         eq(schema.issues.projectId, fixture.projectId),
       ),
     )
-    expect(page.items.map((item) => item.id)).toEqual([visible.id])
+    expect(page.items.map((item) => item.id)).toStrictEqual([visible.id])
     await expect(
       runTestEffect(queries.findIssueCustomField(env.DB, fixture.workspaceId, 'missing')),
     ).resolves.toBeNull()
@@ -133,14 +133,14 @@ describe('shared issue queries over the API D1 pool', () => {
         ids: [first.id, second.id, 'missing'],
       }),
     )
-    expect(page.items.map((item) => item.id)).toEqual([second.id, first.id])
+    expect(page.items.map((item) => item.id)).toStrictEqual([second.id, first.id])
     expect(page.missing).toStrictEqual(['PROJ-999', 'missing'])
     expect(page.items[0]).not.toHaveProperty('body')
     const actual = await api(`issues/batch?refs=PROJ-0${second.number},PROJ-999&ids=${first.id},${second.id},missing`)
     expect({
       ...actual,
       items: (actual.items as Record<string, unknown>[]).map(({ url: _url, ...row }) => row),
-    }).toEqual(page)
+    }).toStrictEqual(page)
   })
 
   test('scopes single rows, comments, fields and links to the workspace independently', async () => {
@@ -150,10 +150,10 @@ describe('shared issue queries over the API D1 pool', () => {
     await expect(runTestEffect(queries.getIssue(env.DB, other.workspaceId, { id: issue.id }))).resolves.toBeNull()
     await expect(runTestEffect(listComments(env.DB, other.workspaceId, issue.id))).resolves.toStrictEqual([])
     await expect(runTestEffect(listLinksForIssue(env.DB, other.workspaceId, issue.id))).resolves.toStrictEqual([])
-    await expect(runTestEffect(batchLoadCustomFields(env.DB, other.workspaceId, [issue.id]))).resolves.toEqual({})
+    await expect(runTestEffect(batchLoadCustomFields(env.DB, other.workspaceId, [issue.id]))).resolves.toStrictEqual({})
     const rows = await runTestEffect(listComments(env.DB, fixture.workspaceId, issue.id))
     const actual = await api(`issues/${issue.id}/comments`)
-    expect(actual).toEqual(rows)
+    expect(actual).toStrictEqual(rows)
   })
 
   test('preserves directional links and taxonomy/definition data conversion', async () => {
@@ -170,7 +170,7 @@ describe('shared issue queries over the API D1 pool', () => {
       linkedIssueId: source.id,
       linkedIssueProjectKey: 'PROJ',
     })
-    await expect(api(`issues/${target.id}/links`)).resolves.toEqual(links)
+    await expect(api(`issues/${target.id}/links`)).resolves.toStrictEqual(links)
     await seedTaskStatus(fixture.workspaceId)
     await seedTaskType(fixture.workspaceId)
     await seedCustomFieldDef(fixture.workspaceId, {
@@ -178,11 +178,13 @@ describe('shared issue queries over the API D1 pool', () => {
       options: ['A', 'B'],
       type: 'select',
     })
-    await expect(api('task-statuses')).resolves.toEqual(
+    await expect(api('task-statuses')).resolves.toStrictEqual(
       await runTestEffect(listTaskStatuses(env.DB, fixture.workspaceId)),
     )
-    await expect(api('task-types')).resolves.toEqual(await runTestEffect(listTaskTypes(env.DB, fixture.workspaceId)))
-    await expect(api('custom-fields')).resolves.toEqual(
+    await expect(api('task-types')).resolves.toStrictEqual(
+      await runTestEffect(listTaskTypes(env.DB, fixture.workspaceId)),
+    )
+    await expect(api('custom-fields')).resolves.toStrictEqual(
       await runTestEffect(listCustomFieldDefs(env.DB, fixture.workspaceId)),
     )
   })
@@ -195,7 +197,7 @@ describe('shared issue queries over the API D1 pool', () => {
       .bind(issue.id, fixture.workspaceId, 'needle issue', '')
       .run()
     const rows = await runTestEffect(queries.searchIssues(env.DB, fixture.workspaceId, { query: 'needle', limit: 20 }))
-    expect(rows[0]).toEqual({
+    expect(rows[0]).toStrictEqual({
       id: issue.id,
       number: issue.number,
       title: 'needle issue',
@@ -205,7 +207,7 @@ describe('shared issue queries over the API D1 pool', () => {
       project_key: 'PROJ',
       project_name: 'Test Project',
     })
-    await expect(api('issues/search?q=needle')).resolves.toEqual(rows)
+    await expect(api('issues/search?q=needle')).resolves.toStrictEqual(rows)
     await expect(
       runTestEffect(queries.searchIssues(env.DB, fixture.workspaceId, { query: '***', limit: 20 })),
     ).resolves.toStrictEqual([])

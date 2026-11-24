@@ -68,7 +68,7 @@ describe('issue and related pure data queries', () => {
 
   test('preserves exact detail selector keys, raw labels and absent assignee_name', async () => {
     const row = await runTestEffect(issues.getIssue(db, 'wa', { ref: 'A-01' }))
-    expect(row).toEqual({
+    expect(row).toStrictEqual({
       assignee_id: 'u',
       author_kind: null,
       body: 'Body',
@@ -108,7 +108,7 @@ describe('issue and related pure data queries', () => {
     expect(page.items[0].id).toBe('i2')
     expect(page.items[0]).not.toHaveProperty('body')
     expect(page.items[0]).toHaveProperty('assignee_name', null)
-    expect(page.items[0].rollup).toEqual({ byStatus: {}, done: 0, remaining: 0, total: 0 })
+    expect(page.items[0].rollup).toStrictEqual({ byStatus: {}, done: 0, remaining: 0, total: 0 })
     const next = await runTestEffect(
       issues.listIssues(db, 'wa', { limit: 1, cursor: { createdAt: 100, id: 'i2' }, includeBody: true }, visibility),
     )
@@ -138,12 +138,12 @@ describe('issue and related pure data queries', () => {
       }),
     )
     expect(page.items.map((item) => item.id)).toStrictEqual(['i1'])
-    await expect(runTestEffect(issues.findIssueCustomField(db, 'wa', 'size'))).resolves.toEqual({
+    await expect(runTestEffect(issues.findIssueCustomField(db, 'wa', 'size'))).resolves.toStrictEqual({
       id: 'f',
       type: 'number',
     })
     await expect(runTestEffect(issues.findIssueCustomField(db, 'wa', 'missing'))).resolves.toBeNull()
-    await expect(runTestEffect(issues.getIssueExtras(db, 'wa', 'i1'))).resolves.toEqual({
+    await expect(runTestEffect(issues.getIssueExtras(db, 'wa', 'i1'))).resolves.toStrictEqual({
       customFields: [{ key: 'size', label: 'Size', type: 'number', value: '10' }],
       rollup: { byStatus: { done: 1 }, done: 1, remaining: 0, total: 1 },
     })
@@ -190,7 +190,7 @@ describe('issue and related pure data queries', () => {
       },
     ])
     await expect(runTestEffect(listLinksForIssue(db, 'wb', 'i2'))).resolves.toStrictEqual([])
-    await expect(runTestEffect(batchLoadCustomFields(db, 'wa', ['other']))).resolves.toEqual({})
+    await expect(runTestEffect(batchLoadCustomFields(db, 'wa', ['other']))).resolves.toStrictEqual({})
   })
 
   test('returns the existing search keys and sanitizes FTS operators literally', async () => {
@@ -246,7 +246,7 @@ describe('issue and related pure data queries', () => {
       },
     ])
     const fields = await runTestEffect(listCustomFieldDefs(db, 'wa'))
-    expect(fields.find((field) => field.key === 'choice')?.options).toEqual(['A', 'B'])
+    expect(fields.find((field) => field.key === 'choice')?.options).toStrictEqual(['A', 'B'])
     expect(fields.map((field) => field.workspaceId)).toStrictEqual(['wa', 'wa'])
   })
 

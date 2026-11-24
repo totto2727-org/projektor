@@ -17,7 +17,7 @@ describe('visibleProjectSqlFragment column-expression guard', () => {
   test('accepts a bare or table-qualified column identifier', () => {
     expect(visibleProjectSqlFragment(memberCtx, 'project_id')).not.toBeNull()
     const frag = visibleProjectSqlFragment(memberCtx, 'i.project_id')
-    expect(frag?.params).toEqual(['u1'])
+    expect(frag?.params).toStrictEqual(['u1'])
     expect(frag?.sql).toContain('gpg.project_id = i.project_id')
   })
 

@@ -121,7 +121,7 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
 
     const res = await patch(issue.id, { status: 'in_review', completionReport: report })
     expect(res.status).toBe(200)
-    await expect(completionReportAtOf(issue.id)).resolves.toEqual(expect.any(Number))
+    await expect(completionReportAtOf(issue.id)).resolves.toStrictEqual(expect.any(Number))
     expect((await commentBodies(issue.id)).some((body) => body.includes('Did the thing'))).toBe(true)
   })
 

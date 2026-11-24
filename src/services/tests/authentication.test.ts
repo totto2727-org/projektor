@@ -290,7 +290,9 @@ describe('shared browser authentication without API transport or signing secrets
   test('uses the dev identity only in explicit development and never in production', async () => {
     env.DEV_USER_EMAIL = 'dev@example.test'
     const request = new Request('https://front.example.test/')
-    await expect(authenticateBrowser(request, env)).rejects.toEqual(new BrowserAuthenticationError(401, 'Unauthorized'))
+    await expect(authenticateBrowser(request, env)).rejects.toStrictEqual(
+      new BrowserAuthenticationError(401, 'Unauthorized'),
+    )
     expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM users').get()).toEqual({ count: 0 })
     env.ENVIRONMENT = 'development'
     await expect(authenticateBrowser(request, env)).resolves.toMatchObject({

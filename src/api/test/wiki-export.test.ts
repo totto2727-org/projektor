@@ -372,13 +372,13 @@ describe('wiki export (PROJ-497)', () => {
 
       const space = await exportZip(token, slug, 'scope=space')
       const spaceNames = Object.keys(space.entries ?? {}).toSorted()
-      expect(spaceNames).toEqual(['pages/live-child.md', `pages/${live.slug}.md`])
+      expect(spaceNames).toStrictEqual(['pages/live-child.md', `pages/${live.slug}.md`])
       expect(entryText(space.entries!, `pages/${live.slug}.md`)).toContain('live body')
       expect(entryText(space.entries!, `pages/${live.slug}.md`)).not.toContain('old secret')
 
       const sub = await exportZip(token, slug, `scope=subtree&pageId=${live.slug}`)
       expect(sub.status).toBe(200)
-      expect(Object.keys(sub.entries ?? {}).toSorted()).toEqual(['pages/live-child.md', `pages/${live.slug}.md`])
+      expect(Object.keys(sub.entries ?? {}).toSorted()).toStrictEqual(['pages/live-child.md', `pages/${live.slug}.md`])
       expect(entryText(sub.entries!, `pages/${live.slug}.md`)).toContain('live body')
     })
 

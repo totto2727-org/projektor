@@ -93,7 +93,7 @@ test('plans adoption of the existing D1 without SQL and reconciles without recre
       expect(reconciled.databaseId).toBe(id)
     }).pipe(Effect.provide(D1.ProviderLive())),
   )
-  expect(calls).toEqual(['GET d1/database', `GET d1/database/${id}`])
+  expect(calls).toStrictEqual(['GET d1/database', `GET d1/database/${id}`])
 })
 
 test.each([storage.cache, storage.oauth])('adopts KV namespace $title by exact title', async ({ id, title }) => {
@@ -123,7 +123,7 @@ test.each([storage.cache, storage.oauth])('adopts KV namespace $title by exact t
       expect(reconciled.namespaceId).toBe(id)
     }).pipe(Effect.provide(KV.ProviderLive())),
   )
-  expect(calls).toEqual([`GET ${path}`, `GET ${path}/${id}`])
+  expect(calls).toStrictEqual([`GET ${path}`, `GET ${path}/${id}`])
 })
 
 test('reconciles an existing private R2 bucket with matching settings without writes', async () => {
