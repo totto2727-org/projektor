@@ -46,7 +46,7 @@ describe('covers PROJ-892: windowing (unit)', () => {
   test('outline skips code fences and frontmatter; sectionOf stops at the next same-or-higher heading', () => {
     const md =
       '---\ntitle: x\n# not a heading\n---\n# Top\nintro\n## A\na body\n```\n# fake\n```\n### A1\ndeep\n## B\nb body\n'
-    expect(outlineOf(md)).toEqual(['# Top', '## A', '### A1', '## B'])
+    expect(outlineOf(md)).toStrictEqual(['# Top', '## A', '### A1', '## B'])
     expect(sectionOf(md, 'A')).toBe('## A\na body\n```\n# fake\n```\n### A1\ndeep')
     expect(sectionOf(md, '## b')).toBe('## B\nb body')
     expect(sectionOf(md, 'nope')).toBeUndefined()
@@ -167,7 +167,7 @@ describe('covers PROJ-892: MCP tools', () => {
     }>('get_wiki_page', { slug, maxChars: 40 })
     expect(first.content).toHaveLength(40)
     expect(first.totalChars).toBe(content.length)
-    expect(first.outline).toEqual(['# Intro', '## Details'])
+    expect(first.outline).toStrictEqual(['# Intro', '## Details'])
     expect(first).toHaveProperty('revisionId')
 
     let text = first.content
@@ -216,7 +216,7 @@ describe('covers PROJ-892: MCP tools', () => {
       section: 'gamma',
     })
     expect(miss.sectionFound).toBe(false)
-    expect(miss.outline).toEqual(['# Top', '## Alpha', '## Beta'])
+    expect(miss.outline).toStrictEqual(['# Top', '## Alpha', '## Beta'])
     expect(miss).not.toHaveProperty('content')
   })
 

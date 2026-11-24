@@ -40,7 +40,7 @@ const cases: {
     invoke: (test) => test.invoke(actions.deleteGroup, group),
     check: (test) => {
       expect(test.sqlite.prepare("SELECT id FROM user_groups WHERE id='g1'").get()).toBeUndefined()
-      expect(test.sqlite.prepare("SELECT group_id FROM user_group_members WHERE group_id='g1'").all()).toEqual([])
+      expect(test.sqlite.prepare("SELECT group_id FROM user_group_members WHERE group_id='g1'").all()).toStrictEqual([])
     },
   },
   {

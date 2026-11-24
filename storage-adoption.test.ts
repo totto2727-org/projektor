@@ -81,7 +81,7 @@ test('plans adoption of the existing D1 without SQL and reconciles without recre
       expect(
         yield* provider.diff({ ...identity, olds: props, news: props, output, oldBindings: [], newBindings: [] }),
       ).toBeUndefined()
-      expect(calls).toEqual(['GET d1/database'])
+      expect(calls).toStrictEqual(['GET d1/database'])
       const reconciled = yield* provider.reconcile({
         ...identity,
         olds: undefined,

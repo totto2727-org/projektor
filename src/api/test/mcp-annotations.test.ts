@@ -19,26 +19,26 @@ describe('covers MCP tool annotations (PROJ-887)', () => {
     const missing = coreMCPTools.filter(
       (t) => Predicate.isNullish(t.annotations?.readOnlyHint) || Predicate.isNullish(t.annotations?.openWorldHint),
     )
-    expect(missing.map((t) => t.name)).toEqual([])
+    expect(missing.map((t) => t.name)).toStrictEqual([])
   })
 
   test('openWorldHint is false on every core tool', () => {
     const wrong = coreMCPTools.filter((t) => t.annotations?.openWorldHint !== false)
-    expect(wrong.map((t) => t.name)).toEqual([])
+    expect(wrong.map((t) => t.name)).toStrictEqual([])
   })
 
   test('every read-capability tool is annotated readOnlyHint: true', () => {
     const wrong = coreMCPTools.filter(
       (t) => capabilityForMcpTool(t.name) === 'read' && t.annotations?.readOnlyHint !== true,
     )
-    expect(wrong.map((t) => t.name)).toEqual([])
+    expect(wrong.map((t) => t.name)).toStrictEqual([])
   })
 
   test('readOnlyHint: true only on read-capability tools (never auto-approve a write)', () => {
     const wrong = coreMCPTools.filter(
       (t) => t.annotations?.readOnlyHint === true && capabilityForMcpTool(t.name) !== 'read',
     )
-    expect(wrong.map((t) => t.name)).toEqual([])
+    expect(wrong.map((t) => t.name)).toStrictEqual([])
   })
 
   test('update_wiki_page is not claimed idempotent (each save adds a revision)', () => {
@@ -50,7 +50,7 @@ describe('covers MCP tool annotations (PROJ-887)', () => {
     const missing = coreMCPTools.filter(
       (t) => capabilityForMcpTool(t.name) === 'write' && Predicate.isNullish(t.annotations?.destructiveHint),
     )
-    expect(missing.map((t) => t.name)).toEqual([])
+    expect(missing.map((t) => t.name)).toStrictEqual([])
   })
 
   test('the destructive set matches exactly the 22 tools from the ticket/wiki', () => {
@@ -67,7 +67,7 @@ describe('covers MCP tool annotations (PROJ-887)', () => {
     const mismatched = coreMCPTools.filter(
       (t) => Boolean(t.annotations?.destructiveHint) !== destructiveSet.has(t.name),
     )
-    expect(mismatched.map((t) => t.name)).toEqual([])
+    expect(mismatched.map((t) => t.name)).toStrictEqual([])
   })
 })
 
@@ -95,6 +95,6 @@ describe('tools/list response carries annotations (PROJ-887)', () => {
 
     // Every tool in the wire response must carry annotations at all.
     const missing = res.result.tools.filter((t) => Predicate.isNullish(t.annotations))
-    expect(missing.map((t) => t.name)).toEqual([])
+    expect(missing.map((t) => t.name)).toStrictEqual([])
   })
 })

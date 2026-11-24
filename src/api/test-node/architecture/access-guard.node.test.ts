@@ -246,7 +246,7 @@ describe('covers PROJ-837: project-scoped service operations reach the access gu
       'These exported services take a project-scoped id but never reach services/access.ts. ' +
         'Call assertProjectAccess/hasProjectAccess (or a helper that does), or — if the ' +
         'function is genuinely safe, add it to src/api/test-node/architecture/access-guard-allowlist.ts with a reason.',
-    ).toEqual([])
+    ).toStrictEqual([])
   })
 
   test('allowlist entries are live: each names a real target that is still unguarded', () => {
@@ -254,7 +254,7 @@ describe('covers PROJ-837: project-scoped service operations reach the access gu
       const fn = fns.get(key)
       return !fn || !isTarget(fn) || guarded.has(key)
     })
-    expect(stale, 'Remove these allowlist entries — they no longer need an exception').toEqual([])
+    expect(stale, 'Remove these allowlist entries — they no longer need an exception').toStrictEqual([])
   })
 
   test('regression: share create/revoke are guarded (PROJ-792)', () => {

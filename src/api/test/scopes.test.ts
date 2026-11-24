@@ -83,18 +83,18 @@ describe('covers PROJ-17: scope helpers', () => {
   })
 
   test('parseScopes: parses JSON arrays, fails closed on garbage', () => {
-    expect(parseScopes('["read","write"]')).toEqual(['read', 'write'])
-    expect(parseScopes(null)).toEqual([])
-    expect(parseScopes('not json')).toEqual([])
-    expect(parseScopes('{"a":1}')).toEqual([])
-    expect(parseScopes('["read",2,null]')).toEqual(['read'])
+    expect(parseScopes('["read","write"]')).toStrictEqual(['read', 'write'])
+    expect(parseScopes(null)).toStrictEqual([])
+    expect(parseScopes('not json')).toStrictEqual([])
+    expect(parseScopes('{"a":1}')).toStrictEqual([])
+    expect(parseScopes('["read",2,null]')).toStrictEqual(['read'])
   })
 
   test('parseScopes: accepts the legacy unquoted bracketed format', () => {
     // Some early tokens stored "[read,write]" (not valid JSON) — must still work.
-    expect(parseScopes('[read,write]')).toEqual(['read', 'write'])
-    expect(parseScopes('[ read , write ]')).toEqual(['read', 'write'])
-    expect(parseScopes('[]')).toEqual([])
+    expect(parseScopes('[read,write]')).toStrictEqual(['read', 'write'])
+    expect(parseScopes('[ read , write ]')).toStrictEqual(['read', 'write'])
+    expect(parseScopes('[]')).toStrictEqual([])
     // Round-trips through tokenAllows as a real write-capable token.
     expect(tokenAllows(parseScopes('[read,write]'), 'write')).toBe(true)
   })
@@ -295,7 +295,7 @@ describe('covers PROJ-17: POST /auth/tokens', () => {
  */
 describe('covers OAuth wire scope names (PROJ-655)', () => {
   test('advertises exactly the two namespaced scopes', () => {
-    expect([...OAUTH_SCOPES_SUPPORTED]).toEqual(['projektor:read', 'projektor:write'])
+    expect([...OAUTH_SCOPES_SUPPORTED]).toStrictEqual(['projektor:read', 'projektor:write'])
   })
 
   test('maps each wire scope to the capability it grants', () => {

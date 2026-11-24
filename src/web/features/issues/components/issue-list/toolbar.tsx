@@ -57,8 +57,8 @@ const FilterSelects = function FilterSelects({
             setFilterSprintId('')
           }}
           options={[
-            { value: '', label: 'All projects' },
-            ...uniqueProjects.map((project) => ({ value: project.key, label: project.name })),
+            { label: 'All projects', value: '' },
+            ...uniqueProjects.map(({ key, name }) => ({ label: name, value: key })),
           ]}
         />
       )}
@@ -69,7 +69,7 @@ const FilterSelects = function FilterSelects({
           value={filterSprintId}
           onChange={setFilterSprintId}
           options={[
-            { value: '', label: 'All sprints' },
+            { label: 'All sprints', value: '' },
             ...sprints.map((sprint) => ({
               value: sprint.id,
               label: `${sprint.status === 'active' ? '● ' : ''}${sprint.name}`,
@@ -84,7 +84,7 @@ const FilterSelects = function FilterSelects({
           value={filterType}
           onChange={setFilterType}
           options={[
-            { value: '', label: 'All types' },
+            { label: 'All types', value: '' },
             ...uniqueTypes.map(([key, name]) => ({ value: key, label: name })),
           ]}
         />
@@ -96,8 +96,8 @@ const FilterSelects = function FilterSelects({
           value={filterEpicId}
           onChange={setFilterEpicId}
           options={[
-            { value: '', label: 'All epics' },
-            { value: 'none', label: 'No epic' },
+            { label: 'All epics', value: '' },
+            { label: 'No epic', value: 'none' },
             ...epics.map((epic) => ({
               value: epic.id,
               label: `${epic.project_key ? `${epic.project_key}-${epic.number}` : `#${epic.number}`} ${epic.title}`,
@@ -141,13 +141,13 @@ const SortControls = function SortControls({
         value={sortBy}
         onChange={(v) => setSortBy(v as SortKey)}
         options={[
-          { value: 'created_at', label: 'Created' },
-          { value: 'updated', label: 'Updated' },
-          { value: 'priority', label: 'Priority' },
-          { value: 'status', label: 'Status' },
-          { value: 'title', label: 'Title' },
-          { value: 'assignee', label: 'Assignee' },
-          { value: 'number', label: 'Number' },
+          { label: 'Created', value: 'created_at' },
+          { label: 'Updated', value: 'updated' },
+          { label: 'Priority', value: 'priority' },
+          { label: 'Status', value: 'status' },
+          { label: 'Title', value: 'title' },
+          { label: 'Assignee', value: 'assignee' },
+          { label: 'Number', value: 'number' },
         ]}
       />
       <Button

@@ -97,7 +97,7 @@ export const StatusSelect = function StatusSelect({
       value={issue.status_id ?? ''}
       disabled={busy}
       onChange={onChange}
-      options={statuses.map((selectedStatus) => ({ value: selectedStatus.id, label: selectedStatus.name }))}
+      options={statuses.map(({ id, name }) => ({ label: name, value: id }))}
       buttonStyle={{
         color: categoryColor(issue.status_category),
         fontWeight: 500,

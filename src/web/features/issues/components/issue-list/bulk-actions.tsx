@@ -92,8 +92,8 @@ export function IssueBulkProvider({
             <Select
               value=''
               options={[
-                { value: '', label: 'Change status' },
-                ...statuses.map((status) => ({ value: status.id, label: status.name })),
+                { label: 'Change status', value: '' },
+                ...statuses.map(({ id, name }) => ({ label: name, value: id })),
               ]}
               onChange={(value) => {
                 if (value) {
@@ -106,7 +106,7 @@ export function IssueBulkProvider({
             <Select
               value=''
               options={[
-                { value: '', label: 'Change priority' },
+                { label: 'Change priority', value: '' },
                 ...['urgent', 'high', 'medium', 'low', 'none'].map((value) => ({
                   value,
                   label: value,

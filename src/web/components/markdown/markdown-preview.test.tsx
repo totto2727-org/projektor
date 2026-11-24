@@ -56,7 +56,7 @@ describe('local Comark preview', () => {
     expect(screen.getByText('New preview')).toBeTruthy()
     await act(async () => resolveOld(document('Stale preview')))
     expect(screen.queryByText('Stale preview')).toBeNull()
-    expect(renderDocument.mock.calls.map(([content]) => content)).toEqual(['old', 'new'])
+    expect(renderDocument.mock.calls.map(([content]) => content)).toStrictEqual(['old', 'new'])
   })
 
   test('clears previous entity text during rerender and handles errors safely', async () => {

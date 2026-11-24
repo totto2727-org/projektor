@@ -34,7 +34,7 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
     const body = ['## Acceptance criteria', '', '## Scope', '`src/widget.ts`', '## Verification'].join('\n')
     const result = checkDefinitionOfReady(body)
     expect(result.ready).toBe(false)
-    expect(result.missing).toEqual(['acceptance criteria'])
+    expect(result.missing).toStrictEqual(['acceptance criteria'])
   })
 
   test('flags everything missing for an empty body', () => {

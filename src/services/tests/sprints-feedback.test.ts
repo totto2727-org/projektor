@@ -57,7 +57,7 @@ describe('sprint and feedback database read models', () => {
 
   test('retains sprint model columns, creation ordering and explicit workspace/project scope', async () => {
     const rows = await runTestEffect(listSprints(db, 'wa', { projectId: 'pa' }))
-    expect(rows.map((row) => row.id)).toEqual(['s1', 's2'])
+    expect(rows.map((row) => row.id)).toStrictEqual(['s1', 's2'])
     expect(rows[0]).toEqual({
       createdAt: 10,
       endDate: null,
@@ -70,7 +70,7 @@ describe('sprint and feedback database read models', () => {
       updatedAt: 11,
       workspaceId: 'wa',
     })
-    await expect(runTestEffect(listSprints(db, 'wa', { projectId: 'pb' }))).resolves.toEqual([])
+    await expect(runTestEffect(listSprints(db, 'wa', { projectId: 'pb' }))).resolves.toStrictEqual([])
     await expect(runTestEffect(findSprintById(db, 'wa', 'sb'))).resolves.toBeUndefined()
     await expect(runTestEffect(findSprintById(db, 'wa', 'missing'))).resolves.toBeUndefined()
     await expect(runTestEffect(findSprintById(db, 'wa', 's2'))).resolves.toEqual(rows[1])
@@ -78,7 +78,7 @@ describe('sprint and feedback database read models', () => {
 
   test('retains raw feedback list rows, descending order and combined filters', async () => {
     const rows = await runTestEffect(listFeedback(db, 'wa', { projectId: 'pa' }))
-    expect(rows.map((row) => row.id)).toEqual(['f5', 'f4', 'f3', 'f2', 'f1'])
+    expect(rows.map((row) => row.id)).toStrictEqual(['f5', 'f4', 'f3', 'f2', 'f1'])
     expect(rows[4]).toEqual({
       app_version: '1',
       body: 'Comment',
@@ -97,8 +97,8 @@ describe('sprint and feedback database read models', () => {
       (await runTestEffect(listFeedback(db, 'wa', { projectId: 'pa', sourceId: 'sa', status: 'new' }))).map(
         (row) => row.id,
       ),
-    ).toEqual(['f4', 'f1'])
-    await expect(runTestEffect(listFeedback(db, 'wa', { projectId: 'pb' }))).resolves.toEqual([])
+    ).toStrictEqual(['f4', 'f1'])
+    await expect(runTestEffect(listFeedback(db, 'wa', { projectId: 'pb' }))).resolves.toStrictEqual([])
   })
 
   test('retains source/version aggregate counts, null groups and SQL average semantics', async () => {
@@ -141,12 +141,12 @@ describe('sprint and feedback database read models', () => {
         with_comment_count: 1,
       },
     ])
-    await expect(runTestEffect(readFeedbackSummary(db, 'wa', { projectId: 'pb' }))).resolves.toEqual([])
+    await expect(runTestEffect(readFeedbackSummary(db, 'wa', { projectId: 'pb' }))).resolves.toStrictEqual([])
   })
 
   test('retains raw source metadata and revoked rows without producing API previews', async () => {
     const rows = await runTestEffect(listFeedbackSources(db, 'wa', { projectId: 'pa' }))
-    expect(rows.map((row) => row.id)).toEqual(['sa2', 'sa'])
+    expect(rows.map((row) => row.id)).toStrictEqual(['sa2', 'sa'])
     expect(rows[0]).toEqual({
       allowed_origins: null,
       created_at: 20,
@@ -163,7 +163,7 @@ describe('sprint and feedback database read models', () => {
     })
     await expect(runTestEffect(findFeedbackSourceById(db, 'wa', 'sb'))).resolves.toBeNull()
     await expect(runTestEffect(findFeedbackSourceById(db, 'wa', 'missing'))).resolves.toBeNull()
-    await expect(runTestEffect(listFeedbackSources(db, 'wa', { projectId: 'pb' }))).resolves.toEqual([])
+    await expect(runTestEffect(listFeedbackSources(db, 'wa', { projectId: 'pb' }))).resolves.toStrictEqual([])
   })
 
   test('defers I/O and reports tagged query errors without app semantics', async () => {

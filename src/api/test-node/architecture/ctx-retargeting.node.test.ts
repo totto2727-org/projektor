@@ -26,6 +26,6 @@ describe('no ServiceCtx workspace retargeting', () => {
     const offenders = [...tsFiles(join(SRC, 'mcp')), ...tsFiles(COMMANDS), ...tsFiles(join(SRC, 'services'))].filter(
       (f) => RETARGET.test(readFileSync(f, 'utf8')),
     )
-    expect(offenders).toEqual([])
+    expect(offenders).toStrictEqual([])
   })
 })

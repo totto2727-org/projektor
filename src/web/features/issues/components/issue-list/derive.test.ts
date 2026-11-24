@@ -87,7 +87,7 @@ describe('deriveStatusOptions', () => {
 
   test('skips issues with no status_id', () => {
     const issues = [makeIssue({ status_id: null })]
-    expect(deriveStatusOptions(issues, [])).toEqual([])
+    expect(deriveStatusOptions(issues, [])).toStrictEqual([])
   })
 })
 
@@ -113,7 +113,7 @@ describe('deriveProjectOptions', () => {
   })
 
   test('skips issues with no project_key', () => {
-    expect(deriveProjectOptions([makeIssue({ project_key: null })])).toEqual([])
+    expect(deriveProjectOptions([makeIssue({ project_key: null })])).toStrictEqual([])
   })
 })
 
@@ -137,6 +137,6 @@ describe('deriveTypeOptions', () => {
   })
 
   test('skips issues with no type_key', () => {
-    expect(deriveTypeOptions([makeIssue({ type_key: null })])).toEqual([])
+    expect(deriveTypeOptions([makeIssue({ type_key: null })])).toStrictEqual([])
   })
 })

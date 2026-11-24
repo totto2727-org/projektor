@@ -32,7 +32,7 @@ test('appends review status without selecting or changing populated historical a
     expect(db.prepare('SELECT * FROM attachments ORDER BY id').all()).toEqual(
       before.map((row) => ({ ...row, review_status: null })),
     )
-    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toStrictEqual([])
     expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
   } finally {
     db.close()

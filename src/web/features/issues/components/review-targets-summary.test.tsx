@@ -42,7 +42,7 @@ describe('issue review target summary', () => {
       expect(url.origin).toBe('https://front.test')
       expect(url.pathname).toMatch(/^\/projects\//u)
       expect(url.searchParams.get('workspace')).toBe(workspaceSlug ?? null)
-      expect(url.searchParams.getAll('tab')).toEqual(['review-targets'])
+      expect(url.searchParams.getAll('tab')).toStrictEqual(['review-targets'])
     },
   )
 
@@ -58,7 +58,7 @@ describe('issue review target summary', () => {
     expect(screen.queryByText('Completed')).toBeNull()
     expect(link.className).toContain('border-accent')
     expect(screen.queryByText('レビュー不要')).toBeNull()
-    expect(targets.map((entry) => entry.id)).toEqual(['reference', 'review', 'done'])
+    expect(targets.map((entry) => entry.id)).toStrictEqual(['reference', 'review', 'done'])
   })
 
   test.each([

@@ -129,7 +129,7 @@ describe('code heatmap (PROJ-332)', () => {
     const apiBody = await expectHeatmapOk(apiRes)
     expect(apiBody.prefix).toBe('apps/api/src/services')
     const paths = apiBody.entries.map((e) => e.path).sort()
-    expect(paths).toEqual(['apps/api/src/services/code-heatmap.ts', 'apps/api/src/services/flow-metrics.ts'])
+    expect(paths).toStrictEqual(['apps/api/src/services/code-heatmap.ts', 'apps/api/src/services/flow-metrics.ts'])
     expect(apiBody.entries.every((e) => e.isLeaf)).toBe(true)
     expect(apiBody.entries.every((e) => e.distinctIssueCount === 1)).toBe(true)
   })

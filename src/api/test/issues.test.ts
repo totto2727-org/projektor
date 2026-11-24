@@ -169,7 +169,7 @@ describe('issues API', () => {
     }
     const { page } = await listIssues()
     const numbers = (page.items as { number: number }[]).map((i) => i.number).sort((left, right) => left - right)
-    expect(numbers).toEqual([1, 2, 3])
+    expect(numbers).toStrictEqual([1, 2, 3])
   })
 
   test('concurrent creates in the same project receive distinct issue numbers', async () => {
@@ -1004,7 +1004,7 @@ describe('issues API', () => {
     const { page } = await listIssues(`http://localhost/api/issues?statusIds=${s1.id},${s2.id}`)
     expect(page.items).toHaveLength(2)
     const titles = (page.items as { title: string }[]).map((i) => i.title).sort()
-    expect(titles).toEqual(['Done item', 'Todo item'])
+    expect(titles).toStrictEqual(['Done item', 'Todo item'])
   })
 
   test('filters by multiple priorities (OR)', async () => {
@@ -1027,7 +1027,7 @@ describe('issues API', () => {
     const { page } = await listIssues('http://localhost/api/issues?priorities=urgent,high')
     expect(page.items).toHaveLength(2)
     const titles = (page.items as { title: string }[]).map((i) => i.title).sort()
-    expect(titles).toEqual(['High issue', 'Urgent issue'])
+    expect(titles).toStrictEqual(['High issue', 'Urgent issue'])
   })
 
   test('filters by projectId', async () => {
@@ -1076,7 +1076,7 @@ describe('issues API', () => {
     const { page } = await listIssues(`http://localhost/api/issues?excludeTypeIds=${epic.id}`)
     const titles = (page.items as { title: string }[]).map((i) => i.title).sort()
     // The epic is excluded; the untyped (NULL type_id) issue must NOT be dropped.
-    expect(titles).toEqual(['A plain issue'])
+    expect(titles).toStrictEqual(['A plain issue'])
   })
 
   /*
@@ -1135,10 +1135,10 @@ describe('issues API', () => {
     const cutoff = now - 86_400 // 1 day ago
 
     const before = await listIssues(`http://localhost/api/issues?completedBefore=${cutoff}`)
-    expect((before.page.items as { title: string }[]).map((i) => i.title)).toEqual(['Completed long ago'])
+    expect((before.page.items as { title: string }[]).map((i) => i.title)).toStrictEqual(['Completed long ago'])
 
     const after = await listIssues(`http://localhost/api/issues?completedAfter=${cutoff}`)
-    expect((after.page.items as { title: string }[]).map((i) => i.title)).toEqual(['Completed just now'])
+    expect((after.page.items as { title: string }[]).map((i) => i.title)).toStrictEqual(['Completed just now'])
   })
 
   test('filters by updatedAfter / updatedBefore (PROJ-212)', async () => {
@@ -1153,10 +1153,10 @@ describe('issues API', () => {
     const cutoff = now - 86_400
 
     const before = await listIssues(`http://localhost/api/issues?updatedBefore=${cutoff}`)
-    expect((before.page.items as { title: string }[]).map((i) => i.title)).toEqual(['Edited long ago'])
+    expect((before.page.items as { title: string }[]).map((i) => i.title)).toStrictEqual(['Edited long ago'])
 
     const after = await listIssues(`http://localhost/api/issues?updatedAfter=${cutoff}`)
-    expect((after.page.items as { title: string }[]).map((i) => i.title)).toEqual(['Edited just now'])
+    expect((after.page.items as { title: string }[]).map((i) => i.title)).toStrictEqual(['Edited just now'])
   })
 
   // ─── PROJ-252: flow timestamps (ready_at/claimed_at/done_at) ──────────────
@@ -2208,7 +2208,7 @@ describe('handles GET /api/issues/prioritized', () => {
      * Seeded low-first so a route that returned insertion order rather than the
      * service's ranking would fail here instead of passing by coincidence.
      */
-    expect(body.issues.map((issue) => issue.title)).toEqual(['High prio', 'Low prio'])
+    expect(body.issues.map((issue) => issue.title)).toStrictEqual(['High prio', 'Low prio'])
   })
 
   /*
@@ -2759,7 +2759,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     })
     expect(res.error).toBeUndefined()
     const issue = JSON.parse(res.result!.content[0].text) as Record<string, unknown>
-    expect(Object.keys(issue).toSorted()).toEqual(['id', 'priority', 'title'])
+    expect(Object.keys(issue).toSorted()).toStrictEqual(['id', 'priority', 'title'])
     expect(issue.title).toBe('Fields test')
   })
 
@@ -2784,7 +2784,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     })
     expect(res.error).toBeUndefined()
     const issue = JSON.parse(res.result!.content[0].text) as Record<string, unknown>
-    expect(Object.keys(issue).toSorted()).toEqual(['assignee_id', 'id', 'links', 'rollup', 'sprint_id'])
+    expect(Object.keys(issue).toSorted()).toStrictEqual(['assignee_id', 'id', 'links', 'rollup', 'sprint_id'])
     expect(issue.assignee_id).toBeNull()
     expect(issue.sprint_id).toBeNull()
     // Requested fields keep their real value — empty/zero is not the same as absent.

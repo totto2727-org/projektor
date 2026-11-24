@@ -482,7 +482,7 @@ function CreateEpicModal({
                 ariaLabel='Select project'
                 value={createProjectId}
                 onChange={setCreateProjectId}
-                options={projects.map((project) => ({ value: project.id, label: project.name }))}
+                options={projects.map(({ id, name }) => ({ label: name, value: id }))}
               />
             </div>
           )}

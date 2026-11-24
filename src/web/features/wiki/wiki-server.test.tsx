@@ -201,12 +201,12 @@ describe('wiki direct request-owned queries', () => {
     const test = await fixture()
     const rendered = await runTestEffect(test.effect('https://app.test/wiki?q=Guide', { slug: '' }))
     const initial = initialData(rendered)
-    expect(initial.searchResults.map((page) => page.id).sort()).toEqual(['child', 'page', 'visible-page'])
+    expect(initial.searchResults.map((page) => page.id).sort()).toStrictEqual(['child', 'page', 'visible-page'])
     expect(initial.searchResults.find((page) => page.id === 'visible-page')?.freshness).toEqual({
       staleSince: 86_401,
       state: 'stale',
     })
-    expect(initial.stalePages.map((page) => page.id)).toEqual(['visible-page'])
+    expect(initial.stalePages.map((page) => page.id)).toStrictEqual(['visible-page'])
   })
 
   test('retains explicit project scope plus workspace pages and validates bounded filters', async () => {
@@ -216,8 +216,8 @@ describe('wiki direct request-owned queries', () => {
     )
     const initial = initialData(rendered)
     expect(initial.projectId).toBe('allowed')
-    expect(initial.filteredPages.map((page) => page.id)).toEqual(['page'])
-    expect(initial.searchResults.map((page) => page.id)).toEqual(['page'])
+    expect(initial.filteredPages.map((page) => page.id)).toStrictEqual(['page'])
+    expect(initial.searchResults.map((page) => page.id)).toStrictEqual(['page'])
     await expect(
       runTestEffect(test.effect('https://app.test/wiki?status=invalid', { slug: '' })),
     ).rejects.toMatchObject({ status: 400 })

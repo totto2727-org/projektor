@@ -67,8 +67,8 @@ describe('groups and attachment pure retrieval', () => {
       },
       { createdAt: 3, description: null, grantCount: 1, id: 'g1', memberCount: 2, name: 'Zeta' },
     ])
-    expect((await runTestEffect(listGroups(db, 'wa', { memberUserId: 'u1' }))).map((g) => g.id)).toEqual(['g1'])
-    await expect(runTestEffect(listGroups(db, 'wa', { memberUserId: 'missing' }))).resolves.toEqual([])
+    expect((await runTestEffect(listGroups(db, 'wa', { memberUserId: 'u1' }))).map((g) => g.id)).toStrictEqual(['g1'])
+    await expect(runTestEffect(listGroups(db, 'wa', { memberUserId: 'missing' }))).resolves.toStrictEqual([])
   })
 
   test('retrieves domain group/member/grant rows with explicit tenant boundaries', async () => {
@@ -87,8 +87,8 @@ describe('groups and attachment pure retrieval', () => {
     await expect(runTestEffect(listGroupGrants(db, 'wa', 'g1'))).resolves.toEqual([
       { projectId: 'p1', projectKey: 'ONE', projectName: 'Project', role: 'member' },
     ])
-    await expect(runTestEffect(listGroupMembers(db, 'wa', 'g3'))).resolves.toEqual([])
-    await expect(runTestEffect(listGroupGrants(db, 'wa', 'g3'))).resolves.toEqual([])
+    await expect(runTestEffect(listGroupMembers(db, 'wa', 'g3'))).resolves.toStrictEqual([])
+    await expect(runTestEffect(listGroupGrants(db, 'wa', 'g3'))).resolves.toStrictEqual([])
   })
 
   test('includes zero-group workspace members without leaking memberships from another tenant', async () => {
@@ -101,7 +101,7 @@ describe('groups and attachment pure retrieval', () => {
 
   test('maps file/link/wiki metadata, orders by creation and filters entity type/id/workspace', async () => {
     const rows = await runTestEffect(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'same' }))
-    expect(rows.map((row) => row.id)).toEqual(['a2', 'a3', 'a6', 'a1'])
+    expect(rows.map((row) => row.id)).toStrictEqual(['a2', 'a3', 'a6', 'a1'])
     expect(rows[0]).toEqual({
       contentType: '',
       createdAt: 10,
@@ -128,10 +128,10 @@ describe('groups and attachment pure retrieval', () => {
     })
     await expect(
       runTestEffect(listAttachments(db, 'wa', { entityType: 'issue', entityId: 'missing' })),
-    ).resolves.toEqual([])
+    ).resolves.toStrictEqual([])
     expect(
       (await runTestEffect(listAttachments(db, 'wa', { entityType: 'wiki_page', entityId: 'same' }))).map((a) => a.id),
-    ).toEqual(['a4'])
+    ).toStrictEqual(['a4'])
   })
 
   test('applies app-owned owner and linked-page predicates without losing unavailable refs', async () => {
@@ -143,7 +143,7 @@ describe('groups and attachment pure retrieval', () => {
         linkedWikiVisibility: { sql: 'w.project_id = ?', params: ['hidden'] },
       }),
     )
-    expect(rows.map((row) => row.id)).toEqual(['a2', 'a3', 'a6'])
+    expect(rows.map((row) => row.id)).toStrictEqual(['a2', 'a3', 'a6'])
     expect(rows.every((row) => Predicate.isNullish(row.wikiPage))).toBe(true)
     await expect(
       runTestEffect(findAttachment(db, 'wa', 'a1', { ownerVisibility: { sql: 'a.id != ?', params: ['a1'] } })),

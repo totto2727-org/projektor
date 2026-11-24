@@ -244,7 +244,7 @@ describe('private Core ownership', () => {
     const files = sourceFiles(SOURCE)
     const sources = Object.fromEntries(files.map((path) => [path, readFileSync(path, 'utf8')]))
     const graph = analyze(sources)
-    expect([...violations(graph, ENTRYPOINTS), ...reverseViolations(graph)]).toEqual([])
+    expect([...violations(graph, ENTRYPOINTS), ...reverseViolations(graph)]).toStrictEqual([])
   })
 
   test('follows value re-exports and dynamic imports but ignores erased type imports', () => {
@@ -257,17 +257,17 @@ describe('private Core ownership', () => {
         [barrel]: "export { query } from '../services/boundary-fixture'",
         [domain]: 'export const query = () => undefined',
       })
-    expect(violations(source("import type { query } from '../core/boundary-fixture'"), [entry])).toEqual([])
-    expect(violations(source("import { type query } from '../core/boundary-fixture'"), [entry])).toEqual([])
+    expect(violations(source("import type { query } from '../core/boundary-fixture'"), [entry])).toStrictEqual([])
+    expect(violations(source("import { type query } from '../core/boundary-fixture'"), [entry])).toStrictEqual([])
     expect(violations(source("import { query } from '../core/boundary-fixture'"), [entry])).toHaveLength(1)
     expect(violations(source("import * as domain from '../core/boundary-fixture'"), [entry])).toHaveLength(1)
     expect(violations(source("import domain from '../core/boundary-fixture'"), [entry])).toHaveLength(1)
     expect(violations(source("import '../core/boundary-fixture'"), [entry])).toHaveLength(1)
-    expect(violations(source("export { query } from '../core/boundary-fixture'"), [entry])).toEqual([
+    expect(violations(source("export { query } from '../core/boundary-fixture'"), [entry])).toStrictEqual([
       'src/api/boundary-fixture.ts -> src/core/boundary-fixture.ts -> src/services/boundary-fixture.ts: Core implementation reached from a public adapter',
     ])
     expect(violations(source("void import('../core/boundary-fixture')"), [entry])).toHaveLength(1)
-    expect(violations(source('void env.DB.prepare("SELECT 1")'), [entry])).toEqual([
+    expect(violations(source('void env.DB.prepare("SELECT 1")'), [entry])).toStrictEqual([
       'src/api/boundary-fixture.ts: direct .DB capability',
     ])
     expect(violations(source("void env['DB']"), [entry])).toHaveLength(1)
@@ -284,8 +284,8 @@ describe('private Core ownership', () => {
         [adapter]: 'export const value = 1',
         [shared]: text,
       })
-    expect(reverseViolations(source("import type { value } from '../web/boundary-fixture'"))).toEqual([])
-    expect(reverseViolations(source("export { value } from '../web/boundary-fixture'"))).toEqual([
+    expect(reverseViolations(source("import type { value } from '../web/boundary-fixture'"))).toStrictEqual([])
+    expect(reverseViolations(source("export { value } from '../web/boundary-fixture'"))).toStrictEqual([
       'src/contracts/boundary-fixture.ts -> src/web/boundary-fixture.ts: shared implementation depends on a public adapter',
     ])
     expect(reverseViolations(source("void import('../web/boundary-fixture')"))).toHaveLength(1)
@@ -300,7 +300,7 @@ describe('private Core ownership', () => {
       [client]: "export { query } from '../services/boundary-fixture'",
       [domain]: 'export const query = () => undefined',
     })
-    expect(violations(graph, [entry])).toEqual([
+    expect(violations(graph, [entry])).toStrictEqual([
       'src/api/boundary-fixture.ts -> src/core/client.ts -> src/services/boundary-fixture.ts: Core implementation reached from a public adapter',
     ])
   })

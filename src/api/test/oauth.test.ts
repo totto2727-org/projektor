@@ -1013,7 +1013,7 @@ describe('settings lists and withdraws connectors (PROJ-659)', () => {
     const grants = await res.json<{ id: string; client: string; clientId: string; scopes: string[] }[]>()
     expect(grants).toHaveLength(1)
     expect(grants[0].clientId).toBe(clientId)
-    expect(grants[0].scopes).toEqual(['projektor:read'])
+    expect(grants[0].scopes).toStrictEqual(['projektor:read'])
     /*
      * This client's id is opaque, so it is shown verbatim. A CIMD client's id is a
      * URL, and only its host is shown — never the client_name, which the client

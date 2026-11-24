@@ -134,7 +134,7 @@ describe('shared issue queries over the API D1 pool', () => {
       }),
     )
     expect(page.items.map((item) => item.id)).toEqual([second.id, first.id])
-    expect(page.missing).toEqual(['PROJ-999', 'missing'])
+    expect(page.missing).toStrictEqual(['PROJ-999', 'missing'])
     expect(page.items[0]).not.toHaveProperty('body')
     const actual = await api(`issues/batch?refs=PROJ-0${second.number},PROJ-999&ids=${first.id},${second.id},missing`)
     expect({
@@ -148,8 +148,8 @@ describe('shared issue queries over the API D1 pool', () => {
     await seedComment(issue.id, fixture.userId, 'Shared comment')
     const other = await seedProjectFixture({ role: 'owner' })
     await expect(runTestEffect(queries.getIssue(env.DB, other.workspaceId, { id: issue.id }))).resolves.toBeNull()
-    await expect(runTestEffect(listComments(env.DB, other.workspaceId, issue.id))).resolves.toEqual([])
-    await expect(runTestEffect(listLinksForIssue(env.DB, other.workspaceId, issue.id))).resolves.toEqual([])
+    await expect(runTestEffect(listComments(env.DB, other.workspaceId, issue.id))).resolves.toStrictEqual([])
+    await expect(runTestEffect(listLinksForIssue(env.DB, other.workspaceId, issue.id))).resolves.toStrictEqual([])
     await expect(runTestEffect(batchLoadCustomFields(env.DB, other.workspaceId, [issue.id]))).resolves.toEqual({})
     const rows = await runTestEffect(listComments(env.DB, fixture.workspaceId, issue.id))
     const actual = await api(`issues/${issue.id}/comments`)
@@ -208,9 +208,9 @@ describe('shared issue queries over the API D1 pool', () => {
     await expect(api('issues/search?q=needle')).resolves.toEqual(rows)
     await expect(
       runTestEffect(queries.searchIssues(env.DB, fixture.workspaceId, { query: '***', limit: 20 })),
-    ).resolves.toEqual([])
+    ).resolves.toStrictEqual([])
     await expect(
       runTestEffect(queries.searchIssues(env.DB, fixture.workspaceId, { query: 'needle OR', limit: 20 })),
-    ).resolves.toEqual([])
+    ).resolves.toStrictEqual([])
   })
 })

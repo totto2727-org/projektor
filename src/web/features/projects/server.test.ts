@@ -70,7 +70,7 @@ describe('project pages read named shared queries against migrated D1', () => {
     if (!isValidElement<ComponentProps<typeof ProjectList>>(node)) {
       throw new Error('Expected project list')
     }
-    expect(node.props.initialProjects.map((project) => project.id)).toEqual(['p1'])
+    expect(node.props.initialProjects.map((project) => project.id)).toStrictEqual(['p1'])
     expect(run.transport).toHaveBeenCalledTimes(0)
   })
 
@@ -100,8 +100,8 @@ describe('project pages read named shared queries against migrated D1', () => {
       updatedAt: 1,
       workspaceId: 'w1',
     })
-    expect(node.props.initialIssues.map((issue) => issue.id)).toEqual(['i2', 'i1'])
-    expect(node.props.initialWiki.map((page) => page.id)).toEqual(['page2', 'page1'])
+    expect(node.props.initialIssues.map((issue) => issue.id)).toStrictEqual(['i2', 'i1'])
+    expect(node.props.initialWiki.map((page) => page.id)).toStrictEqual(['page2', 'page1'])
     expect(node.props.initialFlow?.throughputOverTime).toHaveLength(6)
     expect(node.props.workspaceSlug).toBe('alpha')
     expect(run.transport).toHaveBeenCalledTimes(0)
@@ -121,7 +121,7 @@ describe('project pages read named shared queries against migrated D1', () => {
     if (!isValidElement<ComponentProps<typeof ProjectLanding>>(node)) {
       throw new Error('Expected project landing')
     }
-    expect(node.props.initialIssues.map((issue) => issue.id)).toEqual([
+    expect(node.props.initialIssues.map((issue) => issue.id)).toStrictEqual([
       'old-edited',
       'recent-39',
       'recent-38',

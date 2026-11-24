@@ -46,7 +46,7 @@ describe('covers MCP prompts', () => {
     const prompt = json.result.prompts.find((p) => p.name === 'epic-goal')
     expect(prompt).toBeDefined()
     const argNames = prompt!.arguments.map((a) => a.name)
-    expect(argNames).toEqual(['epicRef', 'variant', 'reviewModel', 'cadence', 'checkpointInterval'])
+    expect(argNames).toStrictEqual(['epicRef', 'variant', 'reviewModel', 'cadence', 'checkpointInterval'])
     expect(prompt!.arguments.find((a) => a.name === 'epicRef')?.required).toBe(true)
     expect(prompt!.arguments.find((a) => a.name === 'variant')?.required).toBe(false)
   })

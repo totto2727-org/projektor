@@ -313,7 +313,7 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
     const chain = await seedChain(f, 6)
     await expect(
       formErrorOf(createIssue(ctx, { projectId: f.projectId, title: 'too deep', parentId: chain[5] })),
-    ).resolves.toEqual(['Maximum nesting depth (5) exceeded'])
+    ).resolves.toStrictEqual(['Maximum nesting depth (5) exceeded'])
     await expect(createIssue(ctx, { projectId: f.projectId, title: 'ok', parentId: chain[4] })).resolves.toMatchObject({
       number: expect.any(Number),
     })
@@ -323,17 +323,17 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
     // chain[0] is the 5th ancestor of chain[5] — the same step at which the cap fires.
     // The original loop checked the cycle before the cap on each step; so must the CTE.
     const chain = await seedChain(f, 6)
-    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[5] }))).resolves.toEqual([
+    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[5] }))).resolves.toStrictEqual([
       'Setting this parent would create a cycle',
     ])
   })
 
   test('reports a cycle on a nearer ancestor, and rejects self-parenting', async () => {
     const chain = await seedChain(f, 3)
-    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[2] }))).resolves.toEqual([
+    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[2] }))).resolves.toStrictEqual([
       'Setting this parent would create a cycle',
     ])
-    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[0] }))).resolves.toEqual([
+    await expect(formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[0] }))).resolves.toStrictEqual([
       'An issue cannot be its own parent',
     ])
   })

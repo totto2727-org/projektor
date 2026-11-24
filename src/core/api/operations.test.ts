@@ -65,10 +65,10 @@ describe('covers API Core authorization and presentation boundaries', () => {
       ApiResults.apiListWorkspaces,
       testFixture.handlers.apiListWorkspaces(testFixture.actor),
     )
-    expect(workspaces.map((workspace) => workspace.id)).toEqual(['w'])
+    expect(workspaces.map((workspace) => workspace.id)).toStrictEqual(['w'])
     expect(workspaces[0]).toHaveProperty('createdAt')
     const bootstrap = await reply(ApiUserBootstrap, testFixture.handlers.apiUserBootstrap(testFixture.actor))
-    expect(bootstrap.workspaces.map((workspace) => workspace.id)).toEqual(['w'])
+    expect(bootstrap.workspaces.map((workspace) => workspace.id)).toStrictEqual(['w'])
   })
 
   test('does not let a workspace credential mint an unconfined workspace', async () => {

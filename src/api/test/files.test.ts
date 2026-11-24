@@ -909,7 +909,7 @@ describe('files MCP tools', () => {
       { entityType: 'issue', entityId: ENTITY_ID },
       authHeaders(other.token, other.workspace.slug),
     )
-    expect(result).toEqual([])
+    expect(result).toStrictEqual([])
   })
 
   test('create_link_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {

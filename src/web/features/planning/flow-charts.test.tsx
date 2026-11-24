@@ -98,7 +98,7 @@ describe('flow chart public data and primitive semantics', () => {
     render(<CfdChart data={data} />)
     expect(first('AreaChart').data).toBe(data)
     const areas = calls.get('Area') ?? []
-    expect(areas.map((area) => area.dataKey)).toEqual(['done', 'inReview', 'inProgress', 'backlogTodo'])
+    expect(areas.map((area) => area.dataKey)).toStrictEqual(['done', 'inReview', 'inProgress', 'backlogTodo'])
     expect(areas.every((area) => area.stackId === 'states' && area.type === 'linear' && area.fillOpacity === 1)).toBe(
       true,
     )

@@ -122,7 +122,7 @@ describe('issue and related pure data queries', () => {
     })
     expect(next.items[0]).not.toHaveProperty('rollup')
     const bare = await runTestEffect(issues.listIssues(db, 'wa', { limit: 30, cursor: { createdAt: 100 } }))
-    expect(bare.items).toEqual([])
+    expect(bare.items).toStrictEqual([])
   })
 
   test('applies shared association, status, numeric field and date predicates', async () => {
@@ -137,7 +137,7 @@ describe('issue and related pure data queries', () => {
         customField: { id: 'f', op: 'gte', value: '5' },
       }),
     )
-    expect(page.items.map((item) => item.id)).toEqual(['i1'])
+    expect(page.items.map((item) => item.id)).toStrictEqual(['i1'])
     await expect(runTestEffect(issues.findIssueCustomField(db, 'wa', 'size'))).resolves.toEqual({
       id: 'f',
       type: 'number',
@@ -158,8 +158,8 @@ describe('issue and related pure data queries', () => {
         eq(schema.issues.projectId, 'pa'),
       ),
     )
-    expect(page.items.map((item) => item.id)).toEqual(['i2', 'i1'])
-    expect(page.missing).toEqual(['A-999', 'H-1', 'other'])
+    expect(page.items.map((item) => item.id)).toStrictEqual(['i2', 'i1'])
+    expect(page.missing).toStrictEqual(['A-999', 'H-1', 'other'])
     expect(page.items[0]).not.toHaveProperty('assignee_name')
   })
 
@@ -175,7 +175,7 @@ describe('issue and related pure data queries', () => {
         updated_at: 2,
       },
     ])
-    await expect(runTestEffect(listComments(db, 'wb', 'i1'))).resolves.toEqual([])
+    await expect(runTestEffect(listComments(db, 'wb', 'i1'))).resolves.toStrictEqual([])
     await expect(runTestEffect(listLinksForIssue(db, 'wa', 'i2'))).resolves.toEqual([
       {
         createdAt: 1,
@@ -189,7 +189,7 @@ describe('issue and related pure data queries', () => {
         type: 'blocked_by',
       },
     ])
-    await expect(runTestEffect(listLinksForIssue(db, 'wb', 'i2'))).resolves.toEqual([])
+    await expect(runTestEffect(listLinksForIssue(db, 'wb', 'i2'))).resolves.toStrictEqual([])
     await expect(runTestEffect(batchLoadCustomFields(db, 'wa', ['other']))).resolves.toEqual({})
   })
 
@@ -209,8 +209,10 @@ describe('issue and related pure data queries', () => {
         title: 'Needle one',
       },
     ])
-    await expect(runTestEffect(issues.searchIssues(db, 'wa', { query: 'needle OR', limit: 20 }))).resolves.toEqual([])
-    await expect(runTestEffect(issues.searchIssues(db, 'wa', { query: '***', limit: 20 }))).resolves.toEqual([])
+    await expect(
+      runTestEffect(issues.searchIssues(db, 'wa', { query: 'needle OR', limit: 20 })),
+    ).resolves.toStrictEqual([])
+    await expect(runTestEffect(issues.searchIssues(db, 'wa', { query: '***', limit: 20 }))).resolves.toStrictEqual([])
   })
 
   test('retains taxonomy aliases and definition option decoding', async () => {
@@ -244,7 +246,7 @@ describe('issue and related pure data queries', () => {
     ])
     const fields = await runTestEffect(listCustomFieldDefs(db, 'wa'))
     expect(fields.find((field) => field.key === 'choice')?.options).toEqual(['A', 'B'])
-    expect(fields.map((field) => field.workspaceId)).toEqual(['wa', 'wa'])
+    expect(fields.map((field) => field.workspaceId)).toStrictEqual(['wa', 'wa'])
   })
 
   test("chunks variable-length field, rollup and link metadata loads below D1's bind cap", async () => {
@@ -281,7 +283,7 @@ describe('issue and related pure data queries', () => {
         priorities: [...ids, 'high'].join(','),
       }),
     )
-    expect(page.items.map((row) => row.id)).toEqual(['i1'])
+    expect(page.items.map((row) => row.id)).toStrictEqual(['i1'])
     expect(page.total).toBe(1)
   })
 

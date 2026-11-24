@@ -68,7 +68,7 @@ describe('request-scoped native services', () => {
     let checked = false
     env.CORE.browserScope = (request, options = {}) => {
       expect(Object.getPrototypeOf(options)).toBe(Object.prototype)
-      expect(Object.keys(options).toSorted()).toEqual([
+      expect(Object.keys(options).toSorted()).toStrictEqual([
         'projectHint',
         'requireProject',
         'requireWorkspace',
@@ -97,8 +97,8 @@ describe('request-scoped native services', () => {
     expect(result.a).toBe(result.repeated)
     expect(result.a.user.id).toBe('first')
     expect(result.b.user.id).toBe('second')
-    expect(result.a.workspaces.map((workspace) => workspace.slug)).toEqual(['alpha'])
-    expect(result.b.workspaces).toEqual([])
+    expect(result.a.workspaces.map((workspace) => workspace.slug)).toStrictEqual(['alpha'])
+    expect(result.b.workspaces).toStrictEqual([])
     expect(result.a.auth).toEqual({ kind: 'human', method: 'dev' })
     expect(result.first).not.toHaveProperty('api')
     expect(result.first).not.toHaveProperty('db')

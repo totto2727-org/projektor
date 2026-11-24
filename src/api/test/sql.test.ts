@@ -32,7 +32,7 @@ describe('inChunks', () => {
       called = true
       return []
     })
-    expect(result).toEqual([])
+    expect(result).toStrictEqual([])
     expect(called).toBe(false)
   })
 
@@ -84,7 +84,7 @@ describe('inChunks', () => {
       seen.push(...chunk)
       return []
     })
-    expect(result).toEqual([])
+    expect(result).toStrictEqual([])
     expect(seen).toEqual(items)
   })
 })

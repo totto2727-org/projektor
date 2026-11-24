@@ -128,6 +128,6 @@ describe('covers PROJ-921: migration 0062 clears zero lead times', () => {
         env.DB.prepare('SELECT ready_at FROM issues WHERE id = ?').bind(row.id).first<{ ready_at: number | null }>(),
       ),
     )
-    expect(after.map((a) => a?.ready_at)).toEqual([null, 50, 50])
+    expect(after.map((a) => a?.ready_at)).toStrictEqual([null, 50, 50])
   })
 })

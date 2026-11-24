@@ -123,7 +123,7 @@ describe('wiki export (PROJ-497)', () => {
     const { status, entries } = await exportZip(token, slug, 'scope=space')
     expect(status).toBe(200)
     const names = Object.keys(entries ?? {}).toSorted()
-    expect(names).toEqual(['pages/note-two.md', 'pages/runbook-one.md'])
+    expect(names).toStrictEqual(['pages/note-two.md', 'pages/runbook-one.md'])
 
     expect(entryText(entries!, 'pages/runbook-one.md')).toContain('type: runbook')
     expect(entryText(entries!, 'pages/runbook-one.md')).toContain('Body one')
@@ -144,7 +144,7 @@ describe('wiki export (PROJ-497)', () => {
     })
 
     const { entries } = await exportZip(token, slug, `scope=space&projectId=${project.id}`)
-    expect(Object.keys(entries ?? {})).toEqual(['pages/project-page.md'])
+    expect(Object.keys(entries ?? {})).toStrictEqual(['pages/project-page.md'])
   })
 
   test('exports a subtree: the target page plus all descendants, excluding unrelated pages', async () => {
@@ -163,7 +163,7 @@ describe('wiki export (PROJ-497)', () => {
 
     const { entries } = await exportZip(token, slug, `scope=subtree&pageId=${root.slug}`)
     const names = Object.keys(entries ?? {}).toSorted()
-    expect(names).toEqual(['pages/child.md', 'pages/grandchild.md', 'pages/root.md'])
+    expect(names).toStrictEqual(['pages/child.md', 'pages/grandchild.md', 'pages/root.md'])
   })
 
   test('includes file attachments under attachments/<page-slug>/', async () => {
@@ -171,7 +171,7 @@ describe('wiki export (PROJ-497)', () => {
     await uploadAttachment(token, slug, page.id, 'notes.txt', 'attachment bytes')
 
     const { entries } = await exportZip(token, slug, 'scope=space')
-    expect(Object.keys(entries ?? {}).toSorted()).toEqual([
+    expect(Object.keys(entries ?? {}).toSorted()).toStrictEqual([
       'attachments/with-attachment/notes.txt',
       'pages/with-attachment.md',
     ])
@@ -185,7 +185,7 @@ describe('wiki export (PROJ-497)', () => {
     await createPage(other.token, other.workspace.slug, { title: 'Theirs', content: 'theirs' })
 
     const { entries } = await exportZip(token, slug, 'scope=space')
-    expect(Object.keys(entries ?? {})).toEqual(['pages/mine.md'])
+    expect(Object.keys(entries ?? {})).toStrictEqual(['pages/mine.md'])
   })
 
   test('404s a subtree export for a page id/slug from a different workspace', async () => {
@@ -221,7 +221,7 @@ describe('wiki export (PROJ-497)', () => {
       `scope=space&projectId=${fixture.projectId}`,
     )
     expect(status).toBe(200)
-    expect(Object.keys(entries ?? {})).toEqual(['pages/granted.md'])
+    expect(Object.keys(entries ?? {})).toStrictEqual(['pages/granted.md'])
   })
 
   test('400s when scope is missing or invalid', async () => {
@@ -249,7 +249,7 @@ describe('wiki export (PROJ-497)', () => {
     expect(names).toHaveLength(3)
 
     const contents = names.map((n) => entryText(entries!, n)).sort()
-    expect(contents).toEqual(['first', 'second', 'third'])
+    expect(contents).toStrictEqual(['first', 'second', 'third'])
   })
 
   test("defensively excludes a descendant whose projectId mismatches the subtree root's", async () => {
@@ -289,7 +289,7 @@ describe('wiki export (PROJ-497)', () => {
     const { status, entries } = await exportZip(token, slug, `scope=subtree&pageId=${root.slug}`)
     expect(status).toBe(200)
     const names = Object.keys(entries ?? {})
-    expect(names).toEqual(['pages/root.md'])
+    expect(names).toStrictEqual(['pages/root.md'])
   })
 
   /*
@@ -360,7 +360,7 @@ describe('wiki export (PROJ-497)', () => {
       await trash(leaked.id)
 
       const { entries } = await exportZip(token, slug, 'scope=space')
-      expect(Object.keys(entries ?? {})).toEqual(['pages/kept.md'])
+      expect(Object.keys(entries ?? {})).toStrictEqual(['pages/kept.md'])
     })
 
     test('with a reused slug, exports only the live page and resolves the subtree root to it', async () => {
@@ -393,7 +393,7 @@ describe('wiki export (PROJ-497)', () => {
       await trash(gone.id)
 
       const { entries } = await exportZip(token, slug, `scope=subtree&pageId=${root.id}`)
-      expect(Object.keys(entries ?? {}).toSorted()).toEqual(['pages/kept-child.md', 'pages/tree-root.md'])
+      expect(Object.keys(entries ?? {}).toSorted()).toStrictEqual(['pages/kept-child.md', 'pages/tree-root.md'])
 
       await trash(root.id)
       const after = await exportZip(token, slug, `scope=subtree&pageId=${root.id}`)

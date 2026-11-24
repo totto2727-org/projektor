@@ -53,7 +53,7 @@ describe('covers PROJ-311 group-based project access', () => {
     await seedProject(roles.workspace.id, 'P2')
 
     const owned = await listProjects(roles.owner.token, slug)
-    expect(owned.body.map((p) => p.key).sort()).toEqual(['P1', 'P2'])
+    expect(owned.body.map((p) => p.key).sort()).toStrictEqual(['P1', 'P2'])
   })
 
   test('a grant makes exactly one project visible; others stay hidden', async () => {
@@ -64,7 +64,7 @@ describe('covers PROJ-311 group-based project access', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, granted.id, 'member')
 
     const projects = await listProjects(roles.member.token, slug)
-    expect(projects.body.map((p) => p.key)).toEqual(['SEEN'])
+    expect(projects.body.map((p) => p.key)).toStrictEqual(['SEEN'])
   })
 
   test('a direct fetch of an ungranted project or issue 404s (existence hidden)', async () => {
@@ -90,7 +90,7 @@ describe('covers PROJ-311 group-based project access', () => {
     const project = await seedProject(roles.workspace.id, 'TOGGLE')
     const { groupId } = await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
-    expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toEqual(['TOGGLE'])
+    expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toStrictEqual(['TOGGLE'])
 
     /*
      * Admin removes the member from the group; access is per-request, so the next
@@ -132,7 +132,7 @@ describe('covers PROJ-311 group-based project access', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'viewer')
 
     // Visible in the list...
-    expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toEqual(['RO'])
+    expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toStrictEqual(['RO'])
 
     // ...but a write is a 403, not a 404 (existence is not hidden once granted).
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -219,6 +219,6 @@ describe('visibleProjectIds helper', () => {
     }
 
     const ids = await visibleProjectIds(ctx)
-    expect(ids).toEqual([])
+    expect(ids).toStrictEqual([])
   })
 })

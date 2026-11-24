@@ -158,7 +158,7 @@ describe('shared metrics migrated SQLite reads', () => {
       getFlowMetrics(db, 'wa', { projectId: 'pb', since: DAY, until: now, granularity: 'day' }, now),
     )
     expect(foreign.leadTime).toEqual({ avg: null, count: 0, p50: null, p90: null })
-    expect(foreign.agingWip).toEqual([])
+    expect(foreign.agingWip).toStrictEqual([])
     expect(foreign.factoryHealth).toEqual({
       abandonedClaims: 0,
       gateRejections: 0,

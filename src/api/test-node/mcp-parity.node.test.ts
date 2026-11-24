@@ -637,7 +637,10 @@ describe('covers MCP surface parity (PROJ-623)', () => {
       wiki.getWikiPage(ctx, 'page')
     `,
     )
-    expect([...domainOperations(module, module.ast)].toSorted()).toEqual(['issues.ts:getIssue', 'wiki.ts:getWikiPage'])
+    expect([...domainOperations(module, module.ast)].toSorted()).toStrictEqual([
+      'issues.ts:getIssue',
+      'wiki.ts:getWikiPage',
+    ])
   })
 
   test('follows facade reexports without conflating equal local function names', () => {
@@ -655,7 +658,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
     `,
     )
     expect(facade.imports.get('load')?.name).toBe('getProject')
-    expect([...domainOperations(module, module.ast)].toSorted()).toEqual([
+    expect([...domainOperations(module, module.ast)].toSorted()).toStrictEqual([
       'issues.ts:getIssue',
       'projects.ts:getProject',
     ])
@@ -677,13 +680,13 @@ describe('covers MCP surface parity (PROJ-623)', () => {
       )
       return domainOperations(module, module.ast)
     }
-    expect([...operations('get', '/files/attachment')]).toEqual(['files.ts:getAttachmentForDownload'])
+    expect([...operations('get', '/files/attachment')]).toStrictEqual(['files.ts:getAttachmentForDownload'])
     const upload = operations('post', '/files')
     expect(upload.has('files.ts:uploadStoredAttachment')).toBe(true)
     expect(upload.has('files.ts:recordUpload')).toBe(true)
     expect(upload.has('files.ts:getAttachmentForDownload')).toBe(false)
-    expect([...operations('get', '/wiki-export')]).toEqual(['wiki-export.ts:exportWiki'])
-    expect([...operations('get', '/unregistered')]).toEqual([])
+    expect([...operations('get', '/wiki-export')]).toStrictEqual(['wiki-export.ts:exportWiki'])
+    expect([...operations('get', '/unregistered')]).toStrictEqual([])
   })
 
   test('finds the source it is meant to be checking', () => {
@@ -709,13 +712,13 @@ describe('covers MCP surface parity (PROJ-623)', () => {
   })
 
   test('traces concrete file I/O wrappers to metadata operations without creating binary MCP contracts', () => {
-    expect([...(fileWrapperCalls.get('uploadStoredAttachment') ?? [])].toSorted()).toEqual([
+    expect([...(fileWrapperCalls.get('uploadStoredAttachment') ?? [])].toSorted()).toStrictEqual([
       'assertEntityWritable',
       'assertUploadAllowed',
       'recordUpload',
     ])
-    expect([...(fileWrapperCalls.get('getStoredAttachment') ?? [])]).toEqual(['getAttachmentForDownload'])
-    expect([...(fileWrapperCalls.get('deleteStoredAttachment') ?? [])]).toEqual(['deleteAttachment'])
+    expect([...(fileWrapperCalls.get('getStoredAttachment') ?? [])]).toStrictEqual(['getAttachmentForDownload'])
+    expect([...(fileWrapperCalls.get('deleteStoredAttachment') ?? [])]).toStrictEqual(['deleteAttachment'])
     for (const fn of ['assertUploadAllowed', 'recordUpload', 'getAttachmentForDownload', 'deleteAttachment']) {
       expect(restIdentifiers.has(fn)).toBe(true)
     }
@@ -738,7 +741,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
       }
       function unrelated() { recordUpload() }
     `)
-    expect([...(calls.get('deleteStoredAttachment') ?? [])]).toEqual(['deleteAttachment'])
+    expect([...(calls.get('deleteStoredAttachment') ?? [])]).toStrictEqual(['deleteAttachment'])
   })
 
   test('has no service function name exported from two different files', () => {
@@ -748,7 +751,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
       byName.set(fn, [...(byName.get(fn) ?? []), key.split(':')[0]])
     }
     const collisions = [...byName].filter(([, files]) => files.length > 1)
-    expect(collisions).toEqual([])
+    expect(collisions).toStrictEqual([])
   })
 
   describe('catalog vs runtime registry', () => {
@@ -763,7 +766,9 @@ describe('covers MCP surface parity (PROJ-623)', () => {
 
     test('resolves every runtime tool handler to an actual domain operation', () => {
       expect([...toolOperations.keys()].toSorted()).toEqual([...runtimeToolNames].toSorted())
-      expect([...toolOperations].filter(([, operations]) => operations.size === 0).map(([name]) => name)).toEqual([])
+      expect([...toolOperations].filter(([, operations]) => operations.size === 0).map(([name]) => name)).toStrictEqual(
+        [],
+      )
     })
 
     test('has no duplicate tool names', () => {
@@ -772,7 +777,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
         counts.set(name, (counts.get(name) ?? 0) + 1)
       }
       const dupes = [...counts].filter(([, n]) => n > 1).map(([name]) => name)
-      expect(dupes).toEqual([])
+      expect(dupes).toStrictEqual([])
     })
 
     test('classifies every tool into exactly one group', () => {
@@ -783,7 +788,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
         }
       }
       const unclassified = runtimeToolNames.filter((n) => (byTool.get(n) ?? []).length !== 1)
-      expect(unclassified).toEqual([])
+      expect(unclassified).toStrictEqual([])
       for (const groups of byTool.values()) {
         expect(['Coordination', 'Project data']).toContain(groups[0])
       }
@@ -793,7 +798,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
       const bad = coreMCPTools
         .filter((t) => !t.description?.trim() || (t.inputSchema as { type?: string } | undefined)?.type !== 'object')
         .map((t) => t.name)
-      expect(bad).toEqual([])
+      expect(bad).toStrictEqual([])
     })
   })
 
@@ -827,7 +832,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
       const stale = [...Object.keys(MCP_ONLY), ...Object.keys(REST_ONLY), ...Object.keys(TOOL_NAME_ALIASES)].filter(
         (k) => !keys.has(k),
       )
-      expect(stale).toEqual([])
+      expect(stale).toStrictEqual([])
     })
 
     test('drops entries whose gap has been closed', () => {
@@ -836,14 +841,14 @@ describe('covers MCP surface parity (PROJ-623)', () => {
         ...Object.keys(MCP_ONLY).filter((key) => byKey.get(key)?.onRest),
         ...Object.keys(REST_ONLY).filter((key) => byKey.get(key)?.onMcp),
       ]
-      expect(fixed).toEqual([])
+      expect(fixed).toStrictEqual([])
     })
 
     test('states a reason for every entry', () => {
       const empty = [...Object.entries(MCP_ONLY), ...Object.entries(REST_ONLY)]
         .filter(([, reason]) => reason.trim().length < 10)
         .map(([k]) => k)
-      expect(empty).toEqual([])
+      expect(empty).toStrictEqual([])
     })
 
     test('aliases only names that differ from the derived one', () => {

@@ -1833,7 +1833,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       ),
     )
     expect(result.type).toBe('runbook')
-    expect(result.tags).toEqual(['ops', 'oncall'])
+    expect(result.tags).toStrictEqual(['ops', 'oncall'])
     expect(result.status).toBe('current')
   })
 
@@ -1923,7 +1923,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     const mcpListed = mcpData<{ title: string }[]>(
       await mcpCall(workspaceId, 'list_wiki_pages', { type: 'whitepaper' }, authHeaders(token, slug)),
     )
-    expect(mcpListed.map((r) => r.title)).toEqual(['Freeform Filter Whitepaper'])
+    expect(mcpListed.map((r) => r.title)).toStrictEqual(['Freeform Filter Whitepaper'])
   })
 
   test('rejects an invalid `status` enum value with a structured error', async () => {
@@ -2046,7 +2046,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     )
     expect(page.type).toBe('adr')
     expect(page.status).toBe('deprecated')
-    expect(page.tags).toEqual([])
+    expect(page.tags).toStrictEqual([])
   })
 
   test('update_wiki_page leaves existing frontmatter metadata unchanged when content is omitted', async () => {
@@ -2071,7 +2071,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     )
     expect(page.type).toBe('runbook')
     expect(page.status).toBe('current')
-    expect(page.tags).toEqual(['ops', 'oncall'])
+    expect(page.tags).toStrictEqual(['ops', 'oncall'])
   })
 
   test('update_wiki_page rejects invalid frontmatter on a content edit', async () => {
@@ -2169,7 +2169,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     const result = mcpData<{ title: string }[]>(
       await mcpCall(workspaceId, 'list_wiki_pages', { tags: ['ops'] }, authHeaders(token, slug)),
     )
-    expect(result.map((r) => r.title)).toEqual(['Mcp Tagged Ops'])
+    expect(result.map((r) => r.title)).toStrictEqual(['Mcp Tagged Ops'])
   })
 
   test('covers REST GET /api/wiki/search filters by type/status/tags on top of the FTS match', async () => {
@@ -2218,8 +2218,8 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       }),
     ).pipe(Schema.mutable)
     const [hit] = await readNativeJson(res, resShape)
-    expect(hit.tags).toEqual(['ops', 'oncall'])
-    expect(hit.owners).toEqual(['alice', 'bob'])
+    expect(hit.tags).toStrictEqual(['ops', 'oncall'])
+    expect(hit.owners).toStrictEqual(['alice', 'bob'])
 
     const listRes = await fetchNativeApi('http://localhost/api/wiki?type=runbook', {
       headers: authHeaders(token, slug),
@@ -2252,7 +2252,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     const result = mcpData<{ items: { title: string }[] }>(
       await mcpCall(workspaceId, 'search_wiki', { query: 'widget', type: 'spec' }, authHeaders(token, slug)),
     )
-    expect(result.items.map((item) => item.title)).toEqual(['Widget Spec'])
+    expect(result.items.map((item) => item.title)).toStrictEqual(['Widget Spec'])
   })
 })
 
@@ -4234,7 +4234,7 @@ describe('wiki write atomicity (PROJ-511)', () => {
           ? 1
           : 0,
     )
-    expect(statuses).toEqual([201, 409])
+    expect(statuses).toStrictEqual([201, 409])
 
     const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(token, slug),
@@ -4916,7 +4916,7 @@ describe('wiki page templates (PROJ-491)', () => {
     const result = mcpData<{ title: string }[]>(
       await mcpCall(workspaceId, 'list_wiki_templates', {}, authHeaders(token, slug)),
     )
-    expect(result.map((r) => r.title)).toEqual(['Runbook Template'])
+    expect(result.map((r) => r.title)).toStrictEqual(['Runbook Template'])
   })
 })
 
@@ -5133,7 +5133,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       headers: authHeaders(watcher.token, slug),
       body: JSON.stringify({ content: 'self edit' }),
     })
-    await expect(notifications(watcher.token)).resolves.toEqual([])
+    await expect(notifications(watcher.token)).resolves.toStrictEqual([])
 
     await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'PUT',
@@ -5162,7 +5162,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'after unwatch' }),
     })
-    await expect(notifications(watcher.token)).resolves.toEqual([])
+    await expect(notifications(watcher.token)).resolves.toStrictEqual([])
   })
 
   test('subtree watch covers a page created now under it AND a later edit to that descendant', async () => {
@@ -5196,7 +5196,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       body: JSON.stringify({ subtree: false }),
     })
     await createChildPage('child-narrow', 'Child Narrow', 'child', parent.id)
-    await expect(notifications(watcher.token)).resolves.toEqual([])
+    await expect(notifications(watcher.token)).resolves.toStrictEqual([])
   })
 
   test('template pages never generate watcher notifications', async () => {
@@ -5212,7 +5212,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '---\ntemplate: true\n---\nedited' }),
     })
-    await expect(notifications(watcher.token)).resolves.toEqual([])
+    await expect(notifications(watcher.token)).resolves.toStrictEqual([])
   })
 
   test("a cascade delete generates a single 'deleted' notification for the root, not one per descendant", async () => {

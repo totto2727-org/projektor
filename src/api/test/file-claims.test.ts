@@ -304,7 +304,7 @@ describe('file Claims API', () => {
         const right = String(selectedRight)
         return left < right ? -1 : left > right ? 1 : 0
       })
-    expect(paths).toEqual(['src/multi-a.ts', 'src/multi-b.ts'])
+    expect(paths).toStrictEqual(['src/multi-a.ts', 'src/multi-b.ts'])
   })
 
   // PROJ-337: force:true override inserts a claim_conflicts row (forced=1)

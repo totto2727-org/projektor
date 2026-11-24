@@ -167,7 +167,7 @@ describe('validateToolArgs', () => {
         limit: 3,
         extra: 1,
       }),
-    ).toEqual([])
+    ).toStrictEqual([])
   })
 
   test('reports enum, item, length, integer and minimum violations with paths', () => {
@@ -178,13 +178,13 @@ describe('validateToolArgs', () => {
       title: 'toolong',
     })
     const paths = issues.map((issue) => issue.path).sort()
-    expect(paths).toEqual(['labels', 'labels[1]', 'limit', 'status', 'title'])
+    expect(paths).toStrictEqual(['labels', 'labels[1]', 'limit', 'status', 'title'])
   })
 
   test('stays as lenient as the services: numeric/boolean strings and null for optional fields', () => {
-    expect(validateToolArgs(schema, { status: 'done', limit: '3', labels: null, title: null })).toEqual([])
-    expect(validateToolArgs({ properties: { flag: { type: 'boolean' } } }, { flag: 'true' })).toEqual([])
-    expect(validateToolArgs(schema, { status: null }).map((i) => i.path)).toEqual(['status'])
-    expect(validateToolArgs(schema, { status: 'todo', limit: 'ten' }).map((i) => i.path)).toEqual(['limit'])
+    expect(validateToolArgs(schema, { status: 'done', limit: '3', labels: null, title: null })).toStrictEqual([])
+    expect(validateToolArgs({ properties: { flag: { type: 'boolean' } } }, { flag: 'true' })).toStrictEqual([])
+    expect(validateToolArgs(schema, { status: null }).map((i) => i.path)).toStrictEqual(['status'])
+    expect(validateToolArgs(schema, { status: 'todo', limit: 'ten' }).map((i) => i.path)).toStrictEqual(['limit'])
   })
 })

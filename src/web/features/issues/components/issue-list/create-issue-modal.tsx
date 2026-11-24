@@ -78,7 +78,7 @@ const CreateIssueModalFields = function CreateIssueModalFields({
             ariaLabel='Select project'
             value={createProjectId}
             onChange={setCreateProjectId}
-            options={projects.map((project) => ({ value: project.id, label: project.name }))}
+            options={projects.map(({ id, name }) => ({ label: name, value: id }))}
           />
         </div>
       )}
@@ -110,8 +110,8 @@ const CreateIssueModalFields = function CreateIssueModalFields({
             value={createTypeId}
             onChange={setCreateTypeId}
             options={[
-              { value: '', label: 'No type' },
-              ...taskTypes.map((taskType) => ({ value: taskType.id, label: taskType.name })),
+              { label: 'No type', value: '' },
+              ...taskTypes.map(({ id, name }) => ({ label: name, value: id })),
             ]}
           />
         </div>
@@ -125,10 +125,7 @@ const CreateIssueModalFields = function CreateIssueModalFields({
             ariaLabel='Select status'
             value={createStatusId}
             onChange={setCreateStatusId}
-            options={[
-              { value: '', label: 'Default' },
-              ...statuses.map((selectedStatus) => ({ value: selectedStatus.id, label: selectedStatus.name })),
-            ]}
+            options={[{ label: 'Default', value: '' }, ...statuses.map(({ id, name }) => ({ label: name, value: id }))]}
           />
         </div>
       )}

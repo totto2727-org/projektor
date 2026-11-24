@@ -316,7 +316,7 @@ describe('realtime WebSockets (Opt-In)', () => {
       .bind(projectId, roles.member.user.id)
       .run()
     await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 0 })
-    expect(ws.deserializeAttachment().visibleProjectIds).toEqual([])
+    expect(ws.deserializeAttachment().visibleProjectIds).toStrictEqual([])
     expect(ws.send).not.toHaveBeenCalled()
   })
 

@@ -297,13 +297,13 @@ describe('groups MCP parity', () => {
       content: { text: string }[]
     }>
     const memberGroups = mcpData<{ name: string }[]>(memberList)
-    expect(memberGroups.map((g) => g.name)).toEqual(['G1'])
+    expect(memberGroups.map((g) => g.name)).toStrictEqual(['G1'])
 
     const ownerList = (await mcpCall(workspaceId, 'list_groups', {}, ownerHeaders)) as JsonRpcResult<{
       content: { text: string }[]
     }>
     const ownerGroups = mcpData<{ name: string }[]>(ownerList)
-    expect(ownerGroups.map((g) => g.name).sort()).toEqual(['G1', 'G2'])
+    expect(ownerGroups.map((g) => g.name).sort()).toStrictEqual(['G1', 'G2'])
   })
 
   test('full admin loop over MCP: group -> grant -> member', async () => {

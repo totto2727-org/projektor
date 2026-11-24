@@ -4,7 +4,7 @@ import { parseWikiLinkTargets } from '#commands/wiki-links.ts'
 
 describe('parseWikiLinkTargets (PROJ-483)', () => {
   test('returns no targets for content with no links', () => {
-    expect(parseWikiLinkTargets('just some body text')).toEqual([])
+    expect(parseWikiLinkTargets('just some body text')).toStrictEqual([])
   })
 
   test('parses a bare wikilink as a title target', () => {
@@ -30,15 +30,15 @@ describe('parseWikiLinkTargets (PROJ-483)', () => {
   })
 
   test('ignores an absolute-URL markdown link', () => {
-    expect(parseWikiLinkTargets('[external](https://example.com/wiki/foo)')).toEqual([])
+    expect(parseWikiLinkTargets('[external](https://example.com/wiki/foo)')).toStrictEqual([])
   })
 
   test('ignores a protocol-relative markdown link', () => {
-    expect(parseWikiLinkTargets('[external](//example.com/wiki/foo)')).toEqual([])
+    expect(parseWikiLinkTargets('[external](//example.com/wiki/foo)')).toStrictEqual([])
   })
 
   test('ignores a markdown link with no recognizable wiki path or slug param', () => {
-    expect(parseWikiLinkTargets('[label](/issues/view?id=123)')).toEqual([])
+    expect(parseWikiLinkTargets('[label](/issues/view?id=123)')).toStrictEqual([])
   })
 
   test('decodes a percent-escaped slug in the query-param form', () => {
@@ -46,7 +46,7 @@ describe('parseWikiLinkTargets (PROJ-483)', () => {
   })
 
   test('ignores a markdown link with a malformed percent-escape instead of throwing', () => {
-    expect(parseWikiLinkTargets('[docs](/wiki?slug=bad%escape)')).toEqual([])
+    expect(parseWikiLinkTargets('[docs](/wiki?slug=bad%escape)')).toStrictEqual([])
   })
 
   test('collects multiple targets across a mix of wikilinks and markdown links', () => {

@@ -422,7 +422,7 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(result?.initialData.page.nextCursor).toBeNull()
     expect(result?.initialData.search.results).toHaveLength(20)
     expect(result?.initialData.search.results?.every((entry) => entry.project_id === project.id)).toBe(true)
-    await expect(data.run(searchDataIssues(scope, workspace.id, 'secret'))).resolves.toEqual([])
+    await expect(data.run(searchDataIssues(scope, workspace.id, 'secret'))).resolves.toStrictEqual([])
   })
 
   test('keeps query schema and driver failures in the typed Effect error channel', async () => {

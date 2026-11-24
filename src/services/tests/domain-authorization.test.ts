@@ -149,7 +149,7 @@ describe('current effective grants at shared command boundaries', () => {
       { linkedIssueTitle: 'Secret title' },
     ])
     testFixture.sqlite.exec("DELETE FROM group_project_grants WHERE project_id = 'hidden'")
-    await expect(listLinksForIssue(testFixture.ctx, { issueId: 'i' })).resolves.toEqual([])
+    await expect(listLinksForIssue(testFixture.ctx, { issueId: 'i' })).resolves.toStrictEqual([])
     await expect(getIssue(testFixture.ctx, { id: 'i' })).resolves.toMatchObject({ links: [] })
     await expect(listLinksForIssue(testFixture.ctx, { issueId: 'secret' })).rejects.toMatchObject({ kind: 'not_found' })
     testFixture.ctx.role = 'admin'

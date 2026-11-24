@@ -78,7 +78,7 @@ describe('covers PROJ-863: no stale embedded data', () => {
 
   test('deleting the linked issue', async () => {
     await call('DELETE', `/api/issues/${otherId}`)
-    expect((await get(f.issueId)).links).toEqual([])
+    expect((await get(f.issueId)).links).toStrictEqual([])
   })
 
   test("renaming the issue's status", async () => {

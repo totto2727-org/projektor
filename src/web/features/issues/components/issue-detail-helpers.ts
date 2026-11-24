@@ -101,10 +101,10 @@ export const LINK_TYPE_LABELS: Record<string, string> = {
 }
 
 export const LINK_TYPE_OPTIONS = [
-  { value: 'relates_to', label: 'Relates to' },
-  { value: 'blocks', label: 'Blocks' },
-  { value: 'blocked_by', label: 'Blocked by' },
-  { value: 'duplicates', label: 'Duplicates' },
+  { label: 'Relates to', value: 'relates_to' },
+  { label: 'Blocks', value: 'blocks' },
+  { label: 'Blocked by', value: 'blocked_by' },
+  { label: 'Duplicates', value: 'duplicates' },
 ]
 
 const RELATIVE_DATE_WINDOW_DAYS = 7

@@ -34,8 +34,8 @@ describe('covers PROJ-581: viewers see projects only through grants, consistentl
     await seedProject(ws.id, 'BBB')
     const ctx = viewerCtx(ws.id, viewer.id)
 
-    await expect(ids(listProjects(ctx))).resolves.toEqual([])
-    await expect(ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).resolves.toEqual([])
+    await expect(ids(listProjects(ctx))).resolves.toStrictEqual([])
+    await expect(ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).resolves.toStrictEqual([])
 
     await seedGroupGrant(ws.id, viewer.id, project.id, 'viewer')
     await expect(ids(listProjects(ctx))).resolves.toEqual([project.id])
@@ -57,7 +57,7 @@ describe('covers PROJ-581: viewers see projects only through grants, consistentl
       .first<{ id: string }>()
     expect(group).not.toBeNull()
 
-    await expect(ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).resolves.toEqual([])
+    await expect(ids(listProjectsAcrossWorkspaces(pub.id, env.DB))).resolves.toStrictEqual([])
     await env.DB.prepare("INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, 'viewer')")
       .bind(group?.id, published.id)
       .run()

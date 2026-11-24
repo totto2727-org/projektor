@@ -110,7 +110,7 @@ describe("covers PROJ-818: link reads don't reveal pages in hidden projects", ()
 
     // The owner can see the project: nothing broken.
     const asOwner = await broken(owner.token, workspace.slug)
-    expect(asOwner.filter((b) => b.sourceSlug === 'public-index')).toEqual([])
+    expect(asOwner.filter((b) => b.sourceSlug === 'public-index')).toStrictEqual([])
   })
 })
 

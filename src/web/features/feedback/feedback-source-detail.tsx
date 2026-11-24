@@ -72,7 +72,7 @@ const FeedbackSourceHeader = function FeedbackSourceHeader({
               `/feedback/${encodeURIComponent(id)}?projectId=${encodeURIComponent(projectId)}&workspace=${encodeURIComponent(workspaceSlug)}`,
             )
           }}
-          options={sources.map((s) => ({ value: s.id, label: s.name }))}
+          options={sources.map(({ id, name }) => ({ label: name, value: id }))}
         />
       )}
     </div>

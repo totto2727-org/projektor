@@ -314,7 +314,7 @@ describe('covers PROJ-891: MCP tools', () => {
     const comments = await tool<{ items: { body: string }[] }>('list_comments', {
       issueId: issue.id,
     })
-    expect(comments.items.map((item) => item.body)).toEqual(['hi'])
+    expect(comments.items.map((item) => item.body)).toStrictEqual(['hi'])
     const activity = await tool<{ items: unknown[] }>('list_project_activity', {
       projectId: f.projectId,
     })
@@ -346,7 +346,7 @@ describe('covers PROJ-891: MCP tools', () => {
     const again = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
       cursor: changes.next,
     })
-    expect(again.items).toEqual([])
+    expect(again.items).toStrictEqual([])
   })
 
   test('wiki_tree returns {items}', async () => {
@@ -373,14 +373,14 @@ describe('covers PROJ-891: MCP tools', () => {
     const none = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
       since: future,
     })
-    expect(none.items).toEqual([])
+    expect(none.items).toStrictEqual([])
     expect(none).not.toHaveProperty('next')
 
     const empty = await tool<{ items: unknown[] }>('list_wiki_changes', {
       since: future,
       cursor: '',
     })
-    expect(empty.items).toEqual([])
+    expect(empty.items).toStrictEqual([])
   })
 
   test('list_wiki_changes: `next` advances when the batch had changes, and a section read is flagged partial', async () => {

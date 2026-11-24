@@ -318,8 +318,8 @@ export const MetricsDashboard = function MetricsDashboard({
                       <Select
                         value={field.state.value}
                         options={[
-                          { value: 'week', label: 'Weekly' },
-                          { value: 'day', label: 'Daily' },
+                          { label: 'Weekly', value: 'week' },
+                          { label: 'Daily', value: 'day' },
                         ]}
                         ariaLabel='Chart granularity'
                         onChange={(value) => field.handleChange(value as 'day' | 'week')}

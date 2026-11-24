@@ -81,11 +81,11 @@ describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () =
     expect(
       missing,
       "New FK with ON DELETE: D1 won't reliably run it. Clean up explicitly in the parent's delete path and add an entry to fk-cleanup-allowlist.ts (AGENTS.md: 'Deletes never rely on FK cascades').",
-    ).toEqual([])
+    ).toStrictEqual([])
   })
 
   test("no allowlist entry for an FK that doesn't exist", () => {
-    expect(Object.keys(FK_CLEANUP_ALLOWLIST).filter((key) => !declared.has(key))).toEqual([])
+    expect(Object.keys(FK_CLEANUP_ALLOWLIST).filter((key) => !declared.has(key))).toStrictEqual([])
   })
 
   test('every cleanedBy reference exists and mentions the child table', () => {

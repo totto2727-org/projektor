@@ -92,7 +92,7 @@ describe('0028 viewer-preserving migration', () => {
     const memberGrants = await env.DB.prepare('SELECT DISTINCT role FROM group_project_grants WHERE group_id = ?')
       .bind(ctx.memberGroupId)
       .all<{ role: string }>()
-    expect(memberGrants.results.map((result) => result.role)).toEqual(['member'])
+    expect(memberGrants.results.map((result) => result.role)).toStrictEqual(['member'])
   })
 
   test('is idempotent — re-running changes nothing', async () => {

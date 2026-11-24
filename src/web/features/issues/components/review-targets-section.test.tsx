@@ -228,7 +228,7 @@ test('puts in-review targets first with deterministic ties and gives access link
     within(list)
       .getAllByRole('link')
       .map((link) => link.textContent),
-  ).toEqual(['a.pdf', 'b.pdf', 'z.pdf'])
+  ).toStrictEqual(['a.pdf', 'b.pdf', 'z.pdf'])
   expect(screen.getByRole('link', { name: 'a.pdf' }).getAttribute('href')).toBe('/api/files/a?workspace=workspace')
   expect(screen.getByRole('link', { name: 'b.pdf' }).getAttribute('href')).toBe('https://example.com/b')
   expect(screen.getByRole('link', { name: '課題全体に戻る' }).getAttribute('href')).toBe(props.issueHref)

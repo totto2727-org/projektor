@@ -129,7 +129,7 @@ test('labels the workspace-wide scope prominently and puts reviewing first among
     within(navigation)
       .getAllByRole('link')
       .map((link) => link.textContent),
-  ).toEqual(['All issues', 'レビュー中', '修正中', '要修正', '未完了の対象'])
+  ).toStrictEqual(['All issues', 'レビュー中', '修正中', '要修正', '未完了の対象'])
   expect(navigation.className).toContain('flex-wrap')
   Iterable.forEach(within(navigation).getAllByRole('link'), (link) => {
     expect(link.className).toContain('min-h-[44px]')
@@ -201,5 +201,5 @@ test('integrates scope and review navigation above canonical cross-project issue
     within(screen.getByRole('list', { name: 'Canonical issues' }))
       .getAllByRole('listitem')
       .map((entry) => entry.textContent),
-  ).toEqual(['Project A result', 'Project B result'])
+  ).toStrictEqual(['Project A result', 'Project B result'])
 })

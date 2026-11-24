@@ -55,7 +55,7 @@ describe('pure wiki reads', () => {
 
   test('preserves list metadata projection, JSON decoding, filters and template exclusion', async () => {
     const rows = await runTestEffect(wiki.listWikiPages(db, 'wa'))
-    expect(rows.map((row) => row.id)).toEqual(['root', 'child'])
+    expect(rows.map((row) => row.id)).toStrictEqual(['root', 'child'])
     expect(rows[0]).toEqual({
       id: 'root',
       is_template: false,
@@ -75,21 +75,20 @@ describe('pure wiki reads', () => {
     await expect(
       runTestEffect(wiki.listWikiPages(db, 'wa', { type: 'guide', tags: ['dev'], parentId: 'root' })),
     ).resolves.toHaveLength(1)
-    await expect(runTestEffect(wiki.listWikiPages(db, 'wa', { tags: ['none'] }))).resolves.toEqual([])
+    await expect(runTestEffect(wiki.listWikiPages(db, 'wa', { tags: ['none'] }))).resolves.toStrictEqual([])
     await expect(runTestEffect(wiki.listWikiPages(db, 'wa', { includeTemplates: true }))).resolves.toHaveLength(3)
   })
 
   test('accepts app-authorized visibility and includes workspace pages only when requested', async () => {
     const visibility = or(isNull(schema.wikiPages.projectId), eq(schema.wikiPages.projectId, 'other'))
-    expect((await runTestEffect(wiki.listWikiPages(db, 'wa', { visibility }))).map((r) => r.id)).toEqual(['root'])
+    expect((await runTestEffect(wiki.listWikiPages(db, 'wa', { visibility }))).map((r) => r.id)).toStrictEqual(['root'])
     expect(
       (await runTestEffect(wiki.listWikiTreeRows(db, 'wa', { projectId: 'pa', includeWorkspacePages: true }))).map(
         (r) => r.id,
       ),
-    ).toEqual(['root', 'child', 'template'])
-    expect((await runTestEffect(wiki.listWikiTreeRows(db, 'wa', { projectId: 'pa' }))).map((r) => r.id)).toEqual([
-      'child',
-    ])
+    ).toStrictEqual(['root', 'child', 'template'])
+    const projectTree = await runTestEffect(wiki.listWikiTreeRows(db, 'wa', { projectId: 'pa' }))
+    expect(projectTree.map((row) => row.id)).toStrictEqual(['child'])
   })
 
   test('resolves id before colliding slug and live pages before redirects, excludes trash and foreign targets', async () => {
@@ -110,8 +109,8 @@ describe('pure wiki reads', () => {
   test('preserves maintenance/trash/template filtering and pagination without presentation fields', async () => {
     expect(
       (await runTestEffect(wiki.listStaleWikiPages(db, 'wa', { now: 100, limit: 10, offset: 0 }))).map((r) => r.id),
-    ).toEqual(['child'])
-    expect((await runTestEffect(wiki.listWikiTemplates(db, 'wa'))).map((r) => r.id)).toEqual(['template'])
+    ).toStrictEqual(['child'])
+    expect((await runTestEffect(wiki.listWikiTemplates(db, 'wa'))).map((r) => r.id)).toStrictEqual(['template'])
     const trash = await runTestEffect(wiki.listWikiTrash(db, 'wa', { limit: 10, offset: 0 }))
     expect(trash).toEqual([
       {
@@ -123,11 +122,11 @@ describe('pure wiki reads', () => {
         title: 'Trash',
       },
     ])
-    await expect(runTestEffect(wiki.listWikiTrash(db, 'wa', { limit: 10, offset: 1 }))).resolves.toEqual([])
+    await expect(runTestEffect(wiki.listWikiTrash(db, 'wa', { limit: 10, offset: 1 }))).resolves.toStrictEqual([])
   })
 
   test('orders same-second revisions by rowid and scopes every revision query to the workspace/page', async () => {
-    expect((await runTestEffect(wiki.listWikiRevisions(db, 'wa', 'root'))).map((r) => r.id)).toEqual(['r2', 'r1'])
+    expect((await runTestEffect(wiki.listWikiRevisions(db, 'wa', 'root'))).map((r) => r.id)).toStrictEqual(['r2', 'r1'])
     await expect(runTestEffect(wiki.getLatestWikiRevisionId(db, 'wa', 'root'))).resolves.toBe('r2')
     await expect(runTestEffect(wiki.getWikiRevision(db, 'wa', 'root', 'r1'))).resolves.toEqual({
       author_id: 'u',
@@ -137,7 +136,7 @@ describe('pure wiki reads', () => {
       summary: 'first',
       title: 'Old',
     })
-    await expect(runTestEffect(wiki.listWikiRevisions(db, 'wa', 'foreign'))).resolves.toEqual([])
+    await expect(runTestEffect(wiki.listWikiRevisions(db, 'wa', 'foreign'))).resolves.toStrictEqual([])
     await expect(runTestEffect(wiki.getWikiRevision(db, 'wa', 'foreign', 'rf'))).resolves.toBeUndefined()
     await expect(runTestEffect(wiki.getLatestWikiRevisionId(db, 'wa', 'foreign'))).resolves.toBeNull()
   })
@@ -159,7 +158,7 @@ describe('pure wiki reads', () => {
     )
     const opts = { now: 100, limit: 10, offset: 0 }
     const rows = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', opts))
-    expect(rows.map((row) => row.id).sort()).toEqual(['child', 'root'])
+    expect(rows.map((row) => row.id).sort()).toStrictEqual(['child', 'root'])
     expect(rows.find((row) => row.id === 'root')?.owners).toEqual(['u'])
     const restricted = await runTestEffect(
       wiki.searchWiki(db, 'wa', 'needle*', {
@@ -167,8 +166,9 @@ describe('pure wiki reads', () => {
         visibilitySql: { sql: 'p.project_id IS NULL', params: [] },
       }),
     )
-    expect(restricted.map((r) => r.id)).toEqual(['root'])
-    await expect(runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, tags: ['none'] }))).resolves.toEqual([])
+    expect(restricted.map((r) => r.id)).toStrictEqual(['root'])
+    const noMatch = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, tags: ['none'] }))
+    expect(noMatch).toStrictEqual([])
     const one = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, limit: 1 }))
     const two = await runTestEffect(wiki.searchWiki(db, 'wa', 'needle*', { ...opts, limit: 1, offset: 1 }))
     expect([one[0].id, two[0].id]).toEqual(rows.map((row) => row.id))
@@ -271,7 +271,7 @@ describe('pure wiki reads', () => {
 
   test('leaves validation, project authorization and search freshness in the API', async () => {
     const ctx = { db, workspaceId: 'wa', userId: 'u', role: 'viewer' } as ServiceCtx
-    expect((await apiWiki.listWikiPages(ctx, {})).map((r) => r.id)).toEqual(['root'])
+    expect((await apiWiki.listWikiPages(ctx, {})).map((r) => r.id)).toStrictEqual(['root'])
     await expect(apiWiki.getWikiPage(ctx, 'child')).rejects.toMatchObject({
       message: 'Wiki page not found',
     })
@@ -284,7 +284,7 @@ describe('pure wiki reads', () => {
     await expect(apiWiki.searchWiki(ctx, { query: 'needle' })).resolves.toEqual([
       expect.objectContaining({ freshness: null, id: 'root', owners: ['u'], tags: ['ops'] }),
     ])
-    await expect(apiWiki.listStaleWikiPages(ctx, {})).resolves.toEqual([])
+    await expect(apiWiki.listStaleWikiPages(ctx, {})).resolves.toStrictEqual([])
   })
 
   test('keeps bounded unified diff behavior for unchanged content, contextual hunks and huge pages', () => {

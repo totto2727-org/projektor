@@ -223,7 +223,7 @@ describe('canonical issues SSR refresh', () => {
     expect(submissions[0].values.get('workspace')).toBe(workspace.slug)
     expect(submissions[0].values.get('projectId')).toBe(project.id)
     expect(submissions[0].values.get('status')).toBe('todo')
-    expect(submissions[0].values.getAll('tag')).toEqual(['one', 'one', 'two'])
+    expect(submissions[0].values.getAll('tag')).toStrictEqual(['one', 'one', 'two'])
     fireEvent.input(screen.getByRole('searchbox', { name: 'Search issues' }), {
       target: { value: 'Canonical term' },
     })
@@ -232,7 +232,7 @@ describe('canonical issues SSR refresh', () => {
     expect(submissions[1].values.has('cursor')).toBe(false)
     expect(submissions[1].values.get('workspace')).toBe(workspace.slug)
     expect(submissions[1].values.get('projectId')).toBe(project.id)
-    expect(submissions[1].values.getAll('tag')).toEqual(['one', 'one', 'two'])
+    expect(submissions[1].values.getAll('tag')).toStrictEqual(['one', 'one', 'two'])
     expect(screen.getAllByText('Original issue').length).toBeGreaterThan(0)
     expect(readIssuePage).not.toHaveBeenCalled()
     expect(searchIssues).not.toHaveBeenCalled()

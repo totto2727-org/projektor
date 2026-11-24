@@ -26,7 +26,7 @@ describe('untrusted runtime Comark', () => {
 
   test('takes heading ids and ToC from the same compiled document', async () => {
     const rendered = await renderMarkdownDocument('## **Overview**\n\n## Overview\n\n### 日本語\n\n## Last')
-    expect(rendered.toc.map(({ text }) => text)).toEqual(['Overview', 'Overview', '日本語', 'Last'])
+    expect(rendered.toc.map(({ text }) => text)).toStrictEqual(['Overview', 'Overview', '日本語', 'Last'])
     Iterable.forEach(rendered.toc, (heading) => {
       expect(rendered.html).toContain(`id="${heading.id}"`)
     })

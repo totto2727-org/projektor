@@ -36,7 +36,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     )
     expect(fixedSegments.size).toBeGreaterThan(5)
     const missing = [...fixedSegments].filter((seg) => !RESERVED_WIKI_SLUGS.has(seg))
-    expect(missing).toEqual([])
+    expect(missing).toStrictEqual([])
   })
 
   test('auto-slugs a reserved title with a -page suffix, and the page loads', async () => {

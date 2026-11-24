@@ -39,7 +39,7 @@ const seedWiki = function seedWiki(db: DatabaseSync, slugs: Readonly<string[]>):
 }
 
 const checkIntegrity = function checkIntegrity(db: DatabaseSync): void {
-  expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+  expect(db.prepare('PRAGMA foreign_key_check').all()).toStrictEqual([])
   expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
 }
 

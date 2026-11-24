@@ -58,7 +58,7 @@ test.each([
   const attachments = (): SQLiteRows => db.prepare('SELECT * FROM attachments ORDER BY id').all()
   const checkIntegrity = (): void => {
     expect(db.prepare('PRAGMA integrity_check').all()).toEqual([{ integrity_check: 'ok' }])
-    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toStrictEqual([])
   }
   const draftHeads = (): SQLiteColumn[] =>
     db
@@ -71,7 +71,7 @@ test.each([
   expect(initialAttachments).toMatchObject([{ id: 'attachment', review_status: 'in_review' }])
   expect(initialHistory.at(-1)?.name).toBe(unknown ? unknownName : alreadyApplied)
   expect(initialHistory.map(({ name }) => name)).not.toContain(pending)
-  expect(draftHeads()).toEqual([])
+  expect(draftHeads()).toStrictEqual([])
 
   const execute = <A>(sql: string, body: () => A): Effect.Effect<A, MigrationError, never> =>
     Effect.try({ catch: (cause) => new MigrationError({ message: `SQLite fixture failed: ${sql}`, cause }), try: body })
@@ -97,8 +97,8 @@ test.each([
       table: 'd1_migrations',
       unmatched: [unknownName],
     })
-    expect(draftHeads()).toEqual([])
-    expect(db.prepare('PRAGMA table_info(__alchemy_migrations)').all()).toEqual([])
+    expect(draftHeads()).toStrictEqual([])
+    expect(db.prepare('PRAGMA table_info(__alchemy_migrations)').all()).toStrictEqual([])
     expect(originals()).toEqual(initialHistory)
     expect(users()).toEqual(initialUsers)
     expect(attachments()).toEqual(initialAttachments)
@@ -112,7 +112,7 @@ test.each([
   expect(users()).toEqual(initialUsers)
   expect(attachments()).toEqual(initialAttachments)
   checkIntegrity()
-  expect(draftHeads()).toEqual(['workspace_id', 'user_id', 'page_id', 'revision'])
+  expect(draftHeads()).toStrictEqual(['workspace_id', 'user_id', 'page_id', 'revision'])
   const adopted = ledger()
   expect(adopted.map(({ name, hash, applied_at }) => ({ name, hash, applied_at }))).toEqual([
     ...initialHistory.map(({ name, applied_at }) => ({ name, hash: hashes.get(String(name)), applied_at })),

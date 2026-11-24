@@ -1781,7 +1781,7 @@ const StatusField = function StatusField({
         value={issue.status_id ?? ''}
         disabled={updatingStatus}
         onChange={(v) => changeStatus(v)}
-        options={statuses.map((selectedStatus) => ({ value: selectedStatus.id, label: selectedStatus.name }))}
+        options={statuses.map(({ id, name }) => ({ label: name, value: id }))}
         buttonStyle={{ color: categoryColor(issue.status_category), fontWeight: 500 }}
       />
     )
@@ -1817,10 +1817,7 @@ const TypeField = function TypeField({
           value={issue.type_id ?? ''}
           disabled={updatingType}
           onChange={(v) => changeType(v)}
-          options={[
-            { value: '', label: 'No type' },
-            ...taskTypes.map((taskType) => ({ value: taskType.id, label: taskType.name })),
-          ]}
+          options={[{ label: 'No type', value: '' }, ...taskTypes.map(({ id, name }) => ({ label: name, value: id }))]}
         />
         {/* PROJ-602: without this, a rejected type change (e.g. demoting an epic
 					that still has children) reverts the dropdown with zero explanation. */}
@@ -2001,7 +1998,7 @@ export const SidebarPanel = function SidebarPanel({
               disabled={updatingAssignee}
               onChange={changeAssignee}
               options={[
-                { value: '', label: 'Unassigned' },
+                { label: 'Unassigned', value: '' },
                 ...members.map((member) => ({ value: member.id, label: member.name ?? member.email })),
               ]}
             />

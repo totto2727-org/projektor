@@ -173,7 +173,7 @@ describe('feedback submit (public)', () => {
     })
     expect(res.status).toBe(201)
     const data = await readNativeJson(res, Schema.Record(Schema.String, Schema.Unknown))
-    expect(Object.keys(data)).toEqual(['id'])
+    expect(Object.keys(data)).toStrictEqual(['id'])
 
     const row = await env.DB.prepare('SELECT project_id, workspace_id, source_id, status FROM feedback WHERE id = ?')
       .bind(data.id)

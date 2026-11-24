@@ -51,7 +51,7 @@ describe('native D1 domain invariants', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       await deleteIssue(testFixture.ctx, testFixture.issue.id)
-      expect(remove.mock.calls.map(([keys]) => keys.length)).toEqual([1000, 1])
+      expect(remove.mock.calls.map(([keys]) => keys.length)).toStrictEqual([1000, 1])
       expect(log).toHaveBeenCalledWith(
         'deleteIssue: R2 cleanup failed',
         expect.objectContaining({ r2Keys: expect.any(Array) }),
@@ -97,7 +97,7 @@ describe('native D1 domain invariants', () => {
       .run()
     await expect(listLinksForIssue(testFixture.ctx, { issueId: testFixture.issue.id })).resolves.toHaveLength(1)
     await env.DB.prepare('DELETE FROM group_project_grants WHERE project_id = ?').bind(hidden.id).run()
-    await expect(listLinksForIssue(testFixture.ctx, { issueId: testFixture.issue.id })).resolves.toEqual([])
+    await expect(listLinksForIssue(testFixture.ctx, { issueId: testFixture.issue.id })).resolves.toStrictEqual([])
   })
 
   test.each([98, 200])(

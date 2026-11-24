@@ -31,7 +31,7 @@ describe('my Issues focus order', () => {
       scoped({ id: 'b', title: 'Second issue', project_name: 'Second project', workspaceSlug: 'other' }),
     ])
     expect(screen.getAllByRole('table')).toHaveLength(1)
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toStrictEqual([
       '#',
       'Title',
       'Priority',
@@ -68,7 +68,7 @@ describe('my Issues focus order', () => {
         updated_at: 1000,
       }),
     ])
-    expect(titles()).toEqual(['Review', 'Progress', 'Todo', 'Backlog'])
+    expect(titles()).toStrictEqual(['Review', 'Progress', 'Todo', 'Backlog'])
   })
 
   test('puts higher priority before newer updates within the same status', () => {
@@ -77,7 +77,13 @@ describe('my Issues focus order', () => {
         scoped({ id: priority, title: `Priority ${priority}`, priority, updated_at: 100 - index }),
       ),
     )
-    expect(titles()).toEqual(['Priority urgent', 'Priority high', 'Priority medium', 'Priority low', 'Priority none'])
+    expect(titles()).toStrictEqual([
+      'Priority urgent',
+      'Priority high',
+      'Priority medium',
+      'Priority low',
+      'Priority none',
+    ])
   })
 
   test('uses newest updates first when status and priority match', () => {
@@ -86,7 +92,7 @@ describe('my Issues focus order', () => {
       scoped({ id: 'new', title: 'New', updated_at: 30, project_key: 'B' }),
       scoped({ id: 'middle', title: 'Middle', updated_at: 20 }),
     ])
-    expect(titles()).toEqual(['New', 'Middle', 'Old'])
+    expect(titles()).toStrictEqual(['New', 'Middle', 'Old'])
   })
 
   test('orders custom status keys by their progress category', () => {
@@ -94,7 +100,7 @@ describe('my Issues focus order', () => {
       scoped({ id: 'waiting', title: 'Waiting', status_key: 'waiting', priority: 'urgent' }),
       scoped({ id: 'qa', title: 'QA', status_key: 'qa', status_category: 'in_progress', priority: 'low' }),
     ])
-    expect(titles()).toEqual(['QA', 'Waiting'])
+    expect(titles()).toStrictEqual(['QA', 'Waiting'])
   })
 
   test('omits completed and cancelled issues, and has no include-done control', () => {
@@ -103,7 +109,7 @@ describe('my Issues focus order', () => {
       scoped({ id: 'done', title: 'Completed', status_category: 'done', status_key: 'done' }),
       scoped({ id: 'cancelled', title: 'Cancelled', status_category: 'cancelled', status_key: 'cancelled' }),
     ])
-    expect(titles()).toEqual(['Open'])
+    expect(titles()).toStrictEqual(['Open'])
     expect(screen.queryByText('Completed')).toBeNull()
     expect(screen.queryByText('Cancelled')).toBeNull()
     expect(screen.queryByRole('checkbox')).toBeNull()
@@ -134,7 +140,7 @@ describe('my Issues focus order', () => {
       [...mobile!.querySelectorAll('a')]
         .filter((link) => ['New', 'Old'].includes(link.textContent ?? ''))
         .map((link) => link.textContent),
-    ).toEqual(['New', 'Old'])
-    expect(issues.map((entry) => entry.title)).toEqual(['Old', 'New'])
+    ).toStrictEqual(['New', 'Old'])
+    expect(issues.map((entry) => entry.title)).toStrictEqual(['Old', 'New'])
   })
 })

@@ -240,7 +240,7 @@ describe('server scope loading', () => {
       new Request(page('/issues?projectId=project-a'), { headers: { 'x-workspace-slug': 'unrelated' } }),
     )
     expect(scope.selection).toMatchObject({ kind: 'project', project: { id: 'project-a' } })
-    expect(scope.projects.map((item) => item.id)).toEqual(['project-a'])
+    expect(scope.projects.map((item) => item.id)).toStrictEqual(['project-a'])
     expect(scope.auth).toEqual({ kind: 'human', method: 'dev' })
     expect(externalFetch).not.toHaveBeenCalled()
     expect(catalogReads()).toBe(1)
@@ -250,7 +250,7 @@ describe('server scope loading', () => {
   test('retries archived DB catalog exactly once and leaves ordinary catalog active-only', async () => {
     sqlite.exec("UPDATE projects SET archived_at = 42 WHERE id = 'project-a'")
     const result = await load()
-    expect(result.projects).toEqual([])
+    expect(result.projects).toStrictEqual([])
     prepare.mockClear()
     const scope = await load(new Request(page('/issues?projectId=project-a')))
     expect(scope.selection).toMatchObject({ kind: 'project', project: { archived_at: 42, id: 'project-a' } })
@@ -283,12 +283,12 @@ describe('server scope loading', () => {
   })
 
   test('uses actual membership roles and refreshes grant visibility each request', async () => {
-    expect((await load()).projects.map((item) => item.id)).toEqual(['project-a'])
+    expect((await load()).projects.map((item) => item.id)).toStrictEqual(['project-a'])
     sqlite.exec(
       "DELETE FROM group_project_grants; UPDATE workspace_members SET role='admin' WHERE workspace_id='workspace-b'",
     )
     const updated = await load()
-    expect(updated.projects.map((item) => item.id)).toEqual(['project-b'])
+    expect(updated.projects.map((item) => item.id)).toStrictEqual(['project-b'])
     expect(updated.workspaces.find((workspace) => workspace.id === 'workspace-b')?.role).toBe('admin')
     await expect(load(new Request(page('/issues?projectId=project-hidden')))).rejects.toMatchObject({
       _tag: 'ScopeError',
@@ -299,7 +299,7 @@ describe('server scope loading', () => {
   test('retains current DB membership as an additional boundary even with valid identity', async () => {
     sqlite.exec('DELETE FROM workspace_members')
     const resolvedValue = await load()
-    expect(resolvedValue.projects).toEqual([])
+    expect(resolvedValue.projects).toStrictEqual([])
   })
 
   test('applies the web app grant predicate to shared workspace-scoped list queries', async () => {
@@ -309,7 +309,7 @@ describe('server scope loading', () => {
         visibility: visibleProjectPredicate(scope, 'workspace-a', schema.projects.id),
       }),
     )
-    expect(rows.map((row) => row.id)).toEqual(['project-a'])
+    expect(rows.map((row) => row.id)).toStrictEqual(['project-a'])
     sqlite.exec('DELETE FROM user_group_members')
     await expect(
       runTestEffect(
@@ -317,7 +317,7 @@ describe('server scope loading', () => {
           visibility: visibleProjectPredicate(scope, 'workspace-a', schema.projects.id),
         }),
       ),
-    ).resolves.toEqual([])
+    ).resolves.toStrictEqual([])
   })
 
   test('fails closed on missing DB and redacts SQL failures without API catalog fallback', async () => {
