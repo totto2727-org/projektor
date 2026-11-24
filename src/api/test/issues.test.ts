@@ -491,8 +491,7 @@ describe('issues API', () => {
     })
     expect(getRes.status).toBe(200)
     const issue = await readNativeJson(getRes, Schema.Struct({ project_key: Schema.String, title: Schema.String }))
-    expect(issue.title).toBe('Digit-key ref issue')
-    expect(issue.project_key).toBe('WEB2')
+    expect(issue).toMatchObject({ project_key: 'WEB2', title: 'Digit-key ref issue' })
 
     const commentsRes = await fetchNativeApi(`http://localhost/api/issues/WEB2-${created.number}/comments`, {
       headers: authHeaders(token, slug),
@@ -896,8 +895,8 @@ describe('issues API', () => {
   test('handles PATCH rejects a parentId that would create a cycle', async () => {
     // A → B → C; try to set A.parentId = C (cycle: A is ancestor of C)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
-    const b = await seedIssue(workspaceId, projectId, userId, { title: 'B', parentId: issue.id })
-    const c = await seedIssue(workspaceId, projectId, userId, { title: 'C', parentId: b.id })
+    const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'B', parentId: issue.id })
+    const c = await seedIssue(workspaceId, projectId, userId, { title: 'C', parentId: currentIssue.id })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       method: 'PATCH',
@@ -2330,13 +2329,13 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
 
   test('create_issue_link accepts refs for sourceIssueId/targetIssueId', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
-    const b = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
+    const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
 
     const res = await mcpCall({
       name: 'create_issue_link',
       arguments: {
         sourceIssueId: `${projectKey}-${issue.number}`,
-        targetIssueId: `${projectKey}-${b.number}`,
+        targetIssueId: `${projectKey}-${currentIssue.number}`,
         type: 'blocks',
       },
     })
@@ -2344,7 +2343,7 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
 
     const linksRes = await mcpCall({ name: 'list_issue_links', arguments: { issueId: issue.id } })
     const links = JSON.parse(linksRes.result!.content[0].text) as { linkedIssueId: string }[]
-    expect(links.map((link) => link.linkedIssueId)).toEqual([b.id])
+    expect(links.map((link) => link.linkedIssueId)).toEqual([currentIssue.id])
   })
 
   test('create_issue accepts a project key in place of projectId', async () => {
@@ -2765,11 +2764,11 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   test('get_issues fetches up to 50 issues in one call by ref and id', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Batch A' })
-    const b = await seedIssue(workspaceId, projectId, userId, { title: 'Batch B' })
+    const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Batch B' })
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
     const ref = `${row!.key}-${issue.number}`
 
-    const res = await mcpCall({ name: 'get_issues', arguments: { refs: [ref], ids: [b.id] } })
+    const res = await mcpCall({ name: 'get_issues', arguments: { refs: [ref], ids: [currentIssue.id] } })
     expect(res.error).toBeUndefined()
     const data = JSON.parse(res.result!.content[0].text) as { items: { title: string }[] }
     const titles = data.items.map((item) => item.title).sort()
@@ -2802,7 +2801,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   test('get_issues preserves request order and reports unresolved/invisible refs+ids as missing', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Order A' })
-    const b = await seedIssue(workspaceId, projectId, userId, { title: 'Order B' })
+    const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Order B' })
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
     const refA = `${row!.key}-${issue.number}`
     const missingRef = `${row!.key}-999999`
@@ -2810,14 +2809,14 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
     const res = await mcpCall({
       name: 'get_issues',
-      arguments: { refs: [missingRef, refA], ids: [missingId, b.id] },
+      arguments: { refs: [missingRef, refA], ids: [missingId, currentIssue.id] },
     })
     expect(res.error).toBeUndefined()
     const data = JSON.parse(res.result!.content[0].text) as {
       items: { id: string }[]
       missing: string[]
     }
-    expect(data.items.map((item) => item.id)).toEqual([issue.id, b.id])
+    expect(data.items.map((item) => item.id)).toEqual([issue.id, currentIssue.id])
     expect(data.missing).toEqual([missingRef, missingId])
   })
 
@@ -2850,8 +2849,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   test('covers REST GET /api/issues/batch has parity with the MCP get_issues tool', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch A' })
-    const b = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch B' })
-    const res = await fetchNativeApi(`http://localhost/api/issues/batch?ids=${issue.id},${b.id}`, {
+    const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch B' })
+    const res = await fetchNativeApi(`http://localhost/api/issues/batch?ids=${issue.id},${currentIssue.id}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)

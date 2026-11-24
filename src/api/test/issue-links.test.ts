@@ -264,12 +264,12 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     const slug = fixture.workspace.slug
     const project = await seedProject(fixture.workspace.id)
     const issue = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'A' })
-    const b = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'B' })
+    const currentIssue = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'B' })
 
     await fetchNativeApi(`http://localhost/api/issues/${issue.id}/links`, {
       method: 'POST',
       headers: authHeaders(fixture.token, slug),
-      body: JSON.stringify({ targetIssueId: b.id, type: 'blocks' }),
+      body: JSON.stringify({ targetIssueId: currentIssue.id, type: 'blocks' }),
     })
 
     const detail = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
@@ -300,11 +300,11 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     const mine = await seedFixture({ role: 'owner' })
     const myProject = await seedProject(mine.workspace.id, 'DUP')
     const issue = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'A' })
-    const b = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'B' })
+    const currentIssue = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'B' })
     await fetchNativeApi(`http://localhost/api/issues/${issue.id}/links`, {
       method: 'POST',
       headers: authHeaders(mine.token, mine.workspace.slug),
-      body: JSON.stringify({ targetIssueId: b.id, type: 'blocks' }),
+      body: JSON.stringify({ targetIssueId: currentIssue.id, type: 'blocks' }),
     })
 
     const theirs = await seedFixture({ role: 'owner' })
@@ -320,7 +320,7 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
       res,
       Schema.Array(Schema.Struct({ linkedIssueId: Schema.String })).pipe(Schema.mutable),
     )
-    expect(links.map((link) => link.linkedIssueId)).toEqual([b.id])
+    expect(links.map((link) => link.linkedIssueId)).toEqual([currentIssue.id])
   })
 
   test('a ref that exists only in another workspace is 404', async () => {

@@ -384,8 +384,8 @@ export const usersWithProjectReadAccess = async function usersWithProjectReadAcc
     return new Set(members.map((member) => member.userId))
   }
 
-  const allowed = new Set(members.filter((member) => isWorkspaceAdmin(member.role)).map((m) => m.userId))
-  const needGrant = members.filter((member) => !isWorkspaceAdmin(member.role)).map((m) => m.userId)
+  const allowed = new Set(members.filter((member) => isWorkspaceAdmin(member.role)).map((member) => member.userId))
+  const needGrant = members.filter((member) => !isWorkspaceAdmin(member.role)).map((member) => member.userId)
   const granted = await inChunks(needGrant, (chunk) =>
     orm
       .select({ userId: schema.userGroupMembers.userId })

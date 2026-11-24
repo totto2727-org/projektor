@@ -235,7 +235,7 @@ describe('wiki semantic ServerFn contracts', () => {
         content: 'Body',
         baseRevisionId: 'revision',
       }),
-    ).resolves.toEqual({ ok: false, status: 403, message: expect.any(String) })
+    ).resolves.toEqual({ message: expect.any(String), ok: false, status: 403 })
     expect(
       test.sqlite
         .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
@@ -257,7 +257,7 @@ describe('wiki semantic ServerFn contracts', () => {
         title: 'Draft',
         content: 'Body',
       }),
-    ).resolves.toEqual({ ok: false, status: 403, message: expect.any(String) })
+    ).resolves.toEqual({ message: expect.any(String), ok: false, status: 403 })
     expect(
       test.sqlite
         .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
@@ -489,10 +489,10 @@ describe('wiki semantic ServerFn contracts', () => {
         content: '## Canonical\n\n**Body**',
         baseRevisionId: 'revision',
       }),
-    ).resolves.toEqual({ ok: true, value: { ok: true, draftRevision: expect.any(String) } })
+    ).resolves.toEqual({ ok: true, value: { draftRevision: expect.any(String), ok: true } })
     await expect(test.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
       ok: true,
-      value: { title: 'Published', content: '## Canonical\n\n**Body**', revisionId: expect.any(String) },
+      value: { content: '## Canonical\n\n**Body**', revisionId: expect.any(String), title: 'Published' },
     })
     expect(test.sqlite.prepare('SELECT user_id, content FROM wiki_drafts').all()).toEqual([
       { content: 'Private', user_id: 'other-user' },
@@ -531,7 +531,7 @@ describe('wiki semantic ServerFn contracts', () => {
     })
     await expect(test.run(verifyWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toMatchObject({
       ok: true,
-      value: { ok: true, verifiedBy: 'alice@example.test', verifiedAt: expect.any(Number) },
+      value: { ok: true, verifiedAt: expect.any(Number), verifiedBy: 'alice@example.test' },
     })
     expect(
       test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),

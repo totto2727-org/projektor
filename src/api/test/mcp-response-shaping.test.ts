@@ -153,7 +153,7 @@ describe('covers PROJ-891 review fixes (unit)', () => {
     expect(out.truncated).toBe(true)
     const last = out.items[out.items.length - 1].t
     // Nothing sharing the cursor's second was left behind
-    expect(items.slice(out.items.length).every((i) => i.t > last)).toBe(true)
+    expect(items.slice(out.items.length).every((item) => item.t > last)).toBe(true)
     expect(out.next).toBe(globalThis.String(last))
   })
 
@@ -296,8 +296,8 @@ describe('covers PROJ-891: MCP tools', () => {
       if (page.truncated === true) {
         truncatedPages++
       }
-      Iterable.forEach(page.items, (i) => {
-        seen.add(i.ref)
+      Iterable.forEach(page.items, (item) => {
+        seen.add(item.ref)
       })
       if (!page.next) {
         break

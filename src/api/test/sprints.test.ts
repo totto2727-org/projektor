@@ -324,8 +324,7 @@ describe('sprints API', () => {
 
       expect(moveRes.status).toBe(200)
       const result = await readNativeJson(moveRes, Schema.Struct({ count: Schema.Number, ok: Schema.Boolean }))
-      expect(result.ok).toBe(true)
-      expect(result.count).toBe(500)
+      expect(result).toMatchObject({ count: 500, ok: true })
       expect(kvDeletes).toBeLessThanOrEqual(50)
 
       /*

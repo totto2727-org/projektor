@@ -85,7 +85,7 @@ describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () =
   })
 
   test("no allowlist entry for an FK that doesn't exist", () => {
-    expect(Object.keys(FK_CLEANUP_ALLOWLIST).filter((k) => !declared.has(k))).toEqual([])
+    expect(Object.keys(FK_CLEANUP_ALLOWLIST).filter((key) => !declared.has(key))).toEqual([])
   })
 
   test('every cleanedBy reference exists and mentions the child table', () => {

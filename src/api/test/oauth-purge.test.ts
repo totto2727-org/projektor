@@ -99,7 +99,7 @@ describe('official OAuth cleanup durable pagination', () => {
       }
       await expect(purgeOAuthPage(env, provider)).resolves.toMatchObject({ grantsChecked: 200, phase: 'grants' })
       const checkpoint = await env.KV.get<{ phase: string; cursor: string }>(OAUTH_PURGE_STATE_KEY, 'json')
-      expect(checkpoint).toMatchObject({ phase: 'grants', cursor: expect.any(String) })
+      expect(checkpoint).toMatchObject({ cursor: expect.any(String), phase: 'grants' })
       await expect(purgeOAuthPage(env, provider)).resolves.toMatchObject({ grantsPurged: 1, nextPhase: 'tokens' })
       await expect(env.OAUTH_KV.get(`grant:${userId}:201`)).resolves.toBeNull()
       await expect(env.OAUTH_KV.get(`grant:${userId}:000`)).resolves.not.toBeNull()

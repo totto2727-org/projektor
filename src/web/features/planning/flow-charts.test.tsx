@@ -176,8 +176,8 @@ describe('flow chart public data and primitive semantics', () => {
     expect(calls.get('ReferenceLine')?.map((line) => line.y)).toEqual([0, 300])
     expect(first('ComposedChart').data).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'i1', ageSeconds: 100, x: expect.any(Number) }),
-        expect.objectContaining({ id: 'i2', ageSeconds: 200, x: expect.any(Number) }),
+        expect.objectContaining({ ageSeconds: 100, id: 'i1', x: expect.any(Number) }),
+        expect.objectContaining({ ageSeconds: 200, id: 'i2', x: expect.any(Number) }),
       ]),
     )
   })

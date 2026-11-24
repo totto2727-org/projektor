@@ -88,12 +88,12 @@ export const batchLoadCustomFields = function batchLoadCustomFields(
         ),
     )
     const byIssue: Record<string, CustomFieldValue[]> = {}
-    Iterable.forEach(rows, (r) => {
-      ;(byIssue[r.issueId] ??= []).push({
-        key: r.key,
-        label: r.label,
-        type: r.type,
-        value: r.value,
+    Iterable.forEach(rows, (row) => {
+      ;(byIssue[row.issueId] ??= []).push({
+        key: row.key,
+        label: row.label,
+        type: row.type,
+        value: row.value,
       })
     })
     return byIssue

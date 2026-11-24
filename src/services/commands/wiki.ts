@@ -2796,23 +2796,23 @@ export const getWikiTree = async function getWikiTree(ctx: ServiceCtx, input: un
     }),
   )
   const map = new Map<string, TreeNode>()
-  Iterable.forEach(rows, (p) => {
-    map.set(p.id, {
-      id: p.id,
-      slug: p.slug,
-      title: p.title,
-      url: wikiPagePath(p.slug),
-      type: p.type,
+  Iterable.forEach(rows, (row) => {
+    map.set(row.id, {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      url: wikiPagePath(row.slug),
+      type: row.type,
       children: [],
     })
   })
 
   const roots: TreeNode[] = []
-  Iterable.forEach(rows, (p) => {
+  Iterable.forEach(rows, (row) => {
     // Every row was inserted into map on the previous loop
-    const node = map.get(p.id)!
-    if (p.parentId && map.has(p.parentId)) {
-      map.get(p.parentId)?.children.push(node)
+    const node = map.get(row.id)!
+    if (row.parentId && map.has(row.parentId)) {
+      map.get(row.parentId)?.children.push(node)
     } else {
       roots.push(node)
     }

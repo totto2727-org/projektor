@@ -115,17 +115,20 @@ const sameSet = function sameSet(a: Readonly<string[]>, b: Readonly<string[]>): 
 }
 
 /** True when two filter sets are equivalent (drives the active-view indicator). */
-export const filtersMatch = function filtersMatch(filters: SavedViewFilters, b: SavedViewFilters): boolean {
+export const filtersMatch = function filtersMatch(
+  filters: SavedViewFilters,
+  selectedFilters: SavedViewFilters,
+): boolean {
   return (
-    sameSet(filters.statuses, b.statuses) &&
-    sameSet(filters.priorities, b.priorities) &&
-    filters.project === b.project &&
-    filters.type === b.type &&
-    filters.epicId === b.epicId &&
-    filters.sprintId === b.sprintId &&
-    filters.hideEpics === b.hideEpics &&
-    filters.dateField === b.dateField &&
-    filters.dateFrom === b.dateFrom &&
-    filters.dateTo === b.dateTo
+    sameSet(filters.statuses, selectedFilters.statuses) &&
+    sameSet(filters.priorities, selectedFilters.priorities) &&
+    filters.project === selectedFilters.project &&
+    filters.type === selectedFilters.type &&
+    filters.epicId === selectedFilters.epicId &&
+    filters.sprintId === selectedFilters.sprintId &&
+    filters.hideEpics === selectedFilters.hideEpics &&
+    filters.dateField === selectedFilters.dateField &&
+    filters.dateFrom === selectedFilters.dateFrom &&
+    filters.dateTo === selectedFilters.dateTo
   )
 }

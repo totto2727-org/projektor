@@ -399,13 +399,13 @@ export const notifyCascadeDescendantWatchers = async function notifyCascadeDesce
   const byId = new Map(pages.map((page) => [page.id, page]))
   const entries = rows
     .filter((row) => row.userId !== ctx.userId)
-    .map((r) => {
-      const page = byId.get(r.pageId)
+    .map((row) => {
+      const page = byId.get(row.pageId)
       if (!page) {
         return null
       }
       return {
-        userId: r.userId,
+        userId: row.userId,
         pageId: page.id,
         slug: page.slug,
         title: page.title,
@@ -696,7 +696,7 @@ const loadWikiWatchSets = async function loadWikiWatchSets(
     .where(and(eq(schema.wikiWatchers.workspaceId, ctx.workspaceId), eq(schema.wikiWatchers.userId, ctx.userId)))
   return {
     directWatchIds: new Set(watches.map((watch) => watch.pageId)),
-    subtreeRootIds: new Set(watches.filter((watch) => watch.subtree).map((w) => w.pageId)),
+    subtreeRootIds: new Set(watches.filter((watch) => watch.subtree).map((watch) => watch.pageId)),
   }
 }
 

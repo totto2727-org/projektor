@@ -139,7 +139,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
           expect(response.status).toBe(200)
           await expect(response.json()).resolves.toMatchObject({ id: testFixture.sessionId, status: 'ended' })
           const state = await coordinationState(testFixture)
-          expect(state.session).toMatchObject({ status: 'ended', ended_at: expect.any(Number) })
+          expect(state.session).toMatchObject({ ended_at: expect.any(Number), status: 'ended' })
           expect(state.lease).toMatchObject({ released_at: expect.any(Number) })
           expect(state.claims).toEqual([
             expect.objectContaining({ path: 'src/held.ts', released_at: expect.any(Number) }),

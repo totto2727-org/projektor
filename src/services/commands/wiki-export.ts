@@ -214,8 +214,8 @@ const collectAttachments = async function collectAttachments(
   }
   const orm = drizzle(ctx.db, { schema })
   const bySlug = new Map<string, string>()
-  Iterable.forEach(pages, (p) => {
-    bySlug.set(p.id, p.slug)
+  Iterable.forEach(pages, (page) => {
+    bySlug.set(page.id, page.slug)
   })
   const pageIds = pages.map((page) => page.id)
 
@@ -240,11 +240,11 @@ const collectAttachments = async function collectAttachments(
 
   return rows
     .filter((row) => row.r2Key)
-    .map((r) => ({
-      pageSlug: bySlug.get(r.entityId) ?? r.entityId,
-      filename: r.filename,
-      r2Key: r.r2Key,
-      size: r.size,
+    .map((row) => ({
+      pageSlug: bySlug.get(row.entityId) ?? row.entityId,
+      filename: row.filename,
+      r2Key: row.r2Key,
+      size: row.size,
     }))
 }
 

@@ -392,8 +392,8 @@ const resolveLinkTargetsForPages = async function resolveLinkTargetsForPages(
     ),
   ])
   const byPage = new Map<string, ResolvedLink[]>()
-  Iterable.forEach(pages, (p) => {
-    byPage.set(p.id, resolveTargetsFromMaps(p.targets, titleMatches, slugMatches))
+  Iterable.forEach(pages, (page) => {
+    byPage.set(page.id, resolveTargetsFromMaps(page.targets, titleMatches, slugMatches))
   })
   return byPage
 }
@@ -902,7 +902,7 @@ async function visibleSourcePageIds(
   }
   return rows
     .filter((row) => Predicate.isNotNullish(row.projectId) && grantedProjectIds.has(row.projectId))
-    .map((r) => r.pageId)
+    .map((row) => row.pageId)
 }
 
 export interface BrokenWikiLink {

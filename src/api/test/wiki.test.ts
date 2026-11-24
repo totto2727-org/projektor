@@ -332,8 +332,8 @@ describe('wiki API', () => {
       Schema.Array(Schema.Struct({ freshness: Schema.Unknown })).pipe(Schema.mutable),
     )
     expect(results.length).toBeGreaterThan(0)
-    Iterable.forEach(results, (r) => {
-      expect(r.freshness).toBeNull()
+    Iterable.forEach(results, (result) => {
+      expect(result.freshness).toBeNull()
     })
   })
 
@@ -929,13 +929,13 @@ describe('wiki API', () => {
       body: JSON.stringify({ content: '', title: 'Subtree Root A' }),
     })
     expect(aRes.status).toBe(201)
-    const a = await readNativeJson(aRes, IdAndSlugResponse)
+    const responseBody = await readNativeJson(aRes, IdAndSlugResponse)
 
     await resetRateLimits()
     const a1Res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Subtree A1', content: '', parentId: a.id }),
+      body: JSON.stringify({ title: 'Subtree A1', content: '', parentId: responseBody.id }),
     })
     expect(a1Res.status).toBe(201)
     const a1 = await readNativeJson(a1Res, IdResponse)
@@ -955,7 +955,7 @@ describe('wiki API', () => {
      * exceeds the max nesting depth of 5 (indices 0..4) even though A's OWN new depth
      * (4) is within range — the check must look at the whole subtree, not just A.
      */
-    const moveRes = await fetchNativeApi(`http://localhost/api/wiki/${a.slug}`, {
+    const moveRes = await fetchNativeApi(`http://localhost/api/wiki/${responseBody.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: l3Id }),
@@ -984,19 +984,19 @@ describe('wiki API', () => {
       body: JSON.stringify({ content: '', title: 'Cycle X' }),
     })
     expect(xRes.status).toBe(201)
-    const x = await readNativeJson(xRes, IdAndSlugResponse)
+    const responseBody = await readNativeJson(xRes, IdAndSlugResponse)
 
     await resetRateLimits()
     const yRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Cycle Y', content: '', parentId: x.id }),
+      body: JSON.stringify({ title: 'Cycle Y', content: '', parentId: responseBody.id }),
     })
     expect(yRes.status).toBe(201)
     const y = await readNativeJson(yRes, IdResponse)
 
     // Seed the cycle: X's parent is now Y (Y's parent is already X).
-    await env.DB.prepare('UPDATE wiki_pages SET parent_id = ? WHERE id = ?').bind(y.id, x.id).run()
+    await env.DB.prepare('UPDATE wiki_pages SET parent_id = ? WHERE id = ?').bind(y.id, responseBody.id).run()
 
     await resetRateLimits()
     const otherRes = await fetchNativeApi('http://localhost/api/wiki', {
@@ -1012,7 +1012,7 @@ describe('wiki API', () => {
      * Moving X under `other` computes getSubtreeHeight(X), which walks into the X<->Y
      * cycle. This must resolve promptly (reject or succeed), never hang.
      */
-    const moveRes = await fetchNativeApi(`http://localhost/api/wiki/${x.slug}`, {
+    const moveRes = await fetchNativeApi(`http://localhost/api/wiki/${responseBody.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: other.id }),
@@ -1061,7 +1061,7 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'a', title: 'Page A' }),
     })
-    const a = await readNativeJson(aRes, IdAndSlugResponse)
+    const responseBody = await readNativeJson(aRes, IdAndSlugResponse)
 
     const bRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -1074,7 +1074,7 @@ describe('wiki API', () => {
     const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${b.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ parentId: a.id }),
+      body: JSON.stringify({ parentId: responseBody.id }),
     })
     expect(updateRes.status).toBe(200)
 
@@ -1082,7 +1082,7 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
     })
     const page = await readNativeJson(getRes, Schema.Struct({ parent_id: Schema.String }))
-    expect(page.parent_id).toBe(a.id)
+    expect(page.parent_id).toBe(responseBody.id)
   })
 
   test("handles DELETE /api/wiki/:slug (default) promotes children to the deleted page's parent (PROJ-238)", async () => {
@@ -1598,8 +1598,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
     })
     expect(oldRes.status).toBe(200)
     const oldPage = await readNativeJson(oldRes, Schema.Struct({ slug: Schema.String, title: Schema.String }))
-    expect(oldPage.slug).toBe('product-roadmap')
-    expect(oldPage.title).toBe('Roadmap')
+    expect(oldPage).toMatchObject({ slug: 'product-roadmap', title: 'Roadmap' })
   })
 
   test('handles PUT /api/wiki/:slug rejects renaming to a slug already used by another page (409)', async () => {
@@ -1805,8 +1804,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     )
     expect(created.type).toBe('runbook')
     expect(created.tags).toStrictEqual(['ops', 'oncall'])
-    expect(created.status).toBe('current')
-    expect(created.verifiedBy).toBe('alice@example.com')
+    expect(created).toMatchObject({ status: 'current', verifiedBy: 'alice@example.com' })
     expect(created.owners).toStrictEqual(['alice', 'bob'])
     expect(created.verifyInterval).toBe(90)
 
@@ -1819,8 +1817,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       type: Schema.String,
     })
     const page = await readNativeJson(getRes, pageShape)
-    expect(page.type).toBe('runbook')
-    expect(page.status).toBe('current')
+    expect(page).toMatchObject({ status: 'current', type: 'runbook' })
     // Tags column comes back through drizzle's JSON mode as a real array on GET.
     expect(page.tags).toStrictEqual(['ops', 'oncall'])
   })
@@ -4754,8 +4751,7 @@ describe('wiki page templates (PROJ-491)', () => {
      * The seeded page keeps the template's other frontmatter (type) but is not itself
      * a template — only the `template` key is stripped.
      */
-    expect(created.isTemplate).toBe(false)
-    expect(created.type).toBe('runbook')
+    expect(created).toMatchObject({ isTemplate: false, type: 'runbook' })
 
     const getRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),

@@ -90,12 +90,12 @@ describe('covers PROJ-921: ready_at and lead time', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const m = await readNativeJson(
+    const responseBody = await readNativeJson(
       res,
       Schema.Struct({ leadTime: Schema.Struct({ count: Schema.Number }), leadTimeExcluded: Schema.Number }),
     )
-    expect(m.leadTime.count).toBe(1)
-    expect(m.leadTimeExcluded).toBe(1)
+    expect(responseBody.leadTime.count).toBe(1)
+    expect(responseBody.leadTimeExcluded).toBe(1)
   })
 })
 

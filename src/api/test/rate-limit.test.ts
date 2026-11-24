@@ -241,7 +241,7 @@ describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not 
       })
       statuses.push(res.status)
     }
-    expect(statuses.slice(0, API_LIMIT).every((s) => s === 200)).toBe(true)
+    expect(statuses.slice(0, API_LIMIT).every((selectedStatus) => selectedStatus === 200)).toBe(true)
     expect(statuses[API_LIMIT]).toBe(429)
     await expect(rateLimitRows()).resolves.toBe(0)
   })

@@ -92,11 +92,11 @@ const cases: {
           .prepare("SELECT name,scopes,user_id,workspace_id,expires_at FROM api_tokens WHERE name='Agent'")
           .get(),
       ).toMatchObject({
+        expires_at: expect.any(Number),
         name: 'Agent',
         scopes: '["read"]',
         user_id: 'u1',
         workspace_id: 'w1',
-        expires_at: expect.any(Number),
       })
     },
   },
@@ -238,11 +238,11 @@ describe('explicit settings ServerFns use real shared commands and authoritative
       expect(result).toEqual({
         ok: true,
         value: {
+          expiresAt: expect.any(Number),
           id: expect.any(String),
           name: 'Agent',
-          token: expect.stringMatching(/^pk_[0-9a-f]{64}$/u),
           scopes: ['read'],
-          expiresAt: expect.any(Number),
+          token: expect.stringMatching(/^pk_[0-9a-f]{64}$/u),
         },
       })
     } else {

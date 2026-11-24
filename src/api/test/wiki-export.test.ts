@@ -244,7 +244,7 @@ describe('wiki export (PROJ-497)', () => {
     const { status, entries } = await exportZip(token, slug, 'scope=space')
     expect(status).toBe(200)
     const names = Object.keys(entries ?? {})
-      .filter((n) => n.startsWith('attachments/'))
+      .filter((key) => key.startsWith('attachments/'))
       .toSorted()
     expect(names).toHaveLength(3)
 

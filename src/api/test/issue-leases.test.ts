@@ -203,7 +203,7 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
 
   test('excludes live-leased issues only when excludeClaimed is true', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'A' })
-    const b = await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'B' })
+    const currentIssue = await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'B' })
 
     const agentRes = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
@@ -218,15 +218,17 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
     })
 
     const withoutFlag = await callPrioritized({ limit: 50, includeNotReady: true })
-    expect(withoutFlag.issues.map((i) => i.id).sort()).toEqual([issue.id, b.id].toSorted())
+    expect(withoutFlag.issues.map((selectedIssue) => selectedIssue.id).sort()).toEqual(
+      [issue.id, currentIssue.id].toSorted(),
+    )
 
     const withFlag = await callPrioritized({
       limit: 50,
       excludeClaimed: true,
       includeNotReady: true,
     })
-    const ids = withFlag.issues.map((i) => i.id)
-    expect(ids).toContain(b.id)
+    const ids = withFlag.issues.map((selectedIssue) => selectedIssue.id)
+    expect(ids).toContain(currentIssue.id)
     expect(ids).not.toContain(issue.id)
   })
 })

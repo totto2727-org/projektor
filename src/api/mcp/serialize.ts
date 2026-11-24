@@ -214,8 +214,8 @@ export const shapeIssue = function shapeIssue(
       updated: issue.updated_at,
     }
     const picked: Record<string, unknown> = {}
-    Iterable.forEach(opts.fields, (f) => {
-      picked[f] = Object.hasOwn(source, f) ? (source[f] ?? null) : null
+    Iterable.forEach(opts.fields, (field) => {
+      picked[field] = Object.hasOwn(source, field) ? (source[field] ?? null) : null
     })
     return picked
   }

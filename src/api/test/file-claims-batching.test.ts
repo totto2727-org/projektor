@@ -364,10 +364,10 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       .bind(`issue:${issueId}`, `issue:${holder.id}`)
       .all<{ scope: string; body: string }>()
     expect(messages.results).toHaveLength(2)
-    Iterable.forEach(messages.results, (m) => {
-      expect(m.body.length).toBeLessThanOrEqual(5000)
-      expect(m.body).toContain(`"${paths[0]}"`)
-      expect(m.body).toMatch(/…and \d+ more/u)
+    Iterable.forEach(messages.results, (result) => {
+      expect(result.body.length).toBeLessThanOrEqual(5000)
+      expect(result.body).toContain(`"${paths[0]}"`)
+      expect(result.body).toMatch(/…and \d+ more/u)
     })
   })
 })

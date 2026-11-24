@@ -118,9 +118,9 @@ const reference = async function reference(
 
   const openIds = new Set(open.map((o) => o.id))
   const inDegree: Record<string, number> = {}
-  Iterable.forEach(links, (l) => {
-    if (openIds.has(l.target_issue_id)) {
-      inDegree[l.target_issue_id] = (inDegree[l.target_issue_id] ?? 0) + 1
+  Iterable.forEach(links, (link) => {
+    if (openIds.has(link.target_issue_id)) {
+      inDegree[link.target_issue_id] = (inDegree[link.target_issue_id] ?? 0) + 1
     }
   })
   const storyPoints: Record<string, number> = {}

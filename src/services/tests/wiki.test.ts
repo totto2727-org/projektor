@@ -282,7 +282,7 @@ describe('pure wiki reads', () => {
       "CREATE VIRTUAL TABLE wiki_fts USING fts5(page_id UNINDEXED, workspace_id UNINDEXED, title, content, tags); INSERT INTO wiki_fts(page_id,workspace_id,title,content,tags) SELECT id,workspace_id,title,'needle',tags FROM wiki_pages;",
     )
     await expect(apiWiki.searchWiki(ctx, { query: 'needle' })).resolves.toEqual([
-      expect.objectContaining({ id: 'root', tags: ['ops'], owners: ['u'], freshness: null }),
+      expect.objectContaining({ freshness: null, id: 'root', owners: ['u'], tags: ['ops'] }),
     ])
     await expect(apiWiki.listStaleWikiPages(ctx, {})).resolves.toEqual([])
   })

@@ -75,9 +75,9 @@ export const clearDraft = function clearDraft(key: string): void {
  */
 export const clearAllDrafts = function clearAllDrafts(): void {
   try {
-    Iterable.forEach(Object.keys(sessionStorage), (k) => {
-      if (k.startsWith(PREFIX)) {
-        sessionStorage.removeItem(k)
+    Iterable.forEach(Object.keys(sessionStorage), (key) => {
+      if (key.startsWith(PREFIX)) {
+        sessionStorage.removeItem(key)
       }
     })
   } catch {}

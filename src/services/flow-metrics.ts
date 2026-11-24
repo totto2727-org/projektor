@@ -464,21 +464,21 @@ const computeCoreDistributions = function computeCoreDistributions(
         Predicate.isNotNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
     // Filtered above
-    .map((i) => i.doneAt! - i.readyAt!)
+    .map((issue) => issue.doneAt! - issue.readyAt!)
   const cycleTimes = issues
     .filter(
       (issue) =>
         Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
     // Filtered above
-    .map((i) => i.doneAt! - i.claimedAt!)
+    .map((issue) => issue.doneAt! - issue.claimedAt!)
   const reviewLatencies = issues
     .filter(
       (issue) =>
         Predicate.isNotNullish(issue.inReviewAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
     // Filtered above
-    .map((i) => i.doneAt! - i.inReviewAt!)
+    .map((issue) => issue.doneAt! - issue.inReviewAt!)
   // PROJ-329: time in in_progress = claimed -> the issue's next recorded stage
   // (entering review, or done directly for issues that skipped review).
   const timeInProgress = issues
@@ -487,7 +487,7 @@ const computeCoreDistributions = function computeCoreDistributions(
         Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
     // Filtered above
-    .map((i) => (i.inReviewAt ?? i.doneAt!) - i.claimedAt!)
+    .map((issue) => (issue.inReviewAt ?? issue.doneAt!) - issue.claimedAt!)
   return { leadTimes, cycleTimes, reviewLatencies, timeInProgress }
 }
 
@@ -502,7 +502,7 @@ const computeHumanInterventions = function computeHumanInterventions(
 ): number[] {
   return issues
     .filter((issue) => Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt))
-    .map((i) => (humanCommentCounts.get(i.id) ?? 0) + i.reviewBounceCount)
+    .map((issue) => (humanCommentCounts.get(issue.id) ?? 0) + issue.reviewBounceCount)
 }
 
 /*
@@ -519,13 +519,13 @@ const computeAutonomyRatios = function computeAutonomyRatios(
       (issue) =>
         Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
-    .map((i) => {
+    .map((issue) => {
       // Filtered above
-      const cycle = i.doneAt! - i.claimedAt!
+      const cycle = issue.doneAt! - issue.claimedAt!
       if (cycle <= 0) {
         return 0
       }
-      const held = leaseHeldSeconds.get(i.id) ?? 0
+      const held = leaseHeldSeconds.get(issue.id) ?? 0
       return Math.min(1, held / cycle)
     })
 }
@@ -548,13 +548,13 @@ const computeFlowEfficiencies = function computeFlowEfficiencies(
       (issue) =>
         Predicate.isNotNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
-    .map((i) => {
+    .map((issue) => {
       // Filtered above
-      const leadTime = i.doneAt! - i.readyAt!
+      const leadTime = issue.doneAt! - issue.readyAt!
       if (leadTime <= 0) {
         return 0
       }
-      const held = leaseHeldSeconds.get(i.id) ?? 0
+      const held = leaseHeldSeconds.get(issue.id) ?? 0
       return Math.min(1, held / leadTime)
     })
 }
@@ -576,10 +576,10 @@ const buildAgingWip = function buildAgingWip(
       (issue): issue is FlowIssueRow & { claimedAt: number } =>
         Predicate.isNotNullish(issue.claimedAt) && (issue.status === 'in_progress' || issue.status === 'in_review'),
     )
-    .map((i) => ({
-      id: i.id,
-      status: i.status as 'in_progress' | 'in_review',
-      ageSeconds: now - i.claimedAt,
+    .map((issue) => ({
+      id: issue.id,
+      status: issue.status as 'in_progress' | 'in_review',
+      ageSeconds: now - issue.claimedAt,
     }))
 }
 

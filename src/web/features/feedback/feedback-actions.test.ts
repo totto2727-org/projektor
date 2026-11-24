@@ -137,7 +137,7 @@ describe('feedback concrete ServerFn shared commands', () => {
     const result = await test.invoke(actions.convertFeedbackToIssue, reference)
     expect(result).toMatchObject({ ok: true, value: { id: expect.any(String), number: expect.any(Number) } })
     const feedback = test.sqlite.prepare("SELECT status,linked_issue_id FROM feedback WHERE id='feedback'").get()
-    expect(feedback).toMatchObject({ status: 'actioned', linked_issue_id: expect.any(String) })
+    expect(feedback).toMatchObject({ linked_issue_id: expect.any(String), status: 'actioned' })
     if (!Predicate.isString(feedback?.linked_issue_id)) {
       throw new Error('Expected linked issue ID.')
     }
@@ -157,7 +157,7 @@ describe('feedback concrete ServerFn shared commands', () => {
       test.invoke(actions.convertSelectedFeedbackToIssue, { ...scope, feedbackIds: ['feedback', 'feedback2'] }),
     ).resolves.toMatchObject({
       ok: true,
-      value: { id: expect.any(String), number: expect.any(Number), convertedCount: 2 },
+      value: { convertedCount: 2, id: expect.any(String), number: expect.any(Number) },
     })
     expect(
       test.sqlite.prepare("SELECT count(DISTINCT linked_issue_id) AS count FROM feedback WHERE status='actioned'").get()

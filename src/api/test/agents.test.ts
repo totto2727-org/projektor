@@ -312,8 +312,8 @@ describe('agents API', () => {
        * The session was registered internally, then compensated — either absent, or
        * present but already ended, never left active.
        */
-      Iterable.forEach(sessions.results, (s) => {
-        expect(s.status).toBe('ended')
+      Iterable.forEach(sessions.results, (result) => {
+        expect(result.status).toBe('ended')
       })
 
       const claim = await env.DB.prepare('SELECT id FROM issue_file_claims WHERE path = ?')

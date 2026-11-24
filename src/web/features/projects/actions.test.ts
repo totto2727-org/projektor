@@ -14,7 +14,7 @@ describe('project native forms invoke real shared commands', () => {
     )
     expect(result).toMatchObject({
       ok: true,
-      value: { id: expect.any(String), name: 'New project', key: 'NEW', slug: 'new-project' },
+      value: { id: expect.any(String), key: 'NEW', name: 'New project', slug: 'new-project' },
     })
     expect(test.sqlite.prepare("SELECT name,key,description FROM projects WHERE key='NEW'").get()).toMatchObject({
       description: '',

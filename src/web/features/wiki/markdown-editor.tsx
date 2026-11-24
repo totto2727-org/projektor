@@ -59,7 +59,7 @@ function imageFilesFromDrop(data: DataTransfer | null): File[] {
   if (!data) {
     return []
   }
-  return globalThis.Array.from(data.files).filter((f) => PASTE_IMAGE_TYPES.has(f.type))
+  return globalThis.Array.from(data.files).filter((file) => PASTE_IMAGE_TYPES.has(file.type))
 }
 
 /*

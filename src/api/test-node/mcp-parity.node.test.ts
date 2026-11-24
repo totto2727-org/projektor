@@ -833,8 +833,8 @@ describe('covers MCP surface parity (PROJ-623)', () => {
     test('drops entries whose gap has been closed', () => {
       const byKey = new Map(serviceFns.map((s) => [s.key, s]))
       const fixed = [
-        ...Object.keys(MCP_ONLY).filter((k) => byKey.get(k)?.onRest),
-        ...Object.keys(REST_ONLY).filter((k) => byKey.get(k)?.onMcp),
+        ...Object.keys(MCP_ONLY).filter((key) => byKey.get(key)?.onRest),
+        ...Object.keys(REST_ONLY).filter((key) => byKey.get(key)?.onMcp),
       ]
       expect(fixed).toEqual([])
     })
