@@ -7,14 +7,17 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Popover = function Popover({ ...props }: PopoverPrimitive.Root.Props): React.JSX.Element {
   return <PopoverPrimitive.Root data-slot='popover' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const PopoverTrigger = function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props): React.JSX.Element {
   return <PopoverPrimitive.Trigger data-slot='popover-trigger' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const PopoverContent = function PopoverContent({
   className,
   align = 'center',
@@ -46,6 +49,7 @@ export const PopoverContent = function PopoverContent({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const PopoverHeader = function PopoverHeader({
   className,
   ...props
@@ -53,6 +57,7 @@ export const PopoverHeader = function PopoverHeader({
   return <div data-slot='popover-header' className={cn('flex flex-col gap-0.5 text-sm', className)} {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const PopoverTitle = function PopoverTitle({
   className,
   ...props
@@ -60,6 +65,7 @@ export const PopoverTitle = function PopoverTitle({
   return <PopoverPrimitive.Title data-slot='popover-title' className={cn('font-medium', className)} {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const PopoverDescription = function PopoverDescription({
   className,
   ...props

@@ -42,6 +42,7 @@ interface RowsProps {
   changePriority: (issueId: string, priority: string) => void
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const DesktopTable = function DesktopTable({
   issues,
   statuses,
@@ -125,6 +126,7 @@ const DesktopTable = function DesktopTable({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const MobileCards = function MobileCards({ issues, updatingPriorityId, changePriority }: RowsProps): JSX.Element {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>

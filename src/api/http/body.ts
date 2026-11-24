@@ -1,6 +1,6 @@
 import type { Context } from 'hono'
 
-import { ValidationError } from '#contracts/errors.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 import type { HonoEnv } from '#types'
 
 /**
@@ -16,6 +16,6 @@ export const jsonBody = async function jsonBody(httpContext: Context<HonoEnv>): 
   try {
     return await httpContext.req.json()
   } catch {
-    throw new ValidationError({ formErrors: ['Request body must be valid JSON'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['Request body must be valid JSON'], {}))
   }
 }

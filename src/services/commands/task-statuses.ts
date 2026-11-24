@@ -8,7 +8,7 @@ import { drizzle, schema } from '#db'
 import { listTaskStatuses as queryStatuses } from '#services/task-statuses.ts'
 
 import * as cache from './cache.ts'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { buildCloseIssueReviewTargetsStatement } from './review-targets.ts'
 import { prepareQuery } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
@@ -180,7 +180,7 @@ export const updateTaskStatus = async function updateTaskStatus(
 export const deleteTaskStatus = async function deleteTaskStatus(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
   }
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
@@ -333,10 +333,7 @@ export const resolveStatus = async function resolveStatus(
       .where(and(eq(schema.taskStatuses.id, statusId), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)))
       .get()
     if (!found) {
-      throw new ValidationError({
-        formErrors: ['Task status not found in this workspace'],
-        fieldErrors: {},
-      })
+      throw new ValidationError(validationIssues(['Task status not found in this workspace'], {}))
     }
     return fromRow(found)
   }

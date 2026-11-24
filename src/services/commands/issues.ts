@@ -32,7 +32,7 @@ import * as cache from './cache.ts'
 import { buildAddCommentInsertStatement } from './comments.ts'
 import { buildCustomFieldUpsertStatements, validateCustomFields } from './custom-fields.ts'
 import { dorColumns } from './definition-of-ready.ts'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { isExternallyVerifiableEvidence } from './evidence-classification.ts'
 import { buildReleaseClaimsForClosedIssueStatement } from './file-claims.ts'
 import {
@@ -72,10 +72,7 @@ const validateParent = async function validateParent(
   issueId: string | null,
 ): Promise<void> {
   if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId) && parentId === issueId) {
-    throw new ValidationError({
-      formErrors: ['An issue cannot be its own parent'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['An issue cannot be its own parent'], {}))
   }
 
   /*
@@ -117,18 +114,12 @@ const validateParent = async function validateParent(
   let ancestorCount = 0
   Iterable.forEach(chain.slice(1), ({ id: ancestorId }) => {
     if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId) && ancestorId === issueId) {
-      throw new ValidationError({
-        formErrors: ['Setting this parent would create a cycle'],
-        fieldErrors: {},
-      })
+      throw new ValidationError(validationIssues(['Setting this parent would create a cycle'], {}))
     }
 
     ancestorCount++
     if (ancestorCount >= 5) {
-      throw new ValidationError({
-        formErrors: ['Maximum nesting depth (5) exceeded'],
-        fieldErrors: {},
-      })
+      throw new ValidationError(validationIssues(['Maximum nesting depth (5) exceeded'], {}))
     }
   })
 }
@@ -150,10 +141,7 @@ export async function listIssues(ctx: ServiceCtx, raw: unknown) {
     ? await Effect.runPromise(issueQueries.findIssueCustomField(ctx.db, ctx.workspaceId, filters.cfKey))
     : null
   if (filters.cfKey && !field) {
-    throw new ValidationError({
-      formErrors: [`Unknown custom field key: ${filters.cfKey}`],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues([`Unknown custom field key: ${filters.cfKey}`], {}))
   }
   const page = await Effect.runPromise(
     issueQueries.listIssues(
@@ -274,10 +262,7 @@ export async function getIssue(ctx: ServiceCtx, raw: unknown): Promise<Record<st
     String.isNonEmpty(ref) &&
     !ISSUE_REF_PATTERN.test(ref)
   ) {
-    throw new ValidationError({
-      formErrors: ['ref must be in format KEY-NUMBER'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['ref must be in format KEY-NUMBER'], {}))
   }
   const issue = await Effect.runPromise(issueQueries.getIssue(ctx.db, ctx.workspaceId, { id, ref }))
   if (!issue) {
@@ -318,10 +303,7 @@ export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
   }
   Iterable.forEach(result.data.refs ?? [], (ref) => {
     if (!ISSUE_REF_PATTERN.test(ref)) {
-      throw new ValidationError({
-        formErrors: [`Invalid ref: ${ref} (expected KEY-NUMBER)`],
-        fieldErrors: {},
-      })
+      throw new ValidationError(validationIssues([`Invalid ref: ${ref} (expected KEY-NUMBER)`], {}))
     }
   })
   const page = await Effect.runPromise(
@@ -350,10 +332,7 @@ const resolveTypeId = async function resolveTypeId(
       .where(and(eq(schema.taskTypes.id, typeId), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
       .get()
     if (!found) {
-      throw new ValidationError({
-        formErrors: ['Task type not found in this workspace'],
-        fieldErrors: {},
-      })
+      throw new ValidationError(validationIssues(['Task type not found in this workspace'], {}))
     }
     return typeId
   }
@@ -548,7 +527,7 @@ export async function createIssueFromFeedback(
   feedbackIds: Readonly<string[]>,
 ) {
   if (!feedbackIds.length || feedbackIds.length > 500 || new Set(feedbackIds).size !== feedbackIds.length) {
-    throw new ValidationError({ formErrors: ['Invalid feedback selection'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['Invalid feedback selection'], {}))
   }
   const { projectId, title, body, priority } = input
   return createIssueInternal(ctx, { projectId, title, body, priority }, feedbackIds)
@@ -852,12 +831,11 @@ const buildReviewTransitions = function buildReviewTransitions(
 
 const assertCompletionReportPresent = function assertCompletionReportPresent(data: UpdateIssueData): void {
   if (!data.completionReport) {
-    throw new ValidationError({
-      formErrors: [],
-      fieldErrors: {
+    throw new ValidationError(
+      validationIssues([], {
         completionReport: ['summary and verification are required for an agent to enter review (PROJ-254)'],
-      },
-    })
+      }),
+    )
   }
 }
 
@@ -915,10 +893,12 @@ const assertReviewGate = async function assertReviewGate(
   if (enteringDone) {
     const everAgentWorked = await issueEverHadAgentLease(ctx, existing.id)
     if (everAgentWorked && !Predicate.isNotNullish(existing.completionReportAt) && !data.completionReport) {
-      throw new ValidationError({
-        formErrors: ['A completion report is required before an agent-worked issue can be marked done (PROJ-254)'],
-        fieldErrors: {},
-      })
+      throw new ValidationError(
+        validationIssues(
+          ['A completion report is required before an agent-worked issue can be marked done (PROJ-254)'],
+          {},
+        ),
+      )
     }
   }
 }
@@ -1044,14 +1024,13 @@ const completionReportCommentBody = function completionReportCommentBody(
   const body = formatCompletionReportComment(report)
   const max = AddCommentSchema.shape.body.maxLength
   if (Predicate.isNotNullish(max) && body.length > max) {
-    throw new ValidationError({
-      formErrors: [],
-      fieldErrors: {
+    throw new ValidationError(
+      validationIssues([], {
         completionReport: [
           `Completion report is too long: it is posted as a comment, which is limited to ${max} characters (this one formats to ${body.length})`,
         ],
-      },
-    })
+      }),
+    )
   }
   return body
 }
@@ -1106,10 +1085,9 @@ const assertNotDemotingEpicWithChildren = async function assertNotDemotingEpicWi
     and(eq(schema.issues.parentId, existing.id), eq(schema.issues.workspaceId, ctx.workspaceId)),
   )
   if (childCount > 0) {
-    throw new ValidationError({
-      formErrors: ['Cannot change type: this epic still has child issues — move or remove them first'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(
+      validationIssues(['Cannot change type: this epic still has child issues — move or remove them first'], {}),
+    )
   }
 }
 
@@ -1435,7 +1413,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
   const id = await resolveIssueIdParam(ctx, rawId)
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
   }
   const orm = drizzle(ctx.db, { schema })
 

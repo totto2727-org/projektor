@@ -6,6 +6,7 @@ export const projectHref = function projectHref(project: ProjectSummary, path: '
   return `/${path}?projectId=${encodeURIComponent(project.id)}&workspace=${encodeURIComponent(project.workspace_slug)}`
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SelectionRequired = function SelectionRequired({
   scope,
   label,

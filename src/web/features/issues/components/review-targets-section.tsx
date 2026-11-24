@@ -15,6 +15,7 @@ const STATUS_OPTIONS = [
   { value: 'done', label: '完了', color: 'text-text-base bg-success-bg' },
 ] satisfies { value: ReviewStatus; label: string; color: string }[]
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const ReviewTargetRow = function ReviewTargetRow({
   attachment,
   workspaceSlug,
@@ -140,6 +141,7 @@ const ReviewTargetRow = function ReviewTargetRow({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ReviewTargetsSection = function ReviewTargetsSection({
   attachments,
   workspaceSlug,

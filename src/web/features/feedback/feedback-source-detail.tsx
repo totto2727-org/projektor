@@ -44,6 +44,7 @@ const statusLabel = function statusLabel(source: FeedbackSource): string {
   return source.isActive ? 'Active' : 'Inactive'
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FeedbackSourceHeader = function FeedbackSourceHeader({
   source,
   sources,
@@ -79,6 +80,7 @@ const FeedbackSourceHeader = function FeedbackSourceHeader({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FeedbackTabPanels = function FeedbackTabPanels({
   tab,
   workspaceSlug,
@@ -128,6 +130,7 @@ const FeedbackTabPanels = function FeedbackTabPanels({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FeedbackTabBar = function FeedbackTabBar({
   tab,
   tabRefs,

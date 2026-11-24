@@ -8,7 +8,7 @@ import { ExportWikiInputSchema } from '#contracts/inputs/wiki.ts'
 import { drizzle, schema } from '#db'
 
 import { assertProjectAccess } from './access.ts'
-import { NotFoundError, ValidationError } from './errors.ts'
+import { NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 
@@ -32,10 +32,9 @@ const MAX_EXPORT_ATTACHMENT_BYTES = 100 * 1024 * 1024 // 100 MB total per export
 
 const assertPageCountAllowed = function assertPageCountAllowed(pageCount: number): void {
   if (pageCount > MAX_EXPORT_PAGES) {
-    throw new ValidationError({
-      formErrors: [`Export exceeds the ${MAX_EXPORT_PAGES}-page limit (${pageCount} pages)`],
-      fieldErrors: {},
-    })
+    throw new ValidationError(
+      validationIssues([`Export exceeds the ${MAX_EXPORT_PAGES}-page limit (${pageCount} pages)`], {}),
+    )
   }
 }
 
@@ -45,12 +44,12 @@ const assertExportSizeAllowed = function assertExportSizeAllowed(
 ): void {
   assertPageCountAllowed(pageCount)
   if (totalAttachmentBytes > MAX_EXPORT_ATTACHMENT_BYTES) {
-    throw new ValidationError({
-      formErrors: [
-        `Export attachments exceed the ${MAX_EXPORT_ATTACHMENT_BYTES}-byte limit (${totalAttachmentBytes} bytes)`,
-      ],
-      fieldErrors: {},
-    })
+    throw new ValidationError(
+      validationIssues(
+        [`Export attachments exceed the ${MAX_EXPORT_ATTACHMENT_BYTES}-byte limit (${totalAttachmentBytes} bytes)`],
+        {},
+      ),
+    )
   }
 }
 

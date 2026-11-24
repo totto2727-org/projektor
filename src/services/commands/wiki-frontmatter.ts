@@ -5,7 +5,7 @@ import { flattenError } from 'zod'
 import { WikiFrontmatterSchema } from '#contracts/inputs/wiki.ts'
 import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 
-import { ValidationError } from './errors.ts'
+import { ValidationError, validationIssues } from './errors.ts'
 
 /*
  * PROJ-488 (R6): matches a leading `---\n<yaml>\n---\n` block, the standard frontmatter
@@ -72,10 +72,7 @@ const parseFrontmatterYaml = function parseFrontmatterYaml(yamlBlock: string): u
      * Never interpolate the third-party YAML parser's own exception message —
      * it can describe internal parser state, not just the caller's input.
      */
-    throw new ValidationError({
-      formErrors: ['Invalid YAML frontmatter'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Invalid YAML frontmatter'], {}))
   }
 }
 
@@ -85,10 +82,9 @@ const normalizeFrontmatterRecord = function normalizeFrontmatterRecord(raw: obje
     try {
       normalized.verified_at = normalizeVerifiedAt(normalized.verified_at)
     } catch (caughtError) {
-      throw new ValidationError({
-        formErrors: [caughtError instanceof Error ? caughtError.message : String(caughtError)],
-        fieldErrors: {},
-      })
+      throw new ValidationError(
+        validationIssues([caughtError instanceof Error ? caughtError.message : String(caughtError)], {}),
+      )
     }
   }
   return normalized
@@ -110,10 +106,9 @@ const requireFrontmatterMapping = function requireFrontmatterMapping(raw: unknow
     return null
   }
   if (typeof raw !== 'object' || globalThis.Array.isArray(raw)) {
-    throw new ValidationError({
-      formErrors: ['Frontmatter must be a YAML mapping (key: value pairs), not a list or scalar'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(
+      validationIssues(['Frontmatter must be a YAML mapping (key: value pairs), not a list or scalar'], {}),
+    )
   }
   return raw as Record<string, unknown>
 }

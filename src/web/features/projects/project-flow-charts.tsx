@@ -7,6 +7,7 @@ import { CfdChart, ThroughputChart } from '@/features/planning/flow-charts.tsx'
 import type { FlowMetrics } from './schemas.ts'
 
 /** Overview and Metrics share the same chart geometry and raw-count semantics. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ProjectFlowCharts = function ProjectFlowCharts({
   flow,
 }: {

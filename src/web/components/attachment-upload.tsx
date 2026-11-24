@@ -15,6 +15,7 @@ export interface AttachmentUploadProps {
 }
 
 /** Effront form action owns upload decoding, request limits and canonical SSR refresh. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AttachmentUpload = function AttachmentUpload({
   workspaceSlug,
   entityType,

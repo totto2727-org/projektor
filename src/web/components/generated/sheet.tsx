@@ -9,22 +9,27 @@ import { Button } from '@/components/generated/button'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Sheet = function Sheet({ ...props }: SheetPrimitive.Root.Props): React.JSX.Element {
   return <SheetPrimitive.Root data-slot='sheet' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SheetTrigger = function SheetTrigger({ ...props }: SheetPrimitive.Trigger.Props): React.JSX.Element {
   return <SheetPrimitive.Trigger data-slot='sheet-trigger' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SheetClose = function SheetClose({ ...props }: SheetPrimitive.Close.Props): React.JSX.Element {
   return <SheetPrimitive.Close data-slot='sheet-close' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SheetPortal = function SheetPortal({ ...props }: SheetPrimitive.Portal.Props): React.JSX.Element {
   return <SheetPrimitive.Portal data-slot='sheet-portal' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SheetOverlay = function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props): React.JSX.Element {
   return (
     <SheetPrimitive.Backdrop
@@ -38,6 +43,7 @@ const SheetOverlay = function SheetOverlay({ className, ...props }: SheetPrimiti
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SheetContent = function SheetContent({
   className,
   children,
@@ -75,6 +81,7 @@ export const SheetContent = function SheetContent({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SheetHeader = function SheetHeader({
   className,
   ...props
@@ -82,6 +89,7 @@ export const SheetHeader = function SheetHeader({
   return <div data-slot='sheet-header' className={cn('flex flex-col gap-0.5 p-4', className)} {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SheetFooter = function SheetFooter({
   className,
   ...props
@@ -89,6 +97,7 @@ export const SheetFooter = function SheetFooter({
   return <div data-slot='sheet-footer' className={cn('mt-auto flex flex-col gap-2 p-4', className)} {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SheetTitle = function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props): React.JSX.Element {
   return (
     <SheetPrimitive.Title
@@ -99,6 +108,7 @@ export const SheetTitle = function SheetTitle({ className, ...props }: SheetPrim
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SheetDescription = function SheetDescription({
   className,
   ...props

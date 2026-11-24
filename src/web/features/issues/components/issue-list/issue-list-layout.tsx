@@ -31,6 +31,7 @@ interface IssueListLayoutProps {
 }
 
 /** Banners + toolbar + count/view-toggle row — everything above the main content area. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const IssueListTop = function IssueListTop({
   workspaceSlug,
   view,
@@ -126,6 +127,7 @@ const IssueListTop = function IssueListTop({
 }
 
 /** Main content area (search/board/backlog/list) + the create-issue modal. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const IssueListMain = function IssueListMain({
   view,
   filtered,

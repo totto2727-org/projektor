@@ -26,6 +26,7 @@ const statusBadge = function statusBadge(result: SearchResult): JSX.Element {
   return <span className='font-medium text-sm text-text-muted'>{result.status.replace(/_/gu, ' ')}</span>
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SearchResultsTable = function SearchResultsTable({ results }: { results: SearchResult[] }): JSX.Element {
   return (
     <div className='overflow-x-auto max-sm:hidden'>
@@ -71,6 +72,7 @@ const SearchResultsTable = function SearchResultsTable({ results }: { results: S
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SearchResultsMobileCards = function SearchResultsMobileCards({
   results,
 }: {

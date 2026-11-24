@@ -41,6 +41,7 @@ export const formatFullDate = function formatFullDate(iso: string): string {
     ? iso
     : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const EmptyChartState = function EmptyChartState({ message }: { message: string }): JSX.Element {
   return <div className='flex items-center justify-center h-[220px] text-sm text-text-muted'>{message}</div>
 }
@@ -54,6 +55,7 @@ const sequential = {
 }
 const margin = { top: 12, right: 12, bottom: 0, left: 0 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FlowChart = function FlowChart({
   name,
   config,
@@ -75,11 +77,13 @@ const FlowChart = function FlowChart({
     </ChartContainer>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const DateAxis = function DateAxis(): JSX.Element {
   return (
     <XAxis dataKey='bucketStart' tickFormatter={formatShortDate} tickLine={false} axisLine={false} minTickGap={24} />
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const CountAxis = function CountAxis(): JSX.Element {
   return <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={42} />
 }
@@ -98,6 +102,7 @@ const valueFormatter = function valueFormatter(
       </div>
     )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const DateTooltip = function DateTooltip({
   config,
   formatValue,
@@ -117,6 +122,7 @@ const DateTooltip = function DateTooltip({
   )
 }
 const throughputConfig = { count: { label: 'Issues completed', color: accent } } satisfies ChartConfig
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ThroughputChart = function ThroughputChart({
   data,
 }: {

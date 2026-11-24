@@ -43,6 +43,7 @@ const PILL_COLORS: Record<string, { bg: string; text: string }> = {
   low: { bg: 'var(--priority-low-solid)', text: 'var(--on-accent)' },
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const StatusPills = function StatusPills({
   derivedStatuses,
   filterStatuses,
@@ -82,6 +83,7 @@ const StatusPills = function StatusPills({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const PriorityPills = function PriorityPills({
   filterPriorities,
   setFilterPriorities,
@@ -118,6 +120,7 @@ const PriorityPills = function PriorityPills({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const DateRangeFilter = function DateRangeFilter({
   filterDateField,
   setFilterDateField,
@@ -198,6 +201,7 @@ interface FiltersPopoverProps {
   isSearchActive: boolean
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FiltersToggleButton = function FiltersToggleButton({
   buttonRef,
   isSearchActive,
@@ -237,6 +241,7 @@ const FiltersToggleButton = function FiltersToggleButton({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FiltersPopoverContent = function FiltersPopoverContent(
   props: Pick<
     FiltersPopoverProps,

@@ -17,6 +17,7 @@ export interface EmptyStateProps {
   class?: string
   className?: string
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const EmptyState = function EmptyState({
   title,
   description,

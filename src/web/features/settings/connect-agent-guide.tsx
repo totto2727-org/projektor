@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button.tsx'
 
 const URL_CODE =
   'flex-1 font-mono text-[0.8rem] px-2 py-[0.375rem] bg-bg border border-border rounded text-text-base break-all'
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ConnectAgentGuide = function ConnectAgentGuide({
   workspaceSlug,
   mcpUrl,

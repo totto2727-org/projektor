@@ -12,7 +12,7 @@ import type { Project, ProjectSummary } from '#services/projects.ts'
 import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
 import { recordActivity } from './activity.ts'
 import * as cache from './cache.ts'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
 
 const WS_META_TTL = 60
@@ -261,7 +261,7 @@ export const updateProject = async function updateProject(
   }
 
   if (Array.isArrayEmpty(Object.keys(setObj))) {
-    throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['Nothing to update'], {}))
   }
 
   setObj.updatedAt = now
@@ -353,7 +353,7 @@ const PROJECT_CLEANUP_SQL: Readonly<string[]> = [
 export const deleteProject = async function deleteProject(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
   }
   if (ctx.role !== 'owner') {
     throw new ForbiddenError()

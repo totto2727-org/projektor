@@ -11,9 +11,11 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   class?: string
   inputRef?: Ref<HTMLTextAreaElement>
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Input = function Input({ class: legacyClass, className, inputRef, ...props }: InputProps): JSX.Element {
   return <PrimitiveInput {...props} ref={inputRef} className={[legacyClass, className].filter(Boolean).join(' ')} />
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Textarea = function Textarea({
   class: legacyClass,
   className,

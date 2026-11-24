@@ -15,7 +15,7 @@ import * as sprintQueries from '#services/sprints.ts'
 import type { Sprint } from '#services/sprints.ts'
 
 import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
-import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 
@@ -182,7 +182,7 @@ export const updateSprint = async function updateSprint(
 export const completeSprint = async function completeSprint(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
   }
   const orm = drizzle(ctx.db, { schema })
   const sprint = await orm
@@ -196,10 +196,7 @@ export const completeSprint = async function completeSprint(ctx: ServiceCtx, id:
   }
   await requireSprintProjectWrite(ctx, sprint.projectId)
   if (sprint.status !== 'active') {
-    throw new ValidationError({
-      formErrors: ['Only active sprints can be completed'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Only active sprints can be completed'], {}))
   }
 
   const now = currentEpochSeconds()
@@ -214,7 +211,7 @@ export const completeSprint = async function completeSprint(ctx: ServiceCtx, id:
 export const deleteSprint = async function deleteSprint(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
   }
   const orm = drizzle(ctx.db, { schema })
   const existing = await orm

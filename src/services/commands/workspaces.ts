@@ -25,6 +25,7 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
+  validationIssues,
 } from './errors.ts'
 import { prepareQuery } from './sql.ts'
 import { buildDefaultTaskStatusStatements } from './task-statuses.ts'
@@ -156,13 +157,13 @@ export const removeMember = async function removeMember(
 ): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(targetUserId)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
+    throw new ValidationError(validationIssues(flattenError(idCheck.error).formErrors, {}))
   }
   if (ctx.role !== 'owner') {
     throw new ForbiddenError()
   }
   if (ctx.userId === targetUserId) {
-    throw new ValidationError({ formErrors: ['Cannot remove yourself as owner'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['Cannot remove yourself as owner'], {}))
   }
   const orm = drizzle(ctx.db, { schema })
   await orm
@@ -347,10 +348,7 @@ export const deleteWorkspace = async function deleteWorkspace(
   }
 
   if (ws.slug === defaultWorkspaceSlug) {
-    throw new ValidationError({
-      formErrors: ['Cannot delete the default workspace'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Cannot delete the default workspace'], {}))
   }
 
   const projectCount = await orm.$count(schema.projects, eq(schema.projects.workspaceId, ctx.workspaceId))

@@ -41,6 +41,7 @@ export const buttonVariants = cva(
   },
 )
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Button = function Button({
   className,
   variant = 'default',

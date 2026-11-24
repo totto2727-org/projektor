@@ -5,7 +5,7 @@ import { Array, Iterable, Predicate } from 'effect'
 import { drizzle, schema } from '#db'
 import type { Role } from '#types'
 
-import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 
@@ -345,10 +345,7 @@ export const requireWorkspaceMember = async function requireWorkspaceMember(
     .where(and(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId), eq(schema.workspaceMembers.userId, userId)))
     .get()
   if (!member) {
-    throw new ValidationError({
-      formErrors: [],
-      fieldErrors: { [field]: ['User is not a member of this workspace'] },
-    })
+    throw new ValidationError(validationIssues([], { [field]: ['User is not a member of this workspace'] }))
   }
 }
 

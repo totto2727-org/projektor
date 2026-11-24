@@ -35,6 +35,7 @@ const useChart = function useChart(): ChartContextProps {
   return context
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ChartContainer = function ChartContainer({
   id,
   className,
@@ -73,6 +74,7 @@ export const ChartContainer = function ChartContainer({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }): React.JSX.Element | null => {
   const colorConfig = Object.entries(config).filter(([, config]) => config.theme ?? config.color)
 

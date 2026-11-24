@@ -82,6 +82,7 @@ const parseContext = function parseContext(
   }
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FeedbackContext = function FeedbackContext({
   row,
   expanded,
@@ -116,6 +117,7 @@ const FeedbackContext = function FeedbackContext({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FeedbackRowActions = function FeedbackRowActions({
   row,
   onMarkReviewed,
@@ -153,6 +155,7 @@ interface FeedbackMobileCardsProps {
   onConvert: (id: string) => void
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FeedbackMobileCards = function FeedbackMobileCards({
   rows,
   selected,
@@ -205,6 +208,7 @@ interface FeedbackTableProps {
   onConvert: (id: string) => void
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FeedbackTable = function FeedbackTable({
   rows,
   selected,

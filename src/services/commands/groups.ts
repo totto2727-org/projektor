@@ -14,7 +14,7 @@ import * as groupData from '#services/groups.ts'
 
 import { isWorkspaceAdmin } from './access.ts'
 import { recordActivity } from './activity.ts'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
 
 const requireAdmin = function requireAdmin(ctx: ServiceCtx): void {
@@ -151,7 +151,7 @@ export const updateGroup = async function updateGroup(
     setObj.description = parsed.data.description
   }
   if (Array.isArrayEmpty(Object.keys(setObj))) {
-    throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['Nothing to update'], {}))
   }
 
   const orm = drizzle(ctx.db, { schema })
@@ -221,7 +221,7 @@ export const addGroupMember = async function addGroupMember(
     .where(and(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId), eq(schema.workspaceMembers.userId, userId)))
     .get()
   if (!wsMember) {
-    throw new ValidationError({ formErrors: ['User is not a workspace member'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['User is not a workspace member'], {}))
   }
 
   const now = currentEpochSeconds()

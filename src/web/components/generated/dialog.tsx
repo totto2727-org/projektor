@@ -9,22 +9,27 @@ import { Button } from '@/components/generated/button'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Dialog = function Dialog({ ...props }: DialogPrimitive.Root.Props): React.JSX.Element {
   return <DialogPrimitive.Root data-slot='dialog' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DialogTrigger = function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props): React.JSX.Element {
   return <DialogPrimitive.Trigger data-slot='dialog-trigger' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DialogPortal = function DialogPortal({ ...props }: DialogPrimitive.Portal.Props): React.JSX.Element {
   return <DialogPrimitive.Portal data-slot='dialog-portal' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DialogClose = function DialogClose({ ...props }: DialogPrimitive.Close.Props): React.JSX.Element {
   return <DialogPrimitive.Close data-slot='dialog-close' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DialogOverlay = function DialogOverlay({
   className,
   ...props
@@ -41,6 +46,7 @@ export const DialogOverlay = function DialogOverlay({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DialogContent = function DialogContent({
   className,
   children,
@@ -75,6 +81,7 @@ export const DialogContent = function DialogContent({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DialogHeader = function DialogHeader({
   className,
   ...props
@@ -82,6 +89,7 @@ export const DialogHeader = function DialogHeader({
   return <div data-slot='dialog-header' className={cn('flex flex-col gap-2', className)} {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DialogFooter = function DialogFooter({
   className,
   showCloseButton = false,
@@ -105,6 +113,7 @@ export const DialogFooter = function DialogFooter({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DialogTitle = function DialogTitle({
   className,
   ...props
@@ -118,6 +127,7 @@ export const DialogTitle = function DialogTitle({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DialogDescription = function DialogDescription({
   className,
   ...props

@@ -35,6 +35,7 @@ const applyBacklogOrder = function applyBacklogOrder(
   return [...inOrder, ...rest]
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const BacklogTableHead = function BacklogTableHead({
   sortBy,
   sortDir,
@@ -80,6 +81,7 @@ interface RowProps {
   onDragEnd: () => void
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const BacklogRow = function BacklogRow({
   issue,
   statuses,
@@ -167,6 +169,7 @@ const BacklogRow = function BacklogRow({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const BacklogMobileCards = function BacklogMobileCards({
   issues,
   updatingPriorityId,

@@ -7,6 +7,7 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Avatar = function Avatar({
   className,
   size = 'default',
@@ -27,6 +28,7 @@ export const Avatar = function Avatar({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AvatarImage = function AvatarImage({
   className,
   ...props
@@ -40,6 +42,7 @@ export const AvatarImage = function AvatarImage({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AvatarFallback = function AvatarFallback({
   className,
   ...props
@@ -56,6 +59,7 @@ export const AvatarFallback = function AvatarFallback({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AvatarBadge = function AvatarBadge({
   className,
   ...props
@@ -75,6 +79,7 @@ export const AvatarBadge = function AvatarBadge({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AvatarGroup = function AvatarGroup({
   className,
   ...props
@@ -91,6 +96,7 @@ export const AvatarGroup = function AvatarGroup({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AvatarGroupCount = function AvatarGroupCount({
   className,
   ...props

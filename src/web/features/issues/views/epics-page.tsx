@@ -14,6 +14,7 @@ export interface EpicsInitialData {
   readonly projects: Readonly<ProjectSummary[]>
   readonly search: string
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const EpicsPage = function EpicsPage({
   scope,
   workspaceSlug,

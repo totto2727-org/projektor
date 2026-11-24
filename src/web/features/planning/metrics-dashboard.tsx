@@ -26,6 +26,7 @@ import type { MetricId } from './metric-definitions.ts'
 import { MetricHelp, SectionHeading } from './metric-help.tsx'
 import type { CodeHeatmapResponse, Distribution, FlowMetrics, HeatmapMode, RangeState } from './types.ts'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const StatTile = function StatTile({ label, value }: { label: string; value: string }): JSX.Element {
   return (
     <div className='px-4 py-3 bg-surface border border-border rounded-lg min-w-0'>
@@ -34,6 +35,7 @@ const StatTile = function StatTile({ label, value }: { label: string; value: str
     </div>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const DistributionTiles = function DistributionTiles({
   metricId,
   title,
@@ -67,6 +69,7 @@ const DistributionTiles = function DistributionTiles({
     </div>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const HealthTile = function HealthTile({ metricId, value }: { metricId: MetricId; value: number }): JSX.Element {
   const flagged = value > 0
   return (
@@ -87,6 +90,7 @@ const HealthTile = function HealthTile({ metricId, value }: { metricId: MetricId
     </div>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SectionBand = function SectionBand({ title, children }: { title?: string; children: ReactNode }): JSX.Element {
   return (
     <section className='mb-10'>
@@ -95,6 +99,7 @@ const SectionBand = function SectionBand({ title, children }: { title?: string; 
     </section>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const ChartSection = function ChartSection({
   id,
   caption,
@@ -111,6 +116,7 @@ const ChartSection = function ChartSection({
     </div>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FlowBand = function FlowBand({ metrics }: { metrics: FlowMetrics }): JSX.Element {
   return (
     <SectionBand title='Flow'>
@@ -157,6 +163,7 @@ const FlowBand = function FlowBand({ metrics }: { metrics: FlowMetrics }): JSX.E
     </SectionBand>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const EfficiencyBand = function EfficiencyBand({ metrics }: { metrics: FlowMetrics }): JSX.Element {
   return (
     <SectionBand title='Efficiency & collaboration'>
@@ -183,6 +190,7 @@ const EfficiencyBand = function EfficiencyBand({ metrics }: { metrics: FlowMetri
     </SectionBand>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FactoryHealthBand = function FactoryHealthBand({
   health,
 }: {
@@ -206,6 +214,7 @@ const FactoryHealthBand = function FactoryHealthBand({
   )
 }
 /** All primary charts and heatmap arrive in SSR props. Applying a range is a normal GET. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const MetricsDashboard = function MetricsDashboard({
   projectId,
   workspaceSlug,

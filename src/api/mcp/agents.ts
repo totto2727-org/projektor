@@ -8,7 +8,7 @@ import {
   registerAgent,
   startWork,
 } from '#api/services/agents.ts'
-import { ValidationError } from '#contracts/errors.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
@@ -23,10 +23,7 @@ const withIdAlias = function withIdAlias(input: unknown): unknown {
     return { ...rest, id: agentId }
   }
   if (rest.id !== agentId) {
-    throw new ValidationError({
-      formErrors: [],
-      fieldErrors: { agentId: ['conflicts with id — pass one of them'] },
-    })
+    throw new ValidationError(validationIssues([], { agentId: ['conflicts with id — pass one of them'] }))
   }
   return rest
 }

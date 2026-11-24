@@ -1,7 +1,7 @@
 import { String, Predicate } from 'effect'
 
 import { createLink, deleteLink, listLinksForIssue } from '#api/services/issue-links.ts'
-import { ValidationError } from '#contracts/errors.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
@@ -48,7 +48,7 @@ export const issueLinksTools: MCPTool[] = [
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return deleteLink(ctx, { id })
     },

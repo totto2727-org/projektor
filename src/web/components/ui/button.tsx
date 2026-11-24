@@ -18,6 +18,7 @@ export type ButtonProps = CommonProps &
   )
 
 /** Compatibility props only. Base UI owns button interaction and native form semantics. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Button = function Button({
   variant,
   size,

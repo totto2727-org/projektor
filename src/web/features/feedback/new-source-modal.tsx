@@ -20,6 +20,7 @@ interface Props {
   onCreated?: () => void
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const NewSourceForm = function NewSourceForm({
   name,
   setName,

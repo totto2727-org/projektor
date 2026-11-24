@@ -8,6 +8,7 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
+  validationIssues,
 } from '#commands/errors.ts'
 import { coreReply, coreReplyCodec } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
@@ -24,7 +25,7 @@ const failure = async function failure(cause: unknown) {
 }
 describe('private Core browser command failure boundary', () => {
   test.each([
-    [new ValidationError({ formErrors: ['Name is required'], fieldErrors: {} }), 400, 'Validation failed'],
+    [new ValidationError(validationIssues(['Name is required'], {})), 400, 'Validation failed'],
     [new NotFoundError('Missing', { headings: ['Title'] }), 404, 'Missing'],
     [new ForbiddenError('Denied'), 403, 'Denied'],
     [new ConflictError('Conflict', { currentRevisionId: 'revision' }), 409, 'Conflict'],

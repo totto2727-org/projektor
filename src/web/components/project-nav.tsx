@@ -57,6 +57,7 @@ const visibleCount = function visibleCount(width: number, tabs: Readonly<number[
 }
 
 /** Project-family header navigation. Server scope is authoritative, and no client project lookup occurs. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps): JSX.Element {
   const [width, setWidth] = useState(0)
   const [tabWidths, setTabWidths] = useState<number[] | null>(null)

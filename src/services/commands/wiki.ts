@@ -32,7 +32,7 @@ import {
   visibleProjectSqlFragment,
 } from './access.ts'
 import { recordActivity } from './activity.ts'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { inChunks, prepareQuery, sanitizeFtsQuery } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 import { deleteWikiDraftsForPages } from './wiki-drafts.ts'
@@ -167,10 +167,11 @@ const MAX_DELETED_PAGE_IDS = 500
  */
 const assertSlugNotIdShaped = function assertSlugNotIdShaped(slug: string): void {
   if (isIdShapedSlug(slug)) {
-    throw new ValidationError({
-      formErrors: [`Slug '${slug}' looks like a page id and cannot be used`],
-      fieldErrors: { slug: ['Slug cannot look like a page id'] },
-    })
+    throw new ValidationError(
+      validationIssues([`Slug '${slug}' looks like a page id and cannot be used`], {
+        slug: ['Slug cannot look like a page id'],
+      }),
+    )
   }
 }
 
@@ -188,10 +189,7 @@ const assertSlugAvailable = async function assertSlugAvailable(
   excludePageId?: string,
 ): Promise<void> {
   if (RESERVED_WIKI_SLUGS.has(slug)) {
-    throw new ValidationError({
-      formErrors: [`Slug '${slug}' is reserved and cannot be used`],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues([`Slug '${slug}' is reserved and cannot be used`], {}))
   }
   const existing = await orm
     .select({ id: schema.wikiPages.id })
@@ -321,7 +319,7 @@ const validateParentDepth = async function validateParentDepth(
   forbidPageId?: string,
 ): Promise<void> {
   if (Predicate.isNotNullish(forbidPageId) && String.isNonEmpty(forbidPageId) && parentId === forbidPageId) {
-    throw new ValidationError({ formErrors: ['A page cannot be its own parent'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['A page cannot be its own parent'], {}))
   }
   let parentDepth = 0
   let cur = parentId
@@ -340,18 +338,16 @@ const validateParentDepth = async function validateParentDepth(
     }
     seen.add(pid)
     if (Predicate.isNotNullish(forbidPageId) && String.isNonEmpty(forbidPageId) && pid === forbidPageId) {
-      throw new ValidationError({
-        formErrors: ['Setting this parent would create a cycle in the page hierarchy'],
-        fieldErrors: {},
-      })
+      throw new ValidationError(
+        validationIssues(['Setting this parent would create a cycle in the page hierarchy'], {}),
+      )
     }
     cur = pid
     parentDepth++
     if (parentDepth >= WIKI_MAX_NESTING_DEPTH - 1) {
-      throw new ValidationError({
-        formErrors: [`Maximum wiki nesting depth (${WIKI_MAX_NESTING_DEPTH}) exceeded`],
-        fieldErrors: {},
-      })
+      throw new ValidationError(
+        validationIssues([`Maximum wiki nesting depth (${WIKI_MAX_NESTING_DEPTH}) exceeded`], {}),
+      )
     }
   }
   // forbidPageId is only passed when moving an existing page (validateUpdatedPageParent) —
@@ -361,10 +357,7 @@ const validateParentDepth = async function validateParentDepth(
       ? await getSubtreeHeight(db, forbidPageId, workspaceId)
       : 0
   if (parentDepth + 1 + subtreeHeight > WIKI_MAX_NESTING_DEPTH - 1) {
-    throw new ValidationError({
-      formErrors: [`Maximum wiki nesting depth (${WIKI_MAX_NESTING_DEPTH}) exceeded`],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues([`Maximum wiki nesting depth (${WIKI_MAX_NESTING_DEPTH}) exceeded`], {}))
   }
 }
 
@@ -388,16 +381,10 @@ const validateNewPageParent = async function validateNewPageParent(
     )
     .get()
   if (!parentPage) {
-    throw new ValidationError({
-      formErrors: ['Parent page not found in this workspace'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Parent page not found in this workspace'], {}))
   }
   if ((projectId ?? null) !== (parentPage.projectId ?? null)) {
-    throw new ValidationError({
-      formErrors: ['Parent page must belong to the same project'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Parent page must belong to the same project'], {}))
   }
   await validateParentDepth(db, parentId, workspaceId)
 }
@@ -422,16 +409,10 @@ const validateUpdatedPageParent = async function validateUpdatedPageParent(
     )
     .get()
   if (!parentPage) {
-    throw new ValidationError({
-      formErrors: ['Parent page not found in this workspace'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Parent page not found in this workspace'], {}))
   }
   if ((page.projectId ?? null) !== (parentPage.projectId ?? null)) {
-    throw new ValidationError({
-      formErrors: ['Parent page must belong to the same project'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Parent page must belong to the same project'], {}))
   }
   await validateParentDepth(db, parentId, workspaceId, page.id)
 }
@@ -699,20 +680,18 @@ const resolveTemplateContent = async function resolveTemplateContent(
     template = await resolvePageByIdOrSlug(ctx.db, templateSlug, ctx.workspaceId)
   } catch (caughtError) {
     if (caughtError instanceof NotFoundError) {
-      throw new ValidationError({
-        formErrors: [`templateSlug '${templateSlug}' does not resolve to an existing page`],
-        fieldErrors: {},
-      })
+      throw new ValidationError(
+        validationIssues([`templateSlug '${templateSlug}' does not resolve to an existing page`], {}),
+      )
     }
     throw caughtError
   }
   await assertWikiPageVisible(ctx, template.projectId)
   const meta = parseWikiFrontmatter(template.content)
   if (!meta.isTemplate) {
-    throw new ValidationError({
-      formErrors: [`Page '${templateSlug}' is not a template (missing frontmatter template: true)`],
-      fieldErrors: {},
-    })
+    throw new ValidationError(
+      validationIssues([`Page '${templateSlug}' is not a template (missing frontmatter template: true)`], {}),
+    )
   }
   return stripTemplateFlag(template.content)
 }
@@ -1007,10 +986,7 @@ const resolveBaseContent = async function resolveBaseContent(
     .bind(baseRevisionId, pageId)
     .first<{ createdAt: number; rowid: number }>()
   if (!baseRow) {
-    throw new ValidationError({
-      formErrors: ['baseRevisionId does not belong to this page'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['baseRevisionId does not belong to this page'], {}))
   }
   const nextRow = await db
     .prepare(
@@ -1045,10 +1021,7 @@ const assertRevisionBelongsToPage = async function assertRevisionBelongsToPage(
     .bind(baseRevisionId, pageId)
     .first<{ id: string }>()
   if (!baseRow) {
-    throw new ValidationError({
-      formErrors: ['baseRevisionId does not belong to this page'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['baseRevisionId does not belong to this page'], {}))
   }
 }
 
@@ -2314,7 +2287,7 @@ export const deleteWikiPage = async function deleteWikiPage(
 ): Promise<{ ok: boolean; deletedCount: number; linkedByCount: number }> {
   const idCheck = IdSchema.safeParse(idOrSlug)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
+    throw new ValidationError(validationIssues(flattenError(idCheck.error).formErrors, {}))
   }
   const parsedOptions = DeleteWikiPageOptionsSchema.safeParse(options ?? {})
   if (!parsedOptions.success) {
@@ -2486,7 +2459,7 @@ export const deleteWikiPage = async function deleteWikiPage(
 export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
+    throw new ValidationError(validationIssues(flattenError(idCheck.error).formErrors, {}))
   }
 
   const orm = drizzle(ctx.db, { schema })
@@ -2508,7 +2481,7 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
     throw new NotFoundError('Wiki page not found')
   }
   if (Predicate.isNullish(page.deletedAt)) {
-    throw new ValidationError({ formErrors: ['Page is not in the trash'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['Page is not in the trash'], {}))
   }
 
   await requireWikiDelete(ctx, page.projectId)

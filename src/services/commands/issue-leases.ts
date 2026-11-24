@@ -8,7 +8,7 @@ import { drizzle, schema } from '#db'
 
 import { assertIssueAccess, visibleProjectPredicate } from './access.ts'
 import { assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity.ts'
-import { ConflictError, NotFoundError, ValidationError } from './errors.ts'
+import { ConflictError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { resolveVisibleProjectIdParam } from './projects.ts'
 import { broadcastWorkspaceEvent } from './realtime.ts'
 import type { ServiceCtx } from './types.ts'
@@ -88,10 +88,7 @@ const assertAgentSessionLive = async function assertAgentSessionLive(
     throw new NotFoundError('Agent session not found')
   }
   if (session.status !== 'active' || session.heartbeat <= cutoff) {
-    throw new ValidationError({
-      formErrors: ['Agent session is not live — heartbeat before claiming'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Agent session is not live — heartbeat before claiming'], {}))
   }
 }
 

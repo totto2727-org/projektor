@@ -49,6 +49,7 @@ const formatDate = function formatDate(unixSeconds: number): string {
   return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ErrorState = function ErrorState({ error }: { error: string }): JSX.Element {
   const isExpired = error === 'not_found'
   return (
@@ -67,6 +68,7 @@ export const ErrorState = function ErrorState({ error }: { error: string }): JSX
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const IssueHeader = function IssueHeader({ issue }: { issue: SharedIssue }): JSX.Element {
   const priorityStyle = PRIORITY_COLORS[issue.priority] ?? PRIORITY_COLORS.none
   return (
@@ -97,6 +99,7 @@ const IssueHeader = function IssueHeader({ issue }: { issue: SharedIssue }): JSX
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const CustomFieldsSection = function CustomFieldsSection({
   fields,
 }: {

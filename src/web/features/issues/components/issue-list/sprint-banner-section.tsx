@@ -45,6 +45,7 @@ const sprintStatusStyle = function sprintStatusStyle(status: SprintDetail['statu
   return { background: 'var(--surface)', color: 'var(--text-muted)', borderColor: 'var(--border)' }
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SprintProgress = function SprintProgress({ issues }: { issues: Issue[] }): undefined | JSX.Element {
   const doneCount = issues.filter((issue) => issue.status_category === 'done').length
   const totalCount = issues.length

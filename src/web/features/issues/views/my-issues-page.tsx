@@ -9,6 +9,7 @@ export interface MyIssuesInitialData {
   readonly issues: Readonly<ScopedIssue[]>
   readonly memberships: Readonly<WorkspaceMembership[]>
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const MyIssuesPage = function MyIssuesPage({
   initialData,
 }: {

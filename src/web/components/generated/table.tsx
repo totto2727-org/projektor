@@ -6,6 +6,7 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Table = function Table({ className, ...props }: React.ComponentProps<'table'>): React.JSX.Element {
   return (
     <div data-slot='table-container' className='relative w-full overflow-x-auto'>
@@ -14,6 +15,7 @@ export const Table = function Table({ className, ...props }: React.ComponentProp
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableHeader = function TableHeader({
   className,
   ...props
@@ -21,10 +23,12 @@ export const TableHeader = function TableHeader({
   return <thead data-slot='table-header' className={cn('[&_tr]:border-b', className)} {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableBody = function TableBody({ className, ...props }: React.ComponentProps<'tbody'>): React.JSX.Element {
   return <tbody data-slot='table-body' className={cn('[&_tr:last-child]:border-0', className)} {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableFooter = function TableFooter({
   className,
   ...props
@@ -38,6 +42,7 @@ export const TableFooter = function TableFooter({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableRow = function TableRow({ className, ...props }: React.ComponentProps<'tr'>): React.JSX.Element {
   return (
     <tr
@@ -51,6 +56,7 @@ export const TableRow = function TableRow({ className, ...props }: React.Compone
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableHead = function TableHead({ className, ...props }: React.ComponentProps<'th'>): React.JSX.Element {
   return (
     <th
@@ -64,6 +70,7 @@ export const TableHead = function TableHead({ className, ...props }: React.Compo
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableCell = function TableCell({ className, ...props }: React.ComponentProps<'td'>): React.JSX.Element {
   return (
     <td
@@ -74,6 +81,7 @@ export const TableCell = function TableCell({ className, ...props }: React.Compo
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableCaption = function TableCaption({
   className,
   ...props

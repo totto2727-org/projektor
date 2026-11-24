@@ -14,15 +14,19 @@ export interface TableProps {
   className?: string
   children: ReactNode
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Table = function Table({ class: legacyClass, className, children }: TableProps): JSX.Element {
   return <PrimitiveTable className={[legacyClass, className].filter(Boolean).join(' ')}>{children}</PrimitiveTable>
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableHead = function TableHead({ children }: { children: ReactNode }): JSX.Element {
   return <PrimitiveTableHeader>{children}</PrimitiveTableHeader>
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableBody = function TableBody({ children }: { children: ReactNode }): JSX.Element {
   return <PrimitiveTableBody>{children}</PrimitiveTableBody>
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableRow = function TableRow({
   class: legacyClass,
   className,
@@ -39,6 +43,7 @@ export function TableHeaderCell({
 }: HTMLAttributes<HTMLTableCellElement> & { class?: string; children?: ReactNode }): JSX.Element {
   return <PrimitiveTableHead {...props} className={[legacyClass, className].filter(Boolean).join(' ')} />
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TableCell = function TableCell({
   class: legacyClass,
   className,

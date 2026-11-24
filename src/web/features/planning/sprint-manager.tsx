@@ -34,6 +34,7 @@ const fromSprint = (sprint: Sprint): Draft => ({
   end: unixToDateInput(sprint.endDate),
 })
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const StatusBadge = function StatusBadge({ status }: { status: Sprint['status'] }): JSX.Element {
   const style = {
     planned: { background: 'var(--surface)', color: 'var(--text-muted)' },
@@ -48,6 +49,7 @@ const StatusBadge = function StatusBadge({ status }: { status: Sprint['status'] 
 }
 
 /** Data stays prop-owned. A same-URL server refresh changes the list, not an open draft. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SprintManager = function SprintManager({
   projectId,
   workspaceSlug,

@@ -40,6 +40,7 @@ const formatDate = function formatDate(ts: number): string {
   return formatTimestampDate(ts)
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const NewTokenReveal = function NewTokenReveal({
   token,
   onDismiss,
@@ -60,6 +61,7 @@ const NewTokenReveal = function NewTokenReveal({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const DangerZone = function DangerZone({
   busy,
   rotating,

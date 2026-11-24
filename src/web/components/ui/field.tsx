@@ -14,6 +14,7 @@ export interface FieldProps {
   children: ReactNode
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Field = function Field({
   label,
   htmlFor,

@@ -45,7 +45,7 @@ import { workspacesTools } from '#api/mcp/workspaces.ts'
 import { pluginRegistry } from '#api/plugins/registry.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import { getWorkflow } from '#api/services/workflow.ts'
-import { ValidationError } from '#contracts/errors.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { JSON_NULL } from '#contracts/json-null.ts'
 import type { HonoEnv } from '#types'
@@ -265,13 +265,9 @@ mcpRouter.post('/:workspaceId', async (httpContext) => {
           fieldErrors[i.path] = [...(fieldErrors[i.path] ?? []), i.message]
         })
         const missing = argIssues.filter((i) => i.message === 'is required').map((i) => i.path)
-        const toolError = toToolError(
-          new ValidationError({
-            formErrors:
-              missing.length === argIssues.length ? [`Missing required argument(s): ${missing.join(', ')}`] : [],
-            fieldErrors,
-          }),
-        )
+        const formErrors =
+          missing.length === argIssues.length ? [`Missing required argument(s): ${missing.join(', ')}`] : []
+        const toolError = toToolError(new ValidationError(validationIssues(formErrors, fieldErrors)))
         // A ValidationError always maps
         return httpContext.json(jsonRpcResult(body.id, toolError!))
       }

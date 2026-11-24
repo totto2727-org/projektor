@@ -17,6 +17,7 @@ const messages = function messages(value: unknown): string[] {
   return []
 }
 /** Display Standard Schema issues without inventing a second validation layer. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FormErrors = function FormErrors({
   errors,
   children,

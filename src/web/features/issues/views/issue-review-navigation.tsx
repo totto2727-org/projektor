@@ -16,6 +16,7 @@ const REVIEW_LINKS = [
 ] satisfies { review: ReviewFilter | null; label: string }[]
 
 /** Native links keep review scope canonical on the server, including without JavaScript. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const IssueReviewNavigation = function IssueReviewNavigation({
   route,
   workspaceSlug,

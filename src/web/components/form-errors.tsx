@@ -38,6 +38,7 @@ const messagesFrom = function messagesFrom(error: unknown): string[] {
  * Renders the message-bearing portion of Standard Schema and TanStack Form errors.
  * Form state and validation remain owned by the calling form.
  */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FormErrors = function FormErrors({
   errors,
   id,

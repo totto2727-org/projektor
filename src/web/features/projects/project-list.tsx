@@ -30,6 +30,7 @@ const deriveKey = (name: string): string =>
     .replace(/[^A-Z0-9]/g, '')
     .slice(0, 10)
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const ProjectTile = function ProjectTile({ project }: { project: ProjectSummary }): JSX.Element {
   const open = project.open_issue_count
   const backlog = project.backlog_issue_count
@@ -56,6 +57,7 @@ const ProjectTile = function ProjectTile({ project }: { project: ProjectSummary 
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ProjectList = function ProjectList({
   initialProjects,
   memberships,

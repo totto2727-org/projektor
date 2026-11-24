@@ -19,6 +19,7 @@ type Saved = ReturnType<typeof useSavedViews>
  * Standard menu items keep selection and deletion keyboard-accessible without
  * nesting action buttons inside a Select option or maintaining a custom menu.
  */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const ViewsMenu = function ViewsMenu({ saved }: { saved: Saved }): undefined | JSX.Element {
   const { savedViews, activeViewName, applyView, deleteView } = saved
   if (Array.isArrayEmpty(savedViews)) {
@@ -47,6 +48,7 @@ const ViewsMenu = function ViewsMenu({ saved }: { saved: Saved }): undefined | J
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SaveViewControl = function SaveViewControl({ saved }: { saved: Saved }): JSX.Element {
   const { showSaveInput, setShowSaveInput, saveViewName, setSaveViewName, doSaveView } = saved
 

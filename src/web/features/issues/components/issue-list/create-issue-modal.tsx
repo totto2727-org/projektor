@@ -43,6 +43,7 @@ interface CreateIssueModalProps {
   statuses: TaskStatus[]
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const CreateIssueModalFields = function CreateIssueModalFields({
   createPriority,
   setCreatePriority,

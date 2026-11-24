@@ -8,7 +8,7 @@ import { drizzle, schema } from '#db'
 import { listTaskTypes as queryTypes } from '#services/task-types.ts'
 
 import * as cache from './cache.ts'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { prepareQuery } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 
@@ -150,7 +150,7 @@ export const updateTaskType = async function updateTaskType(
 export const deleteTaskType = async function deleteTaskType(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
+    throw new ValidationError(validationIssues(z.flattenError(idCheck.error).formErrors, {}))
   }
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()

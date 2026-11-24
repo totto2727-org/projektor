@@ -49,6 +49,7 @@ export const statusBadge = function statusBadge(issue: Issue): JSX.Element {
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const PrioritySelect = function PrioritySelect({
   issue,
   busy,
@@ -77,6 +78,7 @@ export const PrioritySelect = function PrioritySelect({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const StatusSelect = function StatusSelect({
   issue,
   statuses,
@@ -106,6 +108,7 @@ export const StatusSelect = function StatusSelect({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SortableHeader = function SortableHeader({
   label,
   sortKey,

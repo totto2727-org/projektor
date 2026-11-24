@@ -24,6 +24,7 @@ const selected = function selected(scope: RequestScope) {
     try: () => requireDataWorkspace(scope),
   })
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const TokenSettings = function TokenSettings({
   workspaceSlug,
   initialTokens,

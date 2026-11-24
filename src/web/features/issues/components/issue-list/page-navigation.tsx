@@ -10,6 +10,7 @@ export interface IssuePagination {
 }
 
 /** Native GET controls keep pagination shareable and owned by Effront's public navigation. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const PageNavigation = function PageNavigation({ route, nextCursor }: IssuePagination): null | JSX.Element {
   const params = new URLSearchParams(route.search)
   const hasCursor = params.has('cursor')

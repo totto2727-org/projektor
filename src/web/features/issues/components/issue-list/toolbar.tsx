@@ -30,6 +30,7 @@ interface FilterSelectsProps {
   setHideEpics: (v: boolean) => void
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FilterSelects = function FilterSelects({
   uniqueProjects,
   filterProject,
@@ -122,6 +123,7 @@ const FilterSelects = function FilterSelects({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SortControls = function SortControls({
   sortBy,
   setSortBy,

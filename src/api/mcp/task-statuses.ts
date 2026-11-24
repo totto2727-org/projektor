@@ -1,7 +1,7 @@
 import { String, Predicate } from 'effect'
 
 import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '#api/services/task-statuses.ts'
-import { ValidationError } from '#contracts/errors.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
@@ -72,7 +72,7 @@ export const taskStatusesTools: MCPTool[] = [
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return updateTaskStatus(ctx, id, fields)
     },
@@ -91,7 +91,7 @@ export const taskStatusesTools: MCPTool[] = [
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return deleteTaskStatus(ctx, id)
     },

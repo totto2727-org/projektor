@@ -10,7 +10,7 @@ import {
   searchIssues,
   updateIssue,
 } from '#api/services/issues.ts'
-import { ValidationError } from '#contracts/errors.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import { capPage, OMISSION_NOTE, shapeIssue, splitShapeOpts, toPage, VIEW_FIELDS_PROPS } from './serialize.ts'
@@ -38,10 +38,9 @@ const splitBodyChars = function splitBodyChars(rest: Record<string, unknown>): {
     return { rest: others, bodyChars: 0 }
   }
   if (!Number.isInteger(bodyChars) || (bodyChars as number) < 0 || (bodyChars as number) > LIST_BODY_MAX_CHARS) {
-    throw new ValidationError({
-      formErrors: [],
-      fieldErrors: { bodyChars: [`must be an integer from 0 to ${LIST_BODY_MAX_CHARS}`] },
-    })
+    throw new ValidationError(
+      validationIssues([], { bodyChars: [`must be an integer from 0 to ${LIST_BODY_MAX_CHARS}`] }),
+    )
   }
   const n = bodyChars as number
   return { rest: n > 0 ? { ...others, includeBody: true } : others, bodyChars: n }
@@ -358,7 +357,7 @@ export const issuesTools: MCPTool[] = [
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return updateIssue(ctx, id, fields)
     },
@@ -397,7 +396,7 @@ export const issuesTools: MCPTool[] = [
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return deleteIssue(ctx, id)
     },

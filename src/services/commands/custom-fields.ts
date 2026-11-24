@@ -9,7 +9,7 @@ import { drizzle, schema } from '#db'
 import * as fieldQueries from '#services/custom-fields.ts'
 
 import { visibleProjectFilter } from './access.ts'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
 
 export interface CustomFieldDef {
@@ -46,10 +46,7 @@ const assertOptionsAllowedForType = function assertOptionsAllowedForType(
   options: string[] | undefined,
 ): void {
   if (type !== 'select' && options && Array.isArrayNonEmpty(options)) {
-    throw new ValidationError({
-      formErrors: ['options can only be set for select fields'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['options can only be set for select fields'], {}))
   }
 }
 
@@ -89,10 +86,7 @@ const assertCustomFieldDefLimitNotReached = async function assertCustomFieldDefL
     eq(schema.customFieldDefinitions.workspaceId, workspaceId),
   )
   if (count >= 50) {
-    throw new ValidationError({
-      formErrors: ['Maximum of 50 custom field definitions per workspace'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['Maximum of 50 custom field definitions per workspace'], {}))
   }
 }
 
@@ -149,10 +143,7 @@ const buildCustomFieldUpdateSet = function buildCustomFieldUpdateSet(
   existingType: string,
 ): Record<string, unknown> {
   if ('options' in data && data.options !== undefined && existingType !== 'select') {
-    throw new ValidationError({
-      formErrors: ['options can only be set for select fields'],
-      fieldErrors: {},
-    })
+    throw new ValidationError(validationIssues(['options can only be set for select fields'], {}))
   }
 
   const setObj: Record<string, unknown> = {}
@@ -164,7 +155,7 @@ const buildCustomFieldUpdateSet = function buildCustomFieldUpdateSet(
   }
 
   if (Array.isArrayEmpty(Object.keys(setObj))) {
-    throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['Nothing to update'], {}))
   }
 
   return setObj
@@ -204,7 +195,7 @@ export const deleteCustomFieldDef = async function deleteCustomFieldDef(
 ): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
+    throw new ValidationError(validationIssues(flattenError(idCheck.error).formErrors, {}))
   }
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
@@ -269,26 +260,19 @@ const assertValidCustomFieldValue = function assertValidCustomFieldValue(
 ): void {
   if (def.type === 'number') {
     if (Number.isNaN(parseFloat(value)) || !Number.isFinite(parseFloat(value))) {
-      throw new ValidationError({
-        formErrors: [],
-        fieldErrors: { [key]: [`Custom field '${key}' expects a number`] },
-      })
+      throw new ValidationError(validationIssues([], { [key]: [`Custom field '${key}' expects a number`] }))
     }
   } else if (def.type === 'select') {
     const options: string[] = def.options ? (JSON.parse(def.options) as string[]) : []
     if (!options.includes(value)) {
-      throw new ValidationError({
-        formErrors: [],
-        fieldErrors: { [key]: [`Value '${value}' is not a valid option for field '${key}'`] },
-      })
+      throw new ValidationError(
+        validationIssues([], { [key]: [`Value '${value}' is not a valid option for field '${key}'`] }),
+      )
     }
   } else if (def.type === 'date') {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) {
-      throw new ValidationError({
-        formErrors: [],
-        fieldErrors: { [key]: [`Custom field '${key}' expects a valid date`] },
-      })
+      throw new ValidationError(validationIssues([], { [key]: [`Custom field '${key}' expects a valid date`] }))
     }
   }
 }
@@ -314,10 +298,7 @@ export const validateCustomFields = async function validateCustomFields(
   Iterable.forEach(Object.entries(customFields), ([key, rawValue]) => {
     const def = defsByKey.get(key)
     if (!def) {
-      throw new ValidationError({
-        formErrors: [],
-        fieldErrors: { [key]: [`Unknown custom field key: ${key}`] },
-      })
+      throw new ValidationError(validationIssues([], { [key]: [`Unknown custom field key: ${key}`] }))
     }
 
     if (Predicate.isNullish(rawValue) || rawValue === '') {

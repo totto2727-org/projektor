@@ -8,6 +8,7 @@ import type { VariantProps } from 'class-variance-authority'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Tabs = function Tabs({ className, orientation = 'horizontal', ...props }: TabsPrimitive.Root.Props) {
   return (
     <TabsPrimitive.Root
@@ -34,6 +35,7 @@ export const tabsListVariants = cva(
   },
 )
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TabsList = function TabsList({
   className,
   variant = 'default',
@@ -49,6 +51,7 @@ export const TabsList = function TabsList({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TabsTrigger = function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   return (
     <TabsPrimitive.Tab
@@ -65,6 +68,7 @@ export const TabsTrigger = function TabsTrigger({ className, ...props }: TabsPri
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TabsContent = function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   return (
     <TabsPrimitive.Panel data-slot='tabs-content' className={cn('flex-1 text-sm outline-none', className)} {...props} />

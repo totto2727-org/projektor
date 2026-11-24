@@ -5,6 +5,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { RuntimeProvider, useRuntime } from './runtime.tsx'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const CurrentPage = function CurrentPage(): JSX.Element {
   const { url } = useRuntime()
   return <output>{url}</output>

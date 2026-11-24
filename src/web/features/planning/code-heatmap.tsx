@@ -22,6 +22,7 @@ export const heatmapHref = function heatmapHref(initialUrl: string, mode: Heatma
   }
   return `${url.pathname}?${url.searchParams}`
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const HeatmapRow = function HeatmapRow({
   entry,
   mode,
@@ -68,6 +69,7 @@ const HeatmapRow = function HeatmapRow({
   )
 }
 /** Claim/contention and breadcrumb drill-down are shareable server navigations, never mount fetches. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const CodeHeatmap = function CodeHeatmap({
   data,
   mode,

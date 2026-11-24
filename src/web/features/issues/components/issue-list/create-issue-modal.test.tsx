@@ -19,6 +19,7 @@ import { useCreateIssueModal } from './use-create-issue-modal.ts'
 
 const PROJECTS = [{ id: 'p1', key: 'PROJ', name: 'Projektor', description: null, workspace_slug: 'test-workspace' }]
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const Harness = function Harness(): JSX.Element {
   const modal = useCreateIssueModal({
     filterProject: '',

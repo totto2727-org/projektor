@@ -9,7 +9,7 @@ import {
   moveIssuesToSprint,
   updateSprint,
 } from '#api/services/sprints.ts'
-import { ValidationError } from '#contracts/errors.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
@@ -44,7 +44,7 @@ export const sprintsTools: MCPTool[] = [
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return getSprint(ctx, id)
     },
@@ -87,7 +87,7 @@ export const sprintsTools: MCPTool[] = [
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return updateSprint(ctx, id, fields)
     },
@@ -106,7 +106,7 @@ export const sprintsTools: MCPTool[] = [
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return completeSprint(ctx, id)
     },
@@ -125,7 +125,7 @@ export const sprintsTools: MCPTool[] = [
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return deleteSprint(ctx, id)
     },

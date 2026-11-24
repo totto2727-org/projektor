@@ -20,6 +20,7 @@ const sections = [
 ] as const
 
 /** The original help route is intentionally static, so it is fully meaningful in SSR HTML. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const HelpPage = function HelpPage() {
   return (
     <div className='page-container' style={{ maxWidth: '42rem' }}>

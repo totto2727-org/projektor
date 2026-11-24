@@ -1,7 +1,7 @@
 import { String, Predicate } from 'effect'
 
 import { createTaskType, deleteTaskType, listTaskTypes, updateTaskType } from '#api/services/task-types.ts'
-import { ValidationError } from '#contracts/errors.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
@@ -58,7 +58,7 @@ export const taskTypesTools: MCPTool[] = [
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return updateTaskType(ctx, id, fields)
     },
@@ -77,7 +77,7 @@ export const taskTypesTools: MCPTool[] = [
     handler(input, ctx) {
       const { id } = input as { id?: string }
       if (!Predicate.isString(id) || String.isEmpty(id)) {
-        throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
+        throw new ValidationError(validationIssues(['id is required'], {}))
       }
       return deleteTaskType(ctx, id)
     },

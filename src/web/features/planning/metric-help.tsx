@@ -19,6 +19,7 @@ export const computeMetricHelpPosition = function computeMetricHelpPosition(rect
   return { top, left }
 }
 /** Original viewport-clamped toggletip, dismissed by Escape, outside clicks and scroll. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const MetricHelp = function MetricHelp({ id }: { id: MetricId }): JSX.Element {
   const definition = METRIC_DEFINITIONS[id]
   const [open, setOpen] = useState(false)
@@ -114,6 +115,7 @@ export const MetricHelp = function MetricHelp({ id }: { id: MetricId }): JSX.Ele
     </span>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SectionHeading = function SectionHeading({
   metricId,
   caption,

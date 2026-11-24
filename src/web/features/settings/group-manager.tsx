@@ -72,6 +72,7 @@ export const nextTabId = function nextTabId(tabs: Readonly<Tab[]>, active: Tab, 
   }
   return null
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const MemberGroupsCell = function MemberGroupsCell({
   member,
   groups,
@@ -95,6 +96,7 @@ const MemberGroupsCell = function MemberGroupsCell({
     </>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const MembersOverview = function MembersOverview({
   members,
   memberGroups,
@@ -153,6 +155,7 @@ interface GroupListProps {
   onSelect: (id: string) => void
   onDelete: (id: string) => void
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const GroupsList = function GroupsList({ groups, admin, busy, onSelect, onDelete }: GroupListProps): JSX.Element {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const name = (group: GroupSummary): JSX.Element =>
@@ -244,6 +247,7 @@ const GroupsList = function GroupsList({ groups, admin, busy, onSelect, onDelete
   )
 }
 /** Details, membership and grant rows are prop-owned, while unsaved editor fields are local. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const GroupDetailEditor = function GroupDetailEditor({
   slug,
   detail,
@@ -680,6 +684,7 @@ function GrantRoleForm({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const GroupManager = function GroupManager({
   workspaceSlug,
   initialData: data,

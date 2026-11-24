@@ -5,6 +5,7 @@ import type { VariantProps } from 'class-variance-authority'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Empty = function Empty({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -18,6 +19,7 @@ export const Empty = function Empty({ className, ...props }: React.ComponentProp
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const EmptyHeader = function EmptyHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div data-slot='empty-header' className={cn('flex max-w-sm flex-col items-center gap-2', className)} {...props} />
@@ -39,6 +41,7 @@ const emptyMediaVariants = cva(
   },
 )
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const EmptyMedia = function EmptyMedia({
   className,
   variant = 'default',
@@ -54,6 +57,7 @@ export const EmptyMedia = function EmptyMedia({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const EmptyTitle = function EmptyTitle({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -64,6 +68,7 @@ export const EmptyTitle = function EmptyTitle({ className, ...props }: React.Com
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const EmptyDescription = function EmptyDescription({ className, ...props }: React.ComponentProps<'p'>) {
   return (
     <div
@@ -77,6 +82,7 @@ export const EmptyDescription = function EmptyDescription({ className, ...props 
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const EmptyContent = function EmptyContent({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div

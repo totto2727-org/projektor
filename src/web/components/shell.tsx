@@ -103,6 +103,7 @@ const savePrefs = function savePrefs(prefs: Prefs): void {
     /* Cosmetic preference storage is optional. */
   }
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const Icon = function Icon({ children }: { children: ReactNode }): JSX.Element {
   return (
     <svg
@@ -124,6 +125,7 @@ const initials = function initials(name: string, email: string): string {
   const words = (name.trim() || email).split(/\s+/u).filter(Boolean)
   return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : (words[0] ?? '?').slice(0, 2).toUpperCase()
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const ThemeIcon = function ThemeIcon({ theme }: { theme: Theme }): JSX.Element {
   return (
     <Icon>
@@ -144,6 +146,7 @@ const ThemeIcon = function ThemeIcon({ theme }: { theme: Theme }): JSX.Element {
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const GlossaryHelp = function GlossaryHelp({ term }: { term: keyof typeof glossary }): JSX.Element {
   const info = glossary[term]
   return (
@@ -158,6 +161,7 @@ const GlossaryHelp = function GlossaryHelp({ term }: { term: keyof typeof glossa
     </Popover>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const OfflineBanner = function OfflineBanner(): null | JSX.Element {
   const [online, setOnline] = useState(true)
   useEffect(() => {
@@ -179,6 +183,7 @@ const OfflineBanner = function OfflineBanner(): null | JSX.Element {
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const Preferences = function Preferences({
   prefs,
   update,
@@ -215,6 +220,7 @@ const Preferences = function Preferences({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const AccountMenu = function AccountMenu({
   scope,
   returnTo,

@@ -68,6 +68,7 @@ const PencilIcon = (): JSX.Element => (
   </svg>
 )
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SectionDivider = function SectionDivider({ title }: { title: string }): JSX.Element {
   return (
     <div className='flex items-center gap-3 mb-4'>
@@ -79,6 +80,7 @@ const SectionDivider = function SectionDivider({ title }: { title: string }): JS
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const SidebarField = function SidebarField({ label, children }: { label: string; children: ReactNode }): JSX.Element {
   return (
     <div className='flex items-start gap-2 py-2'>
@@ -90,6 +92,7 @@ const SidebarField = function SidebarField({ label, children }: { label: string;
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const RefChip = function RefChip({ issueRef, copyUrl }: { issueRef: string; copyUrl: string }): JSX.Element {
   const [copiedRef, setCopiedRef] = useState(false)
 
@@ -145,6 +148,7 @@ export const RefChip = function RefChip({ issueRef, copyUrl }: { issueRef: strin
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ShareButton = function ShareButton({
   issueId,
   workspaceSlug,
@@ -216,6 +220,7 @@ export const ShareButton = function ShareButton({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ParentBadge = function ParentBadge({ parentEpic }: { parentEpic: IssueData | null }): null | JSX.Element {
   if (!parentEpic) {
     return null
@@ -243,6 +248,7 @@ export const ParentBadge = function ParentBadge({ parentEpic }: { parentEpic: Is
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TitleSection = function TitleSection({
   issue,
   issueId,
@@ -455,6 +461,7 @@ const useBodyEditor = function useBodyEditor(
   }
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const BodyEditForm = function BodyEditForm({
   editBody,
   updateBody,
@@ -485,6 +492,7 @@ const BodyEditForm = function BodyEditForm({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const BodySection = function BodySection({
   issue,
   issueId,
@@ -567,6 +575,7 @@ export const BodySection = function BodySection({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ChildIssuesSection = function ChildIssuesSection({
   issue,
   childIssues,
@@ -637,6 +646,7 @@ export const ChildIssuesSection = function ChildIssuesSection({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const LinkItem = function LinkItem({
   link,
   onRemove,
@@ -685,6 +695,7 @@ const LinkItem = function LinkItem({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const LinkForm = function LinkForm({
   linkFormType,
   setLinkFormType,
@@ -744,6 +755,7 @@ const LinkForm = function LinkForm({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const RelationsSection = function RelationsSection({
   issueId,
   workspaceSlug,
@@ -974,6 +986,7 @@ const resolveAttachmentDisplay = function resolveAttachmentDisplay(
   }
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const AttachmentRow = function AttachmentRow({
   attachment,
   workspaceSlug,
@@ -1014,6 +1027,7 @@ const AttachmentRow = function AttachmentRow({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const AttachmentUploadForm = function AttachmentUploadForm({
   issueId,
   workspaceSlug,
@@ -1068,6 +1082,7 @@ interface WikiSearchResult {
   project_id: string | null
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const WikiPageLinkForm = function WikiPageLinkForm({
   workspaceSlug,
   linking,
@@ -1179,6 +1194,7 @@ const WikiPageLinkForm = function WikiPageLinkForm({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const UrlLinkForm = function UrlLinkForm({
   urlValue,
   setUrlValue,
@@ -1361,6 +1377,7 @@ const useAttachmentForms = function useAttachmentForms(issueId: string, workspac
   return { mode, setMode, links, resetForms, deleteAttachment, deleteError }
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AttachmentsSection = function AttachmentsSection({
   issueId,
   workspaceSlug,
@@ -1467,6 +1484,7 @@ export const AttachmentsSection = function AttachmentsSection({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const CommentItem = function CommentItem({
   comment,
   isEditing,
@@ -1671,6 +1689,7 @@ const useNewCommentForm = function useNewCommentForm(
   return { newComment, setNewComment: updateComment, postingComment, commentError, submitComment }
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const CommentsSection = function CommentsSection({
   issueId,
   workspaceSlug,
@@ -1763,6 +1782,7 @@ export const CommentsSection = function CommentsSection({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const StatusField = function StatusField({
   issue,
   statuses,
@@ -1796,6 +1816,7 @@ const StatusField = function StatusField({
   return <span className='text-sm text-text-muted'>—</span>
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const TypeField = function TypeField({
   issue,
   taskTypes,
@@ -1835,6 +1856,7 @@ const TypeField = function TypeField({
   return <span className='text-sm text-text-muted'>—</span>
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const PointsField = function PointsField({
   issueId,
   workspaceSlug,
@@ -1920,6 +1942,7 @@ const PointsField = function PointsField({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const SidebarPanel = function SidebarPanel({
   issue,
   issueId,

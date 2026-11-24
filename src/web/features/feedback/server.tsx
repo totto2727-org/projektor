@@ -11,6 +11,7 @@ import { FeedbackDetailClient } from './feedback-detail-client.tsx'
 import { FeedbackGridClient } from './feedback-grid-client.tsx'
 import { FeedbackIndexSchema, FeedbackDetailSchema } from './schemas.ts'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const NeedProject = function NeedProject(): JSX.Element {
   return (
     <section className='p-6 bg-surface border border-border rounded-lg'>
@@ -19,6 +20,7 @@ const NeedProject = function NeedProject(): JSX.Element {
     </section>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const NotFound = function NotFound(): JSX.Element {
   return (
     <section className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>

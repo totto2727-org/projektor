@@ -10,6 +10,7 @@ import { Separator } from '@/components/generated/separator'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FieldSet = function FieldSet({ className, ...props }: React.ComponentProps<'fieldset'>) {
   return (
     <fieldset
@@ -23,6 +24,7 @@ export const FieldSet = function FieldSet({ className, ...props }: React.Compone
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FieldLegend = function FieldLegend({
   className,
   variant = 'legend',
@@ -38,6 +40,7 @@ export const FieldLegend = function FieldLegend({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FieldGroup = function FieldGroup({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -66,6 +69,7 @@ const fieldVariants = cva('group/field flex w-full gap-2 data-[invalid=true]:tex
   },
 })
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Field = function Field({
   className,
   orientation = 'vertical',
@@ -82,6 +86,7 @@ export const Field = function Field({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FieldContent = function FieldContent({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -92,6 +97,7 @@ export const FieldContent = function FieldContent({ className, ...props }: React
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FieldLabel = function FieldLabel({ className, ...props }: React.ComponentProps<typeof Label>) {
   return (
     <Label
@@ -106,6 +112,7 @@ export const FieldLabel = function FieldLabel({ className, ...props }: React.Com
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FieldTitle = function FieldTitle({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -119,6 +126,7 @@ export const FieldTitle = function FieldTitle({ className, ...props }: React.Com
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FieldDescription = function FieldDescription({ className, ...props }: React.ComponentProps<'p'>) {
   return (
     <p
@@ -134,6 +142,7 @@ export const FieldDescription = function FieldDescription({ className, ...props 
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FieldSeparator = function FieldSeparator({
   children,
   className,
@@ -161,6 +170,7 @@ export const FieldSeparator = function FieldSeparator({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const FieldError = function FieldError({
   className,
   children,

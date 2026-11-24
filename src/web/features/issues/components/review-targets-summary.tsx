@@ -20,6 +20,7 @@ const STATUS_LABELS = {
 }
 
 /** One native link keeps review context visible in every issue layout, including empty selection. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ReviewTargetsSummary = function ReviewTargetsSummary({ issue }: { issue: ReviewableIssue }): JSX.Element {
   const targets = issue.reviewTargets.filter((entry) => entry.status !== 'done')
   const target = targets.find((entry) => entry.status === 'in_review') ?? targets[0]

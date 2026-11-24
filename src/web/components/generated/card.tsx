@@ -4,6 +4,7 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Card = function Card({
   className,
   size = 'default',
@@ -22,6 +23,7 @@ export const Card = function Card({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const CardHeader = function CardHeader({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
@@ -35,6 +37,7 @@ export const CardHeader = function CardHeader({ className, ...props }: React.Com
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const CardTitle = function CardTitle({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
@@ -45,6 +48,7 @@ export const CardTitle = function CardTitle({ className, ...props }: React.Compo
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const CardDescription = function CardDescription({
   className,
   ...props
@@ -52,6 +56,7 @@ export const CardDescription = function CardDescription({
   return <div data-slot='card-description' className={cn('text-sm text-muted-foreground', className)} {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const CardAction = function CardAction({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
@@ -62,6 +67,7 @@ export const CardAction = function CardAction({ className, ...props }: React.Com
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const CardContent = function CardContent({
   className,
   ...props
@@ -69,6 +75,7 @@ export const CardContent = function CardContent({
   return <div data-slot='card-content' className={cn('px-(--card-spacing)', className)} {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const CardFooter = function CardFooter({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div

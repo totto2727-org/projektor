@@ -6,7 +6,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { assertIssueAccess, isWorkspaceAdmin } from './access.ts'
-import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
 
 /*
@@ -92,12 +92,11 @@ export const resolveAgentSessionId = async function resolveAgentSessionId(
 
   const credentialId = agentSessionCredential(ctx)
   if (Predicate.isNullish(credentialId) || String.isEmpty(credentialId)) {
-    throw new ValidationError({
-      formErrors: [],
-      fieldErrors: {
+    throw new ValidationError(
+      validationIssues([], {
         agentId: ['no session on this credential — pass agentId from register_agent'],
-      },
-    })
+      }),
+    )
   }
 
   const orm = drizzle(ctx.db, { schema })
@@ -132,14 +131,13 @@ export const resolveAgentSessionId = async function resolveAgentSessionId(
     return rows[0].id
   }
 
-  throw new ValidationError({
-    formErrors: [],
-    fieldErrors: {
+  throw new ValidationError(
+    validationIssues([], {
       agentId: [
         Array.isArrayEmpty(rows)
           ? 'no live session on this credential — pass agentId from register_agent'
           : `several ${opts.includeStale === true ? 'active' : 'live'} sessions on this credential — pass agentId from register_agent`,
       ],
-    },
-  })
+    }),
+  )
 }

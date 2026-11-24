@@ -46,6 +46,7 @@ export const formatTokenScopes = function formatTokenScopes(raw: string): string
 const formatDate = function formatDate(timestamp: number | null): string {
   return Predicate.isNullish(timestamp) ? 'Never' : formatTimestampDate(timestamp)
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const NewTokenPanel = function NewTokenPanel({
   token,
   template,
@@ -110,6 +111,7 @@ interface RevokeState {
   cancel: () => void
   confirm: (id: string) => void
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const TokenRevokeControl = function TokenRevokeControl({
   token,
   state,
@@ -147,6 +149,7 @@ const TokenRevokeControl = function TokenRevokeControl({
     </Button>
   )
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const TokenTable = function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }): JSX.Element {
   if (!tokens.length) {
     return (
@@ -217,6 +220,7 @@ const TokenTable = function TokenTable({ tokens, state }: { tokens: Token[]; sta
   )
 }
 /** The one-time secret is client-only mutation state. The token list always comes from SSR. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const TokenManager = function TokenManager({
   workspaceSlug,
   initialTokens: tokens,

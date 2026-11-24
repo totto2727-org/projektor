@@ -10,7 +10,7 @@ import { listLinksForIssue as queryLinks } from '#services/issue-links.ts'
 
 import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
 import * as cache from './cache.ts'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError, validationIssues } from './errors.ts'
 import { resolveIssueIdParam } from './issues.ts'
 import type { ServiceCtx } from './types.ts'
 
@@ -68,7 +68,7 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
   const targetIssueId = await resolveIssueIdParam(ctx, result.data.targetIssueId, 'Target issue not found')
 
   if (sourceIssueId === targetIssueId) {
-    throw new ValidationError({ formErrors: ['An issue cannot link to itself'], fieldErrors: {} })
+    throw new ValidationError(validationIssues(['An issue cannot link to itself'], {}))
   }
 
   const canon = canonicalize(sourceIssueId, targetIssueId, type)

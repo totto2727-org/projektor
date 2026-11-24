@@ -1,6 +1,6 @@
 import { Iterable, String, Predicate } from 'effect'
 
-import { ValidationError } from '#contracts/errors.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 /*
  * PROJ-892: windowed reads of long text (wiki pages, issue bodies) so one call never
@@ -40,7 +40,7 @@ export const windowText = function windowText(text: string, opts: { max: number;
   if (Predicate.isNotNullish(opts.cursor)) {
     start = Number(opts.cursor)
     if (!Number.isInteger(start) || start < 0 || start > text.length) {
-      throw new ValidationError({ formErrors: [], fieldErrors: { cursor: ['invalid cursor'] } })
+      throw new ValidationError(validationIssues([], { cursor: ['invalid cursor'] }))
     }
   }
   let end = safeEnd(text, Math.min(text.length, start + opts.max))

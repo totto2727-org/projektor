@@ -3,7 +3,7 @@ import { String, Predicate } from 'effect'
 import * as wikiDraftsService from '#api/services/wiki-drafts.ts'
 import * as wikiWatchersService from '#api/services/wiki-watchers.ts'
 import * as wikiService from '#api/services/wiki.ts'
-import { ValidationError } from '#contracts/errors.ts'
+import { ValidationError, validationIssues } from '#contracts/errors.ts'
 import { WIKI_WELL_KNOWN_TYPES } from '#contracts/inputs/wiki.ts'
 
 import { CREATE, DESTRUCTIVE, PLAIN_WRITE, READ } from './annotations.ts'
@@ -118,10 +118,7 @@ export const wikiTools: MCPTool[] = [
       if (cursor !== undefined) {
         const offset = Number(cursor)
         if (!Number.isInteger(offset) || offset < 0) {
-          throw new ValidationError({
-            formErrors: [],
-            fieldErrors: { cursor: ['invalid cursor'] },
-          })
+          throw new ValidationError(validationIssues([], { cursor: ['invalid cursor'] }))
         }
         rest.offset = offset
       }
@@ -172,10 +169,9 @@ export const wikiTools: MCPTool[] = [
       }
       const max = maxChars ?? WIKI_DEFAULT_MAX_CHARS
       if (!Number.isInteger(max) || max < 1 || max > WIKI_MAX_CHARS) {
-        throw new ValidationError({
-          formErrors: [],
-          fieldErrors: { maxChars: [`must be an integer from 1 to ${WIKI_MAX_CHARS}`] },
-        })
+        throw new ValidationError(
+          validationIssues([], { maxChars: [`must be an integer from 1 to ${WIKI_MAX_CHARS}`] }),
+        )
       }
       const page = await wikiService.getWikiPage(ctx, slug)
       const full = page.content ?? ''
@@ -314,10 +310,7 @@ export const wikiTools: MCPTool[] = [
       }
       const idOrSlug = id ?? slug
       if (Predicate.isNullish(idOrSlug) || String.isEmpty(idOrSlug)) {
-        throw new ValidationError({
-          formErrors: ['Either id or slug must be provided'],
-          fieldErrors: {},
-        })
+        throw new ValidationError(validationIssues(['Either id or slug must be provided'], {}))
       }
       const payload = Predicate.isNotNullish(newSlug) ? { ...rest, slug: newSlug } : rest
       return await wikiService.updateWikiPage(ctx, idOrSlug, payload)
@@ -391,10 +384,7 @@ export const wikiTools: MCPTool[] = [
       const { id, slug, ...rest } = input as { id?: string; slug?: string }
       const idOrSlug = id ?? slug
       if (Predicate.isNullish(idOrSlug) || String.isEmpty(idOrSlug)) {
-        throw new ValidationError({
-          formErrors: ['Either id or slug must be provided'],
-          fieldErrors: {},
-        })
+        throw new ValidationError(validationIssues(['Either id or slug must be provided'], {}))
       }
       return await wikiService.patchWikiPage(ctx, idOrSlug, rest)
     },
@@ -775,10 +765,9 @@ export const wikiTools: MCPTool[] = [
         rest.since = Number(cursor)
       }
       if (rest.since === undefined || Number.isNaN(rest.since)) {
-        throw new ValidationError({
-          formErrors: [],
-          fieldErrors: { since: ['pass since (unix seconds) or cursor from a previous `next`'] },
-        })
+        throw new ValidationError(
+          validationIssues([], { since: ['pass since (unix seconds) or cursor from a previous `next`'] }),
+        )
       }
       const result = await wikiWatchersService.listWikiChanges(ctx, rest)
       /*

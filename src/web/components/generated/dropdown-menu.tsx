@@ -8,22 +8,26 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenu = function DropdownMenu({ ...props }: MenuPrimitive.Root.Props): React.JSX.Element {
   return <MenuPrimitive.Root data-slot='dropdown-menu' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuPortal = function DropdownMenuPortal({
   ...props
 }: MenuPrimitive.Portal.Props): React.JSX.Element {
   return <MenuPrimitive.Portal data-slot='dropdown-menu-portal' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuTrigger = function DropdownMenuTrigger({
   ...props
 }: MenuPrimitive.Trigger.Props): React.JSX.Element {
   return <MenuPrimitive.Trigger data-slot='dropdown-menu-trigger' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuContent = function DropdownMenuContent({
   align = 'start',
   alignOffset = 0,
@@ -55,12 +59,14 @@ export const DropdownMenuContent = function DropdownMenuContent({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuGroup = function DropdownMenuGroup({
   ...props
 }: MenuPrimitive.Group.Props): React.JSX.Element {
   return <MenuPrimitive.Group data-slot='dropdown-menu-group' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuLabel = function DropdownMenuLabel({
   className,
   inset,
@@ -78,6 +84,7 @@ export const DropdownMenuLabel = function DropdownMenuLabel({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuItem = function DropdownMenuItem({
   className,
   inset,
@@ -101,12 +108,14 @@ export const DropdownMenuItem = function DropdownMenuItem({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuSub = function DropdownMenuSub({
   ...props
 }: MenuPrimitive.SubmenuRoot.Props): React.JSX.Element {
   return <MenuPrimitive.SubmenuRoot data-slot='dropdown-menu-sub' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuSubTrigger = function DropdownMenuSubTrigger({
   className,
   inset,
@@ -131,6 +140,7 @@ export const DropdownMenuSubTrigger = function DropdownMenuSubTrigger({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuSubContent = function DropdownMenuSubContent({
   align = 'start',
   alignOffset = -3,
@@ -155,6 +165,7 @@ export const DropdownMenuSubContent = function DropdownMenuSubContent({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuCheckboxItem = function DropdownMenuCheckboxItem({
   className,
   children,
@@ -188,12 +199,14 @@ export const DropdownMenuCheckboxItem = function DropdownMenuCheckboxItem({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuRadioGroup = function DropdownMenuRadioGroup({
   ...props
 }: MenuPrimitive.RadioGroup.Props): React.JSX.Element {
   return <MenuPrimitive.RadioGroup data-slot='dropdown-menu-radio-group' {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuRadioItem = function DropdownMenuRadioItem({
   className,
   children,
@@ -225,6 +238,7 @@ export const DropdownMenuRadioItem = function DropdownMenuRadioItem({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuSeparator = function DropdownMenuSeparator({
   className,
   ...props
@@ -238,6 +252,7 @@ export const DropdownMenuSeparator = function DropdownMenuSeparator({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const DropdownMenuShortcut = function DropdownMenuShortcut({
   className,
   ...props

@@ -27,6 +27,7 @@ const heading = 'text-xs font-semibold text-text-muted m-0 mb-3 uppercase tracki
 const badge = 'font-mono text-xs font-medium px-2 py-[0.125rem] rounded bg-surface border border-border text-text-muted'
 const date = formatTimestampDate
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const ProjectLanding = function ProjectLanding({
   initialProject,
   initialIssues,

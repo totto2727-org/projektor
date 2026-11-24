@@ -22,6 +22,7 @@ export type CardProps =
       children: ReactNode
     } & AnchorHTMLAttributes<HTMLAnchorElement>)
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Card = function Card({
   as = 'div',
   href,

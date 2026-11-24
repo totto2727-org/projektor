@@ -18,6 +18,7 @@ import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 import { IssueSelectionControl } from './bulk-actions.tsx'
 import { getStoryPoints, priorityBadge, StatusSelect, spBadge } from './issue-render-helpers.tsx'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const BoardCard = function BoardCard({
   issue,
   statuses,

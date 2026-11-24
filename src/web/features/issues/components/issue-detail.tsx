@@ -86,6 +86,7 @@ const useIssueMutations = function useIssueMutations(issueId: string, workspaceS
   }
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const IssueBreadcrumb = function IssueBreadcrumb({
   issue,
   backHref,
@@ -111,6 +112,7 @@ const IssueBreadcrumb = function IssueBreadcrumb({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const IssueDetailView = function IssueDetailView(
   props: Readonly<{
     issue: IssueData
@@ -202,7 +204,6 @@ const IssueDetailView = function IssueDetailView(
 
             <ChildIssuesSection issue={issue} childIssues={props.childIssues} />
             <RelationsSection issueId={issueId} workspaceSlug={workspaceSlug} links={props.links} />
-
             <ReviewTargetsSection
               attachments={props.attachments}
               workspaceSlug={workspaceSlug}
@@ -211,7 +212,6 @@ const IssueDetailView = function IssueDetailView(
             />
 
             <AttachmentsSection issueId={issueId} workspaceSlug={workspaceSlug} attachments={props.attachments} />
-
             <CommentsSection
               issueId={issueId}
               workspaceSlug={workspaceSlug}

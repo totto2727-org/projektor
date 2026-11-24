@@ -19,6 +19,7 @@ export interface IssueDetailInitialData {
   readonly currentUserId: string
   readonly reviewTargetsFocused?: boolean
 }
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const IssueDetailPage = function IssueDetailPage({
   scope,
   workspaceSlug,

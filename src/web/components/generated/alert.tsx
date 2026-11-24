@@ -22,6 +22,7 @@ const alertVariants = cva(
   },
 )
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Alert = function Alert({
   className,
   variant,
@@ -30,6 +31,7 @@ export const Alert = function Alert({
   return <div data-slot='alert' role='alert' className={cn(alertVariants({ variant }), className)} {...props} />
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AlertTitle = function AlertTitle({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
@@ -43,6 +45,7 @@ export const AlertTitle = function AlertTitle({ className, ...props }: React.Com
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AlertDescription = function AlertDescription({
   className,
   ...props
@@ -59,6 +62,7 @@ export const AlertDescription = function AlertDescription({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const AlertAction = function AlertAction({
   className,
   ...props

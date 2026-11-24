@@ -15,6 +15,7 @@ export interface DialogProps {
 }
 
 /** Base UI owns portals, modal focus, dismissal, and scroll locking. */
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const Dialog = function Dialog({
   open,
   onClose,

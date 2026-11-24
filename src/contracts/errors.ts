@@ -12,6 +12,14 @@ export interface ZodFlattenOutput {
   fieldErrors: Record<string, string[] | undefined>
 }
 
+export const validationIssues = function validationIssues(
+  formErrors: ZodFlattenOutput['formErrors'],
+  fieldErrors: ZodFlattenOutput['fieldErrors'],
+): ZodFlattenOutput {
+  // oxlint-disable-next-line eslint/sort-keys -- HTTP and JSON-RPC errors retain the existing order of these fields.
+  return { formErrors, fieldErrors }
+}
+
 export abstract class ServiceError extends Error {
   abstract readonly kind: string
 }

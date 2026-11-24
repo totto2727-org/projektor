@@ -104,6 +104,7 @@ interface EpicListHeaderProps {
   onOpenCreate: () => void
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const EpicListHeader = function EpicListHeader(props: EpicListHeaderProps): JSX.Element {
   return (
     <div className='flex items-center justify-between mb-4 gap-2 flex-wrap'>

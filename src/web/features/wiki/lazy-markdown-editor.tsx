@@ -11,6 +11,7 @@ const loadMarkdownEditor = (): Promise<typeof MarkdownEditorModule> => import('.
 
 // Keep the native input usable while the enhanced editor loads.
 // Once editing starts, retain that control until this editor unmounts.
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const EditorFallback = function EditorFallback({
   value,
   onChange,

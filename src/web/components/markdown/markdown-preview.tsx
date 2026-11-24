@@ -56,6 +56,7 @@ export const useMarkdownPreview = function useMarkdownPreview(
   return result.content === content && result.key === key ? result.document : empty
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 export const MarkdownPreview = function MarkdownPreview({
   content,
   initial,
