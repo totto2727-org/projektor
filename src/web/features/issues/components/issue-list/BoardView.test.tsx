@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import '../../test/browser'
+import '../../test/browser.ts'
 // BoardView — mobile viewport tests (PROJ-417).
 //
 // BoardView disables HTML5 drag-and-drop below 640px (native DnD doesn't work
@@ -7,11 +7,11 @@ import '../../test/browser'
 // handlers. This exercises that branch with the shared viewport helper,
 // rather than relying on the `max-sm:` CSS classes alone.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { MOBILE_WIDTH, setViewportWidth } from '../../test/viewport'
-import type { Issue, TaskStatus } from '../board-utils'
-import BoardView from './BoardView'
+import { MOBILE_WIDTH, setViewportWidth } from '../../test/viewport.ts'
+import type { Issue, TaskStatus } from '../board-utils.ts'
+import BoardView from './BoardView.tsx'
 
 const TODO_ISSUE: Issue = {
   id: 'i1',
@@ -67,7 +67,7 @@ function dropOnInProgress(dataTransfer: ReturnType<typeof fakeDataTransfer>) {
 }
 
 describe('BoardView — mobile viewport', () => {
-  it('blocks drag-and-drop status changes below 640px', () => {
+  test('blocks drag-and-drop status changes below 640px', () => {
     const changeStatus = vi.fn()
     setViewportWidth(MOBILE_WIDTH)
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
@@ -78,7 +78,7 @@ describe('BoardView — mobile viewport', () => {
     expect(changeStatus).not.toHaveBeenCalled()
   })
 
-  it('allows drag-and-drop status changes at desktop widths', () => {
+  test('allows drag-and-drop status changes at desktop widths', () => {
     const changeStatus = vi.fn()
     setViewportWidth(1024)
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
@@ -89,7 +89,7 @@ describe('BoardView — mobile viewport', () => {
     expect(changeStatus).toHaveBeenCalledWith('i1', 'st-in-progress')
   })
 
-  it('blocks the drop itself below 640px, even with data already set', () => {
+  test('blocks the drop itself below 640px, even with data already set', () => {
     // onDragStart already blocks setData below 640px, so the desktop/mobile
     // tests above can't tell whether the drop handler's own width guard does
     // anything. Seed dataTransfer at desktop width, then drop at mobile width
@@ -108,13 +108,13 @@ describe('BoardView — mobile viewport', () => {
 })
 
 describe('BoardView — mobile status menu (PROJ-416)', () => {
-  it('renders a tap-to-open status menu on each card', () => {
+  test('renders a tap-to-open status menu on each card', () => {
     const changeStatus = vi.fn()
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
     expect(screen.getByRole('combobox', { name: 'Change status for issue PROJ-1' })).toBeTruthy()
   })
 
-  it('changes status when a different option is chosen from the menu', async () => {
+  test('changes status when a different option is chosen from the menu', async () => {
     const changeStatus = vi.fn()
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
 
@@ -126,7 +126,7 @@ describe('BoardView — mobile status menu (PROJ-416)', () => {
     await waitFor(() => expect(changeStatus).toHaveBeenCalledWith('i1', 'st-in-progress'))
   })
 
-  it("renders the status menu outside the card's link, not nested inside it", () => {
+  test("renders the status menu outside the card's link, not nested inside it", () => {
     // The whole card body is a draggable <a> (desktop DnD target); nesting an
     // interactive Select inside it would be invalid HTML (no interactive
     // descendants in an <a>) and would risk taps on the menu also triggering

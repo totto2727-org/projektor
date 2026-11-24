@@ -1,12 +1,12 @@
 import { Effect, Schema } from 'effect'
 
-import * as commands from '#commands/feedback'
-import * as sources from '#commands/feedback-sources'
-import type { ServiceCtx } from '#commands/types'
-import * as queries from '#services/feedback'
+import * as sources from '#commands/feedback-sources.ts'
+import * as commands from '#commands/feedback.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import * as queries from '#services/feedback.ts'
 
-import { ScopeError } from '../../contracts/errors'
-import { requireDataProject, requireDataWorkspace } from '../../contracts/web-data'
+import { ScopeError } from '../../contracts/errors.ts'
+import { requireDataProject, requireDataWorkspace } from '../../contracts/web-data.ts'
 import {
   FeedbackIndexSchema,
   FeedbackDetailSchema,
@@ -14,18 +14,20 @@ import {
   CreatedSource,
   Converted,
   Ok,
-} from '../../contracts/web-schemas/feedback'
-import { coreFailure, coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope, publicWebFailure } from './authentication'
-import { browserCommand } from './command'
-import type { BrowserCommand } from './command-contract'
-import { checked } from './issue-data'
-import { webRead } from './issue-operations'
-import type { WebRequest } from './scope'
+} from '../../contracts/web-schemas/feedback.ts'
+import { coreFailure, coreReply } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { loadBrowserScope, publicWebFailure } from './authentication.ts'
+import type { BrowserCommand } from './command-contract.ts'
+import { browserCommand } from './command.ts'
+import { checked } from './issue-data.ts'
+import { webRead } from './issue-operations.ts'
+import type { WebRequest } from './scope.ts'
 
 function admin(role: string) {
-  if (role !== 'owner' && role !== 'admin') throw new ScopeError(403, 'Insufficient permissions')
+  if (role !== 'owner' && role !== 'admin') {
+    throw new ScopeError(403, 'Insufficient permissions')
+  }
 }
 function sourceDto(row: queries.FeedbackSourceListRow) {
   return {
@@ -46,14 +48,14 @@ function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
       sourceId: string
       sourceName: string | null
       totalCount: number
-      versions: Array<{
+      versions: {
         appVersion: string | null
         totalCount: number
         withCommentCount: number
         thumbsUpPct: number | null
         avgFiveStar: number | null
         lastSeenAt: number
-      }>
+      }[]
     }
   >()
   for (const row of rows) {
@@ -136,7 +138,9 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
               : scope.workspaces
             for (const workspace of candidates) {
               const row = yield* queries.findFeedbackSourceById(env.DB, workspace.id, sourceId)
-              if (!row) continue
+              if (!row) {
+                continue
+              }
               const projectId = row.project_id
               if (
                 !scope.projects.some(
@@ -145,8 +149,9 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                     project.workspace_id === workspace.id &&
                     project.workspace_slug === workspace.slug,
                 )
-              )
+              ) {
                 return null
+              }
               yield* checked(() => {
                 requireDataProject(scope, projectId, workspace.id)
                 admin(workspace.role)
@@ -183,7 +188,9 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
                 { concurrency: 3 },
               )
               const source = loaded.sources.find((item) => item.id === sourceId)
-              if (!source) return null
+              if (!source) {
+                return null
+              }
               return {
                 source,
                 sources: loaded.sources,

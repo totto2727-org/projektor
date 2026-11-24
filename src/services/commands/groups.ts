@@ -2,21 +2,23 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
-import * as groupData from '#services/groups'
+import * as groupData from '#services/groups.ts'
 
 import {
   AddGroupMemberSchema,
   CreateGroupSchema,
   SetGroupGrantSchema,
   UpdateGroupSchema,
-} from '../../contracts/inputs/groups'
-import { isWorkspaceAdmin } from './access'
-import { recordActivity } from './activity'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+} from '../../contracts/inputs/groups.ts'
+import { isWorkspaceAdmin } from './access.ts'
+import { recordActivity } from './activity.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
 
 function requireAdmin(ctx: ServiceCtx): void {
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError()
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError()
+  }
 }
 
 /** Load a group scoped to the workspace, or throw NotFound. */
@@ -26,7 +28,9 @@ async function loadGroup(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, group
     .from(schema.userGroups)
     .where(and(eq(schema.userGroups.id, groupId), eq(schema.userGroups.workspaceId, ctx.workspaceId)))
     .get()
-  if (!group) throw new NotFoundError('Group not found')
+  if (!group) {
+    throw new NotFoundError('Group not found')
+  }
   return group
 }
 
@@ -62,11 +66,15 @@ export async function getGroup(ctx: ServiceCtx, groupId: string) {
       .from(schema.userGroupMembers)
       .where(and(eq(schema.userGroupMembers.groupId, groupId), eq(schema.userGroupMembers.userId, ctx.userId)))
       .get()
-    if (!own) throw new ForbiddenError()
+    if (!own) {
+      throw new ForbiddenError()
+    }
   }
 
   const group = await Effect.runPromise(groupData.findGroup(ctx.db, ctx.workspaceId, groupId))
-  if (!group) throw new NotFoundError('Group not found')
+  if (!group) {
+    throw new NotFoundError('Group not found')
+  }
   const members = await Effect.runPromise(groupData.listGroupMembers(ctx.db, ctx.workspaceId, groupId))
   const grants = await Effect.runPromise(groupData.listGroupGrants(ctx.db, ctx.workspaceId, groupId))
 
@@ -86,7 +94,9 @@ export async function listMemberGroups(ctx: ServiceCtx) {
 export async function createGroup(ctx: ServiceCtx, input: unknown) {
   requireAdmin(ctx)
   const parsed = CreateGroupSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { name, description } = parsed.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -95,7 +105,9 @@ export async function createGroup(ctx: ServiceCtx, input: unknown) {
     .from(schema.userGroups)
     .where(and(eq(schema.userGroups.workspaceId, ctx.workspaceId), eq(schema.userGroups.name, name)))
     .get()
-  if (existing) throw new ConflictError(`Group "${name}" already exists`)
+  if (existing) {
+    throw new ConflictError(`Group "${name}" already exists`)
+  }
 
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
@@ -119,13 +131,20 @@ export async function createGroup(ctx: ServiceCtx, input: unknown) {
 export async function updateGroup(ctx: ServiceCtx, groupId: string, input: unknown) {
   requireAdmin(ctx)
   const parsed = UpdateGroupSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
 
   const setObj: Record<string, unknown> = {}
-  if (parsed.data.name !== undefined) setObj.name = parsed.data.name
-  if (parsed.data.description !== undefined) setObj.description = parsed.data.description
-  if (Object.keys(setObj).length === 0)
+  if (parsed.data.name !== undefined) {
+    setObj.name = parsed.data.name
+  }
+  if (parsed.data.description !== undefined) {
+    setObj.description = parsed.data.description
+  }
+  if (Object.keys(setObj).length === 0) {
     throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
+  }
 
   const orm = drizzle(ctx.db, { schema })
   await loadGroup(orm, ctx, groupId)
@@ -136,7 +155,9 @@ export async function updateGroup(ctx: ServiceCtx, groupId: string, input: unkno
       .from(schema.userGroups)
       .where(and(eq(schema.userGroups.workspaceId, ctx.workspaceId), eq(schema.userGroups.name, setObj.name as string)))
       .get()
-    if (clash && clash.id !== groupId) throw new ConflictError(`Group "${parsed.data.name}" already exists`)
+    if (clash && clash.id !== groupId) {
+      throw new ConflictError(`Group "${parsed.data.name}" already exists`)
+    }
   }
 
   await orm
@@ -171,7 +192,9 @@ export async function deleteGroup(ctx: ServiceCtx, groupId: string) {
 export async function addGroupMember(ctx: ServiceCtx, groupId: string, input: unknown) {
   requireAdmin(ctx)
   const parsed = AddGroupMemberSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { userId } = parsed.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -183,7 +206,9 @@ export async function addGroupMember(ctx: ServiceCtx, groupId: string, input: un
     .from(schema.workspaceMembers)
     .where(and(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId), eq(schema.workspaceMembers.userId, userId)))
     .get()
-  if (!wsMember) throw new ValidationError({ formErrors: ['User is not a workspace member'], fieldErrors: {} })
+  if (!wsMember) {
+    throw new ValidationError({ formErrors: ['User is not a workspace member'], fieldErrors: {} })
+  }
 
   const now = Math.floor(Date.now() / 1000)
   await orm
@@ -219,7 +244,9 @@ export async function removeGroupMember(ctx: ServiceCtx, groupId: string, userId
 export async function setGroupGrant(ctx: ServiceCtx, groupId: string, input: unknown) {
   requireAdmin(ctx)
   const parsed = SetGroupGrantSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { projectId, role } = parsed.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -231,7 +258,9 @@ export async function setGroupGrant(ctx: ServiceCtx, groupId: string, input: unk
     .from(schema.projects)
     .where(and(eq(schema.projects.id, projectId), eq(schema.projects.workspaceId, ctx.workspaceId)))
     .get()
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
 
   await orm
     .insert(schema.groupProjectGrants)

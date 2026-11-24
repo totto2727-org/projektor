@@ -1,11 +1,11 @@
 import { drizzle, schema } from '#db'
 
-import { ComposePlaybookSchema } from '../../contracts/inputs/playbooks'
-import { NotFoundError, ValidationError } from './errors'
-import { fetchAgentWipCap } from './issue-leases'
-import { getIssue } from './issues'
-import { EPIC_GOAL_TEMPLATE, PLAYBOOKS } from './playbook-content'
-import type { ServiceCtx } from './types'
+import { ComposePlaybookSchema } from '../../contracts/inputs/playbooks.ts'
+import { NotFoundError, ValidationError } from './errors.ts'
+import { fetchAgentWipCap } from './issue-leases.ts'
+import { getIssue } from './issues.ts'
+import { EPIC_GOAL_TEMPLATE, PLAYBOOKS } from './playbook-content.ts'
+import type { ServiceCtx } from './types.ts'
 
 const DEFAULT_VARIANT = 'bounded'
 const DEFAULT_REVIEW_MODEL = 'opus'
@@ -52,7 +52,9 @@ function fillEpicGoalDirective(params: {
 
 export async function composePlaybook(ctx: ServiceCtx, raw: unknown) {
   const result = ComposePlaybookSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { name, params } = result.data
 
   // epic-goal is the only composable playbook today; a future second playbook

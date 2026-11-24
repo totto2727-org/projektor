@@ -1,10 +1,11 @@
-import { type Context, Hono } from 'hono'
+import { Hono } from 'hono'
+import type { Context } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { OAUTH_SCOPES_SUPPORTED } from '../auth/scopes'
+import { OAUTH_SCOPES_SUPPORTED } from '../auth/scopes.ts'
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-import { AUTHORIZE_ENDPOINT, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '../oauth/provider'
+import { AUTHORIZE_ENDPOINT, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '../oauth/provider.ts'
 
 // PROJ-655: the two public OAuth discovery documents, mounted under /.well-known.
 //

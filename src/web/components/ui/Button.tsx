@@ -1,6 +1,6 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
 
-import { Button as PrimitiveButton, buttonVariants } from '../generated/button'
+import { Button as PrimitiveButton, buttonVariants } from '../generated/button.tsx'
 
 type CommonProps = {
   variant?: 'primary' | 'outline' | 'danger'
@@ -40,18 +40,20 @@ export function Button({
   ]
     .filter(Boolean)
     .join(' ')
-  if (as === 'span')
+  if (as === 'span') {
     return (
       <span className={classes} style={style}>
         {children}
       </span>
     )
-  if (as === 'a')
+  }
+  if (as === 'a') {
     return (
       <a {...(rest as AnchorHTMLAttributes<HTMLAnchorElement>)} href={href} className={classes} style={style}>
         {children}
       </a>
     )
+  }
   return (
     <PrimitiveButton
       {...(rest as ButtonHTMLAttributes<HTMLButtonElement>)}

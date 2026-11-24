@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 
-import { Dialog as PrimitiveDialog, DialogContent, DialogTitle } from '../generated/dialog'
+import { Dialog as PrimitiveDialog, DialogContent, DialogTitle } from '../generated/dialog.tsx'
 
 export interface DialogProps {
   open: boolean
@@ -20,7 +20,9 @@ export function Dialog({ open, onClose, ariaLabel, title, class: legacyClass, cl
     <PrimitiveDialog
       open={open}
       onOpenChange={(nextOpen) => {
-        if (!nextOpen) onClose()
+        if (!nextOpen) {
+          onClose()
+        }
       }}
     >
       <DialogContent

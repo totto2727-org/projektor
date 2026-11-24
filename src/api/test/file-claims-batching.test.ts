@@ -7,13 +7,13 @@
 // Conflict/force/stale semantics remain asserted at 100-path scale.
 
 import { SELF } from 'cloudflare:test'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { claimFiles, releaseFiles } from '#commands/file-claims'
-import type { ServiceCtx } from '#commands/types'
+import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { env } from './fixture-api'
-import { authHeaders, seedIssue, seedIssueFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedIssue, seedIssueFixture } from './helpers.ts'
 
 /**
  * Counts D1 round trips: each statement executed on its own (via .run()/.all()/.get()/.raw(),
@@ -31,7 +31,9 @@ function trackD1RoundTrips() {
     new Proxy(stmt, {
       get(target, prop, receiver) {
         const value = Reflect.get(target, prop, receiver)
-        if (typeof value !== 'function') return value
+        if (typeof value !== 'function') {
+          return value
+        }
         if (prop === 'bind') {
           return (...args: unknown[]) =>
             wrapStmt((value as (...a: unknown[]) => D1PreparedStatement).apply(target, args))
@@ -92,7 +94,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       .run()
   }
 
-  it.each(['native REST', 'shared command'] as const)(
+  test.each(['native REST', 'shared command'] as const)(
     'claiming 100 paths (10 conflicts + 5 stale, force:true), %s',
     async (boundary) => {
       const { token, slug, workspaceId, projectId, userId, issueId } = await seedIssueFixture()
@@ -104,8 +106,12 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       const paths = [...conflictPaths, ...stalePaths, ...freshPaths]
       expect(paths).toHaveLength(100)
 
-      for (const p of conflictPaths) await seedLiveClaim(workspaceId, holder.id, p)
-      for (const p of stalePaths) await seedStaleClaim(workspaceId, holder.id, p)
+      for (const p of conflictPaths) {
+        await seedLiveClaim(workspaceId, holder.id, p)
+      }
+      for (const p of stalePaths) {
+        await seedStaleClaim(workspaceId, holder.id, p)
+      }
 
       if (boundary === 'shared command') {
         const tracker = trackD1RoundTrips()
@@ -130,9 +136,9 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
 
       expect(res.status).toBe(201)
       const body = (await res.json()) as {
-        created: Array<{ path: string }>
-        overridden: Array<{ path: string }>
-        reclaimed: Array<{ path: string }>
+        created: { path: string }[]
+        overridden: { path: string }[]
+        reclaimed: { path: string }[]
       }
       expect(body.created).toHaveLength(100)
       expect(body.overridden).toHaveLength(10)
@@ -140,7 +146,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
     },
   )
 
-  it.each(['native REST', 'shared command'] as const)(
+  test.each(['native REST', 'shared command'] as const)(
     'rejecting a conflicting 100-path claim (force:false), %s',
     async (boundary) => {
       const { token, slug, workspaceId, projectId, userId, issueId } = await seedIssueFixture()
@@ -151,8 +157,12 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       const freshPaths = Array.from({ length: 85 }, (_, i) => `src/rfresh-${i}.ts`)
       const paths = [...conflictPaths, ...stalePaths, ...freshPaths]
 
-      for (const p of conflictPaths) await seedLiveClaim(workspaceId, holder.id, p)
-      for (const p of stalePaths) await seedStaleClaim(workspaceId, holder.id, p)
+      for (const p of conflictPaths) {
+        await seedLiveClaim(workspaceId, holder.id, p)
+      }
+      for (const p of stalePaths) {
+        await seedStaleClaim(workspaceId, holder.id, p)
+      }
 
       if (boundary === 'shared command') {
         const tracker = trackD1RoundTrips()
@@ -197,7 +207,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
 
   // Native REST preserves observable behavior. The paired command case measures
   // actual D1 calls because public-isolate spies cannot observe private Core execution.
-  it.each(['native REST', 'shared command'] as const)('releasing 100 claimed paths, %s', async (boundary) => {
+  test.each(['native REST', 'shared command'] as const)('releasing 100 claimed paths, %s', async (boundary) => {
     const { token, slug, issueId, workspaceId, userId } = await seedIssueFixture()
     const paths = Array.from({ length: 100 }, (_, i) => `src/release-${i}.ts`)
 
@@ -228,11 +238,11 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
     })
 
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { released: Array<{ path: string }>; count: number }
+    const body = (await res.json()) as { released: { path: string }[]; count: number }
     expect(body.count).toBe(100)
   })
 
-  it('release reports only claims it actually released (a concurrent release is left alone)', async () => {
+  test('release reports only claims it actually released (a concurrent release is left alone)', async () => {
     const { token, slug, issueId, workspaceId, userId } = await seedIssueFixture()
     const paths = Array.from({ length: 5 }, (_, i) => `src/race-${i}.ts`)
     const claimRes = await SELF.fetch('http://localhost/api/file-claims', {
@@ -252,7 +262,9 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
     const origBatch = env.DB.batch.bind(env.DB)
     let armed = false
     vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => {
-      if (/^update "issue_file_claims"/i.test(q)) armed = true
+      if (/^update "issue_file_claims"/i.test(q)) {
+        armed = true
+      }
       return origPrepare(q)
     })
     vi.spyOn(env.DB, 'batch').mockImplementation(async (stmts: D1PreparedStatement[]) => {
@@ -285,11 +297,11 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       headers: authHeaders(token, slug),
     })
     expect(observed.status).toBe(200)
-    const listed = (await observed.json()) as { items: Array<{ path: string; releaseReason: string }> }
+    const listed = (await observed.json()) as { items: { path: string; releaseReason: string }[] }
     expect(listed.items.filter((claim) => paths.includes(claim.path))).toHaveLength(0)
   })
 
-  it('claiming the same path twice in one request claims it once', async () => {
+  test('claiming the same path twice in one request claims it once', async () => {
     const { token, slug, issueId } = await seedIssueFixture()
     const res = await SELF.fetch('http://localhost/api/file-claims', {
       method: 'POST',
@@ -297,11 +309,11 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       body: JSON.stringify({ issueId, paths: ['src/b.ts', 'src/a.ts', 'src/b.ts'] }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { created: Array<{ path: string }> }
+    const body = (await res.json()) as { created: { path: string }[] }
     expect(body.created.map((c) => c.path)).toEqual(['src/b.ts', 'src/a.ts'])
   })
 
-  it('force-claim notifications stay within the 5,000-char message cap', async () => {
+  test('force-claim notifications stay within the 5,000-char message cap', async () => {
     const { token, slug, workspaceId, projectId, userId, issueId } = await seedIssueFixture()
     const holder = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
     // 100 paths of ~300 chars: the untruncated path list alone would be ~30,000 chars.
@@ -309,7 +321,9 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       { length: 100 },
       (_, i) => `src/${'deep/'.repeat(58)}file-${String(i).padStart(3, '0')}.ts`,
     )
-    for (const p of paths) await seedLiveClaim(workspaceId, holder.id, p)
+    for (const p of paths) {
+      await seedLiveClaim(workspaceId, holder.id, p)
+    }
 
     const res = await SELF.fetch('http://localhost/api/file-claims', {
       method: 'POST',

@@ -1,6 +1,7 @@
 import type { Effect } from 'effect'
 
-import { type DataQueryError, queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 export interface FeedbackProjectOptions {
   readonly projectId: string

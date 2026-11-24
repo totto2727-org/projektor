@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { issueListQuery } from './query'
+import { issueListQuery } from './query.ts'
 
 const workspace = {
   id: 'workspace-a',
@@ -25,7 +25,7 @@ const projectA = {
 }
 const projectB = { ...projectA, id: 'project-b', name: 'Project B', key: 'B', slug: 'b' }
 describe('issue SSR loaders', () => {
-  it("uses the backend list endpoint's project parameter in a workspace with multiple projects", async () => {
+  test("uses the backend list endpoint's project parameter in a workspace with multiple projects", async () => {
     const url = new URL('https://ssr.example.test/issues?projectId=project-a&workspace=workspace&status=todo')
     const query = issueListQuery(url, { project: projectA.id })
     expect(projectA.workspace_id).toBe(projectB.workspace_id)
@@ -35,7 +35,7 @@ describe('issue SSR loaders', () => {
     expect(query).toContain('status=todo')
   })
 
-  it('uses the same project filter for epics', async () => {
+  test('uses the same project filter for epics', async () => {
     const query = issueListQuery(new URL('https://ssr.example.test/epics?projectId=project-a'), {
       project: projectA.id,
       typeId: 'epic-type',

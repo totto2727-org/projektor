@@ -1,8 +1,8 @@
 import type { HttpEffect, WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
 import { Cause, Data, Effect, Result, Schema } from 'effect'
 
-import type { ApiCoreRpcShape } from './api/operations'
-import type { WebCoreRpcShape } from './web/operations'
+import type { ApiCoreRpcShape } from './api/operations.ts'
+import type { WebCoreRpcShape } from './web/operations.ts'
 
 export const CORE_ACTOR_HEADER = 'x-projektor-core-actor'
 
@@ -53,8 +53,9 @@ export function coreReply<E, R, S extends Schema.Top>(
   return effect.pipe(
     Effect.flatMap((value) => Schema.encodeUnknownEffect(codec)(Result.succeed(value))),
     Effect.catchCause((cause) => {
-      if (Cause.hasInterruptsOnly(cause))
+      if (Cause.hasInterruptsOnly(cause)) {
         return Effect.failCause(Cause.fromReasons<never>(cause.reasons.filter(Cause.isInterruptReason)))
+      }
       const failure = Cause.findError(cause)
       const expected = !Cause.hasDies(cause) && Result.isSuccess(failure) && failure.success instanceof CorePublicError
       const problem = expected ? failure.success : coreFailure(500, 'An unexpected error occurred.')

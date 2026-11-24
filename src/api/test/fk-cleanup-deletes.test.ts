@@ -5,15 +5,15 @@
 // can't do: FTS mirrors, share tokens, R2 objects and references without an FK.
 // fk-cleanup.node.test.ts is the guard that the app-level cleanup exists.
 
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { deleteGroup } from '#commands/groups'
-import type { ServiceCtx } from '#commands/types'
-import { createWikiPage } from '#commands/wiki'
-import { deleteWorkspace, revokeToken } from '#commands/workspaces'
+import { deleteGroup } from '#commands/groups.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import { createWikiPage } from '#commands/wiki.ts'
+import { deleteWorkspace, revokeToken } from '#commands/workspaces.ts'
 
-import { env } from './fixture-api'
-import { seedFixture, seedGroupGrant, seedProject, seedTaskStatus } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedFixture, seedGroupGrant, seedProject, seedTaskStatus } from './helpers.ts'
 
 async function count(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
@@ -36,7 +36,7 @@ async function ownerCtx() {
 }
 
 describe('PROJ-923: explicit cleanup on delete', () => {
-  it("deleteGroup removes the group's members and grants", async () => {
+  test("deleteGroup removes the group's members and grants", async () => {
     const { ctx, workspace, user } = await ownerCtx()
     const project = await seedProject(workspace.id, 'GRP')
     const { groupId } = await seedGroupGrant(workspace.id, user.id, project.id)
@@ -45,7 +45,7 @@ describe('PROJ-923: explicit cleanup on delete', () => {
     expect(await count('SELECT COUNT(*) AS n FROM group_project_grants WHERE group_id = ?', groupId)).toBe(0)
   })
 
-  it('revokeToken nulls agent_sessions.token_id', async () => {
+  test('revokeToken nulls agent_sessions.token_id', async () => {
     const { ctx, workspace } = await ownerCtx()
     const tokenRow = await env.DB.prepare('SELECT id FROM api_tokens WHERE workspace_id = ? LIMIT 1')
       .bind(workspace.id)
@@ -63,7 +63,7 @@ describe('PROJ-923: explicit cleanup on delete', () => {
     expect(row?.t).toBeNull()
   })
 
-  it('deleteWorkspace leaves no row referencing the workspace', async () => {
+  test('deleteWorkspace leaves no row referencing the workspace', async () => {
     const { ctx, workspace, user } = await ownerCtx()
     await seedTaskStatus(workspace.id, { key: 'doing' })
     const project = await seedProject(workspace.id, 'TMP')

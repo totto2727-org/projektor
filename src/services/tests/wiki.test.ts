@@ -2,15 +2,15 @@ import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
 import { eq, isNull, or } from 'drizzle-orm'
 import { Effect } from 'effect'
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import type { ServiceCtx } from '#commands/types'
-import * as apiWiki from '#commands/wiki'
+import type { ServiceCtx } from '#commands/types.ts'
+import * as apiWiki from '#commands/wiki.ts'
 import { schema } from '#db'
-import { migratedDb } from '#db/test/helpers'
+import { migratedDb } from '#db/test/helpers.ts'
 
-import { DataQueryError } from '../errors'
-import * as wiki from '../wiki'
+import { DataQueryError } from '../errors.ts'
+import * as wiki from '../wiki.ts'
 
 function readDatabase(sqlite: DatabaseSync): D1Database {
   function prepare(query: string, bindings: SQLInputValue[] = []) {
@@ -54,7 +54,7 @@ describe('pure wiki reads', () => {
   beforeEach(() => ({ sqlite, db } = wikiReadFixture()))
   afterEach(() => sqlite.close())
 
-  it('preserves list metadata projection, JSON decoding, filters and template exclusion', async () => {
+  test('preserves list metadata projection, JSON decoding, filters and template exclusion', async () => {
     const rows = await Effect.runPromise(wiki.listWikiPages(db, 'wa'))
     expect(rows.map((r) => r.id)).toEqual(['root', 'child'])
     expect(rows[0]).toEqual({
@@ -80,7 +80,7 @@ describe('pure wiki reads', () => {
     expect(await Effect.runPromise(wiki.listWikiPages(db, 'wa', { includeTemplates: true }))).toHaveLength(3)
   })
 
-  it('accepts app-authorized visibility and includes workspace pages only when requested', async () => {
+  test('accepts app-authorized visibility and includes workspace pages only when requested', async () => {
     const visibility = or(isNull(schema.wikiPages.projectId), eq(schema.wikiPages.projectId, 'other'))
     expect((await Effect.runPromise(wiki.listWikiPages(db, 'wa', { visibility }))).map((r) => r.id)).toEqual(['root'])
     expect(
@@ -93,7 +93,7 @@ describe('pure wiki reads', () => {
     ])
   })
 
-  it('resolves id before colliding slug and live pages before redirects, excludes trash and foreign targets', async () => {
+  test('resolves id before colliding slug and live pages before redirects, excludes trash and foreign targets', async () => {
     expect((await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'old-root')))?.content).toBe('Root content')
     expect(await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'cross-tenant'))).toBeUndefined()
     expect(await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'trash'))).toBeUndefined()
@@ -106,7 +106,7 @@ describe('pure wiki reads', () => {
     expect((await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'old-root')))?.id).toBe('child')
   })
 
-  it('preserves maintenance/trash/template filtering and pagination without presentation fields', async () => {
+  test('preserves maintenance/trash/template filtering and pagination without presentation fields', async () => {
     expect(
       (await Effect.runPromise(wiki.listStaleWikiPages(db, 'wa', { now: 100, limit: 10, offset: 0 }))).map((r) => r.id),
     ).toEqual(['child'])
@@ -125,7 +125,7 @@ describe('pure wiki reads', () => {
     expect(await Effect.runPromise(wiki.listWikiTrash(db, 'wa', { limit: 10, offset: 1 }))).toEqual([])
   })
 
-  it('orders same-second revisions by rowid and scopes every revision query to the workspace/page', async () => {
+  test('orders same-second revisions by rowid and scopes every revision query to the workspace/page', async () => {
     expect((await Effect.runPromise(wiki.listWikiRevisions(db, 'wa', 'root'))).map((r) => r.id)).toEqual(['r2', 'r1'])
     expect(await Effect.runPromise(wiki.getLatestWikiRevisionId(db, 'wa', 'root'))).toBe('r2')
     expect(await Effect.runPromise(wiki.getWikiRevision(db, 'wa', 'root', 'r1'))).toEqual({
@@ -141,7 +141,7 @@ describe('pure wiki reads', () => {
     expect(await Effect.runPromise(wiki.getLatestWikiRevisionId(db, 'wa', 'foreign'))).toBeNull()
   })
 
-  it('isolates drafts by workspace, user and page', async () => {
+  test('isolates drafts by workspace, user and page', async () => {
     expect(await Effect.runPromise(wiki.getWikiDraft(db, 'wa', 'root', 'u'))).toEqual({
       title: 'Draft',
       content: 'Draft text',
@@ -152,7 +152,7 @@ describe('pure wiki reads', () => {
     expect(await Effect.runPromise(wiki.getWikiDraft(db, 'wb', 'root', 'u'))).toBeNull()
   })
 
-  it('keeps FTS weighting, stable paging, JSON mapping, templates/trash exclusion and permission fragments', async () => {
+  test('keeps FTS weighting, stable paging, JSON mapping, templates/trash exclusion and permission fragments', async () => {
     sqlite.exec(
       "CREATE VIRTUAL TABLE wiki_fts USING fts5(page_id UNINDEXED, workspace_id UNINDEXED, title, content, tags); INSERT INTO wiki_fts(page_id,workspace_id,title,content,tags) SELECT id,workspace_id,title,'needle',tags FROM wiki_pages;",
     )
@@ -173,7 +173,7 @@ describe('pure wiki reads', () => {
     expect([one[0].id, two[0].id]).toEqual(rows.map((r) => r.id))
   })
 
-  it('is lazy and reports database failures as typed DataQueryError', async () => {
+  test('is lazy and reports database failures as typed DataQueryError', async () => {
     const broken = {
       prepare: () => {
         throw new Error('database unavailable')
@@ -183,7 +183,7 @@ describe('pure wiki reads', () => {
     await expect(Effect.runPromise(query)).rejects.toBeInstanceOf(DataQueryError)
   })
 
-  it('keeps API list, template, trash and tree contracts while sharing the DB read', async () => {
+  test('keeps API list, template, trash and tree contracts while sharing the DB read', async () => {
     const ctx = { db, workspaceId: 'wa', userId: 'u', role: 'owner' } as ServiceCtx
     const rows = await Effect.runPromise(wiki.listWikiPages(db, 'wa'))
     expect(await apiWiki.listWikiPages(ctx, {})).toEqual(rows.map((r) => ({ ...r, url: `/wiki/${r.slug}` })))
@@ -237,7 +237,7 @@ describe('pure wiki reads', () => {
     ])
   })
 
-  it('preserves detail redirect extras, revision contracts and API not-found errors', async () => {
+  test('preserves detail redirect extras, revision contracts and API not-found errors', async () => {
     const ctx = { db, workspaceId: 'wa', userId: 'u', role: 'owner' } as ServiceCtx
     const detail = await Effect.runPromise(wiki.findWikiPage(db, 'wa', 'root'))
     expect(await apiWiki.getWikiPage(ctx, 'root')).toEqual({
@@ -266,7 +266,7 @@ describe('pure wiki reads', () => {
     })
   })
 
-  it('leaves validation, project authorization and search freshness in the API', async () => {
+  test('leaves validation, project authorization and search freshness in the API', async () => {
     const ctx = { db, workspaceId: 'wa', userId: 'u', role: 'viewer' } as ServiceCtx
     expect((await apiWiki.listWikiPages(ctx, {})).map((r) => r.id)).toEqual(['root'])
     await expect(apiWiki.getWikiPage(ctx, 'child')).rejects.toMatchObject({
@@ -284,7 +284,7 @@ describe('pure wiki reads', () => {
     expect(await apiWiki.listStaleWikiPages(ctx, {})).toEqual([])
   })
 
-  it('keeps bounded unified diff behavior for unchanged content, contextual hunks and huge pages', () => {
+  test('keeps bounded unified diff behavior for unchanged content, contextual hunks and huge pages', () => {
     expect(apiWiki.buildUnifiedDiff).toBe(wiki.buildUnifiedDiff)
     expect(wiki.buildUnifiedDiff('same', 'same')).toBe('')
     expect(wiki.buildUnifiedDiff('one\ntwo\nthree', 'one\nnew\nthree')).toBe(

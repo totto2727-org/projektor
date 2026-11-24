@@ -1,7 +1,7 @@
 'use client'
 
-import { SectionHeading } from './MetricHelp'
-import type { CodeHeatmapEntry, CodeHeatmapResponse, HeatmapMode } from './types'
+import { SectionHeading } from './MetricHelp.tsx'
+import type { CodeHeatmapEntry, CodeHeatmapResponse, HeatmapMode } from './types.ts'
 
 function issueCount(count: number): string {
   return `${count} ${count === 1 ? 'issue' : 'issues'}`
@@ -12,8 +12,11 @@ function heatBackground(ratio: number): string {
 export function heatmapHref(initialUrl: string, mode: HeatmapMode, prefix: string): string {
   const url = new URL(initialUrl)
   url.searchParams.set('heatmapMode', mode)
-  if (prefix) url.searchParams.set('prefix', prefix)
-  else url.searchParams.delete('prefix')
+  if (prefix) {
+    url.searchParams.set('prefix', prefix)
+  } else {
+    url.searchParams.delete('prefix')
+  }
   return `${url.pathname}?${url.searchParams}`
 }
 function HeatmapRow({

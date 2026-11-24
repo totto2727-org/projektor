@@ -1,15 +1,16 @@
 import { Effect, Schema } from 'effect'
 
-import type { ServiceCtx } from '#commands/types'
-import { checkRateLimit } from '#services/request-rate-limit'
+import type { ServiceCtx } from '#commands/types.ts'
+import { checkRateLimit } from '#services/request-rate-limit.ts'
 
-import { assertSameOriginMutation } from '../../contracts/mutation'
-import { requireDataWorkspace } from '../../contracts/web-data'
-import { coreFailure } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope, nativeRequest, publicWebFailure } from './authentication'
-import { BrowserCommandSchema, type BrowserCommand } from './command-contract'
+import { assertSameOriginMutation } from '../../contracts/mutation.ts'
+import { requireDataWorkspace } from '../../contracts/web-data.ts'
+import { coreFailure } from '../contract.ts'
+import { publicDomainFailure } from '../domain-errors.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { loadBrowserScope, nativeRequest, publicWebFailure } from './authentication.ts'
+import { BrowserCommandSchema } from './command-contract.ts'
+import type { BrowserCommand } from './command-contract.ts'
 
 /** Proof and selectors cross the binding. Storage capabilities are constructed only in Core. */
 export function browserCommand<A>(
@@ -29,12 +30,17 @@ export function browserCommand<A>(
       requireWorkspace: true,
     })
     const workspace = yield* Effect.try({ try: () => requireDataWorkspace(scope), catch: publicWebFailure })
-    if (workspace.slug !== proof.workspaceSlug) return yield* coreFailure(403, 'Selected workspace is not accessible.')
+    if (workspace.slug !== proof.workspaceSlug) {
+      return yield* coreFailure(403, 'Selected workspace is not accessible.')
+    }
     const auth = scope.auth
-    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev'))
+    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
       return yield* coreFailure(403, 'An interactive browser session is required.')
+    }
     const limited = yield* Effect.tryPromise({ try: () => checkRateLimit(request, env), catch: publicDomainFailure })
-    if (limited) return yield* coreFailure(429, 'Too many requests', { retryAfter: limited.retryAfter })
+    if (limited) {
+      return yield* coreFailure(429, 'Too many requests', { retryAfter: limited.retryAfter })
+    }
     const ctx: ServiceCtx = {
       db: env.DB,
       kv: env.KV,

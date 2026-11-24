@@ -95,6 +95,8 @@ export class ScopeError extends Data.TaggedError('ScopeError')<{
 
 /** Map diagnostics only. Response decoding stays at each operation's concrete schema. */
 export function responseError(cause: unknown): ApiError {
-  if (cause instanceof ApiError) return cause
+  if (cause instanceof ApiError) {
+    return cause
+  }
   return new ApiError('schema', 502, 'The API returned an unexpected response.', cause)
 }

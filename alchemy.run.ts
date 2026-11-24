@@ -2,8 +2,8 @@ import { ALCHEMY_DEV, localState, Stack } from 'alchemy'
 import * as Cloudflare from 'alchemy/Cloudflare'
 import { Effect, Layer } from 'effect'
 
-import { WorkerResources } from './alchemy'
-import { DeploymentLayer } from './worker-environment'
+import { WorkerResources } from './alchemy.ts'
+import { DeploymentLayer } from './worker-environment.ts'
 
 export const workers = WorkerResources.pipe(Effect.provide(DeploymentLayer))
 
@@ -16,6 +16,7 @@ export const DeploymentState = Layer.unwrap(
   ),
 )
 
+// oxlint-disable-next-line import/no-default-export -- Alchemy loads the deployment stack from the default export.
 export default Stack(
   'projektor',
   { state: DeploymentState, providers: Cloudflare.providers() },

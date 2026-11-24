@@ -1,19 +1,20 @@
 import { Effect } from 'effect'
-import { isValidElement, type ComponentProps, type ReactElement } from 'react'
+import { isValidElement } from 'react'
+import type { ComponentProps, ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { resetProvisioningCacheForTests } from '#commands/provisioning'
-import type { ServiceCtx } from '#commands/types'
-import { discardWikiDraft, saveWikiDraft } from '#commands/wiki-drafts'
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import { discardWikiDraft, saveWikiDraft } from '#commands/wiki-drafts.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
 
-import { makeRequestServices, RequestServices } from '../../request'
-import type { RequestScope } from '../../server/request-context'
-import { testEnvironment } from '../../server/test/resources'
-import { createTestDatabase } from '../../test/database'
-import { renderWiki } from './server'
-import { WikiPageClient } from './WikiPageClient'
+import { makeRequestServices, RequestServices } from '../../request.ts'
+import type { RequestScope } from '../../server/request-context.ts'
+import { testEnvironment } from '../../server/test/resources.ts'
+import { createTestDatabase } from '../../test/database.ts'
+import { renderWiki } from './server.tsx'
+import { WikiPageClient } from './WikiPageClient.tsx'
 
 vi.mock('./actions', () => ({}))
 vi.mock('../../attachment-actions', () => ({
@@ -50,14 +51,17 @@ const scope: RequestScope = {
   selection: { kind: 'workspace', workspace },
 }
 function initialData(rendered: ReactElement) {
-  if (!isValidElement<ComponentProps<typeof WikiPageClient>>(rendered) || rendered.type !== WikiPageClient)
+  if (!isValidElement<ComponentProps<typeof WikiPageClient>>(rendered) || rendered.type !== WikiPageClient) {
     throw new Error('Expected the Wiki page client with server-owned initial data')
+  }
   return rendered.props.initial
 }
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 async function fixture(currentScope: RequestScope = scope) {
   resetAuthCachesForTests()
@@ -100,7 +104,7 @@ async function fixture(currentScope: RequestScope = scope) {
 }
 
 describe('Wiki direct request-owned queries', () => {
-  it('reopens editing with the current personal draft head, including after legacy scratch and discard', async () => {
+  test('reopens editing with the current personal draft head, including after legacy scratch and discard', async () => {
     const test = await fixture()
     const reopen = async () => initialData(await Effect.runPromise(test.effect('https://app.test/wiki/guide/edit')))
     const initial = await reopen()
@@ -128,7 +132,8 @@ describe('Wiki direct request-owned queries', () => {
     expect(fresh.draftRevision).toBe(saved.revision)
     expect(fresh.draft).toMatchObject({ title: 'Fresh edit', content: 'B' })
   })
-  it('is lazy, preserves real SSR HTML and ToC, tree shaping, revision pointer and user-only draft without wiki HTTP', async () => {
+
+  test('is lazy, preserves real SSR HTML and ToC, tree shaping, revision pointer and user-only draft without wiki HTTP', async () => {
     const test = await fixture()
     const effect = test.effect('https://app.test/wiki/guide?workspace=team&slug=untrusted-hint')
     expect(test.calls).not.toHaveBeenCalled()
@@ -152,7 +157,8 @@ describe('Wiki direct request-owned queries', () => {
     expect(html).toContain('initial-body')
     expect(test.calls).not.toHaveBeenCalled()
   })
-  it.each(['owner', 'admin', 'member'])(
+
+  test.each(['owner', 'admin', 'member'])(
     'reads an existing archived page with the same grant policy as ServerFns for %s',
     async (role) => {
       const test = await fixture()
@@ -166,14 +172,16 @@ describe('Wiki direct request-owned queries', () => {
       expect(initial.page).toMatchObject({ id: 'visible-page', project_id: 'allowed' })
     },
   )
-  it('does not widen archived page visibility to an ungranted member', async () => {
+
+  test('does not widen archived page visibility to an ungranted member', async () => {
     const test = await fixture()
     test.sqlite.exec("UPDATE projects SET archived_at=99 WHERE id='allowed'; DELETE FROM group_project_grants")
     await expect(
       Effect.runPromise(test.effect('https://app.test/wiki/allowed-guide', { slug: 'allowed-guide' })),
     ).rejects.toMatchObject({ status: 404 })
   })
-  it('disables autosave after an actual optional draft query failure', async () => {
+
+  test('disables autosave after an actual optional draft query failure', async () => {
     const test = await fixture()
     test.sqlite.exec('DROP TABLE wiki_drafts')
     const rendered = await Effect.runPromise(test.effect('https://app.test/wiki/guide/edit'))
@@ -181,25 +189,28 @@ describe('Wiki direct request-owned queries', () => {
     expect(initial.draftStatus).toBe('failed')
     expect(initial.page?.content).toContain('server')
   })
-  it('rejects a fetched project page outside the authorized catalog before loading lookup data', async () => {
+
+  test('rejects a fetched project page outside the authorized catalog before loading lookup data', async () => {
     const test = await fixture()
     await expect(
       Effect.runPromise(test.effect('https://app.test/wiki/hidden-guide', { slug: 'hidden-guide' })),
     ).rejects.toMatchObject({ status: 404 })
     expect(test.calls).not.toHaveBeenCalled()
   })
-  it('applies the existing FTS and browse visibility policy with workspace pages and computed freshness', async () => {
+
+  test('applies the existing FTS and browse visibility policy with workspace pages and computed freshness', async () => {
     const test = await fixture()
     const rendered = await Effect.runPromise(test.effect('https://app.test/wiki?q=Guide', { slug: '' }))
     const initial = initialData(rendered)
     expect(initial.searchResults.map((page) => page.id).sort()).toEqual(['child', 'page', 'visible-page'])
     expect(initial.searchResults.find((page) => page.id === 'visible-page')?.freshness).toEqual({
       state: 'stale',
-      staleSince: 86401,
+      staleSince: 86_401,
     })
     expect(initial.stalePages.map((page) => page.id)).toEqual(['visible-page'])
   })
-  it('retains explicit project scope plus workspace pages and validates bounded filters', async () => {
+
+  test('retains explicit project scope plus workspace pages and validates bounded filters', async () => {
     const test = await fixture({ ...scope, selection: { kind: 'project', workspace, project } })
     const rendered = await Effect.runPromise(
       test.effect('https://app.test/wiki?type=guide&tags=docs&q=Guide', { slug: '' }),
@@ -219,7 +230,8 @@ describe('Wiki direct request-owned queries', () => {
       ),
     ).rejects.toMatchObject({ status: 400 })
   })
-  it('does not infer an unselected workspace from a lone membership', async () => {
+
+  test('does not infer an unselected workspace from a lone membership', async () => {
     const test = await fixture({
       ...scope,
       selection: { kind: 'selection-required', target: 'workspace', reason: 'ambiguous' },

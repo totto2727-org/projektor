@@ -1,7 +1,10 @@
-import { type Effect, Schema } from 'effect'
+import { Schema } from 'effect'
+import type { Effect } from 'effect'
 
-import { ReviewTargetSchema, type ReviewStatus, type ReviewTarget } from '../contracts/review-targets'
-import { type DataQueryError, queryEffect } from './errors'
+import { ReviewTargetSchema } from '../contracts/review-targets.ts'
+import type { ReviewStatus, ReviewTarget } from '../contracts/review-targets.ts'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 /** Trusted app-authored predicates, never request input. Aliases: a attachment, w linked page. */
 export interface AttachmentVisibility {

@@ -2,10 +2,10 @@ import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
 import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
-import { migratedDb } from '#db/test/helpers'
+import { migratedDb } from '#db/test/helpers.ts'
 
 import {
   DataQueryError,
@@ -20,7 +20,7 @@ import {
   listWorkspaces,
   listWorkspaceTokenMetadata,
   readWorkspaceBrand,
-} from '../index'
+} from '../index.ts'
 
 /** Read-only D1 transport over the real migrated schema. Not a Worker emulator. */
 function readDatabase(sqlite: DatabaseSync): D1Database {
@@ -63,7 +63,7 @@ describe('project/workspace pure queries', () => {
 
   afterEach(() => sqlite.close())
 
-  it('retains camelCase project rows, ordering, archive opt-in and app-supplied visibility', async () => {
+  test('retains camelCase project rows, ordering, archive opt-in and app-supplied visibility', async () => {
     const projects = await Effect.runPromise(listProjects(db, 'wa'))
     expect(projects.map((project) => project.id)).toEqual(['p3', 'p1'])
     expect(projects[1]).toEqual({
@@ -94,7 +94,7 @@ describe('project/workspace pure queries', () => {
     ).toEqual(['p1'])
   })
 
-  it('scopes id, slug and key lookups to the explicit workspace and retains missing results', async () => {
+  test('scopes id, slug and key lookups to the explicit workspace and retains missing results', async () => {
     expect(await Effect.runPromise(findProjectById(db, 'wa', 'p4'))).toBeUndefined()
     expect(await Effect.runPromise(findProjectById(db, 'wa', 'p1'))).toMatchObject({ id: 'p1' })
     expect(await Effect.runPromise(findProjectBySlug(db, 'wa', 'same'))).toMatchObject({
@@ -108,7 +108,7 @@ describe('project/workspace pure queries', () => {
     expect(await Effect.runPromise(findProjectIdByKey(db, 'wa', 'MISSING'))).toBeUndefined()
   })
 
-  it('retains summary column names, membership join, archive filtering and custom status counts', async () => {
+  test('retains summary column names, membership join, archive filtering and custom status counts', async () => {
     const insert = sqlite.prepare(`INSERT INTO issues
 			(id,workspace_id,project_id,number,title,status,status_category,labels,created_by_id,created_at,updated_at)
 			VALUES (?, 'wa', 'p1', ?, 'Issue', ?, ?, '[]', 'u1', 100, 101)`)
@@ -149,7 +149,7 @@ describe('project/workspace pure queries', () => {
     expect(await Effect.runPromise(listProjectSummaries(db, 'unknown', { sql: '1 = 1', bindings: [] }))).toEqual([])
   })
 
-  it('loads workspace/membership relations without authorizing roles or selecting an implicit tenant', async () => {
+  test('loads workspace/membership relations without authorizing roles or selecting an implicit tenant', async () => {
     expect(await Effect.runPromise(listWorkspaces(db, 'u2'))).toEqual([
       { id: 'wa', name: 'Alpha workspace', slug: 'alpha', createdAt: 10, role: 'viewer' },
       { id: 'wb', name: 'Beta workspace', slug: 'beta', createdAt: 20, role: 'member' },
@@ -170,7 +170,7 @@ describe('project/workspace pure queries', () => {
     expect((await Effect.runPromise(listWorkspaceMembers(db, 'wa'))).map((member) => member.id)).toEqual(['u2', 'u1'])
   })
 
-  it('decodes stored brand JSON but does not synthesize API URLs', async () => {
+  test('decodes stored brand JSON but does not synthesize API URLs', async () => {
     expect(await Effect.runPromise(readWorkspaceBrand(db, 'wa'))).toEqual({
       accent: '#abcdef',
       logoR2Key: 'wa/brand-logo/x',
@@ -178,7 +178,7 @@ describe('project/workspace pure queries', () => {
     expect(await Effect.runPromise(readWorkspaceBrand(db, 'missing'))).toEqual({})
   })
 
-  it('returns only scoped token metadata with decoded scopes and existing descending order', async () => {
+  test('returns only scoped token metadata with decoded scopes and existing descending order', async () => {
     sqlite.exec(`INSERT INTO api_tokens (id,workspace_id,user_id,name,token_hash,scopes,created_at) VALUES
 		 ('t1','wa','u1','First','secret1','["read"]',10),
 		 ('t2','wa','u1','Second','secret2','["write"]',20),
@@ -203,7 +203,7 @@ describe('project/workspace pure queries', () => {
     ])
   })
 
-  it('defers I/O and reports database failures through the typed Effect channel', async () => {
+  test('defers I/O and reports database failures through the typed Effect channel', async () => {
     let calls = 0
     const cause = new Error('database unavailable')
     const broken = {

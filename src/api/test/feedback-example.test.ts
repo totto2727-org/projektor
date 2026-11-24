@@ -1,9 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { submitFeedback } from '../examples/feedback-widget-submit'
-import { env } from './fixture-api'
-import { authHeaders, seedProjectFixture } from './helpers'
+import { submitFeedback } from '../examples/feedback-widget-submit.ts'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedProjectFixture } from './helpers.ts'
 
 // Proves the maintained client example works against the real API Worker,
 // including successful persistence and rejected credentials.
@@ -12,7 +12,7 @@ describe('feedback widget example', () => {
     vi.unstubAllGlobals()
   })
 
-  it('submitFeedback() submits to a live feedback source', async () => {
+  test('submitFeedback() submits to a live feedback source', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const created = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
@@ -40,7 +40,7 @@ describe('feedback widget example', () => {
     expect(row?.rating).toBe(1)
   })
 
-  it('submitFeedback() surfaces a thrown error on rejection (e.g. bad token)', async () => {
+  test('submitFeedback() surfaces a thrown error on rejection (e.g. bad token)', async () => {
     vi.stubGlobal('fetch', (url: string, init?: RequestInit) => SELF.fetch(url, init))
 
     await expect(

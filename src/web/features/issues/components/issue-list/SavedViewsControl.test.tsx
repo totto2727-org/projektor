@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 'use client'
 
-import '../../test/browser'
+import '../../test/browser.ts'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import type { SavedViewFilters } from '../saved-views'
-import SavedViewsControl from './SavedViewsControl'
-import { useSavedViews } from './useSavedViews'
+import type { SavedViewFilters } from '../saved-views.ts'
+import SavedViewsControl from './SavedViewsControl.tsx'
+import { useSavedViews } from './useSavedViews.ts'
 
 afterEach(cleanup)
 
@@ -40,18 +40,18 @@ beforeEach(() => sessionStorage.clear())
 
 // Standard Base UI menus own pointer, focus and keyboard interaction.
 describe('SavedViewsControl — generated menu', () => {
-  it('renders nothing when there are no saved views', () => {
+  test('renders nothing when there are no saved views', () => {
     render(<Harness onApply={() => {}} />)
     expect(screen.queryByRole('button', { name: 'Saved views' })).toBeNull()
   })
 
-  it('shows the placeholder label until a view is applied', async () => {
+  test('shows the placeholder label until a view is applied', async () => {
     seedViews(['Sprint board'])
     render(<Harness onApply={() => {}} />)
     await waitFor(() => expect(screen.getByRole('button', { name: 'Saved views' }).textContent).toContain('Views'))
   })
 
-  it('applies a view on selection and updates the trigger label', async () => {
+  test('applies a view on selection and updates the trigger label', async () => {
     seedViews(['Sprint board', 'My bugs'])
     const onApply = vi.fn()
     render(<Harness onApply={onApply} />)
@@ -64,7 +64,7 @@ describe('SavedViewsControl — generated menu', () => {
     expect(screen.getByRole('button', { name: 'Saved views' }).textContent).toContain('My bugs')
   })
 
-  it('deletes a view via its trailing action without applying it', async () => {
+  test('deletes a view via its trailing action without applying it', async () => {
     seedViews(['Sprint board', 'My bugs'])
     const onApply = vi.fn()
     render(<Harness onApply={onApply} />)
@@ -81,7 +81,7 @@ describe('SavedViewsControl — generated menu', () => {
     expect(JSON.parse(sessionStorage.getItem('issue-views-user-a:workspace:PROJ') ?? '[]')).toHaveLength(1)
   })
 
-  it('deletes a view through the standard keyboard menu action without applying it', async () => {
+  test('deletes a view through the standard keyboard menu action without applying it', async () => {
     seedViews(['Sprint board', 'My bugs'])
     const onApply = vi.fn()
     render(<Harness onApply={onApply} />)

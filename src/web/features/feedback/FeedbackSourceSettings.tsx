@@ -2,10 +2,10 @@
 
 import { useRef, useState } from 'react'
 
-import { unwrapResult } from '../../client/functions'
-import { Button } from '../../components/ui/Button'
-import { formatTimestampDate } from '../timestamp'
-import { revokeFeedbackSource, rotateFeedbackSourceToken, setFeedbackSourceActive } from './actions'
+import { unwrapResult } from '../../client/functions.ts'
+import { Button } from '../../components/ui/Button.tsx'
+import { formatTimestampDate } from '../timestamp.ts'
+import { revokeFeedbackSource, rotateFeedbackSourceToken, setFeedbackSourceActive } from './actions.ts'
 
 export interface FeedbackSource {
   id: string
@@ -118,7 +118,9 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
   }
 
   async function confirmRotate() {
-    if (rotationInFlight.current) return
+    if (rotationInFlight.current) {
+      return
+    }
     rotationInFlight.current = true
     setRotationBusy(true)
     setError(null)
@@ -138,7 +140,9 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
   }
 
   async function revoke() {
-    if (!window.confirm(`Revoke ${source.name}? Its token will stop accepting feedback.`)) return
+    if (!window.confirm(`Revoke ${source.name}? Its token will stop accepting feedback.`)) {
+      return
+    }
     try {
       unwrapResult(await revokeFeedbackSource({ workspaceSlug, projectId, sourceId: source.id }))
       onChanged?.()

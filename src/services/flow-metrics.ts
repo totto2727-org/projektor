@@ -1,9 +1,11 @@
-import { and, eq, gte, inArray, isNotNull, isNull, lte, or, type SQL, type SQLWrapper, sql } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
+import type { SQL, SQLWrapper } from 'drizzle-orm'
 import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
-import { type DataQueryError, queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 /** App-validated range. Authorization and input validation belong to the caller. */
 export interface FlowMetricsRange {
@@ -31,7 +33,9 @@ export interface Distribution {
 }
 
 function summarize(durations: readonly number[]): Distribution {
-  if (durations.length === 0) return { count: 0, avg: null, p50: null, p90: null }
+  if (durations.length === 0) {
+    return { count: 0, avg: null, p50: null, p90: null }
+  }
   const sorted = [...durations].sort((a, b) => a - b)
   const avg = sorted.reduce((sum, d) => sum + d, 0) / sorted.length
   const percentile = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]
@@ -50,7 +54,7 @@ type FlowIssueRow = {
   typeKey: string | null
 }
 
-const DAY = 86400
+const DAY = 86_400
 
 function dateLabel(t: number): string {
   return new Date(t * 1000).toISOString().slice(0, 10)
@@ -84,7 +88,7 @@ function bucketRanges(
   bucketSize: number,
   since: number,
   until: number,
-): Array<{ start: number; end: number }> {
+): { start: number; end: number }[] {
   return starts.map((t) => ({
     start: Math.max(t, since),
     end: Math.min(t + bucketSize, until + 1),
@@ -99,14 +103,16 @@ function bucketRanges(
 function groupBySortedRanges<T>(
   items: readonly T[],
   time: (item: T) => number,
-  ranges: ReadonlyArray<{ start: number; end: number }>,
+  ranges: readonly { start: number; end: number }[],
 ): T[][] {
   const sorted = [...items].sort((a, b) => time(a) - time(b))
   const groups: T[][] = ranges.map(() => [])
   let idx = 0
   for (let r = 0; r < ranges.length; r++) {
     const { start, end } = ranges[r]
-    while (idx < sorted.length && time(sorted[idx]) < start) idx++
+    while (idx < sorted.length && time(sorted[idx]) < start) {
+      idx++
+    }
     let j = idx
     while (j < sorted.length && time(sorted[j]) < end) {
       groups[r].push(sorted[j])
@@ -121,21 +127,25 @@ function buildWipOverTime(
   issues: readonly FlowIssueRow[],
   since: number,
   until: number,
-): Array<{ date: string; count: number }> {
+): { date: string; count: number }[] {
   // PROJ-866: WIP-at-time-t is an interval-containment count (active during
   // [claimedAt, doneAt)). Instead of re-filtering every issue at every sampled day,
   // turn each issue into at most two delta events (+1 at claimedAt, -1 at doneAt) and
   // sweep a single running total across the sorted events as `t` advances — the
   // buckets loop and the event list are each walked once.
-  const events: Array<[number, number]> = []
+  const events: [number, number][] = []
   for (const i of issues) {
-    if (i.claimedAt === null) continue
+    if (i.claimedAt === null) {
+      continue
+    }
     events.push([i.claimedAt, 1])
-    if (i.doneAt !== null) events.push([i.doneAt, -1])
+    if (i.doneAt !== null) {
+      events.push([i.doneAt, -1])
+    }
   }
   events.sort((a, b) => a[0] - b[0])
 
-  const buckets: Array<{ date: string; count: number }> = []
+  const buckets: { date: string; count: number }[] = []
   let idx = 0
   let running = 0
   for (let t = since - (since % DAY); t <= until; t += DAY) {
@@ -153,7 +163,7 @@ function buildThroughputOverTime(
   since: number,
   until: number,
   granularity: 'day' | 'week',
-): Array<{ bucketStart: string; count: number }> {
+): { bucketStart: string; count: number }[] {
   const bucketSize = bucketSizeFor(granularity)
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
@@ -172,7 +182,7 @@ function buildBugShareOverTime(
   since: number,
   until: number,
   granularity: 'day' | 'week',
-): Array<{ bucketStart: string; total: number; bugCount: number; bugSharePercent: number | null }> {
+): { bucketStart: string; total: number; bugCount: number; bugSharePercent: number | null }[] {
   const bucketSize = bucketSizeFor(granularity)
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
@@ -197,7 +207,7 @@ function buildReviewLatencyOverTime(
   since: number,
   until: number,
   granularity: 'day' | 'week',
-): Array<{ bucketStart: string; p50: number | null }> {
+): { bucketStart: string; p50: number | null }[] {
   const bucketSize = bucketSizeFor(granularity)
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
@@ -219,7 +229,7 @@ function buildArrivalVsCompletion(
   since: number,
   until: number,
   granularity: 'day' | 'week',
-): Array<{ bucketStart: string; created: number; completed: number; net: number }> {
+): { bucketStart: string; created: number; completed: number; net: number }[] {
   const bucketSize = bucketSizeFor(granularity)
   const starts = buildBucketStarts(since, until, granularity)
   const ranges = bucketRanges(starts, bucketSize, since, until)
@@ -240,10 +250,18 @@ function buildArrivalVsCompletion(
 type CfdBand = 'excluded' | 'backlogTodo' | 'inProgress' | 'inReview' | 'done'
 
 function classifyCfdBand(issue: FlowIssueRow, sampleAt: number): CfdBand {
-  if (issue.createdAt > sampleAt) return 'excluded'
-  if (issue.doneAt !== null && issue.doneAt <= sampleAt) return 'done'
-  if (issue.inReviewAt !== null && issue.inReviewAt <= sampleAt) return 'inReview'
-  if (issue.claimedAt !== null && issue.claimedAt <= sampleAt) return 'inProgress'
+  if (issue.createdAt > sampleAt) {
+    return 'excluded'
+  }
+  if (issue.doneAt !== null && issue.doneAt <= sampleAt) {
+    return 'done'
+  }
+  if (issue.inReviewAt !== null && issue.inReviewAt <= sampleAt) {
+    return 'inReview'
+  }
+  if (issue.claimedAt !== null && issue.claimedAt <= sampleAt) {
+    return 'inProgress'
+  }
   return 'backlogTodo'
 }
 
@@ -256,8 +274,8 @@ function classifyCfdBand(issue: FlowIssueRow, sampleAt: number): CfdBand {
 // created <= claimed <= in_review <= done order.
 function buildCfdEvents(
   issues: readonly FlowIssueRow[],
-): Array<{ time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }> {
-  const events: Array<{ time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }> = []
+): { time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }[] {
+  const events: { time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }[] = []
   for (const issue of issues) {
     const thresholds = [
       ...new Set(
@@ -267,9 +285,15 @@ function buildCfdEvents(
     let prevBand: CfdBand = 'excluded'
     for (const t of thresholds) {
       const band = classifyCfdBand(issue, t)
-      if (band === prevBand) continue
-      if (prevBand !== 'excluded') events.push({ time: t, band: prevBand, delta: -1 })
-      if (band !== 'excluded') events.push({ time: t, band, delta: 1 })
+      if (band === prevBand) {
+        continue
+      }
+      if (prevBand !== 'excluded') {
+        events.push({ time: t, band: prevBand, delta: -1 })
+      }
+      if (band !== 'excluded') {
+        events.push({ time: t, band, delta: 1 })
+      }
       prevBand = band
     }
   }
@@ -299,13 +323,13 @@ function buildCfdOverTime(
   granularity: 'day' | 'week',
   now: number,
   doneBeforeWindow: number,
-): Array<{
+): {
   bucketStart: string
   backlogTodo: number
   inProgress: number
   inReview: number
   done: number
-}> {
+}[] {
   const bucketSize = bucketSizeFor(granularity)
   const starts = buildBucketStarts(since, until, granularity)
   const events = buildCfdEvents(issues)
@@ -367,7 +391,9 @@ async function fetchLeaseHeldSeconds(
   const held = new Map<string, number>()
   for (const row of rows) {
     const end = row.releasedAt ?? row.doneAt ?? null
-    if (end === null) continue
+    if (end === null) {
+      continue
+    }
     const seconds = Math.max(0, end - row.claimedAt)
     held.set(row.issueId, (held.get(row.issueId) ?? 0) + seconds)
   }
@@ -428,7 +454,9 @@ function computeAutonomyRatios(
     .map((i) => {
       // biome-ignore lint/style/noNonNullAssertion: filtered above
       const cycle = i.doneAt! - i.claimedAt!
-      if (cycle <= 0) return 0
+      if (cycle <= 0) {
+        return 0
+      }
       const held = leaseHeldSeconds.get(i.id) ?? 0
       return Math.min(1, held / cycle)
     })
@@ -450,7 +478,9 @@ function computeFlowEfficiencies(
     .map((i) => {
       // biome-ignore lint/style/noNonNullAssertion: filtered above
       const leadTime = i.doneAt! - i.readyAt!
-      if (leadTime <= 0) return 0
+      if (leadTime <= 0) {
+        return 0
+      }
       const held = leaseHeldSeconds.get(i.id) ?? 0
       return Math.min(1, held / leadTime)
     })
@@ -465,7 +495,7 @@ function computeFlowEfficiencies(
 function buildAgingWip(
   issues: readonly FlowIssueRow[],
   now: number,
-): Array<{ id: string; status: 'in_progress' | 'in_review'; ageSeconds: number }> {
+): { id: string; status: 'in_progress' | 'in_review'; ageSeconds: number }[] {
   return issues
     .filter(
       (i): i is FlowIssueRow & { claimedAt: number } =>
@@ -672,7 +702,9 @@ async function readFlowMetrics(db: D1Database, workspaceId: string, range: FlowM
     until === undefined ? undefined : lte(schema.issues.doneAt, until),
   )
   // Never let the per-issue lookups run without a tenant scope.
-  if (!doneInWindowScope) throw new Error('flow-metrics: missing issue scope')
+  if (!doneInWindowScope) {
+    throw new Error('flow-metrics: missing issue scope')
+  }
 
   // PROJ-446: everything below depends only on the window bounds plus ctx/projectId —
   // none of these reads depend on each other, so run them concurrently instead of one

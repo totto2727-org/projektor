@@ -2,10 +2,10 @@ import { makeCoreClient } from 'projektor/core-client'
 
 import type { ApiEnv, RealtimeEvent, Role } from '#types'
 
-import { ApiRealtimeSnapshot } from '../../contracts/api-public'
-import type { CoreActor } from '../../core/authorization'
-import { CORE_ACTOR_HEADER } from '../../core/contract'
-import { apiReply } from '../services/reply'
+import { ApiRealtimeSnapshot } from '../../contracts/api-public.ts'
+import type { CoreActor } from '../../core/authorization.ts'
+import { CORE_ACTOR_HEADER } from '../../core/contract.ts'
+import { apiReply } from '../services/reply.ts'
 
 export interface SubscriptionFilters {
   projects?: string[]
@@ -65,7 +65,9 @@ export class WorkspaceHub {
     try {
       const serialized = request.headers.get(CORE_ACTOR_HEADER)
       const workspaceId = request.headers.get(INTERNAL_WORKSPACE_ID_HEADER)
-      if (!serialized || !workspaceId) return new Response('Unauthorized', { status: 401 })
+      if (!serialized || !workspaceId) {
+        return new Response('Unauthorized', { status: 401 })
+      }
       actor = JSON.parse(serialized) as CoreActor
       snapshot = await this.loadSnapshot(actor, workspaceId)
     } catch {
@@ -110,7 +112,9 @@ export class WorkspaceHub {
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    if (typeof message !== 'string') return
+    if (typeof message !== 'string') {
+      return
+    }
 
     try {
       const data = JSON.parse(message) as {
@@ -120,7 +124,9 @@ export class WorkspaceHub {
       }
 
       let attachment = ws.deserializeAttachment() as SocketAttachment | null
-      if (!attachment) return
+      if (!attachment) {
+        return
+      }
 
       attachment = await this.refreshSnapshot(attachment)
       ws.serializeAttachment(attachment)
@@ -190,7 +196,9 @@ export class WorkspaceHub {
     for (const ws of sockets) {
       try {
         let attachment = ws.deserializeAttachment() as SocketAttachment | null
-        if (!attachment || attachment.workspaceId !== event.workspaceId) continue
+        if (!attachment || attachment.workspaceId !== event.workspaceId) {
+          continue
+        }
         attachment = await this.refreshSnapshot(attachment)
         ws.serializeAttachment(attachment)
 
@@ -198,7 +206,9 @@ export class WorkspaceHub {
         // events scoped to a project they can see. Missing projectId is treated
         // as "deny" for non-admins (fail-closed).
         if (!isWorkspaceAdmin(attachment.role)) {
-          if (!event.projectId) continue
+          if (!event.projectId) {
+            continue
+          }
           const visible = new Set(attachment.visibleProjectIds)
           if (!visible.has(event.projectId)) {
             continue

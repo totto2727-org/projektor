@@ -1,13 +1,14 @@
 import { Cause, Effect, Exit } from 'effect'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
 
-import { makeRequestServices, RequestServices } from '../request'
-import { createTestDatabase } from '../test/database'
-import { type FunctionOptions, type FunctionSelector, resolveFunctionContext } from './function-context'
-import type { AuthSession, ProjectSummary } from './request-context'
-import { testEnvironment } from './test/resources'
+import { makeRequestServices, RequestServices } from '../request.ts'
+import { createTestDatabase } from '../test/database.ts'
+import { resolveFunctionContext } from './function-context.ts'
+import type { FunctionOptions, FunctionSelector } from './function-context.ts'
+import type { AuthSession, ProjectSummary } from './request-context.ts'
+import { testEnvironment } from './test/resources.ts'
 
 const session: AuthSession = {
   user: { id: 'user-a', email: 'a@example.test', name: 'A' },
@@ -35,7 +36,9 @@ const project: ProjectSummary = {
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
   resetAuthCachesForTests()
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 function fixture(
@@ -112,7 +115,7 @@ function fixture(
 }
 
 describe('independent ServerFn authentication and semantic selection', () => {
-  it('resolves a workspace query without a page URL or inferred project', async () => {
+  test('resolves a workspace query without a page URL or inferred project', async () => {
     const { run, invalidated } = fixture()
     const context = await run(resolveFunctionContext({ workspaceSlug: 'alpha' }, { requireWorkspace: true }))
     expect(context.workspaceSlug).toBe('alpha')
@@ -124,7 +127,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     expect(invalidated).not.toHaveBeenCalled()
   })
 
-  it('uses an explicit project ID to derive its authenticated workspace', async () => {
+  test('uses an explicit project ID to derive its authenticated workspace', async () => {
     const { run } = fixture()
     const context = await run(
       resolveFunctionContext({ projectId: 'project-a' }, { requireProject: true, requireWorkspace: true }),
@@ -133,7 +136,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     expect(context.projectId).toBe('project-a')
   })
 
-  it('does not inherit workspace/project hints from the invoking page', async () => {
+  test('does not inherit workspace/project hints from the invoking page', async () => {
     const { run } = fixture('/issues?workspace=alpha&projectId=project-a')
     const context = await run(resolveFunctionContext({}))
     expect(context.scope.selection).toEqual({ kind: 'global' })
@@ -141,14 +144,14 @@ describe('independent ServerFn authentication and semantic selection', () => {
     expect(context.projectId).toBeUndefined()
   })
 
-  it('lets explicit workspace selection replace unrelated page context', async () => {
+  test('lets explicit workspace selection replace unrelated page context', async () => {
     const { run } = fixture('/issues?workspace=alpha&projectId=project-a')
     const context = await run(resolveFunctionContext({ workspaceSlug: 'beta' }, { requireWorkspace: true }))
     expect(context.workspaceSlug).toBe('beta')
     expect(context.projectId).toBeUndefined()
   })
 
-  it.each([
+  test.each([
     [{ requireWorkspace: true }, 'Select a workspace for this operation.'],
     [{ requireProject: true }, 'Select a project for this operation.'],
   ] satisfies readonly (readonly [FunctionOptions, string])[])(
@@ -166,7 +169,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     },
   )
 
-  it.each([{ workspaceSlug: '' }, { projectId: '' }] satisfies readonly FunctionSelector[])(
+  test.each([{ workspaceSlug: '' }, { projectId: '' }] satisfies readonly FunctionSelector[])(
     'rejects malformed semantic selection: %o',
     async (selector) => {
       const { run, database } = fixture()
@@ -178,7 +181,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     },
   )
 
-  it('rejects a workspace outside current membership', async () => {
+  test('rejects a workspace outside current membership', async () => {
     const { run } = fixture()
     await expect(run(resolveFunctionContext({ workspaceSlug: 'missing' }))).rejects.toMatchObject({
       _tag: 'ScopeError',
@@ -186,7 +189,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     })
   })
 
-  it('rejects contradictory workspace/project selection', async () => {
+  test('rejects contradictory workspace/project selection', async () => {
     const { run } = fixture()
     await expect(run(resolveFunctionContext({ workspaceSlug: 'beta', projectId: 'project-a' }))).rejects.toMatchObject({
       _tag: 'ScopeError',
@@ -194,7 +197,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     })
   })
 
-  it('requires actual project IDs, not a matching key or slug alias', async () => {
+  test('requires actual project IDs, not a matching key or slug alias', async () => {
     const { run } = fixture()
     await expect(run(resolveFunctionContext({ projectId: 'ALPHA' }))).rejects.toMatchObject({
       _tag: 'ScopeError',
@@ -202,7 +205,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     })
   })
 
-  it('rejects catalog entities whose membership has been revoked', async () => {
+  test('rejects catalog entities whose membership has been revoked', async () => {
     const { run } = fixture('/_effront/query', { ...session, workspaces: [] })
     await expect(run(resolveFunctionContext({ projectId: 'project-a' }))).rejects.toMatchObject({
       _tag: 'ScopeError',
@@ -210,7 +213,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     })
   })
 
-  it('preserves typed authentication failures and never invalidates during resolution', async () => {
+  test('preserves typed authentication failures and never invalidates during resolution', async () => {
     const { run, env, invalidated } = fixture()
     env.ENVIRONMENT = 'production'
     await expect(run(resolveFunctionContext({}))).rejects.toMatchObject({
@@ -220,7 +223,7 @@ describe('independent ServerFn authentication and semantic selection', () => {
     expect(invalidated).not.toHaveBeenCalled()
   })
 
-  it('does not catch defects or transform interruption into a result abstraction', async () => {
+  test('does not catch defects or transform interruption into a result abstraction', async () => {
     const { run } = fixture()
     const failure = new Error('programmer defect')
     const defect = await run(

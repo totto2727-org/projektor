@@ -2,23 +2,23 @@ import { Buffer } from 'node:buffer'
 
 import { Effect } from 'effect'
 import { Hono } from 'hono'
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { resetProvisioningCacheForTests } from '#commands/provisioning'
+import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import type { ApiEnv, HonoEnv } from '#types'
 
-import { authMiddleware } from '../../api/middleware/auth'
-import { makeApiIdentityHandlers } from '../../core/api/identity-operations'
-import type { CoreEnvironment } from '../../core/environment'
-import { createTestResources } from '../../web/server/test/resources'
-import { createTestDatabase } from '../../web/test/database'
+import { authMiddleware } from '../../api/middleware/auth.ts'
+import { makeApiIdentityHandlers } from '../../core/api/identity-operations.ts'
+import type { CoreEnvironment } from '../../core/environment.ts'
+import { createTestResources } from '../../web/server/test/resources.ts'
+import { createTestDatabase } from '../../web/test/database.ts'
 import {
   authenticateBrowser,
-  type BrowserAuthEnvironment,
   BrowserAuthenticationError,
   resetAuthCachesForTests,
   verifyJwtPayload,
-} from '../authentication'
+} from '../authentication.ts'
+import type { BrowserAuthEnvironment } from '../authentication.ts'
 
 const issuer = 'https://team.example.test'
 const audience = 'browser-audience'
@@ -118,7 +118,8 @@ describe('shared browser authentication without API transport or signing secrets
       passThroughOnException: () => {},
     })
   }
-  it.each([false, true])(
+
+  test.each([false, true])(
     'verifies a real signed Access %s credential and provisions its current identity',
     async (cookie) => {
       const principal = await authenticateBrowser(browser(await token(), cookie), env)
@@ -136,12 +137,14 @@ describe('shared browser authentication without API transport or signing secrets
       expect(externalFetch).not.toHaveBeenCalled()
     },
   )
-  it('verifies signed claims directly through the shared verifier', async () => {
+
+  test('verifies signed claims directly through the shared verifier', async () => {
     expect(await verifyJwtPayload(await token(), [key], audience, issuer)).toEqual({ email: 'person@example.test' })
     expect(await verifyJwtPayload(await token({}, otherPair), [key], audience, issuer)).toBeNull()
     expect(await verifyJwtPayload(await token({ aud: ['wrong-audience'] }), [key], audience, issuer)).toBeNull()
   })
-  it('preserves exact API Access success and invalid-token response contracts', async () => {
+
+  test('preserves exact API Access success and invalid-token response contracts', async () => {
     const allowed = await api(browser(await token(), true))
     expect(allowed.status).toBe(200)
     expect(await allowed.json()).toMatchObject({
@@ -153,14 +156,16 @@ describe('shared browser authentication without API transport or signing secrets
     expect(await denied.json()).toEqual({ error: 'Invalid Access token' })
     expect(denied.headers.get('set-cookie')).toBeNull()
   })
-  it('preserves API 503 when Access JWKS is unavailable instead of a login verdict', async () => {
+
+  test('preserves API 503 when Access JWKS is unavailable instead of a login verdict', async () => {
     cache.delete('cf-access-certs')
     externalFetch.mockRejectedValue(new Error('offline'))
     const denied = await api(browser(await token()))
     expect(denied.status).toBe(503)
     expect(await denied.json()).toEqual({ error: 'Authentication temporarily unavailable' })
   })
-  it('keeps the API dev bypass disabled for MCP while preserving its browser strategy', async () => {
+
+  test('keeps the API dev bypass disabled for MCP while preserving its browser strategy', async () => {
     env.ENVIRONMENT = 'development'
     env.DEV_USER_EMAIL = 'dev@example.test'
     expect((await api(new Request('https://api.example.test/auth/me'))).status).toBe(200)
@@ -168,7 +173,8 @@ describe('shared browser authentication without API transport or signing secrets
     expect(denied.status).toBe(401)
     expect(denied.headers.get('www-authenticate')).toContain('Bearer')
   })
-  it('preserves the API-only opt-in public viewer fallback and invalid-credential precedence', async () => {
+
+  test('preserves the API-only opt-in public viewer fallback and invalid-credential precedence', async () => {
     const settings = { ...env, PUBLIC_READ_ONLY: 'true' }
     const allowed = await api(new Request('https://api.example.test/auth/me'), settings)
     expect(allowed.status).toBe(200)
@@ -180,7 +186,8 @@ describe('shared browser authentication without API transport or signing secrets
     expect(denied.status).toBe(401)
     expect(await denied.json()).toEqual({ error: 'Invalid Access token' })
   })
-  it.each([
+
+  test.each([
     { exp: 1 },
     { exp: undefined },
     { aud: ['wrong-audience'] },
@@ -198,13 +205,15 @@ describe('shared browser authentication without API transport or signing secrets
     expect(prepare).not.toHaveBeenCalled()
     expect(externalFetch).not.toHaveBeenCalled()
   })
-  it('rejects an unsupported signing algorithm before JWKS IO', async () => {
+
+  test('rejects an unsupported signing algorithm before JWKS IO', async () => {
     await expect(authenticateBrowser(browser(await token({}, pair, 'HS256')), env)).rejects.toMatchObject({
       status: 401,
     })
     expect(externalFetch).not.toHaveBeenCalled()
   })
-  it('rejects malformed and incorrectly signed credentials without provisioning', async () => {
+
+  test('rejects malformed and incorrectly signed credentials without provisioning', async () => {
     const prepare = vi.spyOn(database.db, 'prepare')
     await expect(authenticateBrowser(browser('not-a-jwt'), env)).rejects.toMatchObject({ status: 401 })
     await expect(authenticateBrowser(browser(await token({}, otherPair)), env)).rejects.toMatchObject({
@@ -213,7 +222,8 @@ describe('shared browser authentication without API transport or signing secrets
     })
     expect(prepare).not.toHaveBeenCalled()
   })
-  it('gives a header precedence over a cookie and never falls back to dev after invalid Access', async () => {
+
+  test('gives a header precedence over a cookie and never falls back to dev after invalid Access', async () => {
     env.ENVIRONMENT = 'development'
     env.DEV_USER_EMAIL = 'dev@example.test'
     await expect(
@@ -229,14 +239,19 @@ describe('shared browser authentication without API transport or signing secrets
     ).rejects.toMatchObject({ status: 401, message: 'Invalid Access token' })
     expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM users').get()).toEqual({ count: 0 })
   })
-  it.each(['network', 'status', 'schema'])(
+
+  test.each(['network', 'status', 'schema'])(
     'distinguishes JWKS %s unavailability from an invalid credential',
     async (failure) => {
       cache.delete('cf-access-certs')
       const prepare = vi.spyOn(database.db, 'prepare')
-      if (failure === 'network') externalFetch.mockRejectedValue(new Error('offline'))
-      else if (failure === 'status') externalFetch.mockResolvedValue(new Response('Unavailable', { status: 503 }))
-      else externalFetch.mockResolvedValue(Response.json({ malformed: true }))
+      if (failure === 'network') {
+        externalFetch.mockRejectedValue(new Error('offline'))
+      } else if (failure === 'status') {
+        externalFetch.mockResolvedValue(new Response('Unavailable', { status: 503 }))
+      } else {
+        externalFetch.mockResolvedValue(Response.json({ malformed: true }))
+      }
       await expect(authenticateBrowser(browser(await token()), env)).rejects.toMatchObject({
         status: 503,
         message: 'Authentication temporarily unavailable',
@@ -246,7 +261,8 @@ describe('shared browser authentication without API transport or signing secrets
       expect(input instanceof Request ? input.url : String(input)).toBe(`${issuer}/cdn-cgi/access/certs`)
     },
   )
-  it('refreshes a rotated signing key once and verifies against the real replacement', async () => {
+
+  test('refreshes a rotated signing key once and verifies against the real replacement', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120_000)
     externalFetch.mockResolvedValue(Response.json({ keys: [otherKey] }))
     expect(await authenticateBrowser(browser(await token({}, otherPair)), env)).toMatchObject({
@@ -255,7 +271,8 @@ describe('shared browser authentication without API transport or signing secrets
     expect(externalFetch).toHaveBeenCalledOnce()
     expect(JSON.parse(cache.get('cf-access-certs') ?? '[]')).toMatchObject([otherKey])
   })
-  it('uses the dev identity only in explicit development and never in production', async () => {
+
+  test('uses the dev identity only in explicit development and never in production', async () => {
     env.DEV_USER_EMAIL = 'dev@example.test'
     const request = new Request('https://front.example.test/')
     await expect(authenticateBrowser(request, env)).rejects.toEqual(new BrowserAuthenticationError(401, 'Unauthorized'))

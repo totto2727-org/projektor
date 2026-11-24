@@ -3,8 +3,8 @@ import { makeCoreClient } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
-import { serviceErrToResponse } from '../http/error-adapter'
-import { getWorkflow } from '../services/workflow'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { getWorkflow } from '../services/workflow.ts'
 
 const router = new Hono<HonoEnv>()
 

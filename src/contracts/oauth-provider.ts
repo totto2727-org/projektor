@@ -1,12 +1,12 @@
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-import {
-  type ClientRegistrationCallbackOptions,
-  getOAuthApi,
-  type OAuthHelpers,
-  type OAuthProviderOptions,
+import { getOAuthApi } from '@cloudflare/workers-oauth-provider'
+import type {
+  ClientRegistrationCallbackOptions,
+  OAuthHelpers,
+  OAuthProviderOptions,
 } from '@cloudflare/workers-oauth-provider'
 
-import { OAUTH_SCOPES_SUPPORTED } from './auth-scopes'
+import { OAUTH_SCOPES_SUPPORTED } from './auth-scopes.ts'
 
 export const TOKEN_ENDPOINT = '/oauth/token'
 export const AUTHORIZE_ENDPOINT = '/oauth/authorize'
@@ -28,8 +28,9 @@ function validateNativeClient({ clientMetadata }: ClientRegistrationCallbackOpti
       !url.username &&
       !url.password &&
       !redirect.includes('#')
-    )
+    ) {
       return
+    }
   }
   return { description: 'Dynamic registration requires a public client with one HTTP loopback IP redirect URI.' }
 }

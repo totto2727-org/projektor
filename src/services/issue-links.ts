@@ -1,9 +1,10 @@
-import { and, asc, eq, inArray, or, type SQL } from 'drizzle-orm'
+import { and, asc, eq, inArray, or } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { inChunks } from './custom-fields'
-import { queryEffect } from './errors'
+import { inChunks } from './custom-fields.ts'
+import { queryEffect } from './errors.ts'
 
 export interface IssueLinkRow {
   id: string

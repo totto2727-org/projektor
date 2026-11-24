@@ -2,24 +2,24 @@
 // issues, status/type names, project key, sprint) after those change.
 
 import { SELF } from 'cloudflare:test'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { getIssue } from '#commands/issues'
-import type { ServiceCtx } from '#commands/types'
+import { getIssue } from '#commands/issues.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { env } from './fixture-api'
-import { authHeaders, seedIssue, seedIssueFixture, seedTaskStatus } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedIssue, seedIssueFixture, seedTaskStatus } from './helpers.ts'
 
 type IssueBody = {
   project_key: string
   status_name: string | null
   sprint_id: string | null
   url: string
-  links: Array<{
+  links: {
     linkedIssueId: string
     linkedIssueTitle: string
     linkedIssueStatusCategory: string
-  }>
+  }[]
 }
 
 let f: Awaited<ReturnType<typeof seedIssueFixture>>
@@ -55,12 +55,12 @@ beforeEach(async () => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('PROJ-863: no stale embedded data', () => {
-  it('renaming the linked issue', async () => {
+  test('renaming the linked issue', async () => {
     await call('PATCH', `/api/issues/${otherId}`, { title: 'Other (renamed)' })
     expect((await get(f.issueId)).links[0].linkedIssueTitle).toBe('Other (renamed)')
   })
 
-  it("changing the linked issue's status", async () => {
+  test("changing the linked issue's status", async () => {
     const todo = await seedTaskStatus(f.workspaceId, { category: 'todo' })
     const done = await seedTaskStatus(f.workspaceId, { category: 'done' })
     await env.DB.prepare("UPDATE issues SET status_id = ?, status_category = 'todo' WHERE id = ?")
@@ -71,12 +71,12 @@ describe('PROJ-863: no stale embedded data', () => {
     expect((await get(f.issueId)).links[0].linkedIssueStatusCategory).toBe('done')
   })
 
-  it('deleting the linked issue', async () => {
+  test('deleting the linked issue', async () => {
     await call('DELETE', `/api/issues/${otherId}`)
     expect((await get(f.issueId)).links).toEqual([])
   })
 
-  it("renaming the issue's status", async () => {
+  test("renaming the issue's status", async () => {
     const st = await seedTaskStatus(f.workspaceId, { name: 'Doing' })
     await env.DB.prepare('UPDATE issues SET status_id = ? WHERE id = ?').bind(st.id, f.issueId).run()
     expect((await get(f.issueId)).status_name).toBe('Doing')
@@ -84,14 +84,14 @@ describe('PROJ-863: no stale embedded data', () => {
     expect((await get(f.issueId)).status_name).toBe('In flight')
   })
 
-  it('changing the project key', async () => {
+  test('changing the project key', async () => {
     await call('PATCH', `/api/projects/${f.projectId}`, { key: 'NEWK' })
     const issue = await get(f.issueId)
     expect(issue.project_key).toBe('NEWK')
     expect(issue.url).toContain('/NEWK/')
   })
 
-  it("deleting the issue's sprint", async () => {
+  test("deleting the issue's sprint", async () => {
     const created = await call('POST', '/api/sprints', { projectId: f.projectId, name: 'S1' })
     const sprint = (await created.json()) as { id: string }
     expect(created.status, JSON.stringify(sprint)).toBe(201)
@@ -105,7 +105,7 @@ describe('PROJ-863: no stale embedded data', () => {
 })
 
 describe('PROJ-863: a cache hit stays cheap', () => {
-  it('getIssue by ref makes <= 5 D1 queries on a hit', async () => {
+  test('getIssue by ref makes <= 5 D1 queries on a hit', async () => {
     const ctx: ServiceCtx = {
       db: env.DB,
       kv: env.KV,

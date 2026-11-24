@@ -2,14 +2,16 @@
 
 import { useState } from 'react'
 
-import { Button } from '../../components/ui/Button'
+import { Button } from '../../components/ui/Button.tsx'
 
 const URL_CODE =
   'flex-1 font-mono text-[0.8rem] px-2 py-[0.375rem] bg-bg border border-border rounded text-text-base break-all'
 export function ConnectAgentGuide({ workspaceSlug, mcpUrl }: { workspaceSlug: string; mcpUrl: string | null }) {
   const [message, setMessage] = useState<string | null>(null)
   async function copy() {
-    if (!mcpUrl) return
+    if (!mcpUrl) {
+      return
+    }
     try {
       await navigator.clipboard.writeText(mcpUrl)
       setMessage('Copied to clipboard.')

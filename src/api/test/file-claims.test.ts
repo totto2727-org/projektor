@@ -1,8 +1,8 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { configureCore, env } from './fixture-api'
-import { authHeaders, hashToken, seedFixture, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers'
+import { configureCore, env } from './fixture-api.ts'
+import { authHeaders, hashToken, seedFixture, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
 
 describe('File Claims API', () => {
   let token: string
@@ -59,12 +59,12 @@ describe('File Claims API', () => {
 
   // B1: claim_files creates active claims; list_file_claims({issueId}) returns them
   // REST: 3 requests (claim, list, MCP list) — within RATE_LIMIT_API_MAX=5
-  it('B1: POST /api/file-claims creates active claims; GET list by issueId returns them', async () => {
+  test('B1: POST /api/file-claims creates active claims; GET list by issueId returns them', async () => {
     const paths = ['src/foo.ts', 'src/bar.ts']
     const res = await claimFiles({ issueId, paths })
     expect(res.status).toBe(201)
     const body = (await res.json()) as {
-      created: Array<{ id: string; path: string; releasedAt: null }>
+      created: { id: string; path: string; releasedAt: null }[]
       overridden: unknown[]
     }
     expect(body.created).toHaveLength(2)
@@ -76,23 +76,23 @@ describe('File Claims API', () => {
 
     const listRes = await listFileClaims({ issueId })
     expect(listRes.status).toBe(200)
-    const listBody = (await listRes.json()) as { items: Array<{ path: string }> }
+    const listBody = (await listRes.json()) as { items: { path: string }[] }
     expect(listBody.items.some((i) => i.path === 'src/foo.ts')).toBe(true)
     expect(listBody.items.some((i) => i.path === 'src/bar.ts')).toBe(true)
 
     // Verify via MCP — workspaceMiddleware requires X-Workspace-Slug
     const mcpRes = await mcpCall('list_file_claims', { issueId })
     expect(mcpRes.status).toBe(200)
-    const mcpBody = (await mcpRes.json()) as { result: { content: Array<{ text: string }> } }
+    const mcpBody = (await mcpRes.json()) as { result: { content: { text: string }[] } }
     const mcpData = JSON.parse(mcpBody.result.content[0].text) as {
-      items: Array<{ path: string }>
+      items: { path: string }[]
     }
     expect(mcpData.items.some((i) => i.path === 'src/foo.ts')).toBe(true)
   })
 
   // B2: conflict on held path (force false) -> 409; batch does NOT partially claim
   // 4 requests (claim, conflict-claim, list other, MCP conflict) — within limit
-  it('B2: second claim on held path (force=false) returns 409 naming holder; batch stays atomic', async () => {
+  test('B2: second claim on held path (force=false) returns 409 naming holder; batch stays atomic', async () => {
     // Claim one path in issue A
     await claimFiles({ issueId, paths: ['src/held.ts'] })
 
@@ -107,7 +107,7 @@ describe('File Claims API', () => {
 
     // Assert "src/other.ts" was NOT claimed (batch all-or-nothing)
     const listRes = await listFileClaims({ path: 'src/other.ts' })
-    const listBody = (await listRes.json()) as { items: Array<{ path: string }> }
+    const listBody = (await listRes.json()) as { items: { path: string }[] }
     expect(listBody.items).toHaveLength(0)
 
     // Verify via MCP — should also return a conflict tool error with holder info
@@ -121,7 +121,7 @@ describe('File Claims API', () => {
 
   // B3: force:true steals — prior released, new active, overridden list non-empty
   // 3 requests (claim, force-claim, list) — within limit
-  it('B3: force:true releases prior claim and creates new; overridden list contains prior claim', async () => {
+  test('B3: force:true releases prior claim and creates new; overridden list contains prior claim', async () => {
     // Claim path in issue A
     await claimFiles({ issueId, paths: ['src/steal.ts'] })
 
@@ -130,8 +130,8 @@ describe('File Claims API', () => {
     const forceRes = await claimFiles({ issueId: issue2.id, paths: ['src/steal.ts'], force: true })
     expect(forceRes.status).toBe(201)
     const forceBody = (await forceRes.json()) as {
-      created: Array<{ issueId: string; path: string; releasedAt: null }>
-      overridden: Array<{ issueId: string; path: string; releasedAt: number }>
+      created: { issueId: string; path: string; releasedAt: null }[]
+      overridden: { issueId: string; path: string; releasedAt: number }[]
     }
     expect(forceBody.created).toHaveLength(1)
     expect(forceBody.created[0].issueId).toBe(issue2.id)
@@ -142,20 +142,20 @@ describe('File Claims API', () => {
 
     // Verify new holder via list
     const listRes = await listFileClaims({ path: 'src/steal.ts' })
-    const listBody = (await listRes.json()) as { items: Array<{ issueId: string }> }
+    const listBody = (await listRes.json()) as { items: { issueId: string }[] }
     expect(listBody.items).toHaveLength(1)
     expect(listBody.items[0].issueId).toBe(issue2.id)
   })
 
   // B4a: release_files sets released_at; path becomes re-claimable
   // 3 requests (claim, release, re-claim) — within limit
-  it('B4a: release_files sets released_at and path becomes re-claimable', async () => {
+  test('B4a: release_files sets released_at and path becomes re-claimable', async () => {
     await claimFiles({ issueId, paths: ['src/release-me.ts'] })
 
     const releaseRes = await releaseFiles({ paths: ['src/release-me.ts'], issueId })
     expect(releaseRes.status).toBe(200)
     const releaseBody = (await releaseRes.json()) as {
-      released: Array<{ releasedAt: number }>
+      released: { releasedAt: number }[]
       count: number
     }
     expect(releaseBody.count).toBe(1)
@@ -168,7 +168,7 @@ describe('File Claims API', () => {
 
   // B4b: ending an agent session auto-releases that agent's claims; path becomes re-claimable
   // 5 requests (register-agent, claim, end-agent, list, re-claim) — at limit of 5
-  it('B4b: endAgent auto-releases agent file claims; path becomes re-claimable', async () => {
+  test('B4b: endAgent auto-releases agent file claims; path becomes re-claimable', async () => {
     // Register an agent session
     const agentRes = await SELF.fetch('http://localhost/api/agents', {
       method: 'POST',
@@ -195,7 +195,7 @@ describe('File Claims API', () => {
 
     // Claim should now be gone
     const listRes = await listFileClaims({ path: 'src/agent-file.ts' })
-    const listBody = (await listRes.json()) as { items: Array<unknown> }
+    const listBody = (await listRes.json()) as { items: unknown[] }
     expect(listBody.items).toHaveLength(0)
 
     // Path is re-claimable
@@ -206,12 +206,12 @@ describe('File Claims API', () => {
 
   // B5: list_file_claims({path}) returns holder across issues; tenant isolation
   // 3 requests (claim, list by path, list from other workspace) — within limit
-  it('B5: list_file_claims({path}) returns holder; claims in workspace X not visible from workspace Y', async () => {
+  test('B5: list_file_claims({path}) returns holder; claims in workspace X not visible from workspace Y', async () => {
     await claimFiles({ issueId, paths: ['src/shared.ts'] })
 
     // List by path — should identify the holder
     const listRes = await listFileClaims({ path: 'src/shared.ts' })
-    const listBody = (await listRes.json()) as { items: Array<{ issueId: string; path: string }> }
+    const listBody = (await listRes.json()) as { items: { issueId: string; path: string }[] }
     expect(listBody.items).toHaveLength(1)
     expect(listBody.items[0].issueId).toBe(issueId)
     expect(listBody.items[0].path).toBe('src/shared.ts')
@@ -220,13 +220,13 @@ describe('File Claims API', () => {
     const other = await seedFixture()
     const otherListRes = await listFileClaims({}, other.token, other.workspace.slug)
     expect(otherListRes.status).toBe(200)
-    const otherBody = (await otherListRes.json()) as { items: Array<{ issueId: string }> }
+    const otherBody = (await otherListRes.json()) as { items: { issueId: string }[] }
     expect(otherBody.items.some((i) => i.issueId === issueId)).toBe(false)
   })
 
   // PROJ-337: rejecting a conflicting claim inserts a claim_conflicts row (forced=0)
   // 1 request (claim) + setup claim already counted below — within limit
-  it('PROJ-337: rejecting a conflicting claim inserts a claim_conflicts row with forced=0', async () => {
+  test('PROJ-337: rejecting a conflicting claim inserts a claim_conflicts row with forced=0', async () => {
     await claimFiles({ issueId, paths: ['src/conflict-log.ts'] })
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Rejected issue' })
@@ -244,7 +244,7 @@ describe('File Claims API', () => {
   })
 
   // PROJ-337: rejecting a call where multiple paths are held records one row per contended path
-  it('PROJ-337: rejecting a multi-path claim records one row per contended path', async () => {
+  test('PROJ-337: rejecting a multi-path claim records one row per contended path', async () => {
     await claimFiles({ issueId, paths: ['src/multi-a.ts', 'src/multi-b.ts'] })
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Multi rejected' })
@@ -271,7 +271,7 @@ describe('File Claims API', () => {
   })
 
   // PROJ-337: force:true override inserts a claim_conflicts row (forced=1)
-  it('PROJ-337: force:true override inserts a claim_conflicts row with forced=1', async () => {
+  test('PROJ-337: force:true override inserts a claim_conflicts row with forced=1', async () => {
     await claimFiles({ issueId, paths: ['src/force-log.ts'] })
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Forcing issue' })
@@ -293,7 +293,7 @@ describe('File Claims API', () => {
   })
 
   // PROJ-337: a non-conflicting claim inserts no claim_conflicts rows
-  it('PROJ-337: a non-conflicting claim inserts no claim_conflicts rows', async () => {
+  test('PROJ-337: a non-conflicting claim inserts no claim_conflicts rows', async () => {
     const res = await claimFiles({ issueId, paths: ['src/no-conflict.ts'] })
     expect(res.status).toBe(201)
 
@@ -308,12 +308,12 @@ describe('File Claims API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    return (await res.json()) as { items: Array<{ body: string }> }
+    return (await res.json()) as { items: { body: string }[] }
   }
 
   // PROJ-624: rejection (force=false) must not post any agent message — this was
   // previously mis-stated in the project's own docs as a message-posting path.
-  it('PROJ-624: a rejected claim (force=false) posts no agent message to any scope', async () => {
+  test('PROJ-624: a rejected claim (force=false) posts no agent message to any scope', async () => {
     await claimFiles({ issueId, paths: ['src/no-message-on-reject.ts'] })
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, {
@@ -329,7 +329,7 @@ describe('File Claims API', () => {
     expect(rejectedMessages.items).toHaveLength(0)
   })
 
-  it('PROJ-635/624: force:true override posts a message to both the now-holding and the displaced issue', async () => {
+  test('PROJ-635/624: force:true override posts a message to both the now-holding and the displaced issue', async () => {
     await claimFiles({ issueId, paths: ['src/message-on-force.ts'] })
 
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Force claims' })
@@ -351,7 +351,7 @@ describe('File Claims API', () => {
     expect(priorHolderMessages.items[0].body).toContain(issue2.id)
   })
 
-  it('PROJ-635: force:true override on multiple paths held by the same issue posts one message per side, not one per path', async () => {
+  test('PROJ-635: force:true override on multiple paths held by the same issue posts one message per side, not one per path', async () => {
     await claimFiles({
       issueId,
       paths: ['src/multi-a.ts', 'src/multi-b.ts', 'src/multi-c.ts'],
@@ -420,7 +420,7 @@ describe('File Claims API', () => {
         .first<{ released_at: number | null; release_reason: string | null }>()
     }
 
-    it("a crashed agent's claim no longer blocks another issue", async () => {
+    test("a crashed agent's claim no longer blocks another issue", async () => {
       // 200s > the 120s TTL. Status stays 'active' — that is the whole point.
       const dead = await seedSession({ heartbeatAgeSecs: 200 })
       expect((await claimFiles({ issueId, agentId: dead, paths: ['src/abandoned.ts'] })).status).toBe(201)
@@ -430,8 +430,8 @@ describe('File Claims API', () => {
       expect(res.status).toBe(201)
 
       const body = (await res.json()) as {
-        created: Array<{ issueId: string }>
-        reclaimed: Array<{ path: string; releaseReason: string }>
+        created: { issueId: string }[]
+        reclaimed: { path: string; releaseReason: string }[]
       }
       expect(body.created[0].issueId).toBe(issue2.id)
       // Reported, not silent: an agent that took over an abandoned path should be able to
@@ -440,7 +440,7 @@ describe('File Claims API', () => {
       expect(body.reclaimed[0].releaseReason).toBe('expired')
     })
 
-    it('marks the reclaimed claim expired, distinct from agent_ended', async () => {
+    test('marks the reclaimed claim expired, distinct from agent_ended', async () => {
       const dead = await seedSession({ heartbeatAgeSecs: 200 })
       await claimFiles({ issueId, agentId: dead, paths: ['src/reason.ts'] })
 
@@ -458,7 +458,7 @@ describe('File Claims API', () => {
       expect(released?.release_reason).toBe('expired')
     })
 
-    it("a live agent's claim still blocks, and is not silently expired", async () => {
+    test("a live agent's claim still blocks, and is not silently expired", async () => {
       // The control. Without this, a bug that expired every claim regardless of heartbeat
       // would satisfy every other test in this block.
       const live = await seedSession({ heartbeatAgeSecs: 5, name: 'live-agent' })
@@ -469,7 +469,7 @@ describe('File Claims API', () => {
       expect((await claimRow('src/held.ts'))?.released_at).toBeNull()
     })
 
-    it('an agentless claim within its TTL is not auto-reclaimed', async () => {
+    test('an agentless claim within its TTL is not auto-reclaimed', async () => {
       // No session means no heartbeat to judge, so freshness is judged by claim age instead
       // (PROJ-928, FILE_CLAIM_TTL_SECONDS, default 24h) — a claim made moments ago is well
       // inside that window and still blocks; `force` remains the only way past it early.
@@ -479,7 +479,7 @@ describe('File Claims API', () => {
       expect((await claimFiles({ issueId: issue2.id, paths: ['src/no-agent.ts'] })).status).toBe(409)
     })
 
-    it('does not record a conflict when superseding a dead holder', async () => {
+    test('does not record a conflict when superseding a dead holder', async () => {
       const dead = await seedSession({ heartbeatAgeSecs: 200 })
       await claimFiles({ issueId, agentId: dead, paths: ['src/no-conflict.ts'] })
 
@@ -495,7 +495,7 @@ describe('File Claims API', () => {
       expect(conflicts?.n).toBe(0)
     })
 
-    it('still records a conflict when the holder is live', async () => {
+    test('still records a conflict when the holder is live', async () => {
       // The paired control for the assertion above: proves the zero there comes from the
       // holder being dead, not from conflict recording having been broken outright.
       const live = await seedSession({ heartbeatAgeSecs: 5 })
@@ -510,7 +510,7 @@ describe('File Claims API', () => {
       expect(conflicts?.n).toBe(1)
     })
 
-    it('reclaims only the stale paths in a mixed multi-path claim', async () => {
+    test('reclaims only the stale paths in a mixed multi-path claim', async () => {
       // Claims are all-or-nothing, so a request spanning a dead holder and a live one must
       // still be refused whole — and must not expire the dead one as a side effect of a
       // request that failed.
@@ -537,7 +537,7 @@ describe('File Claims API', () => {
       expect((await claimRow('src/dead-path.ts'))?.release_reason).toBe('expired')
     })
 
-    it('list_file_claims flags a stale holder as not live', async () => {
+    test('list_file_claims flags a stale holder as not live', async () => {
       const dead = await seedSession({ heartbeatAgeSecs: 200 })
       await claimFiles({ issueId, agentId: dead, paths: ['src/listed-dead.ts'] })
       const live = await seedSession({ heartbeatAgeSecs: 5 })
@@ -547,7 +547,7 @@ describe('File Claims API', () => {
       // PROJ-932: the default listing excludes stale holders outright — pass
       // includeStale to see both, still flagged via `live`.
       const listRes = await listFileClaims({ includeStale: 'true' })
-      const body = (await listRes.json()) as { items: Array<{ path: string; live: boolean }> }
+      const body = (await listRes.json()) as { items: { path: string; live: boolean }[] }
       const byPath = new Map(body.items.map((i) => [i.path, i.live]))
       expect(byPath.get('src/listed-dead.ts')).toBe(false)
       expect(byPath.get('src/listed-live.ts')).toBe(true)
@@ -555,7 +555,7 @@ describe('File Claims API', () => {
 
     // PROJ-929: claim_files refreshes an already-live agent's heartbeat, but must never
     // revive a crashed one — that would silently defeat the reclaim this block tests.
-    it("refreshes a live agent's heartbeat, but does not revive a dead one", async () => {
+    test("refreshes a live agent's heartbeat, but does not revive a dead one", async () => {
       const live = await seedSession({ heartbeatAgeSecs: 5 })
       await claimFiles({ issueId, agentId: live, paths: ['src/touch-live.ts'] })
       const liveRow = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
@@ -586,7 +586,7 @@ describe('File Claims API', () => {
           .run()
       }
 
-      it('an agentless claim past the default 24h TTL is reclaimed by the next claimer', async () => {
+      test('an agentless claim past the default 24h TTL is reclaimed by the next claimer', async () => {
         await claimFiles({ issueId, paths: ['src/ttl-expired.ts'] })
         await backdateClaim('src/ttl-expired.ts', 24 * 60 * 60 + 1)
 
@@ -594,13 +594,13 @@ describe('File Claims API', () => {
         const res = await claimFiles({ issueId: issue2.id, paths: ['src/ttl-expired.ts'] })
         expect(res.status).toBe(201)
         const body = (await res.json()) as {
-          reclaimed: Array<{ path: string; releaseReason: string }>
+          reclaimed: { path: string; releaseReason: string }[]
         }
         expect(body.reclaimed.map((r) => r.path)).toEqual(['src/ttl-expired.ts'])
         expect(body.reclaimed[0].releaseReason).toBe('expired')
       })
 
-      it('FILE_CLAIM_TTL_SECONDS overrides the default', async () => {
+      test('FILE_CLAIM_TTL_SECONDS overrides the default', async () => {
         const previous = env.FILE_CLAIM_TTL_SECONDS
         env.FILE_CLAIM_TTL_SECONDS = '60'
         await configureCore({ FILE_CLAIM_TTL_SECONDS: '60' })
@@ -631,13 +631,13 @@ describe('File Claims API', () => {
       })
     }
 
-    it('marking an issue done releases its file claims', async () => {
+    test('marking an issue done releases its file claims', async () => {
       await claimFiles({ issueId, paths: ['src/done-releases.ts'] })
 
       expect((await patchStatus(issueId, 'done')).status).toBe(200)
 
       const listRes = await listFileClaims({ path: 'src/done-releases.ts' })
-      const listBody = (await listRes.json()) as { items: Array<unknown> }
+      const listBody = (await listRes.json()) as { items: unknown[] }
       expect(listBody.items).toHaveLength(0)
 
       const row = await env.DB.prepare(
@@ -648,17 +648,17 @@ describe('File Claims API', () => {
       expect(row?.release_reason).toBe('issue_closed')
     })
 
-    it('marking an issue cancelled releases its file claims', async () => {
+    test('marking an issue cancelled releases its file claims', async () => {
       await claimFiles({ issueId, paths: ['src/cancelled-releases.ts'] })
 
       expect((await patchStatus(issueId, 'cancelled')).status).toBe(200)
 
       const listRes = await listFileClaims({ path: 'src/cancelled-releases.ts' })
-      const listBody = (await listRes.json()) as { items: Array<unknown> }
+      const listBody = (await listRes.json()) as { items: unknown[] }
       expect(listBody.items).toHaveLength(0)
     })
 
-    it('a title-only update of an already-done issue does not re-release a new claim', async () => {
+    test('a title-only update of an already-done issue does not re-release a new claim', async () => {
       expect((await patchStatus(issueId, 'done')).status).toBe(200)
       // A fresh claim made after the issue is already done — a subsequent non-status
       // update must not sweep it up.
@@ -672,7 +672,7 @@ describe('File Claims API', () => {
       expect(res.status).toBe(200)
 
       const listRes = await listFileClaims({ path: 'src/after-done.ts' })
-      const listBody = (await listRes.json()) as { items: Array<unknown> }
+      const listBody = (await listRes.json()) as { items: unknown[] }
       expect(listBody.items).toHaveLength(1)
     })
   })
@@ -682,7 +682,7 @@ describe('File Claims API', () => {
   describe('PROJ-932: projectId filter and issueRef', () => {
     const projectKey = 'PROJ' // seedProject's default key
 
-    it("every item carries the issue's issueRef", async () => {
+    test("every item carries the issue's issueRef", async () => {
       await claimFiles({ issueId, paths: ['src/ref-check.ts'] })
 
       const issueRow = await env.DB.prepare('SELECT number FROM issues WHERE id = ?')
@@ -690,7 +690,7 @@ describe('File Claims API', () => {
         .first<{ number: number }>()
 
       const listRes = await listFileClaims({ path: 'src/ref-check.ts' })
-      const body = (await listRes.json()) as { items: Array<{ issueRef: string }> }
+      const body = (await listRes.json()) as { items: { issueRef: string }[] }
       expect(body.items).toHaveLength(1)
       expect(body.items[0].issueRef).toBe(`${projectKey}-${issueRow?.number}`)
     })
@@ -698,7 +698,7 @@ describe('File Claims API', () => {
     // projectId must exclude a claim in a SECOND project in the SAME workspace, not just
     // a claim that happens to live in another workspace (which the plain visibility
     // filter would already have excluded, passing even with the filter absent).
-    it("projectId filters to the granted project's claim, excluding a second same-workspace project's (by key and uuid)", async () => {
+    test("projectId filters to the granted project's claim, excluding a second same-workspace project's (by key and uuid)", async () => {
       const otherProject = await seedProject(workspaceId, 'OTHR')
       const otherIssue = await seedIssue(workspaceId, otherProject.id, userId, {
         title: 'Other project',
@@ -708,21 +708,21 @@ describe('File Claims API', () => {
       await claimFiles({ issueId: otherIssue.id, paths: ['src/in-other.ts'] })
 
       const byKey = await listFileClaims({ projectId: projectKey })
-      const byKeyPaths = ((await byKey.json()) as { items: Array<{ path: string }> }).items.map((i) => i.path)
+      const byKeyPaths = ((await byKey.json()) as { items: { path: string }[] }).items.map((i) => i.path)
       expect(byKeyPaths).toContain('src/in-project.ts')
       expect(byKeyPaths).not.toContain('src/in-other.ts')
 
       const byUuid = await listFileClaims({ projectId })
-      const byUuidPaths = ((await byUuid.json()) as { items: Array<{ path: string }> }).items.map((i) => i.path)
+      const byUuidPaths = ((await byUuid.json()) as { items: { path: string }[] }).items.map((i) => i.path)
       expect(byUuidPaths).toContain('src/in-project.ts')
       expect(byUuidPaths).not.toContain('src/in-other.ts')
     })
 
-    it('REST parity: GET /api/file-claims accepts includeStale and projectId', async () => {
+    test('REST parity: GET /api/file-claims accepts includeStale and projectId', async () => {
       await claimFiles({ issueId, paths: ['src/rest-parity.ts'] })
 
       const byKey = await listFileClaims({ projectId: projectKey })
-      const byKeyBody = (await byKey.json()) as { items: Array<{ path: string }> }
+      const byKeyBody = (await byKey.json()) as { items: { path: string }[] }
       expect(byKeyBody.items.map((i) => i.path)).toContain('src/rest-parity.ts')
 
       const stale = await listFileClaims({ includeStale: 'true' })
@@ -751,7 +751,7 @@ describe('File Claims API', () => {
       return id
     }
 
-    it('excludes an agent-linked claim whose session heartbeat is stale; includeStale:true includes it, flagged live:false', async () => {
+    test('excludes an agent-linked claim whose session heartbeat is stale; includeStale:true includes it, flagged live:false', async () => {
       const dead = await seedStaleAgentSession()
       expect((await claimFiles({ issueId, agentId: dead, paths: ['src/stale-agent-932.ts'] })).status).toBe(201)
 
@@ -762,12 +762,12 @@ describe('File Claims API', () => {
         path: 'src/stale-agent-932.ts',
         includeStale: 'true',
       })
-      const withBody = (await withFlag.json()) as { items: Array<{ live: boolean }> }
+      const withBody = (await withFlag.json()) as { items: { live: boolean }[] }
       expect(withBody.items).toHaveLength(1)
       expect(withBody.items[0].live).toBe(false)
     })
 
-    it('excludes an agentless claim past the file-claim TTL; includeStale:true includes it, flagged live:false', async () => {
+    test('excludes an agentless claim past the file-claim TTL; includeStale:true includes it, flagged live:false', async () => {
       expect((await claimFiles({ issueId, paths: ['src/expired-agentless-932.ts'] })).status).toBe(201)
       await env.DB.prepare('UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?')
         .bind(
@@ -784,7 +784,7 @@ describe('File Claims API', () => {
         path: 'src/expired-agentless-932.ts',
         includeStale: 'true',
       })
-      const withBody = (await withFlag.json()) as { items: Array<{ live: boolean }> }
+      const withBody = (await withFlag.json()) as { items: { live: boolean }[] }
       expect(withBody.items).toHaveLength(1)
       expect(withBody.items[0].live).toBe(false)
     })
@@ -795,7 +795,7 @@ describe('File Claims API', () => {
 // that project's key or uuid — not just fewer results, none at all — proving the
 // projectId filter composes with (rather than bypasses) PROJ-316 visibility.
 describe('PROJ-932: list_file_claims projectId + visibility for a non-admin member', () => {
-  it("a hidden project's key or uuid returns no claims", async () => {
+  test("a hidden project's key or uuid returns no claims", async () => {
     const { token, slug, workspaceId, userId } = await seedIssueFixture({ role: 'member' })
     const hidden = await seedProject(workspaceId, 'HIDN')
     // No group grant for `userId` on `hidden` — it stays invisible to them.

@@ -1,14 +1,15 @@
 'use server'
 import { Effect, Schema } from 'effect'
 
-import { ReviewStatusSchema } from '../../../contracts/review-targets'
-import { EFFRONT } from '../../effront'
-import { RequestServices } from '../../request'
-import { runBrowserCommand as runCommand } from '../../server/browser-command'
-import { requireDataWorkspace } from '../../server/data-context'
-import { ApiError, ScopeError } from '../../server/errors'
-import { type FunctionContext, resolveFunctionContext } from '../../server/function-context'
-import { checkSameOriginMutation } from '../../server/mutation'
+import { ReviewStatusSchema } from '../../../contracts/review-targets.ts'
+import { EFFRONT } from '../../effront.ts'
+import { RequestServices } from '../../request.ts'
+import { runBrowserCommand as runCommand } from '../../server/browser-command.ts'
+import { requireDataWorkspace } from '../../server/data-context.ts'
+import { ApiError, ScopeError } from '../../server/errors.ts'
+import { resolveFunctionContext } from '../../server/function-context.ts'
+import type { FunctionContext } from '../../server/function-context.ts'
+import { checkSameOriginMutation } from '../../server/mutation.ts'
 import {
   CreateIssueSchema,
   IssueIdentitySchema,
@@ -16,8 +17,8 @@ import {
   IssuePatchSchema,
   OkSchema,
   SelectorFields,
-} from './action-schemas'
-import { comments, files, links, issues, createShareToken, sprints } from './commands'
+} from './action-schemas.ts'
+import { comments, files, links, issues, createShareToken, sprints } from './commands.ts'
 import {
   readDataAttachments,
   readDataComments,
@@ -26,7 +27,7 @@ import {
   readDataLinks,
   searchDataIssues,
   searchDataWikiAttachments,
-} from './data'
+} from './data.ts'
 
 /** Entity references are resolved under the authorized membership, then checked against the authorized catalog. */
 function authorizedIssue(context: FunctionContext, issueId: string) {
@@ -122,7 +123,9 @@ export const updateIssue = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         yield* authorizedIssue(ctx, input.issueId)
-        if (input.patch.parentId) yield* authorizedIssue(ctx, input.patch.parentId)
+        if (input.patch.parentId) {
+          yield* authorizedIssue(ctx, input.patch.parentId)
+        }
         const updated = yield* runCommand(ctx, (command) => issues.updateIssue(command, input.issueId, input.patch))
         const value = yield* Schema.decodeUnknownEffect(OkSchema)(updated).pipe(
           Effect.mapError((cause) => new ApiError('schema', 502, 'The operation returned an invalid result.', cause)),
@@ -162,7 +165,9 @@ export const readIssuePage = EFFRONT.ServerFn.make({
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
       const params = new URLSearchParams()
-      if (ctx.projectId) params.set('project', ctx.projectId)
+      if (ctx.projectId) {
+        params.set('project', ctx.projectId)
+      }
       for (const name of [
         'statusIds',
         'priorities',
@@ -176,10 +181,13 @@ export const readIssuePage = EFFRONT.ServerFn.make({
         'updatedAfter',
         'updatedBefore',
         'cursor',
-      ] as const)
+      ] as const) {
         if (input[name]) params.set(name, input[name])
+      }
       params.set('limit', String(input.limit ?? 30))
-      if (input.includeRollups) params.set('includeRollups', '1')
+      if (input.includeRollups) {
+        params.set('includeRollups', '1')
+      }
       const value = yield* readDataIssuePage(ctx.scope, yield* dataWorkspaceId(ctx), params)
       return { ok: true as const, value }
     }).pipe(
@@ -350,8 +358,9 @@ export const deleteIssueLink = EFFRONT.ServerFn.make({
         const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
         yield* authorizedIssue(ctx, input.issueId)
         const issueLinks = yield* readDataLinks(ctx.scope, yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
-        if (!issueLinks.some((entry) => entry.id === input.linkId))
+        if (!issueLinks.some((entry) => entry.id === input.linkId)) {
           return yield* new ScopeError(404, 'Link not found on this issue.')
+        }
         const deleted = yield* runCommand(ctx, (command) => links.deleteLink(command, { id: input.linkId }))
         const value = yield* Schema.decodeUnknownEffect(OkSchema)(deleted).pipe(
           Effect.mapError((cause) => new ApiError('schema', 502, 'The operation returned an invalid result.', cause)),
@@ -451,8 +460,9 @@ export const deleteAttachment = EFFRONT.ServerFn.make({
           input.issueId,
           ctx.projectId,
         )
-        if (!attachments.some((entry) => entry.id === input.attachmentId))
+        if (!attachments.some((entry) => entry.id === input.attachmentId)) {
           return yield* new ScopeError(404, 'Attachment not found on this issue.')
+        }
         yield* runCommand(ctx, (command) => files.deleteStoredAttachment(command, input.attachmentId))
         const value = { ok: true as const }
         return { ok: true as const, value }

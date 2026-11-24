@@ -1,11 +1,11 @@
 import { ALCHEMY_DEV, ALCHEMY_PHASE, RemovalPolicy } from 'alchemy'
 import { AdoptPolicy, adopt } from 'alchemy/AdoptPolicy'
 import * as Cloudflare from 'alchemy/Cloudflare'
-import { type Worker, type WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
+import type { Worker, WorkerBindingProps } from 'alchemy/Cloudflare/Workers'
 import * as Output from 'alchemy/Output'
 import { Config, Context, Effect, Layer, Option, Redacted } from 'effect'
 
-import { deployment } from './worker-graph'
+import { deployment } from './worker-graph.ts'
 
 export const localDevelopment = {
   userEmail: 'dev@projektor.local',
@@ -112,7 +112,7 @@ export const ProductionLayer = Layer.mergeAll(
             lifecycleRules: [
               {
                 id: 'Default Multipart Abort Rule',
-                abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 604800 } },
+                abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 604_800 } },
               },
             ],
           }),

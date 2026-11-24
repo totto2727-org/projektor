@@ -3,7 +3,8 @@ import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
-import { type DataQueryError, queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 export type Sprint = typeof schema.sprints.$inferSelect
 export interface ListSprintsOptions {

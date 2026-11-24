@@ -1,6 +1,7 @@
 import { Data, Effect } from 'effect'
 
-import { renderMarkdownDocument, type MarkdownOptions } from './render'
+import { renderMarkdownDocument } from './render.ts'
+import type { MarkdownOptions } from './render.ts'
 
 export class MarkdownRenderError extends Data.TaggedError('MarkdownRenderError')<{
   readonly message: string

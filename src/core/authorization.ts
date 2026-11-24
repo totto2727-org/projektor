@@ -1,20 +1,21 @@
 import { Schema } from 'effect'
 
-import { provisionPublicViewer } from '#commands/provisioning'
-import type { ServiceCtx } from '#commands/types'
+import { provisionPublicViewer } from '#commands/provisioning.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 import {
   authenticateAccessJwt,
   authenticateDevelopment,
   BrowserAuthenticationError,
-  type AuthUser,
   upsertUserByEmail,
-} from '#services/authentication'
+} from '#services/authentication.ts'
+import type { AuthUser } from '#services/authentication.ts'
 import type { AuthInfo, Role } from '#types'
 
-import { VerifiedApiOauthGrant } from '../contracts/api-auth'
-import { capabilityForOAuthScope, parseScopes, tokenAllows, type Capability } from '../contracts/auth-scopes'
-import { coreFailure } from './contract'
-import type { CoreEnvironment } from './environment'
+import { VerifiedApiOauthGrant } from '../contracts/api-auth.ts'
+import { capabilityForOAuthScope, parseScopes, tokenAllows } from '../contracts/auth-scopes.ts'
+import type { Capability } from '../contracts/auth-scopes.ts'
+import { coreFailure } from './contract.ts'
+import type { CoreEnvironment } from './environment.ts'
 
 /** OAuth admission is supplied only by the bound API after provider verification. */
 export const CoreActor = Schema.Struct({
@@ -37,7 +38,9 @@ export function requireCoreCapability(principal: CorePrincipal, requiredCapabili
   if (principal.tokenScopes !== undefined && !tokenAllows(principal.tokenScopes, requiredCapability)) {
     throw coreFailure(403, `Token lacks '${requiredCapability}' scope`)
   }
-  if (principal.auth.method === 'public' && requiredCapability !== 'read') throw coreFailure(403, 'Forbidden')
+  if (principal.auth.method === 'public' && requiredCapability !== 'read') {
+    throw coreFailure(403, 'Forbidden')
+  }
 }
 
 const PUBLIC_VIEWER_EMAIL = 'public-viewer@projektor.local'
@@ -61,7 +64,9 @@ export async function resolveCorePrincipal(input: CoreActor, env: CoreEnvironmen
     const user = await env.DB.prepare('SELECT id, email, name FROM users WHERE id = ?')
       .bind(grant.userId)
       .first<AuthUser>()
-    if (!user || user.email !== grant.email) throw coreFailure(401, 'Unauthorized')
+    if (!user || user.email !== grant.email) {
+      throw coreFailure(401, 'Unauthorized')
+    }
     const scopes = grant.scopes.map(capabilityForOAuthScope).filter((scope): scope is Capability => scope !== null)
     const parts = actor.bearer?.split(':')
     const credentialId = grant.credentialId ?? (parts?.length === 3 ? parts[1] : undefined)
@@ -85,17 +90,23 @@ export async function resolveCorePrincipal(input: CoreActor, env: CoreEnvironmen
       const principal = await authenticateAccessJwt(actor.accessJwt, env)
       return { ...principal, tokenWorkspaceId: undefined, tokenScopes: undefined }
     } catch (error) {
-      if (error instanceof BrowserAuthenticationError) throw coreFailure(error.status, error.message)
+      if (error instanceof BrowserAuthenticationError) {
+        throw coreFailure(error.status, error.message)
+      }
       throw error
     }
   }
 
-  if (actor.bearer !== undefined) return authenticateOpaqueToken(actor.bearer, env)
+  if (actor.bearer !== undefined) {
+    return authenticateOpaqueToken(actor.bearer, env)
+  }
 
   // MCP must challenge unauthenticated connectors even when the UI dev bypass is on.
   if (!/^\/mcp\/[^/]+$/.test(url.pathname)) {
     const principal = await authenticateDevelopment(env)
-    if (principal) return { ...principal, tokenWorkspaceId: undefined, tokenScopes: undefined }
+    if (principal) {
+      return { ...principal, tokenWorkspaceId: undefined, tokenScopes: undefined }
+    }
   }
   if (['true', '1', 'yes'].includes(env.PUBLIC_READ_ONLY?.trim().toLowerCase() ?? '')) {
     const user = await upsertUserByEmail(PUBLIC_VIEWER_EMAIL, env.DB, env.KV)
@@ -123,8 +134,12 @@ async function authenticateOpaqueToken(token: string, env: CoreEnvironment): Pro
       email: string | null
       name: string | null
     }>()
-  if (!row || !row.user_id || !row.email || row.name === null) throw coreFailure(401, 'Unauthorized')
-  if (row.expires_at !== null && row.expires_at < Date.now() / 1000) throw coreFailure(401, 'Token expired')
+  if (!row || !row.user_id || !row.email || row.name === null) {
+    throw coreFailure(401, 'Unauthorized')
+  }
+  if (row.expires_at !== null && row.expires_at < Date.now() / 1000) {
+    throw coreFailure(401, 'Token expired')
+  }
   const scopes = parseScopes(row.scopes)
   const now = Math.floor(Date.now() / 1000)
   if (!row.last_used_at || now - row.last_used_at >= 60) {
@@ -134,8 +149,11 @@ async function authenticateOpaqueToken(token: string, env: CoreEnvironment): Pro
       .catch((cause: unknown) => {
         console.error('[core]', { operation: 'tokenAudit', occurrenceId: `urn:uuid:${crypto.randomUUID()}`, cause })
       })
-    if (env.invocation) env.invocation.waitUntil(audit)
-    else await audit
+    if (env.invocation) {
+      env.invocation.waitUntil(audit)
+    } else {
+      await audit
+    }
   }
   return {
     user: { id: row.user_id, email: row.email, name: row.name },
@@ -159,14 +177,17 @@ export async function resolveCoreServiceCtx(
   env: CoreEnvironment,
 ): Promise<ServiceCtx> {
   const principal = await resolveCorePrincipal(actor, env)
-  if (principal.tokenWorkspaceId != null && principal.tokenWorkspaceId !== workspaceId)
+  if (principal.tokenWorkspaceId != null && principal.tokenWorkspaceId !== workspaceId) {
     throw coreFailure(403, 'Forbidden')
+  }
   requireCoreCapability(principal, requiredCapability)
   const row = await env.DB.prepare(`SELECT w.id, m.role FROM workspaces w LEFT JOIN workspace_members m
     ON m.workspace_id = w.id AND m.user_id = ? WHERE w.id = ?`)
     .bind(principal.user.id, workspaceId)
     .first<{ id: string; role: string | null }>()
-  if (!row) throw coreFailure(404, 'Workspace not found')
+  if (!row) {
+    throw coreFailure(404, 'Workspace not found')
+  }
   let role: Role
   try {
     role = Schema.decodeUnknownSync(RoleSchema)(row.role)
@@ -185,6 +206,6 @@ export async function resolveCoreServiceCtx(
     authKind: principal.auth.kind,
     workspaceHub: env.WORKSPACE_HUB,
     waitUntil: env.invocation?.waitUntil,
-    config: { fileClaimTtlSeconds: Number.isFinite(ttl) && ttl > 0 ? ttl : 86400 },
+    config: { fileClaimTtlSeconds: Number.isFinite(ttl) && ttl > 0 ? ttl : 86_400 },
   }
 }

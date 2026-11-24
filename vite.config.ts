@@ -1,19 +1,20 @@
 import { builtinModules } from 'node:module'
-import { fileURLToPath } from 'node:url'
 
 import { cloudflareTest, getRunnerName } from '@cloudflare/vitest-plugin'
 import { effrontAlchemy } from '@effront/alchemy/cloudflare/vite'
 import { effrontTailwind } from '@effront/tailwind'
 import { effront } from '@effront/vite'
 import { generateIgnorePatterns } from '@totto2727/gitignore-patterns'
+import lintPreset from '@totto2727/oxlint/preset/application'
 import { defineConfig } from 'vite-plus'
 
-import { nativeCoreWorker } from './tests/native-workers/options'
-import { deployment } from './worker-graph'
+import { nativeCoreWorker } from './tests/native-workers/options.ts'
+import { deployment } from './worker-graph.ts'
 
 const ignorePatterns = await generateIgnorePatterns(new URL('.', import.meta.url))
 let nativeRunnerName = ''
 
+// oxlint-disable-next-line import/no-default-export -- Vite loads its configuration from the default export.
 export default defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
@@ -46,13 +47,48 @@ export default defineConfig({
     singleQuote: true,
   },
   lint: {
+    extends: [lintPreset],
     ignorePatterns,
-    jsPlugins: [fileURLToPath(import.meta.resolve('@totto2727/oxlint'))],
     options: { typeAware: true, typeCheck: true },
-    rules: {
-      'rules/no-eslint-disable-comments': 'error',
-      'rules/require-disable-reason': 'error',
-    },
+    overrides: [
+      {
+        files: [
+          '*.ts',
+          'src/api/test-node/**/*.ts',
+          'tests/**/*.config.ts',
+          'tests/e2e-alchemy/inline-api.ts',
+          'tests/e2e-alchemy/runtime-context.ts',
+          'tests/native-workers/options.ts',
+        ],
+        env: { node: true },
+      },
+      {
+        files: [
+          'src/api/**/*.ts',
+          'src/core/**/*.ts',
+          'src/db/**/*.ts',
+          'src/services/**/*.ts',
+          'tests/**/*.worker.ts',
+          'tests/native-workers/**/*.test.ts',
+          'workers/**/*.ts',
+        ],
+        env: { serviceworker: true },
+      },
+      {
+        files: ['src/web/**/*.ts', 'src/web/**/*.tsx', 'tests/e2e-alchemy/**/*.e2e.ts'],
+        env: { browser: true },
+      },
+      {
+        files: ['src/web/**/*.test.ts', 'src/web/**/*.test.tsx'],
+        env: { node: true },
+      },
+      { files: ['src/api/lib/wiki-ssr.ts'], globals: { HTMLRewriter: 'readonly' } },
+      {
+        files: ['src/api/realtime/workspace-hub.ts', 'src/api/test/realtime.test.ts'],
+        globals: { WebSocketPair: 'readonly' },
+      },
+      { files: ['src/api/routes/mcp.ts'], globals: { __PROJEKTOR_VERSION__: 'readonly' } },
+    ],
   },
   test: {
     projects: [

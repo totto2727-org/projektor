@@ -1,7 +1,7 @@
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
-import { users, workspaces } from './core'
-import { projects } from './issues'
+import { users, workspaces } from './core.ts'
+import { projects } from './issues.ts'
 
 // PROJ-311: admin-managed groups that carry per-project access grants.
 export const userGroups = sqliteTable(

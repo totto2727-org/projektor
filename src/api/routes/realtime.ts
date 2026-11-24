@@ -3,9 +3,9 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { CORE_ACTOR_HEADER } from '../../core/contract'
-import { authMiddleware } from '../middleware/auth'
-import { workspaceMiddleware } from '../middleware/workspace'
+import { CORE_ACTOR_HEADER } from '../../core/contract.ts'
+import { authMiddleware } from '../middleware/auth.ts'
+import { workspaceMiddleware } from '../middleware/workspace.ts'
 
 const INTERNAL_USER_ID_HEADER = 'X-Internal-User-Id'
 const INTERNAL_WORKSPACE_ID_HEADER = 'X-Internal-Workspace-Id'

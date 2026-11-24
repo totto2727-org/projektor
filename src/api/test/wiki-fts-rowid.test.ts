@@ -2,13 +2,13 @@
 // deletes its FTS row by rowid (a direct lookup) rather than scanning the UNINDEXED
 // page_id column across every tenant's pages.
 
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import type { ServiceCtx } from '#commands/types'
-import { createWikiPage, updateWikiPage } from '#commands/wiki'
+import type { ServiceCtx } from '#commands/types.ts'
+import { createWikiPage, updateWikiPage } from '#commands/wiki.ts'
 
-import { env } from './fixture-api'
-import { seedFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedFixture } from './helpers.ts'
 
 async function ctxFor(): Promise<ServiceCtx> {
   const { workspace, user } = await seedFixture({ role: 'owner' })
@@ -30,7 +30,7 @@ async function plan(sql: string, ...params: unknown[]): Promise<string> {
 }
 
 describe("PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
-  it('re-indexing deletes by rowid — the plan is a rowid lookup, not a full-index scan', async () => {
+  test('re-indexing deletes by rowid — the plan is a rowid lookup, not a full-index scan', async () => {
     const fullScan = await plan('DELETE FROM wiki_fts WHERE page_id = ?', 'x')
     const byRowid = await plan(
       'DELETE FROM wiki_fts WHERE rowid = (SELECT search_rowid FROM wiki_pages WHERE id = ? AND workspace_id = ?)',
@@ -43,7 +43,7 @@ describe("PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
     expect(byRowid).toMatch(/VIRTUAL TABLE INDEX \d+:=/)
   })
 
-  it("each save keeps exactly one FTS row per page, under the page's search_rowid", async () => {
+  test("each save keeps exactly one FTS row per page, under the page's search_rowid", async () => {
     const ctx = await ctxFor()
     const a = (await createWikiPage(ctx, { title: 'Alpha', content: 'one' })) as {
       id: string
@@ -69,7 +69,7 @@ describe("PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
     expect(rows.results.every((r) => r.keyed === 1)).toBe(true)
   })
 
-  it('a page with no search_rowid yet (written outside the service) gets one on save', async () => {
+  test('a page with no search_rowid yet (written outside the service) gets one on save', async () => {
     const ctx = await ctxFor()
     const page = (await createWikiPage(ctx, { title: 'Legacy', content: 'x' })) as {
       id: string

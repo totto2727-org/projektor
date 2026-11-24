@@ -2,17 +2,9 @@
 import { Schema } from 'effect'
 import { useEffect, useState } from 'react'
 
-import { RequiredText, useIssueForm } from '../../forms'
-import {
-  captureView,
-  filtersMatch,
-  parseSavedViews,
-  removeView,
-  type SavedView,
-  type SavedViewFilters,
-  upsertView,
-  viewsStorageKey,
-} from '../saved-views'
+import { RequiredText, useIssueForm } from '../../forms.ts'
+import { captureView, filtersMatch, parseSavedViews, removeView, upsertView, viewsStorageKey } from '../saved-views.ts'
+import type { SavedView, SavedViewFilters } from '../saved-views.ts'
 
 /** Named entity-bearing filters remain per-tab and scoped to the authenticated identity. */
 export function useSavedViews(
@@ -37,9 +29,13 @@ export function useSavedViews(
     setActiveViewName(null)
   }, [storageKey])
   useEffect(() => {
-    if (!activeViewName) return
+    if (!activeViewName) {
+      return
+    }
     const active = savedViews.find((view) => view.name === activeViewName)
-    if (!active || !filtersMatch(currentFilters, active.filters)) setActiveViewName(null)
+    if (!active || !filtersMatch(currentFilters, active.filters)) {
+      setActiveViewName(null)
+    }
   }, [currentFilters, activeViewName, savedViews])
   function persist(updated: SavedView[]) {
     setSavedViews(updated)
@@ -50,7 +46,9 @@ export function useSavedViews(
     }
   }
   async function doSaveView() {
-    if (!(await nameForm.validate())) return
+    if (!(await nameForm.validate())) {
+      return
+    }
     const name = saveViewName.trim()
     persist(upsertView(savedViews, captureView(name, currentFilters)))
     setActiveViewName(name)
@@ -59,7 +57,9 @@ export function useSavedViews(
   }
   function deleteView(name: string) {
     persist(removeView(savedViews, name))
-    if (activeViewName === name) setActiveViewName(null)
+    if (activeViewName === name) {
+      setActiveViewName(null)
+    }
   }
   function applyView(view: SavedView) {
     onApply(view.filters)

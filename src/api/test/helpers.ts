@@ -1,4 +1,4 @@
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 
 export type JsonRpcResult<T = unknown> = { jsonrpc: '2.0'; id: unknown; result: T }
 export type JsonRpcError = {
@@ -422,10 +422,13 @@ export type ToolErrorBody = {
  * `.error` on the response for that).
  */
 export function toolError(response: unknown): ToolErrorBody | undefined {
-  const result = (response as { result?: { isError?: boolean; content?: Array<{ type: string; text: string }> } })
-    ?.result
-  if (!result?.isError) return undefined
+  const result = (response as { result?: { isError?: boolean; content?: { type: string; text: string }[] } })?.result
+  if (!result?.isError) {
+    return undefined
+  }
   const text = result.content?.[0]?.text
-  if (typeof text !== 'string') return undefined
+  if (typeof text !== 'string') {
+    return undefined
+  }
   return (JSON.parse(text) as { error: ToolErrorBody }).error
 }

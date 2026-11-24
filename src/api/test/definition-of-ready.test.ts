@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { checkDefinitionOfReady } from '#commands/definition-of-ready'
+import { checkDefinitionOfReady } from '#commands/definition-of-ready.ts'
 
 describe('checkDefinitionOfReady (PROJ-253)', () => {
-  it('is ready when all three sections have content', () => {
+  test('is ready when all three sections have content', () => {
     const body = [
       '## Acceptance criteria',
       '- Widget renders',
@@ -17,7 +17,7 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
     expect(checkDefinitionOfReady(body)).toEqual({ ready: true, missing: [] })
   })
 
-  it('accepts an inline file path as the scope signal', () => {
+  test('accepts an inline file path as the scope signal', () => {
     const body = [
       '## Acceptance criteria',
       '- Widget renders',
@@ -30,28 +30,28 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
     expect(checkDefinitionOfReady(body)).toEqual({ ready: true, missing: [] })
   })
 
-  it('flags a heading with no content as missing', () => {
+  test('flags a heading with no content as missing', () => {
     const body = ['## Acceptance criteria', '', '## Scope', '`src/widget.ts`', '## Verification'].join('\n')
     const result = checkDefinitionOfReady(body)
     expect(result.ready).toBe(false)
     expect(result.missing).toEqual(['acceptance criteria'])
   })
 
-  it('flags everything missing for an empty body', () => {
+  test('flags everything missing for an empty body', () => {
     expect(checkDefinitionOfReady('')).toEqual({
       ready: false,
       missing: ['acceptance criteria', 'scope/files'],
     })
   })
 
-  it('flags a body with only a title as not ready', () => {
+  test('flags a body with only a title as not ready', () => {
     expect(checkDefinitionOfReady('Just fix the thing, you know what I mean.')).toEqual({
       ready: false,
       missing: ['acceptance criteria', 'scope/files'],
     })
   })
 
-  it('rejects a lone non-path backtick as the scope signal (PROJ-291)', () => {
+  test('rejects a lone non-path backtick as the scope signal (PROJ-291)', () => {
     const body = [
       '## Acceptance criteria',
       '- Does the thing',
@@ -66,7 +66,7 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
     expect(result.missing).toContain('scope/files')
   })
 
-  it('does not treat prose that merely mentions a section label as present (PROJ-291)', () => {
+  test('does not treat prose that merely mentions a section label as present (PROJ-291)', () => {
     const body = [
       'Acceptance criteria are unclear right now.',
       'We should figure them out.',
@@ -80,12 +80,12 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
     expect(checkDefinitionOfReady(body).missing).toContain('acceptance criteria')
   })
 
-  it('recognises colon-prefixed labels (PROJ-291)', () => {
+  test('recognises colon-prefixed labels (PROJ-291)', () => {
     const body = ['Acceptance criteria: does the thing', 'Scope: `src/x.ts`', 'Verification: `pnpm test`'].join('\n')
     expect(checkDefinitionOfReady(body)).toEqual({ ready: true, missing: [] })
   })
 
-  it('recognises a bold label with the colon inside and content on the same line (PROJ-738)', () => {
+  test('recognises a bold label with the colon inside and content on the same line (PROJ-738)', () => {
     const body = [
       '**Acceptance criteria:** does the thing',
       '**Scope / files:** `src/x.ts`',
@@ -95,7 +95,8 @@ describe('checkDefinitionOfReady (PROJ-253)', () => {
   })
 
   const readyBase = 'Scope: `src/x.ts`\n\n'
-  it.each([
+
+  test.each([
     ['## heading', '## Acceptance criteria\n- thing'],
     ['### heading', '### Acceptance criteria\n- thing'],
     ['bold, colon inside, inline content', '**Acceptance criteria:** thing'],

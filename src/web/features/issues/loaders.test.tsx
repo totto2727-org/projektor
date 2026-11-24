@@ -1,13 +1,13 @@
 import { Effect, Schema } from 'effect'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { ApiResults } from '../../../contracts/api-results'
-import { SearchResultsSchema } from '../../../contracts/web-schemas/issue-actions'
-import { AttachmentSchema, IssueSchema, normalizeAttachments } from '../../../contracts/web-schemas/issues'
-import { ApiError, ScopeError } from '../../server/errors'
-import type { RequestScope } from '../../server/request-context'
-import { readDataIssuePage, searchDataIssues } from './data'
+import { ApiResults } from '../../../contracts/api-results.ts'
+import { SearchResultsSchema } from '../../../contracts/web-schemas/issue-actions.ts'
+import { AttachmentSchema, IssueSchema, normalizeAttachments } from '../../../contracts/web-schemas/issues.ts'
+import { ApiError, ScopeError } from '../../server/errors.ts'
+import type { RequestScope } from '../../server/request-context.ts'
+import { readDataIssuePage, searchDataIssues } from './data.ts'
 import {
   filteredIssueQuery,
   loadEpics,
@@ -17,9 +17,9 @@ import {
   renderIssue,
   renderIssues,
   renderMyIssues,
-} from './server'
-import { issueDataFixture } from './test/data-fixture'
-import { issue, project, scope, secondProject, taskTypes, workspace } from './test/fixtures'
+} from './server.tsx'
+import { issueDataFixture } from './test/data-fixture.ts'
+import { issue, project, scope, secondProject, taskTypes, workspace } from './test/fixtures.ts'
 
 vi.mock('../../attachment-actions', () => ({
   uploadAttachment: vi.fn(),
@@ -53,14 +53,16 @@ function fixture() {
   return data
 }
 afterEach(() => {
-  for (const data of databases.splice(0)) data.close()
+  for (const data of databases.splice(0)) {
+    data.close()
+  }
 })
 const selected: RequestScope = { ...scope, selection: { kind: 'project', workspace, project } }
 const listUrl = new URL('https://front.test/issues?workspace=workspace')
 const detailUrl = new URL('https://front.test/issues/view?id=issue-a&workspace=workspace')
 
 describe('complete direct D1 issues SSR loaders', () => {
-  it('requires an explicit nullable review status in API and Web attachment replies', () => {
+  test('requires an explicit nullable review status in API and Web attachment replies', () => {
     const attachment = {
       id: 'file',
       kind: 'file' as const,
@@ -86,7 +88,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(Schema.is(AttachmentSchema)({ ...attachment, reviewStatus: undefined })).toBe(false)
     expect(Schema.is(ApiResults.apiGetAttachment)({ ...attachment, reviewStatus: undefined })).toBe(false)
   })
-  it('requires review target arrays in issue and search replies, including empty selections', () => {
+
+  test('requires review target arrays in issue and search replies, including empty selections', () => {
     const value = issue()
     const result = { ...value, status: 'todo' }
     expect(Schema.is(IssueSchema)(value)).toBe(true)
@@ -96,7 +99,8 @@ describe('complete direct D1 issues SSR loaders', () => {
       expect(Schema.is(SearchResultsSchema)([{ ...result, reviewTargets }])).toBe(false)
     }
   })
-  it('returns empty review target arrays from detail, list and search when no attachments are selected', async () => {
+
+  test('returns empty review target arrays from detail, list and search when no attachments are selected', async () => {
     const data = fixture()
     const detail = await data.run(loadIssue(scope, detailUrl))
     expect(detail?.initialData.issue.reviewTargets).toEqual([])
@@ -107,7 +111,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(results.length).toBeGreaterThan(0)
     expect(results.map((entry) => entry.reviewTargets)).toEqual(results.map(() => []))
   })
-  it('includes only explicitly selected targets in canonical list, search, My Issues and focused detail reads', async () => {
+
+  test('includes only explicitly selected targets in canonical list, search, My Issues and focused detail reads', async () => {
     const data = fixture()
     data.sqlite.exec(`
       UPDATE attachments SET review_status = 'fixing' WHERE id = 'file-a';
@@ -139,7 +144,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(html).toContain('Review targets: Review first +1 (レビュー中)')
     expect(html).not.toContain('Hidden target')
   })
-  it('loads cross-project review matches before pagination and applies the same filter to search', async () => {
+
+  test('loads cross-project review matches before pagination and applies the same filter to search', async () => {
     const data = fixture()
     data.sqlite.exec(`
       UPDATE attachments SET review_status='in_review' WHERE id='file-a';
@@ -170,7 +176,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(html).not.toContain('Second project issue')
     expect(html).not.toContain('Secret review')
   })
-  it.each(['done', 'all', '', 'invalid'])(
+
+  test.each(['done', 'all', '', 'invalid'])(
     'rejects unsupported review mode %s instead of silently broadening results',
     async (review) => {
       const data = fixture()
@@ -179,7 +186,8 @@ describe('complete direct D1 issues SSR loaders', () => {
       })
     },
   )
-  it('keeps workspace-wide issues and the full authorized project selector', async () => {
+
+  test('keeps workspace-wide issues and the full authorized project selector', async () => {
     const data = fixture()
     const result = await data.run(loadIssues(scope, listUrl))
     expect(result?.initialData.project).toBeNull()
@@ -188,7 +196,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(result?.initialData.page.items.find((entry) => entry.id === 'issue-a')?.customFields[0].value).toBe('3')
     expect(result?.initialData.page.items.every((entry) => entry.workspaceSlug === workspace.slug)).toBe(true)
   })
-  it('maps original filters and project UUID to the app query DTO', () => {
+
+  test('maps original filters and project UUID to the app query DTO', () => {
     const qs = filteredIssueQuery(
       new URL(
         'https://front.test/issues?projectId=project-a&status=todo,done&priority=high&hideEpics=1&dateField=completed&dateFrom=2026-10-01&dateTo=2026-10-04',
@@ -205,7 +214,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(qs.has('completedAfter')).toBe(true)
     expect(qs.has('completedBefore')).toBe(true)
   })
-  it('SSR-renders original rows, selectors, story points, and modal trigger before effects', async () => {
+
+  test('SSR-renders original rows, selectors, story points, and modal trigger before effects', async () => {
     const data = fixture()
     const html = renderToString(await data.run(renderIssues(scope, listUrl)))
     expect(html).toContain('Original issue')
@@ -215,7 +225,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(html).toContain('workspace=workspace')
     expect(html).not.toContain('Loading issues')
   })
-  it('resolves a UUID in its authorized membership before selecting its catalog project', async () => {
+
+  test('resolves a UUID in its authorized membership before selecting its catalog project', async () => {
     const data = fixture()
     const result = await data.run(
       loadIssue(
@@ -231,7 +242,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(result?.initialData.comments[0].author_id).toBe(scope.user.id)
     expect(result?.initialData.attachments[0].kind).toBe('url')
   })
-  it('renders the actual detail projection without the list-only assignee_name alias', async () => {
+
+  test('renders the actual detail projection without the list-only assignee_name alias', async () => {
     const data = fixture()
     const url = new URL('https://front.test/projects/a/issues/1/outdated-title?workspace=workspace')
     const params = { projectSlug: 'a', issueNumber: '1', titleSlug: 'outdated-title' }
@@ -245,7 +257,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(html).toContain('Original issue')
     expect(html).toContain('<strong>Original description</strong>')
   })
-  it('preserves an explicit archived project filter without granting hidden archived projects', async () => {
+
+  test('preserves an explicit archived project filter without granting hidden archived projects', async () => {
     const data = fixture()
     data.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id IN ('project-a', 'hidden-project')")
     const page = await data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams({ project: project.id })))
@@ -254,7 +267,8 @@ describe('complete direct D1 issues SSR loaders', () => {
       data.run(readDataIssuePage(scope, workspace.id, new URLSearchParams({ project: 'hidden-project' }))),
     ).rejects.toMatchObject({ status: 404 })
   })
-  it('does not fetch an unauthorized workspace or expand an unauthorized catalog project', async () => {
+
+  test('does not fetch an unauthorized workspace or expand an unauthorized catalog project', async () => {
     const data = fixture()
     expect(
       await data.run(loadIssue(scope, new URL('https://front.test/issues/view?id=issue-a&workspace=foreign'))),
@@ -267,7 +281,8 @@ describe('complete direct D1 issues SSR loaders', () => {
       expect(error.status).toBe(404)
     }
   })
-  it('renders complete detail description, comments, files, custom fields and author controls in SSR', async () => {
+
+  test('renders complete detail description, comments, files, custom fields and author controls in SSR', async () => {
     const data = fixture()
     const html = renderToString(
       await data.run(
@@ -285,15 +300,17 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(html).toContain('Edit story points')
     expect(html).not.toContain('No issue ID')
   })
-  it('pages through each authenticated membership for MyIssues without imposing the selected project', async () => {
+
+  test('pages through each authenticated membership for MyIssues without imposing the selected project', async () => {
     const data = fixture()
-    for (let i = 0; i < 103; i++)
+    for (let i = 0; i < 103; i++) {
       data.insertIssue({
         id: `my-${String(i).padStart(3, '0')}`,
         number: i + 2,
         assigneeId: scope.user.id,
         createdAt: 5,
       })
+    }
     const other = { ...workspace, id: 'workspace-b', slug: 'other' }
     const otherProject = {
       ...project,
@@ -314,9 +331,12 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(new Set(result.issues.map((entry) => entry.id)).size).toBe(105)
     expect(new Set(result.issues.map((entry) => entry.workspaceSlug))).toEqual(new Set([workspace.slug, other.slug]))
   })
-  it('rejects oversized board aggregates but keeps the ordinary list paginated', async () => {
+
+  test('rejects oversized board aggregates but keeps the ordinary list paginated', async () => {
     const data = fixture()
-    for (let i = 0; i < 1000; i++) data.insertIssue({ id: `budget-${i}`, number: 100 + i })
+    for (let i = 0; i < 1000; i++) {
+      data.insertIssue({ id: `budget-${i}`, number: 100 + i })
+    }
     await expect(
       data.run(
         loadIssues(selected, new URL('https://front.test/issues?workspace=workspace&projectId=project-a&view=board')),
@@ -328,7 +348,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(result?.initialData.page.items).toHaveLength(30)
     expect(result?.initialData.page.nextCursor).not.toBeNull()
   })
-  it.each(['dateField=updated&dateFrom=2026-02-30', 'dateField=completed&dateFrom=2026-10-04&dateTo=2026-10-01'])(
+
+  test.each(['dateField=updated&dateFrom=2026-02-30', 'dateField=completed&dateFrom=2026-10-04&dateTo=2026-10-01'])(
     'rejects invalid calendar query %s',
     async (query) => {
       const data = fixture()
@@ -337,7 +358,8 @@ describe('complete direct D1 issues SSR loaders', () => {
       ).rejects.toMatchObject({ status: 400 })
     },
   )
-  it('SSR-renders later-page review work first while excluding closed and unassigned work', async () => {
+
+  test('SSR-renders later-page review work first while excluding closed and unassigned work', async () => {
     const data = fixture()
     data.sqlite.exec(
       "INSERT INTO task_statuses (id,workspace_id,key,name,category,position,is_default) VALUES ('review','workspace-a','in_review','In Review','in_progress',2,0)",
@@ -351,7 +373,7 @@ describe('complete direct D1 issues SSR loaders', () => {
       priority: 'low',
       createdAt: 0,
     })
-    for (let index = 0; index < 103; index++)
+    for (let index = 0; index < 103; index++) {
       data.insertIssue({
         id: `new-${index}`,
         number: index + 2,
@@ -359,6 +381,7 @@ describe('complete direct D1 issues SSR loaders', () => {
         assigneeId: scope.user.id,
         createdAt: 10,
       })
+    }
     data.insertIssue({
       id: 'closed',
       number: 201,
@@ -376,15 +399,17 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(html).not.toContain('Other membership issue')
     expect(html).not.toContain('Include done')
   })
-  it('loads complete board sets and performs project-scoped real FTS search', async () => {
+
+  test('loads complete board sets and performs project-scoped real FTS search', async () => {
     const data = fixture()
-    for (let i = 0; i < 102; i++)
+    for (let i = 0; i < 102; i++) {
       data.insertIssue({
         id: `board-${String(i).padStart(3, '0')}`,
         number: i + 2,
         title: 'needle',
         createdAt: 5,
       })
+    }
     const result = await data.run(
       loadIssues(
         selected,
@@ -398,7 +423,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(result?.initialData.search.results?.every((entry) => entry.project_id === project.id)).toBe(true)
     expect(await data.run(searchDataIssues(scope, workspace.id, 'secret'))).toEqual([])
   })
-  it('keeps query schema and driver failures in the typed Effect error channel', async () => {
+
+  test('keeps query schema and driver failures in the typed Effect error channel', async () => {
     const data = fixture()
     const invalid = await data.run(
       Effect.flip(loadIssues(scope, new URL('https://front.test/issues?workspace=workspace&cursor=not-a-cursor'))),
@@ -411,7 +437,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     expect(error.status).toBe(500)
     expect(error.message).not.toContain('SELECT')
   })
-  it('loads epic rollups from the shared batched query without per-epic detail fanout', async () => {
+
+  test('loads epic rollups from the shared batched query without per-epic detail fanout', async () => {
     const data = fixture()
     data.insertIssue({ id: 'epic-a', number: 2, typeId: 'epic-type' })
     data.insertIssue({ id: 'child-a', number: 3, parentId: 'epic-a', statusId: 'done' })
@@ -428,7 +455,8 @@ describe('complete direct D1 issues SSR loaders', () => {
     )
     expect(detail?.initialData.children.map((entry) => entry.id)).toEqual(['child-a'])
   })
-  it('enforces linked wiki visibility without hiding the unavailable attachment row', async () => {
+
+  test('enforces linked wiki visibility without hiding the unavailable attachment row', async () => {
     const data = fixture()
     data.sqlite.exec(
       `INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,linked_wiki_page_id,entity_type,entity_id,created_by_id,created_at) VALUES ('wiki-link','workspace-a','wiki_ref','','Hidden wiki','','0','wiki-hidden','issue','issue-a','user-a',2)`,

@@ -1,11 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
   seedFixture,
   seedGroupGrant,
   seedIssue,
@@ -15,8 +13,9 @@ import {
   seedUser,
   seedWorkspaceRoles,
   toolError,
-} from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+} from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 const ENTITY_ID = crypto.randomUUID()
 
@@ -40,13 +39,15 @@ async function mcpToolResult<T>(
   toolArgs: unknown,
   headers: Record<string, string>,
 ): Promise<T> {
-  const res = await mcpCall<{ content: Array<{ text: string }>; isError?: boolean }>(
+  const res = await mcpCall<{ content: { text: string }[]; isError?: boolean }>(
     workspaceId,
     'tools/call',
     { name, arguments: toolArgs },
     headers,
   )
-  if ('error' in res) throw new Error(`${name} failed: ${JSON.stringify(res.error)}`)
+  if ('error' in res) {
+    throw new Error(`${name} failed: ${JSON.stringify(res.error)}`)
+  }
   expect(res.result.isError, `${name}: ${JSON.stringify(res.result.content)}`).not.toBe(true)
   expect(res.result.content).toHaveLength(1)
   return JSON.parse(res.result.content[0].text) as T
@@ -81,7 +82,7 @@ describe('Files API', () => {
     userId = fixture.user.id
   })
 
-  it('GET /api/files lists attachments for an entity', async () => {
+  test('GET /api/files lists attachments for an entity', async () => {
     // Upload two files for the same entity
     await makeUploadRequest(token, slug, 'content a', 'a.txt')
     await makeUploadRequest(token, slug, 'content b', 'b.txt')
@@ -90,26 +91,26 @@ describe('Files API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const list = (await res.json()) as Array<{
+    const list = (await res.json()) as {
       id: string
       filename: string
       contentType: string
       size: number
       createdAt: number
-    }>
+    }[]
     expect(list).toHaveLength(2)
     expect(list.map((f) => f.filename).sort()).toEqual(['a.txt', 'b.txt'])
     expect(list[0]).toMatchObject({ contentType: 'text/plain' })
   })
 
-  it('GET /api/files returns 400 for missing entityId', async () => {
+  test('GET /api/files returns 400 for missing entityId', async () => {
     const res = await SELF.fetch('http://localhost/api/files?entityType=issue', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)
   })
 
-  it('GET /api/files returns empty array when no attachments exist', async () => {
+  test('GET /api/files returns empty array when no attachments exist', async () => {
     const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
@@ -117,7 +118,7 @@ describe('Files API', () => {
     expect(await res.json()).toEqual([])
   })
 
-  it('POST /api/files uploads and returns file metadata', async () => {
+  test('POST /api/files uploads and returns file metadata', async () => {
     const res = await makeUploadRequest(token, slug)
     expect(res.status).toBe(201)
     const body = (await res.json()) as {
@@ -132,7 +133,7 @@ describe('Files API', () => {
     expect(body.size).toBe('hello world'.length)
   })
 
-  it('GET /api/files/:id returns the uploaded content', async () => {
+  test('GET /api/files/:id returns the uploaded content', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'round-trip content', 'data.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -148,7 +149,7 @@ describe('Files API', () => {
     expect(text).toBe('round-trip content')
   })
 
-  it('GET /api/files/:id serves images inline with their original content type', async () => {
+  test('GET /api/files/:id serves images inline with their original content type', async () => {
     const form = new FormData()
     // 1x1 transparent GIF
     const gifBytes = new Uint8Array([
@@ -174,7 +175,7 @@ describe('Files API', () => {
     expect(getRes.headers.get('Content-Disposition')).toContain('inline')
   })
 
-  it('GET /api/files/:id/metadata returns the attachment metadata', async () => {
+  test('GET /api/files/:id/metadata returns the attachment metadata', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'meta content', 'meta.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -188,14 +189,14 @@ describe('Files API', () => {
     expect(body.contentType).toBe('text/plain')
   })
 
-  it('GET /api/files/:id/metadata returns 404 for an unknown id', async () => {
+  test('GET /api/files/:id/metadata returns 404 for an unknown id', async () => {
     const res = await SELF.fetch(`http://localhost/api/files/${crypto.randomUUID()}/metadata`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  it('DELETE /api/files/:id removes the file', async () => {
+  test('DELETE /api/files/:id removes the file', async () => {
     const uploadRes = await makeUploadRequest(token, slug)
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -213,7 +214,7 @@ describe('Files API', () => {
 
   // PROJ-494: an inline <img> tag rendering an attachment in wiki content can't set a
   // custom X-Workspace-Slug header, so GET falls back to a `?workspace=` query param.
-  it('GET /api/files/:id resolves the workspace from a ?workspace= query param when no header is sent', async () => {
+  test('GET /api/files/:id resolves the workspace from a ?workspace= query param when no header is sent', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'query-param content', 'q.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -224,7 +225,7 @@ describe('Files API', () => {
     expect(await getRes.text()).toBe('query-param content')
   })
 
-  it('GET /api/files/:id via ?workspace= still 404s for a file in a different workspace', async () => {
+  test('GET /api/files/:id via ?workspace= still 404s for a file in a different workspace', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'content', 'q2.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -235,7 +236,7 @@ describe('Files API', () => {
     expect(getRes.status).toBe(404)
   })
 
-  it('POST /api/files does not honor ?workspace= — the header is still required', async () => {
+  test('POST /api/files does not honor ?workspace= — the header is still required', async () => {
     const form = new FormData()
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
@@ -248,7 +249,7 @@ describe('Files API', () => {
     expect(res.status).toBe(400)
   })
 
-  it('GET /api/files/:id returns 404 for a different workspace', async () => {
+  test('GET /api/files/:id returns 404 for a different workspace', async () => {
     const uploadRes = await makeUploadRequest(token, slug)
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -261,7 +262,7 @@ describe('Files API', () => {
     expect(getRes.status).toBe(404)
   })
 
-  it('DELETE /api/files/:id returns 404 when accessed from a different workspace', async () => {
+  test('DELETE /api/files/:id returns 404 when accessed from a different workspace', async () => {
     const uploadRes = await makeUploadRequest(token, slug)
     const { id } = (await uploadRes.json()) as { id: string }
 
@@ -274,7 +275,7 @@ describe('Files API', () => {
     expect(delRes.status).toBe(404)
   })
 
-  it('POST /api/files rejects unauthenticated requests', async () => {
+  test('POST /api/files rejects unauthenticated requests', async () => {
     const form = new FormData()
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
@@ -283,7 +284,7 @@ describe('Files API', () => {
     expect(res.status).toBe(401)
   })
 
-  it('POST /api/files rejects invalid entityType', async () => {
+  test('POST /api/files rejects invalid entityType', async () => {
     const form = new FormData()
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'project')
@@ -299,7 +300,7 @@ describe('Files API', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/files rejects disallowed content type (text/html) → 415', async () => {
+  test('POST /api/files rejects disallowed content type (text/html) → 415', async () => {
     const form = new FormData()
     form.append('file', new File(['<html>evil</html>'], 'evil.html', { type: 'text/html' }))
     form.append('entityType', 'issue')
@@ -314,7 +315,7 @@ describe('Files API', () => {
     expect(body.error).toBe('File type not allowed')
   })
 
-  it('POST /api/files rejects empty content type → 415', async () => {
+  test('POST /api/files rejects empty content type → 415', async () => {
     const form = new FormData()
     form.append('file', new File(['data'], 'noext', { type: '' }))
     form.append('entityType', 'issue')
@@ -329,7 +330,7 @@ describe('Files API', () => {
     expect(body.error).toBe('File type not allowed')
   })
 
-  it('POST /api/files rejects a file over 50 MB → 413', async () => {
+  test('POST /api/files rejects a file over 50 MB → 413', async () => {
     const big = new Uint8Array(50 * 1024 * 1024 + 1)
     const form = new FormData()
     form.append('file', new File([big], 'big.png', { type: 'image/png' }))
@@ -345,7 +346,7 @@ describe('Files API', () => {
     expect(body.error).toBe('File too large (max 50 MB)')
   })
 
-  it('POST /api/files accepts wiki_page entityType', async () => {
+  test('POST /api/files accepts wiki_page entityType', async () => {
     const wikiPageId = crypto.randomUUID()
     const form = new FormData()
     form.append('file', new File(['wiki content'], 'wiki.txt', { type: 'text/plain' }))
@@ -365,12 +366,12 @@ describe('Files API', () => {
       headers: authHeaders(token, slug),
     })
     expect(listRes.status).toBe(200)
-    const list = (await listRes.json()) as Array<{ filename: string }>
+    const list = (await listRes.json()) as { filename: string }[]
     expect(list).toHaveLength(1)
     expect(list[0].filename).toBe('wiki.txt')
   })
 
-  it('POST /api/files rejects when workspace quota would be exceeded → 413', async () => {
+  test('POST /api/files rejects when workspace quota would be exceeded → 413', async () => {
     const QUOTA = 1024 * 1024 * 1024 // 1 GB
     const now = Math.floor(Date.now() / 1000)
     // Insert a fake attachment that consumes all but 1 byte of the quota
@@ -419,7 +420,7 @@ describe('Files API', () => {
       return body.id
     }
 
-    it('attaches a wiki page reference and lists it with title/url', async () => {
+    test('attaches a wiki page reference and lists it with title/url', async () => {
       const headers = { ...authHeaders(token, slug), 'Content-Type': 'application/json' }
       const wikiPageId = await createWikiPage(headers)
 
@@ -439,16 +440,16 @@ describe('Files API', () => {
       const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as Array<{
+      const list = (await listRes.json()) as {
         kind: string
         wikiPage: { id: string; title: string; url: string } | null
-      }>
+      }[]
       const entry = list.find((l) => l.kind === 'wiki_ref')
       expect(entry?.wikiPage?.title).toBe('Linked page')
       expect(entry?.wikiPage?.id).toBe(wikiPageId)
     })
 
-    it('rejects a wiki_ref for a non-existent wiki page → 404', async () => {
+    test('rejects a wiki_ref for a non-existent wiki page → 404', async () => {
       const res = await SELF.fetch('http://localhost/api/files/links', {
         method: 'POST',
         headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
@@ -462,7 +463,7 @@ describe('Files API', () => {
       expect(res.status).toBe(404)
     })
 
-    it('attaches a URL with a label and lists it', async () => {
+    test('attaches a URL with a label and lists it', async () => {
       const res = await SELF.fetch('http://localhost/api/files/links', {
         method: 'POST',
         headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
@@ -480,17 +481,17 @@ describe('Files API', () => {
       const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as Array<{
+      const list = (await listRes.json()) as {
         kind: string
         filename: string
         url: string | null
-      }>
+      }[]
       const entry = list.find((l) => l.kind === 'url')
       expect(entry?.filename).toBe('Design doc')
       expect(entry?.url).toBe('https://example.com/doc')
     })
 
-    it.each(['not-a-url', 'https://[broken', '/relative/path'])('rejects a malformed URL → 400: %s', async (url) => {
+    test.each(['not-a-url', 'https://[broken', '/relative/path'])('rejects a malformed URL → 400: %s', async (url) => {
       const res = await SELF.fetch('http://localhost/api/files/links', {
         method: 'POST',
         headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
@@ -504,7 +505,7 @@ describe('Files API', () => {
       expect(res.status).toBe(400)
     })
 
-    it.each(['http://example.com/doc', 'mailto:review@example.com'])(
+    test.each(['http://example.com/doc', 'mailto:review@example.com'])(
       'accepts URLs supported by the standard validator: %s',
       async (url) => {
         const res = await SELF.fetch('http://localhost/api/files/links', {
@@ -521,7 +522,7 @@ describe('Files API', () => {
       },
     )
 
-    it('DELETE removes a link attachment without touching R2', async () => {
+    test('DELETE removes a link attachment without touching R2', async () => {
       const headers = { ...authHeaders(token, slug), 'Content-Type': 'application/json' }
       const createRes = await SELF.fetch('http://localhost/api/files/links', {
         method: 'POST',
@@ -542,7 +543,7 @@ describe('Files API', () => {
       expect(delRes.status).toBe(204)
     })
 
-    it('rejects attaching a project-scoped wiki page the caller cannot see → 404', async () => {
+    test('rejects attaching a project-scoped wiki page the caller cannot see → 404', async () => {
       // The default fixture user is a plain member with no group grant, so a
       // freshly created project-scoped page is invisible to them (PROJ-311
       // default-deny). Bootstrap an admin in the same workspace to create it.
@@ -575,7 +576,7 @@ describe('Files API', () => {
       expect(res.status).toBe(404)
     })
 
-    it("does not leak a project-scoped wiki page's title to a caller without project access", async () => {
+    test("does not leak a project-scoped wiki page's title to a caller without project access", async () => {
       const adminUser = await seedUser(`admin-${crypto.randomUUID()}@example.com`)
       await seedMember(workspaceId, adminUser.id, 'admin')
       const adminToken = await seedToken(workspaceId, adminUser.id)
@@ -611,12 +612,12 @@ describe('Files API', () => {
       const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as Array<{ kind: string; wikiPage: unknown }>
+      const list = (await listRes.json()) as { kind: string; wikiPage: unknown }[]
       const entry = list.find((l) => l.kind === 'wiki_ref')
       expect(entry?.wikiPage).toBeNull()
     })
 
-    it('trashing the linked wiki page leaves the wiki_ref attachment in place until purge (PROJ-496)', async () => {
+    test('trashing the linked wiki page leaves the wiki_ref attachment in place until purge (PROJ-496)', async () => {
       // Deleting a workspace-level page requires admin/owner, so create+delete
       // through a dedicated admin rather than the default member fixture.
       const adminUser = await seedUser(`admin-${crypto.randomUUID()}@example.com`)
@@ -654,7 +655,7 @@ describe('Files API', () => {
       const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: adminHeaders,
       })
-      const list = (await listRes.json()) as Array<{ kind: string; id: string; wikiPage: unknown }>
+      const list = (await listRes.json()) as { kind: string; id: string; wikiPage: unknown }[]
       const trashedEntry = list.find((l) => l.kind === 'wiki_ref')
       expect(trashedEntry).toBeDefined()
       // The page still exists (not yet purged) but is trashed — it must behave like the
@@ -685,13 +686,13 @@ describe('Files API', () => {
       const listAfterPurge = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: adminHeaders,
       })
-      const listAfter = (await listAfterPurge.json()) as Array<{ kind: string }>
+      const listAfter = (await listAfterPurge.json()) as { kind: string }[]
       expect(listAfter.find((l) => l.kind === 'wiki_ref')).toBeUndefined()
     })
   })
 
   describe('PROJ-425: viewer role is denied write access', () => {
-    it('POST /api/files rejects a viewer upload → 403', async () => {
+    test('POST /api/files rejects a viewer upload → 403', async () => {
       const { workspace, viewer } = await seedWorkspaceRoles()
       const form = new FormData()
       form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
@@ -705,7 +706,7 @@ describe('Files API', () => {
       expect(res.status).toBe(403)
     })
 
-    it('POST /api/files/links rejects a viewer → 403', async () => {
+    test('POST /api/files/links rejects a viewer → 403', async () => {
       const { workspace, viewer } = await seedWorkspaceRoles()
       const res = await SELF.fetch('http://localhost/api/files/links', {
         method: 'POST',
@@ -723,7 +724,7 @@ describe('Files API', () => {
       expect(res.status).toBe(403)
     })
 
-    it('DELETE /api/files/:id rejects a viewer → 403', async () => {
+    test('DELETE /api/files/:id rejects a viewer → 403', async () => {
       const { workspace, owner, viewer } = await seedWorkspaceRoles()
       const form = new FormData()
       form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
@@ -760,7 +761,7 @@ describe('Files MCP tools', () => {
     workspaceId = fixture.workspace.id
   })
 
-  it('create_link_attachment + list_attachments + get_attachment + delete_attachment round-trip', async () => {
+  test('create_link_attachment + list_attachments + get_attachment + delete_attachment round-trip', async () => {
     const headers = authHeaders(token, slug)
     const entityId = crypto.randomUUID()
 
@@ -772,7 +773,7 @@ describe('Files MCP tools', () => {
     )
     expect(created.kind).toBe('url')
 
-    const list = await mcpToolResult<Array<{ id: string; filename: string; url: string | null }>>(
+    const list = await mcpToolResult<{ id: string; filename: string; url: string | null }[]>(
       workspaceId,
       'list_attachments',
       { entityType: 'issue', entityId },
@@ -801,7 +802,7 @@ describe('Files MCP tools', () => {
     expect(afterDelete).toHaveLength(0)
   })
 
-  it('get_attachment returns a not_found tool error for an unknown id', async () => {
+  test('get_attachment returns a not_found tool error for an unknown id', async () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -812,7 +813,7 @@ describe('Files MCP tools', () => {
     expect(toolError(res)?.code).toBe('not_found')
   })
 
-  it('create_link_attachment rejects a wiki_ref for a non-existent page', async () => {
+  test('create_link_attachment rejects a wiki_ref for a non-existent page', async () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -831,7 +832,7 @@ describe('Files MCP tools', () => {
     expect(toolError(res)?.code).toBe('not_found')
   })
 
-  it('delete_attachment via MCP also removes the underlying R2 object for uploaded files', async () => {
+  test('delete_attachment via MCP also removes the underlying R2 object for uploaded files', async () => {
     const form = new FormData()
     form.append('file', new File(['mcp delete test'], 'mcp.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
@@ -851,7 +852,7 @@ describe('Files MCP tools', () => {
     expect(await env.R2.get(row?.r2_key ?? '')).toBeNull()
   })
 
-  it('list_attachments scopes by workspace — another workspace sees no rows for the same entityId', async () => {
+  test('list_attachments scopes by workspace — another workspace sees no rows for the same entityId', async () => {
     const other = await seedFixture()
     const result = await mcpToolResult<unknown[]>(
       other.workspace.id,
@@ -862,7 +863,7 @@ describe('Files MCP tools', () => {
     expect(result).toEqual([])
   })
 
-  it('create_link_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {
+  test('create_link_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {
     const { workspace, viewer } = await seedWorkspaceRoles()
     const res = await mcpCall(
       workspace.id,
@@ -882,7 +883,7 @@ describe('Files MCP tools', () => {
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('delete_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {
+  test('delete_attachment via MCP rejects a viewer session with a forbidden tool error', async () => {
     const { workspace, owner, viewer } = await seedWorkspaceRoles()
     const created = await mcpToolResult<{ id: string }>(
       workspace.id,
@@ -962,7 +963,7 @@ describe('Attachment project visibility', () => {
 
   const asMember = () => authHeaders(memberToken, slug)
 
-  it('hides attachments on an issue in a project the member has no grant on', async () => {
+  test('hides attachments on an issue in a project the member has no grant on', async () => {
     const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
       headers: asMember(),
     })
@@ -972,14 +973,14 @@ describe('Attachment project visibility', () => {
     expect(await res.json()).toEqual([])
   })
 
-  it('404s the metadata read for an attachment on an invisible issue', async () => {
+  test('404s the metadata read for an attachment on an invisible issue', async () => {
     const res = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
       headers: asMember(),
     })
     expect(res.status).toBe(404)
   })
 
-  it('404s the download rather than streaming the bytes', async () => {
+  test('404s the download rather than streaming the bytes', async () => {
     const res = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}`, {
       headers: asMember(),
     })
@@ -990,7 +991,7 @@ describe('Attachment project visibility', () => {
     expect(await res.text()).not.toContain('secret bytes')
   })
 
-  it('404s the delete and leaves the R2 object intact', async () => {
+  test('404s the delete and leaves the R2 object intact', async () => {
     const res = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}`, {
       method: 'DELETE',
       headers: asMember(),
@@ -1001,7 +1002,7 @@ describe('Attachment project visibility', () => {
     expect(row).not.toBeNull()
   })
 
-  it('hides attachments on a wiki page in an invisible project, but not workspace-level ones', async () => {
+  test('hides attachments on a wiki page in an invisible project, but not workspace-level ones', async () => {
     const now = Math.floor(Date.now() / 1000)
     const hiddenProject = await env.DB.prepare("SELECT id FROM projects WHERE workspace_id = ? AND key = 'SECRET'")
       .bind(workspaceId)
@@ -1045,7 +1046,7 @@ describe('Attachment project visibility', () => {
     expect(((await global.json()) as unknown[]).length).toBe(1)
   })
 
-  it('still shows the attachment to a workspace admin', async () => {
+  test('still shows the attachment to a workspace admin', async () => {
     // The filter must be scoped to grant-less members; an admin losing access would be
     // this fix overshooting into a denial of service.
     const list = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
@@ -1059,7 +1060,7 @@ describe('Attachment project visibility', () => {
     expect(meta.status).toBe(200)
   })
 
-  it('still lists an attachment whose entity_id resolves to nothing', async () => {
+  test('still lists an attachment whose entity_id resolves to nothing', async () => {
     // entity_id is not a foreign key, so free-floating attachments are legal and have no
     // project to authorise against. Requiring a *visible* owner rather than the absence
     // of an invisible one would make these vanish from their own uploader's view.
@@ -1069,10 +1070,10 @@ describe('Attachment project visibility', () => {
     const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${orphanId}`, {
       headers: asMember(),
     })
-    expect(((await res.json()) as Array<{ filename: string }>).map((a) => a.filename)).toEqual(['orphan.txt'])
+    expect(((await res.json()) as { filename: string }[]).map((a) => a.filename)).toEqual(['orphan.txt'])
   })
 
-  it('rejects uploading onto an issue in an invisible project without orphaning the R2 object', async () => {
+  test('rejects uploading onto an issue in an invisible project without orphaning the R2 object', async () => {
     const before = await env.DB.prepare('SELECT COUNT(*) AS n FROM attachments WHERE workspace_id = ?')
       .bind(workspaceId)
       .first<{ n: number }>()
@@ -1101,7 +1102,7 @@ describe('Attachment project visibility', () => {
     expect(keys.objects.map((o) => o.key)).toEqual([hiddenR2Key])
   })
 
-  it('rejects a link attachment onto an issue in an invisible project', async () => {
+  test('rejects a link attachment onto an issue in an invisible project', async () => {
     const res = await SELF.fetch('http://localhost/api/files/links', {
       method: 'POST',
       headers: asMember(),
@@ -1115,7 +1116,7 @@ describe('Attachment project visibility', () => {
     expect(res.status).toBe(404)
   })
 
-  it("rejects an upload onto a project where the member's grant is viewer-only", async () => {
+  test("rejects an upload onto a project where the member's grant is viewer-only", async () => {
     const viewerUser = await seedUser(`viewer-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(workspaceId, viewerUser.id, 'member')
     await seedGroupGrant(workspaceId, viewerUser.id, grantedProjectId, 'viewer')
@@ -1137,7 +1138,7 @@ describe('Attachment project visibility', () => {
     expect(res.status).toBe(403)
   })
 
-  it('still allows an upload onto an issue in a project the member can write', async () => {
+  test('still allows an upload onto an issue in a project the member can write', async () => {
     const issue = await seedIssue(workspaceId, grantedProjectId, memberId, { title: 'Open issue' })
     const form = new FormData()
     form.append('file', new File(['fine'], 'fine.txt', { type: 'text/plain' }))
@@ -1151,7 +1152,7 @@ describe('Attachment project visibility', () => {
     expect(res.status).toBe(201)
   })
 
-  it('hides the attachment from the MCP surface too', async () => {
+  test('hides the attachment from the MCP surface too', async () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',

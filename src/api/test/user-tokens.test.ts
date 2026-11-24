@@ -9,9 +9,9 @@
  */
 
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedFixture,
@@ -21,7 +21,7 @@ import {
   seedUser,
   seedUserToken,
   seedWorkspace,
-} from './helpers'
+} from './helpers.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -60,19 +60,19 @@ describe('PROJ-91: user-scoped token — member workspace', () => {
     await seedGroupGrant(ws.id, userId, projectId)
   })
 
-  it('can read issues in a workspace the user is a member of', async () => {
+  test('can read issues in a workspace the user is a member of', async () => {
     const res = await getIssues(userToken, slug)
     expect(res.status).toBe(200)
   })
 
-  it('can write (create issue) in a workspace the user is a member of', async () => {
+  test('can write (create issue) in a workspace the user is a member of', async () => {
     const res = await postIssue(userToken, slug, projectId, 'user-token write test')
     expect(res.status).toBe(201)
     const body = (await res.json()) as { id: string }
     expect(body.id).toBeTruthy()
   })
 
-  it('works across multiple workspaces the user belongs to', async () => {
+  test('works across multiple workspaces the user belongs to', async () => {
     const ws2 = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
     await seedMember(ws2.id, userId, 'viewer')
 
@@ -87,7 +87,7 @@ describe('PROJ-91: user-scoped token — member workspace', () => {
 // ---------------------------------------------------------------------------
 
 describe('PROJ-91: user-scoped token — non-member workspace', () => {
-  it('returns 403 when user is not a member of the target workspace', async () => {
+  test('returns 403 when user is not a member of the target workspace', async () => {
     const ws1 = await seedWorkspace(`ws1-${crypto.randomUUID().slice(0, 8)}`)
     const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws1.id, user.id, 'member')
@@ -106,7 +106,7 @@ describe('PROJ-91: user-scoped token — non-member workspace', () => {
 // ---------------------------------------------------------------------------
 
 describe('PROJ-91: workspace-scoped token regression', () => {
-  it('workspace-scoped token is blocked from a different workspace even if user is a member', async () => {
+  test('workspace-scoped token is blocked from a different workspace even if user is a member', async () => {
     const fixture = await seedFixture() // token is scoped to fixture.workspace
 
     // Add the same user to a second workspace
@@ -118,7 +118,7 @@ describe('PROJ-91: workspace-scoped token regression', () => {
     expect(res.status).toBe(403)
   })
 
-  it('workspace-scoped token still works in its own workspace', async () => {
+  test('workspace-scoped token still works in its own workspace', async () => {
     const fixture = await seedFixture()
     const res = await getIssues(fixture.token, fixture.workspace.slug)
     expect(res.status).toBe(200)
@@ -152,7 +152,7 @@ function mintAsHuman(email: string, body: unknown) {
 }
 
 describe('PROJ-91: POST /auth/tokens — user-scoped minting', () => {
-  it('omitting workspaceId creates a token with null workspace_id', async () => {
+  test('omitting workspaceId creates a token with null workspace_id', async () => {
     const fixture = await seedFixture()
     const res = await mintAsHuman(fixture.user.email, {
       name: 'my-user-token',
@@ -169,7 +169,7 @@ describe('PROJ-91: POST /auth/tokens — user-scoped minting', () => {
     expect(row?.workspace_id).toBeNull()
   })
 
-  it("minted user-scoped token can authenticate against the user's workspace", async () => {
+  test("minted user-scoped token can authenticate against the user's workspace", async () => {
     const fixture = await seedFixture()
     const mintRes = await mintAsHuman(fixture.user.email, {
       name: 'cross-ws-token',
@@ -182,7 +182,7 @@ describe('PROJ-91: POST /auth/tokens — user-scoped minting', () => {
     expect(res.status).toBe(200)
   })
 
-  it('providing workspaceId creates a token confined to that workspace', async () => {
+  test('providing workspaceId creates a token confined to that workspace', async () => {
     const fixture = await seedFixture()
     const other = await seedWorkspace()
     await seedMember(other.id, fixture.user.id, 'member')
@@ -205,7 +205,7 @@ describe('PROJ-91: POST /auth/tokens — user-scoped minting', () => {
 })
 
 describe('PROJ-903: only a human session can mint or revoke a PAT', () => {
-  it('a workspace-confined pk_ token cannot mint a PAT (no confinement escape)', async () => {
+  test('a workspace-confined pk_ token cannot mint a PAT (no confinement escape)', async () => {
     const fixture = await seedFixture()
     const res = await SELF.fetch('http://localhost/auth/tokens', {
       method: 'POST',
@@ -218,7 +218,7 @@ describe('PROJ-903: only a human session can mint or revoke a PAT', () => {
     expect(row).toBeNull()
   })
 
-  it('a user-scoped PAT cannot mint another PAT either', async () => {
+  test('a user-scoped PAT cannot mint another PAT either', async () => {
     const fixture = await seedFixture()
     const pat = await seedUserToken(fixture.user.id)
     const res = await SELF.fetch('http://localhost/auth/tokens', {
@@ -229,7 +229,7 @@ describe('PROJ-903: only a human session can mint or revoke a PAT', () => {
     expect(res.status).toBe(403)
   })
 
-  it('a bearer token cannot revoke a PAT; a human session can', async () => {
+  test('a bearer token cannot revoke a PAT; a human session can', async () => {
     const fixture = await seedFixture()
     const mint = await mintAsHuman(fixture.user.email, { name: 'to-revoke', scopes: ['read'] })
     expect(mint.status).toBe(201)

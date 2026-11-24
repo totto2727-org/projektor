@@ -1,5 +1,5 @@
 import { Effect, Result, Schema } from 'effect'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import {
   ConflictError,
@@ -8,10 +8,10 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from '#commands/errors'
+} from '#commands/errors.ts'
 
-import { coreReply, coreReplyCodec } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
+import { coreReply, coreReplyCodec } from '../contract.ts'
+import { publicDomainFailure } from '../domain-errors.ts'
 
 const success = Schema.Struct({ ok: Schema.Literal(true) })
 async function failure(cause: unknown) {
@@ -19,11 +19,13 @@ async function failure(cause: unknown) {
     coreReply('testBrowserCommand', success, Effect.fail(publicDomainFailure(cause))),
   )
   const decoded = Schema.decodeUnknownSync(coreReplyCodec(success))(encoded)
-  if (Result.isSuccess(decoded)) throw new Error('Expected encoded failure')
+  if (Result.isSuccess(decoded)) {
+    throw new Error('Expected encoded failure')
+  }
   return { problem: decoded.failure, encoded }
 }
 describe('private Core browser command failure boundary', () => {
-  it.each([
+  test.each([
     [new ValidationError({ formErrors: ['Name is required'], fieldErrors: {} }), 400, 'Validation failed'],
     [new NotFoundError('Missing', { headings: ['Title'] }), 404, 'Missing'],
     [new ForbiddenError('Denied'), 403, 'Denied'],
@@ -36,12 +38,14 @@ describe('private Core browser command failure boundary', () => {
       const { problem, encoded } = await failure(cause)
       expect(problem).toMatchObject({ status, message })
       expect(problem.occurrenceId).toMatch(/^urn:uuid:/)
-      if (cause instanceof NotFoundError || cause instanceof ConflictError)
+      if (cause instanceof NotFoundError || cause instanceof ConflictError) {
         expect(problem.details).toEqual(cause.details)
+      }
       expect(encoded).not.toContain('SQL/token')
     },
   )
-  it('redacts unexpected SQL and arbitrary attached details at the origin', async () => {
+
+  test('redacts unexpected SQL and arbitrary attached details at the origin', async () => {
     const { problem, encoded } = await failure(
       Object.assign(new Error('private SQL/token/binding'), { details: { token: 'private-secret' } }),
     )

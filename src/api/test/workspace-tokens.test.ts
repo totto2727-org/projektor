@@ -8,10 +8,10 @@
 // DEV_USER_EMAIL, no Authorization header.
 
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, seedUserToken } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, seedUserToken } from './helpers.ts'
 
 async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
   const prev = env.DEV_USER_EMAIL
@@ -44,7 +44,7 @@ async function tokenRow(name: string) {
 }
 
 describe('PROJ-917: workspace tokens require a human session', () => {
-  it("an owner's pk_ token cannot mint a workspace token", async () => {
+  test("an owner's pk_ token cannot mint a workspace token", async () => {
     const f = await seedFixture({ role: 'owner' })
     const res = await SELF.fetch(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
       method: 'POST',
@@ -56,7 +56,7 @@ describe('PROJ-917: workspace tokens require a human session', () => {
     expect(await tokenRow('sibling')).toBeNull()
   })
 
-  it('a user-scoped PAT cannot mint a workspace token either', async () => {
+  test('a user-scoped PAT cannot mint a workspace token either', async () => {
     const f = await seedFixture({ role: 'owner' })
     const pat = await seedUserToken(f.user.id)
     const res = await SELF.fetch(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
@@ -68,7 +68,7 @@ describe('PROJ-917: workspace tokens require a human session', () => {
     expect(await tokenRow('via-pat')).toBeNull()
   })
 
-  it('a human session mints; a pk_ token cannot revoke; the human can', async () => {
+  test('a human session mints; a pk_ token cannot revoke; the human can', async () => {
     const f = await seedFixture({ role: 'owner' })
     const slug = f.workspace.slug
     const mint = await mintAsHuman(f.user.email, slug, JSON.stringify({ name: 'human-minted', scopes: ['read'] }))
@@ -93,7 +93,7 @@ describe('PROJ-917: workspace tokens require a human session', () => {
     expect(await tokenRow('human-minted')).toBeNull()
   })
 
-  it('a human session still gets role checks: a member is refused', async () => {
+  test('a human session still gets role checks: a member is refused', async () => {
     const f = await seedFixture({ role: 'member' })
     const res = await mintAsHuman(
       f.user.email,
@@ -104,14 +104,14 @@ describe('PROJ-917: workspace tokens require a human session', () => {
     expect(await tokenRow('member-minted')).toBeNull()
   })
 
-  it('malformed JSON from a human session is a 400, not a 500', async () => {
+  test('malformed JSON from a human session is a 400, not a 500', async () => {
     const f = await seedFixture({ role: 'owner' })
     const res = await mintAsHuman(f.user.email, f.workspace.slug, '{bad json')
     expect(res.status).toBe(400)
     expect(JSON.stringify(await res.json())).toMatch(/valid JSON/)
   })
 
-  it("listing stays available to an admin's pk_ token (no secrets returned)", async () => {
+  test("listing stays available to an admin's pk_ token (no secrets returned)", async () => {
     const f = await seedFixture({ role: 'owner' })
     const res = await SELF.fetch(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
       headers: authHeaders(f.token, f.workspace.slug),

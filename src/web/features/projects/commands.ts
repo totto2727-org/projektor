@@ -1,6 +1,6 @@
-import { coreResult } from '../../core'
-import type { BrowserCommandClient } from '../../server/browser-command'
-import { CreatedProjectSchema, ProjectMutationResultSchema } from './schemas'
+import { coreResult } from '../../core.ts'
+import type { BrowserCommandClient } from '../../server/browser-command.ts'
+import { CreatedProjectSchema, ProjectMutationResultSchema } from './schemas.ts'
 
 export function createProject({ core, proof }: BrowserCommandClient, input: unknown) {
   return coreResult(CreatedProjectSchema, core.webCreateProject(proof, input))

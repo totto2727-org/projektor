@@ -1,6 +1,6 @@
 import { drizzle, schema } from '#db'
 
-import type { ServiceCtx } from './types'
+import type { ServiceCtx } from './types.ts'
 
 export async function recordActivity(
   ctx: ServiceCtx,

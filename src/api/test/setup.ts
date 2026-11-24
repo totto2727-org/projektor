@@ -1,8 +1,8 @@
 import { beforeAll, beforeEach } from 'vite-plus/test'
 
-import { configureCore, env } from './fixture-api'
-import { MIGRATIONS } from './migrations'
-import { resetRateLimits } from './rate-limit-reset'
+import { configureCore, env } from './fixture-api.ts'
+import { MIGRATIONS } from './migrations.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 // Strip line comments before splitting on ; — Drizzle breakpoints and any
 // semicolons inside comments (e.g. "ON CONFLICT; old windows are") would

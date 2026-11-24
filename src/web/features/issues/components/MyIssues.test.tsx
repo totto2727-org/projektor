@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { issue, workspace } from '../test/fixtures'
-import type { ScopedIssue } from '../views/MyIssuesPage'
-import MyIssues from './MyIssues'
+import { issue, workspace } from '../test/fixtures.ts'
+import type { ScopedIssue } from '../views/MyIssuesPage.tsx'
+import MyIssues from './MyIssues.tsx'
 
 afterEach(cleanup)
 
@@ -24,7 +24,7 @@ function titles() {
 }
 
 describe('My Issues focus order', () => {
-  it('uses one four-column table across projects and workspaces with scoped issue references', () => {
+  test('uses one four-column table across projects and workspaces with scoped issue references', () => {
     show([
       scoped({ id: 'a', title: 'First issue', project_name: 'First project' }),
       scoped({ id: 'b', title: 'Second issue', project_name: 'Second project', workspaceSlug: 'other' }),
@@ -45,7 +45,7 @@ describe('My Issues focus order', () => {
     expect(table.getByRole('link', { name: 'Second issue' }).getAttribute('href')).toContain('workspace=other')
   })
 
-  it('orders review, progress, todo and backlog before considering priority or recency', () => {
+  test('orders review, progress, todo and backlog before considering priority or recency', () => {
     show([
       scoped({ id: 'backlog', title: 'Backlog', status_key: 'backlog', priority: 'urgent', updated_at: 9000 }),
       scoped({ id: 'todo', title: 'Todo', priority: 'urgent', updated_at: 8000 }),
@@ -70,7 +70,7 @@ describe('My Issues focus order', () => {
     expect(titles()).toEqual(['Review', 'Progress', 'Todo', 'Backlog'])
   })
 
-  it('puts higher priority before newer updates within the same status', () => {
+  test('puts higher priority before newer updates within the same status', () => {
     show(
       ['none', 'low', 'medium', 'high', 'urgent'].map((priority, index) =>
         scoped({ id: priority, title: `Priority ${priority}`, priority, updated_at: 100 - index }),
@@ -79,7 +79,7 @@ describe('My Issues focus order', () => {
     expect(titles()).toEqual(['Priority urgent', 'Priority high', 'Priority medium', 'Priority low', 'Priority none'])
   })
 
-  it('uses newest updates first when status and priority match', () => {
+  test('uses newest updates first when status and priority match', () => {
     show([
       scoped({ id: 'old', title: 'Old', updated_at: 10 }),
       scoped({ id: 'new', title: 'New', updated_at: 30, project_key: 'B' }),
@@ -88,7 +88,7 @@ describe('My Issues focus order', () => {
     expect(titles()).toEqual(['New', 'Middle', 'Old'])
   })
 
-  it('orders custom status keys by their progress category', () => {
+  test('orders custom status keys by their progress category', () => {
     show([
       scoped({ id: 'waiting', title: 'Waiting', status_key: 'waiting', priority: 'urgent' }),
       scoped({ id: 'qa', title: 'QA', status_key: 'qa', status_category: 'in_progress', priority: 'low' }),
@@ -96,7 +96,7 @@ describe('My Issues focus order', () => {
     expect(titles()).toEqual(['QA', 'Waiting'])
   })
 
-  it('omits completed and cancelled issues, and has no include-done control', () => {
+  test('omits completed and cancelled issues, and has no include-done control', () => {
     show([
       scoped({ title: 'Open' }),
       scoped({ id: 'done', title: 'Completed', status_category: 'done', status_key: 'done' }),
@@ -110,7 +110,7 @@ describe('My Issues focus order', () => {
     expect(screen.getByText('1 issue')).toBeDefined()
   })
 
-  it.each([{ issues: [] }, { issues: [scoped({ status_category: 'done' })] }])(
+  test.each([{ issues: [] }, { issues: [scoped({ status_category: 'done' })] }])(
     'shows the open-issue empty state: $issues',
     ({ issues }) => {
       show(issues)
@@ -121,7 +121,7 @@ describe('My Issues focus order', () => {
     },
   )
 
-  it('keeps mobile cards in the same order and does not mutate canonical SSR data', () => {
+  test('keeps mobile cards in the same order and does not mutate canonical SSR data', () => {
     const issues = Object.freeze([
       scoped({ id: 'old', title: 'Old', updated_at: 10 }),
       scoped({ id: 'new', title: 'New', updated_at: 20 }),

@@ -1,6 +1,6 @@
 'use client'
 
-import type { ActionResult } from '../function-result'
+import type { ActionResult } from '../function-result.ts'
 
 /** A safe expected domain failure, without exposing an HTTP request interface. */
 export class FunctionError extends Error {
@@ -14,6 +14,8 @@ export class FunctionError extends Error {
 
 /** Decode a domain outcome after directly calling the relevant ServerFn. */
 export function unwrapResult<T>(result: ActionResult<T>): T {
-  if (!result.ok) throw new FunctionError(result.status, result.message)
+  if (!result.ok) {
+    throw new FunctionError(result.status, result.message)
+  }
   return result.value
 }

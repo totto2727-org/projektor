@@ -2,7 +2,7 @@ import type { Context } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { ValidationError } from '../../contracts/errors'
+import { ValidationError } from '../../contracts/errors.ts'
 
 /**
  * PROJ-877: the one way routes read a JSON body. `c.req.json()` throws a SyntaxError

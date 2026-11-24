@@ -3,14 +3,14 @@ import { Effect } from 'effect'
 import type { z } from 'zod'
 
 import { drizzle, schema } from '#db'
-import { listTaskTypes as queryTypes } from '#services/task-types'
+import { listTaskTypes as queryTypes } from '#services/task-types.ts'
 
-import { IdSchema } from '../../contracts/inputs/common'
-import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from '../../contracts/inputs/task-types'
-import * as cache from './cache'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { prepareQuery } from './sql'
-import type { ServiceCtx } from './types'
+import { IdSchema } from '../../contracts/inputs/common.ts'
+import { CreateTaskTypeSchema, UpdateTaskTypeSchema } from '../../contracts/inputs/task-types.ts'
+import * as cache from './cache.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { prepareQuery } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
@@ -25,18 +25,30 @@ async function invalidateTaskTypesCache(ctx: ServiceCtx) {
 
 function buildTaskTypeUpdateSet(data: z.infer<typeof UpdateTaskTypeSchema>): Record<string, unknown> {
   const setObj: Record<string, unknown> = {}
-  if (data.name !== undefined) setObj.name = data.name
-  if ('color' in data) setObj.color = data.color ?? null
-  if ('icon' in data) setObj.icon = data.icon ?? null
-  if (data.position !== undefined) setObj.position = data.position
-  if (data.isDefault !== undefined) setObj.isDefault = data.isDefault ? 1 : 0
+  if (data.name !== undefined) {
+    setObj.name = data.name
+  }
+  if ('color' in data) {
+    setObj.color = data.color ?? null
+  }
+  if ('icon' in data) {
+    setObj.icon = data.icon ?? null
+  }
+  if (data.position !== undefined) {
+    setObj.position = data.position
+  }
+  if (data.isDefault !== undefined) {
+    setObj.isDefault = data.isDefault ? 1 : 0
+  }
   return setObj
 }
 
 export async function listTaskTypes(ctx: ServiceCtx) {
   const cacheKey = TASK_TYPES_CACHE_KEY(ctx.workspaceId)
   const local = localCache.get(cacheKey)
-  if (local) return local
+  if (local) {
+    return local
+  }
 
   const cached = await cache.get<unknown[]>(ctx.kv, cacheKey)
   if (cached) {
@@ -51,9 +63,13 @@ export async function listTaskTypes(ctx: ServiceCtx) {
 }
 
 export async function createTaskType(ctx: ServiceCtx, raw: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const result = CreateTaskTypeSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { key, name, color, icon, position, isDefault } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -62,7 +78,9 @@ export async function createTaskType(ctx: ServiceCtx, raw: unknown) {
     .from(schema.taskTypes)
     .where(and(eq(schema.taskTypes.workspaceId, ctx.workspaceId), eq(schema.taskTypes.key, key)))
     .get()
-  if (existing) throw new ConflictError(`Task type key '${key}' already exists`)
+  if (existing) {
+    throw new ConflictError(`Task type key '${key}' already exists`)
+  }
 
   if (isDefault) {
     await orm.update(schema.taskTypes).set({ isDefault: 0 }).where(eq(schema.taskTypes.workspaceId, ctx.workspaceId))
@@ -85,9 +103,13 @@ export async function createTaskType(ctx: ServiceCtx, raw: unknown) {
 }
 
 export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const result = UpdateTaskTypeSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const data = result.data
   const setObj = buildTaskTypeUpdateSet(data)
 
@@ -98,7 +120,9 @@ export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) 
     .from(schema.taskTypes)
     .where(and(eq(schema.taskTypes.id, id), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Task type not found')
+  if (!existing) {
+    throw new NotFoundError('Task type not found')
+  }
 
   const update = orm
     .update(schema.taskTypes)
@@ -119,8 +143,12 @@ export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) 
 
 export async function deleteTaskType(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (!idCheck.success) {
+    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  }
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const inUse = await orm
@@ -128,14 +156,18 @@ export async function deleteTaskType(ctx: ServiceCtx, id: string) {
     .from(schema.issues)
     .where(and(eq(schema.issues.typeId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
     .get()
-  if (inUse) throw new ConflictError('Task type is in use by one or more issues')
+  if (inUse) {
+    throw new ConflictError('Task type is in use by one or more issues')
+  }
 
   const existing = await orm
     .select({ id: schema.taskTypes.id })
     .from(schema.taskTypes)
     .where(and(eq(schema.taskTypes.id, id), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Task type not found')
+  if (!existing) {
+    throw new NotFoundError('Task type not found')
+  }
 
   await orm
     .delete(schema.taskTypes)

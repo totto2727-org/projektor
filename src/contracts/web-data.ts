@@ -1,8 +1,10 @@
-import type { AuthSession, ProjectSummary, RequestScope, WorkspaceMembership } from '../core/web/scope'
-import { ApiError, ScopeError } from './errors'
+import type { AuthSession, ProjectSummary, RequestScope, WorkspaceMembership } from '../core/web/scope.ts'
+import { ApiError, ScopeError } from './errors.ts'
 
 export function requireBrowserDataRequest(request: Request): void {
-  if (request.headers.has('authorization')) throw new ScopeError(403, 'An interactive browser session is required.')
+  if (request.headers.has('authorization')) {
+    throw new ScopeError(403, 'An interactive browser session is required.')
+  }
 }
 
 export function requireAuthenticatedDataSession(session: AuthSession): void {
@@ -13,7 +15,9 @@ export function requireAuthenticatedDataSession(session: AuthSession): void {
 
 /** Never expose driver SQL, bindings or authentication diagnostics to page clients. */
 export function dataError(cause: unknown): ApiError {
-  if (cause instanceof ApiError) return cause
+  if (cause instanceof ApiError) {
+    return cause
+  }
   return new ApiError('request', 500, 'Unable to load project data.', cause)
 }
 
@@ -24,7 +28,9 @@ export function requireDataWorkspace(scope: RequestScope, workspaceId?: string):
   const id =
     workspaceId ?? (selected.kind === 'workspace' || selected.kind === 'project' ? selected.workspace.id : undefined)
   const membership = scope.workspaces.find((workspace) => workspace.id === id)
-  if (!membership) throw new ScopeError(403, 'Selected workspace is not accessible.')
+  if (!membership) {
+    throw new ScopeError(403, 'Selected workspace is not accessible.')
+  }
   return membership
 }
 
@@ -38,7 +44,9 @@ export function requireDataProject(scope: RequestScope, projectId: string, works
     scope.workspaces.find(
       (workspace) => workspace.id === project.workspace_id && workspace.slug === project.workspace_slug,
     )
-  if (!project || !membership) throw new ScopeError(404, 'Selected project is not accessible.')
+  if (!project || !membership) {
+    throw new ScopeError(404, 'Selected project is not accessible.')
+  }
   return project
 }
 
@@ -47,8 +55,12 @@ export function authorizeDataEntity<T extends { readonly projectId: string | nul
   workspaceId: string,
   entity: T | undefined,
 ): T {
-  if (!entity) throw new ScopeError(404, 'Not found.')
+  if (!entity) {
+    throw new ScopeError(404, 'Not found.')
+  }
   requireDataWorkspace(scope, workspaceId)
-  if (entity.projectId !== null) requireDataProject(scope, entity.projectId, workspaceId)
+  if (entity.projectId !== null) {
+    requireDataProject(scope, entity.projectId, workspaceId)
+  }
   return entity
 }

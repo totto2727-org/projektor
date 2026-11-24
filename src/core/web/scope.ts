@@ -2,7 +2,7 @@ import { Schema } from 'effect'
 
 import type { AuthInfo } from '#types'
 
-import { ScopeError } from '../../contracts/errors'
+import { ScopeError } from '../../contracts/errors.ts'
 
 export const WebRequestSchema = Schema.Struct({
   url: Schema.String,
@@ -125,13 +125,17 @@ export const RequestScopeSchema = Schema.Struct({
 
 export function queryHint(url: URL, name: string): string | undefined {
   const values = url.searchParams.getAll(name).filter((value) => value !== '')
-  if (new Set(values).size > 1) throw new ScopeError(400, `Ambiguous ${name} parameter.`)
+  if (new Set(values).size > 1) {
+    throw new ScopeError(400, `Ambiguous ${name} parameter.`)
+  }
   return values[0]
 }
 
 export function readProjectHint(url: URL): string | undefined {
   const query = queryHint(url, 'projectId') ?? queryHint(url, 'project')
-  if (query) return query
+  if (query) {
+    return query
+  }
   // Path parameters come from Effront's matched route through RequestServices.
   // Other ?id values identify issues, wiki pages or feedback, not projects.
   return url.pathname.replace(/\/$/, '') === '/projects/view' ? queryHint(url, 'id') : undefined
@@ -145,9 +149,13 @@ export function selectedWorkspace(
   workspaces: readonly WorkspaceMembership[],
   hint: string | undefined,
 ): WorkspaceMembership | undefined {
-  if (!hint) return undefined
+  if (!hint) {
+    return undefined
+  }
   const matches = workspaces.filter((workspace) => workspace.slug === hint)
-  if (matches.length !== 1) throw new ScopeError(403, 'Selected workspace is not accessible.')
+  if (matches.length !== 1) {
+    throw new ScopeError(403, 'Selected workspace is not accessible.')
+  }
   return matches[0]
 }
 
@@ -173,7 +181,9 @@ export function resolveScope(
       const membership = session.workspaces.find(
         (item) => item.id === project.workspace_id && item.slug === project.workspace_slug,
       )
-      if (!membership) throw new ScopeError(403, 'Selected project is not accessible.')
+      if (!membership) {
+        throw new ScopeError(403, 'Selected project is not accessible.')
+      }
       selection = { kind: 'project', workspace: membership, project }
     } else {
       selection = {

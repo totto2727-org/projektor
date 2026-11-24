@@ -1,19 +1,18 @@
 'use client'
 import { useState } from 'react'
 
-import { issueUrl } from '../../utils/issue-url'
+import { issueUrl } from '../../utils/issue-url.ts'
 import {
   assigneeInitials,
   BOARD_COLUMNS,
   categoryColor,
   getBoardColumnIssues,
   getFirstStatusForCategory,
-  type Issue,
-  type TaskStatus,
-} from '../board-utils'
-import { ReviewTargetsSummary } from '../ReviewTargetsSummary'
-import { IssueSelectionControl } from './BulkActions'
-import { getStoryPoints, priorityBadge, StatusSelect, spBadge } from './issue-render-helpers'
+} from '../board-utils.ts'
+import type { Issue, TaskStatus } from '../board-utils.ts'
+import { ReviewTargetsSummary } from '../ReviewTargetsSummary.tsx'
+import { IssueSelectionControl } from './BulkActions.tsx'
+import { getStoryPoints, priorityBadge, StatusSelect, spBadge } from './issue-render-helpers.tsx'
 
 function BoardCard({
   issue,

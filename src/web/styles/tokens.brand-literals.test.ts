@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 const tokensCss = readFileSync(join(__dirname, 'tokens.css'), 'utf-8')
 
@@ -23,13 +23,13 @@ const BRAND_DERIVED_PROPERTIES = [
 ]
 
 describe('tokens.css — brand-derived tokens stay derived from --accent (PROJ-754)', () => {
-  it('never reintroduces the hardcoded indigo/blue literals that accent-derived tokens replaced', () => {
+  test('never reintroduces the hardcoded indigo/blue literals that accent-derived tokens replaced', () => {
     expect(tokensCss).not.toContain('rgba(37, 99, 235')
     expect(tokensCss).not.toContain('rgba(129, 140, 248')
     expect(tokensCss).not.toContain('rgba(79, 70, 229')
   })
 
-  it.each(BRAND_DERIVED_PROPERTIES)(
+  test.each(BRAND_DERIVED_PROPERTIES)(
     "--light-%s and --dark-%s reference their theme's --accent, not a literal color",
     (name) => {
       const lightMatch = /--light-([a-z0-9-]+):\s*([^;]+);/g
@@ -37,7 +37,9 @@ describe('tokens.css — brand-derived tokens stay derived from --accent (PROJ-7
 
       const findValue = (regex: RegExp, propName: string) => {
         for (const m of tokensCss.matchAll(regex)) {
-          if (m[1] === propName) return m[2]
+          if (m[1] === propName) {
+            return m[2]
+          }
         }
         return undefined
       }

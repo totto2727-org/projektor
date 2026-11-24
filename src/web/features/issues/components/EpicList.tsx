@@ -2,30 +2,24 @@
 import { Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 
-import { Button } from '../../../components/ui/Button'
-import { Card } from '../../../components/ui/Card'
-import { Dialog } from '../../../components/ui/Dialog'
-import { EmptyState } from '../../../components/ui/EmptyState'
-import { Input } from '../../../components/ui/Input'
-import Select from '../../../components/ui/Select'
-import { createIssue } from '../actions'
-import { Priority, RequiredText, TitleText, useIssueForm } from '../forms'
-import { statusDisplayName } from '../lib/status'
-import { issueUrl } from '../utils/issue-url'
-import { PRIORITY_OPTIONS } from '../utils/issue-utils'
-import { useUnsavedUnloadGuard } from '../utils/use-unsaved-unload-guard'
-import type { EpicsInitialData } from '../views/EpicsPage'
-import {
-  CATEGORY_COLORS,
-  type Issue,
-  type ProjectLookup as ProjectMeta,
-  type SortKey,
-  sortIssues,
-  type TaskStatus,
-} from './board-utils'
-import type { DateField } from './issue-list/FiltersPopover'
-import FiltersPopover from './issue-list/FiltersPopover'
-import { useIssueFilters } from './issue-list/useIssueFilters'
+import { Button } from '../../../components/ui/Button.tsx'
+import { Card } from '../../../components/ui/Card.tsx'
+import { Dialog } from '../../../components/ui/Dialog.tsx'
+import { EmptyState } from '../../../components/ui/EmptyState.tsx'
+import { Input } from '../../../components/ui/Input.tsx'
+import Select from '../../../components/ui/Select.tsx'
+import { createIssue } from '../actions.ts'
+import { Priority, RequiredText, TitleText, useIssueForm } from '../forms.ts'
+import { statusDisplayName } from '../lib/status.ts'
+import { issueUrl } from '../utils/issue-url.ts'
+import { PRIORITY_OPTIONS } from '../utils/issue-utils.ts'
+import { useUnsavedUnloadGuard } from '../utils/use-unsaved-unload-guard.ts'
+import type { EpicsInitialData } from '../views/EpicsPage.tsx'
+import { CATEGORY_COLORS, sortIssues } from './board-utils.ts'
+import type { Issue, ProjectLookup as ProjectMeta, SortKey, TaskStatus } from './board-utils.ts'
+import type { DateField } from './issue-list/FiltersPopover.tsx'
+import FiltersPopover from './issue-list/FiltersPopover.tsx'
+import { useIssueFilters } from './issue-list/useIssueFilters.ts'
 
 type EpicRollup = { done: number; remaining: number; total: number }
 
@@ -48,7 +42,9 @@ const CELL_CLASS =
 const MODAL_CLASS = 'bg-bg border border-border rounded-lg p-6 w-full sm:max-w-[480px] overscroll-contain'
 
 function defaultCreateProjectId(projectId: string | null, projects: readonly ProjectMeta[]): string {
-  if (projectId) return projects.find((p) => p.id === projectId)?.id ?? projects[0]?.id ?? ''
+  if (projectId) {
+    return projects.find((p) => p.id === projectId)?.id ?? projects[0]?.id ?? ''
+  }
   return projects[0]?.id ?? ''
 }
 
@@ -71,7 +67,9 @@ function computeDerivedStatuses(epics: readonly Issue[]): TaskStatus[] {
 }
 
 function sortIndicator(key: SortKey, sortBy: SortKey, sortDir: 'asc' | 'desc') {
-  if (sortBy !== key) return null
+  if (sortBy !== key) {
+    return null
+  }
   return <span className='ml-1 opacity-60'>{sortDir === 'asc' ? '↑' : '↓'}</span>
 }
 
@@ -135,7 +133,9 @@ function useCreateEpicForm(projectId: string | null, projects: readonly ProjectM
   const createError =
     result && result !== openedResult && !result.ok ? `Failed to create epic: ${result.message}` : null
   useEffect(() => {
-    if (result?.ok) setShowCreate(false)
+    if (result?.ok) {
+      setShowCreate(false)
+    }
   }, [result])
   useUnsavedUnloadGuard(showCreate && Boolean(createTitle.trim()))
 
@@ -417,7 +417,9 @@ function CreateEpicModal({
   epicTypeId,
   submitCreate,
 }: CreateEpicModalProps) {
-  if (!showCreate) return null
+  if (!showCreate) {
+    return null
+  }
   return (
     <Dialog open={showCreate} onClose={() => setShowCreate(false)} ariaLabel='Create new epic' className={MODAL_CLASS}>
       <h2 className='mb-5 text-lg font-bold text-text-base'>New Epic</h2>

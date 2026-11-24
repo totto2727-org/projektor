@@ -2,14 +2,14 @@
 // [[Target]] links that match its title/slug, without those pages being re-saved.
 
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import type { ServiceCtx } from '#commands/types'
-import { purgeExpiredWikiPages } from '#commands/wiki'
+import type { ServiceCtx } from '#commands/types.ts'
+import { purgeExpiredWikiPages } from '#commands/wiki.ts'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture } from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture } from './helpers.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 // PROJ-238: the test env's RATE_LIMIT_API_MAX is 5 req/window, and each test below fires
 // more than that against one token — reset before every request.
@@ -59,7 +59,7 @@ async function brokenLinks(token: string, wsSlug: string) {
     headers: authHeaders(token, wsSlug),
   })
   expect(res.status).toBe(200)
-  return res.json() as Promise<Array<{ sourcePageId: string; targetTitle: string }>>
+  return res.json() as Promise<{ sourcePageId: string; targetTitle: string }[]>
 }
 
 async function backlinks(token: string, wsSlug: string, pageSlug: string) {
@@ -67,11 +67,11 @@ async function backlinks(token: string, wsSlug: string, pageSlug: string) {
     headers: authHeaders(token, wsSlug),
   })
   expect(res.status).toBe(200)
-  return res.json() as Promise<Array<{ pageId: string; slug: string }>>
+  return res.json() as Promise<{ pageId: string; slug: string }[]>
 }
 
 describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => {
-  it('create: an unresolved link resolves once the matching page is created', async () => {
+  test('create: an unresolved link resolves once the matching page is created', async () => {
     const { workspace, token } = await seedFixture({ role: 'owner' })
     const linker = await createPage(token, workspace.slug, 'Linker', 'See [[Onboarding]].')
 
@@ -86,7 +86,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
     expect(back.some((b) => b.pageId === linker.id)).toBe(true)
   })
 
-  it('rename: a link to the old title/slug unresolves, and a rename onto the raw text resolves it', async () => {
+  test('rename: a link to the old title/slug unresolves, and a rename onto the raw text resolves it', async () => {
     const { workspace, token } = await seedFixture({ role: 'owner' })
     const target = await createPage(token, workspace.slug, 'Foo')
     const linker = await createPage(token, workspace.slug, 'Linker2', 'See [[Foo]].')
@@ -111,7 +111,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
     expect((await backlinks(token, workspace.slug, claimant.slug)).some((b) => b.pageId === linker.id)).toBe(true)
   })
 
-  it("restore: a link waiting on a trashed page resolves once it's restored", async () => {
+  test("restore: a link waiting on a trashed page resolves once it's restored", async () => {
     const { workspace, token } = await seedFixture({ role: 'owner' })
     const target = await createPage(token, workspace.slug, 'Vault')
     await deletePage(token, workspace.slug, target.slug)
@@ -128,7 +128,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
     expect((await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)).toBe(true)
   })
 
-  it('trash: the link is reported broken but keeps its target, so restore brings it back', async () => {
+  test('trash: the link is reported broken but keeps its target, so restore brings it back', async () => {
     const { workspace, token } = await seedFixture({ role: 'owner' })
     const target = await createPage(token, workspace.slug, 'Doomed')
     const linker = await createPage(token, workspace.slug, 'Linker4', 'See [[Doomed]].')
@@ -142,7 +142,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
     expect((await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)).toBe(true)
   })
 
-  it('purge: links re-point to another live page with the same title, else unresolve', async () => {
+  test('purge: links re-point to another live page with the same title, else unresolve', async () => {
     const { workspace, token, user } = await seedFixture({ role: 'owner' })
     const first = await createPage(token, workspace.slug, 'Twin')
     // Titles aren't unique (slugs are): make a second "Twin" by renaming.
@@ -177,7 +177,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
     expect(byTitle).toEqual({ Twin: second.id, Lonely: null })
   })
 
-  it('rename: a URL/slug link keeps its target when the title changes', async () => {
+  test('rename: a URL/slug link keeps its target when the title changes', async () => {
     const { workspace, token } = await seedFixture({ role: 'owner' })
     const target = await createPage(token, workspace.slug, 'Foo')
     const byUrl = await createPage(token, workspace.slug, 'ByUrl', `[x](/wiki/${target.slug})`)
@@ -196,7 +196,7 @@ async function targetOf(sourceId: string): Promise<string | null> {
   return row?.t ?? null
 }
 
-async function targetsOf(sourceId: string): Promise<Array<string | null>> {
+async function targetsOf(sourceId: string): Promise<(string | null)[]> {
   const rows = await env.DB.prepare(
     'SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ? ORDER BY target_page_id',
   )

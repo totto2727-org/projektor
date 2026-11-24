@@ -11,11 +11,11 @@
 import { SELF } from 'cloudflare:test'
 import { Effect } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { verifyJwtPayload } from '#services/authentication'
+import { verifyJwtPayload } from '#services/authentication.ts'
 
-import { ApiPrincipal } from '../../contracts/api-auth'
+import { ApiPrincipal } from '../../contracts/api-auth.ts'
 import {
   configureCore,
   createCoreFixtureSession,
@@ -23,7 +23,7 @@ import {
   getCoreObservations,
   resetCoreAuthCaches,
   resetCoreObservations,
-} from './fixture-api'
+} from './fixture-api.ts'
 import {
   authHeaders,
   hashToken,
@@ -34,7 +34,7 @@ import {
   seedWorkspace,
   seedWorkspaceRoles,
   toolError,
-} from './helpers'
+} from './helpers.ts'
 
 // ---------------------------------------------------------------------------
 // JWT generation utilities (used only by CF Access JWT tests)
@@ -64,7 +64,7 @@ async function signTestJwt(privateKey: CryptoKey, payload: Record<string, unknow
 // ---------------------------------------------------------------------------
 
 describe('PROJ-79: token expiry', () => {
-  it('expired api_token (expires_at < now) returns 401', async () => {
+  test('expired api_token (expires_at < now) returns 401', async () => {
     const fixture = await seedFixture()
     // Seed a second token for the same user/workspace that is already expired
     const expiredToken = await seedToken(fixture.workspace.id, fixture.user.id, {
@@ -79,7 +79,7 @@ describe('PROJ-79: token expiry', () => {
     expect(body.error).toMatch(/expired/i)
   })
 
-  it('non-expired api_token is accepted', async () => {
+  test('non-expired api_token is accepted', async () => {
     const fixture = await seedFixture()
     // Token that expires in the future
     const futureToken = await seedToken(fixture.workspace.id, fixture.user.id, {
@@ -92,7 +92,7 @@ describe('PROJ-79: token expiry', () => {
     expect(res.status).toBe(200)
   })
 
-  it('api_token with no expires_at never expires', async () => {
+  test('api_token with no expires_at never expires', async () => {
     const fixture = await seedFixture() // seedFixture uses seedToken without expiresAt
     const res = await SELF.fetch('http://localhost/api/issues', {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
@@ -128,7 +128,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     publicJwk = (await crypto.subtle.exportKey('jwk', keyPair.publicKey)) as JsonWebKey
   })
 
-  it('valid signed JWT with correct audience and issuer is accepted', async () => {
+  test('valid signed JWT with correct audience and issuer is accepted', async () => {
     const now = Math.floor(Date.now() / 1000)
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
@@ -142,7 +142,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result?.email).toBe(TEST_EMAIL)
   })
 
-  it('expired JWT (exp < now) is rejected', async () => {
+  test('expired JWT (exp < now) is rejected', async () => {
     const now = Math.floor(Date.now() / 1000)
     const jwt = await signTestJwt(privateKey, {
       exp: now - 10, // already expired
@@ -155,7 +155,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  it('JWT with wrong audience is rejected', async () => {
+  test('JWT with wrong audience is rejected', async () => {
     const now = Math.floor(Date.now() / 1000)
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
@@ -168,7 +168,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  it('JWT with wrong issuer is rejected', async () => {
+  test('JWT with wrong issuer is rejected', async () => {
     const now = Math.floor(Date.now() / 1000)
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
@@ -181,7 +181,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  it('JWT with wrong signature (corrupt last segment) is rejected', async () => {
+  test('JWT with wrong signature (corrupt last segment) is rejected', async () => {
     const now = Math.floor(Date.now() / 1000)
     const validJwt = await signTestJwt(privateKey, {
       exp: now + 3600,
@@ -197,7 +197,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  it('JWT with no matching key in the keyset is rejected', async () => {
+  test('JWT with no matching key in the keyset is rejected', async () => {
     const now = Math.floor(Date.now() / 1000)
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
@@ -211,12 +211,12 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
     expect(result).toBeNull()
   })
 
-  it('malformed JWT (wrong number of segments) is rejected', async () => {
+  test('malformed JWT (wrong number of segments) is rejected', async () => {
     const result = await verifyJwtPayload('only.two', [publicJwk], TEST_AUDIENCE, TEST_ISSUER)
     expect(result).toBeNull()
   })
 
-  it('JWT with non-RS256 algorithm header is rejected', async () => {
+  test('JWT with non-RS256 algorithm header is rejected', async () => {
     // Manually craft a JWT with alg: HS256 to bypass the alg check
     const now = Math.floor(Date.now() / 1000)
     const header = encodeJwtPart({ alg: 'HS256', typ: 'JWT' })
@@ -239,7 +239,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
   describe('PROJ-879: payload validation', () => {
     const now = () => Math.floor(Date.now() / 1000)
 
-    it('missing exp is rejected (previously never expired)', async () => {
+    test('missing exp is rejected (previously never expired)', async () => {
       const jwt = await signTestJwt(privateKey, {
         aud: TEST_AUDIENCE,
         iss: TEST_ISSUER,
@@ -248,7 +248,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
       expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
     })
 
-    it('missing email (Access service-token JWT) is rejected, not a crash', async () => {
+    test('missing email (Access service-token JWT) is rejected, not a crash', async () => {
       const jwt = await signTestJwt(privateKey, {
         exp: now() + 3600,
         aud: TEST_AUDIENCE,
@@ -258,7 +258,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
       expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
     })
 
-    it('expired is rejected', async () => {
+    test('expired is rejected', async () => {
       const jwt = await signTestJwt(privateKey, {
         exp: now() - 5,
         aud: TEST_AUDIENCE,
@@ -268,7 +268,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
       expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
     })
 
-    it('wrong aud is rejected', async () => {
+    test('wrong aud is rejected', async () => {
       const jwt = await signTestJwt(privateKey, {
         exp: now() + 3600,
         aud: ['someone-else'],
@@ -278,7 +278,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
       expect(await verifyJwtPayload(jwt, [publicJwk], TEST_AUDIENCE, TEST_ISSUER)).toBeNull()
     })
 
-    it('exp of the wrong type is rejected', async () => {
+    test('exp of the wrong type is rejected', async () => {
       const jwt = await signTestJwt(privateKey, {
         exp: '9999999999',
         aud: TEST_AUDIENCE,
@@ -297,7 +297,7 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
 // ---------------------------------------------------------------------------
 
 describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
-  it('malformed Cf-Access-Jwt-Assertion header returns 401', async () => {
+  test('malformed Cf-Access-Jwt-Assertion header returns 401', async () => {
     const res = await SELF.fetch('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': 'not-a-valid-jwt',
@@ -307,7 +307,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  it('JWT with only two segments returns 401', async () => {
+  test('JWT with only two segments returns 401', async () => {
     const res = await SELF.fetch('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': 'eyJhbGciOiJSUzI1NiJ9.eyJlbWFpbCI6InRlc3QifQ',
@@ -317,7 +317,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  it('JWT with non-RS256 alg header returns 401', async () => {
+  test('JWT with non-RS256 alg header returns 401', async () => {
     // header: {"alg":"HS256"}, payload: {"exp": far-future, "email":"x"}, bogus sig
     const header = btoa(JSON.stringify({ alg: 'HS256' }))
       .replace(/\+/g, '-')
@@ -338,7 +338,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  it('expired CF Access JWT (exp < now) returns 401 before any key fetch', async () => {
+  test('expired CF Access JWT (exp < now) returns 401 before any key fetch', async () => {
     const header = encodeJwtPart({ alg: 'RS256', typ: 'JWT' })
     const payload = encodeJwtPart({
       exp: Math.floor(Date.now() / 1000) - 60, // already expired
@@ -355,7 +355,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     expect(res.status).toBe(401)
   })
 
-  it('PROJ-879: a JWT without email returns 401, not 500', async () => {
+  test('PROJ-879: a JWT without email returns 401, not 500', async () => {
     const aud = 'http-879-aud'
     const domain = 'http-879.cloudflareaccess.com'
     const prev = { a: env.CF_ACCESS_AUDIENCE, d: env.CF_ACCESS_TEAM_DOMAIN }
@@ -390,7 +390,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
 // ---------------------------------------------------------------------------
 
 describe('PROJ-354: CF Access auth caches are isolate-local', () => {
-  it('second CF Access login succeeds after both KV cache entries are deleted', async () => {
+  test('second CF Access login succeeds after both KV cache entries are deleted', async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
@@ -453,7 +453,7 @@ describe('PROJ-354: CF Access auth caches are isolate-local', () => {
 // Concurrent native requests retain their own test-only network policy.
 
 describe('native Core authentication invocation isolation', () => {
-  it('concurrent signed Access sessions fetch only their own configured JWKS endpoint', async () => {
+  test('concurrent signed Access sessions fetch only their own configured JWKS endpoint', async () => {
     const sessions = await Promise.all(
       ['first', 'second'].map(async (name) => {
         const pair = await crypto.subtle.generateKey(
@@ -517,7 +517,7 @@ describe('native Core authentication invocation isolation', () => {
 
 // A stale signing key forces one refresh, with a cooldown for invalid signatures.
 describe('PROJ-358: JWKS force-refresh on signature verification failure', () => {
-  it("uncached-key token authenticates via forced refresh; bad sig within cooldown doesn't refetch again", async () => {
+  test("uncached-key token authenticates via forced refresh; bad sig within cooldown doesn't refetch again", async () => {
     const genKeyPair = () =>
       crypto.subtle.generateKey(
         {
@@ -588,7 +588,7 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
 })
 
 describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
-  it('a successful JWKS fetch still authenticates when caching it in KV fails', async () => {
+  test('a successful JWKS fetch still authenticates when caching it in KV fails', async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
@@ -637,7 +637,7 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
 })
 
 describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => {
-  it("a KV read error doesn't fail auth — falls through to fetching fresh certs", async () => {
+  test("a KV read error doesn't fail auth — falls through to fetching fresh certs", async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
@@ -686,7 +686,7 @@ describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => 
 })
 
 describe('PROJ-746: user-by-email cache read failure falls back to the DB upsert', () => {
-  it("a KV read error on the user cache doesn't fail auth — falls through to the DB", async () => {
+  test("a KV read error on the user cache doesn't fail auth — falls through to the DB", async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
@@ -736,7 +736,7 @@ describe('PROJ-746: user-by-email cache read failure falls back to the DB upsert
 })
 
 describe('PROJ-360: api_tokens.last_used_at write throttling', () => {
-  it('a request within the throttle window does not rewrite a recent last_used_at', async () => {
+  test('a request within the throttle window does not rewrite a recent last_used_at', async () => {
     const fixture = await seedFixture()
     const hash = await hashToken(fixture.token)
     const now = Math.floor(Date.now() / 1000)
@@ -757,7 +757,7 @@ describe('PROJ-360: api_tokens.last_used_at write throttling', () => {
     expect(row?.last_used_at).toBe(recentTimestamp)
   })
 
-  it('a request outside the throttle window (or with no prior value) updates last_used_at', async () => {
+  test('a request outside the throttle window (or with no prior value) updates last_used_at', async () => {
     const fixture = await seedFixture()
     const hash = await hashToken(fixture.token)
     const now = Math.floor(Date.now() / 1000)
@@ -783,7 +783,7 @@ describe('PROJ-360: api_tokens.last_used_at write throttling', () => {
 // ---------------------------------------------------------------------------
 
 describe('PROJ-274: read-scoped token is denied write on every request', () => {
-  it('read-only token gets 403 on POST /api/projects, never a cached bypass', async () => {
+  test('read-only token gets 403 on POST /api/projects, never a cached bypass', async () => {
     const fixture = await seedFixture()
     const readOnlyToken = await seedToken(fixture.workspace.id, fixture.user.id, {
       scopes: ['read'],
@@ -802,7 +802,7 @@ describe('PROJ-274: read-scoped token is denied write on every request', () => {
     expect(body.error).toMatch(/scope/i)
   })
 
-  it('read-only token gets a JSON-RPC scope error calling a write MCP tool, never a cached bypass', async () => {
+  test('read-only token gets a JSON-RPC scope error calling a write MCP tool, never a cached bypass', async () => {
     const fixture = await seedFixture()
     const readOnlyToken = await seedToken(fixture.workspace.id, fixture.user.id, {
       scopes: ['read'],
@@ -820,11 +820,11 @@ describe('PROJ-274: read-scoped token is denied write on every request', () => {
     })
     const body = (await res.json()) as { error?: { code: number; message: string } }
     expect(body.error).toBeDefined()
-    expect(body.error?.code).toBe(-32003)
+    expect(body.error?.code).toBe(-32_003)
     expect(body.error?.message).toMatch(/scope/i)
   })
 
-  it('workspace-scoped token used against a different member workspace returns 403 (PROJ-16 confinement)', async () => {
+  test('workspace-scoped token used against a different member workspace returns 403 (PROJ-16 confinement)', async () => {
     const fixture = await seedFixture()
     const otherWs = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
     await seedMember(otherWs.id, fixture.user.id, 'member')
@@ -839,7 +839,7 @@ describe('PROJ-274: read-scoped token is denied write on every request', () => {
   // The two failure modes it has to keep apart: no row at all is a workspace that doesn't
   // exist (404, covered above), a row with no membership is a non-member (403 — this).
   // Collapsing them would leak workspace existence, or hide it from legitimate members.
-  it('an existing workspace the caller is not a member of returns 403, not 404', async () => {
+  test('an existing workspace the caller is not a member of returns 403, not 404', async () => {
     const fixture = await seedFixture()
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(fixture.workspace.id, fixture.user.id)
@@ -864,7 +864,7 @@ describe('PROJ-660: dev bypass and /mcp/', () => {
   // A remote MCP client only learns it needs a credential from the 401 and the
   // challenge on it. If the bypass answered here the server would be claiming it
   // wants no credential at all, and no connector flow could ever start.
-  it('still 401s with the RFC 9728 challenge when DEV_USER_EMAIL is set', async () => {
+  test('still 401s with the RFC 9728 challenge when DEV_USER_EMAIL is set', async () => {
     const ws = await seedWorkspace()
     env.DEV_USER_EMAIL = 'dev@projektor.dev'
 
@@ -878,7 +878,7 @@ describe('PROJ-660: dev bypass and /mcp/', () => {
     expect(res.headers.get('WWW-Authenticate')).toContain('resource_metadata=')
   })
 
-  it('still logs a browser request in, which is what the bypass is for', async () => {
+  test('still logs a browser request in, which is what the bypass is for', async () => {
     env.DEV_USER_EMAIL = 'dev@projektor.dev'
 
     const res = await SELF.fetch('http://localhost/auth/me')
@@ -901,13 +901,13 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
     env.DEFAULT_WORKSPACE_SLUG = 'projektor'
   })
 
-  it('anonymous request still 401s when PUBLIC_READ_ONLY is unset (default)', async () => {
+  test('anonymous request still 401s when PUBLIC_READ_ONLY is unset (default)', async () => {
     env.PUBLIC_READ_ONLY = undefined
     const res = await SELF.fetch('http://localhost/auth/me')
     expect(res.status).toBe(401)
   })
 
-  it('anonymous request is provisioned as viewer of the default workspace when PUBLIC_READ_ONLY is on', async () => {
+  test('anonymous request is provisioned as viewer of the default workspace when PUBLIC_READ_ONLY is on', async () => {
     const slug = `proj-373-${crypto.randomUUID().slice(0, 8)}`
     await seedWorkspace(slug)
     env.DEFAULT_WORKSPACE_SLUG = slug
@@ -917,14 +917,14 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
     expect(res.status).toBe(200)
     const body = (await res.json()) as {
       user: { email: string }
-      workspaces: Array<{ slug: string; role: string }>
+      workspaces: { slug: string; role: string }[]
     }
     expect(body.user.email).toBe('public-viewer@projektor.local')
     const membership = body.workspaces.find((w) => w.slug === slug)
     expect(membership?.role).toBe('viewer')
   })
 
-  it('a real CF Access session is not demoted to anonymous viewer when PUBLIC_READ_ONLY is also on', async () => {
+  test('a real CF Access session is not demoted to anonymous viewer when PUBLIC_READ_ONLY is also on', async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
@@ -963,7 +963,7 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
     expect(body.user.email).toBe(email)
   })
 
-  it('anonymous viewer is blocked from writes (403), same as any viewer-role member', async () => {
+  test('anonymous viewer is blocked from writes (403), same as any viewer-role member', async () => {
     const slug = `proj-373-write-${crypto.randomUUID().slice(0, 8)}`
     await seedWorkspace(slug)
     env.DEFAULT_WORKSPACE_SLUG = slug
@@ -983,19 +983,19 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
 // ---------------------------------------------------------------------------
 
 describe('PROJ-79: GET /auth/me', () => {
-  it('returns 401 without any authentication', async () => {
+  test('returns 401 without any authentication', async () => {
     const res = await SELF.fetch('http://localhost/auth/me')
     expect(res.status).toBe(401)
   })
 
-  it('returns 401 with a wrong bearer token', async () => {
+  test('returns 401 with a wrong bearer token', async () => {
     const res = await SELF.fetch('http://localhost/auth/me', {
       headers: { Authorization: 'Bearer tok_totally_fake_token' },
     })
     expect(res.status).toBe(401)
   })
 
-  it('returns user info and workspaces with a valid token', async () => {
+  test('returns user info and workspaces with a valid token', async () => {
     const fixture = await seedFixture()
     const res = await SELF.fetch('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${fixture.token}` },
@@ -1003,7 +1003,7 @@ describe('PROJ-79: GET /auth/me', () => {
     expect(res.status).toBe(200)
     const body = (await res.json()) as {
       user: { id: string; email: string }
-      workspaces: Array<{ id: string; role: string }>
+      workspaces: { id: string; role: string }[]
     }
     expect(body.user.id).toBe(fixture.user.id)
     expect(body.user.email).toBe(fixture.user.email)
@@ -1012,7 +1012,7 @@ describe('PROJ-79: GET /auth/me', () => {
     expect(body.workspaces[0].id).toBe(fixture.workspace.id)
   })
 
-  it('returns all workspaces the user belongs to', async () => {
+  test('returns all workspaces the user belongs to', async () => {
     const fixture = await seedFixture()
     const ws2 = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
     await seedMember(ws2.id, fixture.user.id, 'viewer')
@@ -1021,7 +1021,7 @@ describe('PROJ-79: GET /auth/me', () => {
     const res = await SELF.fetch('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     })
-    const body = (await res.json()) as { workspaces: Array<{ id: string }> }
+    const body = (await res.json()) as { workspaces: { id: string }[] }
     const ids = body.workspaces.map((w) => w.id)
     expect(ids).toContain(fixture.workspace.id)
     expect(ids).toContain(ws2.id)
@@ -1041,7 +1041,7 @@ async function humanFetch(email: string, url: string, init: RequestInit): Promis
 }
 
 describe('PROJ-79: POST /auth/tokens', () => {
-  it('creates a personal token and returns it', async () => {
+  test('creates a personal token and returns it', async () => {
     const fixture = await seedFixture()
     const res = await humanFetch(fixture.user.email, 'http://localhost/auth/tokens', {
       method: 'POST',
@@ -1060,7 +1060,7 @@ describe('PROJ-79: POST /auth/tokens', () => {
     expect(body.token.length).toBeGreaterThan(0)
   })
 
-  it('returns 400 when workspaceId is not a UUID', async () => {
+  test('returns 400 when workspaceId is not a UUID', async () => {
     const fixture = await seedFixture()
     const res = await humanFetch(fixture.user.email, 'http://localhost/auth/tokens', {
       method: 'POST',
@@ -1072,7 +1072,7 @@ describe('PROJ-79: POST /auth/tokens', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 400 when scopes array is empty', async () => {
+  test('returns 400 when scopes array is empty', async () => {
     const fixture = await seedFixture()
     const res = await humanFetch(fixture.user.email, 'http://localhost/auth/tokens', {
       method: 'POST',
@@ -1084,7 +1084,7 @@ describe('PROJ-79: POST /auth/tokens', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 401 without authentication', async () => {
+  test('returns 401 without authentication', async () => {
     const fixture = await seedFixture()
     const res = await SELF.fetch('http://localhost/auth/tokens', {
       method: 'POST',
@@ -1096,7 +1096,7 @@ describe('PROJ-79: POST /auth/tokens', () => {
 })
 
 describe('PROJ-79: DELETE /auth/tokens/:id', () => {
-  it('deletes a token the user owns and returns ok', async () => {
+  test('deletes a token the user owns and returns ok', async () => {
     const fixture = await seedFixture()
 
     // Create a second token to delete (cannot delete the fixture token we're using for auth)
@@ -1127,7 +1127,7 @@ describe('PROJ-79: DELETE /auth/tokens/:id', () => {
     expect(body.ok).toBe(true)
   })
 
-  it("cannot delete another user's token (silently no-ops, returns ok)", async () => {
+  test("cannot delete another user's token (silently no-ops, returns ok)", async () => {
     // The DELETE handler scopes by user_id, so deleting another user's token
     // silently succeeds (no row deleted). This is the current behaviour — confirmed here.
     const alice = await seedFixture()
@@ -1152,7 +1152,7 @@ describe('PROJ-79: DELETE /auth/tokens/:id', () => {
     expect(stillThere).not.toBeNull()
   })
 
-  it('returns 401 without authentication', async () => {
+  test('returns 401 without authentication', async () => {
     const res = await SELF.fetch(`http://localhost/auth/tokens/${crypto.randomUUID()}`, {
       method: 'DELETE',
     })
@@ -1204,19 +1204,19 @@ describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () =
     return err
   }
 
-  it('ValidationError (e.g. empty wiki title) maps to a validation tool error', async () => {
+  test('ValidationError (e.g. empty wiki title) maps to a validation tool error', async () => {
     const resp = await mcp('create_wiki_page', { title: '', content: 'body' })
     expectToolError(resp, 'validation')
   })
 
-  it('NotFoundError (unknown issue id) maps to a not_found tool error', async () => {
+  test('NotFoundError (unknown issue id) maps to a not_found tool error', async () => {
     const resp = await mcp('get_issue', { id: crypto.randomUUID() })
     const err = expectToolError(resp, 'not_found')
     expect(err?.message).toMatch(/not found/i)
   })
 
   // ForbiddenError (triggered by viewer calling a restricted tool)
-  it('ForbiddenError maps to a forbidden tool error', async () => {
+  test('ForbiddenError maps to a forbidden tool error', async () => {
     const roles = await seedWorkspaceRoles()
     const viewerHeaders = authHeaders(roles.viewer.token, roles.workspace.slug)
     const resp = await mcp('create_task_type', { key: 'epic', name: 'Epic' }, viewerHeaders, roles.workspace.id)
@@ -1224,7 +1224,7 @@ describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () =
   })
 
   // ConflictError (duplicate workspace slug)
-  it('ConflictError (duplicate workspace slug) maps to a conflict tool error', async () => {
+  test('ConflictError (duplicate workspace slug) maps to a conflict tool error', async () => {
     // Create workspace with a slug
     await mcp('create_workspace', { slug: 'conflict-slug', name: 'First' })
     // Create again with same slug → ConflictError
@@ -1246,7 +1246,7 @@ describe('PROJ-79: MCP protocol validation', () => {
     ownerHeaders = authHeaders(fixture.token, slug)
   })
 
-  it('wrong jsonrpc version returns HTTP 400 with error code -32600', async () => {
+  test('wrong jsonrpc version returns HTTP 400 with error code -32600', async () => {
     const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -1259,20 +1259,20 @@ describe('PROJ-79: MCP protocol validation', () => {
     })
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error: { code: number } }
-    expect(body.error.code).toBe(-32600)
+    expect(body.error.code).toBe(-32_600)
   })
 
-  it('unknown method returns JSON-RPC error -32601', async () => {
+  test('unknown method returns JSON-RPC error -32601', async () => {
     const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'foo/bar', params: {} }),
     })
     const body = (await res.json()) as { error: { code: number } }
-    expect(body.error.code).toBe(-32601)
+    expect(body.error.code).toBe(-32_601)
   })
 
-  it('unknown tool name returns JSON-RPC error -32601 with tool name in message', async () => {
+  test('unknown tool name returns JSON-RPC error -32601 with tool name in message', async () => {
     const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -1284,11 +1284,11 @@ describe('PROJ-79: MCP protocol validation', () => {
       }),
     })
     const body = (await res.json()) as { error: { code: number; message: string } }
-    expect(body.error.code).toBe(-32601)
+    expect(body.error.code).toBe(-32_601)
     expect(body.error.message).toContain('no_such_tool')
   })
 
-  it('unknown workspace slug returns 404 from workspaceMiddleware', async () => {
+  test('unknown workspace slug returns 404 from workspaceMiddleware', async () => {
     const fixture = await seedFixture()
     const res = await SELF.fetch(`http://localhost/mcp/${crypto.randomUUID()}`, {
       method: 'POST',
@@ -1303,7 +1303,7 @@ describe('PROJ-79: MCP protocol validation', () => {
     expect(res.status).toBe(404)
   })
 
-  it('non-object params on tools/call is handled without crashing', async () => {
+  test('non-object params on tools/call is handled without crashing', async () => {
     const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -1318,7 +1318,7 @@ describe('PROJ-79: MCP protocol validation', () => {
     expect(res.status).not.toBe(500)
   })
 
-  it('missing id field is handled (server echoes null/undefined id without crashing)', async () => {
+  test('missing id field is handled (server echoes null/undefined id without crashing)', async () => {
     const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -1341,7 +1341,7 @@ describe('PROJ-79: MCP protocol validation', () => {
 // ---------------------------------------------------------------------------
 
 describe('PROJ-430: CF Access certs fetch failure', () => {
-  it('returns 503, not 401 or 500, when the JWKS endpoint is unreachable', async () => {
+  test('returns 503, not 401 or 500, when the JWKS endpoint is unreachable', async () => {
     const keyPair = (await crypto.subtle.generateKey(
       {
         name: 'RSASSA-PKCS1-v1_5',
@@ -1390,7 +1390,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
   })
 
   describe('GET /auth/login', () => {
-    it('redirects to default root / with 302 when redirect_url query is omitted', async () => {
+    test('redirects to default root / with 302 when redirect_url query is omitted', async () => {
       const res = await SELF.fetch('http://localhost/auth/login', {
         redirect: 'manual',
       })
@@ -1398,7 +1398,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
       expect(res.headers.get('location')).toBe('/')
     })
 
-    it('redirects to specified redirect_url with 302', async () => {
+    test('redirects to specified redirect_url with 302', async () => {
       const res = await SELF.fetch('http://localhost/auth/login?redirect_url=/projects/view/proj-1', {
         redirect: 'manual',
       })
@@ -1406,7 +1406,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
       expect(res.headers.get('location')).toBe('/projects/view/proj-1')
     })
 
-    it('falls back to / for an absolute-URL redirect_url', async () => {
+    test('falls back to / for an absolute-URL redirect_url', async () => {
       const res = await SELF.fetch('http://localhost/auth/login?redirect_url=https://evil.example.com', {
         redirect: 'manual',
       })
@@ -1414,7 +1414,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
       expect(res.headers.get('location')).toBe('/')
     })
 
-    it('falls back to / for a protocol-relative redirect_url', async () => {
+    test('falls back to / for a protocol-relative redirect_url', async () => {
       const res = await SELF.fetch('http://localhost/auth/login?redirect_url=//evil.example.com', {
         redirect: 'manual',
       })
@@ -1422,7 +1422,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
       expect(res.headers.get('location')).toBe('/')
     })
 
-    it('falls back to / for a javascript: redirect_url', async () => {
+    test('falls back to / for a javascript: redirect_url', async () => {
       const res = await SELF.fetch(
         `http://localhost/auth/login?redirect_url=${encodeURIComponent('javascript:alert(1)')}`,
         { redirect: 'manual' },

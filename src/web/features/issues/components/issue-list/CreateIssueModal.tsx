@@ -1,13 +1,13 @@
 'use client'
 import type { Dispatch, SetStateAction } from 'react'
 
-import { Button } from '../../../../components/ui/Button'
-import { Dialog } from '../../../../components/ui/Dialog'
-import Select from '../../../../components/ui/Select'
-import { PRIORITY_OPTIONS } from '../../utils/issue-utils'
-import type { TaskStatus } from '../board-utils'
-import MarkdownEditor from '../LazyMarkdownEditor'
-import type { ProjectMeta } from './types'
+import { Button } from '../../../../components/ui/Button.tsx'
+import { Dialog } from '../../../../components/ui/Dialog.tsx'
+import Select from '../../../../components/ui/Select.tsx'
+import { PRIORITY_OPTIONS } from '../../utils/issue-utils.ts'
+import type { TaskStatus } from '../board-utils.ts'
+import MarkdownEditor from '../LazyMarkdownEditor.tsx'
+import type { ProjectMeta } from './types.ts'
 
 // PROJ-566: a caption *sibling*, never a wrapper. A <label> with no `for` binds to
 // its first labelable descendant — for a Select that's the trigger <button>, so the
@@ -35,7 +35,7 @@ interface CreateIssueModalProps {
   submitCreate: (formData: FormData) => void
   setShowCreateModal: Dispatch<SetStateAction<boolean>>
   projects: ProjectMeta[]
-  taskTypes: Array<{ id: string; key: string; name: string }>
+  taskTypes: { id: string; key: string; name: string }[]
   statuses: TaskStatus[]
 }
 

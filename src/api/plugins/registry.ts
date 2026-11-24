@@ -1,6 +1,6 @@
 import type { Plugin as DomainPlugin } from '#types'
 
-import type { MCPTool } from '../mcp/types'
+import type { MCPTool } from '../mcp/types.ts'
 
 type Plugin = Omit<DomainPlugin, 'mcpTools'> & { mcpTools?: MCPTool[] }
 

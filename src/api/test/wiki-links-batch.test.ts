@@ -2,15 +2,15 @@
 // not 1–3 per link, and produces the same wiki_links rows as before.
 
 import { SELF } from 'cloudflare:test'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture } from './helpers.ts'
 
 describe('PROJ-858: batched slug link resolution on save', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('200 distinct slug links (direct, redirected, missing) resolve correctly in O(1) reads', async () => {
+  test('200 distinct slug links (direct, redirected, missing) resolve correctly in O(1) reads', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const now = Math.floor(Date.now() / 1000)
     const insertPage = (id: string, slug: string, title: string, deletedAt: number | null = null) =>

@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 
-import * as feedbackQueries from '#services/feedback'
+import * as feedbackQueries from '#services/feedback.ts'
 
 import {
   CreateFeedbackSourceSchema,
@@ -9,10 +9,10 @@ import {
   RevokeFeedbackSourceSchema,
   RotateFeedbackSourceSchema,
   UpdateFeedbackSourceSchema,
-} from '../../contracts/inputs/feedback'
-import { assertProjectAccess, isWorkspaceAdmin, requireProjectInWorkspace } from './access'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+} from '../../contracts/inputs/feedback.ts'
+import { assertProjectAccess, isWorkspaceAdmin, requireProjectInWorkspace } from './access.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
 
 export interface FeedbackSourceView {
   id: string
@@ -71,17 +71,23 @@ async function requireSource(ctx: ServiceCtx, sourceId: string, projectId?: stri
     )
     .bind(...binds)
     .first<SourceRow>()
-  if (!row) throw new NotFoundError('Feedback source not found')
+  if (!row) {
+    throw new NotFoundError('Feedback source not found')
+  }
   return row
 }
 
 export async function createFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<{ id: string; token: string }> {
   const parsed = CreateFeedbackSourceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { projectId, name, description, allowedOrigins } = parsed.data
 
   await requireProjectInWorkspace(ctx, projectId)
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 
   const token = newRawToken()
   const tokenHash = await sha256hex(token)
@@ -113,11 +119,15 @@ export async function createFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
 
 export async function listFeedbackSources(ctx: ServiceCtx, input: unknown): Promise<FeedbackSourceView[]> {
   const parsed = ListFeedbackSourcesSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { projectId } = parsed.data
 
   await requireProjectInWorkspace(ctx, projectId)
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 
   const results = await Effect.runPromise(feedbackQueries.listFeedbackSources(ctx.db, ctx.workspaceId, { projectId }))
 
@@ -135,17 +145,23 @@ export async function listFeedbackSources(ctx: ServiceCtx, input: unknown): Prom
 
 export async function getFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<FeedbackSourceDetailView> {
   const parsed = GetFeedbackSourceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
 
   const row = await Effect.runPromise(
     feedbackQueries.findFeedbackSourceById(ctx.db, ctx.workspaceId, parsed.data.sourceId),
   )
-  if (!row) throw new NotFoundError('Feedback source not found')
+  if (!row) {
+    throw new NotFoundError('Feedback source not found')
+  }
   await assertProjectAccess(ctx, row.project_id, 'read', {
     notFoundMessage: 'Feedback source not found',
     projectLoadedFromWorkspaceRow: true,
   })
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
   return {
     id: row.id,
     projectId: row.project_id,
@@ -161,12 +177,18 @@ export async function getFeedbackSource(ctx: ServiceCtx, input: unknown): Promis
 
 export async function updateFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = UpdateFeedbackSourceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { sourceId, projectId, name, description, isActive } = parsed.data
 
   const source = await requireSource(ctx, sourceId, projectId)
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
-  if (source.revoked_at !== null) throw new ConflictError('Feedback source is revoked')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
+  if (source.revoked_at !== null) {
+    throw new ConflictError('Feedback source is revoked')
+  }
 
   const sets: string[] = []
   const binds: unknown[] = []
@@ -194,12 +216,18 @@ export async function updateFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
 
 export async function rotateFeedbackSourceToken(ctx: ServiceCtx, input: unknown): Promise<{ token: string }> {
   const parsed = RotateFeedbackSourceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { sourceId, projectId } = parsed.data
 
   const source = await requireSource(ctx, sourceId, projectId)
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
-  if (source.revoked_at !== null) throw new ConflictError('Feedback source is revoked')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
+  if (source.revoked_at !== null) {
+    throw new ConflictError('Feedback source is revoked')
+  }
 
   const token = newRawToken()
   const tokenHash = await sha256hex(token)
@@ -213,11 +241,15 @@ export async function rotateFeedbackSourceToken(ctx: ServiceCtx, input: unknown)
 
 export async function revokeFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = RevokeFeedbackSourceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { sourceId, projectId } = parsed.data
 
   await requireSource(ctx, sourceId, projectId)
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 
   const now = Math.floor(Date.now() / 1000)
   await ctx.db

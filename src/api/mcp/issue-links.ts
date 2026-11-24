@@ -1,7 +1,7 @@
-import { ValidationError } from '../../contracts/errors'
-import { createLink, deleteLink, listLinksForIssue } from '../services/issue-links'
-import { CREATE, DESTRUCTIVE, READ } from './annotations'
-import type { MCPTool } from './types'
+import { ValidationError } from '../../contracts/errors.ts'
+import { createLink, deleteLink, listLinksForIssue } from '../services/issue-links.ts'
+import { CREATE, DESTRUCTIVE, READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 export const issueLinksTools: MCPTool[] = [
   {

@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 
-import * as attachmentData from '#services/files'
+import * as attachmentData from '#services/files.ts'
 
 import {
   CreateLinkAttachmentSchema,
@@ -9,19 +9,19 @@ import {
   ListAttachmentsSchema,
   RecordFileUploadSchema,
   SetAttachmentReviewStatusSchema,
-} from '../../contracts/inputs/files'
-import type { ReviewStatus } from '../../contracts/review-targets'
-import { wikiPagePath } from '../../contracts/urls'
-import { assertIssueAccess, canWriteProject, requireProjectAccess, visibleProjectSqlFragment } from './access'
+} from '../../contracts/inputs/files.ts'
+import type { ReviewStatus } from '../../contracts/review-targets.ts'
+import { wikiPagePath } from '../../contracts/urls.ts'
+import { assertIssueAccess, canWriteProject, requireProjectAccess, visibleProjectSqlFragment } from './access.ts'
 import {
   ForbiddenError,
   NotFoundError,
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from './errors'
-import type { ServiceCtx } from './types'
-import * as wikiService from './wiki'
+} from './errors.ts'
+import type { ServiceCtx } from './types.ts'
+import * as wikiService from './wiki.ts'
 
 // PROJ-425: attachments never checked ctx.role at all — a viewer could create/delete
 // them. Mirrors comments.ts's flat viewer guard rather than wiki.ts's per-project
@@ -29,7 +29,9 @@ import * as wikiService from './wiki'
 // issue/wiki page row (they're free-floating metadata keyed by entity_type/entity_id),
 // so resolving a project to check per-project role isn't possible in general.
 function requireAttachmentWrite(ctx: ServiceCtx): void {
-  if (ctx.role === 'viewer') throw new ForbiddenError('Insufficient permissions')
+  if (ctx.role === 'viewer') {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 }
 
 // PROJ-639: nothing resolved an attachment to the project it hangs off, so project
@@ -50,7 +52,9 @@ function requireAttachmentWrite(ctx: ServiceCtx): void {
 function ownerVisibleFilter(ctx: ServiceCtx): { sql: string; params: unknown[] } | null {
   const issue = visibleProjectSqlFragment(ctx, 'i.project_id')
   const page = visibleProjectSqlFragment(ctx, 'p.project_id')
-  if (!issue || !page) return null
+  if (!issue || !page) {
+    return null
+  }
   return {
     sql: `NOT EXISTS (SELECT 1 FROM issues i
 		        WHERE a.entity_type = 'issue' AND i.id = a.entity_id AND NOT ${issue.sql})
@@ -141,7 +145,9 @@ function toDto(r: attachmentData.AttachmentMetadata): AttachmentDto {
 
 export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto[]> {
   const parsed = ListAttachmentsSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { entityType, entityId } = parsed.data
 
   // PROJ-311/PROJ-407: only join in wiki page details the caller is actually allowed to
@@ -165,7 +171,9 @@ export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<
 /** Review selection requires a real writable issue in an active project, unlike legacy free-floating attachments. */
 export async function setAttachmentReviewStatus(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = SetAttachmentReviewStatusSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { issueId, attachmentId, status } = parsed.data
   await assertIssueAccess(ctx, issueId, 'edit')
   const updated = await ctx.db
@@ -179,7 +187,9 @@ export async function setAttachmentReviewStatus(ctx: ServiceCtx, input: unknown)
     RETURNING id`)
     .bind(status, attachmentId, ctx.workspaceId, issueId)
     .first<{ id: string }>()
-  if (!updated) throw new NotFoundError('Review target not found')
+  if (!updated) {
+    throw new NotFoundError('Review target not found')
+  }
   return { ok: true }
 }
 
@@ -188,7 +198,9 @@ export async function createLinkAttachment(
   input: unknown,
 ): Promise<{ id: string; kind: 'wiki_ref' | 'url' }> {
   const parsed = CreateLinkAttachmentSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const data = parsed.data
 
   await assertEntityWritable(ctx, data.entityType, data.entityId)
@@ -306,7 +318,9 @@ export async function getStoredAttachment(
 ): Promise<{ body: ArrayBuffer; filename: string; contentType: string } | null> {
   const metadata = await getAttachmentForDownload(ctx, id)
   const object = await ctx.r2.get(metadata.r2Key)
-  if (!object) return null
+  if (!object) {
+    return null
+  }
   return { body: await object.arrayBuffer(), filename: metadata.filename, contentType: metadata.contentType }
 }
 
@@ -322,7 +336,9 @@ export async function recordUpload(
   quotaBytes = DEFAULT_STORAGE_QUOTA_BYTES,
 ): Promise<{ id: string }> {
   const parsed = RecordFileUploadSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { entityType, entityId, filename, contentType, size, r2Key } = parsed.data
 
   await assertEntityWritable(ctx, entityType, entityId)
@@ -378,14 +394,18 @@ export async function getAttachmentForDownload(
     .bind(id, ctx.workspaceId, ...(owner ? owner.params : []))
     .first<{ r2_key: string; filename: string; content_type: string }>()
 
-  if (!row) throw new NotFoundError('Not found')
+  if (!row) {
+    throw new NotFoundError('Not found')
+  }
   return { r2Key: row.r2_key, filename: row.filename, contentType: row.content_type }
 }
 
 /** Attachment metadata in the same shape `listAttachments` returns, for the MCP get_attachment tool. */
 export async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto> {
   const parsed = GetAttachmentSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
 
   const visible = visibleProjectSqlFragment(ctx, 'w.project_id')
   const owner = ownerVisibleFilter(ctx)
@@ -396,14 +416,18 @@ export async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<At
     }),
   )
 
-  if (!row) throw new NotFoundError('Not found')
+  if (!row) {
+    throw new NotFoundError('Not found')
+  }
   return toDto(row)
 }
 
 /** Deletes bytes before metadata so a storage failure retains the authorized retry key. */
 export async function deleteAttachment(ctx: ServiceCtx, input: unknown): Promise<{ r2Key: string }> {
   const parsed = DeleteAttachmentSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
 
   const owner = ownerVisibleFilter(ctx)
 
@@ -415,9 +439,13 @@ export async function deleteAttachment(ctx: ServiceCtx, input: unknown): Promise
     .bind(parsed.data.id, ctx.workspaceId, ...(owner ? owner.params : []))
     .first<{ r2_key: string; entity_type: 'issue' | 'wiki_page'; entity_id: string }>()
 
-  if (!row) throw new NotFoundError('Not found')
+  if (!row) {
+    throw new NotFoundError('Not found')
+  }
   await assertEntityWritable(ctx, row.entity_type, row.entity_id)
-  if (row.r2_key) await ctx.r2.delete(row.r2_key)
+  if (row.r2_key) {
+    await ctx.r2.delete(row.r2_key)
+  }
 
   await ctx.db
     .prepare('DELETE FROM attachments WHERE id = ? AND workspace_id = ?')

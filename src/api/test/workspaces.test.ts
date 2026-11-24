@@ -1,11 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
   seedFixture,
   seedMember,
   seedProject,
@@ -14,7 +12,8 @@ import {
   seedUserToken,
   seedWorkspace,
   toolError,
-} from './helpers'
+} from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 
 async function mcpCall<T>(
   workspaceId: string,
@@ -55,38 +54,38 @@ describe('Workspaces MCP', () => {
     userHeaders = authHeaders(userToken, slug)
   })
 
-  it('list_workspaces returns the single workspace the user belongs to', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('list_workspaces returns the single workspace the user belongs to', async () => {
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_workspaces',
       {},
       userHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const data = JSON.parse(res.result.content[0].text) as Array<{ id: string; role: string }>
+    const data = JSON.parse(res.result.content[0].text) as { id: string; role: string }[]
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(1)
     expect(data[0].id).toBe(workspaceId)
     expect(data[0].role).toBe('owner')
   })
 
-  it('list_workspaces returns both workspaces when user is a member of two', async () => {
+  test('list_workspaces returns both workspaces when user is a member of two', async () => {
     // Add user to a second workspace
     const ws2 = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
     await seedMember(ws2.id, userId, 'member')
     const token2 = await seedToken(ws2.id, userId)
 
     // Call using either workspace as the path param — should still return both
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_workspaces',
       {},
       userHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const data = JSON.parse(res.result.content[0].text) as Array<{ id: string }>
+    const data = JSON.parse(res.result.content[0].text) as { id: string }[]
     expect(data).toHaveLength(2)
     const ids = data.map((w) => w.id)
     expect(ids).toContain(workspaceId)
@@ -95,46 +94,46 @@ describe('Workspaces MCP', () => {
     void token2
   })
 
-  it('list_workspaces does not expose workspaces of other users', async () => {
+  test('list_workspaces does not expose workspaces of other users', async () => {
     // Create a second user with their own workspace
     const other = await seedFixture({ role: 'owner' })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_workspaces',
       {},
       userHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const data = JSON.parse(res.result.content[0].text) as Array<{ id: string }>
+    const data = JSON.parse(res.result.content[0].text) as { id: string }[]
     const ids = data.map((w) => w.id)
     expect(ids).not.toContain(other.workspace.id)
   })
 
-  it('list_workspaces returns workspace id, name, slug, role fields', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('list_workspaces returns workspace id, name, slug, role fields', async () => {
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_workspaces',
       {},
       userHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const data = JSON.parse(res.result.content[0].text) as Array<Record<string, unknown>>
+    const data = JSON.parse(res.result.content[0].text) as Record<string, unknown>[]
     expect(data[0]).toHaveProperty('id')
     expect(data[0]).toHaveProperty('name')
     expect(data[0]).toHaveProperty('slug')
     expect(data[0]).toHaveProperty('role')
   })
 
-  it('create_workspace creates a workspace and returns id, name, slug', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('create_workspace creates a workspace and returns id, name, slug', async () => {
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'create_workspace',
       { slug: 'new-ws', name: 'New Workspace' },
       userHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
     const created = JSON.parse(res.result.content[0].text) as {
@@ -147,55 +146,55 @@ describe('Workspaces MCP', () => {
     expect(created.slug).toBe('new-ws')
   })
 
-  it('create_workspace adds caller as owner and seeds defaults', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('create_workspace adds caller as owner and seeds defaults', async () => {
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'create_workspace',
       { slug: 'seeded-ws', name: 'Seeded' },
       userHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
     const created = JSON.parse(res.result.content[0].text) as { id: string }
 
     // Caller should be able to list it via list_workspaces
-    const listRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const listRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_workspaces',
       {},
       userHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const workspaces = JSON.parse(listRes.result.content[0].text) as Array<{
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const workspaces = JSON.parse(listRes.result.content[0].text) as {
       id: string
       role: string
-    }>
+    }[]
     const newWs = workspaces.find((w) => w.id === created.id)
     expect(newWs).toBeDefined()
     expect(newWs?.role).toBe('owner')
   })
 
-  it('create_workspace returns conflict error when slug already taken', async () => {
+  test('create_workspace returns conflict error when slug already taken', async () => {
     await mcpCall(workspaceId, 'create_workspace', { slug: 'dup-slug', name: 'First' }, userHeaders)
     const res = await mcpCall(workspaceId, 'create_workspace', { slug: 'dup-slug', name: 'Second' }, userHeaders)
     expect(toolError(res)?.code).toBe('conflict')
     expect(toolError(res)?.message).toMatch(/slug already taken/i)
   })
 
-  it('create_workspace returns error when required fields missing', async () => {
+  test('create_workspace returns error when required fields missing', async () => {
     const res = await mcpCall(workspaceId, 'create_workspace', { name: 'No Slug' }, userHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('delete_workspace removes the workspace and returns ok: true', async () => {
+  test('delete_workspace removes the workspace and returns ok: true', async () => {
     const extra = await seedFixture({ role: 'owner' })
     const extraHeaders = authHeaders(extra.token, extra.workspace.slug)
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       extra.workspace.id,
       'delete_workspace',
       { workspaceSlug: extra.workspace.slug },
       extraHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
     const data = JSON.parse(res.result.content[0].text) as { ok: boolean }
@@ -204,7 +203,7 @@ describe('Workspaces MCP', () => {
 
   // The zero-project path above only proves the guard's count reads 0. This covers the
   // other side of it, which nothing else exercised (PROJ-647 rewrote it to use $count).
-  it('delete_workspace refuses while the workspace still has projects', async () => {
+  test('delete_workspace refuses while the workspace still has projects', async () => {
     const extra = await seedFixture({ role: 'owner' })
     const extraHeaders = authHeaders(extra.token, extra.workspace.slug)
     await seedProject(extra.workspace.id, `P${crypto.randomUUID().slice(0, 6).toUpperCase()}`)
@@ -225,7 +224,7 @@ describe('Workspaces MCP', () => {
       return row !== null
     }
 
-    it("owner of A cannot delete B (not a member of B) via A's MCP URL", async () => {
+    test("owner of A cannot delete B (not a member of B) via A's MCP URL", async () => {
       const a = await seedFixture({ role: 'owner' })
       const victim = await seedWorkspace(`victim-${crypto.randomUUID().slice(0, 8)}`)
 
@@ -242,7 +241,7 @@ describe('Workspaces MCP', () => {
       expect(await workspaceExists(a.workspace.id)).toBe(true)
     })
 
-    it("owner of A and B, using a token confined to A, cannot delete B via A's MCP URL", async () => {
+    test("owner of A and B, using a token confined to A, cannot delete B via A's MCP URL", async () => {
       const a = await seedFixture({ role: 'owner' })
       const b = await seedWorkspace(`both-${crypto.randomUUID().slice(0, 8)}`)
       await seedMember(b.id, a.user.id, 'owner')
@@ -259,9 +258,9 @@ describe('Workspaces MCP', () => {
     })
   })
 
-  it('delete_workspace returns error for non-owner', async () => {
+  test('delete_workspace returns error for non-owner', async () => {
     const ws = await seedWorkspace(`mcp-del-${crypto.randomUUID().slice(0, 8)}`)
-    const memberUser = await import('./helpers').then((h) =>
+    const memberUser = await import('./helpers.ts').then((h) =>
       h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
     )
     await seedMember(ws.id, memberUser.id, 'member')
@@ -272,7 +271,7 @@ describe('Workspaces MCP', () => {
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('delete_workspace returns error when workspace has projects', async () => {
+  test('delete_workspace returns error when workspace has projects', async () => {
     const extra = await seedFixture({ role: 'owner' })
     await seedProject(extra.workspace.id)
     const extraHeaders = authHeaders(extra.token, extra.workspace.slug)
@@ -287,13 +286,13 @@ describe('Workspaces MCP', () => {
     expect(toolError(res)?.message).toMatch(/delete all projects/i)
   })
 
-  it('update_workspace renames the workspace (PROJ-246)', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('update_workspace renames the workspace (PROJ-246)', async () => {
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'update_workspace',
       { name: 'Renamed via MCP' },
       userHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
     const data = JSON.parse(res.result.content[0].text) as { ok: boolean }
@@ -306,9 +305,9 @@ describe('Workspaces MCP', () => {
     expect(workspace.name).toBe('Renamed via MCP')
   })
 
-  it('update_workspace returns error for member role (PROJ-246)', async () => {
+  test('update_workspace returns error for member role (PROJ-246)', async () => {
     const ws = await seedWorkspace(`mcp-update-${crypto.randomUUID().slice(0, 8)}`)
-    const memberUser = await import('./helpers').then((h) =>
+    const memberUser = await import('./helpers.ts').then((h) =>
       h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
     )
     await seedMember(ws.id, memberUser.id, 'member')
@@ -319,7 +318,7 @@ describe('Workspaces MCP', () => {
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('update_workspace returns error when name missing (PROJ-246)', async () => {
+  test('update_workspace returns error when name missing (PROJ-246)', async () => {
     const res = await mcpCall(workspaceId, 'update_workspace', {}, userHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })
@@ -339,7 +338,7 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     ownerHeaders = authHeaders(ownerToken, slug)
   })
 
-  it('owner can delete a workspace with no projects → 200 { ok: true }', async () => {
+  test('owner can delete a workspace with no projects → 200 { ok: true }', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
       method: 'DELETE',
       headers: ownerHeaders,
@@ -349,9 +348,9 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     expect(body.ok).toBe(true)
   })
 
-  it('non-owner gets 403', async () => {
+  test('non-owner gets 403', async () => {
     const ws = await seedWorkspace(`del-403-${crypto.randomUUID().slice(0, 8)}`)
-    const memberUser = await import('./helpers').then((h) =>
+    const memberUser = await import('./helpers.ts').then((h) =>
       h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
     )
     await seedMember(ws.id, memberUser.id, 'member')
@@ -363,10 +362,10 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     expect(res.status).toBe(403)
   })
 
-  it('deleting DEFAULT_WORKSPACE_SLUG → 400 ValidationError', async () => {
+  test('deleting DEFAULT_WORKSPACE_SLUG → 400 ValidationError', async () => {
     // The dev wrangler.toml sets DEFAULT_WORKSPACE_SLUG = "projektor"
     const defaultWs = await seedWorkspace('projektor')
-    const ownerUser = await import('./helpers').then((h) =>
+    const ownerUser = await import('./helpers.ts').then((h) =>
       h.seedUser(`owner-def-${crypto.randomUUID().slice(0, 8)}@example.com`),
     )
     await seedMember(defaultWs.id, ownerUser.id, 'owner')
@@ -378,7 +377,7 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('workspace with projects → 409 ConflictError', async () => {
+  test('workspace with projects → 409 ConflictError', async () => {
     await seedProject(workspaceId)
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
       method: 'DELETE',
@@ -387,7 +386,7 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     expect(res.status).toBe(409)
   })
 
-  it('URL slug mismatched with X-Workspace-Slug header → 404, neither workspace is deleted (PROJ-437)', async () => {
+  test('URL slug mismatched with X-Workspace-Slug header → 404, neither workspace is deleted (PROJ-437)', async () => {
     // ctx.workspaceId (and thus the actual delete target) is resolved from the header,
     // not the URL. Naming a *different* workspace in the URL must not silently delete
     // the header's workspace, nor the URL's.
@@ -412,7 +411,7 @@ describe('Member removal tombstone (PROJ-436)', () => {
       .first<{ removed_at: number }>()
   }
 
-  it('removing a member records a tombstone; re-inviting them clears it', async () => {
+  test('removing a member records a tombstone; re-inviting them clears it', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const memberUser = await seedUser(`m-436-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(fixture.workspace.id, memberUser.id, 'member')
@@ -436,7 +435,7 @@ describe('Member removal tombstone (PROJ-436)', () => {
 })
 
 describe('GET /api/workspaces/:slug (currentUserRole)', () => {
-  it("returns members and the caller's own role for an owner", async () => {
+  test("returns members and the caller's own role for an owner", async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const res = await SELF.fetch(`http://localhost/api/workspaces/${fixture.workspace.slug}`, {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
@@ -447,7 +446,7 @@ describe('GET /api/workspaces/:slug (currentUserRole)', () => {
     expect(Array.isArray(body.members)).toBe(true)
   })
 
-  it("reports the caller's role as viewer when they are a viewer", async () => {
+  test("reports the caller's role as viewer when they are a viewer", async () => {
     const fixture = await seedFixture({ role: 'viewer' })
     const res = await SELF.fetch(`http://localhost/api/workspaces/${fixture.workspace.slug}`, {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
@@ -472,7 +471,7 @@ describe('GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
     memberHeaders = authHeaders(memberToken, slug)
   })
 
-  it('returns mcpUrl, workspaceId, workspaceSlug, mcpAddCommandTemplate', async () => {
+  test('returns mcpUrl, workspaceId, workspaceSlug, mcpAddCommandTemplate', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/mcp-info`, {
       headers: memberHeaders,
     })
@@ -491,7 +490,7 @@ describe('GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
     expect(body.mcpAddCommandTemplate).toContain(slug)
   })
 
-  it('mcpAddCommandTemplate puts flags before the name/url positionals (PROJ-620)', async () => {
+  test('mcpAddCommandTemplate puts flags before the name/url positionals (PROJ-620)', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/mcp-info`, {
       headers: memberHeaders,
     })
@@ -522,7 +521,7 @@ describe('Workspace brand (PROJ-761)', () => {
     memberHeaders = authHeaders(memberToken, slug)
   })
 
-  it('GET /:slug/brand returns all-null defaults for a workspace with no brand set', async () => {
+  test('GET /:slug/brand returns all-null defaults for a workspace with no brand set', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
@@ -537,7 +536,7 @@ describe('Workspace brand (PROJ-761)', () => {
     })
   })
 
-  it('owner can PATCH accent/displayName and a member can read the result back', async () => {
+  test('owner can PATCH accent/displayName and a member can read the result back', async () => {
     const patchRes = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -556,7 +555,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(brand.accent).toBe('#ff8800')
   })
 
-  it('a member (non admin/owner) gets 403 on PATCH', async () => {
+  test('a member (non admin/owner) gets 403 on PATCH', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: memberHeaders,
@@ -565,7 +564,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(res.status).toBe(403)
   })
 
-  it('rejects a non-hex accent value with 400', async () => {
+  test('rejects a non-hex accent value with 400', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -574,7 +573,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('explicit null clears a previously-set field without touching the others', async () => {
+  test('explicit null clears a previously-set field without touching the others', async () => {
     await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -590,7 +589,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(body.accent).toBeNull()
   })
 
-  it("owner can upload a logo, it's servable, and a re-upload replaces (not duplicates) the R2 object", async () => {
+  test("owner can upload a logo, it's servable, and a re-upload replaces (not duplicates) the R2 object", async () => {
     const pngBytes = new Uint8Array([
       0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
     ])
@@ -626,7 +625,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(reuploadRes.status).toBe(201)
   })
 
-  it('rejects an oversized logo with 413', async () => {
+  test('rejects an oversized logo with 413', async () => {
     const big = new Uint8Array(2 * 1024 * 1024 + 1)
     const form = new FormData()
     form.append('file', new File([big], 'big.png', { type: 'image/png' }))
@@ -638,7 +637,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(res.status).toBe(413)
   })
 
-  it('rejects a disallowed logo content type with 415', async () => {
+  test('rejects a disallowed logo content type with 415', async () => {
     const form = new FormData()
     form.append('file', new File(['<svg></svg>'], 'logo.svg', { type: 'image/svg+xml' }))
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
@@ -649,7 +648,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(res.status).toBe(415)
   })
 
-  it('a member (non admin/owner) gets 403 on logo upload', async () => {
+  test('a member (non admin/owner) gets 403 on logo upload', async () => {
     const form = new FormData()
     form.append('file', new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }))
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
@@ -660,14 +659,14 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(res.status).toBe(403)
   })
 
-  it('GET logo → 404 when no logo has been uploaded', async () => {
+  test('GET logo → 404 when no logo has been uploaded', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       headers: memberHeaders,
     })
     expect(res.status).toBe(404)
   })
 
-  it('owner can delete the logo, which then 404s', async () => {
+  test('owner can delete the logo, which then 404s', async () => {
     const form = new FormData()
     form.append('file', new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }))
     await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
@@ -693,7 +692,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(((await brandRes.json()) as { logoUrl: string | null }).logoUrl).toBeNull()
   })
 
-  it('a member (non admin/owner) gets 403 on logo delete', async () => {
+  test('a member (non admin/owner) gets 403 on logo delete', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       method: 'DELETE',
       headers: memberHeaders,
@@ -701,7 +700,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(res.status).toBe(403)
   })
 
-  it('review finding 2: rejects a javascript: fontUrl with 400', async () => {
+  test('review finding 2: rejects a javascript: fontUrl with 400', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -710,7 +709,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('review finding 2: rejects a data: fontUrl with 400', async () => {
+  test('review finding 2: rejects a data: fontUrl with 400', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -719,7 +718,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('review finding 2: accepts an https: fontUrl', async () => {
+  test('review finding 2: accepts an https: fontUrl', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -730,8 +729,8 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(body.fontUrl).toBe('https://fonts.example.com/font.css')
   })
 
-  it('review finding 3: GET logo 404s when the stored R2 key belongs to another workspace', async () => {
-    const { env } = await import('./fixture-api')
+  test('review finding 3: GET logo 404s when the stored R2 key belongs to another workspace', async () => {
+    const { env } = await import('./fixture-api.ts')
     const foreignKey = `${crypto.randomUUID()}/brand-logo/${crypto.randomUUID()}`
     await env.R2.put(foreignKey, new Uint8Array([1, 2, 3]))
     await env.DB.prepare('UPDATE workspaces SET brand = ? WHERE slug = ?')
@@ -744,7 +743,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(res.status).toBe(404)
   })
 
-  it("review finding 4: PATCH /:slug/brand operates on the header-resolved workspace, not the URL slug, and doesn't touch the URL's workspace", async () => {
+  test("review finding 4: PATCH /:slug/brand operates on the header-resolved workspace, not the URL slug, and doesn't touch the URL's workspace", async () => {
     const other = await seedFixture({ role: 'owner' })
 
     const patchRes = await SELF.fetch(`http://localhost/api/workspaces/${other.workspace.slug}/brand`, {
@@ -770,7 +769,7 @@ describe('Workspace brand (PROJ-761)', () => {
 })
 
 describe('Workspace brand R2 cleanup (review finding 5)', () => {
-  it('deleting a workspace removes its uploaded logo from R2', async () => {
+  test('deleting a workspace removes its uploaded logo from R2', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -785,7 +784,7 @@ describe('Workspace brand R2 cleanup (review finding 5)', () => {
       body: form,
     })
 
-    const { env } = await import('./fixture-api')
+    const { env } = await import('./fixture-api.ts')
     const row = await env.DB.prepare('SELECT brand FROM workspaces WHERE id = ?')
       .bind(owner.workspace.id)
       .first<{ brand: string }>()

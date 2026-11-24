@@ -2,16 +2,16 @@
 
 import { Effect, Schema } from 'effect'
 
-import { EFFRONT } from '../../effront'
-import { RequestServices } from '../../request'
-import { runBrowserCommand as runCommand } from '../../server/browser-command'
-import { dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context'
-import { ScopeError } from '../../server/errors'
-import { resolveFunctionContext } from '../../server/function-context'
-import { checkSameOriginMutation } from '../../server/mutation'
-import type { RequestScope } from '../../server/request-context'
-import { readDataIssue, readSprint } from '../issues/data'
-import { sprintCommands } from './data'
+import { EFFRONT } from '../../effront.ts'
+import { RequestServices } from '../../request.ts'
+import { runBrowserCommand as runCommand } from '../../server/browser-command.ts'
+import { dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context.ts'
+import { ScopeError } from '../../server/errors.ts'
+import { resolveFunctionContext } from '../../server/function-context.ts'
+import { checkSameOriginMutation } from '../../server/mutation.ts'
+import type { RequestScope } from '../../server/request-context.ts'
+import { readDataIssue, readSprint } from '../issues/data.ts'
+import { sprintCommands } from './data.ts'
 import {
   CreateSprintInputSchema,
   calendarTimestamp,
@@ -19,7 +19,7 @@ import {
   MoveSprintIssuesSchema,
   SprintIdentitySchema,
   SprintStatusInputSchema,
-} from './input-schemas'
+} from './input-schemas.ts'
 function sprintInProject(scope: RequestScope, workspaceId: string, projectId: string, sprintId: string) {
   return Effect.gen(function* () {
     yield* Effect.try({
@@ -30,8 +30,9 @@ function sprintInProject(scope: RequestScope, workspaceId: string, projectId: st
       catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     })
     const sprint = yield* readSprint(workspaceId, sprintId)
-    if (!sprint || sprint.projectId !== projectId)
+    if (!sprint || sprint.projectId !== projectId) {
       return yield* new ScopeError(404, 'Sprint not found in the selected project.')
+    }
     return sprint
   })
 }
@@ -44,8 +45,9 @@ export const createSprint = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireProject: true })
-        if (context.scope.selection.kind !== 'project')
+        if (context.scope.selection.kind !== 'project') {
           return yield* new ScopeError(404, 'Select an accessible project.')
+        }
         const { project } = context.scope.selection
         const startDate = calendarTimestamp(input.start, input.startOffset)
         const endDate = calendarTimestamp(input.end, input.endOffset)
@@ -76,8 +78,9 @@ export const editSprint = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireProject: true })
-        if (context.scope.selection.kind !== 'project')
+        if (context.scope.selection.kind !== 'project') {
           return yield* new ScopeError(404, 'Select an accessible project.')
+        }
         const { project, workspace } = context.scope.selection
         yield* sprintInProject(context.scope, workspace.id, project.id, input.sprintId)
         const value = yield* runCommand(context, (ctx) =>
@@ -106,8 +109,9 @@ export const setSprintStatus = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireProject: true })
-        if (context.scope.selection.kind !== 'project')
+        if (context.scope.selection.kind !== 'project') {
           return yield* new ScopeError(404, 'Select an accessible project.')
+        }
         const { project, workspace } = context.scope.selection
         yield* sprintInProject(context.scope, workspace.id, project.id, input.sprintId)
         const value = yield* runCommand(context, (ctx) =>
@@ -131,8 +135,9 @@ export const archiveSprint = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireProject: true })
-        if (context.scope.selection.kind !== 'project')
+        if (context.scope.selection.kind !== 'project') {
           return yield* new ScopeError(404, 'Select an accessible project.')
+        }
         const { project, workspace } = context.scope.selection
         yield* sprintInProject(context.scope, workspace.id, project.id, input.sprintId)
         const value = yield* runCommand(context, (ctx) => sprintCommands.deleteSprint(ctx, input.sprintId)).pipe(
@@ -156,8 +161,9 @@ export const moveSprintIssues = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireProject: true })
-        if (context.scope.selection.kind !== 'project')
+        if (context.scope.selection.kind !== 'project') {
           return yield* new ScopeError(404, 'Select an accessible project.')
+        }
         const { project, workspace } = context.scope.selection
         const [source, target] = yield* Effect.all(
           [
@@ -166,14 +172,16 @@ export const moveSprintIssues = EFFRONT.ServerFn.make({
           ],
           { concurrency: 2 },
         )
-        if (source.projectId !== project.id || target.projectId !== project.id || target.status === 'completed')
+        if (source.projectId !== project.id || target.projectId !== project.id || target.status === 'completed') {
           return yield* new ScopeError(404, 'Choose an available sprint in the selected project.')
+        }
         const issues = yield* Effect.all(
           input.issueIds.map((id) => readDataIssue(context.scope, workspace.id, id, project.id)),
           { concurrency: 4 },
         )
-        if (issues.some((issue) => !issue || issue.project_id !== project.id || issue.sprint_id !== source.id))
+        if (issues.some((issue) => !issue || issue.project_id !== project.id || issue.sprint_id !== source.id)) {
           return yield* new ScopeError(404, 'An issue is no longer in the selected sprint.')
+        }
         const value = yield* runCommand(context, (ctx) =>
           sprintCommands.moveIssuesToSprint(ctx, { sprintId: target.id, issueIds: [...new Set(input.issueIds)] }),
         ).pipe(Effect.map(({ count }) => ({ ok: true as const, count })))

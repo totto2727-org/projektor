@@ -1,20 +1,20 @@
 import { createExecutionContext, SELF, waitOnExecutionContext } from 'cloudflare:test'
 import { Hono } from 'hono'
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { HonoEnv } from '#types'
 
-import { authMiddleware } from '../middleware/auth'
-import { subdomainRoutingEnabled, workspaceMiddleware } from '../middleware/workspace'
-import { env } from './fixture-api'
-import { seedFixture } from './helpers'
+import { authMiddleware } from '../middleware/auth.ts'
+import { subdomainRoutingEnabled, workspaceMiddleware } from '../middleware/workspace.ts'
+import { env } from './fixture-api.ts'
+import { seedFixture } from './helpers.ts'
 
 describe('subdomainRoutingEnabled', () => {
-  it.each(['true', '1', 'yes', 'TRUE', 'Yes', ' true ', '1 '])('accepts %j', (v) => {
+  test.each(['true', '1', 'yes', 'TRUE', 'Yes', ' true ', '1 '])('accepts %j', (v) => {
     expect(subdomainRoutingEnabled(v)).toBe(true)
   })
 
-  it.each([undefined, '', 'false', '0', 'no', 'on'])('rejects %j', (v) => {
+  test.each([undefined, '', 'false', '0', 'no', 'on'])('rejects %j', (v) => {
     expect(subdomainRoutingEnabled(v)).toBe(false)
   })
 })
@@ -26,7 +26,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
     env.WORKSPACE_SUBDOMAIN_ROUTING = undefined
   })
 
-  it('X-Workspace-Slug header works regardless of the flag', async () => {
+  test('X-Workspace-Slug header works regardless of the flag', async () => {
     const fixture = await seedFixture()
     const res = await SELF.fetch(`http://localhost/mcp/${fixture.workspace.id}`, {
       method: 'POST',
@@ -42,7 +42,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
 
   // Uses a REST route: PROJ-348 gives the /mcp/<id> route a path-UUID fallback, so
   // the "no header → 400" contract now only holds for non-MCP routes.
-  it('flag off + no header: clean 400 naming the missing header, Host subdomain is ignored', async () => {
+  test('flag off + no header: clean 400 naming the missing header, Host subdomain is ignored', async () => {
     const fixture = await seedFixture()
     const res = await SELF.fetch('http://localhost/api/task-types', {
       headers: {
@@ -55,7 +55,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
     expect(body.error).toContain('X-Workspace-Slug')
   })
 
-  it('flag on + no header + matching Host subdomain resolves the workspace', async () => {
+  test('flag on + no header + matching Host subdomain resolves the workspace', async () => {
     const fixture = await seedFixture()
     env.WORKSPACE_SUBDOMAIN_ROUTING = 'true'
     const res = await SELF.fetch(`http://localhost/mcp/${fixture.workspace.id}`, {
@@ -70,7 +70,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
     expect(res.status).toBe(200)
   })
 
-  it('flag "1" (truthy, non-"true") + no header + matching Host subdomain resolves', async () => {
+  test('flag "1" (truthy, non-"true") + no header + matching Host subdomain resolves', async () => {
     const fixture = await seedFixture()
     env.WORKSPACE_SUBDOMAIN_ROUTING = '1'
     const res = await SELF.fetch(`http://localhost/mcp/${fixture.workspace.id}`, {
@@ -87,7 +87,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
 
   // PROJ-494: the `?workspace=` query-param fallback is opt-in per route (only GET
   // /api/files*, see index.ts) — everything else must keep requiring the header.
-  it("a ?workspace= query param is ignored on routes that didn't opt in", async () => {
+  test("a ?workspace= query param is ignored on routes that didn't opt in", async () => {
     const fixture = await seedFixture()
     const res = await SELF.fetch(`http://localhost/api/task-types?workspace=${fixture.workspace.slug}`, {
       headers: { Authorization: `Bearer ${fixture.token}` },
@@ -95,7 +95,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('flag off + no header + a resolvable subdomain warns before the 400', async () => {
+  test('flag off + no header + a resolvable subdomain warns before the 400', async () => {
     const fixture = await seedFixture()
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {

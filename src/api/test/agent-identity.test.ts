@@ -3,13 +3,13 @@
 // credential owns exactly one (live) session, and must pass it otherwise.
 
 import { SELF } from 'cloudflare:test'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { hashToken, seedIssue, seedProjectFixture, seedToken } from './helpers'
+import { env } from './fixture-api.ts'
+import { hashToken, seedIssue, seedProjectFixture, seedToken } from './helpers.ts'
 
 type RpcBody = {
-  result?: { content?: Array<{ text: string }>; isError?: boolean }
+  result?: { content?: { text: string }[]; isError?: boolean }
   error?: { code: number; message: string; data?: unknown }
 }
 
@@ -50,9 +50,13 @@ describe('PROJ-894: stateless agent identity', () => {
     const body = (await res.json()) as RpcBody
     // A failure is either a JSON-RPC error or (PROJ-893) an isError tool result;
     // this suite is about identity resolution, not the error envelope.
-    if (body.error) return { ok: false, value: {}, message: body.error.message ?? JSON.stringify(body) }
+    if (body.error) {
+      return { ok: false, value: {}, message: body.error.message ?? JSON.stringify(body) }
+    }
     const text = body.result?.content?.[0]?.text ?? ''
-    if (body.result?.isError) return { ok: false, value: {}, message: text }
+    if (body.result?.isError) {
+      return { ok: false, value: {}, message: text }
+    }
     return { ok: true, value: JSON.parse(text) as Record<string, unknown>, message: '' }
   }
 
@@ -60,7 +64,9 @@ describe('PROJ-894: stateless agent identity', () => {
     const row = await env.DB.prepare('SELECT id FROM api_tokens WHERE token_hash = ?')
       .bind(await hashToken(bearer))
       .first<{ id: string }>()
-    if (!row) throw new Error('token row missing')
+    if (!row) {
+      throw new Error('token row missing')
+    }
     return row.id
   }
 
@@ -70,7 +76,7 @@ describe('PROJ-894: stateless agent identity', () => {
     return r.value.id as string
   }
 
-  it('register_agent records the credential and auth method on the session', async () => {
+  test('register_agent records the credential and auth method on the session', async () => {
     const id = await register()
     const row = await env.DB.prepare('SELECT auth_method, credential_id, token_id FROM agent_sessions WHERE id = ?')
       .bind(id)
@@ -84,7 +90,7 @@ describe('PROJ-894: stateless agent identity', () => {
     })
   })
 
-  it('one live session: claim_issue, heartbeat_agent and end_agent work without an agent id', async () => {
+  test('one live session: claim_issue, heartbeat_agent and end_agent work without an agent id', async () => {
     const sessionId = await register()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Claim me' })
 
@@ -101,7 +107,7 @@ describe('PROJ-894: stateless agent identity', () => {
     expect(end.value.status).toBe('ended')
   })
 
-  it('two sessions on a shared token: an omitted id is rejected with a hint, an explicit id works', async () => {
+  test('two sessions on a shared token: an omitted id is rejected with a hint, an explicit id works', async () => {
     const a = await register(token, 'agent-a')
     await register(token, 'agent-b')
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contended' })
@@ -121,7 +127,7 @@ describe('PROJ-894: stateless agent identity', () => {
     expect(claim.value.agentSessionId).toBe(a)
   })
 
-  it('no session on the credential: an omitted id is rejected, even if another credential has one', async () => {
+  test('no session on the credential: an omitted id is rejected, even if another credential has one', async () => {
     await register(token, 'owner-of-a-session')
     const other = await seedToken(workspaceId, userId)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Not yours' })
@@ -135,7 +141,7 @@ describe('PROJ-894: stateless agent identity', () => {
     expect(beat.ok).toBe(false)
   })
 
-  it('an ended session no longer counts, so a fresh register_agent becomes the single session again', async () => {
+  test('an ended session no longer counts, so a fresh register_agent becomes the single session again', async () => {
     const first = await register(token, 'first')
     expect((await call(token, 'end_agent', {})).ok).toBe(true)
     const second = await register(token, 'second')
@@ -146,7 +152,7 @@ describe('PROJ-894: stateless agent identity', () => {
     expect(second).not.toBe(first)
   })
 
-  it('a stale session can be revived by an id-less heartbeat, but cannot claim until then', async () => {
+  test('a stale session can be revived by an id-less heartbeat, but cannot claim until then', async () => {
     const sessionId = await register()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Stale claim' })
     await env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?')
@@ -163,14 +169,14 @@ describe('PROJ-894: stateless agent identity', () => {
     expect((await call(token, 'claim_issue', { issueId: issue.id })).ok).toBe(true)
   })
 
-  it('an explicit id still works exactly as before', async () => {
+  test('an explicit id still works exactly as before', async () => {
     const sessionId = await register()
     const beat = await call(token, 'heartbeat_agent', { id: sessionId })
     expect(beat.ok).toBe(true)
     expect(beat.value.id).toBe(sessionId)
   })
 
-  it('heartbeat_agent and end_agent accept agentId as an alias for id', async () => {
+  test('heartbeat_agent and end_agent accept agentId as an alias for id', async () => {
     const sessionId = await register()
     const beat = await call(token, 'heartbeat_agent', { agentId: sessionId })
     expect(beat.ok).toBe(true)
@@ -178,7 +184,7 @@ describe('PROJ-894: stateless agent identity', () => {
     expect((await call(token, 'end_agent', { agentId: sessionId })).ok).toBe(true)
   })
 
-  it("an abandoned stale session does not make a lone live agent's id-less heartbeat ambiguous", async () => {
+  test("an abandoned stale session does not make a lone live agent's id-less heartbeat ambiguous", async () => {
     const abandoned = await register(token, 'crashed')
     await env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?')
       .bind(Math.floor(Date.now() / 1000) - 3600, abandoned)

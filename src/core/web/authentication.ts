@@ -1,12 +1,12 @@
 import { Effect, Schema } from 'effect'
 
-import { getUserWorkspaces } from '#commands/user-tokens'
-import { authenticateBrowser, BrowserAuthenticationError } from '#services/authentication'
-import { listProjectSummaries } from '#services/projects'
+import { getUserWorkspaces } from '#commands/user-tokens.ts'
+import { authenticateBrowser, BrowserAuthenticationError } from '#services/authentication.ts'
+import { listProjectSummaries } from '#services/projects.ts'
 
-import { ApiError, ScopeError } from '../../contracts/errors'
-import { coreFailure } from '../contract'
-import type { CoreEnvironment } from '../environment'
+import { ApiError, ScopeError } from '../../contracts/errors.ts'
+import { coreFailure } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
 import {
   decodeAuthSession,
   decodeProjectCatalog,
@@ -17,17 +17,20 @@ import {
   selectedWorkspace,
   ScopeOptionsSchema,
   WebRequestSchema,
-  type WebRequest,
-  type ScopeOptions,
-} from './scope'
+} from './scope.ts'
+import type { WebRequest, ScopeOptions } from './scope.ts'
 
 export function nativeRequest(input: WebRequest) {
   return new Request(input.url, { method: input.method, headers: input.headers.map(([name, value]) => [name, value]) })
 }
 
 export function publicWebFailure(error: unknown) {
-  if (error instanceof ApiError || error instanceof ScopeError) return coreFailure(error.status, error.message)
-  if (error instanceof BrowserAuthenticationError) return coreFailure(error.status, error.message)
+  if (error instanceof ApiError || error instanceof ScopeError) {
+    return coreFailure(error.status, error.message)
+  }
+  if (error instanceof BrowserAuthenticationError) {
+    return coreFailure(error.status, error.message)
+  }
   return error
 }
 
@@ -43,14 +46,16 @@ export function loadBrowserScope(env: CoreEnvironment, input: WebRequest, option
       try: () => nativeRequest(decoded),
       catch: () => coreFailure(400, 'Invalid browser request.'),
     })
-    if (request.headers.has('authorization'))
+    if (request.headers.has('authorization')) {
       return yield* coreFailure(403, 'An interactive browser session is required.')
+    }
     const principal = yield* Effect.tryPromise({
       try: () => authenticateBrowser(request, env),
       catch: publicWebFailure,
     })
-    if (principal.user.email === 'public-viewer@projektor.local')
+    if (principal.user.email === 'public-viewer@projektor.local') {
       return yield* coreFailure(403, 'An interactive browser session is required.')
+    }
     const session = yield* Effect.tryPromise({
       try: async () =>
         decodeAuthSession({

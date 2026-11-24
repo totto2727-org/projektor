@@ -6,9 +6,9 @@
 // tokens, R2 objects, FTS) are what this proves; fk-cleanup.node.test.ts guards the rest.
 
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedAgentLease,
@@ -18,7 +18,7 @@ import {
   seedFixture,
   seedIssue,
   seedProject,
-} from './helpers'
+} from './helpers.ts'
 
 async function tableCount(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
@@ -44,7 +44,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
     projectId = project.id
   })
 
-  it('removes or nulls every row referencing the deleted issue, and its R2 attachments', async () => {
+  test('removes or nulls every row referencing the deleted issue, and its R2 attachments', async () => {
     const { id: issueId } = await seedIssue(workspaceId, projectId, userId)
     const { id: otherIssueId } = await seedIssue(workspaceId, projectId, userId, {
       title: 'Other issue',
@@ -107,7 +107,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       `INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at)
 			 VALUES (?, ?, ?, ?, ?, ?)`,
     )
-      .bind(crypto.randomUUID(), issueId, workspaceId, 'someone', 9999999999, 0)
+      .bind(crypto.randomUUID(), issueId, workspaceId, 'someone', 9_999_999_999, 0)
       .run()
 
     // issue_gate_rejections (CASCADE)
@@ -246,8 +246,8 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
 // from ANOTHER workspace must be a 404 that touches nothing — not a silent wipe of that
 // workspace's comments/links/attachments by an admin of this one.
 describe("PROJ-922: deleteIssue refuses another workspace's issue", () => {
-  it("404s and leaves the other workspace's rows intact", async () => {
-    const { seedComment, seedIssue, seedProjectFixture, authHeaders } = await import('./helpers')
+  test("404s and leaves the other workspace's rows intact", async () => {
+    const { seedComment, seedIssue, seedProjectFixture, authHeaders } = await import('./helpers.ts')
     const a = await seedProjectFixture({ role: 'owner' })
     const b = await seedProjectFixture({ role: 'owner' })
     const bIssue = await seedIssue(b.workspaceId, b.projectId, b.userId, { title: "B's" })

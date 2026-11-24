@@ -15,6 +15,7 @@ const runId = (process.env.PROJEKTOR_E2E_RUN_ID ??= randomUUID())
 const runDirectory = new URL(`./.runtime/${runId}/`, import.meta.url)
 const storageDirectory = fileURLToPath(new URL('storage/', runDirectory))
 
+// oxlint-disable-next-line import/no-default-export -- Playwright loads its configuration from the default export.
 export default defineConfig({
   testDir: fileURLToPath(new URL('.', import.meta.url)),
   testMatch: '*.e2e.ts',

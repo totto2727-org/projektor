@@ -1,5 +1,5 @@
 'use client'
-import type { IssuesInitialData } from '../../views/IssuesPage'
+import type { IssuesInitialData } from '../../views/IssuesPage.tsx'
 export function useIssueLookups(initialData: IssuesInitialData) {
   return {
     statuses: [...initialData.statuses],

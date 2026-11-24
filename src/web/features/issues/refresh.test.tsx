@@ -1,17 +1,20 @@
 // @vitest-environment jsdom
-import './test/browser'
+import './test/browser.ts'
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { createIssue, readIssuePage, searchIssues, updateIssue } from './actions'
-import { IssueBulkProvider, IssueSelectionControl } from './components/issue-list/BulkActions'
-import { useSavedViews } from './components/issue-list/useSavedViews'
-import type { SavedViewFilters } from './components/saved-views'
-import { comment, issue, project, scope, secondProject, statuses, taskTypes, workspace } from './test/fixtures'
-import { useUnsavedUnloadGuard } from './utils/use-unsaved-unload-guard'
-import { type EpicsInitialData, EpicsPage } from './views/EpicsPage'
-import { type IssueDetailInitialData, IssueDetailPage } from './views/IssueDetailPage'
-import { type IssuesInitialData, IssuesPage } from './views/IssuesPage'
+import { createIssue, readIssuePage, searchIssues, updateIssue } from './actions.ts'
+import { IssueBulkProvider, IssueSelectionControl } from './components/issue-list/BulkActions.tsx'
+import { useSavedViews } from './components/issue-list/useSavedViews.ts'
+import type { SavedViewFilters } from './components/saved-views.ts'
+import { comment, issue, project, scope, secondProject, statuses, taskTypes, workspace } from './test/fixtures.ts'
+import { useUnsavedUnloadGuard } from './utils/use-unsaved-unload-guard.ts'
+import { EpicsPage } from './views/EpicsPage.tsx'
+import type { EpicsInitialData } from './views/EpicsPage.tsx'
+import { IssueDetailPage } from './views/IssueDetailPage.tsx'
+import type { IssueDetailInitialData } from './views/IssueDetailPage.tsx'
+import { IssuesPage } from './views/IssuesPage.tsx'
+import type { IssuesInitialData } from './views/IssuesPage.tsx'
 
 vi.mock('./components/LazyMarkdownEditor', () => ({
   default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
@@ -48,7 +51,7 @@ function detailData(): IssueDetailInitialData {
   }
 }
 describe('canonical issues SSR refresh', () => {
-  it('updates loaded rows and lookups without mount fetching or losing an unsaved create form', async () => {
+  test('updates loaded rows and lookups without mount fetching or losing an unsaved create form', async () => {
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
     const route = { pathname: '/issues', search: '?workspace=workspace' }
@@ -88,7 +91,8 @@ describe('canonical issues SSR refresh', () => {
     expect(screen.queryByText('Unsaved create title')).toBeNull()
     expect(fetch).not.toHaveBeenCalled()
   })
-  it('updates authoritative description and comments while preserving unsaved title editing', async () => {
+
+  test('updates authoritative description and comments while preserving unsaved title editing', async () => {
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
     sessionStorage.clear()
@@ -126,7 +130,8 @@ describe('canonical issues SSR refresh', () => {
     await waitFor(() => expect(screen.getByDisplayValue('Private unsent comment')).toBeTruthy())
     expect(fetch).not.toHaveBeenCalled()
   })
-  it('renders canonical refreshed epics after creation without any browser primary query', async () => {
+
+  test('renders canonical refreshed epics after creation without any browser primary query', async () => {
     const initialData: EpicsInitialData = {
       page: {
         items: [issue({ type_key: 'epic', type_id: 'epic-type' })],
@@ -178,7 +183,8 @@ describe('canonical issues SSR refresh', () => {
     expect(fetch).not.toHaveBeenCalled()
     expect(readIssuePage).not.toHaveBeenCalled()
   })
-  it('submits canonical search and cursor GET navigation with all authorized selectors and no primary query', async () => {
+
+  test('submits canonical search and cursor GET navigation with all authorized selectors and no primary query', async () => {
     const route = {
       pathname: '/issues',
       search: '?workspace=workspace&projectId=project-a&status=todo&cursor=previous&tag=one&tag=one&tag=two',
@@ -192,7 +198,7 @@ describe('canonical issues SSR refresh', () => {
         initialData={{ ...data, page: { ...data.page, nextCursor: 'next-page' } }}
       />,
     )
-    const submissions: Array<{ method: string; action: string; values: FormData }> = []
+    const submissions: { method: string; action: string; values: FormData }[] = []
     view.container.addEventListener('submit', (event) => {
       event.preventDefault()
       const form = event.target as HTMLFormElement
@@ -223,7 +229,8 @@ describe('canonical issues SSR refresh', () => {
     expect(readIssuePage).not.toHaveBeenCalled()
     expect(searchIssues).not.toHaveBeenCalled()
   })
-  it('scopes named views per user and workspace, applying only on explicit interaction', async () => {
+
+  test('scopes named views per user and workspace, applying only on explicit interaction', async () => {
     sessionStorage.clear()
     localStorage.clear()
     const onApply = vi.fn()
@@ -261,7 +268,8 @@ describe('canonical issues SSR refresh', () => {
     act(() => hook.result.current.deleteView('Personal'))
     expect(hook.result.current.savedViews).toHaveLength(0)
   })
-  it('uses native unload protection only while edits are dirty', () => {
+
+  test('uses native unload protection only while edits are dirty', () => {
     const hook = renderHook(({ dirty }) => useUnsavedUnloadGuard(dirty), {
       initialProps: { dirty: false },
     })
@@ -277,7 +285,8 @@ describe('canonical issues SSR refresh', () => {
     window.dispatchEvent(saved)
     expect(saved.defaultPrevented).toBe(false)
   })
-  it('applies bulk status changes through scoped mutations and refreshes canonical results', async () => {
+
+  test('applies bulk status changes through scoped mutations and refreshes canonical results', async () => {
     vi.mocked(updateIssue).mockResolvedValue({ ok: true, value: { ok: true } })
     const selected = issue()
     render(

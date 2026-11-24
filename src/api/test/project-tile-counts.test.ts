@@ -2,12 +2,12 @@
 // total-issue count, and issues.status_category stays in sync with a status's
 // category on every write path that can change it.
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { listProjectsAcrossWorkspaces } from '#commands/projects'
+import { listProjectsAcrossWorkspaces } from '#commands/projects.ts'
 
 import m0066 from '../../../migrations/0066_repair_status_category.sql?raw'
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedIssue,
@@ -17,10 +17,10 @@ import {
   seedToken,
   seedUser,
   seedWorkspace,
-} from './helpers'
+} from './helpers.ts'
 
 describe('listProjectsAcrossWorkspaces: open vs backlog counts (PROJ-849)', () => {
-  it('counts open issues correctly and reports backlog separately, within open', async () => {
+  test('counts open issues correctly and reports backlog separately, within open', async () => {
     const ws = await seedWorkspace()
     const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, user.id, 'owner')
@@ -46,7 +46,7 @@ describe('listProjectsAcrossWorkspaces: open vs backlog counts (PROJ-849)', () =
 })
 
 describe('update_task_status re-syncs issues.status_category (PROJ-849)', () => {
-  it("changing a status's category updates every issue currently on that status", async () => {
+  test("changing a status's category updates every issue currently on that status", async () => {
     const ws = await seedWorkspace()
     const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, user.id, 'owner')
@@ -88,7 +88,7 @@ describe('update_task_status re-syncs issues.status_category (PROJ-849)', () => 
 })
 
 describe('migration 0066: repairs drifted status_category (PROJ-849)', () => {
-  it("re-derives status_category from the issue's task status wherever they differ, workspace-scoped", async () => {
+  test("re-derives status_category from the issue's task status wherever they differ, workspace-scoped", async () => {
     const ws = await seedWorkspace()
     const otherWs = await seedWorkspace()
     const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)

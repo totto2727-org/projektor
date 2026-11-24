@@ -46,7 +46,9 @@ function isLabelLine(line: string, m: LabelMatchers): boolean {
 
   const isHeading = /^#{1,6}\s+/.test(t)
   const isBold = /^\*\*[^*]+\*\*:?\s*$/.test(t) || /^[-*]\s+\*\*[^*]+\*\*/.test(t)
-  if (isHeading || isBold) return m.word.test(t)
+  if (isHeading || isBold) {
+    return m.word.test(t)
+  }
 
   // A plain line only counts when the label is a "Label:" prefix, not mid-sentence.
   const stripped = t.replace(/^[-*]\s+/, '').replace(/\*\*/g, '')
@@ -59,7 +61,9 @@ function sectionHasContent(body: string, label: RegExp): boolean {
   const lines = body.split(/\r?\n/)
   const m = labelMatchers(label)
   const idx = lines.findIndex((l) => isLabelLine(l, m))
-  if (idx === -1) return false
+  if (idx === -1) {
+    return false
+  }
 
   const inline = lines[idx]
     .replace(/^[#\-*\s]+/, '')
@@ -67,12 +71,18 @@ function sectionHasContent(body: string, label: RegExp): boolean {
     .replace(/`/g, '')
   const sepIdx = inline.search(/[:—–]/)
   const afterColon = sepIdx === -1 ? '' : inline.slice(sepIdx + 1).trim()
-  if (afterColon !== '') return true
+  if (afterColon !== '') {
+    return true
+  }
 
   for (let i = idx + 1; i < lines.length; i++) {
     const line = lines[i].trim()
-    if (line === '') continue
-    if (isSectionBoundary(line)) break
+    if (line === '') {
+      continue
+    }
+    if (isSectionBoundary(line)) {
+      break
+    }
     return true
   }
   return false
@@ -82,7 +92,9 @@ function sectionHasContent(body: string, label: RegExp): boolean {
 // filename.ext. A lone span like `true` no longer satisfies "scope/files" (PROJ-291).
 function hasFilePathToken(body: string): boolean {
   const spans = body.match(/`[^`\n]+`/g)
-  if (!spans) return false
+  if (!spans) {
+    return false
+  }
   return spans.some((s) => {
     const inner = s.slice(1, -1).trim()
     return inner.includes('/') || /[\w-]+\.[a-z]{1,5}\b/i.test(inner)

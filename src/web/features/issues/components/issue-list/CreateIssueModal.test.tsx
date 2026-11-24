@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
-import '../../test/browser'
+import '../../test/browser.ts'
 // PROJ-566 / CD-294: the Description caption must not *wrap* the markdown editor.
 // A <label> with no `for` binds to its first labelable descendant, which inside
 // MarkdownEditor is the toolbar's Bold button — so every click in the editor body
 // was forwarded to Bold and wrapped subsequent typing in `**`.
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import type { TaskStatus } from '../board-utils'
-import CreateIssueModal from './CreateIssueModal'
-import { useCreateIssueModal } from './useCreateIssueModal'
+import type { TaskStatus } from '../board-utils.ts'
+import CreateIssueModal from './CreateIssueModal.tsx'
+import { useCreateIssueModal } from './useCreateIssueModal.ts'
 
 const PROJECTS = [{ id: 'p1', key: 'PROJ', name: 'Projektor', description: null, workspace_slug: 'test-workspace' }]
 
@@ -22,7 +22,7 @@ function Harness() {
 }
 
 describe('CreateIssueModal — Description caption (PROJ-566)', () => {
-  it('renders the Description label as a caption with no implicit control', () => {
+  test('renders the Description label as a caption with no implicit control', () => {
     render(<Harness />)
 
     const caption = screen.getByText('Description')
@@ -33,7 +33,7 @@ describe('CreateIssueModal — Description caption (PROJ-566)', () => {
     expect((caption as HTMLLabelElement).control).toBeNull()
   })
 
-  it('gives the editor its own accessible name instead', async () => {
+  test('gives the editor its own accessible name instead', async () => {
     render(<Harness />)
     expect(await screen.findByLabelText('Description')).toBeTruthy()
   })
@@ -60,14 +60,14 @@ function FieldsHarness() {
 // non-interactive descendant to it, including the menu's own <li> options.
 describe('CreateIssueModal — Select field captions (PROJ-566)', () => {
   for (const caption of ['Project', 'Priority', 'Type', 'Status']) {
-    it(`renders the ${caption} label as a caption with no implicit control`, () => {
+    test(`renders the ${caption} label as a caption with no implicit control`, () => {
       render(<FieldsHarness />)
       const label = screen.getByText(caption, { selector: 'label' }) as HTMLLabelElement
       expect(label.control).toBeNull()
     })
   }
 
-  it('leaves each Select named by its own ariaLabel', () => {
+  test('leaves each Select named by its own ariaLabel', () => {
     render(<FieldsHarness />)
     for (const name of ['Select project', 'Select priority', 'Select type', 'Select status']) {
       expect(screen.getByRole('combobox', { name })).toBeTruthy()

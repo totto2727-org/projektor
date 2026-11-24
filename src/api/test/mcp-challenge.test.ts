@@ -1,7 +1,7 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { seedFixture, seedToken } from './helpers'
+import { seedFixture, seedToken } from './helpers.ts'
 
 // PROJ-651: RFC 9728 WWW-Authenticate challenges on the MCP endpoint.
 //
@@ -42,7 +42,7 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
     workspaceId = fixture.workspace.id
   })
 
-  it('points at the per-workspace protected resource metadata document', async () => {
+  test('points at the per-workspace protected resource metadata document', async () => {
     const res = await SELF.fetch(mcpUrl(workspaceId), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -57,7 +57,7 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
     expect(challenge.scope).toBe('projektor:read projektor:write')
   })
 
-  it('derives resource_metadata from the request host, not a fixed origin', async () => {
+  test('derives resource_metadata from the request host, not a fixed origin', async () => {
     const other = 'https://tenant.projektor.dev'
     const res = await SELF.fetch(`${other}/mcp/${workspaceId}`, {
       method: 'POST',
@@ -69,7 +69,7 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
     expect(challenge.resource_metadata).toBe(`${other}/.well-known/oauth-protected-resource/mcp/${workspaceId}`)
   })
 
-  it('challenges an invalid bearer token too, not just a missing one', async () => {
+  test('challenges an invalid bearer token too, not just a missing one', async () => {
     const res = await SELF.fetch(mcpUrl(workspaceId), {
       method: 'POST',
       headers: { Authorization: 'Bearer tok_not_a_real_token', 'Content-Type': 'application/json' },
@@ -84,7 +84,7 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
 describe('/api/* 401s are unchanged', () => {
   // PROJ-430: the frontend reloads the page to re-authenticate on a 401, so the
   // shape of an /api/* 401 is load-bearing. The challenge must not leak onto it.
-  it('carries no WWW-Authenticate header and the same bare body', async () => {
+  test('carries no WWW-Authenticate header and the same bare body', async () => {
     const res = await SELF.fetch(`${HOST}/api/projects`)
 
     expect(res.status).toBe(401)
@@ -92,7 +92,7 @@ describe('/api/* 401s are unchanged', () => {
     expect(await res.json()).toEqual({ error: 'Unauthorized' })
   })
 
-  it('is unchanged for an invalid bearer token as well', async () => {
+  test('is unchanged for an invalid bearer token as well', async () => {
     const res = await SELF.fetch(`${HOST}/api/projects`, {
       headers: { Authorization: 'Bearer tok_not_a_real_token' },
     })
@@ -120,7 +120,7 @@ describe('insufficient scope is a 403 challenge, not a 200 with a JSON-RPC error
     })
   }
 
-  it('returns 403 with error=insufficient_scope on a write tool', async () => {
+  test('returns 403 with error=insufficient_scope on a write tool', async () => {
     const res = await callAsReadToken('tools/call', {
       name: 'create_project',
       arguments: { name: 'nope', key: 'NOPE' },
@@ -140,25 +140,25 @@ describe('insufficient scope is a 403 challenge, not a 200 with a JSON-RPC error
     expect(challenge.scope).toBe('projektor:read projektor:write')
   })
 
-  it('keeps the JSON-RPC -32003 body so existing pk_ token callers are unaffected', async () => {
+  test('keeps the JSON-RPC -32003 body so existing pk_ token callers are unaffected', async () => {
     const res = await callAsReadToken('tools/call', {
       name: 'create_project',
       arguments: { name: 'nope', key: 'NOPE' },
     })
 
     const body = await res.json<{ error: { code: number; message: string } }>()
-    expect(body.error.code).toBe(-32003)
+    expect(body.error.code).toBe(-32_003)
     expect(body.error.message).toBe("Token lacks 'write' scope")
   })
 
-  it('treats prompts/get the same way — it is gated by the same scope check', async () => {
+  test('treats prompts/get the same way — it is gated by the same scope check', async () => {
     const res = await callAsReadToken('prompts/get', { name: 'epic-goal', arguments: {} })
 
     expect(res.status).toBe(403)
     expect(parseChallenge(res.headers.get('WWW-Authenticate')).error).toBe('insufficient_scope')
   })
 
-  it('still allows a read tool through on 200 with no challenge', async () => {
+  test('still allows a read tool through on 200 with no challenge', async () => {
     const res = await callAsReadToken('tools/call', {
       name: 'list_projects',
       arguments: {},

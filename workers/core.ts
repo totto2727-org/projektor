@@ -1,9 +1,9 @@
 import { RemovalPolicy } from 'alchemy'
 import { Effect } from 'effect'
 
-import { Core as CoreIdentity } from '../src/workers/identities'
-import { DeploymentEnvironment, DeploymentLayer, rateLimiterReference } from '../worker-environment'
-import { deployment } from '../worker-graph'
+import { Core as CoreIdentity } from '../src/workers/identities.ts'
+import { DeploymentEnvironment, DeploymentLayer, rateLimiterReference } from '../worker-environment.ts'
+import { deployment } from '../worker-graph.ts'
 
 const CoreLive = CoreIdentity.make(
   Effect.gen(function* () {
@@ -16,7 +16,9 @@ const CoreLive = CoreIdentity.make(
       env: { ...environment.coreEnv, RATE_LIMITER: rateLimiterReference() },
     }
   }),
-  Effect.promise(() => import('../src/core/worker')).pipe(Effect.flatMap(({ makeCoreHandlers }) => makeCoreHandlers)),
+  Effect.promise(() => import('../src/core/worker.ts')).pipe(
+    Effect.flatMap(({ makeCoreHandlers }) => makeCoreHandlers),
+  ),
 )
 
 export const Core = CoreIdentity.pipe(
@@ -30,4 +32,5 @@ export const Core = CoreIdentity.pipe(
   ),
 )
 
+// oxlint-disable-next-line import/no-default-export -- Alchemy bundles the private Core Worker runtime from the default export.
 export default Core.pipe(Effect.provide(DeploymentLayer))

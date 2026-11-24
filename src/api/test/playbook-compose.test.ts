@@ -1,8 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, type JsonRpcResult, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
+import type { JsonRpcResult } from './helpers.ts'
 
 describe('compose_playbook', () => {
   let token: string
@@ -43,7 +44,7 @@ describe('compose_playbook', () => {
     return res
   }
 
-  it('composes with defaults (bounded, opus, cadence 2), well-formed blockquote, and embeds live data', async () => {
+  test('composes with defaults (bounded, opus, cadence 2), well-formed blockquote, and embeds live data', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Child 1', parentId: epicId })
     await seedIssue(workspaceId, projectId, userId, {
       title: 'Child 2 (done)',
@@ -56,7 +57,7 @@ describe('compose_playbook', () => {
     await env.DB.prepare('UPDATE projects SET agent_wip_limit = ? WHERE id = ?').bind(7, projectId).run()
 
     const res = await compose({ epicRef: `PROJ-${epicNumber}` })
-    const json = (await res.json()) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const body = JSON.parse(json.result.content[0].text) as {
       name: string
       variant: string
@@ -86,14 +87,14 @@ describe('compose_playbook', () => {
     expect(body.directive).not.toMatch(/[^\n]>\s*$/m)
   })
 
-  it('composes the full variant with a custom review model and cadence', async () => {
+  test('composes the full variant with a custom review model and cadence', async () => {
     const res = await compose({
       epicRef: `PROJ-${epicNumber}`,
       variant: 'full',
       reviewModel: 'sonnet',
       cadence: 5,
     })
-    const json = (await res.json()) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const body = JSON.parse(json.result.content[0].text) as { variant: string; directive: string }
 
     expect(body.variant).toBe('full')
@@ -103,23 +104,23 @@ describe('compose_playbook', () => {
     expect(body.directive).toContain('adversarial sonnet review')
   })
 
-  it('honors a custom checkpointInterval', async () => {
+  test('honors a custom checkpointInterval', async () => {
     const res = await compose({ epicRef: `PROJ-${epicNumber}`, checkpointInterval: 3 })
-    const json = (await res.json()) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const body = JSON.parse(json.result.content[0].text) as { directive: string }
 
     expect(body.directive).toContain('every 3 completed tickets')
   })
 
-  it('notes when the epic has no open child tickets yet', async () => {
+  test('notes when the epic has no open child tickets yet', async () => {
     const res = await compose({ epicRef: `PROJ-${epicNumber}` })
-    const json = (await res.json()) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const body = JSON.parse(json.result.content[0].text) as { directive: string }
 
     expect(body.directive).toContain('no open child tickets yet')
   })
 
-  it("errors like an unresolvable ref when epicRef points at a project the caller can't see", async () => {
+  test("errors like an unresolvable ref when epicRef points at a project the caller can't see", async () => {
     // A second project in the same workspace that the fixture's member token
     // was never granted access to (seedIssueFixture only grants the first
     // project) — assertIssueProjectVisible must reject this before any
@@ -136,29 +137,29 @@ describe('compose_playbook', () => {
     expect(err?.message).not.toContain('Confidential epic')
   })
 
-  it('errors on an unresolvable epicRef', async () => {
+  test('errors on an unresolvable epicRef', async () => {
     const res = await compose({ epicRef: 'PROJ-999999' })
     const err = toolError(await res.json())
     expect(err?.code).toBe('not_found')
     expect(err?.message).toContain('not found')
   })
 
-  it('errors on a missing epicRef', async () => {
+  test('errors on a missing epicRef', async () => {
     const res = await compose({})
     expect(toolError(await res.json())?.code).toBe('validation')
   })
 
-  it('errors on an invalid cadence', async () => {
+  test('errors on an invalid cadence', async () => {
     const res = await compose({ epicRef: `PROJ-${epicNumber}`, cadence: -1 })
     expect(toolError(await res.json())?.code).toBe('validation')
   })
 
-  it('errors on an invalid checkpointInterval', async () => {
+  test('errors on an invalid checkpointInterval', async () => {
     const res = await compose({ epicRef: `PROJ-${epicNumber}`, checkpointInterval: -1 })
     expect(toolError(await res.json())?.code).toBe('validation')
   })
 
-  it('errors on an unknown playbook name, naming valid options', async () => {
+  test('errors on an unknown playbook name, naming valid options', async () => {
     const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -195,7 +196,7 @@ describe('POST /api/playbooks/:name/compose', () => {
     epicNumber = row!.number
   })
 
-  it('returns 200 for epic-goal with a valid params body', async () => {
+  test('returns 200 for epic-goal with a valid params body', async () => {
     const res = await SELF.fetch('http://localhost/api/playbooks/epic-goal/compose', {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
@@ -207,7 +208,7 @@ describe('POST /api/playbooks/:name/compose', () => {
     expect(body.directive).toContain('Ship the widget')
   })
 
-  it("returns a 4xx via the service's validation for a bad body", async () => {
+  test("returns a 4xx via the service's validation for a bad body", async () => {
     const res = await SELF.fetch('http://localhost/api/playbooks/epic-goal/compose', {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },

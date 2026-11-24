@@ -1,12 +1,12 @@
 'use client'
 import { useState } from 'react'
 
-import { FunctionError, unwrapResult } from '../../../client/functions'
-import { updateIssue } from '../actions'
-import { formatIssueRef } from '../lib/issue-ref'
-import { issueUrl } from '../utils/issue-url'
-import type { IssueDetailInitialData } from '../views/IssueDetailPage'
-import type { Attachment, Comment, IssueData, IssueLink, Member, TaskStatus, TaskType } from './issue-detail-helpers'
+import { FunctionError, unwrapResult } from '../../../client/functions.ts'
+import { updateIssue } from '../actions.ts'
+import { formatIssueRef } from '../lib/issue-ref.ts'
+import { issueUrl } from '../utils/issue-url.ts'
+import type { IssueDetailInitialData } from '../views/IssueDetailPage.tsx'
+import type { Attachment, Comment, IssueData, IssueLink, Member, TaskStatus, TaskType } from './issue-detail-helpers.ts'
 import {
   AttachmentsSection,
   BodySection,
@@ -18,8 +18,8 @@ import {
   ShareButton,
   SidebarPanel,
   TitleSection,
-} from './IssueDetailParts'
-import { ReviewTargetsSection } from './ReviewTargetsSection'
+} from './IssueDetailParts.tsx'
+import { ReviewTargetsSection } from './ReviewTargetsSection.tsx'
 
 function useIssueMutations(issueId: string, workspaceSlug: string) {
   const [updatingStatus, setUpdatingStatus] = useState(false)
@@ -255,7 +255,9 @@ export default function IssueDetail({
   const error = mutations.mutationError
   const copyUrl = issueUrl(issue.project_key, issue.number, issue.title, issue.id, workspaceSlug)
   const params = new URLSearchParams({ workspace: workspaceSlug })
-  if (initialData.issue.project_id) params.set('projectId', initialData.issue.project_id)
+  if (initialData.issue.project_id) {
+    params.set('projectId', initialData.issue.project_id)
+  }
   const backHref = `${issue.type_key === 'epic' ? '/epics' : '/issues'}?${params}`
   return (
     <>

@@ -4,11 +4,11 @@ import { stringify as stringifyYaml } from 'yaml'
 
 import { drizzle, schema } from '#db'
 
-import { ExportWikiInputSchema } from '../../contracts/inputs/wiki'
-import { assertProjectAccess } from './access'
-import { NotFoundError, ValidationError } from './errors'
-import { inChunks } from './sql'
-import type { ServiceCtx } from './types'
+import { ExportWikiInputSchema } from '../../contracts/inputs/wiki.ts'
+import { assertProjectAccess } from './access.ts'
+import { NotFoundError, ValidationError } from './errors.ts'
+import { inChunks } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
 
 type ExportedPage = {
   id: string
@@ -51,7 +51,9 @@ function assertExportSizeAllowed(pageCount: number, totalAttachmentBytes: number
 // page (projectId null) is visible to every member; a project-scoped page needs an
 // admin bypass or a group grant on that project.
 async function requireSpaceVisible(ctx: ServiceCtx, projectId: string | null): Promise<void> {
-  if (projectId === null) return
+  if (projectId === null) {
+    return
+  }
   await assertProjectAccess(ctx, projectId, 'read', { notFoundMessage: 'Project not found' })
 }
 
@@ -79,7 +81,9 @@ async function resolveExportRoot(
       ),
     )
     .get()
-  if (row) return row
+  if (row) {
+    return row
+  }
   const bySlug = await orm
     .select({
       id: schema.wikiPages.id,
@@ -97,7 +101,9 @@ async function resolveExportRoot(
       ),
     )
     .get()
-  if (!bySlug) throw new NotFoundError('Wiki page not found')
+  if (!bySlug) {
+    throw new NotFoundError('Wiki page not found')
+  }
   return bySlug
 }
 
@@ -164,7 +170,9 @@ async function pagesByIds(ctx: ServiceCtx, ids: string[]): Promise<ExportedPage[
 // A page with no leading `---` block gets a minimal one synthesized here (title only)
 // so every exported file carries frontmatter, per the R15 spec.
 function ensureFrontmatter(page: ExportedPage): string {
-  if (/^---\r?\n/.test(page.content)) return page.content
+  if (/^---\r?\n/.test(page.content)) {
+    return page.content
+  }
   const yamlText = stringifyYaml({ title: page.title }).trimEnd()
   return `---\n${yamlText}\n---\n${page.content}`
 }
@@ -174,11 +182,15 @@ function ensureFrontmatter(page: ExportedPage): string {
 async function collectAttachments(
   ctx: ServiceCtx,
   pages: readonly ExportedPage[],
-): Promise<Array<{ pageSlug: string; filename: string; r2Key: string; size: number }>> {
-  if (pages.length === 0) return []
+): Promise<{ pageSlug: string; filename: string; r2Key: string; size: number }[]> {
+  if (pages.length === 0) {
+    return []
+  }
   const orm = drizzle(ctx.db, { schema })
   const bySlug = new Map<string, string>()
-  for (const p of pages) bySlug.set(p.id, p.slug)
+  for (const p of pages) {
+    bySlug.set(p.id, p.slug)
+  }
   const pageIds = pages.map((p) => p.id)
 
   const rows = await inChunks(pageIds, (chunk) =>
@@ -249,7 +261,9 @@ async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<Readabl
     async start(controller) {
       let streamErrored = false
       const failStream = (err: unknown) => {
-        if (streamErrored) return
+        if (streamErrored) {
+          return
+        }
         streamErrored = true
         controller.error(err)
       }
@@ -259,8 +273,12 @@ async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<Readabl
           failStream(err)
           return
         }
-        if (chunk && chunk.length > 0) controller.enqueue(chunk)
-        if (final) controller.close()
+        if (chunk && chunk.length > 0) {
+          controller.enqueue(chunk)
+        }
+        if (final) {
+          controller.close()
+        }
       })
 
       try {
@@ -276,7 +294,9 @@ async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<Readabl
 
         for (const att of attachments) {
           const obj = await ctx.r2.get(att.r2Key)
-          if (!obj) continue // orphaned row (object missing from storage) — skip, don't fail the export
+          if (!obj) {
+            continue
+          } // orphaned row (object missing from storage) — skip, don't fail the export
           const dir = safeZipPathSegment(att.pageSlug)
           const filename = safeZipPathSegment(att.filename)
           const name = reserveUniqueName(
@@ -303,7 +323,9 @@ export async function exportWiki(
   input: unknown,
 ): Promise<{ filename: string; stream: ReadableStream<Uint8Array> }> {
   const parsed = ExportWikiInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const data = parsed.data
 
   if (data.scope === 'space') {

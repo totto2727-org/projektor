@@ -7,7 +7,7 @@ import * as Provider from 'alchemy/Provider'
 import { evalStack } from 'alchemy/Stack'
 import { run } from 'alchemy/Test/Core'
 import { Effect, Layer } from 'effect'
-import { expect, it } from 'vite-plus/test'
+import { expect, test } from 'vite-plus/test'
 
 const Database =
   Resource<
@@ -23,7 +23,7 @@ const Worker =
   )
 const workers = ['Api', 'Core', 'Frontend']
 
-it.each(['all Workers update', 'Core is unchanged', 'migration fails'] as const)(
+test.each(['all Workers update', 'Core is unchanged', 'migration fails'] as const)(
   'gates Worker updates on database reconciliation when %s',
   async (scenario) => {
     const events: string[] = []

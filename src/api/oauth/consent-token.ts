@@ -27,7 +27,9 @@ export type ConsentPayload = {
 
 function b64urlEncode(bytes: Uint8Array): string {
   let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte)
+  }
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
@@ -60,7 +62,9 @@ export async function verifyConsentToken(
   secret: string,
 ): Promise<ConsentPayload | null> {
   const [body, sig] = token.split('.')
-  if (!body || !sig) return null
+  if (!body || !sig) {
+    return null
+  }
 
   let valid: boolean
   try {
@@ -68,7 +72,9 @@ export async function verifyConsentToken(
   } catch {
     return null
   }
-  if (!valid) return null
+  if (!valid) {
+    return null
+  }
 
   let payload: ConsentPayload
   try {
@@ -77,9 +83,13 @@ export async function verifyConsentToken(
     return null
   }
 
-  if (payload.exp < Math.floor(Date.now() / 1000)) return null
+  if (payload.exp < Math.floor(Date.now() / 1000)) {
+    return null
+  }
   // The signature proves the payload is ours; this proves it is *this* session's.
   // Without it a token phished from one user could be replayed by another.
-  if (payload.userId !== userId) return null
+  if (payload.userId !== userId) {
+    return null
+  }
   return payload
 }

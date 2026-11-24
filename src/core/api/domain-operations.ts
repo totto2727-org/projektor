@@ -1,41 +1,42 @@
 import { Effect } from 'effect'
 
-import * as messages from '#commands/agent-messages'
-import * as agents from '#commands/agents'
-import * as heatmap from '#commands/code-heatmap'
-import * as comments from '#commands/comments'
-import * as fields from '#commands/custom-fields'
-import * as feedback from '#commands/feedback'
-import * as sources from '#commands/feedback-sources'
-import * as claims from '#commands/file-claims'
-import * as files from '#commands/files'
-import * as metrics from '#commands/flow-metrics'
-import * as groups from '#commands/groups'
-import * as leases from '#commands/issue-leases'
-import * as links from '#commands/issue-links'
-import * as issues from '#commands/issues'
-import * as oauth from '#commands/oauth'
-import * as compose from '#commands/playbook-compose'
-import * as playbooks from '#commands/playbooks'
-import * as activity from '#commands/project-activity'
-import * as projects from '#commands/projects'
-import * as share from '#commands/share'
-import * as sprints from '#commands/sprints'
-import * as statuses from '#commands/task-statuses'
-import * as types from '#commands/task-types'
-import type { ServiceCtx } from '#commands/types'
-import * as wiki from '#commands/wiki'
-import * as drafts from '#commands/wiki-drafts'
-import * as wikiLinks from '#commands/wiki-links'
-import * as watchers from '#commands/wiki-watchers'
-import * as workflow from '#commands/workflow'
-import * as workspaces from '#commands/workspaces'
+import * as messages from '#commands/agent-messages.ts'
+import * as agents from '#commands/agents.ts'
+import * as heatmap from '#commands/code-heatmap.ts'
+import * as comments from '#commands/comments.ts'
+import * as fields from '#commands/custom-fields.ts'
+import * as sources from '#commands/feedback-sources.ts'
+import * as feedback from '#commands/feedback.ts'
+import * as claims from '#commands/file-claims.ts'
+import * as files from '#commands/files.ts'
+import * as metrics from '#commands/flow-metrics.ts'
+import * as groups from '#commands/groups.ts'
+import * as leases from '#commands/issue-leases.ts'
+import * as links from '#commands/issue-links.ts'
+import * as issues from '#commands/issues.ts'
+import * as oauth from '#commands/oauth.ts'
+import * as compose from '#commands/playbook-compose.ts'
+import * as playbooks from '#commands/playbooks.ts'
+import * as activity from '#commands/project-activity.ts'
+import * as projects from '#commands/projects.ts'
+import * as share from '#commands/share.ts'
+import * as sprints from '#commands/sprints.ts'
+import * as statuses from '#commands/task-statuses.ts'
+import * as types from '#commands/task-types.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import * as drafts from '#commands/wiki-drafts.ts'
+import * as wikiLinks from '#commands/wiki-links.ts'
+import * as watchers from '#commands/wiki-watchers.ts'
+import * as wiki from '#commands/wiki.ts'
+import * as workflow from '#commands/workflow.ts'
+import * as workspaces from '#commands/workspaces.ts'
 
-import { ApiResults } from '../../contracts/api-results'
-import { type CoreActor, requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '../authorization'
-import { coreFailure, coreReply } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
-import type { CoreEnvironment } from '../environment'
+import { ApiResults } from '../../contracts/api-results.ts'
+import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '../authorization.ts'
+import type { CoreActor } from '../authorization.ts'
+import { coreFailure, coreReply } from '../contract.ts'
+import { publicDomainFailure } from '../domain-errors.ts'
+import type { CoreEnvironment } from '../environment.ts'
 
 /** Closed, named native methods. No caller-supplied operation or capability is accepted. */
 export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
@@ -53,7 +54,9 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
           Effect.tryPromise({
             try: async () => {
               const ctx = await resolveCoreServiceCtx(actor, workspaceId, capability, env)
-              if (interactive) requireInteractive(ctx)
+              if (interactive) {
+                requireInteractive(ctx)
+              }
               return command(ctx, ...args)
             },
             catch: publicDomainFailure,
@@ -245,11 +248,11 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
     apiCreateToken: operation('apiCreateToken', 'write', workspaces.createToken, true),
     apiRevokeToken: operation('apiRevokeToken', 'write', workspaces.revokeToken, true),
     apiListConnectorGrants: connectors('apiListConnectorGrants', 'read', async (env, ctx) => {
-      const { oauthApi } = await import('../../contracts/oauth-provider')
+      const { oauthApi } = await import('../../contracts/oauth-provider.ts')
       return oauth.listConnectorGrants(oauthApi(env), ctx.userId, ctx.workspaceId)
     }),
     apiRevokeConnectorGrant: connectors('apiRevokeConnectorGrant', 'write', async (env, ctx, grantId: string) => {
-      const { oauthApi } = await import('../../contracts/oauth-provider')
+      const { oauthApi } = await import('../../contracts/oauth-provider.ts')
       return oauth.revokeConnectorGrant(oauthApi(env), ctx.userId, ctx.workspaceId, grantId)
     }),
     apiDeleteWorkspace: operation('apiDeleteWorkspace', 'write', workspaces.deleteWorkspace),

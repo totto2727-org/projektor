@@ -2,7 +2,13 @@
 
 import type { CSSProperties } from 'react'
 
-import { Select as PrimitiveSelect, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../generated/select'
+import {
+  Select as PrimitiveSelect,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '../generated/select.tsx'
 
 export interface SelectOption {
   value: string
@@ -45,7 +51,9 @@ export function Select({
         disabled={disabled}
         items={options}
         onValueChange={(nextValue) => {
-          if (nextValue !== null) onChange(nextValue)
+          if (nextValue !== null) {
+            onChange(nextValue)
+          }
         }}
       >
         <SelectTrigger

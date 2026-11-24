@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { afterEach, expect, it, vi } from 'vite-plus/test'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../components/IssueList', () => ({
   default: ({ initialData }: { initialData: IssuesInitialData }) => (
@@ -13,9 +13,10 @@ vi.mock('../components/IssueList', () => ({
   ),
 }))
 
-import { issue, project, scope, secondProject, workspace } from '../test/fixtures'
-import { IssueReviewNavigation } from './IssueReviewNavigation'
-import { type IssuesInitialData, IssuesPage } from './IssuesPage'
+import { issue, project, scope, secondProject, workspace } from '../test/fixtures.ts'
+import { IssueReviewNavigation } from './IssueReviewNavigation.tsx'
+import { IssuesPage } from './IssuesPage.tsx'
+import type { IssuesInitialData } from './IssuesPage.tsx'
 
 afterEach(cleanup)
 
@@ -25,7 +26,7 @@ const route = {
     '?workspace=workspace&projectId=project-a&project=A&q=release+%26+review&cursor=older&view=board&assignee=someone&epic=epic-a&sprintId=sprint-a&review=active',
 }
 
-it.each([
+test.each([
   ['All issues', null],
   ['レビュー中', 'in_review'],
   ['修正中', 'fixing'],
@@ -50,7 +51,7 @@ it.each([
   },
 )
 
-it.each(['backlog', 'board', 'list'])(
+test.each(['backlog', 'board', 'list'])(
   'enters every review filter in paginated list view from %s without retaining a stale cursor',
   (view) => {
     render(
@@ -68,7 +69,7 @@ it.each(['backlog', 'board', 'list'])(
   },
 )
 
-it.each([
+test.each([
   [null, 'All issues'],
   ['in_review', 'レビュー中'],
   ['fixing', '修正中'],
@@ -78,7 +79,9 @@ it.each([
   ['unrecognized', 'All issues'],
 ] as const)('marks only the URL-owned %s filter as the current page', (review, label) => {
   const search = new URLSearchParams({ workspace: workspace.slug })
-  if (review) search.set('review', review)
+  if (review) {
+    search.set('review', review)
+  }
   render(
     <IssueReviewNavigation
       route={{ pathname: '/issues', search: `?${search}` }}
@@ -95,7 +98,7 @@ it.each([
   ).toEqual([label])
 })
 
-it('offers cross-project review navigation that cannot inherit project, assignee, epic, sprint or search confinement', () => {
+test('offers cross-project review navigation that cannot inherit project, assignee, epic, sprint or search confinement', () => {
   render(<IssueReviewNavigation route={route} workspaceSlug='team space' project={project} />)
   const link = screen.getByRole('link', { name: '全プロジェクトのレビュー' })
   const url = new URL(link.getAttribute('href') ?? '', 'https://frontend.test')
@@ -109,7 +112,7 @@ it('offers cross-project review navigation that cannot inherit project, assignee
   expect(screen.queryByText('表示範囲: アクセスできる全プロジェクト')).toBeNull()
 })
 
-it('labels the workspace-wide scope prominently and puts reviewing first among the review filters', () => {
+test('labels the workspace-wide scope prominently and puts reviewing first among the review filters', () => {
   render(
     <IssueReviewNavigation
       route={{ pathname: '/issues', search: '?workspace=workspace' }}
@@ -132,7 +135,7 @@ it('labels the workspace-wide scope prominently and puts reviewing first among t
   }
 })
 
-it('uses the canonical workspace when the incoming route contains an obsolete workspace selector', () => {
+test('uses the canonical workspace when the incoming route contains an obsolete workspace selector', () => {
   render(
     <IssueReviewNavigation
       route={{ pathname: '/issues', search: '?workspace=old&projectId=project-a' }}
@@ -147,7 +150,7 @@ it('uses the canonical workspace when the incoming route contains an obsolete wo
   }
 })
 
-it('renders readable scope and complete native review navigation without JavaScript', () => {
+test('renders readable scope and complete native review navigation without JavaScript', () => {
   const html = renderToStaticMarkup(
     <IssueReviewNavigation route={route} workspaceSlug={workspace.slug} project={project} />,
   )
@@ -162,7 +165,7 @@ it('renders readable scope and complete native review navigation without JavaScr
   expect(document.querySelector('button, select')).toBeNull()
 })
 
-it('integrates scope and review navigation above canonical cross-project issue results without filtering them in React', () => {
+test('integrates scope and review navigation above canonical cross-project issue results without filtering them in React', () => {
   const initialData: IssuesInitialData = {
     currentUserId: scope.user.id,
     view: 'list',

@@ -1,11 +1,12 @@
 'use client'
-import { createContext, type ReactNode, useContext, useState } from 'react'
+import { createContext, useContext, useState } from 'react'
+import type { ReactNode } from 'react'
 
-import { unwrapResult } from '../../../../client/functions'
-import { Button } from '../../../../components/ui/Button'
-import Select from '../../../../components/ui/Select'
-import { updateIssue } from '../../actions'
-import type { Issue, TaskStatus } from '../board-utils'
+import { unwrapResult } from '../../../../client/functions.ts'
+import { Button } from '../../../../components/ui/Button.tsx'
+import Select from '../../../../components/ui/Select.tsx'
+import { updateIssue } from '../../actions.ts'
+import type { Issue, TaskStatus } from '../board-utils.ts'
 
 const Selection = createContext<{
   selected: ReadonlySet<string>
@@ -13,7 +14,9 @@ const Selection = createContext<{
 } | null>(null)
 export function IssueSelectionControl({ issue }: { issue: Pick<Issue, 'id' | 'number' | 'project_key' | 'title'> }) {
   const selection = useContext(Selection)
-  if (!selection) return null
+  if (!selection) {
+    return null
+  }
   return (
     <input
       type='checkbox'
@@ -41,8 +44,11 @@ export function IssueBulkProvider({
   function toggle(id: string, checked: boolean) {
     setSelected((current) => {
       const next = new Set(current)
-      if (checked) next.add(id)
-      else next.delete(id)
+      if (checked) {
+        next.add(id)
+      } else {
+        next.delete(id)
+      }
       return next
     })
   }
@@ -51,7 +57,9 @@ export function IssueBulkProvider({
     setBusy(true)
     setError(null)
     try {
-      for (const id of ids) unwrapResult(await updateIssue({ workspaceSlug, issueId: id, patch: changes }))
+      for (const id of ids) {
+        unwrapResult(await updateIssue({ workspaceSlug, issueId: id, patch: changes }))
+      }
       setSelected(new Set())
     } catch (cause) {
       setError(`Bulk update failed: ${cause instanceof Error ? cause.message : String(cause)}`)
@@ -79,7 +87,9 @@ export function IssueBulkProvider({
                 ...statuses.map((status) => ({ value: status.id, label: status.name })),
               ]}
               onChange={(value) => {
-                if (value) void change({ statusId: value })
+                if (value) {
+                  void change({ statusId: value })
+                }
               }}
               disabled={busy}
               ariaLabel='Bulk status'
@@ -94,7 +104,9 @@ export function IssueBulkProvider({
                 })),
               ]}
               onChange={(value) => {
-                if (value) void change({ priority: value })
+                if (value) {
+                  void change({ priority: value })
+                }
               }}
               disabled={busy}
               ariaLabel='Bulk priority'

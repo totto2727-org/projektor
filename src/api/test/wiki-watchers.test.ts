@@ -1,9 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, seedGroupGrant, seedMember, seedProject, seedToken, seedUser } from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, seedGroupGrant, seedMember, seedProject, seedToken, seedUser } from './helpers.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 // PROJ-821: a watcher who loses access to a page (grant revoked, or removed from the
 // workspace) must stop receiving its notifications, which carry the page title.
@@ -63,7 +63,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     return row?.n ?? 0
   }
 
-  it("stops notifying a watcher once their group's project grant is revoked", async () => {
+  test("stops notifying a watcher once their group's project grant is revoked", async () => {
     const project = await seedProject(workspaceId)
     const { groupId } = await seedGroupGrant(workspaceId, watcherId, project.id, 'viewer')
     const pageId = await createPage({ title: 'Secret Plan', content: 'v1', projectId: project.id })
@@ -80,7 +80,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     expect(await notificationCount()).toBe(1)
   })
 
-  it('stops notifying a watcher removed from the workspace, even for workspace-level pages', async () => {
+  test('stops notifying a watcher removed from the workspace, even for workspace-level pages', async () => {
     const pageId = await createPage({ title: 'Handbook', content: 'v1' })
     await watch(pageId)
 
@@ -95,7 +95,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     expect(await notificationCount()).toBe(1)
   })
 
-  it('still notifies a subtree watcher who keeps access', async () => {
+  test('still notifies a subtree watcher who keeps access', async () => {
     const project = await seedProject(workspaceId)
     await seedGroupGrant(workspaceId, watcherId, project.id, 'viewer')
     const parentId = await createPage({ title: 'Parent', content: 'p', projectId: project.id })

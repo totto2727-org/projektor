@@ -1,14 +1,12 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { computeFreshness } from '#commands/wiki-freshness'
-import { listWikiChanges } from '#commands/wiki-watchers'
+import { computeFreshness } from '#commands/wiki-freshness.ts'
+import { listWikiChanges } from '#commands/wiki-watchers.ts'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
   seedFixture,
   seedGroupGrant,
   seedMember,
@@ -18,8 +16,9 @@ import {
   seedUserToken,
   seedWorkspaceRoles,
   toolError,
-} from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+} from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 // PROJ-869: wraps a D1Database so every row a `.all()`/`.first()`/`.raw()` call resolves
 // with is pushed into `captured` — used to inspect what actually came back over the D1
@@ -90,8 +89,10 @@ function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
   return 'error' in r
 }
 
-function mcpData<T>(r: JsonRpcResult<{ content: Array<{ text: string }> }> | JsonRpcError): T {
-  if (isMcpError(r)) throw new Error(`MCP error: ${r.error.message}`)
+function mcpData<T>(r: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcError): T {
+  if (isMcpError(r)) {
+    throw new Error(`MCP error: ${r.error.message}`)
+  }
   return JSON.parse(r.result.content[0].text) as T
 }
 
@@ -137,7 +138,7 @@ describe('Wiki API', () => {
     userId = fixture.user.id
   })
 
-  it('GET /api/wiki returns empty list initially', async () => {
+  test('GET /api/wiki returns empty list initially', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       headers: authHeaders(token, slug),
     })
@@ -145,7 +146,7 @@ describe('Wiki API', () => {
     expect(await res.json()).toEqual([])
   })
 
-  it('POST /api/wiki creates a page', async () => {
+  test('POST /api/wiki creates a page', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -157,7 +158,7 @@ describe('Wiki API', () => {
   })
 
   describe('canonical page url (PROJ-307)', () => {
-    it('create/get/update/list/tree all expose a resolvable url', async () => {
+    test('create/get/update/list/tree all expose a resolvable url', async () => {
       const createRes = await SELF.fetch('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
@@ -183,17 +184,17 @@ describe('Wiki API', () => {
       const listRes = await SELF.fetch('http://localhost/api/wiki', {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as Array<{ slug: string; url: string }>
+      const list = (await listRes.json()) as { slug: string; url: string }[]
       expect(list.find((p) => p.slug === 'weekly-updates')?.url).toBe('/wiki/weekly-updates')
 
       const treeRes = await SELF.fetch('http://localhost/api/wiki/tree', {
         headers: authHeaders(token, slug),
       })
-      const tree = (await treeRes.json()) as Array<{ slug: string; url: string }>
+      const tree = (await treeRes.json()) as { slug: string; url: string }[]
       expect(tree.find((p) => p.slug === 'weekly-updates')?.url).toBe('/wiki/weekly-updates')
     })
 
-    it('omits projectId from the url for a project-scoped page (slugs are workspace-unique, PROJ-483)', async () => {
+    test('omits projectId from the url for a project-scoped page (slugs are workspace-unique, PROJ-483)', async () => {
       const project = await seedProject(workspaceId)
       await seedGroupGrant(workspaceId, userId, project.id)
       const createRes = await SELF.fetch('http://localhost/api/wiki', {
@@ -206,7 +207,7 @@ describe('Wiki API', () => {
     })
   })
 
-  it("PROJ-389: another workspace's owner cannot create a wiki page in this project", async () => {
+  test("PROJ-389: another workspace's owner cannot create a wiki page in this project", async () => {
     const project = await seedProject(workspaceId)
     const otherOwner = await seedFixture({ role: 'owner' })
     const res = await SELF.fetch('http://localhost/api/wiki', {
@@ -217,7 +218,7 @@ describe('Wiki API', () => {
     expect(res.status).toBe(404)
   })
 
-  it('GET /api/wiki/:slug retrieves a page by slug', async () => {
+  test('GET /api/wiki/:slug retrieves a page by slug', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -233,14 +234,14 @@ describe('Wiki API', () => {
     expect(page.content).toBe('## System design')
   })
 
-  it('GET /api/wiki/:slug returns 404 for unknown slug', async () => {
+  test('GET /api/wiki/:slug returns 404 for unknown slug', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki/does-not-exist', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  it('PUT /api/wiki/:slug updates content and saves a revision', async () => {
+  test('PUT /api/wiki/:slug updates content and saves a revision', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -267,7 +268,7 @@ describe('Wiki API', () => {
     expect(revisions).toHaveLength(1)
   })
 
-  it('GET /api/wiki/search finds pages by keyword', async () => {
+  test('GET /api/wiki/search finds pages by keyword', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -282,7 +283,7 @@ describe('Wiki API', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/search?q=wrangler', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Deployment Guide')
   })
@@ -290,7 +291,7 @@ describe('Wiki API', () => {
   // PROJ-489 (R7): a page with no verify_interval/status frontmatter signal at all gets
   // `freshness: null` — never fabricated. (R7 landed; full freshness behavior is
   // exercised in the "Wiki freshness model (PROJ-489)" describe block below.)
-  it('GET /api/wiki/search returns freshness: null for a page with no verification signal', async () => {
+  test('GET /api/wiki/search returns freshness: null for a page with no verification signal', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -299,15 +300,17 @@ describe('Wiki API', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/search?q=wrangler', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ freshness: unknown }>
+    const results = (await res.json()) as { freshness: unknown }[]
     expect(results.length).toBeGreaterThan(0)
-    for (const r of results) expect(r.freshness).toBeNull()
+    for (const r of results) {
+      expect(r.freshness).toBeNull()
+    }
   })
 
   // PROJ-513: `type` is freeform (per the PRD) — an arbitrary value like "guide" is a
   // valid filter, just one that (correctly) matches nothing here. `status` stays a
   // closed enum, so an unrecognized value there is still rejected.
-  it('GET /api/wiki/search accepts an arbitrary type filter but rejects an unknown status (PROJ-513)', async () => {
+  test('GET /api/wiki/search accepts an arbitrary type filter but rejects an unknown status (PROJ-513)', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -323,7 +326,7 @@ describe('Wiki API', () => {
     expect(badStatusRes.status).toBe(400)
   })
 
-  it('accepts a custom slug', async () => {
+  test('accepts a custom slug', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -335,7 +338,7 @@ describe('Wiki API', () => {
 
   // --- canonical behavior parity tests ---
 
-  it('GET /api/wiki?parentId= filters to children of that page (PROJ-244)', async () => {
+  test('GET /api/wiki?parentId= filters to children of that page (PROJ-244)', async () => {
     const parentRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -358,12 +361,12 @@ describe('Wiki API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const pages = (await res.json()) as Array<{ title: string }>
+    const pages = (await res.json()) as { title: string }[]
     expect(pages).toHaveLength(1)
     expect(pages[0].title).toBe('Child Page')
   })
 
-  it('GET /api/wiki returns ALL pages regardless of parent hierarchy', async () => {
+  test('GET /api/wiki returns ALL pages regardless of parent hierarchy', async () => {
     const parentRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -384,7 +387,7 @@ describe('Wiki API', () => {
     expect(pages).toHaveLength(2)
   })
 
-  it('GET /api/wiki/search with no query returns empty array', async () => {
+  test('GET /api/wiki/search with no query returns empty array', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -399,7 +402,7 @@ describe('Wiki API', () => {
 
   // PROJ-486: replaces the old "first 250 chars" excerpt with an FTS5 snippet()
   // that is anchored to the actual match and highlighted with ** markers.
-  it('GET /api/wiki/search snippet is match-anchored and highlighted', async () => {
+  test('GET /api/wiki/search snippet is match-anchored and highlighted', async () => {
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -412,7 +415,7 @@ describe('Wiki API', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/search?q=needle-term', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ excerpt: string }>
+    const results = (await res.json()) as { excerpt: string }[]
     expect(results).toHaveLength(1)
     // The match is buried deep in a long page; a static first-250-chars excerpt
     // would never contain it, but a match-anchored snippet does.
@@ -423,7 +426,7 @@ describe('Wiki API', () => {
   // PROJ-486: BM25 ranking with a title-weight boost — a query matching only the
   // title of one page should rank it above a page where the term only appears deep
   // in a long body.
-  it('GET /api/wiki/search ranks a title match above a buried body match', async () => {
+  test('GET /api/wiki/search ranks a title match above a buried body match', async () => {
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -442,12 +445,12 @@ describe('Wiki API', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/search?q=zylophone', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results).toHaveLength(2)
     expect(results[0].title).toBe('Zylophone Guide')
   })
 
-  it('GET /api/wiki/search supports limit/offset pagination', async () => {
+  test('GET /api/wiki/search supports limit/offset pagination', async () => {
     for (let i = 0; i < 3; i++) {
       await SELF.fetch('http://localhost/api/wiki', {
         method: 'POST',
@@ -458,19 +461,19 @@ describe('Wiki API', () => {
     const page1 = await SELF.fetch('http://localhost/api/wiki/search?q=shared-search-term&limit=2', {
       headers: authHeaders(token, slug),
     })
-    const page1Results = (await page1.json()) as Array<{ id: string }>
+    const page1Results = (await page1.json()) as { id: string }[]
     expect(page1Results).toHaveLength(2)
 
     const page2 = await SELF.fetch('http://localhost/api/wiki/search?q=shared-search-term&limit=2&offset=2', {
       headers: authHeaders(token, slug),
     })
-    const page2Results = (await page2.json()) as Array<{ id: string }>
+    const page2Results = (await page2.json()) as { id: string }[]
     expect(page2Results).toHaveLength(1)
     expect(page2Results.map((r) => r.id)).not.toContain(page1Results[0].id)
     expect(page2Results.map((r) => r.id)).not.toContain(page1Results[1].id)
   })
 
-  it('GET /api/wiki/search paginates deterministically when results tie in rank', async () => {
+  test('GET /api/wiki/search paginates deterministically when results tie in rank', async () => {
     // All three pages below match equally (same term, same content shape), so bm25()
     // alone ties -- pagination must fall back to a stable tiebreaker (page id) rather
     // than duplicating or dropping rows across pages. Distinct titles avoid PROJ-483
@@ -492,7 +495,7 @@ describe('Wiki API', () => {
     const fetchAll = () =>
       SELF.fetch('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2', {
         headers: authHeaders(token, slug),
-      }).then((r) => r.json() as Promise<Array<{ id: string }>>)
+      }).then((r) => r.json() as Promise<{ id: string }[]>)
 
     const first = await fetchAll()
     await resetRateLimits()
@@ -503,13 +506,13 @@ describe('Wiki API', () => {
     const page2 = await SELF.fetch('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2&offset=2', {
       headers: authHeaders(token, slug),
     })
-    const page2Results = (await page2.json()) as Array<{ id: string }>
+    const page2Results = (await page2.json()) as { id: string }[]
     const allIds = [...first.map((r) => r.id), ...page2Results.map((r) => r.id)]
     expect(new Set(allIds).size).toBe(allIds.length)
     expect(allIds).toHaveLength(3)
   })
 
-  it('GET /api/wiki/search updatedSince filters out pages updated before the cutoff', async () => {
+  test('GET /api/wiki/search updatedSince filters out pages updated before the cutoff', async () => {
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -529,11 +532,11 @@ describe('Wiki API', () => {
     const resAll = await SELF.fetch('http://localhost/api/wiki/search?q=freshness-cutoff-term', {
       headers: authHeaders(token, slug),
     })
-    const allResults = (await resAll.json()) as Array<{ id: string }>
+    const allResults = (await resAll.json()) as { id: string }[]
     expect(allResults).toHaveLength(1)
   })
 
-  it("GET /api/wiki/search never returns another workspace's pages", async () => {
+  test("GET /api/wiki/search never returns another workspace's pages", async () => {
     const other = await seedFixture()
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -549,14 +552,14 @@ describe('Wiki API', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/search?q=cross-tenant-term', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('This Workspace Page')
   })
 
   // PROJ-486: the wiki_fts mirror table must track create/update/delete of wiki_pages.
   describe('wiki_fts index stays in sync', () => {
-    it('a newly created page is searchable immediately', async () => {
+    test('a newly created page is searchable immediately', async () => {
       await SELF.fetch('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
@@ -568,7 +571,7 @@ describe('Wiki API', () => {
       expect(await res.json()).toHaveLength(1)
     })
 
-    it("an updated page's new content becomes searchable and old content stops matching", async () => {
+    test("an updated page's new content becomes searchable and old content stops matching", async () => {
       const createRes = await SELF.fetch('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
@@ -593,7 +596,7 @@ describe('Wiki API', () => {
       expect(await newRes.json()).toHaveLength(1)
     })
 
-    it('a deleted page is no longer searchable', async () => {
+    test('a deleted page is no longer searchable', async () => {
       // Deleting a workspace-level page requires admin/owner (services/wiki.ts).
       const owner = await seedFixture({ role: 'owner' })
       const createRes = await SELF.fetch('http://localhost/api/wiki', {
@@ -614,7 +617,7 @@ describe('Wiki API', () => {
       expect(await res.json()).toEqual([])
     })
 
-    it("a cascade-deleted subtree's pages are no longer searchable", async () => {
+    test("a cascade-deleted subtree's pages are no longer searchable", async () => {
       const owner = await seedFixture({ role: 'owner' })
       const parentRes = await SELF.fetch('http://localhost/api/wiki', {
         method: 'POST',
@@ -644,7 +647,7 @@ describe('Wiki API', () => {
     })
   })
 
-  it('PUT /api/wiki/:slug title-only update does not create a revision', async () => {
+  test('PUT /api/wiki/:slug title-only update does not create a revision', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -664,7 +667,7 @@ describe('Wiki API', () => {
     expect(revisions).toHaveLength(0)
   })
 
-  it('POST /api/wiki returns 400 for invalid input', async () => {
+  test('POST /api/wiki returns 400 for invalid input', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -673,8 +676,8 @@ describe('Wiki API', () => {
     expect(res.status).toBe(400)
   })
 
-  it('project-scoped pages are isolated from workspace-level list', async () => {
-    const { env } = await import('./fixture-api')
+  test('project-scoped pages are isolated from workspace-level list', async () => {
+    const { env } = await import('./fixture-api.ts')
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     const project = await seedProject(ws!.id, 'WIKI')
     await seedGroupGrant(ws!.id, userId, project.id)
@@ -693,7 +696,7 @@ describe('Wiki API', () => {
     const projectRes = await SELF.fetch(`http://localhost/api/wiki?projectId=${project.id}`, {
       headers: authHeaders(token, slug),
     })
-    const projectPages = (await projectRes.json()) as Array<{ title: string }>
+    const projectPages = (await projectRes.json()) as { title: string }[]
     expect(projectPages).toHaveLength(1)
     expect(projectPages[0].title).toBe('Project Page')
 
@@ -712,7 +715,7 @@ describe('Wiki API', () => {
       .run()
   }
 
-  it('includeWorkspacePages widens a project scope to workspace-level pages (PROJ-742)', async () => {
+  test('includeWorkspacePages widens a project scope to workspace-level pages (PROJ-742)', async () => {
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     const project = await seedProject(ws!.id, 'WIDEN')
     const other = await seedProject(ws!.id, 'OTHER')
@@ -725,12 +728,12 @@ describe('Wiki API', () => {
     const strictRes = await SELF.fetch(`http://localhost/api/wiki?projectId=${project.id}`, {
       headers: authHeaders(token, slug),
     })
-    expect(((await strictRes.json()) as Array<{ title: string }>).map((p) => p.title)).toEqual(['Scoped Page'])
+    expect(((await strictRes.json()) as { title: string }[]).map((p) => p.title)).toEqual(['Scoped Page'])
 
     const widenedRes = await SELF.fetch(`http://localhost/api/wiki?projectId=${project.id}&includeWorkspacePages=1`, {
       headers: authHeaders(token, slug),
     })
-    expect(((await widenedRes.json()) as Array<{ title: string }>).map((p) => p.title).sort()).toEqual([
+    expect(((await widenedRes.json()) as { title: string }[]).map((p) => p.title).sort()).toEqual([
       'Scoped Page',
       'Shared Page',
     ])
@@ -738,13 +741,13 @@ describe('Wiki API', () => {
     const treeRes = await SELF.fetch(`http://localhost/api/wiki/tree?projectId=${project.id}&includeWorkspacePages=1`, {
       headers: authHeaders(token, slug),
     })
-    expect(((await treeRes.json()) as Array<{ title: string }>).map((p) => p.title).sort()).toEqual([
+    expect(((await treeRes.json()) as { title: string }[]).map((p) => p.title).sort()).toEqual([
       'Scoped Page',
       'Shared Page',
     ])
   })
 
-  it("includeWorkspacePages still hides a project the caller isn't granted (PROJ-742)", async () => {
+  test("includeWorkspacePages still hides a project the caller isn't granted (PROJ-742)", async () => {
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     const ungranted = await seedProject(ws!.id, 'UNGRANTED')
     await seedWikiPageRow(ws!.id, null, 'ungranted-shared-page', 'Shared Page')
@@ -753,11 +756,11 @@ describe('Wiki API', () => {
     const res = await SELF.fetch(`http://localhost/api/wiki?projectId=${ungranted.id}&includeWorkspacePages=1`, {
       headers: authHeaders(token, slug),
     })
-    expect(((await res.json()) as Array<{ title: string }>).map((p) => p.title)).toEqual(['Shared Page'])
+    expect(((await res.json()) as { title: string }[]).map((p) => p.title)).toEqual(['Shared Page'])
   })
 
-  it('POST /api/wiki stores projectId and GET returns it', async () => {
-    const { env } = await import('./fixture-api')
+  test('POST /api/wiki stores projectId and GET returns it', async () => {
+    const { env } = await import('./fixture-api.ts')
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     const project = await seedProject(ws!.id, 'P2')
     await seedGroupGrant(ws!.id, userId, project.id)
@@ -778,7 +781,7 @@ describe('Wiki API', () => {
     expect(page.project_id).toBe(project.id)
   })
 
-  it('POST /api/wiki creates a nested page with parentId', async () => {
+  test('POST /api/wiki creates a nested page with parentId', async () => {
     const parentRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -802,12 +805,14 @@ describe('Wiki API', () => {
     expect(page.parent_id).toBe(parent.id)
   })
 
-  it('POST /api/wiki rejects when max nesting depth (5) is exceeded', async () => {
+  test('POST /api/wiki rejects when max nesting depth (5) is exceeded', async () => {
     let parentId: string | null = null
     // Create 5 levels deep (root → L1 → L2 → L3 → L4 → L5)
     for (let i = 0; i < 5; i++) {
       const body: Record<string, unknown> = { title: `Level ${i}`, content: '' }
-      if (parentId) body.parentId = parentId
+      if (parentId) {
+        body.parentId = parentId
+      }
       const res = await SELF.fetch('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
@@ -832,13 +837,15 @@ describe('Wiki API', () => {
     expect(body.error.formErrors[0]).toMatch(/Maximum wiki nesting depth/)
   })
 
-  it('PUT /api/wiki/:slug rejects a reparent whose moved SUBTREE would exceed max depth (PROJ-820)', async () => {
+  test('PUT /api/wiki/:slug rejects a reparent whose moved SUBTREE would exceed max depth (PROJ-820)', async () => {
     // Build a 4-level chain: L0 -> L1 -> L2 -> L3 (L3 sits at depth 3).
     let chainParentId: string | null = null
     let l3Id = ''
     for (let i = 0; i < 4; i++) {
       const body: Record<string, unknown> = { title: `Chain ${i}`, content: '' }
-      if (chainParentId) body.parentId = chainParentId
+      if (chainParentId) {
+        body.parentId = chainParentId
+      }
       const res = await SELF.fetch('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
@@ -893,7 +900,7 @@ describe('Wiki API', () => {
     expect(moveBody.error.formErrors[0]).toMatch(/Maximum wiki nesting depth/)
   })
 
-  it("PUT /api/wiki/:slug doesn't hang when a legacy parent_id cycle exists in the subtree being moved (PROJ-820)", async () => {
+  test("PUT /api/wiki/:slug doesn't hang when a legacy parent_id cycle exists in the subtree being moved (PROJ-820)", async () => {
     // A cycle can't be created through the API (validateParentDepth's ancestor walk has
     // its own `seen`-set cycle guard), but a legacy row or a direct DB write could leave
     // one behind IN THE SUBTREE being moved. Seed X -> Y -> X directly via raw SQL (Y's
@@ -941,7 +948,7 @@ describe('Wiki API', () => {
     expect([200, 400]).toContain(moveRes.status)
   }, 10_000)
 
-  it('GET /api/wiki/tree returns nested structure', async () => {
+  test('GET /api/wiki/tree returns nested structure', async () => {
     const rootRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -960,10 +967,10 @@ describe('Wiki API', () => {
       headers: authHeaders(token, slug),
     })
     expect(treeRes.status).toBe(200)
-    const tree = (await treeRes.json()) as Array<{
+    const tree = (await treeRes.json()) as {
       id: string
       children: Array<{ id: string; children: unknown[] }>
-    }>
+    }[]
     const rootNode = tree.find((n) => n.id === root.id)
     expect(rootNode).toBeDefined()
     expect(rootNode!.children).toHaveLength(1)
@@ -971,7 +978,7 @@ describe('Wiki API', () => {
     expect(rootNode!.children[0].children).toHaveLength(0)
   })
 
-  it('PUT /api/wiki/:slug reparents a page via parentId', async () => {
+  test('PUT /api/wiki/:slug reparents a page via parentId', async () => {
     const aRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1001,7 +1008,7 @@ describe('Wiki API', () => {
     expect(page.parent_id).toBe(a.id)
   })
 
-  it("DELETE /api/wiki/:slug (default) promotes children to the deleted page's parent (PROJ-238)", async () => {
+  test("DELETE /api/wiki/:slug (default) promotes children to the deleted page's parent (PROJ-238)", async () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -1040,7 +1047,7 @@ describe('Wiki API', () => {
     expect(childPage.parent_id).toBe(grandparent.id)
   })
 
-  it('DELETE /api/wiki/:slug?cascade=true removes the page and its whole subtree', async () => {
+  test('DELETE /api/wiki/:slug?cascade=true removes the page and its whole subtree', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -1096,7 +1103,7 @@ describe('Wiki API', () => {
     return { attachmentId: id, r2Key: row!.r2_key }
   }
 
-  it('DELETE :slug trashes the page, leaving its R2 attachment until purge (PROJ-426/496)', async () => {
+  test('DELETE :slug trashes the page, leaving its R2 attachment until purge (PROJ-426/496)', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -1123,7 +1130,7 @@ describe('Wiki API', () => {
     expect(row).not.toBeNull()
   })
 
-  it('DELETE ?cascade=true trashes the subtree, leaving R2 attachments until purge (PROJ-426/496)', async () => {
+  test('DELETE ?cascade=true trashes the subtree, leaving R2 attachments until purge (PROJ-426/496)', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -1156,15 +1163,15 @@ describe('Wiki API', () => {
     expect(await env.R2.get(childFile.r2Key)).not.toBeNull()
   })
 
-  it('DELETE /api/wiki/:slug returns 403 for viewer role', async () => {
+  test('DELETE /api/wiki/:slug returns 403 for viewer role', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Protected Page', content: 'secret' }),
     })
 
-    const { env } = await import('./fixture-api')
-    const { seedUser, seedMember, seedToken } = await import('./helpers')
+    const { env } = await import('./fixture-api.ts')
+    const { seedUser, seedMember, seedToken } = await import('./helpers.ts')
     const ws = await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first<{ id: string }>()
     const viewerUser = await seedUser(`viewer-wiki-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws!.id, viewerUser.id, 'viewer')
@@ -1179,7 +1186,7 @@ describe('Wiki API', () => {
 })
 
 describe('Wiki role guards', () => {
-  it('viewer cannot create a wiki page (403)', async () => {
+  test('viewer cannot create a wiki page (403)', async () => {
     const roles = await seedWorkspaceRoles()
 
     const res = await SELF.fetch('http://localhost/api/wiki', {
@@ -1190,7 +1197,7 @@ describe('Wiki role guards', () => {
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot update a wiki page (403)', async () => {
+  test('viewer cannot update a wiki page (403)', async () => {
     const roles = await seedWorkspaceRoles()
 
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
@@ -1208,7 +1215,7 @@ describe('Wiki role guards', () => {
     expect(updateRes.status).toBe(403)
   })
 
-  it('member cannot delete a wiki page (403)', async () => {
+  test('member cannot delete a wiki page (403)', async () => {
     const roles = await seedWorkspaceRoles()
 
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
@@ -1225,7 +1232,7 @@ describe('Wiki role guards', () => {
     expect(deleteRes.status).toBe(403)
   })
 
-  it('admin can delete a wiki page', async () => {
+  test('admin can delete a wiki page', async () => {
     const roles = await seedWorkspaceRoles()
 
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
@@ -1258,7 +1265,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     userId = fixture.user.id
   })
 
-  it("POST /api/wiki rejects a title that slugifies to an existing page's slug (409)", async () => {
+  test("POST /api/wiki rejects a title that slugifies to an existing page's slug (409)", async () => {
     const first = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1274,7 +1281,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(second.status).toBe(409)
   })
 
-  it('POST /api/wiki rejects an explicit slug that collides with an existing page (409)', async () => {
+  test('POST /api/wiki rejects an explicit slug that collides with an existing page (409)', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1289,7 +1296,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(res.status).toBe(409)
   })
 
-  it("POST /api/wiki rejects the reserved slug 'view' (PROJ-487, 400)", async () => {
+  test("POST /api/wiki rejects the reserved slug 'view' (PROJ-487, 400)", async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1298,7 +1305,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(res.status).toBe(400)
   })
 
-  it("POST /api/wiki auto-slugs the title 'View' to 'view-page' (PROJ-811)", async () => {
+  test("POST /api/wiki auto-slugs the title 'View' to 'view-page' (PROJ-811)", async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1308,7 +1315,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(((await res.json()) as { slug: string }).slug).toBe('view-page')
   })
 
-  it("PUT /api/wiki/:slug rejects renaming to the reserved slug 'view' (PROJ-487, 400)", async () => {
+  test("PUT /api/wiki/:slug rejects renaming to the reserved slug 'view' (PROJ-487, 400)", async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1323,7 +1330,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(res.status).toBe(400)
   })
 
-  it("POST /api/wiki rejects a slug containing '/' (PROJ-517, 400)", async () => {
+  test("POST /api/wiki rejects a slug containing '/' (PROJ-517, 400)", async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1332,7 +1339,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(res.status).toBe(400)
   })
 
-  it("PUT /api/wiki/:slug rejects renaming to a slug containing '/' (PROJ-517, 400)", async () => {
+  test("PUT /api/wiki/:slug rejects renaming to a slug containing '/' (PROJ-517, 400)", async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1347,7 +1354,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/wiki uses an opaque slug for a non-Latin title (empty derived slug, PROJ-517 #5)', async () => {
+  test('POST /api/wiki uses an opaque slug for a non-Latin title (empty derived slug, PROJ-517 #5)', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1364,7 +1371,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(fetched.title).toBe('測試')
   })
 
-  it("POST /api/wiki uses an opaque slug when derived slug exceeds SlugSchema's 200-char max (PROJ-517)", async () => {
+  test("POST /api/wiki uses an opaque slug when derived slug exceeds SlugSchema's 200-char max (PROJ-517)", async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1375,7 +1382,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(page.slug).toMatch(/^page-[0-9a-f]{8}$/)
   })
 
-  it("MCP create_wiki_page rejects a slug containing '/' (PROJ-517, REST/MCP parity)", async () => {
+  test("MCP create_wiki_page rejects a slug containing '/' (PROJ-517, REST/MCP parity)", async () => {
     const res = await mcpCall(
       workspaceId,
       'create_wiki_page',
@@ -1386,7 +1393,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it("MCP update_wiki_page rejects renaming to a slug containing '/' (PROJ-517, REST/MCP parity)", async () => {
+  test("MCP update_wiki_page rejects renaming to a slug containing '/' (PROJ-517, REST/MCP parity)", async () => {
     const created = mcpData<{ slug: string }>(
       await mcpCall(workspaceId, 'create_wiki_page', { title: 'Delta MCP', content: 'd' }, authHeaders(token, slug)),
     )
@@ -1401,7 +1408,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('a slashy slug rewritten by the PROJ-517 backfill still resolves, and the old slug redirects (#1)', async () => {
+  test('a slashy slug rewritten by the PROJ-517 backfill still resolves, and the old slug redirects (#1)', async () => {
     // Simulate a pre-PROJ-517 row that predates SlugSchema's no-slash rule by
     // inserting directly (SlugSchema would now reject this via the service layer).
     const pageId = crypto.randomUUID()
@@ -1440,7 +1447,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(oldPage.slug).toBe('operations-admin-allow-list')
   })
 
-  it("POST /api/wiki rejects the reserved slug 'index' (PROJ-487, 400)", async () => {
+  test("POST /api/wiki rejects the reserved slug 'index' (PROJ-487, 400)", async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1449,7 +1456,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(res.status).toBe(400)
   })
 
-  it("POST /api/wiki auto-slugs the title 'Index' to 'index-page' (PROJ-811)", async () => {
+  test("POST /api/wiki auto-slugs the title 'Index' to 'index-page' (PROJ-811)", async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1459,7 +1466,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(((await res.json()) as { slug: string }).slug).toBe('index-page')
   })
 
-  it("PUT /api/wiki/:slug rejects renaming to the reserved slug 'index' (PROJ-487, 400)", async () => {
+  test("PUT /api/wiki/:slug rejects renaming to the reserved slug 'index' (PROJ-487, 400)", async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1474,7 +1481,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('PUT /api/wiki/:slug renaming the slug creates a redirect; the old slug still resolves', async () => {
+  test('PUT /api/wiki/:slug renaming the slug creates a redirect; the old slug still resolves', async () => {
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1506,7 +1513,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(oldPage.title).toBe('Roadmap')
   })
 
-  it('PUT /api/wiki/:slug rejects renaming to a slug already used by another page (409)', async () => {
+  test('PUT /api/wiki/:slug rejects renaming to a slug already used by another page (409)', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1526,7 +1533,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(res.status).toBe(409)
   })
 
-  it('redirect chains collapse: renaming a page twice still resolves the original slug in one hop', async () => {
+  test('redirect chains collapse: renaming a page twice still resolves the original slug in one hop', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1557,7 +1564,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(((await intermediateRes.json()) as { slug: string }).slug).toBe('docs-v3')
   })
 
-  it('getWikiPage prefers a live page over a stale redirect for a reused slug (never ambiguous)', async () => {
+  test('getWikiPage prefers a live page over a stale redirect for a reused slug (never ambiguous)', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1585,7 +1592,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(page.title).toBe('Reclaimed')
   })
 
-  it('the same slug in two different workspaces does not conflict', async () => {
+  test('the same slug in two different workspaces does not conflict', async () => {
     const other = await seedFixture()
 
     const first = await SELF.fetch('http://localhost/api/wiki', {
@@ -1605,7 +1612,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(secondPage.slug).toBe('shared-name')
   })
 
-  it('a redirect created in one workspace does not resolve in another workspace', async () => {
+  test('a redirect created in one workspace does not resolve in another workspace', async () => {
     const other = await seedFixture()
 
     await SELF.fetch('http://localhost/api/wiki', {
@@ -1634,7 +1641,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(createRes.status).toBe(201)
   })
 
-  it('MCP update_wiki_page newSlug renames the slug and old slug resolves via redirect (parity with REST)', async () => {
+  test('MCP update_wiki_page newSlug renames the slug and old slug resolves via redirect (parity with REST)', async () => {
     const created = mcpData<{ slug: string }>(
       await mcpCall(workspaceId, 'create_wiki_page', { title: 'Handbook', content: 'v1' }, authHeaders(token, slug)),
     )
@@ -1656,7 +1663,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     expect(oldPage.slug).toBe('team-handbook')
   })
 
-  it('MCP create_wiki_page rejects a colliding slug with a ConflictError (conflict tool error)', async () => {
+  test('MCP create_wiki_page rejects a colliding slug with a ConflictError (conflict tool error)', async () => {
     await mcpCall(workspaceId, 'create_wiki_page', { title: 'Conflict Page' }, authHeaders(token, slug))
     const res = await mcpCall(workspaceId, 'create_wiki_page', { title: 'Conflict Page' }, authHeaders(token, slug))
     expect(isMcpError(res)).toBe(false)
@@ -1687,7 +1694,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     '# Runbook body',
   ].join('\n')
 
-  it('REST POST /api/wiki parses valid frontmatter into denormalized fields', async () => {
+  test('REST POST /api/wiki parses valid frontmatter into denormalized fields', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1723,7 +1730,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(page.tags).toEqual(['ops', 'oncall'])
   })
 
-  it('MCP create_wiki_page parses valid frontmatter into denormalized fields (parity with REST)', async () => {
+  test('MCP create_wiki_page parses valid frontmatter into denormalized fields (parity with REST)', async () => {
     const result = mcpData<{ type: string; tags: string[]; status: string }>(
       await mcpCall(
         workspaceId,
@@ -1737,7 +1744,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(result.status).toBe('current')
   })
 
-  it('a page with no frontmatter gets empty/null metadata', async () => {
+  test('a page with no frontmatter gets empty/null metadata', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1755,7 +1762,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
 
   // PROJ-513: `type` is freeform per the PRD — a value outside the well-known
   // runbook/adr/spec/note set is accepted and stored as-is, not rejected.
-  it('REST POST /api/wiki accepts a `type` value outside the well-known set (PROJ-513)', async () => {
+  test('REST POST /api/wiki accepts a `type` value outside the well-known set (PROJ-513)', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1769,7 +1776,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(created.type).toBe('whitepaper')
   })
 
-  it('MCP create_wiki_page accepts a `type` value outside the well-known set, parity with REST (PROJ-513)', async () => {
+  test('MCP create_wiki_page accepts a `type` value outside the well-known set, parity with REST (PROJ-513)', async () => {
     const created = mcpData<{ type: string | null }>(
       await mcpCall(
         workspaceId,
@@ -1783,7 +1790,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
 
   // PROJ-513: the freeform value has to survive the whole round trip — stored on create,
   // then usable as a filter on both list and search, exactly like a well-known one.
-  it('filters list/search by a `type` value outside the well-known set (PROJ-513)', async () => {
+  test('filters list/search by a `type` value outside the well-known set (PROJ-513)', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1804,22 +1811,22 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     const listRes = await SELF.fetch('http://localhost/api/wiki?type=whitepaper', {
       headers: authHeaders(token, slug),
     })
-    const listed = (await listRes.json()) as Array<{ title: string }>
+    const listed = (await listRes.json()) as { title: string }[]
     expect(listed.map((r) => r.title)).toEqual(['Freeform Filter Whitepaper'])
 
     const searchRes = await SELF.fetch('http://localhost/api/wiki/search?q=latency&type=whitepaper', {
       headers: authHeaders(token, slug),
     })
-    const found = (await searchRes.json()) as Array<{ title: string }>
+    const found = (await searchRes.json()) as { title: string }[]
     expect(found.map((r) => r.title)).toEqual(['Freeform Filter Whitepaper'])
 
-    const mcpListed = mcpData<Array<{ title: string }>>(
+    const mcpListed = mcpData<{ title: string }[]>(
       await mcpCall(workspaceId, 'list_wiki_pages', { type: 'whitepaper' }, authHeaders(token, slug)),
     )
     expect(mcpListed.map((r) => r.title)).toEqual(['Freeform Filter Whitepaper'])
   })
 
-  it('rejects an invalid `status` enum value with a structured error', async () => {
+  test('rejects an invalid `status` enum value with a structured error', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1831,7 +1838,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('rejects malformed YAML in the frontmatter block with a structured error, not a silent drop', async () => {
+  test('rejects malformed YAML in the frontmatter block with a structured error, not a silent drop', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1843,7 +1850,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('rejects an unrecognized frontmatter key rather than silently ignoring it', async () => {
+  test('rejects an unrecognized frontmatter key rather than silently ignoring it', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1855,7 +1862,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('rejects tags with the wrong type (a string instead of an array)', async () => {
+  test('rejects tags with the wrong type (a string instead of an array)', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1867,7 +1874,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(res.status).toBe(400)
   })
 
-  it("rejects a frontmatter block that isn't a YAML mapping", async () => {
+  test("rejects a frontmatter block that isn't a YAML mapping", async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1879,7 +1886,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(res.status).toBe(400)
   })
 
-  it("rejects a verified_at that isn't a parseable date", async () => {
+  test("rejects a verified_at that isn't a parseable date", async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1891,7 +1898,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('rejects a verified_at that is neither a date nor a number', async () => {
+  test('rejects a verified_at that is neither a date nor a number', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1903,7 +1910,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('accepts a verified_at given as unix seconds', async () => {
+  test('accepts a verified_at given as unix seconds', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1917,7 +1924,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(created.verifiedAt).toBe(1_700_000_000)
   })
 
-  it('update_wiki_page reparses frontmatter when content changes', async () => {
+  test('update_wiki_page reparses frontmatter when content changes', async () => {
     const created = mcpData<{ slug: string }>(
       await mcpCall(
         workspaceId,
@@ -1942,7 +1949,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(page.tags).toEqual([])
   })
 
-  it('update_wiki_page leaves existing frontmatter metadata unchanged when content is omitted', async () => {
+  test('update_wiki_page leaves existing frontmatter metadata unchanged when content is omitted', async () => {
     const created = mcpData<{ slug: string }>(
       await mcpCall(
         workspaceId,
@@ -1967,7 +1974,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(page.tags).toEqual(['ops', 'oncall'])
   })
 
-  it('update_wiki_page rejects invalid frontmatter on a content edit', async () => {
+  test('update_wiki_page rejects invalid frontmatter on a content edit', async () => {
     const created = mcpData<{ slug: string }>(
       await mcpCall(
         workspaceId,
@@ -1988,7 +1995,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('REST GET /api/wiki filters by type and status', async () => {
+  test('REST GET /api/wiki filters by type and status', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2006,17 +2013,17 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     const byType = await SELF.fetch('http://localhost/api/wiki?type=adr', {
       headers: authHeaders(token, slug),
     })
-    const byTypeResults = (await byType.json()) as Array<{ title: string }>
+    const byTypeResults = (await byType.json()) as { title: string }[]
     expect(byTypeResults.map((r) => r.title)).toEqual(['Filter Adr'])
 
     const byStatus = await SELF.fetch('http://localhost/api/wiki?status=current', {
       headers: authHeaders(token, slug),
     })
-    const byStatusResults = (await byStatus.json()) as Array<{ title: string }>
+    const byStatusResults = (await byStatus.json()) as { title: string }[]
     expect(byStatusResults.map((r) => r.title)).toEqual(['Filter Runbook'])
   })
 
-  it('REST GET /api/wiki?tags= filters by any-of tag match', async () => {
+  test('REST GET /api/wiki?tags= filters by any-of tag match', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2039,11 +2046,11 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     const res = await SELF.fetch('http://localhost/api/wiki?tags=ops,frontend', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results.map((r) => r.title).sort()).toEqual(['Tagged Frontend', 'Tagged Ops'])
   })
 
-  it('MCP list_wiki_pages filters by tags (any-of), parity with REST', async () => {
+  test('MCP list_wiki_pages filters by tags (any-of), parity with REST', async () => {
     await mcpCall(
       workspaceId,
       'create_wiki_page',
@@ -2057,13 +2064,13 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
       authHeaders(token, slug),
     )
 
-    const result = mcpData<Array<{ title: string }>>(
+    const result = mcpData<{ title: string }[]>(
       await mcpCall(workspaceId, 'list_wiki_pages', { tags: ['ops'] }, authHeaders(token, slug)),
     )
     expect(result.map((r) => r.title)).toEqual(['Mcp Tagged Ops'])
   })
 
-  it('REST GET /api/wiki/search filters by type/status/tags on top of the FTS match', async () => {
+  test('REST GET /api/wiki/search filters by type/status/tags on top of the FTS match', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2085,11 +2092,11 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results.map((r) => r.title)).toEqual(['Deploy Runbook'])
   })
 
-  it('search results return tags/owners as arrays, same shape as list and get', async () => {
+  test('search results return tags/owners as arrays, same shape as list and get', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2099,19 +2106,19 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/search?q=Runbook', {
       headers: authHeaders(token, slug),
     })
-    const [hit] = (await res.json()) as Array<{ tags: string[]; owners: string[] }>
+    const [hit] = (await res.json()) as { tags: string[]; owners: string[] }[]
     expect(hit.tags).toEqual(['ops', 'oncall'])
     expect(hit.owners).toEqual(['alice', 'bob'])
 
     const listRes = await SELF.fetch('http://localhost/api/wiki?type=runbook', {
       headers: authHeaders(token, slug),
     })
-    const [listed] = (await listRes.json()) as Array<{ tags: string[]; owners: string[] }>
+    const [listed] = (await listRes.json()) as { tags: string[]; owners: string[] }[]
     expect(hit.tags).toEqual(listed.tags)
     expect(hit.owners).toEqual(listed.owners)
   })
 
-  it('MCP search_wiki filters by type, parity with REST', async () => {
+  test('MCP search_wiki filters by type, parity with REST', async () => {
     await mcpCall(
       workspaceId,
       'create_wiki_page',
@@ -2125,7 +2132,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
       authHeaders(token, slug),
     )
 
-    const result = mcpData<{ items: Array<{ title: string }> }>(
+    const result = mcpData<{ items: { title: string }[] }>(
       await mcpCall(workspaceId, 'search_wiki', { query: 'widget', type: 'spec' }, authHeaders(token, slug)),
     )
     expect(result.items.map((r) => r.title)).toEqual(['Widget Spec'])
@@ -2144,7 +2151,7 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     ;({ token, slug, workspaceId } = await seedWorkspaceFixture())
   })
 
-  it('REST: GET /:slug/revisions resolves via an old (pre-rename) slug', async () => {
+  test('REST: GET /:slug/revisions resolves via an old (pre-rename) slug', async () => {
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2173,12 +2180,12 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
       headers: authHeaders(token, slug),
     })
     expect(revRes.status).toBe(200)
-    const revisions = (await revRes.json()) as Array<{ id: string; title: string }>
+    const revisions = (await revRes.json()) as { id: string; title: string }[]
     expect(revisions).toHaveLength(1)
     expect(revisions[0].title).toBe('Runbook')
   })
 
-  it('REST: GET /:slug/revisions/:revisionId resolves via an old (pre-rename) slug', async () => {
+  test('REST: GET /:slug/revisions/:revisionId resolves via an old (pre-rename) slug', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2192,7 +2199,7 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     const revRes = await SELF.fetch('http://localhost/api/wiki/playbook/revisions', {
       headers: authHeaders(token, slug),
     })
-    const [revision] = (await revRes.json()) as Array<{ id: string }>
+    const [revision] = (await revRes.json()) as { id: string }[]
 
     await SELF.fetch('http://localhost/api/wiki/playbook', {
       method: 'PUT',
@@ -2210,7 +2217,7 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     expect(detail.content).toBe('v1')
   })
 
-  it('MCP: list_wiki_revisions and get_wiki_revision resolve via an old (pre-rename) slug', async () => {
+  test('MCP: list_wiki_revisions and get_wiki_revision resolve via an old (pre-rename) slug', async () => {
     const created = mcpData<{ slug: string }>(
       await mcpCall(workspaceId, 'create_wiki_page', { title: 'Charter', content: 'v1' }, authHeaders(token, slug)),
     )
@@ -2224,7 +2231,7 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     )
     await resetRateLimits()
 
-    const revisions = mcpData<Array<{ id: string; title: string }>>(
+    const revisions = mcpData<{ id: string; title: string }[]>(
       await mcpCall(workspaceId, 'list_wiki_revisions', { slug: created.slug }, authHeaders(token, slug)),
     )
     expect(revisions).toHaveLength(1)
@@ -2241,7 +2248,7 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     expect(revision.content).toBe('v1')
   })
 
-  it('REST: DELETE /:slug resolves via an old (pre-rename) slug', async () => {
+  test('REST: DELETE /:slug resolves via an old (pre-rename) slug', async () => {
     // Deleting a workspace-level page requires admin/owner (services/wiki.ts).
     const owner = await seedFixture({ role: 'owner' })
     await SELF.fetch('http://localhost/api/wiki', {
@@ -2297,15 +2304,15 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
     const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
       headers: authHeaders(token, slug),
     })
-    return (await res.json()) as Array<{
+    return (await res.json()) as {
       id: string
       title: string
       summary: string | null
       created_at: number
-    }>
+    }[]
   }
 
-  it('REST: update with no baseRevisionId still succeeds (transitional last-write-wins)', async () => {
+  test('REST: update with no baseRevisionId still succeeds (transitional last-write-wins)', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2325,7 +2332,7 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
     expect(((await pageRes.json()) as { content: string }).content).toBe('v2')
   })
 
-  it('REST: update succeeds when baseRevisionId matches the current latest revision', async () => {
+  test('REST: update succeeds when baseRevisionId matches the current latest revision', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2352,7 +2359,7 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
     expect(((await pageRes.json()) as { content: string }).content).toBe('v3')
   })
 
-  it('REST: update is rejected with a structured conflict when baseRevisionId is stale', async () => {
+  test('REST: update is rejected with a structured conflict when baseRevisionId is stale', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2396,7 +2403,7 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
     expect(((await pageRes.json()) as { content: string }).content).toBe('v3')
   })
 
-  it('REST: revision rows get a title snapshot', async () => {
+  test('REST: revision rows get a title snapshot', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2412,7 +2419,7 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
     expect(revision.title).toBe('Snapshot Title')
   })
 
-  it('REST: summary is stored and returned when provided', async () => {
+  test('REST: summary is stored and returned when provided', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2428,7 +2435,7 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
     expect(revision.summary).toBe('Fixed a typo')
   })
 
-  it("REST: update is rejected with a validation error when baseRevisionId doesn't belong to the page", async () => {
+  test("REST: update is rejected with a validation error when baseRevisionId doesn't belong to the page", async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2442,13 +2449,11 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('MCP: update_wiki_page — matching baseRevisionId succeeds, stale is rejected with a conflict', async () => {
+  test('MCP: update_wiki_page — matching baseRevisionId succeeds, stale is rejected with a conflict', async () => {
     const created = mcpData<{ slug: string }>(await mcp('create_wiki_page', { title: 'MCP Locked Doc', content: 'v1' }))
 
     await mcp('update_wiki_page', { slug: created.slug, content: 'v2' })
-    const revisionsAfterFirstEdit = mcpData<Array<{ id: string }>>(
-      await mcp('list_wiki_revisions', { slug: created.slug }),
-    )
+    const revisionsAfterFirstEdit = mcpData<{ id: string }[]>(await mcp('list_wiki_revisions', { slug: created.slug }))
     const [staleRevision] = revisionsAfterFirstEdit
 
     // Matching baseRevisionId succeeds.
@@ -2460,7 +2465,7 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
     })
     expect(isMcpError(okResult)).toBe(false)
 
-    const revisionsAfterSecondEdit = mcpData<Array<{ id: string; summary: string | null }>>(
+    const revisionsAfterSecondEdit = mcpData<{ id: string; summary: string | null }[]>(
       await mcp('list_wiki_revisions', { slug: created.slug }),
     )
     const [currentLatest] = revisionsAfterSecondEdit
@@ -2512,10 +2517,10 @@ describe('Wiki revision diff (PROJ-492)', () => {
     const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
       headers: authHeaders(token, slug),
     })
-    return (await res.json()) as Array<{ id: string; created_at: number }>
+    return (await res.json()) as { id: string; created_at: number }[]
   }
 
-  it('REST: diff against current defaults when `against` is omitted', async () => {
+  test('REST: diff against current defaults when `against` is omitted', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2539,7 +2544,7 @@ describe('Wiki revision diff (PROJ-492)', () => {
     expect(body.diff).toContain('+line THREE')
   })
 
-  it('REST: diff between two explicit revisions', async () => {
+  test('REST: diff between two explicit revisions', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2567,7 +2572,7 @@ describe('Wiki revision diff (PROJ-492)', () => {
     expect(body.diff).toContain('+v2')
   })
 
-  it('REST: identical revisions diff to an empty string', async () => {
+  test('REST: identical revisions diff to an empty string', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2587,7 +2592,7 @@ describe('Wiki revision diff (PROJ-492)', () => {
     expect(((await res.json()) as { diff: string }).diff).toBe('')
   })
 
-  it('REST: an unknown `against` revision id 404s', async () => {
+  test('REST: an unknown `against` revision id 404s', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2607,7 +2612,7 @@ describe('Wiki revision diff (PROJ-492)', () => {
     expect(res.status).toBe(404)
   })
 
-  it('REST: an unknown revisionId 404s', async () => {
+  test('REST: an unknown revisionId 404s', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2620,12 +2625,12 @@ describe('Wiki revision diff (PROJ-492)', () => {
     expect(res.status).toBe(404)
   })
 
-  it('MCP: get_wiki_revision_diff parity with REST', async () => {
+  test('MCP: get_wiki_revision_diff parity with REST', async () => {
     const created = mcpData<{ slug: string }>(
       await mcp('create_wiki_page', { title: 'MCP Diff Doc', content: 'alpha' }),
     )
     await mcp('update_wiki_page', { slug: created.slug, content: 'beta' })
-    const [latest] = mcpData<Array<{ id: string }>>(await mcp('list_wiki_revisions', { slug: created.slug }))
+    const [latest] = mcpData<{ id: string }[]>(await mcp('list_wiki_revisions', { slug: created.slug }))
 
     const result = mcpData<{ from: string; to: string; diff: string }>(
       await mcp('get_wiki_revision_diff', { slug: created.slug, revisionId: latest.id }),
@@ -2635,7 +2640,7 @@ describe('Wiki revision diff (PROJ-492)', () => {
     expect(result.diff).toContain('+beta')
   })
 
-  it('restore is a plain update_wiki_page call with old content — new revision, never rewrites history', async () => {
+  test('restore is a plain update_wiki_page call with old content — new revision, never rewrites history', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2680,7 +2685,7 @@ describe('Wiki revision diff (PROJ-492)', () => {
     expect(revisions.map((r) => r.id)).toContain(latest.id)
   })
 
-  it('restore with a baseRevisionId stale from open history is a 409, not a silent overwrite', async () => {
+  test('restore with a baseRevisionId stale from open history is a 409, not a silent overwrite', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2722,7 +2727,7 @@ describe('Wiki revision diff (PROJ-492)', () => {
     expect((await getRevisions('raced-restore-doc')).length).toBe(2)
   })
 
-  it('restoring a revision whose frontmatter no longer validates fails cleanly — 400, no partial write', async () => {
+  test('restoring a revision whose frontmatter no longer validates fails cleanly — 400, no partial write', async () => {
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2805,7 +2810,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
 
   const TWO_SECTIONS = '## Alpha\nAlpha body.\n\n## Beta\nBeta body.\n'
 
-  it('REST: append_to_section adds text at the end of the target section only', async () => {
+  test('REST: append_to_section adds text at the end of the target section only', async () => {
     await createPage('patch-append', 'Patch Append', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-append', {
       method: 'PATCH',
@@ -2823,7 +2828,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.content).toContain('## Beta\nBeta body.')
   })
 
-  it('REST: replace_section replaces the section body, keeping the heading', async () => {
+  test('REST: replace_section replaces the section body, keeping the heading', async () => {
     await createPage('patch-replace', 'Patch Replace', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-replace', {
       method: 'PATCH',
@@ -2842,7 +2847,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.content).toContain('## Beta\nBeta body.')
   })
 
-  it('REST: insert_after_heading inserts content directly under the heading, before the existing body', async () => {
+  test('REST: insert_after_heading inserts content directly under the heading, before the existing body', async () => {
     await createPage('patch-insert', 'Patch Insert', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-insert', {
       method: 'PATCH',
@@ -2862,7 +2867,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(inserted).toBeLessThan(body)
   })
 
-  it('REST: append_to_page appends at the very end regardless of section structure', async () => {
+  test('REST: append_to_page appends at the very end regardless of section structure', async () => {
     await createPage('patch-append-page', 'Patch Append Page', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-append-page', {
       method: 'PATCH',
@@ -2878,7 +2883,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.content.trim().endsWith('## Gamma\nGamma body.')).toBe(true)
   })
 
-  it('REST: patch creates a revision, restorable via list_wiki_revisions', async () => {
+  test('REST: patch creates a revision, restorable via list_wiki_revisions', async () => {
     await createPage('patch-revision', 'Patch Revision', TWO_SECTIONS)
     await req('http://localhost/api/wiki/patch-revision', {
       method: 'PATCH',
@@ -2894,7 +2899,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     const revRes = await req('http://localhost/api/wiki/patch-revision/revisions', {
       headers: authHeaders(token, slug),
     })
-    const revisions = (await revRes.json()) as Array<{ id: string; summary: string | null }>
+    const revisions = (await revRes.json()) as { id: string; summary: string | null }[]
     expect(revisions).toHaveLength(1)
     expect(revisions[0].summary).toBe('added alpha detail')
 
@@ -2905,7 +2910,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(snapshot.content).toBe(TWO_SECTIONS)
   })
 
-  it('REST: unknown heading is rejected with a structured error listing current headings', async () => {
+  test('REST: unknown heading is rejected with a structured error listing current headings', async () => {
     await createPage('patch-missing-heading', 'Patch Missing Heading', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-missing-heading', {
       method: 'PATCH',
@@ -2922,7 +2927,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(body.currentHeadings).toEqual(['Alpha', 'Beta'])
   })
 
-  it('REST: disjoint-section writes never conflict — two patches vs. a stale baseRevisionId both succeed', async () => {
+  test('REST: disjoint-section writes never conflict — two patches vs. a stale baseRevisionId both succeed', async () => {
     await createPage('patch-disjoint', 'Patch Disjoint', TWO_SECTIONS)
     const revRes = await req('http://localhost/api/wiki/patch-disjoint/revisions', {
       headers: authHeaders(token, slug),
@@ -2963,7 +2968,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.content).toContain('Beta body.\n\nFrom agent B.')
   })
 
-  it('REST: a same-section conflict is rejected with a structured diff', async () => {
+  test('REST: a same-section conflict is rejected with a structured diff', async () => {
     await createPage('patch-conflict', 'Patch Conflict', TWO_SECTIONS)
 
     // Agent A patches Alpha from the null base.
@@ -2996,7 +3001,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(body.diff).toContain('From agent A.')
   })
 
-  it('REST: a section deleted since baseRevisionId surfaces as a not-found error, not a silent conflict', async () => {
+  test('REST: a section deleted since baseRevisionId surfaces as a not-found error, not a silent conflict', async () => {
     await createPage('patch-deleted-section', 'Patch Deleted Section', TWO_SECTIONS)
     const revRes = await req('http://localhost/api/wiki/patch-deleted-section/revisions', {
       headers: authHeaders(token, slug),
@@ -3025,7 +3030,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(body.currentHeadings).toEqual(['Alpha'])
   })
 
-  it('REST: patch preserves existing YAML frontmatter untouched', async () => {
+  test('REST: patch preserves existing YAML frontmatter untouched', async () => {
     const content = '---\ntype: runbook\nstatus: current\n---\n\n## Alpha\nAlpha body.\n'
     await createPage('patch-frontmatter', 'Patch Frontmatter', content)
     const res = await req('http://localhost/api/wiki/patch-frontmatter', {
@@ -3048,7 +3053,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.status).toBe('current')
   })
 
-  it('REST: viewer role cannot patch a workspace-level page', async () => {
+  test('REST: viewer role cannot patch a workspace-level page', async () => {
     const roles = await seedWorkspaceRoles()
     await resetRateLimits()
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
@@ -3072,7 +3077,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(res.status).toBe(403)
   })
 
-  it("REST: baseRevisionId that doesn't belong to the page is rejected with a validation error", async () => {
+  test("REST: baseRevisionId that doesn't belong to the page is rejected with a validation error", async () => {
     await createPage('patch-garbage-base', 'Patch Garbage Base', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-garbage-base', {
       method: 'PATCH',
@@ -3091,7 +3096,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
   // commutative), but still must validate the id belongs to the page — same as the
   // section-addressed ops above — so a caller confused about which page it's targeting
   // gets a signal instead of silent acceptance.
-  it("REST: append_to_page rejects a baseRevisionId that doesn't belong to the page", async () => {
+  test("REST: append_to_page rejects a baseRevisionId that doesn't belong to the page", async () => {
     await createPage('patch-append-garbage-base', 'Patch Append Garbage Base', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-append-garbage-base', {
       method: 'PATCH',
@@ -3105,7 +3110,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('REST: append_to_page accepts a stale baseRevisionId belonging to the page (staleness ignored here)', async () => {
+  test('REST: append_to_page accepts a stale baseRevisionId belonging to the page (staleness ignored here)', async () => {
     await createPage('patch-append-stale-base', 'Patch Append Stale Base', TWO_SECTIONS)
     const firstRes = await req('http://localhost/api/wiki/patch-append-stale-base', {
       method: 'PATCH',
@@ -3122,7 +3127,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
       await req('http://localhost/api/wiki/patch-append-stale-base/revisions', {
         headers: authHeaders(token, slug),
       })
-    ).json()) as Array<{ id: string }>
+    ).json()) as { id: string }[]
 
     const res = await req('http://localhost/api/wiki/patch-append-stale-base', {
       method: 'PATCH',
@@ -3138,7 +3143,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.content.trim().endsWith('Appended after stale base.')).toBe(true)
   })
 
-  it('REST: set_frontmatter adds a frontmatter block to a page that had none', async () => {
+  test('REST: set_frontmatter adds a frontmatter block to a page that had none', async () => {
     await createPage('patch-frontmatter-new', 'Patch Frontmatter New', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-frontmatter-new', {
       method: 'PATCH',
@@ -3160,7 +3165,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.content).toContain(TWO_SECTIONS.trim())
   })
 
-  it('REST: set_frontmatter preserves other existing frontmatter keys', async () => {
+  test('REST: set_frontmatter preserves other existing frontmatter keys', async () => {
     await createPage(
       'patch-frontmatter-preserve',
       'Patch Frontmatter Preserve',
@@ -3186,7 +3191,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.tags).toEqual(['ops'])
   })
 
-  it('REST: set_frontmatter with a null value removes that key', async () => {
+  test('REST: set_frontmatter with a null value removes that key', async () => {
     await createPage(
       'patch-frontmatter-remove',
       'Patch Frontmatter Remove',
@@ -3211,7 +3216,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.status).toBe('draft')
   })
 
-  it('REST: set_frontmatter rejects an invalid value with a structured validation error', async () => {
+  test('REST: set_frontmatter rejects an invalid value with a structured validation error', async () => {
     await createPage('patch-frontmatter-invalid', 'Patch Frontmatter Invalid', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-frontmatter-invalid', {
       method: 'PATCH',
@@ -3227,7 +3232,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(body.error.fieldErrors.values?.length).toBeGreaterThan(0)
   })
 
-  it('REST: set_frontmatter rejects an empty values map', async () => {
+  test('REST: set_frontmatter rejects an empty values map', async () => {
     await createPage('patch-frontmatter-empty', 'Patch Frontmatter Empty', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-frontmatter-empty', {
       method: 'PATCH',
@@ -3237,7 +3242,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('REST: set_frontmatter flips status to deprecated in one call and search demotes it', async () => {
+  test('REST: set_frontmatter flips status to deprecated in one call and search demotes it', async () => {
     await createPage('patch-frontmatter-demote', 'Patch Frontmatter Demote', `${TWO_SECTIONS}\nuniquedemotekeyword`)
     await req('http://localhost/api/wiki/patch-frontmatter-demote', {
       method: 'PATCH',
@@ -3253,11 +3258,11 @@ describe('Wiki patch operations (PROJ-490)', () => {
     const searchRes = await req('http://localhost/api/wiki/search?q=uniquedemotekeyword', {
       headers: authHeaders(token, slug),
     })
-    const results = (await searchRes.json()) as Array<{ title: string }>
+    const results = (await searchRes.json()) as { title: string }[]
     expect(results.map((r) => r.title)).toEqual(['Patch Frontmatter Current', 'Patch Frontmatter Demote'])
   })
 
-  it('REST: set_frontmatter accepts a stale baseRevisionId belonging to the page', async () => {
+  test('REST: set_frontmatter accepts a stale baseRevisionId belonging to the page', async () => {
     await createPage('patch-frontmatter-stale-base', 'Patch Frontmatter Stale Base', TWO_SECTIONS)
     await req('http://localhost/api/wiki/patch-frontmatter-stale-base', {
       method: 'PATCH',
@@ -3273,7 +3278,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
       await req('http://localhost/api/wiki/patch-frontmatter-stale-base/revisions', {
         headers: authHeaders(token, slug),
       })
-    ).json()) as Array<{ id: string }>
+    ).json()) as { id: string }[]
 
     const res = await req('http://localhost/api/wiki/patch-frontmatter-stale-base', {
       method: 'PATCH',
@@ -3287,7 +3292,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(res.status).toBe(200)
   })
 
-  it("REST: set_frontmatter rejects a baseRevisionId that doesn't belong to the page", async () => {
+  test("REST: set_frontmatter rejects a baseRevisionId that doesn't belong to the page", async () => {
     await createPage('patch-frontmatter-garbage-base', 'Patch Frontmatter Garbage Base', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-frontmatter-garbage-base', {
       method: 'PATCH',
@@ -3301,7 +3306,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('MCP: set_frontmatter parity — sets a key, preserves others, over MCP', async () => {
+  test('MCP: set_frontmatter parity — sets a key, preserves others, over MCP', async () => {
     const created = mcpData<{ slug: string }>(
       await mcp('create_wiki_page', {
         title: 'MCP Frontmatter Doc',
@@ -3331,7 +3336,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.status).toBe('deprecated')
   })
 
-  it("MCP: patch_wiki_page parity — disjoint sections don't conflict, same section does", async () => {
+  test("MCP: patch_wiki_page parity — disjoint sections don't conflict, same section does", async () => {
     const created = mcpData<{ slug: string }>(
       await mcp('create_wiki_page', { title: 'MCP Patch Doc', content: TWO_SECTIONS }),
     )
@@ -3383,7 +3388,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
   // NotFoundError — before PROJ-508's error.data plumbing it collapsed to a bare
   // "Invalid params" over MCP, dropping the duplicate-heading detail REST callers
   // got via body.error.formErrors. Twin of the REST test below.
-  it('MCP: patch_wiki_page rejects an ambiguous heading with formErrors as the tool error message', async () => {
+  test('MCP: patch_wiki_page rejects an ambiguous heading with formErrors as the tool error message', async () => {
     const created = mcpData<{ slug: string }>(
       await mcp('create_wiki_page', {
         title: 'MCP Patch Ambiguous',
@@ -3409,7 +3414,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
   // comment in a fenced code block is the most common line in a runbook — treating
   // it as a heading would end the enclosing section mid-fence and a replace would
   // eat the opening fence, leaving an orphaned closing one.
-  it('REST: a `#` line inside a fenced code block is not a heading', async () => {
+  test('REST: a `#` line inside a fenced code block is not a heading', async () => {
     const content = '## Setup\n\n```bash\n# install deps\npnpm i\n```\n\n## Usage\nUse it.\n'
     await createPage('patch-fenced', 'Patch Fenced', content)
 
@@ -3447,7 +3452,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.content).toContain('## Usage\nUse it.')
   })
 
-  it('REST: a `#` line inside the YAML frontmatter block is not a heading', async () => {
+  test('REST: a `#` line inside the YAML frontmatter block is not a heading', async () => {
     const content = '---\ntype: runbook\n# a yaml comment\nstatus: current\n---\n\n## Alpha\nAlpha body.\n'
     await createPage('patch-fm-comment', 'Patch FM Comment', content)
     const res = await req('http://localhost/api/wiki/patch-fm-comment', {
@@ -3465,7 +3470,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(body.currentHeadings).toEqual(['Alpha'])
   })
 
-  it('REST: a heading appearing twice is rejected as ambiguous rather than silently patching the first', async () => {
+  test('REST: a heading appearing twice is rejected as ambiguous rather than silently patching the first', async () => {
     const content = '# Notes\nOne.\n\n## Other\nx\n\n## Notes\nTwo.\n'
     await createPage('patch-ambiguous', 'Patch Ambiguous', content)
     const res = await req('http://localhost/api/wiki/patch-ambiguous', {
@@ -3488,13 +3493,13 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect((await getPage('patch-ambiguous')).content).toBe(content)
   })
 
-  it('REST: repeated insert_after_heading does not accumulate blank lines', async () => {
+  test('REST: repeated insert_after_heading does not accumulate blank lines', async () => {
     await createPage('patch-blanklines', 'Patch Blank Lines', TWO_SECTIONS)
     for (const text of ['First.', 'Second.']) {
       const revRes = await req('http://localhost/api/wiki/patch-blanklines/revisions', {
         headers: authHeaders(token, slug),
       })
-      const revisions = (await revRes.json()) as Array<{ id: string }>
+      const revisions = (await revRes.json()) as { id: string }[]
       const res = await req('http://localhost/api/wiki/patch-blanklines', {
         method: 'PATCH',
         headers: authHeaders(token, slug),
@@ -3512,7 +3517,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(page.content).toContain('## Alpha\nSecond.\n\nFirst.\n\nAlpha body.')
   })
 
-  it('REST: patch does not stamp verified_at as a side effect', async () => {
+  test('REST: patch does not stamp verified_at as a side effect', async () => {
     const content = '---\ntype: runbook\n---\n\n## Alpha\nAlpha body.\n'
     await createPage('patch-no-verify', 'Patch No Verify', content)
     const res = await req('http://localhost/api/wiki/patch-no-verify', {
@@ -3568,7 +3573,7 @@ describe('wiki slug dedup algorithm (0041_wiki_slug_unique.sql)', () => {
     }
   }
 
-  it("keeps the oldest page's slug and appends an id-derived suffix to newer duplicates", async () => {
+  test("keeps the oldest page's slug and appends an id-derived suffix to newer duplicates", async () => {
     await withScratchTable(async () => {
       await env.DB.prepare(
         'INSERT INTO dedup_scratch (id, workspace_id, slug, created_at) VALUES ' +
@@ -3591,7 +3596,7 @@ describe('wiki slug dedup algorithm (0041_wiki_slug_unique.sql)', () => {
     })
   })
 
-  it("doesn't collide with a pre-existing slug that looks like a row-number suffix", async () => {
+  test("doesn't collide with a pre-existing slug that looks like a row-number suffix", async () => {
     // Regression case: a plain `-2` / `-3` row-number suffix would collide with an
     // unrelated page that already happens to be named e.g. "operations-2", aborting
     // the UNIQUE INDEX creation that follows this UPDATE. An id-derived suffix can't
@@ -3636,7 +3641,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     return (await res.json()) as { id: string; slug: string }
   }
 
-  it('[[Target]] and [[Target|label]] both resolve a backlink to the target page', async () => {
+  test('[[Target]] and [[Target|label]] both resolve a backlink to the target page', async () => {
     const target = await createPage('Runbook', 'how to page')
     await createPage('Alpha', 'see [[Runbook]] for details')
     await createPage('Beta', 'see [[Runbook|the runbook]] for details')
@@ -3645,33 +3650,33 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const backlinks = (await res.json()) as Array<{ slug: string; title: string }>
+    const backlinks = (await res.json()) as { slug: string; title: string }[]
     expect(backlinks.map((b) => b.slug).sort()).toEqual(['alpha', 'beta'])
   })
 
-  it('a same-workspace wiki URL link resolves a backlink', async () => {
+  test('a same-workspace wiki URL link resolves a backlink', async () => {
     const target = await createPage('Handbook', 'contents')
     await createPage('Gamma', `[link](/wiki/${target.slug})`)
 
     const res = await SELF.fetch(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await res.json()) as Array<{ slug: string }>
+    const backlinks = (await res.json()) as { slug: string }[]
     expect(backlinks.map((b) => b.slug)).toEqual(['gamma'])
   })
 
-  it("PROJ-517/512: a multi-segment /wiki/ URL is never indexed against the first segment's page", async () => {
+  test("PROJ-517/512: a multi-segment /wiki/ URL is never indexed against the first segment's page", async () => {
     const operations = await createPage('Operations', 'contents')
     await createPage('Runbook', `[Runbook](/wiki/${operations.slug}/admin-allow-list)`)
 
     const res = await SELF.fetch(`http://localhost/api/wiki/${operations.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await res.json()) as Array<{ slug: string }>
+    const backlinks = (await res.json()) as { slug: string }[]
     expect(backlinks).toEqual([])
   })
 
-  it('an absolute cross-host URL is never indexed as a same-workspace link', async () => {
+  test('an absolute cross-host URL is never indexed as a same-workspace link', async () => {
     const target = await createPage('Epsilon', 'contents')
     await createPage(
       'Zeta',
@@ -3681,11 +3686,11 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const res = await SELF.fetch(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await res.json()) as Array<{ slug: string }>
+    const backlinks = (await res.json()) as { slug: string }[]
     expect(backlinks).toEqual([])
   })
 
-  it("PROJ-510: a malformed %-escape in a link URL doesn't crash the write; other links still index", async () => {
+  test("PROJ-510: a malformed %-escape in a link URL doesn't crash the write; other links still index", async () => {
     const runbook = await createPage('Runbook Eta', 'how to page')
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -3700,21 +3705,21 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const backlinksRes = await SELF.fetch(`http://localhost/api/wiki/${runbook.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await backlinksRes.json()) as Array<{ slug: string }>
+    const backlinks = (await backlinksRes.json()) as { slug: string }[]
     expect(backlinks.map((b) => b.slug)).toEqual(['theta'])
   })
 
-  it('an unresolved [[Target]] is stored as a broken link, not a backlink', async () => {
+  test('an unresolved [[Target]] is stored as a broken link, not a backlink', async () => {
     await createPage('Delta', 'see [[Nonexistent Page]] for details')
 
     const brokenRes = await SELF.fetch('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(token, slug),
     })
-    const broken = (await brokenRes.json()) as Array<{ sourceSlug: string; targetTitle: string }>
+    const broken = (await brokenRes.json()) as { sourceSlug: string; targetTitle: string }[]
     expect(broken).toContainEqual(expect.objectContaining({ sourceSlug: 'delta', targetTitle: 'Nonexistent Page' }))
   })
 
-  it('get_backlinks (MCP) returns the same result as REST', async () => {
+  test('get_backlinks (MCP) returns the same result as REST', async () => {
     const fixture = await seedFixture()
     const target = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -3727,17 +3732,17 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
       body: JSON.stringify({ title: 'MCP Source', content: '[[MCP Target]]' }),
     })
 
-    const result = await mcpCall<{ content: Array<{ text: string }> }>(
+    const result = await mcpCall<{ content: { text: string }[] }>(
       fixture.workspace.id,
       'get_backlinks',
       { slug: target.slug },
       authHeaders(fixture.token, fixture.workspace.slug),
     )
-    const backlinks = mcpData<Array<{ slug: string }>>(result)
+    const backlinks = mcpData<{ slug: string }[]>(result)
     expect(backlinks).toEqual([expect.objectContaining({ slug: 'mcp-source' })])
   })
 
-  it('list_broken_wiki_links (MCP) matches REST', async () => {
+  test('list_broken_wiki_links (MCP) matches REST', async () => {
     const fixture = await seedFixture()
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -3745,17 +3750,17 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
       body: JSON.stringify({ title: 'Epsilon', content: '[[Missing Target]]' }),
     })
 
-    const result = await mcpCall<{ content: Array<{ text: string }> }>(
+    const result = await mcpCall<{ content: { text: string }[] }>(
       fixture.workspace.id,
       'list_broken_wiki_links',
       {},
       authHeaders(fixture.token, fixture.workspace.slug),
     )
-    const broken = mcpData<Array<{ targetTitle: string }>>(result)
+    const broken = mcpData<{ targetTitle: string }[]>(result)
     expect(broken).toContainEqual(expect.objectContaining({ targetTitle: 'Missing Target' }))
   })
 
-  it("renaming the target page's slug doesn't break an existing backlink (id-backed)", async () => {
+  test("renaming the target page's slug doesn't break an existing backlink (id-backed)", async () => {
     const target = await createPage('Original Name', 'content')
     await createPage('Linker', 'see [[Original Name]]')
 
@@ -3768,11 +3773,11 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/renamed-slug/backlinks', {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await res.json()) as Array<{ slug: string }>
+    const backlinks = (await res.json()) as { slug: string }[]
     expect(backlinks.map((b) => b.slug)).toEqual(['linker'])
   })
 
-  it('editing content to remove a link removes the backlink; a new link adds one', async () => {
+  test('editing content to remove a link removes the backlink; a new link adds one', async () => {
     const target = await createPage('Stable Target', 'x')
     const linker = await createPage('Changing Source', 'see [[Stable Target]]')
 
@@ -3793,7 +3798,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     expect(await res.json()).toEqual([])
   })
 
-  it('a title-only update (no content change) leaves the link graph untouched', async () => {
+  test('a title-only update (no content change) leaves the link graph untouched', async () => {
     const target = await createPage('Untouched Target', 'x')
     const linker = await createPage('Title Change Source', 'see [[Untouched Target]]')
 
@@ -3806,11 +3811,11 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const res = await SELF.fetch(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await res.json()) as Array<{ slug: string }>
+    const backlinks = (await res.json()) as { slug: string }[]
     expect(backlinks.map((b) => b.slug)).toEqual(['title-change-source'])
   })
 
-  it('DELETE surfaces linkedByCount as a non-blocking warning and still deletes the page', async () => {
+  test('DELETE surfaces linkedByCount as a non-blocking warning and still deletes the page', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const target = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -3841,11 +3846,11 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const brokenRes = await SELF.fetch('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
-    const broken = (await brokenRes.json()) as Array<{ targetTitle: string }>
+    const broken = (await brokenRes.json()) as { targetTitle: string }[]
     expect(broken).toContainEqual(expect.objectContaining({ targetTitle: 'Linked Target' }))
   })
 
-  it('cascade-deleting a subtree cleans up outgoing links for every deleted page', async () => {
+  test('cascade-deleting a subtree cleans up outgoing links for every deleted page', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const parentRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -3871,12 +3876,12 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const brokenRes = await SELF.fetch('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
-    const broken = (await brokenRes.json()) as Array<{ targetTitle: string }>
+    const broken = (await brokenRes.json()) as { targetTitle: string }[]
     expect(broken.some((b) => b.targetTitle === 'Nonexistent A')).toBe(false)
     expect(broken.some((b) => b.targetTitle === 'Nonexistent B')).toBe(false)
   })
 
-  it('backlinks and broken links never cross workspace boundaries', async () => {
+  test('backlinks and broken links never cross workspace boundaries', async () => {
     const workspaceA = await seedFixture()
     const workspaceB = await seedFixture()
 
@@ -3897,9 +3902,9 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const brokenB = await SELF.fetch('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(workspaceB.token, workspaceB.workspace.slug),
     })
-    expect(
-      ((await brokenB.json()) as Array<{ targetTitle: string }>).some((b) => b.targetTitle === 'Shared Title'),
-    ).toBe(true)
+    expect(((await brokenB.json()) as { targetTitle: string }[]).some((b) => b.targetTitle === 'Shared Title')).toBe(
+      true,
+    )
 
     const sharedA = await SELF.fetch('http://localhost/api/wiki/shared-title', {
       headers: authHeaders(workspaceA.token, workspaceA.workspace.slug),
@@ -3911,7 +3916,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     expect(await backlinksA.json()).toEqual([])
   })
 
-  it('backfill_wiki_links (MCP, owner-only) recomputes links for pre-existing content', async () => {
+  test('backfill_wiki_links (MCP, owner-only) recomputes links for pre-existing content', async () => {
     const owner = await seedFixture({ role: 'owner' })
     // Seed pages directly at the DB layer, bypassing reindexWikiLinks, to simulate
     // pre-PROJ-485 content that predates the link graph.
@@ -3936,7 +3941,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     })
     expect(await preBacklinks.json()).toEqual([])
 
-    const result = await mcpCall<{ content: Array<{ text: string }> }>(
+    const result = await mcpCall<{ content: { text: string }[] }>(
       owner.workspace.id,
       'backfill_wiki_links',
       {},
@@ -3948,11 +3953,11 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const postBacklinks = await SELF.fetch('http://localhost/api/wiki/legacy-target/backlinks', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
-    const backlinks = (await postBacklinks.json()) as Array<{ slug: string }>
+    const backlinks = (await postBacklinks.json()) as { slug: string }[]
     expect(backlinks.map((b) => b.slug)).toEqual(['legacy-source'])
   })
 
-  it('backfill_wiki_links is rejected for a non-admin member', async () => {
+  test('backfill_wiki_links is rejected for a non-admin member', async () => {
     const member = await seedFixture({ role: 'member' })
     const result = await mcpCall(
       member.workspace.id,
@@ -3975,7 +3980,7 @@ describe('Wiki write atomicity (PROJ-511)', () => {
     slug = fixture.workspace.slug
   })
 
-  it("a slug race during create leaves wiki_links with only the winner's link, never a partial write", async () => {
+  test("a slug race during create leaves wiki_links with only the winner's link, never a partial write", async () => {
     // createWikiPage's assertSlugAvailable-then-insert isn't atomic (services/wiki.ts):
     // two concurrent creates with the same title/slug can both pass the availability
     // check, so one loses to a UNIQUE constraint failure inside the ctx.db.batch() call
@@ -4005,12 +4010,12 @@ describe('Wiki write atomicity (PROJ-511)', () => {
     const brokenRes = await SELF.fetch('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(token, slug),
     })
-    const broken = (await brokenRes.json()) as Array<{ targetTitle: string }>
+    const broken = (await brokenRes.json()) as { targetTitle: string }[]
     expect(broken).toHaveLength(1)
     expect(['Race Target Alpha', 'Race Target Beta']).toContain(broken[0].targetTitle)
   })
 
-  it("a failed rename (slug conflict) leaves the page's content, wiki_links, and wiki_fts untouched", async () => {
+  test("a failed rename (slug conflict) leaves the page's content, wiki_links, and wiki_fts untouched", async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4046,7 +4051,7 @@ describe('Wiki write atomicity (PROJ-511)', () => {
     const backlinksRes = await SELF.fetch('http://localhost/api/wiki/atomic-runbook/backlinks', {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await backlinksRes.json()) as Array<{ slug: string }>
+    const backlinks = (await backlinksRes.json()) as { slug: string }[]
     expect(backlinks.map((b) => b.slug)).toEqual(['atomic-source'])
 
     await resetRateLimits()
@@ -4059,53 +4064,53 @@ describe('Wiki write atomicity (PROJ-511)', () => {
 
 // PROJ-489 (R7): verification stamps + computed staleness surfacing.
 describe('computeFreshness (PROJ-489)', () => {
-  it('returns null when the page has neither verify_interval nor status', () => {
+  test('returns null when the page has neither verify_interval nor status', () => {
     expect(computeFreshness({ verifiedAt: null, verifyInterval: null, status: null })).toBeNull()
   })
 
-  it("returns 'unverified' when verify_interval is set but verified_at is null", () => {
+  test("returns 'unverified' when verify_interval is set but verified_at is null", () => {
     expect(computeFreshness({ verifiedAt: null, verifyInterval: 30, status: null, now: 1_000_000 })).toEqual({
       state: 'unverified',
       staleSince: null,
     })
   })
 
-  it("returns 'fresh' when verify_interval hasn't elapsed since verified_at", () => {
+  test("returns 'fresh' when verify_interval hasn't elapsed since verified_at", () => {
     const now = 1_000_000
-    const verifiedAt = now - 10 * 86400 // 10 days ago
+    const verifiedAt = now - 10 * 86_400 // 10 days ago
     expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toEqual({
       state: 'fresh',
       staleSince: null,
     })
   })
 
-  it("returns 'stale' with staleSince once verify_interval has elapsed since verified_at", () => {
+  test("returns 'stale' with staleSince once verify_interval has elapsed since verified_at", () => {
     const now = 1_000_000
-    const verifiedAt = now - 40 * 86400 // 40 days ago
-    const dueAt = verifiedAt + 30 * 86400
+    const verifiedAt = now - 40 * 86_400 // 40 days ago
+    const dueAt = verifiedAt + 30 * 86_400
     expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toEqual({
       state: 'stale',
       staleSince: dueAt,
     })
   })
 
-  it('treats an explicit status: stale as stale regardless of verify_interval', () => {
+  test('treats an explicit status: stale as stale regardless of verify_interval', () => {
     expect(computeFreshness({ verifiedAt: null, verifyInterval: null, status: 'stale', now: 1_000_000 })).toEqual({
       state: 'stale',
       staleSince: null,
     })
   })
 
-  it("treats an explicit status: deprecated as stale even when verify_interval hasn't elapsed yet", () => {
+  test("treats an explicit status: deprecated as stale even when verify_interval hasn't elapsed yet", () => {
     const now = 1_000_000
-    const verifiedAt = now - 1 * 86400 // verified yesterday
+    const verifiedAt = now - 1 * 86_400 // verified yesterday
     expect(computeFreshness({ verifiedAt, verifyInterval: 365, status: 'deprecated', now })).toEqual({
       state: 'stale',
       staleSince: null,
     })
   })
 
-  it('treats status: current with no verify_interval as fresh', () => {
+  test('treats status: current with no verify_interval as fresh', () => {
     expect(
       computeFreshness({
         verifiedAt: null,
@@ -4149,7 +4154,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
     return ['---', `status: ${status}`, '---', '# Explicitly flagged page'].join('\n')
   }
 
-  it('REST GET /api/wiki/:slug returns computed freshness in the page header', async () => {
+  test('REST GET /api/wiki/:slug returns computed freshness in the page header', async () => {
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4165,7 +4170,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
     expect(page.freshness.staleSince).not.toBeNull()
   })
 
-  it("REST POST /api/wiki/:slug/verify stamps verified_at/verified_by using the CALLING user's identity", async () => {
+  test("REST POST /api/wiki/:slug/verify stamps verified_at/verified_by using the CALLING user's identity", async () => {
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4197,7 +4202,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
     expect(page.content).toContain(`verified_by: ${userEmail}`)
   })
 
-  it('verify_wiki_page records a revision, same as any other content edit', async () => {
+  test('verify_wiki_page records a revision, same as any other content edit', async () => {
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4224,7 +4229,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
 
   // PROJ-489: verifying rewrites the whole content (frontmatter stamp + body), so it must
   // stamp the CURRENT content — a stale read would silently revert the edit before it.
-  it('POST /api/wiki/:slug/verify stamps on top of the latest content, never a stale snapshot', async () => {
+  test('POST /api/wiki/:slug/verify stamps on top of the latest content, never a stale snapshot', async () => {
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4251,7 +4256,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
     expect(page.verified_by).toBe(userEmail)
   })
 
-  it('POST /api/wiki/:slug/verify is rejected for a viewer', async () => {
+  test('POST /api/wiki/:slug/verify is rejected for a viewer', async () => {
     const roles = await seedWorkspaceRoles()
     const createRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -4267,7 +4272,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
     expect(res.status).toBe(403)
   })
 
-  it('MCP verify_wiki_page stamps verified_at/verified_by, parity with REST', async () => {
+  test('MCP verify_wiki_page stamps verified_at/verified_by, parity with REST', async () => {
     const created = mcpData<{ slug: string }>(
       await mcpCall(
         workspaceId,
@@ -4284,7 +4289,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
     expect(result.freshness.state).toBe('fresh')
   })
 
-  it('GET /api/wiki/search demotes a computed-stale page below a fresh page matching the same query', async () => {
+  test('GET /api/wiki/search demotes a computed-stale page below a fresh page matching the same query', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4305,16 +4310,16 @@ describe('Wiki freshness model (PROJ-489)', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/search?q=deploy', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{
+    const results = (await res.json()) as {
       title: string
       freshness: { state: string } | null
-    }>
+    }[]
     expect(results.map((r) => r.title)).toEqual(['Fresh Deploy Guide', 'Stale Deploy Guide'])
     expect(results[0].freshness?.state).toBe('fresh')
     expect(results[1].freshness?.state).toBe('stale')
   })
 
-  it('GET /api/wiki/search demotes an explicitly status: deprecated page too', async () => {
+  test('GET /api/wiki/search demotes an explicitly status: deprecated page too', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4332,7 +4337,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/search?q=onboardingkeyword', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results.map((r) => r.title)).toEqual(['Current Onboarding', 'Deprecated Onboarding'])
   })
 
@@ -4340,7 +4345,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
   // verified) in search ranking — only in list_stale_pages (the maintenance queue).
   // A freshly authored page that opts into verification tracking shouldn't rank worse
   // than a legacy page with no frontmatter at all just for declaring an interval.
-  it('GET /api/wiki/search does NOT demote an unverified page below a page with no freshness signal', async () => {
+  test('GET /api/wiki/search does NOT demote an unverified page below a page with no freshness signal', async () => {
     // If "unverified" were still in the demotion tier, this page would sort AFTER
     // "No Signal" below regardless of relevance, the same way a stale/deprecated page
     // is forced below a fresh one in the tests above. Giving it the stronger (title)
@@ -4365,15 +4370,15 @@ describe('Wiki freshness model (PROJ-489)', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/search?q=securitypolicykeyword', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{
+    const results = (await res.json()) as {
       title: string
       freshness: { state: string } | null
-    }>
+    }[]
     expect(results.map((r) => r.title)).toEqual(['Securitypolicykeyword Runbook', 'No Signal Page'])
     expect(results[0].freshness?.state).toBe('unverified')
   })
 
-  it('GET /api/wiki/stale-pages lists computed-stale, unverified, deprecated pages, excluding fresh', async () => {
+  test('GET /api/wiki/stale-pages lists computed-stale, unverified, deprecated pages, excluding fresh', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4410,12 +4415,12 @@ describe('Wiki freshness model (PROJ-489)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     const titles = results.map((r) => r.title).sort()
     expect(titles).toEqual(['Explicitly Stale Page', 'Never Verified Page', 'Overdue Page'])
   })
 
-  it('MCP list_stale_pages returns the same result shape as REST', async () => {
+  test('MCP list_stale_pages returns the same result shape as REST', async () => {
     await mcpCall(
       workspaceId,
       'create_wiki_page',
@@ -4429,7 +4434,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
       authHeaders(token, slug),
     )
 
-    const result = mcpData<Array<{ title: string }>>(
+    const result = mcpData<{ title: string }[]>(
       await mcpCall(workspaceId, 'list_stale_pages', {}, authHeaders(token, slug)),
     )
     expect(result.map((r) => r.title)).toContain('MCP Overdue Page')
@@ -4468,7 +4473,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     return (await res.json()) as { id: string; slug: string; isTemplate: boolean }
   }
 
-  it('REST: frontmatter template:true denormalizes into isTemplate on create', async () => {
+  test('REST: frontmatter template:true denormalizes into isTemplate on create', async () => {
     const created = await createTemplate()
     expect(created.isTemplate).toBe(true)
 
@@ -4479,7 +4484,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     expect(page.is_template).toBe(true)
   })
 
-  it('REST: create_wiki_page with templateSlug seeds content and strips template:true', async () => {
+  test('REST: create_wiki_page with templateSlug seeds content and strips template:true', async () => {
     await createTemplate()
 
     const res = await SELF.fetch('http://localhost/api/wiki', {
@@ -4503,7 +4508,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     expect(page.is_template).toBe(false)
   })
 
-  it('MCP: create_wiki_page with templateSlug has parity with REST', async () => {
+  test('MCP: create_wiki_page with templateSlug has parity with REST', async () => {
     await createTemplate()
 
     const result = mcpData<{ isTemplate: boolean; type: string }>(
@@ -4518,7 +4523,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     expect(result.type).toBe('runbook')
   })
 
-  it('rejects templateSlug that does not resolve to any page (not a silent blank fallback)', async () => {
+  test('rejects templateSlug that does not resolve to any page (not a silent blank fallback)', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4527,7 +4532,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     expect(res.status).toBe(400)
   })
 
-  it("rejects templateSlug pointing at a page that isn't flagged template:true", async () => {
+  test("rejects templateSlug pointing at a page that isn't flagged template:true", async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4542,7 +4547,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('rejects content and templateSlug provided together', async () => {
+  test('rejects content and templateSlug provided together', async () => {
     await createTemplate()
 
     const res = await SELF.fetch('http://localhost/api/wiki', {
@@ -4557,7 +4562,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('search_wiki excludes template pages by default', async () => {
+  test('search_wiki excludes template pages by default', async () => {
     await createTemplate()
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -4568,7 +4573,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/search?q=Runbook', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results.map((r) => r.title)).toContain('Runbook For Deploys')
     expect(results.map((r) => r.title)).not.toContain('Runbook Template')
   })
@@ -4576,7 +4581,7 @@ describe('Wiki page templates (PROJ-491)', () => {
   // PROJ-525: listWikiPages/GET /api/wiki previously had no is_template exclusion,
   // unlike search_wiki and listStaleWikiPages above — so a type=runbook filter listed
   // "Runbook Template" alongside real runbook pages.
-  it('GET /api/wiki excludes template pages by default, matching search_wiki/list_stale_pages', async () => {
+  test('GET /api/wiki excludes template pages by default, matching search_wiki/list_stale_pages', async () => {
     await createTemplate()
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -4587,18 +4592,18 @@ describe('Wiki page templates (PROJ-491)', () => {
     const defaultRes = await SELF.fetch('http://localhost/api/wiki', {
       headers: authHeaders(token, slug),
     })
-    const defaultResults = (await defaultRes.json()) as Array<{ title: string }>
+    const defaultResults = (await defaultRes.json()) as { title: string }[]
     expect(defaultResults.map((r) => r.title)).toContain('Ordinary Runbook')
     expect(defaultResults.map((r) => r.title)).not.toContain('Runbook Template')
 
     const includedRes = await SELF.fetch('http://localhost/api/wiki?includeTemplates=true', {
       headers: authHeaders(token, slug),
     })
-    const includedResults = (await includedRes.json()) as Array<{ title: string }>
+    const includedResults = (await includedRes.json()) as { title: string }[]
     expect(includedResults.map((r) => r.title)).toContain('Runbook Template')
   })
 
-  it('list_stale_pages excludes template pages even with an overdue verify_interval', async () => {
+  test('list_stale_pages excludes template pages even with an overdue verify_interval', async () => {
     const overdueTemplateContent = [
       '---',
       'template: true',
@@ -4616,11 +4621,11 @@ describe('Wiki page templates (PROJ-491)', () => {
     const res = await SELF.fetch('http://localhost/api/wiki/stale-pages', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results.map((r) => r.title)).not.toContain('Overdue Template')
   })
 
-  it('REST GET /api/wiki/templates lists only template-flagged pages', async () => {
+  test('REST GET /api/wiki/templates lists only template-flagged pages', async () => {
     await createTemplate()
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -4632,11 +4637,11 @@ describe('Wiki page templates (PROJ-491)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results.map((r) => r.title)).toEqual(['Runbook Template'])
   })
 
-  it("rejects a page slugged 'templates' — it would be shadowed by GET /api/wiki/templates", async () => {
+  test("rejects a page slugged 'templates' — it would be shadowed by GET /api/wiki/templates", async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4645,10 +4650,10 @@ describe('Wiki page templates (PROJ-491)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('MCP list_wiki_templates has parity with REST', async () => {
+  test('MCP list_wiki_templates has parity with REST', async () => {
     await createTemplate()
 
-    const result = mcpData<Array<{ title: string }>>(
+    const result = mcpData<{ title: string }[]>(
       await mcpCall(workspaceId, 'list_wiki_templates', {}, authHeaders(token, slug)),
     )
     expect(result.map((r) => r.title)).toEqual(['Runbook Template'])
@@ -4659,7 +4664,7 @@ describe('Wiki page templates (PROJ-491)', () => {
 // parent page — exercised against the real service (not the seedWorkspace test helper,
 // which bypasses createWorkspace entirely) so this only runs where it matters.
 describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () => {
-  it('seeds a Templates parent page plus runbook/adr/spec templates', async () => {
+  test('seeds a Templates parent page plus runbook/adr/spec templates', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(await seedUserToken(fixture.user.id), fixture.workspace.slug)
     const newSlug = `seed-test-${crypto.randomUUID().slice(0, 8)}`
@@ -4675,15 +4680,15 @@ describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () =
       headers: newHeaders,
     })
     expect(listRes.status).toBe(200)
-    const templates = (await listRes.json()) as Array<{ title: string; type: string | null }>
+    const templates = (await listRes.json()) as { title: string; type: string | null }[]
     expect(templates.map((t) => t.title).sort()).toEqual(['ADR Template', 'Runbook Template', 'Spec Template'])
 
     const treeRes = await SELF.fetch('http://localhost/api/wiki/tree', { headers: newHeaders })
-    const tree = (await treeRes.json()) as Array<{
+    const tree = (await treeRes.json()) as {
       title: string
       slug: string
       children: unknown[]
-    }>
+    }[]
     const templatesNode = tree.find((n) => n.title === 'Templates')
     expect(templatesNode?.children.length).toBe(3)
 
@@ -4701,7 +4706,7 @@ describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () =
   // unlike the three template pages under it (deliberately search-excluded) it needs a
   // wiki_fts mirror row like every other write path maintains, or it's invisible to
   // search_wiki until someone happens to edit it.
-  it('the seeded Templates parent page is findable via search_wiki', async () => {
+  test('the seeded Templates parent page is findable via search_wiki', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(await seedUserToken(fixture.user.id), fixture.workspace.slug)
     const newSlug = `seed-fts-test-${crypto.randomUUID().slice(0, 8)}`
@@ -4716,7 +4721,7 @@ describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () =
       headers: newHeaders,
     })
     expect(searchRes.status).toBe(200)
-    const results = (await searchRes.json()) as Array<{ title: string }>
+    const results = (await searchRes.json()) as { title: string }[]
     expect(results.map((r) => r.title)).toContain('Templates')
   })
 })
@@ -4775,17 +4780,17 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
       headers: authHeaders(watcherToken, slug),
     })
     expect(res.status).toBe(200)
-    return (await res.json()) as Array<{
+    return (await res.json()) as {
       id: string
       pageId: string
       slug: string
       title: string
       action: string
       actorId: string | null
-    }>
+    }[]
   }
 
-  it('REST: watch/unwatch a page, watching again upserts the subtree flag instead of duplicating', async () => {
+  test('REST: watch/unwatch a page, watching again upserts the subtree flag instead of duplicating', async () => {
     const page = await createPage('watch-me', 'Watch Me', 'content')
 
     const watchRes = await req(`http://localhost/api/wiki/${page.slug}/watch`, {
@@ -4797,7 +4802,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
 
     let watches = (await (
       await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
-    ).json()) as Array<{ pageId: string; subtree: boolean }>
+    ).json()) as { pageId: string; subtree: boolean }[]
     const initial = watches.filter((w) => w.pageId === page.id)
     expect(initial.length).toBe(1)
     expect(initial[0]).toMatchObject({ pageId: page.id, subtree: false })
@@ -4810,7 +4815,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     })
     watches = (await (
       await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
-    ).json()) as Array<{ pageId: string; subtree: boolean }>
+    ).json()) as { pageId: string; subtree: boolean }[]
     expect(watches.filter((w) => w.pageId === page.id).length).toBe(1)
     expect(watches.find((w) => w.pageId === page.id)?.subtree).toBe(true)
 
@@ -4821,11 +4826,11 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(unwatchRes.status).toBe(200)
     watches = (await (
       await req('http://localhost/api/wiki/watches', { headers: authHeaders(token, slug) })
-    ).json()) as Array<{ pageId: string; subtree: boolean }>
+    ).json()) as { pageId: string; subtree: boolean }[]
     expect(watches.some((w) => w.pageId === page.id)).toBe(false)
   })
 
-  it('a direct watcher is notified when someone else edits the page, never for their own edit', async () => {
+  test('a direct watcher is notified when someone else edits the page, never for their own edit', async () => {
     const page = await createPage('direct-watch', 'Direct Watch', 'content')
     const watcher = await seedWatcher()
     await req(`http://localhost/api/wiki/${page.slug}/watch`, {
@@ -4851,7 +4856,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(notifs[0]).toMatchObject({ action: 'updated', pageId: page.id, actorId: userId })
   })
 
-  it('unwatching stops further notifications', async () => {
+  test('unwatching stops further notifications', async () => {
     const page = await createPage('unwatch-stop', 'Unwatch Stop', 'content')
     const watcher = await seedWatcher()
     await req(`http://localhost/api/wiki/${page.slug}/watch`, {
@@ -4871,7 +4876,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(await notifications(watcher.token)).toEqual([])
   })
 
-  it('subtree watch covers a page created now under it AND a later edit to that descendant', async () => {
+  test('subtree watch covers a page created now under it AND a later edit to that descendant', async () => {
     const parent = await createPage('parent-page', 'Parent Page', 'content')
     const watcher = await seedWatcher()
     await req(`http://localhost/api/wiki/${parent.slug}/watch`, {
@@ -4893,7 +4898,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(notifs.filter((n) => n.pageId === child.id).length).toBe(2)
   })
 
-  it("a direct-only (non-subtree) watch on the parent does NOT notify for a descendant's changes", async () => {
+  test("a direct-only (non-subtree) watch on the parent does NOT notify for a descendant's changes", async () => {
     const parent = await createPage('parent-narrow', 'Parent Narrow', 'content')
     const watcher = await seedWatcher()
     await req(`http://localhost/api/wiki/${parent.slug}/watch`, {
@@ -4905,7 +4910,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(await notifications(watcher.token)).toEqual([])
   })
 
-  it('template pages never generate watcher notifications', async () => {
+  test('template pages never generate watcher notifications', async () => {
     const page = await createPage('watch-template', 'Watch Template', '---\ntemplate: true\n---\nbody')
     const watcher = await seedWatcher()
     await req(`http://localhost/api/wiki/${page.slug}/watch`, {
@@ -4921,7 +4926,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(await notifications(watcher.token)).toEqual([])
   })
 
-  it("a cascade delete generates a single 'deleted' notification for the root, not one per descendant", async () => {
+  test("a cascade delete generates a single 'deleted' notification for the root, not one per descendant", async () => {
     const parent = await createPage('cascade-parent', 'Cascade Parent', 'content')
     await createChildPage('cascade-child', 'Cascade Child', 'child', parent.id)
     const watcher = await seedWatcher()
@@ -4943,7 +4948,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(deleteNotifs[0]).toMatchObject({ pageId: parent.id, slug: 'cascade-parent' })
   })
 
-  it('a cascade delete notifies someone watching a DESCENDANT directly, and clears their watch row', async () => {
+  test('a cascade delete notifies someone watching a DESCENDANT directly, and clears their watch row', async () => {
     const parent = await createPage('cascade-root', 'Cascade Root', 'content')
     const child = await createChildPage('cascade-kid', 'Cascade Kid', 'child', parent.id)
     const watcher = await seedWatcher()
@@ -4976,7 +4981,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(stillThere?.c).toBe(1)
   })
 
-  it('a cascade undelete notifies someone watching a DESCENDANT (PROJ-496: symmetric with cascade delete)', async () => {
+  test('a cascade undelete notifies someone watching a DESCENDANT (PROJ-496: symmetric with cascade delete)', async () => {
     const parent = await createPage('cascade-restore-root', 'Cascade Restore Root', 'content')
     const child = await createChildPage('cascade-restore-kid', 'Cascade Restore Kid', 'child', parent.id)
     const watcher = await seedWatcher()
@@ -5003,7 +5008,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(restoreNotifs[0]).toMatchObject({ pageId: child.id, slug: 'cascade-restore-kid' })
   })
 
-  it('unreadOnly=false / watchedOnly=false are honored as false, not coerced true', async () => {
+  test('unreadOnly=false / watchedOnly=false are honored as false, not coerced true', async () => {
     const page = await createPage('bool-param', 'Bool Param', 'content')
     const watcher = await seedWatcher()
     await req(`http://localhost/api/wiki/${page.slug}/watch`, {
@@ -5031,11 +5036,11 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const res = await req(`http://localhost/api/wiki/changes?since=${t0}&watchedOnly=false`, {
       headers: authHeaders(watcher.token, slug),
     })
-    const body = (await res.json()) as { changes: Array<{ slug: string | null }> }
+    const body = (await res.json()) as { changes: { slug: string | null }[] }
     expect(body.changes.map((c) => c.slug)).toContain('bool-unwatched')
   })
 
-  it('mark_wiki_notifications_read: by explicit ids, then all:true', async () => {
+  test('mark_wiki_notifications_read: by explicit ids, then all:true', async () => {
     const page = await createPage('read-flag', 'Read Flag', 'content')
     const watcher = await seedWatcher()
     await req(`http://localhost/api/wiki/${page.slug}/watch`, {
@@ -5072,7 +5077,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect((await notifications(watcher.token, '?unreadOnly=true')).length).toBe(0)
   })
 
-  it("list_wiki_changes: since is exclusive, nextSince advances, default scope isn't watched-only", async () => {
+  test("list_wiki_changes: since is exclusive, nextSince advances, default scope isn't watched-only", async () => {
     const t0 = Math.floor(Date.now() / 1000) - 1
     const page = await createPage('delta-doc', 'Delta Doc', 'content')
 
@@ -5081,7 +5086,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     })
     expect(res.status).toBe(200)
     const body = (await res.json()) as {
-      changes: Array<{ action: string; pageId: string }>
+      changes: { action: string; pageId: string }[]
       nextSince: number
     }
     expect(body.changes.some((c) => c.pageId === page.id && c.action === 'created')).toBe(true)
@@ -5103,7 +5108,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
   // comes back from D1, not at the JSON sent to the client: it wraps ctx.db to record
   // every row D1 hands back during a real listWikiChanges call and asserts a
   // deliberately huge 'updated'-row diff never appears in any of them.
-  it("list_wiki_changes never pulls a non-deleted row's full diff out of D1 (PROJ-869)", async () => {
+  test("list_wiki_changes never pulls a non-deleted row's full diff out of D1 (PROJ-869)", async () => {
     const page = await createPage('delta-size', 'Delta Size', 'seed')
     const bigContent = 'x'.repeat(50_000)
     const t0 = Math.floor(Date.now() / 1000) - 1
@@ -5139,7 +5144,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(capturedText).not.toContain(bigContent)
   })
 
-  it("list_wiki_changes reports a deleted page's slug/title even though the row is gone", async () => {
+  test("list_wiki_changes reports a deleted page's slug/title even though the row is gone", async () => {
     const t0 = Math.floor(Date.now() / 1000) - 1
     const page = await createPage('delta-delete', 'Delta Delete', 'content')
     await req(`http://localhost/api/wiki/${page.slug}`, {
@@ -5151,7 +5156,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
       await req(`http://localhost/api/wiki/changes?since=${t0}`, {
         headers: authHeaders(token, slug),
       })
-    ).json()) as { changes: Array<{ action: string; slug: string | null; title: string | null }> }
+    ).json()) as { changes: { action: string; slug: string | null; title: string | null }[] }
     const deleteEvent = body.changes.find((c) => c.action === 'deleted')
     expect(deleteEvent).toMatchObject({ slug: 'delta-delete', title: 'Delta Delete' })
   })
@@ -5159,7 +5164,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
   // PROJ-526: a cascade delete only records one activity row (for the root), so a
   // poller building a local mirror needs the descendant ids surfaced on that one event
   // to evict them too — otherwise they never get told the descendants also vanished.
-  it("list_wiki_changes surfaces deletedPageIds on a cascade delete's root event", async () => {
+  test("list_wiki_changes surfaces deletedPageIds on a cascade delete's root event", async () => {
     const t0 = Math.floor(Date.now() / 1000) - 1
     const parent = await createPage('delta-cascade-parent', 'Delta Cascade Parent', 'content')
     const child = await createChildPage('delta-cascade-child', 'Delta Cascade Child', 'child', parent.id)
@@ -5175,7 +5180,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
         headers: authHeaders(token, slug),
       })
     ).json()) as {
-      changes: Array<{ action: string; pageId: string; deletedPageIds: string[] | null }>
+      changes: { action: string; pageId: string; deletedPageIds: string[] | null }[]
     }
     const deleteEvent = body.changes.find((c) => c.action === 'deleted' && c.pageId === parent.id)
     expect(deleteEvent?.deletedPageIds?.sort()).toEqual([child.id, parent.id].sort())
@@ -5185,7 +5190,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(createdEvent?.deletedPageIds ?? null).toBeNull()
   })
 
-  it("list_wiki_changes hides changes to a project-scoped page the caller can't see", async () => {
+  test("list_wiki_changes hides changes to a project-scoped page the caller can't see", async () => {
     const project = await seedProject(workspaceId, `PRJ${crypto.randomUUID().slice(0, 4)}`)
     await seedGroupGrant(workspaceId, userId, project.id)
     const t0 = Math.floor(Date.now() / 1000) - 1
@@ -5208,7 +5213,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
       await req(`http://localhost/api/wiki/changes?since=${t0}`, {
         headers: authHeaders(outsider.token, slug),
       })
-    ).json()) as { changes: Array<{ slug: string | null }> }
+    ).json()) as { changes: { slug: string | null }[] }
     expect(body.changes.some((c) => c.slug === 'restricted-delta')).toBe(false)
 
     // The grantee (the creator) does see it.
@@ -5216,11 +5221,11 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
       await req(`http://localhost/api/wiki/changes?since=${t0}`, {
         headers: authHeaders(token, slug),
       })
-    ).json()) as { changes: Array<{ slug: string | null }> }
+    ).json()) as { changes: { slug: string | null }[] }
     expect(ownBody.changes.some((c) => c.slug === 'restricted-delta')).toBe(true)
   })
 
-  it('list_wiki_changes watchedOnly=true narrows to watched pages, including via a subtree watch', async () => {
+  test('list_wiki_changes watchedOnly=true narrows to watched pages, including via a subtree watch', async () => {
     const parent = await createPage('watched-scope-parent', 'Watched Scope Parent', 'content')
     const other = await createPage('unwatched-scope', 'Unwatched Scope', 'content')
     const watcher = await seedWatcher()
@@ -5241,13 +5246,13 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
       await req('http://localhost/api/wiki/changes?since=0&watchedOnly=true', {
         headers: authHeaders(watcher.token, slug),
       })
-    ).json()) as { changes: Array<{ pageId: string }> }
+    ).json()) as { changes: { pageId: string }[] }
     const pageIds = body.changes.map((c) => c.pageId)
     expect(pageIds).toContain(child.id)
     expect(pageIds).not.toContain(other.id)
   })
 
-  it('MCP: watch_wiki_page / list_wiki_watches / list_wiki_changes mirror the REST behavior', async () => {
+  test('MCP: watch_wiki_page / list_wiki_watches / list_wiki_changes mirror the REST behavior', async () => {
     // Several MCP calls back-to-back would otherwise trip the same per-token rate
     // limit that req() clears for REST calls above.
     async function mcp<T>(name: string, args: unknown) {
@@ -5264,15 +5269,15 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const watchRes = await mcp('watch_wiki_page', { slug: page.slug })
     expect(isMcpError(watchRes)).toBe(false)
 
-    const watches = mcpData<Array<{ pageId: string }>>(await mcp('list_wiki_watches', {}))
+    const watches = mcpData<{ pageId: string }[]>(await mcp('list_wiki_watches', {}))
     expect(watches.some((w) => w.pageId === page.id)).toBe(true)
 
     const unwatchRes = await mcp('unwatch_wiki_page', { slug: page.slug })
     expect(isMcpError(unwatchRes)).toBe(false)
-    const watchesAfter = mcpData<Array<{ pageId: string }>>(await mcp('list_wiki_watches', {}))
+    const watchesAfter = mcpData<{ pageId: string }[]>(await mcp('list_wiki_watches', {}))
     expect(watchesAfter.some((w) => w.pageId === page.id)).toBe(false)
 
-    const changes = mcpData<{ items: Array<{ pageId: string; action: string }>; next: string }>(
+    const changes = mcpData<{ items: { pageId: string; action: string }[]; next: string }>(
       await mcp('list_wiki_changes', { since: t0 }),
     )
     expect(changes.items.some((c) => c.pageId === page.id && c.action === 'created')).toBe(true)
@@ -5305,7 +5310,7 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     return (await res.json()) as { id: string; slug: string }
   }
 
-  it('REST: no draft returns null, saving upserts, discarding clears it', async () => {
+  test('REST: no draft returns null, saving upserts, discarding clears it', async () => {
     const page = await createPage('draft-page', 'Draft Page', 'original content')
 
     const empty = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
@@ -5348,7 +5353,7 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     expect(await getRes.json()).toBeNull()
   })
 
-  it("drafts are per-user — one user's draft is invisible to another", async () => {
+  test("drafts are per-user — one user's draft is invisible to another", async () => {
     const page = await createPage('draft-per-user', 'Draft Per User', 'content')
     const other = await seedUser(`other-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(workspaceId, other.id, 'admin')
@@ -5366,7 +5371,7 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     expect(await otherGet.json()).toBeNull()
   })
 
-  it("publishing the draft's content via the normal update path works; discarding after publish clears it", async () => {
+  test("publishing the draft's content via the normal update path works; discarding after publish clears it", async () => {
     const page = await createPage('draft-publish', 'Draft Publish', 'v0')
     const pageRes = await req(`http://localhost/api/wiki/${page.slug}`, {
       headers: authHeaders(token, slug),
@@ -5376,7 +5381,7 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     const revRes = await req(`http://localhost/api/wiki/${page.slug}/revisions`, {
       headers: authHeaders(token, slug),
     })
-    const revisions = (await revRes.json()) as Array<{ id: string }>
+    const revisions = (await revRes.json()) as { id: string }[]
     const baseRevisionId = revisions[0]?.id ?? null
 
     await req(`http://localhost/api/wiki/${page.slug}/draft`, {
@@ -5406,7 +5411,7 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     expect(await getRes.json()).toBeNull()
   })
 
-  it('a stale baseRevisionId on publish still hits the normal 409 — no separate draft conflict mechanism', async () => {
+  test('a stale baseRevisionId on publish still hits the normal 409 — no separate draft conflict mechanism', async () => {
     const page = await createPage('draft-conflict', 'Draft Conflict', 'v0')
 
     // Establish a first revision, and capture its id the way startEdit() would —
@@ -5419,7 +5424,7 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     const revRes = await req(`http://localhost/api/wiki/${page.slug}/revisions`, {
       headers: authHeaders(token, slug),
     })
-    const revisions = (await revRes.json()) as Array<{ id: string }>
+    const revisions = (await revRes.json()) as { id: string }[]
     const draftBaseRevisionId = revisions[0]?.id
     expect(draftBaseRevisionId).toBeTruthy()
 
@@ -5453,7 +5458,7 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     expect(publishRes.status).toBe(409)
   })
 
-  it('trashing a page (cascade or not) leaves its draft rows in place until purge (PROJ-496)', async () => {
+  test('trashing a page (cascade or not) leaves its draft rows in place until purge (PROJ-496)', async () => {
     const parent = await createPage('draft-delete-parent', 'Draft Delete Parent', 'content')
     const child = (await req('http://localhost/api/wiki', {
       method: 'POST',
@@ -5513,7 +5518,7 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     expect(rowsAfterPurge.results.length).toBe(0)
   })
 
-  it('validation: title and content are required on save', async () => {
+  test('validation: title and content are required on save', async () => {
     const page = await createPage('draft-validation', 'Draft Validation', 'content')
     const res = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       method: 'PUT',
@@ -5523,7 +5528,7 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('MCP: save_wiki_draft / get_wiki_draft / discard_wiki_draft mirror the REST behavior', async () => {
+  test('MCP: save_wiki_draft / get_wiki_draft / discard_wiki_draft mirror the REST behavior', async () => {
     async function mcp<T>(name: string, args: unknown) {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
@@ -5591,12 +5596,12 @@ describe('Wiki trash (PROJ-496)', () => {
       .run()
   }
 
-  it('a trashed page disappears from the list, tree, search, stale-pages, and templates endpoints', async () => {
+  test('a trashed page disappears from the list, tree, search, stale-pages, and templates endpoints', async () => {
     const page = await createPage('Trash List Page', 'trash-list-searchterm')
     await trashPage(page.slug)
 
     const listRes = await req('http://localhost/api/wiki', { headers: authHeaders(token, slug) })
-    expect(((await listRes.json()) as Array<{ id: string }>).some((p) => p.id === page.id)).toBe(false)
+    expect(((await listRes.json()) as { id: string }[]).some((p) => p.id === page.id)).toBe(false)
 
     const treeRes = await req('http://localhost/api/wiki/tree', {
       headers: authHeaders(token, slug),
@@ -5615,10 +5620,10 @@ describe('Wiki trash (PROJ-496)', () => {
     const templatesRes = await req('http://localhost/api/wiki/templates', {
       headers: authHeaders(token, slug),
     })
-    expect(((await templatesRes.json()) as Array<{ id: string }>).some((p) => p.id === templatePage.id)).toBe(false)
+    expect(((await templatesRes.json()) as { id: string }[]).some((p) => p.id === templatePage.id)).toBe(false)
   })
 
-  it('GET /api/wiki/:slug and GET /api/wiki/:id both 404 for a trashed page', async () => {
+  test('GET /api/wiki/:slug and GET /api/wiki/:id both 404 for a trashed page', async () => {
     const page = await createPage('Trash Get Page', 'content')
     await trashPage(page.slug)
 
@@ -5633,14 +5638,14 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(byId.status).toBe(404)
   })
 
-  it('a trashed source page no longer counts as a backlink', async () => {
+  test('a trashed source page no longer counts as a backlink', async () => {
     const target = await createPage('Trash Backlink Target', 'target content')
     const source = await createPage('Trash Backlink Source', 'see [[Trash Backlink Target]]')
 
     let backlinksRes = await req(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    expect((await backlinksRes.json()) as Array<{ slug: string }>).toEqual([
+    expect((await backlinksRes.json()) as { slug: string }[]).toEqual([
       expect.objectContaining({ slug: source.slug, title: 'Trash Backlink Source' }),
     ])
 
@@ -5651,7 +5656,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(await backlinksRes.json()).toEqual([])
   })
 
-  it('a redirect pointing at a trashed page 404s instead of resolving', async () => {
+  test('a redirect pointing at a trashed page 404s instead of resolving', async () => {
     const page = await createPage('Trash Redirect Target', 'content')
     const renameRes = await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'PUT',
@@ -5675,7 +5680,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(afterTrash.status).toBe(404)
   })
 
-  it('cascade trash moves the whole subtree as one unit: same deleted_at, all 404 via the API', async () => {
+  test('cascade trash moves the whole subtree as one unit: same deleted_at, all 404 via the API', async () => {
     const parent = await createPage('Trash Cascade Parent', 'content')
     const child = await createPage('Trash Cascade Child', 'content', { parentId: parent.id })
     const grandchild = await createPage('Trash Cascade Grandchild', 'content', {
@@ -5700,25 +5705,25 @@ describe('Wiki trash (PROJ-496)', () => {
     }
   })
 
-  it('GET /api/wiki/trash lists trashed pages with a purgeAfter timestamp, and excludes live pages', async () => {
+  test('GET /api/wiki/trash lists trashed pages with a purgeAfter timestamp, and excludes live pages', async () => {
     const live = await createPage('Trash List Live', 'content')
     const trashed = await createPage('Trash List Trashed', 'content')
     await trashPage(trashed.slug)
 
     const res = await req('http://localhost/api/wiki/trash', { headers: authHeaders(token, slug) })
     expect(res.status).toBe(200)
-    const rows = (await res.json()) as Array<{
+    const rows = (await res.json()) as {
       id: string
       deleted_at: number
       purgeAfter: number
-    }>
+    }[]
     expect(rows.some((r) => r.id === live.id)).toBe(false)
     const row = rows.find((r) => r.id === trashed.id)
     expect(row).toBeDefined()
     expect(row?.purgeAfter).toBe(row!.deleted_at + 30 * 24 * 60 * 60)
   })
 
-  it('POST /api/wiki/trash/:id/undelete restores a trashed page: it becomes visible again', async () => {
+  test('POST /api/wiki/trash/:id/undelete restores a trashed page: it becomes visible again', async () => {
     const page = await createPage('Trash Undelete Page', 'content')
     await trashPage(page.slug)
 
@@ -5735,7 +5740,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(getRes.status).toBe(200)
   })
 
-  it("undelete rejects a slug that's since been taken by a new live page (409 conflict)", async () => {
+  test("undelete rejects a slug that's since been taken by a new live page (409 conflict)", async () => {
     const page = await createPage('Trash Conflict Page', 'content')
     await trashPage(page.slug)
 
@@ -5752,7 +5757,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(undeleteRes.status).toBe(409)
   })
 
-  it("undelete 404s for an unknown id and 400s for a page that isn't actually trashed", async () => {
+  test("undelete 404s for an unknown id and 400s for a page that isn't actually trashed", async () => {
     const unknownRes = await req(`http://localhost/api/wiki/trash/${crypto.randomUUID()}/undelete`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -5767,7 +5772,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(notTrashedRes.status).toBe(400)
   })
 
-  it('POST /api/wiki/purge-trash requires an admin/owner', async () => {
+  test('POST /api/wiki/purge-trash requires an admin/owner', async () => {
     const memberUser = await seedUser(`trash-member-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(workspaceId, memberUser.id, 'member')
     const memberToken = await seedToken(workspaceId, memberUser.id)
@@ -5779,7 +5784,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(res.status).toBe(403)
   })
 
-  it('purge removes only pages trashed >30 days ago, cleaning up every dependent table + R2', async () => {
+  test('purge removes only pages trashed >30 days ago, cleaning up every dependent table + R2', async () => {
     const oldPage = await createPage('Trash Purge Old', 'purge-old-searchterm')
     await createPage('Trash Purge Old Target', 'content')
     await req(`http://localhost/api/wiki/${oldPage.slug}`, {
@@ -5839,7 +5844,9 @@ describe('Wiki trash (PROJ-496)', () => {
 
     expect(await env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(oldPage.id).first()).toBeNull()
     expect(await env.DB.prepare('SELECT id FROM attachments WHERE id = ?').bind(oldAttachmentId).first()).toBeNull()
-    if (oldR2Key) expect(await env.R2.get(oldR2Key)).toBeNull()
+    if (oldR2Key) {
+      expect(await env.R2.get(oldR2Key)).toBeNull()
+    }
     expect(await env.DB.prepare('SELECT page_id FROM wiki_fts WHERE page_id = ?').bind(oldPage.id).first()).toBeNull()
     expect(
       await env.DB.prepare('SELECT id FROM wiki_links WHERE source_page_id = ?').bind(oldPage.id).first(),
@@ -5856,7 +5863,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(await env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(recentPage.id).first()).not.toBeNull()
   })
 
-  it('MCP list_wiki_trash / undelete_wiki_page / purge_wiki_trash mirror the REST behavior', async () => {
+  test('MCP list_wiki_trash / undelete_wiki_page / purge_wiki_trash mirror the REST behavior', async () => {
     async function mcp<T>(name: string, args: unknown) {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
@@ -5864,7 +5871,7 @@ describe('Wiki trash (PROJ-496)', () => {
     const page = await createPage('MCP Trash Page', 'content')
     await trashPage(page.slug)
 
-    const trashList = mcpData<Array<{ id: string; purgeAfter: number }>>(await mcp('list_wiki_trash', {}))
+    const trashList = mcpData<{ id: string; purgeAfter: number }[]>(await mcp('list_wiki_trash', {}))
     expect(trashList.some((r) => r.id === page.id)).toBe(true)
 
     const restored = mcpData<{ ok: boolean; id: string }>(await mcp('undelete_wiki_page', { id: page.id }))
@@ -5876,7 +5883,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(purged.purgedIds).toContain(page.id)
   })
 
-  it('a link to a trashed-but-not-purged page is reported as broken (listBrokenWikiLinks)', async () => {
+  test('a link to a trashed-but-not-purged page is reported as broken (listBrokenWikiLinks)', async () => {
     const target = await createPage('Trash Broken Link Target', 'target content')
     const source = await createPage('Trash Broken Link Source', 'see [[Trash Broken Link Target]]')
 
@@ -5884,9 +5891,7 @@ describe('Wiki trash (PROJ-496)', () => {
       headers: authHeaders(token, slug),
     })
     expect(
-      ((await brokenRes.json()) as Array<{ targetTitle: string }>).some(
-        (b) => b.targetTitle === 'Trash Broken Link Target',
-      ),
+      ((await brokenRes.json()) as { targetTitle: string }[]).some((b) => b.targetTitle === 'Trash Broken Link Target'),
     ).toBe(false)
 
     // The target is trashed but not yet purged — target_page_id is still set (purge
@@ -5898,13 +5903,13 @@ describe('Wiki trash (PROJ-496)', () => {
       headers: authHeaders(token, slug),
     })
     expect(
-      ((await brokenRes.json()) as Array<{ targetTitle: string; sourceSlug: string }>).some(
+      ((await brokenRes.json()) as { targetTitle: string; sourceSlug: string }[]).some(
         (b) => b.targetTitle === 'Trash Broken Link Target' && b.sourceSlug === source.slug,
       ),
     ).toBe(true)
   })
 
-  it("purge only removes trash in the caller's own workspace", async () => {
+  test("purge only removes trash in the caller's own workspace", async () => {
     const other = await seedFixture({ role: 'admin' })
     const createOtherRes = await req('http://localhost/api/wiki', {
       method: 'POST',
@@ -5930,7 +5935,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(await env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(otherPage.id).first()).not.toBeNull()
   })
 
-  it('trash list/undelete/purge never reach across workspaces', async () => {
+  test('trash list/undelete/purge never reach across workspaces', async () => {
     const other = await seedFixture({ role: 'admin' })
     const createOtherRes = await req('http://localhost/api/wiki', {
       method: 'POST',
@@ -5946,7 +5951,7 @@ describe('Wiki trash (PROJ-496)', () => {
     const listRes = await req('http://localhost/api/wiki/trash', {
       headers: authHeaders(token, slug),
     })
-    const listed = (await listRes.json()) as Array<{ id: string }>
+    const listed = (await listRes.json()) as { id: string }[]
     expect(listed.some((r) => r.id === otherPage.id)).toBe(false)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${otherPage.id}/undelete`, {
@@ -5956,7 +5961,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(undeleteRes.status).toBe(404)
   })
 
-  it('undeleting a cascade-trashed root also restores descendants sharing the same batch', async () => {
+  test('undeleting a cascade-trashed root also restores descendants sharing the same batch', async () => {
     const parent = await createPage('Cascade Undelete Parent', 'content')
     const child = await createPage('Cascade Undelete Child', 'content', { parentId: parent.id })
     const grandchild = await createPage('Cascade Undelete Grandchild', 'content', {
@@ -5985,7 +5990,7 @@ describe('Wiki trash (PROJ-496)', () => {
     }
   })
 
-  it("undeleting a cascade-trashed root 409s (not a raw 500) when a descendant's slug was reclaimed", async () => {
+  test("undeleting a cascade-trashed root 409s (not a raw 500) when a descendant's slug was reclaimed", async () => {
     const parent = await createPage('Cascade Undelete Conflict Parent', 'content')
     const child = await createPage('Cascade Undelete Conflict Child', 'content', {
       parentId: parent.id,
@@ -6016,7 +6021,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(parentRow?.deleted_at).not.toBeNull()
   })
 
-  it('undeleting a cascade-trashed root does NOT restore a descendant trashed separately, same window', async () => {
+  test('undeleting a cascade-trashed root does NOT restore a descendant trashed separately, same window', async () => {
     // Regression test for the trash_batch_id disambiguation (PROJ-496 follow-up):
     // trashing the child alone and then cascade-trashing the parent right after, with
     // no artificial time offset, used to be indistinguishable from "trashed in one
@@ -6043,7 +6048,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(childRow?.deleted_at).not.toBeNull()
   })
 
-  it("non-cascade trash leaves a trashed child's parent_id untouched; undelete restores original parent", async () => {
+  test("non-cascade trash leaves a trashed child's parent_id untouched; undelete restores original parent", async () => {
     const parent = await createPage('Noncascade Reparent Parent', 'content')
     const child = await createPage('Noncascade Reparent Child', 'content', {
       parentId: parent.id,
@@ -6069,7 +6074,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(restoredRow?.parent_id).toBe(parent.id)
   })
 
-  it('purge re-parents a live child left pointing at a page that gets purged', async () => {
+  test('purge re-parents a live child left pointing at a page that gets purged', async () => {
     const grandparent = await createPage('Purge Reparent Grandparent', 'content')
     const parent = await createPage('Purge Reparent Parent', 'content', {
       parentId: grandparent.id,
@@ -6104,7 +6109,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(childRow?.parent_id === null || childRow?.parent_id === undefined).toBe(true)
   })
 
-  it('purge deletes wiki_revisions rows for purged pages', async () => {
+  test('purge deletes wiki_revisions rows for purged pages', async () => {
     const page = await createPage('Purge Revisions Page', 'v1')
     await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'PUT',
@@ -6156,14 +6161,14 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
     })
   }
 
-  it('rejects an explicit slug shaped like a dashed or undashed page id', async () => {
+  test('rejects an explicit slug shaped like a dashed or undashed page id', async () => {
     const dashed = await create({ title: 'A', slug: crypto.randomUUID() })
     expect(dashed.status).toBe(400)
     const hex = await create({ title: 'B', slug: crypto.randomUUID().replace(/-/g, '') })
     expect(hex.status).toBe(400)
   })
 
-  it('rejects renaming a page to an id-shaped slug', async () => {
+  test('rejects renaming a page to an id-shaped slug', async () => {
     const res = await create({ title: 'Rename Me' })
     const page = (await res.json()) as { id: string }
     const put = await resetRateLimitAndFetch(`http://localhost/api/wiki/${page.id}`, {
@@ -6174,14 +6179,14 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
     expect(put.status).toBe(400)
   })
 
-  it('suffixes an auto-derived slug when the title is itself an id', async () => {
+  test('suffixes an auto-derived slug when the title is itself an id', async () => {
     const id = crypto.randomUUID()
     const res = await create({ title: id })
     expect(res.status).toBe(201)
     expect(((await res.json()) as { slug: string }).slug).toBe(`${id}-page`)
   })
 
-  it("resolves GET, PUT and DELETE by id to the id's page when a legacy slug equals that id", async () => {
+  test("resolves GET, PUT and DELETE by id to the id's page when a legacy slug equals that id", async () => {
     // Legacy (pre-PROJ-812) data, inserted directly since the API now refuses it: the
     // impostor row is written FIRST, so a lookup without an id preference returns it.
     const target = { id: crypto.randomUUID() }

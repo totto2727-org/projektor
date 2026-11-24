@@ -1,7 +1,7 @@
 'use client'
 
-import type { SourceSummary } from './FeedbackSourceGrid'
-import type { FeedbackVersionSummary } from './FeedbackSourceSettings'
+import type { SourceSummary } from './FeedbackSourceGrid.tsx'
+import type { FeedbackVersionSummary } from './FeedbackSourceSettings.tsx'
 
 interface Props {
   workspaceSlug?: string
@@ -12,9 +12,15 @@ interface Props {
 
 function versionMetric(v: FeedbackVersionSummary): string {
   const parts: string[] = []
-  if (v.thumbsUpPct !== null) parts.push(`👍 ${v.thumbsUpPct}%`)
-  if (v.avgFiveStar !== null) parts.push(`${v.avgFiveStar.toFixed(1)}★ avg`)
-  if (parts.length === 0) parts.push('No ratings')
+  if (v.thumbsUpPct !== null) {
+    parts.push(`👍 ${v.thumbsUpPct}%`)
+  }
+  if (v.avgFiveStar !== null) {
+    parts.push(`${v.avgFiveStar.toFixed(1)}★ avg`)
+  }
+  if (parts.length === 0) {
+    parts.push('No ratings')
+  }
   return parts.join(' · ')
 }
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import '../../test/browser'
+import '../../test/browser.ts'
 // SearchResultsSection — mobile viewport test (PROJ-412).
 //
 // Below 640px the desktop table (`max-sm:hidden`) renders nothing, so a
@@ -7,11 +7,11 @@ import '../../test/browser'
 // mobile-card presence is JS-visible in jsdom (see apps/web/src/test/viewport.ts) -
 // the `max-sm:hidden`/`max-sm:flex` CSS itself isn't evaluated here.
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { MOBILE_WIDTH, setViewportWidth } from '../../test/viewport'
-import SearchResultsSection from './SearchResultsSection'
-import type { SearchResult } from './useIssueSearch'
+import { MOBILE_WIDTH, setViewportWidth } from '../../test/viewport.ts'
+import SearchResultsSection from './SearchResultsSection.tsx'
+import type { SearchResult } from './useIssueSearch.ts'
 
 const RESULTS: SearchResult[] = [
   {
@@ -28,21 +28,21 @@ const RESULTS: SearchResult[] = [
 ]
 
 describe('SearchResultsSection — mobile viewport', () => {
-  it('renders mobile cards for non-empty results at narrow widths', () => {
+  test('renders mobile cards for non-empty results at narrow widths', () => {
     setViewportWidth(MOBILE_WIDTH)
     render(<SearchResultsSection searchLoading={false} searchResults={RESULTS} searchQuery='fix' />)
 
     expect(screen.getAllByText('Fix the thing')).toHaveLength(2)
   })
 
-  it('shows the loading state regardless of viewport', () => {
+  test('shows the loading state regardless of viewport', () => {
     setViewportWidth(MOBILE_WIDTH)
     render(<SearchResultsSection searchLoading={true} searchResults={null} searchQuery='fix' />)
 
     expect(screen.getByText('Searching…')).toBeTruthy()
   })
 
-  it('shows the no-results state regardless of viewport', () => {
+  test('shows the no-results state regardless of viewport', () => {
     setViewportWidth(MOBILE_WIDTH)
     render(<SearchResultsSection searchLoading={false} searchResults={[]} searchQuery='fix' />)
 

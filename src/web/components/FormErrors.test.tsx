@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { FormErrors } from './FormErrors'
+import { FormErrors } from './FormErrors.tsx'
 
 describe('FormErrors', () => {
-  it('renders deduplicated Standard Schema and TanStack error messages accessibly', () => {
+  test('renders deduplicated Standard Schema and TanStack error messages accessibly', () => {
     render(
       <FormErrors
         id='project-errors'

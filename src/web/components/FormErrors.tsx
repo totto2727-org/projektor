@@ -13,11 +13,19 @@ export interface FormErrorsProps {
 }
 
 function messagesFrom(error: unknown): string[] {
-  if (typeof error === 'string' && error.trim()) return [error]
-  if (Array.isArray(error)) return error.flatMap(messagesFrom)
-  if (!error || typeof error !== 'object') return []
+  if (typeof error === 'string' && error.trim()) {
+    return [error]
+  }
+  if (Array.isArray(error)) {
+    return error.flatMap(messagesFrom)
+  }
+  if (!error || typeof error !== 'object') {
+    return []
+  }
   const issue = error as FormIssue & { readonly errors?: unknown; readonly errorMap?: unknown }
-  if (typeof issue.message === 'string' && issue.message.trim()) return [issue.message]
+  if (typeof issue.message === 'string' && issue.message.trim()) {
+    return [issue.message]
+  }
   const errorMap =
     issue.errorMap && typeof issue.errorMap === 'object'
       ? Object.values(issue.errorMap).flatMap(messagesFrom)
@@ -36,14 +44,17 @@ export function FormErrors({
   'aria-label': ariaLabel = 'Validation errors',
 }: FormErrorsProps): ReactNode {
   const messages = [...new Set(messagesFrom(errors))]
-  if (messages.length === 0) return null
+  if (messages.length === 0) {
+    return null
+  }
   const classes = ['mt-1 text-xs text-danger-text', className].filter(Boolean).join(' ')
-  if (messages.length === 1)
+  if (messages.length === 1) {
     return (
       <p id={id} role='alert' className={classes}>
         {messages[0]}
       </p>
     )
+  }
   return (
     <div id={id} role='alert' aria-label={ariaLabel} className={classes}>
       <ul className='m-0 list-disc pl-4'>

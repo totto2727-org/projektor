@@ -1,7 +1,7 @@
 import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
-import { workspaces } from './core'
-import { issues, projects } from './issues'
+import { workspaces } from './core.ts'
+import { issues, projects } from './issues.ts'
 
 export const customFieldDefinitions = sqliteTable(
   'custom_field_definitions',

@@ -1,13 +1,13 @@
 import { and, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
 
-import { listProjects } from '#services/projects'
-import * as wikiData from '#services/wiki'
+import { listProjects } from '#services/projects.ts'
+import * as wikiData from '#services/wiki.ts'
 
-import { ApiError, ScopeError } from '../../contracts/errors'
-import type { CoreEnvironment } from '../environment'
-import { authorizeDataEntity, dataError, requireDataWorkspace, visibleProjectPredicate } from './data-context'
-import type { RequestScope } from './scope'
+import { ApiError, ScopeError } from '../../contracts/errors.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { authorizeDataEntity, dataError, requireDataWorkspace, visibleProjectPredicate } from './data-context.ts'
+import type { RequestScope } from './scope.ts'
 
 /** An existing archived page follows the same workspace/grant policy in SSR and ServerFns. */
 export function readAuthorizedWikiPage(db: CoreEnvironment['DB'], scope: RequestScope, ref: string) {
@@ -17,7 +17,9 @@ export function readAuthorizedWikiPage(db: CoreEnvironment['DB'], scope: Request
       catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     })
     const page = yield* wikiData.findWikiPage(db, workspace.id, ref).pipe(Effect.mapError(dataError))
-    if (!page) return yield* new ApiError('http', 404, 'Wiki page not found.')
+    if (!page) {
+      return yield* new ApiError('http', 404, 'Wiki page not found.')
+    }
     if (
       page.project_id !== null &&
       !scope.projects.some((project) => project.id === page.project_id && project.workspace_id === workspace.id)
@@ -30,12 +32,15 @@ export function readAuthorizedWikiPage(db: CoreEnvironment['DB'], scope: Request
       const projects = yield* listProjects(db, workspace.id, { includeArchived: true, visibility }).pipe(
         Effect.mapError(dataError),
       )
-      if (projects.length === 0) return yield* new ScopeError(404, 'Selected project is not accessible.')
-    } else
+      if (projects.length === 0) {
+        return yield* new ScopeError(404, 'Selected project is not accessible.')
+      }
+    } else {
       yield* Effect.try({
         try: () => authorizeDataEntity(scope, workspace.id, { ...page, projectId: page.project_id }),
         catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
       })
+    }
     return { db, workspace, page }
   })
 }
@@ -45,12 +50,16 @@ export function pageFreshness(
   now = Math.floor(Date.now() / 1000),
 ) {
   const due =
-    page.verified_at !== null && page.verify_interval !== null ? page.verified_at + page.verify_interval * 86400 : null
-  if (page.status === null && page.verify_interval === null) return null
-  if (page.status === 'stale' || page.status === 'deprecated')
+    page.verified_at !== null && page.verify_interval !== null ? page.verified_at + page.verify_interval * 86_400 : null
+  if (page.status === null && page.verify_interval === null) {
+    return null
+  }
+  if (page.status === 'stale' || page.status === 'deprecated') {
     return { state: 'stale' as const, staleSince: due !== null && due <= now ? due : null }
-  if (page.verify_interval !== null && page.verified_at === null)
+  }
+  if (page.verify_interval !== null && page.verified_at === null) {
     return { state: 'unverified' as const, staleSince: null }
+  }
   return due !== null && due <= now
     ? { state: 'stale' as const, staleSince: due }
     : { state: 'fresh' as const, staleSince: null }

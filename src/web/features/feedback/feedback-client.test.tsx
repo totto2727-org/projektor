@@ -1,13 +1,20 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { navigateFeature } from '../wiki/navigation'
-import { createFeedbackSource, markFeedbackReviewed, revokeFeedbackSource, rotateFeedbackSourceToken } from './actions'
-import FeedbackList, { type Feedback } from './FeedbackList'
-import FeedbackSourceDetail from './FeedbackSourceDetail'
-import FeedbackSourceSettings, { type FeedbackSource } from './FeedbackSourceSettings'
-import NewSourceModal from './NewSourceModal'
+import { navigateFeature } from '../wiki/navigation.ts'
+import {
+  createFeedbackSource,
+  markFeedbackReviewed,
+  revokeFeedbackSource,
+  rotateFeedbackSourceToken,
+} from './actions.ts'
+import FeedbackList from './FeedbackList.tsx'
+import type { Feedback } from './FeedbackList.tsx'
+import FeedbackSourceDetail from './FeedbackSourceDetail.tsx'
+import FeedbackSourceSettings from './FeedbackSourceSettings.tsx'
+import type { FeedbackSource } from './FeedbackSourceSettings.tsx'
+import NewSourceModal from './NewSourceModal.tsx'
 
 vi.mock('../wiki/navigation', () => ({ navigateFeature: vi.fn() }))
 
@@ -51,7 +58,7 @@ const source: FeedbackSource = {
   revokedAt: null,
 }
 describe('Feedback hydrated original controls', () => {
-  it('creates a source through native action-state FormData and retains its one-time token across refresh', async () => {
+  test('creates a source through native action-state FormData and retains its one-time token across refresh', async () => {
     vi.mocked(createFeedbackSource).mockResolvedValue({
       ok: true,
       value: { id: 'source', token: 'new-token' },
@@ -60,7 +67,9 @@ describe('Feedback hydrated original controls', () => {
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'New source' } })
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Notes' } })
     const form = screen.getByRole('dialog', { name: 'New feedback source' }).querySelector('form')
-    if (!form) throw new Error('Missing native source form')
+    if (!form) {
+      throw new Error('Missing native source form')
+    }
     fireEvent.submit(form)
     expect(await screen.findByText('new-token')).toBeTruthy()
     const [previous, data] = vi.mocked(createFeedbackSource).mock.calls[0]
@@ -72,7 +81,8 @@ describe('Feedback hydrated original controls', () => {
     view.rerender(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn()} />)
     expect(screen.getByText('new-token')).toBeTruthy()
   })
-  it('navigates status through the URL and waits for canonical server status props', async () => {
+
+  test('navigates status through the URL and waits for canonical server status props', async () => {
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => ({ matches: false })),
@@ -99,7 +109,8 @@ describe('Feedback hydrated original controls', () => {
     )
     expect(screen.getByRole('combobox', { name: 'Status' }).textContent).toContain('Reviewed')
   })
-  it('validates source configuration through TanStack before sending a semantic create action', async () => {
+
+  test('validates source configuration through TanStack before sending a semantic create action', async () => {
     render(<NewSourceModal workspaceSlug='team' projectId='project' onClose={vi.fn()} />)
     fireEvent.change(screen.getByLabelText('Name *'), { target: { value: 'New source' } })
     fireEvent.change(screen.getByLabelText('Allowed origins (one per line, optional)'), {
@@ -111,7 +122,8 @@ describe('Feedback hydrated original controls', () => {
     expect(createFeedbackSource).not.toHaveBeenCalled()
     expect((screen.getByLabelText('Name *') as HTMLInputElement).value).toBe('New source')
   })
-  it('preserves original Arrow/Home/End roving tab keyboard behavior', () => {
+
+  test('preserves original Arrow/Home/End roving tab keyboard behavior', () => {
     const view = render(
       <FeedbackSourceDetail
         workspaceSlug='team'
@@ -146,7 +158,8 @@ describe('Feedback hydrated original controls', () => {
     expect(revokeFeedbackSource).not.toHaveBeenCalled()
     expect(rotateFeedbackSourceToken).not.toHaveBeenCalled()
   })
-  it('does not revoke a source when its danger confirmation is cancelled', () => {
+
+  test('does not revoke a source when its danger confirmation is cancelled', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false)
     render(<FeedbackSourceSettings workspaceSlug='team' projectId='project' source={source} onChanged={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Revoke source' }))
@@ -159,7 +172,8 @@ describe('Feedback hydrated original controls', () => {
     expect(revokeFeedbackSource).not.toHaveBeenCalled()
     expect(rotateFeedbackSourceToken).not.toHaveBeenCalled()
   })
-  it('renders initial rows without client bootstrap and expands original URL context in both responsive trees', () => {
+
+  test('renders initial rows without client bootstrap and expands original URL context in both responsive trees', () => {
     render(<FeedbackList workspaceSlug='team' projectId='project' sourceId='source' initialRows={[row]} />)
     expect(revokeFeedbackSource).not.toHaveBeenCalled()
     expect(rotateFeedbackSourceToken).not.toHaveBeenCalled()
@@ -169,7 +183,8 @@ describe('Feedback hydrated original controls', () => {
       'noopener noreferrer',
     )
   })
-  it('updates reviewed status optimistically and rolls back a failed mutation', async () => {
+
+  test('updates reviewed status optimistically and rolls back a failed mutation', async () => {
     let reject!: (cause: Error) => void
     vi.mocked(markFeedbackReviewed).mockImplementation(
       () =>
@@ -186,7 +201,8 @@ describe('Feedback hydrated original controls', () => {
     expect(screen.getAllByText('new').length).toBeGreaterThan(0)
     expect(screen.getByRole('alert').textContent).toContain('Denied')
   })
-  it('adopts refreshed row DTOs in-place', () => {
+
+  test('adopts refreshed row DTOs in-place', () => {
     const view = render(<FeedbackList workspaceSlug='team' projectId='project' sourceId='source' initialRows={[row]} />)
     view.rerender(
       <FeedbackList

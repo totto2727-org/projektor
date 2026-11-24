@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import m0028 from '../../../migrations/0028_downgrade_viewer_grants.sql?raw'
-import { env } from './fixture-api'
-import { seedMember, seedProject, seedUser, seedWorkspace } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedMember, seedProject, seedUser, seedWorkspace } from './helpers.ts'
 
 // PROJ-318: 0028 splits the 0027 all-projects backfill so a pre-existing workspace
 // viewer keeps a read-only grant instead of being silently promoted to member.
@@ -67,7 +67,7 @@ describe('0028 viewer-preserving migration', () => {
     await runMigration0028()
   })
 
-  it('gives the viewer a read-only grant on the same projects', async () => {
+  test('gives the viewer a read-only grant on the same projects', async () => {
     const grants = await env.DB.prepare('SELECT role FROM group_project_grants WHERE group_id = ?')
       .bind(ctx.viewersGroupId)
       .all<{ role: string }>()
@@ -75,12 +75,12 @@ describe('0028 viewer-preserving migration', () => {
     expect(grants.results.every((g) => g.role === 'viewer')).toBe(true)
   })
 
-  it('moves the viewer out of the member group into the read-only group', async () => {
+  test('moves the viewer out of the member group into the read-only group', async () => {
     expect(await memberCount(ctx.viewersGroupId, ctx.viewer.id)).toBe(1)
     expect(await memberCount(ctx.memberGroupId, ctx.viewer.id)).toBe(0)
   })
 
-  it('leaves the member untouched (member group, member grant)', async () => {
+  test('leaves the member untouched (member group, member grant)', async () => {
     expect(await memberCount(ctx.memberGroupId, ctx.member.id)).toBe(1)
     expect(await memberCount(ctx.viewersGroupId, ctx.member.id)).toBe(0)
     const memberGrants = await env.DB.prepare('SELECT DISTINCT role FROM group_project_grants WHERE group_id = ?')
@@ -89,7 +89,7 @@ describe('0028 viewer-preserving migration', () => {
     expect(memberGrants.results.map((r) => r.role)).toEqual(['member'])
   })
 
-  it('is idempotent — re-running changes nothing', async () => {
+  test('is idempotent — re-running changes nothing', async () => {
     await runMigration0028()
     expect(await memberCount(ctx.viewersGroupId, ctx.viewer.id)).toBe(1)
     expect(await memberCount(ctx.memberGroupId, ctx.viewer.id)).toBe(0)
@@ -99,7 +99,7 @@ describe('0028 viewer-preserving migration', () => {
     expect(grants?.n).toBe(2)
   })
 
-  it('creates no viewers group for a workspace that has no viewers', async () => {
+  test('creates no viewers group for a workspace that has no viewers', async () => {
     const ws = await seedWorkspace()
     const groupId = `grp-allproj-${ws.id}`
     const p = await seedProject(ws.id, 'Z')

@@ -1,10 +1,10 @@
 'use client'
-import type { ProjectSummary, RequestScope } from '../../../server/request-context'
-import type { SprintDetail } from '../components/issue-list/SprintBannerSection'
-import IssueList from '../components/IssueList'
-import type { Issue, IssuePage, Status, TaskType } from '../types'
-import { IssueReviewNavigation } from './IssueReviewNavigation'
-import { SelectionRequired } from './shared'
+import type { ProjectSummary, RequestScope } from '../../../server/request-context.ts'
+import type { SprintDetail } from '../components/issue-list/SprintBannerSection.tsx'
+import IssueList from '../components/IssueList.tsx'
+import type { Issue, IssuePage, Status, TaskType } from '../types.ts'
+import { IssueReviewNavigation } from './IssueReviewNavigation.tsx'
+import { SelectionRequired } from './shared.tsx'
 export interface IssuesInitialData {
   readonly currentUserId: string
   readonly view: import('../components/issue-list/types-view').ViewMode
@@ -33,7 +33,9 @@ export function IssuesPage({
   workspaceSlug: string
   initialData: IssuesInitialData | null
 }) {
-  if (!initialData) return <SelectionRequired scope={scope} label='Issues' />
+  if (!initialData) {
+    return <SelectionRequired scope={scope} label='Issues' />
+  }
   return (
     <section>
       <h1 className='text-2xl font-bold mb-3'>Issues</h1>

@@ -1,20 +1,22 @@
 import { Effect } from 'effect'
 import type { ReactNode } from 'react'
 
-import { browserRequest, coreResult } from '../../core'
-import { type Env, RequestServices } from '../../request'
-import type { RequestScope } from '../../server'
+import { browserRequest, coreResult } from '../../core.ts'
+import { RequestServices } from '../../request.ts'
+import type { Env } from '../../request.ts'
 import {
   dataError,
   requireAuthenticatedDataSession,
   requireDataProject,
   requireDataWorkspace,
-} from '../../server/data-context'
-import { type ApiError, ScopeError } from '../../server/errors'
-import { HelpPage } from '../help/HelpPage'
-import { ProjectLanding } from './ProjectLanding'
-import { ProjectList } from './ProjectList'
-import { ProjectOverviewSchema, ProjectSummariesSchema } from './schemas'
+} from '../../server/data-context.ts'
+import { ScopeError } from '../../server/errors.ts'
+import type { ApiError } from '../../server/errors.ts'
+import type { RequestScope } from '../../server/index.ts'
+import { HelpPage } from '../help/HelpPage.tsx'
+import { ProjectLanding } from './ProjectLanding.tsx'
+import { ProjectList } from './ProjectList.tsx'
+import { ProjectOverviewSchema, ProjectSummariesSchema } from './schemas.ts'
 
 export function renderProjects(
   scope: RequestScope,
@@ -41,8 +43,9 @@ export function renderOverview(
   scope: RequestScope,
   _url: URL,
 ): Effect.Effect<ReactNode, ApiError | ScopeError, RequestServices> {
-  if (scope.selection.kind !== 'project')
+  if (scope.selection.kind !== 'project') {
     return Effect.succeed(<p className='text-text-muted'>No project specified.</p>)
+  }
   const { project: selected, workspace } = scope.selection
   return Effect.gen(function* () {
     const services = yield* RequestServices

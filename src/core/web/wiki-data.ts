@@ -1,13 +1,14 @@
-import { isNull, or, sql, type SQL } from 'drizzle-orm'
+import { isNull, or, sql } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
 import { Effect, Schema } from 'effect'
 
-import { readWikiDraftState } from '#commands/wiki-drafts'
+import { readWikiDraftState } from '#commands/wiki-drafts.ts'
 import { schema } from '#db'
-import { listAttachments } from '#services/files'
-import * as wikiData from '#services/wiki'
+import { listAttachments } from '#services/files.ts'
+import * as wikiData from '#services/wiki.ts'
 
-import { ApiError, ScopeError } from '../../contracts/errors'
+import { ApiError, ScopeError } from '../../contracts/errors.ts'
 import {
   Attachment,
   DraftState,
@@ -18,18 +19,18 @@ import {
   StalePage,
   Template,
   Tree,
-} from '../../contracts/web-schemas/wiki'
-import type { WikiSeed } from '../../web/features/wiki/WikiPageClient'
-import type { CoreEnvironment } from '../environment'
+} from '../../contracts/web-schemas/wiki.ts'
+import type { WikiSeed } from '../../web/features/wiki/WikiPageClient.tsx'
+import type { CoreEnvironment } from '../environment.ts'
 import {
   dataError,
   requireDataDatabase,
   requireDataProject,
   requireDataWorkspace,
   visibleProjectPredicate,
-} from './data-context'
-import type { RequestScope } from './scope'
-import { pageFreshness as freshness, readAuthorizedWikiPage } from './wiki-policy'
+} from './data-context.ts'
+import type { RequestScope } from './scope.ts'
+import { pageFreshness as freshness, readAuthorizedWikiPage } from './wiki-policy.ts'
 
 /** The request owns authorization, presentation and rendering. Shared queries own only SQL. */
 export function loadWikiData(
@@ -40,8 +41,9 @@ export function loadWikiData(
 ) {
   return Effect.gen(function* () {
     const selected = scope.selection
-    if (selected.kind !== 'project' && selected.kind !== 'workspace')
+    if (selected.kind !== 'project' && selected.kind !== 'workspace') {
       return yield* new ScopeError(403, 'Select a workspace before opening the wiki.')
+    }
     const workspace = yield* Effect.try({
       try: () => requireDataWorkspace(scope, selected.workspace.id),
       catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
@@ -53,7 +55,9 @@ export function loadWikiData(
       selected.kind === 'project' && url.searchParams.get('scope') !== 'workspace' ? selected.project.id : ''
     const visibility = yield* Effect.try({
       try: () => {
-        if (projectId) requireDataProject(scope, projectId, workspace.id)
+        if (projectId) {
+          requireDataProject(scope, projectId, workspace.id)
+        }
         const predicate = visibleProjectPredicate(scope, workspace.id, schema.wikiPages.projectId)
         return predicate ? or(isNull(schema.wikiPages.projectId), predicate) : undefined
       },
@@ -104,7 +108,7 @@ export function loadWikiData(
       : null
     const treeRows = yield* wikiData.listWikiTreeRows(db, workspace.id, options).pipe(Effect.mapError(dataError))
     const nodes = new Map<string, WikiSeed['tree'][number]>()
-    for (const item of treeRows)
+    for (const item of treeRows) {
       nodes.set(item.id, {
         id: item.id,
         slug: item.slug,
@@ -112,12 +116,16 @@ export function loadWikiData(
         type: item.type,
         children: [],
       })
+    }
     const roots: WikiSeed['tree'] = []
     for (const item of treeRows) {
       const node = nodes.get(item.id)!
       const parent = item.parentId ? nodes.get(item.parentId) : undefined
-      if (parent) parent.children.push(node)
-      else roots.push(node)
+      if (parent) {
+        parent.children.push(node)
+      } else {
+        roots.push(node)
+      }
     }
     const ftsQuery = searchQuery
       .trim()

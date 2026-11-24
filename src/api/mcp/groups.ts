@@ -9,9 +9,9 @@ import {
   removeGroupMember,
   setGroupGrant,
   updateGroup,
-} from '../services/groups'
-import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
-import type { MCPTool } from './types'
+} from '../services/groups.ts'
+import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 export const groupsTools: MCPTool[] = [
   {

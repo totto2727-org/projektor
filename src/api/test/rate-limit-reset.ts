@@ -1,5 +1,5 @@
-import { rateLimiterObjectName } from '../middleware/rate-limit'
-import { env } from './fixture-api'
+import { rateLimiterObjectName } from '../middleware/rate-limit.ts'
+import { env } from './fixture-api.ts'
 
 /**
  * Start every rate-limit counter afresh (PROJ-867).
@@ -26,13 +26,17 @@ export async function resetRateLimits(): Promise<void> {
 export async function seedRateLimitCounter(key: string, count: number, windowSecs = 60): Promise<void> {
   const windowMs = windowSecs * 1000
   const intoWindow = Date.now() % windowMs
-  const HEADROOM_MS = 5_000
+  const HEADROOM_MS = 5000
   if (intoWindow > windowMs - HEADROOM_MS) {
     await new Promise((resolve) => setTimeout(resolve, windowMs - intoWindow + 50))
   }
   const ns = env.RATE_LIMITER
-  if (!ns) throw new Error('RATE_LIMITER binding missing from vite.config.ts')
+  if (!ns) {
+    throw new Error('RATE_LIMITER binding missing from vite.config.ts')
+  }
   const stub = ns.get(ns.idFromName(rateLimiterObjectName(env, key)))
   const nowSecs = Math.floor(Date.now() / 1000)
-  for (let i = 0; i < count; i++) await stub.increment(windowSecs, nowSecs)
+  for (let i = 0; i < count; i++) {
+    await stub.increment(windowSecs, nowSecs)
+  }
 }

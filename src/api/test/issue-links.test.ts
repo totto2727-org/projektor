@@ -1,8 +1,8 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 
 describe('Issue Links API', () => {
   let token: string
@@ -39,10 +39,10 @@ describe('Issue Links API', () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/links`, {
       headers: authHeaders(token, slug),
     })
-    return { res, links: (await res.json()) as Array<Record<string, unknown>> }
+    return { res, links: (await res.json()) as Record<string, unknown>[] }
   }
 
-  it('creates a blocks link and lists it from both sides', async () => {
+  test('creates a blocks link and lists it from both sides', async () => {
     const createRes = await createLink(issueA.id, issueB.id, 'blocks')
     expect(createRes.status).toBe(201)
     const { id: linkId } = (await createRes.json()) as { id: string }
@@ -61,7 +61,7 @@ describe('Issue Links API', () => {
     expect(bLinks[0].linkedIssueId).toBe(issueA.id)
   })
 
-  it('creates a blocked_by link and stores it canonically', async () => {
+  test('creates a blocked_by link and stores it canonically', async () => {
     // A blocked_by B → stored as B blocks A
     const createRes = await createLink(issueA.id, issueB.id, 'blocked_by')
     expect(createRes.status).toBe(201)
@@ -77,7 +77,7 @@ describe('Issue Links API', () => {
     expect(bLinks[0].linkedIssueId).toBe(issueA.id)
   })
 
-  it('creates a relates_to link (symmetric)', async () => {
+  test('creates a relates_to link (symmetric)', async () => {
     const createRes = await createLink(issueA.id, issueB.id, 'relates_to')
     expect(createRes.status).toBe(201)
 
@@ -88,7 +88,7 @@ describe('Issue Links API', () => {
     expect(bLinks[0].type).toBe('relates_to')
   })
 
-  it('creates a duplicates link', async () => {
+  test('creates a duplicates link', async () => {
     const createRes = await createLink(issueA.id, issueB.id, 'duplicates')
     expect(createRes.status).toBe(201)
 
@@ -96,32 +96,32 @@ describe('Issue Links API', () => {
     expect(aLinks[0].type).toBe('duplicates')
   })
 
-  it('rejects self-links', async () => {
+  test('rejects self-links', async () => {
     const res = await createLink(issueA.id, issueA.id, 'blocks')
     expect(res.status).toBe(400)
   })
 
-  it('rejects duplicate pairs', async () => {
+  test('rejects duplicate pairs', async () => {
     await createLink(issueA.id, issueB.id, 'blocks')
     const res = await createLink(issueA.id, issueB.id, 'blocks')
     expect(res.status).toBe(409)
   })
 
-  it('rejects duplicate pairs regardless of direction for symmetric types', async () => {
+  test('rejects duplicate pairs regardless of direction for symmetric types', async () => {
     await createLink(issueA.id, issueB.id, 'relates_to')
     // Reverse direction should also be rejected (same canonical pair)
     const res = await createLink(issueB.id, issueA.id, 'relates_to')
     expect(res.status).toBe(409)
   })
 
-  it('rejects duplicate blocks/blocked_by pairs', async () => {
+  test('rejects duplicate blocks/blocked_by pairs', async () => {
     await createLink(issueA.id, issueB.id, 'blocks')
     // blocked_by is the same canonical pair
     const res = await createLink(issueB.id, issueA.id, 'blocked_by')
     expect(res.status).toBe(409)
   })
 
-  it('deletes a link', async () => {
+  test('deletes a link', async () => {
     const createRes = await createLink(issueA.id, issueB.id, 'relates_to')
     const { id: linkId } = (await createRes.json()) as { id: string }
 
@@ -135,7 +135,7 @@ describe('Issue Links API', () => {
     expect(links).toHaveLength(0)
   })
 
-  it('returns 404 when deleting nonexistent link', async () => {
+  test('returns 404 when deleting nonexistent link', async () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${issueA.id}/links/${crypto.randomUUID()}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
@@ -143,7 +143,7 @@ describe('Issue Links API', () => {
     expect(res.status).toBe(404)
   })
 
-  it('links are cascade-deleted when an issue is deleted', async () => {
+  test('links are cascade-deleted when an issue is deleted', async () => {
     await createLink(issueA.id, issueB.id, 'blocks')
 
     // Delete issueA
@@ -157,7 +157,7 @@ describe('Issue Links API', () => {
     expect(links).toHaveLength(0)
   })
 
-  it('does not return links from another workspace', async () => {
+  test('does not return links from another workspace', async () => {
     // Create a second workspace with its own issue
     const fixture2 = await seedFixture()
     const project2 = await seedProject(fixture2.workspace.id)
@@ -186,7 +186,7 @@ describe('Issue Links API', () => {
     expect(links).toHaveLength(0)
   })
 
-  it('getIssue includes links array', async () => {
+  test('getIssue includes links array', async () => {
     await createLink(issueA.id, issueB.id, 'blocks')
     await createLink(issueA.id, issueC.id, 'relates_to')
 
@@ -194,14 +194,14 @@ describe('Issue Links API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const issue = (await res.json()) as { links: Array<Record<string, unknown>> }
+    const issue = (await res.json()) as { links: Record<string, unknown>[] }
     expect(Array.isArray(issue.links)).toBe(true)
     expect(issue.links).toHaveLength(2)
   })
 })
 
 describe('Issue Links role guards', () => {
-  it('viewer cannot create a link (403)', async () => {
+  test('viewer cannot create a link (403)', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
     const issue1 = await seedIssue(roles.workspace.id, project.id, roles.owner.user.id, {
@@ -219,7 +219,7 @@ describe('Issue Links role guards', () => {
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot delete a link (403)', async () => {
+  test('viewer cannot delete a link (403)', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
     const issue1 = await seedIssue(roles.workspace.id, project.id, roles.owner.user.id, {
@@ -246,7 +246,7 @@ describe('Issue Links role guards', () => {
 
 // PROJ-438: same as comments — the URL carries a ref, so the read takes one.
 describe('PROJ-438 — links accept an issue ref', () => {
-  it('GET /:ref/links returns the same links as GET /:uuid/links', async () => {
+  test('GET /:ref/links returns the same links as GET /:uuid/links', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const slug = fixture.workspace.slug
     const project = await seedProject(fixture.workspace.id)
@@ -281,7 +281,7 @@ describe('PROJ-438 — links accept an issue ref', () => {
   // Same key and number in both workspaces on purpose — see the matching test in
   // comments.test.ts for why distinct keys would let this pass with the resolver's
   // workspace filter removed.
-  it("resolves a colliding ref inside the caller's own workspace", async () => {
+  test("resolves a colliding ref inside the caller's own workspace", async () => {
     const mine = await seedFixture({ role: 'owner' })
     const myProject = await seedProject(mine.workspace.id, 'DUP')
     const a = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'A' })
@@ -301,11 +301,11 @@ describe('PROJ-438 — links accept an issue ref', () => {
     })
 
     expect(res.status).toBe(200)
-    const links = (await res.json()) as Array<{ linkedIssueId: string }>
+    const links = (await res.json()) as { linkedIssueId: string }[]
     expect(links.map((l) => l.linkedIssueId)).toEqual([b.id])
   })
 
-  it('a ref that exists only in another workspace is 404', async () => {
+  test('a ref that exists only in another workspace is 404', async () => {
     const mine = await seedFixture({ role: 'owner' })
     const theirs = await seedFixture({ role: 'owner' })
     const theirProject = await seedProject(theirs.workspace.id, 'OTHER')
@@ -318,7 +318,7 @@ describe('PROJ-438 — links accept an issue ref', () => {
     expect(res.status).toBe(404)
   })
 
-  it('POST /:ref/links accepts a ref (PROJ-713: write tools resolve refs too)', async () => {
+  test('POST /:ref/links accepts a ref (PROJ-713: write tools resolve refs too)', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const project = await seedProject(fixture.workspace.id)
     await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'A' })
@@ -335,7 +335,7 @@ describe('PROJ-438 — links accept an issue ref', () => {
 })
 
 describe('createLink target-visibility existence oracle', () => {
-  it('an unresolvable target ref and a target in an unwritable project give the same message', async () => {
+  test('an unresolvable target ref and a target in an unwritable project give the same message', async () => {
     const roles = await seedWorkspaceRoles()
     const writableProject = await seedProject(roles.workspace.id, 'WRIT')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, writableProject.id, 'member')

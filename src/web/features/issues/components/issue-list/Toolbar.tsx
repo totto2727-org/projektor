@@ -1,24 +1,24 @@
 'use client'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 
-import { Button } from '../../../../components/ui/Button'
-import Select from '../../../../components/ui/Select'
-import type { IssuesRoute } from '../../views/IssuesPage'
-import type { Issue, SortKey, TaskStatus } from '../board-utils'
-import type { DateField } from './FiltersPopover'
-import FiltersPopover from './FiltersPopover'
-import SavedViewsControl from './SavedViewsControl'
-import SearchBox from './SearchBox'
-import type { useSavedViews } from './useSavedViews'
+import { Button } from '../../../../components/ui/Button.tsx'
+import Select from '../../../../components/ui/Select.tsx'
+import type { IssuesRoute } from '../../views/IssuesPage.tsx'
+import type { Issue, SortKey, TaskStatus } from '../board-utils.ts'
+import type { DateField } from './FiltersPopover.tsx'
+import FiltersPopover from './FiltersPopover.tsx'
+import SavedViewsControl from './SavedViewsControl.tsx'
+import SearchBox from './SearchBox.tsx'
+import type { useSavedViews } from './useSavedViews.ts'
 
 interface FilterSelectsProps {
-  uniqueProjects: Array<{ key: string; name: string }>
+  uniqueProjects: { key: string; name: string }[]
   filterProject: string
   setFilterProject: (v: string) => void
   setFilterSprintId: Dispatch<SetStateAction<string>>
-  sprints: Array<{ id: string; name: string; status: string }>
+  sprints: { id: string; name: string; status: string }[]
   filterSprintId: string
-  uniqueTypes: Array<[string, string]>
+  uniqueTypes: [string, string][]
   filterType: string
   setFilterType: (v: string) => void
   epics: Issue[]

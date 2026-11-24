@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 
-import { Popover } from '../../components/ui/Popover'
-import { METRIC_DEFINITIONS, type MetricId } from './metric-definitions'
+import { Popover } from '../../components/ui/Popover.tsx'
+import { METRIC_DEFINITIONS } from './metric-definitions.ts'
+import type { MetricId } from './metric-definitions.ts'
 
 export function computeMetricHelpPosition(rect: DOMRect): { top: number; left: number } {
   const left = Math.max(8, Math.min(rect.left, window.innerWidth - 256 - 8))
@@ -23,26 +24,38 @@ export function MetricHelp({ id }: { id: MetricId }) {
   const popoverId = useId()
   const reposition = useCallback(() => {
     const rect = trigger.current?.getBoundingClientRect()
-    if (rect) setPosition(computeMetricHelpPosition(rect))
+    if (rect) {
+      setPosition(computeMetricHelpPosition(rect))
+    }
   }, [])
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      return
+    }
     const inside = (node: Node) => root.current?.contains(node) || panel.current?.contains(node)
     const pointer = (event: MouseEvent) => {
-      if (!(event.target instanceof Node) || !inside(event.target)) setOpen(false)
+      if (!(event.target instanceof Node) || !inside(event.target)) {
+        setOpen(false)
+      }
     }
     const key = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key === 'Escape') {
+        setOpen(false)
+      }
     }
     const scroll = (event: Event) => {
-      if (!(event.target instanceof Node) || !inside(event.target)) setOpen(false)
+      if (!(event.target instanceof Node) || !inside(event.target)) {
+        setOpen(false)
+      }
     }
     let width = window.innerWidth
     const resize = () => {
       if (window.innerWidth !== width) {
         width = window.innerWidth
         setOpen(false)
-      } else reposition()
+      } else {
+        reposition()
+      }
     }
     const viewport = window.visualViewport
     document.addEventListener('mousedown', pointer)
@@ -68,8 +81,9 @@ export function MetricHelp({ id }: { id: MetricId }) {
         aria-expanded={open}
         aria-describedby={open ? popoverId : undefined}
         onClick={() => {
-          if (open) setOpen(false)
-          else {
+          if (open) {
+            setOpen(false)
+          } else {
             reposition()
             setOpen(true)
           }

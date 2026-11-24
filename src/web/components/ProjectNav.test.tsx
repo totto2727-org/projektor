@@ -2,10 +2,10 @@
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import type { RequestScope } from '../server/request-context'
-import { ProjectNav } from './ProjectNav'
+import type { RequestScope } from '../server/request-context.ts'
+import { ProjectNav } from './ProjectNav.tsx'
 
 const workspace = { id: 'workspace-1', slug: 'team', name: 'Team', role: 'owner' } as const
 const project = {
@@ -38,7 +38,7 @@ afterEach(() => {
 })
 
 describe('ProjectNav SSR width fallback', () => {
-  it('keeps all scoped native links scrollable before JavaScript runs', () => {
+  test('keeps all scoped native links scrollable before JavaScript runs', () => {
     const container = document.createElement('div')
     container.innerHTML = renderToString(<ProjectNav scope={scope} url={url} />)
     const nav = container.querySelector('nav')
@@ -60,7 +60,7 @@ describe('ProjectNav SSR width fallback', () => {
     }
   })
 
-  it('does not clip the existing More popup after width measurement', () => {
+  test('does not clip the existing More popup after width measurement', () => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300)
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(100)
     vi.stubGlobal(

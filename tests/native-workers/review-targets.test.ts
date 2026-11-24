@@ -1,9 +1,10 @@
 import { Effect } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { configureCore, env } from '../../src/api/test/fixture-api'
-import { CommandOkSchema, type BrowserCommand } from '../../src/core/web/command-contract'
+import { configureCore, env } from '../../src/api/test/fixture-api.ts'
+import { CommandOkSchema } from '../../src/core/web/command-contract.ts'
+import type { BrowserCommand } from '../../src/core/web/command-contract.ts'
 
 let proof: BrowserCommand
 let issueId: string
@@ -83,7 +84,7 @@ async function persistedStatus() {
 }
 
 describe('native named review target browser command', () => {
-  it('persists nullable review transitions across the actual Core service binding', async () => {
+  test('persists nullable review transitions across the actual Core service binding', async () => {
     expect(await persistedStatus()).toEqual({ review_status: null })
     for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
       expect(await update(status)).toEqual({ ok: true })
@@ -91,20 +92,20 @@ describe('native named review target browser command', () => {
     }
   })
 
-  it('rejects cross-origin native commands without writing', async () => {
+  test('rejects cross-origin native commands without writing', async () => {
     await expect(
       update('fixing', { ...proof, request: { ...proof.request, headers: [['origin', 'https://evil.test']] } }),
     ).rejects.toMatchObject({ status: 403 })
     expect(await persistedStatus()).toEqual({ review_status: null })
   })
 
-  it('rejects malformed statuses and issue ownership mismatches safely', async () => {
+  test('rejects malformed statuses and issue ownership mismatches safely', async () => {
     await expect(update('invalid')).rejects.toMatchObject({ status: 400 })
     await expect(update('fixing', proof, 'missing-issue')).rejects.toMatchObject({ status: 404 })
     expect(await persistedStatus()).toEqual({ review_status: null })
   })
 
-  it('rechecks viewer and revoked project grants in the native Core invocation', async () => {
+  test('rechecks viewer and revoked project grants in the native Core invocation', async () => {
     await env.DB.prepare("UPDATE group_project_grants SET role = 'viewer' WHERE group_id = ?").bind(groupId).run()
     await expect(update('fixing')).rejects.toMatchObject({ status: 403 })
     await env.DB.prepare('DELETE FROM group_project_grants WHERE group_id = ?').bind(groupId).run()
@@ -112,14 +113,14 @@ describe('native named review target browser command', () => {
     expect(await persistedStatus()).toEqual({ review_status: null })
   })
 
-  it('rejects archived projects while preserving the selected status', async () => {
+  test('rejects archived projects while preserving the selected status', async () => {
     await update('fixing')
     await env.DB.prepare('UPDATE projects SET archived_at = 2 WHERE id = ?').bind(projectId).run()
     await expect(update('done')).rejects.toMatchObject({ status: 404 })
     expect(await persistedStatus()).toEqual({ review_status: 'fixing' })
   })
 
-  it('requires current workspace membership on every native command', async () => {
+  test('requires current workspace membership on every native command', async () => {
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ?').bind(workspaceId).run()
     await expect(update('fixing')).rejects.toMatchObject({ status: 403 })
     expect(await persistedStatus()).toEqual({ review_status: null })

@@ -2,7 +2,8 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { categoryColor, type TaskStatus } from '../board-utils'
+import { categoryColor } from '../board-utils.ts'
+import type { TaskStatus } from '../board-utils.ts'
 
 export type DateField = '' | 'completed' | 'updated'
 
@@ -307,11 +308,15 @@ export default function FiltersPopover({
 
   const reposition = useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect()
-    if (rect) setPopoverPos(computeFiltersPopoverPosition(rect))
+    if (rect) {
+      setPopoverPos(computeFiltersPopoverPosition(rect))
+    }
   }, [])
 
   useEffect(() => {
-    if (!showFiltersPopover) return
+    if (!showFiltersPopover) {
+      return
+    }
     function onPointer(e: MouseEvent) {
       const target = e.target as Node
       if (!containerRef.current?.contains(target) && !popoverRef.current?.contains(target)) {

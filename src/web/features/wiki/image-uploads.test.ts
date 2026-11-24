@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { imageUploads, insertUploadedImages } from './image-uploads'
+import { imageUploads, insertUploadedImages } from './image-uploads.ts'
 
 const views: EditorView[] = []
 function editor(doc = 'before after') {
@@ -19,11 +19,13 @@ function deferred() {
   return { promise, resolve }
 }
 afterEach(() => {
-  for (const view of views.splice(0)) view.destroy()
+  for (const view of views.splice(0)) {
+    view.destroy()
+  }
 })
 
 describe('deferred image uploads', () => {
-  it('maps the insertion point through concurrent edits and deletion', async () => {
+  test('maps the insertion point through concurrent edits and deletion', async () => {
     const view = editor()
     const upload = deferred()
     const pending = insertUploadedImages(view, [new File(['x'], 'image.png')], 7, () => upload.promise)
@@ -33,7 +35,7 @@ describe('deferred image uploads', () => {
     expect(view.state.doc.toString()).toBe('new ![image.png](/image)\nafter')
   })
 
-  it('does not dispatch into a destroyed editor or start another upload', async () => {
+  test('does not dispatch into a destroyed editor or start another upload', async () => {
     const view = editor()
     const upload = deferred()
     let calls = 0
@@ -49,7 +51,7 @@ describe('deferred image uploads', () => {
     views.splice(views.indexOf(view), 1)
   })
 
-  it('cancels pending insertions when the editor switches documents', async () => {
+  test('cancels pending insertions when the editor switches documents', async () => {
     const view = editor()
     const upload = deferred()
     const pending = insertUploadedImages(view, [new File(['x'], 'a.png')], 7, () => upload.promise)
@@ -60,7 +62,7 @@ describe('deferred image uploads', () => {
     expect(view.state.doc.toString()).toBe('another page')
   })
 
-  it('handles failed uploads and inserts subsequent images in order', async () => {
+  test('handles failed uploads and inserts subsequent images in order', async () => {
     const view = editor('')
     let calls = 0
     await insertUploadedImages(
@@ -68,7 +70,9 @@ describe('deferred image uploads', () => {
       [new File(['x'], 'bad.png'), new File(['x'], '[a].png'), new File(['x'], 'b.png')],
       0,
       async () => {
-        if (++calls === 1) throw new Error('offline')
+        if (++calls === 1) {
+          throw new Error('offline')
+        }
         return '/image'
       },
     )

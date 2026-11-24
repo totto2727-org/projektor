@@ -1,9 +1,9 @@
 import { readdirSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { loadMigrations } from './helpers'
+import { loadMigrations } from './helpers.ts'
 
 // These are offline, explicitly approved fixture mappings, not a production repair
 // algorithm. Execute complete historical files, including FTS, without rewriting SQL
@@ -136,7 +136,7 @@ const cases = [
 ]
 
 describe('offline populated historical upgrades with approved fixture mappings', () => {
-  it.each(cases)(
+  test.each(cases)(
     'resumes unchanged history at $prefix without losing populated identities or search',
     ({ prefix, seed, repair, verify }) => {
       const db = new DatabaseSync(':memory:')
@@ -144,7 +144,9 @@ describe('offline populated historical upgrades with approved fixture mappings',
         db.exec('PRAGMA foreign_keys=ON')
         const position = filenames.findIndex((file) => file.startsWith(`${String(prefix).padStart(4, '0')}_`))
         expect(position).toBeGreaterThanOrEqual(0)
-        for (const sql of migrations.slice(0, position)) db.exec(sql)
+        for (const sql of migrations.slice(0, position)) {
+          db.exec(sql)
+        }
         seedWorkspace(db)
         seed(db)
         const originalPages = db.prepare('SELECT id,workspace_id FROM wiki_pages ORDER BY id').all()
@@ -153,7 +155,9 @@ describe('offline populated historical upgrades with approved fixture mappings',
           .prepare('SELECT id,page_id,content,author_id,created_at FROM wiki_revisions ORDER BY id')
           .all()
         repair(db)
-        for (const sql of migrations.slice(position)) db.exec(sql)
+        for (const sql of migrations.slice(position)) {
+          db.exec(sql)
+        }
         expect(db.prepare('SELECT id,workspace_id FROM wiki_pages ORDER BY id').all()).toEqual(originalPages)
         expect(db.prepare('SELECT id,workspace_id FROM projects ORDER BY id').all()).toEqual(originalProjects)
         expect(
@@ -180,7 +184,7 @@ describe('offline populated historical upgrades with approved fixture mappings',
     },
   )
 
-  it('replays fresh full history including real issue and wiki FTS backfills', () => {
+  test('replays fresh full history including real issue and wiki FTS backfills', () => {
     const db = new DatabaseSync(':memory:')
     try {
       db.exec('PRAGMA foreign_keys=ON')
@@ -191,7 +195,9 @@ describe('offline populated historical upgrades with approved fixture mappings',
         INSERT INTO issues(id,workspace_id,project_id,number,title,body,created_by_id,created_at,updated_at)
         VALUES ('issue','w','project',1,'Issueneedle','Body','u',0,0)`)
       seedWiki(db, ['wiki-page'])
-      for (const sql of migrations.slice(1)) db.exec(sql)
+      for (const sql of migrations.slice(1)) {
+        db.exec(sql)
+      }
       expect(
         db.prepare("SELECT issue_id,workspace_id FROM issues_fts WHERE issues_fts MATCH 'issueneedle'").all(),
       ).toEqual([{ issue_id: 'issue', workspace_id: 'w' }])

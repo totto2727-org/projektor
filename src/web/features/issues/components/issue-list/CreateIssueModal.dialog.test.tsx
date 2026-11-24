@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
-import { afterEach, expect, it, vi } from 'vite-plus/test'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../LazyMarkdownEditor', () => ({ default: () => <textarea aria-label='Description' /> }))
 
-import CreateIssueModal from './CreateIssueModal'
+import CreateIssueModal from './CreateIssueModal.tsx'
 
 function CreateHarness() {
   const [open, setOpen] = useState(false)
@@ -48,7 +48,7 @@ function CreateHarness() {
 
 afterEach(cleanup)
 
-it('keeps priority options interactive inside the dialog and dismisses with Escape', async () => {
+test('keeps priority options interactive inside the dialog and dismisses with Escape', async () => {
   render(<CreateHarness />)
   const trigger = screen.getByRole('button', { name: 'New issue' })
   trigger.focus()

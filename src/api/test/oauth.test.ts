@@ -1,12 +1,12 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { relyingPartyHost } from '#commands/oauth'
+import { relyingPartyHost } from '#commands/oauth.ts'
 import type { Env } from '#types'
 
-import { purgeExpiredOAuthData } from '../../core/api/maintenance'
-import { env, resetCoreAuthCaches } from './fixture-api'
-import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers'
+import { purgeExpiredOAuthData } from '../../core/api/maintenance.ts'
+import { env, resetCoreAuthCaches } from './fixture-api.ts'
+import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers.ts'
 
 // PROJ-656/657: the OAuth 2.1 authorization code flow, end to end.
 //
@@ -133,8 +133,12 @@ function authorizeUrl(
   url.searchParams.set('state', opts.state ?? 'opaque-state')
   url.searchParams.set('code_challenge', opts.challenge)
   url.searchParams.set('code_challenge_method', 'S256')
-  if (opts.scope !== undefined) url.searchParams.set('scope', opts.scope)
-  if (opts.resource !== undefined) url.searchParams.set('resource', opts.resource)
+  if (opts.scope !== undefined) {
+    url.searchParams.set('scope', opts.scope)
+  }
+  if (opts.resource !== undefined) {
+    url.searchParams.set('resource', opts.resource)
+  }
   return url.toString()
 }
 
@@ -267,7 +271,7 @@ beforeEach(async () => {
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 describe('dynamic client registration', () => {
-  it.each([
+  test.each([
     { redirect_uris: [CLIENT_REDIRECT] },
     { redirect_uris: [ORCA_REDIRECT, CLIENT_REDIRECT] },
     { token_endpoint_auth_method: 'client_secret_basic' },
@@ -277,8 +281,10 @@ describe('dynamic client registration', () => {
     expect(await response.json()).toMatchObject({ error: 'invalid_client_metadata' })
   })
 
-  it('rate limits anonymous registrations independently of token requests', async () => {
-    for (let i = 0; i < 3; i++) expect((await registerClient()).status).toBe(201)
+  test('rate limits anonymous registrations independently of token requests', async () => {
+    for (let i = 0; i < 3; i++) {
+      expect((await registerClient()).status).toBe(201)
+    }
     expect((await registerClient()).status).toBe(429)
     const response = await exchange({ grant_type: 'authorization_code', code: 'nope', client_id: 'nope' }, clientIp)
     expect(response.status).toBe(401)
@@ -286,7 +292,7 @@ describe('dynamic client registration', () => {
 })
 
 describe('only a signed-in human reaches the consent screen', () => {
-  it('401s an anonymous request', async () => {
+  test('401s an anonymous request', async () => {
     const { challenge } = await pkce()
     const { clientId } = await seedOAuthClient()
     const res = await SELF.fetch(authorizeUrl({ clientId, challenge }), {
@@ -296,7 +302,7 @@ describe('only a signed-in human reaches the consent screen', () => {
     expect(res.status).toBe(401)
   })
 
-  it('refuses an API token — a pk_ credential cannot mint an OAuth grant', async () => {
+  test('refuses an API token — a pk_ credential cannot mint an OAuth grant', async () => {
     // The escalation this blocks: a leaked read-scoped API token being spent on a
     // consent screen to obtain a longer-lived credential in the user's name.
     const fixture = await seedFixture()
@@ -313,7 +319,7 @@ describe('only a signed-in human reaches the consent screen', () => {
     expect(await res.text()).toContain('Sign-in required')
   })
 
-  it('refuses the shared PUBLIC_READ_ONLY viewer', async () => {
+  test('refuses the shared PUBLIC_READ_ONLY viewer', async () => {
     // An instance running as a public demo has nobody who can authorize a
     // connector. Consenting as the shared viewer would hand every anonymous visitor
     // on the internet a token for the demo workspace.
@@ -334,7 +340,7 @@ describe('only a signed-in human reaches the consent screen', () => {
 })
 
 describe('the authorization request must name a workspace the user belongs to', () => {
-  it('rejects a request with no resource parameter', async () => {
+  test('rejects a request with no resource parameter', async () => {
     const jwt = await accessJwt('resource-less@example.com')
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
@@ -355,7 +361,7 @@ describe('the authorization request must name a workspace the user belongs to', 
     expect(location.searchParams.get('iss')).toBe(HOST)
   })
 
-  it('rejects a resource that is not an MCP endpoint', async () => {
+  test('rejects a resource that is not an MCP endpoint', async () => {
     const jwt = await accessJwt('wrong-shape@example.com')
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
@@ -369,7 +375,7 @@ describe('the authorization request must name a workspace the user belongs to', 
     expect(new URL(res.headers.get('Location') as string).searchParams.get('error')).toBe('invalid_target')
   })
 
-  it('refuses a workspace the signed-in user is not a member of', async () => {
+  test('refuses a workspace the signed-in user is not a member of', async () => {
     const outsider = 'outsider@example.com'
     const other = await seedWorkspace()
     const jwt = await accessJwt(outsider)
@@ -402,7 +408,7 @@ describe('the consent screen', () => {
     jwt = await accessJwt(email)
   })
 
-  it('names the workspace, the identity and the permissions being granted', async () => {
+  test('names the workspace, the identity and the permissions being granted', async () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
@@ -427,7 +433,7 @@ describe('the consent screen', () => {
     expect(body).not.toContain('word-break:break-all')
   })
 
-  it("warns when the client collects its response on the user's own machine", async () => {
+  test("warns when the client collects its response on the user's own machine", async () => {
     // Claude Code's callback. Any local process can bind that port, so the
     // "application" is not something projektor can vouch for.
     const { clientId } = await seedOAuthClient(['http://127.0.0.1:8976/callback'])
@@ -446,7 +452,7 @@ describe('the consent screen', () => {
     expect(await res.text()).toContain('your own machine')
   })
 
-  it('matches a loopback callback on a different ephemeral port (RFC 8252 §7.3)', async () => {
+  test('matches a loopback callback on a different ephemeral port (RFC 8252 §7.3)', async () => {
     // Claude Code registers one port and calls back on whatever it managed to bind.
     // Without the library's port-ignoring comparison this is where it breaks.
     const { clientId } = await seedOAuthClient(['http://127.0.0.1:1/callback'])
@@ -465,7 +471,7 @@ describe('the consent screen', () => {
     expect(res.status).toBe(200)
   })
 
-  it('refuses a redirect_uri the client never registered', async () => {
+  test('refuses a redirect_uri the client never registered', async () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
@@ -485,7 +491,7 @@ describe('the consent screen', () => {
     expect(res.headers.get('Location')).toBeNull()
   })
 
-  it('declining tells the client instead of leaving it waiting', async () => {
+  test('declining tells the client instead of leaving it waiting', async () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
     const consentPage = await SELF.fetch(
@@ -514,14 +520,14 @@ describe('the consent POST cannot be forged or replayed', () => {
     await seedMember(workspaceId, user.id, 'member')
   })
 
-  it('rejects a POST with no consent token', async () => {
+  test('rejects a POST with no consent token', async () => {
     // The CSRF case: another site can make the browser POST here with its cookies,
     // but it cannot produce this field.
     const res = await postConsent('', 'approve', await accessJwt(email))
     expect(res.status).toBe(400)
   })
 
-  it('rejects a tampered consent token', async () => {
+  test('rejects a tampered consent token', async () => {
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
@@ -538,7 +544,7 @@ describe('the consent POST cannot be forged or replayed', () => {
     expect((await postConsent(forged, 'approve', jwt)).status).toBe(400)
   })
 
-  it('rejects a consent token issued to a different user', async () => {
+  test('rejects a consent token issued to a different user', async () => {
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
@@ -571,7 +577,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
   })
 
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-  it('registers Orca and completes consent, the loopback callback and an MCP call', async () => {
+  test('registers Orca and completes consent, the loopback callback and an MCP call', async () => {
     const response = await registerClient()
     expect(response.status).toBe(201)
     const client = await response.json<{ client_id: string }>()
@@ -588,7 +594,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     expect(await res.json<{ error?: unknown }>()).not.toHaveProperty('error')
   })
 
-  it("refuses the same token against another workspace's MCP endpoint", async () => {
+  test("refuses the same token against another workspace's MCP endpoint", async () => {
     // The whole point of RFC 8707 audience binding. The grant names one workspace;
     // spending it anywhere else must fail, even though the user is a real member of
     // this second workspace too.
@@ -602,7 +608,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     expect(res.status).toBe(401)
   })
 
-  it('grants only the scopes that were asked for', async () => {
+  test('grants only the scopes that were asked for', async () => {
     const { tokens } = await connect({ email, workspaceId, scope: 'projektor:read' })
 
     expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(200)
@@ -615,7 +621,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     expect(write.headers.get('WWW-Authenticate')).toContain('insufficient_scope')
   })
 
-  it('rotates the refresh token, keeping exactly one generation alive', async () => {
+  test('rotates the refresh token, keeping exactly one generation alive', async () => {
     const { tokens, clientId, resource } = await connect({ email, workspaceId })
     const refresh = (refresh_token: string) =>
       exchange({ grant_type: 'refresh_token', refresh_token, client_id: clientId, resource })
@@ -641,7 +647,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
     expect((await replay.json<{ error: string }>()).error).toBe('invalid_grant')
   })
 
-  it('revokes a token at the endpoint the discovery document advertises', async () => {
+  test('revokes a token at the endpoint the discovery document advertises', async () => {
     // The AS metadata names the token endpoint as revocation_endpoint. If that ever
     // drifts to a path nothing serves, the SPA fallback answers 200 and a client
     // reports a token revoked that is still live.
@@ -655,7 +661,7 @@ describe('the issued token is bound to the workspace it was granted for', () => 
 })
 
 describe('an OAuth grant cannot mint a personal access token (PROJ-903)', () => {
-  it('POST /auth/tokens with an OAuth access token is refused and mints nothing', async () => {
+  test('POST /auth/tokens with an OAuth access token is refused and mints nothing', async () => {
     const workspace = await seedWorkspace()
     const email = `pat-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -679,7 +685,7 @@ describe('an OAuth grant cannot mint a personal access token (PROJ-903)', () => 
 })
 
 describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', () => {
-  it('POST /api/workspaces/:slug/tokens with an OAuth access token is refused', async () => {
+  test('POST /api/workspaces/:slug/tokens with an OAuth access token is refused', async () => {
     const workspace = await seedWorkspace()
     const email = `wstok-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -702,7 +708,7 @@ describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', ()
     expect(row).toBeNull()
   })
 
-  it('DELETE /api/workspaces/:slug/tokens/:id with an OAuth access token is refused', async () => {
+  test('DELETE /api/workspaces/:slug/tokens/:id with an OAuth access token is refused', async () => {
     const workspace = await seedWorkspace()
     const email = `wsrev-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -739,7 +745,7 @@ describe("the token endpoint's failure modes", () => {
     await seedMember(workspaceId, user.id, 'member')
   })
 
-  it('replaying an authorization code revokes everything the grant produced', async () => {
+  test('replaying an authorization code revokes everything the grant produced', async () => {
     // OAuth 2.1's response to a stolen code: a second presentation means either the
     // client or an attacker is replaying, and the safe reading is that the code
     // leaked. Both parties lose the grant rather than one of them keeping it.
@@ -776,7 +782,7 @@ describe("the token endpoint's failure modes", () => {
     expect((await mcpCall(workspaceId, tokens.access_token, 'list_projects')).status).toBe(401)
   })
 
-  it('rejects an authorization request that omits code_challenge_method', async () => {
+  test('rejects an authorization request that omits code_challenge_method', async () => {
     // RFC 7636 says an absent method means `plain`. OAuth 2.1 does not offer plain,
     // and the metadata document advertises S256 only, so this must be refused
     // rather than silently downgraded.
@@ -795,7 +801,7 @@ describe("the token endpoint's failure modes", () => {
     expect(new URL(res.headers.get('Location') as string).searchParams.get('error')).toBe('invalid_request')
   })
 
-  it('rejects a code exchanged with the wrong PKCE verifier', async () => {
+  test('rejects a code exchanged with the wrong PKCE verifier', async () => {
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
@@ -824,7 +830,7 @@ describe("the token endpoint's failure modes", () => {
 })
 
 describe('the token endpoint is rate-limited', () => {
-  it('429s once the per-IP limit is exceeded', async () => {
+  test('429s once the per-IP limit is exceeded', async () => {
     // It never passes through Hono, so rateLimitMiddleware does not cover it — and
     // it is unauthenticated by definition, since public clients have no secret.
     // vite.config.ts sets RATE_LIMIT_AUTH_MAX=3 and setup.ts clears the counter
@@ -839,7 +845,7 @@ describe('the token endpoint is rate-limited', () => {
 })
 
 describe('a grant is only as live as the membership behind it (PROJ-658)', () => {
-  it('stops working the moment the user is removed from the workspace', async () => {
+  test('stops working the moment the user is removed from the workspace', async () => {
     // The property that makes a connector token safe to hold for a long time: role
     // and membership are read from D1 on every request, so offboarding someone kills
     // their connectors with no token bookkeeping at all.
@@ -858,7 +864,7 @@ describe('a grant is only as live as the membership behind it (PROJ-658)', () =>
     expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(403)
   })
 
-  it('revoking the refresh token takes the access token with it', async () => {
+  test('revoking the refresh token takes the access token with it', async () => {
     // RFC 7009 §2.1: revoking a refresh token invalidates the access tokens issued
     // from the same grant. Without the cascade a user who clicks "disconnect" would
     // still be reachable for up to the access token's remaining lifetime.
@@ -881,7 +887,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
   // RATE_LIMIT_API_MAX in vite.config.ts.
   const API_LIMIT = 5
 
-  it("survives a token rotation, and does not spill onto the user's other grants", async () => {
+  test("survives a token rotation, and does not spill onto the user's other grants", async () => {
     const workspace = await seedWorkspace()
     const email = `limited-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -920,7 +926,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     })
   }
 
-  it('shows the grant by the host of its client_id, not a name the client chose', async () => {
+  test('shows the grant by the host of its client_id, not a name the client chose', async () => {
     const workspace = await seedWorkspace()
     const email = `settings-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -935,7 +941,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     clientIp = '203.0.113.240'
     const res = await settings(workspace.slug, await accessJwt(email))
     expect(res.status).toBe(200)
-    const grants = await res.json<Array<{ id: string; client: string; clientId: string; scopes: string[] }>>()
+    const grants = await res.json<{ id: string; client: string; clientId: string; scopes: string[] }[]>()
     expect(grants).toHaveLength(1)
     expect(grants[0].clientId).toBe(clientId)
     expect(grants[0].scopes).toEqual(['projektor:read'])
@@ -951,7 +957,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
   // connected when it holds no credential, and the Disconnect beside it withdraws
   // nothing. This also pins the assumption the filter rests on: a grant that did
   // complete always has an expiry, because refreshTokenTTL is left at its default.
-  it('hides a consent the client never came back to redeem', async () => {
+  test('hides a consent the client never came back to redeem', async () => {
     const workspace = await seedWorkspace()
     const email = `abandoned-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -973,12 +979,12 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     clientIp = '203.0.113.245'
     await connect({ email, workspaceId: workspace.id })
     clientIp = '203.0.113.246'
-    const grants = await (await settings(workspace.slug, jwt)).json<Array<{ expiresAt: number }>>()
+    const grants = await (await settings(workspace.slug, jwt)).json<{ expiresAt: number }[]>()
     expect(grants).toHaveLength(1)
     expect(grants[0].expiresAt).toBeGreaterThan(Math.floor(Date.now() / 1000))
   })
 
-  it('withdrawing a connector kills its token on the next request', async () => {
+  test('withdrawing a connector kills its token on the next request', async () => {
     const workspace = await seedWorkspace()
     const email = `withdraw-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -990,7 +996,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     clientIp = '203.0.113.241'
     const jwt = await accessJwt(email)
     const listed = await settings(workspace.slug, jwt)
-    const [grant] = await listed.json<Array<{ id: string }>>()
+    const [grant] = await listed.json<{ id: string }[]>()
 
     const revoked = await settings(workspace.slug, jwt, `/${grant.id}`, { method: 'DELETE' })
     expect(revoked.status).toBe(200)
@@ -1001,7 +1007,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     expect(await (await settings(workspace.slug, jwt)).json()).toEqual([])
   })
 
-  it("keeps grants for another workspace off this workspace's page, and out of its reach", async () => {
+  test("keeps grants for another workspace off this workspace's page, and out of its reach", async () => {
     const email = `two-ws-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
     const first = await seedWorkspace()
@@ -1014,7 +1020,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     clientIp = '203.0.113.242'
     const jwt = await accessJwt(email)
     const listed = await settings(second.slug, jwt)
-    const [grant] = await listed.json<Array<{ id: string }>>()
+    const [grant] = await listed.json<{ id: string }[]>()
     expect(grant).toBeTruthy()
 
     expect(await (await settings(first.slug, jwt)).json()).toEqual([])
@@ -1024,7 +1030,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     expect(crossed.status).toBe(404)
   })
 
-  it('refuses the shared PUBLIC_READ_ONLY viewer outright', async () => {
+  test('refuses the shared PUBLIC_READ_ONLY viewer outright', async () => {
     // Not "returns an empty list": the shared viewer is one identity for every
     // anonymous visitor, so "your connectors" has no meaning for it. It cannot
     // consent today, which makes the list empty anyway — this asserts the endpoint
@@ -1041,7 +1047,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     }
   })
 
-  it("does not show one member's connectors to another", async () => {
+  test("does not show one member's connectors to another", async () => {
     const workspace = await seedWorkspace()
     const owner = `grantee-${crypto.randomUUID().slice(0, 8)}@example.com`
     const other = `bystander-${crypto.randomUUID().slice(0, 8)}@example.com`
@@ -1060,7 +1066,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
 })
 
 describe('the scheduled purge', () => {
-  it('clears dead OAuth records without touching a live grant', async () => {
+  test('clears dead OAuth records without touching a live grant', async () => {
     const workspace = await seedWorkspace()
     const email = `purge-${crypto.randomUUID().slice(0, 8)}@example.com`
     const user = await seedUser(email)
@@ -1093,7 +1099,7 @@ describe('hardening the consent screen itself', () => {
     })
   }
 
-  it('cannot be framed, and its form cannot be retargeted', async () => {
+  test('cannot be framed, and its form cannot be retargeted', async () => {
     // Clickjacking is the attack a consent screen exists to be protected from:
     // frame it invisibly under something the user wants to click and "Allow access"
     // gets pressed on their behalf.
@@ -1106,7 +1112,7 @@ describe('hardening the consent screen itself', () => {
     expect(res.headers.get('Cache-Control')).toBe('no-store')
   })
 
-  it("lets the approval reach the client's redirect origin, and nowhere else", async () => {
+  test("lets the approval reach the client's redirect origin, and nowhere else", async () => {
     // form-action is enforced on the redirect the POST lands on, not just the URL
     // the form names. With 'self' alone the browser blocks the submission and
     // reports it against /oauth/authorize — which is same-origin, so the report
@@ -1119,7 +1125,7 @@ describe('hardening the consent screen itself', () => {
     expect(csp).not.toContain('*')
   })
 
-  it('does not name a redirect origin on a page with no form to submit', async () => {
+  test('does not name a redirect origin on a page with no form to submit', async () => {
     // An error page carries no consent form, so widening its policy would grant
     // reach that nothing on the page needs.
     const res = await SELF.fetch(authorizeUrl({ clientId: 'nope', challenge: 'x' }), {
@@ -1131,7 +1137,7 @@ describe('hardening the consent screen itself', () => {
     expect(csp).toContain("form-action 'self';")
   })
 
-  it('refuses to process consent at all when JWT_SECRET is unset', async () => {
+  test('refuses to process consent at all when JWT_SECRET is unset', async () => {
     // Without this the secret stringifies into the HMAC key as "undefined", which
     // is the same key on every deployment that skipped `wrangler secret put` — and
     // a forgeable consent token is a working CSRF against the one screen that
@@ -1149,7 +1155,7 @@ describe('hardening the consent screen itself', () => {
 })
 
 describe('workspace confinement survives a header that says otherwise', () => {
-  it('403s an OAuth token aimed at its own workspace but labelled as another', async () => {
+  test('403s an OAuth token aimed at its own workspace but labelled as another', async () => {
     // The provider's audience check looks at the URL path, and workspaceMiddleware
     // resolves the workspace from X-Workspace-Slug in preference to that path. A
     // token for workspace A on /mcp/A carrying `X-Workspace-Slug: B` therefore
@@ -1184,7 +1190,7 @@ describe('workspace confinement survives a header that says otherwise', () => {
 })
 
 describe('existing credentials are untouched by the provider', () => {
-  it('a pk_ API token still reaches the MCP endpoint', async () => {
+  test('a pk_ API token still reaches the MCP endpoint', async () => {
     // The regression this guards: declaring /mcp/ an apiRoute makes the provider
     // answer every request there itself, 401ing anything that is not one of its own
     // tokens. index.ts only routes OAuth-shaped bearers into it for this reason.
@@ -1194,7 +1200,7 @@ describe('existing credentials are untouched by the provider', () => {
     expect(res.status).toBe(200)
   })
 
-  it("an unauthenticated MCP request still gets projektor's own 401 challenge", async () => {
+  test("an unauthenticated MCP request still gets projektor's own 401 challenge", async () => {
     const fixture = await seedFixture()
     const res = await SELF.fetch(`${HOST}/mcp/${fixture.workspace.id}`, {
       method: 'POST',

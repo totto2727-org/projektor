@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-import { BooleanQueryParam, StatusEnum } from './common'
-import { CompletionReportSchema } from './issues'
+import { BooleanQueryParam, StatusEnum } from './common.ts'
+import { CompletionReportSchema } from './issues.ts'
 
 export const RegisterAgentSchema = z.object({
   issueId: z.string().uuid().optional(),

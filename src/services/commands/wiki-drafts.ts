@@ -13,12 +13,12 @@ import {
   SaveWikiDraftInputSchema,
   VersionedWikiDraftInputSchema,
   WikiDraftRevisionInputSchema,
-} from '../../contracts/inputs/wiki'
-import { assertProjectAccess } from './access'
-import { ConflictError, NotFoundError, ValidationError } from './errors'
-import { inChunks } from './sql'
-import type { ServiceCtx } from './types'
-import { idFirst, idOrSlugMatch } from './wiki-lookup'
+} from '../../contracts/inputs/wiki.ts'
+import { assertProjectAccess } from './access.ts'
+import { ConflictError, NotFoundError, ValidationError } from './errors.ts'
+import { inChunks } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
+import { idFirst, idOrSlugMatch } from './wiki-lookup.ts'
 
 type ResolvedDraftTarget = {
   id: string
@@ -74,7 +74,9 @@ async function resolveDraftTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
         .get()
     }
   }
-  if (!page) throw new NotFoundError('Wiki page not found')
+  if (!page) {
+    throw new NotFoundError('Wiki page not found')
+  }
 
   if (page.projectId !== null) {
     await assertProjectAccess(ctx, page.projectId, 'read', {
@@ -171,7 +173,9 @@ function requireAdvanced(result: D1Result, revision: string) {
 
 export async function saveWikiDraft(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = SaveWikiDraftInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const page = await resolveDraftTarget(ctx, idOrSlug)
   const revision = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
@@ -220,7 +224,9 @@ export async function discardWikiDraft(ctx: ServiceCtx, idOrSlug: string, input?
   let expected: string | null | undefined
   if (input !== undefined) {
     const parsed = WikiDraftRevisionInputSchema.safeParse(input)
-    if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+    if (!parsed.success) {
+      throw new ValidationError(parsed.error.flatten())
+    }
     expected = parsed.data.expectedDraftRevision
   }
   const page = await resolveDraftTarget(ctx, idOrSlug)
@@ -231,7 +237,9 @@ export async function discardWikiDraft(ctx: ServiceCtx, idOrSlug: string, input?
 // if the page update fails. A newly accepted draft must survive its later cleanup.
 export async function beginWikiDraftPublish(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = VersionedWikiDraftInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const page = await resolveDraftTarget(ctx, idOrSlug)
   const revision = crypto.randomUUID()
   const result = await advanceHead(ctx, page.id, parsed.data.expectedDraftRevision, revision).all()
@@ -245,7 +253,9 @@ export async function finishWikiDraftPublish(ctx: ServiceCtx, pageId: string, re
     const result = await discardResolvedDraft(ctx, page.id, reservedRevision)
     return { ok: true as const, draftRevision: result.revision }
   } catch (error) {
-    if (!(error instanceof ConflictError)) throw error
+    if (!(error instanceof ConflictError)) {
+      throw error
+    }
     // Another editor has advanced the head. Publication succeeded, but this
     // caller must reconcile that draft rather than overwrite it automatically.
     return { ok: true as const, draftRevision: null }
@@ -258,7 +268,9 @@ export async function finishWikiDraftPublish(ctx: ServiceCtx, pageId: string, re
 // wiki-watchers.ts#deleteWikiWatchersForPages (PROJ-407: D1 doesn't guarantee FK
 // enforcement on every connection).
 export async function deleteWikiDraftsForPages(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
-  if (pageIds.length === 0) return
+  if (pageIds.length === 0) {
+    return
+  }
   const orm = drizzle(ctx.db, { schema })
   await inChunks(pageIds, async (chunk) => {
     await orm

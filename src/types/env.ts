@@ -1,5 +1,5 @@
-import type { CoreActor } from '../core/authorization'
-import type { AuthInfo } from './plugin'
+import type { CoreActor } from '../core/authorization.ts'
+import type { AuthInfo } from './plugin.ts'
 
 export interface CoreEnv {
   DB: D1Database

@@ -1,7 +1,8 @@
 import type { OAuthHelpers } from '@cloudflare/workers-oauth-provider'
 
-import { relyingPartyHost, type ConsentWorkspace } from '../../contracts/oauth-consent'
-import { NotFoundError } from './errors'
+import { relyingPartyHost } from '../../contracts/oauth-consent.ts'
+import type { ConsentWorkspace } from '../../contracts/oauth-consent.ts'
+import { NotFoundError } from './errors.ts'
 
 export {
   describeScope,
@@ -13,7 +14,7 @@ export {
   workspaceIdFromResource,
   type ConsentRequest,
   type ConsentWorkspace,
-} from '../../contracts/oauth-consent'
+} from '../../contracts/oauth-consent.ts'
 
 /** Missing workspaces and missing membership are indistinguishable to the consent screen. */
 export async function lookupConsentWorkspace(
@@ -26,7 +27,9 @@ export async function lookupConsentWorkspace(
     FROM workspaces w LEFT JOIN workspace_members m ON m.workspace_id = w.id AND m.user_id = ? WHERE w.id = ?`)
     .bind(userId, workspaceId)
     .first<{ id: string; name: string; slug: string; role: string | null }>()
-  if (!row?.role) return null
+  if (!row?.role) {
+    return null
+  }
   return { id: row.id, name: row.name, slug: row.slug, role: row.role }
 }
 
@@ -52,9 +55,13 @@ export async function listConnectorGrants(
   for (let page = 0; page < GRANT_MAX_PAGES; page++) {
     const result = await api.listUserGrants(userId, { limit: GRANT_PAGE_SIZE, cursor })
     for (const grant of result.items) {
-      if ((grant.metadata as { workspaceId?: string } | null)?.workspaceId !== workspaceId) continue
+      if ((grant.metadata as { workspaceId?: string } | null)?.workspaceId !== workspaceId) {
+        continue
+      }
       // An unredeemed authorization code is pending, not a live connector. Keep the provider's finite refresh TTL.
-      if (grant.expiresAt === undefined) continue
+      if (grant.expiresAt === undefined) {
+        continue
+      }
       grants.push({
         id: grant.id,
         client: relyingPartyHost(grant.clientId),
@@ -64,7 +71,9 @@ export async function listConnectorGrants(
         expiresAt: grant.expiresAt,
       })
     }
-    if (!result.cursor) break
+    if (!result.cursor) {
+      break
+    }
     cursor = result.cursor
   }
   return grants.sort((a, b) => b.grantedAt - a.grantedAt)
@@ -78,7 +87,9 @@ export async function revokeConnectorGrant(
   grantId: string,
 ): Promise<{ ok: true }> {
   const grants = await listConnectorGrants(api, userId, workspaceId)
-  if (!grants.some((grant) => grant.id === grantId)) throw new NotFoundError('Connector not found')
+  if (!grants.some((grant) => grant.id === grantId)) {
+    throw new NotFoundError('Connector not found')
+  }
   await api.revokeGrant(grantId, userId)
   return { ok: true }
 }

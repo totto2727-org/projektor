@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const body = z.string().min(1).max(10000)
+const body = z.string().min(1).max(10_000)
 
 export const ListCommentsSchema = z.object({
   issueId: z.string(),

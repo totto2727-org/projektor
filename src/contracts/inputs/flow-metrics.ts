@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const DAY = 86400
+const DAY = 86_400
 
 // Unix epoch day 0 (1970-01-01) was a Thursday; align to the preceding Monday so
 // week boundaries read as conventional (ISO) weeks rather than landing on Thursdays.
@@ -35,7 +35,9 @@ export const GetFlowMetricsSchema = z
     granularity: z.enum(['day', 'week']).default('week'),
   })
   .superRefine((data, ctx) => {
-    if (data.since === undefined && data.until === undefined) return
+    if (data.since === undefined && data.until === undefined) {
+      return
+    }
     const now = Math.floor(Date.now() / 1000)
     let effSince: number
     let effUntil: number

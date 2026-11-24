@@ -1,9 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import m0061 from '../../../migrations/0061_task_status_review_step.sql?raw'
-import { env } from './fixture-api'
-import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskStatus } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskStatus } from './helpers.ts'
 
 // PROJ-749: a status is a review step because the workspace flagged it
 // (task_statuses.is_review_step), not because its key contains "review".
@@ -36,7 +36,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
     return { ...row, gateRejections: rejections?.n ?? 0 }
   }
 
-  it('a "Contract Review" status that is not a review step is not gated and not counted', async () => {
+  test('a "Contract Review" status that is not a review step is not gated and not counted', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contract' })
     await seedAgentLease(workspaceId, issue.id)
     const contract = await seedTaskStatus(workspaceId, {
@@ -57,7 +57,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
     })
   })
 
-  it('a custom status flagged as a review step is gated, stamped and counted', async () => {
+  test('a custom status flagged as a review step is gated, stamped and counted', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Peer' })
     await seedAgentLease(workspaceId, issue.id)
     const peer = await seedTaskStatus(workspaceId, {
@@ -84,7 +84,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
     expect(state.gateRejections).toBe(1)
   })
 
-  it('create/update_task_status set and clear the flag (REST)', async () => {
+  test('create/update_task_status set and clear the flag (REST)', async () => {
     const created = await SELF.fetch('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -116,7 +116,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
 })
 
 describe("PROJ-749: migration 0061 backfill preserves today's behaviour", () => {
-  it("flags every existing status whose key contains 'review', and nothing else", async () => {
+  test("flags every existing status whose key contains 'review', and nothing else", async () => {
     const ws = `ws-${crypto.randomUUID().slice(0, 8)}`
     await env.DB.prepare('INSERT INTO workspaces (id, slug, name, created_at) VALUES (?, ?, ?, 0)')
       .bind(ws, ws, ws)

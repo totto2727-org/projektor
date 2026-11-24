@@ -1,4 +1,5 @@
-import { eq, or, type SQL, sql } from 'drizzle-orm'
+import { eq, or, sql } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 
 import { schema } from '#db'
 

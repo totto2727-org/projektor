@@ -1,29 +1,30 @@
 import { Effect, Schema } from 'effect'
 
-import * as sprints from '#commands/sprints'
-import { getCodeHeatmap } from '#services/code-heatmap'
-import { getFlowMetrics } from '#services/flow-metrics'
+import * as sprints from '#commands/sprints.ts'
+import { getCodeHeatmap } from '#services/code-heatmap.ts'
+import { getFlowMetrics } from '#services/flow-metrics.ts'
 
-import { requireDataProject } from '../../contracts/web-data'
-import { MAX_METRICS_DAYS } from '../../contracts/web-limits'
-import { HeatmapSchema, MetricsSchema } from '../../contracts/web-schemas/planning'
-import { coreFailure, coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { publicWebFailure } from './authentication'
-import { browserCommand } from './command'
-import { CommandIdSchema, CommandOkSchema, type BrowserCommand } from './command-contract'
-import { webRead } from './issue-operations'
-import { type WebRequest } from './scope'
+import { requireDataProject } from '../../contracts/web-data.ts'
+import { MAX_METRICS_DAYS } from '../../contracts/web-limits.ts'
+import { HeatmapSchema, MetricsSchema } from '../../contracts/web-schemas/planning.ts'
+import { coreFailure, coreReply } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { publicWebFailure } from './authentication.ts'
+import { CommandIdSchema, CommandOkSchema } from './command-contract.ts'
+import type { BrowserCommand } from './command-contract.ts'
+import { browserCommand } from './command.ts'
+import { webRead } from './issue-operations.ts'
+import type { WebRequest } from './scope.ts'
 
 export const MetricsQuerySchema = Schema.Struct({
   projectId: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
-  since: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 253402300799 })),
-  until: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 253402300799 })),
+  since: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 253_402_300_799 })),
+  until: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 253_402_300_799 })),
   granularity: Schema.Literals(['day', 'week']),
   mode: Schema.Literals(['claims', 'contention']),
   prefix: Schema.String.check(Schema.isMaxLength(2000)),
 }).check(
-  Schema.makeFilter((query) => query.since <= query.until && query.until - query.since < MAX_METRICS_DAYS * 86400),
+  Schema.makeFilter((query) => query.since <= query.until && query.until - query.since < MAX_METRICS_DAYS * 86_400),
 )
 export type MetricsQuery = typeof MetricsQuerySchema.Type
 

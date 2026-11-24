@@ -23,9 +23,10 @@ function dateInputToTs(dateStr: string, endOfDay: boolean): number {
     !/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ||
     !Number.isFinite(timestamp) ||
     new Date(timestamp).toISOString().slice(0, 10) !== dateStr
-  )
+  ) {
     return Number.NaN
-  return timestamp / 1000 + (endOfDay ? 86399 : 0)
+  }
+  return timestamp / 1000 + (endOfDay ? 86_399 : 0)
 }
 
 function applyEpicParams(
@@ -34,13 +35,19 @@ function applyEpicParams(
   hideEpics: boolean,
   taskTypes: readonly KeyedById[],
 ): void {
-  if (filterEpicId && filterEpicId !== 'none') qs.set('parentId', filterEpicId)
-  if (filterEpicId === 'none') qs.set('noParent', 'true')
+  if (filterEpicId && filterEpicId !== 'none') {
+    qs.set('parentId', filterEpicId)
+  }
+  if (filterEpicId === 'none') {
+    qs.set('noParent', 'true')
+  }
   // Epic exclusion runs server-side (PROJ-211): both "Hide epics" and the
   // "No epic" option drop epic-typed issues via excludeTypeIds, so the result
   // is correct across pagination rather than only on the loaded page.
   const epicTypeId = taskTypes.find((t) => t.key === 'epic')?.id
-  if (epicTypeId && (hideEpics || filterEpicId === 'none')) qs.set('excludeTypeIds', epicTypeId)
+  if (epicTypeId && (hideEpics || filterEpicId === 'none')) {
+    qs.set('excludeTypeIds', epicTypeId)
+  }
 }
 
 // Date-range filter (PROJ-212) runs server-side against the chosen timestamp
@@ -51,11 +58,17 @@ export function applyDateRangeParams(
   filterDateFrom: string,
   filterDateTo: string,
 ): void {
-  if (!filterDateField || (!filterDateFrom && !filterDateTo)) return
+  if (!filterDateField || (!filterDateFrom && !filterDateTo)) {
+    return
+  }
   const afterKey = filterDateField === 'completed' ? 'completedAfter' : 'updatedAfter'
   const beforeKey = filterDateField === 'completed' ? 'completedBefore' : 'updatedBefore'
-  if (filterDateFrom) qs.set(afterKey, String(dateInputToTs(filterDateFrom, false)))
-  if (filterDateTo) qs.set(beforeKey, String(dateInputToTs(filterDateTo, true)))
+  if (filterDateFrom) {
+    qs.set(afterKey, String(dateInputToTs(filterDateFrom, false)))
+  }
+  if (filterDateTo) {
+    qs.set(beforeKey, String(dateInputToTs(filterDateTo, true)))
+  }
 }
 
 // Build the filter query params shared by the initial fetch and "Load more"
@@ -78,13 +91,23 @@ export function buildFilterQueryParams(
     filterDateTo,
   } = filters
   const qs = new URLSearchParams()
-  if (filterStatuses.length) qs.set('statusIds', filterStatuses.join(','))
-  if (filterPriorities.length) qs.set('priorities', filterPriorities.join(','))
+  if (filterStatuses.length) {
+    qs.set('statusIds', filterStatuses.join(','))
+  }
+  if (filterPriorities.length) {
+    qs.set('priorities', filterPriorities.join(','))
+  }
   const projectId = filterProject ? projects.find((p) => p.key === filterProject)?.id : undefined
-  if (projectId) qs.set('project', projectId)
+  if (projectId) {
+    qs.set('project', projectId)
+  }
   const typeId = filterType ? taskTypes.find((t) => t.key === filterType)?.id : undefined
-  if (typeId) qs.set('typeId', typeId)
-  if (filterSprintId) qs.set('sprintId', filterSprintId)
+  if (typeId) {
+    qs.set('typeId', typeId)
+  }
+  if (filterSprintId) {
+    qs.set('sprintId', filterSprintId)
+  }
   applyEpicParams(qs, filterEpicId, hideEpics, taskTypes)
   applyDateRangeParams(qs, filterDateField, filterDateFrom, filterDateTo)
   return qs
@@ -111,7 +134,7 @@ const URL_SYNC_KEYS = [
   ['dateField', (f: UrlSyncFilters) => f.filterDateField || null],
   ['dateFrom', (f: UrlSyncFilters) => f.filterDateFrom || null],
   ['dateTo', (f: UrlSyncFilters) => f.filterDateTo || null],
-] as const satisfies ReadonlyArray<[string, (f: UrlSyncFilters) => string | null]>
+] as const satisfies readonly [string, (f: UrlSyncFilters) => string | null][]
 
 // Build canonical filter navigation while retaining unrelated scoped query parameters.
 // Effront owns navigation through ordinary anchors, not a parallel history router.

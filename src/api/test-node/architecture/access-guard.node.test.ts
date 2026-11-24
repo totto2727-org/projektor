@@ -29,9 +29,9 @@ import { join } from 'node:path'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { ACCESS_GUARD_ALLOWLIST } from './access-guard-allowlist'
+import { ACCESS_GUARD_ALLOWLIST } from './access-guard-allowlist.ts'
 
 const SERVICES = join(import.meta.dirname, '..', '..', '..', 'services', 'commands')
 
@@ -97,16 +97,20 @@ function collect(): Map<string, FnInfo> {
   try {
     const snapshot = api.updateSnapshot({ openProjects: [configFile] })
     const project = snapshot.getProject(configFile)
-    if (!project) throw new Error(`Could not load architecture sources: ${configFile}`)
+    if (!project) {
+      throw new Error(`Could not load architecture sources: ${configFile}`)
+    }
 
     for (const fileName of files) {
       const file = fileName.replace(/\.ts$/, '')
       const src = project.program.getSourceFile(join(SERVICES, fileName))
-      if (!src) throw new Error(`Could not parse architecture source: ${fileName}`)
+      if (!src) {
+        throw new Error(`Could not parse architecture source: ${fileName}`)
+      }
 
       // import name → "file:name" (or "guard:name" for access.ts guards)
       const imports = new Map<string, string>()
-      const locals: Array<{ name: string; node: ts.Node; exported: boolean; params: string[] }> = []
+      const locals: { name: string; node: ts.Node; exported: boolean; params: string[] }[] = []
 
       for (const stmt of src.statements) {
         if (
@@ -114,7 +118,7 @@ function collect(): Map<string, FnInfo> {
           ts.isStringLiteral(stmt.moduleSpecifier) &&
           stmt.moduleSpecifier.text.startsWith('./')
         ) {
-          const from = stmt.moduleSpecifier.text.slice(2)
+          const from = stmt.moduleSpecifier.text.slice(2).replace(/\.ts$/, '')
           const named = stmt.importClause?.namedBindings
           if (named && ts.isNamedImports(named)) {
             for (const el of named.elements) {
@@ -158,9 +162,13 @@ function collect(): Map<string, FnInfo> {
           // Any reference counts (call, or passed as a callback / predicate).
           if (ts.isIdentifier(n) && n !== (l.node as ts.FunctionDeclaration).name) {
             const id = n.text
-            if (file === 'access' && GUARDS.has(id)) calls.push(`guard:${id}`)
-            else if (localNames.has(id)) calls.push(`${file}:${id}`)
-            else if (imports.has(id)) calls.push(imports.get(id) as string)
+            if (file === 'access' && GUARDS.has(id)) {
+              calls.push(`guard:${id}`)
+            } else if (localNames.has(id)) {
+              calls.push(`${file}:${id}`)
+            } else if (imports.has(id)) {
+              calls.push(imports.get(id) as string)
+            }
           }
           n.forEachChild(visit)
         }
@@ -182,12 +190,16 @@ function collect(): Map<string, FnInfo> {
 
 function guardedSet(fns: Map<string, FnInfo>): Set<string> {
   const guarded = new Set<string>()
-  for (const g of GUARDS) guarded.add(`access:${g}`)
+  for (const g of GUARDS) {
+    guarded.add(`access:${g}`)
+  }
   let changed = true
   while (changed) {
     changed = false
     for (const [key, fn] of fns) {
-      if (guarded.has(key)) continue
+      if (guarded.has(key)) {
+        continue
+      }
       if (fn.calls.some((c) => c.startsWith('guard:') || guarded.has(c))) {
         guarded.add(key)
         changed = true
@@ -198,10 +210,16 @@ function guardedSet(fns: Map<string, FnInfo>): Set<string> {
 }
 
 function isTarget(fn: FnInfo): boolean {
-  if (!fn.exported || fn.file === 'access') return false
-  if (fn.params[0] !== 'ctx') return false
+  if (!fn.exported || fn.file === 'access') {
+    return false
+  }
+  if (fn.params[0] !== 'ctx') {
+    return false
+  }
   const rest = fn.params.slice(1)
-  if (rest.some((p) => ENTITY_PARAM.test(p))) return true
+  if (rest.some((p) => ENTITY_PARAM.test(p))) {
+    return true
+  }
   return PROJECT_SCOPED_FILES.has(fn.file) && rest.some((p) => GENERIC_ID_PARAM.test(p))
 }
 
@@ -210,12 +228,12 @@ describe('PROJ-837: project-scoped service operations reach the access guard', (
   const guarded = guardedSet(fns)
   const targets = [...fns.entries()].filter(([, fn]) => isTarget(fn))
 
-  it("finds the operations it is meant to police (the heuristic isn't silently empty)", () => {
+  test("finds the operations it is meant to police (the heuristic isn't silently empty)", () => {
     expect(targets.length).toBeGreaterThan(20)
     expect(targets.map(([k]) => k)).toContain('share:createShareToken')
   })
 
-  it('every target calls the guard, directly or through a helper', () => {
+  test('every target calls the guard, directly or through a helper', () => {
     const unguarded = targets
       .filter(([key]) => !guarded.has(key) && !(key in ACCESS_GUARD_ALLOWLIST))
       .map(([key]) => key)
@@ -228,7 +246,7 @@ describe('PROJ-837: project-scoped service operations reach the access guard', (
     ).toEqual([])
   })
 
-  it('allowlist entries are live: each names a real target that is still unguarded', () => {
+  test('allowlist entries are live: each names a real target that is still unguarded', () => {
     const stale = Object.keys(ACCESS_GUARD_ALLOWLIST).filter((key) => {
       const fn = fns.get(key)
       return !fn || !isTarget(fn) || guarded.has(key)
@@ -236,7 +254,7 @@ describe('PROJ-837: project-scoped service operations reach the access guard', (
     expect(stale, 'Remove these allowlist entries — they no longer need an exception').toEqual([])
   })
 
-  it('regression: share create/revoke are guarded (PROJ-792)', () => {
+  test('regression: share create/revoke are guarded (PROJ-792)', () => {
     expect(guarded.has('share:createShareToken')).toBe(true)
     expect(guarded.has('share:revokeShareToken')).toBe(true)
   })

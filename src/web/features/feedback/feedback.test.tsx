@@ -1,15 +1,15 @@
 import { Effect } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { resetProvisioningCacheForTests } from '#commands/provisioning'
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
 
-import { makeRequestServices, RequestServices } from '../../request'
-import type { RequestScope } from '../../server/request-context'
-import { testEnvironment } from '../../server/test/resources'
-import { createTestDatabase } from '../../test/database'
-import { renderFeedback, renderFeedbackDetail } from './server'
+import { makeRequestServices, RequestServices } from '../../request.ts'
+import type { RequestScope } from '../../server/request-context.ts'
+import { testEnvironment } from '../../server/test/resources.ts'
+import { createTestDatabase } from '../../test/database.ts'
+import { renderFeedback, renderFeedbackDetail } from './server.tsx'
 
 vi.mock('./actions', () => ({}))
 const workspace = { id: 'workspace', name: 'Team', slug: 'team', role: 'owner' as const }
@@ -36,7 +36,9 @@ const scope: RequestScope = {
 }
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 async function fixture(currentScope = scope) {
   resetAuthCachesForTests()
@@ -70,7 +72,7 @@ async function fixture(currentScope = scope) {
 }
 
 describe('feedback request-local database SSR', () => {
-  it('requires a project for grid without reading API or DB', async () => {
+  test('requires a project for grid without reading API or DB', async () => {
     const f = await fixture()
     const prepare = vi.spyOn(f.db, 'prepare')
     expect(renderToStaticMarkup(await f.run(renderFeedback(scope, new URL('https://app.test/feedback'))))).toContain(
@@ -79,7 +81,8 @@ describe('feedback request-local database SSR', () => {
     expect(prepare).not.toHaveBeenCalled()
     expect(f.execute).not.toHaveBeenCalled()
   })
-  it('derives source project independently of URL and preserves canonical DTOs without exposing credentials', async () => {
+
+  test('derives source project independently of URL and preserves canonical DTOs without exposing credentials', async () => {
     const f = await fixture()
     const node = await f.run(
       renderFeedbackDetail(
@@ -106,7 +109,8 @@ describe('feedback request-local database SSR', () => {
     expect(JSON.stringify(node.props)).not.toContain('abcdef-secret')
     expect(f.execute).not.toHaveBeenCalled()
   })
-  it('checks source project catalog before loading protected sources or feedback', async () => {
+
+  test('checks source project catalog before loading protected sources or feedback', async () => {
     const f = await fixture()
     f.sqlite.exec("UPDATE projects SET archived_at = 1 WHERE id = 'outside'")
     const prepare = vi.spyOn(f.db, 'prepare')
@@ -120,7 +124,8 @@ describe('feedback request-local database SSR', () => {
       prepare.mock.calls.map(([sql]) => sql).filter((sql) => /from\s+["`]?feedback["`]?\s/i.test(sql)),
     ).toHaveLength(0)
   })
-  it("does not resolve another workspace's source", async () => {
+
+  test("does not resolve another workspace's source", async () => {
     const f = await fixture()
     expect(
       renderToStaticMarkup(
@@ -128,7 +133,8 @@ describe('feedback request-local database SSR', () => {
       ),
     ).toContain('Feedback source not found')
   })
-  it('retains source-management admin policy before grid reads', async () => {
+
+  test('retains source-management admin policy before grid reads', async () => {
     const member = { ...workspace, role: 'member' as const }
     const memberScope: RequestScope = {
       ...scope,
@@ -143,13 +149,15 @@ describe('feedback request-local database SSR', () => {
     })
     expect(prepare).not.toHaveBeenCalled()
   })
-  it('rejects malformed URL status as a validation error', async () => {
+
+  test('rejects malformed URL status as a validation error', async () => {
     const f = await fixture()
     await expect(
       f.run(renderFeedbackDetail(scope, new URL('https://app.test/feedback?id=source&status=unknown'))),
     ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
   })
-  it('redacts malformed stored source metadata without exposing driver or credential details', async () => {
+
+  test('redacts malformed stored source metadata without exposing driver or credential details', async () => {
     const f = await fixture()
     f.sqlite.prepare("UPDATE feedback_sources SET allowed_origins = ? WHERE id = 'source'").run('private invalid JSON')
     const result = await f.run(
@@ -165,7 +173,8 @@ describe('feedback request-local database SSR', () => {
     })
     expect(JSON.stringify(result)).not.toContain('private invalid JSON')
   })
-  it('renders original grid cards from DB initial DTOs', async () => {
+
+  test('renders original grid cards from DB initial DTOs', async () => {
     const f = await fixture()
     const node = await f.run(
       renderFeedback(

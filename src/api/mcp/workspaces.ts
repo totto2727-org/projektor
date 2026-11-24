@@ -1,8 +1,8 @@
-import { ApiWorkspace } from '../../contracts/api-auth'
-import { ApiResults } from '../../contracts/api-results'
-import { ValidationError } from '../../contracts/errors'
-import { DeleteWorkspaceInput } from '../../contracts/inputs/workspaces'
-import { apiReply } from '../services/reply'
+import { ApiWorkspace } from '../../contracts/api-auth.ts'
+import { ApiResults } from '../../contracts/api-results.ts'
+import { ValidationError } from '../../contracts/errors.ts'
+import { DeleteWorkspaceInput } from '../../contracts/inputs/workspaces.ts'
+import { apiReply } from '../services/reply.ts'
 import {
   deleteWorkspace,
   getWorkspaceBrand,
@@ -12,9 +12,9 @@ import {
   updateMemberRole,
   updateWorkspace,
   updateWorkspaceBrand,
-} from '../services/workspaces'
-import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
-import type { MCPTool, PluginContext } from './types'
+} from '../services/workspaces.ts'
+import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
+import type { MCPTool, PluginContext } from './types.ts'
 
 async function currentWorkspace(ctx: PluginContext) {
   return apiReply(ApiWorkspace, ctx.core.apiResolveWorkspace(ctx.actor, { kind: 'id', value: ctx.workspaceId }))
@@ -72,7 +72,9 @@ export const workspacesTools: MCPTool[] = [
     annotations: DESTRUCTIVE,
     async handler(input, ctx) {
       const parsed = DeleteWorkspaceInput.safeParse(input)
-      if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+      if (!parsed.success) {
+        throw new ValidationError(parsed.error.flatten())
+      }
       const { workspaceSlug } = parsed.data
 
       // PROJ-884: only the workspace named in the MCP URL (ctx.workspaceId, set by

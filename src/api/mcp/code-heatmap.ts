@@ -1,6 +1,6 @@
-import { getCodeHeatmap } from '../services/code-heatmap'
-import { READ } from './annotations'
-import type { MCPTool } from './types'
+import { getCodeHeatmap } from '../services/code-heatmap.ts'
+import { READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 export const codeHeatmapTools: MCPTool[] = [
   {

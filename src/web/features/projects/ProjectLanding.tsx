@@ -4,20 +4,15 @@ import { useForm } from '@tanstack/react-form'
 import { Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 
-import { unwrapResult } from '../../client/functions'
-import { useRuntime } from '../../client/runtime'
-import { FormErrors } from '../../components/FormErrors'
-import { Button } from '../../components/ui/Button'
-import { formatTimestampDate } from '../timestamp'
-import { archiveProject, updateDescription } from './actions'
-import { ProjectFlowCharts } from './ProjectFlowCharts'
-import {
-  type FlowMetrics,
-  type Project,
-  type RecentIssue,
-  type RecentWikiPage,
-  UpdateDescriptionInputSchema,
-} from './schemas'
+import { unwrapResult } from '../../client/functions.ts'
+import { useRuntime } from '../../client/runtime.tsx'
+import { FormErrors } from '../../components/FormErrors.tsx'
+import { Button } from '../../components/ui/Button.tsx'
+import { formatTimestampDate } from '../timestamp.ts'
+import { archiveProject, updateDescription } from './actions.ts'
+import { ProjectFlowCharts } from './ProjectFlowCharts.tsx'
+import { UpdateDescriptionInputSchema } from './schemas.ts'
+import type { FlowMetrics, Project, RecentIssue, RecentWikiPage } from './schemas.ts'
 
 const colors: Record<string, string> = {
   todo: 'var(--status-todo)',
@@ -68,7 +63,9 @@ export function ProjectLanding({
   })
 
   useEffect(() => {
-    if (result?.ok) setEditing(false)
+    if (result?.ok) {
+      setEditing(false)
+    }
   }, [result])
 
   async function toggleArchived() {
@@ -120,7 +117,9 @@ export function ProjectLanding({
             <form
               action={formAction}
               onSubmit={(event) => {
-                if (!form.state.canSubmit) event.preventDefault()
+                if (!form.state.canSubmit) {
+                  event.preventDefault()
+                }
               }}
             >
               <input type='hidden' name='workspaceSlug' value={effectiveSlug} />

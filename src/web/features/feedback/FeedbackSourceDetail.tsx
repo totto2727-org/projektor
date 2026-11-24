@@ -2,13 +2,14 @@
 
 import { useRef } from 'react'
 
-import Select from '../../components/ui/Select'
-import { navigateFeature } from '../wiki/navigation'
-import type { Feedback } from './FeedbackList'
-import FeedbackList from './FeedbackList'
-import type { SourceSummary } from './FeedbackSourceGrid'
-import FeedbackSourceSettings, { type FeedbackSource } from './FeedbackSourceSettings'
-import FeedbackSummary from './FeedbackSummary'
+import Select from '../../components/ui/Select.tsx'
+import { navigateFeature } from '../wiki/navigation.ts'
+import type { Feedback } from './FeedbackList.tsx'
+import FeedbackList from './FeedbackList.tsx'
+import type { SourceSummary } from './FeedbackSourceGrid.tsx'
+import FeedbackSourceSettings from './FeedbackSourceSettings.tsx'
+import type { FeedbackSource } from './FeedbackSourceSettings.tsx'
+import FeedbackSummary from './FeedbackSummary.tsx'
 
 export interface FeedbackDetailProps {
   workspaceSlug: string
@@ -35,7 +36,9 @@ const tabBtnClass = (active: boolean) =>
   (active ? 'border-accent text-text-base' : 'border-transparent text-text-muted hover:text-text-base')
 
 function statusLabel(s: FeedbackSource): string {
-  if (s.revokedAt !== null) return 'Revoked'
+  if (s.revokedAt !== null) {
+    return 'Revoked'
+  }
   return s.isActive ? 'Active' : 'Inactive'
 }
 
@@ -173,7 +176,9 @@ export default function FeedbackSourceDetail({
   const tabRefs = useRef<Partial<Record<TabId, HTMLAnchorElement | null>>>({})
   function hrefForTab(id: TabId) {
     const params = new URLSearchParams({ projectId, workspace: workspaceSlug, tab: id })
-    if (initialStatus) params.set('status', initialStatus)
+    if (initialStatus) {
+      params.set('status', initialStatus)
+    }
     return `/feedback/${encodeURIComponent(sourceId)}?${params}`
   }
 
@@ -185,11 +190,18 @@ export default function FeedbackSourceDetail({
     const focused = TABS.find((id) => tabRefs.current[id] === document.activeElement) ?? tab
     const idx = TABS.indexOf(focused)
     let nextId: TabId | null = null
-    if (e.key === 'ArrowRight') nextId = TABS[(idx + 1) % TABS.length]
-    else if (e.key === 'ArrowLeft') nextId = TABS[(idx - 1 + TABS.length) % TABS.length]
-    else if (e.key === 'Home') nextId = TABS[0]
-    else if (e.key === 'End') nextId = TABS[TABS.length - 1]
-    if (!nextId) return
+    if (e.key === 'ArrowRight') {
+      nextId = TABS[(idx + 1) % TABS.length]
+    } else if (e.key === 'ArrowLeft') {
+      nextId = TABS[(idx - 1 + TABS.length) % TABS.length]
+    } else if (e.key === 'Home') {
+      nextId = TABS[0]
+    } else if (e.key === 'End') {
+      nextId = TABS[TABS.length - 1]
+    }
+    if (!nextId) {
+      return
+    }
     e.preventDefault()
     focusTab(nextId)
     navigateFeature(hrefForTab(nextId))

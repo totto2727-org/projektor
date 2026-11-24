@@ -4,8 +4,8 @@ import { makeCoreClient } from 'projektor/core-client'
 
 import type { AuthInfo, HonoEnv, Role } from '#types'
 
-import type { CoreActor } from '../../core/authorization'
-import type { CoreRpcShape } from '../../core/contract'
+import type { CoreActor } from '../../core/authorization.ts'
+import type { CoreRpcShape } from '../../core/contract.ts'
 
 /** Adapter context contains identity hints for presentation, never storage or domain authority. */
 export interface ApiServiceCtx {

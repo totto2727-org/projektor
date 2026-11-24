@@ -2,16 +2,16 @@ import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { PostMessageSchema } from '../../contracts/inputs/agent-messages'
-import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '../../contracts/inputs/file-claims'
-import { assertIssueAccess, assertProjectAccess, visibleProjectPredicate } from './access'
-import { assertAgentSessionAccess } from './agent-identity'
-import { buildPostMessageStatements } from './agent-messages'
-import { ConflictError, ValidationError } from './errors'
-import { resolveVisibleProjectIdParam } from './projects'
-import { broadcastWorkspaceEvent } from './realtime'
-import { inChunks } from './sql'
-import type { ServiceCtx } from './types'
+import { PostMessageSchema } from '../../contracts/inputs/agent-messages.ts'
+import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '../../contracts/inputs/file-claims.ts'
+import { assertIssueAccess, assertProjectAccess, visibleProjectPredicate } from './access.ts'
+import { assertAgentSessionAccess } from './agent-identity.ts'
+import { buildPostMessageStatements } from './agent-messages.ts'
+import { ConflictError, ValidationError } from './errors.ts'
+import { resolveVisibleProjectIdParam } from './projects.ts'
+import { broadcastWorkspaceEvent } from './realtime.ts'
+import { inChunks } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
 
 // PROJ-929: a call that carries an already-live agentId implicitly refreshes that
 // session's heartbeat, so explicit heartbeat_agent calls become optional during a claim
@@ -161,7 +161,9 @@ function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: u
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const out: T[][] = []
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size) as T[])
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size) as T[])
+  }
   return out
 }
 
@@ -197,7 +199,7 @@ function buildReleaseByIdsStatements(
 }
 
 function releasedIdsFrom(results: readonly D1Result[]): Set<string> {
-  return new Set(results.flatMap((r) => (r.results as Array<{ id: string }>).map((row) => row.id)))
+  return new Set(results.flatMap((r) => (r.results as { id: string }[]).map((row) => row.id)))
 }
 
 // PostMessageSchema's body cap: force-claim notifications are built server-side and
@@ -244,7 +246,9 @@ function buildClaimInsertStatements(
 
 export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
   const result = ClaimFilesSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { issueId, agentId, force } = result.data
   // A path listed twice would insert two active claims on it in one batch, which the
   // active-claim unique index rejects (rolling the whole batch back). Claim it once,
@@ -410,9 +414,13 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
 
 export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
   const result = ReleaseFilesSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { paths, issueId } = result.data
-  if (issueId) await assertIssueAccess(ctx, issueId, 'edit')
+  if (issueId) {
+    await assertIssueAccess(ctx, issueId, 'edit')
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const now = Math.floor(Date.now() / 1000)
@@ -455,7 +463,9 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
   }
 
   for (const agentId of new Set(toRelease.map((claim) => claim.agentId))) {
-    if (agentId) await assertAgentSessionAccess(ctx, agentId, { allowAdministrativeOverride: true })
+    if (agentId) {
+      await assertAgentSessionAccess(ctx, agentId, { allowAdministrativeOverride: true })
+    }
   }
 
   const releaseIds = toRelease.map((r) => r.id)
@@ -512,7 +522,9 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
  */
 export async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
   const result = ListFileClaimsSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { issueId, path, includeStale } = result.data
   const projectId = result.data.projectId ? await resolveVisibleProjectIdParam(ctx, result.data.projectId) : undefined
 
@@ -551,7 +563,9 @@ export async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
   // its issue below (issue_id is NOT NULL), so the predicate can take the joined project
   // id column directly instead of a correlated subquery.
   const vis = visibleProjectPredicate(ctx, schema.issues.projectId)
-  if (vis) conditions.push(vis)
+  if (vis) {
+    conditions.push(vis)
+  }
 
   const rows = await orm
     .select({

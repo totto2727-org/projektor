@@ -1,7 +1,7 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 
 // PROJ-655: the two public OAuth discovery documents.
 //
@@ -16,7 +16,7 @@ const PRM_URL = `${HOST}/.well-known/oauth-protected-resource/mcp/${WORKSPACE_ID
 const AS_URL = `${HOST}/.well-known/oauth-authorization-server`
 
 describe('RFC 9728 protected resource metadata', () => {
-  it('names the full per-workspace MCP URL as the resource, derived from the request host', async () => {
+  test('names the full per-workspace MCP URL as the resource, derived from the request host', async () => {
     const res = await SELF.fetch(PRM_URL)
     expect(res.status).toBe(200)
 
@@ -32,7 +32,7 @@ describe('RFC 9728 protected resource metadata', () => {
     })
   })
 
-  it('derives the origin from the request rather than a fixed value', async () => {
+  test('derives the origin from the request rather than a fixed value', async () => {
     const other = 'https://tenant.projektor.dev'
     const res = await SELF.fetch(`${other}/.well-known/oauth-protected-resource/mcp/abc`)
 
@@ -41,13 +41,13 @@ describe('RFC 9728 protected resource metadata', () => {
     expect(body.authorization_servers).toEqual([other])
   })
 
-  it('does not advertise offline_access (the MCP spec says a resource SHOULD NOT)', async () => {
+  test('does not advertise offline_access (the MCP spec says a resource SHOULD NOT)', async () => {
     const res = await SELF.fetch(PRM_URL)
     const body = await res.json<{ scopes_supported: string[] }>()
     expect(body.scopes_supported).not.toContain('offline_access')
   })
 
-  it('answers for an unknown workspace id rather than leaking whether it exists', async () => {
+  test('answers for an unknown workspace id rather than leaking whether it exists', async () => {
     // A 404 here would be an existence oracle on an unauthenticated endpoint.
     // The document is derived entirely from the request URL and reveals nothing,
     // so an unknown id gets the same 200 as a real one; the id is rejected later,
@@ -61,14 +61,14 @@ describe('RFC 9728 protected resource metadata', () => {
     expect(real.status).toBe(res.status)
   })
 
-  it('is public — no Authorization header required, and readable cross-origin', async () => {
+  test('is public — no Authorization header required, and readable cross-origin', async () => {
     const res = await SELF.fetch(PRM_URL)
     expect(res.status).toBe(200)
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*')
     expect(res.headers.get('Cache-Control')).toBe('public, max-age=3600')
   })
 
-  it('does not serve the origin-level variant, which could only claim a wrong resource', async () => {
+  test('does not serve the origin-level variant, which could only claim a wrong resource', async () => {
     const res = await SELF.fetch(`${HOST}/.well-known/oauth-protected-resource`)
     expect(res.status).toBe(404)
   })
@@ -84,7 +84,7 @@ describe('RFC 9728 protected resource metadata', () => {
 // answer application/json, while falling through to the catch-all yields Hono's
 // text/plain "404 Not Found". Assert on that, or this test proves nothing.
 describe('unmatched OAuth discovery paths 404 as JSON, never the SPA shell', () => {
-  it.each([
+  test.each([
     '/.well-known/oauth-protected-resource',
     '/.well-known/oauth-protected-resource/not-mcp',
     '/.well-known/oauth-authorization-server/extra-segment',
@@ -97,7 +97,7 @@ describe('unmatched OAuth discovery paths 404 as JSON, never the SPA shell', () 
     expect(res.headers.get('Content-Type')).toContain('application/json')
   })
 
-  it('leaves unrelated /.well-known paths alone for the asset handler', async () => {
+  test('leaves unrelated /.well-known paths alone for the asset handler', async () => {
     // Scoping matters: a blanket catch-all on /.well-known would break a
     // self-hoster's security.txt or ACME challenge, which must still fall through.
     const res = await SELF.fetch(`${HOST}/.well-known/security.txt`)
@@ -106,7 +106,7 @@ describe('unmatched OAuth discovery paths 404 as JSON, never the SPA shell', () 
 })
 
 describe('RFC 8414 authorization server metadata', () => {
-  it('advertises the OAuth 2.1 endpoints and grants', async () => {
+  test('advertises the OAuth 2.1 endpoints and grants', async () => {
     const res = await SELF.fetch(AS_URL)
     expect(res.status).toBe(200)
 
@@ -122,14 +122,14 @@ describe('RFC 8414 authorization server metadata', () => {
     expect(body.grant_types_supported).toEqual(['authorization_code', 'refresh_token'])
   })
 
-  it('mandates PKCE S256 and never offers plain', async () => {
+  test('mandates PKCE S256 and never offers plain', async () => {
     const res = await SELF.fetch(AS_URL)
     const body = await res.json<{ code_challenge_methods_supported: string[] }>()
     expect(body.code_challenge_methods_supported).toEqual(['S256'])
   })
 
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-  it('offers dynamic registration alongside both CIMD flags', async () => {
+  test('offers dynamic registration alongside both CIMD flags', async () => {
     const res = await SELF.fetch(AS_URL)
     const body = await res.json<{
       client_id_metadata_document_supported: boolean
@@ -143,13 +143,13 @@ describe('RFC 8414 authorization server metadata', () => {
     expect(body.registration_endpoint).toBe(`${HOST}/oauth/register`)
   })
 
-  it('advertises RFC 9207 iss support, since PROJ-656 emits it', async () => {
+  test('advertises RFC 9207 iss support, since PROJ-656 emits it', async () => {
     const res = await SELF.fetch(AS_URL)
     const body = await res.json<{ authorization_response_iss_parameter_supported: boolean }>()
     expect(body.authorization_response_iss_parameter_supported).toBe(true)
   })
 
-  it('derives every endpoint from the request host', async () => {
+  test('derives every endpoint from the request host', async () => {
     const other = 'https://tenant.projektor.dev'
     const res = await SELF.fetch(`${other}/.well-known/oauth-authorization-server`)
     const body = await res.json<{ issuer: string; token_endpoint: string }>()
@@ -158,7 +158,7 @@ describe('RFC 8414 authorization server metadata', () => {
     expect(body.token_endpoint).toBe(`${other}/oauth/token`)
   })
 
-  it('is public and cacheable', async () => {
+  test('is public and cacheable', async () => {
     const res = await SELF.fetch(AS_URL)
     expect(res.status).toBe(200)
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*')
@@ -166,7 +166,7 @@ describe('RFC 8414 authorization server metadata', () => {
 })
 
 describe('discovery endpoints are rate-limited', () => {
-  it('returns 429 once the unauthenticated IP limit is exceeded', async () => {
+  test('returns 429 once the unauthenticated IP limit is exceeded', async () => {
     // vite.config.ts sets RATE_LIMIT_AUTH_MAX=3, and setup.ts clears the
     // counter before each test, so the 4th request in this test is the first to
     // exceed it. Without the /.well-known/* limiter mount these would all be 200:

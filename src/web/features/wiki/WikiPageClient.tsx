@@ -6,7 +6,6 @@ import { Effect, Schema } from 'effect'
 import {
   createContext,
   Fragment,
-  type RefObject,
   useCallback,
   useContext,
   useEffect,
@@ -16,17 +15,19 @@ import {
   useRef,
   useState,
 } from 'react'
+import type { RefObject } from 'react'
 
-import { uploadInlineImage as uploadEditorImage } from '../../attachment-actions'
-import { FunctionError, unwrapResult } from '../../client/functions'
-import { AttachmentUpload } from '../../components/AttachmentUpload'
-import { FormErrors } from '../../components/FormErrors'
-import { useMarkdownPreview } from '../../components/markdown/MarkdownPreview'
-import type { RenderedMarkdown } from '../../components/markdown/render'
-import { Button } from '../../components/ui/Button'
-import { Popover } from '../../components/ui/Popover'
-import Select, { type SelectOption } from '../../components/ui/Select'
-import { formatTimestamp, formatTimestampDate } from '../timestamp'
+import { uploadInlineImage as uploadEditorImage } from '../../attachment-actions.ts'
+import { FunctionError, unwrapResult } from '../../client/functions.ts'
+import { AttachmentUpload } from '../../components/AttachmentUpload.tsx'
+import { FormErrors } from '../../components/FormErrors.tsx'
+import { useMarkdownPreview } from '../../components/markdown/MarkdownPreview.tsx'
+import type { RenderedMarkdown } from '../../components/markdown/render.ts'
+import { Button } from '../../components/ui/Button.tsx'
+import { Popover } from '../../components/ui/Popover.tsx'
+import Select from '../../components/ui/Select.tsx'
+import type { SelectOption } from '../../components/ui/Select.tsx'
+import { formatTimestamp, formatTimestampDate } from '../timestamp.ts'
 import {
   createWikiPage,
   deleteWikiAttachment,
@@ -42,13 +43,13 @@ import {
   saveWikiPage,
   trashWikiPage,
   verifyWikiPage,
-} from './actions'
-import { AttachmentFields, CreateFields, EditFields, FilterFields, MoveFields, SearchFields } from './form-schemas'
-import MarkdownEditor from './LazyMarkdownEditor'
-import { navigateFeature } from './navigation'
-import { stripFrontmatter } from './render-markdown'
+} from './actions.ts'
+import { AttachmentFields, CreateFields, EditFields, FilterFields, MoveFields, SearchFields } from './form-schemas.ts'
+import MarkdownEditor from './LazyMarkdownEditor.tsx'
+import { navigateFeature } from './navigation.ts'
+import { stripFrontmatter } from './render-markdown.ts'
 
-export { assignHeadingIds } from './headings'
+export { assignHeadingIds } from './headings.ts'
 
 interface ProjectOption {
   id: string
@@ -86,7 +87,9 @@ export interface WikiSeed {
 const SeedContext = createContext<WikiSeed | null>(null)
 function useWikiSeed(): WikiSeed {
   const seed = useContext(SeedContext)
-  if (!seed) throw new Error('Wiki server DTO is required.')
+  if (!seed) {
+    throw new Error('Wiki server DTO is required.')
+  }
   return seed
 }
 function usePublicViewer(_workspaceSlug?: string): boolean {
@@ -108,8 +111,11 @@ function safeDecodeURIComponent(raw: string): string | null {
 function wikiHref(seed: Pick<WikiSeed, 'workspaceSlug' | 'projectId'>, path: string): string {
   const url = new URL(path, 'https://wiki.invalid')
   url.searchParams.set('workspace', seed.workspaceSlug)
-  if (seed.projectId) url.searchParams.set('projectId', seed.projectId)
-  else url.searchParams.set('scope', 'workspace')
+  if (seed.projectId) {
+    url.searchParams.set('projectId', seed.projectId)
+  } else {
+    url.searchParams.set('scope', 'workspace')
+  }
   return `${url.pathname}${url.search}${url.hash}`
 }
 async function undeleteWikiPage(id: string, workspaceSlug?: string): Promise<{ slug: string }> {
@@ -125,7 +131,9 @@ const WIKI_MOBILE_QUERY = '(max-width: 640px)'
 function useIsMobileViewport(): boolean {
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return
+    if (typeof window.matchMedia !== 'function') {
+      return
+    }
     const mq = window.matchMedia(WIKI_MOBILE_QUERY)
     setIsMobile(mq.matches)
     const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
@@ -226,9 +234,13 @@ function buildTypeFilterOptions(discoveredTypes: readonly string[]): SelectOptio
   const seen = new Set(Array.from(WIKI_WELL_KNOWN_TYPES).map((t) => t.toLowerCase()))
   const extras: string[] = []
   for (const t of discoveredTypes) {
-    if (!t) continue
+    if (!t) {
+      continue
+    }
     const key = t.toLowerCase()
-    if (seen.has(key)) continue
+    if (seen.has(key)) {
+      continue
+    }
     seen.add(key)
     extras.push(t)
   }
@@ -280,7 +292,9 @@ const WIKI_FRESHNESS_BADGE_STYLE: Record<string, { bg: string; color: string; la
 
 function WikiFreshnessBadge({ state }: { state: WikiFreshness['state'] }) {
   const style = WIKI_FRESHNESS_BADGE_STYLE[state]
-  if (!style) return null
+  if (!style) {
+    return null
+  }
   return (
     <span
       className='inline-flex items-center px-2 py-[0.1rem] rounded-full text-[0.72rem] font-semibold uppercase tracking-wide'
@@ -296,7 +310,9 @@ const WIKI_TAG_CHIP_CLASS =
   'bg-bg border border-border text-text-base'
 
 function TagChips({ tags }: { tags: string[] | undefined | null }) {
-  if (!Array.isArray(tags) || tags.length === 0) return null
+  if (!Array.isArray(tags) || tags.length === 0) {
+    return null
+  }
   return (
     <span className='inline-flex flex-wrap align-middle'>
       {tags.map((t) => (
@@ -391,7 +407,9 @@ function WikiMetadataCard({
     page.owners.length > 0 ||
     Boolean(page.verified_at)
   const hasVerificationSignal = Boolean(page.verify_interval) || Boolean(page.status)
-  if (!hasMetadata && !hasVerificationSignal) return null
+  if (!hasMetadata && !hasVerificationSignal) {
+    return null
+  }
 
   return (
     <div
@@ -496,8 +514,12 @@ export interface ServerDraft {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024) {
+    return `${bytes} B`
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
@@ -506,7 +528,9 @@ function formatBytes(bytes: number): string {
 function collectTreeTypes(nodes: readonly TreeNode[]): string[] {
   const types: string[] = []
   for (const node of nodes) {
-    if (node.type) types.push(node.type)
+    if (node.type) {
+      types.push(node.type)
+    }
     types.push(...collectTreeTypes(node.children))
   }
   return types
@@ -517,7 +541,9 @@ function flattenTree(nodes: readonly TreeNode[], parentId: string | null = null)
   for (const node of nodes) {
     map[node.id] = { id: node.id, slug: node.slug, title: node.title, parentId }
     const childMap = flattenTree(node.children, node.id)
-    for (const [k, v] of Object.entries(childMap)) map[k] = v
+    for (const [k, v] of Object.entries(childMap)) {
+      map[k] = v
+    }
   }
   return map
 }
@@ -609,7 +635,9 @@ const SEARCH_RESULT_BUTTON_CLASS = [
 function SearchResultMetaLine({ r }: { r: SearchResult }) {
   const isStale = r.freshness && r.freshness.state !== 'fresh'
   const show = r.type || r.status || (r.tags?.length ?? 0) > 0 || isStale
-  if (!show) return null
+  if (!show) {
+    return null
+  }
   return (
     <span className='block mt-[0.15rem]'>
       {r.status && <WikiStatusPill status={r.status} />}
@@ -640,8 +668,12 @@ function SearchResultsList({
   results: SearchResult[]
   onSelect: (slug: string) => void
 }) {
-  if (loading) return <p className='text-[0.8rem] text-text-muted m-0'>Searching…</p>
-  if (results.length === 0) return <p className='text-[0.8rem] text-text-muted m-0'>No results</p>
+  if (loading) {
+    return <p className='text-[0.8rem] text-text-muted m-0'>Searching…</p>
+  }
+  if (results.length === 0) {
+    return <p className='text-[0.8rem] text-text-muted m-0'>No results</p>
+  }
   return (
     <ul className='list-none m-0 p-0'>
       {results.map((r) => (
@@ -665,8 +697,12 @@ function StalePagesList({
   results: StalePageItem[]
   onSelect: (slug: string) => void
 }) {
-  if (loading) return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
-  if (results.length === 0) return <p className='text-[0.8rem] text-text-muted m-0'>Nothing needs verification</p>
+  if (loading) {
+    return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
+  }
+  if (results.length === 0) {
+    return <p className='text-[0.8rem] text-text-muted m-0'>Nothing needs verification</p>
+  }
   return (
     <ul className='list-none m-0 p-0'>
       {results.map((r) => (
@@ -698,8 +734,12 @@ function FilteredPagesList({
   results: WikiListItem[]
   onSelect: (slug: string) => void
 }) {
-  if (loading) return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
-  if (results.length === 0) return <p className='text-[0.8rem] text-text-muted m-0'>No matching pages</p>
+  if (loading) {
+    return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
+  }
+  if (results.length === 0) {
+    return <p className='text-[0.8rem] text-text-muted m-0'>No matching pages</p>
+  }
   return (
     <ul className='list-none m-0 p-0'>
       {results.map((r) => (
@@ -730,7 +770,9 @@ function PageTreeList({
   slug: string
   onNavigate: (slug: string) => void
 }) {
-  if (loading) return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
+  if (loading) {
+    return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
+  }
   return (
     <ul className='list-none m-0 p-0'>
       {tree.map((node) => (
@@ -1087,7 +1129,9 @@ function PageBreadcrumbs({
   breadcrumbs: FlatEntry[]
   onNavigate: (slug: string) => void
 }) {
-  if (breadcrumbs.length <= 1) return null
+  if (breadcrumbs.length <= 1) {
+    return null
+  }
   return (
     <nav
       className='wiki-breadcrumb text-[0.8rem] text-text-muted mb-3 flex flex-wrap gap-1 items-center'
@@ -1188,7 +1232,9 @@ function useDuplicateWikiPage() {
   const seed = useWikiSeed()
   const [duplicating, setDuplicating] = useState(false)
   async function duplicate() {
-    if (!seed.page || duplicating) return
+    if (!seed.page || duplicating) {
+      return
+    }
     setDuplicating(true)
     try {
       const copy = unwrapResult(await duplicateWikiPage({ workspaceSlug: seed.workspaceSlug, slug: seed.page.slug }))
@@ -1250,10 +1296,14 @@ function PageActionOverflowMenu({
   // on would jump to wherever the portal sits in the document, not the next control
   // after ⋯.
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      return
+    }
     menuItems()[0]?.focus()
     function onPointerDown(e: MouseEvent) {
-      if (!(e.target instanceof Node) || !isInside(e.target)) setOpen(false)
+      if (!(e.target instanceof Node) || !isInside(e.target)) {
+        setOpen(false)
+      }
     }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape' || e.key === 'Tab') {
@@ -1261,9 +1311,13 @@ function PageActionOverflowMenu({
         closeToTrigger()
         return
       }
-      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') {
+        return
+      }
       const items = menuItems()
-      if (items.length === 0) return
+      if (items.length === 0) {
+        return
+      }
       e.preventDefault()
       const currentIndex = items.indexOf(document.activeElement as HTMLElement)
       const delta = e.key === 'ArrowDown' ? 1 : -1
@@ -1548,7 +1602,9 @@ function RevisionRow({
       return
     }
     setDiffOpen(true)
-    if (diff !== null || diffLoading) return
+    if (diff !== null || diffLoading) {
+      return
+    }
     setDiffLoading(true)
     setDiffError(null)
     try {
@@ -1618,7 +1674,9 @@ function RevisionsHistory({
   restoringId: string | null
   editing: boolean
 }) {
-  if (revisions.length === 0) return null
+  if (revisions.length === 0) {
+    return null
+  }
   return (
     <div className='mt-8'>
       <Button variant='outline' size='sm' onClick={onToggle} className='text-text-muted'>
@@ -1725,11 +1783,15 @@ function AttachmentUploadForm({ uploadError, onCancel }: { uploadError: string |
     event.preventDefault()
     const nativeForm = event.currentTarget
     await form.validate('change')
-    if (!form.state.isValid) return
+    if (!form.state.isValid) {
+      return
+    }
     validatedSubmit.current = true
     nativeForm.requestSubmit()
   }
-  if (!seed.page) return null
+  if (!seed.page) {
+    return null
+  }
   return (
     <AttachmentUpload
       workspaceSlug={seed.workspaceSlug}
@@ -2123,11 +2185,15 @@ function WikiMainContent(
     articleProps: Omit<PageArticleProps, 'page'>
   }>,
 ) {
-  if (props.creating) return <CreatePageForm {...props.createProps} />
+  if (props.creating) {
+    return <CreatePageForm {...props.createProps} />
+  }
   if (!props.slug) {
     return <p className='text-text-muted'>Select a page from the sidebar or create a new one.</p>
   }
-  if (props.loading) return <p aria-live='polite'>Loading…</p>
+  if (props.loading) {
+    return <p aria-live='polite'>Loading…</p>
+  }
   if (props.error) {
     // PROJ-487: a slug that resolves to nothing (not even via a PROJ-483 redirect)
     // gets a dedicated 404 message rather than the generic failure text.
@@ -2144,7 +2210,9 @@ function WikiMainContent(
       </p>
     )
   }
-  if (!props.page) return null
+  if (!props.page) {
+    return null
+  }
   return <PageArticle {...props.articleProps} page={props.page} />
 }
 
@@ -2265,7 +2333,9 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
   const [contentMountToken, setContentMountToken] = useState(0)
   const setContentRef = useCallback((node: HTMLDivElement | null) => {
     contentRef.current = node
-    if (node) setContentMountToken((t) => t + 1)
+    if (node) {
+      setContentMountToken((t) => t + 1)
+    }
   }, [])
 
   // Revisions belong to the page the `slug` prop points at, so they're reset when it
@@ -2273,7 +2343,9 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
   // a save or a move) and would leave the list empty until something refetched it.
   // Same-URL ServerFn refresh updates canonical state without touching editor drafts.
   useEffect(() => {
-    if (seed.page) setDeletedPageId(null)
+    if (seed.page) {
+      setDeletedPageId(null)
+    }
   }, [seed.page])
 
   return {
@@ -2305,7 +2377,7 @@ function excerptOf(content: string, maxLength = 200): string {
  * Only local unsaved previews need a bounded asynchronous client render. */
 function useRenderedPageMarkdown(
   content: string | undefined,
-  wikiPages: ReadonlyArray<{ title: string; slug: string }>,
+  wikiPages: readonly { title: string; slug: string }[],
 ): RenderedMarkdown {
   const seed = useWikiSeed()
   return useMarkdownPreview(
@@ -2333,9 +2405,13 @@ function useTableOfContents(
 
   // PROJ-113: IntersectionObserver for active heading
   useEffect(() => {
-    if (toc.length < 3 || typeof IntersectionObserver === 'undefined') return
+    if (toc.length < 3 || typeof IntersectionObserver === 'undefined') {
+      return
+    }
     const container = contentRef.current
-    if (!container) return
+    if (!container) {
+      return
+    }
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -2374,7 +2450,9 @@ function findInContent(container: HTMLElement, id: string): HTMLElement | null {
   // `wiki-page-tree`, the TOC nav, …) must not hijack the anchor. Matched by property
   // rather than a `#id` selector so ids needing CSS escaping still work.
   for (const el of container.querySelectorAll<HTMLElement>('[id]')) {
-    if (el.id === id) return el
+    if (el.id === id) {
+      return el
+    }
   }
   return null
 }
@@ -2390,15 +2468,23 @@ function useHashScroll(
     // PROJ-802: some call sites (and this file's own tests, see PROJ-487) swap
     // `window.location` for a partial stand-in that may not define `hash` at all.
     const raw = (window.location.hash ?? '').slice(1)
-    if (!raw) return
+    if (!raw) {
+      return
+    }
     const key = `${pageSlug ?? ''}#${raw}`
-    if (handledRef.current === key) return
+    if (handledRef.current === key) {
+      return
+    }
     const container = contentRef.current
-    if (!container) return
+    if (!container) {
+      return
+    }
     const heading = findInContent(container, safeDecodeURIComponent(raw) ?? raw)
     // Not rendered yet (or not on this page) — leave it unhandled so the next TOC
     // build, once the target exists, can still scroll to it.
-    if (!heading) return
+    if (!heading) {
+      return
+    }
     handledRef.current = key
     heading.scrollIntoView()
     // Headings aren't focusable by default — tabindex=-1 lets focus() target them
@@ -2409,7 +2495,9 @@ function useHashScroll(
   }, [contentRef, pageSlug])
 
   useEffect(() => {
-    if (toc.length > 0) scrollToHash()
+    if (toc.length > 0) {
+      scrollToHash()
+    }
   }, [toc, scrollToHash])
 
   useEffect(() => {
@@ -2440,7 +2528,9 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
     setUploadError(null)
   }
   async function deleteAttachment(attachmentId: string) {
-    if (!page) return
+    if (!page) {
+      return
+    }
     setUploadError(null)
     try {
       unwrapResult(await deleteWikiAttachment({ workspaceSlug, attachmentId }))
@@ -2451,7 +2541,9 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
     }
   }
   async function uploadInlineImage(file: File): Promise<string | null> {
-    if (!page || !workspaceSlug) return null
+    if (!page || !workspaceSlug) {
+      return null
+    }
     try {
       // A named ServerFn preserves the draft/cursor while retaining Effront's request-body limit.
       const uploaded = unwrapResult(
@@ -2548,7 +2640,9 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   // One page-local chain orders autosave, explicit discard and publication. Only
   // its pending snapshot is replaceable, so typing B/C while A saves writes C next.
   const drainDrafts = useCallback(() => {
-    if (drainingRef.current) return
+    if (drainingRef.current) {
+      return
+    }
     drainingRef.current = true
     const task = tailRef.current
       .then(async () => {
@@ -2556,7 +2650,9 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
           const { page: p, title, content, base } = pendingRef.current
           pendingRef.current = null
           const fingerprint = JSON.stringify([p.id, title, content, base ?? null])
-          if (lastPersistedRef.current === fingerprint) continue
+          if (lastPersistedRef.current === fingerprint) {
+            continue
+          }
           try {
             if (differsFromPublished(p, title, content)) {
               const result = unwrapResult(
@@ -2630,7 +2726,9 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
         revisionRef.current = result.revision
         serverHasDraftRef.current = false
         lastPersistedRef.current = null
-        if (pendingRef.current?.title === title && pendingRef.current.content === content) pendingRef.current = null
+        if (pendingRef.current?.title === title && pendingRef.current.content === content) {
+          pendingRef.current = null
+        }
       })
       .catch((error: unknown) => {
         blockedRef.current = true
@@ -2639,7 +2737,9 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
       })
       .finally(() => {
         suspendedRef.current = false
-        if (pendingRef.current) drainDrafts()
+        if (pendingRef.current) {
+          drainDrafts()
+        }
       })
     tailRef.current = task.catch(() => {})
     return task
@@ -2669,8 +2769,9 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
           serverHasDraftRef.current = false
           lastPersistedRef.current = null
         }
-        if (pendingRef.current?.title === snapshot.title && pendingRef.current.content === snapshot.content)
+        if (pendingRef.current?.title === snapshot.title && pendingRef.current.content === snapshot.content) {
           pendingRef.current = null
+        }
         return result
       })
       .catch((error: unknown) => {
@@ -2680,14 +2781,18 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
       })
       .finally(() => {
         suspendedRef.current = false
-        if (pendingRef.current) drainDrafts()
+        if (pendingRef.current) {
+          drainDrafts()
+        }
       })
     tailRef.current = task.catch(() => {})
     return task
   }
 
   useEffect(() => {
-    if (!editing || !page || draftBanner || saving || draftStatus !== 'ready') return
+    if (!editing || !page || draftBanner || saving || draftStatus !== 'ready') {
+      return
+    }
     const timer = setTimeout(() => {
       persistDraft(page, editTitle, editContent, baseRevisionId)
     }, 1000)
@@ -2700,13 +2805,17 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   useEffect(() => {
     const wasEditing = editing
     return () => {
-      if (!wasEditing) return
+      if (!wasEditing) {
+        return
+      }
       if (skipLeaveFlushRef.current) {
         skipLeaveFlushRef.current = false
         return
       }
       const s = latestDraftStateRef.current
-      if (!mayWrite(s)) return
+      if (!mayWrite(s)) {
+        return
+      }
       persistDraft(s.page, s.editTitle, s.editContent, s.baseRevisionId)
     }
   }, [editing, persistDraft])
@@ -2717,9 +2826,13 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   // first, then suppress that now-redundant cleanup.
   function flushDraftNow() {
     const s = latestDraftStateRef.current
-    if (!s.editing) return
+    if (!s.editing) {
+      return
+    }
     skipLeaveFlushRef.current = true
-    if (!mayWrite(s)) return
+    if (!mayWrite(s)) {
+      return
+    }
     persistDraft(s.page, s.editTitle, s.editContent, s.baseRevisionId)
   }
 
@@ -2740,7 +2853,9 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
 function useUnsavedChangesGuard(editing: boolean, page: WikiPageData | null, editTitle: string, editContent: string) {
   const dirty = editing && !!page && differsFromPublished(page, editTitle, editContent)
   useEffect(() => {
-    if (!dirty) return
+    if (!dirty) {
+      return
+    }
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault()
       // Legacy browsers only show the prompt when returnValue is set.
@@ -2752,13 +2867,15 @@ function useUnsavedChangesGuard(editing: boolean, page: WikiPageData | null, edi
         destination.origin === window.location.origin &&
         destination.pathname === window.location.pathname &&
         destination.search === window.location.search
-      )
+      ) {
         return
+      }
       if (
         event.cancelable &&
         !window.confirm('Leave this page with unsaved changes? Save your changes first to avoid losing them.')
-      )
+      ) {
         event.preventDefault()
+      }
     }
     window.addEventListener('beforeunload', onBeforeUnload)
     window.navigation?.addEventListener('navigate', onNavigate)
@@ -2900,7 +3017,9 @@ function useWikiEditing(
   // fetch resolves, matching the R10 diff/choice pattern of offering rather than
   // silently applying.
   async function startEdit() {
-    if (!page) return
+    if (!page) {
+      return
+    }
     const session = ++sessionRef.current
     setSaveError(null)
     setDraftBanner(null)
@@ -2914,7 +3033,9 @@ function useWikiEditing(
     setEditing(true)
     try {
       const state = unwrapResult(await Effect.runPromise(query(getWikiDraftState)({ workspaceSlug, slug: page.slug })))
-      if (sessionRef.current !== session) return
+      if (sessionRef.current !== session) {
+        return
+      }
       adoptDraftState(state)
       const draft = state.draft
       // PROJ-797: offer any draft that differs from what's published, regardless
@@ -2931,7 +3052,9 @@ function useWikiEditing(
       serverHasDraftRef.current = !!draft
       setDraftStatus('ready')
     } catch {
-      if (sessionRef.current !== session) return
+      if (sessionRef.current !== session) {
+        return
+      }
       // PROJ-799: we can't tell whether a draft from another device exists, so
       // autosaving now could silently overwrite it. Keep editing, but don't autosave.
       setDraftStatus('failed')
@@ -2939,7 +3062,9 @@ function useWikiEditing(
   }
 
   function restoreDraft() {
-    if (!draftBanner) return
+    if (!draftBanner) {
+      return
+    }
     setEditTitle(draftBanner.title)
     setEditContent(draftBanner.content)
     setBaseRevisionId(draftBanner.baseRevisionId)
@@ -2948,7 +3073,9 @@ function useWikiEditing(
   }
 
   async function discardDraft() {
-    if (!page || operationRef.current) return
+    if (!page || operationRef.current) {
+      return
+    }
     operationRef.current = true
     setSaving(true)
     const version = editVersionRef.current
@@ -2956,7 +3083,9 @@ function useWikiEditing(
     await (async () => {
       try {
         await discardDraftNow(page, editTitle, editContent)
-        if (sessionRef.current !== session) return
+        if (sessionRef.current !== session) {
+          return
+        }
         if (editVersionRef.current === version) {
           setEditTitle(page.title)
           setEditContent(page.content)
@@ -2964,11 +3093,15 @@ function useWikiEditing(
         setDraftBanner(null)
         setDraftStatus('ready')
       } catch (error) {
-        if (sessionRef.current === session) setSaveError(wikiSaveErrorMessage(error))
+        if (sessionRef.current === session) {
+          setSaveError(wikiSaveErrorMessage(error))
+        }
       }
     })().finally(() => {
       operationRef.current = false
-      if (sessionRef.current === session) setSaving(false)
+      if (sessionRef.current === session) {
+        setSaving(false)
+      }
     })
   }
 
@@ -2977,7 +3110,9 @@ function useWikiEditing(
     // PROJ-796: while the restore banner is unresolved, the server draft is the
     // user's unsaved work from elsewhere — leaving must not overwrite it with the
     // published text the editor was opened with.
-    if (draftBanner) skipLeaveFlushRef.current = true
+    if (draftBanner) {
+      skipLeaveFlushRef.current = true
+    }
     setEditing(false)
     setSaveError(null)
     setConflict(false)
@@ -2985,7 +3120,9 @@ function useWikiEditing(
   }
 
   async function saveWithBase(baseOverride: string | null | undefined) {
-    if (!page || operationRef.current) return
+    if (!page || operationRef.current) {
+      return
+    }
     operationRef.current = true
     const version = editVersionRef.current
     const session = sessionRef.current
@@ -3010,7 +3147,9 @@ function useWikiEditing(
           const state = unwrapResult(
             await Effect.runPromise(query(getWikiDraftState)({ workspaceSlug, slug: page.slug })),
           )
-          if (sessionRef.current !== session) return
+          if (sessionRef.current !== session) {
+            return
+          }
           adoptDraftState(state)
           setDraftStatus('ready')
           if (state.draft && differsFromPublished(snapshot, state.draft.title, state.draft.content)) {
@@ -3020,12 +3159,16 @@ function useWikiEditing(
           }
         }
         const published = await publishDraft(snapshot)
-        if (sessionRef.current !== session) return
+        if (sessionRef.current !== session) {
+          return
+        }
         if (editVersionRef.current === version) {
           skipLeaveFlushRef.current = true
           setEditing(false)
         } else {
-          if (published.draftRevision === null) setDraftStatus('failed')
+          if (published.draftRevision === null) {
+            setDraftStatus('failed')
+          }
           try {
             const current = unwrapResult(
               await Effect.runPromise(query(getWikiPage)({ workspaceSlug, slug: page.slug })),
@@ -3042,14 +3185,18 @@ function useWikiEditing(
           }
         }
       } catch (e) {
-        if (sessionRef.current !== session) return
+        if (sessionRef.current !== session) {
+          return
+        }
         setSaveError(wikiSaveErrorMessage(e))
         setConflict(isWikiSaveConflict(e))
         setDraftStatus('failed')
       }
     })().finally(() => {
       operationRef.current = false
-      if (sessionRef.current === session) setSaving(false)
+      if (sessionRef.current === session) {
+        setSaving(false)
+      }
     })
   }
 
@@ -3062,7 +3209,9 @@ function useWikiEditing(
   // revision and saves their text on top of it (a deliberate overwrite). Their text
   // stays in the editor either way, so they can also copy it out instead.
   async function overwriteWithMine() {
-    if (!page) return
+    if (!page) {
+      return
+    }
     try {
       const state = unwrapResult(await Effect.runPromise(query(getWikiDraftState)({ workspaceSlug, slug: page.slug })))
       adoptDraftState(state)
@@ -3116,11 +3265,15 @@ function useWikiRestore(
   const [restoringId, setRestoringId] = useState<string | null>(null)
 
   async function restore(revision: WikiRevision) {
-    if (!page) return
+    if (!page) {
+      return
+    }
     // PROJ-808: the Restore button is disabled while editing, but guard the action
     // itself too — restoring mid-edit races the edit's own save against this PUT,
     // and whichever lands second 409s against a revision it created itself.
-    if (editing) return
+    if (editing) {
+      return
+    }
     const when = formatTimestamp(revision.created_at)
     if (
       !window.confirm(
@@ -3166,7 +3319,9 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
   const [moveError, setMoveError] = useState<string | null>(null)
 
   function startMove() {
-    if (!page) return
+    if (!page) {
+      return
+    }
     setMoveTargetId(page.parent_id ?? '')
     setMoveError(null)
     setMoving(true)
@@ -3178,7 +3333,9 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
   }
 
   async function submitMove() {
-    if (!page) return
+    if (!page) {
+      return
+    }
     setMoveSaving(true)
     setMoveError(null)
     try {
@@ -3210,7 +3367,9 @@ function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | n
   const [verifyError, setVerifyError] = useState<string | null>(null)
 
   async function verifyPage() {
-    if (!page) return
+    if (!page) {
+      return
+    }
     setVerifying(true)
     setVerifyError(null)
     try {
@@ -3274,7 +3433,9 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
 
   function onCreateTitleChange(v: string) {
     setCreateTitle(v)
-    if (!slugManuallyEdited) setCreateSlug(slugify(v))
+    if (!slugManuallyEdited) {
+      setCreateSlug(slugify(v))
+    }
   }
 
   function onCreateSlugChange(v: string) {
@@ -3284,7 +3445,9 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
 
   function onCreateTemplateChange(v: string) {
     setCreateTemplateSlug(v)
-    if (v) setCreateContent('')
+    if (v) {
+      setCreateContent('')
+    }
   }
 
   async function submitCreate(): Promise<string | undefined> {
@@ -3377,11 +3540,15 @@ function createWikiActions(
 
   async function submitCreate() {
     const createdSlug = await args.rawSubmitCreate()
-    if (createdSlug) navigateTo(createdSlug)
+    if (createdSlug) {
+      navigateTo(createdSlug)
+    }
   }
 
   async function deletePage() {
-    if (!page) return
+    if (!page) {
+      return
+    }
     // PROJ-807: the backend soft-deletes into a 30-day trash (undeleteWikiPage) —
     // this used to claim the opposite.
     if (
@@ -3567,14 +3734,20 @@ function useWikiSidebarDrawer() {
   const close = useCallback(() => setOpen(false), [])
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      return
+    }
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') close()
+      if (e.key === 'Escape') {
+        close()
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     const mq = window.matchMedia('(min-width: 641px)')
     const onGrow = (e: MediaQueryListEvent) => {
-      if (e.matches) close()
+      if (e.matches) {
+        close()
+      }
     }
     mq.addEventListener('change', onGrow)
     return () => {
@@ -3592,8 +3765,12 @@ function useWikiSidebarDrawer() {
   useEffect(() => {
     const isFirstRender = isFirstRenderRef.current
     isFirstRenderRef.current = false
-    if (isFirstRender) return
-    if (!window.matchMedia(WIKI_MOBILE_QUERY).matches) return
+    if (isFirstRender) {
+      return
+    }
+    if (!window.matchMedia(WIKI_MOBILE_QUERY).matches) {
+      return
+    }
     if (open) {
       sidebarRef.current
         ?.querySelector<HTMLElement>('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])')
@@ -3604,16 +3781,26 @@ function useWikiSidebarDrawer() {
   }, [open])
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      return
+    }
     function onTrapTab(e: KeyboardEvent) {
-      if (e.key !== 'Tab') return
-      if (!window.matchMedia(WIKI_MOBILE_QUERY).matches) return
+      if (e.key !== 'Tab') {
+        return
+      }
+      if (!window.matchMedia(WIKI_MOBILE_QUERY).matches) {
+        return
+      }
       const container = sidebarRef.current
-      if (!container) return
+      if (!container) {
+        return
+      }
       const focusables = Array.from(
         container.querySelectorAll<HTMLElement>('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])'),
       ).filter((el) => !el.hasAttribute('disabled'))
-      if (focusables.length === 0) return
+      if (focusables.length === 0) {
+        return
+      }
       const first = focusables[0]
       const last = focusables[focusables.length - 1]
       if (e.shiftKey && document.activeElement === first) {
@@ -4098,7 +4285,9 @@ const UNDO_TOAST_TIMEOUT_MS = 8000
 // focus state always starts fresh — no reset effect that could race a hover or focus
 // arriving before it runs.
 function UndoToastView({ toast, onDismiss }: { toast: UndoToast | null; onDismiss: () => void }) {
-  if (!toast) return null
+  if (!toast) {
+    return null
+  }
   return <UndoToastBar key={toast.id} toast={toast} onDismiss={onDismiss} />
 }
 
@@ -4113,7 +4302,9 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
   const paused = undoing || hovered || focusWithin
 
   useEffect(() => {
-    if (paused) return
+    if (paused) {
+      return
+    }
     const timer = setTimeout(onDismiss, UNDO_TOAST_TIMEOUT_MS)
     return () => clearTimeout(timer)
   }, [paused, onDismiss])
@@ -4151,7 +4342,9 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
       onFocus={() => setFocusWithin(true)}
       onBlur={(e) => {
         const next = e.relatedTarget
-        if (!(next instanceof Node) || !e.currentTarget.contains(next)) setFocusWithin(false)
+        if (!(next instanceof Node) || !e.currentTarget.contains(next)) {
+          setFocusWithin(false)
+        }
       }}
     >
       <span>{undoError ?? current.message}</span>

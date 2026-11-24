@@ -1,12 +1,12 @@
-import { ValidationError } from '../../contracts/errors'
-import { WIKI_WELL_KNOWN_TYPES } from '../../contracts/inputs/wiki'
-import * as wikiService from '../services/wiki'
-import * as wikiDraftsService from '../services/wiki-drafts'
-import * as wikiWatchersService from '../services/wiki-watchers'
-import { CREATE, DESTRUCTIVE, PLAIN_WRITE, READ } from './annotations'
-import { capPage, toPage } from './serialize'
-import type { MCPTool } from './types'
-import { outlineOf, sectionOf, WIKI_DEFAULT_MAX_CHARS, WIKI_MAX_CHARS, windowText } from './windowing'
+import { ValidationError } from '../../contracts/errors.ts'
+import { WIKI_WELL_KNOWN_TYPES } from '../../contracts/inputs/wiki.ts'
+import * as wikiDraftsService from '../services/wiki-drafts.ts'
+import * as wikiWatchersService from '../services/wiki-watchers.ts'
+import * as wikiService from '../services/wiki.ts'
+import { CREATE, DESTRUCTIVE, PLAIN_WRITE, READ } from './annotations.ts'
+import { capPage, toPage } from './serialize.ts'
+import type { MCPTool } from './types.ts'
+import { outlineOf, sectionOf, WIKI_DEFAULT_MAX_CHARS, WIKI_MAX_CHARS, windowText } from './windowing.ts'
 
 // PROJ-513: `type` is freeform — these are advertised as hints, never as an
 // inputSchema `enum` (which clients treat as the only legal values).
@@ -179,7 +179,9 @@ export const wikiTools: MCPTool[] = [
       if (section !== undefined) {
         const body = sectionOf(full, section)
         // A miss is not an error: the outline says what sections exist.
-        if (body === undefined) return { ...rest, outline, section, sectionFound: false }
+        if (body === undefined) {
+          return { ...rest, outline, section, sectionFound: false }
+        }
         const w = windowText(body, { max, cursor })
         return {
           ...rest,
@@ -764,7 +766,9 @@ export const wikiTools: MCPTool[] = [
     async handler(input, ctx) {
       const { cursor, ...rest } = (input ?? {}) as Record<string, unknown>
       // null / "" mean "no cursor", not "since the epoch".
-      if (cursor !== undefined && cursor !== null && cursor !== '') rest.since = Number(cursor)
+      if (cursor !== undefined && cursor !== null && cursor !== '') {
+        rest.since = Number(cursor)
+      }
       if (rest.since === undefined || Number.isNaN(rest.since)) {
         throw new ValidationError({
           formErrors: [],
@@ -774,7 +778,7 @@ export const wikiTools: MCPTool[] = [
       const result = await wikiWatchersService.listWikiChanges(ctx, rest)
       // `next` is present whenever the cursor moved (even if every row in the batch was filtered
       // out, so a poller keeps advancing); the feed is drained when it is absent.
-      const events = result.changes as Array<{ createdAt: number }>
+      const events = result.changes as { createdAt: number }[]
       const page = toPage(events, result.nextSince > (rest.since as number) ? result.nextSince : null)
       // `since` is exclusive, so a cut must not split events sharing one second.
       return capPage(page, {

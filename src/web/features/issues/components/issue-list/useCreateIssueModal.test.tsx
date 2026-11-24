@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
-import '../../test/browser'
+import '../../test/browser.ts'
 // Native ActionState keeps typed server failures in the open form without discarding its TanStack draft.
 // Unexpected browser transport failures belong to the root React error boundary.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { createIssue } from '../../actions'
-import CreateIssueModal from './CreateIssueModal'
-import { useCreateIssueModal } from './useCreateIssueModal'
+import { createIssue } from '../../actions.ts'
+import CreateIssueModal from './CreateIssueModal.tsx'
+import { useCreateIssueModal } from './useCreateIssueModal.ts'
 
 const PROJECTS = [{ id: 'p1', key: 'PROJ', name: 'Projektor', description: null, workspace_slug: 'test-workspace' }]
 
@@ -33,7 +33,7 @@ async function submitCreateForm() {
 }
 
 describe('useCreateIssueModal native ActionState failures', () => {
-  it('keeps the entered draft when the server reports backend unavailability', async () => {
+  test('keeps the entered draft when the server reports backend unavailability', async () => {
     vi.mocked(createIssue).mockResolvedValueOnce({
       ok: false,
       status: 502,
@@ -56,7 +56,7 @@ describe('useCreateIssueModal native ActionState failures', () => {
     expect(formData.get('priority')).toBe('medium')
   })
 
-  it('shows a generic message for a non-offline (HTTP) failure', async () => {
+  test('shows a generic message for a non-offline (HTTP) failure', async () => {
     vi.mocked(createIssue).mockResolvedValueOnce({
       ok: false,
       status: 500,
@@ -75,7 +75,7 @@ describe('useCreateIssueModal native ActionState failures', () => {
     expect(alert.textContent).not.toMatch(/you're offline/i)
   })
 
-  it('clears a previous failure when reopening and displays a new failed attempt', async () => {
+  test('clears a previous failure when reopening and displays a new failed attempt', async () => {
     vi.mocked(createIssue)
       .mockResolvedValueOnce({ ok: false, status: 500, message: 'First attempt failed' })
       .mockResolvedValueOnce({ ok: false, status: 502, message: 'Second attempt failed' })

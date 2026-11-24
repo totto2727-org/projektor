@@ -3,9 +3,10 @@ import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
-import { type DataQueryError, queryEffect } from './errors'
-import type { Project, ProjectListOptions, ProjectSummary, ProjectSummaryVisibility } from './types'
-export type { Project, ProjectListOptions, ProjectSummary, ProjectSummaryVisibility } from './types'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
+import type { Project, ProjectListOptions, ProjectSummary, ProjectSummaryVisibility } from './types.ts'
+export type { Project, ProjectListOptions, ProjectSummary, ProjectSummaryVisibility } from './types.ts'
 
 export function listProjects(
   db: D1Database,
@@ -15,8 +16,12 @@ export function listProjects(
   return queryEffect('listProjects', () => {
     const orm = drizzle(db, { schema })
     const conditions = [eq(schema.projects.workspaceId, workspaceId)]
-    if (opts.visibility) conditions.push(opts.visibility)
-    if (!opts.includeArchived) conditions.push(isNull(schema.projects.archivedAt))
+    if (opts.visibility) {
+      conditions.push(opts.visibility)
+    }
+    if (!opts.includeArchived) {
+      conditions.push(isNull(schema.projects.archivedAt))
+    }
     return orm
       .select()
       .from(schema.projects)

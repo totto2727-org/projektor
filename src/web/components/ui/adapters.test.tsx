@@ -1,23 +1,23 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createRef } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { Badge } from './Badge'
-import { Button } from './Button'
-import { Card } from './Card'
-import { Dialog } from './Dialog'
-import { EmptyState } from './EmptyState'
-import { Field } from './Field'
-import { Input, Textarea } from './Input'
-import { Popover, Portal } from './Popover'
-import Select from './Select'
-import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from './Table'
+import { Badge } from './Badge.tsx'
+import { Button } from './Button.tsx'
+import { Card } from './Card.tsx'
+import { Dialog } from './Dialog.tsx'
+import { EmptyState } from './EmptyState.tsx'
+import { Field } from './Field.tsx'
+import { Input, Textarea } from './Input.tsx'
+import { Popover, Portal } from './Popover.tsx'
+import Select from './Select.tsx'
+import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from './Table.tsx'
 
 afterEach(cleanup)
 
 describe('generated UI compatibility adapters', () => {
-  it('keeps button, native form, anchor and noninteractive span modes', () => {
+  test('keeps button, native form, anchor and noninteractive span modes', () => {
     render(
       <>
         <Button class='old' className='new'>
@@ -47,7 +47,7 @@ describe('generated UI compatibility adapters', () => {
     expect(screen.getByText('Label').hasAttribute('role')).toBe(false)
   })
 
-  it('preserves labels, native input names, refs and help/error precedence', () => {
+  test('preserves labels, native input names, refs and help/error precedence', () => {
     const inputRef = createRef<HTMLInputElement>()
     const textRef = createRef<HTMLTextAreaElement>()
     render(
@@ -72,7 +72,7 @@ describe('generated UI compatibility adapters', () => {
     expect(screen.queryByText('Hidden')).toBeNull()
   })
 
-  it('uses generated structural primitives and retains legacy table header alias', () => {
+  test('uses generated structural primitives and retains legacy table header alias', () => {
     render(
       <>
         <Badge style={{ color: 'red' }} class='old' className='new'>
@@ -113,7 +113,7 @@ describe('generated UI compatibility adapters', () => {
     expect(screen.getByRole('table').classList.contains('new')).toBe(true)
   })
 
-  it('delegates controlled dialog close requests to Base UI', async () => {
+  test('delegates controlled dialog close requests to Base UI', async () => {
     const onClose = vi.fn()
     const { rerender } = render(
       <Dialog open={false} onClose={onClose} title='Edit issue'>
@@ -136,7 +136,7 @@ describe('generated UI compatibility adapters', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
   })
 
-  it('maps old Select options to controlled string callbacks', async () => {
+  test('maps old Select options to controlled string callbacks', async () => {
     const onChange = vi.fn()
     const options = [
       { value: '', label: 'None' },
@@ -156,7 +156,7 @@ describe('generated UI compatibility adapters', () => {
     expect((screen.getByRole('combobox', { name: 'Status' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('supports legacy positioned popovers, refs and named framework Portal', async () => {
+  test('supports legacy positioned popovers, refs and named framework Portal', async () => {
     const ref = createRef<HTMLDivElement>()
     const { container } = render(
       <Popover

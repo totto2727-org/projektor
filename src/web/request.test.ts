@@ -1,18 +1,21 @@
 import { Effect } from 'effect'
 import { HttpRouter, HttpServerResponse } from 'effect/http'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
 
-import { getRouteParams, isWebEnvironment, makeRequestServices, type PreparedView, RequestServices } from './request'
-import { ApiError } from './server'
-import { testEnvironment } from './server/test/resources'
-import { createTestDatabase } from './test/database'
+import { getRouteParams, isWebEnvironment, makeRequestServices, RequestServices } from './request.ts'
+import type { PreparedView } from './request.ts'
+import { ApiError } from './server/index.ts'
+import { testEnvironment } from './server/test/resources.ts'
+import { createTestDatabase } from './test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
   resetAuthCachesForTests()
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 function fixture() {
   resetAuthCachesForTests()
@@ -29,7 +32,7 @@ function fixture() {
 const incoming = () => new Request('https://front.example.test/')
 
 describe('request-scoped native services', () => {
-  it('requires a native Core fetch capability and valid browser-only configuration', () => {
+  test('requires a native Core fetch capability and valid browser-only configuration', () => {
     expect(isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'production' })).toBe(true)
     expect(isWebEnvironment({ CORE: {}, ENVIRONMENT: 'production' })).toBe(false)
     expect(isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'invalid' })).toBe(false)
@@ -38,7 +41,8 @@ describe('request-scoped native services', () => {
     ).toBe(false)
     expect(isWebEnvironment(null)).toBe(false)
   })
-  it('reads matched framework parameters without another URL parser', async () => {
+
+  test('reads matched framework parameters without another URL parser', async () => {
     const params = { projectSlug: 'already%decoded', issueNumber: '12' }
     const result = await Effect.runPromise(
       getRouteParams.pipe(
@@ -56,7 +60,7 @@ describe('request-scoped native services', () => {
     expect(await Effect.runPromise(getRouteParams)).toEqual({})
   })
 
-  it('keeps request-local cache key classes out of native browserScope arguments', async () => {
+  test('keeps request-local cache key classes out of native browserScope arguments', async () => {
     const database = fixture()
     const env = testEnvironment(database.db, 'first@example.test')
     const original = env.CORE.browserScope
@@ -79,7 +83,7 @@ describe('request-scoped native services', () => {
     expect(checked).toBe(true)
   })
 
-  it('shares concurrent work only inside one verified identity request', async () => {
+  test('shares concurrent work only inside one verified identity request', async () => {
     const database = fixture()
     const result = await Effect.runPromise(
       Effect.gen(function* () {
@@ -99,7 +103,7 @@ describe('request-scoped native services', () => {
     expect(result.first).not.toHaveProperty('db')
   })
 
-  it('invalidates only request-owned scope state and reloads authoritative database memberships', async () => {
+  test('invalidates only request-owned scope state and reloads authoritative database memberships', async () => {
     const database = fixture()
     const actual = await Effect.runPromise(
       Effect.gen(function* () {
@@ -123,7 +127,7 @@ describe('request-scoped native services', () => {
     expect(actual.otherCached.workspaces[0].name).toBe('Before')
   })
 
-  it('retries failed authentication instead of caching failure permanently', async () => {
+  test('retries failed authentication instead of caching failure permanently', async () => {
     const database = fixture()
     const env = testEnvironment(database.db, 'first@example.test', { ENVIRONMENT: 'production' })
     const actual = await Effect.runPromise(
@@ -139,7 +143,7 @@ describe('request-scoped native services', () => {
     expect(actual.recovered.user.id).toBe('first')
   })
 
-  it('invalidates prepared views explicitly, including concurrent work', async () => {
+  test('invalidates prepared views explicitly, including concurrent work', async () => {
     const database = fixture()
     let renders = 0
     const actual = await Effect.runPromise(
@@ -161,7 +165,7 @@ describe('request-scoped native services', () => {
     expect(renders).toBe(2)
   })
 
-  it('does not permanently cache a failed pre-stream render', async () => {
+  test('does not permanently cache a failed pre-stream render', async () => {
     const database = fixture()
     let attempts = 0
     const actual = await Effect.runPromise(

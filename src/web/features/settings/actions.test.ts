@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
 // Only the Node host entrypoint is substituted. Real OAuth helpers and KV operations execute.
 vi.mock('cloudflare:workers', () => ({ WorkerEntrypoint: class {} }))
 
-import { actionFixture, formData } from '../planning/action-test-fixture'
+import { actionFixture, formData } from '../planning/action-test-fixture.ts'
 
-const actions = await import('./actions')
+const actions = await import('./actions.ts')
 type Fixture = ReturnType<typeof actionFixture>
 const workspace = { workspaceSlug: 'alpha' }
 const group = { ...workspace, groupId: 'g1' }
@@ -155,7 +155,7 @@ async function seedConnectors(test: Fixture) {
         scope: ['projektor:read'],
         metadata: { workspaceId },
         createdAt: 1,
-        expiresAt: 2000000000,
+        expiresAt: 2_000_000_000,
       }),
     )
   }
@@ -163,7 +163,7 @@ async function seedConnectors(test: Fixture) {
 }
 
 describe('explicit settings ServerFns use real shared commands and authoritative scopes', () => {
-  it('serializes a real command database failure without leaking driver details', async () => {
+  test('serializes a real command database failure without leaking driver details', async () => {
     const test = settingsFixture()
     test.sqlite.exec(
       "CREATE TRIGGER private_error BEFORE INSERT ON api_tokens BEGIN SELECT RAISE(ABORT, 'private driver detail'); END",
@@ -178,7 +178,8 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     expect(test.invalidated).toHaveBeenCalledTimes(1)
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it.each(grantCases)('$label accepts archived owner targets outside the active catalog', async (operation) => {
+
+  test.each(grantCases)('$label accepts archived owner targets outside the active catalog', async (operation) => {
     const test = settingsFixture()
     test.sqlite.exec("UPDATE projects SET archived_at=2 WHERE id='p1'")
     expect(await operation.invoke(test)).toEqual({ ok: true, value: { ok: true } })
@@ -186,7 +187,8 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     expect(test.transport).not.toHaveBeenCalled()
     expect(test.invalidated).toHaveBeenCalledTimes(1)
   })
-  it.each(grantCases)(
+
+  test.each(grantCases)(
     '$label rejects foreign, missing and ungranted member targets before mutation',
     async (operation) => {
       const foreign = settingsFixture()
@@ -205,7 +207,8 @@ describe('explicit settings ServerFns use real shared commands and authoritative
       }
     },
   )
-  it.each(grantCases)(
+
+  test.each(grantCases)(
     '$label preserves archived granted-member visibility but shared commands enforce admin mutation',
     async (operation) => {
       const test = memberFixture()
@@ -221,14 +224,17 @@ describe('explicit settings ServerFns use real shared commands and authoritative
       expect(test.invalidated).toHaveBeenCalledTimes(1)
     },
   )
-  it.each(cases)('$label has concrete storage effects and invalidates canonical SSR views', async (operation) => {
+
+  test.each(cases)('$label has concrete storage effects and invalidates canonical SSR views', async (operation) => {
     const test = settingsFixture()
-    if (operation.label === 'remove grant')
+    if (operation.label === 'remove grant') {
       test.sqlite.exec("INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','viewer')")
+    }
     await seedConnectors(test)
     const result = await operation.invoke(test)
-    if (operation.label === 'create group') expect(result).toEqual({ ok: true, value: { id: expect.any(String) } })
-    else if (operation.label === 'create/reveal token')
+    if (operation.label === 'create group') {
+      expect(result).toEqual({ ok: true, value: { id: expect.any(String) } })
+    } else if (operation.label === 'create/reveal token') {
       expect(result).toEqual({
         ok: true,
         value: {
@@ -239,12 +245,15 @@ describe('explicit settings ServerFns use real shared commands and authoritative
           expiresAt: expect.any(Number),
         },
       })
-    else expect(result).toEqual({ ok: true, value: { ok: true } })
+    } else {
+      expect(result).toEqual({ ok: true, value: { ok: true } })
+    }
     await operation.check(test)
     expect(test.transport).not.toHaveBeenCalled()
     expect(test.invalidated).toHaveBeenCalledTimes(1)
   })
-  it('rejects foreign workspace/project selection before any write', async () => {
+
+  test('rejects foreign workspace/project selection before any write', async () => {
     const test = settingsFixture()
     expect(
       await test.invoke(actions.createGroup, null, formData({ workspaceSlug: 'beta', name: 'Foreign team' })),
@@ -256,7 +265,8 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     expect(test.sqlite.prepare("SELECT id FROM user_groups WHERE name='Foreign team'").get()).toBeUndefined()
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('guards origin and maps concrete connector not-found failures while invalidating', async () => {
+
+  test('guards origin and maps concrete connector not-found failures while invalidating', async () => {
     const origin = settingsFixture('https://other.example')
     expect(await origin.invoke(actions.revokeToken, { ...workspace, tokenId: 't1' })).toMatchObject({
       ok: false,
@@ -273,7 +283,8 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     })
     expect(test.invalidated).toHaveBeenCalledTimes(1)
   })
-  it('validates Effect fields and preserves concrete read/write token creation shapes', async () => {
+
+  test('validates Effect fields and preserves concrete read/write token creation shapes', async () => {
     const test = settingsFixture()
     await expect(test.invoke(actions.createGroup, null, formData({ ...workspace, name: '  ' }))).rejects.toMatchObject({
       _tag: 'SchemaError',
@@ -294,7 +305,8 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     })
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('refuses workspace token minting by a real member', async () => {
+
+  test('refuses workspace token minting by a real member', async () => {
     const test = memberFixture()
     expect(
       await test.invoke(
@@ -305,7 +317,8 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     ).toMatchObject({ ok: false, status: 403 })
     expect(test.sqlite.prepare("SELECT id FROM api_tokens WHERE name='Denied'").get()).toBeUndefined()
   })
-  it('refuses credential minting and connector revocation for the public viewer identity', async () => {
+
+  test('refuses credential minting and connector revocation for the public viewer identity', async () => {
     const test = actionFixture(undefined, 'https://front.example', { DEV_USER_EMAIL: 'public-viewer@projektor.local' })
     test.sqlite.exec("UPDATE users SET email='public-viewer@projektor.local' WHERE id='u1'")
     expect(
@@ -322,14 +335,16 @@ describe('explicit settings ServerFns use real shared commands and authoritative
     expect(test.sqlite.prepare("SELECT id FROM api_tokens WHERE name='Public token'").get()).toBeUndefined()
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('cannot revoke a connector owned by another user or workspace', async () => {
+
+  test('cannot revoke a connector owned by another user or workspace', async () => {
     const test = settingsFixture()
     await seedConnectors(test)
-    for (const connectorId of ['c2', 'c3'])
+    for (const connectorId of ['c2', 'c3']) {
       expect(await test.invoke(actions.disconnectConnector, { ...workspace, connectorId })).toMatchObject({
         ok: false,
         status: 404,
       })
+    }
     expect(await test.oauthKV.get('grant:u1:c2')).not.toBeNull()
     expect(await test.oauthKV.get('grant:u2:c3')).not.toBeNull()
   })

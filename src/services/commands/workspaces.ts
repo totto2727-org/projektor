@@ -6,7 +6,7 @@ import { drizzle, schema } from '#db'
 import * as data from '#services'
 import { buildMcpAddCommand } from '#types'
 
-import { IdSchema } from '../../contracts/inputs/common'
+import { IdSchema } from '../../contracts/inputs/common.ts'
 import {
   CreateTokenSchema,
   CreateWorkspaceSchema,
@@ -14,8 +14,8 @@ import {
   UpdateRoleSchema,
   UpdateWorkspaceBrandSchema,
   UpdateWorkspaceSchema,
-} from '../../contracts/inputs/workspaces'
-import { buildDefaultCustomFieldStatements } from './custom-fields'
+} from '../../contracts/inputs/workspaces.ts'
+import { buildDefaultCustomFieldStatements } from './custom-fields.ts'
 import {
   ConflictError,
   ForbiddenError,
@@ -23,12 +23,12 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from './errors'
-import { prepareQuery } from './sql'
-import { buildDefaultTaskStatusStatements } from './task-statuses'
-import { buildDefaultTaskTypeStatements } from './task-types'
-import type { ServiceCtx } from './types'
-import { buildDefaultWikiTemplateStatements } from './wiki'
+} from './errors.ts'
+import { prepareQuery } from './sql.ts'
+import { buildDefaultTaskStatusStatements } from './task-statuses.ts'
+import { buildDefaultTaskTypeStatements } from './task-types.ts'
+import type { ServiceCtx } from './types.ts'
+import { buildDefaultWikiTemplateStatements } from './wiki.ts'
 
 async function sha256hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
@@ -43,7 +43,9 @@ export async function listWorkspaces(db: D1Database, userId: string) {
 
 export async function createWorkspace(db: D1Database, userId: string, input: unknown) {
   const parsed = CreateWorkspaceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { name, slug } = parsed.data
 
   const orm = drizzle(db, { schema })
@@ -52,7 +54,9 @@ export async function createWorkspace(db: D1Database, userId: string, input: unk
     .from(schema.workspaces)
     .where(eq(schema.workspaces.slug, slug))
     .get()
-  if (existing) throw new ConflictError('Slug already taken')
+  if (existing) {
+    throw new ConflictError('Slug already taken')
+  }
 
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
@@ -80,18 +84,26 @@ export async function getWorkspaceWithMembers(
 }
 
 export async function updateWorkspace(ctx: ServiceCtx, input: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const parsed = UpdateWorkspaceSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const orm = drizzle(ctx.db, { schema })
   await orm.update(schema.workspaces).set({ name: parsed.data.name }).where(eq(schema.workspaces.id, ctx.workspaceId))
   return { ok: true }
 }
 
 export async function inviteMember(ctx: ServiceCtx, input: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const parsed = InviteMemberSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { email, role: newRole } = parsed.data
   const now = Math.floor(Date.now() / 1000)
 
@@ -108,7 +120,9 @@ export async function inviteMember(ctx: ServiceCtx, input: unknown) {
     .from(schema.workspaceMembers)
     .where(and(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId), eq(schema.workspaceMembers.userId, user.id)))
     .get()
-  if (existing) throw new ConflictError('Already a member')
+  if (existing) {
+    throw new ConflictError('Already a member')
+  }
 
   await orm
     .insert(schema.workspaceMembers)
@@ -128,8 +142,12 @@ export async function inviteMember(ctx: ServiceCtx, input: unknown) {
 
 export async function removeMember(ctx: ServiceCtx, targetUserId: string) {
   const idCheck = IdSchema.safeParse(targetUserId)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
-  if (ctx.role !== 'owner') throw new ForbiddenError()
+  if (!idCheck.success) {
+    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  }
+  if (ctx.role !== 'owner') {
+    throw new ForbiddenError()
+  }
   if (ctx.userId === targetUserId) {
     throw new ValidationError({ formErrors: ['Cannot remove yourself as owner'], fieldErrors: {} })
   }
@@ -157,9 +175,13 @@ export async function removeMember(ctx: ServiceCtx, targetUserId: string) {
 }
 
 export async function updateMemberRole(ctx: ServiceCtx, targetUserId: string, input: unknown) {
-  if (ctx.role !== 'owner') throw new ForbiddenError()
+  if (ctx.role !== 'owner') {
+    throw new ForbiddenError()
+  }
   const parsed = UpdateRoleSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const orm = drizzle(ctx.db, { schema })
   await orm
     .update(schema.workspaceMembers)
@@ -171,9 +193,13 @@ export async function updateMemberRole(ctx: ServiceCtx, targetUserId: string, in
 }
 
 export async function createToken(ctx: ServiceCtx, input: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const parsed = CreateTokenSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { name, scopes, expiresInDays } = parsed.data
 
   const tokenBytes = crypto.getRandomValues(new Uint8Array(32))
@@ -186,7 +212,7 @@ export async function createToken(ctx: ServiceCtx, input: unknown) {
 
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
-  const expiresAt = expiresInDays ? now + expiresInDays * 86400 : null
+  const expiresAt = expiresInDays ? now + expiresInDays * 86_400 : null
 
   const orm = drizzle(ctx.db, { schema })
   await orm.insert(schema.apiTokens).values({
@@ -204,12 +230,16 @@ export async function createToken(ctx: ServiceCtx, input: unknown) {
 }
 
 export async function listTokens(ctx: ServiceCtx) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   return Effect.runPromise(data.listWorkspaceTokenMetadata(ctx.db, ctx.workspaceId))
 }
 
 export async function revokeToken(ctx: ServiceCtx, tokenId: string) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   // PROJ-923: agent_sessions.token_id is ON DELETE SET NULL, which D1 doesn't
   // guarantee (PROJ-407) — null it explicitly in the same batch.
   await ctx.db.batch([
@@ -282,7 +312,9 @@ export async function deleteWorkspace(
     .where(eq(schema.workspaces.id, ctx.workspaceId))
     .get()
 
-  if (!ws) throw new NotFoundError('Workspace not found')
+  if (!ws) {
+    throw new NotFoundError('Workspace not found')
+  }
 
   // PROJ-437: ctx.workspaceId is resolved from the X-Workspace-Slug header (or Host
   // subdomain), not the URL's :slug — without this check a caller whose header names
@@ -365,7 +397,9 @@ export interface WorkspaceBrandDto {
 }
 
 function requireBrandWrite(ctx: ServiceCtx): void {
-  if (ctx.role !== 'owner' && ctx.role !== 'admin') throw new ForbiddenError()
+  if (ctx.role !== 'owner' && ctx.role !== 'admin') {
+    throw new ForbiddenError()
+  }
 }
 
 async function readBrand(ctx: ServiceCtx): Promise<WorkspaceBrand> {
@@ -413,15 +447,22 @@ export async function updateWorkspaceBrand(
 ): Promise<WorkspaceBrandDto> {
   requireBrandWrite(ctx)
   const parsed = UpdateWorkspaceBrandSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
 
   const current = await readBrand(ctx)
   const next: WorkspaceBrand = { ...current }
   for (const key of BRAND_FIELDS) {
-    if (!(key in parsed.data)) continue
+    if (!(key in parsed.data)) {
+      continue
+    }
     const value = parsed.data[key]
-    if (value === null || value === undefined) delete next[key]
-    else next[key] = value
+    if (value === null || value === undefined) {
+      delete next[key]
+    } else {
+      next[key] = value
+    }
   }
 
   await writeBrand(ctx, next)
@@ -436,7 +477,9 @@ export async function uploadWorkspaceLogo(
   file: Readonly<{ size: number; type: string; arrayBuffer: () => Promise<ArrayBuffer> }>,
 ): Promise<{ ok: true }> {
   requireBrandWrite(ctx)
-  if (file.size > MAX_LOGO_SIZE) throw new PayloadTooLargeError('Logo too large (max 2 MB)')
+  if (file.size > MAX_LOGO_SIZE) {
+    throw new PayloadTooLargeError('Logo too large (max 2 MB)')
+  }
   const contentType = file.type || ''
   if (!ALLOWED_LOGO_TYPES.has(contentType)) {
     throw new UnsupportedMediaTypeError('Logo must be PNG, JPEG or WebP')
@@ -479,6 +522,8 @@ function ownsLogoKey(workspaceId: string, r2Key: string): boolean {
 
 export async function getWorkspaceLogoObject(ctx: ServiceCtx): Promise<R2ObjectBody | null> {
   const current = await readBrand(ctx)
-  if (!current.logoR2Key || !ownsLogoKey(ctx.workspaceId, current.logoR2Key)) return null
+  if (!current.logoR2Key || !ownsLogoKey(ctx.workspaceId, current.logoR2Key)) {
+    return null
+  }
   return ctx.r2.get(current.logoR2Key)
 }

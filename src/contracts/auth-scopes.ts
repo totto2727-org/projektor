@@ -19,8 +19,12 @@ export type Capability = 'read' | 'write'
  * - Unknown/legacy scope strings grant nothing (fail-closed).
  */
 export function tokenAllows(scopes: readonly string[], required: Capability): boolean {
-  if (scopes.includes('*')) return true
-  if (required === 'write') return scopes.includes('write')
+  if (scopes.includes('*')) {
+    return true
+  }
+  if (required === 'write') {
+    return scopes.includes('write')
+  }
   return scopes.includes('read') || scopes.includes('write')
 }
 
@@ -52,14 +56,18 @@ export function capabilityForMcpTool(name: string): Capability {
  * else fails closed to [] (which tokenAllows() then treats as "grants nothing").
  */
 export function parseScopes(raw: string | null | undefined): string[] {
-  if (!raw) return []
+  if (!raw) {
+    return []
+  }
   try {
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === 'string') : []
   } catch {
     // Legacy fallback: only an unquoted bracketed list like "[read,write]".
     const m = raw.match(/^\s*\[(.*)\]\s*$/)
-    if (!m) return []
+    if (!m) {
+      return []
+    }
     return m[1]
       .split(',')
       .map((s) => s.trim())
@@ -98,7 +106,11 @@ export const OAUTH_SCOPES_SUPPORTED = [OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE] as c
  * nothing rather than being silently treated as read.
  */
 export function capabilityForOAuthScope(scope: string): Capability | null {
-  if (scope === OAUTH_SCOPE_READ) return 'read'
-  if (scope === OAUTH_SCOPE_WRITE) return 'write'
+  if (scope === OAUTH_SCOPE_READ) {
+    return 'read'
+  }
+  if (scope === OAUTH_SCOPE_WRITE) {
+    return 'write'
+  }
   return null
 }

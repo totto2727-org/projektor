@@ -12,6 +12,7 @@ type FixtureApiEnv = Parameters<typeof api.fetch>[1] & {
   CORE: Pick<FixtureCore, 'initializeFixture' | 'reinitializeFixture'>
 }
 
+// oxlint-disable-next-line import/no-default-export -- Workerd loads the test API fetch handler from the default export.
 export default {
   async fetch(request: Request, env: FixtureApiEnv, context: ExecutionContext) {
     // The adapter only invokes Core RPC. It has no DB binding, even for fixtures.

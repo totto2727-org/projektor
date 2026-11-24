@@ -1,14 +1,16 @@
 import { Effect } from 'effect'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { brandStyles, defaultBrand, deploymentBrand, loadBrand } from './brand'
-import type { RequestScope } from './server'
-import { testEnvironment } from './server/test/resources'
-import { createTestDatabase } from './test/database'
+import { brandStyles, defaultBrand, deploymentBrand, loadBrand } from './brand.ts'
+import type { RequestScope } from './server/index.ts'
+import { testEnvironment } from './server/test/resources.ts'
+import { createTestDatabase } from './test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 const workspace = { id: 'w', slug: 'beta', name: 'Beta', role: 'owner' as const }
 const request = new Request('https://front.example/?workspace=beta')
@@ -39,7 +41,7 @@ function fixture() {
 }
 
 describe('server-rendered native brand', () => {
-  it('normalizes deployment bindings and derives a Unicode mark', () => {
+  test('normalizes deployment bindings and derives a Unicode mark', () => {
     expect(deploymentBrand({})).toEqual(defaultBrand)
     expect(
       deploymentBrand({
@@ -52,7 +54,7 @@ describe('server-rendered native brand', () => {
     expect(deploymentBrand({ BRAND_NAME: 'Deploy', BRAND_MARK: '  xyz ' }).mark).toBe('x')
   })
 
-  it('layers only the explicitly resolved workspace over deployment bindings', async () => {
+  test('layers only the explicitly resolved workspace over deployment bindings', async () => {
     const { env } = fixture()
     const brand = await Effect.runPromise(loadBrand(env, scope, request))
     expect(brand).toEqual({
@@ -70,7 +72,7 @@ describe('server-rendered native brand', () => {
     })
   })
 
-  it('does not look up a tenant on global or public pages', async () => {
+  test('does not look up a tenant on global or public pages', async () => {
     const { env, database } = fixture()
     database.sqlite.exec('DROP TABLE workspaces')
     expect(await Effect.runPromise(loadBrand(env, null))).toEqual(deploymentBrand(env))
@@ -79,7 +81,7 @@ describe('server-rendered native brand', () => {
     )
   })
 
-  it('does not apply branding from unverified membership or mismatched workspace slug', async () => {
+  test('does not apply branding from unverified membership or mismatched workspace slug', async () => {
     const { env } = fixture()
     expect(await Effect.runPromise(loadBrand(env, { ...scope, workspaces: [] }))).toEqual(deploymentBrand(env))
     expect(
@@ -87,13 +89,13 @@ describe('server-rendered native brand', () => {
     ).toEqual(deploymentBrand(env))
   })
 
-  it('keeps cosmetic database failures optional', async () => {
+  test('keeps cosmetic database failures optional', async () => {
     const { env, database } = fixture()
     database.sqlite.exec('DROP TABLE workspaces')
     expect(await Effect.runPromise(loadBrand(env, scope, request))).toEqual(deploymentBrand(env))
   })
 
-  it('reads workspace branding afresh instead of sharing a cross-request cache', async () => {
+  test('reads workspace branding afresh instead of sharing a cross-request cache', async () => {
     const { env, database } = fixture()
     expect((await Effect.runPromise(loadBrand(env, scope, request))).name).toBe('Beta')
     database.sqlite

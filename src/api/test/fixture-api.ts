@@ -66,11 +66,15 @@ const directCore = new Proxy(
   {},
   {
     get(_target, key): unknown {
-      if (key === 'then') return undefined
+      if (key === 'then') {
+        return undefined
+      }
       return async (...args: unknown[]): Promise<unknown> => {
         const session = await originalCore.fixtureSession({ ...settingsSnapshot })
         const method: unknown = Reflect.get(session, key)
-        if (typeof method !== 'function') throw new Error(`Missing native fixture method: ${String(key)}`)
+        if (typeof method !== 'function') {
+          throw new Error(`Missing native fixture method: ${String(key)}`)
+        }
         return Reflect.apply(method, session, args)
       }
     },
@@ -156,7 +160,9 @@ function fixtureKV(namespace: 'KV' | 'OAUTH_KV') {
 }
 
 function r2Object(value: unknown): unknown {
-  if (value === null || typeof value !== 'object') return value
+  if (value === null || typeof value !== 'object') {
+    return value
+  }
   const metadata = Reflect.get(value, 'httpMetadata') as R2HTTPMetadata | undefined
   const object = {
     ...value,
@@ -170,13 +176,16 @@ function r2Object(value: unknown): unknown {
         cacheExpiry: 'expires',
       }
       for (const [key, entry] of Object.entries(metadata ?? {})) {
-        if (entry !== undefined)
+        if (entry !== undefined) {
           headers.set(names[key] ?? key, entry instanceof Date ? entry.toUTCString() : String(entry))
+        }
       }
     },
   }
   const body: unknown = Reflect.get(value, 'body')
-  if (!(body instanceof ReadableStream)) return object
+  if (!(body instanceof ReadableStream)) {
+    return object
+  }
   const response = new Response(body)
   return {
     ...object,
@@ -204,14 +213,20 @@ const fixtures = { DB: db, KV: fixtureKV('KV'), R2: r2 }
  * bindings remain on the real API environment so existing per-test overrides apply. */
 export const env: Env = new Proxy(nativeEnv, {
   get(target, key, receiver): unknown {
-    if (key === 'DB' || key === 'KV' || key === 'R2') return fixtures[key]
-    if (key === 'CORE') return directCore
+    if (key === 'DB' || key === 'KV' || key === 'R2') {
+      return fixtures[key]
+    }
+    if (key === 'CORE') {
+      return directCore
+    }
     return Reflect.get(target, key, receiver)
   },
   set(target, key, value): boolean {
     const applied = Reflect.set(target, key, value)
     if (applied && key !== 'CORE_FIXTURE_CONFIGURATION' && (typeof value === 'string' || value === undefined)) {
-      if (typeof key === 'string') explicitSettings = { ...explicitSettings, [key]: value ?? null }
+      if (typeof key === 'string') {
+        explicitSettings = { ...explicitSettings, [key]: value ?? null }
+      }
       synchronizeConfiguration()
     }
     return applied
@@ -229,8 +244,9 @@ export const env: Env = new Proxy(nativeEnv, {
     return [...new Set([...Reflect.ownKeys(target), ...Object.keys(fixtures)])]
   },
   getOwnPropertyDescriptor(target, key) {
-    if (key === 'DB' || key === 'KV' || key === 'R2')
+    if (key === 'DB' || key === 'KV' || key === 'R2') {
       return { configurable: true, enumerable: true, writable: false, value: fixtures[key] }
+    }
     return Reflect.getOwnPropertyDescriptor(target, key)
   },
 })

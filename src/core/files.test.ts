@@ -1,14 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { createTestDatabase } from '../web/test/database'
-import type { CoreActor } from './authorization'
-import { CORE_ACTOR_HEADER } from './contract'
-import type { CoreEnvironment } from './environment'
-import { handleCoreFileRequest } from './files'
+import { createTestDatabase } from '../web/test/database.ts'
+import type { CoreActor } from './authorization.ts'
+import { CORE_ACTOR_HEADER } from './contract.ts'
+import type { CoreEnvironment } from './environment.ts'
+import { handleCoreFileRequest } from './files.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 function fixture() {
@@ -61,7 +63,7 @@ function fixture() {
 }
 
 describe('Core narrow same-binding binary transfer', () => {
-  it('streams exact binary bytes from an authorized archived owner without buffering', async () => {
+  test('streams exact binary bytes from an authorized archived owner without buffering', async () => {
     const f = fixture()
     const response = await handleCoreFileRequest(f.request(), f.env)
     expect(response.status).toBe(200)
@@ -73,21 +75,21 @@ describe('Core narrow same-binding binary transfer', () => {
     expect(f.cancel).toHaveBeenCalledWith('client canceled')
   })
 
-  it('authorizes before any R2 read and hides ungranted owners', async () => {
+  test('authorizes before any R2 read and hides ungranted owners', async () => {
     const f = fixture()
     const response = await handleCoreFileRequest(f.request('secret'), f.env)
     expect(response.status).toBe(404)
     expect(f.get).not.toHaveBeenCalled()
   })
 
-  it('rechecks current membership on every transfer', async () => {
+  test('rechecks current membership on every transfer', async () => {
     const f = fixture()
     f.sqlite.exec('DELETE FROM workspace_members')
     expect((await handleCoreFileRequest(f.request(), f.env)).status).toBe(403)
     expect(f.get).not.toHaveBeenCalled()
   })
 
-  it('uses R2 metadata rather than a body read for HEAD', async () => {
+  test('uses R2 metadata rather than a body read for HEAD', async () => {
     const f = fixture()
     const response = await handleCoreFileRequest(f.request('a', 'HEAD'), f.env)
     expect(response.status).toBe(200)
@@ -96,7 +98,7 @@ describe('Core narrow same-binding binary transfer', () => {
     expect(f.get).not.toHaveBeenCalled()
   })
 
-  it('never becomes a generic internal HTTP proxy', async () => {
+  test('never becomes a generic internal HTTP proxy', async () => {
     const f = fixture()
     expect((await handleCoreFileRequest(new Request('https://core.internal/api/issues'), f.env)).status).toBe(404)
     expect(f.get).not.toHaveBeenCalled()

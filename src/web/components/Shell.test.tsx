@@ -2,12 +2,12 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import pkg from '../../../package.json'
-import { project as fixtureProject } from '../features/issues/test/fixtures'
-import type { RequestScope } from '../server/request-context'
-import { Shell } from './Shell'
+import { project as fixtureProject } from '../features/issues/test/fixtures.ts'
+import type { RequestScope } from '../server/request-context.ts'
+import { Shell } from './Shell.tsx'
 
 const workspace = { id: 'workspace-1', slug: 'team', name: 'Team', role: 'owner' } as const
 const scope: RequestScope = {
@@ -58,12 +58,12 @@ afterEach(() => {
 })
 
 describe('generated Base UI Shell', () => {
-  it('reads the preserved application version from the single private root package', () => {
+  test('reads the preserved application version from the single private root package', () => {
     expect(pkg.private).toBe(true)
     expect(pkg.version).toBe('0.7.6')
   })
 
-  it('server renders generated sidebar landmarks and request-local workspace links', () => {
+  test('server renders generated sidebar landmarks and request-local workspace links', () => {
     const element = document.createElement('div')
     element.innerHTML = renderToString(
       <Shell scope={scope} pathname='/settings/groups'>
@@ -75,13 +75,14 @@ describe('generated Base UI Shell', () => {
     expect(element.querySelector('.app-main, .drawer-overlay, .sidebar')).toBeNull()
     const links = element.querySelectorAll('[data-slot="sidebar-menu-button"]')
     expect(links.length).toBe(5)
-    for (const link of links)
+    for (const link of links) {
       expect(new URL(link.getAttribute('href')!, 'https://app.test').searchParams.get('workspace')).toBe('team')
+    }
     expect(element.querySelector('a[aria-current="page"]')?.textContent).toBe('Groups')
     expect(element.textContent).toContain(`v${pkg.version}`)
   })
 
-  it('retains a native login POST and the exact server return URL', () => {
+  test('retains a native login POST and the exact server return URL', () => {
     render(
       <Shell scope={null} pathname='/help' returnTo='/help?workspace=team'>
         <h1>Help</h1>
@@ -94,7 +95,7 @@ describe('generated Base UI Shell', () => {
     expect(new FormData(form).get('redirect_url')).toBe('/help?workspace=team')
   })
 
-  it('server renders a workspace-wide Issues entry even while a project is selected', () => {
+  test('server renders a workspace-wide Issues entry even while a project is selected', () => {
     const element = document.createElement('div')
     element.innerHTML = renderToString(
       <Shell
@@ -110,7 +111,7 @@ describe('generated Base UI Shell', () => {
     expect(link?.getAttribute('aria-current')).toBe('page')
   })
 
-  it.each([1440, 390])(
+  test.each([1440, 390])(
     'offers native workspace-wide Issues navigation without project or assignee leakage at %spx',
     async (width) => {
       viewport(width)
@@ -141,7 +142,7 @@ describe('generated Base UI Shell', () => {
     },
   )
 
-  it('uses the generated portal menu while auth controls stay associated with persistent native forms', async () => {
+  test('uses the generated portal menu while auth controls stay associated with persistent native forms', async () => {
     render(
       <Shell scope={scope} pathname='/settings/groups' returnTo='/settings/groups?workspace=team'>
         <h1>Groups</h1>
@@ -168,7 +169,7 @@ describe('generated Base UI Shell', () => {
     expect(document.getElementById(refreshForm.id)).toBe(refreshForm)
   })
 
-  it('lets the generated provider collapse desktop navigation and persist cosmetic preferences', () => {
+  test('lets the generated provider collapse desktop navigation and persist cosmetic preferences', () => {
     const { container } = render(
       <Shell scope={scope} pathname='/'>
         <h1>Projects</h1>
@@ -180,7 +181,7 @@ describe('generated Base UI Shell', () => {
     expect(Object.keys(JSON.parse(localStorage.getItem('prefs')!)).sort()).toEqual(['density', 'sidebar', 'theme'])
   })
 
-  it('opens and dismisses the generated mobile Sheet, not a manual drawer', async () => {
+  test('opens and dismisses the generated mobile Sheet, not a manual drawer', async () => {
     viewport(390)
     render(
       <Shell scope={scope} pathname='/'>
@@ -199,7 +200,7 @@ describe('generated Base UI Shell', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sidebar' })).toBeNull())
   })
 
-  it("leaves Wiki full bleed while other pages use the shell's one content gutter", () => {
+  test("leaves Wiki full bleed while other pages use the shell's one content gutter", () => {
     const { container, rerender } = render(
       <Shell scope={scope} pathname='/wiki/page'>
         <div>Wiki</div>

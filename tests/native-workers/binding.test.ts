@@ -1,9 +1,9 @@
 import { env as nativeApiEnv } from 'cloudflare:test'
 import { Effect } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { RateLimitResult } from '../../src/contracts/request-rate-limit'
+import { RateLimitResult } from '../../src/contracts/request-rate-limit.ts'
 import type NativeFixtureCore from './core.worker'
 
 interface FixtureBinding {
@@ -26,15 +26,17 @@ function fixtureBinding(value: unknown): FixtureBinding {
 const core = fixtureBinding(Reflect.get(nativeApiEnv, 'CORE'))
 
 describe('actual native API and Core topology', () => {
-  it('does not give the public API database, cache or file capabilities', () => {
-    for (const name of ['DB', 'KV', 'R2']) expect(name in nativeApiEnv).toBe(false)
+  test('does not give the public API database, cache or file capabilities', () => {
+    for (const name of ['DB', 'KV', 'R2']) {
+      expect(name in nativeApiEnv).toBe(false)
+    }
   })
 
-  it('keeps real native storage in the private Core isolate', async () => {
+  test('keeps real native storage in the private Core isolate', async () => {
     expect(await core.fixtureEnvironment()).toMatchObject({ database: true, cache: true, files: true })
   })
 
-  it('dispatches the official named Core RPC protocol through root and configured session bindings', async () => {
+  test('dispatches the official named Core RPC protocol through root and configured session bindings', async () => {
     const session = await core.fixtureSession({ DEV_USER_EMAIL: '' })
     for (const binding of [core, session]) {
       const wire = await Effect.runPromise(makeCoreClient(binding).apiCheckRateLimit({}))
@@ -47,7 +49,7 @@ describe('actual native API and Core topology', () => {
     }
   })
 
-  it('applies each session policy inside actual named Core handlers, not only fixture inspection', async () => {
+  test('applies each session policy inside actual named Core handlers, not only fixture inspection', async () => {
     const epoch = `native-session-policy-${crypto.randomUUID()}`
     const [restricted, ordinary] = await Promise.all([
       core.fixtureSession({
@@ -70,7 +72,7 @@ describe('actual native API and Core topology', () => {
     expect(await check(ordinary)).toBe(null)
   })
 
-  it('creates independently configured native Core sessions without shared policy state', async () => {
+  test('creates independently configured native Core sessions without shared policy state', async () => {
     const [first, second] = await Promise.all([
       core.fixtureSession({ DEV_USER_EMAIL: 'first@example.test', BRAND_NAME: 'First' }),
       core.fixtureSession({ DEV_USER_EMAIL: 'second@example.test', BRAND_NAME: 'Second' }),

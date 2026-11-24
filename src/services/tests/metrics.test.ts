@@ -1,15 +1,15 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
 import { Effect } from 'effect'
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { migratedDb } from '#db/test/helpers'
+import { migratedDb } from '#db/test/helpers.ts'
 
-import { getCodeHeatmap } from '../code-heatmap'
-import { DataQueryError } from '../errors'
-import { getFlowMetrics } from '../flow-metrics'
+import { getCodeHeatmap } from '../code-heatmap.ts'
+import { DataQueryError } from '../errors.ts'
+import { getFlowMetrics } from '../flow-metrics.ts'
 
-const DAY = 86400
+const DAY = 86_400
 const now = 3 * DAY
 
 /** Executes the production Drizzle SQL against the complete migrated SQLite schema. */
@@ -86,7 +86,7 @@ describe('shared metrics migrated SQLite reads', () => {
 
   afterEach(() => sqlite.close())
 
-  it('preserves the complete windowed output, historical CFD baseline, human attribution and present aging snapshot', async () => {
+  test('preserves the complete windowed output, historical CFD baseline, human attribution and present aging snapshot', async () => {
     const result = await Effect.runPromise(
       getFlowMetrics(db, 'wa', { projectId: 'pa', since: DAY, until: now - 1, granularity: 'day' }, now),
     )
@@ -129,7 +129,7 @@ describe('shared metrics migrated SQLite reads', () => {
     })
   })
 
-  it('retains unbounded default distributions and deterministic default day/ISO-week buckets', async () => {
+  test('retains unbounded default distributions and deterministic default day/ISO-week buckets', async () => {
     const result = await Effect.runPromise(getFlowMetrics(db, 'wa', { projectId: 'pa', granularity: 'week' }, now))
     expect(result.leadTime).toEqual(distribution(50))
     expect(result.leadTimeExcluded).toBe(1)
@@ -139,7 +139,7 @@ describe('shared metrics migrated SQLite reads', () => {
     expect(result.throughputOverTime.at(-1)).toEqual({ bucketStart: '1969-12-29', count: 2 })
   })
 
-  it('clamps partial weekly edges and returns empty data without cross-workspace leakage', async () => {
+  test('clamps partial weekly edges and returns empty data without cross-workspace leakage', async () => {
     const partial = await Effect.runPromise(
       getFlowMetrics(db, 'wa', { projectId: 'pa', since: DAY + 60, until: DAY + 70, granularity: 'week' }, now),
     )
@@ -162,7 +162,7 @@ describe('shared metrics migrated SQLite reads', () => {
     })
   })
 
-  it('retains claims drill-down, stable count ordering, inclusive bounds and unfiltered total distinct issues', async () => {
+  test('retains claims drill-down, stable count ordering, inclusive bounds and unfiltered total distinct issues', async () => {
     const insert = sqlite.prepare(
       'INSERT INTO issue_file_claims (id,workspace_id,issue_id,path,claimed_at,released_at) VALUES (?,?,?,?,?,?)',
     )
@@ -204,7 +204,7 @@ describe('shared metrics migrated SQLite reads', () => {
     })
   })
 
-  it('retains contention DTO names and tenant/project/default-window filters', async () => {
+  test('retains contention DTO names and tenant/project/default-window filters', async () => {
     const insert = sqlite.prepare(
       'INSERT INTO claim_conflicts (id,workspace_id,path,rejected_issue_id,holding_issue_id,occurred_at) VALUES (?,?,?,?,?,?)',
     )
@@ -236,7 +236,7 @@ describe('shared metrics migrated SQLite reads', () => {
     })
   })
 
-  it('defers SQL execution and reports query failures with the package DataQueryError', async () => {
+  test('defers SQL execution and reports query failures with the package DataQueryError', async () => {
     let queries = 0
     const tracked = readDatabase(sqlite, () => queries++)
     const flow = getFlowMetrics(tracked, 'wa', { projectId: 'pa', since: DAY, until: now, granularity: 'day' }, now)

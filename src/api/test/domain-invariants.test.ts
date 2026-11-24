@@ -1,15 +1,15 @@
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { addComment, deleteComment, updateComment } from '#commands/comments'
-import { listLinksForIssue } from '#commands/issue-links'
-import { deleteIssue } from '#commands/issues'
-import { updateTaskStatus } from '#commands/task-statuses'
-import { updateTaskType } from '#commands/task-types'
-import type { ServiceCtx } from '#commands/types'
-import { markWikiNotificationsRead } from '#commands/wiki-watchers'
+import { addComment, deleteComment, updateComment } from '#commands/comments.ts'
+import { listLinksForIssue } from '#commands/issue-links.ts'
+import { deleteIssue } from '#commands/issues.ts'
+import { updateTaskStatus } from '#commands/task-statuses.ts'
+import { updateTaskType } from '#commands/task-types.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import { markWikiNotificationsRead } from '#commands/wiki-watchers.ts'
 
-import { env } from './fixture-api'
-import { seedFixture, seedGroupGrant, seedIssue, seedProject, seedTaskStatus, seedTaskType } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedFixture, seedGroupGrant, seedIssue, seedProject, seedTaskStatus, seedTaskType } from './helpers.ts'
 
 async function fixture() {
   const f = await seedFixture({ role: 'member' })
@@ -27,7 +27,7 @@ async function fixture() {
 }
 
 describe('native D1 domain invariants', () => {
-  it('chunks issue storage cleanup at 1000 keys and continues after failure', async () => {
+  test('chunks issue storage cleanup at 1000 keys and continues after failure', async () => {
     const f = await fixture()
     f.ctx.role = 'owner'
     for (let offset = 0; offset < 1001; offset += 100) {
@@ -61,7 +61,8 @@ describe('native D1 domain invariants', () => {
       log.mockRestore()
     }
   })
-  it('uses effective grants for author comment mutations and observes a downgrade immediately', async () => {
+
+  test('uses effective grants for author comment mutations and observes a downgrade immediately', async () => {
     const f = await fixture()
     await seedGroupGrant(f.workspace.id, f.user.id, f.project.id, 'member')
     f.ctx.role = 'viewer'
@@ -80,7 +81,7 @@ describe('native D1 domain invariants', () => {
     )
   })
 
-  it('omits related issue metadata after access to its project is revoked', async () => {
+  test('omits related issue metadata after access to its project is revoked', async () => {
     const f = await fixture()
     const hidden = await seedProject(f.workspace.id, 'SECRET')
     const linked = await seedIssue(f.workspace.id, hidden.id, f.user.id, { title: 'Secret issue' })
@@ -95,7 +96,7 @@ describe('native D1 domain invariants', () => {
     expect(await listLinksForIssue(f.ctx, { issueId: f.issue.id })).toEqual([])
   })
 
-  it.each([98, 200])(
+  test.each([98, 200])(
     'marks %i notifications without exceeding native D1 bind limits or touching another user',
     async (count) => {
       const f = await fixture()
@@ -118,7 +119,7 @@ describe('native D1 domain invariants', () => {
     },
   )
 
-  it.each(['type', 'status'] as const)(
+  test.each(['type', 'status'] as const)(
     'does not clear the default %s when the requested target is missing',
     async (kind) => {
       const f = await fixture()

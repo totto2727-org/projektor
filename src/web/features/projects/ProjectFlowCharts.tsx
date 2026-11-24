@@ -1,11 +1,13 @@
 'use client'
 
-import { CfdChart, ThroughputChart } from '../planning/flow-charts'
-import type { FlowMetrics } from './schemas'
+import { CfdChart, ThroughputChart } from '../planning/flow-charts.tsx'
+import type { FlowMetrics } from './schemas.ts'
 
 /** Overview and Metrics share the same chart geometry and raw-count semantics. */
 export function ProjectFlowCharts({ flow }: { flow: FlowMetrics | null }) {
-  if (!flow) return null
+  if (!flow) {
+    return null
+  }
   return (
     <section className='mb-8' aria-labelledby='flow-charts-heading'>
       <h2

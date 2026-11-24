@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import type { ReviewTarget } from '../../../../contracts/review-targets'
-import { issue } from '../test/fixtures'
-import { ReviewTargetsSummary } from './ReviewTargetsSummary'
+import type { ReviewTarget } from '../../../../contracts/review-targets.ts'
+import { issue } from '../test/fixtures.ts'
+import { ReviewTargetsSummary } from './ReviewTargetsSummary.tsx'
 
 afterEach(cleanup)
 
@@ -21,7 +21,7 @@ function target(overrides: Partial<ReviewTarget> = {}): ReviewTarget {
 }
 
 describe('issue review target summary', () => {
-  it('always displays an unconfigured link, including server-rendered HTML', () => {
+  test('always displays an unconfigured link, including server-rendered HTML', () => {
     const value = { ...issue(), workspaceSlug: 'team space' }
     render(<ReviewTargetsSummary issue={value} />)
     const link = screen.getByRole('link', { name: 'Review targets: 対象なし' })
@@ -31,7 +31,7 @@ describe('issue review target summary', () => {
     expect(renderToStaticMarkup(<ReviewTargetsSummary issue={value} />)).toContain('対象なし')
   })
 
-  it.each([undefined, 'team space', 'team & space?#'])(
+  test.each([undefined, 'team space', 'team & space?#'])(
     'opens the focused page within workspace %s',
     (workspaceSlug) => {
       render(<ReviewTargetsSummary issue={{ ...issue(), workspaceSlug }} />)
@@ -45,7 +45,7 @@ describe('issue review target summary', () => {
     },
   )
 
-  it('prioritizes a reviewing target over earlier attachments and shows the remaining count', () => {
+  test('prioritizes a reviewing target over earlier attachments and shows the remaining count', () => {
     const targets = Object.freeze([
       target(),
       target({ id: 'review', filename: 'Review this', status: 'in_review' }),
@@ -60,7 +60,7 @@ describe('issue review target summary', () => {
     expect(targets.map((entry) => entry.id)).toEqual(['reference', 'review', 'done'])
   })
 
-  it.each([
+  test.each([
     ['fixing', '修正中'],
     ['changes_requested', '要修正'],
   ] as const)('shows %s as not ready for review through text and a muted treatment', (status, label) => {
@@ -71,7 +71,7 @@ describe('issue review target summary', () => {
     expect(screen.queryByText(/^\+\d+$/)).toBeNull()
   })
 
-  it('preserves fallback issue and workspace identity when opening the focused page', () => {
+  test('preserves fallback issue and workspace identity when opening the focused page', () => {
     render(<ReviewTargetsSummary issue={{ ...issue(), id: 'id /?', project_key: null, workspaceSlug: 'other' }} />)
     const url = new URL(screen.getByRole('link').getAttribute('href') ?? '', 'https://front.test')
     expect(url.pathname).toBe('/issues/view')
@@ -80,7 +80,7 @@ describe('issue review target summary', () => {
     expect(url.searchParams.get('tab')).toBe('review-targets')
   })
 
-  it('marks a mixture of fixing and changes requested as review not needed', () => {
+  test('marks a mixture of fixing and changes requested as review not needed', () => {
     render(
       <ReviewTargetsSummary
         issue={{ ...issue(), reviewTargets: [target(), target({ id: 'changes', status: 'changes_requested' })] }}
@@ -91,7 +91,7 @@ describe('issue review target summary', () => {
     expect(link.className).not.toContain('border-accent')
   })
 
-  it('hides completed targets entirely, including their names, statuses and counts', () => {
+  test('hides completed targets entirely, including their names, statuses and counts', () => {
     render(
       <ReviewTargetsSummary
         issue={{ ...issue(), reviewTargets: [target({ filename: 'Hidden completion', status: 'done' })] }}

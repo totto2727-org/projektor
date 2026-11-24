@@ -2,25 +2,25 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import type { D1Database } from '@cloudflare/workers-types'
 import { Effect } from 'effect'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { resetProvisioningCacheForTests } from '#commands/provisioning'
+import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
 import { schema } from '#db'
 import { listProjects } from '#services'
-import { type BrowserAuthEnvironment, resetAuthCachesForTests } from '#services/authentication'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
+import type { BrowserAuthEnvironment } from '#services/authentication.ts'
 
-import { visibleProjectPredicate } from '../../core/web/data-context'
-import { createTestDatabase } from '../test/database'
+import { visibleProjectPredicate } from '../../core/web/data-context.ts'
+import { createTestDatabase } from '../test/database.ts'
 import {
-  type AuthSession,
   decodeAuthSession,
   decodeProjectCatalog,
   loadRequestScope,
-  type ProjectSummary,
   readProjectHint,
   resolveScope,
-} from './request-context'
-import { testEnvironment } from './test/resources'
+} from './request-context.ts'
+import type { AuthSession, ProjectSummary } from './request-context.ts'
+import { testEnvironment } from './test/resources.ts'
 
 const session: AuthSession = {
   user: { id: 'user-a', email: 'a@example.test', name: 'A' },
@@ -58,14 +58,14 @@ const projects = [project, otherProject]
 const page = (path: string) => new URL(path, 'https://front.example.test')
 
 describe('request scope selection', () => {
-  it.each(['/', '/my-issues', '/settings/groups', '/settings/tokens'])(
+  test.each(['/', '/my-issues', '/settings/groups', '/settings/tokens'])(
     'does not require a project or choose a default tenant on %s',
     (path) => {
       expect(resolveScope(session, projects, page(path)).selection).toEqual({ kind: 'global' })
     },
   )
 
-  it.each(['project-a', 'ALPHA', 'alpha-project'])(
+  test.each(['project-a', 'ALPHA', 'alpha-project'])(
     'resolves explicit project %s from its authenticated catalog',
     (hint) => {
       expect(resolveScope(session, projects, page(`/issues?projectId=${hint}`)).selection).toEqual({
@@ -76,7 +76,7 @@ describe('request scope selection', () => {
     },
   )
 
-  it('uses a membership-only workspace without needing a project', () => {
+  test('uses a membership-only workspace without needing a project', () => {
     expect(
       resolveScope(session, projects, page('/settings/groups?workspace=beta'), {
         requireWorkspace: true,
@@ -87,7 +87,7 @@ describe('request scope selection', () => {
     })
   })
 
-  it('does not pick the first of multiple workspaces or projects', () => {
+  test('does not pick the first of multiple workspaces or projects', () => {
     expect(resolveScope(session, projects, page('/settings/groups'), { requireWorkspace: true }).selection).toEqual({
       kind: 'selection-required',
       target: 'workspace',
@@ -100,7 +100,7 @@ describe('request scope selection', () => {
     })
   })
 
-  it('distinguishes empty selection from ambiguity', () => {
+  test('distinguishes empty selection from ambiguity', () => {
     const noMemberships = { ...session, workspaces: [] }
     expect(resolveScope(noMemberships, [], page('/settings/groups'), { requireWorkspace: true }).selection).toEqual({
       kind: 'selection-required',
@@ -114,7 +114,7 @@ describe('request scope selection', () => {
     })
   })
 
-  it('selects a unique required project, but not for a global page', () => {
+  test('selects a unique required project, but not for a global page', () => {
     expect(resolveScope(session, [project], page('/projects/view'), { requireProject: true }).selection).toMatchObject({
       kind: 'project',
       project,
@@ -122,7 +122,7 @@ describe('request scope selection', () => {
     expect(resolveScope(session, [project], page('/')).selection).toEqual({ kind: 'global' })
   })
 
-  it('fails closed on unknown workspace or contradictory project/workspace', () => {
+  test('fails closed on unknown workspace or contradictory project/workspace', () => {
     expect(() => resolveScope(session, projects, page('/settings/groups?workspace=missing'))).toThrow(
       'Selected workspace is not accessible.',
     )
@@ -131,13 +131,13 @@ describe('request scope selection', () => {
     )
   })
 
-  it('does not trust a catalog project without the matching current membership', () => {
+  test('does not trust a catalog project without the matching current membership', () => {
     expect(() => resolveScope({ ...session, workspaces: [] }, projects, page('/issues?projectId=project-a'))).toThrow(
       'Selected project is not accessible.',
     )
   })
 
-  it('requires selection when project keys collide across workspaces', () => {
+  test('requires selection when project keys collide across workspaces', () => {
     const collision = { ...otherProject, key: 'ALPHA' }
     expect(resolveScope(session, [project, collision], page('/issues?project=ALPHA')).selection).toEqual({
       kind: 'selection-required',
@@ -149,14 +149,14 @@ describe('request scope selection', () => {
     ).toMatchObject({ kind: 'project', project: collision })
   })
 
-  it.each(['/issues/view?id=entity', '/wiki/view?id=entity', '/feedback/view?id=entity'])(
+  test.each(['/issues/view?id=entity', '/wiki/view?id=entity', '/feedback/view?id=entity'])(
     'does not reinterpret entity id on %s as a project',
     (path) => {
       expect(readProjectHint(page(path))).toBeUndefined()
     },
   )
 
-  it('reads legacy query ids and accepts project identity supplied by the framework route', () => {
+  test('reads legacy query ids and accepts project identity supplied by the framework route', () => {
     expect(readProjectHint(page('/projects/view?id=project-a'))).toBe('project-a')
     expect(readProjectHint(page('/projects/view/alpha-project/'))).toBeUndefined()
     expect(
@@ -167,7 +167,7 @@ describe('request scope selection', () => {
     expect(readProjectHint(page('/projects/alpha-project/issues/12/title'))).toBeUndefined()
   })
 
-  it('rejects conflicting repeated hints without parsing path encoding again', () => {
+  test('rejects conflicting repeated hints without parsing path encoding again', () => {
     expect(() => readProjectHint(page('/issues?projectId=a&projectId=b'))).toThrow('Ambiguous projectId parameter.')
     expect(readProjectHint(page('/projects/%E0%A4/issues/12/title'))).toBeUndefined()
   })
@@ -233,7 +233,8 @@ describe('server scope loading', () => {
   function catalogReads() {
     return prepare.mock.calls.filter(([query]) => typeof query === 'string' && query.includes('COUNT(CASE')).length
   }
-  it('verifies browser auth then reads only granted projects directly, without inherited workspace header', async () => {
+
+  test('verifies browser auth then reads only granted projects directly, without inherited workspace header', async () => {
     const scope = await load(
       new Request(page('/issues?projectId=project-a'), { headers: { 'x-workspace-slug': 'unrelated' } }),
     )
@@ -244,7 +245,8 @@ describe('server scope loading', () => {
     expect(catalogReads()).toBe(1)
     expect(scope.workspaces).toEqual(session.workspaces)
   })
-  it('retries archived DB catalog exactly once and leaves ordinary catalog active-only', async () => {
+
+  test('retries archived DB catalog exactly once and leaves ordinary catalog active-only', async () => {
     sqlite.exec("UPDATE projects SET archived_at = 42 WHERE id = 'project-a'")
     expect((await load()).projects).toEqual([])
     prepare.mockClear()
@@ -252,7 +254,8 @@ describe('server scope loading', () => {
     expect(scope.selection).toMatchObject({ kind: 'project', project: { id: 'project-a', archived_at: 42 } })
     expect(catalogReads()).toBe(2)
   })
-  it.each(['Bearer workspace-restricted', 'Bearer read-restricted', 'Basic other', ''])(
+
+  test.each(['Bearer workspace-restricted', 'Bearer read-restricted', 'Basic other', ''])(
     'rejects Authorization %s before auth or DB even with Access credentials',
     async (authorization) => {
       await expect(
@@ -262,19 +265,22 @@ describe('server scope loading', () => {
       expect(prepare).not.toHaveBeenCalled()
     },
   )
-  it('fails closed on invalid Access credentials without falling back to development', async () => {
+
+  test('fails closed on invalid Access credentials without falling back to development', async () => {
     await expect(
       load(new Request(page('/'), { headers: { cookie: 'CF_Authorization=invalid-token' } })),
     ).rejects.toMatchObject({ _tag: 'ApiError', status: 401, message: 'Invalid Access token' })
     expect(prepare).not.toHaveBeenCalled()
     expect(externalFetch).not.toHaveBeenCalled()
   })
-  it('rejects anonymous public-viewer identity before private catalog retrieval', async () => {
+
+  test('rejects anonymous public-viewer identity before private catalog retrieval', async () => {
     env.DEV_USER_EMAIL = 'public-viewer@projektor.local'
     await expect(load()).rejects.toMatchObject({ _tag: 'ScopeError', status: 403 })
     expect(catalogReads()).toBe(0)
   })
-  it('uses actual membership roles and refreshes grant visibility each request', async () => {
+
+  test('uses actual membership roles and refreshes grant visibility each request', async () => {
     expect((await load()).projects.map((item) => item.id)).toEqual(['project-a'])
     sqlite.exec(
       "DELETE FROM group_project_grants; UPDATE workspace_members SET role='admin' WHERE workspace_id='workspace-b'",
@@ -287,11 +293,13 @@ describe('server scope loading', () => {
       status: 404,
     })
   })
-  it('retains current DB membership as an additional boundary even with valid identity', async () => {
+
+  test('retains current DB membership as an additional boundary even with valid identity', async () => {
     sqlite.exec('DELETE FROM workspace_members')
     expect((await load()).projects).toEqual([])
   })
-  it('applies the web app grant predicate to shared workspace-scoped list queries', async () => {
+
+  test('applies the web app grant predicate to shared workspace-scoped list queries', async () => {
     const scope = await load()
     const rows = await Effect.runPromise(
       listProjects(db, 'workspace-a', {
@@ -308,7 +316,8 @@ describe('server scope loading', () => {
       ),
     ).toEqual([])
   })
-  it('fails closed on missing DB and redacts SQL failures without API catalog fallback', async () => {
+
+  test('fails closed on missing DB and redacts SQL failures without API catalog fallback', async () => {
     await expect(load(new Request(page('/')), null as unknown as D1Database)).rejects.toMatchObject({
       _tag: 'ApiError',
       kind: 'request',
@@ -331,7 +340,7 @@ describe('server scope loading', () => {
     }
   })
 
-  it('rejects weak/malformed membership and project payloads instead of casting them', () => {
+  test('rejects weak/malformed membership and project payloads instead of casting them', () => {
     expect(() => decodeAuthSession({ user: session.user, workspaces: [{ slug: 'alpha', role: 'owner' }] })).toThrow()
     expect(() => decodeProjectCatalog([{ ...project, workspace_slug: null }])).toThrow()
   })

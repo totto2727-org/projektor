@@ -2,13 +2,13 @@
 
 import { Effect, Schema } from 'effect'
 
-import { EFFRONT } from '../../effront'
-import { RequestServices } from '../../request'
-import { runBrowserCommand as runCommand } from '../../server/browser-command'
-import { ScopeError } from '../../server/errors'
-import { resolveFunctionContext } from '../../server/function-context'
-import { checkSameOriginMutation } from '../../server/mutation'
-import { groupCommands, revokeConnectorGrant, workspaceCommands } from './data'
+import { EFFRONT } from '../../effront.ts'
+import { RequestServices } from '../../request.ts'
+import { runBrowserCommand as runCommand } from '../../server/browser-command.ts'
+import { ScopeError } from '../../server/errors.ts'
+import { resolveFunctionContext } from '../../server/function-context.ts'
+import { checkSameOriginMutation } from '../../server/mutation.ts'
+import { groupCommands, revokeConnectorGrant, workspaceCommands } from './data.ts'
 import {
   ConnectorIdentitySchema,
   CreateGroupInputSchema,
@@ -20,7 +20,7 @@ import {
   GroupProjectIdentitySchema,
   RenameGroupInputSchema,
   TokenIdentitySchema,
-} from './input-schemas'
+} from './input-schemas.ts'
 
 export const createGroup = EFFRONT.ServerFn.make({
   input: [Schema.Unknown, Schema.fromFormData(CreateGroupInputSchema)] as const,
@@ -30,7 +30,9 @@ export const createGroup = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.createGroup(ctx, { name: input.name.trim() }),
         ).pipe(Effect.map(({ id }) => ({ id })))
@@ -52,7 +54,9 @@ export const renameGroup = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.updateGroup(ctx, input.groupId, { name: input.name.trim() }),
         )
@@ -74,7 +78,9 @@ export const describeGroup = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.updateGroup(ctx, input.groupId, { description: input.description.trim() || null }),
         )
@@ -96,7 +102,9 @@ export const deleteGroup = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) => groupCommands.deleteGroup(ctx, input.groupId))
         return { ok: true as const, value }
       }).pipe(
@@ -116,7 +124,9 @@ export const addGroupMember = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.addGroupMember(ctx, input.groupId, { userId: input.userId }),
         )
@@ -138,7 +148,9 @@ export const removeGroupMember = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.removeGroupMember(ctx, input.groupId, input.userId),
         )
@@ -163,7 +175,9 @@ export const setGroupGrant = EFFRONT.ServerFn.make({
           { workspaceSlug: input.workspaceSlug },
           { requireWorkspace: true },
         )
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.setGroupGrant(ctx, input.groupId, { projectId: input.projectId, role: input.role }),
         )
@@ -189,7 +203,9 @@ export const createGroupGrant = EFFRONT.ServerFn.make({
           { workspaceSlug: input.workspaceSlug },
           { requireWorkspace: true },
         )
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.setGroupGrant(ctx, input.groupId, { projectId: input.projectId, role: input.role }),
         )
@@ -214,7 +230,9 @@ export const removeGroupGrant = EFFRONT.ServerFn.make({
           { workspaceSlug: input.workspaceSlug },
           { requireWorkspace: true },
         )
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) =>
           groupCommands.removeGroupGrant(ctx, input.groupId, input.projectId),
         )
@@ -236,7 +254,9 @@ export const createToken = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) =>
           workspaceCommands.createToken(ctx, {
             name: input.name.trim(),
@@ -262,7 +282,9 @@ export const revokeToken = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) => workspaceCommands.revokeToken(ctx, input.tokenId))
         return { ok: true as const, value }
       }).pipe(
@@ -282,7 +304,9 @@ export const disconnectConnector = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
-        if (!context.workspaceSlug) return yield* new ScopeError(403, 'Select an accessible workspace.')
+        if (!context.workspaceSlug) {
+          return yield* new ScopeError(403, 'Select an accessible workspace.')
+        }
         const value = yield* runCommand(context, (ctx) => revokeConnectorGrant(ctx, input.connectorId))
         return { ok: true as const, value }
       }).pipe(

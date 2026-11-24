@@ -2,7 +2,8 @@ import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { readdir, writeFile } from 'node:fs/promises'
 
-import { expect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import type { APIRequestContext, Page, TestInfo } from '@playwright/test'
 
 type BrowserAudit = {
   pageErrors: string[]
@@ -28,7 +29,9 @@ const testAudits = new Map<string, BrowserAudit[]>()
 
 function observeBrowser(page: Page, testInfo: TestInfo) {
   const existing = pageAudits.get(page)
-  if (existing) return existing
+  if (existing) {
+    return existing
+  }
   const audit: BrowserAudit = {
     pageErrors: [],
     consoleErrors: [],
@@ -41,7 +44,9 @@ function observeBrowser(page: Page, testInfo: TestInfo) {
   testAudits.set(testInfo.testId, audits)
   page.on('pageerror', (error) => audit.pageErrors.push(error.message))
   page.on('console', (message) => {
-    if (message.type() === 'error') audit.consoleErrors.push(message.text())
+    if (message.type() === 'error') {
+      audit.consoleErrors.push(message.text())
+    }
   })
   page.on('request', (request) => {
     if (['fetch', 'xhr'].includes(request.resourceType()) && new URL(request.url()).pathname.startsWith('/api/')) {
@@ -75,7 +80,9 @@ test.afterEach(async ({ page }, testInfo) => {
 
 async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(async () => {
-    while (document.activeViewTransition) await document.activeViewTransition.finished
+    while (document.activeViewTransition) {
+      await document.activeViewTransition.finished
+    }
   })
   if (new URL(page.url()).pathname === '/settings/groups') {
     await expect(page.getByRole('heading', { name: 'Groups', level: 1 })).toBeVisible()
@@ -87,7 +94,9 @@ async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
   }))
   const viewportWidth = page.viewportSize()?.width
   expect(viewportWidth, 'Acceptance viewport must be explicit').toBeDefined()
-  if (viewportWidth === undefined) throw new Error('Acceptance viewport must be explicit.')
+  if (viewportWidth === undefined) {
+    throw new Error('Acceptance viewport must be explicit.')
+  }
   const layout = await page.evaluate(() => {
     const content = document.querySelector<HTMLElement>('.projektor-page-content')
     const nav = content?.querySelector<HTMLElement>(':scope > .projektor-project-nav')
@@ -121,8 +130,9 @@ async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
   for (const table of layout.tables) {
     expect(table.display, `${name}: Markdown must preserve native table layout`).toBe('table')
     expect(table.wrap, `${name}: wide table cells must not collapse into single-letter columns`).toBe('normal')
-    if (table.rowWidth !== null)
+    if (table.rowWidth !== null) {
       expect(table.rowWidth, `${name}: Markdown rows must fill the table`).toBeCloseTo(table.width, 0)
+    }
   }
   observeBrowser(page, testInfo).checkpoints.push({
     name,
@@ -212,7 +222,9 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
     })
     expect(created.status(), await created.text()).toBe(201)
   }
-  for (const fixture of fixtures) await create(fixture)
+  for (const fixture of fixtures) {
+    await create(fixture)
+  }
   await create({ title: 'Unassigned hidden', status: 'todo', priority: 'urgent', project: 0 }, false)
   // API timestamps have second precision. Ensure the new equal-priority work has a later persisted update.
   await new Promise((resolve) => setTimeout(resolve, 1100))
@@ -221,10 +233,13 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   await expect(page.getByRole('heading', { name: 'My Issues', exact: true })).toBeVisible()
   await expect(page.locator('table')).toHaveCount(1)
   await expect(page.locator('table th')).toHaveText(['#', 'Title', 'Priority', 'Status'])
-  for (const project of projects) await expect(page.getByRole('heading', { name: project.name })).toHaveCount(0)
+  for (const project of projects) {
+    await expect(page.getByRole('heading', { name: project.name })).toHaveCount(0)
+  }
   await expect(page.getByText('Include done', { exact: true })).toHaveCount(0)
-  for (const title of ['Completed hidden', 'Cancelled hidden', 'Unassigned hidden'])
+  for (const title of ['Completed hidden', 'Cancelled hidden', 'Unassigned hidden']) {
     await expect(page.getByRole('link', { name: `${title} ${suffix}`, exact: true })).toHaveCount(0)
+  }
   const expected = [
     'Review first',
     'Progress high new',
@@ -236,8 +251,9 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   ].map((title) => `${title} ${suffix}`)
   const titles = page.getByRole('link', { name: new RegExp(` ${suffix}$`) })
   await expect(titles).toHaveText(expected)
-  for (const link of await titles.all())
+  for (const link of await titles.all()) {
     expect(new URL((await link.getAttribute('href')) ?? '', page.url()).searchParams.get('workspace')).toBe('projektor')
+  }
   await checkpoint(page, testInfo, 'my-issues-open-focus-order')
   await page.reload()
   await expect(titles).toHaveText(expected)
@@ -622,8 +638,11 @@ test('workspace review spans projects and unassigned issues with native filtered
     await expect(visibleTitles()).toHaveCount(expected.length)
     for (const issue of issues) {
       const link = page.getByRole('link', { name: issue.title, exact: true }).filter({ visible: true })
-      if (expected.includes(issue)) await expect(link).toBeVisible()
-      else await expect(link).toHaveCount(0)
+      if (expected.includes(issue)) {
+        await expect(link).toBeVisible()
+      } else {
+        await expect(link).toHaveCount(0)
+      }
     }
   }
   await page.goto(`/issues?workspace=${workspaceSlug}&projectId=${projects[0].id}`)
@@ -710,8 +729,11 @@ test('workspace review spans projects and unassigned issues with native filtered
     expect((await cold.goto(page.url()))?.status()).toBe(200)
     for (const issue of issues) {
       const link = cold.getByRole('link', { name: issue.title, exact: true }).filter({ visible: true })
-      if (issue.review !== null && issue.review !== 'done') await expect(link).toBeVisible()
-      else await expect(link).toHaveCount(0)
+      if (issue.review !== null && issue.review !== 'done') {
+        await expect(link).toBeVisible()
+      } else {
+        await expect(link).toHaveCount(0)
+      }
     }
     await cold
       .getByRole('navigation', { name: 'レビューステータスで課題を絞り込む', exact: true })
@@ -781,13 +803,16 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
     await expect(area).toHaveAttribute('d', /[zZ]$/)
     expect(await area.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(0)
   }
-  for (const label of ['Backlog/todo', 'In progress', 'In review', 'Done'])
+  for (const label of ['Backlog/todo', 'In progress', 'In review', 'Done']) {
     await expect(chart.getByText(label, { exact: true })).toBeVisible()
+  }
   await expect(page.getByTestId('flow-chart-throughput').locator('.recharts-bar-rectangle')).not.toHaveCount(0)
   await checkpoint(page, testInfo, 'charts-overview-filled-bands')
   const surface = chart.locator('svg.recharts-surface')
   const box = await surface.boundingBox()
-  if (!box) throw new Error('CFD chart has no rendered surface')
+  if (!box) {
+    throw new Error('CFD chart has no rendered surface')
+  }
   await page.mouse.move(box.x + box.width - 15, box.y + 80)
   const tooltip = chart.locator('.recharts-tooltip-wrapper')
   await expect(tooltip).toBeVisible()
@@ -987,9 +1012,13 @@ test('native create project and issue refresh canonical reads and navigation', a
   await attachment.click()
   const download = await downloadPromise
   const stream = await download.createReadStream()
-  if (!stream) throw new Error('The native attachment download returned no stream.')
+  if (!stream) {
+    throw new Error('The native attachment download returned no stream.')
+  }
   const chunks: Buffer[] = []
-  for await (const chunk of stream) chunks.push(Buffer.from(chunk))
+  for await (const chunk of stream) {
+    chunks.push(Buffer.from(chunk))
+  }
   expect(Buffer.concat(chunks)).toEqual(bytes)
   await checkpoint(page, testInfo, 'native-attachment-download')
   await page.getByRole('button', { name: `Remove ${filename}`, exact: true }).click()
@@ -1022,7 +1051,9 @@ test('native create project and issue refresh canonical reads and navigation', a
   expect(wikiScope.searchParams.get('projectId')).toBe(new URL(projectUrl).searchParams.get('projectId'))
   await checkpoint(page, testInfo, 'project-scoped-wiki')
   const pages = page.getByRole('button', { name: 'Pages', exact: true })
-  if (await pages.isVisible()) await pages.click()
+  if (await pages.isVisible()) {
+    await pages.click()
+  }
   await page.getByRole('button', { name: '+ New page', exact: true }).click()
   const wikiTitle = `Native wiki ${suffix}`
   await page.getByPlaceholder('Page title', { exact: true }).fill(wikiTitle)
@@ -1336,10 +1367,15 @@ test('all final page routes and aliases render real populated HTML with and with
       for (const route of cases) {
         const response = await reader.goto(route.path)
         expect(response?.status(), route.id).toBe(200)
-        if (route.heading)
+        if (route.heading) {
           await expect(reader.getByRole('heading', { name: route.heading, exact: true, level: 1 })).toBeVisible()
-        if (route.text) await expect(reader.getByText(route.text, { exact: true })).toBeVisible()
-        if (route.body) await expect(reader.locator('body')).toContainText(route.body)
+        }
+        if (route.text) {
+          await expect(reader.getByText(route.text, { exact: true })).toBeVisible()
+        }
+        if (route.body) {
+          await expect(reader.locator('body')).toContainText(route.body)
+        }
         await checkpoint(reader, testInfo, `${javaScriptEnabled ? 'js-on' : 'js-off'}-${route.id}`)
       }
     } finally {
@@ -1369,8 +1405,9 @@ test('large dataset tabs use scoped native URLs and survive reload and history',
         url.searchParams.get('workspace') === 'projektor',
     )
     await expect(page.getByRole('link', { name, exact: true })).toHaveAttribute('aria-current', 'page')
-    for (const sprint of sprints.filter((sprint) => value === 'all' || sprint.status === value))
+    for (const sprint of sprints.filter((sprint) => value === 'all' || sprint.status === value)) {
       await expect(page.locator('body')).toContainText(sprint.name)
+    }
     await checkpoint(page, testInfo, `sprint-tab-${value}`)
   }
   await page.goto('/settings/groups?workspace=projektor')

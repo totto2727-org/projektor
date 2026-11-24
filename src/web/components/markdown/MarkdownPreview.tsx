@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 
-import { renderMarkdownDocument, type MarkdownOptions, type RenderedMarkdown } from './render'
+import { renderMarkdownDocument } from './render.ts'
+import type { MarkdownOptions, RenderedMarkdown } from './render.ts'
 
 import 'katex/dist/katex.min.css'
 import './markdown.css'
@@ -19,20 +20,25 @@ export function useMarkdownPreview(
   const key = JSON.stringify(options)
   const [result, setResult] = useState(() => ({ content, key, document: empty }))
   useEffect(() => {
-    if (initial || (result.content === content && result.key === key && result.document !== empty)) return
+    if (initial || (result.content === content && result.key === key && result.document !== empty)) {
+      return
+    }
     let active = true
     const timer = setTimeout(() => {
       void renderMarkdownDocument(content, JSON.parse(key) as MarkdownOptions).then(
         (document) => {
-          if (active) setResult({ content, key, document })
+          if (active) {
+            setResult({ content, key, document })
+          }
         },
         () => {
-          if (active)
+          if (active) {
             setResult({
               content,
               key,
               document: { html: '<p>Unable to render Markdown.</p>', toc: [] },
             })
+          }
         },
       )
     }, delay)
@@ -42,7 +48,9 @@ export function useMarkdownPreview(
     }
   }, [content, key, delay, result, initial])
   // Canonical SSR/action props win immediately, without a replacement client store.
-  if (initial) return initial
+  if (initial) {
+    return initial
+  }
   // Do not display a previous entity's body while a new render is pending.
   return result.content === content && result.key === key ? result.document : empty
 }

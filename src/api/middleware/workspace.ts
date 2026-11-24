@@ -5,7 +5,7 @@ import { CorePublicError } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
-import { ApiWorkspace } from '../../contracts/api-auth'
+import { ApiWorkspace } from '../../contracts/api-auth.ts'
 
 export function subdomainRoutingEnabled(value: string | undefined): boolean {
   return ['true', '1', 'yes'].includes(value?.trim().toLowerCase() ?? '')
@@ -16,11 +16,17 @@ export function mcpWorkspaceIdFromPath(path: string): string | undefined {
 }
 
 async function warnIfIgnoredSubdomain(c: Context<HonoEnv>, routingEnabled: boolean): Promise<void> {
-  if (routingEnabled) return
+  if (routingEnabled) {
+    return
+  }
   const hostname = c.req.header('host')?.split(':')[0]
-  if (!hostname || hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return
+  if (!hostname || hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+    return
+  }
   const labels = hostname.split('.')
-  if (labels.length < 3 || !labels[0]) return
+  if (labels.length < 3 || !labels[0]) {
+    return
+  }
   try {
     await Effect.runPromise(
       decodeCoreReply(
@@ -62,7 +68,9 @@ export async function workspaceMiddleware(c: Context<HonoEnv>, next: Next) {
     c.set('role', workspace.role)
     return next()
   } catch (error) {
-    if (!(error instanceof CorePublicError)) throw error
+    if (!(error instanceof CorePublicError)) {
+      throw error
+    }
     return Response.json({ error: error.message }, { status: error.status })
   }
 }

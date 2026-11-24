@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
-import { effectiveProjectRole, isWorkspaceAdmin } from './access'
-import { NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+import { effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
+import { NotFoundError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
 
 const ListProjectActivitySchema = z.object({
   projectId: z.string().uuid(),
@@ -137,14 +137,18 @@ async function fetchActivityRows(
 
 export async function listProjectActivity(ctx: ServiceCtx, input: unknown): Promise<ActivityEvent[]> {
   const parsed = ListProjectActivitySchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { projectId, since, limit } = parsed.data
 
   const project = await ctx.db
     .prepare('SELECT id FROM projects WHERE id = ? AND workspace_id = ?')
     .bind(projectId, ctx.workspaceId)
     .first<{ id: string }>()
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
   // PROJ-311: a non-admin without a grant can't see the project's activity feed.
   if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, projectId)) === null) {
     throw new NotFoundError('Project not found')

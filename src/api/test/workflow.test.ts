@@ -1,9 +1,10 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { hashWorkflowContent } from '#commands/workflow'
+import { hashWorkflowContent } from '#commands/workflow.ts'
 
-import { authHeaders, type JsonRpcError, type JsonRpcResult, seedFixture, toolError } from './helpers'
+import { authHeaders, seedFixture, toolError } from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 
 async function mcpCall<T>(
   workspaceId: string,
@@ -31,7 +32,7 @@ describe('Workflow spec', () => {
     workspaceId = fixture.workspace.id
   })
 
-  it('GET /api/workflow returns the spec content plus a version', async () => {
+  test('GET /api/workflow returns the spec content plus a version', async () => {
     const res = await SELF.fetch('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -57,7 +58,7 @@ describe('Workflow spec', () => {
     expect(body.version.length).toBeGreaterThan(0)
   })
 
-  it('MCP get_workflow returns the same content as REST', async () => {
+  test('MCP get_workflow returns the same content as REST', async () => {
     const restRes = await SELF.fetch('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -73,7 +74,7 @@ describe('Workflow spec', () => {
         params: { name: 'get_workflow', arguments: {} },
       }),
     })
-    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
 
     expect(mcpBody).toEqual(restBody)
@@ -81,7 +82,7 @@ describe('Workflow spec', () => {
 
   // PROJ-933: version present, stable across requests/processes, and the same on both
   // surfaces.
-  it('version is present and stable across repeated requests', async () => {
+  test('version is present and stable across repeated requests', async () => {
     const res1 = await SELF.fetch('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -99,18 +100,18 @@ describe('Workflow spec', () => {
       'tools/call',
       { name: 'get_workflow', arguments: {} },
       authHeaders(token, slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text) as { version: string }
     expect(mcpBody.version).toBe(body1.version)
   })
 
-  it('matching ifVersion over MCP returns only { unchanged: true, version }', async () => {
+  test('matching ifVersion over MCP returns only { unchanged: true, version }', async () => {
     const first = (await mcpCall(
       workspaceId,
       'tools/call',
       { name: 'get_workflow', arguments: {} },
       authHeaders(token, slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const { version } = JSON.parse(first.result.content[0].text) as { version: string }
 
     const second = (await mcpCall(
@@ -118,13 +119,13 @@ describe('Workflow spec', () => {
       'tools/call',
       { name: 'get_workflow', arguments: { ifVersion: version } },
       authHeaders(token, slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const body = JSON.parse(second.result.content[0].text)
 
     expect(body).toEqual({ unchanged: true, version })
   })
 
-  it('matching ifVersion over REST returns only { unchanged: true, version }', async () => {
+  test('matching ifVersion over REST returns only { unchanged: true, version }', async () => {
     const first = await SELF.fetch('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -139,13 +140,13 @@ describe('Workflow spec', () => {
     expect(body).toEqual({ unchanged: true, version })
   })
 
-  it('a mismatched ifVersion returns the full content (MCP and REST)', async () => {
+  test('a mismatched ifVersion returns the full content (MCP and REST)', async () => {
     const mcpJson = (await mcpCall(
       workspaceId,
       'tools/call',
       { name: 'get_workflow', arguments: { ifVersion: 'not-the-real-version' } },
       authHeaders(token, slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
     expect(mcpBody.content).toContain('Definition of ready')
     expect(mcpBody).not.toHaveProperty('unchanged')
@@ -159,7 +160,7 @@ describe('Workflow spec', () => {
     expect(restBody.unchanged).toBeUndefined()
   })
 
-  it('an absent ifVersion returns the full content, not unchanged', async () => {
+  test('an absent ifVersion returns the full content, not unchanged', async () => {
     const res = await SELF.fetch('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -168,7 +169,7 @@ describe('Workflow spec', () => {
     expect(body.unchanged).toBeUndefined()
   })
 
-  it('hashWorkflowContent changes when content changes and is stable for the same content', async () => {
+  test('hashWorkflowContent changes when content changes and is stable for the same content', async () => {
     const a1 = await hashWorkflowContent('some spec content')
     const a2 = await hashWorkflowContent('some spec content')
     const b = await hashWorkflowContent('some different spec content')
@@ -177,7 +178,7 @@ describe('Workflow spec', () => {
     expect(a1).not.toBe(b)
   })
 
-  it('version is the hash of the whole returned payload (title, description, content)', async () => {
+  test('version is the hash of the whole returned payload (title, description, content)', async () => {
     const res = await SELF.fetch('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -194,14 +195,14 @@ describe('Workflow spec', () => {
     )
   })
 
-  it('ifVersion longer than 64 chars is rejected', async () => {
+  test('ifVersion longer than 64 chars is rejected', async () => {
     const res = await SELF.fetch(`http://localhost/api/workflow?ifVersion=${'a'.repeat(65)}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)
   })
 
-  it('initialize instructions contain the current workflow version', async () => {
+  test('initialize instructions contain the current workflow version', async () => {
     const workflowRes = await SELF.fetch('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -215,7 +216,7 @@ describe('Workflow spec', () => {
     expect(initRes.result.instructions).toContain('ifVersion')
   })
 
-  it('an invalid ifVersion type over MCP returns a validation tool error', async () => {
+  test('an invalid ifVersion type over MCP returns a validation tool error', async () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -226,7 +227,7 @@ describe('Workflow spec', () => {
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('an invalid ifVersion type over REST (repeated query param) is a 400 validation error', async () => {
+  test('an invalid ifVersion type over REST (repeated query param) is a 400 validation error', async () => {
     const res = await SELF.fetch('http://localhost/api/workflow?ifVersion=a&ifVersion=b', {
       headers: authHeaders(token, slug),
     })

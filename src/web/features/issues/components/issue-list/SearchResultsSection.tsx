@@ -1,8 +1,8 @@
 'use client'
-import { formatIssueRef } from '../../lib/issue-ref'
-import { issueUrl } from '../../utils/issue-url'
-import { ReviewTargetsSummary } from '../ReviewTargetsSummary'
-import type { SearchResult } from './useIssueSearch'
+import { formatIssueRef } from '../../lib/issue-ref.ts'
+import { issueUrl } from '../../utils/issue-url.ts'
+import { ReviewTargetsSummary } from '../ReviewTargetsSummary.tsx'
+import type { SearchResult } from './useIssueSearch.ts'
 
 function priorityBadge(r: SearchResult) {
   return (
@@ -105,7 +105,9 @@ export default function SearchResultsSection({
       </p>
     )
   }
-  if (searchResults === null) return null
+  if (searchResults === null) {
+    return null
+  }
   if (searchResults.length === 0) {
     return <p className='text-text-muted'>No results for «{searchQuery.trim()}»</p>
   }

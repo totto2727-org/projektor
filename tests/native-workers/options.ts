@@ -4,7 +4,7 @@ import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
-import { deployment } from '../../worker-graph'
+import { deployment } from '../../worker-graph.ts'
 
 const execute = promisify(execFile)
 const buildDirectory = fileURLToPath(new URL('./.build/ssr/', import.meta.url))
@@ -26,7 +26,9 @@ function prepareCoreArtifact(): Promise<void> {
 
 /** Compile the same official native Core bridge used by production and browser acceptance. */
 export async function nativeCoreWorker(runnerName: string) {
-  if (!runnerName) throw new Error('The native API runner must be initialized before its Core service.')
+  if (!runnerName) {
+    throw new Error('The native API runner must be initialized before its Core service.')
+  }
   await prepareCoreArtifact()
   const entries = await readdir(buildDirectory, { recursive: true, withFileTypes: true })
   const modules = await Promise.all(
@@ -45,12 +47,16 @@ export async function nativeCoreWorker(runnerName: string) {
                 : extension === '.json' || extension === '.txt'
                   ? ('Text' as const)
                   : undefined
-        if (!type) throw new Error(`Unsupported native Core build artifact: ${path}`)
+        if (!type) {
+          throw new Error(`Unsupported native Core build artifact: ${path}`)
+        }
         return { type, path, contents: await readFile(path) }
       }),
   )
   modules.sort((a, b) => Number(b.path.endsWith('/core.worker.js')) - Number(a.path.endsWith('/core.worker.js')))
-  if (!modules[0]?.path.endsWith('/core.worker.js')) throw new Error('The official native Core artifact is missing.')
+  if (!modules[0]?.path.endsWith('/core.worker.js')) {
+    throw new Error('The official native Core artifact is missing.')
+  }
   return {
     name: 'projektor-native-core',
     modules,

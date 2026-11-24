@@ -1,12 +1,13 @@
 import { Effect } from 'effect'
 
-import { handleApiBinaryRequest } from '../../../core/api/files'
-import { makeApiRateLimitHandlers } from '../../../core/api/rate-limit'
-import type { CoreEnvironment } from '../../../core/environment'
-import { handleCoreFileRequest } from '../../../core/files'
-import { makeWebCoreHandlers, type WebCoreRpcShape } from '../../../core/web/operations'
-import type { WebRequest, ScopeOptions } from '../../../core/web/scope'
-import type { Env } from '../../request'
+import { handleApiBinaryRequest } from '../../../core/api/files.ts'
+import { makeApiRateLimitHandlers } from '../../../core/api/rate-limit.ts'
+import type { CoreEnvironment } from '../../../core/environment.ts'
+import { handleCoreFileRequest } from '../../../core/files.ts'
+import { makeWebCoreHandlers } from '../../../core/web/operations.ts'
+import type { WebCoreRpcShape } from '../../../core/web/operations.ts'
+import type { WebRequest, ScopeOptions } from '../../../core/web/scope.ts'
+import type { Env } from '../../request.ts'
 export type TestEnvironment = CoreEnvironment &
   Omit<Env, 'CORE'> & {
     CORE: Env['CORE'] & {
@@ -23,10 +24,18 @@ export function inMemoryKV(): KVNamespace {
     get: async (key: string, options?: string | { type?: string }) => {
       const value = values.get(key) ?? null
       const type = typeof options === 'string' ? options : options?.type
-      if (value === null) return null
-      if (type === 'json') return JSON.parse(value)
-      if (type === 'arrayBuffer') return new TextEncoder().encode(value).buffer
-      if (type === 'stream') return new Response(value).body
+      if (value === null) {
+        return null
+      }
+      if (type === 'json') {
+        return JSON.parse(value)
+      }
+      if (type === 'arrayBuffer') {
+        return new TextEncoder().encode(value).buffer
+      }
+      if (type === 'stream') {
+        return new Response(value).body
+      }
       return value
     },
     getWithMetadata: async (key: string) => ({ value: values.get(key) ?? null, metadata: null, cacheStatus: null }),
@@ -59,7 +68,9 @@ export function inMemoryR2(): R2Bucket {
     customMetadata: {},
     storageClass: 'Standard' as const,
     writeHttpMetadata: (headers: Headers) => {
-      if (value.httpMetadata.contentType) headers.set('content-type', value.httpMetadata.contentType)
+      if (value.httpMetadata.contentType) {
+        headers.set('content-type', value.httpMetadata.contentType)
+      }
     },
   })
   return {
@@ -79,7 +90,9 @@ export function inMemoryR2(): R2Bucket {
     },
     get: async (key: string) => {
       const value = values.get(key)
-      if (!value) return null
+      if (!value) {
+        return null
+      }
       const response = new Response(value.bytes)
       return {
         ...object(key, value),
@@ -97,7 +110,9 @@ export function inMemoryR2(): R2Bucket {
       return value ? object(key, value) : null
     },
     delete: async (keys: string | string[]) => {
-      for (const key of typeof keys === 'string' ? [keys] : keys) values.delete(key)
+      for (const key of typeof keys === 'string' ? [keys] : keys) {
+        values.delete(key)
+      }
     },
     list: async (options?: { prefix?: string }) => ({
       objects: [...values.entries()]

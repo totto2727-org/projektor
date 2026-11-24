@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, expect, it, vi } from 'vite-plus/test'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../../../components/AttachmentUpload', () => ({ AttachmentUpload: () => null }))
 vi.mock('../../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
@@ -26,10 +26,10 @@ vi.mock('../../../components/markdown/MarkdownPreview', () => ({
   MarkdownPreview: ({ content }: { content: string }) => <p>{content}</p>,
 }))
 
-import { addComment, editComment, updateIssue } from '../actions'
-import { draftKey, loadDraft } from '../utils/drafts'
-import type { IssueData } from './issue-detail-helpers'
-import { BodySection, CommentsSection } from './IssueDetailParts'
+import { addComment, editComment, updateIssue } from '../actions.ts'
+import { draftKey, loadDraft } from '../utils/drafts.ts'
+import type { IssueData } from './issue-detail-helpers.ts'
+import { BodySection, CommentsSection } from './IssueDetailParts.tsx'
 
 const issue: IssueData = {
   id: 'issue',
@@ -65,7 +65,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-it('keeps a description edited while the submitted description is saving', async () => {
+test('keeps a description edited while the submitted description is saving', async () => {
   const pending = deferred<Awaited<ReturnType<typeof updateIssue>>>()
   vi.mocked(updateIssue).mockReturnValue(pending.promise)
   render(<BodySection issue={issue} issueId='issue' workspaceSlug='workspace' currentUserId='user' />)
@@ -85,7 +85,7 @@ it('keeps a description edited while the submitted description is saving', async
   expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBe('Newer body')
 })
 
-it('keeps the saved draft visible until canonical description props commit', async () => {
+test('keeps the saved draft visible until canonical description props commit', async () => {
   const pending = deferred<Awaited<ReturnType<typeof updateIssue>>>()
   vi.mocked(updateIssue).mockReturnValue(pending.promise)
   const emptyIssue = { ...issue, body: '' }
@@ -114,7 +114,7 @@ it('keeps the saved draft visible until canonical description props commit', asy
   expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBeNull()
 })
 
-it('keeps edits made after mutation success while canonical refresh is pending', async () => {
+test('keeps edits made after mutation success while canonical refresh is pending', async () => {
   const pending = deferred<Awaited<ReturnType<typeof updateIssue>>>()
   vi.mocked(updateIssue).mockReturnValue(pending.promise)
   const { rerender } = render(
@@ -139,7 +139,7 @@ it('keeps edits made after mutation success while canonical refresh is pending',
   expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBe('Newer local body')
 })
 
-it('keeps the next comment typed while a previous comment is posting', async () => {
+test('keeps the next comment typed while a previous comment is posting', async () => {
   const pending = deferred<Awaited<ReturnType<typeof addComment>>>()
   vi.mocked(addComment).mockReturnValue(pending.promise)
   render(<CommentsSection issueId='issue' workspaceSlug='workspace' comments={[]} currentUserId='user' />)
@@ -159,7 +159,7 @@ it('keeps the next comment typed while a previous comment is posting', async () 
   expect(screen.getByRole('button', { name: 'Comment' })).toHaveProperty('disabled', false)
 })
 
-it('keeps a newer comment edit visible after the submitted edit saves', async () => {
+test('keeps a newer comment edit visible after the submitted edit saves', async () => {
   const pending = deferred<Awaited<ReturnType<typeof editComment>>>()
   vi.mocked(editComment).mockReturnValue(pending.promise)
   render(
@@ -195,7 +195,7 @@ it('keeps a newer comment edit visible after the submitted edit saves', async ()
   expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', false)
 })
 
-it('retains a failed description draft and allows retry until canonical acknowledgement', async () => {
+test('retains a failed description draft and allows retry until canonical acknowledgement', async () => {
   vi.mocked(updateIssue)
     .mockRejectedValueOnce(new Error('Temporary failure'))
     .mockResolvedValueOnce({ ok: true, value: { ok: true } })
@@ -223,7 +223,7 @@ it('retains a failed description draft and allows retry until canonical acknowle
   expect(loadDraft(draftKey('workspace', 'user:issue', 'body'))).toBeNull()
 })
 
-it('retains a failed comment draft and clears it only after a successful retry', async () => {
+test('retains a failed comment draft and clears it only after a successful retry', async () => {
   vi.mocked(addComment)
     .mockRejectedValueOnce(new Error('Temporary failure'))
     .mockResolvedValueOnce({ ok: true, value: { id: 'created-comment' } })
@@ -240,7 +240,7 @@ it('retains a failed comment draft and clears it only after a successful retry',
   expect(loadDraft(draftKey('workspace', 'user:issue', 'comment'))).toBeNull()
 })
 
-it('retains a failed comment edit and allows it to be retried', async () => {
+test('retains a failed comment edit and allows it to be retried', async () => {
   vi.mocked(editComment)
     .mockRejectedValueOnce(new Error('Temporary failure'))
     .mockResolvedValueOnce({ ok: true, value: { ok: true } })
@@ -271,7 +271,7 @@ it('retains a failed comment edit and allows it to be retried', async () => {
   expect(editComment).toHaveBeenCalledTimes(2)
 })
 
-it('protects only comment edits that differ from their original body', () => {
+test('protects only comment edits that differ from their original body', () => {
   render(
     <CommentsSection
       issueId='issue'

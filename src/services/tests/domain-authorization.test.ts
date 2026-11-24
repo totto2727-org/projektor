@@ -1,20 +1,22 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { addComment, deleteComment, updateComment } from '#commands/comments'
-import { getFeedbackSource } from '#commands/feedback-sources'
-import { listLinksForIssue } from '#commands/issue-links'
-import { getIssue } from '#commands/issues'
-import { listProjects } from '#commands/projects'
-import { updateTaskStatus } from '#commands/task-statuses'
-import { updateTaskType } from '#commands/task-types'
-import type { ServiceCtx } from '#commands/types'
-import { markWikiNotificationsRead } from '#commands/wiki-watchers'
+import { addComment, deleteComment, updateComment } from '#commands/comments.ts'
+import { getFeedbackSource } from '#commands/feedback-sources.ts'
+import { listLinksForIssue } from '#commands/issue-links.ts'
+import { getIssue } from '#commands/issues.ts'
+import { listProjects } from '#commands/projects.ts'
+import { updateTaskStatus } from '#commands/task-statuses.ts'
+import { updateTaskType } from '#commands/task-types.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import { markWikiNotificationsRead } from '#commands/wiki-watchers.ts'
 
-import { createTestDatabase } from '../../web/test/database'
+import { createTestDatabase } from '../../web/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 function fixture() {
@@ -44,7 +46,9 @@ function fixture() {
               if (key === 'bind') {
                 return (...values: unknown[]) => {
                   binds.push(values.length)
-                  if (values.length > 100) throw new Error('D1 bind budget exceeded')
+                  if (values.length > 100) {
+                    throw new Error('D1 bind budget exceeded')
+                  }
                   return prepared.bind(...values)
                 }
               }
@@ -59,7 +63,9 @@ function fixture() {
           database.sqlite.exec('BEGIN')
           try {
             const results = []
-            for (const statement of statements) results.push(await statement.all())
+            for (const statement of statements) {
+              results.push(await statement.all())
+            }
             database.sqlite.exec('COMMIT')
             return results
           } catch (error) {
@@ -84,7 +90,7 @@ function fixture() {
 }
 
 describe('current effective grants at shared command boundaries', () => {
-  it('normalizes MCP project archive booleans rather than treating string false as truthy', async () => {
+  test('normalizes MCP project archive booleans rather than treating string false as truthy', async () => {
     const f = fixture()
     f.sqlite.exec(`UPDATE projects SET archived_at = 1 WHERE id = 'hidden';
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g','hidden','member')`)
@@ -95,7 +101,7 @@ describe('current effective grants at shared command boundaries', () => {
     await expect(listProjects(f.ctx, null)).rejects.toMatchObject({ kind: 'validation' })
   })
 
-  it('rejects every comment write after downgrade, including the existing author', async () => {
+  test('rejects every comment write after downgrade, including the existing author', async () => {
     const f = fixture()
     const { id } = await addComment(f.ctx, { issueId: 'i', body: 'Original' })
     f.sqlite.exec("UPDATE group_project_grants SET role = 'viewer'")
@@ -108,7 +114,7 @@ describe('current effective grants at shared command boundaries', () => {
     expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM issue_comments').get()).toMatchObject({ n: 1 })
   })
 
-  it('permits a workspace viewer with a project member grant, but never the public identity', async () => {
+  test('permits a workspace viewer with a project member grant, but never the public identity', async () => {
     const f = fixture()
     f.ctx.role = 'viewer'
     const { id } = await addComment(f.ctx, { issueId: 'i', body: 'Allowed' })
@@ -120,7 +126,7 @@ describe('current effective grants at shared command boundaries', () => {
     expect(f.sqlite.prepare('SELECT id FROM issue_comments').get()).toBeUndefined()
   })
 
-  it('removes hidden linked metadata from both link and embedded issue reads after revocation', async () => {
+  test('removes hidden linked metadata from both link and embedded issue reads after revocation', async () => {
     const f = fixture()
     f.sqlite.exec(`
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g','hidden','member');
@@ -136,7 +142,7 @@ describe('current effective grants at shared command boundaries', () => {
     expect(await listLinksForIssue(f.ctx, { issueId: 'i' })).toHaveLength(1)
   })
 
-  it('does not expose known feedback-source details to hidden-project or non-admin callers', async () => {
+  test('does not expose known feedback-source details to hidden-project or non-admin callers', async () => {
     const f = fixture()
     f.sqlite.exec(`INSERT INTO feedback_sources
       (id,workspace_id,project_id,name,token_hash,created_by,created_at)
@@ -152,13 +158,15 @@ describe('current effective grants at shared command boundaries', () => {
 })
 
 describe('bounded and atomic shared mutations', () => {
-  it.each([97, 98, 200])('marks %i owned notifications within the D1 bind budget', async (count) => {
+  test.each([97, 98, 200])('marks %i owned notifications within the D1 bind budget', async (count) => {
     const f = fixture()
     const insert = f.sqlite.prepare(`INSERT INTO wiki_notifications
       (id,workspace_id,user_id,page_id,page_slug,page_title,action,summary,created_at)
       VALUES (?, ?, ?, 'page','page','Page','updated','Changed',1)`)
     const ids = Array.from({ length: count }, (_, i) => `n${i}`)
-    for (const id of ids) insert.run(id, 'w', 'u')
+    for (const id of ids) {
+      insert.run(id, 'w', 'u')
+    }
     insert.run('foreign-user', 'w', 'other')
     insert.run('foreign-tenant', 'other', 'u')
     await markWikiNotificationsRead(f.ctx, { ids })
@@ -172,7 +180,7 @@ describe('bounded and atomic shared mutations', () => {
     })
   })
 
-  it.each(['type', 'status'] as const)(
+  test.each(['type', 'status'] as const)(
     'keeps the old default %s for a missing target and rolls back a failed transition',
     async (kind) => {
       const f = fixture()

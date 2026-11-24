@@ -1,4 +1,4 @@
-import { ValidationError } from '../../contracts/errors'
+import { ValidationError } from '../../contracts/errors.ts'
 import {
   completeSprint,
   createSprint,
@@ -7,9 +7,9 @@ import {
   listSprints,
   moveIssuesToSprint,
   updateSprint,
-} from '../services/sprints'
-import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
-import type { MCPTool } from './types'
+} from '../services/sprints.ts'
+import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 export const sprintsTools: MCPTool[] = [
   {

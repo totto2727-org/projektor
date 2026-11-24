@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Effect } from 'effect'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { uploadInlineImage } from '../../attachment-actions'
-import { discardWikiDraft, getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions'
-import { navigateFeature } from './navigation'
-import { WikiPageClient, type WikiSeed } from './WikiPageClient'
+import { uploadInlineImage } from '../../attachment-actions.ts'
+import { discardWikiDraft, getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions.ts'
+import { navigateFeature } from './navigation.ts'
+import { WikiPageClient } from './WikiPageClient.tsx'
+import type { WikiSeed } from './WikiPageClient.tsx'
 
 vi.mock('../../attachment-actions', () => ({
   uploadAttachment: vi.fn(),
@@ -54,7 +55,9 @@ vi.mock('./LazyMarkdownEditor', () => ({
         type='button'
         onClick={async () => {
           const url = await onImageFile?.(new File(['image'], 'inline.png', { type: 'image/png' }))
-          if (url) onChange(`${value}\n![inline](${url})`)
+          if (url) {
+            onChange(`${value}\n![inline](${url})`)
+          }
         }}
       >
         Paste inline image
@@ -126,7 +129,8 @@ describe('Wiki delayed draft lifecycle', () => {
   function timers() {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
   }
-  it('does not resurrect submitted A when unmounted during publication without newer typing', async () => {
+
+  test('does not resurrect submitted A when unmounted during publication without newer typing', async () => {
     const publication = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiPage>>>()
     vi.mocked(saveWikiPage).mockReturnValueOnce(publication.promise)
     const view = render(<WikiPageClient initial={seed()} />)
@@ -140,7 +144,8 @@ describe('Wiki delayed draft lifecycle', () => {
     })
     expect(saveWikiDraft).not.toHaveBeenCalled()
   })
-  it('does not resurrect the discarded snapshot when unmounted during deletion', async () => {
+
+  test('does not resurrect the discarded snapshot when unmounted during deletion', async () => {
     const deletion = Promise.withResolvers<Awaited<ReturnType<typeof discardWikiDraft>>>()
     vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
     const view = render(
@@ -158,7 +163,8 @@ describe('Wiki delayed draft lifecycle', () => {
     })
     expect(saveWikiDraft).not.toHaveBeenCalled()
   })
-  it('serializes autosaves and coalesces B/C behind delayed A using acknowledged revisions', async () => {
+
+  test('serializes autosaves and coalesces B/C behind delayed A using acknowledged revisions', async () => {
     timers()
     const pending = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiDraft>>>()
     vi.mocked(saveWikiDraft).mockReturnValueOnce(pending.promise)
@@ -178,7 +184,8 @@ describe('Wiki delayed draft lifecycle', () => {
       expect.objectContaining({ content: 'C', expectedDraftRevision: 'A-revision' }),
     )
   })
-  it('keeps failed autosaves unacknowledged without blindly retrying on leave', async () => {
+
+  test('keeps failed autosaves unacknowledged without blindly retrying on leave', async () => {
     timers()
     vi.mocked(saveWikiDraft).mockResolvedValueOnce({ ok: false, status: 503, message: 'Unavailable' })
     const view = render(<WikiPageClient initial={seed()} />)
@@ -193,7 +200,8 @@ describe('Wiki delayed draft lifecycle', () => {
       expect.objectContaining({ content: 'Keep A', expectedDraftRevision: null }),
     )
   })
-  it('waits for autosave before publication and keeps newer typing after delayed publication', async () => {
+
+  test('waits for autosave before publication and keeps newer typing after delayed publication', async () => {
     timers()
     const draft = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiDraft>>>()
     const publication = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiPage>>>()
@@ -238,7 +246,8 @@ describe('Wiki delayed draft lifecycle', () => {
       }),
     )
   })
-  it('flushes newer typing on unmount after pending publication without resurrecting the submitted snapshot', async () => {
+
+  test('flushes newer typing on unmount after pending publication without resurrecting the submitted snapshot', async () => {
     const publication = Promise.withResolvers<Awaited<ReturnType<typeof saveWikiPage>>>()
     vi.mocked(saveWikiPage).mockReturnValueOnce(publication.promise)
     const view = render(<WikiPageClient initial={seed()} />)
@@ -257,7 +266,8 @@ describe('Wiki delayed draft lifecycle', () => {
       expect.objectContaining({ content: 'Leaving B', expectedDraftRevision: 'published-head' }),
     )
   })
-  it('keeps text and the restore choice when a delayed discard fails', async () => {
+
+  test('keeps text and the restore choice when a delayed discard fails', async () => {
     const deletion = Promise.withResolvers<Awaited<ReturnType<typeof discardWikiDraft>>>()
     vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
     const initial = seed()
@@ -278,7 +288,8 @@ describe('Wiki delayed draft lifecycle', () => {
     expect(screen.getByRole('button', { name: 'Restore' })).toBeTruthy()
     expect(screen.getByText(/Save failed/)).toBeTruthy()
   })
-  it('preserves newer local typing when discard succeeds, then autosaves it under the new head', async () => {
+
+  test('preserves newer local typing when discard succeeds, then autosaves it under the new head', async () => {
     timers()
     const deletion = Promise.withResolvers<Awaited<ReturnType<typeof discardWikiDraft>>>()
     vi.mocked(discardWikiDraft).mockReturnValueOnce(deletion.promise)
@@ -304,7 +315,7 @@ describe('Wiki delayed draft lifecycle', () => {
   })
 })
 describe('Wiki server prop adoption', () => {
-  it('keeps the mobile page-tree backdrop aligned below the header and below the drawer', () => {
+  test('keeps the mobile page-tree backdrop aligned below the header and below the drawer', () => {
     const { container } = render(<WikiPageClient initial={seed()} />)
     const stylesheet = container.querySelector('style')?.sheet
     const mobileRules = Array.from(stylesheet?.cssRules ?? []).find(
@@ -328,7 +339,7 @@ describe('Wiki server prop adoption', () => {
     // Both stay below the shell header's z40, including the drawer's shadow.
   })
 
-  it('preserves mobile page-tree focus restoration and Escape/backdrop dismissal', () => {
+  test('preserves mobile page-tree focus restoration and Escape/backdrop dismissal', () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query.includes('max-width'),
       media: query,
@@ -354,7 +365,7 @@ describe('Wiki server prop adoption', () => {
     expect(document.activeElement).toBe(trigger)
   })
 
-  it('submits search and filters through native GET and renders refreshed server result arrays directly', async () => {
+  test('submits search and filters through native GET and renders refreshed server result arrays directly', async () => {
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
     })
@@ -384,7 +395,9 @@ describe('Wiki server prop adoption', () => {
       await vi.advanceTimersByTimeAsync(1000)
     })
     const form = view.container.querySelector<HTMLFormElement>('form[method="get"]')
-    if (!form) throw new Error('Missing native Wiki search form')
+    if (!form) {
+      throw new Error('Missing native Wiki search form')
+    }
     expect(form.getAttribute('action')).toBe('/wiki/guide')
     const data = new FormData(form)
     expect(data.get('q')).toBe('new')
@@ -407,7 +420,8 @@ describe('Wiki server prop adoption', () => {
     expect(screen.getByText('Refreshed server result')).toBeTruthy()
     expect(screen.queryByText('Server search result')).toBeNull()
   })
-  it('uses one named ServerFn attachment file field and the shared backend File schema', async () => {
+
+  test('uses one named ServerFn attachment file field and the shared backend File schema', async () => {
     const { container } = render(<WikiPageClient initial={{ ...seed(), mode: 'read' }} />)
     fireEvent.click(screen.getByRole('button', { name: /Attach file/ }))
     const form = container.querySelector<HTMLInputElement>('input[type="hidden"][name="entityId"][value="page"]')?.form
@@ -420,7 +434,9 @@ describe('Wiki server prop adoption', () => {
     expect(input).toBeTruthy()
     const file = new File(['x'], 'large.png', { type: 'image/png' })
     Object.defineProperty(file, 'size', { value: 50 * 1024 * 1024 + 1 })
-    if (!input) throw new Error('Missing native attachment file input')
+    if (!input) {
+      throw new Error('Missing native attachment file input')
+    }
     fireEvent.change(input, {
       target: { files: [new File(['valid'], 'valid.png', { type: 'image/png' })] },
     })
@@ -428,12 +444,15 @@ describe('Wiki server prop adoption', () => {
     fireEvent.change(input, { target: { files: [file] } })
     expect(screen.getByRole('button', { name: 'Upload' }).hasAttribute('disabled')).toBe(true)
     expect(screen.getByRole('alert').textContent).toBeTruthy()
-    if (!form) throw new Error('Missing native attachment form')
+    if (!form) {
+      throw new Error('Missing native attachment form')
+    }
     await act(async () => {
       expect(fireEvent.submit(form)).toBe(false)
     })
   })
-  it('inserts inline image metadata through the named ServerFn without replacing the unsaved draft', async () => {
+
+  test('inserts inline image metadata through the named ServerFn without replacing the unsaved draft', async () => {
     vi.mocked(uploadInlineImage).mockResolvedValue({
       ok: true,
       value: { id: 'inline-file', filename: 'inline.png', contentType: 'image/png', size: 5 },
@@ -454,7 +473,8 @@ describe('Wiki server prop adoption', () => {
     })
     expect(saveWikiPage).not.toHaveBeenCalled()
   })
-  it('preserves the unsaved draft when an inline ServerFn upload is rejected by request limits', async () => {
+
+  test('preserves the unsaved draft when an inline ServerFn upload is rejected by request limits', async () => {
     vi.mocked(uploadInlineImage).mockResolvedValue({
       ok: false,
       status: 413,
@@ -469,7 +489,8 @@ describe('Wiki server prop adoption', () => {
     expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Keep my draft')
     expect(saveWikiPage).not.toHaveBeenCalled()
   })
-  it('validates the TanStack draft before invoking a save and preserves the unsaved body', async () => {
+
+  test('validates the TanStack draft before invoking a save and preserves the unsaved body', async () => {
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Page title'), { target: { value: '' } })
     fireEvent.change(screen.getByLabelText('Markdown'), { target: { value: 'Keep my draft' } })
@@ -480,7 +501,8 @@ describe('Wiki server prop adoption', () => {
     expect(saveWikiPage).not.toHaveBeenCalled()
     expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('Keep my draft')
   })
-  it('retains editor content and exposes original overwrite controls on a revision conflict', async () => {
+
+  test('retains editor content and exposes original overwrite controls on a revision conflict', async () => {
     vi.mocked(saveWikiPage).mockResolvedValue({ ok: false, status: 409, message: 'Conflict' })
     render(<WikiPageClient initial={seed()} />)
     fireEvent.change(screen.getByLabelText('Markdown'), {
@@ -490,7 +512,8 @@ describe('Wiki server prop adoption', () => {
     expect(await screen.findByRole('button', { name: 'Overwrite with mine' })).toBeTruthy()
     expect((screen.getByLabelText('Markdown') as HTMLTextAreaElement).value).toBe('My conflicted body')
   })
-  it('protects unsaved native navigation while allowing same-URL framework refresh', () => {
+
+  test('protects unsaved native navigation while allowing same-URL framework refresh', () => {
     const navigation = new EventTarget()
     vi.stubGlobal('navigation', navigation)
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
@@ -508,7 +531,8 @@ describe('Wiki server prop adoption', () => {
     expect(confirm).toHaveBeenCalledTimes(1)
     expect(leaving.defaultPrevented).toBe(true)
   })
-  it('does not perform initial client data loads and preserves edited title across same-URL refreshed props', async () => {
+
+  test('does not perform initial client data loads and preserves edited title across same-URL refreshed props', async () => {
     const initial = seed()
     const view = render(<WikiPageClient initial={initial} />)
     expect(saveWikiPage).not.toHaveBeenCalled()
@@ -526,7 +550,8 @@ describe('Wiki server prop adoption', () => {
     expect((screen.getByLabelText('Page title') as HTMLInputElement).value).toBe('Unsaved title')
     view.unmount()
   })
-  it('autosaves once and does not loop when mutation refresh adopts an equivalent page object', async () => {
+
+  test('autosaves once and does not loop when mutation refresh adopts an equivalent page object', async () => {
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
     })

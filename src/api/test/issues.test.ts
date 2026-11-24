@@ -1,9 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { ListIssuesSchema } from '../../contracts/inputs/issues'
-import { issuesTools } from '../mcp/issues'
-import { env } from './fixture-api'
+import { ListIssuesSchema } from '../../contracts/inputs/issues.ts'
+import { issuesTools } from '../mcp/issues.ts'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedCustomFieldDef,
@@ -19,7 +19,7 @@ import {
   seedUser,
   seedWorkspaceRoles,
   toolError,
-} from './helpers'
+} from './helpers.ts'
 
 async function callMcpTool(
   workspaceId: string,
@@ -27,7 +27,7 @@ async function callMcpTool(
   slug: string,
   params: unknown,
 ): Promise<{
-  result?: { content: Array<{ text: string }> }
+  result?: { content: { text: string }[] }
   error?: { code?: number; message: string }
 }> {
   const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
@@ -66,7 +66,7 @@ describe('Issues API', () => {
   })
 
   type IssuesPage = {
-    items: Array<Record<string, unknown>>
+    items: Record<string, unknown>[]
     nextCursor: number | null
     total: number
   }
@@ -76,7 +76,7 @@ describe('Issues API', () => {
     return { res, page: (await res.json()) as IssuesPage }
   }
 
-  it('GET /api/issues returns empty list initially', async () => {
+  test('GET /api/issues returns empty list initially', async () => {
     const { res, page } = await listIssues()
     expect(res.status).toBe(200)
     expect(Array.isArray(page.items)).toBe(true)
@@ -84,7 +84,7 @@ describe('Issues API', () => {
     expect(page.nextCursor).toBeNull()
   })
 
-  it('POST /api/issues creates an issue', async () => {
+  test('POST /api/issues creates an issue', async () => {
     const res = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -98,7 +98,7 @@ describe('Issues API', () => {
   // PROJ-396: author_kind is stamped from the authenticated principal type, not a
   // caller-supplied field — same convention as issue_comments.author_kind (PROJ-328).
   // Tests authenticate over Bearer tokens (see authHeaders), same as agents.
-  it('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
+  test('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
     const res = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -113,7 +113,7 @@ describe('Issues API', () => {
     expect(row?.author_kind).toBe('agent')
   })
 
-  it('PROJ-712: rejects an unrecognized field (e.g. a spoofed authorKind) instead of silently ignoring it', async () => {
+  test('PROJ-712: rejects an unrecognized field (e.g. a spoofed authorKind) instead of silently ignoring it', async () => {
     const res = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -122,7 +122,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST then GET returns the created issue', async () => {
+  test('POST then GET returns the created issue', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -134,7 +134,7 @@ describe('Issues API', () => {
     expect(page.items[0].title).toBe('Visible issue')
   })
 
-  it('exposes a resolvable url on list items and single-issue fetches (PROJ-307)', async () => {
+  test('exposes a resolvable url on list items and single-issue fetches (PROJ-307)', async () => {
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -152,7 +152,7 @@ describe('Issues API', () => {
     expect(fetched.url).toBe(`/projects/PROJ/issues/${created.number}/wiki-full-text-search`)
   })
 
-  it('auto-increments issue number per project', async () => {
+  test('auto-increments issue number per project', async () => {
     for (const title of ['Issue A', 'Issue B', 'Issue C']) {
       await SELF.fetch('http://localhost/api/issues', {
         method: 'POST',
@@ -161,11 +161,11 @@ describe('Issues API', () => {
       })
     }
     const { page } = await listIssues()
-    const numbers = (page.items as Array<{ number: number }>).map((i) => i.number).sort((a, b) => a - b)
+    const numbers = (page.items as { number: number }[]).map((i) => i.number).sort((a, b) => a - b)
     expect(numbers).toEqual([1, 2, 3])
   })
 
-  it('concurrent creates in the same project receive distinct issue numbers', async () => {
+  test('concurrent creates in the same project receive distinct issue numbers', async () => {
     const [res1, res2] = await Promise.all([
       SELF.fetch('http://localhost/api/issues', {
         method: 'POST',
@@ -185,7 +185,7 @@ describe('Issues API', () => {
     expect(n1).not.toBe(n2)
   })
 
-  it('PATCH /api/issues/:id updates status', async () => {
+  test('PATCH /api/issues/:id updates status', async () => {
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -207,7 +207,7 @@ describe('Issues API', () => {
     expect(issue.status).toBe('in_progress')
   })
 
-  it('DELETE /api/issues/:id removes the issue', async () => {
+  test('DELETE /api/issues/:id removes the issue', async () => {
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -226,7 +226,7 @@ describe('Issues API', () => {
     expect(getRes.status).toBe(404)
   })
 
-  it('filters issues by status', async () => {
+  test('filters issues by status', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -249,7 +249,7 @@ describe('Issues API', () => {
     expect((page.items[0] as { title: string }).title).toBe('In progress item')
   })
 
-  it('rejects requests from non-members', async () => {
+  test('rejects requests from non-members', async () => {
     const other = await seedFixture()
     const res = await SELF.fetch('http://localhost/api/issues', {
       headers: authHeaders(other.token, slug),
@@ -257,7 +257,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(403)
   })
 
-  it('POST with assigneeId and labels persists them', async () => {
+  test('POST with assigneeId and labels persists them', async () => {
     const assignee = await seedUser('assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -282,7 +282,7 @@ describe('Issues API', () => {
     expect(JSON.parse(issue.labels)).toEqual(['bug', 'urgent'])
   })
 
-  it('PATCH with assigneeId (camelCase) updates the assignee', async () => {
+  test('PATCH with assigneeId (camelCase) updates the assignee', async () => {
     const assignee = await seedUser('patch-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -307,7 +307,7 @@ describe('Issues API', () => {
     expect(issue.assignee_id).toBe(assignee.id)
   })
 
-  it('PATCH with labels updates labels', async () => {
+  test('PATCH with labels updates labels', async () => {
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -328,7 +328,7 @@ describe('Issues API', () => {
     expect(JSON.parse(issue.labels)).toEqual(['new', 'tag'])
   })
 
-  it('filters issues by assignee', async () => {
+  test('filters issues by assignee', async () => {
     const assignee = await seedUser('filter-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -348,7 +348,7 @@ describe('Issues API', () => {
     expect((page.items[0] as { title: string }).title).toBe('Assigned issue')
   })
 
-  it('cursor pagination returns next page', async () => {
+  test('cursor pagination returns next page', async () => {
     // Seed with explicit distinct timestamps so cursor (created_at <) math works correctly
     const base = 1_700_000_000
     await seedIssue(workspaceId, projectId, userId, { title: 'Issue 1', createdAt: base + 100 })
@@ -364,7 +364,7 @@ describe('Issues API', () => {
     expect(second.nextCursor).toBeNull()
   })
 
-  it('defaults to 30 rows per page when no limit is given (PROJ-201)', async () => {
+  test('defaults to 30 rows per page when no limit is given (PROJ-201)', async () => {
     const base = 1_700_000_000
     for (let i = 0; i < 35; i++) {
       await seedIssue(workspaceId, projectId, userId, {
@@ -381,9 +381,9 @@ describe('Issues API', () => {
     const { page: second } = await listIssues(`http://localhost/api/issues?cursor=${first.nextCursor}`)
     expect(second.items).toHaveLength(5)
     expect(second.nextCursor).toBeNull()
-  }, 15000) // PROJ-248: seeds 35 issues sequentially; full-suite contention pushes this past the 5s default
+  }, 15_000) // PROJ-248: seeds 35 issues sequentially; full-suite contention pushes this past the 5s default
 
-  it('reports the real total match count, not just the loaded page size (PROJ-303)', async () => {
+  test('reports the real total match count, not just the loaded page size (PROJ-303)', async () => {
     const base = 1_700_000_000
     for (let i = 0; i < 35; i++) {
       await seedIssue(workspaceId, projectId, userId, {
@@ -404,7 +404,7 @@ describe('Issues API', () => {
     expect(second.items).toHaveLength(5)
   })
 
-  it('projectId filter scopes results to that project only', async () => {
+  test('projectId filter scopes results to that project only', async () => {
     const otherProject = await seedProject(workspaceId, 'OTH')
     await seedIssue(workspaceId, projectId, userId, { title: 'Project A issue' })
     await seedIssue(workspaceId, otherProject.id, userId, { title: 'Project B issue' })
@@ -414,7 +414,7 @@ describe('Issues API', () => {
     expect((page.items[0] as { title: string }).title).toBe('Project A issue')
   })
 
-  it('projectId filter returns all project issues up to limit, not just newest workspace-wide', async () => {
+  test('projectId filter returns all project issues up to limit, not just newest workspace-wide', async () => {
     // Seed a second project with many newer issues so workspace-wide listing would return them first
     const newerProject = await seedProject(workspaceId, 'NEW')
     const base = Math.floor(Date.now() / 1000)
@@ -441,16 +441,16 @@ describe('Issues API', () => {
     const { page: scoped } = await listIssues(`http://localhost/api/issues?project=${projectId}&limit=100`)
     expect(scoped.items).toHaveLength(10)
     expect(scoped.items.every((i) => (i as { title: string }).title.startsWith('Older issue'))).toBe(true)
-  }, 15000) // PROJ-248: seeds 65 issues sequentially; full-suite contention pushes this past the 5s default
+  }, 15_000) // PROJ-248: seeds 65 issues sequentially; full-suite contention pushes this past the 5s default
 
-  it('GET /api/issues/:id returns 404 for unknown id', async () => {
+  test('GET /api/issues/:id returns 404 for unknown id', async () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  it('GET /api/issues/KEY-NUMBER looks up by ref', async () => {
+  test('GET /api/issues/KEY-NUMBER looks up by ref', async () => {
     // beforeEach seeds a project with key='PROJ'; first issue in it is PROJ-1
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -468,7 +468,7 @@ describe('Issues API', () => {
     expect(issue.project_key).toBe('PROJ')
   })
 
-  it('GET /api/issues/KEY-NUMBER resolves for a project key containing digits (PROJ-440)', async () => {
+  test('GET /api/issues/KEY-NUMBER resolves for a project key containing digits (PROJ-440)', async () => {
     const digitProject = await seedProject(workspaceId, 'WEB2')
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -497,14 +497,14 @@ describe('Issues API', () => {
     expect(linksRes.status).toBe(200)
   })
 
-  it('GET /api/issues/:ref with an absurdly long number is a 404, not a 500 (PROJ-440)', async () => {
+  test('GET /api/issues/:ref with an absurdly long number is a 404, not a 500 (PROJ-440)', async () => {
     const res = await SELF.fetch(`http://localhost/api/issues/PROJ-${'9'.repeat(400)}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  it('GET /api/issues/:id includes project_key (PROJ-226 tab title regression)', async () => {
+  test('GET /api/issues/:id includes project_key (PROJ-226 tab title regression)', async () => {
     const created = await seedIssue(workspaceId, projectId, userId, { title: 'By id' })
 
     const getRes = await SELF.fetch(`http://localhost/api/issues/${created.id}`, {
@@ -515,7 +515,7 @@ describe('Issues API', () => {
     expect(issue.project_key).toBe('PROJ')
   })
 
-  it('GET /api/issues/search finds issues by title keyword', async () => {
+  test('GET /api/issues/search finds issues by title keyword', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -539,12 +539,12 @@ describe('Issues API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Authentication bug')
   })
 
-  it('GET /api/issues/search finds issues by body keyword', async () => {
+  test('GET /api/issues/search finds issues by body keyword', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -559,12 +559,12 @@ describe('Issues API', () => {
     const res = await SELF.fetch('http://localhost/api/issues/search?q=wrangler', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Some issue')
   })
 
-  it('GET /api/issues/search respects workspace scoping', async () => {
+  test('GET /api/issues/search respects workspace scoping', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -586,12 +586,12 @@ describe('Issues API', () => {
     const res = await SELF.fetch('http://localhost/api/issues/search?q=unique-sentinel', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Workspace A issue')
   })
 
-  it('GET /api/issues/search with projectId filters to that project', async () => {
+  test('GET /api/issues/search with projectId filters to that project', async () => {
     const otherProject = await seedProject(workspaceId, 'SEC')
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -611,12 +611,12 @@ describe('Issues API', () => {
     const res = await SELF.fetch(`http://localhost/api/issues/search?q=shared-term&projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Alpha project issue')
   })
 
-  it('GET /api/issues/search returns project fields in results', async () => {
+  test('GET /api/issues/search returns project fields in results', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -626,14 +626,14 @@ describe('Issues API', () => {
     const res = await SELF.fetch('http://localhost/api/issues/search?q=Field+check', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{
+    const results = (await res.json()) as {
       id: string
       number: number
       title: string
       status: string
       priority: string
       project_key: string
-    }>
+    }[]
     expect(results).toHaveLength(1)
     expect(results[0].project_key).toBe('PROJ')
     expect(results[0].status).toBeDefined()
@@ -641,14 +641,14 @@ describe('Issues API', () => {
     expect(results[0].number).toBeDefined()
   })
 
-  it('GET /api/issues/search returns 400 when query is missing', async () => {
+  test('GET /api/issues/search returns 400 when query is missing', async () => {
     const res = await SELF.fetch('http://localhost/api/issues/search', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)
   })
 
-  it('GET /api/issues/search ranks by bm25 (title+body match scores higher than body-only)', async () => {
+  test('GET /api/issues/search ranks by bm25 (title+body match scores higher than body-only)', async () => {
     // Issue with the term in both title AND body — higher bm25 score
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -674,12 +674,12 @@ describe('Issues API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results).toHaveLength(2)
     expect(results[0].title).toBe('Authentication bug')
   })
 
-  it('GET /api/issues/search FTS workspace isolation prevents cross-tenant results', async () => {
+  test('GET /api/issues/search FTS workspace isolation prevents cross-tenant results', async () => {
     // Seed an issue in the primary workspace
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -704,12 +704,12 @@ describe('Issues API', () => {
     const res = await SELF.fetch('http://localhost/api/issues/search?q=fts-sentinel', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as Array<{ title: string }>
+    const results = (await res.json()) as { title: string }[]
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Primary workspace fts-sentinel')
   })
 
-  it('GET /api/issues/search returns empty results for whitespace-only query', async () => {
+  test('GET /api/issues/search returns empty results for whitespace-only query', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -723,7 +723,7 @@ describe('Issues API', () => {
     expect(results).toHaveLength(0)
   })
 
-  it('GET /api/issues/search returns empty results for punctuation-only query', async () => {
+  test('GET /api/issues/search returns empty results for punctuation-only query', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -739,7 +739,7 @@ describe('Issues API', () => {
 
   // ---- Hierarchy (parent_id) tests ----
 
-  it('POST creates a child issue with parentId', async () => {
+  test('POST creates a child issue with parentId', async () => {
     const parentRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -762,7 +762,7 @@ describe('Issues API', () => {
     expect(child.parent_id).toBe(parentId)
   })
 
-  it('GET issue includes rollup of child status counts', async () => {
+  test('GET issue includes rollup of child status counts', async () => {
     const parentRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -786,7 +786,7 @@ describe('Issues API', () => {
     expect(issue.rollup.byStatus.done).toBe(1)
   })
 
-  it('GET issue with no children returns empty rollup', async () => {
+  test('GET issue with no children returns empty rollup', async () => {
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -804,7 +804,7 @@ describe('Issues API', () => {
     expect(issue.rollup.byStatus).toEqual({})
   })
 
-  it('PATCH sets parentId on an existing issue', async () => {
+  test('PATCH sets parentId on an existing issue', async () => {
     const parentRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -833,7 +833,7 @@ describe('Issues API', () => {
     expect(issue.parent_id).toBe(parentId)
   })
 
-  it('PATCH clears parentId by setting it to null', async () => {
+  test('PATCH clears parentId by setting it to null', async () => {
     const parentRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -861,7 +861,7 @@ describe('Issues API', () => {
     expect(issue.parent_id).toBeNull()
   })
 
-  it('POST rejects self as parent', async () => {
+  test('POST rejects self as parent', async () => {
     // Create issue first, then try to set itself as parent via PATCH
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -878,7 +878,7 @@ describe('Issues API', () => {
     expect(patchRes.status).toBe(400)
   })
 
-  it('PATCH rejects a parentId that would create a cycle', async () => {
+  test('PATCH rejects a parentId that would create a cycle', async () => {
     // A → B → C; try to set A.parentId = C (cycle: A is ancestor of C)
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'B', parentId: a.id })
@@ -892,7 +892,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST rejects parent that would exceed depth cap of 5', async () => {
+  test('POST rejects parent that would exceed depth cap of 5', async () => {
     // Build a chain root → L1 → L2 → L3 → L4 → L5 (L5 is at depth 5)
     const root = await seedIssue(workspaceId, projectId, userId, { title: 'Root' })
     const l1 = await seedIssue(workspaceId, projectId, userId, { title: 'L1', parentId: root.id })
@@ -910,7 +910,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST accepts parent at depth 4 (child at depth 5 is allowed)', async () => {
+  test('POST accepts parent at depth 4 (child at depth 5 is allowed)', async () => {
     const root = await seedIssue(workspaceId, projectId, userId, { title: 'Root' })
     const l1 = await seedIssue(workspaceId, projectId, userId, { title: 'L1', parentId: root.id })
     const l2 = await seedIssue(workspaceId, projectId, userId, { title: 'L2', parentId: l1.id })
@@ -926,7 +926,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(201)
   })
 
-  it('GET /api/issues?parentId= filters to direct children', async () => {
+  test('GET /api/issues?parentId= filters to direct children', async () => {
     const parent = await seedIssue(workspaceId, projectId, userId, { title: 'Parent' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Child 1', parentId: parent.id })
     await seedIssue(workspaceId, projectId, userId, { title: 'Child 2', parentId: parent.id })
@@ -934,12 +934,12 @@ describe('Issues API', () => {
 
     const { page } = await listIssues(`http://localhost/api/issues?parentId=${parent.id}`)
     expect(page.items).toHaveLength(2)
-    const titles = (page.items as Array<{ title: string }>).map((i) => i.title)
+    const titles = (page.items as { title: string }[]).map((i) => i.title)
     expect(titles).toContain('Child 1')
     expect(titles).toContain('Child 2')
   })
 
-  it('POST rejects parentId from a different workspace', async () => {
+  test('POST rejects parentId from a different workspace', async () => {
     const other = await seedFixture()
     const otherProject = await seedProject(other.workspace.id, 'OTH')
     const otherIssue = await seedIssue(other.workspace.id, otherProject.id, other.user.id, {
@@ -954,7 +954,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(404)
   })
 
-  it("PROJ-389: another workspace's owner cannot create an issue in this project", async () => {
+  test("PROJ-389: another workspace's owner cannot create an issue in this project", async () => {
     const other = await seedFixture({ role: 'owner' })
     const res = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -964,7 +964,7 @@ describe('Issues API', () => {
     expect(res.status).toBe(404)
   })
 
-  it('filters by multiple statusIds (OR)', async () => {
+  test('filters by multiple statusIds (OR)', async () => {
     const s1 = await seedTaskStatus(workspaceId, { key: 'todo', name: 'Todo', category: 'todo' })
     const s2 = await seedTaskStatus(workspaceId, { key: 'done', name: 'Done', category: 'done' })
     const s3 = await seedTaskStatus(workspaceId, {
@@ -988,11 +988,11 @@ describe('Issues API', () => {
 
     const { page } = await listIssues(`http://localhost/api/issues?statusIds=${s1.id},${s2.id}`)
     expect(page.items).toHaveLength(2)
-    const titles = (page.items as Array<{ title: string }>).map((i) => i.title).sort()
+    const titles = (page.items as { title: string }[]).map((i) => i.title).sort()
     expect(titles).toEqual(['Done item', 'Todo item'])
   })
 
-  it('filters by multiple priorities (OR)', async () => {
+  test('filters by multiple priorities (OR)', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1011,11 +1011,11 @@ describe('Issues API', () => {
 
     const { page } = await listIssues('http://localhost/api/issues?priorities=urgent,high')
     expect(page.items).toHaveLength(2)
-    const titles = (page.items as Array<{ title: string }>).map((i) => i.title).sort()
+    const titles = (page.items as { title: string }[]).map((i) => i.title).sort()
     expect(titles).toEqual(['High issue', 'Urgent issue'])
   })
 
-  it('filters by projectId', async () => {
+  test('filters by projectId', async () => {
     const project2 = await seedProject(workspaceId)
 
     await SELF.fetch('http://localhost/api/issues', {
@@ -1034,7 +1034,7 @@ describe('Issues API', () => {
     expect((page.items[0] as { title: string }).title).toBe('Project 2 issue')
   })
 
-  it('noParent=true returns only issues without a parent', async () => {
+  test('noParent=true returns only issues without a parent', async () => {
     const r1 = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1053,13 +1053,13 @@ describe('Issues API', () => {
     expect((page.items[0] as { title: string }).title).toBe('Parent issue')
   })
 
-  it('excludeTypeIds drops issues of those types but keeps untyped ones (PROJ-202)', async () => {
+  test('excludeTypeIds drops issues of those types but keeps untyped ones (PROJ-202)', async () => {
     const epic = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     await seedIssue(workspaceId, projectId, userId, { title: 'An epic', typeId: epic.id })
     await seedIssue(workspaceId, projectId, userId, { title: 'A plain issue' })
 
     const { page } = await listIssues(`http://localhost/api/issues?excludeTypeIds=${epic.id}`)
-    const titles = (page.items as Array<{ title: string }>).map((i) => i.title).sort()
+    const titles = (page.items as { title: string }[]).map((i) => i.title).sort()
     // The epic is excluded; the untyped (NULL type_id) issue must NOT be dropped.
     expect(titles).toEqual(['A plain issue'])
   })
@@ -1083,7 +1083,7 @@ describe('Issues API', () => {
     return row?.completed_at ?? null
   }
 
-  it('stamps completed_at when an issue enters a done status and clears it on exit (PROJ-212)', async () => {
+  test('stamps completed_at when an issue enters a done status and clears it on exit (PROJ-212)', async () => {
     // 3 API requests (DB seed + 3 patch), under the rate-limit window.
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Will complete' })
     const id = issue.id
@@ -1105,41 +1105,41 @@ describe('Issues API', () => {
     expect(await completedAtOf(id)).toBeNull()
   })
 
-  it('filters by completedAfter / completedBefore (PROJ-212)', async () => {
+  test('filters by completedAfter / completedBefore (PROJ-212)', async () => {
     // Seed + stamp completion via env.DB so only the 2 list calls hit the API.
     const older = await seedIssue(workspaceId, projectId, userId, { title: 'Completed long ago' })
     const recent = await seedIssue(workspaceId, projectId, userId, { title: 'Completed just now' })
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare('UPDATE issues SET completed_at = ? WHERE id = ?')
-      .bind(now - 10 * 86400, older.id)
+      .bind(now - 10 * 86_400, older.id)
       .run()
     await env.DB.prepare('UPDATE issues SET completed_at = ? WHERE id = ?').bind(now, recent.id).run()
 
-    const cutoff = now - 86400 // 1 day ago
+    const cutoff = now - 86_400 // 1 day ago
 
     const before = await listIssues(`http://localhost/api/issues?completedBefore=${cutoff}`)
-    expect((before.page.items as Array<{ title: string }>).map((i) => i.title)).toEqual(['Completed long ago'])
+    expect((before.page.items as { title: string }[]).map((i) => i.title)).toEqual(['Completed long ago'])
 
     const after = await listIssues(`http://localhost/api/issues?completedAfter=${cutoff}`)
-    expect((after.page.items as Array<{ title: string }>).map((i) => i.title)).toEqual(['Completed just now'])
+    expect((after.page.items as { title: string }[]).map((i) => i.title)).toEqual(['Completed just now'])
   })
 
-  it('filters by updatedAfter / updatedBefore (PROJ-212)', async () => {
+  test('filters by updatedAfter / updatedBefore (PROJ-212)', async () => {
     const now = Math.floor(Date.now() / 1000)
     const stale = await seedIssue(workspaceId, projectId, userId, { title: 'Edited long ago' })
     const fresh = await seedIssue(workspaceId, projectId, userId, { title: 'Edited just now' })
     await env.DB.prepare('UPDATE issues SET updated_at = ? WHERE id = ?')
-      .bind(now - 10 * 86400, stale.id)
+      .bind(now - 10 * 86_400, stale.id)
       .run()
     await env.DB.prepare('UPDATE issues SET updated_at = ? WHERE id = ?').bind(now, fresh.id).run()
 
-    const cutoff = now - 86400
+    const cutoff = now - 86_400
 
     const before = await listIssues(`http://localhost/api/issues?updatedBefore=${cutoff}`)
-    expect((before.page.items as Array<{ title: string }>).map((i) => i.title)).toEqual(['Edited long ago'])
+    expect((before.page.items as { title: string }[]).map((i) => i.title)).toEqual(['Edited long ago'])
 
     const after = await listIssues(`http://localhost/api/issues?updatedAfter=${cutoff}`)
-    expect((after.page.items as Array<{ title: string }>).map((i) => i.title)).toEqual(['Edited just now'])
+    expect((after.page.items as { title: string }[]).map((i) => i.title)).toEqual(['Edited just now'])
   })
 
   // ─── PROJ-252: flow timestamps (ready_at/claimed_at/done_at) ──────────────
@@ -1152,7 +1152,7 @@ describe('Issues API', () => {
     return row ?? { ready_at: null, claimed_at: null, done_at: null }
   }
 
-  it('stamps ready_at/claimed_at/done_at once, on first entry, and never clears them', async () => {
+  test('stamps ready_at/claimed_at/done_at once, on first entry, and never clears them', async () => {
     // 4 API requests (seed + 4 patches), under the rate-limit window.
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Flows through' })
     const id = issue.id
@@ -1185,7 +1185,7 @@ describe('Issues API', () => {
     expect(afterReopen.done_at).toBe(afterDone.done_at)
   })
 
-  it('stamps ready_at even when an issue skips straight from backlog to in_progress', async () => {
+  test('stamps ready_at even when an issue skips straight from backlog to in_progress', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Fast-tracked' })
     await patch(issue.id, { status: 'in_progress' })
     const stamps = await flowTimestampsOf(issue.id)
@@ -1201,7 +1201,7 @@ describe('Issues API', () => {
     return row ?? { in_review_at: null, review_bounce_count: 0 }
   }
 
-  it('stamps in_review_at once, on first entry, and counts bounces back to in_progress', async () => {
+  test('stamps in_review_at once, on first entry, and counts bounces back to in_progress', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Reviewed and bounced',
     })
@@ -1246,7 +1246,7 @@ describe('Issues API', () => {
   // Split into two tests (each gets a fresh token from beforeEach) — the test rate
   // limiter allows only RATE_LIMIT_API_MAX (5) requests per token per window, and
   // each case alone already needs 3 patches.
-  it('records a gate-rejection event for in_review -> in_progress', async () => {
+  test('records a gate-rejection event for in_review -> in_progress', async () => {
     const rejected = await seedIssue(workspaceId, projectId, userId, { title: 'Sent back' })
     await patch(rejected.id, { status: 'in_progress' })
     await patch(rejected.id, { status: 'in_review' })
@@ -1256,7 +1256,7 @@ describe('Issues API', () => {
     expect((await reviewFieldsOf(rejected.id)).review_bounce_count).toBe(1)
   })
 
-  it('does not record a gate-rejection event for in_review -> cancelled', async () => {
+  test('does not record a gate-rejection event for in_review -> cancelled', async () => {
     const killed = await seedIssue(workspaceId, projectId, userId, { title: 'Killed in review' })
     await patch(killed.id, { status: 'in_progress' })
     await patch(killed.id, { status: 'in_review' })
@@ -1282,11 +1282,11 @@ describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
 
   async function listIssues(url: string) {
     const res = await SELF.fetch(url, { headers: authHeaders(token, slug) })
-    return { res, page: (await res.json()) as { items: Array<Record<string, unknown>> } }
+    return { res, page: (await res.json()) as { items: Record<string, unknown>[] } }
   }
 
   // PROJ-441
-  it('includeRollups=1 attaches a rollup per item for parents with mixed-status children', async () => {
+  test('includeRollups=1 attaches a rollup per item for parents with mixed-status children', async () => {
     const parentRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1309,7 +1309,7 @@ describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     expect(parentItem.rollup.remaining).toBe(2)
   })
 
-  it('without includeRollups, items carry no rollup key', async () => {
+  test('without includeRollups, items carry no rollup key', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1320,7 +1320,7 @@ describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     expect('rollup' in page.items[0]).toBe(false)
   })
 
-  it("includeRollups counts children in a different project the same as getIssue's own rollup", async () => {
+  test("includeRollups counts children in a different project the same as getIssue's own rollup", async () => {
     const otherProject = await seedProject(workspaceId, 'OTH')
     const parentRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -1346,7 +1346,7 @@ describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     expect(parentItem.rollup.done).toBe(single.rollup.done)
   })
 
-  it('includeRollups groups by raw status even when status_category diverges, matching getIssue', async () => {
+  test('includeRollups groups by raw status even when status_category diverges, matching getIssue', async () => {
     const parentRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1378,7 +1378,7 @@ describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   })
 
   // PROJ-442
-  it('list items omit body by default; includeBody=1 restores it', async () => {
+  test('list items omit body by default; includeBody=1 restores it', async () => {
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -1394,7 +1394,7 @@ describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   })
 
   // PROJ-444
-  it("assignee=me returns the calling user's issues", async () => {
+  test("assignee=me returns the calling user's issues", async () => {
     const other = await seedUser('me-filter-other@example.com')
     await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -1412,7 +1412,7 @@ describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     expect(page.items[0].title).toBe('Assigned to me')
   })
 
-  it('assignee filter still accepts a literal user id', async () => {
+  test('assignee filter still accepts a literal user id', async () => {
     const other = await seedUser('literal-id-filter@example.com')
     await seedMember(workspaceId, other.id)
     await SELF.fetch('http://localhost/api/issues', {
@@ -1441,7 +1441,7 @@ describe('Issues MCP — typeId', () => {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
-  it('MCP create_issue with typeId persists the type', async () => {
+  test('MCP create_issue with typeId persists the type', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
 
     const createResp = await mcpCall({
@@ -1462,7 +1462,7 @@ describe('Issues MCP — typeId', () => {
   // Regression for PROJ-69: seeded default task types use 32-char hex hash IDs
   // (not dashed UUIDs). The typeId schema must accept them, or the seeded Epic
   // type can never be assigned to an issue.
-  it('MCP create_issue accepts a seeded-style 32-hex (non-UUID) typeId', async () => {
+  test('MCP create_issue accepts a seeded-style 32-hex (non-UUID) typeId', async () => {
     const hashId = 'ea3df70345804c3d26ebf139816cae8f'
     const { id: typeId } = await seedTaskType(workspaceId, {
       id: hashId,
@@ -1485,7 +1485,7 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBe(hashId)
   })
 
-  it('MCP update_issue sets typeId on an existing issue', async () => {
+  test('MCP update_issue sets typeId on an existing issue', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
     const createResp = await mcpCall({
@@ -1504,7 +1504,7 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBe(typeId)
   })
 
-  it('MCP update_issue clears typeId with null', async () => {
+  test('MCP update_issue clears typeId with null', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const createResp = await mcpCall({
@@ -1525,7 +1525,7 @@ describe('Issues MCP — typeId', () => {
   // PROJ-571: changing an epic's type away from Epic while it still has children
   // silently orphans them from the epic UI/rollups — block it at the service layer
   // so both REST and MCP callers get the guard.
-  it('MCP update_issue rejects demoting an epic that still has children', async () => {
+  test('MCP update_issue rejects demoting an epic that still has children', async () => {
     const { id: epicTypeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -1555,7 +1555,7 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBe(epicTypeId)
   })
 
-  it('MCP update_issue allows retyping a non-epic parent that still has children', async () => {
+  test('MCP update_issue allows retyping a non-epic parent that still has children', async () => {
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
     const { id: bugTypeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
@@ -1583,7 +1583,7 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBe(bugTypeId)
   })
 
-  it("MCP update_issue allows changing an epic's type once it has no children", async () => {
+  test("MCP update_issue allows changing an epic's type once it has no children", async () => {
     const { id: epicTypeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -1606,7 +1606,7 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBe(storyTypeId)
   })
 
-  it('MCP list_issues typeId filter returns only matching issues', async () => {
+  test('MCP list_issues typeId filter returns only matching issues', async () => {
     const { id: bugTypeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -1623,7 +1623,7 @@ describe('Issues MCP — typeId', () => {
     const listResp = await mcpCall({ name: 'list_issues', arguments: { typeId: bugTypeId } })
     expect(listResp.error).toBeUndefined()
     const page = JSON.parse(listResp.result!.content[0].text) as {
-      items: Array<{ title: string }>
+      items: { title: string }[]
     }
     expect(page.items).toHaveLength(1)
     expect(page.items[0].title).toBe('Bug issue')
@@ -1641,7 +1641,7 @@ describe('Issues MCP — list_issues filter parity (PROJ-243)', () => {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
-  it('advertises all ListIssuesSchema optional filter keys in its inputSchema', async () => {
+  test('advertises all ListIssuesSchema optional filter keys in its inputSchema', async () => {
     const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
@@ -1649,7 +1649,7 @@ describe('Issues MCP — list_issues filter parity (PROJ-243)', () => {
     })
     const body = (await res.json()) as {
       result: {
-        tools: Array<{ name: string; inputSchema: { properties: Record<string, unknown> } }>
+        tools: { name: string; inputSchema: { properties: Record<string, unknown> } }[]
       }
     }
     const listIssuesTool = body.result.tools.find((t) => t.name === 'list_issues')
@@ -1660,7 +1660,7 @@ describe('Issues MCP — list_issues filter parity (PROJ-243)', () => {
     }
   })
 
-  it('respects the noParent filter', async () => {
+  test('respects the noParent filter', async () => {
     const parentResp = await mcpCall({
       name: 'create_issue',
       arguments: { projectId, title: 'Parent issue' },
@@ -1674,7 +1674,7 @@ describe('Issues MCP — list_issues filter parity (PROJ-243)', () => {
     const listResp = await mcpCall({ name: 'list_issues', arguments: { noParent: true } })
     expect(listResp.error).toBeUndefined()
     const page = JSON.parse(listResp.result!.content[0].text) as {
-      items: Array<{ title: string }>
+      items: { title: string }[]
     }
     expect(page.items).toHaveLength(1)
     expect(page.items[0].title).toBe('Parent issue')
@@ -1690,7 +1690,7 @@ describe('Issues KV cache', () => {
     ;({ token, slug, projectId } = await seedProjectFixture())
   })
 
-  it('getIssue: row is always fresh; rollup/custom fields come from the KV cache (PROJ-863)', async () => {
+  test('getIssue: row is always fresh; rollup/custom fields come from the KV cache (PROJ-863)', async () => {
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: {
@@ -1738,7 +1738,7 @@ describe('Issues KV cache', () => {
     expect(secondIssue.rollup.total).toBe(0)
   })
 
-  it('updateIssue invalidates the cache so next getIssue re-fetches from D1', async () => {
+  test('updateIssue invalidates the cache so next getIssue re-fetches from D1', async () => {
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: {
@@ -1785,7 +1785,7 @@ describe('Issues KV cache', () => {
   // PROJ-359: ref lookups ("PROJ-42", the primary MCP agent read path) resolve
   // via fetchIssueByRef rather than the id-keyed cache check at the top of
   // getIssue, so they never got any cache benefit before this fix.
-  it('getIssue by ref: row is always fresh; rollup/custom fields come from the KV cache (PROJ-863)', async () => {
+  test('getIssue by ref: row is always fresh; rollup/custom fields come from the KV cache (PROJ-863)', async () => {
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: {
@@ -1836,7 +1836,7 @@ describe('Issues KV cache', () => {
 })
 
 describe('Issues role guards', () => {
-  it('viewer cannot create an issue (403)', async () => {
+  test('viewer cannot create an issue (403)', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
     // PROJ-311: a viewer grant makes the project visible; the write is still denied.
@@ -1850,7 +1850,7 @@ describe('Issues role guards', () => {
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot update an issue (403)', async () => {
+  test('viewer cannot update an issue (403)', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
@@ -1870,7 +1870,7 @@ describe('Issues role guards', () => {
     expect(patchRes.status).toBe(403)
   })
 
-  it('member cannot delete an issue (403)', async () => {
+  test('member cannot delete an issue (403)', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
 
@@ -1888,7 +1888,7 @@ describe('Issues role guards', () => {
     expect(deleteRes.status).toBe(403)
   })
 
-  it('owner can delete an issue', async () => {
+  test('owner can delete an issue', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
 
@@ -1930,12 +1930,12 @@ describe('get_prioritized_issues MCP tool', () => {
       }),
     })
     return res.json() as Promise<{
-      result?: { content: Array<{ text: string }> }
+      result?: { content: { text: string }[] }
       error?: { code: number; message: string }
     }>
   }
 
-  it('returns [] (not 500) when no open issues exist', async () => {
+  test('returns [] (not 500) when no open issues exist', async () => {
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
     const data = JSON.parse(body.result!.content[0].text) as { issues: unknown[] }
@@ -1943,18 +1943,18 @@ describe('get_prioritized_issues MCP tool', () => {
     expect(data.issues).toHaveLength(0)
   })
 
-  it('returns non-empty array with _score fields when open issues exist', async () => {
+  test('returns non-empty array with _score fields when open issues exist', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'High prio', priority: 'high' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Low prio', priority: 'low' })
 
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
     const data = JSON.parse(body.result!.content[0].text) as {
-      issues: Array<{
+      issues: {
         title: string
         _score: number
         _score_breakdown: { centrality: number; priority: number; story_points: number }
-      }>
+      }[]
     }
     expect(data.issues.length).toBeGreaterThan(0)
     expect(data.issues.some((i) => i.title === 'High prio')).toBe(true)
@@ -1966,7 +1966,7 @@ describe('get_prioritized_issues MCP tool', () => {
     }
   })
 
-  it('handles more open issues than a single D1 query can bind (chunked enrichment)', async () => {
+  test('handles more open issues than a single D1 query can bind (chunked enrichment)', async () => {
     // getPrioritizedIssues fetches every open issue, then batch-loads links + story points
     // keyed by those ids. On real D1 (100-param cap) an un-chunked load throws once there
     // are ~100 open issues; this guards the inChunks split and that results merge across
@@ -1978,25 +1978,25 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const body = await callPrioritized({ limit: 100, includeNotReady: true })
     expect(body.error).toBeUndefined()
-    const data = JSON.parse(body.result!.content[0].text) as { issues: Array<{ title: string }> }
+    const data = JSON.parse(body.result!.content[0].text) as { issues: { title: string }[] }
     expect(data.issues).toHaveLength(100)
   })
 
-  it('excludes done and cancelled issues', async () => {
+  test('excludes done and cancelled issues', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Open' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Done', status: 'done' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Cancelled', status: 'cancelled' })
 
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
-    const data = JSON.parse(body.result!.content[0].text) as { issues: Array<{ title: string }> }
+    const data = JSON.parse(body.result!.content[0].text) as { issues: { title: string }[] }
     const titles = data.issues.map((i) => i.title)
     expect(titles).toContain('Open')
     expect(titles).not.toContain('Done')
     expect(titles).not.toContain('Cancelled')
   })
 
-  it('scores issues with story points correctly (smaller SP = higher score)', async () => {
+  test('scores issues with story points correctly (smaller SP = higher score)', async () => {
     const field = await seedCustomFieldDef(workspaceId, {
       key: 'story_points',
       label: 'Story Points',
@@ -2016,7 +2016,7 @@ describe('get_prioritized_issues MCP tool', () => {
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
     const data = JSON.parse(body.result!.content[0].text) as {
-      issues: Array<{ title: string; _score: number }>
+      issues: { title: string; _score: number }[]
     }
     const smallRow = data.issues.find((i) => i.title === 'Small')
     const largeRow = data.issues.find((i) => i.title === 'Large')
@@ -2024,7 +2024,7 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   // ─── PROJ-253: definition-of-ready filtering ──────────────────────────────
-  it('drops not-ready issues by default, and surfaces them with includeNotReady', async () => {
+  test('drops not-ready issues by default, and surfaces them with includeNotReady', async () => {
     const ready = await seedIssue(workspaceId, projectId, userId, { title: 'Ready' })
     await env.DB.prepare('UPDATE issues SET body = ? WHERE id = ?')
       .bind(
@@ -2045,7 +2045,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const defaultBody = await callPrioritized()
     const defaultParsed = JSON.parse(defaultBody.result!.content[0].text) as {
-      issues: Array<{ title: string }>
+      issues: { title: string }[]
       droppedNotReady: number
     }
     const defaultTitles = defaultParsed.issues.map((i) => i.title)
@@ -2056,7 +2056,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
     const withNotReady = await callPrioritized({ includeNotReady: true })
     const data = JSON.parse(withNotReady.result!.content[0].text) as {
-      issues: Array<{ title: string; needsGrooming?: boolean; missingCriteria?: string[] }>
+      issues: { title: string; needsGrooming?: boolean; missingCriteria?: string[] }[]
     }
     const notReadyRow = data.issues.find((i) => i.title === 'Not ready')
     expect(notReadyRow?.needsGrooming).toBe(true)
@@ -2066,26 +2066,26 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   // ─── PROJ-324: projectId scoping ───────────────────────────────────────────
-  it('scopes ranking to projectId, and droppedNotReady reflects only that project', async () => {
+  test('scopes ranking to projectId, and droppedNotReady reflects only that project', async () => {
     const otherProject = await seedProject(workspaceId, 'OTHER')
     await seedIssue(workspaceId, projectId, userId, { title: 'In target project' })
     await seedIssue(workspaceId, otherProject.id, userId, { title: 'In other project' })
 
     const body = await callPrioritized({ projectId, includeNotReady: true })
     expect(body.error).toBeUndefined()
-    const data = JSON.parse(body.result!.content[0].text) as { issues: Array<{ title: string }> }
+    const data = JSON.parse(body.result!.content[0].text) as { issues: { title: string }[] }
     const titles = data.issues.map((i) => i.title)
     expect(titles).toContain('In target project')
     expect(titles).not.toContain('In other project')
   })
 
-  it('degrades to the ranked not-ready list when nothing passes the bar (PROJ-738)', async () => {
+  test('degrades to the ranked not-ready list when nothing passes the bar (PROJ-738)', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Not ready' })
 
     const body = await callPrioritized()
     expect(body.error).toBeUndefined()
     const data = JSON.parse(body.result!.content[0].text) as {
-      issues: Array<{ title: string; needsGrooming?: boolean }>
+      issues: { title: string; needsGrooming?: boolean }[]
       droppedNotReady: number
       degraded?: boolean
     }
@@ -2095,7 +2095,7 @@ describe('get_prioritized_issues MCP tool', () => {
     expect(data.degraded).toBe(true)
   })
 
-  it('computes droppedNotReady scoped to projectId', async () => {
+  test('computes droppedNotReady scoped to projectId', async () => {
     const otherProject = await seedProject(workspaceId, 'OTHER')
     // Neither issue has a body, so both fail the definition-of-ready check.
     await seedIssue(workspaceId, projectId, userId, { title: 'Not ready in target' })
@@ -2107,14 +2107,14 @@ describe('get_prioritized_issues MCP tool', () => {
     expect(data.droppedNotReady).toBe(1)
   })
 
-  it('workspace-wide behavior (no projectId) is unchanged', async () => {
+  test('workspace-wide behavior (no projectId) is unchanged', async () => {
     const otherProject = await seedProject(workspaceId, 'OTHER')
     await seedIssue(workspaceId, projectId, userId, { title: 'In target project' })
     await seedIssue(workspaceId, otherProject.id, userId, { title: 'In other project' })
 
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
-    const data = JSON.parse(body.result!.content[0].text) as { issues: Array<{ title: string }> }
+    const data = JSON.parse(body.result!.content[0].text) as { issues: { title: string }[] }
     const titles = data.issues.map((i) => i.title)
     expect(titles).toContain('In target project')
     expect(titles).toContain('In other project')
@@ -2138,10 +2138,10 @@ describe('GET /api/issues/prioritized', () => {
     const res = await SELF.fetch(`http://localhost/api/issues/prioritized${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(token, slug),
     })
-    return { res, body: (await res.json()) as { issues: Array<{ title: string }> } }
+    return { res, body: (await res.json()) as { issues: { title: string }[] } }
   }
 
-  it('ranks higher-priority issues first', async () => {
+  test('ranks higher-priority issues first', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Low prio', priority: 'low' })
     await seedIssue(workspaceId, projectId, userId, { title: 'High prio', priority: 'high' })
 
@@ -2155,7 +2155,7 @@ describe('GET /api/issues/prioritized', () => {
   // Proves query-string coercion actually happens — a route that passed the raw
   // string "3" through unparsed would fail `typeof input.limit === "number"` and
   // silently fall back to the default of 10, returning all 5 seeded issues.
-  it('limit is honoured', async () => {
+  test('limit is honoured', async () => {
     for (let i = 0; i < 5; i++) {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })
     }
@@ -2165,7 +2165,7 @@ describe('GET /api/issues/prioritized', () => {
     expect(body.issues).toHaveLength(3)
   })
 
-  it('projectId scopes results to that project', async () => {
+  test('projectId scopes results to that project', async () => {
     const otherProject = await seedProject(workspaceId, 'OTHER')
     await seedIssue(workspaceId, projectId, userId, { title: 'In target project' })
     await seedIssue(workspaceId, otherProject.id, userId, { title: 'In other project' })
@@ -2191,14 +2191,14 @@ describe('PROJ-712 — unrecognized MCP params are rejected, not silently droppe
     return callMcpTool(workspaceId, token, slug, params)
   }
 
-  it('list_issues rejects an unknown param instead of ignoring it', async () => {
+  test('list_issues rejects an unknown param instead of ignoring it', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Some issue' })
     const res = await mcpCall({ name: 'list_issues', arguments: { projectKey: projectId } })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('get_issue rejects an unknown param instead of ignoring it', async () => {
+  test('get_issue rejects an unknown param instead of ignoring it', async () => {
     const createResp = await mcpCall({
       name: 'create_issue',
       arguments: { projectId, title: 'For get_issue' },
@@ -2210,7 +2210,7 @@ describe('PROJ-712 — unrecognized MCP params are rejected, not silently droppe
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('create_issue_link rejects an unknown param instead of ignoring it', async () => {
+  test('create_issue_link rejects an unknown param instead of ignoring it', async () => {
     const a = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'A' } })
     const b = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'B' } })
     const { id: aId } = JSON.parse(a.result!.content[0].text) as { id: string }
@@ -2240,7 +2240,7 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
-  it('update_issue accepts a ref in place of id', async () => {
+  test('update_issue accepts a ref in place of id', async () => {
     const { number } = await seedIssue(workspaceId, projectId, userId, { title: 'Ref update' })
     const ref = `${projectKey}-${number}`
 
@@ -2255,7 +2255,7 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
     expect(issue.title).toBe('Renamed via ref')
   })
 
-  it('delete_issue accepts a ref in place of id', async () => {
+  test('delete_issue accepts a ref in place of id', async () => {
     const { number } = await seedIssue(workspaceId, projectId, userId, { title: 'Ref delete' })
     const ref = `${projectKey}-${number}`
 
@@ -2267,7 +2267,7 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
     expect(toolError(getRes)?.code).toBe('not_found')
   })
 
-  it('create_issue_link accepts refs for sourceIssueId/targetIssueId', async () => {
+  test('create_issue_link accepts refs for sourceIssueId/targetIssueId', async () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
 
@@ -2282,11 +2282,11 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
     expect(res.error).toBeUndefined()
 
     const linksRes = await mcpCall({ name: 'list_issue_links', arguments: { issueId: a.id } })
-    const links = JSON.parse(linksRes.result!.content[0].text) as Array<{ linkedIssueId: string }>
+    const links = JSON.parse(linksRes.result!.content[0].text) as { linkedIssueId: string }[]
     expect(links.map((l) => l.linkedIssueId)).toEqual([b.id])
   })
 
-  it('create_issue accepts a project key in place of projectId', async () => {
+  test('create_issue accepts a project key in place of projectId', async () => {
     const res = await mcpCall({
       name: 'create_issue',
       arguments: { projectId: projectKey, title: 'Via project key' },
@@ -2299,22 +2299,22 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
     expect(issue.project_id).toBe(projectId)
   })
 
-  it('list_issues accepts a project key in place of projectId', async () => {
+  test('list_issues accepts a project key in place of projectId', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'In project' })
 
     const res = await mcpCall({ name: 'list_issues', arguments: { projectId: projectKey } })
     expect(res.error).toBeUndefined()
-    const page = JSON.parse(res.result!.content[0].text) as { items: Array<{ title: string }> }
+    const page = JSON.parse(res.result!.content[0].text) as { items: { title: string }[] }
     expect(page.items.map((i) => i.title)).toContain('In project')
   })
 
-  it('an unresolvable ref returns NotFoundError, not a silent empty result', async () => {
+  test('an unresolvable ref returns NotFoundError, not a silent empty result', async () => {
     const res = await mcpCall({ name: 'update_issue', arguments: { id: 'NOPE-1', title: 'x' } })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('not_found')
   })
 
-  it('an unresolvable project key returns NotFoundError, not a silent empty result', async () => {
+  test('an unresolvable project key returns NotFoundError, not a silent empty result', async () => {
     const res = await mcpCall({
       name: 'create_issue',
       arguments: { projectId: 'NOPE', title: 'x' },
@@ -2323,7 +2323,7 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
     expect(toolError(res)?.code).toBe('not_found')
   })
 
-  it('update_issue with a parentId ref to an invisible project fails the same as an unresolvable ref', async () => {
+  test('update_issue with a parentId ref to an invisible project fails the same as an unresolvable ref', async () => {
     const roles = await seedWorkspaceRoles()
     const writableProject = await seedProject(roles.workspace.id, 'WRIT')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, writableProject.id, 'member')
@@ -2355,7 +2355,7 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
     expect(invisibleErr?.hint).toBe(missingErr?.hint)
   })
 
-  it("list_issues with a project key the caller can't see returns an empty page, not a 404, same as a nonexistent key", async () => {
+  test("list_issues with a project key the caller can't see returns an empty page, not a 404, same as a nonexistent key", async () => {
     const roles = await seedWorkspaceRoles()
     const hiddenProject = await seedProject(roles.workspace.id, 'HIDE')
     await seedIssue(roles.workspace.id, hiddenProject.id, roles.owner.user.id, {
@@ -2381,7 +2381,7 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
     expect(invisiblePage.items).toEqual([])
   })
 
-  it('search_issues with a visible project key returns matching results', async () => {
+  test('search_issues with a visible project key returns matching results', async () => {
     const createRes = await mcpCall({
       name: 'create_issue',
       arguments: { projectId, title: 'Findable via key search' },
@@ -2393,11 +2393,11 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
       arguments: { query: 'Findable', projectId: projectKey },
     })
     expect(res.error).toBeUndefined()
-    const results = (JSON.parse(res.result!.content[0].text) as { items: Array<{ title: string }> }).items
+    const results = (JSON.parse(res.result!.content[0].text) as { items: { title: string }[] }).items
     expect(results.map((r) => r.title)).toContain('Findable via key search')
   })
 
-  it('get_prioritized_issues with a visible project key returns results', async () => {
+  test('get_prioritized_issues with a visible project key returns results', async () => {
     await seedIssue(workspaceId, projectId, userId, {
       title: 'Prioritizable',
       priority: 'urgent',
@@ -2409,12 +2409,12 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
     })
     expect(res.error).toBeUndefined()
     const { issues } = JSON.parse(res.result!.content[0].text) as {
-      issues: Array<{ title: string }>
+      issues: { title: string }[]
     }
     expect(issues.map((i) => i.title)).toContain('Prioritizable')
   })
 
-  it('list_issues rejects an unrecognized param with the field name in the error', async () => {
+  test('list_issues rejects an unrecognized param with the field name in the error', async () => {
     const res = await mcpCall({
       name: 'list_issues',
       arguments: { parentRef: 'PROJ-1' },
@@ -2441,7 +2441,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
-  it('REST POST rejects an assigneeId from another workspace with 400', async () => {
+  test('REST POST rejects an assigneeId from another workspace with 400', async () => {
     const otherFixture = await seedFixture()
     const res = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -2453,7 +2453,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(body.error.fieldErrors.assigneeId).toBeDefined()
   })
 
-  it('REST POST accepts an assigneeId that is a real workspace member', async () => {
+  test('REST POST accepts an assigneeId that is a real workspace member', async () => {
     const assignee = await seedUser('proj785-member@example.com')
     await seedMember(workspaceId, assignee.id)
     const res = await SELF.fetch('http://localhost/api/issues', {
@@ -2464,7 +2464,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(res.status).toBe(201)
   })
 
-  it('REST PATCH rejects reassigning to a user from another workspace with 400', async () => {
+  test('REST PATCH rejects reassigning to a user from another workspace with 400', async () => {
     const otherFixture = await seedFixture()
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
@@ -2481,7 +2481,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(patchRes.status).toBe(400)
   })
 
-  it('REST PATCH null clears the assignee without a membership check', async () => {
+  test('REST PATCH null clears the assignee without a membership check', async () => {
     const assignee = await seedUser('proj785-clear@example.com')
     await seedMember(workspaceId, assignee.id)
     const createRes = await SELF.fetch('http://localhost/api/issues', {
@@ -2505,7 +2505,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(issue.assignee_id).toBeNull()
   })
 
-  it('MCP create_issue rejects an assigneeId from another workspace', async () => {
+  test('MCP create_issue rejects an assigneeId from another workspace', async () => {
     const otherFixture = await seedFixture()
     const res = await mcpCall({
       name: 'create_issue',
@@ -2516,7 +2516,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(toolError(res)?.fields?.assigneeId).toBeDefined()
   })
 
-  it('MCP create_issue accepts a real workspace member as assignee', async () => {
+  test('MCP create_issue accepts a real workspace member as assignee', async () => {
     const assignee = await seedUser('proj785-mcp-member@example.com')
     await seedMember(workspaceId, assignee.id)
     const res = await mcpCall({
@@ -2526,7 +2526,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(res.error).toBeUndefined()
   })
 
-  it('MCP update_issue rejects reassigning to a user from another workspace', async () => {
+  test('MCP update_issue rejects reassigning to a user from another workspace', async () => {
     const otherFixture = await seedFixture()
     const createResp = await mcpCall({
       name: 'create_issue',
@@ -2543,7 +2543,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     expect(toolError(res)?.fields?.assigneeId).toBeDefined()
   })
 
-  it('MCP update_issue null clears the assignee without a membership check', async () => {
+  test('MCP update_issue null clears the assignee without a membership check', async () => {
     const assignee = await seedUser('proj785-mcp-clear@example.com')
     await seedMember(workspaceId, assignee.id)
     const createResp = await mcpCall({
@@ -2579,7 +2579,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
-  it('MCP tool result text is minified (no pretty-printing whitespace)', async () => {
+  test('MCP tool result text is minified (no pretty-printing whitespace)', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Minified check' })
     const res = await mcpCall({ name: 'list_issues', arguments: {} })
     expect(res.error).toBeUndefined()
@@ -2589,7 +2589,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(JSON.parse(text)).toBeTruthy()
   })
 
-  it('REST get_issue is still pretty-shaped (unaffected) and keeps null/empty fields', async () => {
+  test('REST get_issue is still pretty-shaped (unaffected) and keeps null/empty fields', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'REST unaffected' })
     const res = await SELF.fetch(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
@@ -2603,7 +2603,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(issue).toHaveProperty('parent_id', null)
   })
 
-  it('get_issue omits empty links/rollup/customFields and null sprint/assignee/parent/labels by default', async () => {
+  test('get_issue omits empty links/rollup/customFields and null sprint/assignee/parent/labels by default', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Compact me' })
     const res = await mcpCall({ name: 'get_issue', arguments: { id } })
     expect(res.error).toBeUndefined()
@@ -2619,7 +2619,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(issue.title).toBe('Compact me')
   })
 
-  it('get_issue with verbose:true restores the full shape', async () => {
+  test('get_issue with verbose:true restores the full shape', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Verbose me' })
     const res = await mcpCall({ name: 'get_issue', arguments: { id, verbose: true } })
     expect(res.error).toBeUndefined()
@@ -2632,7 +2632,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(issue).toHaveProperty('parent_id', null)
   })
 
-  it('get_issue keeps non-empty links/customFields/rollup/assignee/parent/labels', async () => {
+  test('get_issue keeps non-empty links/customFields/rollup/assignee/parent/labels', async () => {
     const assignee = await seedUser('proj931-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
     const parent = await seedIssue(workspaceId, projectId, userId, { title: 'Parent' })
@@ -2666,7 +2666,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(child.labels).toEqual(['bug'])
   })
 
-  it('list_issues items are compacted the same way as get_issue', async () => {
+  test('list_issues items are compacted the same way as get_issue', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Compact list item' })
     const res = await mcpCall({ name: 'list_issues', arguments: { includeRollups: true } })
     expect(res.error).toBeUndefined()
@@ -2676,7 +2676,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(page.items[0]).not.toHaveProperty('assignee_id')
   })
 
-  it('fields:[...] returns only the named fields', async () => {
+  test('fields:[...] returns only the named fields', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, {
       title: 'Fields test',
       priority: 'high',
@@ -2691,7 +2691,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(issue.title).toBe('Fields test')
   })
 
-  it('get_issues fetches up to 50 issues in one call by ref and id', async () => {
+  test('get_issues fetches up to 50 issues in one call by ref and id', async () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'Batch A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'Batch B' })
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
@@ -2699,12 +2699,12 @@ describe('PROJ-931 — compact MCP responses', () => {
 
     const res = await mcpCall({ name: 'get_issues', arguments: { refs: [ref], ids: [b.id] } })
     expect(res.error).toBeUndefined()
-    const data = JSON.parse(res.result!.content[0].text) as { items: Array<{ title: string }> }
+    const data = JSON.parse(res.result!.content[0].text) as { items: { title: string }[] }
     const titles = data.items.map((i) => i.title).sort()
     expect(titles).toEqual(['Batch A', 'Batch B'])
   })
 
-  it('fields:[...] always returns every named key: real value, or null when unset', async () => {
+  test('fields:[...] always returns every named key: real value, or null when unset', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Null fields test' })
     const res = await mcpCall({
       name: 'get_issue',
@@ -2721,14 +2721,14 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(issue.id).toBe(id)
   })
 
-  it('get_issues rejects more than 50 combined ids', async () => {
+  test('get_issues rejects more than 50 combined ids', async () => {
     const ids = Array.from({ length: 51 }, () => crypto.randomUUID())
     const res = await mcpCall({ name: 'get_issues', arguments: { ids } })
     expect(res.error).toBeUndefined()
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('get_issues preserves request order and reports unresolved/invisible refs+ids as missing', async () => {
+  test('get_issues preserves request order and reports unresolved/invisible refs+ids as missing', async () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'Order A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'Order B' })
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
@@ -2742,21 +2742,21 @@ describe('PROJ-931 — compact MCP responses', () => {
     })
     expect(res.error).toBeUndefined()
     const data = JSON.parse(res.result!.content[0].text) as {
-      items: Array<{ id: string }>
+      items: { id: string }[]
       missing: string[]
     }
     expect(data.items.map((i) => i.id)).toEqual([a.id, b.id])
     expect(data.missing).toEqual([missingRef, missingId])
   })
 
-  it("every compacting tool's description states the omission contract", () => {
+  test("every compacting tool's description states the omission contract", () => {
     for (const name of ['get_issue', 'list_issues', 'get_issues']) {
       const tool = issuesTools.find((t) => t.name === name)
       expect(tool?.description).toContain('Omitted keys are null/empty/false; pass verbose:true for the raw shape.')
     }
   })
 
-  it('verbose/fields wrong types are rejected with a validation tool error before reaching the service', async () => {
+  test('verbose/fields wrong types are rejected with a validation tool error before reaching the service', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Bad opts' })
     const errorCode = (res: unknown) => toolError(res)?.code
 
@@ -2773,18 +2773,18 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(errorCode(badFieldsList)).toBe('validation')
   })
 
-  it('REST GET /api/issues/batch has parity with the MCP get_issues tool', async () => {
+  test('REST GET /api/issues/batch has parity with the MCP get_issues tool', async () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch A' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'REST Batch B' })
     const res = await SELF.fetch(`http://localhost/api/issues/batch?ids=${a.id},${b.id}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const data = (await res.json()) as { items: Array<{ title: string }> }
+    const data = (await res.json()) as { items: { title: string }[] }
     expect(data.items.map((i) => i.title).sort()).toEqual(['REST Batch A', 'REST Batch B'])
   })
 
-  it('PROJ-931: get_issue MCP bytes drop by at least 40% vs the full pretty shape', async () => {
+  test('PROJ-931: get_issue MCP bytes drop by at least 40% vs the full pretty shape', async () => {
     // A "typical" seeded issue per the ticket: no assignee, no custom fields, no
     // children/parent, no links — exactly the empty/default fields PROJ-931 targets.
     const { id } = await seedIssue(workspaceId, projectId, userId, {
@@ -2816,26 +2816,26 @@ describe('PROJ-931 — compact MCP responses', () => {
     return row!.key
   }
 
-  it('get_issues resolves zero-padded refs like get_issue does', async () => {
+  test('get_issues resolves zero-padded refs like get_issue does', async () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'Padded' })
     const padded = `${await projectKey()}-00${a.number}`
     const res = await mcpCall({ name: 'get_issues', arguments: { refs: [padded] } })
     const data = JSON.parse(res.result!.content[0].text) as {
-      items: Array<{ id: string }>
+      items: { id: string }[]
       missing: string[]
     }
     expect(data.items.map((i) => i.id)).toEqual([a.id])
     expect(data.missing).toEqual([])
   })
 
-  it('get_issues lists a repeated missing ref once', async () => {
+  test('get_issues lists a repeated missing ref once', async () => {
     const ref = `${await projectKey()}-999999`
     const res = await mcpCall({ name: 'get_issues', arguments: { refs: [ref, ref] } })
     const data = JSON.parse(res.result!.content[0].text) as { missing: string[] }
     expect(data.missing).toEqual([ref])
   })
 
-  it('get_issues omits body unless includeBody:true', async () => {
+  test('get_issues omits body unless includeBody:true', async () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'Bodied' })
     await env.DB.prepare('UPDATE issues SET body = ? WHERE id = ?').bind('hello', a.id).run()
     const without = await mcpCall({ name: 'get_issues', arguments: { ids: [a.id] } })
@@ -2849,7 +2849,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(b.items[0].body).toBe('hello')
   })
 
-  it('fields keeps false as false and rejects unknown field names', async () => {
+  test('fields keeps false as false and rejects unknown field names', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, { title: 'Audit flag' })
     const ok = await mcpCall({ name: 'get_issue', arguments: { id, fields: ['needs_audit'] } })
     const issue = JSON.parse(ok.result!.content[0].text) as Record<string, unknown>
@@ -2861,7 +2861,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(toolError(proto)?.code).toBe('validation')
   })
 
-  it('REST /api/issues/batch: refs with spaces, missing in request order, 400 over 50', async () => {
+  test('REST /api/issues/batch: refs with spaces, missing in request order, 400 over 50', async () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'REST ref A' })
     const key = await projectKey()
     const gone = `${key}-999999`
@@ -2870,7 +2870,7 @@ describe('PROJ-931 — compact MCP responses', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const data = (await res.json()) as { items: Array<{ id: string }>; missing: string[] }
+    const data = (await res.json()) as { items: { id: string }[]; missing: string[] }
     expect(data.items.map((i) => i.id)).toEqual([a.id])
     expect(data.missing).toEqual([gone])
 
@@ -2883,7 +2883,7 @@ describe('PROJ-931 — compact MCP responses', () => {
 })
 
 describe('PROJ-931 — get_issues project visibility', () => {
-  it('a member without a grant gets refs and ids from a hidden project as missing (MCP + REST)', async () => {
+  test('a member without a grant gets refs and ids from a hidden project as missing (MCP + REST)', async () => {
     const roles = await seedWorkspaceRoles()
     const granted = await seedProject(roles.workspace.id, 'SEEN')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, granted.id, 'member')
@@ -2903,7 +2903,7 @@ describe('PROJ-931 — get_issues project visibility', () => {
     })
     expect(res.error).toBeUndefined()
     const data = JSON.parse(res.result!.content[0].text) as {
-      items: Array<{ id: string }>
+      items: { id: string }[]
       missing: string[]
     }
     expect(data.items.map((i) => i.id)).toEqual([visible.id])
@@ -2913,12 +2913,12 @@ describe('PROJ-931 — get_issues project visibility', () => {
       `http://localhost/api/issues/batch?refs=${hiddenRef},${visibleRef}&ids=${hidden.id}`,
       { headers: authHeaders(roles.member.token, roles.workspace.slug) },
     )
-    const restData = (await rest.json()) as { items: Array<{ id: string }>; missing: string[] }
+    const restData = (await rest.json()) as { items: { id: string }[]; missing: string[] }
     expect(restData.items.map((i) => i.id)).toEqual([visible.id])
     expect(restData.missing).toEqual([hiddenRef, hidden.id])
   })
 
-  it('a ref whose key also exists in another workspace never resolves across workspaces', async () => {
+  test('a ref whose key also exists in another workspace never resolves across workspaces', async () => {
     const mine = await seedWorkspaceRoles()
     const theirs = await seedWorkspaceRoles()
     await seedProject(mine.workspace.id, 'DUPE')

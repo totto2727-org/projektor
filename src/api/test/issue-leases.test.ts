@@ -1,12 +1,12 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { fetchAgentWipCap } from '#commands/issue-leases'
-import type { ServiceCtx } from '#commands/types'
+import { fetchAgentWipCap } from '#commands/issue-leases.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 import { drizzle, schema } from '#db'
 
-import { env } from './fixture-api'
-import { authHeaders, seedAgentLease, seedFixture, seedIssue, seedProject, seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedAgentLease, seedFixture, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
 
 describe('Issue leases API (PROJ-184)', () => {
   let token: string
@@ -50,7 +50,7 @@ describe('Issue leases API (PROJ-184)', () => {
     return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
   }
 
-  it('claims an unleased issue', async () => {
+  test('claims an unleased issue', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Claim me' })
     const agent = await registerAgent('a1')
 
@@ -61,7 +61,7 @@ describe('Issue leases API (PROJ-184)', () => {
     expect(lease.agentSessionId).toBe(agent)
   })
 
-  it('rejects a second claim while the first holder is live', async () => {
+  test('rejects a second claim while the first holder is live', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contended' })
     const a1 = await registerAgent('a1')
     const a2 = await registerAgent('a2')
@@ -71,7 +71,7 @@ describe('Issue leases API (PROJ-184)', () => {
     expect(res.status).toBe(409) // ConflictError
   })
 
-  it('reclaims a lease whose holder stopped heartbeating', async () => {
+  test('reclaims a lease whose holder stopped heartbeating', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Stale holder' })
     const a1 = await registerAgent('a1')
     const a2 = await registerAgent('a2')
@@ -86,7 +86,7 @@ describe('Issue leases API (PROJ-184)', () => {
     expect(lease.agentSessionId).toBe(a2)
   })
 
-  it('refuses a claim from an agent that is not live', async () => {
+  test('refuses a claim from an agent that is not live', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Dead claimer' })
     const a1 = await registerAgent('a1')
     await backdateHeartbeat(a1)
@@ -95,7 +95,7 @@ describe('Issue leases API (PROJ-184)', () => {
     expect(res.status).toBe(400) // ValidationError — heartbeat first
   })
 
-  it('release frees the issue for another agent', async () => {
+  test('release frees the issue for another agent', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Release me' })
     const a1 = await registerAgent('a1')
     const a2 = await registerAgent('a2')
@@ -106,7 +106,7 @@ describe('Issue leases API (PROJ-184)', () => {
     expect((await claim(issue.id, a2)).status).toBe(201)
   })
 
-  it('ending an agent releases its leases', async () => {
+  test('ending an agent releases its leases', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'End releases' })
     const a1 = await registerAgent('a1')
     const a2 = await registerAgent('a2')
@@ -122,7 +122,7 @@ describe('Issue leases API (PROJ-184)', () => {
     expect((await claim(issue.id, a2)).status).toBe(201)
   })
 
-  it('GET /:id/leases lists the active lease with a live flag', async () => {
+  test('GET /:id/leases lists the active lease with a live flag', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Listed' })
     const a1 = await registerAgent('a1')
     await claim(issue.id, a1)
@@ -131,13 +131,13 @@ describe('Issue leases API (PROJ-184)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { items: Array<{ agentSessionId: string; live: boolean }> }
+    const body = (await res.json()) as { items: { agentSessionId: string; live: boolean }[] }
     expect(body.items).toHaveLength(1)
     expect(body.items[0].agentSessionId).toBe(a1)
     expect(body.items[0].live).toBe(true)
   })
 
-  it('workspace isolation: cannot claim an issue from another workspace', async () => {
+  test('workspace isolation: cannot claim an issue from another workspace', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Mine' })
     const other = await seedFixture()
     const otherAgentRes = await SELF.fetch('http://localhost/api/agents', {
@@ -179,13 +179,13 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
       }),
     })
     const json = (await res.json()) as {
-      result?: { content: Array<{ text: string }> }
+      result?: { content: { text: string }[] }
     }
     const text = json.result?.content?.[0]?.text ?? '{}'
-    return JSON.parse(text) as { issues: Array<{ id: string }> }
+    return JSON.parse(text) as { issues: { id: string }[] }
   }
 
-  it('excludes live-leased issues only when excludeClaimed is true', async () => {
+  test('excludes live-leased issues only when excludeClaimed is true', async () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'A', priority: 'high' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'B', priority: 'high' })
 
@@ -258,7 +258,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     expect(res.status).toBe(409)
   }
 
-  it('blocks the 4th concurrent agent-held lease at the default cap of 3', async () => {
+  test('blocks the 4th concurrent agent-held lease at the default cap of 3', async () => {
     const agent = await registerAgent('worker')
     const issues = await Promise.all(
       Array.from({ length: 4 }, (_, i) => seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })),
@@ -278,7 +278,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   // rejected with an error that names the actual configured cap — read from
   // fetchAgentWipCap (exported), not retyped as a literal, so the assertion
   // stays honest if DEFAULT_AGENT_WIP_LIMIT ever changes.
-  it('PROJ-624: claim at the cap succeeds; the (cap+1)th is rejected and the error names the cap', async () => {
+  test('PROJ-624: claim at the cap succeeds; the (cap+1)th is rejected and the error names the cap', async () => {
     const orm = drizzle(env.DB, { schema })
     const cap = await fetchAgentWipCap(orm, { workspaceId } as ServiceCtx, projectId)
 
@@ -300,7 +300,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     expect(body.error).toMatch(new RegExp(`WIP limit reached \\(${cap}\\)`))
   })
 
-  it('records a wip_cap_denials event when a claim is rejected over-cap (PROJ-342)', async () => {
+  test('records a wip_cap_denials event when a claim is rejected over-cap (PROJ-342)', async () => {
     const agent = await registerAgent('worker')
     const issues = await Promise.all(
       Array.from({ length: 4 }, (_, i) => seedIssue(workspaceId, projectId, userId, { title: `Denial ${i}` })),
@@ -324,7 +324,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     expect(row?.agent_session_id).toBe(agent)
   })
 
-  it('TOCTOU: N concurrent claims never push a project over the cap (PROJ-290)', async () => {
+  test('TOCTOU: N concurrent claims never push a project over the cap (PROJ-290)', async () => {
     const agent = await registerAgent('worker')
     const issues = await Promise.all(
       Array.from({ length: 8 }, (_, i) => seedIssue(workspaceId, projectId, userId, { title: `C${i}` })),
@@ -345,7 +345,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     expect(row!.n).toBeLessThanOrEqual(3)
   })
 
-  it("respects a project's own agent_wip_limit override", async () => {
+  test("respects a project's own agent_wip_limit override", async () => {
     const patchRes = await SELF.fetch(`http://localhost/api/projects/${projectId}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -358,7 +358,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
   // --- REST/MCP parity (PROJ-301) ---
 
-  it('MCP parity: update_project sets agent_wip_limit the same as REST PATCH', async () => {
+  test('MCP parity: update_project sets agent_wip_limit the same as REST PATCH', async () => {
     const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -374,7 +374,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     await expectWipCapBlocksSecondClaim()
   })
 
-  it('MCP parity: create_project sets agent_wip_limit the same as REST create', async () => {
+  test('MCP parity: create_project sets agent_wip_limit the same as REST create', async () => {
     const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -390,7 +390,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     })
     expect(mcpRes.status).toBe(200)
     const body = (await mcpRes.json()) as {
-      result: { content: Array<{ text: string }> }
+      result: { content: { text: string }[] }
     }
     const created = JSON.parse(body.result.content[0].text) as { id: string }
 
@@ -419,7 +419,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     // An issue an agent held a lease on requires a completion report to close as done.
     const REPORT = { summary: 'Done', verification: 'pnpm test' }
 
-    it('marking a leased issue done releases its lease', async () => {
+    test('marking a leased issue done releases its lease', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Closes done' })
       const a1 = await registerAgent('a1')
       expect((await claim(issue.id, a1)).status).toBe(201)
@@ -438,7 +438,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
       expect((await claim(issue.id, a2)).status).toBe(201)
     })
 
-    it('marking a leased issue cancelled releases its lease', async () => {
+    test('marking a leased issue cancelled releases its lease', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Closes cancelled' })
       const a1 = await registerAgent('a1')
       expect((await claim(issue.id, a1)).status).toBe(201)
@@ -449,7 +449,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
       expect((await claim(issue.id, a2)).status).toBe(201)
     })
 
-    it('a non-status update of a done issue does not disturb a newer lease', async () => {
+    test('a non-status update of a done issue does not disturb a newer lease', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Already done' })
       expect((await patchStatus(issue.id, 'done')).status).toBe(200)
 
@@ -527,14 +527,14 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
         params: { name: 'list_issue_leases', arguments: args },
       }),
     })
-    const json = (await res.json()) as { result?: { content: Array<{ text: string }> } }
+    const json = (await res.json()) as { result?: { content: { text: string }[] } }
     const text = json.result?.content?.[0]?.text ?? '{}'
     return JSON.parse(text) as {
-      items: Array<{ id: string; issueId: string; issueRef: string; live: boolean }>
+      items: { id: string; issueId: string; issueRef: string; live: boolean }[]
     }
   }
 
-  it('excludes a lease whose session has gone stale by default; includeStale:true includes it', async () => {
+  test('excludes a lease whose session has gone stale by default; includeStale:true includes it', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Stale by default' })
     const agent = await registerAgent('stale-holder')
     expect((await claim(issue.id, agent)).status).toBe(201)
@@ -548,7 +548,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     expect(withFlag.items[0].live).toBe(false)
   })
 
-  it('excludes a released lease regardless of includeStale', async () => {
+  test('excludes a released lease regardless of includeStale', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Released' })
     const agent = await registerAgent('releaser')
     expect((await claim(issue.id, agent)).status).toBe(201)
@@ -566,7 +566,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     expect((await mcpLeases({ issueId: issue.id, includeStale: true })).items).toHaveLength(0)
   })
 
-  it("every item carries the issue's issueRef", async () => {
+  test("every item carries the issue's issueRef", async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Ref check' })
     const agent = await registerAgent('ref-holder')
     expect((await claim(issue.id, agent)).status).toBe(201)
@@ -581,7 +581,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
   // would already have excluded, passing even with the filter absent). Leases are seeded
   // directly (bypassing the register/claim API calls) to stay well under the test
   // environment's per-token rate limit (RATE_LIMIT_API_MAX=5).
-  it("projectId filters to the granted project's lease, excluding a second same-workspace project's (by key and uuid)", async () => {
+  test("projectId filters to the granted project's lease, excluding a second same-workspace project's (by key and uuid)", async () => {
     const otherProject = await seedProject(workspaceId, 'OTHR')
 
     const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'In project' })
@@ -597,7 +597,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     expect(byUuid.items.map((i) => i.issueId)).toEqual([issueA.id])
   })
 
-  it('REST parity: GET /api/issues/:id/leases accepts includeStale', async () => {
+  test('REST parity: GET /api/issues/:id/leases accepts includeStale', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'REST parity' })
     const agent = await registerAgent('rest-holder')
     expect((await claim(issue.id, agent)).status).toBe(201)
@@ -621,7 +621,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
   // single-issue GET /api/issues/:id/leases tested above. The lease is seeded directly
   // (bypassing register/claim API calls) so the five GET calls below stay within the
   // test environment's per-token rate limit (RATE_LIMIT_API_MAX=5).
-  it('REST parity: GET /api/issue-leases accepts issueId, agentId, projectId and includeStale', async () => {
+  test('REST parity: GET /api/issue-leases accepts issueId, agentId, projectId and includeStale', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Workspace-wide REST' })
     const { agentSessionId: agent } = await seedAgentLease(workspaceId, issue.id, {
       name: 'workspace-rest-holder',
@@ -632,7 +632,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     })
     expect(byIssue.status).toBe(200)
     const byIssueBody = (await byIssue.json()) as {
-      items: Array<{ id: string; issueId: string; agentSessionId: string; issueRef: string }>
+      items: { id: string; issueId: string; agentSessionId: string; issueRef: string }[]
     }
     expect(byIssueBody.items).toHaveLength(1)
     expect(byIssueBody.items[0].issueId).toBe(issue.id)
@@ -641,27 +641,27 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     const byAgent = await SELF.fetch(`http://localhost/api/issue-leases?agentId=${agent}`, {
       headers: authHeaders(token, slug),
     })
-    const byAgentBody = (await byAgent.json()) as { items: Array<{ agentSessionId: string }> }
+    const byAgentBody = (await byAgent.json()) as { items: { agentSessionId: string }[] }
     expect(byAgentBody.items.some((i) => i.agentSessionId === agent)).toBe(true)
 
     const byProjectKey = await SELF.fetch(`http://localhost/api/issue-leases?projectId=${projectKey}`, {
       headers: authHeaders(token, slug),
     })
-    const byProjectKeyBody = (await byProjectKey.json()) as { items: Array<{ issueId: string }> }
+    const byProjectKeyBody = (await byProjectKey.json()) as { items: { issueId: string }[] }
     expect(byProjectKeyBody.items.some((i) => i.issueId === issue.id)).toBe(true)
 
     await backdateHeartbeat(agent)
     const defaultRes = await SELF.fetch('http://localhost/api/issue-leases', {
       headers: authHeaders(token, slug),
     })
-    const defaultBody = (await defaultRes.json()) as { items: Array<{ issueId: string }> }
+    const defaultBody = (await defaultRes.json()) as { items: { issueId: string }[] }
     expect(defaultBody.items.some((i) => i.issueId === issue.id)).toBe(false)
 
     const staleRes = await SELF.fetch('http://localhost/api/issue-leases?includeStale=true', {
       headers: authHeaders(token, slug),
     })
     const staleBody = (await staleRes.json()) as {
-      items: Array<{ issueId: string; live: boolean }>
+      items: { issueId: string; live: boolean }[]
     }
     const staleItem = staleBody.items.find((i) => i.issueId === issue.id)
     expect(staleItem).toBeDefined()
@@ -673,7 +673,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
 // that project's key or uuid — not just fewer results, none at all — proving the
 // projectId filter composes with (rather than bypasses) PROJ-316 visibility.
 describe('PROJ-932: list_issue_leases projectId + visibility for a non-admin member', () => {
-  it("a hidden project's key or uuid returns no leases", async () => {
+  test("a hidden project's key or uuid returns no leases", async () => {
     const { token, slug, workspaceId, userId } = await seedProjectFixture({
       role: 'member',
     })
@@ -708,7 +708,7 @@ describe('PROJ-932: list_issue_leases projectId + visibility for a non-admin mem
           params: { name: 'list_issue_leases', arguments: args },
         }),
       })
-      const json = (await res.json()) as { result?: { content: Array<{ text: string }> } }
+      const json = (await res.json()) as { result?: { content: { text: string }[] } }
       const text = json.result?.content?.[0]?.text ?? '{}'
       return JSON.parse(text) as { items: unknown[] }
     }

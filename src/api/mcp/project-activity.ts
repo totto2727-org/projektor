@@ -1,7 +1,7 @@
-import { listProjectActivity } from '../services/project-activity'
-import { READ } from './annotations'
-import { capPage, toPage } from './serialize'
-import type { MCPTool } from './types'
+import { listProjectActivity } from '../services/project-activity.ts'
+import { READ } from './annotations.ts'
+import { capPage, toPage } from './serialize.ts'
+import type { MCPTool } from './types.ts'
 
 export const projectActivityTools: MCPTool[] = [
   {

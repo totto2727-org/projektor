@@ -2,12 +2,12 @@
 
 import { Effect, Schema } from 'effect'
 
-import { EFFRONT } from '../../effront'
-import { RequestServices } from '../../request'
-import { runBrowserCommand as runCommand } from '../../server/browser-command'
-import { dataError } from '../../server/data-context'
-import { FunctionSelectorSchema, resolveFunctionContext } from '../../server/function-context'
-import { checkSameOriginMutation } from '../../server/mutation'
+import { EFFRONT } from '../../effront.ts'
+import { RequestServices } from '../../request.ts'
+import { runBrowserCommand as runCommand } from '../../server/browser-command.ts'
+import { dataError } from '../../server/data-context.ts'
+import { FunctionSelectorSchema, resolveFunctionContext } from '../../server/function-context.ts'
+import { checkSameOriginMutation } from '../../server/mutation.ts'
 import {
   deleteStoredAttachment,
   wikiCommands,
@@ -16,8 +16,8 @@ import {
   readWikiDraft,
   readWikiDraftState,
   readWikiDiff,
-} from './data'
-import { EditFields } from './form-schemas'
+} from './data.ts'
+import { EditFields } from './form-schemas.ts'
 import {
   Created,
   Deleted,
@@ -28,7 +28,7 @@ import {
   Restored,
   SavedDraft,
   Verified,
-} from './schemas'
+} from './schemas.ts'
 
 const identifier = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200))
 const Reference = Schema.Struct({ ...FunctionSelectorSchema.fields, slug: identifier })

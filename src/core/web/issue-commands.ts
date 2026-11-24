@@ -1,24 +1,24 @@
 import { Effect, Schema } from 'effect'
 
-import * as comments from '#commands/comments'
-import * as files from '#commands/files'
-import * as links from '#commands/issue-links'
-import * as issues from '#commands/issues'
-import { createShareToken } from '#commands/share'
-import * as sprints from '#commands/sprints'
-import type { ServiceCtx } from '#commands/types'
+import * as comments from '#commands/comments.ts'
+import * as files from '#commands/files.ts'
+import * as links from '#commands/issue-links.ts'
+import * as issues from '#commands/issues.ts'
+import { createShareToken } from '#commands/share.ts'
+import * as sprints from '#commands/sprints.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { browserCommand } from './command'
+import { coreReply } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
 import {
   CommandIdSchema,
   CommandOkSchema,
   CreatedIssueSchema,
   CreatedLinkAttachmentSchema,
   ShareTokenSchema,
-  type BrowserCommand,
-} from './command-contract'
+} from './command-contract.ts'
+import type { BrowserCommand } from './command-contract.ts'
+import { browserCommand } from './command.ts'
 
 export const makeIssueCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
   function reply<S extends Schema.Top, A>(

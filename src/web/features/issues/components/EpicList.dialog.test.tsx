@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, expect, it, vi } from 'vite-plus/test'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../actions', () => ({ createIssue: vi.fn() }))
 
-import EpicList from './EpicList'
+import EpicList from './EpicList.tsx'
 
 const project = {
   id: 'project',
@@ -24,7 +24,7 @@ const project = {
 
 afterEach(cleanup)
 
-it('opens epic creation with an interactive priority portal and restores focus on Escape', async () => {
+test('opens epic creation with an interactive priority portal and restores focus on Escape', async () => {
   render(
     <EpicList
       workspaceSlug='workspace'

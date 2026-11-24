@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import m0050 from '../../../migrations/0050_wiki_slug_slash_backfill.sql?raw'
-import { env } from './fixture-api'
-import { seedUser, seedWorkspace } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedUser, seedWorkspace } from './helpers.ts'
 
 // PROJ-517/512: runs the actual 0050 migration SQL against seeded rows, rather than
 // hand-simulating what it does — the earlier test in wiki.test.ts only exercised the
@@ -47,7 +47,7 @@ describe('0050 wiki slug slash backfill', () => {
     userId = user.id
   })
 
-  it('rewrites a simple slashy slug with no collision and leaves a redirect', async () => {
+  test('rewrites a simple slashy slug with no collision and leaves a redirect', async () => {
     const now = Math.floor(Date.now() / 1000)
     const pageId = await insertPage(workspaceId, userId, 'docs/setup', now)
 
@@ -62,7 +62,7 @@ describe('0050 wiki slug slash backfill', () => {
     expect(redirect?.page_id).toBe(pageId)
   })
 
-  it('disambiguates two slashy slugs that rewrite to the same candidate with an id suffix', async () => {
+  test('disambiguates two slashy slugs that rewrite to the same candidate with an id suffix', async () => {
     const now = Math.floor(Date.now() / 1000)
     const firstId = await insertPage(workspaceId, userId, 'a/b/c', now)
     const secondId = await insertPage(workspaceId, userId, 'a-b/c', now + 1)
@@ -77,7 +77,7 @@ describe('0050 wiki slug slash backfill', () => {
     expect(bySlug.get(secondId)).toBe(`a-b-c-${secondId.slice(0, 8)}`)
   })
 
-  it('suffixes a slashy slug whose rewritten candidate collides with a pre-existing non-slashy page', async () => {
+  test('suffixes a slashy slug whose rewritten candidate collides with a pre-existing non-slashy page', async () => {
     const now = Math.floor(Date.now() / 1000)
     await insertPage(workspaceId, userId, 'docs-faq', now)
     const slashyId = await insertPage(workspaceId, userId, 'docs/faq', now + 1)
@@ -90,7 +90,7 @@ describe('0050 wiki slug slash backfill', () => {
     expect(page?.slug).toBe(`docs-faq-${slashyId.slice(0, 8)}`)
   })
 
-  it('upserts a pre-existing wiki_redirects row instead of aborting the migration on collision', async () => {
+  test('upserts a pre-existing wiki_redirects row instead of aborting the migration on collision', async () => {
     const now = Math.floor(Date.now() / 1000)
     const otherPageId = await insertPage(workspaceId, userId, 'unrelated', now - 2000)
     await env.DB.prepare(
@@ -109,7 +109,7 @@ describe('0050 wiki slug slash backfill', () => {
     expect(redirect?.page_id).toBe(pageId)
   })
 
-  it('truncates an oversized rewritten candidate before appending the id suffix, staying under 200 chars', async () => {
+  test('truncates an oversized rewritten candidate before appending the id suffix, staying under 200 chars', async () => {
     const now = Math.floor(Date.now() / 1000)
     const candidate = `${'b'.repeat(120)}-${'c'.repeat(120)}` // 241 chars
     const slashy = `${'b'.repeat(120)}/${'c'.repeat(120)}` // same length, collides once rewritten

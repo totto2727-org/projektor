@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { visibleProjectSqlFragment } from '#commands/access'
-import type { ServiceCtx } from '#commands/types'
+import { visibleProjectSqlFragment } from '#commands/access.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
 // PROJ-317: visibleProjectSqlFragment inlines its column expression verbatim into
 // raw SQL, so it must reject anything that isn't a bare/qualified column identifier
@@ -11,19 +11,19 @@ const memberCtx = { role: 'member', userId: 'u1' } as unknown as ServiceCtx
 const ownerCtx = { role: 'owner', userId: 'u1' } as unknown as ServiceCtx
 
 describe('visibleProjectSqlFragment column-expression guard', () => {
-  it('accepts a bare or table-qualified column identifier', () => {
+  test('accepts a bare or table-qualified column identifier', () => {
     expect(visibleProjectSqlFragment(memberCtx, 'project_id')).not.toBeNull()
     const frag = visibleProjectSqlFragment(memberCtx, 'i.project_id')
     expect(frag?.params).toEqual(['u1'])
     expect(frag?.sql).toContain('gpg.project_id = i.project_id')
   })
 
-  it('returns null for owner/admin (no filter) but still validates the expression', () => {
+  test('returns null for owner/admin (no filter) but still validates the expression', () => {
     expect(visibleProjectSqlFragment(ownerCtx, 'i.project_id')).toBeNull()
     expect(() => visibleProjectSqlFragment(ownerCtx, 'i.project_id; DROP TABLE issues')).toThrow()
   })
 
-  it('throws on anything that is not a column identifier', () => {
+  test('throws on anything that is not a column identifier', () => {
     for (const bad of [
       'i.project_id; DROP TABLE issues',
       '(SELECT 1)',

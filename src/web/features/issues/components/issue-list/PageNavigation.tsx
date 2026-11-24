@@ -1,5 +1,5 @@
-import { queryFields } from '../../utils/query-fields'
-import type { IssuesRoute } from '../../views/IssuesPage'
+import { queryFields } from '../../utils/query-fields.ts'
+import type { IssuesRoute } from '../../views/IssuesPage.tsx'
 
 export interface IssuePagination {
   readonly route: IssuesRoute
@@ -11,7 +11,9 @@ export function PageNavigation({ route, nextCursor }: IssuePagination) {
   const params = new URLSearchParams(route.search)
   const hasCursor = params.has('cursor')
   params.delete('cursor')
-  if (nextCursor === null && !hasCursor) return null
+  if (nextCursor === null && !hasCursor) {
+    return null
+  }
   return (
     <nav aria-label='Issue pagination' className='flex justify-center gap-3 mt-4 py-2'>
       {hasCursor && (

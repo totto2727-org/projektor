@@ -2,7 +2,7 @@ import { and, asc, eq } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
 
 export interface CommentRow {
   id: string

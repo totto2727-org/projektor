@@ -1,8 +1,8 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
-import { agentSessions } from './agents'
-import { workspaces } from './core'
-import { issues } from './issues'
+import { agentSessions } from './agents.ts'
+import { workspaces } from './core.ts'
+import { issues } from './issues.ts'
 
 export const issueFileClaims = sqliteTable(
   'issue_file_claims',

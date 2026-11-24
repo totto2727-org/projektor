@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { WebRequestSchema } from './scope'
+import { WebRequestSchema } from './scope.ts'
 
 export const BrowserCommandSchema = Schema.Struct({
   request: WebRequestSchema,

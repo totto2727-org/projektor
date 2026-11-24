@@ -11,13 +11,13 @@
 //   the window instead of the whole project.
 
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { getFlowMetrics } from '#commands/flow-metrics'
-import type { ServiceCtx } from '#commands/types'
+import { getFlowMetrics } from '#commands/flow-metrics.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { env } from './fixture-api'
-import { authHeaders, seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedProjectFixture } from './helpers.ts'
 
 describe('PROJ-866: flow-metrics window validation', () => {
   let token: string
@@ -34,57 +34,57 @@ describe('PROJ-866: flow-metrics window validation', () => {
     })
   }
 
-  it('400s a day-granularity window spanning more than 366 days', async () => {
+  test('400s a day-granularity window spanning more than 366 days', async () => {
     const now = Math.floor(Date.now() / 1000)
-    const since = now - 400 * 86400
+    const since = now - 400 * 86_400
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=day`)
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error: unknown }
     expect(JSON.stringify(body)).toMatch(/366 days/)
   })
 
-  it('accepts a day-granularity window of exactly 366 days', async () => {
+  test('accepts a day-granularity window of exactly 366 days', async () => {
     const now = Math.floor(Date.now() / 1000)
-    const since = now - 366 * 86400
+    const since = now - 366 * 86_400
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=day`)
     expect(res.status).toBe(200)
   })
 
-  it('400s a week-granularity window spanning more than 5 years', async () => {
+  test('400s a week-granularity window spanning more than 5 years', async () => {
     const now = Math.floor(Date.now() / 1000)
-    const since = now - (5 * 365 * 86400 + 86400)
+    const since = now - (5 * 365 * 86_400 + 86_400)
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=week`)
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error: unknown }
     expect(JSON.stringify(body)).toMatch(/5 years/)
   })
 
-  it('accepts a week-granularity window of exactly 5 years', async () => {
+  test('accepts a week-granularity window of exactly 5 years', async () => {
     const now = Math.floor(Date.now() / 1000)
-    const since = now - 5 * 365 * 86400
+    const since = now - 5 * 365 * 86_400
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=week`)
     expect(res.status).toBe(200)
   })
 
-  it('400s `since=0` with day granularity (the reported case) instead of computing tens of thousands of buckets', async () => {
+  test('400s `since=0` with day granularity (the reported case) instead of computing tens of thousands of buckets', async () => {
     const res = await getFlowMetrics('since=0&granularity=day')
     expect(res.status).toBe(400)
   })
 
-  it('400s until < since', async () => {
+  test('400s until < since', async () => {
     const now = Math.floor(Date.now() / 1000)
     const res = await getFlowMetrics(`since=${now}&until=${now - 1000}`)
     expect(res.status).toBe(400)
   })
 
-  it('does not require since/until at all — the fully-default call is unaffected', async () => {
+  test('does not require since/until at all — the fully-default call is unaffected', async () => {
     const res = await getFlowMetrics('')
     expect(res.status).toBe(200)
   })
 
-  it('400s when only `since` is given and it is more than 366 days before now at day granularity', async () => {
+  test('400s when only `since` is given and it is more than 366 days before now at day granularity', async () => {
     const now = Math.floor(Date.now() / 1000)
-    const since = now - 400 * 86400
+    const since = now - 400 * 86_400
     const res = await getFlowMetrics(`since=${since}&granularity=day`)
     expect(res.status).toBe(400)
   })
@@ -96,11 +96,11 @@ describe('PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixtur
   // spanning a 3-week window at day granularity so bucket boundaries and edge-clamping
   // are both exercised. Captured against the pre-rewrite implementation; any future
   // change to the bucket algorithms must keep producing this exact shape.
-  it('produces the pinned output for a representative multi-stage fixture', async () => {
+  test('produces the pinned output for a representative multi-stage fixture', async () => {
     const { token, slug, workspaceId, projectId, userId } = await seedProjectFixture({
       role: 'owner',
     })
-    const DAY = 86400
+    const DAY = 86_400
     const WEEK = 7 * DAY
     // A fixed past window, not one relative to "now": the output carries date labels
     // (bucketStart/date), so a now-relative fixture changed the snapshot every day.
@@ -204,9 +204,9 @@ describe('PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixtur
 })
 
 describe('PROJ-866: D1 query bound at scale', () => {
-  it('2,000 in-window issues (plus 1,000 long-closed): <=10 D1 queries, same numbers', async () => {
+  test('2,000 in-window issues (plus 1,000 long-closed): <=10 D1 queries, same numbers', async () => {
     const { workspaceId, projectId, userId } = await seedProjectFixture({ role: 'owner' })
-    const WEEK = 7 * 86400
+    const WEEK = 7 * 86_400
     const now = Math.floor(Date.now() / 1000)
     const since = now - 12 * WEEK
     const until = now
@@ -237,10 +237,12 @@ describe('PROJ-866: D1 query bound at scale', () => {
       return id
     }
     const longAgo = since - 20 * WEEK
-    for (let i = 0; i < 1000; i++) insertIssue(i + 1, longAgo, longAgo + 100, longAgo + 200)
+    for (let i = 0; i < 1000; i++) {
+      insertIssue(i + 1, longAgo, longAgo + 100, longAgo + 200)
+    }
     for (let i = 0; i < IN_WINDOW; i++) {
       const claimedAt = since + 60 * i
-      const id = insertIssue(1001 + i, since - 86400, claimedAt, claimedAt + 1000)
+      const id = insertIssue(1001 + i, since - 86_400, claimedAt, claimedAt + 1000)
       // A human comment on every 10th issue, and a lease covering half the cycle time
       // on every 4th — so the joined lookups are exercised, not just counted.
       if (i % 10 === 0) {
@@ -316,23 +318,23 @@ describe('PROJ-866 review: window defaults and aging WIP', () => {
     })
   }
 
-  it("accepts an until-only window in the past (the service's own default since applies)", async () => {
+  test("accepts an until-only window in the past (the service's own default since applies)", async () => {
     const now = Math.floor(Date.now() / 1000)
-    const res = await fetchMetrics(`until=${now - 90 * 86400}&granularity=day`)
+    const res = await fetchMetrics(`until=${now - 90 * 86_400}&granularity=day`)
     expect(res.status).toBe(200)
   })
 
-  it("caps an until-only window by its span from the service's default since, not from now", async () => {
+  test("caps an until-only window by its span from the service's default since, not from now", async () => {
     // 340 days ahead is under 366 days from now, but over 366 days from the default
     // bucket start (the Monday 5 weeks before this week's), which is what the service
     // would actually bucket from.
     const now = Math.floor(Date.now() / 1000)
-    const res = await fetchMetrics(`until=${now + 340 * 86400}&granularity=day`)
+    const res = await fetchMetrics(`until=${now + 340 * 86_400}&granularity=day`)
     expect(res.status).toBe(400)
   })
 
-  it('agingWip keeps currently open issues outside the window without changing the windowed series', async () => {
-    const DAY = 86400
+  test('agingWip keeps currently open issues outside the window without changing the windowed series', async () => {
+    const DAY = 86_400
     const now = Math.floor(Date.now() / 1000)
     const since = now - 60 * DAY
     const until = now - 20 * DAY
@@ -378,10 +380,10 @@ describe('PROJ-866 review: window defaults and aging WIP', () => {
     const res = await fetchMetrics(`since=${since}&until=${until}&granularity=week`)
     expect(res.status).toBe(200)
     const metrics = (await res.json()) as {
-      agingWip: Array<{ id: string }>
-      wipOverTime: Array<{ count: number }>
-      arrivalVsCompletionOverTime: Array<{ created: number; completed: number }>
-      cfdOverTime: Array<{ done: number; inProgress: number }>
+      agingWip: { id: string }[]
+      wipOverTime: { count: number }[]
+      arrivalVsCompletionOverTime: { created: number; completed: number }[]
+      cfdOverTime: { done: number; inProgress: number }[]
     }
     expect(metrics.agingWip.map((w) => w.id).sort()).toEqual([newer, reopened].sort())
     // Neither issue was active in the window: no WIP, arrivals or completions there,

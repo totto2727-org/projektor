@@ -1,8 +1,9 @@
 import { Schema } from 'effect'
 
-import { type ReviewFilter, ReviewFilterSchema } from '../../../../contracts/review-targets'
-import type { ProjectSummary } from '../../../server/request-context'
-import type { IssuesRoute } from './IssuesPage'
+import { ReviewFilterSchema } from '../../../../contracts/review-targets.ts'
+import type { ReviewFilter } from '../../../../contracts/review-targets.ts'
+import type { ProjectSummary } from '../../../server/request-context.ts'
+import type { IssuesRoute } from './IssuesPage.tsx'
 
 const REVIEW_LINKS = [
   { review: null, label: 'All issues' },
@@ -34,7 +35,9 @@ export function IssueReviewNavigation({
     if (review) {
       next.set('review', review)
       next.set('view', 'list')
-    } else next.delete('review')
+    } else {
+      next.delete('review')
+    }
     return `${route.pathname}?${next}`
   }
 

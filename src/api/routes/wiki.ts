@@ -2,13 +2,13 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { jsonBody } from '../http/body'
-import { coreFileRequest } from '../http/core-files'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { ctxFromHono } from '../services/types'
-import * as wikiService from '../services/wiki'
-import * as wikiDraftsService from '../services/wiki-drafts'
-import * as wikiWatchersService from '../services/wiki-watchers'
+import { jsonBody } from '../http/body.ts'
+import { coreFileRequest } from '../http/core-files.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { ctxFromHono } from '../services/types.ts'
+import * as wikiDraftsService from '../services/wiki-drafts.ts'
+import * as wikiWatchersService from '../services/wiki-watchers.ts'
+import * as wikiService from '../services/wiki.ts'
 
 const router = new Hono<HonoEnv>()
 
@@ -222,7 +222,9 @@ router.get('/export', (c) => {
   const query = new URLSearchParams()
   for (const name of ['scope', 'projectId', 'pageId']) {
     const value = c.req.query(name)
-    if (value !== undefined) query.set(name, value)
+    if (value !== undefined) {
+      query.set(name, value)
+    }
   }
   return coreFileRequest(c, `/wiki-export?${query}`)
 })

@@ -2,8 +2,8 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
+import { jsonBody } from '../http/body.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
 import {
   createFeedbackSource,
   getFeedbackSource,
@@ -11,8 +11,8 @@ import {
   revokeFeedbackSource,
   rotateFeedbackSourceToken,
   updateFeedbackSource,
-} from '../services/feedback-sources'
-import { ctxFromHono } from '../services/types'
+} from '../services/feedback-sources.ts'
+import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 

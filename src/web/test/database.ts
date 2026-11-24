@@ -2,7 +2,7 @@ import type { SQLInputValue } from 'node:sqlite'
 
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
 
-import { migratedDb } from '#db/test/helpers'
+import { migratedDb } from '#db/test/helpers.ts'
 
 /** Real migrated SQLite schema behind the D1 query interface, for domain tests only. */
 export function createTestDatabase() {

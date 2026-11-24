@@ -1,11 +1,11 @@
 import { SELF } from 'cloudflare:test'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { startWork as startWorkDirect } from '#commands/agents'
-import type { ServiceCtx } from '#commands/types'
+import { startWork as startWorkDirect } from '#commands/agents.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
 
 describe('Agents API', () => {
   let token: string
@@ -27,7 +27,7 @@ describe('Agents API', () => {
   }
 
   // A1: register -> active, appears in list_active_agents by issueId
-  it('A1: POST /api/agents registers a session and it appears in GET list filtered by issueId', async () => {
+  test('A1: POST /api/agents registers a session and it appears in GET list filtered by issueId', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Test Issue' })
 
     const res = await registerAgent({ name: 'test-agent', issueId: issue.id })
@@ -40,12 +40,12 @@ describe('Agents API', () => {
       headers: authHeaders(token, slug),
     })
     expect(listRes.status).toBe(200)
-    const body = (await listRes.json()) as { items: Array<{ id: string }> }
+    const body = (await listRes.json()) as { items: { id: string }[] }
     expect(body.items.some((s) => s.id === session.id)).toBe(true)
   })
 
   // A2: heartbeat bumps last_heartbeat_at; stale session excluded from list
-  it('A2: heartbeat updates last_heartbeat_at; stale session is excluded from list', async () => {
+  test('A2: heartbeat updates last_heartbeat_at; stale session is excluded from list', async () => {
     const res = await registerAgent({ name: 'heartbeat-agent' })
     expect(res.status).toBe(201)
     const session = (await res.json()) as { id: string }
@@ -68,12 +68,12 @@ describe('Agents API', () => {
       headers: authHeaders(token, slug),
     })
     expect(listRes.status).toBe(200)
-    const listBody = (await listRes.json()) as { items: Array<{ id: string }> }
+    const listBody = (await listRes.json()) as { items: { id: string }[] }
     expect(listBody.items.some((s) => s.id === session.id)).toBe(false)
   })
 
   // A3: end -> status='ended', excluded from active list
-  it('A3: POST /:id/end sets status=ended and excludes session from active list', async () => {
+  test('A3: POST /:id/end sets status=ended and excludes session from active list', async () => {
     const res = await registerAgent({ name: 'end-agent' })
     expect(res.status).toBe(201)
     const session = (await res.json()) as { id: string }
@@ -91,13 +91,13 @@ describe('Agents API', () => {
     const listRes = await SELF.fetch('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
     })
-    const listBody = (await listRes.json()) as { items: Array<{ id: string }> }
+    const listBody = (await listRes.json()) as { items: { id: string }[] }
     expect(listBody.items.some((s) => s.id === session.id)).toBe(false)
   })
 
   // A4 (PROJ-336): kind is deprecated — still accepted for MCP compatibility but
   // ignored, and no longer present in register/list responses as a trust signal.
-  it('A4: caller-supplied kind is accepted but ignored, and absent from responses', async () => {
+  test('A4: caller-supplied kind is accepted but ignored, and absent from responses', async () => {
     const agentRes = await registerAgent({ name: 'bot' })
     const agentSession = (await agentRes.json()) as Record<string, unknown>
     expect(agentSession.kind).toBeUndefined()
@@ -110,14 +110,14 @@ describe('Agents API', () => {
     const listRes = await SELF.fetch('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
     })
-    const listBody = (await listRes.json()) as { items: Array<Record<string, unknown>> }
+    const listBody = (await listRes.json()) as { items: Record<string, unknown>[] }
     const humanItem = listBody.items.find((s) => s.id === humanSession.id)
     expect(humanItem).toBeDefined()
     expect(humanItem?.kind).toBeUndefined()
   })
 
   // A5: tenant isolation
-  it('A5: session in workspace X is not visible from workspace Y; heartbeat/end from Y -> 404', async () => {
+  test('A5: session in workspace X is not visible from workspace Y; heartbeat/end from Y -> 404', async () => {
     const other = await seedFixture()
 
     // Register session in our workspace (X)
@@ -128,7 +128,7 @@ describe('Agents API', () => {
     const listRes = await SELF.fetch('http://localhost/api/agents', {
       headers: authHeaders(other.token, other.workspace.slug),
     })
-    const listBody = (await listRes.json()) as { items: Array<{ id: string }> }
+    const listBody = (await listRes.json()) as { items: { id: string }[] }
     expect(listBody.items.some((s) => s.id === session.id)).toBe(false)
 
     // Heartbeat from Y -> 404
@@ -146,17 +146,17 @@ describe('Agents API', () => {
     expect(endRes.status).toBe(404)
   })
 
-  it('POST /api/agents returns 400 for missing name', async () => {
+  test('POST /api/agents returns 400 for missing name', async () => {
     const res = await registerAgent({})
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/agents returns 404 for unknown issueId', async () => {
+  test('POST /api/agents returns 404 for unknown issueId', async () => {
     const res = await registerAgent({ name: 'orphan', issueId: crypto.randomUUID() })
     expect(res.status).toBe(404)
   })
 
-  it('POST /:id/heartbeat returns 404 for unknown id', async () => {
+  test('POST /:id/heartbeat returns 404 for unknown id', async () => {
     const res = await SELF.fetch(`http://localhost/api/agents/${crypto.randomUUID()}/heartbeat`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -164,7 +164,7 @@ describe('Agents API', () => {
     expect(res.status).toBe(404)
   })
 
-  it('POST /:id/end returns 404 for unknown id', async () => {
+  test('POST /:id/end returns 404 for unknown id', async () => {
     const res = await SELF.fetch(`http://localhost/api/agents/${crypto.randomUUID()}/end`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -172,14 +172,14 @@ describe('Agents API', () => {
     expect(res.status).toBe(404)
   })
 
-  it('GET /api/agents returns all active sessions in workspace', async () => {
+  test('GET /api/agents returns all active sessions in workspace', async () => {
     await registerAgent({ name: 'agent-1' })
     await registerAgent({ name: 'agent-2' })
 
     const listRes = await SELF.fetch('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
     })
-    const body = (await listRes.json()) as { items: Array<{ name: string }> }
+    const body = (await listRes.json()) as { items: { name: string }[] }
     const names = body.items.map((s) => s.name)
     expect(names).toContain('agent-1')
     expect(names).toContain('agent-2')
@@ -219,13 +219,13 @@ describe('Agents API', () => {
         }),
       })
       const body = (await res.json()) as {
-        result?: { content: Array<{ text: string }>; isError?: boolean }
+        result?: { content: { text: string }[]; isError?: boolean }
         error?: { message: string }
       }
       return { status: res.status, body }
     }
 
-    it('registers, claims the issue and files, and posts a start message in one call', async () => {
+    test('registers, claims the issue and files, and posts a start message in one call', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Start work' })
 
       const res = await startWork({
@@ -237,7 +237,7 @@ describe('Agents API', () => {
       const body = (await res.json()) as {
         sessionId: string
         lease: { issueId: string }
-        claimedFiles: Array<{ path: string }>
+        claimedFiles: { path: string }[]
       }
       expect(body.sessionId).toBeTruthy()
       expect(body.lease.issueId).toBe(issue.id)
@@ -256,7 +256,7 @@ describe('Agents API', () => {
       expect(messages.results.some((m) => m.body.includes('started work'))).toBe(true)
     })
 
-    it('works with no paths given', async () => {
+    test('works with no paths given', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No paths' })
       const res = await startWork({ issue: issue.id, name: 'worker-1' })
       expect(res.status).toBe(201)
@@ -264,7 +264,7 @@ describe('Agents API', () => {
       expect(body.claimedFiles).toEqual([])
     })
 
-    it('is all-or-nothing: a lease conflict leaves no session, lease, or claim behind', async () => {
+    test('is all-or-nothing: a lease conflict leaves no session, lease, or claim behind', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contended' })
       const first = await startWork({ issue: issue.id, name: 'worker-1' })
       expect(first.status).toBe(201)
@@ -299,7 +299,7 @@ describe('Agents API', () => {
         vi.restoreAllMocks()
       })
 
-      it('rethrows the original conflict error even when the compensating endAgent call itself fails', async () => {
+      test('rethrows the original conflict error even when the compensating endAgent call itself fails', async () => {
         const issue1 = await seedIssue(workspaceId, projectId, userId, { title: 'Holds file' })
         const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Wants file' })
         await startWorkDirect(
@@ -360,7 +360,7 @@ describe('Agents API', () => {
       })
     })
 
-    it('is all-or-nothing: a file-claim conflict releases the lease it just took', async () => {
+    test('is all-or-nothing: a file-claim conflict releases the lease it just took', async () => {
       const issue1 = await seedIssue(workspaceId, projectId, userId, { title: 'Holds file' })
       const heldRes = await startWork({
         issue: issue1.id,
@@ -384,7 +384,7 @@ describe('Agents API', () => {
       expect(lease).toBeNull()
     })
 
-    it('finish_work transitions the issue, releases everything, and ends the session', async () => {
+    test('finish_work transitions the issue, releases everything, and ends the session', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Finish' })
       const started = await startWork({ issue: issue.id, paths: ['src/finish.ts'], name: 'w' })
       const { sessionId } = (await started.json()) as { sessionId: string }
@@ -418,7 +418,7 @@ describe('Agents API', () => {
       expect(session?.status).toBe('ended')
     })
 
-    it('finish_work with no status/completionReport just releases and ends the session', async () => {
+    test('finish_work with no status/completionReport just releases and ends the session', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No transition' })
       const started = await startWork({ issue: issue.id, name: 'w' })
       const { sessionId } = (await started.json()) as { sessionId: string }
@@ -437,7 +437,7 @@ describe('Agents API', () => {
       expect(session?.status).toBe('ended')
     })
 
-    it("claim_issue (via start_work) refreshes the session's heartbeat", async () => {
+    test("claim_issue (via start_work) refreshes the session's heartbeat", async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Heartbeat' })
       const before = Math.floor(Date.now() / 1000) - 100
 
@@ -450,7 +450,7 @@ describe('Agents API', () => {
       expect(session?.last_heartbeat_at).toBeGreaterThanOrEqual(before)
     })
 
-    it('MCP parity: start_work and finish_work work the same over MCP', async () => {
+    test('MCP parity: start_work and finish_work work the same over MCP', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'MCP path' })
 
       const started = await mcpCall('start_work', { issue: issue.id, name: 'mcp-worker' })
@@ -474,7 +474,7 @@ describe('Agents API', () => {
       expect(issueRow?.status).toBe('cancelled')
     })
 
-    it('the old tools still work standalone (register_agent/claim_issue/release_issue/end_agent)', async () => {
+    test('the old tools still work standalone (register_agent/claim_issue/release_issue/end_agent)', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Old path' })
       const reg = await registerAgent({ name: 'old-style' })
       const { id: agentId } = (await reg.json()) as { id: string }
@@ -513,17 +513,17 @@ describe('Agents API', () => {
       })
     }
 
-    it('excludes a session with a stale heartbeat by default; includeStale:true includes it, flagged live:false', async () => {
+    test('excludes a session with a stale heartbeat by default; includeStale:true includes it, flagged live:false', async () => {
       const res = await registerAgent({ name: 'stale-agent-932' })
       const session = (await res.json()) as { id: string }
       await backdateHeartbeat(session.id)
 
       const withoutFlag = await listAgents()
-      const withoutBody = (await withoutFlag.json()) as { items: Array<{ id: string }> }
+      const withoutBody = (await withoutFlag.json()) as { items: { id: string }[] }
       expect(withoutBody.items.some((s) => s.id === session.id)).toBe(false)
 
       const withFlag = await listAgents({ includeStale: 'true' })
-      const withBody = (await withFlag.json()) as { items: Array<{ id: string; live: boolean }> }
+      const withBody = (await withFlag.json()) as { items: { id: string; live: boolean }[] }
       const item = withBody.items.find((s) => s.id === session.id)
       expect(item).toBeDefined()
       expect(item?.live).toBe(false)
@@ -531,7 +531,7 @@ describe('Agents API', () => {
 
     // includeStale widens the heartbeat check on an *active* session; it must never reach
     // into ended sessions, which end_agent explicitly moves out of the pool for good.
-    it('never returns an ended session, with or without includeStale', async () => {
+    test('never returns an ended session, with or without includeStale', async () => {
       const res = await registerAgent({ name: 'ended-agent-932' })
       const session = (await res.json()) as { id: string }
       await SELF.fetch(`http://localhost/api/agents/${session.id}/end`, {
@@ -540,24 +540,24 @@ describe('Agents API', () => {
       })
 
       const withoutFlag = await listAgents()
-      const withoutBody = (await withoutFlag.json()) as { items: Array<{ id: string }> }
+      const withoutBody = (await withoutFlag.json()) as { items: { id: string }[] }
       expect(withoutBody.items.some((s) => s.id === session.id)).toBe(false)
 
       const withFlag = await listAgents({ includeStale: 'true' })
-      const withBody = (await withFlag.json()) as { items: Array<{ id: string }> }
+      const withBody = (await withFlag.json()) as { items: { id: string }[] }
       expect(withBody.items.some((s) => s.id === session.id)).toBe(false)
     })
 
-    it('a fresh session is flagged live:true', async () => {
+    test('a fresh session is flagged live:true', async () => {
       const res = await registerAgent({ name: 'fresh-agent-932' })
       const session = (await res.json()) as { id: string }
 
       const listRes = await listAgents()
-      const body = (await listRes.json()) as { items: Array<{ id: string; live: boolean }> }
+      const body = (await listRes.json()) as { items: { id: string; live: boolean }[] }
       expect(body.items.find((s) => s.id === session.id)?.live).toBe(true)
     })
 
-    it("carries the linked issue's issueRef; null when unlinked", async () => {
+    test("carries the linked issue's issueRef; null when unlinked", async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Linked' })
       const linked = await registerAgent({ name: 'linked-932', issueId: issue.id })
       const linkedSession = (await linked.json()) as { id: string }
@@ -566,7 +566,7 @@ describe('Agents API', () => {
 
       const res = await listAgents()
       const body = (await res.json()) as {
-        items: Array<{ id: string; issueRef: string | null }>
+        items: { id: string; issueRef: string | null }[]
       }
       const byId = new Map(body.items.map((s) => [s.id, s.issueRef]))
       expect(byId.get(linkedSession.id)).toBe(`${projectKey}-${issue.number}`)
@@ -576,7 +576,7 @@ describe('Agents API', () => {
     // The fixture project is the only one the fixture user (role: member) has a grant
     // on; a second project in the SAME workspace, also granted, proves the projectId
     // filter itself excludes the other project's sessions — not merely visibility.
-    it("projectId filters to the granted project's sessions, excluding a second same-workspace project's (by key and uuid)", async () => {
+    test("projectId filters to the granted project's sessions, excluding a second same-workspace project's (by key and uuid)", async () => {
       const otherProject = await seedProject(workspaceId, 'OTHR')
       await seedGroupGrant(workspaceId, userId, otherProject.id, 'member')
 
@@ -589,17 +589,17 @@ describe('Agents API', () => {
       const linkedBSession = (await linkedB.json()) as { id: string }
 
       const byKey = await listAgents({ projectId: projectKey })
-      const byKeyIds = ((await byKey.json()) as { items: Array<{ id: string }> }).items.map((s) => s.id)
+      const byKeyIds = ((await byKey.json()) as { items: { id: string }[] }).items.map((s) => s.id)
       expect(byKeyIds).toContain(linkedASession.id)
       expect(byKeyIds).not.toContain(linkedBSession.id)
 
       const byUuid = await listAgents({ projectId })
-      const byUuidIds = ((await byUuid.json()) as { items: Array<{ id: string }> }).items.map((s) => s.id)
+      const byUuidIds = ((await byUuid.json()) as { items: { id: string }[] }).items.map((s) => s.id)
       expect(byUuidIds).toContain(linkedASession.id)
       expect(byUuidIds).not.toContain(linkedBSession.id)
     })
 
-    it("a member with no grant on a project gets an empty result for that project's key or uuid", async () => {
+    test("a member with no grant on a project gets an empty result for that project's key or uuid", async () => {
       const hidden = await seedProject(workspaceId, 'HIDN')
       // No seedGroupGrant for `userId` on `hidden` — it stays invisible to them.
       const issue = await seedIssue(workspaceId, hidden.id, userId, { title: 'Hidden' })

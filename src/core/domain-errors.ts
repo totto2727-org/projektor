@@ -7,8 +7,8 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from '../contracts/errors'
-import { coreFailure } from './contract'
+} from '../contracts/errors.ts'
+import { coreFailure } from './contract.ts'
 
 function jsonDetails(input: unknown): Schema.JsonObject | undefined {
   try {
@@ -29,8 +29,14 @@ export function publicDomainFailure(error: unknown): unknown {
       ...(error.details ? { details: jsonDetails(error.details) } : {}),
     })
   }
-  if (error instanceof ForbiddenError) return coreFailure(403, error.message, { kind: error.kind })
-  if (error instanceof PayloadTooLargeError) return coreFailure(413, error.message, { kind: error.kind })
-  if (error instanceof UnsupportedMediaTypeError) return coreFailure(415, error.message, { kind: error.kind })
+  if (error instanceof ForbiddenError) {
+    return coreFailure(403, error.message, { kind: error.kind })
+  }
+  if (error instanceof PayloadTooLargeError) {
+    return coreFailure(413, error.message, { kind: error.kind })
+  }
+  if (error instanceof UnsupportedMediaTypeError) {
+    return coreFailure(415, error.message, { kind: error.kind })
+  }
   return error
 }

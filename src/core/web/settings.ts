@@ -1,14 +1,14 @@
 import { and, eq } from 'drizzle-orm'
 import { Effect, Schema } from 'effect'
 
-import * as groups from '#commands/groups'
-import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth'
-import type { ServiceCtx } from '#commands/types'
-import * as workspaces from '#commands/workspaces'
+import * as groups from '#commands/groups.ts'
+import { listConnectorGrants, revokeConnectorGrant } from '#commands/oauth.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import * as workspaces from '#commands/workspaces.ts'
 import { schema } from '#db'
-import * as groupQueries from '#services/groups'
-import { listProjects } from '#services/projects'
-import { listWorkspaceMembers, listWorkspaceTokenMetadata } from '#services/workspaces'
+import * as groupQueries from '#services/groups.ts'
+import { listProjects } from '#services/projects.ts'
+import { listWorkspaceMembers, listWorkspaceTokenMetadata } from '#services/workspaces.ts'
 
 import {
   ConnectorsSchema,
@@ -18,18 +18,19 @@ import {
   SettingsGroupsSchema,
   SettingsOkSchema,
   SettingsTokensSchema,
-} from '../../contracts/web-schemas/settings'
-import { apiOrigin } from '../../deployment'
-import { coreFailure, coreReply } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope, publicWebFailure } from './authentication'
-import { browserCommand } from './command'
-import { BrowserCommandSchema, type BrowserCommand } from './command-contract'
-import { requireDataWorkspace, visibleProjectPredicate } from './data-context'
-import { checked } from './issue-data'
-import { webRead } from './issue-operations'
-import type { RequestScope, WebRequest } from './scope'
+} from '../../contracts/web-schemas/settings.ts'
+import { apiOrigin } from '../../deployment.ts'
+import { coreFailure, coreReply } from '../contract.ts'
+import { publicDomainFailure } from '../domain-errors.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { loadBrowserScope, publicWebFailure } from './authentication.ts'
+import { BrowserCommandSchema } from './command-contract.ts'
+import type { BrowserCommand } from './command-contract.ts'
+import { browserCommand } from './command.ts'
+import { requireDataWorkspace, visibleProjectPredicate } from './data-context.ts'
+import { checked } from './issue-data.ts'
+import { webRead } from './issue-operations.ts'
+import type { RequestScope, WebRequest } from './scope.ts'
 
 const admin = (role: string | undefined) => role === 'owner' || role === 'admin'
 function readContext(env: CoreEnvironment, proof: BrowserCommand) {
@@ -44,8 +45,9 @@ function readContext(env: CoreEnvironment, proof: BrowserCommand) {
     })
     const workspace = yield* checked(() => requireDataWorkspace(scope))
     const auth = scope.auth
-    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev'))
+    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
       return yield* coreFailure(403, 'An interactive browser session is required.')
+    }
     const ctx: ServiceCtx = {
       db: env.DB,
       kv: env.KV,
@@ -66,7 +68,9 @@ function authorizeGrantProject(env: CoreEnvironment, scope: RequestScope, worksp
       and(visibleProjectPredicate(scope, workspaceId, schema.projects.id), eq(schema.projects.id, projectId)),
     )
     const [project] = yield* listProjects(env.DB, workspaceId, { includeArchived: true, visibility })
-    if (!project) return yield* coreFailure(404, 'Project not found in the selected workspace.')
+    if (!project) {
+      return yield* coreFailure(404, 'Project not found in the selected workspace.')
+    }
   })
 }
 export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
@@ -176,7 +180,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
             const grants = yield* Effect.tryPromise({
               try: async () =>
                 listConnectorGrants(
-                  (await import('#services/oauth-provider')).oauthApi(env),
+                  (await import('#services/oauth-provider.ts')).oauthApi(env),
                   ctx.userId,
                   ctx.workspaceId,
                 ),
@@ -200,7 +204,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
             return yield* Effect.tryPromise({
               try: async () =>
                 listConnectorGrants(
-                  (await import('#services/oauth-provider')).oauthApi(env),
+                  (await import('#services/oauth-provider.ts')).oauthApi(env),
                   ctx.userId,
                   ctx.workspaceId,
                 ),
@@ -250,7 +254,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
     webDisconnectConnector: (proof: BrowserCommand, connectorId: string) =>
       mutation('webDisconnectConnector', SettingsOkSchema, proof, async (ctx, env) =>
         revokeConnectorGrant(
-          (await import('#services/oauth-provider')).oauthApi(env),
+          (await import('#services/oauth-provider.ts')).oauthApi(env),
           ctx.userId,
           ctx.workspaceId,
           connectorId,

@@ -1,10 +1,10 @@
 import { SELF } from 'cloudflare:test'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import * as cache from '#commands/cache'
+import * as cache from '#commands/cache.ts'
 
-import { configureCore, env, getCoreObservations, resetCoreObservations } from './fixture-api'
-import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus, seedTaskType } from './helpers'
+import { configureCore, env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
+import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus, seedTaskType } from './helpers.ts'
 
 describe('KV caching', () => {
   let token: string
@@ -20,7 +20,7 @@ describe('KV caching', () => {
   describe('single-issue cache (TTL 300s, write-through invalidation)', () => {
     // PROJ-863: the cache holds only issue-owned extras (rollup, custom fields); the
     // row itself is always read, so a deleted issue is a 404 even with a warm cache.
-    it('a warm cache never resurrects a deleted issue (row is always read)', async () => {
+    test('a warm cache never resurrects a deleted issue (row is always read)', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Cached Issue' })
       const url = `http://localhost/api/issues/${issue.id}`
       const hdrs = authHeaders(token, slug)
@@ -38,7 +38,7 @@ describe('KV caching', () => {
       expect(second.status).toBe(404)
     })
 
-    it('updateIssue invalidates the cache — subsequent GET reflects updated data', async () => {
+    test('updateIssue invalidates the cache — subsequent GET reflects updated data', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Before' })
       const url = `http://localhost/api/issues/${issue.id}`
       const hdrs = authHeaders(token, slug)
@@ -61,7 +61,7 @@ describe('KV caching', () => {
       expect(body.title).toBe('After')
     })
 
-    it('deleteIssue invalidates the cache — subsequent GET returns 404, not stale cache', async () => {
+    test('deleteIssue invalidates the cache — subsequent GET returns 404, not stale cache', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId)
       const url = `http://localhost/api/issues/${issue.id}`
       const hdrs = authHeaders(token, slug)
@@ -80,7 +80,7 @@ describe('KV caching', () => {
   })
 
   describe('workspace metadata cache (TTL 60s, write-through invalidation)', () => {
-    it('task statuses list is cached — second GET returns data even after D1 is cleared', async () => {
+    test('task statuses list is cached — second GET returns data even after D1 is cleared', async () => {
       await seedTaskStatus(workspaceId, { key: 'todo', name: 'Todo', category: 'todo' })
       const url = 'http://localhost/api/task-statuses'
       const hdrs = authHeaders(token, slug)
@@ -101,7 +101,7 @@ describe('KV caching', () => {
       expect(secondBody.length).toBeGreaterThan(0)
     })
 
-    it('task types list is cached — second GET returns data even after D1 is cleared', async () => {
+    test('task types list is cached — second GET returns data even after D1 is cleared', async () => {
       await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
       const url = 'http://localhost/api/task-types'
       const hdrs = authHeaders(token, slug)
@@ -119,7 +119,7 @@ describe('KV caching', () => {
       expect(secondBody.length).toBeGreaterThan(0)
     })
 
-    it('projects list is cached — MCP list_projects returns data even after D1 is cleared', async () => {
+    test('projects list is cached — MCP list_projects returns data even after D1 is cleared', async () => {
       // projectId was already seeded in beforeEach via seedProject
       const hdrs = authHeaders(token, slug)
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
@@ -135,7 +135,7 @@ describe('KV caching', () => {
             params: { name: 'list_projects', arguments: {} },
           }),
         })
-        const rpc = (await res.json()) as { result: { content: Array<{ text: string }> } }
+        const rpc = (await res.json()) as { result: { content: { text: string }[] } }
         return JSON.parse(rpc.result.content[0].text) as unknown[]
       }
 
@@ -151,7 +151,7 @@ describe('KV caching', () => {
       expect(second.length).toBeGreaterThan(0)
     })
 
-    it('creating a project invalidates the cache — subsequent list_projects reflects it immediately', async () => {
+    test('creating a project invalidates the cache — subsequent list_projects reflects it immediately', async () => {
       const hdrs = authHeaders(token, slug)
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
@@ -166,8 +166,8 @@ describe('KV caching', () => {
             params: { name: 'list_projects', arguments: {} },
           }),
         })
-        const rpc = (await res.json()) as { result: { content: Array<{ text: string }> } }
-        return JSON.parse(rpc.result.content[0].text) as Array<{ key: string }>
+        const rpc = (await res.json()) as { result: { content: { text: string }[] } }
+        return JSON.parse(rpc.result.content[0].text) as { key: string }[]
       }
 
       const before = await mcpListProjects()
@@ -184,7 +184,7 @@ describe('KV caching', () => {
       expect(after.some((p) => p.key === 'NEWP')).toBe(true)
     })
 
-    it('creating a task status invalidates the cache — subsequent list reflects it immediately', async () => {
+    test('creating a task status invalidates the cache — subsequent list reflects it immediately', async () => {
       const url = 'http://localhost/api/task-statuses'
       const hdrs = authHeaders(token, slug)
 
@@ -201,19 +201,19 @@ describe('KV caching', () => {
 
       // GET immediately after — must not be served from the pre-create cache entry
       const after = await SELF.fetch(url, { headers: hdrs })
-      const afterBody = (await after.json()) as Array<{ key: string }>
+      const afterBody = (await after.json()) as { key: string }[]
       expect(afterBody.length).toBe(beforeBody.length + 1)
       expect(afterBody.some((s) => s.key === 'blocked')).toBe(true)
     })
 
-    it('deleting a task type invalidates the cache — subsequent list reflects it immediately', async () => {
+    test('deleting a task type invalidates the cache — subsequent list reflects it immediately', async () => {
       const taskType = await seedTaskType(workspaceId, { key: 'chore', name: 'Chore' })
       const url = 'http://localhost/api/task-types'
       const hdrs = authHeaders(token, slug)
 
       // GET to populate cache including the seeded type
       const before = await SELF.fetch(url, { headers: hdrs })
-      const beforeBody = (await before.json()) as Array<{ key: string }>
+      const beforeBody = (await before.json()) as { key: string }[]
       expect(beforeBody.some((t) => t.key === 'chore')).toBe(true)
 
       const del = await SELF.fetch(`${url}/${taskType.id}`, { method: 'DELETE', headers: hdrs })
@@ -221,7 +221,7 @@ describe('KV caching', () => {
 
       // GET immediately after — must not be served from the pre-delete cache entry
       const after = await SELF.fetch(url, { headers: hdrs })
-      const afterBody = (await after.json()) as Array<{ key: string }>
+      const afterBody = (await after.json()) as { key: string }[]
       expect(afterBody.some((t) => t.key === 'chore')).toBe(false)
     })
   })
@@ -235,31 +235,31 @@ describe('KV caching', () => {
       } as unknown as KVNamespace
     }
 
-    it('get() degrades to a cache miss instead of throwing', async () => {
+    test('get() degrades to a cache miss instead of throwing', async () => {
       const kv = throwingKv(new Error('10048: your account has reached the free usage limit'))
       await expect(cache.get(kv, 'any-key')).resolves.toBeNull()
     })
 
-    it('set() resolves instead of throwing', async () => {
+    test('set() resolves instead of throwing', async () => {
       const kv = throwingKv(new Error('10048: your account has reached the free usage limit'))
       await expect(cache.set(kv, 'any-key', { a: 1 }, 60)).resolves.toBeUndefined()
     })
 
-    it('invalidate() resolves instead of throwing', async () => {
+    test('invalidate() resolves instead of throwing', async () => {
       const kv = throwingKv(new Error('10048: your account has reached the free usage limit'))
       await expect(cache.invalidate(kv, 'any-key')).resolves.toBeUndefined()
     })
   })
 
   describe('createLocalCache (PROJ-746)', () => {
-    it('returns undefined before a set and the stored value after', () => {
+    test('returns undefined before a set and the stored value after', () => {
       const local = cache.createLocalCache<number>(1000)
       expect(local.get('k')).toBeUndefined()
       local.set('k', 42)
       expect(local.get('k')).toBe(42)
     })
 
-    it('expires an entry once its TTL elapses', () => {
+    test('expires an entry once its TTL elapses', () => {
       vi.useFakeTimers()
       try {
         const local = cache.createLocalCache<number>(1000)
@@ -271,14 +271,14 @@ describe('KV caching', () => {
       }
     })
 
-    it('invalidate() removes an entry before its TTL elapses', () => {
+    test('invalidate() removes an entry before its TTL elapses', () => {
       const local = cache.createLocalCache<number>(1000)
       local.set('k', 42)
       local.invalidate('k')
       expect(local.get('k')).toBeUndefined()
     })
 
-    it("update_issue's D1 write still lands and is reported as success when the cache invalidate fails", async () => {
+    test("update_issue's D1 write still lands and is reported as success when the cache invalidate fails", async () => {
       const { token, slug, workspaceId, projectId, userId } = await seedProjectFixture({
         role: 'owner',
       })

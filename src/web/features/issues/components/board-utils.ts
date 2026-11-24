@@ -1,4 +1,4 @@
-import type { ReviewTarget } from '../../../../contracts/review-targets'
+import type { ReviewTarget } from '../../../../contracts/review-targets.ts'
 
 export interface TaskStatus {
   id: string
@@ -86,7 +86,9 @@ export function categoryColor(category: string | null): string {
 
 export function assigneeInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
   return name.slice(0, 2).toUpperCase()
 }
 
@@ -134,7 +136,9 @@ export function filterIssues(
 
 function statusSortOrder(issue: Issue): number {
   // backlog issues: status_category=todo, status_key=backlog → order slot 4
-  if (issue.status_key === 'backlog') return 4
+  if (issue.status_key === 'backlog') {
+    return 4
+  }
   return STATUS_CATEGORY_ORDER[issue.status_category ?? ''] ?? 99
 }
 

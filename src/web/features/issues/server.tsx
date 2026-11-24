@@ -1,14 +1,14 @@
 import { Effect, Schema } from 'effect'
 import type { ReactElement } from 'react'
 
-import { ReviewFilterSchema } from '../../../contracts/review-targets'
-import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '../../../contracts/web-limits'
-import { renderMarkdownDocument } from '../../components/markdown/render'
-import { RequestServices } from '../../request'
-import { requireDataProject, requireDataWorkspace } from '../../server/data-context'
-import { ApiError, ScopeError } from '../../server/errors'
-import type { RequestScope } from '../../server/request-context'
-import { buildFilterQueryParams } from './components/IssueList-helpers'
+import { ReviewFilterSchema } from '../../../contracts/review-targets.ts'
+import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '../../../contracts/web-limits.ts'
+import { renderMarkdownDocument } from '../../components/markdown/render.ts'
+import { RequestServices } from '../../request.ts'
+import { requireDataProject, requireDataWorkspace } from '../../server/data-context.ts'
+import { ApiError, ScopeError } from '../../server/errors.ts'
+import type { RequestScope } from '../../server/request-context.ts'
+import { buildFilterQueryParams } from './components/IssueList-helpers.ts'
 import {
   checked,
   readDataAttachments,
@@ -21,13 +21,17 @@ import {
   readSprint,
   readSprints,
   searchDataIssues,
-} from './data'
-import { issueListQuery } from './query'
-import { type IssuePage } from './types'
-import { type EpicsInitialData, EpicsPage } from './views/EpicsPage'
-import { type IssueDetailInitialData, IssueDetailPage } from './views/IssueDetailPage'
-import { type IssuesInitialData, IssuesPage } from './views/IssuesPage'
-import { type MyIssuesInitialData, MyIssuesPage, type ScopedIssue } from './views/MyIssuesPage'
+} from './data.ts'
+import { issueListQuery } from './query.ts'
+import type { IssuePage } from './types.ts'
+import { EpicsPage } from './views/EpicsPage.tsx'
+import type { EpicsInitialData } from './views/EpicsPage.tsx'
+import { IssueDetailPage } from './views/IssueDetailPage.tsx'
+import type { IssueDetailInitialData } from './views/IssueDetailPage.tsx'
+import { IssuesPage } from './views/IssuesPage.tsx'
+import type { IssuesInitialData } from './views/IssuesPage.tsx'
+import { MyIssuesPage } from './views/MyIssuesPage.tsx'
+import type { MyIssuesInitialData, ScopedIssue } from './views/MyIssuesPage.tsx'
 
 export interface IssuesLoaderData {
   readonly workspaceSlug: string
@@ -76,9 +80,12 @@ export function filteredIssueQuery(
     projects,
     [...taskTypes],
   )
-  for (const key of ['cursor', 'limit', 'assignee', 'parentId', 'noParent', 'typeId', 'review'])
+  for (const key of ['cursor', 'limit', 'assignee', 'parentId', 'noParent', 'typeId', 'review']) {
     if (p.has(key)) query.set(key, p.get(key) ?? '')
-  if (!query.has('limit')) query.set('limit', '30')
+  }
+  if (!query.has('limit')) {
+    query.set('limit', '30')
+  }
   return query
 }
 
@@ -95,14 +102,16 @@ function allPages(
     let cursor = page.nextCursor
     const seen = new Set<string>()
     while (cursor != null) {
-      if (items.length >= MAX_AGGREGATE_ISSUES)
+      if (items.length >= MAX_AGGREGATE_ISSUES) {
         return yield* new ApiError(
           'request',
           422,
           `This view supports at most ${MAX_AGGREGATE_ISSUES} issues. Narrow the filters or use the paginated list.`,
         )
-      if (seen.has(String(cursor)))
+      }
+      if (seen.has(String(cursor))) {
         return yield* new ApiError('schema', 502, 'The data query returned a repeated issue cursor.')
+      }
       seen.add(String(cursor))
       const qs = new URLSearchParams(query)
       qs.set('cursor', String(cursor))
@@ -131,12 +140,16 @@ export function loadIssues(
 ): Effect.Effect<IssuesLoaderData | null, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
     const workspace = workspaceSelection(scope)
-    if (!workspace) return null
+    if (!workspace) {
+      return null
+    }
     yield* checked(() => requireDataWorkspace(scope, workspace.id))
     const workspaceSlug = workspace.slug,
       project = selectedProject(scope),
       projects = scope.projects.filter((entry) => entry.workspace_id === workspace.id)
-    if (project) yield* checked(() => requireDataProject(scope, project.id, workspace.id))
+    if (project) {
+      yield* checked(() => requireDataProject(scope, project.id, workspace.id))
+    }
     const { statuses, taskTypes } = yield* lookups(scope, workspace.id)
     const review = url.searchParams.has('review')
       ? yield* Schema.decodeUnknownEffect(ReviewFilterSchema)(url.searchParams.get('review')).pipe(
@@ -156,7 +169,9 @@ export function loadIssues(
       query.delete('cursor')
     }
     const epicQuery = new URLSearchParams({ typeId: epicType?.id ?? '', limit: '100' })
-    if (project) epicQuery.set('project', project.id)
+    if (project) {
+      epicQuery.set('project', project.id)
+    }
     const sprintId = url.searchParams.get('sprintId'),
       q = url.searchParams.get('q') ?? ''
     const { page, epics, sprints, sprintDetail, search } = yield* Effect.all(
@@ -205,17 +220,23 @@ export function renderIssues(scope: RequestScope, url: URL): Effect.Effect<React
 type IssueRouteParams = Readonly<Record<string, string | undefined>>
 function issueIdentifier(url: URL, scope: RequestScope, params: IssueRouteParams): string | null {
   const id = url.searchParams.get('id')
-  if (id) return id
-  if (!params.issueNumber || !params.projectSlug) return null
+  if (id) {
+    return id
+  }
+  if (!params.issueNumber || !params.projectSlug) {
+    return null
+  }
   const project = selectedProject(scope)
   if (
     !project ||
     (params.projectSlug !== project.slug && params.projectSlug.toLowerCase() !== project.key.toLowerCase())
-  )
+  ) {
     return null
+  }
   const number = Number(params.issueNumber)
-  if (!/^\d+$/.test(params.issueNumber) || !Number.isSafeInteger(number) || number < 1)
+  if (!/^\d+$/.test(params.issueNumber) || !Number.isSafeInteger(number) || number < 1) {
     throw new ScopeError(400, 'The issue reference is not valid.')
+  }
   return `${project.key}-${number}`
 }
 export function loadIssue(
@@ -225,12 +246,16 @@ export function loadIssue(
 ): Effect.Effect<IssueLoaderData | null, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
     const identifier = yield* checked(() => issueIdentifier(url, scope, params))
-    if (!identifier) return null
+    if (!identifier) {
+      return null
+    }
     const hint = url.searchParams.get('workspace')
     const workspace = hint
       ? scope.workspaces.find((entry) => entry.slug === hint)
       : (workspaceSelection(scope) ?? (scope.workspaces.length === 1 ? scope.workspaces[0] : null))
-    if (!workspace) return null
+    if (!workspace) {
+      return null
+    }
     const workspaceSlug = workspace.slug
     const issue = yield* readDataIssue(scope, workspace.id, identifier)
     const project = yield* checked(() => requireDataProject(scope, issue.project_id ?? '', workspace.id))
@@ -338,7 +363,9 @@ export function loadEpics(
   return Effect.gen(function* () {
     const workspace = workspaceSelection(scope),
       project = selectedProject(scope)
-    if (!workspace || !project) return null
+    if (!workspace || !project) {
+      return null
+    }
     yield* checked(() => requireDataProject(scope, project.id, workspace.id))
     const workspaceSlug = workspace.slug
     const { statuses, taskTypes } = yield* lookups(scope, workspace.id),
@@ -346,7 +373,9 @@ export function loadEpics(
     const qs = filteredIssueQuery(url, scope.projects, taskTypes, project)
     qs.set('includeRollups', '1')
     qs.set('limit', '100')
-    if (epic) qs.set('typeId', epic.id)
+    if (epic) {
+      qs.set('typeId', epic.id)
+    }
     const page = epic ? yield* allPages(scope, workspace.id, qs) : ({ items: [] } as IssuePage)
     return {
       workspaceSlug,

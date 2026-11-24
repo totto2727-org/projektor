@@ -15,7 +15,7 @@ export const RateLimitRequest = Schema.Struct({
 export const RateLimitResult = Schema.NullOr(Schema.Struct({ retryAfter: Schema.Number }))
 export const RateCounterRequest = Schema.Struct({
   key: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(1024)),
-  windowSecs: Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 86400 })),
+  windowSecs: Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 86_400 })),
   testPolicy: Schema.optional(RateLimitTestPolicy),
 })
 
@@ -38,7 +38,9 @@ export function rateLimitTestPolicy(env: {
   RATE_LIMIT_API_MAX?: string
   RATE_LIMIT_WINDOW_SECS?: string
 }): typeof RateLimitTestPolicy.Type | undefined {
-  if (env.ENVIRONMENT === 'production') return undefined
+  if (env.ENVIRONMENT === 'production') {
+    return undefined
+  }
   return {
     epoch: env.RATE_LIMIT_TEST_EPOCH,
     nowMs: env.RATE_LIMIT_TEST_NOW_MS,

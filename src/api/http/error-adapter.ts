@@ -11,11 +11,13 @@ import {
   PayloadTooLargeError,
   UnsupportedMediaTypeError,
   ValidationError,
-} from '../../contracts/errors'
+} from '../../contracts/errors.ts'
 
 export function serviceErrToResponse(c: Context<HonoEnv>, err: unknown) {
   if (err instanceof CorePublicError) {
-    if (err.retryAfter !== undefined) c.header('Retry-After', String(err.retryAfter))
+    if (err.retryAfter !== undefined) {
+      c.header('Retry-After', String(err.retryAfter))
+    }
     const error = err.kind === 'validation' && err.details !== undefined ? err.details : err.message
     return c.json({ error, ...(err.kind === 'validation' ? {} : err.details) }, err.status as ContentfulStatusCode)
   }

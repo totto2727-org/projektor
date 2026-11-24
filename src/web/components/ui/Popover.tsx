@@ -3,7 +3,7 @@
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover'
 import type { CSSProperties, ReactNode, Ref } from 'react'
 
-import { Popover as PrimitivePopover } from '../generated/popover'
+import { Popover as PrimitivePopover } from '../generated/popover.tsx'
 
 /** Compatibility entry point backed by the framework portal, not app portal logic. */
 export function Portal({ into, vnode }: { into: HTMLElement; vnode: ReactNode }) {
@@ -43,8 +43,9 @@ export function Popover({
   position,
   children,
 }: PopoverProps) {
-  if (strategy === 'portal-fixed' && !position)
+  if (strategy === 'portal-fixed' && !position) {
     throw new Error("Popover: `position` is required when strategy is 'portal-fixed'")
+  }
   const style: CSSProperties | undefined =
     strategy === 'portal-fixed' && position
       ? {

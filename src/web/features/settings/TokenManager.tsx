@@ -4,16 +4,16 @@ import { useForm } from '@tanstack/react-form'
 import { Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
 
-import { unwrapResult } from '../../client/functions'
-import { Button } from '../../components/ui/Button'
-import { EmptyState } from '../../components/ui/EmptyState'
-import { Input } from '../../components/ui/Input'
-import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '../../components/ui/Table'
-import { FormErrors } from '../planning/form-ui'
-import { formatTimestampDate } from '../timestamp'
-import { createToken, revokeToken } from './actions'
-import { CreateTokenInputSchema } from './input-schemas'
-import type { NewTokenResult, Token } from './types'
+import { unwrapResult } from '../../client/functions.ts'
+import { Button } from '../../components/ui/Button.tsx'
+import { EmptyState } from '../../components/ui/EmptyState.tsx'
+import { Input } from '../../components/ui/Input.tsx'
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '../../components/ui/Table.tsx'
+import { FormErrors } from '../planning/form-ui.tsx'
+import { formatTimestampDate } from '../timestamp.ts'
+import { createToken, revokeToken } from './actions.ts'
+import { CreateTokenInputSchema } from './input-schemas.ts'
+import type { NewTokenResult, Token } from './types.ts'
 
 const TOKEN_CODE =
   'flex-1 font-mono text-[0.8rem] px-2 py-[0.375rem] bg-bg border border-border rounded text-text-base break-all'
@@ -26,10 +26,18 @@ export function formatTokenScopes(raw: string): string {
   } catch {
     return '–'
   }
-  if (!Array.isArray(scopes)) return '–'
-  if (scopes.includes('*')) return 'Full access (*)'
-  if (scopes.includes('write')) return 'Read + Write'
-  if (scopes.includes('read')) return 'Read-only'
+  if (!Array.isArray(scopes)) {
+    return '–'
+  }
+  if (scopes.includes('*')) {
+    return 'Full access (*)'
+  }
+  if (scopes.includes('write')) {
+    return 'Read + Write'
+  }
+  if (scopes.includes('read')) {
+    return 'Read-only'
+  }
   return scopes.filter((value): value is string => typeof value === 'string').join(', ') || '–'
 }
 function formatDate(timestamp: number | null): string {
@@ -100,7 +108,7 @@ interface RevokeState {
   confirm: (id: string) => void
 }
 function TokenRevokeControl({ token, state }: { token: Token; state: RevokeState }) {
-  if (state.id === token.id)
+  if (state.id === token.id) {
     return (
       <span className='inline-flex gap-[0.375rem] items-center flex-wrap'>
         <span className='text-[0.8rem] text-text-muted'>Revoke?</span>
@@ -117,6 +125,7 @@ function TokenRevokeControl({ token, state }: { token: Token; state: RevokeState
         )}
       </span>
     )
+  }
   return (
     <Button
       variant='outline'
@@ -130,7 +139,7 @@ function TokenRevokeControl({ token, state }: { token: Token; state: RevokeState
   )
 }
 function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }) {
-  if (!tokens.length)
+  if (!tokens.length) {
     return (
       <EmptyState
         className='bg-surface rounded-lg border border-border'
@@ -138,6 +147,7 @@ function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }) 
         description='Create a token to allow agents and scripts to authenticate.'
       />
     )
+  }
   return (
     <>
       <div className='overflow-x-auto max-sm:hidden'>
@@ -216,11 +226,15 @@ export function TokenManager({
   const [revokeError, setRevokeError] = useState<string | null>(null)
   const [createResult, createAction, creating] = useActionState(createToken, null)
   useEffect(() => {
-    if (!createResult) return
+    if (!createResult) {
+      return
+    }
     if (createResult.ok) {
       setNewToken(createResult.value)
       setError(null)
-    } else setError(createResult.message)
+    } else {
+      setError(createResult.message)
+    }
   }, [createResult])
   const inputRef = useRef<HTMLInputElement>(null)
   const [defaults] = useState(() => ({
@@ -247,7 +261,9 @@ export function TokenManager({
     setError(null)
   }
   async function revoke(id: string) {
-    if (revoking) return
+    if (revoking) {
+      return
+    }
     setRevoking(true)
     setRevokeError(null)
     try {

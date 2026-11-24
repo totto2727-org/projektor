@@ -1,5 +1,5 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { Env } from '#types'
 
@@ -7,10 +7,10 @@ import {
   purgeAllWorkspacesExpiredWikiPages,
   purgeExpiredRetentionData,
   runFtsDedupeOnce,
-} from '../../core/api/maintenance'
-import { env } from './fixture-api'
-import { authHeaders, seedAgentLease, seedFixture, seedIssueFixture, seedUser, seedWorkspace } from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+} from '../../core/api/maintenance.ts'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedAgentLease, seedFixture, seedIssueFixture, seedUser, seedWorkspace } from './helpers.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 // PROJ-865: counts every real D1 statement execution (.all/.first/.raw/.run, .batch as
 // one) and every R2/KV call made through a wrapped `env`, so a test can assert on the
@@ -66,7 +66,9 @@ function countSubrequests(realEnv: typeof env): { env: Env; count: () => number 
     new Proxy(target, {
       get(t, prop, receiver) {
         const orig = Reflect.get(t, prop, receiver)
-        if (typeof orig !== 'function') return orig
+        if (typeof orig !== 'function') {
+          return orig
+        }
         return (...args: unknown[]) => {
           bump()
           return orig.apply(t, args)
@@ -103,7 +105,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
     return SELF.fetch(url, opts)
   }
 
-  it('purges expired trash across every workspace, leaving unexpired trash untouched', async () => {
+  test('purges expired trash across every workspace, leaving unexpired trash untouched', async () => {
     const other = await seedFixture({ role: 'admin' })
 
     const pageRes = await req('http://localhost/api/wiki', {
@@ -138,7 +140,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
     expect(await env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(otherPage.id).first()).not.toBeNull()
   })
 
-  it('does not throw when a workspace has no expired trash', async () => {
+  test('does not throw when a workspace has no expired trash', async () => {
     await expect(purgeAllWorkspacesExpiredWikiPages(env)).resolves.toBeUndefined()
   })
 })
@@ -151,7 +153,7 @@ describe('scheduled retention purge (PROJ-869)', () => {
   const now = () => Math.floor(Date.now() / 1000)
   const DAY = 24 * 60 * 60
 
-  it("deletes only rows older than each category's retention window", async () => {
+  test("deletes only rows older than each category's retention window", async () => {
     const fixture = await seedIssueFixture({ role: 'admin' })
     const { workspaceId, userId, issueId } = fixture
 
@@ -240,7 +242,7 @@ describe('scheduled retention purge (PROJ-869)', () => {
     expect(await env.DB.prepare('SELECT id FROM activity WHERE id = ?').bind(freshActivityId).first()).not.toBeNull()
   })
 
-  it('does not throw when there is nothing expired', async () => {
+  test('does not throw when there is nothing expired', async () => {
     await expect(purgeExpiredRetentionData(env)).resolves.toBeUndefined()
   })
 })
@@ -252,7 +254,7 @@ describe('scheduled retention purge (PROJ-869)', () => {
 describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
   const EXPIRED_AT = Math.floor(Date.now() / 1000) - 40 * 24 * 60 * 60 // well past the 30-day retention
 
-  it('50 workspaces / 300 expired pages / 100 files: each invocation stays within 100 subrequests, and repeated invocations purge everything', async () => {
+  test('50 workspaces / 300 expired pages / 100 files: each invocation stays within 100 subrequests, and repeated invocations purge everything', async () => {
     const creator = await seedUser(`cron-purge-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const workspaceIds: string[] = []
     for (let i = 0; i < 50; i++) {
@@ -292,7 +294,9 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
     for (let i = 0; i < 100; i++) {
       const pageId = pageIds[i * 3] // spread across ~1/3 of the pages
       const workspaceId = workspaceIdByPageId.get(pageId)
-      if (!workspaceId) throw new Error(`no workspace recorded for page ${pageId}`)
+      if (!workspaceId) {
+        throw new Error(`no workspace recorded for page ${pageId}`)
+      }
       await env.DB.prepare(
         `INSERT INTO attachments
 				   (id, workspace_id, kind, r2_key, filename, content_type, size, url,
@@ -344,7 +348,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
   // on every call, and the KV cursor must keep re-visiting that SAME workspace (instead of
   // moving on) until it's fully drained, since findWorkspacesWithExpiredTrash won't be
   // re-run while the cursor still lists it.
-  it('1 workspace / 500 expired pages: every run stays within budget, repeated runs purge them all', async () => {
+  test('1 workspace / 500 expired pages: every run stays within budget, repeated runs purge them all', async () => {
     const creator = await seedUser(`cron-purge-one-ws-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const ws = await seedWorkspace(`cron-purge-one-ws-${crypto.randomUUID().slice(0, 6)}`)
 
@@ -405,7 +409,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
 // once ever, removes stray FTS rows that pre-0065 worker code inserted during the deploy
 // window with an auto-assigned rowid instead of the page's search_rowid.
 describe('scheduled one-off wiki_fts dedupe (PROJ-816)', () => {
-  it('removes a stray FTS row and runs the DELETE only once across repeated cron fires', async () => {
+  test('removes a stray FTS row and runs the DELETE only once across repeated cron fires', async () => {
     await env.KV.delete('maint:fts-dedupe-0065')
 
     // A stray row: inserted with an auto rowid that no wiki_pages.search_rowid points at.
@@ -419,7 +423,9 @@ describe('scheduled one-off wiki_fts dedupe (PROJ-816)', () => {
         get(target, prop, receiver) {
           if (prop === 'prepare') {
             return (sql: string) => {
-              if (sql.includes('DELETE FROM wiki_fts WHERE rowid NOT IN')) ran++
+              if (sql.includes('DELETE FROM wiki_fts WHERE rowid NOT IN')) {
+                ran++
+              }
               return originalPrepare(sql)
             }
           }

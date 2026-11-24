@@ -5,12 +5,13 @@ import { CorePublicError } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
-import { ApiPrincipal, type ApiUser, VerifiedApiOauthGrant } from '../../contracts/api-auth'
-import { capabilityForMethod, tokenAllows } from '../../contracts/auth-scopes'
-import type { CoreActor } from '../../core/authorization'
-import { unauthorizedChallenge } from '../auth/challenge'
-import { bumpRateCounter } from './rate-limit'
-import { mcpWorkspaceIdFromPath } from './workspace'
+import { ApiPrincipal, VerifiedApiOauthGrant } from '../../contracts/api-auth.ts'
+import type { ApiUser } from '../../contracts/api-auth.ts'
+import { capabilityForMethod, tokenAllows } from '../../contracts/auth-scopes.ts'
+import type { CoreActor } from '../../core/authorization.ts'
+import { unauthorizedChallenge } from '../auth/challenge.ts'
+import { bumpRateCounter } from './rate-limit.ts'
+import { mcpWorkspaceIdFromPath } from './workspace.ts'
 
 export type AuthUser = typeof ApiUser.Type
 
@@ -72,7 +73,9 @@ export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
     const scopes = principal.tokenScopes
     if (scopes !== undefined && !c.req.path.startsWith('/mcp/')) {
       const required = capabilityForMethod(c.req.method)
-      if (!tokenAllows(scopes, required)) return c.json({ error: `Token lacks '${required}' scope` }, 403)
+      if (!tokenAllows(scopes, required)) {
+        return c.json({ error: `Token lacks '${required}' scope` }, 403)
+      }
     }
     c.set('coreActor', actor)
     c.set('user', principal.user)
@@ -85,7 +88,9 @@ export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
     })
     return next()
   } catch (error) {
-    if (!(error instanceof CorePublicError)) throw error
+    if (!(error instanceof CorePublicError)) {
+      throw error
+    }
     let status = error.status
     let message = error.message
     if (status === 401 && actor.bearer !== undefined && (await authFailureLimited(c))) {
@@ -94,8 +99,9 @@ export async function authMiddleware(c: Context<HonoEnv>, next: Next) {
     }
     const response = Response.json({ error: message }, { status })
     const workspaceId = mcpWorkspaceIdFromPath(c.req.path)
-    if (status === 401 && workspaceId)
+    if (status === 401 && workspaceId) {
       response.headers.set('WWW-Authenticate', unauthorizedChallenge(c.req.url, workspaceId))
+    }
     return response
   }
 }

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
 
@@ -12,16 +12,18 @@ vi.mock('./actions', () => ({
 }))
 vi.mock('../../client/functions', () => ({
   unwrapResult: <T,>(result: { ok: true; value: T } | { ok: false; message: string }) => {
-    if (!result.ok) throw new Error(result.message)
+    if (!result.ok) {
+      throw new Error(result.message)
+    }
     return result.value
   },
 }))
 
-import { RuntimeProvider } from '../../client/runtime'
-import { archiveProject, createProject } from './actions'
-import { ProjectLanding } from './ProjectLanding'
-import { ProjectList } from './ProjectList'
-import type { FlowMetrics, Project, RecentIssue, RecentWikiPage } from './schemas'
+import { RuntimeProvider } from '../../client/runtime.tsx'
+import { archiveProject, createProject } from './actions.ts'
+import { ProjectLanding } from './ProjectLanding.tsx'
+import { ProjectList } from './ProjectList.tsx'
+import type { FlowMetrics, Project, RecentIssue, RecentWikiPage } from './schemas.ts'
 
 const catalogProject = (name: string) => ({
   id: 'project-1',
@@ -66,7 +68,7 @@ function withRuntime(node: React.ReactNode) {
 describe('project server-prop refresh', () => {
   afterEach(cleanup)
 
-  it('replaces an optimistic catalog with same-URL canonical server props', () => {
+  test('replaces an optimistic catalog with same-URL canonical server props', () => {
     const view = render(
       withRuntime(<ProjectList initialProjects={[catalogProject('Optimistic project')]} memberships={[]} />),
     )
@@ -77,7 +79,7 @@ describe('project server-prop refresh', () => {
     expect(screen.queryByText('Optimistic project')).toBeNull()
   })
 
-  it('renders only canonical props after a successful create', async () => {
+  test('renders only canonical props after a successful create', async () => {
     vi.mocked(createProject).mockResolvedValue({
       ok: true,
       value: { id: 'project-2', name: 'Created optimistically', key: 'NEW', slug: 'created' },
@@ -106,7 +108,7 @@ describe('project server-prop refresh', () => {
     expect(screen.queryByText('Created optimistically')).toBeNull()
   })
 
-  it('uses a native GET form for the addressable archived catalog', () => {
+  test('uses a native GET form for the addressable archived catalog', () => {
     render(withRuntime(<ProjectList initialProjects={[]} memberships={[]} showArchived />))
     const checkbox = screen.getByRole('checkbox', { name: 'Show archived' }) as HTMLInputElement
     const form = checkbox.form
@@ -116,7 +118,7 @@ describe('project server-prop refresh', () => {
     expect(form && new FormData(form).get('projectId')).toBe('project-1')
   })
 
-  it('bounds the native workspace selector without losing explicit second-workspace submission', async () => {
+  test('bounds the native workspace selector without losing explicit second-workspace submission', async () => {
     const memberships = [
       { id: 'workspace-1', name: 'Projektor', slug: 'projektor', role: 'owner' as const },
       {
@@ -129,7 +131,9 @@ describe('project server-prop refresh', () => {
     render(withRuntime(<ProjectList initialProjects={[]} memberships={memberships} />))
     fireEvent.click(screen.getByText('+ New project'))
     const workspace = screen.getByRole('combobox', { name: 'Workspace' })
-    if (!(workspace instanceof HTMLSelectElement)) throw new Error('Workspace must remain a native select')
+    if (!(workspace instanceof HTMLSelectElement)) {
+      throw new Error('Workspace must remain a native select')
+    }
     // JSDOM cannot measure layout. Guard the sizing contract used by the real mobile acceptance test.
     expect(workspace.classList.contains('w-full')).toBe(true)
     expect(workspace.classList.contains('min-w-0')).toBe(true)
@@ -148,7 +152,7 @@ describe('project server-prop refresh', () => {
     expect(workspace.form && new FormData(workspace.form).get('workspaceSlug')).toBe('second-abc123')
   })
 
-  it('adopts refreshed overview props without erasing an active description draft', () => {
+  test('adopts refreshed overview props without erasing an active description draft', () => {
     const view = render(
       withRuntime(
         <ProjectLanding
@@ -183,7 +187,7 @@ describe('project server-prop refresh', () => {
     return waitFor(() => expect(screen.getByText('Canonical server description')).toBeTruthy())
   })
 
-  it('releases a failed archive request without erasing the active description draft', async () => {
+  test('releases a failed archive request without erasing the active description draft', async () => {
     const pending = Promise.withResolvers<Awaited<ReturnType<typeof archiveProject>>>()
     vi.mocked(archiveProject).mockReturnValueOnce(pending.promise)
     vi.mocked(archiveProject).mockResolvedValueOnce({ ok: true, value: { ok: true } })

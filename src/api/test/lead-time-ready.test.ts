@@ -1,9 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import m0062 from '../../../migrations/0062_repair_zero_lead_time.sql?raw'
-import { env } from './fixture-api'
-import { authHeaders, seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedProjectFixture } from './helpers.ts'
 
 // PROJ-921: lead time (ready -> done) came out as a 0s median because an issue moved
 // straight from backlog to done in one update got ready_at = done_at. ready_at is now
@@ -43,12 +43,12 @@ describe('PROJ-921: ready_at and lead time', () => {
       .first<{ ready_at: number | null; done_at: number | null }>()
   }
 
-  it('an issue created in todo is ready from creation', async () => {
+  test('an issue created in todo is ready from creation', async () => {
     const id = await create('todo')
     expect((await stamps(id))?.ready_at).not.toBeNull()
   })
 
-  it('backlog -> done in one update never passed through ready: no ready_at', async () => {
+  test('backlog -> done in one update never passed through ready: no ready_at', async () => {
     const id = await create('backlog')
     await patch(id, 'done')
     const s = await stamps(id)
@@ -56,7 +56,7 @@ describe('PROJ-921: ready_at and lead time', () => {
     expect(s?.ready_at).toBeNull()
   })
 
-  it('backlog -> todo and backlog -> in_progress (fast-tracked, PROJ-252) both stamp it', async () => {
+  test('backlog -> todo and backlog -> in_progress (fast-tracked, PROJ-252) both stamp it', async () => {
     const readied = await create('backlog')
     await patch(readied, 'todo')
     expect((await stamps(readied))?.ready_at).not.toBeNull()
@@ -66,12 +66,12 @@ describe('PROJ-921: ready_at and lead time', () => {
     expect((await stamps(fastTracked))?.ready_at).not.toBeNull()
   })
 
-  it('an issue created already done never was ready', async () => {
+  test('an issue created already done never was ready', async () => {
     const id = await create('done')
     expect((await stamps(id))?.ready_at).toBeNull()
   })
 
-  it('flow metrics exclude skipped-ready issues from lead time and report how many', async () => {
+  test('flow metrics exclude skipped-ready issues from lead time and report how many', async () => {
     const skipped = await create('backlog')
     await patch(skipped, 'done')
     const normal = await create('todo')
@@ -88,7 +88,7 @@ describe('PROJ-921: ready_at and lead time', () => {
 })
 
 describe('PROJ-921: migration 0062 clears zero lead times', () => {
-  it('nulls ready_at only where it equals done_at', async () => {
+  test('nulls ready_at only where it equals done_at', async () => {
     const { workspaceId, projectId, userId } = await seedProjectFixture({ role: 'owner' })
     const rows = [
       { id: crypto.randomUUID(), ready: 100, done: 100 }, // skipped ready

@@ -1,6 +1,6 @@
-import { ApiResults } from '../../contracts/api-results'
-import { apiReply } from './reply'
-import type { ApiServiceCtx } from './types'
+import { ApiResults } from '../../contracts/api-results.ts'
+import { apiReply } from './reply.ts'
+import type { ApiServiceCtx } from './types.ts'
 
 export function listPlaybooks(ctx: Pick<ApiServiceCtx, 'core' | 'actor'>) {
   return apiReply(ApiResults.apiListPlaybooks, ctx.core.apiListPlaybooks(ctx.actor))

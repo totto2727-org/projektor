@@ -3,39 +3,49 @@ import { Effect } from 'effect'
 import type { z } from 'zod'
 
 import { drizzle, schema } from '#db'
-import * as sprintQueries from '#services/sprints'
+import * as sprintQueries from '#services/sprints.ts'
 
-import { IdSchema } from '../../contracts/inputs/common'
+import { IdSchema } from '../../contracts/inputs/common.ts'
 import {
   CreateSprintSchema,
   ListSprintsSchema,
   MoveIssuesToSprintSchema,
   UpdateSprintSchema,
-} from '../../contracts/inputs/sprints'
-import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin } from './access'
-import { ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { inChunks } from './sql'
-import type { ServiceCtx } from './types'
+} from '../../contracts/inputs/sprints.ts'
+import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
+import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { inChunks } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
 
 // PROJ-311: sprints inherit their project's visibility. Reads on an ungranted
 // project 404/return empty; writes need a member/admin grant (owner/admin bypass).
 async function assertSprintProjectVisible(ctx: ServiceCtx, projectId: string): Promise<void> {
-  if (isWorkspaceAdmin(ctx.role)) return
+  if (isWorkspaceAdmin(ctx.role)) {
+    return
+  }
   if ((await effectiveProjectRole(ctx, projectId)) === null) {
     throw new NotFoundError('Sprint not found')
   }
 }
 
 async function requireSprintProjectWrite(ctx: ServiceCtx, projectId: string): Promise<void> {
-  if (isWorkspaceAdmin(ctx.role)) return
+  if (isWorkspaceAdmin(ctx.role)) {
+    return
+  }
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) throw new NotFoundError('Sprint not found')
-  if (!canWriteProject(role)) throw new ForbiddenError('Insufficient permissions')
+  if (role === null) {
+    throw new NotFoundError('Sprint not found')
+  }
+  if (!canWriteProject(role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 }
 
 export async function listSprints(ctx: ServiceCtx, raw: unknown) {
   const result = ListSprintsSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { projectId } = result.data
 
   // A member without a grant on this project sees no sprints (existence hidden).
@@ -51,14 +61,18 @@ export async function listSprints(ctx: ServiceCtx, raw: unknown) {
 export async function getSprint(ctx: ServiceCtx, id: string) {
   const sprint = await Effect.runPromise(sprintQueries.findSprintById(ctx.db, ctx.workspaceId, id))
 
-  if (!sprint) throw new NotFoundError('Sprint not found')
+  if (!sprint) {
+    throw new NotFoundError('Sprint not found')
+  }
   await assertSprintProjectVisible(ctx, sprint.projectId)
   return sprint
 }
 
 export async function createSprint(ctx: ServiceCtx, raw: unknown) {
   const result = CreateSprintSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { projectId, name, goal, startDate, endDate } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -67,7 +81,9 @@ export async function createSprint(ctx: ServiceCtx, raw: unknown) {
     .from(schema.projects)
     .where(and(eq(schema.projects.id, projectId), eq(schema.projects.workspaceId, ctx.workspaceId)))
     .get()
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
   await requireSprintProjectWrite(ctx, projectId)
 
   const id = crypto.randomUUID()
@@ -101,18 +117,30 @@ function buildSprintSetData(data: SprintUpdateData, now: number) {
     endDate?: number | null
   } = { updatedAt: now }
 
-  if (data.name !== undefined) setData.name = data.name
-  if ('goal' in data) setData.goal = data.goal ?? null
-  if (data.status !== undefined) setData.status = data.status
-  if ('startDate' in data) setData.startDate = data.startDate ?? null
-  if ('endDate' in data) setData.endDate = data.endDate ?? null
+  if (data.name !== undefined) {
+    setData.name = data.name
+  }
+  if ('goal' in data) {
+    setData.goal = data.goal ?? null
+  }
+  if (data.status !== undefined) {
+    setData.status = data.status
+  }
+  if ('startDate' in data) {
+    setData.startDate = data.startDate ?? null
+  }
+  if ('endDate' in data) {
+    setData.endDate = data.endDate ?? null
+  }
 
   return setData
 }
 
 export async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
   const result = UpdateSprintSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const data = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -121,7 +149,9 @@ export async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
     .from(schema.sprints)
     .where(and(eq(schema.sprints.id, id), eq(schema.sprints.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Sprint not found')
+  if (!existing) {
+    throw new NotFoundError('Sprint not found')
+  }
   await requireSprintProjectWrite(ctx, existing.projectId)
 
   const now = Math.floor(Date.now() / 1000)
@@ -137,7 +167,9 @@ export async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
 
 export async function completeSprint(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  if (!idCheck.success) {
+    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  }
   const orm = drizzle(ctx.db, { schema })
   const sprint = await orm
     .select({ status: schema.sprints.status, projectId: schema.sprints.projectId })
@@ -145,7 +177,9 @@ export async function completeSprint(ctx: ServiceCtx, id: string) {
     .where(and(eq(schema.sprints.id, id), eq(schema.sprints.workspaceId, ctx.workspaceId)))
     .get()
 
-  if (!sprint) throw new NotFoundError('Sprint not found')
+  if (!sprint) {
+    throw new NotFoundError('Sprint not found')
+  }
   await requireSprintProjectWrite(ctx, sprint.projectId)
   if (sprint.status !== 'active') {
     throw new ValidationError({
@@ -165,14 +199,18 @@ export async function completeSprint(ctx: ServiceCtx, id: string) {
 
 export async function deleteSprint(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  if (!idCheck.success) {
+    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  }
   const orm = drizzle(ctx.db, { schema })
   const existing = await orm
     .select({ id: schema.sprints.id, projectId: schema.sprints.projectId })
     .from(schema.sprints)
     .where(and(eq(schema.sprints.id, id), eq(schema.sprints.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Sprint not found')
+  if (!existing) {
+    throw new NotFoundError('Sprint not found')
+  }
   await requireSprintProjectWrite(ctx, existing.projectId)
 
   // PROJ-863: unassign its issues explicitly — D1 doesn't guarantee FK enforcement
@@ -191,7 +229,9 @@ export async function deleteSprint(ctx: ServiceCtx, id: string) {
 
 export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
   const result = MoveIssuesToSprintSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { issueIds, sprintId } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -200,7 +240,9 @@ export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
     .from(schema.sprints)
     .where(and(eq(schema.sprints.id, sprintId), eq(schema.sprints.workspaceId, ctx.workspaceId)))
     .get()
-  if (!sprint) throw new NotFoundError('Sprint not found')
+  if (!sprint) {
+    throw new NotFoundError('Sprint not found')
+  }
   await requireSprintProjectWrite(ctx, sprint.projectId)
 
   // PROJ-357: requireSprintProjectWrite only checked the *sprint's* project.

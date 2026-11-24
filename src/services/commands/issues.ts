@@ -3,10 +3,10 @@ import { Effect } from 'effect'
 import type { z } from 'zod'
 
 import { drizzle, schema } from '#db'
-import * as issueQueries from '#services/issues'
+import * as issueQueries from '#services/issues.ts'
 
-import { AddCommentSchema } from '../../contracts/inputs/comments'
-import { BooleanQueryParam, IdSchema } from '../../contracts/inputs/common'
+import { AddCommentSchema } from '../../contracts/inputs/comments.ts'
+import { BooleanQueryParam, IdSchema } from '../../contracts/inputs/common.ts'
 import {
   CreateIssueSchema,
   GetIssueSchema,
@@ -14,8 +14,8 @@ import {
   ListIssuesSchema,
   SearchIssuesInputSchema,
   UpdateIssueSchema,
-} from '../../contracts/inputs/issues'
-import { issuePath } from '../../contracts/urls'
+} from '../../contracts/inputs/issues.ts'
+import { issuePath } from '../../contracts/urls.ts'
 import {
   canWriteProject,
   effectiveProjectRole,
@@ -24,16 +24,16 @@ import {
   requireWorkspaceMember,
   visibleProjectPredicate,
   visibleProjectSqlFragment,
-} from './access'
-import { recordActivity } from './activity'
-import { assertAgentSessionAccess } from './agent-identity'
-import * as cache from './cache'
-import { buildAddCommentInsertStatement } from './comments'
-import { buildCustomFieldUpsertStatements, validateCustomFields } from './custom-fields'
-import { dorColumns } from './definition-of-ready'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { isExternallyVerifiableEvidence } from './evidence-classification'
-import { buildReleaseClaimsForClosedIssueStatement } from './file-claims'
+} from './access.ts'
+import { recordActivity } from './activity.ts'
+import { assertAgentSessionAccess } from './agent-identity.ts'
+import * as cache from './cache.ts'
+import { buildAddCommentInsertStatement } from './comments.ts'
+import { buildCustomFieldUpsertStatements, validateCustomFields } from './custom-fields.ts'
+import { dorColumns } from './definition-of-ready.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { isExternallyVerifiableEvidence } from './evidence-classification.ts'
+import { buildReleaseClaimsForClosedIssueStatement } from './file-claims.ts'
 import {
   buildReleaseLeaseForClosedIssueStatement,
   buildTouchAgentHeartbeatIfLiveStatement,
@@ -41,13 +41,13 @@ import {
   issueEverHadAgentLease,
   issueHasLiveAgentLease,
   SESSION_TTL_SECONDS,
-} from './issue-leases'
-import { listLinksForIssue } from './issue-links'
-import { resolveProjectIdParam, resolveVisibleProjectIdParam } from './projects'
-import { broadcastWorkspaceEvent } from './realtime'
-import { buildCloseIssueReviewTargetsStatement } from './review-targets'
-import { resolveStatus } from './task-statuses'
-import type { ServiceCtx } from './types'
+} from './issue-leases.ts'
+import { listLinksForIssue } from './issue-links.ts'
+import { resolveProjectIdParam, resolveVisibleProjectIdParam } from './projects.ts'
+import { broadcastWorkspaceEvent } from './realtime.ts'
+import { buildCloseIssueReviewTargetsStatement } from './review-targets.ts'
+import { resolveStatus } from './task-statuses.ts'
+import type { ServiceCtx } from './types.ts'
 
 const ISSUE_TTL = 300
 
@@ -89,7 +89,9 @@ async function validateParent(ctx: ServiceCtx, parentId: string, issueId: string
     .all<{ id: string; project_id: string; depth: number }>()
 
   const parentRow = chain[0]
-  if (!parentRow) throw new NotFoundError('Parent issue not found')
+  if (!parentRow) {
+    throw new NotFoundError('Parent issue not found')
+  }
   if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, parentRow.project_id)) === null) {
     throw new NotFoundError('Parent issue not found')
   }
@@ -119,7 +121,9 @@ async function validateParent(ctx: ServiceCtx, parentId: string, issueId: string
 
 export async function listIssues(ctx: ServiceCtx, raw: unknown) {
   const result = ListIssuesSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const filters = {
     ...result.data,
     projectId: result.data.projectId
@@ -131,11 +135,12 @@ export async function listIssues(ctx: ServiceCtx, raw: unknown) {
   const field = filters.cfKey
     ? await Effect.runPromise(issueQueries.findIssueCustomField(ctx.db, ctx.workspaceId, filters.cfKey))
     : null
-  if (filters.cfKey && !field)
+  if (filters.cfKey && !field) {
     throw new ValidationError({
       formErrors: [`Unknown custom field key: ${filters.cfKey}`],
       fieldErrors: {},
     })
+  }
   const page = await Effect.runPromise(
     issueQueries.listIssues(
       ctx.db,
@@ -176,10 +181,14 @@ export async function resolveIssueIdParam(
   notFoundMessage = 'Issue not found',
 ): Promise<string> {
   const m = param.match(ISSUE_REF_PATTERN)
-  if (!m) return param
+  if (!m) {
+    return param
+  }
 
   const id = await Effect.runPromise(issueQueries.findIssueIdByRef(ctx.db, ctx.workspaceId, param))
-  if (!id) throw new NotFoundError(notFoundMessage)
+  if (!id) {
+    throw new NotFoundError(notFoundMessage)
+  }
   return id
 }
 
@@ -189,7 +198,9 @@ const computeChildRollup = issueQueries.computeChildRollup
 // user's groups (owner/admin bypass). Throw the issue-not-found error rather than a
 // project one so an invisible issue's existence never leaks.
 async function assertIssueProjectVisible(ctx: ServiceCtx, projectId: string): Promise<void> {
-  if (isWorkspaceAdmin(ctx.role)) return
+  if (isWorkspaceAdmin(ctx.role)) {
+    return
+  }
   if ((await effectiveProjectRole(ctx, projectId)) === null) {
     throw new NotFoundError('Issue not found')
   }
@@ -226,16 +237,21 @@ async function loadIssueExtras(ctx: ServiceCtx, issueId: string): Promise<Cached
 
 export async function getIssue(ctx: ServiceCtx, raw: unknown) {
   const result = GetIssueSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { id, ref } = result.data
 
-  if (!id && ref && !ISSUE_REF_PATTERN.test(ref))
+  if (!id && ref && !ISSUE_REF_PATTERN.test(ref)) {
     throw new ValidationError({
       formErrors: ['ref must be in format KEY-NUMBER'],
       fieldErrors: {},
     })
+  }
   const issue = await Effect.runPromise(issueQueries.getIssue(ctx.db, ctx.workspaceId, { id, ref }))
-  if (!issue) throw new NotFoundError('Issue not found')
+  if (!issue) {
+    throw new NotFoundError('Issue not found')
+  }
 
   const issueRecord = issue as Record<string, unknown>
   await assertIssueProjectVisible(ctx, issueRecord.project_id as string)
@@ -264,13 +280,16 @@ export async function getIssue(ctx: ServiceCtx, raw: unknown) {
 // rollup/links per issue here would be an N+1 the batch is meant to avoid.
 export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
   const result = GetIssuesBatchSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
-  for (const ref of result.data.refs ?? [])
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
+  for (const ref of result.data.refs ?? []) {
     if (!ISSUE_REF_PATTERN.test(ref))
       throw new ValidationError({
         formErrors: [`Invalid ref: ${ref} (expected KEY-NUMBER)`],
         fieldErrors: {},
       })
+  }
   const page = await Effect.runPromise(
     issueQueries.getIssuesBatch(
       ctx.db,
@@ -283,7 +302,9 @@ export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
 }
 
 async function resolveTypeId(ctx: ServiceCtx, typeId: string | null | undefined): Promise<string | null> {
-  if (typeId === null) return null
+  if (typeId === null) {
+    return null
+  }
   const orm = drizzle(ctx.db, { schema })
   if (typeId) {
     const found = await orm
@@ -291,11 +312,12 @@ async function resolveTypeId(ctx: ServiceCtx, typeId: string | null | undefined)
       .from(schema.taskTypes)
       .where(and(eq(schema.taskTypes.id, typeId), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
       .get()
-    if (!found)
+    if (!found) {
       throw new ValidationError({
         formErrors: ['Task type not found in this workspace'],
         fieldErrors: {},
       })
+    }
     return typeId
   }
   const def = await orm
@@ -489,7 +511,9 @@ export async function createIssueFromFeedback(
 
 async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: readonly string[]) {
   const result = CreateIssueSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const projectId = await resolveProjectIdParam(ctx, result.data.projectId)
   const parentId = result.data.parentId ? await resolveIssueIdParam(ctx, result.data.parentId) : result.data.parentId
   const data = { ...result.data, projectId, parentId }
@@ -503,8 +527,12 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
   // bypass). No grant → the project is invisible → 404; a viewer grant is read-only.
   if (!isWorkspaceAdmin(ctx.role)) {
     const projRole = await effectiveProjectRole(ctx, projectId)
-    if (projRole === null) throw new NotFoundError('Project not found')
-    if (!canWriteProject(projRole)) throw new ForbiddenError('Insufficient permissions')
+    if (projRole === null) {
+      throw new NotFoundError('Project not found')
+    }
+    if (!canWriteProject(projRole)) {
+      throw new ForbiddenError('Insufficient permissions')
+    }
   }
 
   // PROJ-785: an assignee must be a member of this workspace — otherwise we'd
@@ -568,8 +596,10 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
   }
 
   const results = await ctx.db.batch(statements)
-  const number = (results[0]?.results as Array<{ number: number }> | undefined)?.[0]?.number
-  if (feedbackIds && number === undefined) throw new ConflictError('Feedback already converted or no longer available')
+  const number = (results[0]?.results as { number: number }[] | undefined)?.[0]?.number
+  if (feedbackIds && number === undefined) {
+    throw new ConflictError('Feedback already converted or no longer available')
+  }
 
   if (parentId) {
     await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${parentId}`)
@@ -608,7 +638,9 @@ type SetValues = Record<string, any>
 
 function buildSimpleFields(data: UpdateIssueData): SetValues {
   const setValues: SetValues = {}
-  if (data.title !== undefined) setValues.title = data.title
+  if (data.title !== undefined) {
+    setValues.title = data.title
+  }
   if (data.body !== undefined) {
     setValues.body = data.body
     // PROJ-859: keep the stored definition-of-ready result in step with the body.
@@ -616,10 +648,18 @@ function buildSimpleFields(data: UpdateIssueData): SetValues {
     setValues.dorReady = dorReady
     setValues.dorMissing = dorMissing
   }
-  if (data.priority !== undefined) setValues.priority = data.priority
-  if ('assigneeId' in data) setValues.assigneeId = data.assigneeId ?? null
-  if (data.labels !== undefined) setValues.labels = data.labels
-  if ('parentId' in data) setValues.parentId = data.parentId ?? null
+  if (data.priority !== undefined) {
+    setValues.priority = data.priority
+  }
+  if ('assigneeId' in data) {
+    setValues.assigneeId = data.assigneeId ?? null
+  }
+  if (data.labels !== undefined) {
+    setValues.labels = data.labels
+  }
+  if ('parentId' in data) {
+    setValues.parentId = data.parentId ?? null
+  }
   return setValues
 }
 
@@ -635,8 +675,12 @@ function buildCompletedAtTransition(
 ): SetValues {
   const wasDone = existing.statusCategory === 'done' || existing.status === 'done'
   const isDone = newStatusCategory === 'done' || resolvedStatusKey === 'done'
-  if (isDone && !wasDone) return { completedAt: now() }
-  if (!isDone && wasDone) return { completedAt: null }
+  if (isDone && !wasDone) {
+    return { completedAt: now() }
+  }
+  if (!isDone && wasDone) {
+    return { completedAt: null }
+  }
   return {}
 }
 
@@ -669,7 +713,9 @@ function isCancelledState(category: string | null | undefined, key: string | nul
 // waited to be worked, and used to get ready_at = done_at, a 0s lead time that dragged
 // the median to zero. Issues created in an open non-backlog status are ready from creation.
 function isOpenPastBacklog(key: string, category: string | null | undefined): boolean {
-  if (key === 'backlog' || key === 'cancelled' || category === 'cancelled') return false
+  if (key === 'backlog' || key === 'cancelled' || category === 'cancelled') {
+    return false
+  }
   return !isDoneState(category, key)
 }
 
@@ -687,11 +733,15 @@ function buildFlowTimestampTransitions(
 
   const wasClaimed = isClaimedState(existing.statusCategory, existing.status, existing.statusIsReviewStep)
   const isClaimed = isClaimedState(newStatusCategory, resolvedStatusKey, newIsReviewStep)
-  if (isClaimed && !wasClaimed && existing.claimedAt == null) setValues.claimedAt = now()
+  if (isClaimed && !wasClaimed && existing.claimedAt == null) {
+    setValues.claimedAt = now()
+  }
 
   const wasDone = isDoneState(existing.statusCategory, existing.status)
   const isDone = isDoneState(newStatusCategory, resolvedStatusKey)
-  if (isDone && !wasDone && existing.doneAt == null) setValues.doneAt = now()
+  if (isDone && !wasDone && existing.doneAt == null) {
+    setValues.doneAt = now()
+  }
 
   return setValues
 }
@@ -721,11 +771,15 @@ function buildReviewTransitions(
 ): { setValues: SetValues; isGateRejection: boolean } {
   const { resolvedStatusKey, newStatusCategory, newIsReviewStep, enteringInReview, enteringDone } = transition
   const setValues: SetValues = {}
-  if (enteringInReview && existing.inReviewAt == null) setValues.inReviewAt = now()
+  if (enteringInReview && existing.inReviewAt == null) {
+    setValues.inReviewAt = now()
+  }
 
   const wasInReview = existing.statusIsReviewStep
   const leavingReviewNotDone = wasInReview && !newIsReviewStep && !enteringDone
-  if (leavingReviewNotDone) setValues.reviewBounceCount = existing.reviewBounceCount + 1
+  if (leavingReviewNotDone) {
+    setValues.reviewBounceCount = existing.reviewBounceCount + 1
+  }
 
   const isGateRejection =
     leavingReviewNotDone && (newStatusCategory === 'in_progress' || resolvedStatusKey === 'in_progress')
@@ -779,7 +833,9 @@ async function assertReviewGate(
   transition: Readonly<{ enteringInReview: boolean; enteringDone: boolean }>,
 ): Promise<void> {
   const { enteringInReview, enteringDone } = transition
-  if (!enteringInReview && !enteringDone) return
+  if (!enteringInReview && !enteringDone) {
+    return
+  }
 
   if (enteringInReview) {
     const hasLiveAgentLease = await issueHasLiveAgentLease(ctx, existing.id)
@@ -807,9 +863,15 @@ async function assertReviewGate(
 // can still dodge the flag by omitting agentSessionId entirely — accepted limitation,
 // see the module doc on evidence-classification.ts.
 async function computeNeedsAudit(ctx: ServiceCtx, data: UpdateIssueData): Promise<boolean> {
-  if (!data.agentSessionId) return false
-  if (!(await isLiveAgentSessionId(ctx, data.agentSessionId))) return false
-  if (!data.completionReport) return true
+  if (!data.agentSessionId) {
+    return false
+  }
+  if (!(await isLiveAgentSessionId(ctx, data.agentSessionId))) {
+    return false
+  }
+  if (!data.completionReport) {
+    return true
+  }
   return !isExternallyVerifiableEvidence(data.completionReport.verification)
 }
 
@@ -928,7 +990,9 @@ function formatCompletionReportComment(
     '',
     `**Verification:** ${report.verification}`,
   ]
-  if (report.prLink) lines.push('', `**PR:** ${report.prLink}`)
+  if (report.prLink) {
+    lines.push('', `**PR:** ${report.prLink}`)
+  }
   return lines.join('\n')
 }
 
@@ -942,14 +1006,18 @@ async function assertNotDemotingEpicWithChildren(
   existing: ExistingIssue,
   newTypeId: string | null,
 ): Promise<void> {
-  if (!existing.typeId || existing.typeId === newTypeId) return
+  if (!existing.typeId || existing.typeId === newTypeId) {
+    return
+  }
 
   const currentType = await orm
     .select({ key: schema.taskTypes.key })
     .from(schema.taskTypes)
     .where(and(eq(schema.taskTypes.id, existing.typeId), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
     .get()
-  if (currentType?.key !== 'epic') return
+  if (currentType?.key !== 'epic') {
+    return
+  }
 
   const childCount = await orm.$count(
     schema.issues,
@@ -1018,21 +1086,41 @@ function buildFtsReindexStatements(ctx: ServiceCtx, id: string, title: string, b
 // here is a small scalar, so those keep recording the actual (new) value.
 function buildUpdateDiffCore(data: UpdateIssueData): Record<string, unknown> {
   const diff: Record<string, unknown> = {}
-  if (data.title !== undefined) diff.title = data.title
-  if (data.body !== undefined) diff.bodyChanged = true
-  if (data.status !== undefined) diff.status = data.status
-  if (data.priority !== undefined) diff.priority = data.priority
-  if (data.labels !== undefined) diff.labels = data.labels
+  if (data.title !== undefined) {
+    diff.title = data.title
+  }
+  if (data.body !== undefined) {
+    diff.bodyChanged = true
+  }
+  if (data.status !== undefined) {
+    diff.status = data.status
+  }
+  if (data.priority !== undefined) {
+    diff.priority = data.priority
+  }
+  if (data.labels !== undefined) {
+    diff.labels = data.labels
+  }
   return diff
 }
 
 function buildUpdateDiffRefs(data: UpdateIssueData): Record<string, unknown> {
   const diff: Record<string, unknown> = {}
-  if ('statusId' in data) diff.statusId = data.statusId ?? null
-  if ('assigneeId' in data) diff.assigneeId = data.assigneeId ?? null
-  if ('parentId' in data) diff.parentId = data.parentId ?? null
-  if ('typeId' in data) diff.typeId = data.typeId ?? null
-  if (data.customFields !== undefined) diff.customFields = data.customFields
+  if ('statusId' in data) {
+    diff.statusId = data.statusId ?? null
+  }
+  if ('assigneeId' in data) {
+    diff.assigneeId = data.assigneeId ?? null
+  }
+  if ('parentId' in data) {
+    diff.parentId = data.parentId ?? null
+  }
+  if ('typeId' in data) {
+    diff.typeId = data.typeId ?? null
+  }
+  if (data.customFields !== undefined) {
+    diff.customFields = data.customFields
+  }
   return diff
 }
 
@@ -1057,7 +1145,9 @@ async function invalidateUpdateCaches(
 export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) {
   const id = await resolveIssueIdParam(ctx, rawId)
   const result = UpdateIssueSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const data =
     'parentId' in result.data && result.data.parentId
       ? { ...result.data, parentId: await resolveIssueIdParam(ctx, result.data.parentId) }
@@ -1094,7 +1184,9 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
     )
     .where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existingRow) throw new NotFoundError('Issue not found')
+  if (!existingRow) {
+    throw new NotFoundError('Issue not found')
+  }
   // PROJ-749: a status row's flag decides; without one only the built-in "in_review" counts.
   const { statusReviewFlag, ...existingFields } = existingRow
   const existing = {
@@ -1106,11 +1198,17 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
   // No grant → invisible → 404; a viewer grant is read-only → 403.
   if (!isWorkspaceAdmin(ctx.role)) {
     const projRole = await effectiveProjectRole(ctx, existing.projectId)
-    if (projRole === null) throw new NotFoundError('Issue not found')
-    if (!canWriteProject(projRole)) throw new ForbiddenError('Insufficient permissions')
+    if (projRole === null) {
+      throw new NotFoundError('Issue not found')
+    }
+    if (!canWriteProject(projRole)) {
+      throw new ForbiddenError('Insufficient permissions')
+    }
   }
 
-  if (data.agentSessionId) await assertAgentSessionAccess(ctx, data.agentSessionId)
+  if (data.agentSessionId) {
+    await assertAgentSessionAccess(ctx, data.agentSessionId)
+  }
 
   // PROJ-785: a non-null assigneeId must be a member of this workspace —
   // otherwise we'd persist a dangling or wrong-workspace user reference. `null`
@@ -1170,7 +1268,9 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
     )
   }
 
-  if (gateRejectionStatement) statements.push(gateRejectionStatement)
+  if (gateRejectionStatement) {
+    statements.push(gateRejectionStatement)
+  }
 
   statements.push(
     buildActivityInsertStatement(ctx, orm, {
@@ -1229,7 +1329,9 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
 export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
   const id = await resolveIssueIdParam(ctx, rawId)
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  if (!idCheck.success) {
+    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  }
   const orm = drizzle(ctx.db, { schema })
 
   const existing = await orm
@@ -1241,13 +1343,17 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
   // workspace filter of their own — so the id MUST be proven to be in this workspace
   // first, or an admin of workspace A could wipe workspace B's comments/links/files by
   // passing one of B's issue UUIDs.
-  if (!existing) throw new NotFoundError('Issue not found')
+  if (!existing) {
+    throw new NotFoundError('Issue not found')
+  }
 
   // PROJ-311: deletion needs admin inside the project — workspace owner/admin bypass
   // groups; everyone else needs a project-admin grant.
   if (!isWorkspaceAdmin(ctx.role)) {
     const projRole = await effectiveProjectRole(ctx, existing.projectId)
-    if (projRole !== 'admin') throw new ForbiddenError('Insufficient permissions')
+    if (projRole !== 'admin') {
+      throw new ForbiddenError('Insufficient permissions')
+    }
   }
 
   // PROJ-922: D1 does not reliably enforce the FK ON DELETE CASCADE/SET NULL declared in
@@ -1376,7 +1482,9 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 
   await recordActivity(ctx, { entityType: 'issue', entityId: id, action: 'deleted' })
   const toInvalidate = new Set([id, ...affected.results.map((r) => r.id)])
-  if (existing.parentId) toInvalidate.add(existing.parentId)
+  if (existing.parentId) {
+    toInvalidate.add(existing.parentId)
+  }
   await Promise.all([...toInvalidate].map((iid) => cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${iid}`)))
 
   await broadcastWorkspaceEvent(ctx, {
@@ -1435,7 +1543,9 @@ async function healDefinitionOfReady(ctx: ServiceCtx): Promise<void> {
       .bind(ctx.workspaceId, DOR_HEAL_BATCH)
       .all<{ id: string; body: string | null }>()
     const rows = results ?? []
-    if (rows.length === 0) return
+    if (rows.length === 0) {
+      return
+    }
     await ctx.db.batch(
       rows.map((r) =>
         ctx.db
@@ -1443,7 +1553,9 @@ async function healDefinitionOfReady(ctx: ServiceCtx): Promise<void> {
           .bind(...dorColumns(r.body), r.id, ctx.workspaceId),
       ),
     )
-    if (rows.length < DOR_HEAL_BATCH) return
+    if (rows.length < DOR_HEAL_BATCH) {
+      return
+    }
   }
 }
 
@@ -1501,7 +1613,9 @@ async function queryPrioritized(
     where.push(visible.sql)
     params.push(...visible.params)
   }
-  if (!opts.includeBacklog) where.push("i.status != 'backlog'")
+  if (!opts.includeBacklog) {
+    where.push("i.status != 'backlog'")
+  }
   // PROJ-184: skip issues held by a live lease.
   if (opts.excludeClaimed) {
     where.push(`NOT EXISTS (
@@ -1567,7 +1681,9 @@ function toPrioritizedIssue(r: PrioritizedRow) {
       story_points: r.story_points,
     },
   }
-  if (r.dor_ready === 1) return issue
+  if (r.dor_ready === 1) {
+    return issue
+  }
   return {
     ...issue,
     needsGrooming: true as const,
@@ -1589,7 +1705,9 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
   // with what's missing, for grooming.
   if (includeNotReady) {
     const rows = await queryPrioritized(ctx, { ...base, readyOnly: false })
-    if (rows.length === 0) return { issues: [] }
+    if (rows.length === 0) {
+      return { issues: [] }
+    }
     return { issues: rows.map(toPrioritizedIssue), droppedNotReady: 0 }
   }
 
@@ -1603,7 +1721,9 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
   // Nothing ready: return the ranked not-ready list, flagged, rather than an empty
   // array that reads as "no open work".
   const all = await queryPrioritized(ctx, { ...base, readyOnly: false })
-  if (all.length === 0) return { issues: [] }
+  if (all.length === 0) {
+    return { issues: [] }
+  }
   return {
     issues: all.map(toPrioritizedIssue),
     droppedNotReady: all[0].not_ready_count,
@@ -1613,7 +1733,9 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
 
 export async function searchIssues(ctx: ServiceCtx, raw: unknown) {
   const result = SearchIssuesInputSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { query, limit } = result.data
   const projectId = result.data.projectId
     ? await resolveVisibleProjectIdParam(ctx, result.data.projectId)

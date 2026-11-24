@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import {
   createLinkAttachment,
@@ -7,14 +7,16 @@ import {
   MAX_UPLOAD_SIZE,
   storageQuotaBytes,
   uploadStoredAttachment,
-} from '#commands/files'
-import type { ServiceCtx } from '#commands/types'
+} from '#commands/files.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { createTestDatabase } from '../../web/test/database'
+import { createTestDatabase } from '../../web/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 function fixture() {
@@ -56,13 +58,15 @@ function fixture() {
 const input = (file: File, entityId = 'i1') => ({ file, entityType: 'issue' as const, entityId })
 
 describe('shared file transfer commands over migrated SQLite and bounded R2', () => {
-  it('accepts only one concurrent upload when both preflights see the same remaining quota', async () => {
+  test('accepts only one concurrent upload when both preflights see the same remaining quota', async () => {
     const f = fixture()
     const ready = Promise.withResolvers<void>()
     let arrivals = 0
     f.put.mockImplementation(async (key, body) => {
       f.objects.set(key, await new Response(body).arrayBuffer())
-      if (++arrivals === 2) ready.resolve()
+      if (++arrivals === 2) {
+        ready.resolve()
+      }
       await ready.promise
       return null
     })
@@ -82,14 +86,15 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     expect(f.remove).toHaveBeenCalledOnce()
   })
 
-  it('streams upload bytes without materializing the File as an ArrayBuffer', async () => {
+  test('streams upload bytes without materializing the File as an ArrayBuffer', async () => {
     const f = fixture()
     const buffer = vi.spyOn(f.file, 'arrayBuffer').mockRejectedValue(new Error('must not buffer upload'))
     await uploadStoredAttachment(f.ctx, input(f.file))
     expect(buffer).not.toHaveBeenCalled()
     expect(new Uint8Array([...f.objects.values()][0])).toEqual(new Uint8Array([0, 255, 7, 128]))
   })
-  it('uploads exact bytes and metadata, reads archived-owner bytes, then deletes both stores', async () => {
+
+  test('uploads exact bytes and metadata, reads archived-owner bytes, then deletes both stores', async () => {
     const f = fixture()
     const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
     expect(uploaded).toEqual({ id: expect.any(String), filename: 'diagram.png', contentType: 'image/png', size: 4 })
@@ -105,7 +110,8 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     expect(f.sqlite.prepare('SELECT id FROM attachments WHERE id = ?').get(uploaded.id)).toBeUndefined()
     expect(f.objects.size).toBe(0)
   })
-  it('keeps the API 50 MiB boundary, MIME and quota checks before writing storage', async () => {
+
+  test('keeps the API 50 MiB boundary, MIME and quota checks before writing storage', async () => {
     const f = fixture()
     const unsupported = new File(['x'], 'bad.bin', { type: 'application/octet-stream' })
     await expect(uploadStoredAttachment(f.ctx, input(unsupported))).rejects.toMatchObject({
@@ -126,7 +132,8 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     })
     expect(f.put).toHaveBeenCalledTimes(1)
   })
-  it('removes newly stored bytes when metadata insertion fails', async () => {
+
+  test('removes newly stored bytes when metadata insertion fails', async () => {
     const f = fixture()
     f.sqlite.exec(
       "CREATE TRIGGER fail_attachment BEFORE INSERT ON attachments BEGIN SELECT RAISE(ABORT, 'insert failure'); END",
@@ -136,17 +143,19 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     expect(f.remove).toHaveBeenCalledOnce()
     expect(f.objects.size).toBe(0)
   })
-  it.each(['viewer', 'ungranted', 'project-viewer'] as const)(
+
+  test.each(['viewer', 'ungranted', 'project-viewer'] as const)(
     'rejects %s writes before storing bytes',
     async (kind) => {
       const f = fixture()
       f.ctx.role = kind === 'viewer' ? 'viewer' : 'member'
-      if (kind === 'project-viewer')
+      if (kind === 'project-viewer') {
         f.sqlite.exec(`
       INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('g1','w1','Readers',1);
       INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1);
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','p1','viewer');
     `)
+      }
       await expect(uploadStoredAttachment(f.ctx, input(f.file))).rejects.toMatchObject({
         kind: kind === 'project-viewer' ? 'forbidden' : 'not_found',
       })
@@ -155,7 +164,8 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
       expect(f.remove).not.toHaveBeenCalled()
     },
   )
-  it('requires owner visibility and tenant scope before reading or deleting stored bytes', async () => {
+
+  test('requires owner visibility and tenant scope before reading or deleting stored bytes', async () => {
     const f = fixture()
     const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
     f.ctx.workspaceId = 'w2'
@@ -181,7 +191,8 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     await deleteStoredAttachment(f.ctx, uploaded.id)
     expect(f.objects.size).toBe(0)
   })
-  it('preserves free-floating entity compatibility and null-project wiki uploads', async () => {
+
+  test('preserves free-floating entity compatibility and null-project wiki uploads', async () => {
     const f = fixture()
     f.ctx.role = 'member'
     const orphan = await uploadStoredAttachment(f.ctx, input(f.file, 'missing-owner'))
@@ -192,7 +203,8 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     const page = await uploadStoredAttachment(f.ctx, { file: f.file, entityType: 'wiki_page', entityId: 'page' })
     expect(await getStoredAttachment(f.ctx, page.id)).not.toBeNull()
   })
-  it('returns null for missing objects and skips R2 deletion for non-file metadata', async () => {
+
+  test('returns null for missing objects and skips R2 deletion for non-file metadata', async () => {
     const f = fixture()
     const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
     f.objects.clear()
@@ -206,7 +218,8 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     await deleteStoredAttachment(f.ctx, link.id)
     expect(f.remove).not.toHaveBeenCalled()
   })
-  it('retains metadata and quota accounting when storage deletion fails, then permits retry', async () => {
+
+  test('retains metadata and quota accounting when storage deletion fails, then permits retry', async () => {
     const f = fixture()
     const uploaded = await uploadStoredAttachment(f.ctx, input(f.file))
     f.remove.mockRejectedValueOnce(new Error('R2 unavailable'))
@@ -219,7 +232,8 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     expect(f.sqlite.prepare('SELECT id FROM attachments WHERE id = ?').get(uploaded.id)).toBeUndefined()
     expect(f.objects.size).toBe(0)
   })
-  it('preserves the metadata error when compensation also fails', async () => {
+
+  test('preserves the metadata error when compensation also fails', async () => {
     const f = fixture()
     f.sqlite.exec(
       "CREATE TRIGGER fail_attachment BEFORE INSERT ON attachments BEGIN SELECT RAISE(ABORT, 'original insert failure'); END",
@@ -236,9 +250,11 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
       log.mockRestore()
     }
   })
-  it('uses finite positive configured quota or the unchanged default', () => {
-    for (const value of [undefined, '', '0', '-1', 'invalid', 'Infinity'])
+
+  test('uses finite positive configured quota or the unchanged default', () => {
+    for (const value of [undefined, '', '0', '-1', 'invalid', 'Infinity']) {
       expect(storageQuotaBytes({ STORAGE_QUOTA_BYTES: value })).toBe(1024 * 1024 * 1024)
+    }
     expect(storageQuotaBytes({ STORAGE_QUOTA_BYTES: '4' })).toBe(4)
   })
 })

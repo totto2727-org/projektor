@@ -1,8 +1,8 @@
 import { Schema } from 'effect'
 
-import { coreResult } from '../../core'
-import type { BrowserCommandClient } from '../../server/browser-command'
-import { CreatedSource, Converted, Ok } from './schemas'
+import { coreResult } from '../../core.ts'
+import type { BrowserCommandClient } from '../../server/browser-command.ts'
+import { CreatedSource, Converted, Ok } from './schemas.ts'
 
 export const sourceCommands = {
   createFeedbackSource: (ctx: BrowserCommandClient, input: unknown) =>

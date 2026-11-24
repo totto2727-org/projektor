@@ -1,5 +1,5 @@
-import type { ReviewTarget } from '../../../../contracts/review-targets'
-import { issueUrl } from '../utils/issue-url'
+import type { ReviewTarget } from '../../../../contracts/review-targets.ts'
+import { issueUrl } from '../utils/issue-url.ts'
 
 interface ReviewableIssue {
   id: string

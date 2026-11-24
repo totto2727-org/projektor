@@ -1,8 +1,8 @@
-import { ValidationError } from '../../contracts/errors'
-import { composePlaybook } from '../services/playbook-compose'
-import { getPlaybook, listPlaybooks } from '../services/playbooks'
-import { PLAIN_WRITE, READ } from './annotations'
-import type { MCPTool } from './types'
+import { ValidationError } from '../../contracts/errors.ts'
+import { composePlaybook } from '../services/playbook-compose.ts'
+import { getPlaybook, listPlaybooks } from '../services/playbooks.ts'
+import { PLAIN_WRITE, READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 export const playbooksTools: MCPTool[] = [
   {

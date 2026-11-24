@@ -1,9 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test'
+import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
-import { validateToolArgs } from '../mcp/validate-args'
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, toolError } from './helpers'
+import { validateToolArgs } from '../mcp/validate-args.ts'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, toolError } from './helpers.ts'
 
 // PROJ-920: MCP arguments are validated against each tool's inputSchema (types, enums,
 // lengths, required) before the handler runs, so a wrongly-typed argument is a validation
@@ -16,7 +16,9 @@ function schemaType(s: Schema): string | undefined {
 }
 
 function validValue(s: Schema): unknown {
-  if (Array.isArray(s.enum) && s.enum.length > 0) return s.enum[0]
+  if (Array.isArray(s.enum) && s.enum.length > 0) {
+    return s.enum[0]
+  }
   switch (schemaType(s)) {
     case 'string':
       return 'x'.repeat(Math.max(1, typeof s.minLength === 'number' ? s.minLength : 1))
@@ -58,7 +60,7 @@ async function rpc(workspaceId: string, headers: Record<string, string>, method:
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   })
   return res.json() as Promise<{
-    result?: { tools: Array<{ name: string; inputSchema: Schema }> }
+    result?: { tools: { name: string; inputSchema: Schema }[] }
   }>
 }
 
@@ -71,7 +73,7 @@ describe('PROJ-920: MCP tool arguments are type-checked before the handler runs'
     env.RATE_LIMIT_API_MAX = prevMax
   })
 
-  it('every tool rejects a wrongly-typed required argument with a validation tool error naming it', async () => {
+  test('every tool rejects a wrongly-typed required argument with a validation tool error naming it', async () => {
     const f = await seedFixture({ role: 'owner' })
     const headers = authHeaders(f.token, f.workspace.slug)
     const list = await rpc(f.workspace.id, headers, 'tools/list', {})
@@ -84,9 +86,13 @@ describe('PROJ-920: MCP tool arguments are type-checked before the handler runs'
       const props = (tool.inputSchema.properties ?? {}) as Record<string, Schema>
       const required = ((tool.inputSchema.required ?? []) as string[]).filter((k) => props[k])
       const target = required.find((k) => wrongValue(props[k]) !== undefined)
-      if (!target) continue
+      if (!target) {
+        continue
+      }
       const args: Record<string, unknown> = {}
-      for (const k of required) args[k] = validValue(props[k])
+      for (const k of required) {
+        args[k] = validValue(props[k])
+      }
       args[target] = wrongValue(props[target])
 
       const res = await rpc(f.workspace.id, headers, 'tools/call', {
@@ -103,7 +109,7 @@ describe('PROJ-920: MCP tool arguments are type-checked before the handler runs'
     expect(failures).toEqual([])
   })
 
-  it('puts the failing field in fields like a service ValidationError', async () => {
+  test('puts the failing field in fields like a service ValidationError', async () => {
     const f = await seedFixture({ role: 'owner' })
     const headers = authHeaders(f.token, f.workspace.slug)
     const res = await rpc(f.workspace.id, headers, 'tools/call', {
@@ -115,7 +121,7 @@ describe('PROJ-920: MCP tool arguments are type-checked before the handler runs'
     expect(err?.fields?.id?.[0]).toMatch(/must be string/)
   })
 
-  it('still reports missing required arguments by name (PROJ-877)', async () => {
+  test('still reports missing required arguments by name (PROJ-877)', async () => {
     const f = await seedFixture({ role: 'owner' })
     const headers = authHeaders(f.token, f.workspace.slug)
     const res = await rpc(f.workspace.id, headers, 'tools/call', {
@@ -143,7 +149,7 @@ describe('validateToolArgs', () => {
     required: ['status'],
   }
 
-  it('accepts valid args, null for nullable fields, and undeclared extras', () => {
+  test('accepts valid args, null for nullable fields, and undeclared extras', () => {
     expect(
       validateToolArgs(schema, {
         status: 'todo',
@@ -155,7 +161,7 @@ describe('validateToolArgs', () => {
     ).toEqual([])
   })
 
-  it('reports enum, item, length, integer and minimum violations with paths', () => {
+  test('reports enum, item, length, integer and minimum violations with paths', () => {
     const issues = validateToolArgs(schema, {
       status: 'nope',
       labels: ['a', 2, 'c'],
@@ -166,7 +172,7 @@ describe('validateToolArgs', () => {
     expect(paths).toEqual(['labels', 'labels[1]', 'limit', 'status', 'title'])
   })
 
-  it('stays as lenient as the services: numeric/boolean strings and null for optional fields', () => {
+  test('stays as lenient as the services: numeric/boolean strings and null for optional fields', () => {
     expect(validateToolArgs(schema, { status: 'done', limit: '3', labels: null, title: null })).toEqual([])
     expect(validateToolArgs({ properties: { flag: { type: 'boolean' } } }, { flag: 'true' })).toEqual([])
     expect(validateToolArgs(schema, { status: null }).map((i) => i.path)).toEqual(['status'])

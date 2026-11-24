@@ -1,12 +1,12 @@
 import { Effect, Schema } from 'effect'
 
-import type { ServiceCtx } from '#commands/types'
-import * as wiki from '#commands/wiki'
-import * as drafts from '#commands/wiki-drafts'
-import * as data from '#services/wiki'
+import type { ServiceCtx } from '#commands/types.ts'
+import * as drafts from '#commands/wiki-drafts.ts'
+import * as wiki from '#commands/wiki.ts'
+import * as data from '#services/wiki.ts'
 
-import { ApiError } from '../../contracts/errors'
-import { VersionedWikiDraftInputSchema, WikiDraftRevisionInputSchema } from '../../contracts/inputs/wiki'
+import { ApiError } from '../../contracts/errors.ts'
+import { VersionedWikiDraftInputSchema, WikiDraftRevisionInputSchema } from '../../contracts/inputs/wiki.ts'
 import {
   Created,
   Deleted,
@@ -18,12 +18,12 @@ import {
   Restored,
   SavedDraft,
   Verified,
-} from '../../contracts/web-schemas/wiki'
-import { coreFailure, coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { browserCommand } from './command'
-import type { BrowserCommand } from './command-contract'
-import { pageFreshness, readAuthorizedWikiPage } from './wiki-policy'
+} from '../../contracts/web-schemas/wiki.ts'
+import { coreFailure, coreReply } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import type { BrowserCommand } from './command-contract.ts'
+import { browserCommand } from './command.ts'
+import { pageFreshness, readAuthorizedWikiPage } from './wiki-policy.ts'
 
 export const WikiDiffSchema = Schema.Struct({ diff: Schema.String })
 
@@ -70,7 +70,9 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         Effect.gen(function* () {
           const { workspace, page } = yield* readAuthorizedWikiPage(env.DB, scope, slug)
           const revision = yield* data.getWikiRevision(env.DB, workspace.id, page.id, revisionId)
-          if (!revision) return yield* new ApiError('http', 404, 'Revision not found.')
+          if (!revision) {
+            return yield* new ApiError('http', 404, 'Revision not found.')
+          }
           return { diff: data.buildUnifiedDiff(revision.content, page.content) }
         }),
       ),
@@ -100,13 +102,17 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
     webSaveWikiDraft: (proof: BrowserCommand, slug: string, input: unknown) =>
       mutation('webSaveWikiDraft', SavedDraft, proof, (ctx) => {
         const parsed = VersionedWikiDraftInputSchema.safeParse(input)
-        if (!parsed.success) throw coreFailure(400, 'A draft revision precondition is required.')
+        if (!parsed.success) {
+          throw coreFailure(400, 'A draft revision precondition is required.')
+        }
         return drafts.saveWikiDraft(ctx, slug, parsed.data)
       }),
     webDiscardWikiDraft: (proof: BrowserCommand, slug: string, input: unknown) =>
       mutation('webDiscardWikiDraft', DraftRevision, proof, (ctx) => {
         const parsed = WikiDraftRevisionInputSchema.safeParse(input)
-        if (!parsed.success) throw coreFailure(400, 'A draft revision precondition is required.')
+        if (!parsed.success) {
+          throw coreFailure(400, 'A draft revision precondition is required.')
+        }
         return drafts.discardWikiDraft(ctx, slug, parsed.data)
       }),
     webVerifyWikiPage: (proof: BrowserCommand, slug: string) =>
@@ -118,9 +124,13 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
     webRestoreWikiRevision: (proof: BrowserCommand, slug: string, revisionId: string, baseRevisionId: string | null) =>
       mutation('webRestoreWikiRevision', Ok, proof, async (ctx) => {
         const page = await Effect.runPromise(data.findWikiPage(ctx.db, ctx.workspaceId, slug))
-        if (!page) throw coreFailure(404, 'Wiki page not found.')
+        if (!page) {
+          throw coreFailure(404, 'Wiki page not found.')
+        }
         const revision = await Effect.runPromise(data.getWikiRevision(ctx.db, ctx.workspaceId, page.id, revisionId))
-        if (!revision) throw coreFailure(404, 'Revision not found.')
+        if (!revision) {
+          throw coreFailure(404, 'Revision not found.')
+        }
         return wiki.updateWikiPage(ctx, slug, {
           content: revision.content,
           baseRevisionId,
@@ -130,9 +140,9 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
   }
 }
 
-import { requireDataWorkspace } from '../../contracts/web-data'
-import { loadBrowserScope, publicWebFailure } from './authentication'
-import { checked } from './issue-data'
+import { requireDataWorkspace } from '../../contracts/web-data.ts'
+import { loadBrowserScope, publicWebFailure } from './authentication.ts'
+import { checked } from './issue-data.ts'
 function importScope(env: CoreEnvironment, proof: BrowserCommand) {
   return Effect.gen(function* () {
     const scope = yield* loadBrowserScope(env, proof.request, {

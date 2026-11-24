@@ -4,15 +4,16 @@ import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 
 import { NodeServices } from '@effect/platform-node'
-import { inlineSqlParams, MigrationError, runMigrations, type SqlExecutor } from 'alchemy/SQL/Migrations/index'
+import { inlineSqlParams, MigrationError, runMigrations } from 'alchemy/SQL/Migrations/index'
+import type { SqlExecutor } from 'alchemy/SQL/Migrations/index'
 import { Effect } from 'effect'
-import { expect, it } from 'vite-plus/test'
+import { expect, test } from 'vite-plus/test'
 
 const directory = new URL('./migrations/', import.meta.url)
 const pending = '0068_wiki_draft_heads.sql'
 const alreadyApplied = '0069_attachment_review_status.sql'
 
-it.each([
+test.each([
   { description: 'adopts Wrangler history and fills the 0068 gap', unknown: false },
   { description: 'rejects an unknown Wrangler filename without writing', unknown: true },
 ])('$description', async ({ unknown }) => {
@@ -28,12 +29,16 @@ it.each([
   for (const name of files) {
     const sql = readFileSync(new URL(name, directory), 'utf8')
     hashes.set(name, createHash('sha256').update(sql).digest('hex'))
-    if (name === pending) continue
+    if (name === pending) {
+      continue
+    }
     db.exec(sql)
     insertApplied.run(name, '2026-11-19 00:00:00')
   }
   const unknownName = 'unrecognized_fixture_migration.sql'
-  if (unknown) insertApplied.run(unknownName, '2026-11-19 00:00:00')
+  if (unknown) {
+    insertApplied.run(unknownName, '2026-11-19 00:00:00')
+  }
   db.exec(`
     INSERT INTO users(id, email, name, created_at) VALUES ('fixture', 'fixture@example.test', 'Fixture', 123);
     INSERT INTO workspaces(id, name, slug, created_at) VALUES ('workspace', 'Workspace', 'fixture-workspace', 123);

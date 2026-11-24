@@ -9,16 +9,16 @@ import {
   ListActiveAgentsSchema,
   RegisterAgentSchema,
   StartWorkSchema,
-} from '../../contracts/inputs/agents'
-import { assertIssueAccess, visibleProjectPredicate } from './access'
-import { agentSessionCredential, assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity'
-import { postMessage } from './agent-messages'
-import { NotFoundError, ValidationError } from './errors'
-import { claimFiles, releaseClaimsForAgent } from './file-claims'
-import { claimIssue, releaseLeasesForAgent } from './issue-leases'
-import { updateIssue } from './issues'
-import { resolveVisibleProjectIdParam } from './projects'
-import type { ServiceCtx } from './types'
+} from '../../contracts/inputs/agents.ts'
+import { assertIssueAccess, visibleProjectPredicate } from './access.ts'
+import { agentSessionCredential, assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity.ts'
+import { postMessage } from './agent-messages.ts'
+import { NotFoundError, ValidationError } from './errors.ts'
+import { claimFiles, releaseClaimsForAgent } from './file-claims.ts'
+import { claimIssue, releaseLeasesForAgent } from './issue-leases.ts'
+import { updateIssue } from './issues.ts'
+import { resolveVisibleProjectIdParam } from './projects.ts'
+import type { ServiceCtx } from './types.ts'
 
 const ACTIVE_TTL = 120
 
@@ -45,12 +45,16 @@ function isApiTokenMethod(method: string): boolean {
 
 export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
   const result = RegisterAgentSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { issueId, name } = result.data
 
   const orm = drizzle(ctx.db, { schema })
 
-  if (issueId) await assertIssueAccess(ctx, issueId, 'edit')
+  if (issueId) {
+    await assertIssueAccess(ctx, issueId, 'edit')
+  }
 
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
@@ -103,7 +107,9 @@ export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
  */
 export async function startWork(ctx: ServiceCtx, raw: unknown) {
   const result = StartWorkSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { issue: issueId, paths, name } = result.data
 
   const session = await registerAgent(ctx, { name, issueId })
@@ -136,7 +142,9 @@ export async function startWork(ctx: ServiceCtx, raw: unknown) {
 
 export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
   const result = HeartbeatAgentSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   // PROJ-894: heartbeat resolves against still-active sessions (not only live ones) —
   // this call is what revives a session that just went stale.
   const id = await resolveAgentSessionId(ctx, result.data.id, { includeStale: true })
@@ -153,7 +161,9 @@ export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
       ),
     )
     .get()
-  if (!existing) throw new NotFoundError('Agent session not found')
+  if (!existing) {
+    throw new NotFoundError('Agent session not found')
+  }
 
   const now = Math.floor(Date.now() / 1000)
   await orm
@@ -173,7 +183,9 @@ export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
 
 export async function endAgent(ctx: ServiceCtx, raw: unknown) {
   const result = EndAgentSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const id = await resolveAgentSessionId(ctx, result.data.id, {
     includeStale: true,
     allowAdministrativeOverride: true,
@@ -185,7 +197,9 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
     .from(schema.agentSessions)
     .where(and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Agent session not found')
+  if (!existing) {
+    throw new NotFoundError('Agent session not found')
+  }
 
   const now = Math.floor(Date.now() / 1000)
   await orm
@@ -215,7 +229,9 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
  */
 export async function finishWork(ctx: ServiceCtx, raw: unknown) {
   const result = FinishWorkSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { sessionId, issue: issueId, completionReport, status } = result.data
   await assertIssueAccess(ctx, issueId, 'edit')
   await assertAgentSessionAccess(ctx, sessionId)
@@ -246,7 +262,9 @@ export async function finishWork(ctx: ServiceCtx, raw: unknown) {
  */
 export async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
   const result = ListActiveAgentsSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { issueId, includeStale } = result.data
   const projectId = result.data.projectId ? await resolveVisibleProjectIdParam(ctx, result.data.projectId) : undefined
 

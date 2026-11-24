@@ -1,11 +1,13 @@
-import { and, desc, eq, gte, inArray, isNull, lte, or, sql, type SQL } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
-import type { ReviewFilter } from '../contracts/review-targets'
-import { batchLoadCustomFields, inChunks, type CustomFieldValue } from './custom-fields'
-import { queryEffect } from './errors'
+import type { ReviewFilter } from '../contracts/review-targets.ts'
+import { batchLoadCustomFields, inChunks } from './custom-fields.ts'
+import type { CustomFieldValue } from './custom-fields.ts'
+import { queryEffect } from './errors.ts'
 
 export const ISSUE_REF_PATTERN = /^([A-Z][A-Z0-9]*)-(\d{1,9})$/
 export interface IssueListOptions {
@@ -104,7 +106,9 @@ export interface IssuePage {
 export function getIssue(db: D1Database, workspaceId: string, options: { id?: string; ref?: string }) {
   return queryEffect('getIssue', async () => {
     const match = options.ref?.match(ISSUE_REF_PATTERN)
-    if (!options.id && !match) return null
+    if (!options.id && !match) {
+      return null
+    }
     const predicate = options.id
       ? eq(schema.issues.id, options.id)
       : and(eq(schema.projects.key, match![1]), eq(schema.issues.number, Number(match![2])))
@@ -118,7 +122,9 @@ export function getIssue(db: D1Database, workspaceId: string, options: { id?: st
 export function findIssueIdByRef(db: D1Database, workspaceId: string, ref: string) {
   return queryEffect('findIssueIdByRef', async () => {
     const match = ref.match(ISSUE_REF_PATTERN)
-    if (!match) return null
+    if (!match) {
+      return null
+    }
     const row = await drizzle(db, { schema })
       .select({ id: schema.issues.id })
       .from(schema.issues)
@@ -149,7 +155,9 @@ export function findIssueCustomField(db: D1Database, workspaceId: string, key: s
 }
 function listConditions(workspaceId: string, options: IssueListOptions, visibility?: SQL): SQL[] {
   const conditions: SQL[] = [eq(schema.issues.workspaceId, workspaceId)]
-  if (visibility) conditions.push(visibility)
+  if (visibility) {
+    conditions.push(visibility)
+  }
   if (options.review) {
     const status =
       options.review === 'active'
@@ -161,46 +169,79 @@ function listConditions(workspaceId: string, options: IssueListOptions, visibili
         AND review_attachment.entity_type = 'issue' AND review_attachment.kind IN ('file', 'url')
         AND ${status})`)
   }
-  if (options.status) conditions.push(eq(schema.issues.status, options.status))
-  if (options.statusId) conditions.push(eq(schema.issues.statusId, options.statusId))
+  if (options.status) {
+    conditions.push(eq(schema.issues.status, options.status))
+  }
+  if (options.statusId) {
+    conditions.push(eq(schema.issues.statusId, options.statusId))
+  }
   const statusIds = options.statusIds
     ?.split(',')
     .map((s) => s.trim())
     .filter(Boolean)
   // Membership filters bind one JSON value instead of an input-scaled array, keeping
   // the complete filtered count and cursor page under D1's 100-parameter cap.
-  if (statusIds?.length)
+  if (statusIds?.length) {
     conditions.push(sql`${schema.issues.statusId} IN (SELECT value FROM json_each(${JSON.stringify(statusIds)}))`)
-  if (options.category) conditions.push(eq(schema.issues.statusCategory, options.category))
-  if (options.needsAudit !== undefined) conditions.push(eq(schema.issues.needsAudit, options.needsAudit))
-  if (options.priority) conditions.push(eq(schema.issues.priority, options.priority))
+  }
+  if (options.category) {
+    conditions.push(eq(schema.issues.statusCategory, options.category))
+  }
+  if (options.needsAudit !== undefined) {
+    conditions.push(eq(schema.issues.needsAudit, options.needsAudit))
+  }
+  if (options.priority) {
+    conditions.push(eq(schema.issues.priority, options.priority))
+  }
   const priorities = options.priorities
     ?.split(',')
     .map((s) => s.trim())
     .filter(Boolean) as NonNullable<IssueListOptions['priority']>[] | undefined
-  if (priorities?.length)
+  if (priorities?.length) {
     conditions.push(sql`${schema.issues.priority} IN (SELECT value FROM json_each(${JSON.stringify(priorities)}))`)
-  if (options.projectId) conditions.push(eq(schema.issues.projectId, options.projectId))
-  if (options.assignee) conditions.push(eq(schema.issues.assigneeId, options.assignee))
-  if (options.parentId) conditions.push(eq(schema.issues.parentId, options.parentId))
-  if (options.noParent) conditions.push(isNull(schema.issues.parentId))
-  if (options.typeId) conditions.push(eq(schema.issues.typeId, options.typeId))
+  }
+  if (options.projectId) {
+    conditions.push(eq(schema.issues.projectId, options.projectId))
+  }
+  if (options.assignee) {
+    conditions.push(eq(schema.issues.assigneeId, options.assignee))
+  }
+  if (options.parentId) {
+    conditions.push(eq(schema.issues.parentId, options.parentId))
+  }
+  if (options.noParent) {
+    conditions.push(isNull(schema.issues.parentId))
+  }
+  if (options.typeId) {
+    conditions.push(eq(schema.issues.typeId, options.typeId))
+  }
   const excluded = options.excludeTypeIds
     ?.split(',')
     .map((s) => s.trim())
     .filter(Boolean)
-  if (excluded?.length)
+  if (excluded?.length) {
     conditions.push(
       or(
         isNull(schema.issues.typeId),
         sql`${schema.issues.typeId} NOT IN (SELECT value FROM json_each(${JSON.stringify(excluded)}))`,
       )!,
     )
-  if (options.sprintId) conditions.push(eq(schema.issues.sprintId, options.sprintId))
-  if (options.completedAfter) conditions.push(gte(schema.issues.completedAt, options.completedAfter))
-  if (options.completedBefore) conditions.push(lte(schema.issues.completedAt, options.completedBefore))
-  if (options.updatedAfter) conditions.push(gte(schema.issues.updatedAt, options.updatedAfter))
-  if (options.updatedBefore) conditions.push(lte(schema.issues.updatedAt, options.updatedBefore))
+  }
+  if (options.sprintId) {
+    conditions.push(eq(schema.issues.sprintId, options.sprintId))
+  }
+  if (options.completedAfter) {
+    conditions.push(gte(schema.issues.completedAt, options.completedAfter))
+  }
+  if (options.completedBefore) {
+    conditions.push(lte(schema.issues.completedAt, options.completedBefore))
+  }
+  if (options.updatedAfter) {
+    conditions.push(gte(schema.issues.updatedAt, options.updatedAfter))
+  }
+  if (options.updatedBefore) {
+    conditions.push(lte(schema.issues.updatedAt, options.updatedBefore))
+  }
   const field = options.customField
   if (field) {
     const op = field.op ?? 'eq'
@@ -227,7 +268,9 @@ export function getChildRollups(db: D1Database, workspaceId: string, parentIds: 
         .groupBy(schema.issues.parentId, schema.issues.status),
     )
     const grouped: Record<string, { status: string; count: number }[]> = {}
-    for (const row of rows) if (row.parent_id) (grouped[row.parent_id] ??= []).push(row)
+    for (const row of rows) {
+      if (row.parent_id) (grouped[row.parent_id] ??= []).push(row)
+    }
     return Object.fromEntries(parentIds.map((id) => [id, computeChildRollup(grouped[id] ?? [])]))
   })
 }
@@ -315,13 +358,17 @@ export function getIssuesBatch(db: D1Database, workspaceId: string, options: Iss
               ),
             ),
         )
-        for (const row of rows) refToId.set(`${key}-${row.number}`, row.id)
+        for (const row of rows) {
+          refToId.set(`${key}-${row.number}`, row.id)
+        }
       }
       const order = refs.map((ref) => {
         const m = ref.match(ISSUE_REF_PATTERN)!
         return { requested: ref, id: refToId.get(`${m[1]}-${Number(m[2])}`) }
       })
-      for (const id of options.ids ?? []) order.push({ requested: id, id })
+      for (const id of options.ids ?? []) {
+        order.push({ requested: id, id })
+      }
       const ids = [...new Set(order.map((o) => o.id).filter((id): id is string => !!id))]
       const rows = await inChunks(ids, (chunk) =>
         issueSelect(db).where(
@@ -350,10 +397,14 @@ export function getIssuesBatch(db: D1Database, workspaceId: string, options: Iss
     for (const entry of selection.order) {
       const row = entry.id ? rowsById.get(entry.id) : undefined
       if (!row) {
-        if (!missing.includes(entry.requested)) missing.push(entry.requested)
+        if (!missing.includes(entry.requested)) {
+          missing.push(entry.requested)
+        }
         continue
       }
-      if (seen.has(row.id)) continue
+      if (seen.has(row.id)) {
+        continue
+      }
       seen.add(row.id)
       items.push(row)
     }
@@ -394,7 +445,9 @@ export function searchIssues(
       .filter((t) => Boolean(t) && /\w/.test(t))
       .map((t) => `"${t.replace(/"/g, '""')}"`)
       .join(' ')
-    if (!query) return []
+    if (!query) {
+      return []
+    }
     let statement = `SELECT i.id, i.number, i.title, i.status, i.priority, p.id as project_id, p.key as project_key, p.name as project_name FROM issues_fts JOIN issues i ON i.id = issues_fts.issue_id LEFT JOIN projects p ON p.id = i.project_id WHERE issues_fts MATCH ? AND issues_fts.workspace_id = ?`
     const params: unknown[] = [query, workspaceId]
     if (options.projectId) {
@@ -415,7 +468,9 @@ export function searchIssues(
               : 'review_attachment.review_status = ?'
           })`
       params.push(workspaceId)
-      if (options.review !== 'active') params.push(options.review)
+      if (options.review !== 'active') {
+        params.push(options.review)
+      }
     }
     statement += ' ORDER BY bm25(issues_fts) LIMIT ?'
     params.push(options.limit)

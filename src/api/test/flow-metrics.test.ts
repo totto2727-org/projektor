@@ -1,43 +1,44 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import type { Distribution } from '#commands/flow-metrics'
+import type { Distribution } from '#commands/flow-metrics.ts'
 
-import { env } from './fixture-api'
-import { authHeaders, type JsonRpcResult, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers.ts'
+import type { JsonRpcResult } from './helpers.ts'
 
 interface FlowMetrics {
   leadTime: Distribution
   cycleTime: Distribution
-  wipOverTime: Array<{ date: string; count: number }>
-  throughputOverTime: Array<{ bucketStart: string; count: number }>
-  bugShareOverTime: Array<{
+  wipOverTime: { date: string; count: number }[]
+  throughputOverTime: { bucketStart: string; count: number }[]
+  bugShareOverTime: {
     bucketStart: string
     total: number
     bugCount: number
     bugSharePercent: number | null
-  }>
+  }[]
   bugTypeTracked: boolean
   reviewLatency: Distribution
-  reviewLatencyOverTime: Array<{ bucketStart: string; p50: number | null }>
+  reviewLatencyOverTime: { bucketStart: string; p50: number | null }[]
   humanInterventions: Distribution
   autonomyRatio: Distribution
-  cfdOverTime: Array<{
+  cfdOverTime: {
     bucketStart: string
     backlogTodo: number
     inProgress: number
     inReview: number
     done: number
-  }>
+  }[]
   timeInProgress: Distribution
-  arrivalVsCompletionOverTime: Array<{
+  arrivalVsCompletionOverTime: {
     bucketStart: string
     created: number
     completed: number
     net: number
-  }>
+  }[]
   flowEfficiency: Distribution
-  agingWip: Array<{ id: string; status: 'in_progress' | 'in_review'; ageSeconds: number }>
+  agingWip: { id: string; status: 'in_progress' | 'in_review'; ageSeconds: number }[]
   factoryHealth: {
     leaseExpiries: number
     abandonedClaims: number
@@ -101,7 +102,7 @@ describe('Flow metrics (PROJ-252)', () => {
     return (await res.json()) as FlowMetrics
   }
 
-  it('computes lead/cycle time', async () => {
+  test('computes lead/cycle time', async () => {
     const now = Math.floor(Date.now() / 1000)
 
     const agentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Agent-worked' })
@@ -130,7 +131,7 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(Array.isArray(metrics.wipOverTime)).toBe(true)
   })
 
-  it('MCP get_flow_metrics matches REST', async () => {
+  test('MCP get_flow_metrics matches REST', async () => {
     const restRes = await SELF.fetch(`http://localhost/api/projects/${projectId}/flow-metrics`, {
       headers: authHeaders(token, slug),
     })
@@ -146,21 +147,21 @@ describe('Flow metrics (PROJ-252)', () => {
         params: { name: 'get_flow_metrics', arguments: { projectId } },
       }),
     })
-    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
 
     expect(mcpBody).toEqual(restBody)
   })
 
-  it('404s for a project in another workspace', async () => {
+  test('404s for a project in another workspace', async () => {
     const res = await SELF.fetch('http://localhost/api/projects/does-not-exist/flow-metrics', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  it('includes an issue created before the window but claimed+done inside it (PROJ-294)', async () => {
-    const DAY = 86400
+  test('includes an issue created before the window but claimed+done inside it (PROJ-294)', async () => {
+    const DAY = 86_400
     const now = Math.floor(Date.now() / 1000)
     const since = now - 3 * DAY
     const until = now
@@ -187,7 +188,7 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(metrics.wipOverTime.some((b) => b.count >= 1)).toBe(true)
   })
 
-  it('returns non-empty lead/cycle metrics for issues with backfilled done_at (PROJ-288)', async () => {
+  test('returns non-empty lead/cycle metrics for issues with backfilled done_at (PROJ-288)', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Pre-migration done' })
     // Simulates the 0026 backfill outcome: done_at populated from completed_at
@@ -204,11 +205,11 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(metrics.cycleTime.count).toBe(1)
   })
 
-  it('buckets throughput weekly and excludes issues outside the window', async () => {
+  test('buckets throughput weekly and excludes issues outside the window', async () => {
     const thisWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'This week' })
     const lastWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Last week' })
     const outsideWindowIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Too old' })
-    const WEEK = 7 * 86400
+    const WEEK = 7 * 86_400
     const now = Math.floor(Date.now() / 1000)
     const since = now - 3 * WEEK
     const until = now
@@ -246,8 +247,8 @@ describe('Flow metrics (PROJ-252)', () => {
     }
   })
 
-  it('excludes an issue completed just before `since` even though it falls in the aligned first bucket', async () => {
-    const WEEK = 7 * 86400
+  test('excludes an issue completed just before `since` even though it falls in the aligned first bucket', async () => {
+    const WEEK = 7 * 86_400
     const now = Math.floor(Date.now() / 1000)
     const since = now - 2 * WEEK
     const until = now
@@ -281,9 +282,9 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(totalCounted).toBe(1)
   })
 
-  it('aligns weekly bucketStart labels to Monday', async () => {
+  test('aligns weekly bucketStart labels to Monday', async () => {
     const res = await SELF.fetch(
-      `http://localhost/api/projects/${projectId}/flow-metrics?since=${Math.floor(Date.now() / 1000) - 4 * 7 * 86400}`,
+      `http://localhost/api/projects/${projectId}/flow-metrics?since=${Math.floor(Date.now() / 1000) - 4 * 7 * 86_400}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
@@ -295,8 +296,8 @@ describe('Flow metrics (PROJ-252)', () => {
     }
   })
 
-  it('daily buckets sum to the same total as weekly buckets for the same window', async () => {
-    const WEEK = 7 * 86400
+  test('daily buckets sum to the same total as weekly buckets for the same window', async () => {
+    const WEEK = 7 * 86_400
     const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const issueB = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
     const now = Math.floor(Date.now() / 1000)
@@ -333,9 +334,9 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(dailyTotal).toBe(2)
   })
 
-  it('defaults the throughput window to Monday-of-current-week minus 5 weeks', async () => {
-    const WEEK = 7 * 86400
-    const DAY = 86400
+  test('defaults the throughput window to Monday-of-current-week minus 5 weeks', async () => {
+    const WEEK = 7 * 86_400
+    const DAY = 86_400
     const now = Math.floor(Date.now() / 1000)
 
     const oldIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Old' })
@@ -367,14 +368,14 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(mondayIndex).toBe(currentMondayIndex - 5 * 7)
   })
 
-  it('returns an empty throughput series for a project with no completed issues', async () => {
+  test('returns an empty throughput series for a project with no completed issues', async () => {
     const metrics = await getFlowMetrics()
 
     expect(Array.isArray(metrics.throughputOverTime)).toBe(true)
     expect(metrics.throughputOverTime.every((b) => b.count === 0)).toBe(true)
   })
 
-  it('returns null (not NaN/throw) percentiles for a project with zero issues (PROJ-301)', async () => {
+  test('returns null (not NaN/throw) percentiles for a project with zero issues (PROJ-301)', async () => {
     const metrics = await getFlowMetrics()
 
     for (const dist of [metrics.leadTime, metrics.cycleTime, metrics.reviewLatency]) {
@@ -385,7 +386,7 @@ describe('Flow metrics (PROJ-252)', () => {
     }
   })
 
-  it('excludes a NULL-timestamp legacy issue from lead/cycle time without crashing (PROJ-301)', async () => {
+  test('excludes a NULL-timestamp legacy issue from lead/cycle time without crashing (PROJ-301)', async () => {
     const now = Math.floor(Date.now() / 1000)
 
     // Pre-dates the PROJ-328 backfill: ready_at/claimed_at/done_at all NULL, even
@@ -428,7 +429,7 @@ describe('Flow metrics (PROJ-252)', () => {
       .run()
   }
 
-  it('computes review latency (in_review -> done)', async () => {
+  test('computes review latency (in_review -> done)', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Reviewed' })
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
@@ -441,7 +442,7 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(Array.isArray(metrics.reviewLatencyOverTime)).toBe(true)
   })
 
-  it('counts human comments + review bounces as human interventions, excluding agent comments', async () => {
+  test('counts human comments + review bounces as human interventions, excluding agent comments', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Intervened' })
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
@@ -458,7 +459,7 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(metrics.humanInterventions.avg).toBe(3)
   })
 
-  it('computes autonomy ratio as lease-held time over cycle time', async () => {
+  test('computes autonomy ratio as lease-held time over cycle time', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Leased' })
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
@@ -470,7 +471,7 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(metrics.autonomyRatio.avg).toBeCloseTo(0.5, 1)
   })
 
-  it('clamps autonomy ratio to 1 when leases held time exceeds cycle time', async () => {
+  test('clamps autonomy ratio to 1 when leases held time exceeds cycle time', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Over-leased' })
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
@@ -484,8 +485,8 @@ describe('Flow metrics (PROJ-252)', () => {
   })
 
   // PROJ-329: cumulative flow diagram + time-in-state breakdown.
-  it('buckets CFD bands correctly for seeded transitions, never negative, done monotonic', async () => {
-    const DAY = 86400
+  test('buckets CFD bands correctly for seeded transitions, never negative, done monotonic', async () => {
+    const DAY = 86_400
     const WEEK = 7 * DAY
     const now = Math.floor(Date.now() / 1000)
     // Day-align since/until so the bucket loop (which starts at a day boundary and
@@ -559,7 +560,7 @@ describe('Flow metrics (PROJ-252)', () => {
   // as of the bucket's start — previously an issue created and completed entirely
   // within the current week's bucket read as all-zero because the sample instant (the
   // bucket's start) predated the activity.
-  it('reflects a same-bucket create+complete burst in the current (partial) bucket', async () => {
+  test('reflects a same-bucket create+complete burst in the current (partial) bucket', async () => {
     const now = Math.floor(Date.now() / 1000)
 
     const burstIssue = await seedIssue(workspaceId, projectId, userId, {
@@ -582,7 +583,7 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(currentBucket.done).toBe(1)
   })
 
-  it('computes time in progress (claimed -> next stage) for issues completing in the window', async () => {
+  test('computes time in progress (claimed -> next stage) for issues completing in the window', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Progressed' })
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
@@ -595,8 +596,8 @@ describe('Flow metrics (PROJ-252)', () => {
   })
 
   // PROJ-330: arrival vs completion, flow efficiency, aging-WIP scatter.
-  it('buckets arrival vs completion, reporting net = created - completed', async () => {
-    const WEEK = 7 * 86400
+  test('buckets arrival vs completion, reporting net = created - completed', async () => {
+    const WEEK = 7 * 86_400
     const now = Math.floor(Date.now() / 1000)
     const since = now - 2 * WEEK
     const until = now
@@ -631,7 +632,7 @@ describe('Flow metrics (PROJ-252)', () => {
     }
   })
 
-  it('computes flow efficiency as lease-held time over lead time, distinct from autonomy ratio', async () => {
+  test('computes flow efficiency as lease-held time over lead time, distinct from autonomy ratio', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Queued then leased' })
     // ready -500, claimed -300 (200s queued before claim), done now: lead time 500, cycle time 300.
@@ -646,8 +647,8 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(metrics.flowEfficiency.avg).toBeLessThan(metrics.autonomyRatio.avg ?? 0)
   })
 
-  it('includes an old still-open issue in the aging-WIP scatter', async () => {
-    const DAY = 86400
+  test('includes an old still-open issue in the aging-WIP scatter', async () => {
+    const DAY = 86_400
     const now = Math.floor(Date.now() / 1000)
 
     const oldInProgress = await seedIssue(workspaceId, projectId, userId, {
@@ -679,8 +680,8 @@ describe('Flow metrics (PROJ-252)', () => {
   })
 
   // PROJ-331: throughput by task type — bug-share % trend, untyped grouped in (not dropped).
-  it('computes bug share per bucket, counting untyped issues toward total but not bugCount', async () => {
-    const DAY = 86400
+  test('computes bug share per bucket, counting untyped issues toward total but not bugCount', async () => {
+    const DAY = 86_400
     const now = Math.floor(Date.now() / 1000)
     const bugType = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const taskType = await seedTaskType(workspaceId, { key: 'task', name: 'Task' })
@@ -726,20 +727,22 @@ describe('Flow metrics (PROJ-252)', () => {
     }
 
     const emptyBucket = metrics.bugShareOverTime.find((b) => b.total === 0)
-    if (emptyBucket) expect(emptyBucket.bugSharePercent).toBeNull()
+    if (emptyBucket) {
+      expect(emptyBucket.bugSharePercent).toBeNull()
+    }
     expect(metrics.bugTypeTracked).toBe(true)
   })
 
   // PROJ-341: a workspace with no "bug"-keyed task type (renamed/deleted default) must
   // produce a clearly-distinguishable state, not indistinguishable "0 bugs, tracked".
-  it("flags bugTypeTracked false when no 'bug'-keyed task type exists in the workspace", async () => {
+  test("flags bugTypeTracked false when no 'bug'-keyed task type exists in the workspace", async () => {
     const now = Math.floor(Date.now() / 1000)
     await seedTaskType(workspaceId, { key: 'defect', name: 'Defect' })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Untracked' })
     await stampFlowTimestamps(issue.id, { doneAt: now })
 
     const res = await SELF.fetch(
-      `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86400}&until=${now}`,
+      `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86_400}&until=${now}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
@@ -809,8 +812,8 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
   }
 
-  it('counts lease expiries, abandoned claims, and gate rejections within the window', async () => {
-    const DAY = 86400
+  test('counts lease expiries, abandoned claims, and gate rejections within the window', async () => {
+    const DAY = 86_400
     const now = Math.floor(Date.now() / 1000)
     const since = now - 3 * DAY
     const until = now
@@ -851,7 +854,7 @@ describe('Factory health tiles (PROJ-334)', () => {
     })
   })
 
-  it('scopes factory health counts to the requested project', async () => {
+  test('scopes factory health counts to the requested project', async () => {
     const now = Math.floor(Date.now() / 1000)
     const other = await seedProjectFixture({ role: 'owner' })
 
@@ -880,12 +883,12 @@ describe('Factory health tiles (PROJ-334)', () => {
     expect(metrics.factoryHealth.wipCapPressure).toBe(1)
   })
 
-  it('empty state: all counts are zero when nothing has faulted', async () => {
+  test('empty state: all counts are zero when nothing has faulted', async () => {
     const now = Math.floor(Date.now() / 1000)
     await seedIssue(workspaceId, projectId, userId, { title: 'Healthy' })
 
     const res = await SELF.fetch(
-      `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86400}&until=${now}`,
+      `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86_400}&until=${now}`,
       { headers: authHeaders(token, slug) },
     )
     const metrics = (await res.json()) as FlowMetrics

@@ -1,7 +1,7 @@
 'use client'
-import type { ReviewStatus } from '../../../../contracts/review-targets'
-import type { RenderedMarkdown } from '../../../components/markdown/render'
-import type { CustomFieldValue, TaskStatus } from './board-utils'
+import type { ReviewStatus } from '../../../../contracts/review-targets.ts'
+import type { RenderedMarkdown } from '../../../components/markdown/render.ts'
+import type { CustomFieldValue, TaskStatus } from './board-utils.ts'
 
 export type { CustomFieldValue, TaskStatus }
 
@@ -108,15 +108,27 @@ export function formatDate(unixSeconds: number): string {
 
 export function relativeTime(unixSeconds: number): string {
   const diff = Date.now() / 1000 - unixSeconds
-  if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  if (diff < 7 * 86400) return `${Math.floor(diff / 86400)}d ago`
+  if (diff < 60) {
+    return 'just now'
+  }
+  if (diff < 3600) {
+    return `${Math.floor(diff / 60)}m ago`
+  }
+  if (diff < 86_400) {
+    return `${Math.floor(diff / 3600)}h ago`
+  }
+  if (diff < 7 * 86_400) {
+    return `${Math.floor(diff / 86400)}d ago`
+  }
   return formatDate(unixSeconds)
 }
 
 export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024) {
+    return `${bytes} B`
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }

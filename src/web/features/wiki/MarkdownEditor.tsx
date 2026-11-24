@@ -6,8 +6,8 @@ import { EditorSelection, EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { useMarkdownPreview } from '../../components/markdown/MarkdownPreview'
-import { imageUploads, insertUploadedImages } from './image-uploads'
+import { useMarkdownPreview } from '../../components/markdown/MarkdownPreview.tsx'
+import { imageUploads, insertUploadedImages } from './image-uploads.ts'
 
 export interface Props {
   value: string
@@ -32,19 +32,25 @@ export interface Props {
 export const PASTE_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
 function imageFilesFromClipboard(data: DataTransfer | null): File[] {
-  if (!data) return []
+  if (!data) {
+    return []
+  }
   const files: File[] = []
   for (const item of Array.from(data.items)) {
     if (item.kind === 'file' && PASTE_IMAGE_TYPES.has(item.type)) {
       const file = item.getAsFile()
-      if (file) files.push(file)
+      if (file) {
+        files.push(file)
+      }
     }
   }
   return files
 }
 
 function imageFilesFromDrop(data: DataTransfer | null): File[] {
-  if (!data) return []
+  if (!data) {
+    return []
+  }
   return Array.from(data.files).filter((f) => PASTE_IMAGE_TYPES.has(f.type))
 }
 
@@ -102,16 +108,22 @@ function prefixLines(view: EditorView, prefix: string): boolean {
 // click, which land outside the button's own box; a genuine click on the button never
 // does. Keyboard activation reports detail 0 (and 0,0 coords) and must still pass.
 function isDirectPointerActivation(e: React.MouseEvent): boolean {
-  if (e.detail === 0) return true
+  if (e.detail === 0) {
+    return true
+  }
   const target = e.currentTarget as HTMLElement | null
-  if (!target) return false
+  if (!target) {
+    return false
+  }
   const r = target.getBoundingClientRect()
   return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom
 }
 
 function direct(run: () => void): (e: React.MouseEvent) => void {
   return (e) => {
-    if (isDirectPointerActivation(e)) run()
+    if (isDirectPointerActivation(e)) {
+      run()
+    }
   }
 }
 
@@ -246,7 +258,9 @@ function useMarkdownEditorView(
     // test's jsdom `document` torn down between when this mount effect was queued and
     // when it fires. `new EditorView` internally touches `document`, so guard both
     // halves of that race rather than just the DOM node.
-    if (!containerRef.current || typeof document === 'undefined') return
+    if (!containerRef.current || typeof document === 'undefined') {
+      return
+    }
 
     const customKeymap = [
       { key: 'Mod-b', run: (v: EditorView) => wrapSelection(v, '**', '**') },
@@ -297,7 +311,9 @@ function useMarkdownEditorView(
           paste(event, view) {
             const handler = onImageFileRef.current
             const files = imageFilesFromClipboard(event.clipboardData)
-            if (!handler || files.length === 0) return false
+            if (!handler || files.length === 0) {
+              return false
+            }
             event.preventDefault()
             void insertUploadedImages(view, files, view.state.selection.main.from, handler)
             return true
@@ -305,7 +321,9 @@ function useMarkdownEditorView(
           drop(event, view) {
             const handler = onImageFileRef.current
             const files = imageFilesFromDrop(event.dataTransfer)
-            if (!handler || files.length === 0) return false
+            if (!handler || files.length === 0) {
+              return false
+            }
             event.preventDefault()
             const pos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.from
             void insertUploadedImages(view, files, pos, handler)
@@ -328,12 +346,18 @@ function useMarkdownEditorView(
   // what we last emitted, this render is just our own change echoing back through
   // props — nothing to do, regardless of whether the doc has since moved on further.
   useEffect(() => {
-    if (value === lastEmitted.current) return
+    if (value === lastEmitted.current) {
+      return
+    }
     lastEmitted.current = value
     const view = viewRef.current
-    if (!view) return
+    if (!view) {
+      return
+    }
     const current = view.state.doc.toString()
-    if (current === value) return
+    if (current === value) {
+      return
+    }
     view.plugin(imageUploads)?.cancel()
     applyingExternal.current = true
     try {
@@ -352,17 +376,25 @@ function useMarkdownEditorView(
 
 function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) {
   function bold() {
-    if (viewRef.current) wrapSelection(viewRef.current, '**', '**')
+    if (viewRef.current) {
+      wrapSelection(viewRef.current, '**', '**')
+    }
   }
   function italic() {
-    if (viewRef.current) wrapSelection(viewRef.current, '_', '_')
+    if (viewRef.current) {
+      wrapSelection(viewRef.current, '_', '_')
+    }
   }
   function heading(n: 1 | 2 | 3) {
-    if (viewRef.current) prefixLines(viewRef.current, `${'#'.repeat(n)} `)
+    if (viewRef.current) {
+      prefixLines(viewRef.current, `${'#'.repeat(n)} `)
+    }
   }
   function link() {
     const view = viewRef.current
-    if (!view) return
+    if (!view) {
+      return
+    }
     const sel = view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)
     if (sel) {
       wrapSelection(view, '[', '](url)')
@@ -378,13 +410,19 @@ function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) 
     }
   }
   function codeBlock() {
-    if (viewRef.current) wrapSelection(viewRef.current, '```\n', '\n```')
+    if (viewRef.current) {
+      wrapSelection(viewRef.current, '```\n', '\n```')
+    }
   }
   function bulletList() {
-    if (viewRef.current) prefixLines(viewRef.current, '- ')
+    if (viewRef.current) {
+      prefixLines(viewRef.current, '- ')
+    }
   }
   function numberedList() {
-    if (viewRef.current) prefixLines(viewRef.current, '1. ')
+    if (viewRef.current) {
+      prefixLines(viewRef.current, '1. ')
+    }
   }
 
   return { bold, italic, heading, link, codeBlock, bulletList, numberedList }

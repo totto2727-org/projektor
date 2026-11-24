@@ -1,31 +1,31 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { inChunks, sanitizeFtsQuery } from '#commands/sql'
+import { inChunks, sanitizeFtsQuery } from '#commands/sql.ts'
 
 describe('sanitizeFtsQuery (PROJ-518)', () => {
-  it('wraps each whitespace-separated token in double quotes', () => {
+  test('wraps each whitespace-separated token in double quotes', () => {
     expect(sanitizeFtsQuery('hello world')).toBe('"hello" "world"')
   })
 
-  it('neutralizes FTS5 query syntax by treating it as literal text', () => {
+  test('neutralizes FTS5 query syntax by treating it as literal text', () => {
     expect(sanitizeFtsQuery('foo AND bar OR NOT baz*')).toBe('"foo" "AND" "bar" "OR" "NOT" "baz*"')
   })
 
-  it("escapes embedded double quotes so they can't break out of the phrase", () => {
+  test("escapes embedded double quotes so they can't break out of the phrase", () => {
     expect(sanitizeFtsQuery('say "hi"')).toBe('"say" """hi"""')
   })
 
-  it('drops tokens with no word characters', () => {
+  test('drops tokens with no word characters', () => {
     expect(sanitizeFtsQuery('--- ??? hello')).toBe('"hello"')
   })
 
-  it('returns an empty string for blank input', () => {
+  test('returns an empty string for blank input', () => {
     expect(sanitizeFtsQuery('   ')).toBe('')
   })
 })
 
 describe('inChunks', () => {
-  it('returns an empty array without calling op for an empty input', async () => {
+  test('returns an empty array without calling op for an empty input', async () => {
     let called = false
     const result = await inChunks([], async () => {
       called = true
@@ -35,7 +35,7 @@ describe('inChunks', () => {
     expect(called).toBe(false)
   })
 
-  it('makes a single call when the input is well under the D1 bound-parameter cap', async () => {
+  test('makes a single call when the input is well under the D1 bound-parameter cap', async () => {
     const items = Array.from({ length: 10 }, (_, i) => i)
     const chunks: number[][] = []
     const result = await inChunks(items, async (chunk) => {
@@ -46,7 +46,7 @@ describe('inChunks', () => {
     expect(result).toEqual(items.map((n) => n * 2))
   })
 
-  it("splits a 250-item array into 3 chunks, each at or under D1's 100 bound-parameter cap", async () => {
+  test("splits a 250-item array into 3 chunks, each at or under D1's 100 bound-parameter cap", async () => {
     const items = Array.from({ length: 250 }, (_, i) => i)
     const chunkSizes: number[] = []
     const result = await inChunks(items, async (chunk) => {
@@ -63,7 +63,7 @@ describe('inChunks', () => {
     expect(result).toEqual(items)
   })
 
-  it('chunks exactly at a 100-item boundary into more than one call', async () => {
+  test('chunks exactly at a 100-item boundary into more than one call', async () => {
     const items = Array.from({ length: 100 }, (_, i) => i)
     const chunkSizes: number[] = []
     await inChunks(items, async (chunk) => {
@@ -76,7 +76,7 @@ describe('inChunks', () => {
     }
   })
 
-  it('supports mutation-style callbacks that return no rows', async () => {
+  test('supports mutation-style callbacks that return no rows', async () => {
     const items = Array.from({ length: 150 }, (_, i) => i)
     const seen: number[] = []
     const result = await inChunks(items, async (chunk) => {

@@ -1,16 +1,16 @@
 import { Effect, Schema } from 'effect'
 
-import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '../../../contracts/web-limits'
-import { dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context'
-import { ApiError, ScopeError } from '../../server/errors'
-import type { RequestScope } from '../../server/request-context'
-import { readDataIssuePage, readSprints } from '../issues/data'
-import { readFlowMetrics, readCodeHeatmap } from './data'
-import { dateEpochEnd, dateEpochStart, rangeFromUrl } from './helpers'
-import { MetricsWindowSchema, SprintListModeSchema } from './input-schemas'
-import { IssuePageSchema } from './schemas'
-import type { SprintIssue } from './types'
-import { MetricsDashboard, SprintManager } from './widgets'
+import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '../../../contracts/web-limits.ts'
+import { dataError, requireDataProject, requireDataWorkspace } from '../../server/data-context.ts'
+import { ApiError, ScopeError } from '../../server/errors.ts'
+import type { RequestScope } from '../../server/request-context.ts'
+import { readDataIssuePage, readSprints } from '../issues/data.ts'
+import { readFlowMetrics, readCodeHeatmap } from './data.ts'
+import { dateEpochEnd, dateEpochStart, rangeFromUrl } from './helpers.ts'
+import { MetricsWindowSchema, SprintListModeSchema } from './input-schemas.ts'
+import { IssuePageSchema } from './schemas.ts'
+import type { SprintIssue } from './types.ts'
+import { MetricsDashboard, SprintManager } from './widgets.tsx'
 
 function selectedProject(scope: RequestScope, projectId: string, workspaceId: string) {
   return Effect.try({
@@ -26,7 +26,9 @@ function selectedProject(scope: RequestScope, projectId: string, workspaceId: st
 export function loadSprintIssues(projectId: string, workspaceSlug: string, scope: RequestScope) {
   return Effect.gen(function* () {
     const workspace = scope.workspaces.find((item) => item.slug === workspaceSlug)
-    if (!workspace) return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+    if (!workspace) {
+      return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+    }
     yield* selectedProject(scope, projectId, workspace.id)
     const issues: SprintIssue[] = []
     const cursors = new Set<string>()
@@ -34,21 +36,25 @@ export function loadSprintIssues(projectId: string, workspaceSlug: string, scope
     let nextCursor: string | null
     do {
       const query = new URLSearchParams({ project: projectId, limit: String(AGGREGATE_PAGE_SIZE) })
-      if (cursor) query.set('cursor', cursor)
+      if (cursor) {
+        query.set('cursor', cursor)
+      }
       const page = yield* readDataIssuePage(scope, workspace.id, query).pipe(
         Effect.flatMap(Schema.decodeUnknownEffect(IssuePageSchema)),
         Effect.mapError(dataError),
       )
       issues.push(...page.items)
       nextCursor = page.nextCursor
-      if (issues.length > MAX_AGGREGATE_ISSUES || (issues.length === MAX_AGGREGATE_ISSUES && nextCursor))
+      if (issues.length > MAX_AGGREGATE_ISSUES || (issues.length === MAX_AGGREGATE_ISSUES && nextCursor)) {
         return yield* new ApiError(
           'request',
           422,
           `Sprint overview supports at most ${MAX_AGGREGATE_ISSUES} issues. Use the paginated issue list for larger projects.`,
         )
-      if (nextCursor && cursors.has(nextCursor))
+      }
+      if (nextCursor && cursors.has(nextCursor)) {
         return yield* new ApiError('schema', 502, 'Repeated issue pagination cursor')
+      }
       if (nextCursor) {
         cursors.add(nextCursor)
         cursor = nextCursor
@@ -59,8 +65,9 @@ export function loadSprintIssues(projectId: string, workspaceSlug: string, scope
 }
 export function renderSprints(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
-    if (scope.selection.kind !== 'project')
+    if (scope.selection.kind !== 'project') {
       return <p className='text-text-muted'>Select a project to view its sprints.</p>
+    }
     const { project, workspace } = scope.selection
     yield* selectedProject(scope, project.id, workspace.id)
     const mode = yield* Schema.decodeUnknownEffect(SprintListModeSchema)(url.searchParams.get('status') ?? 'all').pipe(
@@ -86,7 +93,9 @@ export function renderSprints(scope: RequestScope, url: URL) {
 }
 export function renderMetrics(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
-    if (scope.selection.kind !== 'project') return <p className='text-text-muted'>Select a project to view metrics.</p>
+    if (scope.selection.kind !== 'project') {
+      return <p className='text-text-muted'>Select a project to view metrics.</p>
+    }
     const { project, workspace } = scope.selection
     yield* selectedProject(scope, project.id, workspace.id)
     const fallback = rangeFromUrl(new URL(url.pathname, url.origin))

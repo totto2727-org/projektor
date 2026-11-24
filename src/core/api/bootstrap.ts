@@ -1,16 +1,22 @@
-import { seedDefaultCustomFields } from '#commands/custom-fields'
-import { seedDefaultTaskStatuses } from '#commands/task-statuses'
-import { seedDefaultTaskTypes } from '#commands/task-types'
+import { seedDefaultCustomFields } from '#commands/custom-fields.ts'
+import { seedDefaultTaskStatuses } from '#commands/task-statuses.ts'
+import { seedDefaultTaskTypes } from '#commands/task-types.ts'
 import { buildMcpAddCommand } from '#types'
 
-import { coreFailure } from '../contract'
-import type { CoreEnvironment } from '../environment'
+import { coreFailure } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
 
 /** Development provisioning stays private and rechecks its secret in Core. */
 export async function bootstrapDevelopment(env: CoreEnvironment, provided: string | undefined, requestUrl: string) {
-  if (env.ENVIRONMENT !== 'development') throw coreFailure(403, 'Not available in production')
-  if (!env.BOOTSTRAP_SECRET) throw coreFailure(403, 'Not available')
-  if (provided !== env.BOOTSTRAP_SECRET) throw coreFailure(403, 'Forbidden')
+  if (env.ENVIRONMENT !== 'development') {
+    throw coreFailure(403, 'Not available in production')
+  }
+  if (!env.BOOTSTRAP_SECRET) {
+    throw coreFailure(403, 'Not available')
+  }
+  if (provided !== env.BOOTSTRAP_SECRET) {
+    throw coreFailure(403, 'Forbidden')
+  }
   const email = env.DEV_USER_EMAIL ?? 'admin@projektor.dev'
   const now = Math.floor(Date.now() / 1000)
   await env.DB.prepare(`INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)
@@ -27,7 +33,9 @@ export async function bootstrapDevelopment(env: CoreEnvironment, provided: strin
   const workspace = await env.DB.prepare('SELECT id, name, slug FROM workspaces WHERE slug = ?')
     .bind('projektor')
     .first<{ id: string; name: string; slug: string }>()
-  if (!user || !workspace) throw coreFailure(500, 'Development bootstrap failed')
+  if (!user || !workspace) {
+    throw coreFailure(500, 'Development bootstrap failed')
+  }
   await env.DB.prepare(`INSERT INTO workspace_members (workspace_id, user_id, role, joined_at)
     VALUES (?, ?, 'owner', ?) ON CONFLICT(workspace_id, user_id) DO NOTHING`)
     .bind(workspace.id, user.id, now)

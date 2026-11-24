@@ -2,11 +2,12 @@
 
 import { useForm } from '@tanstack/react-form'
 import { Schema } from 'effect'
-import { type ReactNode, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 
-import { Button } from '../../components/ui/Button'
-import { Select } from '../../components/ui/Select'
-import { CodeHeatmap } from './CodeHeatmap'
+import { Button } from '../../components/ui/Button.tsx'
+import { Select } from '../../components/ui/Select.tsx'
+import { CodeHeatmap } from './CodeHeatmap.tsx'
 import {
   AgingWipScatter,
   ArrivalVsCompletionChart,
@@ -15,13 +16,14 @@ import {
   ReviewLatencyChart,
   ThroughputChart,
   WipChart,
-} from './flow-charts'
-import { FormErrors } from './form-ui'
-import { formatCount, formatDuration, formatPercent, rangeFromUrl } from './helpers'
-import { MetricsWindowSchema } from './input-schemas'
-import { METRIC_DEFINITIONS, type MetricId } from './metric-definitions'
-import { MetricHelp, SectionHeading } from './MetricHelp'
-import type { CodeHeatmapResponse, Distribution, FlowMetrics, HeatmapMode, RangeState } from './types'
+} from './flow-charts.tsx'
+import { FormErrors } from './form-ui.tsx'
+import { formatCount, formatDuration, formatPercent, rangeFromUrl } from './helpers.ts'
+import { MetricsWindowSchema } from './input-schemas.ts'
+import { METRIC_DEFINITIONS } from './metric-definitions.ts'
+import type { MetricId } from './metric-definitions.ts'
+import { MetricHelp, SectionHeading } from './MetricHelp.tsx'
+import type { CodeHeatmapResponse, Distribution, FlowMetrics, HeatmapMode, RangeState } from './types.ts'
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (

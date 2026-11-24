@@ -2,9 +2,9 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { useEffect, useRef } from 'react'
 
-import { navigateIssues } from '../../utils/navigation'
-import { buildFilterUrlQueryString } from '../IssueList-helpers'
-import type { DateField } from './FiltersPopover'
+import { navigateIssues } from '../../utils/navigation.ts'
+import { buildFilterUrlQueryString } from '../IssueList-helpers.ts'
+import type { DateField } from './FiltersPopover.tsx'
 
 export function parseListParam(v: string | null): string[] {
   return v ? v.split(',').filter(Boolean) : []
@@ -85,7 +85,9 @@ export function useFilterUrlSync(
       filterDateFrom,
       filterDateTo,
     ])
-    if (previous.current === key) return
+    if (previous.current === key) {
+      return
+    }
     previous.current = key
     const qs = buildFilterUrlQueryString(search, {
       filterStatuses,
@@ -101,10 +103,16 @@ export function useFilterUrlSync(
     params.delete('project')
     params.delete('cursor')
     const project = projects.find((entry) => entry.key === state.filterProject)
-    if (project) params.set('projectId', project.id)
-    else params.delete('projectId')
-    if (state.filterType) params.set('type', state.filterType)
-    else params.delete('type')
+    if (project) {
+      params.set('projectId', project.id)
+    } else {
+      params.delete('projectId')
+    }
+    if (state.filterType) {
+      params.set('type', state.filterType)
+    } else {
+      params.delete('type')
+    }
     navigateIssues(`${window.location.pathname}?${params}`)
   }, [
     state.filterProject,

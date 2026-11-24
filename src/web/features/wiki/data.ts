@@ -1,9 +1,10 @@
 import { Effect, Schema } from 'effect'
 
-import { coreResult } from '../../core'
-import { runBrowserCommand, type BrowserCommandClient } from '../../server/browser-command'
-import type { FunctionContext } from '../../server/function-context'
-import { files } from '../issues/commands'
+import { coreResult } from '../../core.ts'
+import { runBrowserCommand } from '../../server/browser-command.ts'
+import type { BrowserCommandClient } from '../../server/browser-command.ts'
+import type { FunctionContext } from '../../server/function-context.ts'
+import { files } from '../issues/commands.ts'
 import {
   Created,
   Deleted,
@@ -15,7 +16,7 @@ import {
   Restored,
   SavedDraft,
   Verified,
-} from './schemas'
+} from './schemas.ts'
 
 export const wikiCommands = {
   createWikiPage: ({ core, proof }: BrowserCommandClient, input: unknown) =>

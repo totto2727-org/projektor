@@ -1,13 +1,13 @@
 import { z } from 'zod'
 
-import { BooleanQueryParam, PriorityEnum, StatusEnum, TaxonomyIdSchema } from './common'
-import { CustomFieldFilterSchema } from './custom-fields'
+import { BooleanQueryParam, PriorityEnum, StatusEnum, TaxonomyIdSchema } from './common.ts'
+import { CustomFieldFilterSchema } from './custom-fields.ts'
 
 export const CreateIssueSchema = z
   .object({
     projectId: z.string(),
     title: z.string().min(1).max(500),
-    body: z.string().max(50000).optional(),
+    body: z.string().max(50_000).optional(),
     status: StatusEnum.optional(),
     statusId: TaxonomyIdSchema.nullable().optional(),
     priority: PriorityEnum.optional(),
@@ -34,7 +34,7 @@ export const CompletionReportSchema = z.object({
 export const UpdateIssueSchema = z
   .object({
     title: z.string().min(1).max(500).optional(),
-    body: z.string().max(50000).optional(),
+    body: z.string().max(50_000).optional(),
     status: StatusEnum.optional(),
     statusId: TaxonomyIdSchema.nullable().optional(),
     priority: PriorityEnum.optional(),
@@ -52,7 +52,9 @@ export const UpdateIssueSchema = z
 export const IssueListCursorSchema = z
   .union([z.number().int().nonnegative(), z.string().regex(/^\d+(?::[A-Za-z0-9-]+)?$/)])
   .transform((v) => {
-    if (typeof v === 'number') return { createdAt: v } as { createdAt: number; id?: string }
+    if (typeof v === 'number') {
+      return { createdAt: v } as { createdAt: number; id?: string }
+    }
     const [createdAt, id] = v.split(':')
     return { createdAt: Number(createdAt), id } as { createdAt: number; id?: string }
   })

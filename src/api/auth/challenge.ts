@@ -1,4 +1,4 @@
-import { OAUTH_SCOPES_SUPPORTED } from './scopes'
+import { OAUTH_SCOPES_SUPPORTED } from './scopes.ts'
 
 // PROJ-651: RFC 9728 `WWW-Authenticate` challenges for the MCP endpoint.
 //

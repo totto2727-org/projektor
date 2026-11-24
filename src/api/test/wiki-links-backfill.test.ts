@@ -2,10 +2,10 @@
 // incremental/resumable via a cursor + page budget, with an updatedSince scope filter.
 
 import { SELF } from 'cloudflare:test'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture } from './helpers.ts'
 
 async function insertPage(
   workspaceId: string,
@@ -58,7 +58,7 @@ async function backfill(token: string, slug: string, body: Record<string, unknow
 describe('PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('skips trashed pages', async () => {
+  test('skips trashed pages', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const targetId = await insertPage(workspace.id, user.id, { slug: 'target', title: 'Target' })
     const trashedId = await insertPage(workspace.id, user.id, {
@@ -79,7 +79,7 @@ describe('PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince', ()
     expect(targetRows.results).toHaveLength(0)
   })
 
-  it('bounds D1 calls for 200 pages regardless of page count', async () => {
+  test('bounds D1 calls for 200 pages regardless of page count', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     for (let i = 0; i < 200; i++) {
       await insertPage(workspace.id, user.id, {
@@ -92,7 +92,9 @@ describe('PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince', ()
     const selects: string[] = []
     const origPrepare = env.DB.prepare.bind(env.DB)
     vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => {
-      if (/^select/i.test(q.trim())) selects.push(q)
+      if (/^select/i.test(q.trim())) {
+        selects.push(q)
+      }
       return origPrepare(q)
     })
     const batchSpy = vi.spyOn(env.DB, 'batch')
@@ -111,7 +113,7 @@ describe('PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince', ()
     expect(batchSpy.mock.calls.length).toBeLessThanOrEqual(2)
   })
 
-  it('a cursor resumes where the previous call stopped', async () => {
+  test('a cursor resumes where the previous call stopped', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const now = Math.floor(Date.now() / 1000)
     const ids: string[] = []
@@ -144,7 +146,7 @@ describe('PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince', ()
     expect(third.nextCursor).toBeNull()
   })
 
-  it('updatedSince limits the scope to pages touched at/after that time', async () => {
+  test('updatedSince limits the scope to pages touched at/after that time', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const now = Math.floor(Date.now() / 1000)
     await insertPage(workspace.id, user.id, { slug: 'old', title: 'Old', updatedAt: now - 1000 })

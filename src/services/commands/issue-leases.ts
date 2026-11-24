@@ -2,13 +2,13 @@ import { and, eq, gt, isNull } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '../../contracts/inputs/issue-leases'
-import { assertIssueAccess, visibleProjectPredicate } from './access'
-import { assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity'
-import { ConflictError, NotFoundError, ValidationError } from './errors'
-import { resolveVisibleProjectIdParam } from './projects'
-import { broadcastWorkspaceEvent } from './realtime'
-import type { ServiceCtx } from './types'
+import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '../../contracts/inputs/issue-leases.ts'
+import { assertIssueAccess, visibleProjectPredicate } from './access.ts'
+import { assertAgentSessionAccess, resolveAgentSessionId } from './agent-identity.ts'
+import { ConflictError, NotFoundError, ValidationError } from './errors.ts'
+import { resolveVisibleProjectIdParam } from './projects.ts'
+import { broadcastWorkspaceEvent } from './realtime.ts'
+import type { ServiceCtx } from './types.ts'
 
 // Mirrors ACTIVE_TTL in services/agents.ts: a session (and therefore its leases)
 // is live only while it has heartbeat within this window. Kept local to avoid a
@@ -75,7 +75,9 @@ async function assertAgentSessionLive(
     .from(schema.agentSessions)
     .where(and(eq(schema.agentSessions.id, agentId), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
     .get()
-  if (!session) throw new NotFoundError('Agent session not found')
+  if (!session) {
+    throw new NotFoundError('Agent session not found')
+  }
   if (session.status !== 'active' || session.heartbeat <= cutoff) {
     throw new ValidationError({
       formErrors: ['Agent session is not live — heartbeat before claiming'],
@@ -156,7 +158,9 @@ async function reclaimStaleLeaseOrThrow(
       ),
     )
     .get()
-  if (!existing) return
+  if (!existing) {
+    return
+  }
 
   const live = existing.sessionStatus === 'active' && existing.sessionHeartbeat > cutoff
   if (live) {
@@ -184,7 +188,9 @@ async function reclaimStaleLeaseOrThrow(
  */
 export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ClaimIssueSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { issueId } = result.data
   const projectId = await assertIssueAccess(ctx, issueId, 'edit')
   // PROJ-894: an omitted agentId resolves to the credential's single live session.
@@ -261,7 +267,9 @@ export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
 /** Release the active lease on an issue, optionally only if held by `agentId`. */
 export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ReleaseIssueSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { issueId, agentId } = result.data
   const projectId = await assertIssueAccess(ctx, issueId, 'edit')
 
@@ -273,14 +281,18 @@ export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
     eq(schema.issueLeases.issueId, issueId),
     isNull(schema.issueLeases.releasedAt),
   ]
-  if (agentId) conditions.push(eq(schema.issueLeases.agentSessionId, agentId))
+  if (agentId) {
+    conditions.push(eq(schema.issueLeases.agentSessionId, agentId))
+  }
 
   const active = await orm
     .select({ id: schema.issueLeases.id, agentSessionId: schema.issueLeases.agentSessionId })
     .from(schema.issueLeases)
     .where(and(...conditions))
     .get()
-  if (!active) throw new NotFoundError('No active lease on this issue')
+  if (!active) {
+    throw new NotFoundError('No active lease on this issue')
+  }
   await assertAgentSessionAccess(ctx, active.agentSessionId, { allowAdministrativeOverride: true })
 
   await orm
@@ -450,7 +462,9 @@ export async function isLiveAgentSessionId(ctx: ServiceCtx, agentSessionId: stri
  */
 export async function listIssueLeases(ctx: ServiceCtx, raw: unknown) {
   const result = ListIssueLeasesSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { issueId, agentId, includeStale } = result.data
   const projectId = result.data.projectId ? await resolveVisibleProjectIdParam(ctx, result.data.projectId) : undefined
 
@@ -458,9 +472,15 @@ export async function listIssueLeases(ctx: ServiceCtx, raw: unknown) {
   const cutoff = liveCutoff()
 
   const conditions = [eq(schema.issueLeases.workspaceId, ctx.workspaceId), isNull(schema.issueLeases.releasedAt)]
-  if (issueId) conditions.push(eq(schema.issueLeases.issueId, issueId))
-  if (agentId) conditions.push(eq(schema.issueLeases.agentSessionId, agentId))
-  if (projectId) conditions.push(eq(schema.issues.projectId, projectId))
+  if (issueId) {
+    conditions.push(eq(schema.issueLeases.issueId, issueId))
+  }
+  if (agentId) {
+    conditions.push(eq(schema.issueLeases.agentSessionId, agentId))
+  }
+  if (projectId) {
+    conditions.push(eq(schema.issues.projectId, projectId))
+  }
   if (!includeStale) {
     conditions.push(eq(schema.agentSessions.status, 'active'))
     conditions.push(gt(schema.agentSessions.lastHeartbeatAt, cutoff))
@@ -471,7 +491,9 @@ export async function listIssueLeases(ctx: ServiceCtx, raw: unknown) {
   // joined to its issue below (issue_id is NOT NULL), so the predicate can take the
   // joined project id column directly instead of a correlated subquery.
   const vis = visibleProjectPredicate(ctx, schema.issues.projectId)
-  if (vis) conditions.push(vis)
+  if (vis) {
+    conditions.push(vis)
+  }
 
   const rows = await orm
     .select({

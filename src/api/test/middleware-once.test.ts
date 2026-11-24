@@ -4,10 +4,10 @@
 // dispatch. Domain operations must still independently reauthorize inside Core.
 
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { getCoreObservations, resetCoreObservations } from './fixture-api'
-import { authHeaders, seedIssueFixture } from './helpers'
+import { getCoreObservations, resetCoreObservations } from './fixture-api.ts'
+import { authHeaders, seedIssueFixture } from './helpers.ts'
 
 describe('PROJ-856: middleware runs once per request', () => {
   let f: Awaited<ReturnType<typeof seedIssueFixture>>
@@ -16,7 +16,7 @@ describe('PROJ-856: middleware runs once per request', () => {
     await resetCoreObservations()
   })
 
-  it.each([
+  test.each([
     ['GET', '/api/issues'],
     ['GET', '/api/wiki'],
     ['GET', '/api/sprints'],
@@ -33,7 +33,7 @@ describe('PROJ-856: middleware runs once per request', () => {
     expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
-  it('GET /api/issues/:id authenticates once', async () => {
+  test('GET /api/issues/:id authenticates once', async () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${f.issueId}`, {
       headers: authHeaders(f.token, f.slug),
     })
@@ -41,7 +41,7 @@ describe('PROJ-856: middleware runs once per request', () => {
     expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
-  it('GET /api/workspaces/:slug authenticates once', async () => {
+  test('GET /api/workspaces/:slug authenticates once', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${f.slug}`, {
       headers: authHeaders(f.token, f.slug),
     })
@@ -49,7 +49,7 @@ describe('PROJ-856: middleware runs once per request', () => {
     expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
-  it('POST /api/issues authenticates once', async () => {
+  test('POST /api/issues authenticates once', async () => {
     const res = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
@@ -59,7 +59,7 @@ describe('PROJ-856: middleware runs once per request', () => {
     expect((await getCoreObservations()).authenticateCalls).toBe(1)
   })
 
-  it.each(['/api/issues', '/api/wiki', '/api/files', '/api/sprints'])(
+  test.each(['/api/issues', '/api/wiki', '/api/files', '/api/sprints'])(
     'bare %s without credentials is still 401',
     async (path) => {
       const res = await SELF.fetch(`http://localhost${path}`)

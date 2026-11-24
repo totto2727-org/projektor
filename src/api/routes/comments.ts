@@ -2,11 +2,11 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { addComment, deleteComment, listComments, updateComment } from '../services/comments'
-import { resolveIssueIdParam } from '../services/issues'
-import { ctxFromHono } from '../services/types'
+import { jsonBody } from '../http/body.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { addComment, deleteComment, listComments, updateComment } from '../services/comments.ts'
+import { resolveIssueIdParam } from '../services/issues.ts'
+import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 

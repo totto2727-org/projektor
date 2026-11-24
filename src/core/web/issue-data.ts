@@ -3,31 +3,33 @@ import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
 import { Effect, Schema } from 'effect'
 
 import { schema } from '#db'
-import { listComments } from '#services/comments'
-import { type AttachmentMetadata, listAttachments, listIssueReviewTargets } from '#services/files'
-import { listLinksForIssue } from '#services/issue-links'
-import * as issueQueries from '#services/issues'
-import { searchWiki } from '#services/wiki'
+import { listComments } from '#services/comments.ts'
+import { listAttachments, listIssueReviewTargets } from '#services/files.ts'
+import type { AttachmentMetadata } from '#services/files.ts'
+import { listLinksForIssue } from '#services/issue-links.ts'
+import * as issueQueries from '#services/issues.ts'
+import { searchWiki } from '#services/wiki.ts'
 
-import { ScopeError } from '../../contracts/errors'
-import { ReviewFilterSchema, type ReviewFilter } from '../../contracts/review-targets'
-import { WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions'
+import { ScopeError } from '../../contracts/errors.ts'
+import { ReviewFilterSchema } from '../../contracts/review-targets.ts'
+import type { ReviewFilter } from '../../contracts/review-targets.ts'
+import { WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions.ts'
 import {
   normalizeAttachments,
   normalizeComments,
   normalizeIssue,
   normalizeIssuePage,
   normalizeLinks,
-} from '../../contracts/web-schemas/issues'
+} from '../../contracts/web-schemas/issues.ts'
 import {
   authorizeDataEntity,
   dataError,
   requireDataProject,
   requireDataWorkspace,
   visibleProjectPredicate,
-} from './data-context'
-import { CoreReadServices as RequestServices } from './read-services'
-import type { RequestScope } from './scope'
+} from './data-context.ts'
+import { CoreReadServices as RequestServices } from './read-services.ts'
+import type { RequestScope } from './scope.ts'
 
 /** Keep application policy failures, and redact storage failures before reaching a client. */
 export function checked<A>(read: () => A) {
@@ -116,10 +118,13 @@ export function readDataIssue(scope: RequestScope, workspaceId: string, identifi
         issueQueries.ISSUE_REF_PATTERN.test(identifier) ? { ref: identifier } : { id: identifier },
       )
       .pipe(Effect.mapError(dataError))
-    if (!row) return yield* new ScopeError(404, 'Issue not found.')
+    if (!row) {
+      return yield* new ScopeError(404, 'Issue not found.')
+    }
     yield* checked(() => authorizeDataEntity(scope, workspaceId, { projectId: row.project_id }))
-    if (projectId && row.project_id !== projectId)
+    if (projectId && row.project_id !== projectId) {
       return yield* new ScopeError(404, 'Issue not found in the selected project.')
+    }
     const extras = yield* issueQueries.getIssueExtras(db, workspaceId, row.id).pipe(Effect.mapError(dataError))
     const targets = yield* listIssueReviewTargets(db, workspaceId, [row.id]).pipe(Effect.mapError(dataError))
     return normalizeIssue({ ...row, ...extras, reviewTargets: targets.get(row.id) ?? [] })
@@ -138,12 +143,15 @@ export function readDataIssuePage(scope: RequestScope, workspaceId: string, para
       )
       options.projectId = (yield* checked(() => requireDataProject(scope, project?.id ?? projectValue, workspaceId))).id
     }
-    if (options.parentId && issueQueries.ISSUE_REF_PATTERN.test(options.parentId))
+    if (options.parentId && issueQueries.ISSUE_REF_PATTERN.test(options.parentId)) {
       options.parentId = (yield* readDataIssue(scope, workspaceId, options.parentId)).id
+    }
     const { cfKey, cfOp, cfValue } = decoded
     if (cfKey) {
       const field = yield* issueQueries.findIssueCustomField(db, workspaceId, cfKey).pipe(Effect.mapError(dataError))
-      if (!field) return yield* new ScopeError(400, 'Unknown custom field key.')
+      if (!field) {
+        return yield* new ScopeError(400, 'Unknown custom field key.')
+      }
       options.customField = { id: field.id, op: cfOp ?? 'eq', value: cfValue ?? '' }
     }
     const visibility = yield* checked(() => visibleProjectPredicate(scope, workspaceId, schema.issues.projectId))
@@ -172,8 +180,12 @@ export function searchDataIssues(
     const reviewFilter = yield* Schema.decodeUnknownEffect(Schema.optional(ReviewFilterSchema))(review).pipe(
       Effect.mapError(() => new ScopeError(400, 'Invalid review filter.')),
     )
-    if (projectId) yield* checked(() => requireDataProject(scope, projectId, workspaceId))
-    if (!query.length) return yield* new ScopeError(400, 'A search query is required.')
+    if (projectId) {
+      yield* checked(() => requireDataProject(scope, projectId, workspaceId))
+    }
+    if (!query.length) {
+      return yield* new ScopeError(400, 'A search query is required.')
+    }
     const predicate = yield* checked(() => visibleProjectPredicate(scope, workspaceId, sql`i.project_id`))
     const visibility = predicate ? new SQLiteSyncDialect().sqlToQuery(predicate) : undefined
     const rows = yield* issueQueries
@@ -237,7 +249,9 @@ export function searchDataWikiAttachments(scope: RequestScope, workspaceId: stri
       .filter((word) => /\w/.test(word))
       .map((word) => `"${word.replace(/"/g, '""')}"`)
       .join(' ')
-    if (!ftsQuery) return []
+    if (!ftsQuery) {
+      return []
+    }
     const predicate = yield* checked(() => visibleProjectPredicate(scope, workspaceId, sql`p.project_id`))
     const visibilitySql = predicate
       ? new SQLiteSyncDialect().sqlToQuery(sql`p.project_id IS NULL OR ${predicate}`)

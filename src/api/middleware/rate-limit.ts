@@ -4,9 +4,9 @@ import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 
 import type { ApiEnv, HonoEnv } from '#types'
 
-import { RateLimitResult, rateLimitTestPolicy } from '../../contracts/request-rate-limit'
+import { RateLimitResult, rateLimitTestPolicy } from '../../contracts/request-rate-limit.ts'
 
-export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../../contracts/request-rate-limit'
+export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../../contracts/request-rate-limit.ts'
 
 /** Auth failures share the same Core-owned counter backend as normal requests. */
 export function bumpRateCounter(env: ApiEnv, key: string, windowSecs: number): Promise<number> {

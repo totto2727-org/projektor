@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import m0030 from '../../../migrations/0030_backfill_review_timestamp.sql?raw'
-import { env } from './fixture-api'
-import { seedIssue, seedProject, seedUser, seedWorkspace } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedIssue, seedProject, seedUser, seedWorkspace } from './helpers.ts'
 
 // PROJ-328: 0030 backfills in_review_at (added by 0029) for issues that were already
 // sitting in a review status before 0029 landed — see the migration file for why it's
@@ -36,7 +36,7 @@ describe('0030 backfill in_review_at', () => {
     userId = user.id
   })
 
-  it('backfills in_review_at from claimed_at for an issue currently in a review status', async () => {
+  test('backfills in_review_at from claimed_at for an issue currently in a review status', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'In review',
@@ -54,7 +54,7 @@ describe('0030 backfill in_review_at', () => {
     expect(row?.in_review_at).toBe(now - 100)
   })
 
-  it('does not backfill a done issue that never carried a review status (no signal to guess from)', async () => {
+  test('does not backfill a done issue that never carried a review status (no signal to guess from)', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Closed without review',
@@ -72,7 +72,7 @@ describe('0030 backfill in_review_at', () => {
     expect(row?.in_review_at).toBeNull()
   })
 
-  it('does not overwrite an already-stamped in_review_at', async () => {
+  test('does not overwrite an already-stamped in_review_at', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Already stamped',
@@ -90,7 +90,7 @@ describe('0030 backfill in_review_at', () => {
     expect(row?.in_review_at).toBe(now - 50)
   })
 
-  it('is idempotent — re-running changes nothing', async () => {
+  test('is idempotent — re-running changes nothing', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'In review',

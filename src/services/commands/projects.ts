@@ -5,13 +5,13 @@ import { z } from 'zod'
 import { drizzle, schema } from '#db'
 import * as data from '#services'
 
-import { BooleanQueryParam, IdSchema } from '../../contracts/inputs/common'
-import { CreateProjectSchema, UpdateProjectSchema } from '../../contracts/inputs/projects'
-import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access'
-import { recordActivity } from './activity'
-import * as cache from './cache'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+import { BooleanQueryParam, IdSchema } from '../../contracts/inputs/common.ts'
+import { CreateProjectSchema, UpdateProjectSchema } from '../../contracts/inputs/projects.ts'
+import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
+import { recordActivity } from './activity.ts'
+import * as cache from './cache.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
@@ -28,7 +28,9 @@ const ListProjectsOptionsSchema = z.object({ includeArchived: BooleanQueryParam.
 
 export async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
   const parsed = ListProjectsOptionsSchema.safeParse(opts)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   // PROJ-311: owner/admin share the cached workspace list; others get an uncached per-user set.
   const visible = visibleProjectPredicate(ctx, schema.projects.id)
   const includeArchived = parsed.data.includeArchived ?? false
@@ -38,7 +40,9 @@ export async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
     }
     const cacheKey = PROJECTS_CACHE_KEY(ctx.workspaceId)
     const local = localCache.get(cacheKey)
-    if (local) return local
+    if (local) {
+      return local
+    }
     const cached = await cache.get<unknown[]>(ctx.kv, cacheKey)
     if (cached) {
       localCache.set(cacheKey, cached)
@@ -81,18 +85,26 @@ export async function listProjectsAcrossWorkspaces(
 const PROJECT_KEY_PATTERN = /^[A-Z][A-Z0-9]*$/
 
 export async function resolveProjectIdParam(ctx: ServiceCtx, param: string): Promise<string> {
-  if (!PROJECT_KEY_PATTERN.test(param)) return param
+  if (!PROJECT_KEY_PATTERN.test(param)) {
+    return param
+  }
 
   const row = await Effect.runPromise(data.findProjectIdByKey(ctx.db, ctx.workspaceId, param))
-  if (!row) throw new NotFoundError('Project not found')
+  if (!row) {
+    throw new NotFoundError('Project not found')
+  }
   return row.id
 }
 
 export async function resolveVisibleProjectIdParam(ctx: ServiceCtx, param: string): Promise<string> {
-  if (!PROJECT_KEY_PATTERN.test(param)) return param
+  if (!PROJECT_KEY_PATTERN.test(param)) {
+    return param
+  }
 
   const row = await Effect.runPromise(data.findProjectIdByKey(ctx.db, ctx.workspaceId, param))
-  if (!row) return crypto.randomUUID()
+  if (!row) {
+    return crypto.randomUUID()
+  }
   if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, row.id)) === null) {
     return crypto.randomUUID()
   }
@@ -101,7 +113,9 @@ export async function resolveVisibleProjectIdParam(ctx: ServiceCtx, param: strin
 
 export async function getProject(ctx: ServiceCtx, id: string) {
   const project = await Effect.runPromise(data.findProjectById(ctx.db, ctx.workspaceId, id))
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
 
   // PROJ-311: default-deny — a non-admin without a grant 404s (existence hidden).
   if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, id)) === null) {
@@ -114,7 +128,9 @@ export async function getProject(ctx: ServiceCtx, id: string) {
 // the UUID route. Same visibility rules as getProject.
 export async function getProjectBySlug(ctx: ServiceCtx, slug: string) {
   const project = await Effect.runPromise(data.findProjectBySlug(ctx.db, ctx.workspaceId, slug))
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
 
   if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, project.id)) === null) {
     throw new NotFoundError('Project not found')
@@ -143,16 +159,22 @@ async function generateUniqueSlug(orm: ReturnType<typeof drizzle>, workspaceId: 
       .from(schema.projects)
       .where(and(eq(schema.projects.workspaceId, workspaceId), eq(schema.projects.slug, candidate)))
       .get()
-    if (!existing) return candidate
+    if (!existing) {
+      return candidate
+    }
     candidate = `${base}-${n}`
   }
 }
 
 export async function createProject(ctx: ServiceCtx, input: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
 
   const parsed = CreateProjectSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
 
   const { name, key, description, agentWipLimit } = parsed.data
 
@@ -162,7 +184,9 @@ export async function createProject(ctx: ServiceCtx, input: unknown) {
     .from(schema.projects)
     .where(and(eq(schema.projects.workspaceId, ctx.workspaceId), eq(schema.projects.key, key)))
     .get()
-  if (existing) throw new ConflictError(`Project key ${key} already exists`)
+  if (existing) {
+    throw new ConflictError(`Project key ${key} already exists`)
+  }
 
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
@@ -186,22 +210,37 @@ export async function createProject(ctx: ServiceCtx, input: unknown) {
 }
 
 export async function updateProject(ctx: ServiceCtx, id: string, input: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
 
   const parsed = UpdateProjectSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
 
   const now = Math.floor(Date.now() / 1000)
 
   const setObj: Record<string, unknown> = {}
-  if (parsed.data.name !== undefined) setObj.name = parsed.data.name
-  if (parsed.data.key !== undefined) setObj.key = parsed.data.key
-  if (parsed.data.description !== undefined) setObj.description = parsed.data.description
-  if (parsed.data.agentWipLimit !== undefined) setObj.agentWipLimit = parsed.data.agentWipLimit
-  if (parsed.data.archived !== undefined) setObj.archivedAt = parsed.data.archived ? now : null
+  if (parsed.data.name !== undefined) {
+    setObj.name = parsed.data.name
+  }
+  if (parsed.data.key !== undefined) {
+    setObj.key = parsed.data.key
+  }
+  if (parsed.data.description !== undefined) {
+    setObj.description = parsed.data.description
+  }
+  if (parsed.data.agentWipLimit !== undefined) {
+    setObj.agentWipLimit = parsed.data.agentWipLimit
+  }
+  if (parsed.data.archived !== undefined) {
+    setObj.archivedAt = parsed.data.archived ? now : null
+  }
 
-  if (Object.keys(setObj).length === 0)
+  if (Object.keys(setObj).length === 0) {
     throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
+  }
 
   setObj.updatedAt = now
 
@@ -211,7 +250,9 @@ export async function updateProject(ctx: ServiceCtx, id: string, input: unknown)
     .from(schema.projects)
     .where(and(eq(schema.projects.id, id), eq(schema.projects.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Project not found')
+  if (!existing) {
+    throw new NotFoundError('Project not found')
+  }
 
   await orm
     .update(schema.projects)
@@ -285,8 +326,12 @@ const PROJECT_CLEANUP_SQL: readonly string[] = [
 
 export async function deleteProject(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
-  if (ctx.role !== 'owner') throw new ForbiddenError()
+  if (!idCheck.success) {
+    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  }
+  if (ctx.role !== 'owner') {
+    throw new ForbiddenError()
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const project = await orm
@@ -294,7 +339,9 @@ export async function deleteProject(ctx: ServiceCtx, id: string) {
     .from(schema.projects)
     .where(and(eq(schema.projects.id, id), eq(schema.projects.workspaceId, ctx.workspaceId)))
     .get()
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
 
   // PROJ-819/918: D1 doesn't guarantee the FK cascades the schema declares (PROJ-407),
   // and several references have no FK at all (FTS mirrors, R2 objects, other projects'

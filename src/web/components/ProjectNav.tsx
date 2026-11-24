@@ -2,8 +2,8 @@
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
-import type { RequestScope } from '../server/request-context'
-import { scopedHref } from '../urls'
+import type { RequestScope } from '../server/request-context.ts'
+import { scopedHref } from '../urls.ts'
 
 export { scopedHref }
 
@@ -40,11 +40,15 @@ function tabClass(active: boolean): string {
 }
 function visibleCount(width: number, tabs: readonly number[]): number {
   const total = tabs.reduce((sum, item) => sum + item, 0) + TAB_GAP_PX * Math.max(tabs.length - 1, 0)
-  if (total <= width) return tabs.length
+  if (total <= width) {
+    return tabs.length
+  }
   let used = 0
   for (let index = 0; index < tabs.length; index += 1) {
     const next = used + tabs[index] + (index ? TAB_GAP_PX : 0)
-    if (next + TAB_GAP_PX + MORE_TRIGGER_RESERVE_PX > width) return index
+    if (next + TAB_GAP_PX + MORE_TRIGGER_RESERVE_PX > width) {
+      return index
+    }
     used = next
   }
   return tabs.length
@@ -56,7 +60,7 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
   const [tabWidths, setTabWidths] = useState<number[] | null>(null)
   const [moreOpen, setMoreOpen] = useState(false)
   const navRef = useRef<HTMLElement>(null)
-  const measureRefs = useRef<Array<HTMLAnchorElement | null>>([])
+  const measureRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const moreRef = useRef<HTMLDivElement>(null)
   const moreTrigger = useRef<HTMLButtonElement>(null)
   const menuId = useId()
@@ -66,7 +70,9 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
   const workspace = scope.selection.kind === 'project' ? scope.selection.workspace : null
   useLayoutEffect(() => {
     const element = navRef.current
-    if (!element || !project) return
+    if (!element || !project) {
+      return
+    }
     const measure = () => {
       setWidth(
         element.clientWidth -
@@ -74,7 +80,9 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
           Number.parseFloat(getComputedStyle(element).paddingRight || '0'),
       )
       const next = measureRefs.current.map((item) => item?.offsetWidth ?? 0)
-      if (next.every(Boolean)) setTabWidths(next)
+      if (next.every(Boolean)) {
+        setTabWidths(next)
+      }
     }
     measure()
     const observer = new ResizeObserver(measure)
@@ -83,9 +91,13 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
     return () => observer.disconnect()
   }, [project])
   useEffect(() => {
-    if (!moreOpen) return
+    if (!moreOpen) {
+      return
+    }
     const outside = (event: MouseEvent) => {
-      if (event.target instanceof Node && !moreRef.current?.contains(event.target)) setMoreOpen(false)
+      if (event.target instanceof Node && !moreRef.current?.contains(event.target)) {
+        setMoreOpen(false)
+      }
     }
     const onEscapeKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -116,12 +128,13 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
     [project, scope],
   )
   const count = tabWidths && width > 0 ? visibleCount(width, tabWidths) : tabs.length
-  if (!project || !workspace)
+  if (!project || !workspace) {
     return (
       <p role='alert' className='text-danger-text px-3 py-2 text-sm'>
         Choose a project from <a href='/'>Projects</a>.
       </p>
     )
+  }
   const visible = tabs.slice(0, count)
   const overflow = tabs.slice(count)
   const activeOverflow = overflow.some((tab) => isTabActive(tab.path, pathname))

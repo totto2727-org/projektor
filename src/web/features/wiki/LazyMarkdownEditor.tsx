@@ -3,11 +3,11 @@
 import type { ComponentType } from 'react'
 import { useEffect, useState } from 'react'
 
-import type { Props } from './MarkdownEditor'
+import type { Props } from './MarkdownEditor.tsx'
 
 // React Compiler does not yet lower dynamic imports inside components or effects.
 // This module loader is still called lazily by the mount effect below.
-const loadMarkdownEditor = () => import('./MarkdownEditor')
+const loadMarkdownEditor = () => import('./MarkdownEditor.tsx')
 
 // Keep the native input usable while the enhanced editor loads.
 // Once editing starts, retain that control until this editor unmounts.
@@ -50,7 +50,9 @@ export default function LazyMarkdownEditor(props: Props) {
     loadMarkdownEditor()
       .then((m) => {
         // Wrapped in a thunk: a bare component would be read as a state updater.
-        if (!cancelled) setEditor(() => m.default)
+        if (!cancelled) {
+          setEditor(() => m.default)
+        }
       })
       .catch((err) => {
         // PROJ-506: an unhandled rejection here (chunk-load failure on a flaky
@@ -58,7 +60,9 @@ export default function LazyMarkdownEditor(props: Props) {
         // environment has already torn down) otherwise surfaces as an uncaught
         // error with no indication of what failed. The user already has a
         // working fallback textarea regardless, so there's nothing to recover.
-        if (!cancelled) console.error('Failed to load the markdown editor', err)
+        if (!cancelled) {
+          console.error('Failed to load the markdown editor', err)
+        }
       })
     return () => {
       cancelled = true

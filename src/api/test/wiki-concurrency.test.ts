@@ -2,14 +2,14 @@
 // write is guarded so a concurrent write can't be silently reverted.
 
 import { SELF } from 'cloudflare:test'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { ConflictError } from '#commands/errors'
-import type { ServiceCtx } from '#commands/types'
-import { createWikiPage, getWikiPage, listWikiRevisions, patchWikiPage, updateWikiPage } from '#commands/wiki'
+import { ConflictError } from '#commands/errors.ts'
+import type { ServiceCtx } from '#commands/types.ts'
+import { createWikiPage, getWikiPage, listWikiRevisions, patchWikiPage, updateWikiPage } from '#commands/wiki.ts'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture } from './helpers.ts'
 
 async function setup() {
   const { workspace, user, token } = await seedFixture({ role: 'owner' })
@@ -48,7 +48,7 @@ async function contentOf(ctx: ServiceCtx, slug: string): Promise<string> {
 afterEach(() => vi.restoreAllMocks())
 
 describe('PROJ-809: get_wiki_page returns the revision it read', () => {
-  it("a stale reader using the GET's revisionId gets a 409, not a silent overwrite", async () => {
+  test("a stale reader using the GET's revisionId gets a 409, not a silent overwrite", async () => {
     const { ctx, slug } = await setup()
     const readByA = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
     expect(typeof readByA.revisionId).toBe('string')
@@ -56,7 +56,7 @@ describe('PROJ-809: get_wiki_page returns the revision it read', () => {
     await updateWikiPage(ctx, slug, { content: "B's edit", baseRevisionId: readByA.revisionId })
 
     // The old way: A fetches the revision list AFTER B's save and gets B's pointer.
-    const listed = (await listWikiRevisions(ctx, slug)) as Array<{ id: string }>
+    const listed = (await listWikiRevisions(ctx, slug)) as { id: string }[]
     expect(listed[0].id).not.toBe(readByA.revisionId)
 
     await expect(
@@ -65,7 +65,7 @@ describe('PROJ-809: get_wiki_page returns the revision it read', () => {
     expect(await contentOf(ctx, slug)).toBe("B's edit")
   })
 
-  it('REST GET carries revisionId in the body and as the ETag', async () => {
+  test('REST GET carries revisionId in the body and as the ETag', async () => {
     const { slug, token, wsSlug } = await setup()
     const res = await SELF.fetch(`http://localhost/api/wiki/${slug}`, {
       headers: authHeaders(token, wsSlug),
@@ -77,7 +77,7 @@ describe('PROJ-809: get_wiki_page returns the revision it read', () => {
 })
 
 describe('PROJ-810: guarded writes', () => {
-  it('update_wiki_page without a base: a write landing between read and write → 409', async () => {
+  test('update_wiki_page without a base: a write landing between read and write → 409', async () => {
     const { ctx, slug } = await setup()
     interleaveBeforeNextBatch(1, async () => {
       await env.DB.prepare("UPDATE wiki_pages SET content = 'concurrent' WHERE slug = ?").bind(slug).run()
@@ -86,7 +86,7 @@ describe('PROJ-810: guarded writes', () => {
     expect(await contentOf(ctx, slug)).toBe('concurrent')
   })
 
-  it("set_frontmatter racing an update: the update isn't reverted", async () => {
+  test("set_frontmatter racing an update: the update isn't reverted", async () => {
     const { ctx, slug } = await setup()
     const { revisionId } = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
     interleaveBeforeNextBatch(1, async () => {
@@ -102,7 +102,7 @@ describe('PROJ-810: guarded writes', () => {
     expect(content).toContain('status: draft')
   })
 
-  it('append_to_page retries and both writes survive', async () => {
+  test('append_to_page retries and both writes survive', async () => {
     const { ctx, slug } = await setup()
     const { revisionId } = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
     interleaveBeforeNextBatch(1, async () => {
@@ -118,7 +118,7 @@ describe('PROJ-810: guarded writes', () => {
     expect(content).toContain('from A')
   })
 
-  it('append gives up with a 409 after bounded retries', async () => {
+  test('append gives up with a 409 after bounded retries', async () => {
     const { ctx, slug } = await setup()
     const { revisionId } = (await getWikiPage(ctx, slug)) as { revisionId: string | null }
     let n = 0
@@ -134,7 +134,7 @@ describe('PROJ-810: guarded writes', () => {
 })
 
 describe('PROJ-919: metadata-only writes are guarded too', () => {
-  it('two interleaved title-only updates → one 409, the first title survives', async () => {
+  test('two interleaved title-only updates → one 409, the first title survives', async () => {
     const { ctx, slug } = await setup()
     interleaveBeforeNextBatch(1, async () => {
       await updateWikiPage(ctx, slug, { title: "B's title" })
@@ -143,7 +143,7 @@ describe('PROJ-919: metadata-only writes are guarded too', () => {
     expect(((await getWikiPage(ctx, slug)) as { title: string }).title).toBe("B's title")
   })
 
-  it("a move racing a rename → 409 for the move; the rename isn't reverted", async () => {
+  test("a move racing a rename → 409 for the move; the rename isn't reverted", async () => {
     const { ctx, slug } = await setup()
     const parent = (await createWikiPage(ctx, { title: 'Parent', content: 'p' })) as {
       id: string
@@ -157,7 +157,7 @@ describe('PROJ-919: metadata-only writes are guarded too', () => {
     expect(page.parent_id).toBeNull()
   })
 
-  it('a content write racing a title-only write → 409 instead of reverting the title', async () => {
+  test('a content write racing a title-only write → 409 instead of reverting the title', async () => {
     const { ctx, slug } = await setup()
     interleaveBeforeNextBatch(1, async () => {
       await updateWikiPage(ctx, slug, { title: 'Concurrent title' })
@@ -168,14 +168,14 @@ describe('PROJ-919: metadata-only writes are guarded too', () => {
     expect(page.content).toBe('v1')
   })
 
-  it('sequential metadata-only updates with no race still succeed', async () => {
+  test('sequential metadata-only updates with no race still succeed', async () => {
     const { ctx, slug } = await setup()
     await updateWikiPage(ctx, slug, { title: 'One' })
     await updateWikiPage(ctx, slug, { title: 'Two' })
     expect(((await getWikiPage(ctx, slug)) as { title: string }).title).toBe('Two')
   })
 
-  it('every write bumps the page version', async () => {
+  test('every write bumps the page version', async () => {
     const { ctx, slug } = await setup()
     const { id } = (await getWikiPage(ctx, slug)) as { id: string }
     const versionOf = async () =>

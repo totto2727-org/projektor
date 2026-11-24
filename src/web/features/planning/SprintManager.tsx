@@ -4,16 +4,17 @@ import { useForm } from '@tanstack/react-form'
 import { Schema } from 'effect'
 import { useActionState, useEffect, useEffectEvent, useState } from 'react'
 
-import { unwrapResult } from '../../client/functions'
-import { Badge } from '../../components/ui/Badge'
-import { Button } from '../../components/ui/Button'
-import { Input } from '../../components/ui/Input'
-import type { ActionResult } from '../../function-result'
-import { archiveSprint, createSprint, editSprint, moveSprintIssues, setSprintStatus } from './actions'
-import { FormErrors } from './form-ui'
-import { formatUnixDate, getStoryPoints, issueHref, unixToDateInput } from './helpers'
-import { calendarOffset, MoveSprintIssuesSchema, SprintFormSchema, type SprintListMode } from './input-schemas'
-import type { ProjectIdentity, Sprint, SprintIssue } from './types'
+import { unwrapResult } from '../../client/functions.ts'
+import { Badge } from '../../components/ui/Badge.tsx'
+import { Button } from '../../components/ui/Button.tsx'
+import { Input } from '../../components/ui/Input.tsx'
+import type { ActionResult } from '../../function-result.ts'
+import { archiveSprint, createSprint, editSprint, moveSprintIssues, setSprintStatus } from './actions.ts'
+import { FormErrors } from './form-ui.tsx'
+import { formatUnixDate, getStoryPoints, issueHref, unixToDateInput } from './helpers.ts'
+import { calendarOffset, MoveSprintIssuesSchema, SprintFormSchema } from './input-schemas.ts'
+import type { SprintListMode } from './input-schemas.ts'
+import type { ProjectIdentity, Sprint, SprintIssue } from './types.ts'
 
 const CARD = 'px-5 py-4 bg-surface border border-border rounded-lg mb-3 last:mb-0'
 const LABEL = 'block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'
@@ -71,7 +72,9 @@ export function SprintManager({
   const active = allSprints.filter((sprint) => sprint.status === 'active')
   const completed = allSprints.filter((sprint) => sprint.status === 'completed')
   async function complete(sprint: Sprint) {
-    if (completing) return
+    if (completing) {
+      return
+    }
     setCompleting(true)
     setCompleteError(null)
     // Snapshot the SSR issues before the mutation refresh, as in the original summary.
@@ -230,7 +233,9 @@ function SprintForm({
   )
   const success = useEffectEvent(onSuccess)
   useEffect(() => {
-    if (result?.ok) success()
+    if (result?.ok) {
+      success()
+    }
   }, [result])
   const standard = Schema.toStandardSchemaV1(SprintFormSchema)
   const form = useForm({
@@ -393,7 +398,9 @@ function SprintRow({
   const sprintIssues = issues.filter((issue) => issue.sprint_id === sprint.id)
   const done = sprintIssues.filter((issue) => issue.status_category === 'done')
   async function changeStatus(status: Sprint['status']) {
-    if (busy) return
+    if (busy) {
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -404,7 +411,9 @@ function SprintRow({
     setBusy(false)
   }
   async function archiveConfirmed() {
-    if (busy) return
+    if (busy) {
+      return
+    }
     setBusy(true)
     setError(null)
     try {

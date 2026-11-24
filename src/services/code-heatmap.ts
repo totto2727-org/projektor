@@ -3,7 +3,8 @@ import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
 
-import { type DataQueryError, queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 
 export interface CodeHeatmapRange {
   projectId: string
@@ -44,7 +45,9 @@ function resolveNextSegment(
   prefixWithSlash: string,
 ): { path: string; isLeaf: boolean } | null {
   const rest = itemPath.slice(prefixWithSlash.length)
-  if (!rest) return null
+  if (!rest) {
+    return null
+  }
   const slashIdx = rest.indexOf('/')
   const isLeaf = slashIdx === -1
   const segment = isLeaf ? rest : rest.slice(0, slashIdx)
@@ -60,7 +63,7 @@ type SegmentGroup = { ids: Set<string>; count: number; isLeaf: boolean }
 // groupClaimsByNextSegment and groupConflictsByNextSegment (below), which differ only in
 // how they extract the distinct id to count per group.
 function groupItemsByNextSegment<T extends { path: string }>(
-  items: ReadonlyArray<T>,
+  items: readonly T[],
   prefix: string,
   prefixWithSlash: string,
   getId: (item: T) => string,
@@ -68,9 +71,13 @@ function groupItemsByNextSegment<T extends { path: string }>(
   const groups = new Map<string, SegmentGroup>()
 
   for (const item of items) {
-    if (prefix && !item.path.startsWith(prefixWithSlash)) continue
+    if (prefix && !item.path.startsWith(prefixWithSlash)) {
+      continue
+    }
     const resolved = resolveNextSegment(item.path, prefix, prefixWithSlash)
-    if (!resolved) continue
+    if (!resolved) {
+      continue
+    }
     const { path, isLeaf } = resolved
 
     let group = groups.get(path)
@@ -80,7 +87,9 @@ function groupItemsByNextSegment<T extends { path: string }>(
     }
     // A path claimed as both a file and a directory (e.g. `docs` and `docs/x.md`) is a
     // directory: keep it drillable rather than freezing isLeaf on the first item seen.
-    if (!isLeaf) group.isLeaf = false
+    if (!isLeaf) {
+      group.isLeaf = false
+    }
     group.ids.add(getId(item))
     group.count++
   }
@@ -89,7 +98,7 @@ function groupItemsByNextSegment<T extends { path: string }>(
 }
 
 function groupClaimsByNextSegment(
-  claims: ReadonlyArray<{ path: string; issueId: string }>,
+  claims: readonly { path: string; issueId: string }[],
   prefix: string,
 ): CodeHeatmapEntry[] {
   const prefixWithSlash = prefix ? `${prefix}/` : ''
@@ -107,7 +116,7 @@ function groupClaimsByNextSegment(
 }
 
 function groupConflictsByNextSegment(
-  conflicts: ReadonlyArray<{ path: string; rejectedIssueId: string }>,
+  conflicts: readonly { path: string; rejectedIssueId: string }[],
   prefix: string,
 ): ContentionHeatmapEntry[] {
   const prefixWithSlash = prefix ? `${prefix}/` : ''
@@ -131,7 +140,7 @@ async function readCodeHeatmap(db: D1Database, workspaceId: string, range: CodeH
   // Default window mirrors flow-metrics' throughput default (current ISO week plus the
   // preceding 5 weeks) so the heatmap agrees with the rest of the dashboard when no
   // explicit range is passed.
-  const windowSince = since ?? now - 42 * 86400
+  const windowSince = since ?? now - 42 * 86_400
   const windowUntil = until ?? now
 
   const resolvedMode = mode ?? 'claims'

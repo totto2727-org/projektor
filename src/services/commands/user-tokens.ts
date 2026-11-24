@@ -1,5 +1,5 @@
-import { CreateUserTokenSchema } from '../../contracts/inputs/user-tokens'
-import { ForbiddenError, ValidationError } from './errors'
+import { CreateUserTokenSchema } from '../../contracts/inputs/user-tokens.ts'
+import { ForbiddenError, ValidationError } from './errors.ts'
 
 // These handlers run pre-workspace-context (login/token minting are user-scoped,
 // not workspace-scoped), so they take a narrower ctx than ServiceCtx.
@@ -30,7 +30,9 @@ export async function getUserWorkspaces(ctx: UserCtx) {
 
 export async function createUserToken(ctx: UserCtx, raw: unknown) {
   const result = CreateUserTokenSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
 
   const { name, workspaceId, scopes, expiresAt } = result.data
 
@@ -42,7 +44,9 @@ export async function createUserToken(ctx: UserCtx, raw: unknown) {
       .prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(workspaceId, ctx.userId)
       .first()
-    if (!member) throw new ForbiddenError()
+    if (!member) {
+      throw new ForbiddenError()
+    }
   }
 
   const rawToken = crypto.randomUUID() + crypto.randomUUID()

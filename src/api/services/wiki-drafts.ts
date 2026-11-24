@@ -1,7 +1,7 @@
-import { ApiResults } from '../../contracts/api-results'
-import type { CoreRpcShape } from '../../core/contract'
-import { apiReply } from './reply'
-import type { ApiOperationArgs, ApiServiceCtx } from './types'
+import { ApiResults } from '../../contracts/api-results.ts'
+import type { CoreRpcShape } from '../../core/contract.ts'
+import { apiReply } from './reply.ts'
+import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
 export function getWikiDraft(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiGetWikiDraft']>) {
   return apiReply(ApiResults.apiGetWikiDraft, ctx.core.apiGetWikiDraft(ctx.actor, ctx.workspaceId, ...args))

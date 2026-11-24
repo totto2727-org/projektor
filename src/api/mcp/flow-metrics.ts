@@ -1,6 +1,6 @@
-import { getFlowMetrics } from '../services/flow-metrics'
-import { READ } from './annotations'
-import type { MCPTool } from './types'
+import { getFlowMetrics } from '../services/flow-metrics.ts'
+import { READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 export const flowMetricsTools: MCPTool[] = [
   {

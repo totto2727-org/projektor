@@ -14,13 +14,11 @@
  */
 
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
   seedCustomFieldDef,
   seedFixture,
   seedGroupGrant,
@@ -34,7 +32,8 @@ import {
   seedWorkspace,
   seedWorkspaceRoles,
   toolError,
-} from './helpers'
+} from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -87,7 +86,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   // -- Projects --
 
-  it('viewer cannot POST /api/projects', async () => {
+  test('viewer cannot POST /api/projects', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: viewerHeaders,
@@ -96,7 +95,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/projects', async () => {
+  test('owner CAN POST /api/projects', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -105,7 +104,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(201)
   })
 
-  it('viewer cannot PATCH /api/projects/:id', async () => {
+  test('viewer cannot PATCH /api/projects/:id', async () => {
     // Owner creates, viewer tries to update
     const createRes = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
@@ -122,7 +121,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot DELETE /api/projects/:id', async () => {
+  test('viewer cannot DELETE /api/projects/:id', async () => {
     const createRes = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -139,7 +138,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   // -- Task types --
 
-  it('viewer cannot POST /api/task-types', async () => {
+  test('viewer cannot POST /api/task-types', async () => {
     const res = await SELF.fetch('http://localhost/api/task-types', {
       method: 'POST',
       headers: viewerHeaders,
@@ -148,7 +147,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/task-types', async () => {
+  test('owner CAN POST /api/task-types', async () => {
     const res = await SELF.fetch('http://localhost/api/task-types', {
       method: 'POST',
       headers: ownerHeaders,
@@ -157,7 +156,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(201)
   })
 
-  it('viewer cannot PATCH /api/task-types/:id', async () => {
+  test('viewer cannot PATCH /api/task-types/:id', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const res = await SELF.fetch(`http://localhost/api/task-types/${id}`, {
       method: 'PATCH',
@@ -167,7 +166,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot DELETE /api/task-types/:id', async () => {
+  test('viewer cannot DELETE /api/task-types/:id', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
     const res = await SELF.fetch(`http://localhost/api/task-types/${id}`, {
       method: 'DELETE',
@@ -178,7 +177,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   // -- Task statuses --
 
-  it('viewer cannot POST /api/task-statuses', async () => {
+  test('viewer cannot POST /api/task-statuses', async () => {
     const res = await SELF.fetch('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: viewerHeaders,
@@ -187,7 +186,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/task-statuses', async () => {
+  test('owner CAN POST /api/task-statuses', async () => {
     const res = await SELF.fetch('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: ownerHeaders,
@@ -196,7 +195,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(201)
   })
 
-  it('viewer cannot PATCH /api/task-statuses/:id', async () => {
+  test('viewer cannot PATCH /api/task-statuses/:id', async () => {
     const { id } = await seedTaskStatus(workspaceId, { key: 'todo-st', name: 'Todo' })
     const res = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
       method: 'PATCH',
@@ -206,7 +205,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot DELETE /api/task-statuses/:id', async () => {
+  test('viewer cannot DELETE /api/task-statuses/:id', async () => {
     const { id } = await seedTaskStatus(workspaceId, { key: 'del-st', name: 'Del' })
     const res = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
       method: 'DELETE',
@@ -217,7 +216,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   // -- Custom fields --
 
-  it('viewer cannot POST /api/custom-fields', async () => {
+  test('viewer cannot POST /api/custom-fields', async () => {
     const res = await SELF.fetch('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: viewerHeaders,
@@ -226,7 +225,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/custom-fields', async () => {
+  test('owner CAN POST /api/custom-fields', async () => {
     const res = await SELF.fetch('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: ownerHeaders,
@@ -235,7 +234,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(201)
   })
 
-  it('viewer cannot PATCH /api/custom-fields/:id', async () => {
+  test('viewer cannot PATCH /api/custom-fields/:id', async () => {
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'cf_patch', type: 'text' })
     const res = await SELF.fetch(`http://localhost/api/custom-fields/${id}`, {
       method: 'PATCH',
@@ -245,7 +244,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot DELETE /api/custom-fields/:id', async () => {
+  test('viewer cannot DELETE /api/custom-fields/:id', async () => {
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'cf_del', type: 'text' })
     const res = await SELF.fetch(`http://localhost/api/custom-fields/${id}`, {
       method: 'DELETE',
@@ -257,7 +256,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   // -- Wiki --
   // Only DELETE enforces viewer restriction; create/update are intentionally open.
 
-  it('viewer cannot DELETE /api/wiki/:slug', async () => {
+  test('viewer cannot DELETE /api/wiki/:slug', async () => {
     // Owner creates a wiki page; viewer tries to delete it
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -271,7 +270,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     expect(res.status).toBe(403)
   })
 
-  it('member CAN DELETE /api/wiki/:slug (only viewer is blocked)', async () => {
+  test('member CAN DELETE /api/wiki/:slug (only viewer is blocked)', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
@@ -300,7 +299,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   // PROJ-374: addComment now rejects viewers, mirroring the other
   // mutating-route guards in this file.
 
-  it('viewer cannot POST /api/issues/:issueId/comments', async () => {
+  test('viewer cannot POST /api/issues/:issueId/comments', async () => {
     const project = await seedProject(workspaceId)
     const issue = await seedIssue(workspaceId, project.id, ownerId)
     // Grant the viewer visibility into the project (PROJ-311 default-deny)
@@ -334,27 +333,27 @@ describe('PROJ-78: MCP tools – viewer role → error', () => {
     viewerHeaders = authHeaders(roles.viewer.token, slug)
   })
 
-  it('viewer cannot call create_project via MCP (gets a forbidden tool error)', async () => {
+  test('viewer cannot call create_project via MCP (gets a forbidden tool error)', async () => {
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLK' }, viewerHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('owner CAN call create_project via MCP', async () => {
+  test('owner CAN call create_project via MCP', async () => {
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Owner Made', key: 'OWN' }, ownerHeaders)
     expect(isMcpError(res)).toBe(false)
   })
 
-  it('viewer cannot call create_task_type via MCP (gets a forbidden tool error)', async () => {
+  test('viewer cannot call create_task_type via MCP (gets a forbidden tool error)', async () => {
     const res = await mcpCall(workspaceId, 'create_task_type', { key: 'epic', name: 'Epic' }, viewerHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('owner CAN call create_task_type via MCP', async () => {
+  test('owner CAN call create_task_type via MCP', async () => {
     const res = await mcpCall(workspaceId, 'create_task_type', { key: 'epic', name: 'Epic' }, ownerHeaders)
     expect(isMcpError(res)).toBe(false)
   })
 
-  it('viewer cannot call create_task_status via MCP', async () => {
+  test('viewer cannot call create_task_status via MCP', async () => {
     const res = await mcpCall(
       workspaceId,
       'create_task_status',
@@ -364,7 +363,7 @@ describe('PROJ-78: MCP tools – viewer role → error', () => {
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('viewer cannot call create_custom_field via MCP', async () => {
+  test('viewer cannot call create_custom_field via MCP', async () => {
     const res = await mcpCall(
       workspaceId,
       'create_custom_field',
@@ -407,7 +406,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
 
   // PATCH /:slug — owner-only rename
 
-  it('member cannot PATCH /api/workspaces/:slug', async () => {
+  test('member cannot PATCH /api/workspaces/:slug', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
       method: 'PATCH',
       headers: memberHeaders,
@@ -416,7 +415,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot PATCH /api/workspaces/:slug', async () => {
+  test('viewer cannot PATCH /api/workspaces/:slug', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
       method: 'PATCH',
       headers: viewerHeaders,
@@ -425,7 +424,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN PATCH /api/workspaces/:slug', async () => {
+  test('owner CAN PATCH /api/workspaces/:slug', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -436,7 +435,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
 
   // POST /:slug/members — owner-only invite
 
-  it('member cannot POST /api/workspaces/:slug/members (invite)', async () => {
+  test('member cannot POST /api/workspaces/:slug/members (invite)', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
       method: 'POST',
       headers: memberHeaders,
@@ -445,7 +444,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/workspaces/:slug/members', async () => {
+  test('owner CAN POST /api/workspaces/:slug/members', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -456,7 +455,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
 
   // DELETE /:slug/members/:userId — owner-only remove
 
-  it('member cannot DELETE /api/workspaces/:slug/members/:userId', async () => {
+  test('member cannot DELETE /api/workspaces/:slug/members/:userId', async () => {
     // Invite someone first so there is a target to remove
     await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
       method: 'POST',
@@ -474,7 +473,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN DELETE /api/workspaces/:slug/members/:userId', async () => {
+  test('owner CAN DELETE /api/workspaces/:slug/members/:userId', async () => {
     await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -493,7 +492,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
 
   // PATCH /:slug/members/:userId — owner-only role-change
 
-  it('member cannot PATCH /api/workspaces/:slug/members/:userId (role-change)', async () => {
+  test('member cannot PATCH /api/workspaces/:slug/members/:userId (role-change)', async () => {
     // viewerUser is already in the workspace from seedWorkspaceRoles
     const viewerRow = await env.DB.prepare(
       "SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'",
@@ -509,7 +508,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN PATCH /api/workspaces/:slug/members/:userId', async () => {
+  test('owner CAN PATCH /api/workspaces/:slug/members/:userId', async () => {
     const viewerRow = await env.DB.prepare(
       "SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'viewer'",
     )
@@ -526,21 +525,21 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
 
   // GET /:slug/tokens — admin/owner only
 
-  it('member cannot GET /api/workspaces/:slug/tokens', async () => {
+  test('member cannot GET /api/workspaces/:slug/tokens', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: memberHeaders,
     })
     expect(res.status).toBe(403)
   })
 
-  it('viewer cannot GET /api/workspaces/:slug/tokens', async () => {
+  test('viewer cannot GET /api/workspaces/:slug/tokens', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: viewerHeaders,
     })
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN GET /api/workspaces/:slug/tokens', async () => {
+  test('owner CAN GET /api/workspaces/:slug/tokens', async () => {
     const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: ownerHeaders,
     })
@@ -577,12 +576,12 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
       }),
     )
 
-  it('member cannot POST /api/workspaces/:slug/tokens', async () => {
+  test('member cannot POST /api/workspaces/:slug/tokens', async () => {
     const res = await mint(memberEmail, 'my-token', ['read'])
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN POST /api/workspaces/:slug/tokens', async () => {
+  test('owner CAN POST /api/workspaces/:slug/tokens', async () => {
     const res = await mint(ownerEmail, 'my-token', ['read', 'write'])
     expect(res.status).toBe(201)
     const body = (await res.json()) as { id: string; token: string }
@@ -590,7 +589,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
     expect(body.id).toBeTruthy()
   })
 
-  it('member cannot DELETE /api/workspaces/:slug/tokens/:id', async () => {
+  test('member cannot DELETE /api/workspaces/:slug/tokens/:id', async () => {
     const { id } = (await (await mint(ownerEmail, 'to-revoke', ['read'])).json()) as {
       id: string
     }
@@ -598,7 +597,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
     expect(res.status).toBe(403)
   })
 
-  it('owner CAN DELETE /api/workspaces/:slug/tokens/:id', async () => {
+  test('owner CAN DELETE /api/workspaces/:slug/tokens/:id', async () => {
     const { id } = (await (await mint(ownerEmail, 'revocable', ['read'])).json()) as {
       id: string
     }
@@ -612,7 +611,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
 // ---------------------------------------------------------------------------
 
 describe('PROJ-78: seedToken scopes parameter', () => {
-  it("seedToken defaults to ['*'] scopes", async () => {
+  test("seedToken defaults to ['*'] scopes", async () => {
     const fixture = await seedFixture()
     const row = await env.DB.prepare('SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?')
       .bind(fixture.workspace.id, fixture.user.id)
@@ -620,7 +619,7 @@ describe('PROJ-78: seedToken scopes parameter', () => {
     expect(JSON.parse(row!.scopes)).toEqual(['*'])
   })
 
-  it('seedToken persists explicit scopes for future scope-enforcement tests', async () => {
+  test('seedToken persists explicit scopes for future scope-enforcement tests', async () => {
     const ws = await seedWorkspace(`ws-scopes-${crypto.randomUUID().slice(0, 8)}`)
     const user = await seedUser(`scope-user-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, user.id, 'member')
@@ -634,7 +633,7 @@ describe('PROJ-78: seedToken scopes parameter', () => {
     expect(JSON.parse(row!.scopes)).toEqual(['read'])
   })
 
-  it('seedToken persists expiresAt when provided', async () => {
+  test('seedToken persists expiresAt when provided', async () => {
     const ws = await seedWorkspace(`ws-exp-${crypto.randomUUID().slice(0, 8)}`)
     const user = await seedUser(`exp-user-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, user.id, 'member')

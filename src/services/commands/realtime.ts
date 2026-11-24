@@ -1,6 +1,6 @@
 import type { RealtimeEvent } from '#types'
 
-import type { ServiceCtx } from './types'
+import type { ServiceCtx } from './types.ts'
 
 export type EventInput = Omit<RealtimeEvent, 'workspaceId' | 'timestamp'>
 
@@ -11,7 +11,9 @@ export type EventInput = Omit<RealtimeEvent, 'workspaceId' | 'timestamp'>
  * this function is a no-op and completes immediately.
  */
 export async function broadcastWorkspaceEvent(ctx: ServiceCtx, event: EventInput): Promise<void> {
-  if (!ctx.workspaceHub) return
+  if (!ctx.workspaceHub) {
+    return
+  }
 
   const fullEvent: RealtimeEvent = {
     ...event,

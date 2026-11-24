@@ -1,11 +1,12 @@
 'use client'
 
-import { createContext, type ReactNode, useContext } from 'react'
+import { createContext, useContext } from 'react'
+import type { ReactNode } from 'react'
 
-import { ViewErrorBoundary } from '../components/ViewErrorBoundary'
-import type { RequestScope } from '../server/request-context'
+import { ViewErrorBoundary } from '../components/ViewErrorBoundary.tsx'
+import type { RequestScope } from '../server/request-context.ts'
 
-export { scopedHref } from '../urls'
+export { scopedHref } from '../urls.ts'
 
 export interface RuntimeContext {
   readonly scope: RequestScope | null
@@ -26,6 +27,8 @@ export function RuntimeProvider({ children, scope, url }: RuntimeContext & { chi
 
 export function useRuntime(): RuntimeContext {
   const runtime = useContext(Runtime)
-  if (!runtime) throw new Error('A route RuntimeProvider is required.')
+  if (!runtime) {
+    throw new Error('A route RuntimeProvider is required.')
+  }
   return runtime
 }

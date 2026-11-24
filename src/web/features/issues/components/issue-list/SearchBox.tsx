@@ -1,8 +1,8 @@
 'use client'
 import type { RefObject } from 'react'
 
-import { queryFields } from '../../utils/query-fields'
-import type { IssuesRoute } from '../../views/IssuesPage'
+import { queryFields } from '../../utils/query-fields.ts'
+import type { IssuesRoute } from '../../views/IssuesPage.tsx'
 
 export default function SearchBox({
   searchQuery,

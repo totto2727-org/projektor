@@ -2,12 +2,12 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { jsonBody } from '../http/body'
-import { coreFileRequest } from '../http/core-files'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { requireInteractiveHuman } from '../middleware/auth'
-import { listConnectorGrants, revokeConnectorGrant } from '../services/oauth'
-import { ctxFromHono } from '../services/types'
+import { jsonBody } from '../http/body.ts'
+import { coreFileRequest } from '../http/core-files.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { requireInteractiveHuman } from '../middleware/auth.ts'
+import { listConnectorGrants, revokeConnectorGrant } from '../services/oauth.ts'
+import { ctxFromHono } from '../services/types.ts'
 import {
   createToken,
   deleteWorkspace,
@@ -22,7 +22,7 @@ import {
   updateMemberRole,
   updateWorkspace,
   updateWorkspaceBrand,
-} from '../services/workspaces'
+} from '../services/workspaces.ts'
 
 const router = new Hono<HonoEnv>()
 
@@ -86,7 +86,9 @@ const WORKSPACE_TOKEN_HUMAN_ONLY =
 
 router.post('/:slug/tokens', async (c) => {
   const denied = requireInteractiveHuman(c, WORKSPACE_TOKEN_HUMAN_ONLY)
-  if (denied) return denied
+  if (denied) {
+    return denied
+  }
   const ctx = ctxFromHono(c)
   try {
     return c.json(await createToken(ctx, await jsonBody(c)), 201)
@@ -106,7 +108,9 @@ router.get('/:slug/tokens', async (c) => {
 
 router.delete('/:slug/tokens/:tokenId', async (c) => {
   const denied = requireInteractiveHuman(c, WORKSPACE_TOKEN_HUMAN_ONLY)
-  if (denied) return denied
+  if (denied) {
+    return denied
+  }
   const ctx = ctxFromHono(c)
   try {
     return c.json(await revokeToken(ctx, c.req.param('tokenId')))
@@ -132,7 +136,9 @@ function connectorsDenied(c: Parameters<typeof ctxFromHono>[0]): Response | null
 
 router.get('/:slug/connectors', async (c) => {
   const denied = connectorsDenied(c)
-  if (denied) return denied
+  if (denied) {
+    return denied
+  }
   const ctx = ctxFromHono(c)
   try {
     return c.json(await listConnectorGrants(ctx))
@@ -143,7 +149,9 @@ router.get('/:slug/connectors', async (c) => {
 
 router.delete('/:slug/connectors/:grantId', async (c) => {
   const denied = connectorsDenied(c)
-  if (denied) return denied
+  if (denied) {
+    return denied
+  }
   const ctx = ctxFromHono(c)
   try {
     return c.json(await revokeConnectorGrant(ctx, c.req.param('grantId')))

@@ -1,11 +1,11 @@
 import { Effect, Schema } from 'effect'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { loadMigrations } from '#db/test/helpers'
+import { loadMigrations } from '#db/test/helpers.ts'
 
-import { makeRequestServices, RequestServices } from '../../request'
-import { createTestResources, testEnvironment } from '../../server/test/resources'
-import { createTestDatabase } from '../../test/database'
+import { makeRequestServices, RequestServices } from '../../request.ts'
+import { createTestResources, testEnvironment } from '../../server/test/resources.ts'
+import { createTestDatabase } from '../../test/database.ts'
 import {
   createWikiPage,
   deleteWikiAttachment,
@@ -22,7 +22,7 @@ import {
   saveWikiPage,
   trashWikiPage,
   verifyWikiPage,
-} from './actions'
+} from './actions.ts'
 
 type Definition = {
   input: Schema.Decoder<unknown>
@@ -46,7 +46,9 @@ vi.mock('../../effront', () => ({
 }))
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 async function fixture(
   options: {
@@ -65,7 +67,9 @@ async function fixture(
   // Wiki commands exercise real FTS5 here using those exact maintained statements.
   for (const migration of loadMigrations()) {
     for (const statement of migration.replace(/--[^\n]*/g, '').split(';')) {
-      if (/\bwiki_fts(?:_new)?\b/i.test(statement)) database.sqlite.exec(statement)
+      if (/\bwiki_fts(?:_new)?\b/i.test(statement)) {
+        database.sqlite.exec(statement)
+      }
     }
   }
   database.sqlite.exec(`
@@ -77,20 +81,24 @@ async function fixture(
       ('00000000-0000-4000-8000-000000000001','workspace','guide','Guide','Body','user','user',1,1),('foreign-page','foreign-workspace','guide','Foreign Guide','Secret','user','user',1,1);
     INSERT INTO wiki_revisions (id,page_id,content,author_id,created_at) VALUES ('revision','00000000-0000-4000-8000-000000000001','Body','user',1),('foreign-revision','foreign-page','Secret','user',1);
   `)
-  if (options.pageProject)
+  if (options.pageProject) {
     database.sqlite
       .prepare("UPDATE wiki_pages SET project_id = ? WHERE id = '00000000-0000-4000-8000-000000000001'")
       .run(options.pageProject)
-  if (options.archived)
+  }
+  if (options.archived) {
     database.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id = '00000000-0000-4000-8000-000000000002'")
-  if (options.role)
+  }
+  if (options.role) {
     database.sqlite.prepare("UPDATE workspace_members SET role = ? WHERE user_id = 'user'").run(options.role)
-  if (options.granted || (options.pageProject && !options.archived && !options.inaccessible))
+  }
+  if (options.granted || (options.pageProject && !options.archived && !options.inaccessible)) {
     database.sqlite.exec(`
       INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('group','workspace','Readers',1);
       INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('group','user','user',1);
       INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('group','00000000-0000-4000-8000-000000000002','member');
     `)
+  }
   const resources = createTestResources()
   const invalidate = vi.fn()
   const request = new Request('https://app.test/_effront/function', {
@@ -123,7 +131,9 @@ async function fixture(
   }
   function run(operation: unknown, input: unknown) {
     const definition = definitions.get(operation)
-    if (!definition) throw new Error('Missing operation definition')
+    if (!definition) {
+      throw new Error('Missing operation definition')
+    }
     return Effect.runPromise(
       Schema.decodeUnknownEffect(definition.input)(input).pipe(
         Effect.flatMap((value) => definition.handler(value as never)),
@@ -134,7 +144,7 @@ async function fixture(
   return { run, invalidate, sqlite: database.sqlite, resources }
 }
 describe('Wiki semantic ServerFn contracts', () => {
-  it('requires browser draft preconditions and returns conflicts without altering a newer draft', async () => {
+  test('requires browser draft preconditions and returns conflicts without altering a newer draft', async () => {
     const test = await fixture()
     await expect(
       test.run(saveWikiDraft, { workspaceSlug: 'team', slug: 'guide', title: 'Missing token', content: 'No write' }),
@@ -174,7 +184,8 @@ describe('Wiki semantic ServerFn contracts', () => {
         .get('guide', 'workspace'),
     ).toEqual({ content: 'Body' })
   })
-  it.each(['owner', 'admin', 'member'] as const)(
+
+  test.each(['owner', 'admin', 'member'] as const)(
     'reads archived project pages, revisions and personal drafts from a workspace-only selector for %s',
     async (role) => {
       const test = await fixture({
@@ -202,7 +213,8 @@ describe('Wiki semantic ServerFn contracts', () => {
       expect(test.invalidate).not.toHaveBeenCalled()
     },
   )
-  it("does not grant an archived project's page or revision to an ungranted member", async () => {
+
+  test("does not grant an archived project's page or revision to an ungranted member", async () => {
     const test = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', archived: true })
     for (const operation of [getWikiPage, getWikiDraft, getWikiRevisionDiff]) {
       expect(await test.run(operation, { workspaceSlug: 'team', slug: 'guide', revisionId: 'revision' })).toMatchObject(
@@ -210,7 +222,8 @@ describe('Wiki semantic ServerFn contracts', () => {
       )
     }
   })
-  it('rejects cross-origin writes before any backend request and invalidates failed mutation scope', async () => {
+
+  test('rejects cross-origin writes before any backend request and invalidates failed mutation scope', async () => {
     const test = await fixture({ origin: 'https://attacker.test' })
     expect(
       await test.run(saveWikiPage, {
@@ -232,7 +245,8 @@ describe('Wiki semantic ServerFn contracts', () => {
     })
     expect(test.invalidate).toHaveBeenCalledTimes(1)
   })
-  it('rejects an unauthorized workspace before constructing a backend mutation', async () => {
+
+  test('rejects an unauthorized workspace before constructing a backend mutation', async () => {
     const test = await fixture()
     expect(
       await test.run(saveWikiPage, {
@@ -252,7 +266,8 @@ describe('Wiki semantic ServerFn contracts', () => {
       content: 'Body',
     })
   })
-  it('keeps 409 conflict revision/diff details and does not clear a personal draft after failed save', async () => {
+
+  test('keeps 409 conflict revision/diff details and does not clear a personal draft after failed save', async () => {
     const test = await fixture()
     test.sqlite.exec(`
       INSERT INTO wiki_revisions (id,page_id,content,author_id,created_at) VALUES ('latest','00000000-0000-4000-8000-000000000001','Body','user',2);
@@ -282,7 +297,8 @@ describe('Wiki semantic ServerFn contracts', () => {
     expect(test.sqlite.prepare("SELECT content FROM wiki_drafts WHERE id = 'mine'").get()).toEqual({ content: 'Mine' })
     expect(test.invalidate).toHaveBeenCalledTimes(1)
   })
-  it('reads a draft without invalidating and resolves the explicit authorized workspace', async () => {
+
+  test('reads a draft without invalidating and resolves the explicit authorized workspace', async () => {
     const test = await fixture()
     expect(await test.run(getWikiDraft, { workspaceSlug: 'team', slug: 'guide' })).toEqual({
       ok: true,
@@ -290,7 +306,8 @@ describe('Wiki semantic ServerFn contracts', () => {
     })
     expect(test.invalidate).not.toHaveBeenCalled()
   })
-  it('duplicates server-authorized content and preserves the source entity project', async () => {
+
+  test('duplicates server-authorized content and preserves the source entity project', async () => {
     const test = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002' })
     expect(await test.run(duplicateWikiPage, { workspaceSlug: 'team', slug: 'guide' })).toEqual({
       ok: true,
@@ -308,7 +325,8 @@ describe('Wiki semantic ServerFn contracts', () => {
     })
     expect(test.invalidate).toHaveBeenCalledTimes(1)
   })
-  it("reads the actual page DTO/revision pointer and only the current user's draft directly", async () => {
+
+  test("reads the actual page DTO/revision pointer and only the current user's draft directly", async () => {
     const test = await fixture()
     expect(await test.run(getWikiPage, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
       ok: true,
@@ -323,13 +341,15 @@ describe('Wiki semantic ServerFn contracts', () => {
     })
     expect(test.invalidate).not.toHaveBeenCalled()
   })
-  it('re-authorizes the actual entity project rather than trusting a page selector', async () => {
+
+  test('re-authorizes the actual entity project rather than trusting a page selector', async () => {
     const test = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', inaccessible: true })
-    for (const operation of [getWikiPage, getWikiDraft, duplicateWikiPage])
+    for (const operation of [getWikiPage, getWikiDraft, duplicateWikiPage]) {
       expect(await test.run(operation, { workspaceSlug: 'team', slug: 'guide' })).toMatchObject({
         ok: false,
         status: 404,
       })
+    }
     expect(
       test.sqlite
         .prepare("SELECT title, content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'")
@@ -339,7 +359,8 @@ describe('Wiki semantic ServerFn contracts', () => {
       content: 'Body',
     })
   })
-  it('binds revision diffs and restore reads to the authorized page and workspace', async () => {
+
+  test('binds revision diffs and restore reads to the authorized page and workspace', async () => {
     const test = await fixture()
     test.sqlite.exec("UPDATE wiki_pages SET content = 'Current' WHERE id = '00000000-0000-4000-8000-000000000001'")
     expect(
@@ -352,7 +373,7 @@ describe('Wiki semantic ServerFn contracts', () => {
       ok: true,
       value: { diff: '--- base\n+++ current\n@@ -1,1 +1,1 @@\n-Body\n+Current' },
     })
-    for (const operation of [getWikiRevisionDiff, restoreWikiRevision])
+    for (const operation of [getWikiRevisionDiff, restoreWikiRevision]) {
       expect(
         await test.run(operation, {
           workspaceSlug: 'team',
@@ -361,6 +382,7 @@ describe('Wiki semantic ServerFn contracts', () => {
           baseRevisionId: 'revision',
         }),
       ).toMatchObject({ ok: false, status: 404 })
+    }
     expect(
       test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
     ).toEqual({
@@ -387,7 +409,8 @@ describe('Wiki semantic ServerFn contracts', () => {
       summary: 'Restored from revision dated 1970-01-01T00:00:01.000Z',
     })
   })
-  it.each([
+
+  test.each([
     [createWikiPage, { title: 'New', slug: 'new-page' }],
     [duplicateWikiPage, { slug: 'guide' }],
     [
@@ -414,22 +437,27 @@ describe('Wiki semantic ServerFn contracts', () => {
     ).toEqual({ title: 'Guide', content: 'Body', deleted_at: null, version: 0 })
     expect(test.invalidate).toHaveBeenCalledTimes(1)
   })
-  it.each(['public', 'pk'] as const)('does not grant browser mutation capabilities to %s principals', async (auth) => {
-    const test = await fixture({ auth })
-    expect(
-      await test.run(saveWikiPage, {
-        expectedDraftRevision: null,
-        workspaceSlug: 'team',
-        slug: 'guide',
-        title: 'New',
-        content: 'New',
-      }),
-    ).toMatchObject({ ok: false, status: 403 })
-    expect(
-      test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
-    ).toEqual({ content: 'Body' })
-  })
-  it('publishes canonical content through real commands and clears only the current user draft', async () => {
+
+  test.each(['public', 'pk'] as const)(
+    'does not grant browser mutation capabilities to %s principals',
+    async (auth) => {
+      const test = await fixture({ auth })
+      expect(
+        await test.run(saveWikiPage, {
+          expectedDraftRevision: null,
+          workspaceSlug: 'team',
+          slug: 'guide',
+          title: 'New',
+          content: 'New',
+        }),
+      ).toMatchObject({ ok: false, status: 403 })
+      expect(
+        test.sqlite.prepare("SELECT content FROM wiki_pages WHERE id = '00000000-0000-4000-8000-000000000001'").get(),
+      ).toEqual({ content: 'Body' })
+    },
+  )
+
+  test('publishes canonical content through real commands and clears only the current user draft', async () => {
     const test = await fixture()
     const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Wiki must not use HTTP'))
     expect(
@@ -468,7 +496,8 @@ describe('Wiki semantic ServerFn contracts', () => {
     expect(fetch).not.toHaveBeenCalled()
     expect(test.invalidate).toHaveBeenCalledTimes(2)
   })
-  it('moves, verifies, cascades trash and restores real wiki records', async () => {
+
+  test('moves, verifies, cascades trash and restores real wiki records', async () => {
     const test = await fixture({ role: 'owner' })
     expect(
       await test.run(createWikiPage, {
@@ -520,7 +549,8 @@ describe('Wiki semantic ServerFn contracts', () => {
       value: { ok: true, id: '00000000-0000-4000-8000-000000000001', slug: 'guide', restoredCount: 2 },
     })
   })
-  it('enforces actual mutation project permissions and workspace selectors', async () => {
+
+  test('enforces actual mutation project permissions and workspace selectors', async () => {
     const hidden = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002', inaccessible: true })
     expect(
       await hidden.run(saveWikiPage, {
@@ -550,7 +580,8 @@ describe('Wiki semantic ServerFn contracts', () => {
       }),
     ).toMatchObject({ ok: false, status: 403 })
   })
-  it('deletes visible attachment metadata and native R2 objects while hiding foreign and ungranted owners', async () => {
+
+  test('deletes visible attachment metadata and native R2 objects while hiding foreign and ungranted owners', async () => {
     const test = await fixture()
     test.sqlite.exec(
       "INSERT INTO attachments (id,workspace_id,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('mine','workspace','objects/mine','mine.txt','text/plain',4,'wiki_page','00000000-0000-4000-8000-000000000001','user',1),('foreign','foreign-workspace','objects/foreign','foreign.txt','text/plain',4,'wiki_page','foreign-page','user',1)",
@@ -577,7 +608,8 @@ describe('Wiki semantic ServerFn contracts', () => {
     })
     expect(hidden.sqlite.prepare('SELECT id FROM attachments').all()).toEqual([{ id: 'hidden' }])
   })
-  it('rejects mutually-exclusive template/content before reaching the request handler', async () => {
+
+  test('rejects mutually-exclusive template/content before reaching the request handler', async () => {
     const test = await fixture()
     await expect(
       test.run(createWikiPage, {

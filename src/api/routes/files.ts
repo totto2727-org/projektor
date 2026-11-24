@@ -2,13 +2,13 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { ValidationError } from '../../contracts/errors'
-import { SetAttachmentReviewStatusSchema } from '../../contracts/inputs/files'
-import { jsonBody } from '../http/body'
-import { coreFileRequest } from '../http/core-files'
-import { serviceErrToResponse } from '../http/error-adapter'
-import * as filesService from '../services/files'
-import { ctxFromHono } from '../services/types'
+import { ValidationError } from '../../contracts/errors.ts'
+import { SetAttachmentReviewStatusSchema } from '../../contracts/inputs/files.ts'
+import { jsonBody } from '../http/body.ts'
+import { coreFileRequest } from '../http/core-files.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import * as filesService from '../services/files.ts'
+import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
@@ -39,7 +39,9 @@ router.post('/', async (c) => {
 router.patch('/:id/review-status', async (c) => {
   try {
     const parsed = ReviewStatusBodySchema.safeParse(await jsonBody(c))
-    if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+    if (!parsed.success) {
+      throw new ValidationError(parsed.error.flatten())
+    }
     return c.json(
       await filesService.setAttachmentReviewStatus(ctxFromHono(c), {
         ...parsed.data,
@@ -59,7 +61,9 @@ router.get('/:id/metadata', async (c) => {
 })
 router.get('/:id', async (c) => {
   const response = await coreFileRequest(c, `/files/${encodeURIComponent(c.req.param('id'))}`)
-  if (!response.ok) return response
+  if (!response.ok) {
+    return response
+  }
   const contentType = response.headers.get('content-type') ?? 'application/octet-stream'
   let filename = 'attachment'
   try {

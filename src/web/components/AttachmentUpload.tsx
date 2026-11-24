@@ -1,8 +1,9 @@
 'use client'
 
-import { type FormEventHandler, type ReactNode, useActionState } from 'react'
+import { useActionState } from 'react'
+import type { FormEventHandler, ReactNode } from 'react'
 
-import { uploadAttachment } from '../attachment-actions'
+import { uploadAttachment } from '../attachment-actions.ts'
 
 export interface AttachmentUploadProps {
   workspaceSlug: string

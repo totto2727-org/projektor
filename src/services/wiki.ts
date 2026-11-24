@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
 
 /** Validated filters. Authorization predicates are supplied by the calling app. */
 export interface WikiScopeOptions {
@@ -75,26 +76,39 @@ function scopeConditions(workspaceId: string, opts: WikiScopeOptions, trash = fa
     const scope = opts.includeWorkspacePages
       ? or(eq(schema.wikiPages.projectId, opts.projectId), isNull(schema.wikiPages.projectId))
       : eq(schema.wikiPages.projectId, opts.projectId)
-    if (scope) conditions.push(scope)
+    if (scope) {
+      conditions.push(scope)
+    }
   }
-  if (opts.visibility) conditions.push(opts.visibility)
+  if (opts.visibility) {
+    conditions.push(opts.visibility)
+  }
   return conditions
 }
 
 export function listWikiPages(db: D1Database, workspaceId: string, opts: WikiListOptions = {}) {
   return queryEffect('listWikiPages', () => {
     const conditions = scopeConditions(workspaceId, opts)
-    if (opts.parentId) conditions.push(eq(schema.wikiPages.parentId, opts.parentId))
-    if (opts.type) conditions.push(eq(schema.wikiPages.type, opts.type))
-    if (opts.status) conditions.push(eq(schema.wikiPages.status, opts.status))
-    if (opts.tags?.length)
+    if (opts.parentId) {
+      conditions.push(eq(schema.wikiPages.parentId, opts.parentId))
+    }
+    if (opts.type) {
+      conditions.push(eq(schema.wikiPages.type, opts.type))
+    }
+    if (opts.status) {
+      conditions.push(eq(schema.wikiPages.status, opts.status))
+    }
+    if (opts.tags?.length) {
       conditions.push(
         sql`EXISTS (SELECT 1 FROM json_each(${schema.wikiPages.tags}) WHERE value IN (${sql.join(
           opts.tags.map((tag) => sql`${tag}`),
           sql`, `,
         )}))`,
       )
-    if (!opts.includeTemplates) conditions.push(eq(schema.wikiPages.isTemplate, false))
+    }
+    if (!opts.includeTemplates) {
+      conditions.push(eq(schema.wikiPages.isTemplate, false))
+    }
     return drizzle(db, { schema })
       .select(summaryColumns)
       .from(schema.wikiPages)
@@ -136,13 +150,17 @@ export function findWikiPage(db: D1Database, workspaceId: string, idOrSlug: stri
       )
       .orderBy(sql`CASE WHEN ${schema.wikiPages.id} = ${idOrSlug} THEN 0 ELSE 1 END`)
       .get()
-    if (direct) return direct
+    if (direct) {
+      return direct
+    }
     const redirect = await orm
       .select({ pageId: schema.wikiRedirects.pageId })
       .from(schema.wikiRedirects)
       .where(and(eq(schema.wikiRedirects.workspaceId, workspaceId), eq(schema.wikiRedirects.oldSlug, idOrSlug)))
       .get()
-    if (!redirect) return undefined
+    if (!redirect) {
+      return undefined
+    }
     // Existing detail contracts include version only on historical-slug fallback.
     return orm
       .select({ ...detailColumns, version: schema.wikiPages.version })
@@ -268,8 +286,12 @@ export function getLatestWikiRevisionId(db: D1Database, workspaceId: string, pag
 }
 
 function decodeJsonArrayColumn(value: unknown): string[] {
-  if (Array.isArray(value)) return value as string[]
-  if (typeof value !== 'string') return []
+  if (Array.isArray(value)) {
+    return value as string[]
+  }
+  if (typeof value !== 'string') {
+    return []
+  }
   try {
     const parsed: unknown = JSON.parse(value)
     return Array.isArray(parsed) ? parsed : []
@@ -280,7 +302,9 @@ function decodeJsonArrayColumn(value: unknown): string[] {
 /** FTS sanitization and permission decisions belong to the app. */
 export function searchWiki(db: D1Database, workspaceId: string, ftsQuery: string, opts: WikiSearchOptions) {
   return queryEffect('searchWiki', async () => {
-    if (!ftsQuery) return []
+    if (!ftsQuery) {
+      return []
+    }
     let q = `SELECT p.id, p.slug, p.title, p.project_id, p.type, p.tags, p.status, p.verified_at, p.verified_by, p.owners, p.verify_interval,
 		 snippet(wiki_fts, -1, '**', '**', '…', 24) as excerpt, bm25(wiki_fts, 0, 0, 10.0, 1.0, 5.0) as rank
 		 FROM wiki_fts JOIN wiki_pages p ON p.id = wiki_fts.page_id
@@ -403,15 +427,21 @@ function computeLineDiff(oldLines: readonly string[], newLines: readonly string[
 }
 
 export function buildUnifiedDiff(baseContent: string, currentContent: string): string {
-  if (baseContent === currentContent) return ''
+  if (baseContent === currentContent) {
+    return ''
+  }
   const ops = computeLineDiff(baseContent.split('\n'), currentContent.split('\n'))
   const CONTEXT = 3
   const changeIdxs = ops.reduce<number[]>((acc, op, idx) => {
-    if (op.type !== 'equal') acc.push(idx)
+    if (op.type !== 'equal') {
+      acc.push(idx)
+    }
     return acc
   }, [])
-  if (changeIdxs.length === 0) return ''
-  const groups: Array<[number, number]> = []
+  if (changeIdxs.length === 0) {
+    return ''
+  }
+  const groups: [number, number][] = []
   let groupStart = changeIdxs[0]
   let groupEnd = changeIdxs[0]
   for (const idx of changeIdxs.slice(1)) {
@@ -432,8 +462,12 @@ export function buildUnifiedDiff(baseContent: string, currentContent: string): s
     let oldStart = 1
     let newStart = 1
     for (let k = 0; k < sliceStart; k++) {
-      if (ops[k].type !== 'add') oldStart++
-      if (ops[k].type !== 'remove') newStart++
+      if (ops[k].type !== 'add') {
+        oldStart++
+      }
+      if (ops[k].type !== 'remove') {
+        newStart++
+      }
     }
     const oldCount = slice.filter((op) => op.type !== 'add').length
     const newCount = slice.filter((op) => op.type !== 'remove').length

@@ -1,15 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import {
   ensureUserProvisioned,
   forgetProvisionedForTests,
   provisionPublicViewer,
   resetProvisioningCacheForTests,
-} from '#commands/provisioning'
+} from '#commands/provisioning.ts'
 import type { Env } from '#types'
 
-import { env } from './fixture-api'
-import { seedMember, seedUser, seedWorkspace } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedMember, seedUser, seedWorkspace } from './helpers.ts'
 
 // PROJ-433: provisioning short-circuits on a cached marker, which is module state and
 // outlives an individual test. Clear it between cases, or a test asserting on
@@ -38,7 +38,7 @@ async function tombstoneRemoval(workspaceId: string, userId: string) {
 }
 
 describe('login provisioning', () => {
-  it('first admin login creates the default workspace and makes them owner', async () => {
+  test('first admin login creates the default workspace and makes them owner', async () => {
     const slug = 'prov-admin-create'
     const admin = await seedUser('admin-create@example.com')
 
@@ -56,7 +56,7 @@ describe('login provisioning', () => {
     expect(await memberRole(ws!.id, admin.id)).toBe('owner')
   })
 
-  it('non-admin auto-joins an existing workspace as viewer', async () => {
+  test('non-admin auto-joins an existing workspace as viewer', async () => {
     const slug = 'prov-viewer'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('viewer-join@example.com')
@@ -73,7 +73,7 @@ describe('login provisioning', () => {
     expect(await memberRole(ws.id, user.id)).toBe('viewer')
   })
 
-  it('non-admin logging in before any workspace exists gets nothing (no workspace, no membership)', async () => {
+  test('non-admin logging in before any workspace exists gets nothing (no workspace, no membership)', async () => {
     const slug = 'prov-not-yet'
     const user = await seedUser('early-bird@example.com')
 
@@ -90,7 +90,7 @@ describe('login provisioning', () => {
     expect(ws).toBeNull()
   })
 
-  it('AUTO_JOIN_ROLE=none leaves non-admins without a membership (invite-only)', async () => {
+  test('AUTO_JOIN_ROLE=none leaves non-admins without a membership (invite-only)', async () => {
     const slug = 'prov-invite-only'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('no-autojoin@example.com')
@@ -107,7 +107,7 @@ describe('login provisioning', () => {
     expect(await memberRole(ws.id, user.id)).toBeNull()
   })
 
-  it('PROJ-193: defaults to invite-only (no auto-join) when AUTO_JOIN_ROLE is unset', async () => {
+  test('PROJ-193: defaults to invite-only (no auto-join) when AUTO_JOIN_ROLE is unset', async () => {
     const slug = 'prov-default-invite-only'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('unset-autojoin@example.com')
@@ -124,7 +124,7 @@ describe('login provisioning', () => {
     expect(await memberRole(ws.id, user.id)).toBeNull()
   })
 
-  it('promotes an existing lower-role member to owner when they are now an admin', async () => {
+  test('promotes an existing lower-role member to owner when they are now an admin', async () => {
     const slug = 'prov-promote'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('promote-me@example.com')
@@ -142,7 +142,7 @@ describe('login provisioning', () => {
     expect(await memberRole(ws.id, user.id)).toBe('owner')
   })
 
-  it('confines a non-admin to the workspace mapped to their email domain (not the default)', async () => {
+  test('confines a non-admin to the workspace mapped to their email domain (not the default)', async () => {
     const mappedWs = await seedWorkspace('prov-mapped')
     const defaultWs = await seedWorkspace('prov-default-1')
     const user = await seedUser('colleague@example.com')
@@ -162,7 +162,7 @@ describe('login provisioning', () => {
     expect(await memberRole(defaultWs.id, user.id)).toBeNull()
   })
 
-  it('an admin in a mapped domain owns default + mapped workspace (ADMIN_EMAILS beats confinement)', async () => {
+  test('an admin in a mapped domain owns default + mapped workspace (ADMIN_EMAILS beats confinement)', async () => {
     const mappedWs = await seedWorkspace('prov-mapped-2')
     const defaultWs = await seedWorkspace('prov-default-2')
     const admin = await seedUser('tajd@example.com')
@@ -182,7 +182,7 @@ describe('login provisioning', () => {
     expect(await memberRole(mappedWs.id, admin.id)).toBe('owner')
   })
 
-  it('an admin is made owner of every existing workspace on login, not just the default', async () => {
+  test('an admin is made owner of every existing workspace on login, not just the default', async () => {
     const defaultWs = await seedWorkspace('prov-own-all-default')
     const wsA = await seedWorkspace('prov-own-all-a')
     const wsB = await seedWorkspace('prov-own-all-b')
@@ -204,7 +204,7 @@ describe('login provisioning', () => {
     expect(await memberRole(wsB.id, admin.id)).toBe('owner')
   })
 
-  it('matches ADMIN_EMAILS case-insensitively', async () => {
+  test('matches ADMIN_EMAILS case-insensitively', async () => {
     const slug = 'prov-case'
     const user = await seedUser('mixed-case@example.com')
 
@@ -227,7 +227,7 @@ describe('login provisioning', () => {
 // respect it across all three re-add paths, without affecting workspaces the user wasn't
 // removed from.
 describe('PROJ-436: removal tombstone', () => {
-  it('a tombstoned admin is not re-owned of that workspace, but still owns others', async () => {
+  test('a tombstoned admin is not re-owned of that workspace, but still owns others', async () => {
     const removedFrom = await seedWorkspace('prov-436-admin-removed')
     const stillOwns = await seedWorkspace('prov-436-admin-other')
     const admin = await seedUser('removed-admin@example.com')
@@ -246,7 +246,7 @@ describe('PROJ-436: removal tombstone', () => {
     expect(await memberRole(stillOwns.id, admin.id)).toBe('owner')
   })
 
-  it('a tombstoned user is not auto-rejoined to the default workspace', async () => {
+  test('a tombstoned user is not auto-rejoined to the default workspace', async () => {
     const slug = 'prov-436-autojoin-removed'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('removed-viewer@example.com')
@@ -264,7 +264,7 @@ describe('PROJ-436: removal tombstone', () => {
     expect(await memberRole(ws.id, user.id)).toBeNull()
   })
 
-  it("a tombstoned user is not re-mapped into their domain's workspace", async () => {
+  test("a tombstoned user is not re-mapped into their domain's workspace", async () => {
     const mappedWs = await seedWorkspace('prov-436-domain-removed')
     const user = await seedUser('removed-colleague@example.com')
     await tombstoneRemoval(mappedWs.id, user.id)
@@ -294,7 +294,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
       .run()
   }
 
-  it('does not re-run for a user it has already provisioned', async () => {
+  test('does not re-run for a user it has already provisioned', async () => {
     const slug = 'prov-cache-hit'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('cache-hit@example.com')
@@ -314,7 +314,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
     expect(await memberRole(ws.id, user.id)).toBeNull()
   })
 
-  it('re-runs once the marker is gone', async () => {
+  test('re-runs once the marker is gone', async () => {
     const slug = 'prov-cache-expiry'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('cache-expiry@example.com')
@@ -333,7 +333,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
     expect(await memberRole(ws.id, user.id)).toBe('viewer')
   })
 
-  it('re-runs safely when the provisioned-marker read fails, instead of throwing', async () => {
+  test('re-runs safely when the provisioned-marker read fails, instead of throwing', async () => {
     const slug = 'prov-kv-read-fail'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('kv-read-fail@example.com')
@@ -358,7 +358,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
   })
 
   // yet — that user would then stay unprovisioned for the whole TTL after bootstrap.
-  it('does not cache a run that bailed waiting for the default workspace', async () => {
+  test('does not cache a run that bailed waiting for the default workspace', async () => {
     const slug = 'prov-cache-early-bird'
     const user = await seedUser('cache-early-bird@example.com')
     const config = envWith({
@@ -375,7 +375,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
     expect(await memberRole(ws.id, user.id)).toBe('viewer')
   })
 
-  it('caches the public viewer too', async () => {
+  test('caches the public viewer too', async () => {
     const slug = 'prov-cache-public'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('cache-public@projektor.local')
@@ -408,7 +408,7 @@ function countingDb(db: D1Database) {
 }
 
 describe('PROJ-433: provisioning query count', () => {
-  it('costs one query for an already-owning admin, regardless of workspace count', async () => {
+  test('costs one query for an already-owning admin, regardless of workspace count', async () => {
     const admin = await seedUser('count-admin@example.com')
     const slug = 'prov-count-default'
     for (const s of [slug, 'prov-count-a', 'prov-count-b', 'prov-count-c']) {
@@ -433,7 +433,7 @@ describe('PROJ-433: provisioning query count', () => {
     expect(counts.prepare).toBe(1)
   })
 
-  it('costs nothing at all once the user is cached', async () => {
+  test('costs nothing at all once the user is cached', async () => {
     const admin = await seedUser('count-admin-warm@example.com')
     const ws = await seedWorkspace('prov-count-warm')
     await seedMember(ws.id, admin.id, 'owner')
@@ -455,7 +455,7 @@ describe('PROJ-433: provisioning query count', () => {
 // middleware/auth.ts's PUBLIC_READ_ONLY path. HTTP-level behavior (auth fallback
 // order, 401 when off) is covered in auth.test.ts.
 describe('public viewer provisioning (PROJ-373)', () => {
-  it('joins the default workspace as viewer', async () => {
+  test('joins the default workspace as viewer', async () => {
     const slug = 'prov-public-viewer'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('public-viewer@projektor.local')
@@ -465,7 +465,7 @@ describe('public viewer provisioning (PROJ-373)', () => {
     expect(await memberRole(ws.id, user.id)).toBe('viewer')
   })
 
-  it('is a no-op until the default workspace is bootstrapped', async () => {
+  test('is a no-op until the default workspace is bootstrapped', async () => {
     const user = await seedUser('public-viewer-early@projektor.local')
 
     await provisionPublicViewer(envWith({ DEFAULT_WORKSPACE_SLUG: 'prov-public-viewer-not-yet' }), user)
@@ -476,7 +476,7 @@ describe('public viewer provisioning (PROJ-373)', () => {
     expect(ws).toBeNull()
   })
 
-  it('never promotes an existing membership above viewer (idempotent, not privilege-escalating)', async () => {
+  test('never promotes an existing membership above viewer (idempotent, not privilege-escalating)', async () => {
     const slug = 'prov-public-viewer-existing-owner'
     const ws = await seedWorkspace(slug)
     const user = await seedUser('public-viewer-owner@projektor.local')

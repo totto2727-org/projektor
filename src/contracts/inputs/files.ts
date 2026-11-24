@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { REVIEW_STATUSES } from '../review-targets'
+import { REVIEW_STATUSES } from '../review-targets.ts'
 
 export const EntityTypeSchema = z.enum(['issue', 'wiki_page'])
 

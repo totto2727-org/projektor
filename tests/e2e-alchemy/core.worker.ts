@@ -3,7 +3,7 @@ import { WorkerEntrypoint } from 'cloudflare:workers'
 import migrations from 'virtual:fixture-migrations'
 import entrypoint from 'virtual:production-core-entrypoint'
 
-import type { CoreEnvironment } from '../../src/core/environment'
+import type { CoreEnvironment } from '../../src/core/environment.ts'
 
 // Use the configured production module's default export, just like Alchemy's bundler.
 const NativeCore = makeWorkerBridge(WorkerEntrypoint, {
@@ -14,6 +14,7 @@ const NativeCore = makeWorkerBridge(WorkerEntrypoint, {
 let initializing: Promise<{ migrations: number }> | undefined
 
 /** Acceptance-only entrypoint. Production Core never imports or applies migrations. */
+// oxlint-disable-next-line import/no-default-export -- Workerd loads the test Core service class from the default export.
 export default class FixtureCore extends NativeCore {
   declare readonly env: CoreEnvironment
   async initializeFixture(): Promise<{ migrations: number }> {
@@ -41,12 +42,16 @@ export default class FixtureCore extends NativeCore {
     const history = new Map(applied.results.map((row) => [row.name, row.hash]))
     const known = new Set(migrations.map((migration) => migration.name))
     for (const name of history.keys()) {
-      if (!known.has(name)) throw new Error(`Unknown fixture migration history: ${name}`)
+      if (!known.has(name)) {
+        throw new Error(`Unknown fixture migration history: ${name}`)
+      }
     }
     for (const migration of migrations) {
       const previous = history.get(migration.name)
       if (previous !== undefined) {
-        if (previous !== migration.hash) throw new Error(`Changed fixture migration history: ${migration.name}`)
+        if (previous !== migration.hash) {
+          throw new Error(`Changed fixture migration history: ${migration.name}`)
+        }
         continue
       }
       // D1 batches commit each migration and its ledger row together or roll both back.

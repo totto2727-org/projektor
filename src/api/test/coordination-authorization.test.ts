@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { listMessages, postMessage } from '#commands/agent-messages'
-import { registerAgent } from '#commands/agents'
-import { claimFiles, releaseFiles } from '#commands/file-claims'
-import { claimIssue, releaseIssue } from '#commands/issue-leases'
-import type { ServiceCtx } from '#commands/types'
+import { listMessages, postMessage } from '#commands/agent-messages.ts'
+import { registerAgent } from '#commands/agents.ts'
+import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
+import { claimIssue, releaseIssue } from '#commands/issue-leases.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { env } from './fixture-api'
-import { seedFixture, seedGroupGrant, seedIssue, seedProject } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedFixture, seedGroupGrant, seedIssue, seedProject } from './helpers.ts'
 
 async function fixture() {
   const f = await seedFixture({ role: 'member' })
@@ -25,7 +25,7 @@ async function fixture() {
 }
 
 describe('coordination project authorization', () => {
-  it('does not expose or displace a hidden project claim through a visible issue', async () => {
+  test('does not expose or displace a hidden project claim through a visible issue', async () => {
     const f = await fixture()
     await seedGroupGrant(f.workspace.id, f.user.id, f.project.id, 'member')
     const hiddenProject = await seedProject(f.workspace.id, 'HIDDEN')
@@ -51,7 +51,7 @@ describe('coordination project authorization', () => {
     ).toMatchObject({ n: 0 })
   })
 
-  it('rejects hidden project coordination before any side effect', async () => {
+  test('rejects hidden project coordination before any side effect', async () => {
     const f = await fixture()
     const actions = [
       () => registerAgent(f.ctx, { name: 'agent', issueId: f.issue.id }),
@@ -62,7 +62,9 @@ describe('coordination project authorization', () => {
       () => postMessage(f.ctx, { scope: `issue:${f.issue.id}`, body: 'secret' }),
       () => listMessages(f.ctx, { scope: `issue:${f.issue.id}` }),
     ]
-    for (const action of actions) await expect(action()).rejects.toMatchObject({ kind: 'not_found' })
+    for (const action of actions) {
+      await expect(action()).rejects.toMatchObject({ kind: 'not_found' })
+    }
     for (const table of ['agent_sessions', 'issue_leases', 'issue_file_claims', 'agent_messages']) {
       expect(
         await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE workspace_id = ?`).bind(f.workspace.id).first(),
@@ -70,7 +72,7 @@ describe('coordination project authorization', () => {
     }
   })
 
-  it('lets a workspace viewer use an effective member grant, then blocks mutations after downgrade', async () => {
+  test('lets a workspace viewer use an effective member grant, then blocks mutations after downgrade', async () => {
     const f = await fixture()
     await seedGroupGrant(f.workspace.id, f.user.id, f.project.id, 'member')
     f.ctx.role = 'viewer'

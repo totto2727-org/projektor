@@ -1,17 +1,19 @@
 import { Effect } from 'effect'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { ForbiddenError, NotFoundError, ValidationError } from '#commands/errors'
-import { setAttachmentReviewStatus } from '#commands/files'
-import { updateIssue } from '#commands/issues'
-import type { ServiceCtx } from '#commands/types'
+import { ForbiddenError, NotFoundError, ValidationError } from '#commands/errors.ts'
+import { setAttachmentReviewStatus } from '#commands/files.ts'
+import { updateIssue } from '#commands/issues.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { createTestDatabase } from '../../web/test/database'
-import { findAttachment, listIssueReviewTargets } from '../files'
+import { createTestDatabase } from '../../web/test/database.ts'
+import { findAttachment, listIssueReviewTargets } from '../files.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 function fixture() {
@@ -56,7 +58,7 @@ function fixture() {
 }
 
 describe('issue attachment review target storage and authorization', () => {
-  it('defaults existing metadata to null and persists every review state, then removes selection', async () => {
+  test('defaults existing metadata to null and persists every review state, then removes selection', async () => {
     const f = fixture()
     expect(await Effect.runPromise(findAttachment(f.db, 'w', 'a'))).toMatchObject({ reviewStatus: null })
     for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
@@ -66,7 +68,7 @@ describe('issue attachment review target storage and authorization', () => {
     expect(await Effect.runPromise(listIssueReviewTargets(f.db, 'w', ['i']))).toEqual(new Map())
   })
 
-  it('includes selected file and URL targets only and prioritizes in-review before creation/id order', async () => {
+  test('includes selected file and URL targets only and prioritizes in-review before creation/id order', async () => {
     const f = fixture()
     await f.set('a', 'fixing')
     await f.set('b', 'in_review')
@@ -87,7 +89,7 @@ describe('issue attachment review target storage and authorization', () => {
     ).toEqual(['a', 'b'])
   })
 
-  it.each([
+  test.each([
     ['wiki', 'i'],
     ['page', 'i'],
     ['a', 'sibling'],
@@ -102,7 +104,7 @@ describe('issue attachment review target storage and authorization', () => {
     })
   })
 
-  it('rejects archived project mutations even for workspace admins', async () => {
+  test('rejects archived project mutations even for workspace admins', async () => {
     const f = fixture()
     f.ctx.role = 'owner'
     f.sqlite.exec("UPDATE projects SET archived_at=2 WHERE id='p'")
@@ -110,7 +112,7 @@ describe('issue attachment review target storage and authorization', () => {
     expect(await Effect.runPromise(findAttachment(f.db, 'w', 'a'))).toMatchObject({ reviewStatus: null })
   })
 
-  it('rechecks current grants and forbids project viewers', async () => {
+  test('rechecks current grants and forbids project viewers', async () => {
     const f = fixture()
     f.sqlite.exec("UPDATE group_project_grants SET role='viewer'")
     await expect(f.set('a', 'fixing')).rejects.toBeInstanceOf(ForbiddenError)
@@ -118,7 +120,7 @@ describe('issue attachment review target storage and authorization', () => {
     await expect(f.set('a', 'fixing')).rejects.toBeInstanceOf(NotFoundError)
   })
 
-  it('rejects malformed review states and enforces storage eligibility', async () => {
+  test('rejects malformed review states and enforces storage eligibility', async () => {
     const f = fixture()
     await expect(f.set('a', 'review')).rejects.toBeInstanceOf(ValidationError)
     expect(() => f.sqlite.exec("UPDATE attachments SET review_status='fixing' WHERE id='wiki'")).toThrow()
@@ -126,7 +128,7 @@ describe('issue attachment review target storage and authorization', () => {
     expect(() => f.sqlite.exec("UPDATE attachments SET review_status='review' WHERE id='a'")).toThrow()
   })
 
-  it.each(['done', 'cancelled'] as const)(
+  test.each(['done', 'cancelled'] as const)(
     'synchronizes selected targets when their owning issue becomes %s',
     async (status) => {
       const f = fixture()
@@ -153,7 +155,7 @@ describe('issue attachment review target storage and authorization', () => {
     },
   )
 
-  it('closes review targets for custom done categories but leaves open status updates alone', async () => {
+  test('closes review targets for custom done categories but leaves open status updates alone', async () => {
     const f = fixture()
     const statusId = crypto.randomUUID()
     f.sqlite
@@ -168,21 +170,27 @@ describe('issue attachment review target storage and authorization', () => {
     expect(await Effect.runPromise(findAttachment(f.db, 'w', 'a'))).toMatchObject({ reviewStatus: 'done' })
   })
 
-  it('keeps batched lookup below the D1 parameter ceiling and deduplicates issue ids', async () => {
+  test('keeps batched lookup below the D1 parameter ceiling and deduplicates issue ids', async () => {
     const f = fixture()
     await f.set('a', 'fixing')
     const bindings: number[] = []
     const bounded = new Proxy(f.db, {
       get(target, key, receiver) {
-        if (key !== 'prepare') return Reflect.get(target, key, receiver)
+        if (key !== 'prepare') {
+          return Reflect.get(target, key, receiver)
+        }
         return (query: string) => {
           const statement = target.prepare(query)
           return new Proxy(statement, {
             get(prepared, method, preparedReceiver) {
-              if (method !== 'bind') return Reflect.get(prepared, method, preparedReceiver)
+              if (method !== 'bind') {
+                return Reflect.get(prepared, method, preparedReceiver)
+              }
               return (...values: unknown[]) => {
                 bindings.push(values.length)
-                if (values.length > 100) throw new Error('D1 parameter budget exceeded')
+                if (values.length > 100) {
+                  throw new Error('D1 parameter budget exceeded')
+                }
                 return prepared.bind(...values)
               }
             },

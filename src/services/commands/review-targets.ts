@@ -1,4 +1,4 @@
-import type { ServiceCtx } from './types'
+import type { ServiceCtx } from './types.ts'
 
 export function buildCloseIssueReviewTargetsStatement(
   ctx: ServiceCtx,

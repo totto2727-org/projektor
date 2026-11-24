@@ -4,9 +4,9 @@ import {
   CreatedIssueSchema,
   CreatedLinkAttachmentSchema,
   ShareTokenSchema,
-} from '../../../core/web/command-contract'
-import { coreResult } from '../../core'
-import type { BrowserCommandClient } from '../../server/browser-command'
+} from '../../../core/web/command-contract.ts'
+import { coreResult } from '../../core.ts'
+import type { BrowserCommandClient } from '../../server/browser-command.ts'
 
 export const issues = {
   createIssue: ({ core, proof }: BrowserCommandClient, input: unknown) =>

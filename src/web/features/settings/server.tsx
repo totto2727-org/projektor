@@ -1,15 +1,15 @@
 import { Effect, Schema } from 'effect'
 
-import { browserRequest, coreResult } from '../../core'
-import { RequestServices } from '../../request'
-import { runBrowserCommand } from '../../server/browser-command'
-import { requireDataWorkspace } from '../../server/data-context'
-import { ScopeError } from '../../server/errors'
-import type { RequestScope, WorkspaceMembership } from '../../server/request-context'
-import { GroupViewSchema } from './input-schemas'
-import { ConnectorsSchema, McpInfoSchema, SettingsGroupsSchema, SettingsTokensSchema } from './schemas'
-import type { ConnectorGrant, Token } from './types'
-import { ConnectAgentGuide, ConnectorManager, GroupManager, TokenManager } from './widgets'
+import { browserRequest, coreResult } from '../../core.ts'
+import { RequestServices } from '../../request.ts'
+import { runBrowserCommand } from '../../server/browser-command.ts'
+import { requireDataWorkspace } from '../../server/data-context.ts'
+import { ScopeError } from '../../server/errors.ts'
+import type { RequestScope, WorkspaceMembership } from '../../server/request-context.ts'
+import { GroupViewSchema } from './input-schemas.ts'
+import { ConnectorsSchema, McpInfoSchema, SettingsGroupsSchema, SettingsTokensSchema } from './schemas.ts'
+import type { ConnectorGrant, Token } from './types.ts'
+import { ConnectAgentGuide, ConnectorManager, GroupManager, TokenManager } from './widgets.tsx'
 
 const choose = (scope: RequestScope): WorkspaceMembership | null =>
   scope.selection.kind === 'workspace' || scope.selection.kind === 'project' ? scope.selection.workspace : null
@@ -86,7 +86,9 @@ function TokenSettings({
 export function renderGroups(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
-    if (!workspace) return <p className='text-text-muted'>Select a workspace to manage groups.</p>
+    if (!workspace) {
+      return <p className='text-text-muted'>Select a workspace to manage groups.</p>
+    }
     yield* selected(scope)
     const view = yield* Schema.decodeUnknownEffect(GroupViewSchema)(url.searchParams.get('view') ?? 'groups').pipe(
       Effect.mapError(() => new ScopeError(400, 'Invalid groups view.')),
@@ -124,7 +126,9 @@ export function renderGroups(scope: RequestScope, url: URL) {
 export function renderTokens(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
-    if (!workspace) return <p className='text-text-muted'>Select a workspace to manage tokens.</p>
+    if (!workspace) {
+      return <p className='text-text-muted'>Select a workspace to manage tokens.</p>
+    }
     yield* selected(scope)
     const data = yield* runBrowserCommand({ scope, workspaceSlug: workspace.slug }, (client) =>
       coreResult(SettingsTokensSchema, client.core.webSettingsTokens(client.proof)),
@@ -165,7 +169,9 @@ export function renderTokens(scope: RequestScope, _url: URL) {
 export function renderConnectAgent(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
-    if (!workspace) return <p className='text-text-muted'>Select a workspace to connect an agent.</p>
+    if (!workspace) {
+      return <p className='text-text-muted'>Select a workspace to connect an agent.</p>
+    }
     const info = yield* runBrowserCommand({ scope, workspaceSlug: workspace.slug }, (client) =>
       coreResult(McpInfoSchema, client.core.webSettingsMcp(client.proof)),
     ).pipe(Effect.catch(() => Effect.succeed(null)))
@@ -175,7 +181,9 @@ export function renderConnectAgent(scope: RequestScope, _url: URL) {
 export function renderConnectors(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
-    if (!workspace) return <p className='text-text-muted'>Select a workspace to manage connectors.</p>
+    if (!workspace) {
+      return <p className='text-text-muted'>Select a workspace to manage connectors.</p>
+    }
     const grants = yield* runBrowserCommand({ scope, workspaceSlug: workspace.slug }, (client) =>
       coreResult(ConnectorsSchema, client.core.webSettingsConnectors(client.proof)),
     )

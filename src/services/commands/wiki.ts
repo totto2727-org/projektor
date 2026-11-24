@@ -2,9 +2,9 @@ import { and, asc, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-
 import { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
-import * as wikiData from '#services/wiki'
+import * as wikiData from '#services/wiki.ts'
 
-import { IdSchema } from '../../contracts/inputs/common'
+import { IdSchema } from '../../contracts/inputs/common.ts'
 import {
   CreatePageSchema,
   DeleteWikiPageOptionsSchema,
@@ -12,15 +12,15 @@ import {
   ListStaleWikiPagesInputSchema,
   ListWikiTemplatesInputSchema,
   ListWikiTrashInputSchema,
-  type PatchWikiPageInput,
   PatchWikiPageInputSchema,
   SearchWikiInputSchema,
   SlugSchema,
   UpdatePageSchema,
   WikiRevisionDiffInputSchema,
   WikiTreeInputSchema,
-} from '../../contracts/inputs/wiki'
-import { wikiPagePath } from '../../contracts/urls'
+} from '../../contracts/inputs/wiki.ts'
+import type { PatchWikiPageInput } from '../../contracts/inputs/wiki.ts'
+import { wikiPagePath } from '../../contracts/urls.ts'
 import {
   assertProjectAccess,
   effectiveProjectRole,
@@ -28,20 +28,20 @@ import {
   isWorkspaceAdmin,
   visibleProjectPredicate,
   visibleProjectSqlFragment,
-} from './access'
-import { recordActivity } from './activity'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { inChunks, prepareQuery, sanitizeFtsQuery } from './sql'
-import type { ServiceCtx } from './types'
-import { deleteWikiDraftsForPages } from './wiki-drafts'
-import { computeFreshness } from './wiki-freshness'
+} from './access.ts'
+import { recordActivity } from './activity.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { inChunks, prepareQuery, sanitizeFtsQuery } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
+import { deleteWikiDraftsForPages } from './wiki-drafts.ts'
+import { computeFreshness } from './wiki-freshness.ts'
 import {
   parseWikiFrontmatter,
   setWikiFrontmatterFields,
   stampWikiFrontmatterVerification,
   stripTemplateFlag,
-  type WikiFrontmatterMeta,
-} from './wiki-frontmatter'
+} from './wiki-frontmatter.ts'
+import type { WikiFrontmatterMeta } from './wiki-frontmatter.ts'
 import {
   backlinksForResolvedPage,
   buildResolveIncomingLinksStatement,
@@ -52,10 +52,10 @@ import {
   foldWikiTitle,
   healTitleFolds,
   repointIncomingLinks,
-  type WikiBacklink,
-} from './wiki-links'
-import { idFirst, idOrSlugMatch, isIdShapedSlug, WIKI_MAX_NESTING_DEPTH } from './wiki-lookup'
-import { deleteWikiWatchersForPages, notifyCascadeDescendantWatchers, notifyWikiWatchers } from './wiki-watchers'
+} from './wiki-links.ts'
+import type { WikiBacklink } from './wiki-links.ts'
+import { idFirst, idOrSlugMatch, isIdShapedSlug, WIKI_MAX_NESTING_DEPTH } from './wiki-lookup.ts'
+import { deleteWikiWatchersForPages, notifyCascadeDescendantWatchers, notifyWikiWatchers } from './wiki-watchers.ts'
 
 type TreeNode = {
   id: string
@@ -70,7 +70,9 @@ type TreeNode = {
 // sees it) or project-scoped (visible only when the project is granted). Writes to
 // a project-scoped page need a member/admin grant; deletes need admin.
 async function assertWikiPageVisible(ctx: ServiceCtx, projectId: string | null): Promise<void> {
-  if (projectId === null) return
+  if (projectId === null) {
+    return
+  }
   // projectId comes from a wiki_pages row already loaded under ctx.workspaceId.
   await assertProjectAccess(ctx, projectId, 'read', {
     notFoundMessage: 'Wiki page not found',
@@ -80,7 +82,9 @@ async function assertWikiPageVisible(ctx: ServiceCtx, projectId: string | null):
 
 async function requireWikiWrite(ctx: ServiceCtx, projectId: string | null): Promise<void> {
   if (projectId === null) {
-    if (ctx.role === 'viewer') throw new ForbiddenError('Insufficient permissions')
+    if (ctx.role === 'viewer') {
+      throw new ForbiddenError('Insufficient permissions')
+    }
     return
   }
   // PROJ-389/837: the guard confirms projectId belongs to this workspace BEFORE the
@@ -223,7 +227,9 @@ async function resolvePageByIdOrSlug(
     )
     .orderBy(idFirst(idOrSlug))
     .get()
-  if (direct) return direct
+  if (direct) {
+    return direct
+  }
   // PROJ-483: fall back to a redirect (old slug -> page id) so operations other
   // than getWikiPage also resolve a renamed page's previous slug rather than 404ing.
   const redirected = await resolveWikiPageByRedirect(orm, workspaceId, idOrSlug)
@@ -291,9 +297,13 @@ async function validateParentDepth(
       .prepare('SELECT parent_id FROM wiki_pages WHERE id = ? AND workspace_id = ?')
       .bind(cur, workspaceId)
       .first<{ parent_id: string | null }>()
-    if (!row?.parent_id) break
+    if (!row?.parent_id) {
+      break
+    }
     const pid = row.parent_id
-    if (seen.has(pid)) break
+    if (seen.has(pid)) {
+      break
+    }
     seen.add(pid)
     if (forbidPageId && pid === forbidPageId) {
       throw new ValidationError({
@@ -410,9 +420,15 @@ function buildWikiPageUpdateSet(
     setData.title = fields.title
     setData.titleFold = foldWikiTitle(fields.title) // PROJ-818
   }
-  if (fields.content !== undefined) setData.content = fields.content
-  if (fields.parentId !== undefined) setData.parentId = fields.parentId
-  if (fields.slug !== undefined) setData.slug = fields.slug
+  if (fields.content !== undefined) {
+    setData.content = fields.content
+  }
+  if (fields.parentId !== undefined) {
+    setData.parentId = fields.parentId
+  }
+  if (fields.slug !== undefined) {
+    setData.slug = fields.slug
+  }
   // PROJ-488: only reparsed (and only overwritten) when content changes — a
   // title/parent/slug-only update leaves the page's existing frontmatter metadata as-is.
   if (fields.meta !== undefined) {
@@ -441,8 +457,12 @@ function buildWikiPageUpdateDiff(
   }>,
 ): Record<string, unknown> {
   const diff: Record<string, unknown> = {}
-  if (fields.title !== undefined) diff.title = fields.title
-  if (fields.content !== undefined) diff.contentChanged = true
+  if (fields.title !== undefined) {
+    diff.title = fields.title
+  }
+  if (fields.content !== undefined) {
+    diff.contentChanged = true
+  }
   return diff
 }
 
@@ -454,7 +474,9 @@ function wikiReadVisibility(ctx: ServiceCtx) {
 
 export async function listWikiPages(ctx: ServiceCtx, input: unknown) {
   const parsed = ListPagesInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const rows = await Effect.runPromise(
     wikiData.listWikiPages(ctx.db, ctx.workspaceId, {
       ...parsed.data,
@@ -466,11 +488,17 @@ export async function listWikiPages(ctx: ServiceCtx, input: unknown) {
 
 export async function searchWiki(ctx: ServiceCtx, input: unknown) {
   const parsed = SearchWikiInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { query, projectId, includeWorkspacePages } = parsed.data
   const ftsQuery = sanitizeFtsQuery(query)
-  if (!ftsQuery) return []
-  if (projectId && !includeWorkspacePages && !(await hasProjectAccess(ctx, projectId))) return []
+  if (!ftsQuery) {
+    return []
+  }
+  if (projectId && !includeWorkspacePages && !(await hasProjectAccess(ctx, projectId))) {
+    return []
+  }
   const now = Math.floor(Date.now() / 1000)
   const visible = !projectId || includeWorkspacePages ? visibleProjectSqlFragment(ctx, 'p.project_id') : undefined
   const rows = await Effect.runPromise(
@@ -524,7 +552,9 @@ async function resolveWikiPageByRedirect(
     .from(schema.wikiRedirects)
     .where(and(eq(schema.wikiRedirects.workspaceId, workspaceId), eq(schema.wikiRedirects.oldSlug, oldSlug)))
     .get()
-  if (!redirect) return undefined
+  if (!redirect) {
+    return undefined
+  }
   return orm
     .select({ ...wikiPageDetailColumns, version: schema.wikiPages.version })
     .from(schema.wikiPages)
@@ -543,7 +573,9 @@ async function resolveWikiPageByRedirect(
 
 export async function getWikiPage(ctx: ServiceCtx, slugOrId: string) {
   const page = await Effect.runPromise(wikiData.findWikiPage(ctx.db, ctx.workspaceId, slugOrId))
-  if (!page) throw new NotFoundError('Wiki page not found')
+  if (!page) {
+    throw new NotFoundError('Wiki page not found')
+  }
   await assertWikiPageVisible(ctx, page.project_id)
   return {
     ...page,
@@ -579,14 +611,16 @@ export async function getWikiBacklinks(ctx: ServiceCtx, slugOrId: string): Promi
     .orderBy(idFirst(slugOrId))
     .get()
   const page = direct ?? (await resolveWikiPageByRedirect(orm, ctx.workspaceId, slugOrId))
-  if (!page) throw new NotFoundError('Wiki page not found')
+  if (!page) {
+    throw new NotFoundError('Wiki page not found')
+  }
   await assertWikiPageVisible(ctx, page.project_id)
   return backlinksForResolvedPage(ctx, { id: page.id })
 }
 
 // PROJ-485: re-exported so routes/wiki.ts and mcp/wiki.ts only need to import from this
 // module, matching every other domain function's entry point.
-export { backfillWikiLinks, listBrokenWikiLinks } from './wiki-links'
+export { backfillWikiLinks, listBrokenWikiLinks } from './wiki-links.ts'
 
 // PROJ-491 (R9): resolves create_wiki_page's `templateSlug` to seed content — the target
 // must exist and carry frontmatter `template: true`, or this throws a ValidationError
@@ -624,7 +658,9 @@ async function resolveTemplateContent(ctx: ServiceCtx, templateSlug: string): Pr
 // by SlugSchema) remains the actual display name.
 function deriveSlugFromTitle(title: string): string {
   const derivedSlug = SlugSchema.safeParse(slugify(title))
-  if (!derivedSlug.success) return `page-${crypto.randomUUID().slice(0, 8)}`
+  if (!derivedSlug.success) {
+    return `page-${crypto.randomUUID().slice(0, 8)}`
+  }
   // PROJ-811/812: a title that derives a reserved or id-shaped slug gets a suffix
   // instead (a page titled "Search" becomes search-page), so it stays loadable.
   const needsSuffix = RESERVED_WIKI_SLUGS.has(derivedSlug.data) || isIdShapedSlug(derivedSlug.data)
@@ -717,18 +753,24 @@ async function finalizeWikiPageCreate(
 
 export async function createWikiPage(ctx: ServiceCtx, input: unknown) {
   const parsed = CreatePageSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { title, projectId, slug: customSlug, templateSlug } = parsed.data
   const parentId = parsed.data.parentId ?? null
   const resolvedProjectId = projectId ?? null
 
   await requireWikiWrite(ctx, resolvedProjectId)
-  if (parentId) await validateNewPageParent(ctx.db, parentId, ctx.workspaceId, projectId)
+  if (parentId) {
+    await validateNewPageParent(ctx.db, parentId, ctx.workspaceId, projectId)
+  }
 
   const content = templateSlug ? await resolveTemplateContent(ctx, templateSlug) : (parsed.data.content ?? '')
 
   const orm = drizzle(ctx.db, { schema })
-  if (customSlug !== undefined) assertSlugNotIdShaped(customSlug)
+  if (customSlug !== undefined) {
+    assertSlugNotIdShaped(customSlug)
+  }
   const slug = customSlug ?? deriveSlugFromTitle(title)
   await assertSlugAvailable(orm, ctx.workspaceId, slug)
   const id = crypto.randomUUID()
@@ -833,7 +875,9 @@ async function batchGuarded(
   try {
     await ctx.db.batch([staleWriteGuard(ctx, page), ...statements])
   } catch (e) {
-    if (isStaleWriteError(e)) throw new StaleWikiWriteError()
+    if (isStaleWriteError(e)) {
+      throw new StaleWikiWriteError()
+    }
     throw e
   }
 }
@@ -899,7 +943,9 @@ async function assertRevisionBelongsToPage(
   pageId: string,
   baseRevisionId: string | null,
 ): Promise<void> {
-  if (baseRevisionId === null) return
+  if (baseRevisionId === null) {
+    return
+  }
   const baseRow = await db
     .prepare('SELECT id FROM wiki_revisions WHERE id = ? AND page_id = ?')
     .bind(baseRevisionId, pageId)
@@ -928,7 +974,7 @@ function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: u
 export function newSearchRowid(): number {
   const [hi, lo] = crypto.getRandomValues(new Uint32Array(2))
   // 20 + 32 = 52 random bits; + 2^40 stays below Number.MAX_SAFE_INTEGER (2^53).
-  return 2 ** 40 + ((hi & 0xfffff) * 2 ** 32 + lo)
+  return 2 ** 40 + ((hi & 0xf_ff_ff) * 2 ** 32 + lo)
 }
 
 // PROJ-816: wiki_fts rows are keyed by the page's search_rowid, so both the insert and
@@ -1119,7 +1165,9 @@ async function assertNoUpdateConflict(
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
   baseRevisionId: string | null | undefined,
 ): Promise<void> {
-  if (baseRevisionId === undefined) return
+  if (baseRevisionId === undefined) {
+    return
+  }
   const currentRevisionId = await getLatestRevisionId(db, page.id)
   if (currentRevisionId !== baseRevisionId) {
     const baseContent = await resolveBaseContent(db, page.id, baseRevisionId, page.content)
@@ -1172,7 +1220,9 @@ async function writeUpdateWikiPageBatch(
   try {
     await batchGuarded(ctx, page, statements)
   } catch (e) {
-    if (e instanceof StaleWikiWriteError) throw await staleConflict(ctx, page.id)
+    if (e instanceof StaleWikiWriteError) {
+      throw await staleConflict(ctx, page.id)
+    }
     if (isRename && e instanceof Error && /UNIQUE constraint failed/i.test(e.message)) {
       throw new ConflictError(`Slug '${slug}' is already in use`)
     }
@@ -1216,7 +1266,9 @@ async function finalizeWikiPageUpdate(
 
 export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = UpdatePageSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { title, content, parentId, slug, baseRevisionId, summary } = parsed.data
   const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
   await requireWikiWrite(ctx, page.projectId)
@@ -1314,7 +1366,9 @@ export async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
     .from(schema.users)
     .where(eq(schema.users.id, ctx.userId))
     .get()
-  if (!user) throw new NotFoundError('Calling user not found')
+  if (!user) {
+    throw new NotFoundError('Calling user not found')
+  }
 
   // PROJ-489: stamping the frontmatter is a read-modify-write of the WHOLE content, so
   // without a base revision a content edit landing between the read and the write would
@@ -1353,7 +1407,9 @@ export async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
 // never disagree.
 export async function listStaleWikiPages(ctx: ServiceCtx, input: unknown) {
   const parsed = ListStaleWikiPagesInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { projectId, includeWorkspacePages } = parsed.data
 
   if (projectId && !includeWorkspacePages) {
@@ -1404,13 +1460,15 @@ type HeadingSection = { heading: string; level: number; startLine: number; endLi
 
 function parseHeadingSections(content: string): HeadingSection[] {
   const lines = content.split('\n')
-  const headings: Array<{ level: number; heading: string; startLine: number }> = []
+  const headings: { level: number; heading: string; startLine: number }[] = []
   let fence: string | null = null
   // A frontmatter block only counts when `---` is the very first line.
   let inFrontmatter = lines.length > 0 && FRONTMATTER_DELIM_RE.test(lines[0])
   lines.forEach((line, idx) => {
     if (inFrontmatter) {
-      if (idx > 0 && FRONTMATTER_DELIM_RE.test(line)) inFrontmatter = false
+      if (idx > 0 && FRONTMATTER_DELIM_RE.test(line)) {
+        inFrontmatter = false
+      }
       return
     }
     const fenceMatch = FENCE_RE.exec(line)
@@ -1426,7 +1484,9 @@ function parseHeadingSections(content: string): HeadingSection[] {
       return
     }
     const m = ATX_HEADING_RE.exec(line)
-    if (m) headings.push({ level: m[1].length, heading: m[2].trim(), startLine: idx })
+    if (m) {
+      headings.push({ level: m[1].length, heading: m[2].trim(), startLine: idx })
+    }
   })
   return headings.map((h, i) => ({
     heading: h.heading,
@@ -1447,13 +1507,17 @@ function extractSectionText(content: string, section: HeadingSection): string {
 
 function trimTrailingBlankLines(lines: readonly string[]): string[] {
   const out = [...lines]
-  while (out.length > 0 && out[out.length - 1].trim() === '') out.pop()
+  while (out.length > 0 && out[out.length - 1].trim() === '') {
+    out.pop()
+  }
   return out
 }
 
 function trimLeadingBlankLines(lines: readonly string[]): string[] {
   const out = [...lines]
-  while (out.length > 0 && out[0].trim() === '') out.shift()
+  while (out.length > 0 && out[0].trim() === '') {
+    out.shift()
+  }
   return out
 }
 
@@ -1462,7 +1526,9 @@ function trimLeadingBlankLines(lines: readonly string[]): string[] {
 // see patchWikiPage's comment on why append_to_page skips the section-lock entirely.
 function appendToPageEnd(content: string, text: string): string {
   const trimmed = content.replace(/\s+$/, '')
-  if (trimmed === '') return `${text.trimEnd()}\n`
+  if (trimmed === '') {
+    return `${text.trimEnd()}\n`
+  }
   return `${trimmed}\n\n${text.trimEnd()}\n`
 }
 
@@ -1570,7 +1636,9 @@ async function assertNoSectionPatchConflict(
   data: Readonly<{ baseRevisionId: string | null; heading: string }>,
 ): Promise<void> {
   const currentRevisionId = await getLatestRevisionId(ctx.db, pageId)
-  if (currentRevisionId === data.baseRevisionId) return
+  if (currentRevisionId === data.baseRevisionId) {
+    return
+  }
   const baseContent = await resolveBaseContent(ctx.db, pageId, data.baseRevisionId, currentContent)
   // A heading that was absent — or ambiguous — at base but resolves uniquely now means
   // the section itself changed shape underneath the caller, so the empty base text
@@ -1605,7 +1673,9 @@ const PATCH_RETRIES = 3
 
 export async function patchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = PatchWikiPageInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const data = parsed.data
   const retryable = data.op === 'append_to_page' || data.op === 'set_frontmatter'
 
@@ -1614,8 +1684,12 @@ export async function patchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: un
     try {
       return await patchWikiPageOnce(ctx, page, data)
     } catch (e) {
-      if (!(e instanceof StaleWikiWriteError)) throw e
-      if (!retryable || attempt + 1 >= PATCH_RETRIES) throw await staleConflict(ctx, page.id)
+      if (!(e instanceof StaleWikiWriteError)) {
+        throw e
+      }
+      if (!retryable || attempt + 1 >= PATCH_RETRIES) {
+        throw await staleConflict(ctx, page.id)
+      }
     }
   }
 }
@@ -1709,7 +1783,9 @@ async function patchWikiPageOnce(
 // above (this IS the discovery path templates are meant to be found through).
 export async function listWikiTemplates(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiTemplatesInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { projectId } = parsed.data
 
   if (projectId) {
@@ -1729,7 +1805,7 @@ export async function listWikiTemplates(ctx: ServiceCtx, input: unknown) {
   return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }))
 }
 
-const DEFAULT_WIKI_TEMPLATES: Array<{ slug: string; title: string; type: string; body: string }> = [
+const DEFAULT_WIKI_TEMPLATES: { slug: string; title: string; type: string; body: string }[] = [
   {
     slug: 'templates-runbook',
     title: 'Runbook Template',
@@ -1926,7 +2002,9 @@ async function collectCascadeTrashedDescendantIds(
   workspaceId: string,
   trashBatchId: string | null,
 ): Promise<string[]> {
-  if (trashBatchId === null) return []
+  if (trashBatchId === null) {
+    return []
+  }
   const orm = drizzle(db, { schema })
   const descendants: string[] = []
   let frontier = [rootId]
@@ -2004,9 +2082,13 @@ async function deleteWikiPageAttachments(
 // page can also be deleted by someone with a project-admin grant.
 async function requireWikiDelete(ctx: ServiceCtx, projectId: string | null): Promise<void> {
   if (projectId === null) {
-    if (ctx.role !== 'admin' && ctx.role !== 'owner') throw new ForbiddenError('Insufficient permissions')
+    if (ctx.role !== 'admin' && ctx.role !== 'owner') {
+      throw new ForbiddenError('Insufficient permissions')
+    }
   } else if (!isWorkspaceAdmin(ctx.role)) {
-    if ((await effectiveProjectRole(ctx, projectId)) !== 'admin') throw new ForbiddenError('Insufficient permissions')
+    if ((await effectiveProjectRole(ctx, projectId)) !== 'admin') {
+      throw new ForbiddenError('Insufficient permissions')
+    }
   }
 }
 
@@ -2022,9 +2104,13 @@ async function requireWikiDelete(ctx: ServiceCtx, projectId: string | null): Pro
 // 404ing, for consistency across every other page-reference entry point.
 export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?: unknown) {
   const idCheck = IdSchema.safeParse(idOrSlug)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  if (!idCheck.success) {
+    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  }
   const parsedOptions = DeleteWikiPageOptionsSchema.safeParse(options ?? {})
-  if (!parsedOptions.success) throw new ValidationError(parsedOptions.error.flatten())
+  if (!parsedOptions.success) {
+    throw new ValidationError(parsedOptions.error.flatten())
+  }
   const { cascade } = parsedOptions.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -2174,7 +2260,9 @@ export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?
 //     whole batch is checked before any row is updated.
 export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  if (!idCheck.success) {
+    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const page = await orm
@@ -2191,7 +2279,9 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
     .from(schema.wikiPages)
     .where(and(eq(schema.wikiPages.id, id), eq(schema.wikiPages.workspaceId, ctx.workspaceId)))
     .get()
-  if (!page) throw new NotFoundError('Wiki page not found')
+  if (!page) {
+    throw new NotFoundError('Wiki page not found')
+  }
   if (page.deletedAt === null) {
     throw new ValidationError({ formErrors: ['Page is not in the trash'], fieldErrors: {} })
   }
@@ -2302,7 +2392,9 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
 // see everything).
 export async function listWikiTrash(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiTrashInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { projectId } = parsed.data
 
   if (projectId) {
@@ -2345,7 +2437,9 @@ export async function purgeExpiredWikiPages(
   ctx: ServiceCtx,
   options: { limit?: number } = {},
 ): Promise<{ purgedCount: number; purgedIds: string[]; moreExpired: boolean }> {
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 
   const limit = options.limit ?? WIKI_TRASH_PURGE_DEFAULT_PAGE_LIMIT
   const orm = drizzle(ctx.db, { schema })
@@ -2369,7 +2463,9 @@ export async function purgeExpiredWikiPages(
   const moreExpired = expiredPlusOne.length > limit
   const expired = moreExpired ? expiredPlusOne.slice(0, limit) : expiredPlusOne
   const ids = expired.map((p) => p.id)
-  if (ids.length === 0) return { purgedCount: 0, purgedIds: [], moreExpired: false }
+  if (ids.length === 0) {
+    return { purgedCount: 0, purgedIds: [], moreExpired: false }
+  }
 
   // PROJ-238/PROJ-496: a live child can end up pointing at a page that's about to be
   // purged — e.g. it was cascade-trashed alongside its parent, then undeleted on its
@@ -2396,8 +2492,11 @@ export async function purgeExpiredWikiPages(
   for (const id of ids) {
     const target = resolveReparentTarget(id)
     const group = idsByTarget.get(target)
-    if (group) group.push(id)
-    else idsByTarget.set(target, [id])
+    if (group) {
+      group.push(id)
+    } else {
+      idsByTarget.set(target, [id])
+    }
   }
   for (const [target, purgedIds] of idsByTarget) {
     await inChunks(purgedIds, async (chunk) => {
@@ -2444,7 +2543,9 @@ export async function purgeExpiredWikiPages(
 
 export async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise<TreeNode[]> {
   const parsed = WikiTreeInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const rows = await Effect.runPromise(
     wikiData.listWikiTreeRows(ctx.db, ctx.workspaceId, {
       ...parsed.data,
@@ -2492,7 +2593,9 @@ export async function getWikiRevision(ctx: ServiceCtx, idOrSlug: string, revisio
   const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
   await assertWikiPageVisible(ctx, page.projectId)
   const revision = await Effect.runPromise(wikiData.getWikiRevision(ctx.db, ctx.workspaceId, page.id, revisionId))
-  if (!revision) throw new NotFoundError('Revision not found')
+  if (!revision) {
+    throw new NotFoundError('Revision not found')
+  }
 
   return revision
 }
@@ -2506,20 +2609,26 @@ export async function getWikiRevision(ctx: ServiceCtx, idOrSlug: string, revisio
 // caller actually have"), so both sides are read directly with no shifting.
 export async function getWikiRevisionDiff(ctx: ServiceCtx, idOrSlug: string, revisionId: string, input: unknown) {
   const parsed = WikiRevisionDiffInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { against } = parsed.data
 
   const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
   await assertWikiPageVisible(ctx, page.projectId)
   const fromRevision = await Effect.runPromise(wikiData.getWikiRevision(ctx.db, ctx.workspaceId, page.id, revisionId))
-  if (!fromRevision) throw new NotFoundError('Revision not found')
+  if (!fromRevision) {
+    throw new NotFoundError('Revision not found')
+  }
 
   let toContent: string
   if (against === 'current') {
     toContent = page.content
   } else {
     const toRevision = await Effect.runPromise(wikiData.getWikiRevision(ctx.db, ctx.workspaceId, page.id, against))
-    if (!toRevision) throw new NotFoundError('Revision not found')
+    if (!toRevision) {
+      throw new NotFoundError('Revision not found')
+    }
     toContent = toRevision.content
   }
 

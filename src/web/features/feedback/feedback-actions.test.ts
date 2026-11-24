@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { actionFixture, formData, planningIds } from '../planning/action-test-fixture'
+import { actionFixture, formData, planningIds } from '../planning/action-test-fixture.ts'
 
-const actions = await import('./actions')
+const actions = await import('./actions.ts')
 const scope = { workspaceSlug: 'alpha', projectId: planningIds.project }
 function fixture(origin = 'https://front.example') {
   const test = actionFixture(undefined, origin)
@@ -17,7 +17,7 @@ function fixture(origin = 'https://front.example') {
 }
 
 describe('Feedback concrete ServerFn shared commands', () => {
-  it('parses original origins form and persists only known source configuration fields', async () => {
+  test('parses original origins form and persists only known source configuration fields', async () => {
     const test = fixture()
     expect(
       await test.invoke(
@@ -44,7 +44,8 @@ describe('Feedback concrete ServerFn shared commands', () => {
     expect(test.invalidated).toHaveBeenCalledTimes(1)
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('rejects an inaccessible explicit project before mutation', async () => {
+
+  test('rejects an inaccessible explicit project before mutation', async () => {
     const test = fixture()
     expect(
       await test.invoke(actions.markFeedbackReviewed, { ...scope, projectId: 'foreign', feedbackId: 'feedback' }),
@@ -52,7 +53,8 @@ describe('Feedback concrete ServerFn shared commands', () => {
     expect(test.sqlite.prepare("SELECT status FROM feedback WHERE id='feedback'").get()?.status).toBe('new')
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('rejects cross-origin Feedback mutations before backend work', async () => {
+
+  test('rejects cross-origin Feedback mutations before backend work', async () => {
     const test = fixture('https://attacker.test')
     expect(await test.invoke(actions.markFeedbackReviewed, { ...scope, feedbackId: 'feedback' })).toMatchObject({
       ok: false,
@@ -62,12 +64,14 @@ describe('Feedback concrete ServerFn shared commands', () => {
     expect(test.invalidated).toHaveBeenCalledTimes(1)
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('rejects empty/oversized selections and origins using actual schemas', async () => {
+
+  test('rejects empty/oversized selections and origins using actual schemas', async () => {
     const test = fixture()
-    for (const feedbackIds of [[], Array.from({ length: 501 }, (_, i) => String(i))])
+    for (const feedbackIds of [[], Array.from({ length: 501 }, (_, i) => String(i))]) {
       await expect(test.invoke(actions.markSelectedFeedbackReviewed, { ...scope, feedbackIds })).rejects.toMatchObject({
         _tag: 'SchemaError',
       })
+    }
     await expect(
       test.invoke(
         actions.createFeedbackSource,
@@ -77,7 +81,8 @@ describe('Feedback concrete ServerFn shared commands', () => {
     ).rejects.toMatchObject({ _tag: 'SchemaError' })
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('updates, rotates and revokes a real scoped feedback source', async () => {
+
+  test('updates, rotates and revokes a real scoped feedback source', async () => {
     const test = fixture()
     const reference = { ...scope, sourceId: 'source' }
     expect(await test.invoke(actions.setFeedbackSourceActive, { ...reference, active: false })).toEqual({
@@ -99,7 +104,8 @@ describe('Feedback concrete ServerFn shared commands', () => {
     expect(await test.invoke(actions.rotateFeedbackSourceToken, reference)).toMatchObject({ ok: false, status: 409 })
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('marks individual and selected feedback reviewed with concrete result counts', async () => {
+
+  test('marks individual and selected feedback reviewed with concrete result counts', async () => {
     const test = fixture()
     expect(await test.invoke(actions.markFeedbackReviewed, { ...scope, feedbackId: 'feedback' })).toEqual({
       ok: true,
@@ -113,21 +119,25 @@ describe('Feedback concrete ServerFn shared commands', () => {
     expect(test.sqlite.prepare("SELECT status FROM feedback WHERE id='feedback2'").get()?.status).toBe('reviewed')
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('converts feedback to a real issue and rejects duplicate conversion', async () => {
+
+  test('converts feedback to a real issue and rejects duplicate conversion', async () => {
     const test = fixture()
     const reference = { ...scope, feedbackId: 'feedback' }
     const result = await test.invoke(actions.convertFeedbackToIssue, reference)
     expect(result).toMatchObject({ ok: true, value: { id: expect.any(String), number: expect.any(Number) } })
     const feedback = test.sqlite.prepare("SELECT status,linked_issue_id FROM feedback WHERE id='feedback'").get()
     expect(feedback).toMatchObject({ status: 'actioned', linked_issue_id: expect.any(String) })
-    if (typeof feedback?.linked_issue_id !== 'string') throw new Error('Expected linked issue ID.')
+    if (typeof feedback?.linked_issue_id !== 'string') {
+      throw new Error('Expected linked issue ID.')
+    }
     expect(test.sqlite.prepare('SELECT title FROM issues WHERE id=?').get(feedback.linked_issue_id)?.title).toBe(
       'Please improve search',
     )
     expect(await test.invoke(actions.convertFeedbackToIssue, reference)).toMatchObject({ ok: false, status: 409 })
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('bulk converts selected feedback into one issue with linked count', async () => {
+
+  test('bulk converts selected feedback into one issue with linked count', async () => {
     const test = fixture()
     expect(
       await test.invoke(actions.convertSelectedFeedbackToIssue, { ...scope, feedbackIds: ['feedback', 'feedback2'] }),
@@ -141,7 +151,8 @@ describe('Feedback concrete ServerFn shared commands', () => {
     )
     expect(test.transport).not.toHaveBeenCalled()
   })
-  it('preserves source-admin and feedback project-write authority from shared commands', async () => {
+
+  test('preserves source-admin and feedback project-write authority from shared commands', async () => {
     const test = fixture()
     test.sqlite.exec(
       `UPDATE workspace_members SET role='member' WHERE user_id='u1'; INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('g1','w1','Team',1); INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('g1','u1','u1',1); INSERT INTO group_project_grants (group_id,project_id,role) VALUES ('g1','${scope.projectId}','viewer');`,

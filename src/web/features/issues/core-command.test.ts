@@ -1,16 +1,19 @@
 import { Effect, Exit } from 'effect'
 import { decodeCoreReply } from 'projektor/core-client'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { CommandOkSchema, type BrowserCommand } from '../../../core/web/command-contract'
-import { makeWebCoreHandlers } from '../../../core/web/operations'
-import { browserRequest } from '../../core'
-import { testEnvironment } from '../../server/test/resources'
-import { issueDataFixture } from './test/data-fixture'
+import { CommandOkSchema } from '../../../core/web/command-contract.ts'
+import type { BrowserCommand } from '../../../core/web/command-contract.ts'
+import { makeWebCoreHandlers } from '../../../core/web/operations.ts'
+import { browserRequest } from '../../core.ts'
+import { testEnvironment } from '../../server/test/resources.ts'
+import { issueDataFixture } from './test/data-fixture.ts'
 
 const databases: ReturnType<typeof issueDataFixture>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 function fixture() {
@@ -46,7 +49,7 @@ async function signedAccess(email: string) {
 }
 
 describe('private browser command boundary', () => {
-  it('accepts a cryptographically verified Access identity without development fallback', async () => {
+  test('accepts a cryptographically verified Access identity without development fallback', async () => {
     const { env, proof, invoke } = fixture()
     const signed = await signedAccess('user@example.test')
     env.ENVIRONMENT = 'production'
@@ -59,29 +62,40 @@ describe('private browser command boundary', () => {
     }
     expect(Exit.isSuccess(await invoke({ ...proof, request }))).toBe(true)
   })
-  it.each(['missing', 'bearer', 'invalid-access', 'public-viewer'] as const)(
+
+  test.each(['missing', 'bearer', 'invalid-access', 'public-viewer'] as const)(
     'rejects %s browser provenance before a mutation',
     async (kind) => {
       const { env, proof, invoke, database } = fixture()
-      if (kind === 'missing') env.ENVIRONMENT = 'production'
-      if (kind === 'public-viewer') env.DEV_USER_EMAIL = 'public-viewer@projektor.local'
+      if (kind === 'missing') {
+        env.ENVIRONMENT = 'production'
+      }
+      if (kind === 'public-viewer') {
+        env.DEV_USER_EMAIL = 'public-viewer@projektor.local'
+      }
       const headers = [...proof.request.headers]
-      if (kind === 'bearer') headers.push(['Authorization', 'Bearer pk_test'])
-      if (kind === 'invalid-access') headers.push(['Cf-Access-Jwt-Assertion', 'invalid-token'])
+      if (kind === 'bearer') {
+        headers.push(['Authorization', 'Bearer pk_test'])
+      }
+      if (kind === 'invalid-access') {
+        headers.push(['Cf-Access-Jwt-Assertion', 'invalid-token'])
+      }
       expect(Exit.isFailure(await invoke({ ...proof, request: { ...proof.request, headers } }))).toBe(true)
       expect(database.sqlite.prepare("SELECT title FROM issues WHERE id='issue-a'").get()).not.toMatchObject({
         title: 'From Core',
       })
     },
   )
-  it('persists the explicit authorized operation through the encoded boundary', async () => {
+
+  test('persists the explicit authorized operation through the encoded boundary', async () => {
     const { database, proof, invoke } = fixture()
     expect(Exit.isSuccess(await invoke(proof))).toBe(true)
     expect(database.sqlite.prepare("SELECT title FROM issues WHERE id='issue-a'").get()).toMatchObject({
       title: 'From Core',
     })
   })
-  it('rejects a forged cross-origin call without trusting frontend preflight', async () => {
+
+  test('rejects a forged cross-origin call without trusting frontend preflight', async () => {
     const { database, proof, invoke } = fixture()
     const result = await invoke({ ...proof, request: { ...proof.request, headers: [['origin', 'https://evil.test']] } })
     expect(Exit.isFailure(result)).toBe(true)
@@ -89,7 +103,8 @@ describe('private browser command boundary', () => {
       title: 'From Core',
     })
   })
-  it('rechecks the current identity and selected workspace inside Core', async () => {
+
+  test('rechecks the current identity and selected workspace inside Core', async () => {
     const { database, env, proof, invoke } = fixture()
     env.DEV_USER_EMAIL = 'not-a-member@example.test'
     expect(Exit.isFailure(await invoke(proof))).toBe(true)

@@ -1,8 +1,8 @@
 'use client'
-import type { ProjectSummary, RequestScope } from '../../../server/request-context'
-import EpicList from '../components/EpicList'
-import type { IssuePage, Status, TaskType } from '../types'
-import { SelectionRequired } from './shared'
+import type { ProjectSummary, RequestScope } from '../../../server/request-context.ts'
+import EpicList from '../components/EpicList.tsx'
+import type { IssuePage, Status, TaskType } from '../types.ts'
+import { SelectionRequired } from './shared.tsx'
 export interface EpicsInitialData {
   readonly page: IssuePage
   readonly statuses: readonly Status[]
@@ -20,7 +20,9 @@ export function EpicsPage({
   workspaceSlug: string
   initialData: EpicsInitialData | null
 }) {
-  if (!initialData) return <SelectionRequired scope={scope} label='Epics' />
+  if (!initialData) {
+    return <SelectionRequired scope={scope} label='Epics' />
+  }
   return (
     <section>
       <h1 className='text-2xl font-bold mb-6'>Epics</h1>

@@ -1,15 +1,17 @@
 import { Effect } from 'effect'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import type { ReviewFilter, ReviewStatus } from '../../contracts/review-targets'
-import { issueDataFixture } from '../../web/features/issues/test/data-fixture'
-import { scope, workspace } from '../../web/features/issues/test/fixtures'
-import { readDataIssuePage, searchDataIssues } from './issue-data'
-import { CoreReadServices } from './read-services'
+import type { ReviewFilter, ReviewStatus } from '../../contracts/review-targets.ts'
+import { issueDataFixture } from '../../web/features/issues/test/data-fixture.ts'
+import { scope, workspace } from '../../web/features/issues/test/fixtures.ts'
+import { readDataIssuePage, searchDataIssues } from './issue-data.ts'
+import { CoreReadServices } from './read-services.ts'
 
 const databases: ReturnType<typeof issueDataFixture>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 function fixture() {
@@ -64,13 +66,15 @@ function fixture() {
 }
 
 describe('cross-project review filters at the Core data boundary', () => {
-  it('filters before counts and cursor pagination across more than one page without leaking hidden or foreign issues', async () => {
+  test('filters before counts and cursor pagination across more than one page without leaking hidden or foreign issues', async () => {
     const f = fixture()
     const seen: string[] = []
     let cursor: string | null | undefined
     do {
       const params = new URLSearchParams({ review: 'active', limit: '7' })
-      if (cursor) params.set('cursor', cursor)
+      if (cursor) {
+        params.set('cursor', cursor)
+      }
       const page = await f.page(params.toString())
       expect(page.total).toBe(cursor ? null : 35)
       expect(page.items).toHaveLength(7)
@@ -81,7 +85,7 @@ describe('cross-project review filters at the Core data boundary', () => {
     expect(new Set(seen).size).toBe(35)
   })
 
-  it.each(['fixing', 'in_review', 'changes_requested'] as const)(
+  test.each(['fixing', 'in_review', 'changes_requested'] as const)(
     'matches %s targets across authorized projects and preserves search parity',
     async (review) => {
       const f = fixture()
@@ -96,7 +100,7 @@ describe('cross-project review filters at the Core data boundary', () => {
     },
   )
 
-  it('applies review filtering before the FTS result limit despite higher-ranked unselected hits', async () => {
+  test('applies review filtering before the FTS result limit despite higher-ranked unselected hits', async () => {
     const f = fixture()
     const rows = await f.search('active')
     expect(rows).toHaveLength(20)
@@ -104,7 +108,7 @@ describe('cross-project review filters at the Core data boundary', () => {
     expect(new Set(rows.map((row) => row.project_id))).toEqual(new Set(['project-a', 'project-b']))
   })
 
-  it('intersects explicit project selection and review filters', async () => {
+  test('intersects explicit project selection and review filters', async () => {
     const f = fixture()
     const expected = f.selected
       .filter((entry) => entry.projectId === 'project-b')
@@ -116,7 +120,7 @@ describe('cross-project review filters at the Core data boundary', () => {
     expect((await f.search('active', 'project-b')).map((row) => row.id).sort()).toEqual(expected)
   })
 
-  it('does not multiply issue counts when multiple attachments match the same filter', async () => {
+  test('does not multiply issue counts when multiple attachments match the same filter', async () => {
     const f = fixture()
     f.sqlite.exec(`INSERT INTO attachments
       (id,workspace_id,kind,r2_key,filename,content_type,size,review_status,entity_type,entity_id,created_by_id,created_at)
@@ -125,7 +129,7 @@ describe('cross-project review filters at the Core data boundary', () => {
     expect((await f.page('review=fixing&limit=100')).items.filter((row) => row.id === 'active-00')).toHaveLength(1)
   })
 
-  it('rejects invalid review filters at the Core boundary rather than ignoring them', async () => {
+  test('rejects invalid review filters at the Core boundary rather than ignoring them', async () => {
     const f = fixture()
     for (const review of ['done', 'invalid', '']) {
       await expect(f.page(`review=${review}`)).rejects.toMatchObject({ status: 400 })
@@ -133,7 +137,7 @@ describe('cross-project review filters at the Core data boundary', () => {
     await expect(f.page('review=active&review=fixing')).rejects.toMatchObject({ status: 400 })
   })
 
-  it('preserves unfiltered list and search behavior when review is omitted', async () => {
+  test('preserves unfiltered list and search behavior when review is omitted', async () => {
     const f = fixture()
     expect((await f.page('limit=100')).total).toBe(62)
     expect((await f.search()).some((row) => row.id.startsWith('unselected-'))).toBe(true)

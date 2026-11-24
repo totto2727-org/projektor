@@ -1,21 +1,23 @@
 import { Effect, Schema } from 'effect'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
 
-import { ApiUserBootstrap } from '../../contracts/api-auth'
-import { ApiConsentWorkspace, ApiRealtimeSnapshot } from '../../contracts/api-public'
-import { ApiResults } from '../../contracts/api-results'
-import { createTestDatabase } from '../../web/test/database'
-import type { CoreActor } from '../authorization'
-import { decodeCoreReply } from '../client'
-import type { CoreEnvironment } from '../environment'
-import { makeApiIdentityHandlers } from './identity-operations'
-import { makeApiPublicHandlers } from './public-operations'
+import { ApiUserBootstrap } from '../../contracts/api-auth.ts'
+import { ApiConsentWorkspace, ApiRealtimeSnapshot } from '../../contracts/api-public.ts'
+import { ApiResults } from '../../contracts/api-results.ts'
+import { createTestDatabase } from '../../web/test/database.ts'
+import type { CoreActor } from '../authorization.ts'
+import { decodeCoreReply } from '../client.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { makeApiIdentityHandlers } from './identity-operations.ts'
+import { makeApiPublicHandlers } from './public-operations.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
   resetAuthCachesForTests()
 })
 
@@ -56,7 +58,7 @@ function reply<S extends Schema.Top & { readonly DecodingServices: never }>(
 }
 
 describe('API Core authorization and presentation boundaries', () => {
-  it('filters both workspace catalogs and auth bootstrap by the original credential audience', async () => {
+  test('filters both workspace catalogs and auth bootstrap by the original credential audience', async () => {
     const f = await fixture()
     const workspaces = await reply(ApiResults.apiListWorkspaces, f.handlers.apiListWorkspaces(f.actor))
     expect(workspaces.map((workspace) => workspace.id)).toEqual(['w'])
@@ -65,7 +67,7 @@ describe('API Core authorization and presentation boundaries', () => {
     expect(bootstrap.workspaces.map((workspace) => workspace.id)).toEqual(['w'])
   })
 
-  it('does not let a workspace credential mint an unconfined workspace', async () => {
+  test('does not let a workspace credential mint an unconfined workspace', async () => {
     const f = await fixture()
     await expect(
       reply(ApiResults.apiCreateWorkspace, f.handlers.apiCreateWorkspace(f.actor, { name: 'New', slug: 'new' })),
@@ -73,7 +75,7 @@ describe('API Core authorization and presentation boundaries', () => {
     expect(f.sqlite.prepare("SELECT id FROM workspaces WHERE slug='new'").get()).toBeUndefined()
   })
 
-  it('enforces read capability independently on global catalogs and auth bootstrap', async () => {
+  test('enforces read capability independently on global catalogs and auth bootstrap', async () => {
     const f = await fixture()
     f.sqlite.exec("UPDATE api_tokens SET scopes='[]' WHERE id='token'")
     await expect(reply(ApiResults.apiListWorkspaces, f.handlers.apiListWorkspaces(f.actor))).rejects.toMatchObject({
@@ -84,7 +86,7 @@ describe('API Core authorization and presentation boundaries', () => {
     })
   })
 
-  it('authenticates before revealing whether a target workspace exists', async () => {
+  test('authenticates before revealing whether a target workspace exists', async () => {
     const f = await fixture()
     const unauthorized = { ...f.actor, bearer: 'invalid' }
     for (const value of ['w', 'missing']) {
@@ -94,14 +96,14 @@ describe('API Core authorization and presentation boundaries', () => {
     }
   })
 
-  it('does not authorize OAuth consent with an API token even when its owner is a workspace owner', async () => {
+  test('does not authorize OAuth consent with an API token even when its owner is a workspace owner', async () => {
     const f = await fixture()
     await expect(reply(ApiConsentWorkspace, f.handlers.apiConsentWorkspace(f.actor, 'w'))).rejects.toMatchObject({
       status: 403,
     })
   })
 
-  it('rechecks live socket membership and credential revocation on every visibility request', async () => {
+  test('rechecks live socket membership and credential revocation on every visibility request', async () => {
     const f = await fixture()
     expect(await reply(ApiRealtimeSnapshot, f.handlers.apiRealtimeSnapshot(f.actor, 'w'))).toMatchObject({
       userId: 'u',

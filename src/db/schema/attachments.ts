@@ -1,8 +1,8 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
-import { REVIEW_STATUSES } from '../../contracts/review-targets'
-import { users, workspaces } from './core'
-import { wikiPages } from './wiki'
+import { REVIEW_STATUSES } from '../../contracts/review-targets.ts'
+import { users, workspaces } from './core.ts'
+import { wikiPages } from './wiki.ts'
 
 export const attachments = sqliteTable(
   'attachments',

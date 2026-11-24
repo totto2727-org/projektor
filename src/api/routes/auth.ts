@@ -4,10 +4,10 @@ import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
-import { ApiUserBootstrap } from '../../contracts/api-auth'
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { authMiddleware, requireInteractiveHuman } from '../middleware/auth'
+import { ApiUserBootstrap } from '../../contracts/api-auth.ts'
+import { jsonBody } from '../http/body.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { authMiddleware, requireInteractiveHuman } from '../middleware/auth.ts'
 
 const router = new Hono<HonoEnv>()
 
@@ -37,7 +37,9 @@ const HUMAN_SESSION_REQUIRED =
 
 router.post('/tokens', authMiddleware, async (c) => {
   const denied = requireInteractiveHuman(c, HUMAN_SESSION_REQUIRED)
-  if (denied) return denied
+  if (denied) {
+    return denied
+  }
   try {
     const result = await Effect.runPromise(
       decodeCoreReply(
@@ -53,7 +55,9 @@ router.post('/tokens', authMiddleware, async (c) => {
 
 router.delete('/tokens/:id', authMiddleware, async (c) => {
   const denied = requireInteractiveHuman(c, HUMAN_SESSION_REQUIRED)
-  if (denied) return denied
+  if (denied) {
+    return denied
+  }
   try {
     return c.json(
       await Effect.runPromise(

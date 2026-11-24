@@ -1,12 +1,12 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture } from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture } from './helpers.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 describe('native Wiki draft lifecycle preconditions', () => {
-  it('rejects delayed writes after a newer snapshot and after a discard through API/Core/D1', async () => {
+  test('rejects delayed writes after a newer snapshot and after a discard through API/Core/D1', async () => {
     const fixture = await seedFixture({ role: 'admin' })
     const headers = authHeaders(fixture.token, fixture.workspace.slug)
     async function request(path: string, init?: RequestInit) {
@@ -28,7 +28,9 @@ describe('native Wiki draft lifecycle preconditions', () => {
       const row = await env.DB.prepare('SELECT revision FROM wiki_draft_heads WHERE workspace_id = ? AND user_id = ?')
         .bind(fixture.workspace.id, fixture.user.id)
         .first<{ revision: string }>()
-      if (!row) throw new Error('Missing persisted draft head')
+      if (!row) {
+        throw new Error('Missing persisted draft head')
+      }
       return row.revision
     }
     expect((await save('A', null)).status).toBe(200)

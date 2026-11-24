@@ -1,7 +1,7 @@
 import { Effect, Schema, Stream } from 'effect'
 import { HttpServerRequest, HttpServerResponse, UrlParams } from 'effect/http'
 
-import { ApiError, checkSameOriginMutation } from './server'
+import { ApiError, checkSameOriginMutation } from './server/index.ts'
 
 const SessionForm = Schema.Struct({
   action: Schema.Literals(['login', 'logout']),
@@ -12,10 +12,13 @@ const SessionForm = Schema.Struct({
 export function sessionNavigation(request: Request) {
   return Effect.gen(function* () {
     const incoming = HttpServerRequest.fromWeb(request)
-    if (incoming.method !== 'POST') return HttpServerResponse.empty({ status: 405, headers: { allow: 'POST' } })
+    if (incoming.method !== 'POST') {
+      return HttpServerResponse.empty({ status: 405, headers: { allow: 'POST' } })
+    }
     yield* checkSameOriginMutation(request)
-    if (incoming.headers['content-type']?.split(';', 1)[0] !== 'application/x-www-form-urlencoded')
+    if (incoming.headers['content-type']?.split(';', 1)[0] !== 'application/x-www-form-urlencoded') {
       return yield* new ApiError('request', 400, 'A session navigation form is required.')
+    }
     // The Web adapter's text/form accessors do not enforce MaxBodySize in rc.116.
     const text = yield* incoming.stream.pipe(
       Stream.mapAccumEffect(
@@ -41,8 +44,9 @@ export function sessionNavigation(request: Request) {
         try: () => new URL(form.redirect_url ?? '/', origin),
         catch: () => new ApiError('request', 400, 'A local session redirect is required.'),
       })
-      if (destination.origin !== origin)
+      if (destination.origin !== origin) {
         return yield* new ApiError('request', 400, 'A local session redirect is required.')
+      }
       location = `/auth/login?${new URLSearchParams({ redirect_url: `${destination.pathname}${destination.search}${destination.hash}` })}`
     }
     return HttpServerResponse.redirect(location, {

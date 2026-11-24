@@ -13,12 +13,12 @@
 // with depth (a 4-ancestor parent cost 3 more round trips than a 1-ancestor one; now equal).
 
 import { SELF } from 'cloudflare:test'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { createIssue, updateIssue } from '#commands/issues'
-import type { ServiceCtx } from '#commands/types'
+import { createIssue, updateIssue } from '#commands/issues.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedAgentLease,
@@ -27,7 +27,7 @@ import {
   seedProjectFixture,
   seedTaskStatus,
   seedTaskType,
-} from './helpers'
+} from './helpers.ts'
 
 function trackD1RoundTrips() {
   let count = 0
@@ -39,7 +39,9 @@ function trackD1RoundTrips() {
     new Proxy(stmt, {
       get(target, prop, receiver) {
         const value = Reflect.get(target, prop, receiver)
-        if (typeof value !== 'function') return value
+        if (typeof value !== 'function') {
+          return value
+        }
         if (prop === 'bind') {
           return (...args: unknown[]) =>
             wrapStmt((value as (...a: unknown[]) => D1PreparedStatement).apply(target, args))
@@ -110,7 +112,7 @@ describe('PROJ-870: issue write batching', () => {
   })
   afterEach(() => vi.restoreAllMocks())
 
-  it('createIssue with parent chain, status, type and custom fields uses ≤8 D1 round trips', async () => {
+  test('createIssue with parent chain, status, type and custom fields uses ≤8 D1 round trips', async () => {
     const chain = await seedChain(f, 4) // parent has 3 ancestors → the ancestor walk runs
     const status = await seedTaskStatus(f.workspaceId, { key: 'doing', category: 'in_progress' })
     const type = await seedTaskType(f.workspaceId, { key: 'task' })
@@ -165,7 +167,7 @@ describe('PROJ-870: issue write batching', () => {
     expect(activity.results).toEqual([{ action: 'created' }])
   })
 
-  it('updateIssue changing title, body, status, parent and custom fields uses ≤7 D1 round trips', async () => {
+  test('updateIssue changing title, body, status, parent and custom fields uses ≤7 D1 round trips', async () => {
     const chain = await seedChain(f, 4)
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Before' })
     const done = await seedTaskStatus(f.workspaceId, { key: 'shipped', category: 'done' })
@@ -203,7 +205,7 @@ describe('PROJ-870: issue write batching', () => {
     expect(cf).toEqual({ value: '8' })
   })
 
-  it('title-only update reindexes FTS with the untouched body (no re-SELECT needed)', async () => {
+  test('title-only update reindexes FTS with the untouched body (no re-SELECT needed)', async () => {
     const created = await createIssue(ctx, {
       projectId: f.projectId,
       title: 'Original',
@@ -214,7 +216,7 @@ describe('PROJ-870: issue write batching', () => {
     expect(fts.results).toEqual([{ title: 'Renamed', body: 'kept body' }])
   })
 
-  it('entering review with a completion report batches the comment; review→in_progress batches the gate rejection', async () => {
+  test('entering review with a completion report batches the comment; review→in_progress batches the gate rejection', async () => {
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, {
       title: 'Agent work',
       status: 'in_progress',
@@ -247,7 +249,7 @@ describe('PROJ-870: issue write batching', () => {
 })
 
 describe('PROJ-870 review: completion report comment limit', () => {
-  it('400s a completion report whose formatted comment exceeds the comment limit, writing nothing', async () => {
+  test('400s a completion report whose formatted comment exceeds the comment limit, writing nothing', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, {
       title: 'Long report',
@@ -287,7 +289,7 @@ describe('PROJ-870: recursive-CTE ancestor walk', () => {
   })
   afterEach(() => vi.restoreAllMocks())
 
-  it('walks a 4-ancestor chain in one query regardless of depth', async () => {
+  test('walks a 4-ancestor chain in one query regardless of depth', async () => {
     const shallow = await seedChain(f, 2) // parent has 1 ancestor
     const deep = await seedChain(f, 5) // parent has 4 ancestors (the deepest allowed)
 
@@ -305,7 +307,7 @@ describe('PROJ-870: recursive-CTE ancestor walk', () => {
     expect(deepTrips).toBe(shallowTrips)
   })
 
-  it('rejects a parent that already has 5 ancestors, allows 4', async () => {
+  test('rejects a parent that already has 5 ancestors, allows 4', async () => {
     const chain = await seedChain(f, 6)
     expect(
       await formErrorOf(createIssue(ctx, { projectId: f.projectId, title: 'too deep', parentId: chain[5] })),
@@ -315,7 +317,7 @@ describe('PROJ-870: recursive-CTE ancestor walk', () => {
     })
   })
 
-  it("reports a cycle (not the depth cap) when the issue is the parent's 5th ancestor", async () => {
+  test("reports a cycle (not the depth cap) when the issue is the parent's 5th ancestor", async () => {
     // chain[0] is the 5th ancestor of chain[5] — the same step at which the cap fires.
     // The original loop checked the cycle before the cap on each step; so must the CTE.
     const chain = await seedChain(f, 6)
@@ -324,7 +326,7 @@ describe('PROJ-870: recursive-CTE ancestor walk', () => {
     ])
   })
 
-  it('reports a cycle on a nearer ancestor, and rejects self-parenting', async () => {
+  test('reports a cycle on a nearer ancestor, and rejects self-parenting', async () => {
     const chain = await seedChain(f, 3)
     expect(await formErrorOf(updateIssue(ctx, chain[0], { parentId: chain[2] }))).toEqual([
       'Setting this parent would create a cycle',
@@ -334,7 +336,7 @@ describe('PROJ-870: recursive-CTE ancestor walk', () => {
     ])
   })
 
-  it("does not walk into another workspace's issues", async () => {
+  test("does not walk into another workspace's issues", async () => {
     const other = await seedProjectFixture({ role: 'owner' })
     const foreign = await seedIssue(other.workspaceId, other.projectId, other.userId)
     await expect(createIssue(ctx, { projectId: f.projectId, title: 'x', parentId: foreign.id })).rejects.toThrow(
@@ -342,7 +344,7 @@ describe('PROJ-870: recursive-CTE ancestor walk', () => {
     )
   })
 
-  it('stops the walk at an ancestor link that leaves the workspace', async () => {
+  test('stops the walk at an ancestor link that leaves the workspace', async () => {
     // P (this workspace) has parent_id pointing at X in another workspace, and X sits
     // under 5 more foreign ancestors. Only in-workspace rows may be walked, so P has no
     // visible ancestors and a child under it is fine — counting the foreign chain would

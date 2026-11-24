@@ -1,40 +1,42 @@
-import { type Context, Hono } from 'hono'
+import { Hono } from 'hono'
+import type { Context } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { ValidationError } from '../../contracts/errors'
-import { insufficientScopeChallenge } from '../auth/challenge'
-import { type Capability, capabilityForMcpTool, tokenAllows } from '../auth/scopes'
-import { agentMessagesTools } from '../mcp/agent-messages'
-import { agentsTools } from '../mcp/agents'
-import { TOOL_DOMAIN_SLUGS, toolNamesForDomains } from '../mcp/catalog'
-import { codeHeatmapTools } from '../mcp/code-heatmap'
-import { commentsTools } from '../mcp/comments'
-import { customFieldsTools } from '../mcp/custom-fields'
-import { toMcpError, toToolError } from '../mcp/error-adapter'
-import { feedbackTools } from '../mcp/feedback'
-import { fileClaimsTools } from '../mcp/file-claims'
-import { filesTools } from '../mcp/files'
-import { flowMetricsTools } from '../mcp/flow-metrics'
-import { groupsTools } from '../mcp/groups'
-import { issueLeasesTools } from '../mcp/issue-leases'
-import { issueLinksTools } from '../mcp/issue-links'
-import { issuesTools } from '../mcp/issues'
-import { playbooksTools } from '../mcp/playbooks'
-import { projectActivityTools } from '../mcp/project-activity'
-import { projectsTools } from '../mcp/projects'
-import { getPrompt, listPrompts } from '../mcp/prompts'
-import { sprintsTools } from '../mcp/sprints'
-import { taskStatusesTools } from '../mcp/task-statuses'
-import { taskTypesTools } from '../mcp/task-types'
-import type { MCPTool } from '../mcp/types'
-import { validateToolArgs } from '../mcp/validate-args'
-import { wikiTools } from '../mcp/wiki'
-import { workflowTools } from '../mcp/workflow'
-import { workspacesTools } from '../mcp/workspaces'
-import { pluginRegistry } from '../plugins/registry'
-import { ctxFromHono } from '../services/types'
-import { getWorkflow } from '../services/workflow'
+import { ValidationError } from '../../contracts/errors.ts'
+import { insufficientScopeChallenge } from '../auth/challenge.ts'
+import { capabilityForMcpTool, tokenAllows } from '../auth/scopes.ts'
+import type { Capability } from '../auth/scopes.ts'
+import { agentMessagesTools } from '../mcp/agent-messages.ts'
+import { agentsTools } from '../mcp/agents.ts'
+import { TOOL_DOMAIN_SLUGS, toolNamesForDomains } from '../mcp/catalog.ts'
+import { codeHeatmapTools } from '../mcp/code-heatmap.ts'
+import { commentsTools } from '../mcp/comments.ts'
+import { customFieldsTools } from '../mcp/custom-fields.ts'
+import { toMcpError, toToolError } from '../mcp/error-adapter.ts'
+import { feedbackTools } from '../mcp/feedback.ts'
+import { fileClaimsTools } from '../mcp/file-claims.ts'
+import { filesTools } from '../mcp/files.ts'
+import { flowMetricsTools } from '../mcp/flow-metrics.ts'
+import { groupsTools } from '../mcp/groups.ts'
+import { issueLeasesTools } from '../mcp/issue-leases.ts'
+import { issueLinksTools } from '../mcp/issue-links.ts'
+import { issuesTools } from '../mcp/issues.ts'
+import { playbooksTools } from '../mcp/playbooks.ts'
+import { projectActivityTools } from '../mcp/project-activity.ts'
+import { projectsTools } from '../mcp/projects.ts'
+import { getPrompt, listPrompts } from '../mcp/prompts.ts'
+import { sprintsTools } from '../mcp/sprints.ts'
+import { taskStatusesTools } from '../mcp/task-statuses.ts'
+import { taskTypesTools } from '../mcp/task-types.ts'
+import type { MCPTool } from '../mcp/types.ts'
+import { validateToolArgs } from '../mcp/validate-args.ts'
+import { wikiTools } from '../mcp/wiki.ts'
+import { workflowTools } from '../mcp/workflow.ts'
+import { workspacesTools } from '../mcp/workspaces.ts'
+import { pluginRegistry } from '../plugins/registry.ts'
+import { ctxFromHono } from '../services/types.ts'
+import { getWorkflow } from '../services/workflow.ts'
 
 // __PROJEKTOR_VERSION__ is injected by esbuild --define at release-build time
 // (scripts/build-release.sh); it's absent in local `wrangler dev` and tests.
@@ -108,16 +110,16 @@ router.post('/:workspaceId', async (c) => {
   try {
     raw = await c.req.json()
   } catch {
-    return c.json(jsonRpcError(null, -32700, 'Parse error'), 400)
+    return c.json(jsonRpcError(null, -32_700, 'Parse error'), 400)
   }
   if (!isPlainObject(raw) || typeof raw.method !== 'string') {
     const id = isPlainObject(raw) ? (raw.id ?? null) : null
-    return c.json(jsonRpcError(id, -32600, 'Invalid Request'), 400)
+    return c.json(jsonRpcError(id, -32_600, 'Invalid Request'), 400)
   }
   const body = raw as { jsonrpc: '2.0'; id: unknown; method: string; params?: unknown }
 
   if (body.jsonrpc !== '2.0') {
-    return c.json(jsonRpcError(body.id, -32600, 'Invalid Request'), 400)
+    return c.json(jsonRpcError(body.id, -32_600, 'Invalid Request'), 400)
   }
 
   // PROJ-889: the same full ServiceCtx as REST (waitUntil, realtime hub, auth method +
@@ -160,7 +162,7 @@ router.post('/:workspaceId', async (c) => {
             return c.json(
               jsonRpcError(
                 body.id,
-                -32602,
+                -32_602,
                 `Unknown domain slug(s): ${invalid.join(', ')}. Valid domains: ${TOOL_DOMAIN_SLUGS.join(', ')}`,
               ),
               400,
@@ -192,15 +194,17 @@ router.post('/:workspaceId', async (c) => {
       // checked against the tool's declared required fields, so a handler never
       // destructures undefined into a 500.
       if (!isPlainObject(body.params) || typeof body.params.name !== 'string') {
-        return c.json(jsonRpcError(body.id, -32602, 'Invalid params: `name` is required'))
+        return c.json(jsonRpcError(body.id, -32_602, 'Invalid params: `name` is required'))
       }
       const name = body.params.name
       const args = body.params.arguments ?? {}
       if (!isPlainObject(args)) {
-        return c.json(jsonRpcError(body.id, -32602, 'Invalid params: `arguments` must be an object'))
+        return c.json(jsonRpcError(body.id, -32_602, 'Invalid params: `arguments` must be an object'))
       }
       const tool = getAllTools(workspace.id).find((t) => t.name === name)
-      if (!tool) return c.json(jsonRpcError(body.id, -32601, `Tool not found: ${name}`))
+      if (!tool) {
+        return c.json(jsonRpcError(body.id, -32601, `Tool not found: ${name}`))
+      }
       // PROJ-877/920: required presence AND types/enums/lengths against the tool's
       // inputSchema, before the handler runs. PROJ-893: a bad argument is a tool
       // execution failure, so it comes back as an isError result naming each field
@@ -248,7 +252,9 @@ router.post('/:workspaceId', async (c) => {
         // tool results the model can act on. Only an unexpected internal failure stays a
         // JSON-RPC error, carrying just a request id.
         const toolError = toToolError(err, { toolName: name, role: ctx.role })
-        if (toolError) return c.json(jsonRpcResult(body.id, toolError))
+        if (toolError) {
+          return c.json(jsonRpcResult(body.id, toolError))
+        }
         const { code, message, data } = toMcpError(err, crypto.randomUUID())
         return c.json(jsonRpcError(body.id, code, message, data))
       }
@@ -283,7 +289,7 @@ router.post('/:workspaceId', async (c) => {
     }
 
     default:
-      return c.json(jsonRpcError(body.id, -32601, 'Method not found'))
+      return c.json(jsonRpcError(body.id, -32_601, 'Method not found'))
   }
 })
 
@@ -296,7 +302,7 @@ router.post('/:workspaceId', async (c) => {
 // before; only the transport-level status and the header are new.
 function insufficientScope(c: Context<HonoEnv>, workspaceId: string, id: unknown, required: Capability) {
   c.header('WWW-Authenticate', insufficientScopeChallenge(c.req.url, workspaceId))
-  return c.json(jsonRpcError(id, -32003, `Token lacks '${required}' scope`), 403)
+  return c.json(jsonRpcError(id, -32_003, `Token lacks '${required}' scope`), 403)
 }
 
 function dedupe(values: string[]): string[] {

@@ -1,14 +1,14 @@
 // PROJ-859: get_prioritized_issues ranks in SQL. Parity with the previous in-memory
 // algorithm (reimplemented below as the reference) and a bounded query count.
 
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { checkDefinitionOfReady } from '#commands/definition-of-ready'
-import { getPrioritizedIssues } from '#commands/issues'
-import type { ServiceCtx } from '#commands/types'
+import { checkDefinitionOfReady } from '#commands/definition-of-ready.ts'
+import { getPrioritizedIssues } from '#commands/issues.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { env } from './fixture-api'
-import { seedFixture, seedProject } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedFixture, seedProject } from './helpers.ts'
 
 const READY_BODY = 'Do the thing.\n\n## Acceptance criteria\n- [ ] it works\n\n## Scope\n`apps/api/src/x.ts`'
 const NOT_READY_BODY = 'Something is off, look into it.'
@@ -72,7 +72,9 @@ async function seedWorkspaceWithIssues(n: number) {
       ),
     )
   }
-  for (let k = 0; k < stmts.length; k += 90) await env.DB.batch(stmts.slice(k, k + 90))
+  for (let k = 0; k < stmts.length; k += 90) {
+    await env.DB.batch(stmts.slice(k, k + 90))
+  }
 
   const ctx: ServiceCtx = {
     db: env.DB,
@@ -108,10 +110,14 @@ async function reference(ctx: ServiceCtx, includeBacklog: boolean) {
   const openIds = new Set(open.map((o) => o.id))
   const inDegree: Record<string, number> = {}
   for (const l of links) {
-    if (openIds.has(l.target_issue_id)) inDegree[l.target_issue_id] = (inDegree[l.target_issue_id] ?? 0) + 1
+    if (openIds.has(l.target_issue_id)) {
+      inDegree[l.target_issue_id] = (inDegree[l.target_issue_id] ?? 0) + 1
+    }
   }
   const storyPoints: Record<string, number> = {}
-  for (const s of sps) if (s.sp > 0) storyPoints[s.issue_id] = s.sp
+  for (const s of sps) {
+    if (s.sp > 0) storyPoints[s.issue_id] = s.sp
+  }
   const maxIn = Math.max(...open.map((o) => inDegree[o.id] ?? 0), 1)
 
   return open
@@ -126,7 +132,7 @@ async function reference(ctx: ServiceCtx, includeBacklog: boolean) {
 }
 
 describe('PROJ-859: prioritization parity with the in-memory algorithm', () => {
-  it.each([
+  test.each([
     { includeNotReady: false, includeBacklog: true },
     { includeNotReady: true, includeBacklog: true },
     { includeNotReady: false, includeBacklog: false },
@@ -136,7 +142,7 @@ describe('PROJ-859: prioritization parity with the in-memory algorithm', () => {
     const limit = 25
 
     const got = (await getPrioritizedIssues(ctx, { limit, ...opts })) as {
-      issues: Array<{ id: string; _score: number; needsGrooming?: true }>
+      issues: { id: string; _score: number; needsGrooming?: true }[]
       droppedNotReady: number
     }
 
@@ -153,7 +159,7 @@ describe('PROJ-859: prioritization parity with the in-memory algorithm', () => {
 describe('PROJ-859: bounded query count', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('limit=10 over 1,000 open issues takes <= 10 D1 queries once rows are healed', async () => {
+  test('limit=10 over 1,000 open issues takes <= 10 D1 queries once rows are healed', async () => {
     const { ctx } = await seedWorkspaceWithIssues(1000)
     await getPrioritizedIssues(ctx, { limit: 10 }) // first call heals dor_* in batches
 
@@ -173,13 +179,13 @@ describe('PROJ-859: bounded query count', () => {
     expect(prepares).toBeLessThanOrEqual(10)
   })
 
-  it('an issue body update keeps dor_ready current', async () => {
+  test('an issue body update keeps dor_ready current', async () => {
     const { ctx } = await seedWorkspaceWithIssues(6)
     await getPrioritizedIssues(ctx, { limit: 10 })
     const row = await env.DB.prepare('SELECT id FROM issues WHERE workspace_id = ? AND dor_ready = 0 LIMIT 1')
       .bind(ctx.workspaceId)
       .first<{ id: string }>()
-    const { updateIssue } = await import('#commands/issues')
+    const { updateIssue } = await import('#commands/issues.ts')
     await updateIssue(ctx, row?.id as string, { body: READY_BODY })
     const after = await env.DB.prepare('SELECT dor_ready, dor_missing FROM issues WHERE id = ?')
       .bind(row?.id)
@@ -192,18 +198,18 @@ describe('PROJ-859: bounded query count', () => {
 // ("false", "5"), so get_prioritized_issues must read them the same way — not treat the
 // string "false" as true.
 describe('PROJ-920: string flags and limit are coerced like BooleanQueryParam / z.coerce', () => {
-  it('includeBacklog: "false" and limit: "3" behave like false and 3', async () => {
+  test('includeBacklog: "false" and limit: "3" behave like false and 3', async () => {
     const { ctx } = await seedWorkspaceWithIssues(40)
     const asBool = (await getPrioritizedIssues(ctx, {
       limit: 3,
       includeBacklog: false,
       includeNotReady: true,
-    })) as { issues: Array<{ id: string }> }
+    })) as { issues: { id: string }[] }
     const asString = (await getPrioritizedIssues(ctx, {
       limit: '3',
       includeBacklog: 'false',
       includeNotReady: '1',
-    })) as { issues: Array<{ id: string }> }
+    })) as { issues: { id: string }[] }
     expect(asString.issues.map((i) => i.id)).toEqual(asBool.issues.map((i) => i.id))
     expect(asString.issues).toHaveLength(3)
   })

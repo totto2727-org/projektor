@@ -1,1 +1,1 @@
-export * from '../../../contracts/web-schemas/issue-actions'
+export * from '../../../contracts/web-schemas/issue-actions.ts'

@@ -1,7 +1,7 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { authHeaders, seedProjectFixture } from './helpers'
+import { authHeaders, seedProjectFixture } from './helpers.ts'
 
 async function createSource(f: Readonly<{ projectId: string; token: string; slug: string }>) {
   const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
@@ -14,7 +14,7 @@ async function createSource(f: Readonly<{ projectId: string; token: string; slug
 }
 
 describe('GET /api/feedback-sources/:sourceId (PROJ-724)', () => {
-  it('returns the source including projectId', async () => {
+  test('returns the source including projectId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const sourceId = await createSource(f)
 
@@ -28,7 +28,7 @@ describe('GET /api/feedback-sources/:sourceId (PROJ-724)', () => {
     expect(body.name).toBe('Onboarding survey')
   })
 
-  it('404s for an unknown sourceId', async () => {
+  test('404s for an unknown sourceId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const res = await SELF.fetch(`http://localhost/api/feedback-sources/${crypto.randomUUID()}`, {
       headers: authHeaders(f.token, f.slug),
@@ -36,7 +36,7 @@ describe('GET /api/feedback-sources/:sourceId (PROJ-724)', () => {
     expect(res.status).toBe(404)
   })
 
-  it('404s (not leaks) a source from another workspace', async () => {
+  test('404s (not leaks) a source from another workspace', async () => {
     const owner = await seedProjectFixture({ role: 'owner' })
     const sourceId = await createSource(owner)
 

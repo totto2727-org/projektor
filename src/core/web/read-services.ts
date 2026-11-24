@@ -1,6 +1,6 @@
 import { Context } from 'effect'
 
-import type { CoreEnvironment } from '../environment'
+import type { CoreEnvironment } from '../environment.ts'
 
 export class CoreReadServices extends Context.Service<
   CoreReadServices,

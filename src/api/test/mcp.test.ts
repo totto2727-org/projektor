@@ -1,10 +1,8 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
   authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
   seedCustomFieldDef,
   seedCustomFieldValue,
   seedFixture,
@@ -14,7 +12,8 @@ import {
   seedProject,
   seedUser,
   toolError,
-} from './helpers'
+} from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 
 async function mcpFetch(
   workspaceId: string,
@@ -42,7 +41,7 @@ async function mcpCall<T>(
 }
 
 type IssuePage = {
-  items: Array<Record<string, unknown>>
+  items: Record<string, unknown>[]
   next?: string
   nextCursor?: number | null
 }
@@ -65,7 +64,7 @@ describe('MCP endpoint', () => {
     await seedGroupGrant(workspaceId, fixture.user.id, projectId)
   })
 
-  it('initialize returns server info', async () => {
+  test('initialize returns server info', async () => {
     const res = (await mcpCall(workspaceId, 'initialize', {}, headers)) as JsonRpcResult<{
       protocolVersion: string
       serverInfo: { name: string; version: string }
@@ -88,28 +87,28 @@ describe('MCP endpoint', () => {
     expect(res.result).toHaveProperty('capabilities.prompts')
   })
 
-  it('initialize response carries no session identifier (PROJ-452)', async () => {
+  test('initialize response carries no session identifier (PROJ-452)', async () => {
     const res = await mcpFetch(workspaceId, 'initialize', {}, headers)
     expect(res.headers.get('Mcp-Session-Id')).toBeNull()
     const body = (await res.json()) as JsonRpcResult<Record<string, unknown>>
     expect(body.result).not.toHaveProperty('sessionId')
   })
 
-  it('calls tools/list directly with no prior initialize and no session header (PROJ-452)', async () => {
+  test('calls tools/list directly with no prior initialize and no session header (PROJ-452)', async () => {
     // The 2026-07-28 spec drops the initialize/initialized handshake and
     // Mcp-Session-Id requirement; this asserts projektor never depended on
     // either in the first place — a fresh request with no session state
     // attached succeeds identically to one preceded by `initialize`.
-    const res = (await mcpCall<{ tools: Array<{ name: string }> }>(
+    const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
     expect(res.result.tools.length).toBeGreaterThan(0)
   })
 
-  it('tools/list includes cache hints (PROJ-454)', async () => {
+  test('tools/list includes cache hints (PROJ-454)', async () => {
     const res = (await mcpCall<{ ttlMs: number; cacheScope: string }>(
       workspaceId,
       'tools/list',
@@ -120,30 +119,30 @@ describe('MCP endpoint', () => {
     expect(res.result.cacheScope).toBe('private')
   })
 
-  it('tools/list responses differ by query string back to back, same path (PROJ-717)', async () => {
-    const filtered = (await mcpCall<{ tools: Array<{ name: string }> }>(
+  test('tools/list responses differ by query string back to back, same path (PROJ-717)', async () => {
+    const filtered = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
       '?domains=issues',
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
-    const unfiltered = (await mcpCall<{ tools: Array<{ name: string }> }>(
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
+    const unfiltered = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
     expect(filtered.result.tools.length).toBeLessThan(unfiltered.result.tools.length)
   })
 
-  it('tools/list returns core tools', async () => {
-    const res = (await mcpCall<{ tools: Array<{ name: string }> }>(
+  test('tools/list returns core tools', async () => {
+    const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
       {},
       headers,
-    )) as JsonRpcResult<{ tools: Array<{ name: string }> }>
+    )) as JsonRpcResult<{ tools: { name: string }[] }>
     const names = res.result.tools.map((t) => t.name)
     expect(names).toContain('list_issues')
     expect(names).toContain('create_issue')
@@ -151,20 +150,20 @@ describe('MCP endpoint', () => {
     expect(names).toContain('get_wiki_page')
   })
 
-  it('tools/call list_issues returns empty page initially', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('tools/call list_issues returns empty page initially', async () => {
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'list_issues', arguments: {} },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(res.result.content[0].text) as IssuePage
     expect(Array.isArray(data.items)).toBe(true)
     expect(data.items).toHaveLength(0)
     expect(data.next).toBeUndefined()
   })
 
-  it('tools/call create_issue then list_issues returns it', async () => {
+  test('tools/call create_issue then list_issues returns it', async () => {
     await mcpCall(
       workspaceId,
       'tools/call',
@@ -175,73 +174,73 @@ describe('MCP endpoint', () => {
       headers,
     )
 
-    const listRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const listRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'list_issues', arguments: {} },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(listRes.result.content[0].text) as IssuePage
     expect(data.items).toHaveLength(1)
     expect((data.items[0] as { title: string }).title).toBe('MCP-created issue')
     expect((data.items[0] as { priority: string }).priority).toBe('high')
   })
 
-  it('tools/call search_wiki finds pages', async () => {
+  test('tools/call search_wiki finds pages', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers,
       body: JSON.stringify({ title: 'MCP Docs', content: 'How to use the MCP endpoint' }),
     })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'search_wiki', arguments: { query: 'MCP endpoint' } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const results = (JSON.parse(res.result.content[0].text) as { items: Array<{ title: string }> }).items
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const results = (JSON.parse(res.result.content[0].text) as { items: { title: string }[] }).items
     expect(results.length).toBeGreaterThan(0)
     expect(results[0].title).toBe('MCP Docs')
   })
 
-  it('tools/call get_wiki_page retrieves a page', async () => {
+  test('tools/call get_wiki_page retrieves a page', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers,
       body: JSON.stringify({ title: 'Runbook', content: '## Steps' }),
     })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'get_wiki_page', arguments: { slug: 'runbook' } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const page = JSON.parse(res.result.content[0].text) as { title: string; content: string }
     expect(page.title).toBe('Runbook')
     expect(page.content).toBe('## Steps')
   })
 
-  it('returns JSON-RPC error for unknown method', async () => {
+  test('returns JSON-RPC error for unknown method', async () => {
     const res = (await mcpCall(workspaceId, 'not/a/method', {}, headers)) as JsonRpcError
-    expect(res.error.code).toBe(-32601)
+    expect(res.error.code).toBe(-32_601)
   })
 
-  it('returns JSON-RPC error for unknown tool', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('returns JSON-RPC error for unknown tool', async () => {
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'does_not_exist', arguments: {} },
       headers,
     )) as JsonRpcError
-    expect(res.error.code).toBe(-32601)
+    expect(res.error.code).toBe(-32_601)
     expect(res.error.message).toContain('does_not_exist')
   })
 
   // PROJ-893: a ValidationError's per-field messages travel in the tool error's
   // `fields` member of a successful JSON-RPC response.
-  it('tools/call ValidationError carries Zod issues in the tool error fields', async () => {
+  test('tools/call ValidationError carries Zod issues in the tool error fields', async () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -257,7 +256,7 @@ describe('MCP endpoint', () => {
 
   // A ServiceError with no structured `details` (e.g. a plain not-found)
   // still omits `details` entirely rather than sending it as null.
-  it('tools/call error without structured details omits details', async () => {
+  test('tools/call error without structured details omits details', async () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -271,11 +270,11 @@ describe('MCP endpoint', () => {
 
   // --- Issues: REST/MCP parity tests ---
 
-  it('MCP create_issue with assigneeId and labels persists them', async () => {
+  test('MCP create_issue with assigneeId and labels persists them', async () => {
     const assignee = await seedUser('mcp-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
-    const createRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const createRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       {
@@ -288,7 +287,7 @@ describe('MCP endpoint', () => {
         },
       },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const created = JSON.parse(createRes.result.content[0].text) as { id: string }
     expect(created.id).toBeTruthy()
 
@@ -298,16 +297,16 @@ describe('MCP endpoint', () => {
     expect(JSON.parse(issue.labels)).toEqual(['mcp', 'test'])
   })
 
-  it('MCP update_issue with assigneeId and labels updates them', async () => {
+  test('MCP update_issue with assigneeId and labels updates them', async () => {
     const assignee = await seedUser('mcp-upd-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
-    const createRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const createRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'create_issue', arguments: { projectId, title: 'Before update' } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const { id } = JSON.parse(createRes.result.content[0].text) as { id: string }
 
     await mcpCall(
@@ -326,7 +325,7 @@ describe('MCP endpoint', () => {
     expect(JSON.parse(issue.labels)).toEqual(['updated'])
   })
 
-  it('MCP list_issues with assignee filter returns same subset as REST', async () => {
+  test('MCP list_issues with assignee filter returns same subset as REST', async () => {
     const assignee = await seedUser('mcp-list-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -351,12 +350,12 @@ describe('MCP endpoint', () => {
     )
 
     // MCP filter
-    const mcpRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const mcpRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'list_issues', arguments: { assignee: assignee.id } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpData = JSON.parse(mcpRes.result.content[0].text) as IssuePage
     expect(mcpData.items).toHaveLength(1)
     expect((mcpData.items[0] as { title: string }).title).toBe('Assigned')
@@ -370,13 +369,13 @@ describe('MCP endpoint', () => {
     expect((restData.items[0] as { title: string }).title).toBe('Assigned')
   })
 
-  it('MCP list_issues returns { items, next } (PROJ-891); REST keeps { items, nextCursor }', async () => {
-    const mcpRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('MCP list_issues returns { items, next } (PROJ-891); REST keeps { items, nextCursor }', async () => {
+    const mcpRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'list_issues', arguments: {} },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpData = JSON.parse(mcpRes.result.content[0].text) as IssuePage
 
     const restRes = await SELF.fetch('http://localhost/api/issues', { headers })
@@ -388,7 +387,7 @@ describe('MCP endpoint', () => {
     expect('nextCursor' in restData).toBe(true)
   })
 
-  it('MCP get_issue by ref returns issue', async () => {
+  test('MCP get_issue by ref returns issue', async () => {
     // Create via MCP; project key is 'PROJ', first issue = PROJ-1
     await mcpCall(
       workspaceId,
@@ -400,17 +399,17 @@ describe('MCP endpoint', () => {
       headers,
     )
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'get_issue', arguments: { ref: 'PROJ-1' } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const issue = JSON.parse(res.result.content[0].text) as { title: string }
     expect(issue.title).toBe('Ref via MCP')
   })
 
-  it('MCP get_issue for unknown id returns error', async () => {
+  test('MCP get_issue for unknown id returns error', async () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -424,7 +423,7 @@ describe('MCP endpoint', () => {
 
   // --- wiki parity tests ---
 
-  it('MCP list_wiki_pages without parentId returns ALL pages', async () => {
+  test('MCP list_wiki_pages without parentId returns ALL pages', async () => {
     const parentRes = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers,
@@ -438,34 +437,34 @@ describe('MCP endpoint', () => {
       body: JSON.stringify({ title: 'Child', content: 'child', parentId: parent.id }),
     })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'list_wiki_pages', arguments: {} },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const pages = JSON.parse(res.result.content[0].text) as unknown[]
     expect(pages).toHaveLength(2)
   })
 
-  it('MCP search_wiki with empty query returns []', async () => {
+  test('MCP search_wiki with empty query returns []', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers,
       body: JSON.stringify({ title: 'Some Page', content: 'content' }),
     })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'search_wiki', arguments: { query: '' } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const results = JSON.parse(res.result.content[0].text) as { items: unknown[] }
     expect(results).toEqual({ items: [] })
   })
 
-  it('MCP search_wiki excerpt is at most 250 chars', async () => {
+  test('MCP search_wiki excerpt is at most 250 chars', async () => {
     const longContent = 'z'.repeat(1000)
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
@@ -473,35 +472,35 @@ describe('MCP endpoint', () => {
       body: JSON.stringify({ title: 'Verbose Page', content: longContent }),
     })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'search_wiki', arguments: { query: 'Verbose' } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const results = (JSON.parse(res.result.content[0].text) as { items: Array<{ excerpt: string }> }).items
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const results = (JSON.parse(res.result.content[0].text) as { items: { excerpt: string }[] }).items
     expect(results).toHaveLength(1)
     expect(results[0].excerpt.length).toBeLessThanOrEqual(250)
   })
 
-  it('MCP create_wiki_page without slug auto-generates from title', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('MCP create_wiki_page without slug auto-generates from title', async () => {
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'create_wiki_page', arguments: { title: 'Auto Slug Page', content: 'hi' } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const created = JSON.parse(res.result.content[0].text) as { slug: string }
     expect(created.slug).toBe('auto-slug-page')
   })
 
-  it('MCP update_wiki_page by id creates a revision when content changes', async () => {
-    const createRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('MCP update_wiki_page by id creates a revision when content changes', async () => {
+    const createRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'create_wiki_page', arguments: { title: 'Rev Test', content: 'v1' } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const { id } = JSON.parse(createRes.result.content[0].text) as { id: string }
 
     await mcpCall(
@@ -521,13 +520,13 @@ describe('MCP endpoint', () => {
     expect(revisions).toHaveLength(1)
   })
 
-  it('MCP update_wiki_page title-only update does not create a revision', async () => {
-    const createRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('MCP update_wiki_page title-only update does not create a revision', async () => {
+    const createRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'create_wiki_page', arguments: { title: 'Title Only', content: 'body' } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const { id } = JSON.parse(createRes.result.content[0].text) as { id: string }
 
     await mcpCall(
@@ -547,7 +546,7 @@ describe('MCP endpoint', () => {
     expect(revisions).toHaveLength(0)
   })
 
-  it('MCP update_wiki_page by slug works', async () => {
+  test('MCP update_wiki_page by slug works', async () => {
     await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers,
@@ -569,7 +568,7 @@ describe('MCP endpoint', () => {
     expect(page.content).toBe('updated')
   })
 
-  it('MCP create_wiki_page with invalid title returns a validation tool error', async () => {
+  test('MCP create_wiki_page with invalid title returns a validation tool error', async () => {
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -580,7 +579,7 @@ describe('MCP endpoint', () => {
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('MCP delete_wiki_page cascade=true removes the page and its subtree (PROJ-238)', async () => {
+  test('MCP delete_wiki_page cascade=true removes the page and its subtree (PROJ-238)', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -598,12 +597,12 @@ describe('MCP endpoint', () => {
     })
     const child = (await childRes.json()) as { slug: string }
 
-    const delRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const delRes = (await mcpCall<{ content: { text: string }[] }>(
       owner.workspace.id,
       'tools/call',
       { name: 'delete_wiki_page', arguments: { slug: parent.slug, cascade: true } },
       ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     expect(JSON.parse(delRes.result.content[0].text)).toEqual({
       ok: true,
       deletedCount: 2,
@@ -616,7 +615,7 @@ describe('MCP endpoint', () => {
     expect(childRes2.status).toBe(404)
   })
 
-  it('MCP delete_wiki_page default promotes children instead of deleting them', async () => {
+  test('MCP delete_wiki_page default promotes children instead of deleting them', async () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
@@ -651,35 +650,35 @@ describe('MCP endpoint', () => {
 
   // --- get_prioritized_issues ---
 
-  it('get_prioritized_issues returns empty list when no open issues', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('get_prioritized_issues returns empty list when no open issues', async () => {
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(res.result.content[0].text) as { issues: unknown[] }
     expect(Array.isArray(data.issues)).toBe(true)
     expect(data.issues).toHaveLength(0)
   })
 
-  it('get_prioritized_issues returns issues with _score and _score_breakdown', async () => {
+  test('get_prioritized_issues returns issues with _score and _score_breakdown', async () => {
     const { user } = await seedFixture()
     await seedIssue(workspaceId, projectId, user.id, { title: 'Issue A', priority: 'high' })
     await seedIssue(workspaceId, projectId, user.id, { title: 'Issue B', priority: 'low' })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(res.result.content[0].text) as {
-      issues: Array<{
+      issues: {
         title: string
         _score: number
         _score_breakdown: { centrality: number; priority: number; story_points: number }
-      }>
+      }[]
     }
     expect(data.issues.length).toBeGreaterThan(0)
     for (const issue of data.issues) {
@@ -690,25 +689,25 @@ describe('MCP endpoint', () => {
     }
   })
 
-  it('get_prioritized_issues ranks high-priority issues above low-priority', async () => {
+  test('get_prioritized_issues ranks high-priority issues above low-priority', async () => {
     const { user } = await seedFixture()
     await seedIssue(workspaceId, projectId, user.id, { title: 'Urgent', priority: 'urgent' })
     await seedIssue(workspaceId, projectId, user.id, { title: 'None', priority: 'none' })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(res.result.content[0].text) as {
-      issues: Array<{ title: string; _score: number }>
+      issues: { title: string; _score: number }[]
     }
     const titles = data.issues.map((i) => i.title)
     expect(titles.indexOf('Urgent')).toBeLessThan(titles.indexOf('None'))
   })
 
-  it('get_prioritized_issues excludes done and cancelled issues', async () => {
+  test('get_prioritized_issues excludes done and cancelled issues', async () => {
     const { user } = await seedFixture()
     await seedIssue(workspaceId, projectId, user.id, { title: 'Open', priority: 'high' })
     await seedIssue(workspaceId, projectId, user.id, {
@@ -722,36 +721,36 @@ describe('MCP endpoint', () => {
       status: 'cancelled',
     })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const data = JSON.parse(res.result.content[0].text) as { issues: Array<{ title: string }> }
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const data = JSON.parse(res.result.content[0].text) as { issues: { title: string }[] }
     const titles = data.issues.map((i) => i.title)
     expect(titles).toContain('Open')
     expect(titles).not.toContain('Done')
     expect(titles).not.toContain('Cancelled')
   })
 
-  it('get_prioritized_issues respects limit parameter', async () => {
+  test('get_prioritized_issues respects limit parameter', async () => {
     const { user } = await seedFixture()
     for (let i = 0; i < 5; i++) {
       await seedIssue(workspaceId, projectId, user.id, { title: `Issue ${i}` })
     }
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'get_prioritized_issues', arguments: { limit: 2, includeNotReady: true } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(res.result.content[0].text) as { issues: unknown[] }
     expect(data.issues).toHaveLength(2)
   })
 
-  it('get_prioritized_issues boosts issues with higher in-degree', async () => {
+  test('get_prioritized_issues boosts issues with higher in-degree', async () => {
     const { user } = await seedFixture()
     const target = await seedIssue(workspaceId, projectId, user.id, {
       title: 'Target',
@@ -769,14 +768,14 @@ describe('MCP endpoint', () => {
       body: JSON.stringify({ targetIssueId: target.id, type: 'blocks' }),
     })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(res.result.content[0].text) as {
-      issues: Array<{ title: string; _score_breakdown: { centrality: number } }>
+      issues: { title: string; _score_breakdown: { centrality: number } }[]
     }
     const targetRow = data.issues.find((i) => i.title === 'Target')
     const blockerRow = data.issues.find((i) => i.title === 'Blocker')
@@ -784,7 +783,7 @@ describe('MCP endpoint', () => {
     expect(blockerRow?._score_breakdown.centrality).toBe(0)
   })
 
-  it('get_prioritized_issues uses story points custom field in scoring', async () => {
+  test('get_prioritized_issues uses story points custom field in scoring', async () => {
     const { user } = await seedFixture()
     const fieldDef = await seedCustomFieldDef(workspaceId, {
       key: 'story_points',
@@ -802,14 +801,14 @@ describe('MCP endpoint', () => {
     await seedCustomFieldValue(small.id, fieldDef.id, '1')
     await seedCustomFieldValue(large.id, fieldDef.id, '8')
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'tools/call',
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(res.result.content[0].text) as {
-      issues: Array<{ title: string; _score: number }>
+      issues: { title: string; _score: number }[]
     }
     const smallRow = data.issues.find((i) => i.title === 'Small (1pt)')
     const largeRow = data.issues.find((i) => i.title === 'Large (8pt)')

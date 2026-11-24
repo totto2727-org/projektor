@@ -2,15 +2,16 @@
 
 import { useForm } from '@tanstack/react-form'
 import { Schema } from 'effect'
-import { type KeyboardEvent, useActionState, useEffect, useRef, useState } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 
-import { unwrapResult } from '../../client/functions'
-import { Badge } from '../../components/ui/Badge'
-import { Button } from '../../components/ui/Button'
-import { EmptyState } from '../../components/ui/EmptyState'
-import { Input, Textarea } from '../../components/ui/Input'
-import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '../../components/ui/Table'
-import { FormErrors } from '../planning/form-ui'
+import { unwrapResult } from '../../client/functions.ts'
+import { Badge } from '../../components/ui/Badge.tsx'
+import { Button } from '../../components/ui/Button.tsx'
+import { EmptyState } from '../../components/ui/EmptyState.tsx'
+import { Input, Textarea } from '../../components/ui/Input.tsx'
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '../../components/ui/Table.tsx'
+import { FormErrors } from '../planning/form-ui.tsx'
 import {
   addGroupMember,
   createGroup,
@@ -21,15 +22,15 @@ import {
   removeGroupMember,
   renameGroup,
   setGroupGrant,
-} from './actions'
+} from './actions.ts'
 import {
   CreateGroupInputSchema,
   GroupDescriptionInputSchema,
   GroupGrantInputSchema,
   GroupMemberInputSchema,
-  type GroupView,
   RenameGroupInputSchema,
-} from './input-schemas'
+} from './input-schemas.ts'
+import type { GroupView } from './input-schemas.ts'
 import type {
   GrantRole,
   GroupData,
@@ -39,7 +40,7 @@ import type {
   MemberGroupsRow,
   ProjectLite,
   WorkspaceMember,
-} from './types'
+} from './types.ts'
 
 const ROLES: GrantRole[] = ['viewer', 'member', 'admin']
 const INPUT =
@@ -56,16 +57,27 @@ const adminRole = (role: string) => role === 'owner' || role === 'admin'
 type Tab = 'groups' | 'members'
 export function nextTabId(tabs: readonly Tab[], active: Tab, key: string): Tab | null {
   const index = tabs.indexOf(active)
-  if (key === 'ArrowRight') return tabs[(index + 1) % tabs.length]
-  if (key === 'ArrowLeft') return tabs[(index - 1 + tabs.length) % tabs.length]
-  if (key === 'Home') return tabs[0]
-  if (key === 'End') return tabs[tabs.length - 1]
+  if (key === 'ArrowRight') {
+    return tabs[(index + 1) % tabs.length]
+  }
+  if (key === 'ArrowLeft') {
+    return tabs[(index - 1 + tabs.length) % tabs.length]
+  }
+  if (key === 'Home') {
+    return tabs[0]
+  }
+  if (key === 'End') {
+    return tabs[tabs.length - 1]
+  }
   return null
 }
 function MemberGroupsCell({ member, groups }: { member: WorkspaceMember; groups: { id: string; name: string }[] }) {
-  if (adminRole(member.role))
+  if (adminRole(member.role)) {
     return <span className='text-[0.78rem] text-text-muted'>All projects (bypasses groups)</span>
-  if (groups.length === 0) return <Badge>Pending: no access</Badge>
+  }
+  if (groups.length === 0) {
+    return <Badge>Pending: no access</Badge>
+  }
   return (
     <>
       {groups.map((group) => (
@@ -254,17 +266,23 @@ function GroupDetailEditor({
     validators: { onMount: grantValidator, onChange: grantValidator, onSubmit: grantValidator },
   })
   useEffect(() => {
-    if (memberResult?.ok) memberForm.reset()
+    if (memberResult?.ok) {
+      memberForm.reset()
+    }
   }, [memberResult, memberForm])
   useEffect(() => {
-    if (grantResult?.ok) grantForm.reset()
+    if (grantResult?.ok) {
+      grantForm.reset()
+    }
   }, [grantResult, grantForm])
   const addable = members.filter(
     (member) => !adminRole(member.role) && !detail.members.some((row) => row.userId === member.id),
   )
   const grantable = projects.filter((project) => !detail.grants.some((row) => row.projectId === project.id))
   async function removeMember(userId: string) {
-    if (busy) return
+    if (busy) {
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -277,7 +295,9 @@ function GroupDetailEditor({
     setBusy(false)
   }
   async function removeGrant(projectId: string) {
-    if (busy) return
+    if (busy) {
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -649,15 +669,21 @@ export function GroupManager({
     validators: { onMount: standard, onChange: standard, onSubmit: standard },
   })
   useEffect(() => {
-    if (createResult?.ok) form.reset()
+    if (createResult?.ok) {
+      form.reset()
+    }
   }, [createResult, form])
   async function remove(id: string) {
-    if (busy) return
+    if (busy) {
+      return
+    }
     setBusy(true)
     setError(null)
     try {
       unwrapResult(await deleteGroup({ workspaceSlug, groupId: id }))
-      if (selected === id) setSelected(null)
+      if (selected === id) {
+        setSelected(null)
+      }
     } catch (cause) {
       setBusy(false)
       setError(String(cause))

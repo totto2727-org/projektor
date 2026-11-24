@@ -1,6 +1,6 @@
-import { coreResult } from '../../core'
-import type { BrowserCommandClient } from '../../server/browser-command'
-import { CreatedGroupSchema, NewTokenSchema, SettingsOkSchema } from './schemas'
+import { coreResult } from '../../core.ts'
+import type { BrowserCommandClient } from '../../server/browser-command.ts'
+import { CreatedGroupSchema, NewTokenSchema, SettingsOkSchema } from './schemas.ts'
 
 export const groupCommands = {
   createGroup: (ctx: BrowserCommandClient, input: unknown) =>

@@ -1,8 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { authHeaders, type JsonRpcError, type JsonRpcResult, seedWorkspaceRoles, toolError } from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+import { authHeaders, seedWorkspaceRoles, toolError } from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 async function mcpCall<T>(
   workspaceId: string,
@@ -47,7 +48,7 @@ describe('Projects REST', () => {
     viewerHeaders = authHeaders(viewerToken, slug)
   })
 
-  it('GET /api/projects returns empty list initially', async () => {
+  test('GET /api/projects returns empty list initially', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
     expect(res.status).toBe(200)
     const body = (await res.json()) as unknown[]
@@ -55,7 +56,7 @@ describe('Projects REST', () => {
     expect(body).toHaveLength(0)
   })
 
-  it('POST /api/projects creates a project (owner)', async () => {
+  test('POST /api/projects creates a project (owner)', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -68,7 +69,7 @@ describe('Projects REST', () => {
     expect(body.key).toBe('ALPHA')
   })
 
-  it('POST /api/projects accepts lowercase key and uppercases it', async () => {
+  test('POST /api/projects accepts lowercase key and uppercases it', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -79,7 +80,7 @@ describe('Projects REST', () => {
     expect(body.key).toBe('BETA')
   })
 
-  it('POST /api/projects rejects member role (403)', async () => {
+  test('POST /api/projects rejects member role (403)', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: memberHeaders,
@@ -88,7 +89,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(403)
   })
 
-  it('POST /api/projects rejects viewer role (403)', async () => {
+  test('POST /api/projects rejects viewer role (403)', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: viewerHeaders,
@@ -97,7 +98,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(403)
   })
 
-  it('POST /api/projects returns 409 for duplicate key', async () => {
+  test('POST /api/projects returns 409 for duplicate key', async () => {
     await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -111,7 +112,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(409)
   })
 
-  it('POST /api/projects returns 400 for invalid key format', async () => {
+  test('POST /api/projects returns 400 for invalid key format', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -120,7 +121,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/projects returns 400 for a key starting with a digit (PROJ-440)', async () => {
+  test('POST /api/projects returns 400 for a key starting with a digit (PROJ-440)', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -129,7 +130,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/projects accepts a key containing digits after the first character (PROJ-440)', async () => {
+  test('POST /api/projects accepts a key containing digits after the first character (PROJ-440)', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -138,7 +139,7 @@ describe('Projects REST', () => {
     expect(res.status).toBe(201)
   })
 
-  it('POST /api/projects returns 400 for name too long', async () => {
+  test('POST /api/projects returns 400 for name too long', async () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -147,20 +148,20 @@ describe('Projects REST', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/projects stores NULL description by default', async () => {
+  test('POST /api/projects stores NULL description by default', async () => {
     await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'NullDesc', key: 'NULLD' }),
     })
     const listRes = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
-    const projects = (await listRes.json()) as Array<{ key: string; description: string | null }>
+    const projects = (await listRes.json()) as { key: string; description: string | null }[]
     const proj = projects.find((p) => p.key === 'NULLD')
     expect(proj).toBeTruthy()
     expect(proj!.description).toBeNull()
   })
 
-  it('GET /api/projects/:id returns the project', async () => {
+  test('GET /api/projects/:id returns the project', async () => {
     const createRes = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -175,14 +176,14 @@ describe('Projects REST', () => {
     expect(proj.key).toBe('GETME')
   })
 
-  it('GET /api/projects/:id returns 404 for missing project', async () => {
+  test('GET /api/projects/:id returns 404 for missing project', async () => {
     const res = await SELF.fetch(`http://localhost/api/projects/${crypto.randomUUID()}`, {
       headers: ownerHeaders,
     })
     expect(res.status).toBe(404)
   })
 
-  it('PATCH /api/projects/:id updates name (owner)', async () => {
+  test('PATCH /api/projects/:id updates name (owner)', async () => {
     const createRes = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -198,7 +199,7 @@ describe('Projects REST', () => {
     expect(patchRes.status).toBe(200)
   })
 
-  it('PATCH /api/projects/:id rejects member (403)', async () => {
+  test('PATCH /api/projects/:id rejects member (403)', async () => {
     const createRes = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -214,7 +215,7 @@ describe('Projects REST', () => {
     expect(patchRes.status).toBe(403)
   })
 
-  it('PATCH /api/projects/:id archives and unarchives a project', async () => {
+  test('PATCH /api/projects/:id archives and unarchives a project', async () => {
     const createRes = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -230,16 +231,16 @@ describe('Projects REST', () => {
     expect(archiveRes.status).toBe(200)
 
     const listRes = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
-    const keys = ((await listRes.json()) as Array<{ key: string }>).map((p) => p.key)
+    const keys = ((await listRes.json()) as { key: string }[]).map((p) => p.key)
     expect(keys).not.toContain('ARCH1')
 
     const includeArchivedRes = await SELF.fetch('http://localhost/api/projects?includeArchived=true', {
       headers: ownerHeaders,
     })
-    const withArchived = (await includeArchivedRes.json()) as Array<{
+    const withArchived = (await includeArchivedRes.json()) as {
       key: string
       archived_at: number | null
-    }>
+    }[]
     const archived = withArchived.find((p) => p.key === 'ARCH1')
     expect(archived).toBeTruthy()
     expect(archived!.archived_at).not.toBeNull()
@@ -256,11 +257,11 @@ describe('Projects REST', () => {
     const afterUnarchive = await SELF.fetch('http://localhost/api/projects', {
       headers: ownerHeaders,
     })
-    const afterKeys = ((await afterUnarchive.json()) as Array<{ key: string }>).map((p) => p.key)
+    const afterKeys = ((await afterUnarchive.json()) as { key: string }[]).map((p) => p.key)
     expect(afterKeys).toContain('ARCH1')
   })
 
-  it('DELETE /api/projects/:id works for owner', async () => {
+  test('DELETE /api/projects/:id works for owner', async () => {
     const createRes = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -275,7 +276,7 @@ describe('Projects REST', () => {
     expect(delRes.status).toBe(200)
   })
 
-  it('DELETE /api/projects/:id rejects member (403)', async () => {
+  test('DELETE /api/projects/:id rejects member (403)', async () => {
     const createRes = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -309,13 +310,13 @@ describe('Projects MCP', () => {
     viewerHeaders = authHeaders(roles.viewer.token, slug)
   })
 
-  it('list_projects returns empty list initially', async () => {
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+  test('list_projects returns empty list initially', async () => {
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_projects',
       {},
       ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     expect(isMcpError(res)).toBe(false)
     expect(toolError(res)).toBeUndefined()
     const data = JSON.parse(res.result.content[0].text) as unknown[]
@@ -323,72 +324,72 @@ describe('Projects MCP', () => {
     expect(data).toHaveLength(0)
   })
 
-  it('create_project succeeds for owner', async () => {
+  test('create_project succeeds for owner', async () => {
     const res = await mcpCall(workspaceId, 'create_project', { name: 'MCP Project', key: 'MCP' }, ownerHeaders)
     expect(isMcpError(res)).toBe(false)
     expect(toolError(res)).toBeUndefined()
-    const result = res as JsonRpcResult<{ content: Array<{ text: string }> }>
+    const result = res as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(result.result.content[0].text) as { id: string; key: string }
     expect(data.id).toBeTruthy()
     expect(data.key).toBe('MCP')
   })
 
-  it('create_project uppercases key', async () => {
+  test('create_project uppercases key', async () => {
     const res = (await mcpCall(
       workspaceId,
       'create_project',
       { name: 'Lower', key: 'lower' },
       ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const data = JSON.parse(res.result.content[0].text) as { key: string }
     expect(data.key).toBe('LOWER')
   })
 
-  it('create_project rejects member role', async () => {
+  test('create_project rejects member role', async () => {
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLKD' }, memberHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('create_project rejects viewer role', async () => {
+  test('create_project rejects viewer role', async () => {
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLKD' }, viewerHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('create_project rejects duplicate key', async () => {
+  test('create_project rejects duplicate key', async () => {
     await mcpCall(workspaceId, 'create_project', { name: 'First', key: 'DUPL' }, ownerHeaders)
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Second', key: 'DUPL' }, ownerHeaders)
     expect(toolError(res)?.code).toBe('conflict')
   })
 
-  it('create_project rejects invalid key format', async () => {
+  test('create_project rejects invalid key format', async () => {
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Bad', key: 'BAD KEY!' }, ownerHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('create_project rejects name too long', async () => {
+  test('create_project rejects name too long', async () => {
     const res = await mcpCall(workspaceId, 'create_project', { name: 'x'.repeat(101), key: 'TOOLNG' }, ownerHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })
 
-  it('create_project stores NULL description by default', async () => {
+  test('create_project stores NULL description by default', async () => {
     await mcpCall(workspaceId, 'create_project', { name: 'NullDesc', key: 'MCPND' }, ownerHeaders)
 
-    const listRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const listRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_projects',
       {},
       ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const projects = JSON.parse(listRes.result.content[0].text) as Array<{
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const projects = JSON.parse(listRes.result.content[0].text) as {
       key: string
       description: string | null
-    }>
+    }[]
     const proj = projects.find((p) => p.key === 'MCPND')
     expect(proj).toBeTruthy()
     expect(proj!.description).toBeNull()
   })
 
-  it('REST GET /api/projects returns workspace_slug and open_issue_count fields', async () => {
+  test('REST GET /api/projects returns workspace_slug and open_issue_count fields', async () => {
     await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -396,13 +397,13 @@ describe('Projects MCP', () => {
     })
 
     const res = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
-    const projects = (await res.json()) as Array<{
+    const projects = (await res.json()) as {
       key: string
       workspace_id: string
       workspace_slug: string
       workspace_name: string
       open_issue_count: number
-    }>
+    }[]
     const proj = projects.find((p) => p.key === 'SHAPE')
     expect(proj).toBeTruthy()
     expect(proj!.workspace_id).toBeTruthy()
@@ -412,7 +413,7 @@ describe('Projects MCP', () => {
     expect(proj!.open_issue_count).toBe(0)
   })
 
-  it('REST and MCP list_projects return the same keys', async () => {
+  test('REST and MCP list_projects return the same keys', async () => {
     // Create via REST
     await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
@@ -421,56 +422,56 @@ describe('Projects MCP', () => {
     })
 
     const restRes = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
-    const restProjects = (await restRes.json()) as Array<{ key: string }>
+    const restProjects = (await restRes.json()) as { key: string }[]
 
-    const mcpRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const mcpRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_projects',
       {},
       ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const mcpProjects = JSON.parse(mcpRes.result.content[0].text) as Array<{ key: string }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const mcpProjects = JSON.parse(mcpRes.result.content[0].text) as { key: string }[]
 
     expect(restProjects.map((p) => p.key)).toEqual(mcpProjects.map((p) => p.key))
   })
 
-  it('update_project archives a project and list_projects excludes it by default', async () => {
+  test('update_project archives a project and list_projects excludes it by default', async () => {
     const createRes = await mcpCall(
       workspaceId,
       'create_project',
       { name: 'MCP Archivable', key: 'MARCH' },
       ownerHeaders,
     )
-    const { id } = JSON.parse(
-      (createRes as JsonRpcResult<{ content: Array<{ text: string }> }>).result.content[0].text,
-    ) as { id: string }
+    const { id } = JSON.parse((createRes as JsonRpcResult<{ content: { text: string }[] }>).result.content[0].text) as {
+      id: string
+    }
 
     const updateRes = await mcpCall(workspaceId, 'update_project', { id, archived: true }, ownerHeaders)
     expect(isMcpError(updateRes)).toBe(false)
     expect(toolError(updateRes)).toBeUndefined()
 
-    const listRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const listRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_projects',
       {},
       ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const keys = (JSON.parse(listRes.result.content[0].text) as Array<{ key: string }>).map((p) => p.key)
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const keys = (JSON.parse(listRes.result.content[0].text) as { key: string }[]).map((p) => p.key)
     expect(keys).not.toContain('MARCH')
 
-    const includeArchivedRes = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const includeArchivedRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_projects',
       { includeArchived: true },
       ownerHeaders,
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const includeArchivedKeys = (JSON.parse(includeArchivedRes.result.content[0].text) as Array<{ key: string }>).map(
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const includeArchivedKeys = (JSON.parse(includeArchivedRes.result.content[0].text) as { key: string }[]).map(
       (p) => p.key,
     )
     expect(includeArchivedKeys).toContain('MARCH')
   })
 
-  it('REST create_project and MCP create_project enforce the same role guard', async () => {
+  test('REST create_project and MCP create_project enforce the same role guard', async () => {
     const restRes = await SELF.fetch('http://localhost/api/projects', {
       method: 'POST',
       headers: memberHeaders,
@@ -485,9 +486,9 @@ describe('Projects MCP', () => {
 })
 
 describe('GET /api/projects cross-workspace', () => {
-  it('returns projects from all workspaces the user belongs to', async () => {
+  test('returns projects from all workspaces the user belongs to', async () => {
     const { seedFixture, seedProject, seedWorkspace, seedMember, seedGroupGrant, seedUserToken } =
-      await import('./helpers')
+      await import('./helpers.ts')
 
     const ws1 = await seedFixture({ role: 'owner' })
     const ws2 = await seedWorkspace()
@@ -502,13 +503,13 @@ describe('GET /api/projects cross-workspace', () => {
       headers: { Authorization: `Bearer ${userToken}` },
     })
     expect(res.status).toBe(200)
-    const keys = ((await res.json()) as Array<{ key: string }>).map((p) => p.key)
+    const keys = ((await res.json()) as { key: string }[]).map((p) => p.key)
     expect(keys).toContain('WS1P')
     expect(keys).toContain('WS2P')
   })
 
-  it('does not return projects from workspaces the user is not a member of', async () => {
-    const { seedFixture, seedProject, seedWorkspace } = await import('./helpers')
+  test('does not return projects from workspaces the user is not a member of', async () => {
+    const { seedFixture, seedProject, seedWorkspace } = await import('./helpers.ts')
 
     const user = await seedFixture({ role: 'owner' })
     const other = await seedWorkspace()
@@ -519,18 +520,18 @@ describe('GET /api/projects cross-workspace', () => {
       headers: { Authorization: `Bearer ${user.token}` },
     })
     expect(res.status).toBe(200)
-    const keys = ((await res.json()) as Array<{ key: string }>).map((p) => p.key)
+    const keys = ((await res.json()) as { key: string }[]).map((p) => p.key)
     expect(keys).toContain('MINE')
     expect(keys).not.toContain('NOTMINE')
   })
 
-  it('returns 401 with no auth', async () => {
+  test('returns 401 with no auth', async () => {
     const res = await SELF.fetch('http://localhost/api/projects')
     expect(res.status).toBe(401)
   })
 
-  it('open_issue_count reflects non-done issues only', async () => {
-    const { seedFixture, seedProject, seedIssue } = await import('./helpers')
+  test('open_issue_count reflects non-done issues only', async () => {
+    const { seedFixture, seedProject, seedIssue } = await import('./helpers.ts')
 
     const fixture = await seedFixture({ role: 'owner' })
     const project = await seedProject(fixture.workspace.id, 'ICNT')
@@ -542,7 +543,7 @@ describe('GET /api/projects cross-workspace', () => {
     const res = await SELF.fetch('http://localhost/api/projects', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
-    const projects = (await res.json()) as Array<{ key: string; open_issue_count: number }>
+    const projects = (await res.json()) as { key: string; open_issue_count: number }[]
     const proj = projects.find((p) => p.key === 'ICNT')
     expect(proj).toBeTruthy()
     expect(proj!.open_issue_count).toBe(2)

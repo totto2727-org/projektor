@@ -1,12 +1,12 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { RESERVED_WIKI_SLUGS } from '#commands/wiki'
+import { RESERVED_WIKI_SLUGS } from '#commands/wiki.ts'
 
 import m0060 from '../../../migrations/0060_wiki_reserved_slug_rename.sql?raw'
-import { wikiRouter } from '../routes/wiki'
-import { env } from './fixture-api'
-import { authHeaders, seedFixture } from './helpers'
+import { wikiRouter } from '../routes/wiki.ts'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture } from './helpers.ts'
 
 // PROJ-811: every fixed first path segment under /api/wiki is matched before the /:slug
 // catch-all, so a page with that slug could never load.
@@ -24,7 +24,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     userId = fixture.user.id
   })
 
-  it('reserves every fixed first segment registered on the wiki router', () => {
+  test('reserves every fixed first segment registered on the wiki router', () => {
     const fixedSegments = new Set(
       wikiRouter.routes
         .map((r) => r.path.split('/')[1] ?? '')
@@ -35,7 +35,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     expect(missing).toEqual([])
   })
 
-  it('auto-slugs a reserved title with a -page suffix, and the page loads', async () => {
+  test('auto-slugs a reserved title with a -page suffix, and the page loads', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -51,7 +51,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     expect(get.status).toBe(200)
   })
 
-  it('rejects choosing a reserved slug explicitly, on create and on rename', async () => {
+  test('rejects choosing a reserved slug explicitly, on create and on rename', async () => {
     const created = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -73,7 +73,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     expect(renamed.status).toBe(400)
   })
 
-  it('migration 0060 renames existing pages off reserved slugs, trashed ones included', async () => {
+  test('migration 0060 renames existing pages off reserved slugs, trashed ones included', async () => {
     const now = Math.floor(Date.now() / 1000)
     const insert = (pageSlug: string, deletedAt: number | null) => {
       const id = crypto.randomUUID()
@@ -97,7 +97,9 @@ describe('reserved wiki slugs (PROJ-811)', () => {
       .split(';')
       .map((s) => s.trim())
       .filter((s) => s.length > 0)
-    for (const stmt of statements) await env.DB.prepare(stmt).run()
+    for (const stmt of statements) {
+      await env.DB.prepare(stmt).run()
+    }
 
     const slugOf = async (id: string) =>
       (

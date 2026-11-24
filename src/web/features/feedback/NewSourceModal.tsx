@@ -4,12 +4,12 @@ import { useForm, useStore } from '@tanstack/react-form'
 import { Schema } from 'effect'
 import { useActionState, useEffect } from 'react'
 
-import { FormErrors } from '../../components/FormErrors'
-import { Button } from '../../components/ui/Button'
-import { Dialog } from '../../components/ui/Dialog'
-import { Input, Textarea } from '../../components/ui/Input'
-import { createFeedbackSource } from './actions'
-import { SourceFields } from './schemas'
+import { FormErrors } from '../../components/FormErrors.tsx'
+import { Button } from '../../components/ui/Button.tsx'
+import { Dialog } from '../../components/ui/Dialog.tsx'
+import { Input, Textarea } from '../../components/ui/Input.tsx'
+import { createFeedbackSource } from './actions.ts'
+import { SourceFields } from './schemas.ts'
 
 interface Props {
   projectId: string
@@ -139,14 +139,18 @@ export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCr
   const setDescription = (value: string) => form.setFieldValue('description', value)
   const setOrigins = (value: string) => form.setFieldValue('origins', value)
   useEffect(() => {
-    if (newToken) onCreated?.()
+    if (newToken) {
+      onCreated?.()
+    }
   }, [newToken, onCreated])
 
   return (
     <Dialog
       open={true}
       onClose={() => {
-        if (!newToken) onClose()
+        if (!newToken) {
+          onClose()
+        }
       }}
       ariaLabel='New feedback source'
     >

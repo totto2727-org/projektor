@@ -1,17 +1,10 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { configureCore, env } from './fixture-api'
-import {
-  authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
-  seedIssue,
-  seedIssueFixture,
-  seedToken,
-  toolError,
-} from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+import { configureCore, env } from './fixture-api.ts'
+import { authHeaders, seedIssue, seedIssueFixture, seedToken, toolError } from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 let fixture: Awaited<ReturnType<typeof seedIssueFixture>>
 let attachmentId: string
@@ -45,7 +38,7 @@ async function readMetadata() {
 
 async function mcpUpdate(
   status: unknown,
-): Promise<JsonRpcResult<{ content: Array<{ text: string }>; isError?: boolean }> | JsonRpcError> {
+): Promise<JsonRpcResult<{ content: { text: string }[]; isError?: boolean }> | JsonRpcError> {
   const response = await SELF.fetch(`http://localhost/mcp/${fixture.workspaceId}`, {
     method: 'POST',
     headers: authHeaders(fixture.token, fixture.slug),
@@ -64,12 +57,14 @@ async function mcpUpdate(
 }
 
 describe('review target MCP tool through the real API and Core Workers', () => {
-  it('sets all review statuses and clears selection with canonical metadata readback', async () => {
+  test('sets all review statuses and clears selection with canonical metadata readback', async () => {
     for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
       await resetRateLimits()
       const reply = await mcpUpdate(status)
       expect(reply).not.toHaveProperty('error')
-      if ('error' in reply) throw new Error(reply.error.message)
+      if ('error' in reply) {
+        throw new Error(reply.error.message)
+      }
       expect(reply.result.isError).not.toBe(true)
       expect(reply.result.content).toHaveLength(1)
       expect(JSON.parse(reply.result.content[0].text)).toEqual({ ok: true })
@@ -77,13 +72,13 @@ describe('review target MCP tool through the real API and Core Workers', () => {
     }
   })
 
-  it('returns a safe validation tool error without changing selection', async () => {
+  test('returns a safe validation tool error without changing selection', async () => {
     const reply = await mcpUpdate('invalid')
     expect(toolError(reply)?.code).toBe('validation')
     expect(await readMetadata()).toMatchObject({ reviewStatus: null })
   })
 
-  it('denies viewer grants and then revoked visibility without writing', async () => {
+  test('denies viewer grants and then revoked visibility without writing', async () => {
     await env.DB.prepare("UPDATE group_project_grants SET role='viewer' WHERE project_id=?")
       .bind(fixture.projectId)
       .run()
@@ -97,7 +92,7 @@ describe('review target MCP tool through the real API and Core Workers', () => {
 })
 
 describe('review targets REST through the real API and Core Workers', () => {
-  it('selects, updates and removes a review target and exposes canonical attachment metadata', async () => {
+  test('selects, updates and removes a review target and exposes canonical attachment metadata', async () => {
     expect(await readMetadata()).toMatchObject({ id: attachmentId, kind: 'url', reviewStatus: null })
     for (const status of ['fixing', 'in_review', 'changes_requested', 'done', null]) {
       await resetRateLimits()
@@ -108,12 +103,12 @@ describe('review targets REST through the real API and Core Workers', () => {
     }
   })
 
-  it.each(['invalid', '', 1, {}])('rejects malformed review status %j without a write', async (status) => {
+  test.each(['invalid', '', 1, {}])('rejects malformed review status %j without a write', async (status) => {
     expect((await update(status)).status).toBe(400)
     expect(await readMetadata()).toMatchObject({ reviewStatus: null })
   })
 
-  it('rejects malformed JSON and missing status', async () => {
+  test('rejects malformed JSON and missing status', async () => {
     for (const body of ['{', JSON.stringify({ issueId: fixture.issueId })]) {
       const response = await SELF.fetch(`http://localhost/api/files/${attachmentId}/review-status`, {
         method: 'PATCH',
@@ -125,13 +120,13 @@ describe('review targets REST through the real API and Core Workers', () => {
     expect(await readMetadata()).toMatchObject({ reviewStatus: null })
   })
 
-  it('rejects an attachment belonging to another issue even in the same project', async () => {
+  test('rejects an attachment belonging to another issue even in the same project', async () => {
     const sibling = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     expect((await update('fixing', { issueId: sibling.id })).status).toBe(404)
     expect(await readMetadata()).toMatchObject({ reviewStatus: null })
   })
 
-  it('treats the path attachment id as authoritative instead of a body override', async () => {
+  test('treats the path attachment id as authoritative instead of a body override', async () => {
     const response = await SELF.fetch('http://localhost/api/files/missing-review-target/review-status', {
       method: 'PATCH',
       headers: authHeaders(fixture.token, fixture.slug),
@@ -141,7 +136,7 @@ describe('review targets REST through the real API and Core Workers', () => {
     expect(await readMetadata()).toMatchObject({ reviewStatus: null })
   })
 
-  it('confines workspace-bound credentials despite a foreign issue and attachment pair', async () => {
+  test('confines workspace-bound credentials despite a foreign issue and attachment pair', async () => {
     const other = await seedIssueFixture()
     const foreignAttachmentId = crypto.randomUUID()
     await env.DB.prepare(`INSERT INTO attachments
@@ -155,7 +150,7 @@ describe('review targets REST through the real API and Core Workers', () => {
     ).toEqual({ review_status: null })
   })
 
-  it('rechecks current project viewer grants and revoked visibility', async () => {
+  test('rechecks current project viewer grants and revoked visibility', async () => {
     await env.DB.prepare("UPDATE group_project_grants SET role='viewer' WHERE project_id=?")
       .bind(fixture.projectId)
       .run()
@@ -167,13 +162,13 @@ describe('review targets REST through the real API and Core Workers', () => {
     )
   })
 
-  it('rejects read-only credentials without writing', async () => {
+  test('rejects read-only credentials without writing', async () => {
     const readOnly = await seedToken(fixture.workspaceId, fixture.userId, { scopes: ['projektor:read'] })
     expect((await update('fixing', { token: readOnly })).status).toBe(403)
     expect(await readMetadata()).toMatchObject({ reviewStatus: null })
   })
 
-  it('rejects current membership revocation without writing', async () => {
+  test('rejects current membership revocation without writing', async () => {
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id=? AND user_id=?')
       .bind(fixture.workspaceId, fixture.userId)
       .run()
@@ -183,13 +178,13 @@ describe('review targets REST through the real API and Core Workers', () => {
     )
   })
 
-  it('does not select Wiki references for review', async () => {
+  test('does not select Wiki references for review', async () => {
     await env.DB.prepare("UPDATE attachments SET kind='wiki_ref' WHERE id=?").bind(attachmentId).run()
     expect((await update('fixing')).status).toBe(404)
     expect(await readMetadata()).toMatchObject({ reviewStatus: null })
   })
 
-  it('does not mutate archived projects', async () => {
+  test('does not mutate archived projects', async () => {
     await env.DB.prepare('UPDATE projects SET archived_at=2 WHERE id=?').bind(fixture.projectId).run()
     expect((await update('fixing')).status).toBe(404)
     expect(await readMetadata()).toMatchObject({ reviewStatus: null })

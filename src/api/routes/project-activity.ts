@@ -2,9 +2,9 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { serviceErrToResponse } from '../http/error-adapter'
-import { listProjectActivity } from '../services/project-activity'
-import { ctxFromHono } from '../services/types'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { listProjectActivity } from '../services/project-activity.ts'
+import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 

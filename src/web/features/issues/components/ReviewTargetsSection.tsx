@@ -1,10 +1,10 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-import type { ReviewStatus } from '../../../../contracts/review-targets'
-import { FunctionError, unwrapResult } from '../../../client/functions'
-import { setAttachmentReviewStatus } from '../actions'
-import type { Attachment } from '../types'
+import type { ReviewStatus } from '../../../../contracts/review-targets.ts'
+import { FunctionError, unwrapResult } from '../../../client/functions.ts'
+import { setAttachmentReviewStatus } from '../actions.ts'
+import type { Attachment } from '../types.ts'
 
 const STATUS_OPTIONS = [
   { value: 'fixing', label: '修正中', color: 'text-text-muted bg-surface' },
@@ -41,7 +41,9 @@ function ReviewTargetRow({
   }, [attachment, pending])
 
   async function changeStatus(nextStatus: ReviewStatus | null) {
-    if (busy.current) return
+    if (busy.current) {
+      return
+    }
     busy.current = true
     setPending({ attachment, saved: false })
     setError(null)
@@ -103,7 +105,9 @@ function ReviewTargetRow({
               disabled={pending !== null}
               onChange={(event) => {
                 const selected = STATUS_OPTIONS.find((entry) => entry.value === event.currentTarget.value)
-                if (selected) void changeStatus(selected.value)
+                if (selected) {
+                  void changeStatus(selected.value)
+                }
               }}
               className='min-h-[44px] max-w-full rounded border border-border bg-bg px-2 text-sm text-text-base'
             >

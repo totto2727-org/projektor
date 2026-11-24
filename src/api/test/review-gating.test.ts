@@ -1,7 +1,7 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   hashToken,
@@ -9,7 +9,7 @@ import {
   seedIssue,
   seedProjectFixture,
   seedTaskStatus,
-} from './helpers'
+} from './helpers.ts'
 
 // PROJ-254 gate, hardened by PROJ-287/289/292/293: the in_review report requirement is
 // bound to the issue's LIVE AGENT LEASE (an agent can't spoof it by omitting
@@ -63,7 +63,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${id}/comments`, {
       headers: authHeaders(token, slug),
     })
-    const comments = (await res.json()) as Array<{ body: string }>
+    const comments = (await res.json()) as { body: string }[]
     return comments.map((c) => c.body)
   }
 
@@ -94,7 +94,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
   // --- Agent path (live agent lease present) ---
 
-  it('rejects an agent (live lease) entering in_review without a completion report', async () => {
+  test('rejects an agent (live lease) entering in_review without a completion report', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No report' })
     await seedAgentLease(workspaceId, issue.id)
 
@@ -102,7 +102,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('accepts an agent (live lease) entering in_review with a report, and posts it', async () => {
+  test('accepts an agent (live lease) entering in_review with a report, and posts it', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'With report' })
     await seedAgentLease(workspaceId, issue.id)
 
@@ -112,7 +112,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     expect((await commentBodies(issue.id)).some((b) => b.includes('Did the thing'))).toBe(true)
   })
 
-  it('accepts a completion report with a non-URL prLink placeholder, dropping just that field', async () => {
+  test('accepts a completion report with a non-URL prLink placeholder, dropping just that field', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Placeholder prLink' })
     await seedAgentLease(workspaceId, issue.id)
 
@@ -126,7 +126,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     expect(bodies.some((b) => b.includes('**PR:**'))).toBe(false)
   })
 
-  it('still records a valid prLink URL as before', async () => {
+  test('still records a valid prLink URL as before', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Valid prLink' })
     await seedAgentLease(workspaceId, issue.id)
 
@@ -139,7 +139,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     expect((await commentBodies(issue.id)).some((b) => b.includes(prLink))).toBe(true)
   })
 
-  it('drops a protocol-less prLink the same as any other invalid URL', async () => {
+  test('drops a protocol-less prLink the same as any other invalid URL', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Protocol-less prLink',
     })
@@ -155,7 +155,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
   // --- PROJ-375: agents close to done directly, no block ---
 
-  it('lets an agent (live lease) transition an issue directly to done', async () => {
+  test('lets an agent (live lease) transition an issue directly to done', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Agent closes' })
     const { agentSessionId } = await seedAgentLease(workspaceId, issue.id)
 
@@ -163,7 +163,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     expect(res.status).toBe(200)
   })
 
-  it('flags an agent-initiated done closure with freeform verification as needsAudit', async () => {
+  test('flags an agent-initiated done closure with freeform verification as needsAudit', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Freeform close' })
     const { agentSessionId } = await seedAgentLease(workspaceId, issue.id)
 
@@ -171,7 +171,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     expect(await needsAuditOf(issue.id)).toBe(true)
   })
 
-  it('does not flag an agent-initiated done closure with an externally-checkable link', async () => {
+  test('does not flag an agent-initiated done closure with an externally-checkable link', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Verifiable close' })
     const { agentSessionId } = await seedAgentLease(workspaceId, issue.id)
 
@@ -186,7 +186,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     expect(await needsAuditOf(issue.id)).toBe(false)
   })
 
-  it('does not flag a human-initiated done closure (no agentSessionId) even with freeform evidence', async () => {
+  test('does not flag a human-initiated done closure (no agentSessionId) even with freeform evidence', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Human closes' })
     await seedAgentLease(workspaceId, issue.id, { live: false })
 
@@ -194,7 +194,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     expect(await needsAuditOf(issue.id)).toBe(false)
   })
 
-  it('does not flag when the agentSessionId given is not a live session (accepted limitation)', async () => {
+  test('does not flag when the agentSessionId given is not a live session (accepted limitation)', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Stale session close' })
     await seedAgentLease(workspaceId, issue.id, { live: false })
 
@@ -206,7 +206,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     expect(await needsAuditOf(issue.id)).toBe(false)
   })
 
-  it("flags needsAudit even once the agent's lease has been released before closing", async () => {
+  test("flags needsAudit even once the agent's lease has been released before closing", async () => {
     // The exact scenario PROJ-375 was filed for: release_issue then update_issue done.
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Released then closed',
@@ -225,14 +225,14 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
   // --- Human path scoped to agent-worked issues (PROJ-289) ---
 
-  it('lets a human close a never-agent-leased issue with no report', async () => {
+  test('lets a human close a never-agent-leased issue with no report', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Plain human close' })
 
     const res = await patch(issue.id, { status: 'done' })
     expect(res.status).toBe(200)
   })
 
-  it('still requires a report to close an agent-worked issue (lease no longer live)', async () => {
+  test('still requires a report to close an agent-worked issue (lease no longer live)', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Agent worked' })
     await seedAgentLease(workspaceId, issue.id, { live: false })
 
@@ -242,7 +242,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
   // --- Custom review status designated as a review step (PROJ-292, PROJ-749) ---
 
-  it('gates a custom review-step status (category in_progress) the same as in_review', async () => {
+  test('gates a custom review-step status (category in_progress) the same as in_review', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Custom review' })
     await seedAgentLease(workspaceId, issue.id)
     const custom = await seedTaskStatus(workspaceId, {
@@ -258,7 +258,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
   // --- REST/MCP parity (PROJ-301/375) ---
 
-  it('MCP parity: update_issue lets an agent close directly to done and flags weak evidence', async () => {
+  test('MCP parity: update_issue lets an agent close directly to done and flags weak evidence', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'MCP done' })
     const { agentSessionId } = await seedAgentLease(workspaceId, issue.id)
 
@@ -283,19 +283,19 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
   // --- Audit query filter (PROJ-375) ---
 
-  it('list_issues({ needsAudit: true }) surfaces flagged closures only', async () => {
+  test('list_issues({ needsAudit: true }) surfaces flagged closures only', async () => {
     const { flagged, clean } = await seedFlaggedAndCleanDoneIssues()
 
     const res = await SELF.fetch(`http://localhost/api/issues?projectId=${projectId}&needsAudit=true`, {
       headers: authHeaders(token, slug),
     })
-    const { items } = (await res.json()) as { items: Array<{ id: string }> }
+    const { items } = (await res.json()) as { items: { id: string }[] }
     const ids = items.map((i) => i.id)
     expect(ids).toContain(flagged.id)
     expect(ids).not.toContain(clean.id)
   })
 
-  it('list_issues({ needsAudit: false }) surfaces unflagged closures only (PROJ-449)', async () => {
+  test('list_issues({ needsAudit: false }) surfaces unflagged closures only (PROJ-449)', async () => {
     const { flagged, clean } = await seedFlaggedAndCleanDoneIssues()
 
     // z.coerce.boolean() would coerce the string "false" to true, silently
@@ -303,7 +303,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     const res = await SELF.fetch(`http://localhost/api/issues?projectId=${projectId}&needsAudit=false`, {
       headers: authHeaders(token, slug),
     })
-    const { items } = (await res.json()) as { items: Array<{ id: string }> }
+    const { items } = (await res.json()) as { items: { id: string }[] }
     const ids = items.map((i) => i.id)
     expect(ids).toContain(clean.id)
     expect(ids).not.toContain(flagged.id)
@@ -311,7 +311,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
   // --- Report stamped only on a real transition (PROJ-293) ---
 
-  it('does not stamp/post a completionReport on a title-only update', async () => {
+  test('does not stamp/post a completionReport on a title-only update', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Pre-stamp attempt' })
 
     const res = await patch(issue.id, { title: 'Renamed', completionReport: report })
@@ -329,7 +329,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     return row!.last_heartbeat_at
   }
 
-  it("update_issue refreshes a live agentSessionId's heartbeat, but never revives a stale one", async () => {
+  test("update_issue refreshes a live agentSessionId's heartbeat, but never revives a stale one", async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Heartbeat live' })
     const { agentSessionId: live } = await seedAgentLease(workspaceId, issue.id)
     const backdated = Math.floor(Date.now() / 1000) - 10

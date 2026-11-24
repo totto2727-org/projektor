@@ -2,19 +2,23 @@
 
 import { useState } from 'react'
 
-import { unwrapResult } from '../../client/functions'
-import { Button } from '../../components/ui/Button'
-import { formatTimestampDate } from '../timestamp'
-import { disconnectConnector } from './actions'
-import type { ConnectorGrant } from './types'
+import { unwrapResult } from '../../client/functions.ts'
+import { Button } from '../../components/ui/Button.tsx'
+import { formatTimestampDate } from '../timestamp.ts'
+import { disconnectConnector } from './actions.ts'
+import type { ConnectorGrant } from './types.ts'
 
 const TD = 'px-3 py-2 border-b border-border align-middle [tr:last-child_&]:border-b-0'
 const TD_MUTED = `${TD} font-mono text-[0.8rem] text-text-muted`
 const TH = 'text-left px-3 py-2 border-b-2 border-border font-semibold text-text-base whitespace-nowrap'
 const date = formatTimestampDate
 export function formatConnectorScopes(scopes: string[]): string {
-  if (scopes.some((scope) => scope.endsWith(':write'))) return 'Read + Write'
-  if (scopes.some((scope) => scope.endsWith(':read'))) return 'Read-only'
+  if (scopes.some((scope) => scope.endsWith(':write'))) {
+    return 'Read + Write'
+  }
+  if (scopes.some((scope) => scope.endsWith(':read'))) {
+    return 'Read-only'
+  }
   return scopes.join(', ') || '–'
 }
 interface RevokeState {
@@ -26,7 +30,7 @@ interface RevokeState {
   confirm: (id: string) => void
 }
 function RevokeControl({ id, state }: { id: string; state: RevokeState }) {
-  if (state.id === id)
+  if (state.id === id) {
     return (
       <span className='inline-flex gap-[0.375rem] items-center flex-wrap'>
         <span className='text-[0.8rem] text-text-muted'>Disconnect?</span>
@@ -43,6 +47,7 @@ function RevokeControl({ id, state }: { id: string; state: RevokeState }) {
         )}
       </span>
     )
+  }
   return (
     <Button
       variant='outline'
@@ -66,7 +71,9 @@ export function ConnectorManager({
   const [revoking, setRevoking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   async function revoke(id: string) {
-    if (revoking) return
+    if (revoking) {
+      return
+    }
     setRevoking(true)
     setError(null)
     try {
@@ -90,7 +97,7 @@ export function ConnectorManager({
     cancel: () => setRevokeId(null),
     confirm: revoke,
   }
-  if (!grants.length)
+  if (!grants.length) {
     return (
       <div className='p-8 text-center text-text-muted bg-surface rounded-lg border border-border'>
         <p className='m-0 mb-2'>No connected applications.</p>
@@ -100,6 +107,7 @@ export function ConnectorManager({
         </p>
       </div>
     )
+  }
   return (
     <div>
       <p className='m-0 mb-5 text-sm text-text-muted'>

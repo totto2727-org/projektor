@@ -3,14 +3,15 @@
 // faults; scope denials stay an HTTP 403 with a WWW-Authenticate challenge (PROJ-651).
 
 import { SELF } from 'cloudflare:test'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { seedIssueFixture, seedProjectFixture, seedToken, type ToolErrorBody, toolError } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedIssueFixture, seedProjectFixture, seedToken, toolError } from './helpers.ts'
+import type { ToolErrorBody } from './helpers.ts'
 
 type Rpc = {
   error?: { code: number; message: string }
-  result?: { isError?: boolean; content?: Array<{ text: string }> }
+  result?: { isError?: boolean; content?: { text: string }[] }
 }
 
 describe('PROJ-893: MCP tool failures are isError results', () => {
@@ -52,7 +53,7 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
     return body as ToolErrorBody
   }
 
-  it('not_found on an issue ref: code, message, and a hint naming the ref format and search_issues', async () => {
+  test('not_found on an issue ref: code, message, and a hint naming the ref format and search_issues', async () => {
     const e = await failure('get_issue', { ref: 'PROJ-99999' })
     expect(e.code).toBe('not_found')
     expect(e.message).toMatch(/not found/i)
@@ -60,26 +61,26 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
     expect(e.hint).toContain('search_issues')
   })
 
-  it('not_found on a wiki slug: the hint points at search_wiki', async () => {
+  test('not_found on a wiki slug: the hint points at search_wiki', async () => {
     const e = await failure('get_wiki_page', { slug: 'no-such-page' })
     expect(e.code).toBe('not_found')
     expect(e.hint).toContain('search_wiki')
   })
 
-  it('not_found on an unknown agent session hints at register_agent, not at issue refs', async () => {
+  test('not_found on an unknown agent session hints at register_agent, not at issue refs', async () => {
     const e = await failure('heartbeat_agent', { id: crypto.randomUUID() })
     expect(e.code).toBe('not_found')
     expect(e.hint).toContain('register_agent')
   })
 
-  it('validation: the offending fields are named in `fields` and in the hint', async () => {
+  test('validation: the offending fields are named in `fields` and in the hint', async () => {
     const e = await failure('create_wiki_page', { title: '', content: 'x' })
     expect(e.code).toBe('validation')
     expect(Object.keys(e.fields ?? {})).toContain('title')
     expect(e.hint).toContain('title')
   })
 
-  it('validation: a missing required argument is named', async () => {
+  test('validation: a missing required argument is named', async () => {
     const e = await failure('get_project', {})
     expect(e.code).toBe('validation')
     expect(e.message).toMatch(/Missing required argument/)
@@ -87,13 +88,13 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
     expect(e.hint).toMatch(/^Fix /)
   })
 
-  it('validation: a wrongly-typed argument is caught before the handler runs', async () => {
+  test('validation: a wrongly-typed argument is caught before the handler runs', async () => {
     const e = await failure('get_issue', { ref: 42 })
     expect(e.code).toBe('validation')
     expect(Object.keys(e.fields ?? {})).toContain('ref')
   })
 
-  it('forbidden: the hint says what role is needed', async () => {
+  test('forbidden: the hint says what role is needed', async () => {
     const viewer = await seedProjectFixture({ role: 'viewer' })
     const res = await SELF.fetch(`http://localhost/mcp/${viewer.workspaceId}`, {
       method: 'POST',
@@ -112,14 +113,14 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
     expect(e?.hint).toContain('viewer')
   })
 
-  it('conflict on a stale wiki save: re-read, then patch_wiki_page — and the current revision is in details', async () => {
+  test('conflict on a stale wiki save: re-read, then patch_wiki_page — and the current revision is in details', async () => {
     const created = JSON.parse(
       (await call('create_wiki_page', { title: 'Locked Doc', content: 'v1' })).result?.content?.[0].text ?? '{}',
     ) as { slug: string }
     await call('update_wiki_page', { slug: created.slug, content: 'v2' })
     const revisions = JSON.parse(
       (await call('list_wiki_revisions', { slug: created.slug })).result?.content?.[0].text ?? '[]',
-    ) as Array<{ id: string }>
+    ) as { id: string }[]
     const stale = revisions[0].id
     await call('update_wiki_page', { slug: created.slug, content: 'v3', baseRevisionId: stale })
 
@@ -134,43 +135,43 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
     expect(e.details?.currentRevisionId).toBeTypeOf('string')
   })
 
-  it('a successful call is not flagged', async () => {
+  test('a successful call is not flagged', async () => {
     const res = await call('get_issue', { ref: `PROJ-1` })
     expect(res.error).toBeUndefined()
     expect(res.result?.isError).toBeUndefined()
   })
 
   describe('JSON-RPC errors stay reserved for protocol faults', () => {
-    it('an unknown tool is a -32601 protocol error, not an isError result', async () => {
+    test('an unknown tool is a -32601 protocol error, not an isError result', async () => {
       const res = await call('no_such_tool', {})
-      expect(res.error?.code).toBe(-32601)
+      expect(res.error?.code).toBe(-32_601)
       expect(res.result).toBeUndefined()
     })
 
-    it('an unknown method is -32601', async () => {
+    test('an unknown method is -32601', async () => {
       const res = (await (await post({ jsonrpc: '2.0', id: 1, method: 'nope/nope' })).json()) as Rpc
-      expect(res.error?.code).toBe(-32601)
+      expect(res.error?.code).toBe(-32_601)
     })
 
-    it('malformed JSON is a -32700 parse error', async () => {
+    test('malformed JSON is a -32700 parse error', async () => {
       const res = await post('{ not json')
       expect(res.status).toBe(400)
-      expect(((await res.json()) as Rpc).error?.code).toBe(-32700)
+      expect(((await res.json()) as Rpc).error?.code).toBe(-32_700)
     })
 
-    it('a body that is not a request object is a -32600 invalid request', async () => {
+    test('a body that is not a request object is a -32600 invalid request', async () => {
       const res = await post([1, 2, 3])
       expect(res.status).toBe(400)
-      expect(((await res.json()) as Rpc).error?.code).toBe(-32600)
+      expect(((await res.json()) as Rpc).error?.code).toBe(-32_600)
     })
 
-    it('a tools/call with no tool name is a -32602 invalid-params protocol error', async () => {
+    test('a tools/call with no tool name is a -32602 invalid-params protocol error', async () => {
       const res = (await (await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: {} })).json()) as Rpc
-      expect(res.error?.code).toBe(-32602)
+      expect(res.error?.code).toBe(-32_602)
     })
   })
 
-  it('a scope denial stays an HTTP 403 with a WWW-Authenticate challenge', async () => {
+  test('a scope denial stays an HTTP 403 with a WWW-Authenticate challenge', async () => {
     const readOnly = await seedToken(f.workspaceId, f.userId, { scopes: ['read'] })
     const res = await post(
       {
@@ -184,7 +185,7 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
     expect(res.status).toBe(403)
     expect(res.headers.get('WWW-Authenticate')).toBeTruthy()
     const body = (await res.json()) as Rpc
-    expect(body.error?.code).toBe(-32003)
+    expect(body.error?.code).toBe(-32_003)
     expect(body.result).toBeUndefined()
   })
 })

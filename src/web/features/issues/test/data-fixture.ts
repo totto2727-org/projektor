@@ -1,13 +1,13 @@
 import { Effect } from 'effect'
 import { vi } from 'vite-plus/test'
 
-import { resetProvisioningCacheForTests } from '#commands/provisioning'
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
 
-import { makeRequestServices, RequestServices } from '../../../request'
-import { testEnvironment } from '../../../server/test/resources'
-import { createTestDatabase } from '../../../test/database'
-import { project, scope, secondProject, workspace } from './fixtures'
+import { makeRequestServices, RequestServices } from '../../../request.ts'
+import { testEnvironment } from '../../../server/test/resources.ts'
+import { createTestDatabase } from '../../../test/database.ts'
+import { project, scope, secondProject, workspace } from './fixtures.ts'
 
 /** Actual migrated relational database and native SQLite FTS5, never a HTTP-shaped read fake. */
 export function issueDataFixture() {

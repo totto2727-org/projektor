@@ -4,27 +4,27 @@
 // agree. The public viewer is placed in a "Public viewers" group, so publishing a
 // project to anonymous visitors is one explicit grant to that group.
 
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { updateIssue } from '#commands/issues'
-import { listProjects, listProjectsAcrossWorkspaces } from '#commands/projects'
-import { PUBLIC_VIEWERS_GROUP_NAME, provisionPublicViewer } from '#commands/provisioning'
-import type { ServiceCtx } from '#commands/types'
+import { updateIssue } from '#commands/issues.ts'
+import { listProjects, listProjectsAcrossWorkspaces } from '#commands/projects.ts'
+import { PUBLIC_VIEWERS_GROUP_NAME, provisionPublicViewer } from '#commands/provisioning.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 import type { Env } from '#types'
 
-import { env } from './fixture-api'
-import { seedGroupGrant, seedIssue, seedMember, seedProject, seedUser, seedWorkspace } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedGroupGrant, seedIssue, seedMember, seedProject, seedUser, seedWorkspace } from './helpers.ts'
 
 function viewerCtx(workspaceId: string, userId: string): ServiceCtx {
   return { db: env.DB, kv: env.KV, r2: env.R2, workspaceId, userId, role: 'viewer' }
 }
 
 async function ids(p: Promise<unknown>): Promise<string[]> {
-  return ((await p) as Array<{ id: string }>).map((r) => r.id).sort()
+  return ((await p) as { id: string }[]).map((r) => r.id).sort()
 }
 
 describe('PROJ-581: viewers see projects only through grants, consistently on both lists', () => {
-  it('a bare viewer sees no projects in either list; a granted one sees exactly the granted project', async () => {
+  test('a bare viewer sees no projects in either list; a granted one sees exactly the granted project', async () => {
     const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
     const viewer = await seedUser(`v-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, viewer.id, 'viewer')
@@ -40,7 +40,7 @@ describe('PROJ-581: viewers see projects only through grants, consistently on bo
     expect(await ids(listProjectsAcrossWorkspaces(viewer.id, env.DB))).toEqual([a.id])
   })
 
-  it("the public viewer is put in the 'Public viewers' group; granting that group publishes a project", async () => {
+  test("the public viewer is put in the 'Public viewers' group; granting that group publishes a project", async () => {
     const slug = `pub-${crypto.randomUUID().slice(0, 8)}`
     const ws = await seedWorkspace(slug)
     const pub = await seedUser(`public-${crypto.randomUUID().slice(0, 8)}@projektor.local`)
@@ -63,7 +63,7 @@ describe('PROJ-581: viewers see projects only through grants, consistently on bo
     expect(await ids(listProjects(viewerCtx(ws.id, pub.id)))).toEqual([published.id])
   })
 
-  it("the public viewer can't write even when its group is granted `member`", async () => {
+  test("the public viewer can't write even when its group is granted `member`", async () => {
     const ws = await seedWorkspace(`pw-${crypto.randomUUID().slice(0, 8)}`)
     const owner = await seedUser(`o-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const pub = await seedUser(`public-${crypto.randomUUID().slice(0, 8)}@projektor.local`)
@@ -84,7 +84,7 @@ describe('PROJ-581: viewers see projects only through grants, consistently on bo
     ).resolves.toBeTruthy()
   })
 
-  it("adopts an existing 'Public viewers' group and stays idempotent across runs", async () => {
+  test("adopts an existing 'Public viewers' group and stays idempotent across runs", async () => {
     const slug = `pa-${crypto.randomUUID().slice(0, 8)}`
     const ws = await seedWorkspace(slug)
     const pub = await seedUser(`public-${crypto.randomUUID().slice(0, 8)}@projektor.local`)

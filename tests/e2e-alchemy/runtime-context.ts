@@ -5,11 +5,13 @@ import { Effect, Exit, Layer, Scope } from 'effect'
 import { FetchHttpClient, HttpClient } from 'effect/http'
 import type { Plugin } from 'vite-plus'
 
-import { makeInlineApiLayer } from './inline-api'
+import { makeInlineApiLayer } from './inline-api.ts'
 
 /** Only preview allocates runtime services. A build must remain offline and exit. */
 export async function makePreviewContext(isPreview: boolean | undefined) {
-  if (!isPreview) return undefined
+  if (!isPreview) {
+    return undefined
+  }
   const directory = process.env.PROJEKTOR_E2E_STORAGE_DIRECTORY
   if (!directory) {
     throw new Error(
@@ -50,7 +52,9 @@ export async function makePreviewContext(isPreview: boolean | undefined) {
     configurePreviewServer(server) {
       server.httpServer.once('close', () => {
         const close = Scope.closeUnsafe(scope, Exit.void)
-        if (close) void Effect.runPromiseExit(close)
+        if (close) {
+          void Effect.runPromiseExit(close)
+        }
       })
     },
   }

@@ -1,13 +1,13 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
 import { Effect } from 'effect'
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { migratedDb } from '#db/test/helpers'
+import { migratedDb } from '#db/test/helpers.ts'
 
-import { DataQueryError } from '../errors'
-import { findFeedbackSourceById, listFeedback, listFeedbackSources, readFeedbackSummary } from '../feedback'
-import { findSprintById, listSprints } from '../sprints'
+import { DataQueryError } from '../errors.ts'
+import { findFeedbackSourceById, listFeedback, listFeedbackSources, readFeedbackSummary } from '../feedback.ts'
+import { findSprintById, listSprints } from '../sprints.ts'
 
 /** Read-only transport over the real migrated schema. */
 function readDatabase(sqlite: DatabaseSync): D1Database {
@@ -55,7 +55,7 @@ describe('sprint and feedback database read models', () => {
   })
   afterEach(() => sqlite.close())
 
-  it('retains sprint model columns, creation ordering and explicit workspace/project scope', async () => {
+  test('retains sprint model columns, creation ordering and explicit workspace/project scope', async () => {
     const rows = await Effect.runPromise(listSprints(db, 'wa', { projectId: 'pa' }))
     expect(rows.map((row) => row.id)).toEqual(['s1', 's2'])
     expect(rows[0]).toEqual({
@@ -76,7 +76,7 @@ describe('sprint and feedback database read models', () => {
     expect(await Effect.runPromise(findSprintById(db, 'wa', 's2'))).toEqual(rows[1])
   })
 
-  it('retains raw feedback list rows, descending order and combined filters', async () => {
+  test('retains raw feedback list rows, descending order and combined filters', async () => {
     const rows = await Effect.runPromise(listFeedback(db, 'wa', { projectId: 'pa' }))
     expect(rows.map((row) => row.id)).toEqual(['f5', 'f4', 'f3', 'f2', 'f1'])
     expect(rows[4]).toEqual({
@@ -101,7 +101,7 @@ describe('sprint and feedback database read models', () => {
     expect(await Effect.runPromise(listFeedback(db, 'wa', { projectId: 'pb' }))).toEqual([])
   })
 
-  it('retains source/version aggregate counts, null groups and SQL average semantics', async () => {
+  test('retains source/version aggregate counts, null groups and SQL average semantics', async () => {
     const rows = await Effect.runPromise(readFeedbackSummary(db, 'wa', { projectId: 'pa' }))
     expect(rows).toEqual([
       {
@@ -144,7 +144,7 @@ describe('sprint and feedback database read models', () => {
     expect(await Effect.runPromise(readFeedbackSummary(db, 'wa', { projectId: 'pb' }))).toEqual([])
   })
 
-  it('retains raw source metadata and revoked rows without producing API previews', async () => {
+  test('retains raw source metadata and revoked rows without producing API previews', async () => {
     const rows = await Effect.runPromise(listFeedbackSources(db, 'wa', { projectId: 'pa' }))
     expect(rows.map((row) => row.id)).toEqual(['sa2', 'sa'])
     expect(rows[0]).toEqual({
@@ -166,7 +166,7 @@ describe('sprint and feedback database read models', () => {
     expect(await Effect.runPromise(listFeedbackSources(db, 'wa', { projectId: 'pb' }))).toEqual([])
   })
 
-  it('defers I/O and reports tagged query errors without app semantics', async () => {
+  test('defers I/O and reports tagged query errors without app semantics', async () => {
     let calls = 0
     const cause = new Error('database unavailable')
     const broken = {

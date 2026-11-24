@@ -1,35 +1,35 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
 
-import * as commands from '#commands/projects'
+import * as commands from '#commands/projects.ts'
 import { drizzle, schema } from '#db'
-import { queryEffect } from '#services/errors'
-import { getFlowMetrics } from '#services/flow-metrics'
-import { findProjectById, listProjectSummaries } from '#services/projects'
-import { listWikiPages } from '#services/wiki'
+import { queryEffect } from '#services/errors.ts'
+import { getFlowMetrics } from '#services/flow-metrics.ts'
+import { findProjectById, listProjectSummaries } from '#services/projects.ts'
+import { listWikiPages } from '#services/wiki.ts'
 
 import {
   CreatedProjectSchema,
   ProjectMutationResultSchema,
   ProjectOverviewSchema,
   ProjectSummariesSchema,
-} from '../../contracts/web-schemas/projects'
-import { coreFailure, coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope } from './authentication'
-import { browserCommand } from './command'
-import type { BrowserCommand } from './command-contract'
-import { requireDataProject, projectSummaryVisibility, visibleProjectPredicate } from './data-context'
-import { checked } from './issue-data'
-import { webRead } from './issue-operations'
-import type { WebRequest } from './scope'
+} from '../../contracts/web-schemas/projects.ts'
+import { coreFailure, coreReply } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { loadBrowserScope } from './authentication.ts'
+import type { BrowserCommand } from './command-contract.ts'
+import { browserCommand } from './command.ts'
+import { requireDataProject, projectSummaryVisibility, visibleProjectPredicate } from './data-context.ts'
+import { checked } from './issue-data.ts'
+import { webRead } from './issue-operations.ts'
+import type { WebRequest } from './scope.ts'
 
 function sixWeekRange(now = new Date()) {
   const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
   monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) - 35)
   return {
     since: Math.floor(monday.getTime() / 1000),
-    until: Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 86399,
+    until: Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 86_399,
   }
 }
 
@@ -63,7 +63,9 @@ export const makeProjectHandlers = <R>(envSource: Effect.Effect<CoreEnvironment,
             Effect.gen(function* () {
               yield* checked(() => requireDataProject(scope, projectId, workspaceId))
               const project = yield* findProjectById(env.DB, workspaceId, projectId)
-              if (!project) return yield* coreFailure(404, 'Selected project is not accessible.')
+              if (!project) {
+                return yield* coreFailure(404, 'Selected project is not accessible.')
+              }
               const orm = drizzle(env.DB, { schema })
               const [issues, wiki, flow] = yield* Effect.all(
                 [

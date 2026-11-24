@@ -1,15 +1,15 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedAgentLease, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedAgentLease, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 
 // PROJ-316: the fleet-coordination list surfaces (issue-leases, file-claims,
 // agents) must respect the same default-deny project visibility as issues — a
 // non-admin member with no grant on a project must not be able to enumerate its
 // issue IDs, file paths, or agent activity. Owner/admin bypass groups.
 
-type ListResult = { items: Array<Record<string, unknown>> }
+type ListResult = { items: Record<string, unknown>[] }
 
 function lexicalCompare(a: unknown, b: unknown): number {
   const left = String(a)
@@ -29,7 +29,7 @@ async function mcpList(tool: string, token: string, slug: string, workspaceId: s
     }),
   })
   const body = (await res.json()) as {
-    result: { content: Array<{ text: string }> }
+    result: { content: { text: string }[] }
   }
   return JSON.parse(body.result.content[0].text) as ListResult
 }
@@ -83,7 +83,7 @@ describe('PROJ-316 coordination data respects project visibility', () => {
     await seedFloatingAgent(ws.workspace.id, 'floating')
   })
 
-  it('owner sees leases/claims/agents across every project', async () => {
+  test('owner sees leases/claims/agents across every project', async () => {
     const t = ws.owner.token
     const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
     expect(leases.items.map((l) => l.issueId).sort(lexicalCompare)).toEqual([issueA, issueB].sort(lexicalCompare))
@@ -95,7 +95,7 @@ describe('PROJ-316 coordination data respects project visibility', () => {
     expect(agents.items.map((a) => a.name).sort(lexicalCompare)).toEqual(['agent-A', 'agent-B', 'floating'])
   })
 
-  it("a member sees only the granted project's leases and file claims", async () => {
+  test("a member sees only the granted project's leases and file claims", async () => {
     const t = ws.member.token
     const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
     expect(leases.items.map((l) => l.issueId)).toEqual([issueA])
@@ -104,14 +104,14 @@ describe('PROJ-316 coordination data respects project visibility', () => {
     expect(claims.items.map((c) => c.path)).toEqual(['a/only.ts'])
   })
 
-  it('a member sees agents on granted projects plus issue-less agents, never hidden-project agents', async () => {
+  test('a member sees agents on granted projects plus issue-less agents, never hidden-project agents', async () => {
     const agents = await mcpList('list_active_agents', ws.member.token, slug, ws.workspace.id)
     const names = agents.items.map((a) => a.name).sort(lexicalCompare)
     expect(names).toEqual(['agent-A', 'floating'])
     expect(names).not.toContain('agent-B')
   })
 
-  it("a member with no grants at all sees none of another project's coordination data", async () => {
+  test("a member with no grants at all sees none of another project's coordination data", async () => {
     const t = ws.viewer.token // viewer has no group grant
     const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
     expect(leases.items).toHaveLength(0)

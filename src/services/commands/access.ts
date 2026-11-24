@@ -1,11 +1,12 @@
-import { and, type Column, eq, inArray, type SQL, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
+import type { Column, SQL } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 import type { Role } from '#types'
 
-import { ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { inChunks } from './sql'
-import type { ServiceCtx } from './types'
+import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { inChunks } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
 
 // PROJ-311: group-based project access.
 //
@@ -46,7 +47,9 @@ function strongestGrant(roles: readonly ('viewer' | 'member' | 'admin')[]): 'vie
  * match is sufficient here).
  */
 export async function effectiveProjectRole(ctx: ServiceCtx, projectId: string): Promise<Role | null> {
-  if (isWorkspaceAdmin(ctx.role)) return ctx.role ?? null
+  if (isWorkspaceAdmin(ctx.role)) {
+    return ctx.role ?? null
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const rows = await orm
@@ -55,11 +58,15 @@ export async function effectiveProjectRole(ctx: ServiceCtx, projectId: string): 
     .innerJoin(schema.userGroupMembers, eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId))
     .where(and(eq(schema.userGroupMembers.userId, ctx.userId), eq(schema.groupProjectGrants.projectId, projectId)))
 
-  if (rows.length === 0) return null
+  if (rows.length === 0) {
+    return null
+  }
   // PROJ-581: the anonymous PUBLIC_READ_ONLY viewer is read-only everywhere, whatever
   // role a group grant carries — publishing a project to the "Public viewers" group with
   // the grant picker's default (`member`) must never let the internet write to it.
-  if (ctx.auth?.method === 'public') return 'viewer'
+  if (ctx.auth?.method === 'public') {
+    return 'viewer'
+  }
   return strongestGrant(rows.map((r) => r.role))
 }
 
@@ -70,7 +77,9 @@ export async function effectiveProjectRole(ctx: ServiceCtx, projectId: string): 
  */
 export async function requireProjectAccess(ctx: ServiceCtx, projectId: string): Promise<Role> {
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) throw new NotFoundError('Project not found')
+  if (role === null) {
+    throw new NotFoundError('Project not found')
+  }
   return role
 }
 
@@ -96,7 +105,9 @@ export async function requireProjectInWorkspace(ctx: ServiceCtx, projectId: stri
     .from(schema.projects)
     .where(and(eq(schema.projects.id, projectId), eq(schema.projects.workspaceId, ctx.workspaceId)))
     .get()
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
 }
 
 // ─── PROJ-837: the central access guard ─────────────────────────────────────
@@ -124,7 +135,9 @@ export async function assertIssueAccess(ctx: ServiceCtx, issueId: string, mode: 
     .from(schema.issues)
     .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, ctx.workspaceId)))
     .get()
-  if (!issue) throw new NotFoundError('Issue not found')
+  if (!issue) {
+    throw new NotFoundError('Issue not found')
+  }
   await assertProjectAccess(ctx, issue.projectId, mode, {
     notFoundMessage: 'Issue not found',
     projectLoadedFromWorkspaceRow: true,
@@ -163,7 +176,9 @@ export async function assertProjectAccess(
     }
   }
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) throw new NotFoundError(notFound)
+  if (role === null) {
+    throw new NotFoundError(notFound)
+  }
   if (mode === 'edit' && !canWriteProject(role)) {
     throw new ForbiddenError('Insufficient permissions')
   }
@@ -179,9 +194,13 @@ export async function hasProjectAccess(
   projectId: string,
   mode: AccessMode = 'read',
 ): Promise<boolean> {
-  if (isWorkspaceAdmin(ctx.role)) return true
+  if (isWorkspaceAdmin(ctx.role)) {
+    return true
+  }
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) return false
+  if (role === null) {
+    return false
+  }
   return mode === 'read' || canWriteProject(role)
 }
 
@@ -206,7 +225,9 @@ export function visibleProjectFilter(
  * (e.g. `schema.projects.id`, `schema.issues.projectId`).
  */
 export function visibleProjectPredicate(ctx: ServiceCtx, projectColumn: Column | SQL): SQL | undefined {
-  if (isWorkspaceAdmin(ctx.role)) return undefined
+  if (isWorkspaceAdmin(ctx.role)) {
+    return undefined
+  }
   return sql`EXISTS (
 		SELECT 1 FROM user_group_members ugm
 		JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id
@@ -235,7 +256,9 @@ export function visibleProjectSqlFragment(
       `visibleProjectSqlFragment: projectColExpr must be a column identifier, got ${JSON.stringify(projectColExpr)}`,
     )
   }
-  if (isWorkspaceAdmin(ctx.role)) return null
+  if (isWorkspaceAdmin(ctx.role)) {
+    return null
+  }
   return {
     sql: `EXISTS (SELECT 1 FROM user_group_members ugm
 			JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id
@@ -321,7 +344,9 @@ export async function usersWithProjectReadAccess(
   projectId: string | null,
   userIds: readonly string[],
 ): Promise<Set<string>> {
-  if (userIds.length === 0) return new Set()
+  if (userIds.length === 0) {
+    return new Set()
+  }
   const orm = drizzle(ctx.db, { schema })
   const members = await inChunks([...userIds], (chunk) =>
     orm
@@ -331,7 +356,9 @@ export async function usersWithProjectReadAccess(
         and(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId), inArray(schema.workspaceMembers.userId, chunk)),
       ),
   )
-  if (projectId === null) return new Set(members.map((m) => m.userId))
+  if (projectId === null) {
+    return new Set(members.map((m) => m.userId))
+  }
 
   const allowed = new Set(members.filter((m) => isWorkspaceAdmin(m.role)).map((m) => m.userId))
   const needGrant = members.filter((m) => !isWorkspaceAdmin(m.role)).map((m) => m.userId)
@@ -342,6 +369,8 @@ export async function usersWithProjectReadAccess(
       .innerJoin(schema.userGroupMembers, eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId))
       .where(and(eq(schema.groupProjectGrants.projectId, projectId), inArray(schema.userGroupMembers.userId, chunk))),
   )
-  for (const g of granted) allowed.add(g.userId)
+  for (const g of granted) {
+    allowed.add(g.userId)
+  }
   return allowed
 }

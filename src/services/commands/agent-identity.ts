@@ -1,10 +1,11 @@
-import { and, desc, eq, gt, isNull, or, type SQL } from 'drizzle-orm'
+import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { assertIssueAccess, isWorkspaceAdmin } from './access'
-import { ForbiddenError, NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+import { assertIssueAccess, isWorkspaceAdmin } from './access.ts'
+import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
 
 // Mirrors ACTIVE_TTL in services/agents.ts (and SESSION_TTL_SECONDS in
 // services/issue-leases.ts). Duplicated rather than imported: both of those files import
@@ -12,7 +13,9 @@ import type { ServiceCtx } from './types'
 const LIVE_TTL_SECONDS = 120
 
 export function agentSessionCredential(ctx: ServiceCtx): string | undefined {
-  if (ctx.auth?.credentialId) return ctx.auth.credentialId
+  if (ctx.auth?.credentialId) {
+    return ctx.auth.credentialId
+  }
   if (ctx.auth?.kind === 'human' && (ctx.auth.method === 'access' || ctx.auth.method === 'dev')) {
     return `user:${ctx.userId}`
   }
@@ -37,14 +40,18 @@ export async function assertAgentSessionAccess(
     .from(schema.agentSessions)
     .where(and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
     .get()
-  if (!session) throw new NotFoundError('Agent session not found')
+  if (!session) {
+    throw new NotFoundError('Agent session not found')
+  }
   if (!(options.allowAdministrativeOverride && isWorkspaceAdmin(ctx.role))) {
     const credential = agentSessionCredential(ctx)
     if (!credential || credential !== (session.credentialId ?? session.tokenId)) {
       throw new ForbiddenError('Agent session belongs to another credential')
     }
   }
-  if (session.issueId) await assertIssueAccess(ctx, session.issueId, 'edit')
+  if (session.issueId) {
+    await assertIssueAccess(ctx, session.issueId, 'edit')
+  }
 }
 
 /**
@@ -108,7 +115,9 @@ export async function resolveAgentSessionId(
   // heartbeat/end must be able to reach a session that has just gone stale (that call
   // revives it) — but only when no live session exists, so an abandoned session left
   // behind by a crash can't make a lone agent's id-less heartbeat ambiguous.
-  if (rows.length === 0 && opts.includeStale) rows = await find([])
+  if (rows.length === 0 && opts.includeStale) {
+    rows = await find([])
+  }
 
   if (rows.length === 1) {
     await assertAgentSessionAccess(ctx, rows[0].id, opts)

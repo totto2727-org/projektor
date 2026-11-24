@@ -12,9 +12,9 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { FK_CLEANUP_ALLOWLIST } from './fk-cleanup-allowlist'
+import { FK_CLEANUP_ALLOWLIST } from './fk-cleanup-allowlist.ts'
 
 const API_SRC = join(import.meta.dirname, '..', '..')
 const MIGRATIONS = join(import.meta.dirname, '..', '..', '..', '..', 'migrations')
@@ -27,7 +27,9 @@ function declaredFkActions(): Set<string> {
       const table =
         /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?[`"]?(\w+)[`"]?/i.exec(stmt) ??
         /ALTER TABLE\s+[`"]?(\w+)[`"]?\s+ADD/i.exec(stmt)
-      if (!table) continue
+      if (!table) {
+        continue
+      }
       const fk =
         /[`"]?\w+[`"]?\s+\w[^,]*?REFERENCES\s+[`"]?(\w+)[`"]?\s*\([^)]*\)[^,]*?ON DELETE\s+(CASCADE|SET NULL)/gi
       for (const m of stmt.matchAll(fk)) {
@@ -49,7 +51,9 @@ function declarationSource(ref: string): string | null {
     return null
   }
   const start = new RegExp(`^(?:export )?(?:async )?(?:function\\s+${name}\\b|const\\s+${name}\\b)`, 'm').exec(text)
-  if (!start) return null
+  if (!start) {
+    return null
+  }
   const rest = text.slice(start.index + start[0].length)
   const next = /^(?:export |async function |function |const |let |type |interface )/m.exec(rest)
   return start[0] + (next ? rest.slice(0, next.index) : rest)
@@ -62,12 +66,12 @@ function camel(snake: string): string {
 describe('PROJ-923: FK ON DELETE actions have explicit app cleanup', () => {
   const declared = declaredFkActions()
 
-  it('parses the migrations (sanity)', () => {
+  test('parses the migrations (sanity)', () => {
     expect(declared.size).toBeGreaterThan(50)
     expect(declared.has('issue_comments -> issues (CASCADE)')).toBe(true)
   })
 
-  it('every FK with ON DELETE has an allowlist entry', () => {
+  test('every FK with ON DELETE has an allowlist entry', () => {
     const missing = [...declared].filter((k) => !(k in FK_CLEANUP_ALLOWLIST))
     expect(
       missing,
@@ -75,21 +79,27 @@ describe('PROJ-923: FK ON DELETE actions have explicit app cleanup', () => {
     ).toEqual([])
   })
 
-  it("no allowlist entry for an FK that doesn't exist", () => {
+  test("no allowlist entry for an FK that doesn't exist", () => {
     expect(Object.keys(FK_CLEANUP_ALLOWLIST).filter((k) => !declared.has(k))).toEqual([])
   })
 
-  it('every cleanedBy reference exists and mentions the child table', () => {
+  test('every cleanedBy reference exists and mentions the child table', () => {
     const problems: string[] = []
     for (const [key, entry] of Object.entries(FK_CLEANUP_ALLOWLIST)) {
-      if (!('cleanedBy' in entry)) continue
+      if (!('cleanedBy' in entry)) {
+        continue
+      }
       const child = key.split(' -> ')[0]
       const sources = entry.cleanedBy.map((ref) => ({ ref, src: declarationSource(ref) }))
-      for (const { ref, src } of sources) if (src === null) problems.push(`${key}: ${ref} not found`)
+      for (const { ref, src } of sources) {
+        if (src === null) problems.push(`${key}: ${ref} not found`)
+      }
       const mentions = sources.every(
         ({ src }) => src !== null && (src.includes(child) || new RegExp(`\\b${camel(child)}\\b`).test(src)),
       )
-      if (!mentions) problems.push(`${key}: not every one of ${entry.cleanedBy.join(', ')} mentions ${child}`)
+      if (!mentions) {
+        problems.push(`${key}: not every one of ${entry.cleanedBy.join(', ')} mentions ${child}`)
+      }
     }
     expect(problems).toEqual([])
   })

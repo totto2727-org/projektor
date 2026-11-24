@@ -1,10 +1,11 @@
 import { makeRpcStub, WorkerEnvironment } from 'alchemy/Cloudflare/Workers'
 import { Cause, Effect, Result, Schema } from 'effect'
 
-import { coreFailure, CorePublicError, coreReplyCodec, type CoreRpcShape } from './contract'
+import { coreFailure, CorePublicError, coreReplyCodec } from './contract.ts'
+import type { CoreRpcShape } from './contract.ts'
 
 // Consumers use this runtime entry for instanceof checks across the bundled boundary.
-export { CorePublicError } from './contract'
+export { CorePublicError } from './contract.ts'
 
 type LazyCoreClient = {
   readonly [K in keyof CoreRpcShape]: CoreRpcShape[K] extends (
@@ -22,8 +23,9 @@ export function makeCoreClient(binding?: unknown): CoreRpcShape | LazyCoreClient
 }
 
 function decodeFailure(stage: 'transport' | 'reply', cause: Cause.Cause<unknown>) {
-  if (Cause.hasInterruptsOnly(cause))
+  if (Cause.hasInterruptsOnly(cause)) {
     return Effect.failCause(Cause.fromReasons<never>(cause.reasons.filter(Cause.isInterruptReason)))
+  }
   const problem = coreFailure(
     502,
     stage === 'transport'

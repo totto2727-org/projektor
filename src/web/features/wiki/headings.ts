@@ -7,24 +7,30 @@ export interface Heading {
 }
 
 /** Original Wiki heading-id allocation, including authored-id reservation. */
-export function assignHeadingIds(headings: ReadonlyArray<{ text: string; id?: string | null }>): string[] {
+export function assignHeadingIds(headings: readonly { text: string; id?: string | null }[]): string[] {
   const used = new Set<string>()
   const result: (string | null)[] = headings.map((heading) => {
     const authored = heading.id?.trim()
-    if (!authored || used.has(authored)) return null
+    if (!authored || used.has(authored)) {
+      return null
+    }
     used.add(authored)
     return authored
   })
   return headings.map((heading, index) => {
     const kept = result[index]
-    if (kept !== null) return kept
+    if (kept !== null) {
+      return kept
+    }
     const slug = heading.text
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
     const base = heading.id?.trim() || slug || `section-${index + 1}`
     let candidate = base
-    for (let n = 1; used.has(candidate); n++) candidate = `${base}-${n}`
+    for (let n = 1; used.has(candidate); n++) {
+      candidate = `${base}-${n}`
+    }
     used.add(candidate)
     return candidate
   })
@@ -33,7 +39,7 @@ function textOf(html: string): string {
   return sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} })
     .replace(/&#(x[0-9a-f]+|\d+);/gi, (_, entity: string) =>
       String.fromCodePoint(
-        Math.min(0x10ffff, entity[0].toLowerCase() === 'x' ? parseInt(entity.slice(1), 16) : parseInt(entity, 10)),
+        Math.min(0x10_ff_ff, entity[0].toLowerCase() === 'x' ? parseInt(entity.slice(1), 16) : parseInt(entity, 10)),
       ),
     )
     .replace(/&quot;/g, '"')

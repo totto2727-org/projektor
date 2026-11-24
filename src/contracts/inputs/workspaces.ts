@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-import { ScopeSchema } from '../auth-scopes'
-import { RoleEnum } from './common'
+import { ScopeSchema } from '../auth-scopes.ts'
+import { RoleEnum } from './common.ts'
 
 export const CreateWorkspaceSchema = z.object({
   name: z.string().min(1).max(100),

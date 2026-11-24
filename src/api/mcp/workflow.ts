@@ -1,6 +1,6 @@
-import { getWorkflow } from '../services/workflow'
-import { READ } from './annotations'
-import type { MCPTool } from './types'
+import { getWorkflow } from '../services/workflow.ts'
+import { READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 export const workflowTools: MCPTool[] = [
   {

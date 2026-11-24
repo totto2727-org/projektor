@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import type { Issue as ListIssue, TaskStatus } from '../../web/features/issues/components/board-utils'
+import type { Issue as ListIssue, TaskStatus } from '../../web/features/issues/components/board-utils.ts'
 import type {
   Attachment,
   Comment,
@@ -8,8 +8,8 @@ import type {
   IssueLink,
   Member,
   TaskType,
-} from '../../web/features/issues/components/issue-detail-helpers'
-import { ReviewStatusSchema, ReviewTargetSchema } from '../review-targets'
+} from '../../web/features/issues/components/issue-detail-helpers.ts'
+import { ReviewStatusSchema, ReviewTargetSchema } from '../review-targets.ts'
 export type Issue = IssueData & ListIssue
 export type { Attachment, Comment, IssueLink, Member, TaskType }
 export type Status = TaskStatus

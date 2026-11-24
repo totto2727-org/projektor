@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 
-import { expect, it } from 'vite-plus/test'
+import { expect, test } from 'vite-plus/test'
 
-import { loadMigrations } from './helpers'
+import { loadMigrations } from './helpers.ts'
 
-it('appends review status without selecting or changing populated historical attachments', () => {
+test('appends review status without selecting or changing populated historical attachments', () => {
   const db = new DatabaseSync(':memory:')
   const migration = readFileSync(
     new URL('../../../migrations/0069_attachment_review_status.sql', import.meta.url),
@@ -14,7 +14,9 @@ it('appends review status without selecting or changing populated historical att
   try {
     db.exec('PRAGMA foreign_keys=ON')
     for (const sql of loadMigrations()) {
-      if (sql === migration) break
+      if (sql === migration) {
+        break
+      }
       db.exec(sql)
     }
     db.exec(`

@@ -1,8 +1,8 @@
 'use client'
-import type { RequestScope } from '../../../server/request-context'
-import IssueDetail from '../components/IssueDetail'
-import type { Attachment, Comment, Issue, IssueLink, Member, Status, TaskType } from '../types'
-import { SelectionRequired } from './shared'
+import type { RequestScope } from '../../../server/request-context.ts'
+import IssueDetail from '../components/IssueDetail.tsx'
+import type { Attachment, Comment, Issue, IssueLink, Member, Status, TaskType } from '../types.ts'
+import { SelectionRequired } from './shared.tsx'
 export interface IssueDetailInitialData {
   readonly issue: Issue
   readonly comments: readonly Comment[]
@@ -25,7 +25,9 @@ export function IssueDetailPage({
   workspaceSlug: string
   initialData: IssueDetailInitialData | null
 }) {
-  if (!initialData) return <SelectionRequired scope={scope} label='Issue' />
+  if (!initialData) {
+    return <SelectionRequired scope={scope} label='Issue' />
+  }
   return (
     <IssueDetail
       key={`${scope.user.id}:${workspaceSlug}:${initialData.issue.id}`}

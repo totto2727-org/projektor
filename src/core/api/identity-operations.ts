@@ -1,16 +1,17 @@
 import { Effect, Schema } from 'effect'
 
-import { listProjectsAcrossWorkspaces } from '#commands/projects'
-import { createUserToken, deleteUserToken, getUserWorkspaces } from '#commands/user-tokens'
-import { createWorkspace, listWorkspaces } from '#commands/workspaces'
+import { listProjectsAcrossWorkspaces } from '#commands/projects.ts'
+import { createUserToken, deleteUserToken, getUserWorkspaces } from '#commands/user-tokens.ts'
+import { createWorkspace, listWorkspaces } from '#commands/workspaces.ts'
 
-import { ApiDevelopmentBootstrap, ApiPrincipal } from '../../contracts/api-auth'
-import { ApiResults } from '../../contracts/api-results'
-import { type CoreActor, requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '../authorization'
-import { coreFailure, coreReply } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
-import type { CoreEnvironment } from '../environment'
-import { bootstrapDevelopment } from './bootstrap'
+import { ApiDevelopmentBootstrap, ApiPrincipal } from '../../contracts/api-auth.ts'
+import { ApiResults } from '../../contracts/api-results.ts'
+import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '../authorization.ts'
+import type { CoreActor } from '../authorization.ts'
+import { coreFailure, coreReply } from '../contract.ts'
+import { publicDomainFailure } from '../domain-errors.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { bootstrapDevelopment } from './bootstrap.ts'
 
 const User = Schema.Struct({ id: Schema.String, email: Schema.String, name: Schema.String })
 const Workspace = Schema.Struct({ id: Schema.String, name: Schema.String, slug: Schema.String, role: Schema.String })
@@ -53,7 +54,9 @@ export function makeApiIdentityHandlers<R>(envSource: Effect.Effect<CoreEnvironm
               : await env.DB.prepare('SELECT id, name, slug FROM workspaces WHERE slug = ?')
                   .bind(input.value)
                   .first<{ id: string; name: string; slug: string }>()
-          if (!row) throw coreFailure(404, 'Workspace not found')
+          if (!row) {
+            throw coreFailure(404, 'Workspace not found')
+          }
           const ctx = await resolveCoreServiceCtx(actor, row.id, 'read', env)
           return { ...row, role: ctx.role ?? 'viewer' }
         }),
@@ -102,8 +105,9 @@ export function makeApiIdentityHandlers<R>(envSource: Effect.Effect<CoreEnvironm
         ApiResults.apiCreateWorkspace,
         attempt(async (env) => {
           const principal = await resolveUser(actor, env, 'write')
-          if (principal.tokenWorkspaceId != null)
+          if (principal.tokenWorkspaceId != null) {
             throw coreFailure(403, 'Workspace-scoped credentials cannot create workspaces')
+          }
           return createWorkspace(env.DB, principal.user.id, input)
         }),
       ),

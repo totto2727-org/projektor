@@ -2,13 +2,13 @@ import { and, eq, isNull, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
-import * as fieldQueries from '#services/custom-fields'
+import * as fieldQueries from '#services/custom-fields.ts'
 
-import { IdSchema } from '../../contracts/inputs/common'
-import { CreateCustomFieldDefSchema, UpdateCustomFieldDefSchema } from '../../contracts/inputs/custom-fields'
-import { visibleProjectFilter } from './access'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+import { IdSchema } from '../../contracts/inputs/common.ts'
+import { CreateCustomFieldDefSchema, UpdateCustomFieldDefSchema } from '../../contracts/inputs/custom-fields.ts'
+import { visibleProjectFilter } from './access.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
 
 export interface CustomFieldDef {
   id: string
@@ -69,7 +69,9 @@ async function assertCustomFieldKeyAvailable(
       ),
     )
     .get()
-  if (existing) throw new ConflictError(`Custom field key '${key}' already exists`)
+  if (existing) {
+    throw new ConflictError(`Custom field key '${key}' already exists`)
+  }
 }
 
 async function assertCustomFieldDefLimitNotReached(orm: ReturnType<typeof drizzle>, workspaceId: string) {
@@ -86,9 +88,13 @@ async function assertCustomFieldDefLimitNotReached(orm: ReturnType<typeof drizzl
 }
 
 export async function createCustomFieldDef(ctx: ServiceCtx, raw: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const result = CreateCustomFieldDefSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { key, label, type, options, projectId } = result.data
 
   assertOptionsAllowedForType(type, options)
@@ -119,7 +125,9 @@ async function getCustomFieldDefForUpdate(orm: ReturnType<typeof drizzle>, works
     .from(schema.customFieldDefinitions)
     .where(and(eq(schema.customFieldDefinitions.id, id), eq(schema.customFieldDefinitions.workspaceId, workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Custom field not found')
+  if (!existing) {
+    throw new NotFoundError('Custom field not found')
+  }
   return existing
 }
 
@@ -132,21 +140,28 @@ function buildCustomFieldUpdateSet(data: ReturnType<typeof UpdateCustomFieldDefS
   }
 
   const setObj: Record<string, unknown> = {}
-  if (data.label !== undefined) setObj.label = data.label
+  if (data.label !== undefined) {
+    setObj.label = data.label
+  }
   if ('options' in data) {
     setObj.options = data.options && data.options.length > 0 ? JSON.stringify(data.options) : null
   }
 
-  if (Object.keys(setObj).length === 0)
+  if (Object.keys(setObj).length === 0) {
     throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
+  }
 
   return setObj
 }
 
 export async function updateCustomFieldDef(ctx: ServiceCtx, id: string, raw: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const result = UpdateCustomFieldDefSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const data = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -165,8 +180,12 @@ export async function updateCustomFieldDef(ctx: ServiceCtx, id: string, raw: unk
 
 export async function deleteCustomFieldDef(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (!idCheck.success) {
+    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  }
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const existing = await orm
@@ -176,14 +195,18 @@ export async function deleteCustomFieldDef(ctx: ServiceCtx, id: string) {
       and(eq(schema.customFieldDefinitions.id, id), eq(schema.customFieldDefinitions.workspaceId, ctx.workspaceId)),
     )
     .get()
-  if (!existing) throw new NotFoundError('Custom field not found')
+  if (!existing) {
+    throw new NotFoundError('Custom field not found')
+  }
 
   const inUse = await orm
     .select({ issueId: schema.customFieldValues.issueId })
     .from(schema.customFieldValues)
     .where(eq(schema.customFieldValues.fieldId, id))
     .get()
-  if (inUse) throw new ConflictError('Custom field is in use by one or more issues')
+  if (inUse) {
+    throw new ConflictError('Custom field is in use by one or more issues')
+  }
 
   await orm
     .delete(schema.customFieldDefinitions)
@@ -245,8 +268,10 @@ export async function validateCustomFields(
   db: D1Database,
   workspaceId: string,
   customFields: Record<string, unknown>,
-): Promise<Array<{ fieldId: string; value: string }>> {
-  if (Object.keys(customFields).length === 0) return []
+): Promise<{ fieldId: string; value: string }[]> {
+  if (Object.keys(customFields).length === 0) {
+    return []
+  }
 
   const orm = drizzle(db, { schema })
   const defs = await orm
@@ -255,7 +280,7 @@ export async function validateCustomFields(
     .where(eq(schema.customFieldDefinitions.workspaceId, workspaceId))
 
   const defsByKey = new Map(defs.map((d) => [d.key, d]))
-  const writes: Array<{ fieldId: string; value: string }> = []
+  const writes: { fieldId: string; value: string }[] = []
 
   for (const [key, rawValue] of Object.entries(customFields)) {
     const def = defsByKey.get(key)
@@ -289,9 +314,11 @@ const CUSTOM_FIELD_UPSERT_CHUNK_SIZE = 30 // 3 cols/row
 export function buildCustomFieldUpsertStatements(
   db: D1Database,
   issueId: string,
-  writes: ReadonlyArray<{ fieldId: string; value: string }>,
+  writes: readonly { fieldId: string; value: string }[],
 ): D1PreparedStatement[] {
-  if (writes.length === 0) return []
+  if (writes.length === 0) {
+    return []
+  }
   const orm = drizzle(db, { schema })
   const statements: D1PreparedStatement[] = []
   for (let i = 0; i < writes.length; i += CUSTOM_FIELD_UPSERT_CHUNK_SIZE) {

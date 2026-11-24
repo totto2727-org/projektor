@@ -2,8 +2,8 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
+import { jsonBody } from '../http/body.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
 import {
   addGroupMember,
   createGroup,
@@ -15,8 +15,8 @@ import {
   removeGroupMember,
   setGroupGrant,
   updateGroup,
-} from '../services/groups'
-import { ctxFromHono } from '../services/types'
+} from '../services/groups.ts'
+import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 

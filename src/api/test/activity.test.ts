@@ -1,8 +1,8 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, seedProjectFixture } from './helpers.ts'
 
 describe('Activity audit log', () => {
   let token: string
@@ -27,7 +27,7 @@ describe('Activity audit log', () => {
     return results
   }
 
-  it('records a created row when an issue is created', async () => {
+  test('records a created row when an issue is created', async () => {
     const res = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -44,7 +44,7 @@ describe('Activity audit log', () => {
     expect(rows[0].actor_id).toBeTruthy()
   })
 
-  it('records an updated row with diff when an issue is updated', async () => {
+  test('records an updated row with diff when an issue is updated', async () => {
     const createRes = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -68,7 +68,7 @@ describe('Activity audit log', () => {
     expect(diff.priority).toBe('high')
   })
 
-  it('records a created row when a wiki page is created', async () => {
+  test('records a created row when a wiki page is created', async () => {
     const res = await SELF.fetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -83,7 +83,7 @@ describe('Activity audit log', () => {
     expect(rows[0].action).toBe('created')
   })
 
-  it('records a created row when a project is created', async () => {
+  test('records a created row when a project is created', async () => {
     // createProject requires owner or admin role
     const ownerFixture = await seedFixture({ role: 'owner' })
     const res = await SELF.fetch('http://localhost/api/projects', {

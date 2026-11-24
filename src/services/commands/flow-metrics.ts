@@ -2,14 +2,14 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
-import { getFlowMetrics as queryFlowMetrics } from '#services/flow-metrics'
+import { getFlowMetrics as queryFlowMetrics } from '#services/flow-metrics.ts'
 
-import { GetFlowMetricsSchema } from '../../contracts/inputs/flow-metrics'
-import { effectiveProjectRole, isWorkspaceAdmin } from './access'
-import { NotFoundError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+import { GetFlowMetricsSchema } from '../../contracts/inputs/flow-metrics.ts'
+import { effectiveProjectRole, isWorkspaceAdmin } from './access.ts'
+import { NotFoundError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
 
-export type { Distribution } from '#services/flow-metrics'
+export type { Distribution } from '#services/flow-metrics.ts'
 
 async function assertProjectExists(ctx: ServiceCtx, projectId: string): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
@@ -18,7 +18,9 @@ async function assertProjectExists(ctx: ServiceCtx, projectId: string): Promise<
     .from(schema.projects)
     .where(and(eq(schema.projects.id, projectId), eq(schema.projects.workspaceId, ctx.workspaceId)))
     .get()
-  if (!project) throw new NotFoundError('Project not found')
+  if (!project) {
+    throw new NotFoundError('Project not found')
+  }
   // PROJ-311: a non-admin without a grant can't see the project's metrics.
   if (!isWorkspaceAdmin(ctx.role) && (await effectiveProjectRole(ctx, projectId)) === null) {
     throw new NotFoundError('Project not found')
@@ -27,7 +29,9 @@ async function assertProjectExists(ctx: ServiceCtx, projectId: string): Promise<
 
 export async function getFlowMetrics(ctx: ServiceCtx, raw: unknown) {
   const result = GetFlowMetricsSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   await assertProjectExists(ctx, result.data.projectId)
   return Effect.runPromise(queryFlowMetrics(ctx.db, ctx.workspaceId, result.data))
 }

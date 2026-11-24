@@ -1,8 +1,8 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedIssue, seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
 
 async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
@@ -60,7 +60,7 @@ async function firstSourceId(projectId: string): Promise<string> {
 }
 
 describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
-  it('marks all selected rows reviewed regardless of starting status', async () => {
+  test('marks all selected rows reviewed regardless of starting status', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await firstSourceId(f.projectId)
@@ -81,7 +81,7 @@ describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
     expect(rows.results.every((r) => r.status === 'reviewed')).toBe(true)
   })
 
-  it('ignores feedbackIds from another project', async () => {
+  test('ignores feedbackIds from another project', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const other = await seedProjectFixture({ role: 'owner' })
     await mintSource(other)
@@ -102,7 +102,7 @@ describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
     expect(row!.status).toBe('new')
   })
 
-  it('403s for a viewer', async () => {
+  test('403s for a viewer', async () => {
     const f = await seedProjectFixture({ role: 'viewer' })
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/bulk-mark-reviewed`, {
       method: 'POST',
@@ -114,7 +114,7 @@ describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
 })
 
 describe('POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
-  it('creates one combined issue and links all selected rows', async () => {
+  test('creates one combined issue and links all selected rows', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await firstSourceId(f.projectId)
@@ -155,7 +155,7 @@ describe('POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
     expect(issue!.body).toContain('a@b.com')
   })
 
-  it('rejects the whole batch (creates no issue, mutates nothing) if any row is already converted', async () => {
+  test('rejects the whole batch (creates no issue, mutates nothing) if any row is already converted', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await firstSourceId(f.projectId)
@@ -189,7 +189,7 @@ describe('POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
     expect(issueCountAfter!.count).toBe(issueCountBefore!.count)
   })
 
-  it("404s if a feedbackId doesn't belong to the project", async () => {
+  test("404s if a feedbackId doesn't belong to the project", async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await firstSourceId(f.projectId)
@@ -203,7 +203,7 @@ describe('POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
     expect(res.status).toBe(404)
   })
 
-  it('403s for a viewer', async () => {
+  test('403s for a viewer', async () => {
     const f = await seedProjectFixture({ role: 'viewer' })
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
       method: 'POST',

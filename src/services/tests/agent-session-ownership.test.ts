@@ -1,18 +1,20 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { assertAgentSessionAccess } from '#commands/agent-identity'
-import { postMessage } from '#commands/agent-messages'
-import { endAgent, finishWork, heartbeatAgent, registerAgent } from '#commands/agents'
-import { claimFiles, releaseFiles } from '#commands/file-claims'
-import { claimIssue, releaseIssue } from '#commands/issue-leases'
-import { updateIssue } from '#commands/issues'
-import type { ServiceCtx } from '#commands/types'
+import { assertAgentSessionAccess } from '#commands/agent-identity.ts'
+import { postMessage } from '#commands/agent-messages.ts'
+import { endAgent, finishWork, heartbeatAgent, registerAgent } from '#commands/agents.ts'
+import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
+import { claimIssue, releaseIssue } from '#commands/issue-leases.ts'
+import { updateIssue } from '#commands/issues.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { createTestDatabase } from '../../web/test/database'
+import { createTestDatabase } from '../../web/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 function fixture() {
@@ -46,7 +48,7 @@ function fixture() {
 }
 
 describe('agent session ownership at shared command boundaries', () => {
-  it('denies foreign admin act-as but permits explicit administrative cleanup', async () => {
+  test('denies foreign admin act-as but permits explicit administrative cleanup', async () => {
     const f = fixture()
     const session = await registerAgent(f.ctx, { name: 'holder', issueId: f.issueId })
     await claimIssue(f.ctx, { issueId: f.issueId, agentId: session.id })
@@ -64,7 +66,9 @@ describe('agent session ownership at shared command boundaries', () => {
       () => updateIssue(admin, f.issueId, { title: 'Spoofed', agentSessionId: session.id }),
       () => finishWork(admin, { sessionId: session.id, issue: f.issueId, status: 'done' }),
     ]
-    for (const action of actions) await expect(action()).rejects.toMatchObject({ kind: 'forbidden' })
+    for (const action of actions) {
+      await expect(action()).rejects.toMatchObject({ kind: 'forbidden' })
+    }
     await releaseIssue(admin, { issueId: f.issueId })
     expect(await releaseFiles(admin, { paths: ['src/admin.ts'] })).toMatchObject({ count: 1 })
     expect(await endAgent(admin, { id: session.id })).toMatchObject({ status: 'ended' })
@@ -73,7 +77,7 @@ describe('agent session ownership at shared command boundaries', () => {
     })
   })
 
-  it('uses a legacy token owner only when no newer credential owner exists', async () => {
+  test('uses a legacy token owner only when no newer credential owner exists', async () => {
     const f = fixture()
     f.sqlite.exec(`INSERT INTO api_tokens (id,workspace_id,user_id,name,token_hash,scopes,created_at)
       VALUES ('token-a','w','u','Token','hash','["*"]',1)`)
@@ -85,7 +89,7 @@ describe('agent session ownership at shared command boundaries', () => {
     await expect(heartbeatAgent(f.ctx, { id: session.id })).rejects.toMatchObject({ kind: 'forbidden' })
   })
 
-  it('rejects explicit cross-credential impersonation and release omissions before any mutation', async () => {
+  test('rejects explicit cross-credential impersonation and release omissions before any mutation', async () => {
     const f = fixture()
     const session = await registerAgent(f.ctx, { name: 'holder', issueId: f.issueId })
     await claimIssue(f.ctx, { issueId: f.issueId, agentId: session.id })
@@ -111,7 +115,9 @@ describe('agent session ownership at shared command boundaries', () => {
           completionReport: { summary: 'Spoofed', verification: 'Not performed' },
         }),
     ]
-    for (const action of actions) await expect(action()).rejects.toMatchObject({ kind: 'forbidden' })
+    for (const action of actions) {
+      await expect(action()).rejects.toMatchObject({ kind: 'forbidden' })
+    }
     expect(f.sqlite.prepare('SELECT * FROM agent_sessions WHERE id = ?').get(session.id)).toEqual(before)
     expect(f.sqlite.prepare('SELECT title FROM issues WHERE id = ?').get(f.issueId)).toMatchObject({
       title: 'Original',
@@ -124,7 +130,7 @@ describe('agent session ownership at shared command boundaries', () => {
     ).toMatchObject({ released_at: null })
   })
 
-  it('preserves shared-credential fleet operations but applies current project grants', async () => {
+  test('preserves shared-credential fleet operations but applies current project grants', async () => {
     const f = fixture()
     f.ctx.role = 'admin'
     const first = await registerAgent(f.ctx, { name: 'one', issueId: f.issueId })
@@ -137,7 +143,7 @@ describe('agent session ownership at shared command boundaries', () => {
     await expect(endAgent(f.ctx, { id: second.id })).rejects.toMatchObject({ kind: 'not_found' })
   })
 
-  it('records new human ownership without inferring ownership of legacy null sessions', async () => {
+  test('records new human ownership without inferring ownership of legacy null sessions', async () => {
     const f = fixture()
     f.ctx.auth = { kind: 'human', method: 'access' }
     const session = await registerAgent(f.ctx, { name: 'browser' })

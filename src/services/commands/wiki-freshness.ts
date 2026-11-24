@@ -25,7 +25,7 @@ export interface ComputeFreshnessInput {
   now?: number
 }
 
-const SECONDS_PER_DAY = 86400
+const SECONDS_PER_DAY = 86_400
 
 // PROJ-489: null means the page carries neither frontmatter signal (no verify_interval,
 // no status) at all — never fabricate a freshness state for a page that never opted
@@ -34,21 +34,27 @@ const SECONDS_PER_DAY = 86400
 // `freshness` response field, which this function's return value now serializes into
 // directly (`freshness: computeFreshness(...)`).
 function computeDueAt(verifiedAt: number | null, verifyInterval: number | null): number | null {
-  if (verifyInterval === null || verifiedAt === null) return null
+  if (verifyInterval === null || verifiedAt === null) {
+    return null
+  }
   return verifiedAt + verifyInterval * SECONDS_PER_DAY
 }
 
 // A verify_interval/verifiedAt due date reached-or-passed, once there's no explicit
 // status override (see computeFreshness) and the page has been verified at least once.
 function computeTimeBasedFreshness(dueAt: number | null, now: number): WikiFreshness {
-  if (dueAt !== null && dueAt <= now) return { state: 'stale', staleSince: dueAt }
+  if (dueAt !== null && dueAt <= now) {
+    return { state: 'stale', staleSince: dueAt }
+  }
   return { state: 'fresh', staleSince: null }
 }
 
 export function computeFreshness(input: ComputeFreshnessInput): WikiFreshness | null {
   const { verifiedAt, verifyInterval, status } = input
   const hasSignal = status !== null || verifyInterval !== null
-  if (!hasSignal) return null
+  if (!hasSignal) {
+    return null
+  }
 
   const now = input.now ?? Math.floor(Date.now() / 1000)
   const dueAt = computeDueAt(verifiedAt, verifyInterval)

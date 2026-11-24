@@ -1,8 +1,8 @@
 import { sql } from 'drizzle-orm'
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
-import { users, workspaces } from './core'
-import { projects } from './issues'
+import { users, workspaces } from './core.ts'
+import { projects } from './issues.ts'
 
 export const wikiPages = sqliteTable(
   'wiki_pages',

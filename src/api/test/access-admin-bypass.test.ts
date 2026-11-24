@@ -1,7 +1,7 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers'
+import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 
 // PROJ-319: pin the admin-bypass path through the hand-written SQL callers of
 // visibleProjectSqlFragment (search) and the effectiveProjectRole/isWorkspaceAdmin
@@ -12,7 +12,7 @@ async function search(token: string, slug: string, q: string) {
   const res = await SELF.fetch(`http://localhost/api/issues/search?q=${encodeURIComponent(q)}`, {
     headers: authHeaders(token, slug),
   })
-  return { status: res.status, body: (await res.json()) as Array<{ project_id: string }> }
+  return { status: res.status, body: (await res.json()) as { project_id: string }[] }
 }
 
 // seedIssue() inserts directly into `issues`, bypassing the FTS index (which is
@@ -28,7 +28,7 @@ async function createIssue(token: string, slug: string, projectId: string, title
 }
 
 describe('PROJ-319 admin bypass pinning', () => {
-  it("owner's search sees issues across projects they hold no group grant on", async () => {
+  test("owner's search sees issues across projects they hold no group grant on", async () => {
     const roles = await seedWorkspaceRoles()
     const slug = roles.workspace.slug
     const p1 = await seedProject(roles.workspace.id, 'P1')
@@ -42,7 +42,7 @@ describe('PROJ-319 admin bypass pinning', () => {
     expect(projectIds).toEqual([p1.id, p2.id].sort())
   })
 
-  it("owner's get_flow_metrics returns real data for an ungranted project", async () => {
+  test("owner's get_flow_metrics returns real data for an ungranted project", async () => {
     const roles = await seedWorkspaceRoles()
     const slug = roles.workspace.slug
     const project = await seedProject(roles.workspace.id, 'UNGRANTED')
@@ -58,7 +58,7 @@ describe('PROJ-319 admin bypass pinning', () => {
     expect(metrics.leadTime).toBeDefined()
   })
 
-  it('a non-admin member granted only P1 sees only P1 in search (contrast)', async () => {
+  test('a non-admin member granted only P1 sees only P1 in search (contrast)', async () => {
     const roles = await seedWorkspaceRoles()
     const slug = roles.workspace.slug
     const p1 = await seedProject(roles.workspace.id, 'MP1')
@@ -72,7 +72,7 @@ describe('PROJ-319 admin bypass pinning', () => {
     expect(result.body.map((i) => i.project_id)).toEqual([p1.id])
   })
 
-  it('get_flow_metrics 404s for a non-admin member with no grant on the project', async () => {
+  test('get_flow_metrics 404s for a non-admin member with no grant on the project', async () => {
     const roles = await seedWorkspaceRoles()
     const slug = roles.workspace.slug
     const project = await seedProject(roles.workspace.id, 'MUNGRANTED')

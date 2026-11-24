@@ -1,13 +1,17 @@
-import { ValidationError } from '../../contracts/errors'
-import { endAgent, finishWork, heartbeatAgent, listActiveAgents, registerAgent, startWork } from '../services/agents'
-import { PLAIN_WRITE, READ } from './annotations'
-import type { MCPTool } from './types'
+import { ValidationError } from '../../contracts/errors.ts'
+import { endAgent, finishWork, heartbeatAgent, listActiveAgents, registerAgent, startWork } from '../services/agents.ts'
+import { PLAIN_WRITE, READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 /** claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both. */
 function withIdAlias(input: unknown): unknown {
   const { agentId, ...rest } = (input ?? {}) as { agentId?: unknown; id?: unknown }
-  if (agentId === undefined || agentId === null) return rest
-  if (rest.id === undefined || rest.id === null) return { ...rest, id: agentId }
+  if (agentId === undefined || agentId === null) {
+    return rest
+  }
+  if (rest.id === undefined || rest.id === null) {
+    return { ...rest, id: agentId }
+  }
   if (rest.id !== agentId) {
     throw new ValidationError({
       formErrors: [],

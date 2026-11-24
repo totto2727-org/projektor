@@ -3,16 +3,16 @@
 
 import { SELF } from 'cloudflare:test'
 import { Hono } from 'hono'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import type { AuthInfo, HonoEnv } from '#types'
 
-import { authMiddleware } from '../middleware/auth'
-import { env, getCoreObservations, resetCoreObservations } from './fixture-api'
-import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers'
+import { authMiddleware } from '../middleware/auth.ts'
+import { env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
+import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers.ts'
 
 describe('PROJ-889: MCP mutations broadcast like REST', () => {
-  it('add_comment over MCP posts a realtime event to the workspace hub', async () => {
+  test('add_comment over MCP posts a realtime event to the workspace hub', async () => {
     const f = await seedIssueFixture()
     await resetCoreObservations()
 
@@ -65,7 +65,7 @@ describe('PROJ-889: auth middleware records method + credential', () => {
     env.DEV_USER_EMAIL = prevDev
   })
 
-  it('a pk_ workspace token → method pk, with its api_tokens id and scopes', async () => {
+  test('a pk_ workspace token → method pk, with its api_tokens id and scopes', async () => {
     const { workspace, user } = await seedFixture()
     const raw = `pk_${crypto.randomUUID().replace(/-/g, '')}`
     const id = crypto.randomUUID()
@@ -81,7 +81,7 @@ describe('PROJ-889: auth middleware records method + credential', () => {
     expect(auth.scopes).toContain('read')
   })
 
-  it('a personal access token → method pat', async () => {
+  test('a personal access token → method pat', async () => {
     const { user } = await seedFixture()
     const pat = await seedUserToken(user.id)
     const auth = await whoami({ Authorization: `Bearer ${pat}` })
@@ -90,7 +90,7 @@ describe('PROJ-889: auth middleware records method + credential', () => {
     expect(typeof auth.credentialId).toBe('string')
   })
 
-  it('the dev bypass → method dev', async () => {
+  test('the dev bypass → method dev', async () => {
     const { user } = await seedFixture()
     env.DEV_USER_EMAIL = user.email
     expect(await whoami()).toEqual({ kind: 'human', method: 'dev' })

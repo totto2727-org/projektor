@@ -20,10 +20,10 @@ import { basename, join } from 'node:path'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { TOOL_DOMAINS } from '../mcp/catalog'
-import { coreMCPTools } from '../routes/mcp'
+import { TOOL_DOMAINS } from '../mcp/catalog.ts'
+import { coreMCPTools } from '../routes/mcp.ts'
 
 const SRC = join(import.meta.dirname, '..')
 const COMMANDS = join(SRC, '..', 'services', 'commands')
@@ -159,7 +159,9 @@ function parseSource(path: string, source: string): ts.SourceFile {
       .updateSnapshot({ openProjects: [configFile] })
       .getProject(configFile)
       ?.program.getSourceFile(path)
-    if (!ast) throw new Error(`Could not parse parity source: ${path}`)
+    if (!ast) {
+      throw new Error(`Could not parse parity source: ${path}`)
+    }
     return ast
   } finally {
     api.close()
@@ -169,37 +171,51 @@ function parseSource(path: string, source: string): ts.SourceFile {
 const modules = new Map<string, SourceModule>()
 function sourceModule(path: string, sourceOverride?: string): SourceModule {
   const cached = modules.get(path)
-  if (cached) return cached
+  if (cached) {
+    return cached
+  }
   const source = sourceOverride ?? readFileSync(path, 'utf8')
   const ast = parseSource(path, source)
   const imports: SourceModule['imports'] = new Map()
   for (const declaration of ast.statements) {
-    if (!ts.isImportDeclaration(declaration) && !ts.isExportDeclaration(declaration)) continue
-    if (!declaration.moduleSpecifier || !ts.isStringLiteral(declaration.moduleSpecifier)) continue
+    if (!ts.isImportDeclaration(declaration) && !ts.isExportDeclaration(declaration)) {
+      continue
+    }
+    if (!declaration.moduleSpecifier || !ts.isStringLiteral(declaration.moduleSpecifier)) {
+      continue
+    }
     const specifier = declaration.moduleSpecifier.text
     const target = specifier.startsWith('#commands/')
-      ? join(COMMANDS, `${specifier.slice(10)}.ts`)
+      ? join(COMMANDS, specifier.slice('#commands/'.length))
       : specifier.startsWith('.')
         ? join(path, '..', `${specifier.replace(/\.ts$/, '')}.ts`)
         : undefined
-    if (!target) continue
+    if (!target) {
+      continue
+    }
     const bindings = ts.isImportDeclaration(declaration)
       ? declaration.importClause?.namedBindings
       : declaration.exportClause
-    if (bindings && ts.isNamespaceImport(bindings)) imports.set(bindings.name.text, { path: target })
+    if (bindings && ts.isNamespaceImport(bindings)) {
+      imports.set(bindings.name.text, { path: target })
+    }
     if (bindings && (ts.isNamedImports(bindings) || ts.isNamedExports(bindings))) {
-      for (const binding of bindings.elements)
+      for (const binding of bindings.elements) {
         imports.set(binding.name.text, { path: target, name: binding.propertyName?.text ?? binding.name.text })
+      }
     }
   }
   const functions = new Map<string, ts.Node>()
   for (const node of ast.statements) {
-    if (ts.isFunctionDeclaration(node) && node.name && node.body) functions.set(node.name.text, node.body)
-    if (ts.isVariableStatement(node))
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+      functions.set(node.name.text, node.body)
+    }
+    if (ts.isVariableStatement(node)) {
       for (const declaration of node.declarationList.declarations) {
         if (ts.isIdentifier(declaration.name) && declaration.initializer)
           functions.set(declaration.name.text, declaration.initializer)
       }
+    }
   }
   const module = { path, ast, imports, functions }
   modules.set(path, module)
@@ -209,12 +225,18 @@ function sourceModule(path: string, sourceOverride?: string): SourceModule {
 function importedSymbol(module: SourceModule, expression: ts.Node): { path: string; name: string } | undefined {
   if (ts.isIdentifier(expression)) {
     const target = module.imports.get(expression.text)
-    if (target?.name) return { path: target.path, name: target.name }
-    if (module.functions.has(expression.text)) return { path: module.path, name: expression.text }
+    if (target?.name) {
+      return { path: target.path, name: target.name }
+    }
+    if (module.functions.has(expression.text)) {
+      return { path: module.path, name: expression.text }
+    }
   }
   if (ts.isPropertyAccessExpression(expression) && ts.isIdentifier(expression.expression)) {
     const target = module.imports.get(expression.expression.text)
-    if (target && !target.name) return { path: target.path, name: expression.name.text }
+    if (target && !target.name) {
+      return { path: target.path, name: expression.name.text }
+    }
   }
   return undefined
 }
@@ -224,7 +246,9 @@ for (const path of expandToFiles(join(SRC, '..', 'core', 'api')).filter((path) =
   const module = sourceModule(path)
   function visit(node: ts.Node): void {
     if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && /^api[A-Z]/.test(node.name.text)) {
-      if (coreMethods.has(node.name.text)) throw new Error(`Duplicate named Core operation: ${node.name.text}`)
+      if (coreMethods.has(node.name.text)) {
+        throw new Error(`Duplicate named Core operation: ${node.name.text}`)
+      }
       coreMethods.set(node.name.text, { module, node: node.initializer })
     }
     node.forEachChild(visit)
@@ -238,13 +262,22 @@ interface BinaryContext {
   values: Map<string, unknown>
 }
 function valueOf(node: ts.Node, context: BinaryContext): unknown {
-  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text
-  if (ts.isIdentifier(node)) return context.values.get(node.text)
-  if (ts.isPropertyAccessExpression(node) && node.name.text === 'pathname' && ts.isNewExpression(node.expression))
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return node.text
+  }
+  if (ts.isIdentifier(node)) {
+    return context.values.get(node.text)
+  }
+  if (ts.isPropertyAccessExpression(node) && node.name.text === 'pathname' && ts.isNewExpression(node.expression)) {
     return context.pathname
+  }
   if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
-    if (node.expression.text === 'url' && node.name.text === 'pathname') return context.pathname
-    if (node.expression.text === 'request' && node.name.text === 'method') return context.method
+    if (node.expression.text === 'url' && node.name.text === 'pathname') {
+      return context.pathname
+    }
+    if (node.expression.text === 'request' && node.name.text === 'method') {
+      return context.method
+    }
   }
   if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) {
     const value = valueOf(node.operand, context)
@@ -281,15 +314,23 @@ function valueOf(node: ts.Node, context: BinaryContext): unknown {
     const text = node.expression.expression.text
     const end = text.lastIndexOf('/')
     const input = node.arguments[0] && valueOf(node.arguments[0], context)
-    if (typeof input === 'string') return new RegExp(text.slice(1, end), text.slice(end + 1)).test(input)
+    if (typeof input === 'string') {
+      return new RegExp(text.slice(1, end), text.slice(end + 1)).test(input)
+    }
   }
   return undefined
 }
 
 function pathLiteral(node: ts.Node | undefined): string | undefined {
-  if (!node) return undefined
-  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text
-  if (ts.isTemplateExpression(node)) return `${node.head.text}__value__`
+  if (!node) {
+    return undefined
+  }
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return node.text
+  }
+  if (ts.isTemplateExpression(node)) {
+    return `${node.head.text}__value__`
+  }
   return undefined
 }
 
@@ -302,35 +343,48 @@ function domainOperations(
 ): Set<string> {
   const keys = new Set<string>()
   const merge = (items: Iterable<string>) => {
-    for (const key of items) keys.add(key)
+    for (const key of items) {
+      keys.add(key)
+    }
   }
   function target(path: string, name: string): void {
     const id = `${path}:${name}`
-    if (visited.has(id)) return
+    if (visited.has(id)) {
+      return
+    }
     if (path.startsWith(`${COMMANDS}/`)) {
       keys.add(`${basename(path)}:${name}`)
-      if (!(FILE_IO_WRAPPERS as readonly string[]).includes(name)) return
+      if (!(FILE_IO_WRAPPERS as readonly string[]).includes(name)) {
+        return
+      }
     } else if (
       !(
         path.startsWith(join(SRC, 'services')) ||
         path.startsWith(join(SRC, '..', 'core', 'api')) ||
         (binary && [join(SRC, '..', 'core', 'files.ts'), join(SRC, '..', 'core', 'shared-logo.ts')].includes(path))
       )
-    )
+    ) {
       return
+    }
     visited.add(id)
     const implementation = sourceModule(path)
     const body = implementation.functions.get(name)
-    if (body) merge(domainOperations(implementation, body, binary, new Set([...visited, id])))
-    else {
+    if (body) {
+      merge(domainOperations(implementation, body, binary, new Set([...visited, id])))
+    } else {
       const reexport = implementation.imports.get(name)
-      if (reexport?.name) target(reexport.path, reexport.name)
+      if (reexport?.name) {
+        target(reexport.path, reexport.name)
+      }
     }
   }
   function native(name: string): void {
     const handler = coreMethods.get(name)
-    if (handler) merge(domainOperations(handler.module, handler.node, undefined, new Set([...visited, name])))
-    else throw new Error(`No concrete Core handler for ${name}`)
+    if (handler) {
+      merge(domainOperations(handler.module, handler.node, undefined, new Set([...visited, name])))
+    } else {
+      throw new Error(`No concrete Core handler for ${name}`)
+    }
   }
   function binaryRequest(pathname: string, method: string): void {
     const worker = sourceModule(join(SRC, '..', 'core', 'worker.ts'))
@@ -348,29 +402,37 @@ function domainOperations(
   function visit(child: ts.Node, method = binary?.method ?? 'GET'): boolean {
     if (binary && ts.isIfStatement(child)) {
       const condition = valueOf(child.expression, binary)
-      if (condition !== undefined)
+      if (condition !== undefined) {
         return condition
           ? visit(child.thenStatement, method)
           : child.elseStatement
             ? visit(child.elseStatement, method)
             : false
+      }
       const thenReturns = visit(child.thenStatement, method)
       const elseReturns = child.elseStatement ? visit(child.elseStatement, method) : false
       return thenReturns && elseReturns
     }
     if (binary && ts.isBlock(child)) {
-      for (const statement of child.statements) if (visit(statement, method)) return true
+      for (const statement of child.statements) {
+        if (visit(statement, method)) return true
+      }
       return false
     }
-    if (binary && ts.isTryStatement(child)) return visit(child.tryBlock, method)
-    if (binary && ts.isVariableDeclaration(child) && ts.isIdentifier(child.name) && child.initializer)
+    if (binary && ts.isTryStatement(child)) {
+      return visit(child.tryBlock, method)
+    }
+    if (binary && ts.isVariableDeclaration(child) && ts.isIdentifier(child.name) && child.initializer) {
       binary.values.set(child.name.text, valueOf(child.initializer, binary))
+    }
     if (ts.isCallExpression(child)) {
       const expression = child.expression
       const imported = importedSymbol(module, expression)
       if (imported?.name === 'coreFileRequest') {
         const pathname = pathLiteral(child.arguments[1])
-        if (!pathname) throw new Error(`Unresolved Core file path in ${module.path}`)
+        if (!pathname) {
+          throw new Error(`Unresolved Core file path in ${module.path}`)
+        }
         binaryRequest(pathname, method)
       } else if (ts.isPropertyAccessExpression(expression) && /^api[A-Z]/.test(expression.name.text)) {
         native(expression.name.text)
@@ -382,19 +444,26 @@ function domainOperations(
       ) {
         const request = child.arguments[0]
         const pathname = request && ts.isNewExpression(request) ? pathLiteral(request.arguments?.[0]) : undefined
-        if (!pathname) throw new Error(`Unresolved native fetch address in ${module.path}`)
+        if (!pathname) {
+          throw new Error(`Unresolved native fetch address in ${module.path}`)
+        }
         binaryRequest(new URL(pathname).pathname, method)
-      } else if (imported) target(imported.path, imported.name)
+      } else if (imported) {
+        target(imported.path, imported.name)
+      }
       // Factory arguments bind commands just as calls do: operation(..., agents.registerAgent).
       for (const argument of child.arguments) {
         const reference = importedSymbol(module, argument)
-        if (reference) target(reference.path, reference.name)
+        if (reference) {
+          target(reference.path, reference.name)
+        }
       }
       if (
         ts.isPropertyAccessExpression(expression) &&
         /^(get|post|put|patch|delete|head|all)$/.test(expression.name.text)
-      )
+      ) {
         method = expression.name.text.toUpperCase()
+      }
     }
     child.forEachChild((nested) => {
       visit(nested, method)
@@ -410,8 +479,12 @@ function serviceOperationsUsedIn(...paths: string[]): Set<string> {
   for (const path of paths.flatMap(expandToFiles).filter((path) => !path.endsWith('.test.ts'))) {
     const module = sourceModule(path)
     for (const statement of module.ast.statements) {
-      if (ts.isImportDeclaration(statement) || ts.isFunctionDeclaration(statement)) continue
-      for (const key of domainOperations(module, statement)) keys.add(key)
+      if (ts.isImportDeclaration(statement) || ts.isFunctionDeclaration(statement)) {
+        continue
+      }
+      for (const key of domainOperations(module, statement)) {
+        keys.add(key)
+      }
     }
   }
   return keys
@@ -442,10 +515,14 @@ function fileIoCalls(source: string): Map<string, Set<string>> {
   const ast = parseSource(join(COMMANDS, 'files.ts'), source)
   const calls = new Map<string, Set<string>>()
   for (const node of ast.statements) {
-    if (!ts.isFunctionDeclaration(node) || !node.name || !node.body) continue
+    if (!ts.isFunctionDeclaration(node) || !node.name || !node.body) {
+      continue
+    }
     const names = new Set<string>()
     function visit(child: ts.Node): void {
-      if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) names.add(child.expression.text)
+      if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) {
+        names.add(child.expression.text)
+      }
       child.forEachChild(visit)
     }
     visit(node.body)
@@ -473,8 +550,9 @@ for (const path of expandToFiles(join(SRC, 'mcp'))) {
           property.name.text === 'handler',
       )
       if (name && ts.isPropertyAssignment(name) && ts.isStringLiteral(name.initializer) && handler) {
-        if (toolOperations.has(name.initializer.text))
+        if (toolOperations.has(name.initializer.text)) {
           throw new Error(`Duplicate MCP tool source: ${name.initializer.text}`)
+        }
         toolOperations.set(name.initializer.text, domainOperations(module, handler))
       }
     }
@@ -506,7 +584,7 @@ const runtimeToolNames = coreMCPTools.map((t) => t.name)
 // ---------------------------------------------------------------------------
 
 describe('MCP surface parity (PROJ-623)', () => {
-  it('traces qualified aliases and namespace facade calls to their actual Core commands', () => {
+  test('traces qualified aliases and namespace facade calls to their actual Core commands', () => {
     const module = sourceModule(
       join(SRC, 'routes', 'parity-alias-fixture.ts'),
       `
@@ -523,7 +601,7 @@ describe('MCP surface parity (PROJ-623)', () => {
     expect([...domainOperations(module, module.ast)].sort()).toEqual(['issues.ts:getIssue', 'wiki.ts:getWikiPage'])
   })
 
-  it('follows facade reexports without conflating equal local function names', () => {
+  test('follows facade reexports without conflating equal local function names', () => {
     const facade = sourceModule(
       join(SRC, 'services', 'parity-reexport-fixture.ts'),
       `export { getProject as load } from './projects'`,
@@ -541,12 +619,12 @@ describe('MCP surface parity (PROJ-623)', () => {
     expect([...domainOperations(module, module.ast)].sort()).toEqual(['issues.ts:getIssue', 'projects.ts:getProject'])
   })
 
-  it('fails closed for an unresolved native named operation', () => {
+  test('fails closed for an unresolved native named operation', () => {
     const module = sourceModule(join(SRC, 'routes', 'parity-missing-fixture.ts'), `client.apiMissingOperation(actor)`)
     expect(() => domainOperations(module, module.ast)).toThrow('No concrete Core handler for apiMissingOperation')
   })
 
-  it('traces only the selected native binary pathname and HTTP method', () => {
+  test('traces only the selected native binary pathname and HTTP method', () => {
     function operations(method: string, pathname: string) {
       const module = sourceModule(
         join(SRC, 'routes', `parity-binary-${method}-${encodeURIComponent(pathname)}.ts`),
@@ -566,7 +644,7 @@ describe('MCP surface parity (PROJ-623)', () => {
     expect([...operations('get', '/unregistered')]).toEqual([])
   })
 
-  it('finds the source it is meant to be checking', () => {
+  test('finds the source it is meant to be checking', () => {
     // Guards against the scanners silently matching nothing — a regex that stops
     // matching would otherwise turn every assertion below into a vacuous pass.
     expect(serviceFns.length).toBeGreaterThan(150)
@@ -575,7 +653,7 @@ describe('MCP surface parity (PROJ-623)', () => {
     expect(catalogToolNames.length).toBeGreaterThan(100)
   })
 
-  it('sees the REST surface registered in index.ts, not just routes/', () => {
+  test('sees the REST surface registered in index.ts, not just routes/', () => {
     // PROJ-638: listProjectsAcrossWorkspaces is wired only by GET /api/projects in
     // index.ts. When the scan covered routes/ alone it read as unwired, so the
     // internal-by-construction rule swallowed it and two MCP_ONLY entries wrongly
@@ -585,7 +663,7 @@ describe('MCP surface parity (PROJ-623)', () => {
     expect(restIdentifiers.has('createWorkspace')).toBe(true)
   })
 
-  it('traces concrete file I/O wrappers to metadata operations without creating binary MCP contracts', () => {
+  test('traces concrete file I/O wrappers to metadata operations without creating binary MCP contracts', () => {
     expect([...(fileWrapperCalls.get('uploadStoredAttachment') ?? [])].sort()).toEqual([
       'assertEntityWritable',
       'assertUploadAllowed',
@@ -601,10 +679,12 @@ describe('MCP surface parity (PROJ-623)', () => {
     for (const wrapper of ['getStoredAttachment', 'deleteStoredAttachment']) {
       expect(restIdentifiers.has(wrapper)).toBe(false)
     }
-    for (const wrapper of FILE_IO_WRAPPERS) expect(mcpIdentifiers.has(wrapper)).toBe(false)
+    for (const wrapper of FILE_IO_WRAPPERS) {
+      expect(mcpIdentifiers.has(wrapper)).toBe(false)
+    }
   })
 
-  it('ignores comments, type references and unrelated function bodies when tracing wrapper calls', () => {
+  test('ignores comments, type references and unrelated function bodies when tracing wrapper calls', () => {
     const calls = fileIoCalls(`
       export async function deleteStoredAttachment(ctx: unknown, id: string): Promise<void> {
         // getAttachmentForDownload(ctx, id) is not a call.
@@ -616,7 +696,7 @@ describe('MCP surface parity (PROJ-623)', () => {
     expect([...(calls.get('deleteStoredAttachment') ?? [])]).toEqual(['deleteAttachment'])
   })
 
-  it('has no service function name exported from two different files', () => {
+  test('has no service function name exported from two different files', () => {
     // Count only canonical domain exports, not the intentional same-named adapter facades.
     const byName = new Map<string, string[]>()
     for (const { fn, key } of serviceFns) {
@@ -627,26 +707,28 @@ describe('MCP surface parity (PROJ-623)', () => {
   })
 
   describe('catalog vs runtime registry', () => {
-    it('agrees on membership and order', () => {
+    test('agrees on membership and order', () => {
       // Not two set comparisons: the arrays must be identical sequences. tools/list
       // returns the runtime order and the docs table renders the catalog order, so
       // reordering one without the other makes the docs lie about dispatch.
       expect(runtimeToolNames).toEqual(catalogToolNames)
     })
 
-    it('resolves every runtime tool handler to an actual domain operation', () => {
+    test('resolves every runtime tool handler to an actual domain operation', () => {
       expect([...toolOperations.keys()].sort()).toEqual([...runtimeToolNames].sort())
       expect([...toolOperations].filter(([, operations]) => operations.size === 0).map(([name]) => name)).toEqual([])
     })
 
-    it('has no duplicate tool names', () => {
+    test('has no duplicate tool names', () => {
       const counts = new Map<string, number>()
-      for (const name of runtimeToolNames) counts.set(name, (counts.get(name) ?? 0) + 1)
+      for (const name of runtimeToolNames) {
+        counts.set(name, (counts.get(name) ?? 0) + 1)
+      }
       const dupes = [...counts].filter(([, n]) => n > 1).map(([name]) => name)
       expect(dupes).toEqual([])
     })
 
-    it('classifies every tool into exactly one group', () => {
+    test('classifies every tool into exactly one group', () => {
       const byTool = new Map<string, string[]>()
       for (const domain of TOOL_DOMAINS) {
         for (const tool of domain.tools) {
@@ -660,7 +742,7 @@ describe('MCP surface parity (PROJ-623)', () => {
       }
     })
 
-    it('gives every tool a description and an object inputSchema', () => {
+    test('gives every tool a description and an object inputSchema', () => {
       const bad = coreMCPTools
         .filter((t) => !t.description?.trim() || (t.inputSchema as { type?: string } | undefined)?.type !== 'object')
         .map((t) => t.name)
@@ -669,17 +751,17 @@ describe('MCP surface parity (PROJ-623)', () => {
   })
 
   describe('service functions vs both surfaces', () => {
-    it('exposes every MCP-wired operation over REST too', () => {
+    test('exposes every MCP-wired operation over REST too', () => {
       const gaps = serviceFns.filter((s) => s.onMcp && !s.onRest && !(s.key in MCP_ONLY)).map((s) => s.key)
       expect(gaps).toEqual([])
     })
 
-    it('exposes every REST-wired operation as an MCP tool too', () => {
+    test('exposes every REST-wired operation as an MCP tool too', () => {
       const gaps = serviceFns.filter((s) => s.onRest && !s.onMcp && !(s.key in REST_ONLY)).map((s) => s.key)
       expect(gaps).toEqual([])
     })
 
-    it("names every MCP-wired operation's tool after its service function", () => {
+    test("names every MCP-wired operation's tool after its service function", () => {
       const mismatched = serviceFns
         .filter((s) => s.onMcp)
         .filter((s) => {
@@ -694,14 +776,14 @@ describe('MCP surface parity (PROJ-623)', () => {
   describe('the exception lists stay honest', () => {
     const keys = new Set(serviceFns.map((s) => s.key))
 
-    it('names only service functions that still exist', () => {
+    test('names only service functions that still exist', () => {
       const stale = [...Object.keys(MCP_ONLY), ...Object.keys(REST_ONLY), ...Object.keys(TOOL_NAME_ALIASES)].filter(
         (k) => !keys.has(k),
       )
       expect(stale).toEqual([])
     })
 
-    it('drops entries whose gap has been closed', () => {
+    test('drops entries whose gap has been closed', () => {
       const byKey = new Map(serviceFns.map((s) => [s.key, s]))
       const fixed = [
         ...Object.keys(MCP_ONLY).filter((k) => byKey.get(k)?.onRest),
@@ -710,14 +792,14 @@ describe('MCP surface parity (PROJ-623)', () => {
       expect(fixed).toEqual([])
     })
 
-    it('states a reason for every entry', () => {
+    test('states a reason for every entry', () => {
       const empty = [...Object.entries(MCP_ONLY), ...Object.entries(REST_ONLY)]
         .filter(([, reason]) => reason.trim().length < 10)
         .map(([k]) => k)
       expect(empty).toEqual([])
     })
 
-    it('aliases only names that differ from the derived one', () => {
+    test('aliases only names that differ from the derived one', () => {
       const redundant = Object.entries(TOOL_NAME_ALIASES)
         .filter(([key, alias]) => snakeCase(key.split(':')[1]) === alias)
         .map(([k]) => k)

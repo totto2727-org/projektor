@@ -2,19 +2,20 @@
 
 import { useForm, useStore } from '@tanstack/react-form'
 import { Schema } from 'effect'
-import { type Dispatch, type SetStateAction, useOptimistic, useState, useTransition } from 'react'
+import { useOptimistic, useState, useTransition } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
-import { unwrapResult } from '../../client/functions'
-import { Button } from '../../components/ui/Button'
-import Select from '../../components/ui/Select'
-import { formatTimestampDate } from '../timestamp'
-import { navigateFeature } from '../wiki/navigation'
+import { unwrapResult } from '../../client/functions.ts'
+import { Button } from '../../components/ui/Button.tsx'
+import Select from '../../components/ui/Select.tsx'
+import { formatTimestampDate } from '../timestamp.ts'
+import { navigateFeature } from '../wiki/navigation.ts'
 import {
   convertFeedbackToIssue,
   convertSelectedFeedbackToIssue,
   markFeedbackReviewed,
   markSelectedFeedbackReviewed,
-} from './actions'
+} from './actions.ts'
 
 export interface Feedback {
   id: string
@@ -50,8 +51,12 @@ const TD = 'px-3 py-2 border-b border-border align-top text-[0.875rem]'
 const TH = 'text-left px-3 py-2 border-b-2 border-border font-semibold text-text-base whitespace-nowrap'
 
 function ratingDisplay(rating: number | null, scale: string | null): string {
-  if (rating === null) return '—'
-  if (scale === 'thumbs') return rating > 0 ? '👍' : '👎'
+  if (rating === null) {
+    return '—'
+  }
+  if (scale === 'thumbs') {
+    return rating > 0 ? '👍' : '👎'
+  }
   return '★'.repeat(Math.max(0, Math.min(5, rating)))
 }
 
@@ -60,10 +65,14 @@ function formatDate(ts: number): string {
 }
 
 function parseContext(sourceUrl: string | null): { url: string; params: [string, string][] } | null {
-  if (!sourceUrl) return null
+  if (!sourceUrl) {
+    return null
+  }
   try {
     const parsed = new URL(sourceUrl)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null
+    }
     return { url: sourceUrl, params: Array.from(parsed.searchParams.entries()) }
   } catch {
     return null
@@ -72,7 +81,9 @@ function parseContext(sourceUrl: string | null): { url: string; params: [string,
 
 function FeedbackContext({ row, expanded, onToggle }: { row: Feedback; expanded: boolean; onToggle: () => void }) {
   const context = parseContext(row.sourceUrl)
-  if (!context) return null
+  if (!context) {
+    return null
+  }
   return (
     <div className='mt-1'>
       <button type='button' className='text-[0.75rem] text-text-muted underline' onClick={onToggle}>
@@ -301,8 +312,11 @@ function useToggleSet() {
   function toggle(id: string) {
     setSet((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
       return next
     })
   }
@@ -329,8 +343,11 @@ function useSelectedFeedback() {
   function toggle(id: string) {
     setSelected((current) => {
       const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
       return next
     })
   }
@@ -375,8 +392,12 @@ export default function FeedbackList({ workspaceSlug, projectId, sourceId, initi
             onChange={(value) => {
               setSelected(new Set())
               const params = new URLSearchParams({ projectId, tab: 'items' })
-              if (workspaceSlug) params.set('workspace', workspaceSlug)
-              if (value) params.set('status', value)
+              if (workspaceSlug) {
+                params.set('workspace', workspaceSlug)
+              }
+              if (value) {
+                params.set('status', value)
+              }
               navigateFeature(`/feedback/${encodeURIComponent(sourceId)}?${params}`)
             }}
             options={STATUS_OPTIONS}

@@ -1,9 +1,9 @@
 import { OAuthProvider } from '@cloudflare/workers-oauth-provider'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { providerOptions } from '../../contracts/oauth-provider'
-import { OAUTH_PURGE_STATE_KEY, purgeOAuthPage } from '../../core/api/oauth-purge'
-import { env } from './fixture-api'
+import { providerOptions } from '../../contracts/oauth-provider.ts'
+import { OAUTH_PURGE_STATE_KEY, purgeOAuthPage } from '../../core/api/oauth-purge.ts'
+import { env } from './fixture-api.ts'
 
 function memoryNamespace() {
   const values = new Map<string, string>()
@@ -12,14 +12,20 @@ function memoryNamespace() {
   let failPut = false
   const namespace = {
     async get(key: string, options?: string | { type?: string }) {
-      if (key === failGet) throw new Error('Injected KV read failure')
+      if (key === failGet) {
+        throw new Error('Injected KV read failure')
+      }
       const value = values.get(key)
-      if (value === undefined) return null
+      if (value === undefined) {
+        return null
+      }
       const type = typeof options === 'string' ? options : options?.type
       return type === 'json' ? JSON.parse(value) : value
     },
     async put(key: string, value: string) {
-      if (failPut) throw new Error('Injected KV checkpoint failure')
+      if (failPut) {
+        throw new Error('Injected KV checkpoint failure')
+      }
       values.set(key, value)
     },
     async delete(key: string) {
@@ -70,7 +76,7 @@ function fixture() {
 }
 
 describe('official OAuth cleanup durable pagination', () => {
-  it('resumes an opaque native KV cursor and reaches a late expired grant', async () => {
+  test('resumes an opaque native KV cursor and reaches a late expired grant', async () => {
     const clientId = `purge-${crypto.randomUUID()}`
     const userId = `purge-${crypto.randomUUID()}`
     const keys = [`client:${clientId}`]
@@ -97,12 +103,14 @@ describe('official OAuth cleanup durable pagination', () => {
       expect(await env.OAUTH_KV.get(`grant:${userId}:000`)).not.toBeNull()
       expect(await purgeOAuthPage(env, provider)).toMatchObject({ phase: 'tokens', done: true })
     } finally {
-      for (const key of keys) await env.OAUTH_KV.delete(key)
+      for (const key of keys) {
+        await env.OAUTH_KV.delete(key)
+      }
       await env.KV.delete(OAUTH_PURGE_STATE_KEY)
     }
   })
 
-  it('passes more than 200 live grants and tokens without starving either phase', async () => {
+  test('passes more than 200 live grants and tokens without starving either phase', async () => {
     const f = fixture()
     for (let index = 0; index < 405; index++) {
       const id = String(index).padStart(3, '0')
@@ -133,7 +141,7 @@ describe('official OAuth cleanup durable pagination', () => {
     expect(f.state()).toEqual({ phase: 'grants' })
   })
 
-  it('does not advance a saved cursor when an item in the next page fails', async () => {
+  test('does not advance a saved cursor when an item in the next page fails', async () => {
     const f = fixture()
     for (let index = 0; index < 205; index++) {
       f.grant(String(index).padStart(3, '0'), 'u', index === 201 ? { expiresAt: 1 } : {})
@@ -151,7 +159,7 @@ describe('official OAuth cleanup durable pagination', () => {
     expect(f.storage.values.has('grant:z:expired')).toBe(false)
   })
 
-  it('retries a page safely when persisting its checkpoint fails after revocation', async () => {
+  test('retries a page safely when persisting its checkpoint fails after revocation', async () => {
     const f = fixture()
     f.grant('expired', 'z', { expiresAt: 1 })
     f.checkpoints.failPut(true)
@@ -162,7 +170,7 @@ describe('official OAuth cleanup durable pagination', () => {
     expect(await f.run()).toMatchObject({ grantsPurged: 0, nextPhase: 'tokens' })
   })
 
-  it('bounds nested SDK revocation calls without advancing past a partially processed grant', async () => {
+  test('bounds nested SDK revocation calls without advancing past a partially processed grant', async () => {
     const f = fixture()
     f.grant('expired', 'z', { expiresAt: 1 })
     for (let index = 0; index < 850; index++) {

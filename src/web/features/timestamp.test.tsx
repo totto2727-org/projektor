@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { act } from '@testing-library/react'
-import { hydrateRoot, type Root } from 'react-dom/client'
+import { hydrateRoot } from 'react-dom/client'
+import type { Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { formatTimestamp, formatTimestampDate } from './timestamp'
-import { WikiPageClient, type WikiSeed } from './wiki/WikiPageClient'
+import { formatTimestamp, formatTimestampDate } from './timestamp.ts'
+import { WikiPageClient } from './wiki/WikiPageClient.tsx'
+import type { WikiSeed } from './wiki/WikiPageClient.tsx'
 
 vi.mock('./wiki/actions', () => ({}))
 vi.mock('../attachment-actions', () => ({
@@ -79,7 +81,7 @@ afterEach(() => {
 })
 
 describe('SSR timestamp hydration', () => {
-  it.each([
+  test.each([
     [0, '1970-01-01', '00:00:00'],
     [timestamp, '2026-10-04', '08:48:46'],
     [Date.parse('2026-12-31T23:59:59Z') / 1000, '2026-12-31', '23:59:59'],
@@ -87,11 +89,13 @@ describe('SSR timestamp hydration', () => {
     expect(formatTimestamp(seconds)).toBe(`${date} ${time} UTC`)
     expect(formatTimestampDate(seconds)).toBe(`${date} UTC`)
   })
-  it('preserves invalid-date display without throwing during SSR', () => {
+
+  test('preserves invalid-date display without throwing during SSR', () => {
     expect(formatTimestamp(Number.NaN)).toBe('Invalid Date')
     expect(formatTimestampDate(Number.POSITIVE_INFINITY)).toBe('Invalid Date')
   })
-  it.each([
+
+  test.each([
     ['en-US', 'Asia/Tokyo'],
     ['ja-JP', 'Asia/Tokyo'],
     ['en-US', 'America/Los_Angeles'],

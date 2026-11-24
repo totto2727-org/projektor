@@ -1,4 +1,4 @@
-import type { RequestScope } from './server/request-context'
+import type { RequestScope } from './server/request-context.ts'
 
 /** Pure URL construction, usable by server loaders as well as interactive components. */
 export function scopedHref(path: string, scope: RequestScope | null): string {
@@ -7,6 +7,8 @@ export function scopedHref(path: string, scope: RequestScope | null): string {
   if (selection?.kind === 'workspace' || selection?.kind === 'project') {
     url.searchParams.set('workspace', selection.workspace.slug)
   }
-  if (selection?.kind === 'project') url.searchParams.set('projectId', selection.project.id)
+  if (selection?.kind === 'project') {
+    url.searchParams.set('projectId', selection.project.id)
+  }
   return `${url.pathname}${url.search}${url.hash}`
 }

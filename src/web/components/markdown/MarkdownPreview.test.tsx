@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { MarkdownPreview } from './MarkdownPreview'
-import { renderMarkdownDocument, type RenderedMarkdown } from './render'
+import { MarkdownPreview } from './MarkdownPreview.tsx'
+import { renderMarkdownDocument } from './render.ts'
+import type { RenderedMarkdown } from './render.ts'
 
 vi.mock('./render', () => ({ renderMarkdownDocument: vi.fn() }))
 const renderDocument = vi.mocked(renderMarkdownDocument)
@@ -16,7 +17,7 @@ afterEach(() => {
 })
 
 describe('local Comark preview', () => {
-  it('renders prepared canonical HTML during SSR without client effects', () => {
+  test('renders prepared canonical HTML during SSR without client effects', () => {
     expect(
       renderToStaticMarkup(
         <MarkdownPreview content='**Server**' initial={{ html: '<p><strong>Server</strong></p>', toc: [] }} />,
@@ -24,14 +25,16 @@ describe('local Comark preview', () => {
     ).toContain('<strong>Server</strong>')
     expect(renderDocument).not.toHaveBeenCalled()
   })
-  it('adopts updated canonical action props synchronously without re-rendering Markdown', () => {
+
+  test('adopts updated canonical action props synchronously without re-rendering Markdown', () => {
     const view = render(<MarkdownPreview content='old' initial={document('Before action')} />)
     view.rerender(<MarkdownPreview content='new' initial={document('After action')} />)
     expect(screen.getByText('After action')).toBeTruthy()
     expect(screen.queryByText('Before action')).toBeNull()
     expect(renderDocument).not.toHaveBeenCalled()
   })
-  it('debounces rapid edits and ignores superseded async completions', async () => {
+
+  test('debounces rapid edits and ignores superseded async completions', async () => {
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
     })
@@ -55,7 +58,8 @@ describe('local Comark preview', () => {
     expect(screen.queryByText('Stale preview')).toBeNull()
     expect(renderDocument.mock.calls.map(([content]) => content)).toEqual(['old', 'new'])
   })
-  it('clears previous entity text during rerender and handles errors safely', async () => {
+
+  test('clears previous entity text during rerender and handles errors safely', async () => {
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
     })

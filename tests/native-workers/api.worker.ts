@@ -1,7 +1,7 @@
-import api from '../../src/api/index'
+import api from '../../src/api/index.ts'
 import type { FixtureConfiguration } from './core.worker'
 
-export { RateLimiter, WorkspaceHub } from '../../src/api/index'
+export { RateLimiter, WorkspaceHub } from '../../src/api/index.ts'
 
 type ApiEnvironment = Parameters<typeof api.fetch>[1]
 type FixtureEnvironment = ApiEnvironment & {
@@ -18,7 +18,9 @@ function configuration(value: string | undefined): FixtureConfiguration {
   }
   const settings: Record<string, string | null> = {}
   for (const [key, item] of Object.entries(parsed)) {
-    if (item !== null && typeof item !== 'string') throw new Error(`Invalid fixture policy: ${key}`)
+    if (item !== null && typeof item !== 'string') {
+      throw new Error(`Invalid fixture policy: ${key}`)
+    }
     settings[key] = item
   }
   return settings
@@ -32,6 +34,7 @@ async function requestEnvironment(env: FixtureEnvironment): Promise<ApiEnvironme
   return { ...env, CORE: core }
 }
 
+// oxlint-disable-next-line import/no-default-export -- Workerd loads the native test API fetch handler from the default export.
 export default {
   async fetch(request: Request, env: FixtureEnvironment, context: ExecutionContext): Promise<Response> {
     return api.fetch(request, await requestEnvironment(env), context)

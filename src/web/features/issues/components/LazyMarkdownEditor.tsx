@@ -1,2 +1,2 @@
 'use client'
-export { LazyMarkdownEditor as default } from '../../wiki/markdown'
+export { LazyMarkdownEditor as default } from '../../wiki/markdown.tsx'

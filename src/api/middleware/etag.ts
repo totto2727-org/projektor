@@ -26,7 +26,9 @@ export async function etagMiddleware(c: Context<HonoEnv>, next: Next): Promise<v
   // Registered after authMiddleware/workspaceMiddleware on the same prefixes, so an
   // unauthorised request never reaches here. This guard is the second lock: a 304 must
   // never stand in for a 401/403/404.
-  if (c.req.method !== 'GET' || c.res.status !== 200) return
+  if (c.req.method !== 'GET' || c.res.status !== 200) {
+    return
+  }
 
   const body = await c.res.clone().arrayBuffer()
   const etag = `"${await sha256Prefix(body)}"`
@@ -44,8 +46,12 @@ export async function etagMiddleware(c: Context<HonoEnv>, next: Next): Promise<v
 }
 
 function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {
-  if (!header) return false
-  if (header.trim() === '*') return true
+  if (!header) {
+    return false
+  }
+  if (header.trim() === '*') {
+    return true
+  }
   const stripWeak = (t: string) => t.trim().replace(/^W\//, '')
   return header.split(',').some((t) => stripWeak(t) === stripWeak(etag))
 }

@@ -1,13 +1,15 @@
 'use client'
-import { type DeepValue, useForm, useStore } from '@tanstack/react-form'
+import { useForm, useStore } from '@tanstack/react-form'
+import type { DeepValue } from '@tanstack/react-form'
 import { Schema } from 'effect'
-import { type Dispatch, type SetStateAction, useRef } from 'react'
+import { useRef } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
 export const Text = Schema.String
 export const RequiredText = Schema.String.check(Schema.isPattern(/\S/))
 export const TitleText = RequiredText.check(Schema.isMaxLength(500))
-export const BodyText = Text.check(Schema.isMaxLength(50000))
-export const CommentText = RequiredText.check(Schema.isMaxLength(10000))
+export const BodyText = Text.check(Schema.isMaxLength(50_000))
+export const CommentText = RequiredText.check(Schema.isMaxLength(10_000))
 export const Priority = Schema.Literals(['urgent', 'high', 'medium', 'low', 'none'])
 export const IssueReference = Schema.String.check(Schema.isPattern(/^[A-Za-z][A-Za-z0-9]*-\d+$/))
 export const PointsText = Schema.String.check(Schema.isPattern(/^(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)?$/))

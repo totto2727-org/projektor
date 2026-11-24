@@ -3,11 +3,11 @@ import { makeCoreClient } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
-import { ApiSharedIssue } from '../../contracts/api-public'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { apiReply } from '../services/reply'
-import { createShareToken, revokeShareToken } from '../services/share'
-import { ctxFromHono } from '../services/types'
+import { ApiSharedIssue } from '../../contracts/api-public.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { apiReply } from '../services/reply.ts'
+import { createShareToken, revokeShareToken } from '../services/share.ts'
+import { ctxFromHono } from '../services/types.ts'
 
 // Authenticated router — POST/DELETE /api/issues/:id/share
 const authedRouter = new Hono<HonoEnv>()

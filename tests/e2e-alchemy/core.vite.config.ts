@@ -3,10 +3,11 @@ import { fileURLToPath } from 'node:url'
 
 import cloudflare from '@alchemy.run/cloudflare-runtime/vite'
 import { readD1Migrations } from '@cloudflare/vitest-plugin'
-import { defineConfig, type UserConfig } from 'vite-plus'
+import { defineConfig } from 'vite-plus'
+import type { UserConfig } from 'vite-plus'
 
-import { deployment } from '../../worker-graph'
-import { coreWorkerOptions } from './api-host'
+import { deployment } from '../../worker-graph.ts'
+import { coreWorkerOptions } from './api-host.ts'
 
 /** Compile official-parser migration records into the acceptance-only Core artifact. */
 export async function makeCoreFixtureConfig(main: string, outDir: string): Promise<UserConfig> {
@@ -44,7 +45,10 @@ export async function makeCoreFixtureConfig(main: string, outDir: string): Promi
   }
 }
 
+// oxlint-disable-next-line import/no-default-export -- Vite loads the Core build configuration from the default export.
 export default defineConfig(async (environment) => {
-  if (environment.isPreview) throw new Error('Core runs only inside the single three-Worker acceptance preview.')
+  if (environment.isPreview) {
+    throw new Error('Core runs only inside the single three-Worker acceptance preview.')
+  }
   return makeCoreFixtureConfig('./core.worker.ts', 'core-dist')
 })

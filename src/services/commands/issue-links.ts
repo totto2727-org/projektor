@@ -3,27 +3,29 @@ import { Effect } from 'effect'
 import type { z } from 'zod'
 
 import { drizzle, schema } from '#db'
-import { listLinksForIssue as queryLinks } from '#services/issue-links'
+import { listLinksForIssue as queryLinks } from '#services/issue-links.ts'
 
-import {
-  CreateIssueLinkSchema,
-  DeleteIssueLinkSchema,
-  type LinkTypeStoredEnum,
-  ListIssueLinksSchema,
-} from '../../contracts/inputs/issues'
-import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access'
-import * as cache from './cache'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { resolveIssueIdParam } from './issues'
-import type { ServiceCtx } from './types'
+import { CreateIssueLinkSchema, DeleteIssueLinkSchema, ListIssueLinksSchema } from '../../contracts/inputs/issues.ts'
+import type { LinkTypeStoredEnum } from '../../contracts/inputs/issues.ts'
+import { canWriteProject, effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
+import * as cache from './cache.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { resolveIssueIdParam } from './issues.ts'
+import type { ServiceCtx } from './types.ts'
 
 // PROJ-311: linking touches two issues; a non-admin must be able to write to the
 // project each issue belongs to (a missing grant reads as "issue not found").
 async function requireIssueProjectWrite(ctx: ServiceCtx, projectId: string, notFoundLabel: string): Promise<void> {
-  if (isWorkspaceAdmin(ctx.role)) return
+  if (isWorkspaceAdmin(ctx.role)) {
+    return
+  }
   const role = await effectiveProjectRole(ctx, projectId)
-  if (role === null) throw new NotFoundError(notFoundLabel)
-  if (!canWriteProject(role)) throw new ForbiddenError('Insufficient permissions')
+  if (role === null) {
+    throw new NotFoundError(notFoundLabel)
+  }
+  if (!canWriteProject(role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
 }
 
 type StoredLinkType = z.infer<typeof LinkTypeStoredEnum>
@@ -47,9 +49,13 @@ function canonicalize(
 }
 
 export async function createLink(ctx: ServiceCtx, raw: unknown) {
-  if (ctx.role === 'viewer') throw new ForbiddenError('Insufficient permissions')
+  if (ctx.role === 'viewer') {
+    throw new ForbiddenError('Insufficient permissions')
+  }
   const result = CreateIssueLinkSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { type } = result.data
   const sourceIssueId = await resolveIssueIdParam(ctx, result.data.sourceIssueId, 'Source issue not found')
   const targetIssueId = await resolveIssueIdParam(ctx, result.data.targetIssueId, 'Target issue not found')
@@ -74,8 +80,12 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
       .where(and(eq(schema.issues.id, canon.target), eq(schema.issues.workspaceId, ctx.workspaceId)))
       .get(),
   ])
-  if (!src) throw new NotFoundError('Source issue not found')
-  if (!tgt) throw new NotFoundError('Target issue not found')
+  if (!src) {
+    throw new NotFoundError('Source issue not found')
+  }
+  if (!tgt) {
+    throw new NotFoundError('Target issue not found')
+  }
   await requireIssueProjectWrite(ctx, src.projectId, 'Source issue not found')
   await requireIssueProjectWrite(ctx, tgt.projectId, 'Target issue not found')
 
@@ -92,7 +102,9 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
       ),
     )
     .get()
-  if (existing) throw new ConflictError('This link already exists')
+  if (existing) {
+    throw new ConflictError('This link already exists')
+  }
 
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
@@ -114,9 +126,13 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
 }
 
 export async function deleteLink(ctx: ServiceCtx, raw: unknown) {
-  if (ctx.role === 'viewer') throw new ForbiddenError('Insufficient permissions')
+  if (ctx.role === 'viewer') {
+    throw new ForbiddenError('Insufficient permissions')
+  }
   const result = DeleteIssueLinkSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { id } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -129,7 +145,9 @@ export async function deleteLink(ctx: ServiceCtx, raw: unknown) {
     .from(schema.issueLinks)
     .where(and(eq(schema.issueLinks.id, id), eq(schema.issueLinks.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Link not found')
+  if (!existing) {
+    throw new NotFoundError('Link not found')
+  }
 
   if (!isWorkspaceAdmin(ctx.role)) {
     const endpoints = await orm
@@ -158,7 +176,9 @@ export async function deleteLink(ctx: ServiceCtx, raw: unknown) {
 
 export async function listLinksForIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ListIssueLinksSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const issueId = await resolveIssueIdParam(ctx, result.data.issueId)
 
   const orm = drizzle(ctx.db, { schema })

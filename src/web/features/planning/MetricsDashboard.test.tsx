@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { CodeHeatmap } from './CodeHeatmap'
-import { MetricsDashboard } from './MetricsDashboard'
-import type { FlowMetrics } from './types'
+import { CodeHeatmap } from './CodeHeatmap.tsx'
+import { MetricsDashboard } from './MetricsDashboard.tsx'
+import type { FlowMetrics } from './types.ts'
 
 vi.hoisted(() => {
   vi.stubGlobal(
@@ -44,7 +44,7 @@ const metrics = (): FlowMetrics => ({
   ],
   arrivalVsCompletionOverTime: [{ bucketStart: '2026-10-01', created: 6, completed: 4, net: 2 }],
   agingWip: [
-    { id: 'i1', status: 'in_progress', ageSeconds: 86400 },
+    { id: 'i1', status: 'in_progress', ageSeconds: 86_400 },
     { id: 'i2', status: 'in_review', ageSeconds: 3600 },
   ],
   factoryHealth: { leaseExpiries: 1, abandonedClaims: 2, gateRejections: 3, wipCapPressure: 4 },
@@ -68,7 +68,7 @@ beforeEach(() => {
 })
 
 describe('full original metrics surfaces', () => {
-  it('uses the shared Effect Standard Schema to block reversed native GET ranges', async () => {
+  test('uses the shared Effect Standard Schema to block reversed native GET ranges', async () => {
     const nativeSubmit = vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => {})
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
     fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-10-05' } })
@@ -77,7 +77,8 @@ describe('full original metrics surfaces', () => {
     expect(nativeSubmit).not.toHaveBeenCalled()
     nativeSubmit.mockRestore()
   })
-  it('renders all seven real Recharts surfaces, distribution tiles, help controls, and factory signals without mount loads', async () => {
+
+  test('renders all seven real Recharts surfaces, distribution tiles, help controls, and factory signals without mount loads', async () => {
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
     expect(screen.getAllByTestId(/^flow-chart-/).length).toBe(7)
     expect(document.querySelectorAll('svg.recharts-surface').length).toBe(7)
@@ -101,8 +102,9 @@ describe('full original metrics surfaces', () => {
       'Age since claim',
       'p50 cycle time',
       'p90 cycle time',
-    ])
+    ]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0)
+    }
     for (const chart of screen.getAllByTestId(/^flow-chart-/)) {
       expect(chart.className).toContain('h-[220px]')
       expect(chart.className).toContain('w-full')
@@ -125,13 +127,16 @@ describe('full original metrics surfaces', () => {
       'Human interventions per issue',
       'Where work lands',
       'Factory health',
-    ])
+    ]) {
       expect(screen.getByRole('heading', { name: title })).toBeTruthy()
+    }
     expect(screen.getAllByText('Count').length).toBe(7)
-    for (const label of ['Lease expiries', 'Abandoned claims', 'Gate rejections', 'WIP-cap pressure'])
+    for (const label of ['Lease expiries', 'Abandoned claims', 'Gate rejections', 'WIP-cap pressure']) {
       expect(screen.getByRole('button', { name: `About ${label}` })).toBeTruthy()
+    }
   })
-  it('adopts refreshed metrics while preserving unsaved range and uses shareable normal GET forms', () => {
+
+  test('adopts refreshed metrics while preserving unsaved range and uses shareable normal GET forms', () => {
     const view = render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
     fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-08-01' } })
     const next = metrics()
@@ -144,7 +149,8 @@ describe('full original metrics surfaces', () => {
     expect(form?.getAttribute('action')).toBe('/metrics')
     expect(new FormData(form as HTMLFormElement).get('workspace')).toBe('alpha')
   })
-  it('retains metric help toggletips and dismisses on Escape', () => {
+
+  test('retains metric help toggletips and dismisses on Escape', () => {
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
     fireEvent.click(screen.getByRole('button', { name: 'About Flow efficiency' }))
     expect(screen.getByRole('dialog', { name: 'Flow efficiency definition' }).textContent).toContain(
@@ -153,7 +159,8 @@ describe('full original metrics surfaces', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
   })
-  it('preserves claim/contention toggle, breadcrumb drill paths, proportional bars and leaf distinction', () => {
+
+  test('preserves claim/contention toggle, breadcrumb drill paths, proportional bars and leaf distinction', () => {
     const view = render(
       <CodeHeatmap
         data={{

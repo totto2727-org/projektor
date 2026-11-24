@@ -1,4 +1,5 @@
-import { Effect, type Schema } from 'effect'
+import { Effect } from 'effect'
+import type { Schema } from 'effect'
 import { decodeCoreReply } from 'projektor/core-client'
 
 /** The only shared adapter machinery is envelope decoding, never operation dispatch. */

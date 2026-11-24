@@ -2,18 +2,19 @@ import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
-import { listComments as queryComments } from '#services/comments'
+import { listComments as queryComments } from '#services/comments.ts'
 
 import {
   AddCommentSchema,
   DeleteCommentSchema,
   ListCommentsSchema,
   UpdateCommentSchema,
-} from '../../contracts/inputs/comments'
-import { assertProjectAccess, type AccessMode } from './access'
-import { ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { broadcastWorkspaceEvent } from './realtime'
-import type { ServiceCtx } from './types'
+} from '../../contracts/inputs/comments.ts'
+import { assertProjectAccess } from './access.ts'
+import type { AccessMode } from './access.ts'
+import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { broadcastWorkspaceEvent } from './realtime.ts'
+import type { ServiceCtx } from './types.ts'
 
 interface CommentRow {
   id: string
@@ -35,7 +36,9 @@ async function assertIssueVisible(ctx: ServiceCtx, issueId: string, mode: Access
     .from(schema.issues)
     .where(and(eq(schema.issues.id, issueId), eq(schema.issues.workspaceId, ctx.workspaceId)))
     .get()
-  if (!issue) throw new NotFoundError('Issue not found')
+  if (!issue) {
+    throw new NotFoundError('Issue not found')
+  }
   await assertProjectAccess(ctx, issue.projectId, mode, {
     notFoundMessage: 'Issue not found',
     projectLoadedFromWorkspaceRow: true,
@@ -45,7 +48,9 @@ async function assertIssueVisible(ctx: ServiceCtx, issueId: string, mode: Access
 
 export async function listComments(ctx: ServiceCtx, input: unknown): Promise<CommentRow[]> {
   const parsed = ListCommentsSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { issueId } = parsed.data
 
   await assertIssueVisible(ctx, issueId)
@@ -54,7 +59,9 @@ export async function listComments(ctx: ServiceCtx, input: unknown): Promise<Com
 
 export async function addComment(ctx: ServiceCtx, input: unknown): Promise<{ id: string }> {
   const parsed = AddCommentSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { issueId, body } = parsed.data
 
   const projectId = await assertIssueVisible(ctx, issueId, 'edit')
@@ -103,7 +110,9 @@ export function buildAddCommentInsertStatement(
 
 export async function updateComment(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = UpdateCommentSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { issueId, commentId, body } = parsed.data
 
   const projectId = await assertIssueVisible(ctx, issueId, 'edit')
@@ -115,8 +124,12 @@ export async function updateComment(ctx: ServiceCtx, input: unknown): Promise<{ 
     .where(and(eq(schema.issueComments.id, commentId), eq(schema.issueComments.issueId, issueId)))
     .get()
 
-  if (!comment) throw new NotFoundError('Comment not found')
-  if (comment.authorId !== ctx.userId) throw new ForbiddenError('Forbidden')
+  if (!comment) {
+    throw new NotFoundError('Comment not found')
+  }
+  if (comment.authorId !== ctx.userId) {
+    throw new ForbiddenError('Forbidden')
+  }
 
   await orm
     .update(schema.issueComments)
@@ -134,7 +147,9 @@ export async function updateComment(ctx: ServiceCtx, input: unknown): Promise<{ 
 
 export async function deleteComment(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = DeleteCommentSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { issueId, commentId } = parsed.data
 
   const projectId = await assertIssueVisible(ctx, issueId, 'edit')
@@ -146,10 +161,14 @@ export async function deleteComment(ctx: ServiceCtx, input: unknown): Promise<{ 
     .where(and(eq(schema.issueComments.id, commentId), eq(schema.issueComments.issueId, issueId)))
     .get()
 
-  if (!comment) throw new NotFoundError('Comment not found')
+  if (!comment) {
+    throw new NotFoundError('Comment not found')
+  }
 
   const canDelete = comment.authorId === ctx.userId || ctx.role === 'admin' || ctx.role === 'owner'
-  if (!canDelete) throw new ForbiddenError('Forbidden')
+  if (!canDelete) {
+    throw new ForbiddenError('Forbidden')
+  }
 
   await orm.delete(schema.issueComments).where(eq(schema.issueComments.id, commentId))
 

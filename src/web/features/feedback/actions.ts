@@ -2,13 +2,13 @@
 
 import { Effect, Schema } from 'effect'
 
-import { EFFRONT } from '../../effront'
-import { RequestServices } from '../../request'
-import { runBrowserCommand as runCommand } from '../../server/browser-command'
-import { FunctionSelectorSchema, resolveFunctionContext } from '../../server/function-context'
-import { checkSameOriginMutation } from '../../server/mutation'
-import { feedbackCommands, sourceCommands } from './data'
-import { SourceFields } from './schemas'
+import { EFFRONT } from '../../effront.ts'
+import { RequestServices } from '../../request.ts'
+import { runBrowserCommand as runCommand } from '../../server/browser-command.ts'
+import { FunctionSelectorSchema, resolveFunctionContext } from '../../server/function-context.ts'
+import { checkSameOriginMutation } from '../../server/mutation.ts'
+import { feedbackCommands, sourceCommands } from './data.ts'
+import { SourceFields } from './schemas.ts'
 
 const identifier = Schema.String.check(Schema.isMinLength(1))
 const SourceReference = Schema.Struct({

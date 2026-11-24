@@ -2,22 +2,15 @@
 
 import { Effect, Schema } from 'effect'
 
-import { EFFRONT } from '../../effront'
-import type { ActionResult } from '../../function-result'
-import { RequestServices } from '../../request'
-import { runBrowserCommand as runCommand } from '../../server/browser-command'
-import { resolveFunctionContext } from '../../server/function-context'
-import { checkSameOriginMutation } from '../../server/mutation'
-import * as projectCommands from './commands'
-import {
-  type ArchiveProjectInput,
-  ArchiveProjectInputSchema,
-  type CreatedProject,
-  type CreateProjectInput,
-  CreateProjectInputSchema,
-  type UpdateDescriptionInput,
-  UpdateDescriptionInputSchema,
-} from './schemas'
+import { EFFRONT } from '../../effront.ts'
+import type { ActionResult } from '../../function-result.ts'
+import { RequestServices } from '../../request.ts'
+import { runBrowserCommand as runCommand } from '../../server/browser-command.ts'
+import { resolveFunctionContext } from '../../server/function-context.ts'
+import { checkSameOriginMutation } from '../../server/mutation.ts'
+import * as projectCommands from './commands.ts'
+import { ArchiveProjectInputSchema, CreateProjectInputSchema, UpdateDescriptionInputSchema } from './schemas.ts'
+import type { ArchiveProjectInput, CreatedProject, CreateProjectInput, UpdateDescriptionInput } from './schemas.ts'
 
 /** Creates a project for an explicitly selected, server-authorized workspace. */
 export const createProject = EFFRONT.ServerFn.make({

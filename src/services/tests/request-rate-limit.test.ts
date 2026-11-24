@@ -1,6 +1,6 @@
 import { Effect, Schema } from 'effect'
 import { Hono } from 'hono'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { ApiEnv, HonoEnv } from '#types'
 
@@ -9,19 +9,21 @@ import {
   LIMITER_TIMEOUT_MS as apiTimeout,
   rateLimiterObjectName as apiObjectName,
   rateLimitMiddleware,
-} from '../../api/middleware/rate-limit'
-import { RateLimitRequest, RateCounterRequest, RateLimitResult } from '../../contracts/request-rate-limit'
-import { makeApiRateLimitHandlers } from '../../core/api/rate-limit'
-import { decodeCoreReply } from '../../core/client'
-import { createTestDatabase } from '../../web/test/database'
-import { bumpRateCounter, checkRateLimit, LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../request-rate-limit'
-import type { RequestRateLimitEnv } from '../request-rate-limit'
+} from '../../api/middleware/rate-limit.ts'
+import { RateLimitRequest, RateCounterRequest, RateLimitResult } from '../../contracts/request-rate-limit.ts'
+import { makeApiRateLimitHandlers } from '../../core/api/rate-limit.ts'
+import { decodeCoreReply } from '../../core/client.ts'
+import { createTestDatabase } from '../../web/test/database.ts'
+import { bumpRateCounter, checkRateLimit, LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../request-rate-limit.ts'
+import type { RequestRateLimitEnv } from '../request-rate-limit.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 function fixture() {
@@ -68,11 +70,13 @@ function fixture() {
 const request = (headers: HeadersInit = {}) => new Request('https://example.test/api/issues', { headers })
 
 async function consume(count: number, req: Request, env: RequestRateLimitEnv) {
-  for (let i = 0; i < count; i++) expect(await checkRateLimit(req, env)).toBeUndefined()
+  for (let i = 0; i < count; i++) {
+    expect(await checkRateLimit(req, env)).toBeUndefined()
+  }
 }
 
 describe('shared request rate-limit policy', () => {
-  it('retains 300 IP and 600 bearer defaults, with no JWT or app auth bindings', async () => {
+  test('retains 300 IP and 600 bearer defaults, with no JWT or app auth bindings', async () => {
     const f = fixture()
     await consume(300, request(), f.env)
     expect(await checkRateLimit(request(), f.env)).toEqual({ retryAfter: 55 })
@@ -83,7 +87,7 @@ describe('shared request rate-limit policy', () => {
     expect(f.sqlite.prepare('SELECT COUNT(*) AS count FROM rate_limit').get()).toEqual({ count: 0 })
   })
 
-  it('keeps OAuth grant budgets across rotation, distinct grants and IPs separate, and bearer case exact', async () => {
+  test('keeps OAuth grant budgets across rotation, distinct grants and IPs separate, and bearer case exact', async () => {
     const f = fixture()
     f.env.RATE_LIMIT_API_MAX = '1'
     f.env.RATE_LIMIT_AUTH_MAX = '1'
@@ -99,7 +103,7 @@ describe('shared request rate-limit policy', () => {
     expect(await checkRateLimit(request({ 'CF-Connecting-IP': '2.3.4.5' }), f.env)).toBeUndefined()
   })
 
-  it('retains configurable windows, rollover, and the retry fallback for an expired returned slot', async () => {
+  test('retains configurable windows, rollover, and the retry fallback for an expired returned slot', async () => {
     const f = fixture()
     f.env.RATE_LIMIT_AUTH_MAX = '1'
     f.env.RATE_LIMIT_WINDOW_SECS = '30'
@@ -111,9 +115,9 @@ describe('shared request rate-limit policy', () => {
     expect(await checkRateLimit(request(), f.env)).toEqual({ retryAfter: 30 })
   })
 
-  it('ignores test epochs and clocks in production and shares counter naming across adapters', async () => {
+  test('ignores test epochs and clocks in production and shares counter naming across adapters', async () => {
     const f = fixture()
-    vi.spyOn(Date, 'now').mockReturnValue(185000)
+    vi.spyOn(Date, 'now').mockReturnValue(185_000)
     f.env.RATE_LIMIT_TEST_EPOCH = 'epoch'
     expect(rateLimiterObjectName(f.env, 'ip:test')).toBe('epoch|ip:test')
     f.env.ENVIRONMENT = 'production'
@@ -126,7 +130,7 @@ describe('shared request rate-limit policy', () => {
     expect(f.increment).toHaveBeenCalledWith('authfail:ip:test', 60, 185)
   })
 
-  it('fails open on rejected or stalled DO calls without switching to D1', async () => {
+  test('fails open on rejected or stalled DO calls without switching to D1', async () => {
     const f = fixture()
     vi.spyOn(console, 'error').mockImplementation(() => {})
     f.increment.mockRejectedValueOnce(new Error('offline'))
@@ -140,12 +144,12 @@ describe('shared request rate-limit policy', () => {
     expect(f.sqlite.prepare('SELECT COUNT(*) AS count FROM rate_limit').get()).toEqual({ count: 0 })
   })
 
-  it('preserves D1 transactional increments, rollover and opportunistic pruning', async () => {
+  test('preserves D1 transactional increments, rollover and opportunistic pruning', async () => {
     const f = fixture()
     delete f.env.RATE_LIMITER
     f.env.RATE_LIMIT_AUTH_MAX = '1'
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    vi.spyOn(Date, 'now').mockReturnValue(125000)
+    vi.spyOn(Date, 'now').mockReturnValue(125_000)
     vi.spyOn(Math, 'random').mockReturnValue(0)
     f.sqlite.exec("INSERT INTO rate_limit (key,count,window_start) VALUES ('stale',1,-1000)")
     expect(await checkRateLimit(request(), f.env)).toBeUndefined()
@@ -161,14 +165,14 @@ describe('shared request rate-limit policy', () => {
     expect(await checkRateLimit(request(), f.env)).toBeUndefined()
   })
 
-  it.each([
+  test.each([
     { roll: 0, pruned: true },
     { roll: 0.5, pruned: false },
   ])('PROJ-361: prunes only stale D1 rows when the Core probability roll is $roll', async ({ roll, pruned }) => {
     const f = fixture()
     delete f.env.RATE_LIMITER
     vi.spyOn(console, 'warn').mockImplementation(() => {})
-    vi.spyOn(Date, 'now').mockReturnValue(125000)
+    vi.spyOn(Date, 'now').mockReturnValue(125_000)
     vi.spyOn(Math, 'random').mockReturnValue(roll)
     f.sqlite.exec("INSERT INTO rate_limit (key,count,window_start) VALUES ('stale-client',1,-1000)")
 
@@ -184,7 +188,7 @@ describe('shared request rate-limit policy', () => {
     })
   })
 
-  it('shares the same counter between the API HTTP wrapper and another kernel caller', async () => {
+  test('shares the same counter between the API HTTP wrapper and another kernel caller', async () => {
     const f = fixture()
     f.env.RATE_LIMIT_AUTH_MAX = '1'
     f.apiEnv.RATE_LIMIT_AUTH_MAX = '1'
@@ -199,11 +203,11 @@ describe('shared request rate-limit policy', () => {
     expect(await denied.json()).toEqual({ error: 'Too Many Requests' })
   })
 
-  it('never lets a caller override production budgets, epochs or clocks through Core', async () => {
+  test('never lets a caller override production budgets, epochs or clocks through Core', async () => {
     const f = fixture()
     f.env.ENVIRONMENT = 'production'
     f.env.RATE_LIMIT_AUTH_MAX = '1'
-    vi.spyOn(Date, 'now').mockReturnValue(185000)
+    vi.spyOn(Date, 'now').mockReturnValue(185_000)
     const input = { testPolicy: { authMax: '9999', epoch: 'untrusted', nowMs: '0', windowSecs: '1' } }
     const reply = () => Effect.runPromise(decodeCoreReply(RateLimitResult, f.handlers.apiCheckRateLimit(input)))
     expect(await reply()).toBeNull()
@@ -212,7 +216,7 @@ describe('shared request rate-limit policy', () => {
     expect(f.idFromName).not.toHaveBeenCalledWith(expect.stringContaining('untrusted'))
   })
 
-  it('retains the D1 fallback through the API without giving the adapter a DB binding', async () => {
+  test('retains the D1 fallback through the API without giving the adapter a DB binding', async () => {
     const f = fixture()
     delete f.env.RATE_LIMITER
     vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -223,7 +227,7 @@ describe('shared request rate-limit policy', () => {
     expect(f.sqlite.prepare('SELECT count FROM rate_limit WHERE key = ?').get('authfail:ip:test')).toEqual({ count: 2 })
   })
 
-  it('fails open when the native Core transport fails without exposing its diagnostics', async () => {
+  test('fails open when the native Core transport fails without exposing its diagnostics', async () => {
     const f = fixture()
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     const env = {
@@ -242,7 +246,7 @@ describe('shared request rate-limit policy', () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain('private-driver-detail')
   })
 
-  it('rejects malformed counter requests before touching storage', async () => {
+  test('rejects malformed counter requests before touching storage', async () => {
     const f = fixture()
     const result = await Effect.runPromise(
       Effect.flip(

@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import type { WikiSeed } from '../../web/features/wiki/WikiPageClient'
+import type { WikiSeed } from '../../web/features/wiki/WikiPageClient.tsx'
 
 const strings = Schema.mutable(Schema.Array(Schema.String))
 const nullable = Schema.NullOr(Schema.String)

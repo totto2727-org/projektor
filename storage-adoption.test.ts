@@ -4,12 +4,13 @@ import { Stack } from 'alchemy'
 import { CloudflareEnvironment, D1, KV, R2 } from 'alchemy/Cloudflare'
 import { noopSession } from 'alchemy/Report'
 import { Stage } from 'alchemy/Stage'
-import { Effect, type FileSystem, type Path, Redacted } from 'effect'
+import { Effect, Redacted } from 'effect'
+import type { FileSystem, Path } from 'effect'
 import * as HttpClient from 'effect/http/HttpClient'
 import * as HttpClientResponse from 'effect/http/HttpClientResponse'
-import { expect, it } from 'vite-plus/test'
+import { expect, test } from 'vite-plus/test'
 
-import { deployment } from './worker-graph'
+import { deployment } from './worker-graph.ts'
 
 const { accountId, storage } = deployment
 const apiToken = Redacted.make('test-only-token')
@@ -60,7 +61,7 @@ function fakeCloudflare(responses: Readonly<Record<string, unknown>>) {
   return { run, calls }
 }
 
-it('plans adoption of the existing D1 without SQL and reconciles without recreating it', async () => {
+test('plans adoption of the existing D1 without SQL and reconciles without recreating it', async () => {
   const { id, name } = storage.database
   const database = { uuid: id, name, read_replication: { mode: 'disabled' } }
   const { run, calls } = fakeCloudflare({
@@ -71,7 +72,9 @@ it('plans adoption of the existing D1 without SQL and reconciles without recreat
   await run(
     Effect.gen(function* () {
       const provider = yield* D1.Database.Provider
-      if (!provider.read || !provider.diff) throw new Error('D1 provider lacks read or diff')
+      if (!provider.read || !provider.diff) {
+        throw new Error('D1 provider lacks read or diff')
+      }
       const output = yield* provider.read({ ...identity, olds: props, output: undefined })
       expect(output?.databaseId).toBe(id)
       expect(
@@ -92,7 +95,7 @@ it('plans adoption of the existing D1 without SQL and reconciles without recreat
   expect(calls).toEqual(['GET d1/database', `GET d1/database/${id}`])
 })
 
-it.each([storage.cache, storage.oauth])('adopts KV namespace $title by exact title', async ({ id, title }) => {
+test.each([storage.cache, storage.oauth])('adopts KV namespace $title by exact title', async ({ id, title }) => {
   const path = 'storage/kv/namespaces'
   const namespaces = [storage.cache, storage.oauth]
   const { run, calls } = fakeCloudflare({
@@ -103,7 +106,9 @@ it.each([storage.cache, storage.oauth])('adopts KV namespace $title by exact tit
   await run(
     Effect.gen(function* () {
       const provider = yield* KV.Namespace.Provider
-      if (!provider.read) throw new Error('KV provider lacks read')
+      if (!provider.read) {
+        throw new Error('KV provider lacks read')
+      }
       const output = yield* provider.read({ ...identity, olds: props, output: undefined })
       expect(output?.namespaceId).toBe(id)
       const reconciled = yield* provider.reconcile({
@@ -120,12 +125,12 @@ it.each([storage.cache, storage.oauth])('adopts KV namespace $title by exact tit
   expect(calls).toEqual([`GET ${path}`, `GET ${path}/${id}`])
 })
 
-it('reconciles an existing private R2 bucket with matching settings without writes', async () => {
+test('reconciles an existing private R2 bucket with matching settings without writes', async () => {
   const { name } = storage.files
   const path = `r2/buckets/${name}`
   const rule = {
     id: 'Default Multipart Abort Rule',
-    abortMultipartUploadsTransition: { condition: { type: 'Age' as const, maxAge: 604800 } },
+    abortMultipartUploadsTransition: { condition: { type: 'Age' as const, maxAge: 604_800 } },
   }
   const { run, calls } = fakeCloudflare({
     [`GET ${path}`]: { name, storage_class: 'Standard', jurisdiction: 'default', location: 'APAC' },
@@ -138,7 +143,9 @@ it('reconciles an existing private R2 bucket with matching settings without writ
   await run(
     Effect.gen(function* () {
       const provider = yield* R2.Bucket.Provider
-      if (!provider.read) throw new Error('R2 provider lacks read')
+      if (!provider.read) {
+        throw new Error('R2 provider lacks read')
+      }
       const output = yield* provider.read({ ...identity, olds: props, output: undefined })
       expect(output?.bucketName).toBe(name)
       const reconciled = yield* provider.reconcile({

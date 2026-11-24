@@ -1,23 +1,22 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { hashFeedbackToken } from '#commands/feedback'
+import { hashFeedbackToken } from '#commands/feedback.ts'
 
-import { configureCore, env, getCoreLimiterCalls } from './fixture-api'
+import { configureCore, env, getCoreLimiterCalls } from './fixture-api.ts'
 import {
   authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
   seedGroupGrant,
   seedProject,
   seedProjectFixture,
   seedWorkspaceRoles,
   toolError,
-} from './helpers'
-import { seedRateLimitCounter } from './rate-limit-reset'
+} from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { seedRateLimitCounter } from './rate-limit-reset.ts'
 
 describe('feedback migration', () => {
-  it('creates feedback_sources and feedback tables', async () => {
+  test('creates feedback_sources and feedback tables', async () => {
     const src = await env.DB.prepare(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='feedback_sources'",
     ).first<{ name: string }>()
@@ -31,7 +30,7 @@ describe('feedback migration', () => {
 })
 
 describe('Feedback sources REST', () => {
-  it('creates a source (owner) and returns a one-time token', async () => {
+  test('creates a source (owner) and returns a one-time token', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
@@ -44,7 +43,7 @@ describe('Feedback sources REST', () => {
     expect(body.token).toBeTruthy()
   })
 
-  it('rejects source creation by a member (403)', async () => {
+  test('rejects source creation by a member (403)', async () => {
     const f = await seedProjectFixture({ role: 'member' })
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
@@ -54,7 +53,7 @@ describe('Feedback sources REST', () => {
     expect(res.status).toBe(403)
   })
 
-  it('lists sources with a truncated token preview, never the raw token', async () => {
+  test('lists sources with a truncated token preview, never the raw token', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const created = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
@@ -67,11 +66,11 @@ describe('Feedback sources REST', () => {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)
-    const list = (await res.json()) as Array<{
+    const list = (await res.json()) as {
       name: string
       tokenPreview: string
       isActive: boolean
-    }>
+    }[]
     expect(list).toHaveLength(1)
     expect(list[0].name).toBe('NPS')
     expect(list[0].isActive).toBe(true)
@@ -79,7 +78,7 @@ describe('Feedback sources REST', () => {
     expect(JSON.stringify(list)).not.toContain(token)
   })
 
-  it('updates name/description/isActive (owner)', async () => {
+  test('updates name/description/isActive (owner)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const created = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
@@ -101,7 +100,7 @@ describe('Feedback sources REST', () => {
     expect(row?.is_active).toBe(0)
   })
 
-  it('revoke stamps revoked_at (owner); member is 403', async () => {
+  test('revoke stamps revoked_at (owner); member is 403', async () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'FBK')
     const create = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
@@ -142,7 +141,7 @@ async function mintSource(
 }
 
 describe('Feedback submit (public)', () => {
-  it('fails open (201, not 500) when the rate limiter is unavailable (PROJ-867)', async () => {
+  test('fails open (201, not 500) when the rate limiter is unavailable (PROJ-867)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
     await configureCore({ FIXTURE_LIMITER_MODE: 'reject' })
@@ -160,7 +159,7 @@ describe('Feedback submit (public)', () => {
     }
   })
 
-  it('accepts a body-only submission and returns { id } only', async () => {
+  test('accepts a body-only submission and returns { id } only', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
     const res = await SELF.fetch('http://localhost/api/feedback/submit', {
@@ -179,7 +178,7 @@ describe('Feedback submit (public)', () => {
     expect(row?.status).toBe('new')
   })
 
-  it('resolves project/workspace from the source, ignoring body-supplied ids', async () => {
+  test('resolves project/workspace from the source, ignoring body-supplied ids', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
     const res = await SELF.fetch('http://localhost/api/feedback/submit', {
@@ -195,7 +194,7 @@ describe('Feedback submit (public)', () => {
     expect(row?.project_id).toBe(f.projectId)
   })
 
-  it('rejects an unknown token with 401', async () => {
+  test('rejects an unknown token with 401', async () => {
     const res = await SELF.fetch('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: 'Bearer nope', 'Content-Type': 'application/json' },
@@ -204,13 +203,13 @@ describe('Feedback submit (public)', () => {
     expect(res.status).toBe(401)
   })
 
-  it('rejects a revoked source with 401', async () => {
+  test('rejects a revoked source with 401', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
     const list = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       headers: authHeaders(f.token, f.slug),
     })
-    const [{ id }] = (await list.json()) as Array<{ id: string }>
+    const [{ id }] = (await list.json()) as { id: string }[]
     await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
       method: 'DELETE',
       headers: authHeaders(f.token, f.slug),
@@ -223,13 +222,13 @@ describe('Feedback submit (public)', () => {
     expect(res.status).toBe(401)
   })
 
-  it('rejects an inactive source with 403', async () => {
+  test('rejects an inactive source with 403', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
     const list = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       headers: authHeaders(f.token, f.slug),
     })
-    const [{ id }] = (await list.json()) as Array<{ id: string }>
+    const [{ id }] = (await list.json()) as { id: string }[]
     await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
       method: 'PATCH',
       headers: authHeaders(f.token, f.slug),
@@ -243,7 +242,7 @@ describe('Feedback submit (public)', () => {
     expect(res.status).toBe(403)
   })
 
-  it('400s an empty submission (neither rating nor body)', async () => {
+  test('400s an empty submission (neither rating nor body)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
     const res = await SELF.fetch('http://localhost/api/feedback/submit', {
@@ -254,7 +253,7 @@ describe('Feedback submit (public)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('sets Access-Control-Allow-Origin only for a listed origin', async () => {
+  test('sets Access-Control-Allow-Origin only for a listed origin', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f, { name: 'W', allowedOrigins: ['https://acme.test'] })
 
@@ -281,7 +280,7 @@ describe('Feedback submit (public)', () => {
     expect(other.headers.get('Access-Control-Allow-Origin')).toBeNull()
   })
 
-  it('answers OPTIONS preflight with 204 and permissive CORS headers', async () => {
+  test('answers OPTIONS preflight with 204 and permissive CORS headers', async () => {
     const res = await SELF.fetch('http://localhost/api/feedback/submit', {
       method: 'OPTIONS',
       headers: { Origin: 'https://acme.test', 'Access-Control-Request-Method': 'POST' },
@@ -291,7 +290,7 @@ describe('Feedback submit (public)', () => {
     expect(res.headers.get('Access-Control-Allow-Headers')).toContain('Authorization')
   })
 
-  it('429s once the per-token limit (RATE_LIMIT_FEEDBACK_MAX) is exceeded', async () => {
+  test('429s once the per-token limit (RATE_LIMIT_FEEDBACK_MAX) is exceeded', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
     const tokenHash = await hashFeedbackToken(token)
@@ -305,7 +304,7 @@ describe('Feedback submit (public)', () => {
     expect(res.status).toBe(429)
   })
 
-  it('429s once the per-IP limit (RATE_LIMIT_FEEDBACK_IP_MAX) is exceeded', async () => {
+  test('429s once the per-IP limit (RATE_LIMIT_FEEDBACK_IP_MAX) is exceeded', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
     // No CF-Connecting-IP header in tests, so the route falls back to the fixed
@@ -345,7 +344,7 @@ async function seedFeedbackRow(
 }
 
 describe('Feedback triage read/patch', () => {
-  it('GET lists feedback with the source name, filtered by status', async () => {
+  test('GET lists feedback with the source name, filtered by status', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f, { name: 'Onboarding' })
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -357,19 +356,19 @@ describe('Feedback triage read/patch', () => {
     const all = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback`, {
       headers: authHeaders(f.token, f.slug),
     })
-    const allRows = (await all.json()) as Array<{ sourceName: string; status: string }>
+    const allRows = (await all.json()) as { sourceName: string; status: string }[]
     expect(allRows).toHaveLength(2)
     expect(allRows[0].sourceName).toBe('Onboarding')
 
     const filtered = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback?status=new`, {
       headers: authHeaders(f.token, f.slug),
     })
-    const rows = (await filtered.json()) as Array<{ status: string }>
+    const rows = (await filtered.json()) as { status: string }[]
     expect(rows).toHaveLength(1)
     expect(rows[0].status).toBe('new')
   })
 
-  it('GET 404s for a caller with no project access', async () => {
+  test('GET 404s for a caller with no project access', async () => {
     const owner = await seedProjectFixture({ role: 'owner' })
     await mintSource(owner)
     const stranger = await seedProjectFixture({ role: 'owner' }) // different workspace
@@ -379,7 +378,7 @@ describe('Feedback triage read/patch', () => {
     expect(res.status).toBe(404)
   })
 
-  it('PATCH updates status for member+, 403 for viewer', async () => {
+  test('PATCH updates status for member+, 403 for viewer', async () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'TRI')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, proj.id, 'member')
@@ -412,7 +411,7 @@ describe('Feedback triage read/patch', () => {
     expect(row?.status).toBe('reviewed')
   })
 
-  it('GET is readable by a viewer (read visibility, not a write action)', async () => {
+  test('GET is readable by a viewer (read visibility, not a write action)', async () => {
     const f = await seedProjectFixture({ role: 'viewer' })
     await mintSource(f)
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback`, {
@@ -421,7 +420,7 @@ describe('Feedback triage read/patch', () => {
     expect(res.status).toBe(200)
   })
 
-  it('filters by sourceId', async () => {
+  test('filters by sourceId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f, { name: 'A' })
     await mintSource(f, { name: 'B' })
@@ -435,12 +434,12 @@ describe('Feedback triage read/patch', () => {
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback?sourceId=${srcA.id}`, {
       headers: authHeaders(f.token, f.slug),
     })
-    const rows = (await res.json()) as Array<{ sourceId: string }>
+    const rows = (await res.json()) as { sourceId: string }[]
     expect(rows).toHaveLength(1)
     expect(rows[0].sourceId).toBe(srcA.id)
   })
 
-  it('PATCH rejects an invalid status value', async () => {
+  test('PATCH rejects an invalid status value', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -476,25 +475,25 @@ async function mcpCall<T>(
   return res.json()
 }
 
-function mcpText<T>(r: JsonRpcResult<{ content: Array<{ text: string }> }>): T {
+function mcpText<T>(r: JsonRpcResult<{ content: { text: string }[] }>): T {
   return JSON.parse(r.result.content[0].text) as T
 }
 
 describe('Feedback source MCP tools', () => {
-  it('create_feedback_source returns a one-time token (owner)', async () => {
+  test('create_feedback_source returns a one-time token (owner)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'create_feedback_source',
       { projectId: f.projectId, name: 'Onboarding' },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const out = mcpText<{ id: string; token: string }>(res)
     expect(out.id).toBeTruthy()
     expect(out.token).toBeTruthy()
   })
 
-  it('create_feedback_source is forbidden for a member (forbidden)', async () => {
+  test('create_feedback_source is forbidden for a member (forbidden)', async () => {
     const f = await seedProjectFixture({ role: 'member' })
     const res = await mcpCall(
       f.workspaceId,
@@ -505,33 +504,33 @@ describe('Feedback source MCP tools', () => {
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('list_feedback_sources never leaks a raw token', async () => {
+  test('list_feedback_sources never leaks a raw token', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const created = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const created = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'create_feedback_source',
       { projectId: f.projectId, name: 'NPS' },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const { token } = mcpText<{ id: string; token: string }>(created)
 
-    const listed = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const listed = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'list_feedback_sources',
       { projectId: f.projectId },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     expect(listed.result.content[0].text).not.toContain(token)
   })
 
-  it('update_feedback_source updates fields via MCP (owner)', async () => {
+  test('update_feedback_source updates fields via MCP (owner)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const created = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const created = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'create_feedback_source',
       { projectId: f.projectId, name: 'Old' },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const { id } = mcpText<{ id: string }>(created)
 
     const res = (await mcpCall(
@@ -549,14 +548,14 @@ describe('Feedback source MCP tools', () => {
     expect(row?.is_active).toBe(0)
   })
 
-  it('revoke_feedback_source stamps revoked_at via MCP (owner)', async () => {
+  test('revoke_feedback_source stamps revoked_at via MCP (owner)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const created = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const created = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'create_feedback_source',
       { projectId: f.projectId, name: 'S' },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const { id } = mcpText<{ id: string }>(created)
 
     const res = (await mcpCall(
@@ -573,24 +572,24 @@ describe('Feedback source MCP tools', () => {
     expect(row?.revoked_at).not.toBeNull()
   })
 
-  it('rotate_feedback_source_token invalidates the old token, keeps id + history', async () => {
+  test('rotate_feedback_source_token invalidates the old token, keeps id + history', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const created = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const created = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'create_feedback_source',
       { projectId: f.projectId, name: 'R' },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const { id, token: oldToken } = mcpText<{ id: string; token: string }>(created)
     // Existing feedback under this source
     const fbId = await seedFeedbackRow(id, f.workspaceId, f.projectId, { body: 'keep me' })
 
-    const rotated = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const rotated = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'rotate_feedback_source_token',
       { sourceId: id },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const { token: newToken } = mcpText<{ token: string }>(rotated)
     expect(newToken).not.toBe(oldToken)
 
@@ -617,7 +616,7 @@ describe('Feedback source MCP tools', () => {
 })
 
 describe('Feedback convert-to-issue', () => {
-  it('creates an issue, links it, marks feedback actioned (member+)', async () => {
+  test('creates an issue, links it, marks feedback actioned (member+)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -642,7 +641,7 @@ describe('Feedback convert-to-issue', () => {
     expect(row?.linked_issue_id).toBe(issue.id)
   })
 
-  it('403s for a viewer', async () => {
+  test('403s for a viewer', async () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'CVT')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, proj.id, 'viewer')
@@ -664,7 +663,7 @@ describe('Feedback convert-to-issue', () => {
     expect(res.status).toBe(403)
   })
 
-  it('allows a member (write role, not just owner) to convert', async () => {
+  test('allows a member (write role, not just owner) to convert', async () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'CVM')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, proj.id, 'member')
@@ -686,7 +685,7 @@ describe('Feedback convert-to-issue', () => {
     expect(res.status).toBe(201)
   })
 
-  it('falls back to a rating-based title when there is no body', async () => {
+  test('falls back to a rating-based title when there is no body', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -713,7 +712,7 @@ describe('Feedback convert-to-issue', () => {
     expect(issueRow?.title).toBe('👍 Positive feedback')
   })
 
-  it('rejects re-conversion of an already-actioned feedback row (409)', async () => {
+  test('rejects re-conversion of an already-actioned feedback row (409)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -736,7 +735,7 @@ describe('Feedback convert-to-issue', () => {
 })
 
 describe('PROJ-390: path params win over body-supplied ids', () => {
-  it('PATCH feedback status ignores a body-supplied projectId/feedbackId', async () => {
+  test('PATCH feedback status ignores a body-supplied projectId/feedbackId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -758,7 +757,7 @@ describe('PROJ-390: path params win over body-supplied ids', () => {
     expect(row?.status).toBe('reviewed')
   })
 
-  it('POST feedback-sources ignores a body-supplied projectId', async () => {
+  test('POST feedback-sources ignores a body-supplied projectId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
@@ -773,7 +772,7 @@ describe('PROJ-390: path params win over body-supplied ids', () => {
     expect(row?.project_id).toBe(f.projectId)
   })
 
-  it('PATCH feedback-sources ignores a body-supplied projectId/sourceId', async () => {
+  test('PATCH feedback-sources ignores a body-supplied projectId/sourceId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const source = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -812,7 +811,7 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
     return { roles, projA, projB, sourceId }
   }
 
-  it("PATCH via project B's path 404s on project A's source", async () => {
+  test("PATCH via project B's path 404s on project A's source", async () => {
     const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace()
     const res = await SELF.fetch(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}`, {
       method: 'PATCH',
@@ -822,7 +821,7 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
     expect(res.status).toBe(404)
   })
 
-  it("rotate via project B's path 404s on project A's source", async () => {
+  test("rotate via project B's path 404s on project A's source", async () => {
     const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace()
     const res = await SELF.fetch(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}/rotate`, {
       method: 'POST',
@@ -831,7 +830,7 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
     expect(res.status).toBe(404)
   })
 
-  it("revoke via project B's path 404s on project A's source", async () => {
+  test("revoke via project B's path 404s on project A's source", async () => {
     const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace()
     const res = await SELF.fetch(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}`, {
       method: 'DELETE',
@@ -856,7 +855,7 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
     return id
   }
 
-  it('PATCH on an already-revoked source 409s', async () => {
+  test('PATCH on an already-revoked source 409s', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const id = await seedRevokedSource(f)
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
@@ -867,7 +866,7 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
     expect(res.status).toBe(409)
   })
 
-  it('rotate on an already-revoked source 409s', async () => {
+  test('rotate on an already-revoked source 409s', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const id = await seedRevokedSource(f)
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}/rotate`, {
@@ -877,7 +876,7 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
     expect(res.status).toBe(409)
   })
 
-  it('revoke on an already-revoked source stays idempotent (200)', async () => {
+  test('revoke on an already-revoked source stays idempotent (200)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const id = await seedRevokedSource(f)
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
@@ -889,7 +888,7 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
 })
 
 describe('Feedback read/triage MCP tools', () => {
-  it('list_feedback matches REST shape and supports status/sourceId filters', async () => {
+  test('list_feedback matches REST shape and supports status/sourceId filters', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f, { name: 'Onboarding' })
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -901,35 +900,35 @@ describe('Feedback read/triage MCP tools', () => {
       status: 'reviewed',
     })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'list_feedback',
       { projectId: f.projectId },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const all = mcpText<Array<{ status: string; sourceId: string }>>(res)
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const all = mcpText<{ status: string; sourceId: string }[]>(res)
     expect(all).toHaveLength(2)
 
-    const filtered = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const filtered = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'list_feedback',
       { projectId: f.projectId, status: 'reviewed' },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    const reviewed = mcpText<Array<{ status: string }>>(filtered)
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    const reviewed = mcpText<{ status: string }[]>(filtered)
     expect(reviewed).toHaveLength(1)
     expect(reviewed[0].status).toBe('reviewed')
 
-    const bySource = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const bySource = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'list_feedback',
       { projectId: f.projectId, sourceId: src!.id },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
-    expect(mcpText<Array<unknown>>(bySource)).toHaveLength(2)
+    )) as JsonRpcResult<{ content: { text: string }[] }>
+    expect(mcpText<unknown[]>(bySource)).toHaveLength(2)
   })
 
-  it('list_feedback is readable by a viewer', async () => {
+  test('list_feedback is readable by a viewer', async () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'LFV')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, proj.id, 'viewer')
@@ -950,7 +949,7 @@ describe('Feedback read/triage MCP tools', () => {
     expect(res.result).toBeDefined()
   })
 
-  it('update_feedback_status updates the row without a projectId argument (member+)', async () => {
+  test('update_feedback_status updates the row without a projectId argument (member+)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -970,7 +969,7 @@ describe('Feedback read/triage MCP tools', () => {
     expect(row?.status).toBe('reviewed')
   })
 
-  it('update_feedback_status is forbidden for a viewer (forbidden)', async () => {
+  test('update_feedback_status is forbidden for a viewer (forbidden)', async () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'UFV')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, proj.id, 'viewer')
@@ -991,7 +990,7 @@ describe('Feedback read/triage MCP tools', () => {
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
-  it('convert_feedback_to_issue creates and links an issue without a projectId argument (member+)', async () => {
+  test('convert_feedback_to_issue creates and links an issue without a projectId argument (member+)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -1001,12 +1000,12 @@ describe('Feedback read/triage MCP tools', () => {
       body: 'The export button is broken',
     })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       f.workspaceId,
       'convert_feedback_to_issue',
       { feedbackId: fbId },
       authHeaders(f.token, f.slug),
-    )) as JsonRpcResult<{ content: Array<{ text: string }> }>
+    )) as JsonRpcResult<{ content: { text: string }[] }>
     const issue = mcpText<{ id: string }>(res)
     expect(issue.id).toBeTruthy()
 
@@ -1017,7 +1016,7 @@ describe('Feedback read/triage MCP tools', () => {
     expect(row?.linked_issue_id).toBe(issue.id)
   })
 
-  it('convert_feedback_to_issue rejects re-conversion (conflict)', async () => {
+  test('convert_feedback_to_issue rejects re-conversion (conflict)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -1035,7 +1034,7 @@ describe('Feedback read/triage MCP tools', () => {
     expect(toolError(second)?.code).toBe('conflict')
   })
 
-  it('convert_feedback_to_issue is forbidden for a viewer (forbidden)', async () => {
+  test('convert_feedback_to_issue is forbidden for a viewer (forbidden)', async () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'CFV')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, proj.id, 'viewer')

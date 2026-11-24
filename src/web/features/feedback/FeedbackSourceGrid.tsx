@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 
-import { formatTimestampDate } from '../timestamp'
-import type { FeedbackSource, FeedbackVersionSummary } from './FeedbackSourceSettings'
-import NewSourceModal from './NewSourceModal'
+import { formatTimestampDate } from '../timestamp.ts'
+import type { FeedbackSource, FeedbackVersionSummary } from './FeedbackSourceSettings.tsx'
+import NewSourceModal from './NewSourceModal.tsx'
 
 export interface SourceSummary {
   sourceId: string
@@ -25,12 +25,16 @@ function formatDate(ts: number): string {
 }
 
 function statusLabel(s: FeedbackSource): string {
-  if (s.revokedAt !== null) return 'Revoked'
+  if (s.revokedAt !== null) {
+    return 'Revoked'
+  }
   return s.isActive ? 'Active' : 'Inactive'
 }
 
 function statusClass(s: FeedbackSource): string {
-  if (s.revokedAt !== null) return 'opacity-60'
+  if (s.revokedAt !== null) {
+    return 'opacity-60'
+  }
   return s.isActive ? '' : 'opacity-75'
 }
 

@@ -1,11 +1,11 @@
 import { Effect } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { testEnvironment } from '../../server/test/resources'
-import { createTestDatabase } from '../../test/database'
-import { DEFAULT_BRAND, layerBrand } from './brand'
-import { renderShare as renderShareEffect } from './server'
+import { testEnvironment } from '../../server/test/resources.ts'
+import { createTestDatabase } from '../../test/database.ts'
+import { DEFAULT_BRAND, layerBrand } from './brand.ts'
+import { renderShare as renderShareEffect } from './server.tsx'
 
 const renderShare = (...args: Parameters<typeof renderShareEffect>) => Effect.runPromise(renderShareEffect(...args))
 const workspaceBrand = {
@@ -19,7 +19,9 @@ const workspaceBrand = {
 const body = '## Details\n\nComplete **SSR body**.\n\n<script>evil()</script>\n\n```mermaid\ngraph TD; A-->B\n```'
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 async function fixture() {
   const database = createTestDatabase()
@@ -44,11 +46,11 @@ async function fixture() {
     .prepare(
       'INSERT INTO share_tokens (id,issue_id,workspace_id,created_by,expires_at,created_at) VALUES (?,?,?,?,?,?)',
     )
-    .run(hash, 'issue', 'workspace', 'user', Math.floor(Date.now() / 1000) + 86400, 1)
+    .run(hash, 'issue', 'workspace', 'user', Math.floor(Date.now() / 1000) + 86_400, 1)
   return { ...database, token, env: testEnvironment(database.db) }
 }
 describe('public Share SSR', () => {
-  it('reads the public token without browser credentials and renders the exact sanitized DTO and workspace branding', async () => {
+  test('reads the public token without browser credentials and renders the exact sanitized DTO and workspace branding', async () => {
     const test = await fixture()
     const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Public share must not use HTTP'))
     const html = renderToStaticMarkup(
@@ -66,7 +68,8 @@ describe('public Share SSR', () => {
     expect(html).not.toContain('Private value')
     expect(html).not.toContain('Internal secret')
   })
-  it('does not bootstrap a missing token and renders expired/not-found links', async () => {
+
+  test('does not bootstrap a missing token and renders expired/not-found links', async () => {
     const test = await fixture()
     const prepare = vi.spyOn(test.db, 'prepare')
     const missing = renderToStaticMarkup(await renderShare(test.env, null, new URL('https://app.test/share/view')))
@@ -82,15 +85,26 @@ describe('public Share SSR', () => {
     )
     expect(unknown).toContain('Link not found or expired')
   })
-  it.each(['archive', 'membership', 'grant', 'issue', 'token'] as const)(
+
+  test.each(['archive', 'membership', 'grant', 'issue', 'token'] as const)(
     'rechecks live token visibility after %s removal',
     async (change) => {
       const test = await fixture()
-      if (change === 'archive') test.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id = 'project'")
-      if (change === 'membership') test.sqlite.exec('DELETE FROM workspace_members')
-      if (change === 'grant') test.sqlite.exec("UPDATE workspace_members SET role = 'member'")
-      if (change === 'issue') test.sqlite.exec('DELETE FROM issues')
-      if (change === 'token') test.sqlite.exec('DELETE FROM share_tokens')
+      if (change === 'archive') {
+        test.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id = 'project'")
+      }
+      if (change === 'membership') {
+        test.sqlite.exec('DELETE FROM workspace_members')
+      }
+      if (change === 'grant') {
+        test.sqlite.exec("UPDATE workspace_members SET role = 'member'")
+      }
+      if (change === 'issue') {
+        test.sqlite.exec('DELETE FROM issues')
+      }
+      if (change === 'token') {
+        test.sqlite.exec('DELETE FROM share_tokens')
+      }
       const html = renderToStaticMarkup(
         await renderShare(test.env, null, new URL('https://app.test/share/view?token=ignored'), { token: test.token }),
       )
@@ -98,7 +112,8 @@ describe('public Share SSR', () => {
       expect(html).not.toContain('Public issue')
     },
   )
-  it('preserves typed database failures for the root error boundary without leaking diagnostics', async () => {
+
+  test('preserves typed database failures for the root error boundary without leaking diagnostics', async () => {
     const test = await fixture()
     vi.spyOn(test.db, 'prepare').mockImplementationOnce(() => {
       throw new Error('Sensitive driver details')
@@ -107,7 +122,8 @@ describe('public Share SSR', () => {
       renderShare(test.env, null, new URL('https://app.test/share/token?token=ignored'), { token: test.token }),
     ).rejects.toMatchObject({ kind: 'request', status: 500, message: 'An unexpected error occurred.' })
   })
-  it('layers null workspace fields over native deployment defaults', async () => {
+
+  test('layers null workspace fields over native deployment defaults', async () => {
     expect(layerBrand(DEFAULT_BRAND, { ...workspaceBrand, displayName: null, accent: null, logoUrl: null }).name).toBe(
       'Projektor',
     )
@@ -124,7 +140,8 @@ describe('public Share SSR', () => {
     expect(html).toContain('Shared Issue - Custom Deployment')
     expect(html).toContain('--accent:#abcdef')
   })
-  it('keeps token-scoped public logo URLs in the shared DTO rather than private workspace branding paths', async () => {
+
+  test('keeps token-scoped public logo URLs in the shared DTO rather than private workspace branding paths', async () => {
     const test = await fixture()
     test.sqlite
       .prepare("UPDATE workspaces SET brand = ? WHERE id = 'workspace'")
@@ -135,7 +152,8 @@ describe('public Share SSR', () => {
     expect(html).toContain(`/api/share/${test.token}/logo`)
     expect(html).not.toContain('/api/workspaces/acme/brand/logo')
   })
-  it('rejects malformed public DTOs with operation-owned decoding', async () => {
+
+  test('rejects malformed public DTOs with operation-owned decoding', async () => {
     const test = await fixture()
     test.sqlite.exec("UPDATE issues SET created_at = 'not-a-number' WHERE id = 'issue'")
     await expect(

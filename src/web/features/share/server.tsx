@@ -2,14 +2,14 @@ import { Effect } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 import type React from 'react'
 
-import { deploymentBrand } from '../../brand'
-import { renderMarkdownEffect } from '../../components/markdown/effect'
-import { coreResult } from '../../core'
-import type { Env, PageFailure } from '../../request'
-import { ApiError } from '../../server/errors'
-import { layerBrand } from './brand'
-import { SharedIssue } from './schemas'
-import ShareView, { ErrorState } from './ShareView'
+import { deploymentBrand } from '../../brand.ts'
+import { renderMarkdownEffect } from '../../components/markdown/effect.ts'
+import { coreResult } from '../../core.ts'
+import type { Env, PageFailure } from '../../request.ts'
+import { ApiError } from '../../server/errors.ts'
+import { layerBrand } from './brand.ts'
+import { SharedIssue } from './schemas.ts'
+import ShareView, { ErrorState } from './ShareView.tsx'
 const SHARE_STYLES = `
 @font-face { font-family: 'Projektor Mono'; src: url('/fonts/MonaspaceNeon-Variable.woff2') format('woff2-variations'); font-weight: 400 700; font-style: normal; font-display: swap; unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+20AC, U+2000-206F, U+2190-21FF, U+2200-22FF, U+2500-257F, U+2580-259F, U+25A0-25FF, U+2713, U+2715, U+2717; }
 .share-page, .share-page *, .share-page *::before, .share-page *::after { box-sizing: border-box; }
@@ -43,7 +43,9 @@ export function renderShare(
 ): Effect.Effect<React.ReactElement, PageFailure> {
   return Effect.gen(function* () {
     const shareToken = params.token ?? url.searchParams.get('token')
-    if (!shareToken) return <ErrorState error='not_found' />
+    if (!shareToken) {
+      return <ErrorState error='not_found' />
+    }
     const issue = yield* coreResult(SharedIssue, makeCoreClient(env.CORE).webSharedIssue(shareToken)).pipe(
       Effect.catchIf(
         (cause) => [404, 410].includes(cause.status),
@@ -51,7 +53,9 @@ export function renderShare(
       ),
     )
     const base = deploymentBrand(env)
-    if (!issue) return <ErrorState error='not_found' />
+    if (!issue) {
+      return <ErrorState error='not_found' />
+    }
     const renderedBody = yield* renderMarkdownEffect(issue.body ?? '').pipe(
       Effect.mapError((cause) => new ApiError('request', 500, cause.message, cause.cause)),
     )

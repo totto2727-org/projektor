@@ -2,10 +2,10 @@
 
 import { Fragment } from 'react'
 
-import { MarkdownPreview } from '../../components/markdown/MarkdownPreview'
-import type { RenderedMarkdown } from '../../components/markdown/render'
-import { Badge } from '../../components/ui/Badge'
-import type { WorkspaceBrandDto } from './brand'
+import { MarkdownPreview } from '../../components/markdown/MarkdownPreview.tsx'
+import type { RenderedMarkdown } from '../../components/markdown/render.ts'
+import { Badge } from '../../components/ui/Badge.tsx'
+import type { WorkspaceBrandDto } from './brand.ts'
 
 export interface SharedIssue {
   title: string
@@ -18,7 +18,7 @@ export interface SharedIssue {
   assignee_name: string | null
   created_at: number
   expires_at: number
-  customFields: ReadonlyArray<{ key: string; label: string; type: string; value: string }>
+  customFields: readonly { key: string; label: string; type: string; value: string }[]
   brand: WorkspaceBrandDto
 }
 
@@ -94,7 +94,9 @@ function IssueHeader({ issue }: { issue: SharedIssue }) {
 }
 
 function CustomFieldsSection({ fields }: { fields: SharedIssue['customFields'] }) {
-  if (fields.length === 0) return null
+  if (fields.length === 0) {
+    return null
+  }
   return (
     <div className='border-t border-border pt-4'>
       <p className='text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-text-muted mb-3'>Fields</p>

@@ -1,20 +1,21 @@
 import { Effect } from 'effect'
 
-import { visibleProjectIds } from '#commands/access'
-import { submitFeedback } from '#commands/feedback'
-import { lookupConsentWorkspace } from '#commands/oauth'
-import { getSharedIssue } from '#commands/share'
+import { visibleProjectIds } from '#commands/access.ts'
+import { submitFeedback } from '#commands/feedback.ts'
+import { lookupConsentWorkspace } from '#commands/oauth.ts'
+import { getSharedIssue } from '#commands/share.ts'
 
 import {
   ApiConsentWorkspace,
   ApiRealtimeSnapshot,
   ApiSharedIssue,
   ApiSubmittedFeedback,
-} from '../../contracts/api-public'
-import { type CoreActor, requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '../authorization'
-import { coreFailure, coreReply } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
-import type { CoreEnvironment } from '../environment'
+} from '../../contracts/api-public.ts'
+import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '../authorization.ts'
+import type { CoreActor } from '../authorization.ts'
+import { coreFailure, coreReply } from '../contract.ts'
+import { publicDomainFailure } from '../domain-errors.ts'
+import type { CoreEnvironment } from '../environment.ts'
 
 /** Public credentials are resolved here, never treated as preauthenticated adapter IDs. */
 export function makeApiPublicHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
@@ -31,8 +32,9 @@ export function makeApiPublicHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
         attempt(async (env) => {
           const principal = await resolveCorePrincipal(actor, env)
           requireCoreCapability(principal, 'read')
-          if (principal.auth.kind !== 'human' || !['access', 'dev'].includes(principal.auth.method))
+          if (principal.auth.kind !== 'human' || !['access', 'dev'].includes(principal.auth.method)) {
             throw coreFailure(403, 'Connector authorization requires a signed-in browser session')
+          }
           return lookupConsentWorkspace(env.DB, principal.user.id, workspaceId)
         }),
       ),

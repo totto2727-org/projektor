@@ -1,11 +1,12 @@
 'use client'
 
-import { formatIssueRef } from '../lib/issue-ref'
-import { statusDisplayName } from '../lib/status'
-import { issueUrl } from '../utils/issue-url'
-import type { MyIssuesInitialData, ScopedIssue } from '../views/MyIssuesPage'
-import { categoryColor, type Issue } from './board-utils'
-import { ReviewTargetsSummary } from './ReviewTargetsSummary'
+import { formatIssueRef } from '../lib/issue-ref.ts'
+import { statusDisplayName } from '../lib/status.ts'
+import { issueUrl } from '../utils/issue-url.ts'
+import type { MyIssuesInitialData, ScopedIssue } from '../views/MyIssuesPage.tsx'
+import { categoryColor } from './board-utils.ts'
+import type { Issue } from './board-utils.ts'
+import { ReviewTargetsSummary } from './ReviewTargetsSummary.tsx'
 
 const OPEN_CATEGORIES = new Set(['todo', 'in_progress', 'in_review'])
 const STATUS_ORDER = new Map([
@@ -23,7 +24,9 @@ const PRIORITY_ORDER = new Map([
 ])
 
 function statusOrder(issue: Issue): number {
-  if (issue.status_key === 'backlog' || issue.status_key === 'in_review') return STATUS_ORDER.get(issue.status_key) ?? 4
+  if (issue.status_key === 'backlog' || issue.status_key === 'in_review') {
+    return STATUS_ORDER.get(issue.status_key) ?? 4
+  }
   return STATUS_ORDER.get(issue.status_category ?? '') ?? 4
 }
 

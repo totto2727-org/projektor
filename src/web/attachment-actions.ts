@@ -2,21 +2,17 @@
 
 import { Effect, Schema } from 'effect'
 
-import { RateLimitResult, rateLimitTestPolicy } from '../contracts/request-rate-limit'
-import {
-  type UploadAttachmentInput,
-  UploadAttachmentInputSchema,
-  UploadedAttachmentSchema,
-  type UploadedAttachment,
-} from './attachments'
-import { coreResult } from './core'
-import { transferCoreBinary } from './core-binary'
-import { EFFRONT } from './effront'
-import type { ActionResult } from './function-result'
-import { RequestServices } from './request'
-import { ApiError } from './server/errors'
-import { resolveFunctionContext } from './server/function-context'
-import { checkSameOriginMutation } from './server/mutation'
+import { RateLimitResult, rateLimitTestPolicy } from '../contracts/request-rate-limit.ts'
+import { UploadAttachmentInputSchema, UploadedAttachmentSchema } from './attachments.ts'
+import type { UploadAttachmentInput, UploadedAttachment } from './attachments.ts'
+import { transferCoreBinary } from './core-binary.ts'
+import { coreResult } from './core.ts'
+import { EFFRONT } from './effront.ts'
+import type { ActionResult } from './function-result.ts'
+import { RequestServices } from './request.ts'
+import { ApiError } from './server/errors.ts'
+import { resolveFunctionContext } from './server/function-context.ts'
+import { checkSameOriginMutation } from './server/mutation.ts'
 
 function uploadToCore(input: UploadAttachmentInput, workspaceId: string) {
   const form = new FormData()
@@ -32,8 +28,9 @@ function uploadToCore(input: UploadAttachmentInput, workspaceId: string) {
         testPolicy: rateLimitTestPolicy(services.env),
       }),
     )
-    if (limited)
+    if (limited) {
       return yield* new ApiError('request', 429, 'Too many requests', undefined, { retryAfter: limited.retryAfter })
+    }
     return yield* transferCoreBinary(`/files?workspaceId=${encodeURIComponent(workspaceId)}`, {
       method: 'POST',
       body: form,
@@ -58,11 +55,13 @@ export const uploadAttachment = EFFRONT.ServerFn.make({
           yield* checkSameOriginMutation(services.request)
           const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
           // Preserve the Web transport's effective 10 MiB limit, not the API's larger cap.
-          if (input.file.size > 10 * 1024 * 1024)
+          if (input.file.size > 10 * 1024 * 1024) {
             return yield* new ApiError('request', 413, 'File too large (max 10 MB)')
+          }
           const selection = context.scope.selection
-          if (selection.kind !== 'workspace' && selection.kind !== 'project')
+          if (selection.kind !== 'workspace' && selection.kind !== 'project') {
             return yield* new ApiError('request', 403, 'Selected workspace is not accessible.')
+          }
           return yield* uploadToCore(input, selection.workspace.id)
         }),
       ).pipe(
@@ -97,11 +96,13 @@ export const uploadInlineImage = EFFRONT.ServerFn.make({
           yield* checkSameOriginMutation(services.request)
           const context = yield* resolveFunctionContext(input, { requireWorkspace: true })
           // Preserve the Web transport's effective 10 MiB limit, not the API's larger cap.
-          if (input.file.size > 10 * 1024 * 1024)
+          if (input.file.size > 10 * 1024 * 1024) {
             return yield* new ApiError('request', 413, 'File too large (max 10 MB)')
+          }
           const selection = context.scope.selection
-          if (selection.kind !== 'workspace' && selection.kind !== 'project')
+          if (selection.kind !== 'workspace' && selection.kind !== 'project') {
             return yield* new ApiError('request', 403, 'Selected workspace is not accessible.')
+          }
           return yield* uploadToCore(input, selection.workspace.id)
         }),
       ).pipe(

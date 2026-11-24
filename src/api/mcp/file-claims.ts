@@ -1,6 +1,6 @@
-import { claimFiles, listFileClaims, releaseFiles } from '../services/file-claims'
-import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
-import type { MCPTool } from './types'
+import { claimFiles, listFileClaims, releaseFiles } from '../services/file-claims.ts'
+import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 export const fileClaimsTools: MCPTool[] = [
   {

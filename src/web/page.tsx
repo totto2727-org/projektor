@@ -2,19 +2,13 @@ import { Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 import type { ReactNode } from 'react'
 
-import { RuntimeProvider } from './client/runtime'
-import { ProjectNav } from './components/ProjectNav'
-import { EFFRONT } from './effront'
-import {
-  getRouteParams,
-  type Env,
-  type PageFailure,
-  type PreparedView,
-  RequestServices,
-  type RouteParams,
-} from './request'
-import { ScopeSelection } from './selection'
-import type { RequestScope, ScopeOptions } from './server'
+import { RuntimeProvider } from './client/runtime.tsx'
+import { ProjectNav } from './components/ProjectNav.tsx'
+import { EFFRONT } from './effront.ts'
+import { getRouteParams, RequestServices } from './request.ts'
+import type { Env, PageFailure, PreparedView, RouteParams } from './request.ts'
+import { ScopeSelection } from './selection.tsx'
+import type { RequestScope, ScopeOptions } from './server/index.ts'
 
 export type RouteRenderer = (
   scope: RequestScope,
@@ -86,9 +80,13 @@ export function pageRenderer(
     Effect.gen(function* () {
       const { request } = yield* RequestServices
       // Mutate first, then refresh. A POST must never preload stale primary data.
-      if (request.method !== 'GET' && request.method !== 'HEAD') return yield* httpEffect
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return yield* httpEffect
+      }
       const prepared = yield* prepare.pipe(Effect.result)
-      if (prepared._tag === 'Failure') return errorResponse(prepared.failure)
+      if (prepared._tag === 'Failure') {
+        return errorResponse(prepared.failure)
+      }
       return yield* httpEffect
     }),
   )

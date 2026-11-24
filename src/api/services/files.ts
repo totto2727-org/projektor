@@ -1,7 +1,7 @@
-import { ApiResults } from '../../contracts/api-results'
-import type { CoreRpcShape } from '../../core/contract'
-import { apiReply } from './reply'
-import type { ApiOperationArgs, ApiServiceCtx } from './types'
+import { ApiResults } from '../../contracts/api-results.ts'
+import type { CoreRpcShape } from '../../core/contract.ts'
+import { apiReply } from './reply.ts'
+import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
 export function listAttachments(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiListAttachments']>) {
   return apiReply(ApiResults.apiListAttachments, ctx.core.apiListAttachments(ctx.actor, ctx.workspaceId, ...args))

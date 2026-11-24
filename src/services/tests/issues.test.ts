@@ -4,24 +4,26 @@ import { fileURLToPath } from 'node:url'
 
 import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
-import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
-import { migratedDb } from '#db/test/helpers'
+import { migratedDb } from '#db/test/helpers.ts'
 
-import { listComments } from '../comments'
-import { batchLoadCustomFields, listCustomFieldDefs } from '../custom-fields'
-import { listLinksForIssue } from '../issue-links'
-import * as issues from '../issues'
-import { listTaskStatuses } from '../task-statuses'
-import { listTaskTypes } from '../task-types'
+import { listComments } from '../comments.ts'
+import { batchLoadCustomFields, listCustomFieldDefs } from '../custom-fields.ts'
+import { listLinksForIssue } from '../issue-links.ts'
+import * as issues from '../issues.ts'
+import { listTaskStatuses } from '../task-statuses.ts'
+import { listTaskTypes } from '../task-types.ts'
 
 /** Maintained read transport fixture over the real migrated schema, with D1's bind cap. */
 function readDatabase(sqlite: DatabaseSync): D1Database {
   function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {
       bind: (...values: SQLInputValue[]) => {
-        if (values.length > 100) throw new Error('D1 bound parameter limit exceeded')
+        if (values.length > 100) {
+          throw new Error('D1 bound parameter limit exceeded')
+        }
         return prepare(sql, values)
       },
       all: async () => ({ results: sqlite.prepare(sql).all(...bindings) }),
@@ -63,7 +65,8 @@ describe('issue and related pure data queries', () => {
     `)
   })
   afterEach(() => sqlite.close())
-  it('preserves exact detail selector keys, raw labels and absent assignee_name', async () => {
+
+  test('preserves exact detail selector keys, raw labels and absent assignee_name', async () => {
     const row = await Effect.runPromise(issues.getIssue(db, 'wa', { ref: 'A-01' }))
     expect(row).toEqual({
       id: 'i1',
@@ -97,7 +100,8 @@ describe('issue and related pure data queries', () => {
     expect(await Effect.runPromise(issues.getIssue(db, 'wa', { id: 'other' }))).toBeNull()
     expect(await Effect.runPromise(issues.findIssueIdByRef(db, 'wb', 'A-1'))).toBe('other')
   })
-  it('preserves pagination tie-break, cursor total null, body omission and optional rollups', async () => {
+
+  test('preserves pagination tie-break, cursor total null, body omission and optional rollups', async () => {
     const visibility = eq(schema.issues.projectId, 'pa')
     const page = await Effect.runPromise(issues.listIssues(db, 'wa', { limit: 1, includeRollups: true }, visibility))
     expect(page.total).toBe(2)
@@ -120,7 +124,8 @@ describe('issue and related pure data queries', () => {
     const bare = await Effect.runPromise(issues.listIssues(db, 'wa', { limit: 30, cursor: { createdAt: 100 } }))
     expect(bare.items).toEqual([])
   })
-  it('applies shared association, status, numeric field and date predicates', async () => {
+
+  test('applies shared association, status, numeric field and date predicates', async () => {
     const page = await Effect.runPromise(
       issues.listIssues(db, 'wa', {
         limit: 30,
@@ -143,7 +148,8 @@ describe('issue and related pure data queries', () => {
       customFields: [{ key: 'size', label: 'Size', type: 'number', value: '10' }],
     })
   })
-  it('preserves batch ordering, canonical padded refs, dedup and missing literals', async () => {
+
+  test('preserves batch ordering, canonical padded refs, dedup and missing literals', async () => {
     const page = await Effect.runPromise(
       issues.getIssuesBatch(
         db,
@@ -156,7 +162,8 @@ describe('issue and related pure data queries', () => {
     expect(page.missing).toEqual(['A-999', 'H-1', 'other'])
     expect(page.items[0]).not.toHaveProperty('assignee_name')
   })
-  it('preserves comments keys, link direction and empty workspace-scoped reads', async () => {
+
+  test('preserves comments keys, link direction and empty workspace-scoped reads', async () => {
     expect(await Effect.runPromise(listComments(db, 'wa', 'i1'))).toEqual([
       {
         id: 'c',
@@ -185,7 +192,8 @@ describe('issue and related pure data queries', () => {
     expect(await Effect.runPromise(listLinksForIssue(db, 'wb', 'i2'))).toEqual([])
     expect(await Effect.runPromise(batchLoadCustomFields(db, 'wa', ['other']))).toEqual({})
   })
-  it('returns the existing search keys and sanitizes FTS operators literally', async () => {
+
+  test('returns the existing search keys and sanitizes FTS operators literally', async () => {
     const rows = await Effect.runPromise(
       issues.searchIssues(db, 'wa', { query: 'needle', limit: 20 }, { sql: 'i.project_id = ?', params: ['pa'] }),
     )
@@ -204,7 +212,8 @@ describe('issue and related pure data queries', () => {
     expect(await Effect.runPromise(issues.searchIssues(db, 'wa', { query: 'needle OR', limit: 20 }))).toEqual([])
     expect(await Effect.runPromise(issues.searchIssues(db, 'wa', { query: '***', limit: 20 }))).toEqual([])
   })
-  it('retains taxonomy aliases and definition option decoding', async () => {
+
+  test('retains taxonomy aliases and definition option decoding', async () => {
     sqlite.exec(`INSERT INTO task_types(id,workspace_id,key,name,position,is_default) VALUES ('t','wa','bug','Bug',0,1);
       INSERT INTO task_statuses(id,workspace_id,key,name,category,position,is_default,is_review_step) VALUES ('s','wa','review','Review','in_progress',0,1,1);
       INSERT INTO custom_field_definitions(id,workspace_id,key,label,type,options,created_at) VALUES ('choice','wa','choice','Choice','select','["A","B"]',2);`)
@@ -237,7 +246,8 @@ describe('issue and related pure data queries', () => {
     expect(fields.find((r) => r.key === 'choice')?.options).toEqual(['A', 'B'])
     expect(fields.map((r) => r.workspaceId)).toEqual(['wa', 'wa'])
   })
-  it("chunks variable-length field, rollup and link metadata loads below D1's bind cap", async () => {
+
+  test("chunks variable-length field, rollup and link metadata loads below D1's bind cap", async () => {
     const ids = Array.from({ length: 195 }, (_, i) => `missing-${i}`)
     expect(await Effect.runPromise(batchLoadCustomFields(db, 'wa', [...ids, 'i1']))).toHaveProperty('i1')
     const rollups = await Effect.runPromise(issues.getChildRollups(db, 'wa', [...ids, 'i1']))
@@ -257,7 +267,8 @@ describe('issue and related pure data queries', () => {
     expect(links).toHaveLength(196)
     expect(links.filter((link) => link.linkedIssueTitle === 'Linked')).toHaveLength(195)
   })
-  it("keeps long taxonomy membership filters below D1's bind cap", async () => {
+
+  test("keeps long taxonomy membership filters below D1's bind cap", async () => {
     sqlite.exec(
       "INSERT INTO task_statuses(id,workspace_id,key,name,category,position,is_default,is_review_step) VALUES ('s','wa','todo','Todo','todo',0,1,0); UPDATE issues SET status_id='s' WHERE id='i1';",
     )
@@ -273,7 +284,8 @@ describe('issue and related pure data queries', () => {
     expect(page.items.map((row) => row.id)).toEqual(['i1'])
     expect(page.total).toBe(1)
   })
-  it('is lazy and exposes a typed query error for D1 failures', async () => {
+
+  test('is lazy and exposes a typed query error for D1 failures', async () => {
     const missing = {} as D1Database
     const effect = issues.getIssue(missing, 'wa', { id: 'i1' })
     const result = await Effect.runPromise(Effect.result(effect))

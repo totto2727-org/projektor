@@ -4,14 +4,15 @@ import { useForm } from '@tanstack/react-form'
 import { Schema } from 'effect'
 import { useActionState, useEffect, useRef } from 'react'
 
-import { useRuntime } from '../../client/runtime'
-import { FormErrors } from '../../components/FormErrors'
-import { Input } from '../../components/generated/input'
-import { Button } from '../../components/ui/Button'
-import { Card } from '../../components/ui/Card'
-import { EmptyState } from '../../components/ui/EmptyState'
-import { createProject } from './actions'
-import { CreateProjectInputSchema, type ProjectSummary } from './schemas'
+import { useRuntime } from '../../client/runtime.tsx'
+import { FormErrors } from '../../components/FormErrors.tsx'
+import { Input } from '../../components/generated/input.tsx'
+import { Button } from '../../components/ui/Button.tsx'
+import { Card } from '../../components/ui/Card.tsx'
+import { EmptyState } from '../../components/ui/EmptyState.tsx'
+import { createProject } from './actions.ts'
+import { CreateProjectInputSchema } from './schemas.ts'
+import type { ProjectSummary } from './schemas.ts'
 
 type Membership = {
   id: string
@@ -92,9 +93,11 @@ export function ProjectList({
     },
   })
   useEffect(() => {
-    if (result?.ok && disclosure.current) disclosure.current.open = false
+    if (result?.ok && disclosure.current) {
+      disclosure.current.open = false
+    }
   }, [result])
-  if (accessPending)
+  if (accessPending) {
     return (
       <div role='status' className='flex flex-col items-center gap-3 text-center max-w-md mx-auto py-16 px-6'>
         <div
@@ -110,6 +113,7 @@ export function ProjectList({
         </p>
       </div>
     )
+  }
   return (
     <>
       <h1 className='mb-6 text-2xl font-semibold'>Projects</h1>
@@ -148,7 +152,9 @@ export function ProjectList({
           <form
             action={formAction}
             onSubmit={(event) => {
-              if (!form.state.canSubmit) event.preventDefault()
+              if (!form.state.canSubmit) {
+                event.preventDefault()
+              }
             }}
             className='bg-surface border border-border rounded-lg p-4 mt-3 flex flex-col gap-3'
           >
@@ -201,7 +207,9 @@ export function ProjectList({
                       onChange={(event) => {
                         const value = event.currentTarget.value
                         field.handleChange(value)
-                        if (!form.getFieldMeta('key')?.isTouched) form.setFieldValue('key', deriveKey(value))
+                        if (!form.getFieldMeta('key')?.isTouched) {
+                          form.setFieldValue('key', deriveKey(value))
+                        }
                       }}
                     />
                   </label>
@@ -253,7 +261,9 @@ export function ProjectList({
                     variant='outline'
                     size='sm'
                     onClick={() => {
-                      if (disclosure.current) disclosure.current.open = false
+                      if (disclosure.current) {
+                        disclosure.current.open = false
+                      }
                     }}
                     disabled={pending}
                   >

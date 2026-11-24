@@ -1,5 +1,5 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
   authHeaders,
@@ -10,7 +10,7 @@ import {
   seedTaskType,
   seedToken,
   seedUser,
-} from './helpers'
+} from './helpers.ts'
 
 describe('Task Types API', () => {
   let token: string
@@ -26,7 +26,7 @@ describe('Task Types API', () => {
 
   // ---- list ----
 
-  it('GET /api/task-types returns empty list initially', async () => {
+  test('GET /api/task-types returns empty list initially', async () => {
     const res = await SELF.fetch('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
@@ -36,14 +36,14 @@ describe('Task Types API', () => {
     expect(list).toHaveLength(0)
   })
 
-  it('GET /api/task-types returns seeded types ordered by position', async () => {
+  test('GET /api/task-types returns seeded types ordered by position', async () => {
     await seedTaskType(workspaceId, { key: 'bug', name: 'Bug', position: 2 })
     await seedTaskType(workspaceId, { key: 'task', name: 'Task', position: 1, isDefault: true })
 
     const res = await SELF.fetch('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
-    const list = (await res.json()) as Array<{ key: string }>
+    const list = (await res.json()) as { key: string }[]
     expect(list).toHaveLength(2)
     expect(list[0].key).toBe('task')
     expect(list[1].key).toBe('bug')
@@ -51,7 +51,7 @@ describe('Task Types API', () => {
 
   // ---- create ----
 
-  it('POST /api/task-types creates a new type (owner)', async () => {
+  test('POST /api/task-types creates a new type (owner)', async () => {
     const res = await SELF.fetch('http://localhost/api/task-types', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -63,7 +63,7 @@ describe('Task Types API', () => {
     expect(body.key).toBe('epic')
   })
 
-  it('POST /api/task-types rejects duplicate key', async () => {
+  test('POST /api/task-types rejects duplicate key', async () => {
     await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const res = await SELF.fetch('http://localhost/api/task-types', {
       method: 'POST',
@@ -73,7 +73,7 @@ describe('Task Types API', () => {
     expect(res.status).toBe(409)
   })
 
-  it('POST /api/task-types rejects invalid key format', async () => {
+  test('POST /api/task-types rejects invalid key format', async () => {
     const res = await SELF.fetch('http://localhost/api/task-types', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -82,7 +82,7 @@ describe('Task Types API', () => {
     expect(res.status).toBe(400)
   })
 
-  it('POST /api/task-types clears other defaults when isDefault=true', async () => {
+  test('POST /api/task-types clears other defaults when isDefault=true', async () => {
     await seedTaskType(workspaceId, { key: 'task', name: 'Task', isDefault: true })
 
     await SELF.fetch('http://localhost/api/task-types', {
@@ -94,13 +94,13 @@ describe('Task Types API', () => {
     const res = await SELF.fetch('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
-    const list = (await res.json()) as Array<{ key: string; is_default: number }>
+    const list = (await res.json()) as { key: string; is_default: number }[]
     const defaults = list.filter((t) => t.is_default === 1)
     expect(defaults).toHaveLength(1)
     expect(defaults[0].key).toBe('story')
   })
 
-  it('POST /api/task-types returns 403 for member role', async () => {
+  test('POST /api/task-types returns 403 for member role', async () => {
     const memberUser = await seedUser('member@example.com')
     await seedMember(workspaceId, memberUser.id, 'member')
     const memberToken = await seedToken(workspaceId, memberUser.id)
@@ -115,7 +115,7 @@ describe('Task Types API', () => {
 
   // ---- update ----
 
-  it('PATCH /api/task-types/:id updates name', async () => {
+  test('PATCH /api/task-types/:id updates name', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const res = await SELF.fetch(`http://localhost/api/task-types/${id}`, {
@@ -128,11 +128,11 @@ describe('Task Types API', () => {
     const listRes = await SELF.fetch('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
-    const list = (await listRes.json()) as Array<{ key: string; name: string }>
+    const list = (await listRes.json()) as { key: string; name: string }[]
     expect(list.find((t) => t.key === 'bug')?.name).toBe('Defect')
   })
 
-  it('PATCH /api/task-types/:id returns 404 for unknown id', async () => {
+  test('PATCH /api/task-types/:id returns 404 for unknown id', async () => {
     const res = await SELF.fetch(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -141,7 +141,7 @@ describe('Task Types API', () => {
     expect(res.status).toBe(404)
   })
 
-  it('PATCH /api/task-types/:id with isDefault=true clears others', async () => {
+  test('PATCH /api/task-types/:id with isDefault=true clears others', async () => {
     const { id: taskId } = await seedTaskType(workspaceId, {
       key: 'task',
       name: 'Task',
@@ -158,7 +158,7 @@ describe('Task Types API', () => {
     const res = await SELF.fetch('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
-    const list = (await res.json()) as Array<{ id: string; is_default: number }>
+    const list = (await res.json()) as { id: string; is_default: number }[]
     const taskRow = list.find((t) => t.id === taskId)
     const bugRow = list.find((t) => t.id === bugId)
     expect(taskRow?.is_default).toBe(0)
@@ -167,7 +167,7 @@ describe('Task Types API', () => {
 
   // ---- delete ----
 
-  it('DELETE /api/task-types/:id removes a type', async () => {
+  test('DELETE /api/task-types/:id removes a type', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
 
     const res = await SELF.fetch(`http://localhost/api/task-types/${id}`, {
@@ -183,7 +183,7 @@ describe('Task Types API', () => {
     expect(list).toHaveLength(0)
   })
 
-  it('DELETE /api/task-types/:id returns 404 for unknown id', async () => {
+  test('DELETE /api/task-types/:id returns 404 for unknown id', async () => {
     const res = await SELF.fetch(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
@@ -191,7 +191,7 @@ describe('Task Types API', () => {
     expect(res.status).toBe(404)
   })
 
-  it('DELETE /api/task-types/:id returns 409 when type is in use', async () => {
+  test('DELETE /api/task-types/:id returns 409 when type is in use', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     await seedIssue(workspaceId, projectId, userId, { typeId })
 
@@ -204,7 +204,7 @@ describe('Task Types API', () => {
 
   // ---- workspace scoping ----
 
-  it('GET /api/task-types is workspace-scoped', async () => {
+  test('GET /api/task-types is workspace-scoped', async () => {
     await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const other = await seedFixture({ role: 'owner' })
 
@@ -227,7 +227,7 @@ describe('Task Types — issue integration', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  it('POST /api/issues uses workspace default type when no typeId given', async () => {
+  test('POST /api/issues uses workspace default type when no typeId given', async () => {
     await seedTaskType(workspaceId, { key: 'task', name: 'Task', isDefault: true })
 
     const res = await SELF.fetch('http://localhost/api/issues', {
@@ -246,7 +246,7 @@ describe('Task Types — issue integration', () => {
     expect(issue.type_name).toBe('Task')
   })
 
-  it('POST /api/issues with typeId sets the type', async () => {
+  test('POST /api/issues with typeId sets the type', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const res = await SELF.fetch('http://localhost/api/issues', {
@@ -264,7 +264,7 @@ describe('Task Types — issue integration', () => {
     expect(issue.type_key).toBe('bug')
   })
 
-  it('POST /api/issues rejects typeId from another workspace', async () => {
+  test('POST /api/issues rejects typeId from another workspace', async () => {
     const other = await seedFixture({ role: 'owner' })
     const { id: foreignTypeId } = await seedTaskType(other.workspace.id, {
       key: 'epic',
@@ -279,7 +279,7 @@ describe('Task Types — issue integration', () => {
     expect(res.status).toBe(400)
   })
 
-  it('PATCH /api/issues/:id updates typeId', async () => {
+  test('PATCH /api/issues/:id updates typeId', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No type' })
 
@@ -297,7 +297,7 @@ describe('Task Types — issue integration', () => {
     expect(updated.type_key).toBe('story')
   })
 
-  it('PATCH /api/issues/:id clears typeId with null', async () => {
+  test('PATCH /api/issues/:id clears typeId with null', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const issue = await seedIssue(workspaceId, projectId, userId, { typeId })
 
@@ -315,7 +315,7 @@ describe('Task Types — issue integration', () => {
     expect(updated.type_key).toBeNull()
   })
 
-  it('GET /api/issues?typeId= filters by type', async () => {
+  test('GET /api/issues?typeId= filters by type', async () => {
     const { id: bugTypeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -326,24 +326,24 @@ describe('Task Types — issue integration', () => {
     const res = await SELF.fetch(`http://localhost/api/issues?typeId=${bugTypeId}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await res.json()) as { items: Array<{ title: string }> }
+    const page = (await res.json()) as { items: { title: string }[] }
     expect(page.items).toHaveLength(2)
     expect(page.items.every((i) => i.title.startsWith('Bug'))).toBe(true)
   })
 
-  it('GET /api/issues returns type_key and type_name in list', async () => {
+  test('GET /api/issues returns type_key and type_name in list', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Typed issue', typeId })
 
     const res = await SELF.fetch('http://localhost/api/issues', {
       headers: authHeaders(token, slug),
     })
-    const page = (await res.json()) as { items: Array<{ type_key: string; type_name: string }> }
+    const page = (await res.json()) as { items: { type_key: string; type_name: string }[] }
     expect(page.items[0].type_key).toBe('epic')
     expect(page.items[0].type_name).toBe('Epic')
   })
 
-  it('GET /api/issues/:id returns type_key and type_name', async () => {
+  test('GET /api/issues/:id returns type_key and type_name', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const issue = await seedIssue(workspaceId, projectId, userId, { typeId })
 
@@ -355,7 +355,7 @@ describe('Task Types — issue integration', () => {
     expect(body.type_name).toBe('Bug')
   })
 
-  it('POST /api/issues has null type_key when no types exist', async () => {
+  test('POST /api/issues has null type_key when no types exist', async () => {
     const res = await SELF.fetch('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -392,12 +392,12 @@ describe('Task Types — MCP parity', () => {
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
     })
     return res.json() as Promise<{
-      result?: { content: Array<{ text: string }> }
+      result?: { content: { text: string }[] }
       error?: { message: string }
     }>
   }
 
-  it('list_task_types returns empty list', async () => {
+  test('list_task_types returns empty list', async () => {
     const resp = await mcpCall('tools/call', { name: 'list_task_types', arguments: {} })
     expect(resp.error).toBeUndefined()
     const data = JSON.parse(resp.result!.content[0].text) as unknown[]
@@ -405,18 +405,18 @@ describe('Task Types — MCP parity', () => {
     expect(data).toHaveLength(0)
   })
 
-  it('create_task_type then list_task_types returns the type', async () => {
+  test('create_task_type then list_task_types returns the type', async () => {
     await mcpCall('tools/call', {
       name: 'create_task_type',
       arguments: { key: 'epic', name: 'Epic', position: 1 },
     })
     const resp = await mcpCall('tools/call', { name: 'list_task_types', arguments: {} })
-    const data = JSON.parse(resp.result!.content[0].text) as Array<{ key: string }>
+    const data = JSON.parse(resp.result!.content[0].text) as { key: string }[]
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('epic')
   })
 
-  it('delete_task_type via MCP returns ok', async () => {
+  test('delete_task_type via MCP returns ok', async () => {
     const createResp = await mcpCall('tools/call', {
       name: 'create_task_type',
       arguments: { key: 'tmp', name: 'Tmp' },

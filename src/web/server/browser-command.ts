@@ -1,12 +1,12 @@
 import { Effect } from 'effect'
 
-import type { CoreRpcShape } from '../../core/contract'
-import type { BrowserCommand } from '../../core/web/command-contract'
-import { browserRequest } from '../core'
-import { RequestServices } from '../request'
-import { requireDataWorkspace } from './data-context'
-import { ApiError, ScopeError } from './errors'
-import type { FunctionContext } from './function-context'
+import type { CoreRpcShape } from '../../core/contract.ts'
+import type { BrowserCommand } from '../../core/web/command-contract.ts'
+import { browserRequest } from '../core.ts'
+import { RequestServices } from '../request.ts'
+import { requireDataWorkspace } from './data-context.ts'
+import { ApiError, ScopeError } from './errors.ts'
+import type { FunctionContext } from './function-context.ts'
 
 export interface BrowserCommandClient {
   readonly proof: BrowserCommand
@@ -21,8 +21,9 @@ export function runBrowserCommand<A, E, R>(
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const auth = context.scope.auth
-    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev'))
+    if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
       return yield* new ScopeError(403, 'An interactive browser session is required.')
+    }
     const workspace = yield* Effect.try({
       try: () => requireDataWorkspace(context.scope),
       catch: (cause) =>

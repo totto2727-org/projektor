@@ -1,14 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { createTestDatabase } from '../../web/test/database'
-import type { CoreActor } from '../authorization'
-import { CORE_ACTOR_HEADER } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { handleApiBinaryRequest } from './files'
+import { createTestDatabase } from '../../web/test/database.ts'
+import type { CoreActor } from '../authorization.ts'
+import { CORE_ACTOR_HEADER } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { handleApiBinaryRequest } from './files.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 function fixture() {
   const database = createTestDatabase()
@@ -50,7 +52,7 @@ function fixture() {
 }
 
 describe('API Core binary workspace logos', () => {
-  it('streams bytes without buffering and propagates consumer cancellation', async () => {
+  test('streams bytes without buffering and propagates consumer cancellation', async () => {
     const f = fixture()
     const response = await handleApiBinaryRequest(f.request(), f.env)
     expect(response?.status).toBe(200)
@@ -60,14 +62,16 @@ describe('API Core binary workspace logos', () => {
     await reader.cancel('consumer canceled')
     expect(f.cancel).toHaveBeenCalledWith('consumer canceled')
   })
-  it('releases the R2 body on HEAD without reading it', async () => {
+
+  test('releases the R2 body on HEAD without reading it', async () => {
     const f = fixture()
     const response = await handleApiBinaryRequest(f.request('HEAD'), f.env)
     expect(response?.status).toBe(200)
     expect(response?.body).toBeNull()
     expect(f.cancel).toHaveBeenCalledTimes(1)
   })
-  it('checks current membership before accessing R2', async () => {
+
+  test('checks current membership before accessing R2', async () => {
     const f = fixture()
     f.sqlite.exec("DELETE FROM workspace_members WHERE workspace_id='w'")
     const response = await handleApiBinaryRequest(f.request(), f.env)

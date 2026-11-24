@@ -1,17 +1,19 @@
 import { Effect } from 'effect'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { CommandOkSchema } from '../../core/web/command-contract'
-import { coreResult } from '../core'
-import { issueDataFixture } from '../features/issues/test/data-fixture'
-import { makeRequestServices, RequestServices } from '../request'
-import { runBrowserCommand as runCommand } from './browser-command'
-import { resolveFunctionContext } from './function-context'
-import { testEnvironment } from './test/resources'
+import { CommandOkSchema } from '../../core/web/command-contract.ts'
+import { coreResult } from '../core.ts'
+import { issueDataFixture } from '../features/issues/test/data-fixture.ts'
+import { makeRequestServices, RequestServices } from '../request.ts'
+import { runBrowserCommand as runCommand } from './browser-command.ts'
+import { resolveFunctionContext } from './function-context.ts'
+import { testEnvironment } from './test/resources.ts'
 
 const databases: ReturnType<typeof issueDataFixture>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 function fixture() {
   const database = issueDataFixture()
@@ -34,7 +36,7 @@ function fixture() {
   return { database, env, run, context }
 }
 describe('storage-free browser command composition', () => {
-  it('creates only request proof and a named Core client, never a storage capability', async () => {
+  test('creates only request proof and a named Core client, never a storage capability', async () => {
     const { run, context } = fixture()
     const client = await run(context.pipe(Effect.flatMap((ctx) => runCommand(ctx, Effect.succeed))))
     expect(Object.keys(client).sort()).toEqual(['core', 'proof'])
@@ -46,7 +48,8 @@ describe('storage-free browser command composition', () => {
     })
     expect(JSON.stringify(client.proof)).not.toMatch(/userId|role|DB|KV|R2/)
   })
-  it('executes an actual authorized mutation through its concrete Core operation', async () => {
+
+  test('executes an actual authorized mutation through its concrete Core operation', async () => {
     const { database, run, context } = fixture()
     await run(
       context.pipe(
@@ -64,7 +67,8 @@ describe('storage-free browser command composition', () => {
       title: 'Native Core mutation',
     })
   })
-  it('does not trust a previously resolved browser scope when current membership is revoked', async () => {
+
+  test('does not trust a previously resolved browser scope when current membership is revoked', async () => {
     const { database, run, context } = fixture()
     const selected = await run(context)
     database.sqlite.exec("DELETE FROM workspace_members WHERE user_id='user-a' AND workspace_id='workspace-a'")
@@ -79,7 +83,8 @@ describe('storage-free browser command composition', () => {
       title: 'Denied',
     })
   })
-  it('rejects a noninteractive local principal before invoking any operation', async () => {
+
+  test('rejects a noninteractive local principal before invoking any operation', async () => {
     const { run, context } = fixture()
     const selected = await run(context)
     await expect(

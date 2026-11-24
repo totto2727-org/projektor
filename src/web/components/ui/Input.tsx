@@ -1,7 +1,7 @@
 import type { InputHTMLAttributes, Ref, TextareaHTMLAttributes } from 'react'
 
-import { Input as PrimitiveInput } from '../generated/input'
-import { Textarea as PrimitiveTextarea } from '../generated/textarea'
+import { Input as PrimitiveInput } from '../generated/input.tsx'
+import { Textarea as PrimitiveTextarea } from '../generated/textarea.tsx'
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   class?: string

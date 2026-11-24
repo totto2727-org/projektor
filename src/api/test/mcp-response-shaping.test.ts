@@ -2,13 +2,13 @@
 // one `{items, next}` pagination shape, and a hard per-result size cap.
 
 import { SELF } from 'cloudflare:test'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { capPage, shapeIssue, splitShapeOpts, toPage } from '../mcp/serialize'
-import { env } from './fixture-api'
-import { seedIssue, seedProjectFixture } from './helpers'
+import { capPage, shapeIssue, splitShapeOpts, toPage } from '../mcp/serialize.ts'
+import { env } from './fixture-api.ts'
+import { seedIssue, seedProjectFixture } from './helpers.ts'
 
-type Rpc = { result?: { content?: Array<{ text: string }>; isError?: boolean } }
+type Rpc = { result?: { content?: { text: string }[]; isError?: boolean } }
 
 describe('PROJ-891: serializer (unit)', () => {
   const raw = {
@@ -43,7 +43,7 @@ describe('PROJ-891: serializer (unit)', () => {
     customFields: [],
   }
 
-  it('full view drops nulls, empty arrays, false defaults and internal ids; parses labels; adds ref/type', () => {
+  test('full view drops nulls, empty arrays, false defaults and internal ids; parses labels; adds ref/type', () => {
     const out = shapeIssue(raw, {})
     expect(out.ref).toBe('PROJ-7')
     expect(out.type).toBe('bug')
@@ -74,7 +74,7 @@ describe('PROJ-891: serializer (unit)', () => {
     expect(out.priority).toBe('high')
   })
 
-  it('summary view is {ref,title,status,priority,type,parent?,assignee?,updated}', () => {
+  test('summary view is {ref,title,status,priority,type,parent?,assignee?,updated}', () => {
     expect(shapeIssue(raw, { view: 'summary' })).toEqual({
       ref: 'PROJ-7',
       title: 'T',
@@ -89,7 +89,7 @@ describe('PROJ-891: serializer (unit)', () => {
     })
   })
 
-  it('verbose returns the raw row; fields picks (incl. derived ref) with null for absent values', () => {
+  test('verbose returns the raw row; fields picks (incl. derived ref) with null for absent values', () => {
     expect(shapeIssue(raw, { verbose: true })).toBe(raw)
     expect(shapeIssue(raw, { fields: ['ref', 'assignee_id', 'updated'] })).toEqual({
       ref: 'PROJ-7',
@@ -98,18 +98,18 @@ describe('PROJ-891: serializer (unit)', () => {
     })
   })
 
-  it('fields accepts a comma-separated string and rejects unknown names', () => {
+  test('fields accepts a comma-separated string and rejects unknown names', () => {
     expect(splitShapeOpts({ fields: 'ref, title' }).fields).toEqual(['ref', 'title'])
     expect(() => splitShapeOpts({ fields: 'ref,nope' })).toThrow()
     expect(() => splitShapeOpts({ view: 'tiny' })).toThrow()
   })
 
-  it('toPage omits next when there is no further page', () => {
+  test('toPage omits next when there is no further page', () => {
     expect(toPage([1])).toEqual({ items: [1] })
     expect(toPage([1], 5)).toEqual({ items: [1], next: '5' })
   })
 
-  it('capPage keeps valid JSON under the cap, marks truncated, and resumes from the last kept item', () => {
+  test('capPage keeps valid JSON under the cap, marks truncated, and resumes from the last kept item', () => {
     const items = Array.from({ length: 50 }, (_, i) => ({ n: i, pad: 'x'.repeat(100) }))
     const out = capPage(toPage(items, 'orig'), { max: 1000, cursorOf: (i) => `c${i}` })
     const text = JSON.stringify(out)
@@ -121,7 +121,7 @@ describe('PROJ-891: serializer (unit)', () => {
     expect(out.next).toBe(`c${out.items.length - 1}`)
   })
 
-  it('capPage without a cursor drops any stale next and hints at limit; small pages pass through', () => {
+  test('capPage without a cursor drops any stale next and hints at limit; small pages pass through', () => {
     const items = Array.from({ length: 50 }, () => ({ pad: 'x'.repeat(100) }))
     const out = capPage(toPage(items, 'would-skip-items'), { max: 1000 })
     expect(out.truncated).toBe(true)
@@ -134,7 +134,7 @@ describe('PROJ-891: serializer (unit)', () => {
 })
 
 describe('PROJ-891 review fixes (unit)', () => {
-  it('capPage backs off to a cut the tool allows (no splitting a shared timestamp)', () => {
+  test('capPage backs off to a cut the tool allows (no splitting a shared timestamp)', () => {
     const ts = [1, 1, 2, 2, 2, 3, 3, 4]
     const items = ts.map((t) => ({ t, pad: 'x'.repeat(100) }))
     const out = capPage(toPage(items, 'orig'), {
@@ -149,7 +149,7 @@ describe('PROJ-891 review fixes (unit)', () => {
     expect(out.next).toBe(String(last))
   })
 
-  it('capPage returns the whole page rather than skip items when no safe cut exists', () => {
+  test('capPage returns the whole page rather than skip items when no safe cut exists', () => {
     const items = Array.from({ length: 30 }, () => ({ t: 5, pad: 'x'.repeat(100) }))
     const page = toPage(items, 'orig')
     const out = capPage(page, {
@@ -160,12 +160,12 @@ describe('PROJ-891 review fixes (unit)', () => {
     expect(out).toBe(page)
   })
 
-  it('capPage leaves an empty page alone', () => {
+  test('capPage leaves an empty page alone', () => {
     const empty = toPage([])
     expect(capPage(empty)).toBe(empty)
   })
 
-  it('full view keeps a custom status_key that differs from the legacy status', () => {
+  test('full view keeps a custom status_key that differs from the legacy status', () => {
     const base = { title: 'T', status: 'in_progress', project_key: 'P', number: 1 }
     expect(shapeIssue({ ...base, status_key: 'qa' }, {}).status_key).toBe('qa')
     expect(shapeIssue({ ...base, status_key: 'in_progress' }, {})).not.toHaveProperty('status_key')
@@ -202,14 +202,14 @@ describe('PROJ-891: MCP tools', () => {
     return JSON.parse(body.result?.content?.[0].text ?? 'null') as T
   }
 
-  it('list_issues: summary view, {items,next} pagination, and cursor continuation', async () => {
+  test('list_issues: summary view, {items,next} pagination, and cursor continuation', async () => {
     for (let i = 0; i < 3; i++) {
       await seedIssue(f.workspaceId, f.projectId, f.userId, {
         title: `Item ${i}`,
-        createdAt: 1_000 + i,
+        createdAt: 1000 + i,
       })
     }
-    const first = await tool<{ items: Array<Record<string, unknown>>; next?: string }>('list_issues', {
+    const first = await tool<{ items: Record<string, unknown>[]; next?: string }>('list_issues', {
       view: 'summary',
       limit: 2,
     })
@@ -218,7 +218,7 @@ describe('PROJ-891: MCP tools', () => {
     expect(first).not.toHaveProperty('nextCursor')
     expect(Object.keys(first.items[0]).sort()).toEqual(['priority', 'ref', 'status', 'title', 'updated'].sort())
 
-    const second = await tool<{ items: Array<Record<string, unknown>>; next?: string }>('list_issues', {
+    const second = await tool<{ items: Record<string, unknown>[]; next?: string }>('list_issues', {
       view: 'summary',
       limit: 2,
       cursor: first.next,
@@ -229,7 +229,7 @@ describe('PROJ-891: MCP tools', () => {
     expect(new Set(refs).size).toBe(3)
   })
 
-  it('get_issue full view has ref, an array of labels and no internal ids', async () => {
+  test('get_issue full view has ref, an array of labels and no internal ids', async () => {
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Shaped' })
     const got = await tool('get_issue', { id: issue.id })
     expect(got.ref).toMatch(/-\d+$/)
@@ -239,12 +239,12 @@ describe('PROJ-891: MCP tools', () => {
     expect(got).not.toHaveProperty('labels') // none set → dropped
   })
 
-  it('list_issues: a page over the cap is cut with truncated:true and resumes via next', async () => {
+  test('list_issues: a page over the cap is cut with truncated:true and resumes via next', async () => {
     const pad = 'y'.repeat(400)
     for (let i = 0; i < 60; i++) {
       await seedIssue(f.workspaceId, f.projectId, f.userId, {
         title: `${pad} ${i}`,
-        createdAt: 2_000 + i,
+        createdAt: 2000 + i,
       })
     }
     const seen = new Set<string>()
@@ -264,23 +264,29 @@ describe('PROJ-891: MCP tools', () => {
       const text = ((await res.json()) as Rpc).result?.content?.[0].text ?? ''
       expect(text.length).toBeLessThanOrEqual(20_000)
       const page = JSON.parse(text) as {
-        items: Array<{ ref: string }>
+        items: { ref: string }[]
         next?: string
         truncated?: boolean
       }
-      if (page.truncated) truncatedPages++
-      for (const i of page.items) seen.add(i.ref)
-      if (!page.next) break
+      if (page.truncated) {
+        truncatedPages++
+      }
+      for (const i of page.items) {
+        seen.add(i.ref)
+      }
+      if (!page.next) {
+        break
+      }
       cursor = page.next
     }
     expect(truncatedPages).toBeGreaterThan(0)
     expect(seen.size).toBe(60) // nothing skipped, nothing repeated
   })
 
-  it('list_comments and list_project_activity return {items}', async () => {
+  test('list_comments and list_project_activity return {items}', async () => {
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Talky' })
     await tool('add_comment', { issueId: issue.id, body: 'hi' })
-    const comments = await tool<{ items: Array<{ body: string }> }>('list_comments', {
+    const comments = await tool<{ items: { body: string }[] }>('list_comments', {
       issueId: issue.id,
     })
     expect(comments.items.map((c) => c.body)).toEqual(['hi'])
@@ -290,7 +296,7 @@ describe('PROJ-891: MCP tools', () => {
     expect(Array.isArray(activity.items)).toBe(true)
   })
 
-  it('search_wiki and list_wiki_changes page with next/cursor', async () => {
+  test('search_wiki and list_wiki_changes page with next/cursor', async () => {
     for (const t of ['Alpha Guide', 'Alpha Notes', 'Alpha Ideas']) {
       await tool('create_wiki_page', { title: t, content: 'alpha content' })
     }
@@ -318,12 +324,13 @@ describe('PROJ-891: MCP tools', () => {
     expect(again.items).toEqual([])
   })
 
-  it('wiki_tree returns {items}', async () => {
+  test('wiki_tree returns {items}', async () => {
     await tool('create_wiki_page', { title: 'Root', content: 'x' })
     const tree = await tool<{ items: unknown[] }>('wiki_tree', {})
     expect(tree.items.length).toBeGreaterThan(0)
   })
-  it('list_comments is never cut: every comment is returned', async () => {
+
+  test('list_comments is never cut: every comment is returned', async () => {
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Chatty' })
     for (let i = 0; i < 30; i++) {
       await tool('add_comment', { issueId: issue.id, body: `${i} ${'c'.repeat(1000)}` })
@@ -335,7 +342,7 @@ describe('PROJ-891: MCP tools', () => {
     expect(res.truncated).toBeUndefined()
   })
 
-  it('list_wiki_changes: no changes means no `next`; an empty cursor does not replay from the epoch', async () => {
+  test('list_wiki_changes: no changes means no `next`; an empty cursor does not replay from the epoch', async () => {
     await tool('create_wiki_page', { title: 'Some Page', content: 'x' })
     const future = Math.floor(Date.now() / 1000) + 3600
     const none = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
@@ -351,7 +358,7 @@ describe('PROJ-891: MCP tools', () => {
     expect(empty.items).toEqual([])
   })
 
-  it('list_wiki_changes: `next` advances when the batch had changes, and a section read is flagged partial', async () => {
+  test('list_wiki_changes: `next` advances when the batch had changes, and a section read is flagged partial', async () => {
     const slug = (
       await tool<{ slug: string }>('create_wiki_page', {
         title: 'Sect Page',

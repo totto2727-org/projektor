@@ -1,21 +1,20 @@
 import { Effect, Schema } from 'effect'
 
-import { bumpRateCounter, checkRateLimit, type RequestRateLimitEnv } from '#services/request-rate-limit'
+import { bumpRateCounter, checkRateLimit } from '#services/request-rate-limit.ts'
+import type { RequestRateLimitEnv } from '#services/request-rate-limit.ts'
 
-import {
-  RateCounterRequest,
-  RateLimitRequest,
-  RateLimitResult,
-  type RateLimitTestPolicy,
-} from '../../contracts/request-rate-limit'
-import { coreFailure, coreReply } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
+import { RateCounterRequest, RateLimitRequest, RateLimitResult } from '../../contracts/request-rate-limit.ts'
+import type { RateLimitTestPolicy } from '../../contracts/request-rate-limit.ts'
+import { coreFailure, coreReply } from '../contract.ts'
+import { publicDomainFailure } from '../domain-errors.ts'
 
 function policyEnvironment(
   env: RequestRateLimitEnv,
   policy: typeof RateLimitTestPolicy.Type | undefined,
 ): RequestRateLimitEnv {
-  if (env.ENVIRONMENT === 'production' || !policy) return env
+  if (env.ENVIRONMENT === 'production' || !policy) {
+    return env
+  }
   return {
     ...env,
     RATE_LIMIT_TEST_EPOCH: policy.epoch ?? env.RATE_LIMIT_TEST_EPOCH,
@@ -41,8 +40,12 @@ export function makeApiRateLimitHandlers<R>(envSource: Effect.Effect<RequestRate
           return yield* Effect.tryPromise({
             try: async () => {
               const headers = new Headers()
-              if (proof.authorization !== undefined) headers.set('Authorization', proof.authorization)
-              if (proof.ip !== undefined) headers.set('CF-Connecting-IP', proof.ip)
+              if (proof.authorization !== undefined) {
+                headers.set('Authorization', proof.authorization)
+              }
+              if (proof.ip !== undefined) {
+                headers.set('CF-Connecting-IP', proof.ip)
+              }
               return (await checkRateLimit(new Request('https://core.internal/rate-limit', { headers }), env)) ?? null
             },
             catch: publicDomainFailure,

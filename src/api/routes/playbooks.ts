@@ -3,11 +3,11 @@ import { makeCoreClient } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { composePlaybook } from '../services/playbook-compose'
-import { getPlaybook, listPlaybooks } from '../services/playbooks'
-import { ctxFromHono } from '../services/types'
+import { jsonBody } from '../http/body.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { composePlaybook } from '../services/playbook-compose.ts'
+import { getPlaybook, listPlaybooks } from '../services/playbooks.ts'
+import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 

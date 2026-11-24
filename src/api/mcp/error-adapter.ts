@@ -1,13 +1,8 @@
 import { CorePublicError } from 'projektor/core-client'
 import { z } from 'zod'
 
-import {
-  ConflictError,
-  NotFoundError,
-  ServiceError,
-  ValidationError,
-  type ZodFlattenOutput,
-} from '../../contracts/errors'
+import { ConflictError, NotFoundError, ServiceError, ValidationError } from '../../contracts/errors.ts'
+import type { ZodFlattenOutput } from '../../contracts/errors.ts'
 
 const ValidationIssues = z.object({
   formErrors: z.array(z.string()),
@@ -77,10 +72,10 @@ function toMcpValidationError(err: { issues: ZodFlattenOutput }): {
   data?: unknown
 } {
   if (!hasIssues(err.issues)) {
-    return { code: -32602, message: 'Invalid params', data: err.issues }
+    return { code: -32_602, message: 'Invalid params', data: err.issues }
   }
   return {
-    code: -32602,
+    code: -32_602,
     message: `Invalid params (${summarizeIssues(err.issues)})`,
     data: err.issues,
   }
@@ -94,19 +89,25 @@ function toMcpServiceErrorWithDetails(
   message: string,
   details: Record<string, unknown> | undefined,
 ): { code: number; message: string; data?: unknown } {
-  if (!hasDetails(details)) return { code: -32000, message }
-  return { code: -32000, message: `${message} (${summarizeDetails(details)})`, data: details }
+  if (!hasDetails(details)) {
+    return { code: -32000, message }
+  }
+  return { code: -32_000, message: `${message} (${summarizeDetails(details)})`, data: details }
 }
 
 export function toMcpError(err: unknown, requestId: string): { code: number; message: string; data?: unknown } {
   if (err instanceof CorePublicError && err.status < 500) {
     if (err.kind === 'validation') {
       const parsed = ValidationIssues.safeParse(err.details)
-      if (parsed.success) return toMcpValidationError({ issues: parsed.data })
+      if (parsed.success) {
+        return toMcpValidationError({ issues: parsed.data })
+      }
     }
     return toMcpServiceErrorWithDetails(err.message, err.details)
   }
-  if (err instanceof ValidationError) return toMcpValidationError(err)
+  if (err instanceof ValidationError) {
+    return toMcpValidationError(err)
+  }
   if (err instanceof ServiceError) {
     // Only the kinds whose messages are deliberately client-facing are
     // surfaced (audited 2026-06-30: not_found / forbidden / conflict messages
@@ -118,20 +119,20 @@ export function toMcpError(err: unknown, requestId: string): { code: number; mes
       case 'not_found':
         return toMcpServiceErrorWithDetails(err.message, err instanceof NotFoundError ? err.details : undefined)
       case 'forbidden':
-        return { code: -32000, message: err.message }
+        return { code: -32_000, message: err.message }
       case 'conflict':
         return toMcpServiceErrorWithDetails(err.message, err instanceof ConflictError ? err.details : undefined)
       default:
         console.error(`[mcp] unhandled ServiceError kind (request ${requestId}):`, err.kind, err)
         return {
-          code: -32000,
+          code: -32_000,
           message: `Internal error (request: ${requestId})`,
           data: { requestId },
         }
     }
   }
   console.error(`[mcp] unhandled error in tools/call (request ${requestId}):`, err)
-  return { code: -32000, message: `Internal error (request: ${requestId})`, data: { requestId } }
+  return { code: -32_000, message: `Internal error (request: ${requestId})`, data: { requestId } }
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +163,7 @@ export type ToolErrorBody = {
 }
 
 export type ToolErrorResult = {
-  content: Array<{ type: 'text'; text: string }>
+  content: { type: 'text'; text: string }[]
   isError: true
 }
 
@@ -180,7 +181,9 @@ export function toolErrorResult(error: ToolErrorBody): ToolErrorResult {
 function definedFields(fieldErrors: ZodFlattenOutput['fieldErrors']): Record<string, string[]> | undefined {
   const out: Record<string, string[]> = {}
   for (const [field, messages] of Object.entries(fieldErrors)) {
-    if (messages && messages.length > 0) out[field] = messages
+    if (messages && messages.length > 0) {
+      out[field] = messages
+    }
   }
   return Object.keys(out).length > 0 ? out : undefined
 }
@@ -189,7 +192,9 @@ function notFoundHint(message: string, toolName: string | undefined): string {
   // The message says what was missing; the tool name is only a fallback (claim_issue's
   // "Agent session not found" must not be read as an issue miss).
   const fromMessage = pickNotFoundHint(message.toLowerCase())
-  if (fromMessage) return fromMessage
+  if (fromMessage) {
+    return fromMessage
+  }
   return (
     pickNotFoundHint((toolName ?? '').toLowerCase()) ??
     'Check the id or ref. Use the matching search_ or list_ tool to look it up.'
@@ -229,10 +234,14 @@ function conflictHint(message: string, details: Record<string, unknown> | undefi
  */
 export function toToolError(err: unknown, ctx: ToolErrorContext = {}): ToolErrorResult | null {
   if (err instanceof CorePublicError) {
-    if (err.status >= 500) return null
+    if (err.status >= 500) {
+      return null
+    }
     if (err.kind === 'validation') {
       const parsed = ValidationIssues.safeParse(err.details)
-      if (!parsed.success) return null
+      if (!parsed.success) {
+        return null
+      }
       const fields = definedFields(parsed.data.fieldErrors)
       return toolErrorResult({
         code: 'validation',
@@ -240,21 +249,23 @@ export function toToolError(err: unknown, ctx: ToolErrorContext = {}): ToolError
         ...(fields ? { fields, hint: `Fix ${Object.keys(fields).join(', ')} and retry.` } : {}),
       })
     }
-    if (err.kind === 'not_found')
+    if (err.kind === 'not_found') {
       return toolErrorResult({
         code: 'not_found',
         message: err.message,
         hint: notFoundHint(err.message, ctx.toolName),
         ...(hasDetails(err.details) ? { details: err.details } : {}),
       })
-    if (err.kind === 'conflict')
+    }
+    if (err.kind === 'conflict') {
       return toolErrorResult({
         code: 'conflict',
         message: err.message,
         hint: conflictHint(err.message, err.details),
         ...(hasDetails(err.details) ? { details: err.details } : {}),
       })
-    if (err.kind === 'forbidden')
+    }
+    if (err.kind === 'forbidden') {
       return toolErrorResult({
         code: 'forbidden',
         message: err.message,
@@ -262,12 +273,14 @@ export function toToolError(err: unknown, ctx: ToolErrorContext = {}): ToolError
           ? `Your workspace role is ${ctx.role}; this may need a higher workspace or project role (members write, admins and owners manage).`
           : 'Your role does not allow this; members write, admins and owners manage.',
       })
-    if (err.kind === 'payload_too_large')
+    }
+    if (err.kind === 'payload_too_large') {
       return toolErrorResult({
         code: 'payload_too_large',
         message: err.message,
         hint: 'Send less data, or split it across several calls.',
       })
+    }
     return null
   }
   if (err instanceof ValidationError) {
@@ -280,7 +293,9 @@ export function toToolError(err: unknown, ctx: ToolErrorContext = {}): ToolError
       ...(fields ? { hint: `Fix ${Object.keys(fields).join(', ')} and retry.` } : {}),
     })
   }
-  if (!(err instanceof ServiceError)) return null
+  if (!(err instanceof ServiceError)) {
+    return null
+  }
 
   switch (err.kind) {
     case 'not_found': {

@@ -2,9 +2,9 @@
 import { Schema } from 'effect'
 import { useEffect, useRef } from 'react'
 
-import type { ReviewTarget } from '../../../../../contracts/review-targets'
-import { Text, useIssueForm } from '../../forms'
-import type { IssuesRoute } from '../../views/IssuesPage'
+import type { ReviewTarget } from '../../../../../contracts/review-targets.ts'
+import { Text, useIssueForm } from '../../forms.ts'
+import type { IssuesRoute } from '../../views/IssuesPage.tsx'
 export interface SearchResult {
   id: string
   number: number
@@ -28,7 +28,9 @@ export function useIssueSearch(seed: IssueSearchSeed, route: IssuesRoute) {
   const [searchQuery, setSearchQuery] = searchForm.field('query')
   const searchInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
-    if (searchQuery === seed.query) return
+    if (searchQuery === seed.query) {
+      return
+    }
     const timer = setTimeout(() => searchInputRef.current?.form?.requestSubmit(), 300)
     return () => clearTimeout(timer)
   }, [searchQuery, seed.query])

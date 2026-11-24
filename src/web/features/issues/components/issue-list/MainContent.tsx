@@ -1,12 +1,12 @@
 'use client'
-import type { Issue, SortKey, TaskStatus } from '../board-utils'
-import BacklogView from './BacklogView'
-import BoardView from './BoardView'
-import ListSection from './ListSection'
-import type { IssuePagination } from './PageNavigation'
-import SearchResultsSection from './SearchResultsSection'
-import type { ViewMode } from './types-view'
-import type { SearchResult } from './useIssueSearch'
+import type { Issue, SortKey, TaskStatus } from '../board-utils.ts'
+import BacklogView from './BacklogView.tsx'
+import BoardView from './BoardView.tsx'
+import ListSection from './ListSection.tsx'
+import type { IssuePagination } from './PageNavigation.tsx'
+import SearchResultsSection from './SearchResultsSection.tsx'
+import type { ViewMode } from './types-view.ts'
+import type { SearchResult } from './useIssueSearch.ts'
 
 interface MainContentProps {
   isSearchActive: boolean

@@ -1,9 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 import { z } from 'zod'
 
-import { env } from './fixture-api'
-import { authHeaders, seedIssueFixture, seedToken, toolError } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedIssueFixture, seedToken, toolError } from './helpers.ts'
 
 async function ownershipFixture(role: 'owner' | 'admin') {
   const f = await seedIssueFixture({ role })
@@ -66,7 +66,7 @@ async function coordinationState(f: OwnershipFixture) {
 }
 
 describe.each(['owner', 'admin'] as const)('native Core session ownership for workspace %s', (role) => {
-  it.each<ActAs>(['heartbeat', 'message', 'issue claim', 'file claim', 'issue attribution', 'finish work'])(
+  test.each<ActAs>(['heartbeat', 'message', 'issue claim', 'file claim', 'issue attribution', 'finish work'])(
     'rejects foreign-credential %s without coordination side effects',
     async (action) => {
       const f = await ownershipFixture(role)
@@ -77,7 +77,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
     },
   )
 
-  it('does not admit a caller-supplied override through MCP', async () => {
+  test('does not admit a caller-supplied override through MCP', async () => {
     const f = await ownershipFixture(role)
     const before = await coordinationState(f)
     const response = await f.send(
@@ -98,7 +98,7 @@ describe.each(['owner', 'admin'] as const)('native Core session ownership for wo
     expect(await coordinationState(f)).toEqual(before)
   })
 
-  it.each(['lease', 'files', 'session'] as const)(
+  test.each(['lease', 'files', 'session'] as const)(
     'allows foreign-credential administrative %s cleanup',
     async (target) => {
       const f = await ownershipFixture(role)

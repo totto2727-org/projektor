@@ -1,7 +1,7 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 
-import { WikiFrontmatterSchema } from '../../contracts/inputs/wiki'
-import { ValidationError } from './errors'
+import { WikiFrontmatterSchema } from '../../contracts/inputs/wiki.ts'
+import { ValidationError } from './errors.ts'
 
 // PROJ-488 (R6): matches a leading `---\n<yaml>\n---\n` block, the standard frontmatter
 // convention. CRLF-tolerant since pages can be edited from any client. A page with no
@@ -37,9 +37,15 @@ const EMPTY_WIKI_FRONTMATTER: WikiFrontmatterMeta = {
 // parsed as an ISO date. Throws a plain Error (caller wraps it as a ValidationError) on
 // anything else, or an unparseable string.
 function normalizeVerifiedAt(value: unknown): number | null {
-  if (value === null) return null
-  if (value instanceof Date) return Math.floor(value.getTime() / 1000)
-  if (typeof value === 'number') return Math.floor(value)
+  if (value === null) {
+    return null
+  }
+  if (value instanceof Date) {
+    return Math.floor(value.getTime() / 1000)
+  }
+  if (typeof value === 'number') {
+    return Math.floor(value)
+  }
   if (typeof value === 'string') {
     const parsed = new Date(value)
     if (Number.isNaN(parsed.getTime())) {
@@ -88,7 +94,9 @@ function normalizeFrontmatterRecord(raw: object): Record<string, unknown> {
 // rather than an error, since it's an easy no-op state to end up in when editing.
 // Anything else that isn't a plain mapping (a list, a scalar) is a genuine error.
 function requireFrontmatterMapping(raw: unknown): Record<string, unknown> | null {
-  if (raw === null || raw === undefined) return null
+  if (raw === null || raw === undefined) {
+    return null
+  }
   if (typeof raw !== 'object' || Array.isArray(raw)) {
     throw new ValidationError({
       formErrors: ['Frontmatter must be a YAML mapping (key: value pairs), not a list or scalar'],
@@ -113,14 +121,20 @@ function toFrontmatterMeta(d: ReturnType<typeof WikiFrontmatterSchema.parse>): W
 
 export function parseWikiFrontmatter(content: string): WikiFrontmatterMeta {
   const match = FRONTMATTER_RE.exec(content)
-  if (!match) return EMPTY_WIKI_FRONTMATTER
+  if (!match) {
+    return EMPTY_WIKI_FRONTMATTER
+  }
 
   const raw = requireFrontmatterMapping(parseFrontmatterYaml(match[1]))
-  if (raw === null) return EMPTY_WIKI_FRONTMATTER
+  if (raw === null) {
+    return EMPTY_WIKI_FRONTMATTER
+  }
 
   const normalized = normalizeFrontmatterRecord(raw)
   const parsed = WikiFrontmatterSchema.safeParse(normalized)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
 
   return toFrontmatterMeta(parsed.data)
 }
@@ -132,7 +146,9 @@ export function parseWikiFrontmatter(content: string): WikiFrontmatterMeta {
 // all, the block is dropped entirely rather than left as an empty `---\n---\n` shell.
 export function stripTemplateFlag(content: string): string {
   const match = FRONTMATTER_RE.exec(content)
-  if (!match) return content
+  if (!match) {
+    return content
+  }
   const rest = content.slice(match[0].length)
 
   const raw = parseYaml(match[1])
@@ -140,7 +156,9 @@ export function stripTemplateFlag(content: string): string {
     return content
   }
   const { template: _template, ...remaining } = raw as Record<string, unknown>
-  if (Object.keys(remaining).length === 0) return rest
+  if (Object.keys(remaining).length === 0) {
+    return rest
+  }
 
   const yamlText = stringifyYaml(remaining).trimEnd()
   return `---\n${yamlText}\n---\n${rest}`
@@ -159,11 +177,16 @@ export function setWikiFrontmatterFields(content: string, values: Record<string,
   }
 
   for (const [key, value] of Object.entries(values)) {
-    if (value === null) delete raw[key]
-    else raw[key] = value
+    if (value === null) {
+      delete raw[key]
+    } else {
+      raw[key] = value
+    }
   }
 
-  if (Object.keys(raw).length === 0) return rest
+  if (Object.keys(raw).length === 0) {
+    return rest
+  }
 
   const yamlText = stringifyYaml(raw).trimEnd()
   return `---\n${yamlText}\n---\n${rest}`

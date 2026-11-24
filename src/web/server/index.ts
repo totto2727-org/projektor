@@ -1,5 +1,5 @@
-export { assertSameOriginMutation, checkSameOriginMutation } from './mutation'
-export { ApiError, type ApiFailureKind, responseError, ScopeError } from './errors'
+export { assertSameOriginMutation, checkSameOriginMutation } from './mutation.ts'
+export { ApiError, type ApiFailureKind, responseError, ScopeError } from './errors.ts'
 export {
   type AuthSession,
   AuthSessionSchema,
@@ -18,4 +18,4 @@ export {
   type ScopeSelection,
   type WorkspaceMembership,
   WorkspaceMembershipSchema,
-} from './request-context'
+} from './request-context.ts'

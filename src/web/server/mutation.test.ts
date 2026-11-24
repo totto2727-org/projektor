@@ -1,12 +1,12 @@
 import { Effect } from 'effect'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { assertSameOriginMutation, checkSameOriginMutation } from './mutation'
+import { assertSameOriginMutation, checkSameOriginMutation } from './mutation.ts'
 
 const url = 'https://front.example.test/_effront/mutation'
 
 describe('native browser mutation origin policy', () => {
-  it.each(['POST', 'PUT', 'PATCH', 'DELETE'])('allows explicit same-origin %s requests', async (method) => {
+  test.each(['POST', 'PUT', 'PATCH', 'DELETE'])('allows explicit same-origin %s requests', async (method) => {
     const request = new Request(url, {
       method,
       headers: { origin: 'https://front.example.test', 'sec-fetch-site': 'same-origin' },
@@ -15,7 +15,7 @@ describe('native browser mutation origin policy', () => {
     await expect(Effect.runPromise(checkSameOriginMutation(request))).resolves.toBeUndefined()
   })
 
-  it.each([
+  test.each([
     ['missing origin', 'POST', {}],
     ['cross-origin', 'POST', { origin: 'https://evil.example.test' }],
     ['different scheme', 'POST', { origin: 'http://front.example.test' }],

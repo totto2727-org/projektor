@@ -1,7 +1,7 @@
 'use client'
-import type { IssuesInitialData, IssuesRoute } from '../../views/IssuesPage'
-import { useIssueLookups } from './useIssueLookups'
-import { useIssueMutations } from './useIssueMutations'
+import type { IssuesInitialData, IssuesRoute } from '../../views/IssuesPage.tsx'
+import { useIssueLookups } from './useIssueLookups.ts'
+import { useIssueMutations } from './useIssueMutations.ts'
 
 /** Primary rows, cursor, count and lookups are always the current SSR DTOs. */
 export function useIssueListData(workspaceSlug: string, initialData: IssuesInitialData, route: IssuesRoute) {

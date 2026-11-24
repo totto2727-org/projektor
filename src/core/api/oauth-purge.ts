@@ -13,8 +13,12 @@ type OAuthEnvironment = { OAUTH_KV: KVNamespace }
 type PurgeProvider = Pick<OAuthProvider<OAuthEnvironment>, 'purgeExpiredData'>
 
 function continuation(value: unknown): Continuation {
-  if (value === null) return { phase: 'grants' }
-  if (typeof value !== 'object') throw new Error('Invalid OAuth purge continuation')
+  if (value === null) {
+    return { phase: 'grants' }
+  }
+  if (typeof value !== 'object') {
+    throw new Error('Invalid OAuth purge continuation')
+  }
   const phase: unknown = Reflect.get(value, 'phase')
   const cursor: unknown = Reflect.get(value, 'cursor')
   if ((phase !== 'grants' && phase !== 'tokens') || (cursor !== undefined && typeof cursor !== 'string')) {
@@ -33,14 +37,20 @@ export async function purgeOAuthPage(env: OAuthEnvironment & { KV: KVNamespace }
   let scanned: { complete: boolean; cursor?: string } | undefined
   let calls = 0
   const spend = () => {
-    if (++calls > KV_CALL_BUDGET) throw new Error('OAuth purge KV call budget exhausted')
+    if (++calls > KV_CALL_BUDGET) {
+      throw new Error('OAuth purge KV call budget exhausted')
+    }
   }
   const list = async <Metadata = unknown>(
     options?: KVNamespaceListOptions,
   ): Promise<KVNamespaceListResult<Metadata>> => {
     spend()
-    if (options?.prefix !== prefix) return env.OAUTH_KV.list<Metadata>(options)
-    if (scanned) throw new Error('OAuth purge attempted more than one scan page')
+    if (options?.prefix !== prefix) {
+      return env.OAUTH_KV.list<Metadata>(options)
+    }
+    if (scanned) {
+      throw new Error('OAuth purge attempted more than one scan page')
+    }
     const page = await env.OAUTH_KV.list<Metadata>({
       ...options,
       limit: PAGE_SIZE,
@@ -52,9 +62,13 @@ export async function purgeOAuthPage(env: OAuthEnvironment & { KV: KVNamespace }
   }
   const oauth = new Proxy(env.OAUTH_KV, {
     get(target, key, receiver): unknown {
-      if (key === 'list') return list
+      if (key === 'list') {
+        return list
+      }
       const value: unknown = Reflect.get(target, key, receiver)
-      if (typeof value !== 'function') return value
+      if (typeof value !== 'function') {
+        return value
+      }
       return async (...args: unknown[]) => {
         spend()
         return await Reflect.apply(value, target, args)
@@ -70,8 +84,12 @@ export async function purgeOAuthPage(env: OAuthEnvironment & { KV: KVNamespace }
       purgeOrphanedTokens: previous.phase === 'tokens',
     },
   )
-  if (!scanned) throw new Error('OAuth purge did not scan its selected page')
-  if (!scanned.complete && !scanned.cursor) throw new Error('OAuth purge returned no continuation cursor')
+  if (!scanned) {
+    throw new Error('OAuth purge did not scan its selected page')
+  }
+  if (!scanned.complete && !scanned.cursor) {
+    throw new Error('OAuth purge returned no continuation cursor')
+  }
   const next: Continuation = scanned.complete
     ? { phase: previous.phase === 'grants' ? 'tokens' : 'grants' }
     : { phase: previous.phase, cursor: scanned.cursor }

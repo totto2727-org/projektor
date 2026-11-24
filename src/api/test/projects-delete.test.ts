@@ -6,12 +6,12 @@
 // fk-cleanup.node.test.ts is the guard that the app-level cleanup exists.
 
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import type { ServiceCtx } from '#commands/types'
-import { createWikiPage, updateWikiPage } from '#commands/wiki'
+import type { ServiceCtx } from '#commands/types.ts'
+import { createWikiPage, updateWikiPage } from '#commands/wiki.ts'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedAgentLease,
@@ -22,7 +22,7 @@ import {
   seedGroupGrant,
   seedIssue,
   seedProject,
-} from './helpers'
+} from './helpers.ts'
 
 async function count(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
@@ -32,7 +32,7 @@ async function count(sql: string, ...params: unknown[]): Promise<number> {
 }
 
 describe('PROJ-819: deleteProject cleans up explicitly', () => {
-  it("removes the project's issues, wiki pages and their dependents; detaches outside references", async () => {
+  test("removes the project's issues, wiki pages and their dependents; detaches outside references", async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const ctx: ServiceCtx = {
       db: env.DB,
@@ -103,7 +103,7 @@ describe('PROJ-819: deleteProject cleans up explicitly', () => {
     expect(link?.t).toBeNull()
   })
 
-  it("404s for another workspace's project", async () => {
+  test("404s for another workspace's project", async () => {
     const a = await seedFixture({ role: 'owner' })
     const b = await seedFixture({ role: 'owner' })
     const bProject = await seedProject(b.workspace.id, 'BBB')

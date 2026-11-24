@@ -1,8 +1,8 @@
 import { Effect, Schema } from 'effect'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { makeRequestServices, RequestServices } from '../../request'
-import { inMemoryKV, inMemoryR2, testEnvironment } from '../../server/test/resources'
+import { makeRequestServices, RequestServices } from '../../request.ts'
+import { inMemoryKV, inMemoryR2, testEnvironment } from '../../server/test/resources.ts'
 import {
   setAttachmentReviewStatus,
   addComment,
@@ -23,12 +23,14 @@ import {
   readIssuePage,
   searchIssues,
   updateIssue,
-} from './actions'
-import { issueDataFixture } from './test/data-fixture'
-import { project, scope, workspace } from './test/fixtures'
+} from './actions.ts'
+import { issueDataFixture } from './test/data-fixture.ts'
+import { project, scope, workspace } from './test/fixtures.ts'
 const databases: ReturnType<typeof issueDataFixture>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 // Capture the framework's schema boundary while exercising migrated D1, real development
@@ -43,7 +45,7 @@ vi.mock('@effront/core/workers', async () => {
   }
 })
 interface Definition {
-  readonly input: Schema.Decoder<unknown> | ReadonlyArray<Schema.Decoder<unknown>>
+  readonly input: Schema.Decoder<unknown> | readonly Schema.Decoder<unknown>[]
   readonly handler: (...input: readonly unknown[]) => Effect.Effect<unknown, unknown, RequestServices>
 }
 function fixture(options: { origin?: string } = {}) {
@@ -56,7 +58,7 @@ function fixture(options: { origin?: string } = {}) {
     const definition = (action as { definition: Definition }).definition
     const multiple = Array.isArray(definition.input)
     const inputSchema = multiple
-      ? Schema.Tuple(definition.input as ReadonlyArray<Schema.Decoder<unknown>>)
+      ? Schema.Tuple(definition.input as readonly Schema.Decoder<unknown>[])
       : (definition.input as Schema.Decoder<unknown>)
     const decoded = await Effect.runPromise(Schema.decodeUnknownEffect(inputSchema)(input))
     const request = new Request('https://front.test/_effront/query', {
@@ -81,7 +83,7 @@ function fixture(options: { origin?: string } = {}) {
 }
 
 describe('individual issue ServerFn authorization and contracts', () => {
-  it('sets and clears review status through the named Core command under selected issue ownership', async () => {
+  test('sets and clears review status through the named Core command under selected issue ownership', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(
       "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,entity_type,entity_id,created_by_id,created_at) VALUES ('review-file','workspace-a','file','w/file','review.pdf','application/pdf',1,'issue','issue-a','user-a',1)",
@@ -105,7 +107,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(invalidated).toHaveBeenCalledTimes(3)
   })
 
-  it('rejects cross-origin review status mutations before command execution', async () => {
+  test('rejects cross-origin review status mutations before command execution', async () => {
     const { invoke, invalidated } = fixture({ origin: 'https://evil.test' })
     expect(
       await invoke(setAttachmentReviewStatus, {
@@ -118,7 +120,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(invalidated).toHaveBeenCalledOnce()
   })
 
-  it('updates a sprint directly while preserving tenant and project grant checks', async () => {
+  test('updates a sprint directly while preserving tenant and project grant checks', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(
       "INSERT INTO sprints (id,workspace_id,project_id,name,status,created_at,updated_at) VALUES ('sprint-a','workspace-a','project-a','Original','planned',1,1),('sprint-hidden','workspace-a','hidden-project','Hidden','planned',1,1),('sprint-other','workspace-b','other-project','Other','planned',1,1)",
@@ -141,7 +143,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     })
     expect(invalidated).toHaveBeenCalledTimes(3)
   })
-  it('removes both stored bytes and attachment metadata through the shared storage command', async () => {
+
+  test('removes both stored bytes and attachment metadata through the shared storage command', async () => {
     const { invoke, database, r2, invalidated } = fixture()
     database.sqlite.exec(
       "UPDATE attachments SET kind = 'file', r2_key = 'workspace-a/file-a', filename = 'file.txt', content_type = 'text/plain', size = 4, url = NULL WHERE id = 'file-a'",
@@ -154,7 +157,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(database.sqlite.prepare("SELECT id FROM attachments WHERE id = 'file-a'").get()).toBeUndefined()
     expect(invalidated).toHaveBeenCalledOnce()
   })
-  it('persists comment creation, editing and deletion with authenticated authorship', async () => {
+
+  test('persists comment creation, editing and deletion with authenticated authorship', async () => {
     const { invoke, database, invalidated } = fixture()
     const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
     expect(await invoke(addComment, { ...identity, body: 'Added directly' })).toMatchObject({
@@ -179,7 +183,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(database.sqlite.prepare('SELECT id FROM issue_comments WHERE id = ?').get(comment.id)).toBeUndefined()
     expect(invalidated).toHaveBeenCalledTimes(3)
   })
-  it('preserves comment ownership and issue association for edit and delete commands', async () => {
+
+  test('preserves comment ownership and issue association for edit and delete commands', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec(
       "INSERT INTO users (id,email,name,created_at) VALUES ('author-b','other@example.test','Other',1); INSERT INTO issue_comments (id,issue_id,author_id,body,created_at,updated_at) VALUES ('foreign-comment','issue-a','author-b','Unchanged',1,1),('other-comment','issue-b','user-a','Other issue',1,1)",
@@ -210,7 +215,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     })
     expect(invalidated).toHaveBeenCalledTimes(4)
   })
-  it('persists canonical links and refuses deletion under a different issue', async () => {
+
+  test('persists canonical links and refuses deletion under a different issue', async () => {
     const { invoke, database, invalidated } = fixture()
     const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
     expect(await invoke(addIssueLink, { ...identity, targetIssueId: 'issue-b', type: 'blocked_by' })).toMatchObject({
@@ -233,7 +239,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(database.sqlite.prepare('SELECT id FROM issue_links WHERE id = ?').get(link.id)).toBeUndefined()
     expect(invalidated).toHaveBeenCalledTimes(3)
   })
-  it('persists hashed share tokens and link attachment DTOs through concrete commands', async () => {
+
+  test('persists hashed share tokens and link attachment DTOs through concrete commands', async () => {
     const { invoke, database, invalidated } = fixture()
     const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
     const result = (await invoke(shareIssue, identity)) as { ok: true; value: { token: string; url: string } }
@@ -257,7 +264,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     ).toEqual({ entity_type: 'issue', entity_id: 'issue-a', url: 'https://example.test/direct' })
     expect(invalidated).toHaveBeenCalledTimes(2)
   })
-  it.each(['http://example.test/path', 'https://example.test/path', 'mailto:review@example.test'])(
+
+  test.each(['http://example.test/path', 'https://example.test/path', 'mailto:review@example.test'])(
     'persists a standard URL through the decoded Web boundary: %s',
     async (url) => {
       const { invoke, database } = fixture()
@@ -271,7 +279,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
       expect(database.sqlite.prepare('SELECT url FROM attachments WHERE url = ?').get(url)).toEqual({ url })
     },
   )
-  it.each(['not-a-url', 'https://[broken', '/relative/path'])(
+
+  test.each(['not-a-url', 'https://[broken', '/relative/path'])(
     'rejects malformed URLs before Web command execution: %s',
     async (url) => {
       const { invoke, database, invalidated } = fixture()
@@ -287,7 +296,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
       expect(invalidated).not.toHaveBeenCalled()
     },
   )
-  it('enforces actual read-only project grants for issue, link, share and attachment commands', async () => {
+
+  test('enforces actual read-only project grants for issue, link, share and attachment commands', async () => {
     const { invoke, database, invalidated } = fixture()
     database.sqlite.exec("UPDATE group_project_grants SET role = 'viewer' WHERE project_id = 'project-a'")
     const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
@@ -311,7 +321,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM attachments').get()).toEqual({ count: 1 })
     expect(invalidated).toHaveBeenCalledTimes(4)
   })
-  it('resolves an entity in the explicit workspace and checks its authorized catalog project', async () => {
+
+  test('resolves an entity in the explicit workspace and checks its authorized catalog project', async () => {
     const valid = fixture()
     expect(await valid.invoke(readIssue, { workspaceSlug: workspace.slug, issueId: 'issue-a' })).toMatchObject({
       ok: true,
@@ -331,7 +342,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     })
     expect(hidden.invalidated).toHaveBeenCalledOnce()
   })
-  it('builds project list and search contracts from D1, without query refresh', async () => {
+
+  test('builds project list and search contracts from D1, without query refresh', async () => {
     const { invoke, database, invalidated } = fixture()
     expect(
       await invoke(readIssuePage, {
@@ -350,7 +362,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
     expect(invalidated).not.toHaveBeenCalled()
   })
-  it.each([
+
+  test.each([
     { issueId: 'hidden-issue' },
     { issueId: 'other-issue' },
     { issueId: 'missing-issue' },
@@ -375,7 +388,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     ).toMatchObject({ title: expect.not.stringMatching(/^Changed$/) })
     expect(invalidated).toHaveBeenCalledOnce()
   })
-  it('preserves archived project visibility only through an explicit authorized project selector', async () => {
+
+  test('preserves archived project visibility only through an explicit authorized project selector', async () => {
     const { invoke, database } = fixture()
     database.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id IN ('project-a', 'hidden-project')")
     expect(
@@ -403,7 +417,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     ).toMatchObject({ ok: true })
     expect(database.sqlite.prepare("SELECT title FROM issues WHERE id = 'issue-a'").get()).toEqual({ title: 'Changed' })
   })
-  it('independently authorizes comments, links, attachments and wiki searches before direct reads', async () => {
+
+  test('independently authorizes comments, links, attachments and wiki searches before direct reads', async () => {
     const { invoke, database, invalidated } = fixture()
     const identity = { workspaceSlug: workspace.slug, issueId: 'A-1' }
     expect(await invoke(readComments, identity)).toMatchObject({
@@ -438,7 +453,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
     expect(invalidated).not.toHaveBeenCalled()
   })
-  it('rejects malformed cursor input through Effect Schema before the shared query', async () => {
+
+  test('rejects malformed cursor input through Effect Schema before the shared query', async () => {
     const { invoke, database } = fixture()
     expect(await invoke(readIssuePage, { workspaceSlug: workspace.slug, cursor: 'next' })).toMatchObject({
       ok: false,
@@ -446,7 +462,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     })
     expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
   })
-  it('rejects cross-origin writes before any backend read and invalidates expected failures', async () => {
+
+  test('rejects cross-origin writes before any backend read and invalidates expected failures', async () => {
     const { invoke, database, invalidated } = fixture({ origin: 'https://evil.test' })
     const data = new FormData()
     data.set('workspaceSlug', workspace.slug)
@@ -456,7 +473,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
     expect(invalidated).toHaveBeenCalledOnce()
   })
-  it('passes only schema-selected issue fields to explicit shared commands', async () => {
+
+  test('passes only schema-selected issue fields to explicit shared commands', async () => {
     const native = fixture()
     const formData = new FormData()
     formData.set('workspaceSlug', workspace.slug)
@@ -486,7 +504,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM issues').get()).toEqual({ count: 4 })
     expect(invalidated).toHaveBeenCalledOnce()
   })
-  it("will not delete an attachment absent from the issue's server-loaded attachment set", async () => {
+
+  test("will not delete an attachment absent from the issue's server-loaded attachment set", async () => {
     const { invoke, database } = fixture()
     database.sqlite.exec(`
       INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,entity_type,entity_id,created_by_id,created_at) VALUES
@@ -512,7 +531,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
         .get(),
     ).toEqual({ count: 3 })
   })
-  it('deletes an issue-owned attachment through shared storage command after direct retrieval', async () => {
+
+  test('deletes an issue-owned attachment through shared storage command after direct retrieval', async () => {
     const { invoke, database, invalidated } = fixture()
     expect(
       await invoke(deleteAttachment, {
@@ -525,7 +545,8 @@ describe('individual issue ServerFn authorization and contracts', () => {
     expect(database.sqlite.prepare("SELECT id FROM attachments WHERE id = 'file-a'").get()).toBeUndefined()
     expect(invalidated).toHaveBeenCalledOnce()
   })
-  it.each([{ issueId: 'hidden-issue' }, { issueId: 'other-issue' }, { issueId: 'issue-b', projectId: project.id }])(
+
+  test.each([{ issueId: 'hidden-issue' }, { issueId: 'other-issue' }, { issueId: 'issue-b', projectId: project.id }])(
     'rejects attachment deletion under an inaccessible issue: %j',
     async ({ issueId, projectId }) => {
       const { invoke, database, invalidated } = fixture()

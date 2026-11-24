@@ -1,13 +1,13 @@
 import { Effect, Schema } from 'effect'
 
-import { findSprintById, listSprints } from '#services/sprints'
-import { listTaskStatuses } from '#services/task-statuses'
-import { listTaskTypes } from '#services/task-types'
-import { listWorkspaceMembers } from '#services/workspaces'
+import { findSprintById, listSprints } from '#services/sprints.ts'
+import { listTaskStatuses } from '#services/task-statuses.ts'
+import { listTaskTypes } from '#services/task-types.ts'
+import { listWorkspaceMembers } from '#services/workspaces.ts'
 
-import { ScopeError } from '../../contracts/errors'
-import type { ReviewFilter } from '../../contracts/review-targets'
-import { SearchResultsSchema, WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions'
+import { ScopeError } from '../../contracts/errors.ts'
+import type { ReviewFilter } from '../../contracts/review-targets.ts'
+import { SearchResultsSchema, WikiSearchResultsSchema } from '../../contracts/web-schemas/issue-actions.ts'
 import {
   AttachmentsSchema,
   CommentsSchema,
@@ -19,15 +19,15 @@ import {
   TaskTypesSchema,
   normalizeStatuses,
   normalizeTaskTypes,
-} from '../../contracts/web-schemas/issues'
-import { SprintSchema } from '../../contracts/web-schemas/planning'
-import { coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope, publicWebFailure } from './authentication'
-import { authorizeDataEntity, requireDataWorkspace } from './data-context'
-import * as data from './issue-data'
-import { CoreReadServices } from './read-services'
-import type { RequestScope, WebRequest } from './scope'
+} from '../../contracts/web-schemas/issues.ts'
+import { SprintSchema } from '../../contracts/web-schemas/planning.ts'
+import { coreReply } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { loadBrowserScope, publicWebFailure } from './authentication.ts'
+import { authorizeDataEntity, requireDataWorkspace } from './data-context.ts'
+import * as data from './issue-data.ts'
+import { CoreReadServices } from './read-services.ts'
+import type { RequestScope, WebRequest } from './scope.ts'
 
 export function webRead<A, E>(
   env: CoreEnvironment,
@@ -143,8 +143,9 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
       reply('webSprints', Schema.Array(SprintSchema), (env) =>
         webRead(env, request, workspaceId, (scope) =>
           Effect.gen(function* () {
-            if (!scope.projects.some((project) => project.id === projectId && project.workspace_id === workspaceId))
+            if (!scope.projects.some((project) => project.id === projectId && project.workspace_id === workspaceId)) {
               return yield* new ScopeError(404, 'Selected project is not accessible.')
+            }
             return yield* listSprints(env.DB, workspaceId, { projectId })
           }),
         ),

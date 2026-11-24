@@ -1,11 +1,11 @@
 import { Effect } from 'effect'
 import { FetchHttpClient, HttpServerResponse } from 'effect/http'
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { featureDatabase } from './features/planning/action-test-fixture'
-import { downloadFile } from './file-download'
-import { makeRequestServices, RequestServices } from './request'
-import { testEnvironment } from './server/test/resources'
+import { featureDatabase } from './features/planning/action-test-fixture.ts'
+import { downloadFile } from './file-download.ts'
+import { makeRequestServices, RequestServices } from './request.ts'
+import { testEnvironment } from './server/test/resources.ts'
 
 function fixture(contentType = 'image/png', filename = 'diagram.png') {
   const database = featureDatabase()
@@ -57,7 +57,7 @@ function fixture(contentType = 'image/png', filename = 'diagram.png') {
 }
 
 describe('native Core authenticated Web file delivery', () => {
-  it('delivers exact archived-owner bytes with protected browser headers and no API HTTP', async () => {
+  test('delivers exact archived-owner bytes with protected browser headers and no API HTTP', async () => {
     const f = fixture()
     const response = await f.execute()
     expect(response.status).toBe(200)
@@ -70,13 +70,15 @@ describe('native Core authenticated Web file delivery', () => {
     expect(f.consume).not.toHaveBeenCalled()
     expect(f.transport).not.toHaveBeenCalled()
   })
-  it('forces SVG download and sanitizes dangerous filename characters', async () => {
+
+  test('forces SVG download and sanitizes dangerous filename characters', async () => {
     const f = fixture('image/svg+xml', 'bad\r\n"\\.svg')
     const response = await f.execute()
     expect(response.headers.get('content-type')).toBe('application/octet-stream')
     expect(response.headers.get('content-disposition')).toBe('attachment; filename="bad____.svg"')
   })
-  it('returns HEAD headers through R2 metadata without opening the R2 body', async () => {
+
+  test('returns HEAD headers through R2 metadata without opening the R2 body', async () => {
     const f = fixture()
     const response = await f.execute(undefined, 'HEAD')
     expect(response.status).toBe(200)
@@ -86,36 +88,42 @@ describe('native Core authenticated Web file delivery', () => {
     expect(f.get).not.toHaveBeenCalled()
     expect(f.head).toHaveBeenCalledOnce()
   })
-  it('preserves hintless file links for a verified single-workspace member', async () => {
+
+  test('preserves hintless file links for a verified single-workspace member', async () => {
     const f = fixture()
     expect((await f.execute('/api/files/a1')).status).toBe(200)
     expect(f.get).toHaveBeenCalledOnce()
   })
-  it('never guesses a workspace for a multi-workspace member or treats the file ID as a page selector', async () => {
+
+  test('never guesses a workspace for a multi-workspace member or treats the file ID as a page selector', async () => {
     const f = fixture()
     f.sqlite.exec("INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES ('w2','u1','owner',1)")
     expect((await f.execute('/api/files/a1')).status).toBe(403)
     expect(f.get).not.toHaveBeenCalled()
     expect((await f.execute('/api/files/a1?workspace=alpha&projectId=foreign')).status).toBe(200)
   })
-  it('rejects foreign workspace, ambiguous hint and malformed identifier before R2', async () => {
+
+  test('rejects foreign workspace, ambiguous hint and malformed identifier before R2', async () => {
     const f = fixture()
     for (const [path, status] of [
       ['/api/files/a1?workspace=beta', 403],
       ['/api/files/a1?workspace=alpha&workspace=beta', 400],
       ['/api/files/%ZZ?workspace=alpha', 400],
       ['/api/files/missing?workspace=alpha', 404],
-    ] as const)
+    ] as const) {
       expect((await f.execute(path)).status).toBe(status)
+    }
     expect(f.get).not.toHaveBeenCalled()
   })
-  it('rejects a foreign attachment even for an owner and does not look up its object', async () => {
+
+  test('rejects a foreign attachment even for an owner and does not look up its object', async () => {
     const f = fixture()
     f.sqlite.exec("UPDATE attachments SET workspace_id = 'w2' WHERE id = 'a1'")
     expect((await f.execute()).status).toBe(404)
     expect(f.get).not.toHaveBeenCalled()
   })
-  it('default-denies an ungranted member but permits the archived granted owner project', async () => {
+
+  test('default-denies an ungranted member but permits the archived granted owner project', async () => {
     const f = fixture()
     f.sqlite.exec("UPDATE workspace_members SET role = 'member' WHERE workspace_id = 'w1' AND user_id = 'u1'")
     expect((await f.execute()).status).toBe(404)
@@ -128,13 +136,15 @@ describe('native Core authenticated Web file delivery', () => {
     expect((await f.execute()).status).toBe(200)
     expect(f.transport).not.toHaveBeenCalled()
   })
-  it('rejects bearer and invalid Access credentials rather than falling back to development auth', async () => {
+
+  test('rejects bearer and invalid Access credentials rather than falling back to development auth', async () => {
     const f = fixture()
     expect((await f.execute(undefined, 'GET', { authorization: 'Bearer token' })).status).toBe(403)
     expect((await f.execute(undefined, 'GET', { cookie: 'CF_Authorization=invalid' })).status).toBe(401)
     expect(f.get).not.toHaveBeenCalled()
   })
-  it('returns private safe failures and suppresses failed HEAD bodies', async () => {
+
+  test('returns private safe failures and suppresses failed HEAD bodies', async () => {
     const f = fixture()
     f.get.mockRejectedValueOnce(new Error('private R2 diagnostic'))
     const response = await f.execute()
@@ -147,7 +157,8 @@ describe('native Core authenticated Web file delivery', () => {
     expect(await head.text()).toBe('')
     expect(head.headers.get('cache-control')).toBe('private, no-store')
   })
-  it('maps a missing R2 object to 404 and refuses mutation verbs on the read route', async () => {
+
+  test('maps a missing R2 object to 404 and refuses mutation verbs on the read route', async () => {
     const f = fixture()
     f.get.mockResolvedValueOnce(null)
     expect((await f.execute()).status).toBe(404)

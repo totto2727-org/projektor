@@ -1,6 +1,6 @@
 import type { AnchorHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from 'react'
 
-import { Card as PrimitiveCard } from '../generated/card'
+import { Card as PrimitiveCard } from '../generated/card.tsx'
 
 export type CardProps =
   | ({
@@ -41,12 +41,13 @@ export function Card({
   ]
     .filter(Boolean)
     .join(' ')
-  if (as === 'a')
+  if (as === 'a') {
     return (
       <a {...(rest as AnchorHTMLAttributes<HTMLAnchorElement>)} href={href} className={classes} style={style}>
         <PrimitiveCard className='p-4'>{children}</PrimitiveCard>
       </a>
     )
+  }
   return (
     <PrimitiveCard {...(rest as HTMLAttributes<HTMLDivElement>)} className={classes} style={style}>
       {children}

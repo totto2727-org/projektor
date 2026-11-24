@@ -1,14 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback'
-import { createIssue } from '#commands/issues'
-import type { ServiceCtx } from '#commands/types'
+import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback.ts'
+import { createIssue } from '#commands/issues.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { createTestDatabase } from '../../web/test/database'
+import { createTestDatabase } from '../../web/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 function fixture(concurrentBatches = 1) {
@@ -31,7 +33,7 @@ function fixture(concurrentBatches = 1) {
   const binds: number[] = []
   const db = new Proxy(database.db, {
     get(target, key) {
-      if (key === 'prepare')
+      if (key === 'prepare') {
         return (query: string) => {
           const statement = target.prepare(query)
           return new Proxy(statement, {
@@ -46,16 +48,23 @@ function fixture(concurrentBatches = 1) {
             },
           })
         }
-      if (key !== 'batch') return Reflect.get(target, key)
+      }
+      if (key !== 'batch') {
+        return Reflect.get(target, key)
+      }
       return async (statements: D1PreparedStatement[]) => {
-        if (++arrivals >= concurrentBatches) release()
+        if (++arrivals >= concurrentBatches) {
+          release()
+        }
         await barrier
         // D1 serializes atomic batches. Both callers must reach the write boundary before either runs.
         const pending = tail.then(async () => {
           database.sqlite.exec('BEGIN')
           try {
             const results = []
-            for (const statement of statements) results.push(await statement.all())
+            for (const statement of statements) {
+              results.push(await statement.all())
+            }
             database.sqlite.exec('COMMIT')
             return results
           } catch (error) {
@@ -88,7 +97,7 @@ function fixture(concurrentBatches = 1) {
 }
 
 describe('feedback conversion transaction', () => {
-  it('permits exactly one concurrent single conversion without orphan issues, mirrors, activity or events', async () => {
+  test('permits exactly one concurrent single conversion without orphan issues, mirrors, activity or events', async () => {
     const f = fixture(2)
     f.seed('f')
     const results = await Promise.allSettled([
@@ -97,7 +106,9 @@ describe('feedback conversion transaction', () => {
     ])
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
     expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
-    for (const table of ['issues', 'issues_fts', 'activity']) expect(f.count(table), table).toBe(1)
+    for (const table of ['issues', 'issues_fts', 'activity']) {
+      expect(f.count(table), table).toBe(1)
+    }
     expect(f.fetch).toHaveBeenCalledTimes(1)
     const issue = f.sqlite.prepare('SELECT id,number FROM issues').get()
     expect(issue?.number).toBe(1)
@@ -107,9 +118,11 @@ describe('feedback conversion transaction', () => {
     })
   })
 
-  it('does not partially convert an overlapping bulk selection when another conversion wins', async () => {
+  test('does not partially convert an overlapping bulk selection when another conversion wins', async () => {
     const f = fixture(2)
-    for (const id of ['a', 'b', 'c']) f.seed(id)
+    for (const id of ['a', 'b', 'c']) {
+      f.seed(id)
+    }
     const results = await Promise.allSettled([
       bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ['a', 'b'] }),
       bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ['b', 'c'] }),
@@ -122,13 +135,15 @@ describe('feedback conversion transaction', () => {
     expect(f.count('activity')).toBe(1)
   })
 
-  it('rolls back issue number, FTS and activity when linking fails, then retries cleanly', async () => {
+  test('rolls back issue number, FTS and activity when linking fails, then retries cleanly', async () => {
     const f = fixture()
     f.seed('f')
     f.sqlite.exec(`CREATE TRIGGER fail_link BEFORE UPDATE OF linked_issue_id ON feedback
       BEGIN SELECT RAISE(ABORT,'link failure'); END;`)
     await expect(convertFeedbackToIssue(f.ctx, { feedbackId: 'f' })).rejects.toThrow('link failure')
-    for (const table of ['issues', 'issues_fts', 'activity']) expect(f.count(table), table).toBe(0)
+    for (const table of ['issues', 'issues_fts', 'activity']) {
+      expect(f.count(table), table).toBe(0)
+    }
     expect(f.fetch).not.toHaveBeenCalled()
     expect(f.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
       linked_issue_id: null,
@@ -138,10 +153,12 @@ describe('feedback conversion transaction', () => {
     await expect(convertFeedbackToIssue(f.ctx, { feedbackId: 'f' })).resolves.toMatchObject({ number: 1 })
   })
 
-  it('converts the 500-ID maximum without crossing the D1 bind cap', async () => {
+  test('converts the 500-ID maximum without crossing the D1 bind cap', async () => {
     const f = fixture()
     const ids = Array.from({ length: 500 }, (_, i) => `f${i}`)
-    for (const id of ids) f.seed(id)
+    for (const id of ids) {
+      f.seed(id)
+    }
     await expect(bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ids })).resolves.toMatchObject({
       convertedCount: 500,
       number: 1,
@@ -150,7 +167,7 @@ describe('feedback conversion transaction', () => {
     expect(Math.max(...f.binds)).toBeLessThanOrEqual(100)
   })
 
-  it('preserves ordinary issue creation and sequential number allocation', async () => {
+  test('preserves ordinary issue creation and sequential number allocation', async () => {
     const f = fixture()
     await expect(createIssue(f.ctx, { projectId: 'p', title: 'Normal' })).resolves.toMatchObject({ number: 1 })
     await expect(createIssue(f.ctx, { projectId: 'p', title: 'Normal two' })).resolves.toMatchObject({ number: 2 })

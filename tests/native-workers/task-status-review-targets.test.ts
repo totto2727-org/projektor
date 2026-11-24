@@ -1,8 +1,8 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from '../../src/api/test/fixture-api'
-import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus } from '../../src/api/test/helpers'
+import { env } from '../../src/api/test/fixture-api.ts'
+import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus } from '../../src/api/test/helpers.ts'
 
 async function fixture() {
   const owner = await seedProjectFixture({ role: 'owner' })
@@ -49,7 +49,7 @@ async function fixture() {
 }
 
 describe('native custom status category review-target resync', () => {
-  it.each([
+  test.each([
     ['done', false],
     ['done', true],
     ['cancelled', false],
@@ -81,7 +81,7 @@ describe('native custom status category review-target resync', () => {
     },
   )
 
-  it('rolls back status, default selection and issue resync if the target write fails', async () => {
+  test('rolls back status, default selection and issue resync if the target write fails', async () => {
     const f = await fixture()
     const before = await f.attachments()
     const trigger = `reject_review_${crypto.randomUUID().replaceAll('-', '')}`

@@ -3,11 +3,11 @@
 // caller can't see.
 
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, seedProject, seedWorkspaceRoles } from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, seedProject, seedWorkspaceRoles } from './helpers.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 async function call(url: string, token: string, slug: string, init?: RequestInit) {
   await resetRateLimits()
@@ -26,7 +26,7 @@ async function createPage(token: string, slug: string, body: { title: string; co
 async function broken(token: string, slug: string) {
   const res = await call('http://localhost/api/wiki/broken-links', token, slug)
   expect(res.status).toBe(200)
-  return (await res.json()) as Array<{ sourceSlug: string; targetTitle: string }>
+  return (await res.json()) as { sourceSlug: string; targetTitle: string }[]
 }
 
 async function targetOf(sourceId: string) {
@@ -37,7 +37,7 @@ async function targetOf(sourceId: string) {
 }
 
 describe('PROJ-818: accented Latin titles fold on both sides', () => {
-  it("[[über uns]] resolves to a page titled 'Über uns'", async () => {
+  test("[[über uns]] resolves to a page titled 'Über uns'", async () => {
     const { token, workspace } = await seedFixture({ role: 'owner' })
     const target = await createPage(token, workspace.slug, { title: 'Über uns' })
     const source = await createPage(token, workspace.slug, {
@@ -47,7 +47,7 @@ describe('PROJ-818: accented Latin titles fold on both sides', () => {
     expect(await targetOf(source.id)).toBe(target.id)
   })
 
-  it("a link written before the page exists resolves when 'Über uns' is created", async () => {
+  test("a link written before the page exists resolves when 'Über uns' is created", async () => {
     const { token, workspace } = await seedFixture({ role: 'owner' })
     const source = await createPage(token, workspace.slug, {
       title: 'Home',
@@ -58,7 +58,7 @@ describe('PROJ-818: accented Latin titles fold on both sides', () => {
     expect(await targetOf(source.id)).toBe(target.id)
   })
 
-  it('pre-migration rows with a NULL fold are healed before matching', async () => {
+  test('pre-migration rows with a NULL fold are healed before matching', async () => {
     const { token, workspace, user } = await seedFixture({ role: 'owner' })
     const legacyId = crypto.randomUUID()
     await env.DB.prepare(
@@ -76,7 +76,7 @@ describe('PROJ-818: accented Latin titles fold on both sides', () => {
 })
 
 describe("PROJ-818: link reads don't reveal pages in hidden projects", () => {
-  it('a link to a page in a hidden project is reported broken, as written', async () => {
+  test('a link to a page in a hidden project is reported broken, as written', async () => {
     const { workspace, owner, member } = await seedWorkspaceRoles()
     const hidden = await seedProject(workspace.id, 'HID')
     await createPage(owner.token, workspace.slug, { title: 'Secret Plan', projectId: hidden.id })
@@ -102,7 +102,7 @@ describe("PROJ-818: link reads don't reveal pages in hidden projects", () => {
 })
 
 describe("PROJ-818: legacy link rows don't leak a hidden page's title", () => {
-  it('a pre-0063 resolved row (no target_text) into a hidden project shows no title', async () => {
+  test('a pre-0063 resolved row (no target_text) into a hidden project shows no title', async () => {
     const { workspace, owner, member } = await seedWorkspaceRoles()
     const hidden = await seedProject(workspace.id, 'HID')
     const secret = await createPage(owner.token, workspace.slug, {

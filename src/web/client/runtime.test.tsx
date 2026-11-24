@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { RuntimeProvider, useRuntime } from './runtime'
+import { RuntimeProvider, useRuntime } from './runtime.tsx'
 
 function CurrentPage() {
   const { url } = useRuntime()
@@ -10,7 +10,7 @@ function CurrentPage() {
 }
 
 describe('server-supplied display context', () => {
-  it('uses the current SSR page props without retaining a previous route', () => {
+  test('uses the current SSR page props without retaining a previous route', () => {
     const { rerender } = render(
       <RuntimeProvider scope={null} url='https://app.test/issues'>
         <CurrentPage />

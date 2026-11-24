@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react'
 
-import { formatIssueRef } from '../../lib/issue-ref'
-import { issueUrl } from '../../utils/issue-url'
-import { getBacklogIssues, type Issue, type SortKey, type TaskStatus } from '../board-utils'
-import { ReviewTargetsSummary } from '../ReviewTargetsSummary'
-import { IssueSelectionControl } from './BulkActions'
+import { formatIssueRef } from '../../lib/issue-ref.ts'
+import { issueUrl } from '../../utils/issue-url.ts'
+import { getBacklogIssues } from '../board-utils.ts'
+import type { Issue, SortKey, TaskStatus } from '../board-utils.ts'
+import { ReviewTargetsSummary } from '../ReviewTargetsSummary.tsx'
+import { IssueSelectionControl } from './BulkActions.tsx'
 import {
   getStoryPoints,
   PrioritySelect,
@@ -13,10 +14,12 @@ import {
   StatusSelect,
   spBadge,
   statusBadge,
-} from './issue-render-helpers'
+} from './issue-render-helpers.tsx'
 
 function applyBacklogOrder(issues: readonly Issue[], backlogOrder: string[]): readonly Issue[] {
-  if (backlogOrder.length === 0) return issues
+  if (backlogOrder.length === 0) {
+    return issues
+  }
   const inOrder = backlogOrder.flatMap((id) => {
     const issue = issues.find((i) => i.id === id)
     return issue ? [issue] : []

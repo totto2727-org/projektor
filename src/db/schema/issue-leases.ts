@@ -1,8 +1,8 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
-import { agentSessions } from './agents'
-import { workspaces } from './core'
-import { issues, projects } from './issues'
+import { agentSessions } from './agents.ts'
+import { workspaces } from './core.ts'
+import { issues, projects } from './issues.ts'
 
 // Issue leases (PROJ-184). The partial UNIQUE index that enforces "one active
 // lease per issue" lives in the raw migration (0021) — Drizzle can't express a

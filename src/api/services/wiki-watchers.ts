@@ -1,7 +1,7 @@
-import { ApiResults } from '../../contracts/api-results'
-import type { CoreRpcShape } from '../../core/contract'
-import { apiReply } from './reply'
-import type { ApiOperationArgs, ApiServiceCtx } from './types'
+import { ApiResults } from '../../contracts/api-results.ts'
+import type { CoreRpcShape } from '../../core/contract.ts'
+import { apiReply } from './reply.ts'
+import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
 export function watchWikiPage(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiWatchWikiPage']>) {
   return apiReply(ApiResults.apiWatchWikiPage, ctx.core.apiWatchWikiPage(ctx.actor, ctx.workspaceId, ...args))

@@ -8,58 +8,60 @@ import { CorePublicError } from 'projektor/core-client'
 
 import type { ApiEnv, HonoEnv } from '#types'
 
-import { ApiDevelopmentBootstrap } from '../contracts/api-auth'
-import { ApiResults } from '../contracts/api-results'
-import { ServiceError } from '../contracts/errors'
-import { safeDecodeURIComponent } from '../contracts/urls'
-import { jsonBody } from './http/body'
-import { serviceErrToResponse } from './http/error-adapter'
-import { injectWikiMetadata, resolveWikiPageForSsr } from './lib/wiki-ssr'
-import { authMiddleware } from './middleware/auth'
-import { etagMiddleware } from './middleware/etag'
-import { rateLimitMiddleware } from './middleware/rate-limit'
-import { workspaceMiddleware } from './middleware/workspace'
+import { ApiDevelopmentBootstrap } from '../contracts/api-auth.ts'
+import { ApiResults } from '../contracts/api-results.ts'
+import { ServiceError } from '../contracts/errors.ts'
+import { safeDecodeURIComponent } from '../contracts/urls.ts'
+import { jsonBody } from './http/body.ts'
+import { serviceErrToResponse } from './http/error-adapter.ts'
+import { injectWikiMetadata, resolveWikiPageForSsr } from './lib/wiki-ssr.ts'
+import { authMiddleware } from './middleware/auth.ts'
+import { etagMiddleware } from './middleware/etag.ts'
+import { rateLimitMiddleware } from './middleware/rate-limit.ts'
+import { workspaceMiddleware } from './middleware/workspace.ts'
 import {
   createOAuthProvider,
   isOAuthAccessToken,
   isOAuthProviderPath,
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   oauthProviderRateLimited,
-} from './oauth/provider'
-import { agentMessagesRouter } from './routes/agent-messages'
-import { agentsRouter } from './routes/agents'
-import { authRouter } from './routes/auth'
-import { codeHeatmapRouter } from './routes/code-heatmap'
-import { commentsRouter } from './routes/comments'
-import { configRouter } from './routes/config'
-import { customFieldsRouter } from './routes/custom-fields'
-import { feedbackPublicRouter, feedbackRouter } from './routes/feedback'
-import { feedbackSourceLookupRouter, feedbackSourcesRouter } from './routes/feedback-sources'
-import { fileClaimsRouter } from './routes/file-claims'
-import { filesRouter } from './routes/files'
-import { flowMetricsRouter } from './routes/flow-metrics'
-import { groupsRouter } from './routes/groups'
-import { issueLeasesRouter } from './routes/issue-leases'
-import { issueLinksRouter } from './routes/issue-links'
-import { issuesRouter } from './routes/issues'
-import { mcpRouter } from './routes/mcp'
-import { oauthRouter } from './routes/oauth'
-import { oauthMetadataRouter } from './routes/oauth-metadata'
-import { playbooksRouter } from './routes/playbooks'
-import { projectActivityRouter } from './routes/project-activity'
-import { projectsRouter } from './routes/projects'
-import { realtimeRouter } from './routes/realtime'
-import { shareIssuesRouter, sharePublicRouter } from './routes/share'
-import { sprintsRouter } from './routes/sprints'
-import { taskStatusesRouter } from './routes/task-statuses'
-import { taskTypesRouter } from './routes/task-types'
-import { wikiRouter } from './routes/wiki'
-import { workflowRouter } from './routes/workflow'
-import { workspacesRouter } from './routes/workspaces'
+} from './oauth/provider.ts'
+import { agentMessagesRouter } from './routes/agent-messages.ts'
+import { agentsRouter } from './routes/agents.ts'
+import { authRouter } from './routes/auth.ts'
+import { codeHeatmapRouter } from './routes/code-heatmap.ts'
+import { commentsRouter } from './routes/comments.ts'
+import { configRouter } from './routes/config.ts'
+import { customFieldsRouter } from './routes/custom-fields.ts'
+import { feedbackSourceLookupRouter, feedbackSourcesRouter } from './routes/feedback-sources.ts'
+import { feedbackPublicRouter, feedbackRouter } from './routes/feedback.ts'
+import { fileClaimsRouter } from './routes/file-claims.ts'
+import { filesRouter } from './routes/files.ts'
+import { flowMetricsRouter } from './routes/flow-metrics.ts'
+import { groupsRouter } from './routes/groups.ts'
+import { issueLeasesRouter } from './routes/issue-leases.ts'
+import { issueLinksRouter } from './routes/issue-links.ts'
+import { issuesRouter } from './routes/issues.ts'
+import { mcpRouter } from './routes/mcp.ts'
+import { oauthMetadataRouter } from './routes/oauth-metadata.ts'
+import { oauthRouter } from './routes/oauth.ts'
+import { playbooksRouter } from './routes/playbooks.ts'
+import { projectActivityRouter } from './routes/project-activity.ts'
+import { projectsRouter } from './routes/projects.ts'
+import { realtimeRouter } from './routes/realtime.ts'
+import { shareIssuesRouter, sharePublicRouter } from './routes/share.ts'
+import { sprintsRouter } from './routes/sprints.ts'
+import { taskStatusesRouter } from './routes/task-statuses.ts'
+import { taskTypesRouter } from './routes/task-types.ts'
+import { wikiRouter } from './routes/wiki.ts'
+import { workflowRouter } from './routes/workflow.ts'
+import { workspacesRouter } from './routes/workspaces.ts'
 
 const app = new Hono<HonoEnv>()
 app.onError((error, c) => {
-  if (error instanceof CorePublicError || error instanceof ServiceError) return serviceErrToResponse(c, error)
+  if (error instanceof CorePublicError || error instanceof ServiceError) {
+    return serviceErrToResponse(c, error)
+  }
   console.error('unhandled error', { method: c.req.method, path: c.req.path, error })
   return c.json({ error: 'Internal Server Error' }, 500)
 })
@@ -148,7 +150,9 @@ app.use('/api/issue-links/*', authMiddleware, workspaceMiddleware)
 app.use('/api/wiki/*', authMiddleware, workspaceMiddleware)
 app.use('/mcp/*', authMiddleware, workspaceMiddleware)
 const allowFilesQueryWorkspaceFallback = async (c: Context<HonoEnv>, next: Next) => {
-  if (c.req.method === 'GET') c.set('allowQueryWorkspaceFallback', true)
+  if (c.req.method === 'GET') {
+    c.set('allowQueryWorkspaceFallback', true)
+  }
   await next()
 }
 app.use('/api/files/*', allowFilesQueryWorkspaceFallback)
@@ -198,15 +202,21 @@ app.route('/api', realtimeRouter)
 
 app.get('/wiki', async (c) => {
   const assets = c.env.ASSETS
-  if (!assets) return c.notFound()
+  if (!assets) {
+    return c.notFound()
+  }
   const slug = c.req.query('slug')
   const shell = () => assets.fetch(new Request(new URL('/wiki/index.html', c.req.url)))
-  if (!slug) return shell()
+  if (!slug) {
+    return shell()
+  }
   const page = await resolveWikiPageForSsr(c, slug)
   return page ? c.redirect(page.url, 301) : shell()
 })
 app.get('*', async (c) => {
-  if (!c.env.ASSETS) return c.notFound()
+  if (!c.env.ASSETS) {
+    return c.notFound()
+  }
   const { pathname } = new URL(c.req.url)
   const wikiSlugMatch = /^\/wiki\/([^/]+)\/?$/.exec(pathname)
   const fallbackPath = /^\/projects\/[^/]+\/issues\/\d+\//.test(pathname)
@@ -224,7 +234,9 @@ app.get('*', async (c) => {
   if (wikiSlugMatch) {
     const slug = safeDecodeURIComponent(wikiSlugMatch[1])
     const page = slug ? await resolveWikiPageForSsr(c, slug) : null
-    if (page) return injectWikiMetadata(response, page, new URL(pathname, c.req.url).toString())
+    if (page) {
+      return injectWikiMetadata(response, page, new URL(pathname, c.req.url).toString())
+    }
   }
   return response
 })
@@ -237,6 +249,7 @@ export async function scheduled(_controller: ScheduledController, env: ApiEnv, c
 // Only provider-shaped OAuth credentials enter the provider. Browser Access,
 // opaque tokens, development identity, and public viewer retain their precedence.
 const oauthProvider = createOAuthProvider(app as unknown as ExportedHandler<ApiEnv>)
+// oxlint-disable-next-line import/no-default-export -- Cloudflare Workers loads the API fetch and scheduled handlers from the default export.
 export default {
   async fetch(request: Request, env: ApiEnv, ctx: ExecutionContext): Promise<Response> {
     const { pathname } = new URL(request.url)
@@ -245,11 +258,13 @@ export default {
       const limited = await oauthProviderRateLimited(request, env)
       return limited ?? oauthProvider.fetch(request, env, ctx)
     }
-    if (isOAuthAccessToken(request)) return oauthProvider.fetch(request, env, ctx)
+    if (isOAuthAccessToken(request)) {
+      return oauthProvider.fetch(request, env, ctx)
+    }
     return app.fetch(request, env, ctx)
   },
   scheduled,
 } satisfies ExportedHandler<ApiEnv>
 
-export { RateLimiter } from './lib/rate-limiter-do'
-export { WorkspaceHub } from './realtime/workspace-hub'
+export { RateLimiter } from './lib/rate-limiter-do.ts'
+export { WorkspaceHub } from './realtime/workspace-hub.ts'

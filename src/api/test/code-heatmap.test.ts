@@ -1,10 +1,10 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import type { CodeHeatmapEntry, ContentionHeatmapEntry } from '#commands/code-heatmap'
+import type { CodeHeatmapEntry, ContentionHeatmapEntry } from '#commands/code-heatmap.ts'
 
-import { env } from './fixture-api'
-import { authHeaders, seedIssue, seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
 
 interface CodeHeatmapResponse {
   prefix: string
@@ -76,7 +76,7 @@ describe('Code heatmap (PROJ-332)', () => {
     })
   }
 
-  it('aggregates distinct issues per top-level directory within the window', async () => {
+  test('aggregates distinct issues per top-level directory within the window', async () => {
     const now = Math.floor(Date.now() / 1000)
     const apiIssue = await seedIssue(workspaceId, projectId, userId, { title: 'API work' })
     const apiIssue2 = await seedIssue(workspaceId, projectId, userId, { title: 'More API work' })
@@ -88,7 +88,7 @@ describe('Code heatmap (PROJ-332)', () => {
     await seedClaim(apiIssue2.id, 'apps/api/src/routes/code-heatmap.ts', now - 800)
     await seedClaim(webIssue.id, 'apps/web/src/islands/MetricsDashboard.tsx', now - 700)
     // Outside the requested window — must not count.
-    await seedClaim(oldIssue.id, 'apps/api/src/routes/old.ts', now - 10 * 86400)
+    await seedClaim(oldIssue.id, 'apps/api/src/routes/old.ts', now - 10 * 86_400)
 
     const res = await getHeatmap({ since: String(now - 3600), until: String(now) })
     const body = await expectHeatmapOk(res)
@@ -101,7 +101,7 @@ describe('Code heatmap (PROJ-332)', () => {
     expect(apps.claimCount).toBe(4)
   })
 
-  it('drills down via prefix, one segment at a time', async () => {
+  test('drills down via prefix, one segment at a time', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const issueB = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
@@ -123,7 +123,7 @@ describe('Code heatmap (PROJ-332)', () => {
     expect(apiBody.entries.every((e) => e.distinctIssueCount === 1)).toBe(true)
   })
 
-  it('counts a released claim toward the aggregate (soft-release retains history)', async () => {
+  test('counts a released claim toward the aggregate (soft-release retains history)', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Released work' })
     await seedClaim(issue.id, 'apps/api/src/routes/code-heatmap.ts', now - 500, now - 100)
@@ -133,7 +133,7 @@ describe('Code heatmap (PROJ-332)', () => {
     expect(body.totalDistinctIssues).toBe(1)
   })
 
-  it('treats a path claimed as both file and directory as a drillable directory', async () => {
+  test('treats a path claimed as both file and directory as a drillable directory', async () => {
     const now = Math.floor(Date.now() / 1000)
     const fileIssue = await seedIssue(workspaceId, projectId, userId, { title: 'File claim' })
     const dirIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Dir claim' })
@@ -149,7 +149,7 @@ describe('Code heatmap (PROJ-332)', () => {
     expect(docs?.distinctIssueCount).toBe(2)
   })
 
-  it('returns an empty entries array when no claims exist in the window', async () => {
+  test('returns an empty entries array when no claims exist in the window', async () => {
     const now = Math.floor(Date.now() / 1000)
     const res = await getHeatmap({ since: String(now - 3600), until: String(now) })
     expect(res.status).toBe(200)
@@ -158,7 +158,7 @@ describe('Code heatmap (PROJ-332)', () => {
     expect(body.totalDistinctIssues).toBe(0)
   })
 
-  it('MCP get_code_heatmap matches REST', async () => {
+  test('MCP get_code_heatmap matches REST', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Parity check' })
     await seedClaim(issue.id, 'apps/api/src/services/code-heatmap.ts', now - 100)
@@ -183,7 +183,7 @@ describe('Code heatmap (PROJ-332)', () => {
       }),
     })
     const mcpJson = (await mcpRes.json()) as {
-      result: { content: Array<{ text: string }> }
+      result: { content: { text: string }[] }
     }
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
 
@@ -191,7 +191,7 @@ describe('Code heatmap (PROJ-332)', () => {
   })
 
   describe('contention mode (PROJ-338)', () => {
-    it('aggregates distinct rejected issues per top-level directory within the window', async () => {
+    test('aggregates distinct rejected issues per top-level directory within the window', async () => {
       const now = Math.floor(Date.now() / 1000)
       const holdingIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
       const apiIssue = await seedIssue(workspaceId, projectId, userId, { title: 'API rejected' })
@@ -206,7 +206,7 @@ describe('Code heatmap (PROJ-332)', () => {
       await seedConflict(apiIssue2.id, holdingIssue.id, 'apps/api/src/routes/code-heatmap.ts', now - 800)
       await seedConflict(webIssue.id, holdingIssue.id, 'apps/web/src/islands/MetricsDashboard.tsx', now - 700)
       // Outside the requested window — must not count.
-      await seedConflict(oldIssue.id, holdingIssue.id, 'apps/api/src/routes/old.ts', now - 10 * 86400)
+      await seedConflict(oldIssue.id, holdingIssue.id, 'apps/api/src/routes/old.ts', now - 10 * 86_400)
 
       const res = await getHeatmap({
         since: String(now - 3600),
@@ -224,7 +224,7 @@ describe('Code heatmap (PROJ-332)', () => {
       expect(apps.conflictCount).toBe(4)
     })
 
-    it('drills down via prefix, one segment at a time', async () => {
+    test('drills down via prefix, one segment at a time', async () => {
       const now = Math.floor(Date.now() / 1000)
       const holdingIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
       const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
@@ -249,7 +249,7 @@ describe('Code heatmap (PROJ-332)', () => {
       expect(apiBody.entries.every((e) => e.distinctRejectedIssueCount === 1)).toBe(true)
     })
 
-    it('returns an empty entries array when no conflicts exist in the workspace', async () => {
+    test('returns an empty entries array when no conflicts exist in the workspace', async () => {
       const now = Math.floor(Date.now() / 1000)
       const res = await getHeatmap({
         since: String(now - 3600),

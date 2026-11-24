@@ -2,16 +2,16 @@
 // section/outline, and get_issue's long-body cursor.
 
 import { SELF } from 'cloudflare:test'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { outlineOf, sectionOf, windowText } from '../mcp/windowing'
-import { env } from './fixture-api'
-import { seedProjectFixture } from './helpers'
+import { outlineOf, sectionOf, windowText } from '../mcp/windowing.ts'
+import { env } from './fixture-api.ts'
+import { seedProjectFixture } from './helpers.ts'
 
-type Rpc = { result?: { content?: Array<{ text: string }>; isError?: boolean } }
+type Rpc = { result?: { content?: { text: string }[]; isError?: boolean } }
 
 describe('PROJ-892: windowing (unit)', () => {
-  it('never splits a surrogate pair at the window edge, and the cursor continues losslessly', () => {
+  test('never splits a surrogate pair at the window edge, and the cursor continues losslessly', () => {
     const text = `ab${'😀'.repeat(5)}cd` // 😀 is two UTF-16 units
     const first = windowText(text, { max: 3 }) // would land mid-pair
     expect(first.text).toBe('ab')
@@ -27,7 +27,7 @@ describe('PROJ-892: windowing (unit)', () => {
     expect(first.totalChars).toBe(text.length)
   })
 
-  it('a window smaller than one code point still makes progress (max:1 on an emoji)', () => {
+  test('a window smaller than one code point still makes progress (max:1 on an emoji)', () => {
     const text = '😀abc'
     const first = windowText(text, { max: 1 })
     expect(first.text).toBe('😀')
@@ -35,12 +35,12 @@ describe('PROJ-892: windowing (unit)', () => {
     expect(windowText(text, { max: 1, cursor: first.next }).text).toBe('a')
   })
 
-  it('rejects a bad cursor', () => {
+  test('rejects a bad cursor', () => {
     expect(() => windowText('abc', { max: 2, cursor: 'x' })).toThrow()
     expect(() => windowText('abc', { max: 2, cursor: '99' })).toThrow()
   })
 
-  it('outline skips code fences and frontmatter; sectionOf stops at the next same-or-higher heading', () => {
+  test('outline skips code fences and frontmatter; sectionOf stops at the next same-or-higher heading', () => {
     const md =
       '---\ntitle: x\n# not a heading\n---\n# Top\nintro\n## A\na body\n```\n# fake\n```\n### A1\ndeep\n## B\nb body\n'
     expect(outlineOf(md)).toEqual(['# Top', '## A', '### A1', '## B'])
@@ -83,7 +83,7 @@ describe('PROJ-892: MCP tools', () => {
     return JSON.parse(body.result?.content?.[0].text ?? 'null') as T
   }
 
-  it('list_issues: bodyChars previews and flags truncation; default has no body', async () => {
+  test('list_issues: bodyChars previews and flags truncation; default has no body', async () => {
     await tool('create_issue', {
       projectId: f.projectId,
       title: 'Long',
@@ -91,10 +91,10 @@ describe('PROJ-892: MCP tools', () => {
     })
     await tool('create_issue', { projectId: f.projectId, title: 'Short', body: 'tiny' })
 
-    const none = await tool<{ items: Array<Record<string, unknown>> }>('list_issues', {})
+    const none = await tool<{ items: Record<string, unknown>[] }>('list_issues', {})
     expect(none.items.every((i) => !('body' in i))).toBe(true)
 
-    const page = await tool<{ items: Array<Record<string, unknown>> }>('list_issues', {
+    const page = await tool<{ items: Record<string, unknown>[] }>('list_issues', {
       bodyChars: 100,
     })
     const long = page.items.find((i) => i.title === 'Long')
@@ -105,13 +105,13 @@ describe('PROJ-892: MCP tools', () => {
     expect(short).not.toHaveProperty('bodyTruncated')
   })
 
-  it('list_issues: bodyChars is validated (max 1000)', async () => {
+  test('list_issues: bodyChars is validated (max 1000)', async () => {
     const res = await call('list_issues', { bodyChars: 5000 })
     expect(res.result?.isError).toBe(true)
     expect(res.result?.content?.[0].text).toContain('bodyChars')
   })
 
-  it('get_issue: a body over 16,000 chars is windowed and continues via cursor', async () => {
+  test('get_issue: a body over 16,000 chars is windowed and continues via cursor', async () => {
     const body = 'abcdefghij'.repeat(2000) // 20,000 chars
     const created = await tool<{ id: string }>('create_issue', {
       projectId: f.projectId,
@@ -135,7 +135,7 @@ describe('PROJ-892: MCP tools', () => {
     expect(first.body + second.body).toBe(body)
   })
 
-  it('get_issue: a short body is returned whole with no window fields', async () => {
+  test('get_issue: a short body is returned whole with no window fields', async () => {
     const created = await tool<{ id: string }>('create_issue', {
       projectId: f.projectId,
       title: 'Small',
@@ -152,7 +152,7 @@ describe('PROJ-892: MCP tools', () => {
     return p.slug
   }
 
-  it('get_wiki_page: windows by maxChars with totalChars/outline, and the cursor reassembles the page', async () => {
+  test('get_wiki_page: windows by maxChars with totalChars/outline, and the cursor reassembles the page', async () => {
     const content = `# Intro\n${'x'.repeat(50)}\n## Details\n${'y'.repeat(50)}\n`
     const slug = await makeWiki(content)
     const first = await tool<{
@@ -181,7 +181,7 @@ describe('PROJ-892: MCP tools', () => {
     expect(text).toBe(content)
   })
 
-  it('get_wiki_page: contentTruncated is set on a partial window and absent on a whole page', async () => {
+  test('get_wiki_page: contentTruncated is set on a partial window and absent on a whole page', async () => {
     const slug = await makeWiki(`# T\n${'q'.repeat(200)}`)
     const part = await tool<{ contentTruncated?: boolean }>('get_wiki_page', {
       slug,
@@ -192,7 +192,7 @@ describe('PROJ-892: MCP tools', () => {
     expect(whole).not.toHaveProperty('contentTruncated')
   })
 
-  it('get_wiki_page: default window returns a small page whole', async () => {
+  test('get_wiki_page: default window returns a small page whole', async () => {
     const slug = await makeWiki('# Only\nshort')
     const page = await tool<{ content: string; next?: string; totalChars: number }>('get_wiki_page', { slug })
     expect(page.content).toBe('# Only\nshort')
@@ -200,7 +200,7 @@ describe('PROJ-892: MCP tools', () => {
     expect(page.totalChars).toBe(12)
   })
 
-  it('get_wiki_page: section returns just that section; a miss returns the outline', async () => {
+  test('get_wiki_page: section returns just that section; a miss returns the outline', async () => {
     const slug = await makeWiki('# Top\nintro\n## Alpha\nalpha text\n## Beta\nbeta text\n')
     const hit = await tool<{ content: string; section: string }>('get_wiki_page', {
       slug,
@@ -217,7 +217,7 @@ describe('PROJ-892: MCP tools', () => {
     expect(miss).not.toHaveProperty('content')
   })
 
-  it('get_wiki_page: maxChars is validated and a multi-byte boundary is not split', async () => {
+  test('get_wiki_page: maxChars is validated and a multi-byte boundary is not split', async () => {
     const slug = await makeWiki('😀'.repeat(10))
     const bad = await call('get_wiki_page', { slug, maxChars: 99_999 })
     expect(bad.result?.isError).toBe(true)

@@ -1,23 +1,25 @@
 import { and, asc, desc, eq } from 'drizzle-orm'
 import type { Effect } from 'effect'
 
-import { drizzle, schema, type WorkspaceBrand } from '#db'
+import { drizzle, schema } from '#db'
+import type { WorkspaceBrand } from '#db'
 
-import { type DataQueryError, queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
+import type { DataQueryError } from './errors.ts'
 import type {
   Workspace,
   WorkspaceMember,
   WorkspaceMemberRelation,
   WorkspaceMembership,
   WorkspaceTokenMetadata,
-} from './types'
+} from './types.ts'
 export type {
   Workspace,
   WorkspaceMember,
   WorkspaceMemberRelation,
   WorkspaceMembership,
   WorkspaceTokenMetadata,
-} from './types'
+} from './types.ts'
 export type { WorkspaceBrand } from '#db'
 
 export function listWorkspaces(db: D1Database, userId: string): Effect.Effect<WorkspaceMembership[], DataQueryError> {

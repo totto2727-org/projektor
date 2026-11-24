@@ -24,8 +24,12 @@ export interface ArgIssue {
 }
 
 function typeOf(v: unknown): string {
-  if (v === null) return 'null'
-  if (Array.isArray(v)) return 'array'
+  if (v === null) {
+    return 'null'
+  }
+  if (Array.isArray(v)) {
+    return 'array'
+  }
   return typeof v
 }
 
@@ -56,7 +60,9 @@ function matchesType(v: unknown, t: string): boolean {
 }
 
 function validate(value: unknown, schema: Schema, path: string, issues: ArgIssue[]): void {
-  if (value === null && schema.nullable === true) return
+  if (value === null && schema.nullable === true) {
+    return
+  }
 
   const declared = schema.type
   const types = Array.isArray(declared)
@@ -78,25 +84,31 @@ function validate(value: unknown, schema: Schema, path: string, issues: ArgIssue
   }
 
   if (typeof value === 'string') {
-    if (typeof schema.minLength === 'number' && value.length < schema.minLength)
+    if (typeof schema.minLength === 'number' && value.length < schema.minLength) {
       issues.push({ path, message: `must be at least ${schema.minLength} characters` })
-    if (typeof schema.maxLength === 'number' && value.length > schema.maxLength)
+    }
+    if (typeof schema.maxLength === 'number' && value.length > schema.maxLength) {
       issues.push({ path, message: `must be at most ${schema.maxLength} characters` })
+    }
   }
 
   if (typeof value === 'number' || isNumericString(value)) {
     const n = Number(value)
-    if (typeof schema.minimum === 'number' && n < schema.minimum)
+    if (typeof schema.minimum === 'number' && n < schema.minimum) {
       issues.push({ path, message: `must be >= ${schema.minimum}` })
-    if (typeof schema.maximum === 'number' && n > schema.maximum)
+    }
+    if (typeof schema.maximum === 'number' && n > schema.maximum) {
       issues.push({ path, message: `must be <= ${schema.maximum}` })
+    }
   }
 
   if (Array.isArray(value)) {
-    if (typeof schema.minItems === 'number' && value.length < schema.minItems)
+    if (typeof schema.minItems === 'number' && value.length < schema.minItems) {
       issues.push({ path, message: `must have at least ${schema.minItems} items` })
-    if (typeof schema.maxItems === 'number' && value.length > schema.maxItems)
+    }
+    if (typeof schema.maxItems === 'number' && value.length > schema.maxItems) {
       issues.push({ path, message: `must have at most ${schema.maxItems} items` })
+    }
     const items = schema.items
     if (items && typeof items === 'object' && !Array.isArray(items)) {
       value.forEach((item, i) => {
@@ -124,8 +136,12 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
   const required = new Set(Array.isArray(schema.required) ? schema.required : [])
   for (const [key, sub] of Object.entries(props)) {
     const v = obj[key]
-    if (v === undefined || !sub || typeof sub !== 'object') continue
-    if (v === null && !required.has(key)) continue // optional field cleared
+    if (v === undefined || !sub || typeof sub !== 'object') {
+      continue
+    }
+    if (v === null && !required.has(key)) {
+      continue
+    } // optional field cleared
     validate(v, sub, `${prefix}${key}`, issues)
   }
 }

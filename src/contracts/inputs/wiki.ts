@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { BooleanQueryParam } from './common'
+import { BooleanQueryParam } from './common.ts'
 
 // PROJ-517: no "/" — path-based wiki routing (PROJ-487) assumes single-segment
 // slugs everywhere except this schema; forbidding "/" here keeps it that way rather
@@ -14,7 +14,7 @@ export const SlugSchema = z
 export const CreatePageSchema = z
   .object({
     title: z.string().min(1).max(300),
-    content: z.string().max(500000).optional(),
+    content: z.string().max(500_000).optional(),
     parentId: z.string().uuid().optional(),
     projectId: z.string().uuid().optional(),
     slug: SlugSchema.optional(),
@@ -33,7 +33,7 @@ export const CreatePageSchema = z
 export const UpdatePageSchema = z
   .object({
     title: z.string().min(1).max(300).optional(),
-    content: z.string().max(500000).optional(),
+    content: z.string().max(500_000).optional(),
     parentId: z.string().uuid().nullable().optional(),
     // PROJ-483: renaming a page's slug leaves a wiki_redirects entry for the old
     // slug so existing links/bookmarks keep resolving (services/wiki.ts).
@@ -216,24 +216,24 @@ export const PatchWikiPageInputSchema = z.discriminatedUnion('op', [
   z.object({
     op: z.literal('append_to_section'),
     heading: z.string().min(1).max(500),
-    text: z.string().min(1).max(500000),
+    text: z.string().min(1).max(500_000),
     ...PatchBaseFields,
   }),
   z.object({
     op: z.literal('replace_section'),
     heading: z.string().min(1).max(500),
-    text: z.string().max(500000),
+    text: z.string().max(500_000),
     ...PatchBaseFields,
   }),
   z.object({
     op: z.literal('insert_after_heading'),
     heading: z.string().min(1).max(500),
-    text: z.string().min(1).max(500000),
+    text: z.string().min(1).max(500_000),
     ...PatchBaseFields,
   }),
   z.object({
     op: z.literal('append_to_page'),
-    text: z.string().min(1).max(500000),
+    text: z.string().min(1).max(500_000),
     ...PatchBaseFields,
   }),
   z.object({
@@ -308,7 +308,7 @@ export const ExportWikiInputSchema = z.discriminatedUnion('scope', [
 // explicitly (the WikiPage.tsx client always does).
 export const SaveWikiDraftInputSchema = z.object({
   title: z.string().min(1).max(300),
-  content: z.string().max(500000),
+  content: z.string().max(500_000),
   baseRevisionId: z.string().nullable().optional(),
   expectedDraftRevision: z.string().uuid().nullable().optional(),
 })

@@ -1,9 +1,11 @@
-import type { RequestScope } from './server'
+import type { RequestScope } from './server/index.ts'
 
 /** Native GET forms also work without JavaScript and preserve explicit URL scope. */
 export function ScopeSelection({ scope, url }: { scope: RequestScope; url: URL }) {
   const selection = scope.selection
-  if (selection.kind !== 'selection-required') return null
+  if (selection.kind !== 'selection-required') {
+    return null
+  }
   const project = selection.target === 'project'
   const options = project
     ? scope.projects

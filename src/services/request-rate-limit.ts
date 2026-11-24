@@ -1,8 +1,8 @@
 import type { Env } from '#types'
 
-import { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../contracts/request-rate-limit'
+import { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../contracts/request-rate-limit.ts'
 
-export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../contracts/request-rate-limit'
+export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '../contracts/request-rate-limit.ts'
 
 /** Native counter bindings and request policy only, with no application auth secrets. */
 export type RequestRateLimitEnv = Pick<
@@ -65,7 +65,9 @@ export async function checkRateLimit(
 // grant id, rather than the guessable user id alone, prevents naming another bucket.
 function oauthGrantKey(token: string): string | null {
   const parts = token.split(':')
-  if (parts.length !== 3 || !parts[0] || !parts[1]) return null
+  if (parts.length !== 3 || !parts[0] || !parts[1]) {
+    return null
+  }
   return `grant:${parts[0]}:${parts[1]}`
 }
 

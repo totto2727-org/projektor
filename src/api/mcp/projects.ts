@@ -1,6 +1,6 @@
-import { createProject, deleteProject, getProject, listProjects, updateProject } from '../services/projects'
-import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
-import type { MCPTool } from './types'
+import { createProject, deleteProject, getProject, listProjects, updateProject } from '../services/projects.ts'
+import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 export const projectsTools: MCPTool[] = [
   {

@@ -5,10 +5,10 @@
   "type": "module",
   "imports": {
     "#db": "./src/db/index.ts",
-    "#db/*": "./src/db/*.ts",
+    "#db/*": "./src/db/*",
     "#services": "./src/services/index.ts",
-    "#services/*": "./src/services/*.ts",
-    "#commands/*": "./src/services/commands/*.ts",
+    "#services/*": "./src/services/*",
+    "#commands/*": "./src/services/commands/*",
     "#types": "./src/types/index.ts",
     "#plugin-sdk": "./src/plugin-sdk/index.ts"
   },

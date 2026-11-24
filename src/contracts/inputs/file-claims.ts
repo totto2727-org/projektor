@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { BooleanQueryParam } from './common'
+import { BooleanQueryParam } from './common.ts'
 
 export const ClaimFilesSchema = z.object({
   issueId: z.string().uuid(),

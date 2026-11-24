@@ -1,4 +1,4 @@
-import { apiOrigin } from './src/deployment'
+import { apiOrigin } from './src/deployment.ts'
 
 /** Nonsecret production identities shared by deployment and the native acceptance graph. */
 export const deployment = {

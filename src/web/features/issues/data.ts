@@ -1,13 +1,13 @@
 import { Effect, Schema } from 'effect'
 
-import type { ReviewFilter } from '../../../contracts/review-targets'
-import { browserRequest, coreResult } from '../../core'
-import { RequestServices } from '../../request'
-import { dataError } from '../../server/data-context'
-import { ScopeError } from '../../server/errors'
-import type { RequestScope } from '../../server/request-context'
-import { SprintSchema } from '../planning/schemas'
-import { SearchResultsSchema, WikiSearchResultsSchema } from './action-schemas'
+import type { ReviewFilter } from '../../../contracts/review-targets.ts'
+import { browserRequest, coreResult } from '../../core.ts'
+import { RequestServices } from '../../request.ts'
+import { dataError } from '../../server/data-context.ts'
+import { ScopeError } from '../../server/errors.ts'
+import type { RequestScope } from '../../server/request-context.ts'
+import { SprintSchema } from '../planning/schemas.ts'
+import { SearchResultsSchema, WikiSearchResultsSchema } from './action-schemas.ts'
 import {
   AttachmentsSchema,
   CommentsSchema,
@@ -24,7 +24,7 @@ import {
   normalizeLinks,
   normalizeStatuses,
   normalizeTaskTypes,
-} from './types'
+} from './types.ts'
 
 export function checked<A>(read: () => A) {
   return Effect.try({ try: read, catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)) })

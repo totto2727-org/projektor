@@ -1,5 +1,5 @@
-import type { RequestScope } from '../../../server/request-context'
-import type { Issue } from '../types'
+import type { RequestScope } from '../../../server/request-context.ts'
+import type { Issue } from '../types.ts'
 export const workspace = {
   id: 'workspace-a',
   slug: 'workspace',

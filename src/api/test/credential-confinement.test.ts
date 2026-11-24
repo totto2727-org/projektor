@@ -1,11 +1,11 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedFixture, seedMember, seedProject, seedUserToken, seedWorkspace } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, seedMember, seedProject, seedUserToken, seedWorkspace } from './helpers.ts'
 
 describe('credential confinement for user-level operations', () => {
-  it('workspace credentials see only their workspace in REST catalogs and auth bootstrap', async () => {
+  test('workspace credentials see only their workspace in REST catalogs and auth bootstrap', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const other = await seedWorkspace()
     await seedMember(other.id, fixture.user.id, 'owner')
@@ -28,7 +28,7 @@ describe('credential confinement for user-level operations', () => {
     expect(projects.map((project) => project.id)).not.toContain(otherProject.id)
   })
 
-  it('user-scoped credentials retain access to their own cross-workspace catalog', async () => {
+  test('user-scoped credentials retain access to their own cross-workspace catalog', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const other = await seedWorkspace()
     await seedMember(other.id, fixture.user.id, 'owner')
@@ -43,7 +43,7 @@ describe('credential confinement for user-level operations', () => {
     )
   })
 
-  it('workspace credentials cannot create an unconfined workspace', async () => {
+  test('workspace credentials cannot create an unconfined workspace', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const slug = `confined-${crypto.randomUUID()}`
     const response = await SELF.fetch('http://localhost/api/workspaces', {
@@ -55,7 +55,7 @@ describe('credential confinement for user-level operations', () => {
     expect(await env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first()).toBeNull()
   })
 
-  it('bearer credentials cannot list or revoke personal connectors', async () => {
+  test('bearer credentials cannot list or revoke personal connectors', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const pat = await seedUserToken(fixture.user.id)
     for (const token of [fixture.token, pat]) {

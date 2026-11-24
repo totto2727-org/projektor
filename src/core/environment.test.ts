@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { isCoreEnvironment } from './environment'
+import { isCoreEnvironment } from './environment.ts'
 
 function fixture() {
   const binding = (methods: readonly string[]) => Object.fromEntries(methods.map((key) => [key, () => undefined]))
@@ -16,7 +16,7 @@ function fixture() {
 }
 
 describe('Core native environment admission', () => {
-  it('admits only concrete storage capabilities and scalar configuration', () => {
+  test('admits only concrete storage capabilities and scalar configuration', () => {
     expect(isCoreEnvironment(fixture())).toBe(true)
     expect(isCoreEnvironment({ ...fixture(), invocation: { waitUntil: () => undefined } })).toBe(true)
     expect(isCoreEnvironment({ ...fixture(), DB: {} })).toBe(false)

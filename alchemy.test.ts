@@ -10,14 +10,15 @@ import { dedupeBindings, diffBindings } from 'alchemy/Diff'
 import * as Output from 'alchemy/Output'
 import { ConfigProvider, Effect, Redacted } from 'effect'
 import * as HttpClient from 'effect/http/HttpClient'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { WorkerResources } from './alchemy'
 import { workers } from './alchemy.run'
-import { type EnvironmentLayer, LocalLayer, ProductionLayer, localDevelopment } from './worker-environment'
-import { deployment } from './worker-graph'
-import CoreEntrypoint from './workers/core'
-import Frontend from './workers/frontend'
+import { WorkerResources } from './alchemy.ts'
+import { LocalLayer, ProductionLayer, localDevelopment } from './worker-environment.ts'
+import type { EnvironmentLayer } from './worker-environment.ts'
+import { deployment } from './worker-graph.ts'
+import CoreEntrypoint from './workers/core.ts'
+import Frontend from './workers/frontend.ts'
 
 function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<string, string>) {
   return effect.pipe(Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromUnknown(values)))
@@ -90,7 +91,7 @@ function expectNoStorage(stack: Stack['Service'], id: 'Api' | 'Frontend') {
 }
 
 describe('source-owned private Core deployment', () => {
-  it.each([
+  test.each([
     { id: 'Core', entrypoint: CoreEntrypoint },
     { id: 'Frontend', entrypoint: Frontend },
   ])('selects the $id default export from its configured production module', async ({ id, entrypoint }) => {
@@ -101,7 +102,7 @@ describe('source-owned private Core deployment', () => {
     expect(module).toHaveProperty('default', entrypoint)
   })
 
-  it.each([
+  test.each([
     { local: false, entrypoint: CoreEntrypoint.pipe(Effect.asVoid), ids: ['Core'] },
     { local: true, entrypoint: CoreEntrypoint.pipe(Effect.asVoid), ids: ['Core'] },
     { local: false, entrypoint: Frontend.pipe(Effect.asVoid), ids: ['Core', 'Frontend'] },
@@ -118,8 +119,12 @@ describe('source-owned private Core deployment', () => {
     const provider = ConfigProvider.make((path) => {
       const key = path.join('.')
       reads.push(key)
-      if (key === 'ALCHEMY_PHASE') return Effect.succeed(ConfigProvider.makeValue('runtime'))
-      if (key === 'ALCHEMY_DEV') return Effect.succeed(ConfigProvider.makeValue(String(local)))
+      if (key === 'ALCHEMY_PHASE') {
+        return Effect.succeed(ConfigProvider.makeValue('runtime'))
+      }
+      if (key === 'ALCHEMY_DEV') {
+        return Effect.succeed(ConfigProvider.makeValue(String(local)))
+      }
       return Effect.die(new Error(`Runtime read deployment input ${key}`))
     })
     await Effect.runPromise(
@@ -150,12 +155,13 @@ describe('source-owned private Core deployment', () => {
     if (ids.includes('Frontend')) {
       expectNoStorage(stack, 'Frontend')
       expect(bindings(stack, 'Frontend')).toContainEqual(expect.objectContaining({ type: 'service', name: 'CORE' }))
-      for (const name of ['API', 'API_BASE', 'JWT_SECRET'])
+      for (const name of ['API', 'API_BASE', 'JWT_SECRET']) {
         expect(stack.resources.Frontend.Props.env).not.toHaveProperty(name)
+      }
     }
   })
 
-  it.each([false, true])('binds both public adapters natively to the same private Core (dev=%s)', async (local) => {
+  test.each([false, true])('binds both public adapters natively to the same private Core (dev=%s)', async (local) => {
     const { core, api, frontend, stack } = await register(local)
     expect(core.RemovalPolicy).toBe('retain')
     expect(core.Props).toMatchObject({
@@ -163,8 +169,9 @@ describe('source-owned private Core deployment', () => {
       main: './workers/core.ts',
       workersDev: { enabled: false, previewsEnabled: false },
     })
-    for (const property of ['domain', 'routes', 'crons', 'migrations', 'access'])
+    for (const property of ['domain', 'routes', 'crons', 'migrations', 'access']) {
       expect(core.Props).not.toHaveProperty(property)
+    }
     for (const [id, adapter] of [
       ['Api', api],
       ['Frontend', frontend],
@@ -180,11 +187,13 @@ describe('source-owned private Core deployment', () => {
       expect(services[0].service.expr.src.LogicalId).toBe('Core')
       expect(adapter.Props).not.toHaveProperty('migrations')
     }
-    for (const name of ['JWT_SECRET', 'API', 'API_BASE']) expect(frontend.Props.env).not.toHaveProperty(name)
+    for (const name of ['JWT_SECRET', 'API', 'API_BASE']) {
+      expect(frontend.Props.env).not.toHaveProperty(name)
+    }
     expect(core.Props.env).not.toHaveProperty('JWT_SECRET')
   })
 
-  it('uses native D1 migrations without custom Actions and directly gates every Worker update', async () => {
+  test('uses native D1 migrations without custom Actions and directly gates every Worker update', async () => {
     const { stack } = await register(false)
     expect(stack.actions).toEqual({})
     expect(stack.resources.Database.Props).toEqual({ name: 'projektor', migrations: './migrations' })
@@ -199,7 +208,7 @@ describe('source-owned private Core deployment', () => {
     expect(local.stack.actions).toEqual({})
   })
 
-  it('grants business storage only to Core and shares only official OAuth protocol KV with API', async () => {
+  test('grants business storage only to Core and shares only official OAuth protocol KV with API', async () => {
     const { core, api, stack } = await register(false)
     expect(Object.keys(stack.resources).sort()).toEqual([
       'Api',
@@ -230,7 +239,7 @@ describe('source-owned private Core deployment', () => {
       lifecycleRules: [
         {
           id: 'Default Multipart Abort Rule',
-          abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 604800 } },
+          abortMultipartUploadsTransition: { condition: { type: 'Age', maxAge: 604_800 } },
         },
       ],
     })
@@ -238,7 +247,7 @@ describe('source-owned private Core deployment', () => {
     expectNoStorage(stack, 'Frontend')
   })
 
-  it('declares retained local storage once, only on Core, with local migrations', async () => {
+  test('declares retained local storage once, only on Core, with local migrations', async () => {
     const { core, api, frontend, stack } = await register(true)
     expect(Object.keys(stack.resources).sort()).toEqual([
       'Api',
@@ -259,8 +268,11 @@ describe('source-owned private Core deployment', () => {
       expect((core.Props.env as WorkerBindingProps)[name]).toBe(stack.resources[id])
       expect(stack.resources[id].Adopt).toBe(false)
       expect(stack.resources[id].RemovalPolicy).toBe('retain')
-      if (name === 'OAUTH_KV') expect((api.Props.env as WorkerBindingProps)[name]).toBe(stack.resources.LocalOAuth)
-      else expect(api.Props.env).not.toHaveProperty(name)
+      if (name === 'OAUTH_KV') {
+        expect((api.Props.env as WorkerBindingProps)[name]).toBe(stack.resources.LocalOAuth)
+      } else {
+        expect(api.Props.env).not.toHaveProperty(name)
+      }
       expect(frontend.Props.env).not.toHaveProperty(name)
     }
     expect(api.Adopt).toBe(false)
@@ -268,7 +280,7 @@ describe('source-owned private Core deployment', () => {
     expect(bindings(stack, 'Core').some((binding) => binding.type === 'd1')).toBe(true)
   })
 
-  it.each([false, true])('keeps the API-owned RateLimiter namespace and sole cron (dev=%s)', async (local) => {
+  test.each([false, true])('keeps the API-owned RateLimiter namespace and sole cron (dev=%s)', async (local) => {
     const { api, stack } = await register(local)
     expect(api.Props.crons).toEqual(['0 3 * * *'])
     for (const id of ['Api', 'Core', 'Frontend']) {
@@ -279,11 +291,13 @@ describe('source-owned private Core deployment', () => {
       expect(namespaces[0].transferredFrom).toBeUndefined()
       expect(namespaces[0]).not.toHaveProperty('namespaceId')
       expect(bindings(stack, id).some((binding) => binding.className === 'WorkspaceHub')).toBe(false)
-      if (id !== 'Api') expect(stack.resources[id].Props).not.toHaveProperty('crons')
+      if (id !== 'Api') {
+        expect(stack.resources[id].Props).not.toHaveProperty('crons')
+      }
     }
   })
 
-  it('preserves exact public identities, compatibility, adoption and external Access policies', async () => {
+  test('preserves exact public identities, compatibility, adoption and external Access policies', async () => {
     const { api, frontend } = await register(false)
     expect(api.Props).toMatchObject({
       name: 'projektor',
@@ -313,20 +327,25 @@ describe('source-owned private Core deployment', () => {
     expect(deployment.access.domain).toBe(deployment.frontend.hostname)
   })
 
-  it('inherits the existing API signing secret without granting it to Core or Web', async () => {
+  test('inherits the existing API signing secret without granting it to Core or Web', async () => {
     const { api, core, frontend, stack } = await register(false, null)
-    for (const resource of [api, core, frontend]) expect(resource.Props.env).not.toHaveProperty('JWT_SECRET')
+    for (const resource of [api, core, frontend]) {
+      expect(resource.Props.env).not.toHaveProperty('JWT_SECRET')
+    }
     expect(bindings(stack, 'Api').filter((binding) => binding.name === 'JWT_SECRET')).toEqual([
       { type: 'inherit', name: 'JWT_SECRET' },
     ])
-    for (const id of ['Core', 'Frontend'])
+    for (const id of ['Core', 'Frontend']) {
       expect(bindings(stack, id).some((binding) => binding.name === 'JWT_SECRET')).toBe(false)
+    }
   })
 
-  it('accepts explicit initial API secret configuration then transitions to stable inheritance', async () => {
+  test('accepts explicit initial API secret configuration then transitions to stable inheritance', async () => {
     const initial = await register(false)
     const secret = (initial.api.Props.env as WorkerBindingProps).JWT_SECRET
-    if (!Redacted.isRedacted(secret)) throw new Error('Expected configured redacted secret')
+    if (!Redacted.isRedacted(secret)) {
+      throw new Error('Expected configured redacted secret')
+    }
     expect(Redacted.value(secret)).toBe('test-existing-production-value')
     expect(JSON.stringify(secret)).not.toContain('test-existing-production-value')
     const inherited = await register(false, null)
@@ -346,16 +365,19 @@ describe('source-owned private Core deployment', () => {
     ).toBe(true)
   })
 
-  it('uses development bypass/secret only in the local aggregate Layer', async () => {
+  test('uses development bypass/secret only in the local aggregate Layer', async () => {
     const local = await register(true, null, undefined, { DEV_USER_EMAIL: 'local@example.com' })
-    for (const resource of [local.api, local.core, local.frontend])
+    for (const resource of [local.api, local.core, local.frontend]) {
       expect(resource.Props.env).toMatchObject({
         ENVIRONMENT: 'development',
         DEV_USER_EMAIL: 'local@example.com',
         ADMIN_EMAILS: 'local@example.com',
       })
+    }
     const secret = (local.api.Props.env as WorkerBindingProps).JWT_SECRET
-    if (!Redacted.isRedacted(secret)) throw new Error('Expected local redacted secret')
+    if (!Redacted.isRedacted(secret)) {
+      throw new Error('Expected local redacted secret')
+    }
     expect(Redacted.value(secret)).toBe(localDevelopment.jwtSecret)
     const production = await register(false, null, undefined, { DEV_USER_EMAIL: 'untrusted@example.com' })
     for (const resource of [production.api, production.core, production.frontend]) {
@@ -365,12 +387,13 @@ describe('source-owned private Core deployment', () => {
         CF_ACCESS_TEAM_DOMAIN: deployment.access.teamDomain,
         CF_ACCESS_AUDIENCE: deployment.access.audience,
       })
-      for (const name of ['DEV_USER_EMAIL', 'BOOTSTRAP_SECRET', 'PUBLIC_READ_ONLY', 'WORKSPACE_SUBDOMAIN_ROUTING'])
+      for (const name of ['DEV_USER_EMAIL', 'BOOTSTRAP_SECRET', 'PUBLIC_READ_ONLY', 'WORKSPACE_SUBDOMAIN_ROUTING']) {
         expect(resource.Props.env).not.toHaveProperty(name)
+      }
     }
   })
 
-  it('selects explicit aggregate Layers without leaf-level environment branching', async () => {
+  test('selects explicit aggregate Layers without leaf-level environment branching', async () => {
     const local = await register(false, null, LocalLayer)
     expect((local.core.Props.env as WorkerBindingProps).DB).toBe(local.stack.resources.LocalDatabase)
     expect(local.api.Props.env).toMatchObject({
@@ -396,7 +419,7 @@ describe('source-owned private Core deployment', () => {
     expectNoStorage(production.stack, 'Frontend')
   })
 
-  it('does not add custom account-selection gates', async () => {
+  test('does not add custom account-selection gates', async () => {
     const { stack } = await register(false, null, undefined, {}, 'different-account')
     expect(Object.keys(stack.resources).sort()).toEqual([
       'Api',

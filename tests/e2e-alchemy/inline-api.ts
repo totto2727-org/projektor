@@ -8,8 +8,8 @@ import type * as RuntimeServices from '@alchemy.run/cloudflare-runtime/core/Runt
 import type * as WorkerdConfig from '@alchemy.run/cloudflare-runtime/core/workerd/Config'
 import { Effect, Layer } from 'effect'
 
-import { deployment } from '../../worker-graph'
-import { apiWorkerOptions, coreServiceBinding, coreWorkerOptions, fixtureServices } from './api-host'
+import { deployment } from '../../worker-graph.ts'
+import { apiWorkerOptions, coreServiceBinding, coreWorkerOptions, fixtureServices } from './api-host.ts'
 
 const apiStorage = 'projektor-e2e-api-do-storage'
 const loopbackNetwork = 'projektor-e2e-loopback-only'
@@ -30,7 +30,9 @@ async function readWorkerModules(directory: string, entryName: string): Promise<
     const file = join(entry.parentPath, entry.name)
     const name = relative(directory, file).replaceAll('\\', '/')
     const extension = extname(file)
-    if (extension === '.map') continue
+    if (extension === '.map') {
+      continue
+    }
     if (extension === '.js' || extension === '.mjs') {
       modules.push({ name, esModule: await readFile(file, 'utf8') })
     } else if (extension === '.cjs') {
@@ -46,9 +48,13 @@ async function readWorkerModules(directory: string, entryName: string): Promise<
     }
   }
   const index = modules.findIndex((module) => module.name === entryName)
-  if (index < 0) throw new Error(`Build the official Worker artifact before previewing: ${entryName}`)
+  if (index < 0) {
+    throw new Error(`Build the official Worker artifact before previewing: ${entryName}`)
+  }
   const [entry] = modules.splice(index, 1)
-  if (!entry) throw new Error(`The official Worker entry module is missing: ${entryName}`)
+  if (!entry) {
+    throw new Error(`The official Worker entry module is missing: ${entryName}`)
+  }
   return [entry, ...modules]
 }
 
@@ -89,7 +95,9 @@ export async function makeInlineApiLayer(directory: string) {
         }),
       },
       defer: Effect.sync((): Plugin.PluginConfig => {
-        if (!apiBindings || !coreBindings) throw new Error('The native three-Worker graph was not initialized.')
+        if (!apiBindings || !coreBindings) {
+          throw new Error('The native three-Worker graph was not initialized.')
+        }
         return {
           userWorker: { globalOutbound: { name: loopbackNetwork } },
           services: [

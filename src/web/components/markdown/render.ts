@@ -3,8 +3,10 @@ import footnotes from '@comark/html/plugins/footnotes'
 import math, { Math as MathComponent } from '@comark/html/plugins/math'
 import mermaid, { Mermaid } from '@comark/html/plugins/mermaid'
 import shiki from '@comark/html/plugins/shiki'
-import toc, { type TocLink } from '@comark/html/plugins/toc'
-import { createMarkdownParser, type ComarkPlugin } from 'comark'
+import toc from '@comark/html/plugins/toc'
+import type { TocLink } from '@comark/html/plugins/toc'
+import { createMarkdownParser } from 'comark'
+import type { ComarkPlugin } from 'comark'
 import sanitizeHtml from 'sanitize-html'
 import githubDark from 'shiki/themes/github-dark.mjs'
 import githubLight from 'shiki/themes/github-light.mjs'
@@ -16,10 +18,10 @@ export interface MarkdownHeading {
 }
 export interface RenderedMarkdown {
   readonly html: string
-  readonly toc: ReadonlyArray<MarkdownHeading>
+  readonly toc: readonly MarkdownHeading[]
 }
 export interface MarkdownOptions {
-  readonly pages?: ReadonlyArray<{ title: string; slug: string }>
+  readonly pages?: readonly { title: string; slug: string }[]
   readonly workspaceSlug?: string
   readonly projectId?: string
 }
@@ -118,10 +120,14 @@ export function sanitizeMarkdownHtml(html: string): string {
       '*': (tagName, attribs) => {
         for (const key of ['fill', 'stroke']) {
           const paint = attribs[key]
-          if (paint && !/^(?:[a-z]+|#[\da-f]{3,8}|var\(--[\w-]+\)|url\(#[\w-]+\))$/i.test(paint)) delete attribs[key]
+          if (paint && !/^(?:[a-z]+|#[\da-f]{3,8}|var\(--[\w-]+\)|url\(#[\w-]+\))$/i.test(paint)) {
+            delete attribs[key]
+          }
         }
         for (const key of ['marker-end', 'marker-start']) {
-          if (attribs[key] && !/^(?:none|url\(#[\w-]+\))$/.test(attribs[key])) delete attribs[key]
+          if (attribs[key] && !/^(?:none|url\(#[\w-]+\))$/.test(attribs[key])) {
+            delete attribs[key]
+          }
         }
         if (tagName === 'input') {
           attribs.type = 'checkbox'
@@ -138,9 +144,14 @@ function wikiLinks(options: MarkdownOptions): ComarkPlugin {
   const pages = new Map(options.pages?.map((page) => [fold(page.title), page.slug]))
   const scoped = (path: string) => {
     const url = new URL(path, 'https://wiki.invalid')
-    if (options.workspaceSlug) url.searchParams.set('workspace', options.workspaceSlug)
-    if (options.projectId) url.searchParams.set('projectId', options.projectId)
-    else if (options.workspaceSlug) url.searchParams.set('scope', 'workspace')
+    if (options.workspaceSlug) {
+      url.searchParams.set('workspace', options.workspaceSlug)
+    }
+    if (options.projectId) {
+      url.searchParams.set('projectId', options.projectId)
+    } else if (options.workspaceSlug) {
+      url.searchParams.set('scope', 'workspace')
+    }
     return `${url.pathname}${url.search}${url.hash}`
   }
   return {
@@ -155,10 +166,13 @@ function wikiLinks(options: MarkdownOptions): ComarkPlugin {
               0,
             ) > 0 ||
             state.src.slice(state.pos, state.pos + 2) !== '[['
-          )
+          ) {
             return false
+          }
           const match = /^\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/.exec(state.src.slice(state.pos, state.posMax))
-          if (!match) return false
+          if (!match) {
+            return false
+          }
           if (!silent) {
             const title = match[1].trim()
             const label = match[2]?.trim() ?? title

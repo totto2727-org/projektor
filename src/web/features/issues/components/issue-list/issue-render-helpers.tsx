@@ -1,9 +1,10 @@
 'use client'
-import Select from '../../../../components/ui/Select'
-import { formatIssueRef } from '../../lib/issue-ref'
-import { statusDisplayName } from '../../lib/status'
-import { PRIORITY_OPTIONS } from '../../utils/issue-utils'
-import { categoryColor, type Issue, type SortKey, type TaskStatus } from '../board-utils'
+import Select from '../../../../components/ui/Select.tsx'
+import { formatIssueRef } from '../../lib/issue-ref.ts'
+import { statusDisplayName } from '../../lib/status.ts'
+import { PRIORITY_OPTIONS } from '../../utils/issue-utils.ts'
+import { categoryColor } from '../board-utils.ts'
+import type { Issue, SortKey, TaskStatus } from '../board-utils.ts'
 
 export function getStoryPoints(issue: Issue): string | null {
   const field = (issue.customFields ?? []).find((f) => f.key === 'story_points')
@@ -84,7 +85,9 @@ export function StatusSelect({
   busy: boolean
   onChange: (value: string) => void
 }) {
-  if (statuses.length === 0) return statusBadge(issue)
+  if (statuses.length === 0) {
+    return statusBadge(issue)
+  }
   return (
     <Select
       ariaLabel={`Change status for issue ${formatIssueRef(issue.project_key, issue.number)}`}

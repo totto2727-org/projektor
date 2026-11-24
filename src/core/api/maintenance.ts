@@ -1,8 +1,8 @@
-import type { ServiceCtx } from '#commands/types'
-import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki'
+import type { ServiceCtx } from '#commands/types.ts'
+import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki.ts'
 
-import type { CoreEnvironment } from '../environment'
-import { purgeOAuthPage } from './oauth-purge'
+import type { CoreEnvironment } from '../environment.ts'
+import { purgeOAuthPage } from './oauth-purge.ts'
 
 const FTS_DEDUPE_ONCE_KV_KEY = 'maint:fts-dedupe-0065'
 const RETENTION_CHUNK_SIZE = 500
@@ -23,7 +23,9 @@ export async function runMaintenance(env: CoreEnvironment): Promise<void> {
 
 export async function runFtsDedupeOnce(env: CoreEnvironment): Promise<void> {
   try {
-    if (await env.KV.get(FTS_DEDUPE_ONCE_KV_KEY)) return
+    if (await env.KV.get(FTS_DEDUPE_ONCE_KV_KEY)) {
+      return
+    }
     await env.DB.prepare(`UPDATE OR IGNORE wiki_pages SET search_rowid = (
       SELECT MAX(rowid) FROM wiki_fts WHERE page_id = wiki_pages.id) WHERE search_rowid IS NULL`).run()
     const result = await env.DB.prepare(
@@ -38,7 +40,7 @@ export async function runFtsDedupeOnce(env: CoreEnvironment): Promise<void> {
 
 function retentionCutoff(raw: string | undefined, defaultDays: number): number {
   const days = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : Number.NaN
-  return Math.floor(Date.now() / 1000) - (Number.isFinite(days) && days > 0 ? days : defaultDays) * 86400
+  return Math.floor(Date.now() / 1000) - (Number.isFinite(days) && days > 0 ? days : defaultDays) * 86_400
 }
 
 async function deleteExpiredInChunks(db: D1Database, table: string, whereSql: string, params: readonly unknown[]) {
@@ -50,7 +52,9 @@ async function deleteExpiredInChunks(db: D1Database, table: string, whereSql: st
       .run()
     const changes = result.meta.changes ?? 0
     totalDeleted += changes
-    if (changes < RETENTION_CHUNK_SIZE) break
+    if (changes < RETENTION_CHUNK_SIZE) {
+      break
+    }
   }
   return totalDeleted
 }
@@ -107,7 +111,7 @@ export async function purgeExpiredOAuthData(env: CoreEnvironment): Promise<void>
   try {
     const [{ OAuthProvider }, { providerOptions }] = await Promise.all([
       import('@cloudflare/workers-oauth-provider'),
-      import('../../contracts/oauth-provider'),
+      import('../../contracts/oauth-provider.ts'),
     ])
     const oauthProvider = new OAuthProvider(
       providerOptions<Pick<CoreEnvironment, 'OAUTH_KV'>>({
@@ -145,7 +149,7 @@ function wrapD1WithBudget(db: D1Database, budget: SubrequestBudget): D1Database 
   const reads = new Set(['all', 'first', 'raw', 'run'])
   return new Proxy(db, {
     get(target, property, receiver) {
-      if (property === 'prepare')
+      if (property === 'prepare') {
         return (sql: string) => {
           const statement = Reflect.get(target, 'prepare', receiver).call(target, sql)
           return new Proxy(statement, {
@@ -170,11 +174,13 @@ function wrapD1WithBudget(db: D1Database, budget: SubrequestBudget): D1Database 
             },
           })
         }
-      if (property === 'batch')
+      }
+      if (property === 'batch') {
         return async (statements: D1PreparedStatement[]) => {
           budget.spend()
           return Reflect.get(target, 'batch', receiver).call(target, statements)
         }
+      }
       const original = Reflect.get(target, property, receiver)
       return typeof original === 'function' ? original.bind(target) : original
     },
@@ -185,7 +191,9 @@ function wrapCallsWithBudget<T extends object>(target: T, budget: SubrequestBudg
   return new Proxy(target, {
     get(object, property, receiver) {
       const original = Reflect.get(object, property, receiver)
-      if (typeof original !== 'function') return original
+      if (typeof original !== 'function') {
+        return original
+      }
       return (...args: unknown[]) => {
         budget.spend()
         return original.apply(object, args)
@@ -196,11 +204,14 @@ function wrapCallsWithBudget<T extends object>(target: T, budget: SubrequestBudg
 
 async function loadCursor(kv: KVNamespace): Promise<string[] | null> {
   const raw = await kv.get(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
-  if (!raw) return null
+  if (!raw) {
+    return null
+  }
   try {
     const parsed: unknown = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object' || !('workspaceIds' in parsed) || !Array.isArray(parsed.workspaceIds))
+    if (!parsed || typeof parsed !== 'object' || !('workspaceIds' in parsed) || !Array.isArray(parsed.workspaceIds)) {
       return null
+    }
     return parsed.workspaceIds.filter((id): id is string => typeof id === 'string')
   } catch {
     return null
@@ -222,7 +233,9 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
   while (remaining.length > 0 && budget.remaining() >= WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE) {
     const id = remaining[0]
     if (failedThisRun.has(id)) {
-      if (remaining.every((workspace) => failedThisRun.has(workspace))) break
+      if (remaining.every((workspace) => failedThisRun.has(workspace))) {
+        break
+      }
       remaining.push(remaining.shift()!)
       continue
     }
@@ -238,18 +251,26 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
     try {
       const result = await purgeExpiredWikiPages(ctx)
       purged++
-      if (result.moreExpired) remaining.push(remaining.shift()!)
-      else remaining.shift()
+      if (result.moreExpired) {
+        remaining.push(remaining.shift()!)
+      } else {
+        remaining.shift()
+      }
     } catch (error) {
       failed++
       failedThisRun.add(id)
       console.error('scheduled wiki trash purge failed for one workspace', { workspaceId: id, error })
       remaining.push(remaining.shift()!)
     }
-    if (budget.used() === usedBefore) break
+    if (budget.used() === usedBefore) {
+      break
+    }
   }
-  if (remaining.length === 0) await kv.delete(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
-  else await kv.put(WIKI_TRASH_PURGE_CURSOR_KV_KEY, JSON.stringify({ workspaceIds: remaining }))
+  if (remaining.length === 0) {
+    await kv.delete(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
+  } else {
+    await kv.put(WIKI_TRASH_PURGE_CURSOR_KV_KEY, JSON.stringify({ workspaceIds: remaining }))
+  }
   console.log('scheduled wiki trash purge complete', {
     purgedWorkspaces: purged,
     failedWorkspaces: failed,

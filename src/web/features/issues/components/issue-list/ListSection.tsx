@@ -1,10 +1,10 @@
 'use client'
-import { formatIssueRef } from '../../lib/issue-ref'
-import { issueUrl } from '../../utils/issue-url'
-import { useMediaQuery } from '../../utils/use-media-query'
-import type { Issue, SortKey, TaskStatus } from '../board-utils'
-import { ReviewTargetsSummary } from '../ReviewTargetsSummary'
-import { IssueSelectionControl } from './BulkActions'
+import { formatIssueRef } from '../../lib/issue-ref.ts'
+import { issueUrl } from '../../utils/issue-url.ts'
+import { useMediaQuery } from '../../utils/use-media-query.ts'
+import type { Issue, SortKey, TaskStatus } from '../board-utils.ts'
+import { ReviewTargetsSummary } from '../ReviewTargetsSummary.tsx'
+import { IssueSelectionControl } from './BulkActions.tsx'
 import {
   getStoryPoints,
   PrioritySelect,
@@ -12,8 +12,9 @@ import {
   StatusSelect,
   spBadge,
   statusBadge,
-} from './issue-render-helpers'
-import { type IssuePagination, PageNavigation } from './PageNavigation'
+} from './issue-render-helpers.tsx'
+import { PageNavigation } from './PageNavigation.tsx'
+import type { IssuePagination } from './PageNavigation.tsx'
 
 interface ListSectionProps {
   issues: Issue[]

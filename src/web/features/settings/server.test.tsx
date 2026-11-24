@@ -1,17 +1,17 @@
 import { Effect, Schema } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { resetProvisioningCacheForTests } from '#commands/provisioning'
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
 
-import { apiOrigin } from '../../../deployment'
-import { makeRequestServices, RequestServices } from '../../request'
-import type { RequestScope } from '../../server/request-context'
-import { inMemoryKV, testEnvironment } from '../../server/test/resources'
-import { createTestDatabase } from '../../test/database'
-import { ConnectorSchema, GroupDetailSchema, McpInfoSchema, TokenSchema } from './schemas'
-import { renderConnectAgent, renderConnectors, renderGroups, renderTokens } from './server'
+import { apiOrigin } from '../../../deployment.ts'
+import { makeRequestServices, RequestServices } from '../../request.ts'
+import type { RequestScope } from '../../server/request-context.ts'
+import { inMemoryKV, testEnvironment } from '../../server/test/resources.ts'
+import { createTestDatabase } from '../../test/database.ts'
+import { ConnectorSchema, GroupDetailSchema, McpInfoSchema, TokenSchema } from './schemas.ts'
+import { renderConnectAgent, renderConnectors, renderGroups, renderTokens } from './server.tsx'
 
 vi.mock('cloudflare:workers', () => ({ WorkerEntrypoint: class {} }))
 vi.mock('./actions', () => ({
@@ -64,12 +64,14 @@ const connector = {
   clientId: 'client-one',
   scopes: ['read', 'write'],
   grantedAt: 1,
-  expiresAt: 2000000000,
+  expiresAt: 2_000_000_000,
 }
 const url = new URL('https://front.example/settings?workspace=alpha')
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 async function fixture(currentScope = scope) {
   resetAuthCachesForTests()
@@ -90,10 +92,11 @@ async function fixture(currentScope = scope) {
     currentScope.selection.kind === 'workspace' || currentScope.selection.kind === 'project'
       ? currentScope.selection.workspace
       : null
-  if (selectedWorkspace)
+  if (selectedWorkspace) {
     database.sqlite
       .prepare('UPDATE workspace_members SET role = ? WHERE workspace_id = ? AND user_id = ?')
       .run(selectedWorkspace.role, selectedWorkspace.id, 'u1')
+  }
   const calls = vi.spyOn(globalThis, 'fetch')
   const oauthKV = inMemoryKV()
   await oauthKV.put(
@@ -133,7 +136,7 @@ async function fixture(currentScope = scope) {
 }
 
 describe('settings authorized direct D1 SSR', () => {
-  it.each(['groups', 'members'] as const)('keeps canonical native URL %s view and original DTOs', async (view) => {
+  test.each(['groups', 'members'] as const)('keeps canonical native URL %s view and original DTOs', async (view) => {
     const f = await fixture()
     const node = await f.run(
       renderGroups(f.scope, new URL(`https://front.example/settings/groups?workspace=alpha&view=${view}`)),
@@ -152,7 +155,8 @@ describe('settings authorized direct D1 SSR', () => {
     expect(f.calls).not.toHaveBeenCalled()
     expect(renderToStaticMarkup(node)).toContain(`id="group-tabpanel-${view}"`)
   })
-  it('rejects malformed view before database queries', async () => {
+
+  test('rejects malformed view before database queries', async () => {
     const f = await fixture()
     const prepare = vi.spyOn(f.db, 'prepare')
     await expect(
@@ -160,7 +164,8 @@ describe('settings authorized direct D1 SSR', () => {
     ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
     expect(prepare).not.toHaveBeenCalled()
   })
-  it('filters member groups and avoids every management detail/member-group query for nonadmins', async () => {
+
+  test('filters member groups and avoids every management detail/member-group query for nonadmins', async () => {
     const member = { ...workspace, role: 'member' as const }
     const memberScope: RequestScope = {
       ...scope,
@@ -178,7 +183,8 @@ describe('settings authorized direct D1 SSR', () => {
     expect(prepare.mock.calls.some(([query]) => /"added_by".*inner join "users"/s.test(query))).toBe(false)
     expect(renderToStaticMarkup(node)).toContain('Only owners and admins manage groups.')
   })
-  it('loads token metadata only from selected workspace and never serializes credential hashes', async () => {
+
+  test('loads token metadata only from selected workspace and never serializes credential hashes', async () => {
     const f = await fixture()
     const node = await f.run(renderTokens(f.scope, url))
     expect(node.props.initialTokens).toEqual([token])
@@ -189,7 +195,8 @@ describe('settings authorized direct D1 SSR', () => {
     expect(f.calls).not.toHaveBeenCalled()
     expect(renderToStaticMarkup(node)).toContain('Agent token')
   })
-  it('denies member token reads before credential DB access while preserving personal connector and guide controls', async () => {
+
+  test('denies member token reads before credential DB access while preserving personal connector and guide controls', async () => {
     const member = { ...workspace, role: 'member' as const }
     const memberScope: RequestScope = {
       ...scope,
@@ -209,7 +216,8 @@ describe('settings authorized direct D1 SSR', () => {
     expect(html).toContain('Disconnect')
     expect(html).toContain('Access denied.')
   })
-  it('uses verified native auth for connector credentials and deployment MCP configuration without HTTP', async () => {
+
+  test('uses verified native auth for connector credentials and deployment MCP configuration without HTTP', async () => {
     const f = await fixture()
     const connectors = await f.run(renderConnectors(f.scope, url))
     expect(connectors.props.initialGrants).toEqual([connector])
@@ -217,14 +225,16 @@ describe('settings authorized direct D1 SSR', () => {
     expect(guide.props.mcpUrl).toBe(`${apiOrigin}/mcp/w1`)
     expect(f.calls).not.toHaveBeenCalled()
   })
-  it('rejects forged selected workspace membership before DB', async () => {
+
+  test('rejects forged selected workspace membership before DB', async () => {
     const deniedScope: RequestScope = { ...scope, workspaces: [] }
     const f = await fixture(deniedScope)
     const prepare = vi.spyOn(f.db, 'prepare')
     expect(renderToStaticMarkup(await f.run(renderGroups(f.scope, url)))).toContain('Only workspace owners and admins')
     expect(prepare).not.toHaveBeenCalled()
   })
-  it('preserves forbidden connector guidance and optional unavailable MCP metadata', async () => {
+
+  test('preserves forbidden connector guidance and optional unavailable MCP metadata', async () => {
     const f = await fixture()
     const unverified: RequestScope = { ...f.scope, auth: undefined }
     const node = await f.run(renderTokens(unverified, url))
@@ -232,7 +242,8 @@ describe('settings authorized direct D1 SSR', () => {
     expect(renderToStaticMarkup(node)).toContain('Access denied.')
     expect(renderToStaticMarkup(await f.run(renderConnectors(unverified, url)))).toContain('Signed-in members only.')
   })
-  it('propagates core DB failures with redacted diagnostics', async () => {
+
+  test('propagates core DB failures with redacted diagnostics', async () => {
     const f = await fixture()
     f.sqlite.exec('DROP TABLE user_groups')
     const error = await f.run(renderGroups(f.scope, url).pipe(Effect.catch((error) => Effect.succeed(error))))
@@ -243,7 +254,8 @@ describe('settings authorized direct D1 SSR', () => {
     })
     expect(JSON.stringify(error)).not.toContain('user_groups')
   })
-  it('keeps concrete DTO validation for metadata, group roles and MCP config', () => {
+
+  test('keeps concrete DTO validation for metadata, group roles and MCP config', () => {
     expect(() => Schema.decodeUnknownSync(TokenSchema)({ ...token, scopes: ['read'] })).toThrow()
     expect(() => Schema.decodeUnknownSync(ConnectorSchema)({ ...connector, expiresAt: 'tomorrow' })).toThrow()
     expect(() =>

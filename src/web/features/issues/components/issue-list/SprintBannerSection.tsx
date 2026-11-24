@@ -3,13 +3,13 @@ import { Schema } from 'effect'
 import type { Dispatch, SetStateAction } from 'react'
 import { useState } from 'react'
 
-import { unwrapResult } from '../../../../client/functions'
-import { Button } from '../../../../components/ui/Button'
-import { formatTimestampDate } from '../../../timestamp'
-import { updateSprint } from '../../actions'
-import { RequiredText, Text, useIssueForm } from '../../forms'
-import { dateInputToUnix, unixToDateInput } from '../../utils/date-input'
-import type { Issue } from '../board-utils'
+import { unwrapResult } from '../../../../client/functions.ts'
+import { Button } from '../../../../components/ui/Button.tsx'
+import { formatTimestampDate } from '../../../timestamp.ts'
+import { updateSprint } from '../../actions.ts'
+import { RequiredText, Text, useIssueForm } from '../../forms.ts'
+import { dateInputToUnix, unixToDateInput } from '../../utils/date-input.ts'
+import type { Issue } from '../board-utils.ts'
 
 export interface SprintDetail {
   id: string
@@ -48,7 +48,9 @@ function sprintStatusStyle(status: SprintDetail['status']): {
 function SprintProgress({ issues }: { issues: Issue[] }) {
   const doneCount = issues.filter((i) => i.status_category === 'done').length
   const totalCount = issues.length
-  if (totalCount === 0) return null
+  if (totalCount === 0) {
+    return null
+  }
   const pct = Math.round((doneCount / totalCount) * 100)
   return (
     <div className='mt-2'>
@@ -326,7 +328,9 @@ export default function SprintBannerSection({
   const [sprintEditError, setSprintEditError] = useState<string | null>(null)
 
   function openSprintEdit() {
-    if (!sprintDetail) return
+    if (!sprintDetail) {
+      return
+    }
     setSprintEditName(sprintDetail.name)
     setSprintEditGoal(sprintDetail.goal ?? '')
     setSprintEditStatus(sprintDetail.status)
@@ -338,7 +342,9 @@ export default function SprintBannerSection({
 
   async function saveSprintEdit(e: import('react').FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!sprintDetail) return
+    if (!sprintDetail) {
+      return
+    }
     if (!(await sprintForm.validate())) {
       setSprintEditError('Enter a sprint name.')
       return
@@ -362,7 +368,9 @@ export default function SprintBannerSection({
     setSprintEditSaving(false)
   }
 
-  if (!filterSprintId || !sprintDetail) return null
+  if (!filterSprintId || !sprintDetail) {
+    return null
+  }
 
   return (
     <SprintBanner

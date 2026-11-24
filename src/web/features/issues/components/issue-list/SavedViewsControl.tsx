@@ -1,13 +1,13 @@
 'use client'
-import { Button } from '../../../../components/generated/button'
+import { Button } from '../../../../components/generated/button.tsx'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-} from '../../../../components/generated/dropdown-menu'
-import type { useSavedViews } from './useSavedViews'
+} from '../../../../components/generated/dropdown-menu.tsx'
+import type { useSavedViews } from './useSavedViews.ts'
 
 type Saved = ReturnType<typeof useSavedViews>
 
@@ -15,7 +15,9 @@ type Saved = ReturnType<typeof useSavedViews>
 // nesting action buttons inside a Select option or maintaining a custom menu.
 function ViewsMenu({ saved }: { saved: Saved }) {
   const { savedViews, activeViewName, applyView, deleteView } = saved
-  if (savedViews.length === 0) return null
+  if (savedViews.length === 0) {
+    return null
+  }
 
   return (
     <DropdownMenu>
@@ -61,7 +63,9 @@ function SaveViewControl({ saved }: { saved: Saved }) {
         value={saveViewName}
         onInput={(e) => setSaveViewName((e.target as HTMLInputElement).value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') void doSaveView()
+          if (e.key === 'Enter') {
+            void doSaveView()
+          }
           if (e.key === 'Escape') {
             setSaveViewName('')
             setShowSaveInput(false)

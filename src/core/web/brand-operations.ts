@@ -1,12 +1,12 @@
 import { Effect } from 'effect'
 
-import { getWorkspaceBrandForShare } from '#commands/workspaces'
+import { getWorkspaceBrandForShare } from '#commands/workspaces.ts'
 
-import { WorkspaceBrand } from '../../contracts/web-brand'
-import { coreFailure, coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { loadBrowserScope } from './authentication'
-import type { WebRequest } from './scope'
+import { WorkspaceBrand } from '../../contracts/web-brand.ts'
+import { coreFailure, coreReply } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { loadBrowserScope } from './authentication.ts'
+import type { WebRequest } from './scope.ts'
 
 export const makeBrandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => ({
   browserWorkspaceBrand: (request: WebRequest, workspaceSlug: string) =>
@@ -20,8 +20,9 @@ export const makeBrandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, n
           projectHint: '',
           requireWorkspace: true,
         })
-        if (scope.selection.kind !== 'workspace' && scope.selection.kind !== 'project')
+        if (scope.selection.kind !== 'workspace' && scope.selection.kind !== 'project') {
           return yield* coreFailure(403, 'Selected workspace is not accessible.')
+        }
         const workspace = scope.selection.workspace
         return yield* Effect.tryPromise(() => getWorkspaceBrandForShare(env.DB, workspace.id, workspace.slug))
       }),

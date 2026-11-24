@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { ValidationError } from '../../contracts/errors'
+import { ValidationError } from '../../contracts/errors.ts'
 
 // PROJ-891 (builds on PROJ-931): MCP-only response shaping. Applied in the MCP layer, not
 // the service, so REST keeps returning the full shape — the service is the single source
@@ -100,7 +100,9 @@ export type ShapeOpts = z.infer<typeof ShapeOptsSchema>
 export function splitShapeOpts(input: unknown): { rest: Record<string, unknown> } & ShapeOpts {
   const { view, verbose, fields, ...rest } = (input ?? {}) as Record<string, unknown>
   const result = ShapeOptsSchema.safeParse({ view, verbose, fields })
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   return { rest, ...result.data }
 }
 
@@ -109,8 +111,12 @@ function isEmptyArray(v: unknown): boolean {
 }
 
 function parseLabels(v: unknown): string[] | undefined {
-  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string')
-  if (typeof v !== 'string') return undefined
+  if (Array.isArray(v)) {
+    return v.filter((x): x is string => typeof x === 'string')
+  }
+  if (typeof v !== 'string') {
+    return undefined
+  }
   try {
     const parsed = JSON.parse(v)
     return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : undefined
@@ -146,20 +152,33 @@ function refOf(issue: Record<string, unknown>): string | undefined {
 function summarize(issue: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   const ref = refOf(issue)
-  if (ref) out.ref = ref
-  else if (issue.id != null) out.id = issue.id
+  if (ref) {
+    out.ref = ref
+  } else if (issue.id != null) {
+    out.id = issue.id
+  }
   out.title = issue.title
   out.status = issue.status
   out.priority = issue.priority
-  if (issue.type_key != null) out.type = issue.type_key
+  if (issue.type_key != null) {
+    out.type = issue.type_key
+  }
   // Until refs are available on parents (PROJ-890) this is the parent's id.
-  if (issue.parent_id != null) out.parent = issue.parent_id
+  if (issue.parent_id != null) {
+    out.parent = issue.parent_id
+  }
   const assignee = issue.assignee_name ?? issue.assignee_id
-  if (assignee != null) out.assignee = assignee
+  if (assignee != null) {
+    out.assignee = assignee
+  }
   out.updated = issue.updated_at
   // PROJ-892: present only when the caller asked for a body preview (bodyChars).
-  if (typeof issue.body === 'string') out.body = issue.body
-  if (issue.bodyTruncated) out.bodyTruncated = true
+  if (typeof issue.body === 'string') {
+    out.body = issue.body
+  }
+  if (issue.bodyTruncated) {
+    out.bodyTruncated = true
+  }
   return out
 }
 
@@ -183,29 +202,56 @@ export function shapeIssue(issue: Record<string, unknown>, opts: ShapeOpts = {})
       updated: issue.updated_at,
     }
     const picked: Record<string, unknown> = {}
-    for (const f of opts.fields) picked[f] = Object.hasOwn(source, f) ? (source[f] ?? null) : null
+    for (const f of opts.fields) {
+      picked[f] = Object.hasOwn(source, f) ? (source[f] ?? null) : null
+    }
     return picked
   }
-  if (opts.verbose) return issue
-  if (opts.view === 'summary') return summarize(issue)
+  if (opts.verbose) {
+    return issue
+  }
+  if (opts.view === 'summary') {
+    return summarize(issue)
+  }
 
   const out: Record<string, unknown> = { ...issue }
-  if (ref) out.ref = ref
-  if (issue.type_key != null) out.type = issue.type_key
+  if (ref) {
+    out.ref = ref
+  }
+  if (issue.type_key != null) {
+    out.type = issue.type_key
+  }
   const labels = parseLabels(out.labels)
-  if (labels && labels.length > 0) out.labels = labels
-  else delete out.labels
-  if (isEmptyArray(out.links)) delete out.links
-  if (isZeroRollup(out.rollup)) delete out.rollup
-  if (isEmptyArray(out.customFields)) delete out.customFields
+  if (labels && labels.length > 0) {
+    out.labels = labels
+  } else {
+    delete out.labels
+  }
+  if (isEmptyArray(out.links)) {
+    delete out.links
+  }
+  if (isZeroRollup(out.rollup)) {
+    delete out.rollup
+  }
+  if (isEmptyArray(out.customFields)) {
+    delete out.customFields
+  }
   if (out.assignee_id == null) {
     delete out.assignee_id
     delete out.assignee_name
   }
-  if (out.needs_audit === false || out.needs_audit === 0) delete out.needs_audit
-  for (const key of NULLABLE_DEFAULT_KEYS) if (out[key] == null || out[key] === '') delete out[key]
-  for (const key of INTERNAL_ID_KEYS) delete out[key]
-  for (const key of DUPLICATE_KEYS) delete out[key]
+  if (out.needs_audit === false || out.needs_audit === 0) {
+    delete out.needs_audit
+  }
+  for (const key of NULLABLE_DEFAULT_KEYS) {
+    if (out[key] == null || out[key] === '') delete out[key]
+  }
+  for (const key of INTERNAL_ID_KEYS) {
+    delete out[key]
+  }
+  for (const key of DUPLICATE_KEYS) {
+    delete out[key]
+  }
   // `status` is the legacy enum; a custom workflow status (e.g. "qa" within in_progress)
   // is only distinguishable by its key, so keep it whenever it adds information.
   if (typeof issue.status_key === 'string' && issue.status_key !== issue.status) {
@@ -241,7 +287,9 @@ export function capPage<P extends { items: unknown[]; next?: string }>(
   } = {},
 ): P & { truncated?: true; hint?: string } {
   const max = opts.max ?? MAX_RESULT_CHARS
-  if (page.items.length === 0 || JSON.stringify(page).length <= max) return page
+  if (page.items.length === 0 || JSON.stringify(page).length <= max) {
+    return page
+  }
 
   const build = (k: number) => {
     const { next: _drop, ...rest } = page
@@ -260,13 +308,20 @@ export function capPage<P extends { items: unknown[]; next?: string }>(
   // Largest k (≥1) whose serialized form fits; one oversized item is still returned whole.
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2)
-    if (JSON.stringify(build(mid)).length <= max) lo = mid
-    else hi = mid - 1
+    if (JSON.stringify(build(mid)).length <= max) {
+      lo = mid
+    } else {
+      hi = mid - 1
+    }
   }
   // Back off to a cut the tool says is resumable. If none exists (e.g. every event shares
   // one second), an over-cap page is better than a cursor that silently skips items.
   let k = lo
-  while (k > 1 && opts.canCutAt && !opts.canCutAt(k)) k--
-  if (opts.canCutAt && !opts.canCutAt(k)) return page
+  while (k > 1 && opts.canCutAt && !opts.canCutAt(k)) {
+    k--
+  }
+  if (opts.canCutAt && !opts.canCutAt(k)) {
+    return page
+  }
   return build(k)
 }

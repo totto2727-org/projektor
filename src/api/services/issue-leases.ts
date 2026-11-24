@@ -1,7 +1,7 @@
-import { ApiResults } from '../../contracts/api-results'
-import type { CoreRpcShape } from '../../core/contract'
-import { apiReply } from './reply'
-import type { ApiOperationArgs, ApiServiceCtx } from './types'
+import { ApiResults } from '../../contracts/api-results.ts'
+import type { CoreRpcShape } from '../../core/contract.ts'
+import { apiReply } from './reply.ts'
+import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
 export function claimIssue(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiClaimIssue']>) {
   return apiReply(ApiResults.apiClaimIssue, ctx.core.apiClaimIssue(ctx.actor, ctx.workspaceId, ...args))

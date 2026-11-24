@@ -23,7 +23,9 @@ export function draftKey(workspaceSlug: string | undefined, scope: string, field
 export function loadDraft(key: string): string | null {
   try {
     const raw = sessionStorage.getItem(key)
-    if (raw === null) return null
+    if (raw === null) {
+      return null
+    }
     const parsed = JSON.parse(raw) as StoredDraft
     if (typeof parsed?.value !== 'string' || typeof parsed?.at !== 'number') {
       sessionStorage.removeItem(key)
@@ -67,7 +69,9 @@ export function clearDraft(key: string): void {
 export function clearAllDrafts(): void {
   try {
     for (const k of Object.keys(sessionStorage)) {
-      if (k.startsWith(PREFIX)) sessionStorage.removeItem(k)
+      if (k.startsWith(PREFIX)) {
+        sessionStorage.removeItem(k)
+      }
     }
   } catch {}
 }

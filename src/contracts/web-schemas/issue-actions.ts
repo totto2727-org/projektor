@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { ReviewTargetSchema } from '../review-targets'
+import { ReviewTargetSchema } from '../review-targets.ts'
 
 const NonEmpty = Schema.String.check(Schema.isMinLength(1))
 export const SelectorFields = {
@@ -22,7 +22,7 @@ export const CreateIssueSchema = Schema.Struct({
   ...SelectorFields,
   projectId: NonEmpty,
   title: Schema.String.check(Schema.isPattern(/\S/), Schema.isMaxLength(500)),
-  body: Schema.optional(Schema.String.check(Schema.isMaxLength(50000))),
+  body: Schema.optional(Schema.String.check(Schema.isMaxLength(50_000))),
   priority: Schema.optional(Schema.Literals(['urgent', 'high', 'medium', 'low', 'none'])),
   statusId: Schema.optional(NonEmpty),
   typeId: Schema.optional(NonEmpty),

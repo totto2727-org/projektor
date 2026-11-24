@@ -6,10 +6,10 @@ import { CorePublicError } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
-import { ApiSubmittedFeedback } from '../../contracts/api-public'
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { bumpRateCounter } from '../middleware/rate-limit'
+import { ApiSubmittedFeedback } from '../../contracts/api-public.ts'
+import { jsonBody } from '../http/body.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { bumpRateCounter } from '../middleware/rate-limit.ts'
 import {
   bulkConvertToIssue,
   bulkMarkReviewed,
@@ -17,9 +17,9 @@ import {
   getFeedbackSummary,
   listFeedback,
   updateFeedbackStatus,
-} from '../services/feedback'
-import { apiReply } from '../services/reply'
-import { ctxFromHono } from '../services/types'
+} from '../services/feedback.ts'
+import { apiReply } from '../services/reply.ts'
+import { ctxFromHono } from '../services/types.ts'
 
 const publicRouter = new Hono<HonoEnv>()
 
@@ -38,7 +38,9 @@ publicRouter.options('/submit', (c) => {
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     'Access-Control-Max-Age': '86400',
   }
-  if (origin) headers['Access-Control-Allow-Origin'] = origin
+  if (origin) {
+    headers['Access-Control-Allow-Origin'] = origin
+  }
   return c.body(null, 204, headers)
 })
 
@@ -84,8 +86,12 @@ function submitFeedbackErrorResponse(c: Context<HonoEnv>, e: unknown): Response 
   // credential (401), an inactive source is a paused resource (403), a bad
   // body is 400. (NotFound → 401 here, unlike every other endpoint.)
   if (e instanceof CorePublicError) {
-    if (e.kind === 'validation') return c.json({ error: e.details }, 400)
-    if (e.status === 403 || e.status === 404) return c.json({ error: e.message }, e.status === 404 ? 401 : 403)
+    if (e.kind === 'validation') {
+      return c.json({ error: e.details }, 400)
+    }
+    if (e.status === 403 || e.status === 404) {
+      return c.json({ error: e.message }, e.status === 404 ? 401 : 403)
+    }
     return serviceErrToResponse(c, e)
   }
   throw e
@@ -93,12 +99,16 @@ function submitFeedbackErrorResponse(c: Context<HonoEnv>, e: unknown): Response 
 
 publicRouter.post('/submit', async (c) => {
   const auth = c.req.header('Authorization')
-  if (!auth?.startsWith('Bearer ')) return c.json({ error: 'Unauthorized' }, 401)
+  if (!auth?.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
   const token = auth.slice(7)
   const origin = c.req.header('Origin') ?? null
 
   const rateLimited = await checkFeedbackRateLimit(c, token)
-  if (rateLimited) return rateLimited
+  if (rateLimited) {
+    return rateLimited
+  }
 
   const rawBody = await parseFeedbackBody(c)
 
@@ -107,7 +117,9 @@ publicRouter.post('/submit', async (c) => {
       ApiSubmittedFeedback,
       makeCoreClient(c.env.CORE).apiSubmitFeedback(token, rawBody, origin),
     )
-    if (corsAllowOrigin) c.header('Access-Control-Allow-Origin', corsAllowOrigin)
+    if (corsAllowOrigin) {
+      c.header('Access-Control-Allow-Origin', corsAllowOrigin)
+    }
     return c.json({ id }, 201)
   } catch (e) {
     return submitFeedbackErrorResponse(c, e)

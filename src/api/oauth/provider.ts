@@ -8,11 +8,11 @@ import {
   providerOptions,
   REGISTRATION_ENDPOINT,
   TOKEN_ENDPOINT,
-} from '../../contracts/oauth-provider'
+} from '../../contracts/oauth-provider.ts'
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-export { AUTHORIZE_ENDPOINT, oauthApi, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '../../contracts/oauth-provider'
-import { bumpRateCounter } from '../middleware/rate-limit'
+export { AUTHORIZE_ENDPOINT, oauthApi, REGISTRATION_ENDPOINT, TOKEN_ENDPOINT } from '../../contracts/oauth-provider.ts'
+import { bumpRateCounter } from '../middleware/rate-limit.ts'
 
 // PROJ-656/657: the OAuth 2.1 token lifecycle, delegated to Cloudflare's provider.
 //
@@ -35,7 +35,9 @@ import { bumpRateCounter } from '../middleware/rate-limit'
 // read-only instances (the live demo) and local dev.
 export function isOAuthAccessToken(request: Request): boolean {
   const header = request.headers.get('Authorization')
-  if (!header?.startsWith('Bearer ')) return false
+  if (!header?.startsWith('Bearer ')) {
+    return false
+  }
   return header.slice(7).split(':').length === 3
 }
 
@@ -59,7 +61,9 @@ export function createOAuthProvider(app: ExportedHandler<ApiEnv>) {
 export async function oauthProviderRateLimited(request: Request, env: ApiEnv): Promise<Response | null> {
   const { pathname } = new URL(request.url)
   const isRegistration = pathname === REGISTRATION_ENDPOINT && request.method === 'POST'
-  if (pathname !== TOKEN_ENDPOINT && !isRegistration) return null
+  if (pathname !== TOKEN_ENDPOINT && !isRegistration) {
+    return null
+  }
 
   const ip = request.headers.get('CF-Connecting-IP') ?? '127.0.0.1'
   const windowSecs = parseInt(env.RATE_LIMIT_WINDOW_SECS ?? '60', 10)
@@ -75,10 +79,14 @@ export async function oauthProviderRateLimited(request: Request, env: ApiEnv): P
     // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
     console.error('OAuth rate-limit counter unavailable', { endpoint, err: String(err) })
     // A registration creates a new KV record for an anonymous caller.
-    if (isRegistration) return Response.json({ error: 'temporarily_unavailable' }, { status: 503 })
+    if (isRegistration) {
+      return Response.json({ error: 'temporarily_unavailable' }, { status: 503 })
+    }
     return null
   }
-  if (count <= limit) return null
+  if (count <= limit) {
+    return null
+  }
 
   return Response.json(
     // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.

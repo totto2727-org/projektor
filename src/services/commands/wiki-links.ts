@@ -12,15 +12,15 @@ import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 // don't need a single resolved page so they're self-contained here.
 import { drizzle, schema } from '#db'
 
-import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '../../contracts/inputs/wiki'
+import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '../../contracts/inputs/wiki.ts'
 // PROJ-496 (R14): a trashed page is treated as gone for link resolution purposes — see
 // resolveTitleTargets/resolveSlugTargets/backlinksForResolvedPage/listBrokenWikiLinks
 // below for the `isNull(schema.wikiPages.deletedAt)` filters this adds.
-import { safeDecodeURIComponent, wikiPagePath } from '../../contracts/urls'
-import { hasProjectAccess, isWorkspaceAdmin, visibleProjectPredicate } from './access'
-import { ForbiddenError, ValidationError } from './errors'
-import { inChunks } from './sql'
-import type { ServiceCtx } from './types'
+import { safeDecodeURIComponent, wikiPagePath } from '../../contracts/urls.ts'
+import { hasProjectAccess, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
+import { ForbiddenError, ValidationError } from './errors.ts'
+import { inChunks } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
 
 type Orm = ReturnType<typeof drizzle<typeof schema>>
 
@@ -41,11 +41,15 @@ function extractWikiSlugFromUrl(url: string): string | null {
   // origin is present" as "same workspace" would wrongly index links to other hosts
   // as same-workspace links (even a same-origin absolute URL is written as relative
   // by the app, so this doesn't lose any real link).
-  if (/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(url)) return null
+  if (/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(url)) {
+    return null
+  }
   const pathMatch = url.match(/^\/wiki\/([a-z0-9-]+)\/?$/i)
   const queryMatch = pathMatch ? null : url.match(/[?&]slug=([^&]+)/)
   const raw = pathMatch?.[1] ?? queryMatch?.[1]
-  if (!raw) return null
+  if (!raw) {
+    return null
+  }
   // PROJ-510: a malformed percent-escape makes decodeURIComponent throw. This runs
   // mid-reindex, after the content write and the old wiki_links delete have already
   // committed, so an uncaught throw leaves the page's links wiped. An undecodable
@@ -57,11 +61,15 @@ export function parseWikiLinkTargets(content: string): ParsedLinkTarget[] {
   const targets: ParsedLinkTarget[] = []
   for (const m of content.matchAll(WIKILINK_RE)) {
     const title = m[1].trim()
-    if (title) targets.push({ kind: 'title', title })
+    if (title) {
+      targets.push({ kind: 'title', title })
+    }
   }
   for (const m of content.matchAll(MD_LINK_RE)) {
     const slug = extractWikiSlugFromUrl(m[1].trim())
-    if (slug) targets.push({ kind: 'slug', slug })
+    if (slug) {
+      targets.push({ kind: 'slug', slug })
+    }
   }
   return targets
 }
@@ -110,7 +118,9 @@ export async function healTitleFolds(ctx: ServiceCtx): Promise<number> {
         .bind(foldWikiTitle(r.t), r.id, ctx.workspaceId),
     ),
   ]
-  if (statements.length > 0) await ctx.db.batch(statements)
+  if (statements.length > 0) {
+    await ctx.db.batch(statements)
+  }
   return statements.length
 }
 
@@ -126,7 +136,9 @@ async function resolveTitleTargets(
   titles: readonly string[],
 ): Promise<Map<string, string>> {
   const byLower = new Map<string, string>()
-  if (titles.length === 0) return byLower
+  if (titles.length === 0) {
+    return byLower
+  }
   const lowered = [...new Set(titles.map((t) => foldWikiTitle(t)))]
   const wanted = new Set(lowered)
   const cols = {
@@ -166,7 +178,9 @@ async function resolveTitleTargets(
   // set-based lifecycle statements use, so both paths agree.
   for (const row of candidates) {
     const key = foldWikiTitle(row.title)
-    if (!byLower.has(key)) byLower.set(key, row.id)
+    if (!byLower.has(key)) {
+      byLower.set(key, row.id)
+    }
   }
   return byLower
 }
@@ -181,7 +195,9 @@ async function resolveSlugTargets(
 ): Promise<Map<string, { id: string; title: string }>> {
   const bySlug = new Map<string, { id: string; title: string }>()
   const unique = [...new Set(slugs)]
-  if (unique.length === 0) return bySlug
+  if (unique.length === 0) {
+    return bySlug
+  }
 
   const direct = await inChunks(unique, (chunk) =>
     orm
@@ -199,18 +215,24 @@ async function resolveSlugTargets(
         ),
       ),
   )
-  for (const row of direct) bySlug.set(row.slug, { id: row.id, title: row.title })
+  for (const row of direct) {
+    bySlug.set(row.slug, { id: row.id, title: row.title })
+  }
 
   // PROJ-483 redirects: an old slug still resolves to its page.
   const missing = unique.filter((slug) => !bySlug.has(slug))
-  if (missing.length === 0) return bySlug
+  if (missing.length === 0) {
+    return bySlug
+  }
   const redirects = await inChunks(missing, (chunk) =>
     orm
       .select({ oldSlug: schema.wikiRedirects.oldSlug, pageId: schema.wikiRedirects.pageId })
       .from(schema.wikiRedirects)
       .where(and(eq(schema.wikiRedirects.workspaceId, workspaceId), inArray(schema.wikiRedirects.oldSlug, chunk))),
   )
-  if (redirects.length === 0) return bySlug
+  if (redirects.length === 0) {
+    return bySlug
+  }
 
   const targetIds = [...new Set(redirects.map((r) => r.pageId))]
   const targets = await inChunks(targetIds, (chunk) =>
@@ -231,7 +253,9 @@ async function resolveSlugTargets(
   const pageById = new Map(targets.map((t) => [t.id, t]))
   for (const r of redirects) {
     const page = pageById.get(r.pageId)
-    if (page && !bySlug.has(r.oldSlug)) bySlug.set(r.oldSlug, page)
+    if (page && !bySlug.has(r.oldSlug)) {
+      bySlug.set(r.oldSlug, page)
+    }
   }
   return bySlug
 }
@@ -267,13 +291,14 @@ function resolveTargetsFromMaps(
     if (isTitleTarget(t)) {
       const targetPageId = titleMatches.get(foldWikiTitle(t.title)) ?? null
       const key = targetPageId ?? `title:${foldWikiTitle(t.title)}`
-      if (!resolved.has(key))
+      if (!resolved.has(key)) {
         resolved.set(key, {
           targetPageId,
           targetTitle: t.title,
           targetText: t.title,
           targetKind: 'title',
         })
+      }
     } else if (isSlugTarget(t)) {
       const page = slugMatches.get(t.slug)
       const key = page?.id ?? `slug:${t.slug.toLowerCase()}`
@@ -318,7 +343,7 @@ async function resolveLinkTargets(
 async function resolveLinkTargetsForPages(
   orm: Orm,
   workspaceId: string,
-  pages: ReadonlyArray<{ id: string; targets: readonly ParsedLinkTarget[] }>,
+  pages: readonly { id: string; targets: readonly ParsedLinkTarget[] }[],
 ): Promise<Map<string, ResolvedLink[]>> {
   const allTargets = pages.flatMap((p) => p.targets)
   const [titleMatches, slugMatches] = await Promise.all([
@@ -474,13 +499,19 @@ export interface BackfillWikiLinksResult {
  *  - `updatedSince` limits the scope to pages touched at/after that time.
  */
 export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promise<BackfillWikiLinksResult> {
-  if (!isWorkspaceAdmin(ctx.role)) throw new ForbiddenError('Insufficient permissions')
+  if (!isWorkspaceAdmin(ctx.role)) {
+    throw new ForbiddenError('Insufficient permissions')
+  }
   const parsed = BackfillWikiLinksInputSchema.safeParse(input ?? {})
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { cursor, pageBudget, updatedSince } = parsed.data
   // PROJ-818: drain unhealed folds (bounded) so this backfill resolves against them.
   let healRounds = 0
-  while (healRounds < 20 && (await healTitleFolds(ctx)) > 0) healRounds++
+  while (healRounds < 20 && (await healTitleFolds(ctx)) > 0) {
+    healRounds++
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const conditions = [
@@ -511,7 +542,9 @@ export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promi
     .orderBy(asc(schema.wikiPages.updatedAt), asc(schema.wikiPages.id))
     .limit(pageBudget)
 
-  if (pages.length === 0) return { processed: 0, nextCursor: null, pagesProcessed: 0 }
+  if (pages.length === 0) {
+    return { processed: 0, nextCursor: null, pagesProcessed: 0 }
+  }
 
   const parsedPages = pages.map((p) => ({ id: p.id, targets: parseWikiLinkTargets(p.content) }))
   const resolvedByPage = await resolveLinkTargetsForPages(orm, ctx.workspaceId, parsedPages)
@@ -523,7 +556,9 @@ export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promi
   // One batch for the whole chunk — each individual statement already respects D1's
   // per-statement bound-param cap (buildLinkWriteStatements/LINK_INSERT_CHUNK_SIZE), and
   // db.batch() itself has no such cap, only a single round trip.
-  if (statements.length > 0) await ctx.db.batch(statements)
+  if (statements.length > 0) {
+    await ctx.db.batch(statements)
+  }
 
   const last = pages[pages.length - 1]
   // A short page (fewer rows than requested) means we've reached the end of the scope.
@@ -660,7 +695,9 @@ export async function repointIncomingLinks(ctx: ServiceCtx, pageIds: string[]): 
 // warnings ("N pages link here"). Must be read BEFORE the delete runs — target_page_id
 // is ON DELETE SET NULL, so the count would read as 0 afterwards.
 export async function countBacklinkSources(ctx: ServiceCtx, pageIds: string[]): Promise<number> {
-  if (pageIds.length === 0) return 0
+  if (pageIds.length === 0) {
+    return 0
+  }
   const orm = drizzle(ctx.db, { schema })
   // PROJ-818: only count linking pages the caller can see — the count must not reveal
   // pages in projects hidden from them.
@@ -693,7 +730,9 @@ export async function countBacklinkSources(ctx: ServiceCtx, pageIds: string[]): 
 function extractSnippet(content: string, targetTitle: string): string | null {
   const marker = `[[${targetTitle.toLowerCase()}`
   const idx = content.toLowerCase().indexOf(marker)
-  if (idx === -1) return null
+  if (idx === -1) {
+    return null
+  }
   const SNIPPET_RADIUS = 60
   const start = Math.max(0, idx - SNIPPET_RADIUS)
   const end = Math.min(content.length, idx + marker.length + SNIPPET_RADIUS)
@@ -767,13 +806,17 @@ export async function backlinksForResolvedPage(
 // Resolves which of `rows` (all project-scoped) the caller has an effective grant on.
 async function visibleSourcePageIds(
   ctx: ServiceCtx,
-  rows: ReadonlyArray<{ pageId: string; projectId: string | null }>,
+  rows: readonly { pageId: string; projectId: string | null }[],
 ): Promise<string[]> {
-  if (rows.length === 0) return []
+  if (rows.length === 0) {
+    return []
+  }
   const uniqueProjectIds = [...new Set(rows.map((r) => r.projectId).filter((p): p is string => p !== null))]
   const grantedProjectIds = new Set<string>()
   for (const projectId of uniqueProjectIds) {
-    if (await hasProjectAccess(ctx, projectId)) grantedProjectIds.add(projectId)
+    if (await hasProjectAccess(ctx, projectId)) {
+      grantedProjectIds.add(projectId)
+    }
   }
   return rows.filter((r) => r.projectId !== null && grantedProjectIds.has(r.projectId)).map((r) => r.pageId)
 }
@@ -789,7 +832,9 @@ export interface BrokenWikiLink {
 /** All unresolved (target_page_id null) wiki_links in the workspace, optionally scoped to a project. */
 export async function listBrokenWikiLinks(ctx: ServiceCtx, input: unknown): Promise<BrokenWikiLink[]> {
   const parsed = ListBrokenWikiLinksInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { projectId } = parsed.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -820,14 +865,18 @@ export async function listBrokenWikiLinks(ctx: ServiceCtx, input: unknown): Prom
     // anymore — they'll be purged along with the page.
     isNull(schema.wikiPages.deletedAt),
   ]
-  if (projectId) conditions.push(eq(schema.wikiPages.projectId, projectId))
+  if (projectId) {
+    conditions.push(eq(schema.wikiPages.projectId, projectId))
+  }
 
   // PROJ-311: same visibility filter as listWikiPages — hide project-scoped source
   // pages the caller isn't granted, workspace-level pages stay visible to everyone.
   const visible = visibleProjectPredicate(ctx, schema.wikiPages.projectId)
   if (visible) {
     const cond = or(isNull(schema.wikiPages.projectId), visible)
-    if (cond) conditions.push(cond)
+    if (cond) {
+      conditions.push(cond)
+    }
   }
 
   const rows = await orm

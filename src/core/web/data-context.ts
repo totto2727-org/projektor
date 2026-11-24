@@ -1,11 +1,12 @@
 import type { D1Database } from '@cloudflare/workers-types'
-import { type Column, type SQL, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
+import type { Column, SQL } from 'drizzle-orm'
 
 import type { ProjectSummaryVisibility } from '#services'
 
-import { ApiError } from '../../contracts/errors'
-import { requireDataWorkspace } from '../../contracts/web-data'
-import type { RequestScope } from './scope'
+import { ApiError } from '../../contracts/errors.ts'
+import { requireDataWorkspace } from '../../contracts/web-data.ts'
+import type { RequestScope } from './scope.ts'
 
 export {
   authorizeDataEntity,
@@ -14,7 +15,7 @@ export {
   requireBrowserDataRequest,
   requireDataProject,
   requireDataWorkspace,
-} from '../../contracts/web-data'
+} from '../../contracts/web-data.ts'
 
 export function projectSummaryVisibility(userId: string): ProjectSummaryVisibility {
   return {
@@ -39,7 +40,9 @@ export function visibleProjectPredicate(
   projectColumn: Column | SQL,
 ): SQL | undefined {
   const workspace = requireDataWorkspace(scope, workspaceId)
-  if (workspace.role === 'owner' || workspace.role === 'admin') return undefined
+  if (workspace.role === 'owner' || workspace.role === 'admin') {
+    return undefined
+  }
   return sql`EXISTS (
     SELECT 1 FROM user_group_members ugm
     JOIN group_project_grants gpg ON gpg.group_id = ugm.group_id

@@ -1,18 +1,19 @@
 import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { Hono } from 'hono'
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { createIssue } from '#commands/issues'
-import { broadcastWorkspaceEvent } from '#commands/realtime'
-import type { ServiceCtx } from '#commands/types'
+import { createIssue } from '#commands/issues.ts'
+import { broadcastWorkspaceEvent } from '#commands/realtime.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 import type { ApiEnv, HonoEnv, RealtimeEvent } from '#types'
 
-import type { CoreActor } from '../../core/authorization'
-import { CORE_ACTOR_HEADER } from '../../core/contract'
-import { WorkspaceHub, type SocketAttachment } from '../realtime/workspace-hub'
-import { realtimeRouter } from '../routes/realtime'
-import { env } from './fixture-api'
-import { authHeaders, hashToken, seedGroupGrant, seedProject, seedWorkspaceRoles } from './helpers'
+import type { CoreActor } from '../../core/authorization.ts'
+import { CORE_ACTOR_HEADER } from '../../core/contract.ts'
+import { WorkspaceHub } from '../realtime/workspace-hub.ts'
+import type { SocketAttachment } from '../realtime/workspace-hub.ts'
+import { realtimeRouter } from '../routes/realtime.ts'
+import { env } from './fixture-api.ts'
+import { authHeaders, hashToken, seedGroupGrant, seedProject, seedWorkspaceRoles } from './helpers.ts'
 
 function actorFor(token: string): CoreActor {
   return { requestUrl: 'http://localhost/api/realtime', method: 'GET', bearer: token }
@@ -93,7 +94,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     }
   }
 
-  it('returns 501 when WORKSPACE_HUB is not configured (graceful degradation)', async () => {
+  test('returns 501 when WORKSPACE_HUB is not configured (graceful degradation)', async () => {
     const app = new Hono<HonoEnv>()
     app.route('/api', realtimeRouter)
     const unconfigured = { ...env, WORKSPACE_HUB: undefined } as unknown as ApiEnv
@@ -112,7 +113,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     })
   })
 
-  it('completes an authenticated native Hub connection and close handshake when configured', async () => {
+  test('completes an authenticated native Hub connection and close handshake when configured', async () => {
     const app = new Hono<HonoEnv>()
     app.route('/api', realtimeRouter)
     const configured = {
@@ -129,7 +130,9 @@ describe('Realtime WebSockets (Opt-In)', () => {
     await waitOnExecutionContext(executionContext)
     expect(response.status).toBe(101)
     const client = response.webSocket
-    if (!client) throw new Error('Expected an upgraded WebSocket')
+    if (!client) {
+      throw new Error('Expected an upgraded WebSocket')
+    }
     client.accept()
     const closed = new Promise<CloseEvent>((resolve) => {
       client.addEventListener('close', resolve, { once: true })
@@ -138,7 +141,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(await closed).toMatchObject({ code: 1000 })
   })
 
-  it('broadcastWorkspaceEvent is a silent no-op when WORKSPACE_HUB is undefined', async () => {
+  test('broadcastWorkspaceEvent is a silent no-op when WORKSPACE_HUB is undefined', async () => {
     const ctx: ServiceCtx = {
       db: env.DB,
       kv: env.KV,
@@ -151,7 +154,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     ).resolves.toBeUndefined()
   })
 
-  it('rejects WebSocket upgrades without a Core actor even when legacy identity headers claim owner', async () => {
+  test('rejects WebSocket upgrades without a Core actor even when legacy identity headers claim owner', async () => {
     const { hub, state } = hubFor()
     const response = await hub.fetch(
       new Request('http://localhost/realtime', {
@@ -167,13 +170,13 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(state.acceptWebSocket).not.toHaveBeenCalled()
   })
 
-  it('requires a WebSocket upgrade before accepting a connection', async () => {
+  test('requires a WebSocket upgrade before accepting a connection', async () => {
     const { hub, state } = hubFor()
     expect((await hub.fetch(new Request('http://localhost/realtime'))).status).toBe(426)
     expect(state.acceptWebSocket).not.toHaveBeenCalled()
   })
 
-  it('computes member visibility from current Core grants rather than forged owner headers', async () => {
+  test('computes member visibility from current Core grants rather than forged owner headers', async () => {
     const { hub, state } = hubFor()
     const request = upgradeRequest(roles.member.token)
     request.headers.set('X-Internal-User-Id', roles.owner.user.id)
@@ -191,7 +194,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     })
   })
 
-  it('computes all project IDs for an owner on upgrade', async () => {
+  test('computes all project IDs for an owner on upgrade', async () => {
     const { hub, state } = hubFor()
     expect((await hub.fetch(upgradeRequest(roles.owner.token))).status).toBe(101)
     const accepted = state.acceptWebSocket.mock.calls[0][0]
@@ -202,7 +205,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(accepted.deserializeAttachment()).toHaveProperty('visibleProjectIds.length', 2)
   })
 
-  it('rejects a revoked credential before accepting a socket', async () => {
+  test('rejects a revoked credential before accepting a socket', async () => {
     await env.DB.prepare('DELETE FROM api_tokens WHERE token_hash = ?')
       .bind(await hashToken(roles.member.token))
       .run()
@@ -211,7 +214,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(state.acceptWebSocket).not.toHaveBeenCalled()
   })
 
-  it('responds to ping after refreshing a stale visibility snapshot', async () => {
+  test('responds to ping after refreshing a stale visibility snapshot', async () => {
     const ws = socket(attachmentFor('member', { visibleProjectIds: [] }))
     const { hub } = hubFor()
     await hub.webSocketMessage(ws as unknown as WebSocket, JSON.stringify({ action: 'ping' }))
@@ -221,7 +224,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"pong"'))
   })
 
-  it('intersects subscriptions with current project grants', async () => {
+  test('intersects subscriptions with current project grants', async () => {
     const ws = socket(attachmentFor())
     const { hub } = hubFor()
     await hub.webSocketMessage(
@@ -232,14 +235,14 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"subscribed"'))
   })
 
-  it('defaults a member subscription without a project filter to current visible projects', async () => {
+  test('defaults a member subscription without a project filter to current visible projects', async () => {
     const ws = socket(attachmentFor())
     const { hub } = hubFor()
     await hub.webSocketMessage(ws as unknown as WebSocket, JSON.stringify({ action: 'subscribe' }))
     expect(ws.deserializeAttachment().filters).toEqual({ projects: [projectId], eventTypes: undefined })
   })
 
-  it('broadcasts to matching subscriptions and filters other projects and event types', async () => {
+  test('broadcasts to matching subscriptions and filters other projects and event types', async () => {
     const matching = socket(attachmentFor('member', { filters: { projects: [projectId], eventTypes: ['issue.*'] } }))
     const otherProject = socket(
       attachmentFor('viewer', { filters: { projects: [otherProjectId], eventTypes: ['issue.*'] } }),
@@ -253,7 +256,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(otherType.send).not.toHaveBeenCalled()
   })
 
-  it('enforces current server-side visibility without a client filter', async () => {
+  test('enforces current server-side visibility without a client filter', async () => {
     const allowed = socket(attachmentFor())
     const forbidden = socket(attachmentFor('viewer'))
     const admin = socket(attachmentFor('owner'))
@@ -264,7 +267,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(admin.send).toHaveBeenCalledTimes(1)
   })
 
-  it('does not trust a cached project list or client filter over current grants', async () => {
+  test('does not trust a cached project list or client filter over current grants', async () => {
     const ws = socket(attachmentFor('viewer', { visibleProjectIds: [projectId], filters: { projects: [projectId] } }))
     const { hub } = hubFor([ws])
     expect(await hub.broadcast(event())).toEqual({ recipientCount: 0 })
@@ -272,7 +275,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(ws.send).not.toHaveBeenCalled()
   })
 
-  it('fails closed for non-admins when an event has no projectId', async () => {
+  test('fails closed for non-admins when an event has no projectId', async () => {
     const member = socket(attachmentFor())
     const admin = socket(attachmentFor('owner'))
     const { hub } = hubFor([member, admin])
@@ -283,7 +286,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(admin.send).toHaveBeenCalledTimes(1)
   })
 
-  it('denies a removed admin without sending a pong or a later workspace broadcast', async () => {
+  test('denies a removed admin without sending a pong or a later workspace broadcast', async () => {
     const ws = socket(attachmentFor('owner'))
     const { hub } = hubFor([ws])
     expect(await hub.broadcast(event())).toEqual({ recipientCount: 1 })
@@ -297,7 +300,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(ws.send).not.toHaveBeenCalled()
   })
 
-  it('drops a revoked grant on a passive socket immediately without a ping or stale-snapshot delay', async () => {
+  test('drops a revoked grant on a passive socket immediately without a ping or stale-snapshot delay', async () => {
     const ws = socket(attachmentFor('member', { snapshotAt: Math.floor(Date.now() / 1000) }))
     const { hub } = hubFor([ws])
     expect(await hub.broadcast(event())).toEqual({ recipientCount: 1 })
@@ -312,7 +315,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(ws.send).not.toHaveBeenCalled()
   })
 
-  it('denies passive broadcasts immediately after token revocation', async () => {
+  test('denies passive broadcasts immediately after token revocation', async () => {
     const ws = socket(attachmentFor('owner', { snapshotAt: Math.floor(Date.now() / 1000) }))
     const { hub } = hubFor([ws])
     expect(await hub.broadcast(event())).toEqual({ recipientCount: 1 })
@@ -324,7 +327,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(ws.send).not.toHaveBeenCalled()
   })
 
-  it('drops cached elevated access immediately after an owner is demoted', async () => {
+  test('drops cached elevated access immediately after an owner is demoted', async () => {
     const ws = socket(attachmentFor('owner', { visibleProjectIds: [projectId, otherProjectId] }))
     const { hub } = hubFor([ws])
     expect(await hub.broadcast(event())).toEqual({ recipientCount: 1 })
@@ -337,7 +340,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     expect(ws.send).not.toHaveBeenCalled()
   })
 
-  it('dispatches a broadcast event when creating an issue with a WORKSPACE_HUB stub', async () => {
+  test('dispatches a broadcast event when creating an issue with a WORKSPACE_HUB stub', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ recipientCount: 1 })))
     const namespace = {
       idFromName: vi.fn().mockReturnValue('mock-do-id'),
@@ -362,7 +365,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
 })
 
 describe('WorkspaceHub native WebSocket close handling', () => {
-  it.each([
+  test.each([
     [1000, 1000],
     [1001, 1001],
     [1011, 1011],

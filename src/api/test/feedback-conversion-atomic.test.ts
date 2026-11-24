@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback'
-import type { ServiceCtx } from '#commands/types'
+import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 
-import { env } from './fixture-api'
-import { seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { seedProjectFixture } from './helpers.ts'
 
 async function fixture(concurrentBatches = 1) {
   const f = await seedProjectFixture({ role: 'owner' })
@@ -20,12 +20,13 @@ async function fixture(concurrentBatches = 1) {
   })
   const db = new Proxy(env.DB, {
     get(target, key) {
-      if (key === 'batch')
+      if (key === 'batch') {
         return async (statements: D1PreparedStatement[]) => {
           if (++arrivals >= concurrentBatches) release()
           await barrier
           return target.batch(statements)
         }
+      }
       const value = Reflect.get(target, key)
       return typeof value === 'function' ? value.bind(target) : value
     },
@@ -43,7 +44,7 @@ async function fixture(concurrentBatches = 1) {
 }
 
 describe('native D1 atomic feedback conversion', () => {
-  it('rejects a concurrent loser without an orphan issue, FTS row or activity', async () => {
+  test('rejects a concurrent loser without an orphan issue, FTS row or activity', async () => {
     const f = await fixture(2)
     const id = await f.seed()
     const results = await Promise.allSettled([
@@ -71,7 +72,7 @@ describe('native D1 atomic feedback conversion', () => {
     ).toBe(1)
   })
 
-  it('rolls back an issue and FTS when feedback linking fails, then retries with number one', async () => {
+  test('rolls back an issue and FTS when feedback linking fails, then retries with number one', async () => {
     const f = await fixture()
     const id = await f.seed()
     const trigger = `fail_feedback_${id.replaceAll('-', '')}`
@@ -98,7 +99,7 @@ describe('native D1 atomic feedback conversion', () => {
     await expect(convertFeedbackToIssue(f.ctx, { feedbackId: id })).resolves.toMatchObject({ number: 1 })
   })
 
-  it('converts 500 feedback records in one bounded transaction using native json_each', async () => {
+  test('converts 500 feedback records in one bounded transaction using native json_each', async () => {
     const f = await fixture()
     const ids = Array.from({ length: 500 }, () => crypto.randomUUID())
     for (let offset = 0; offset < ids.length; offset += 50) {

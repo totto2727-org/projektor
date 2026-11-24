@@ -1,6 +1,6 @@
-import { ApiResults } from '../../contracts/api-results'
-import { apiReply } from './reply'
-import type { ApiServiceCtx } from './types'
+import { ApiResults } from '../../contracts/api-results.ts'
+import { apiReply } from './reply.ts'
+import type { ApiServiceCtx } from './types.ts'
 
 export function getWorkflow(ctx: Pick<ApiServiceCtx, 'core' | 'actor'>, input: unknown = {}) {
   return apiReply(ApiResults.apiGetWorkflow, ctx.core.apiGetWorkflow(ctx.actor, input))

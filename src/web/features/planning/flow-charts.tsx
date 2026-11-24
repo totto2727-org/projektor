@@ -23,10 +23,10 @@ import {
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
-} from '../../components/generated/chart'
-import type { ChartConfig } from '../../components/generated/chart'
-import { formatDuration, formatPercent } from './helpers'
-import type { FlowMetrics } from './types'
+} from '../../components/generated/chart.tsx'
+import type { ChartConfig } from '../../components/generated/chart.tsx'
+import { formatDuration, formatPercent } from './helpers.ts'
+import type { FlowMetrics } from './types.ts'
 
 export function formatShortDate(iso: string): string {
   const date = new Date(`${iso}T00:00:00Z`)
@@ -102,9 +102,10 @@ function DateTooltip({ config, formatValue }: { config?: ChartConfig; formatValu
   )
 }
 const throughputConfig = { count: { label: 'Issues completed', color: accent } } satisfies ChartConfig
-export function ThroughputChart({ data }: { data: ReadonlyArray<FlowMetrics['throughputOverTime'][number]> }) {
-  if (!data.length || data.every((point) => point.count === 0))
+export function ThroughputChart({ data }: { data: readonly FlowMetrics['throughputOverTime'][number][] }) {
+  if (!data.length || data.every((point) => point.count === 0)) {
     return <EmptyChartState message='No completed issues yet' />
+  }
   return (
     <FlowChart name='throughput' config={throughputConfig}>
       <BarChart accessibilityLayer data={data} margin={margin}>
@@ -129,9 +130,10 @@ const cfdConfig = {
   inReview: { label: 'In review', color: sequential.inReview },
   done: { label: 'Done', color: sequential.done },
 } satisfies ChartConfig
-export function CfdChart({ data }: { data: ReadonlyArray<FlowMetrics['cfdOverTime'][number]> }) {
-  if (!data.length || data.every((point) => point.backlogTodo + point.inProgress + point.inReview + point.done === 0))
+export function CfdChart({ data }: { data: readonly FlowMetrics['cfdOverTime'][number][] }) {
+  if (!data.length || data.every((point) => point.backlogTodo + point.inProgress + point.inReview + point.done === 0)) {
     return <EmptyChartState message='No issues in this window yet' />
+  }
   // Recharts stacks raw state counts. Supplying cumulative totals here would double-stack the CFD.
   return (
     <FlowChart name='cfd' config={cfdConfig}>
@@ -175,10 +177,12 @@ export function BugShareChart({
   data: FlowMetrics['bugShareOverTime']
   bugTypeTracked: boolean
 }) {
-  if (!bugTypeTracked)
+  if (!bugTypeTracked) {
     return <EmptyChartState message={'Not tracked: no task type keyed "bug" exists in this workspace'} />
-  if (!data.length || data.every((point) => point.bugSharePercent === null))
+  }
+  if (!data.length || data.every((point) => point.bugSharePercent === null)) {
     return <EmptyChartState message='No completed issues yet' />
+  }
   return (
     <FlowChart name='bug-share' config={bugConfig}>
       <LineChart accessibilityLayer data={data} margin={margin}>
@@ -201,8 +205,9 @@ export function BugShareChart({
 }
 const reviewConfig = { p50: { label: 'Review latency (p50)', color: accent } } satisfies ChartConfig
 export function ReviewLatencyChart({ data }: { data: FlowMetrics['reviewLatencyOverTime'] }) {
-  if (!data.length || data.every((point) => point.p50 === null))
+  if (!data.length || data.every((point) => point.p50 === null)) {
     return <EmptyChartState message='No review-latency data yet' />
+  }
   return (
     <FlowChart name='review-latency' config={reviewConfig}>
       <LineChart accessibilityLayer data={data} margin={margin}>
@@ -227,7 +232,9 @@ const wipConfig = { count: { label: 'WIP', color: accent } } satisfies ChartConf
 const timestampDate = (value: number) => new Date(value).toISOString().slice(0, 10)
 export function WipChart({ data }: { data: FlowMetrics['wipOverTime'] }) {
   const points = useMemo(() => data.map((point) => ({ ...point, timestamp: new Date(point.date).getTime() })), [data])
-  if (!data.length || data.every((point) => point.count === 0)) return <EmptyChartState message='No WIP data yet' />
+  if (!data.length || data.every((point) => point.count === 0)) {
+    return <EmptyChartState message='No WIP data yet' />
+  }
   return (
     <FlowChart name='wip' config={wipConfig}>
       <LineChart accessibilityLayer data={points} margin={margin}>
@@ -272,8 +279,9 @@ const arrivalConfig = {
   net: { label: 'Net (created − completed)', color: muted },
 } satisfies ChartConfig
 export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalVsCompletionOverTime'] }) {
-  if (!data.length || data.every((point) => point.created === 0 && point.completed === 0))
+  if (!data.length || data.every((point) => point.created === 0 && point.completed === 0)) {
     return <EmptyChartState message='No arrivals or completions yet' />
+  }
   return (
     <FlowChart name='arrival-completion' config={arrivalConfig}>
       <LineChart accessibilityLayer data={data} margin={margin}>
@@ -313,7 +321,9 @@ export function ArrivalVsCompletionChart({ data }: { data: FlowMetrics['arrivalV
 }
 export function hashJitter(id: string): number {
   let hash = 0
-  for (let index = 0; index < id.length; index++) hash = (hash * 31 + id.charCodeAt(index)) | 0
+  for (let index = 0; index < id.length; index++) {
+    hash = (hash * 31 + id.charCodeAt(index)) | 0
+  }
   return ((hash >>> 0) % 1000) / 1000
 }
 const agingConfig = {
@@ -341,7 +351,9 @@ export function AgingWipScatter({
     [data],
   )
   const maxAge = Math.max(0, ...data.map((point) => point.ageSeconds), p50 ?? 0, p90 ?? 0)
-  if (!data.length) return <EmptyChartState message='No issues currently in progress or review' />
+  if (!data.length) {
+    return <EmptyChartState message='No issues currently in progress or review' />
+  }
   return (
     <FlowChart name='aging-wip' config={agingConfig}>
       <ComposedChart accessibilityLayer data={points} margin={margin}>

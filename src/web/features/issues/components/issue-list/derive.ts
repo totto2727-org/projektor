@@ -1,16 +1,20 @@
 'use client'
-import type { Issue, TaskStatus } from '../board-utils'
-import type { ProjectMeta } from './types'
+import type { Issue, TaskStatus } from '../board-utils.ts'
+import type { ProjectMeta } from './types.ts'
 
 /** Description of the active project filter, for the banner under the toolbar. */
 export function deriveProjectDescription(projects: readonly ProjectMeta[], filterProject: string): string | null {
-  if (!filterProject) return null
+  if (!filterProject) {
+    return null
+  }
   return projects.find((p) => p.key === filterProject)?.description ?? null
 }
 
 /** Status filter options: prefer the statuses endpoint, else derive from loaded issues. */
 export function deriveStatusOptions(issues: readonly Issue[], statuses: readonly TaskStatus[]): readonly TaskStatus[] {
-  if (statuses.length > 0) return statuses
+  if (statuses.length > 0) {
+    return statuses
+  }
   return [
     ...new Map(
       issues
@@ -31,7 +35,7 @@ export function deriveStatusOptions(issues: readonly Issue[], statuses: readonly
   ]
 }
 
-export function deriveProjectOptions(issues: readonly Issue[]): Array<{ key: string; name: string }> {
+export function deriveProjectOptions(issues: readonly Issue[]): { key: string; name: string }[] {
   return [
     ...new Map(
       issues
@@ -46,7 +50,7 @@ export function deriveProjectOptions(issues: readonly Issue[]): Array<{ key: str
   ]
 }
 
-export function deriveTypeOptions(issues: readonly Issue[]): Array<[string, string]> {
+export function deriveTypeOptions(issues: readonly Issue[]): [string, string][] {
   return [
     ...new Map(
       issues

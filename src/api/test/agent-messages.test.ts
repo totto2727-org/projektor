@@ -1,7 +1,7 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   hashToken,
@@ -12,8 +12,8 @@ import {
   seedProject,
   seedToken,
   toolError,
-} from './helpers'
-import { resetRateLimits } from './rate-limit-reset'
+} from './helpers.ts'
+import { resetRateLimits } from './rate-limit-reset.ts'
 
 describe('Agent Messages API', () => {
   let token: string
@@ -61,7 +61,7 @@ describe('Agent Messages API', () => {
 
   // C1: post_message to issue scope; list_messages returns it; cursor pagination stable
   // token: POST×3 (3/5); token2: GET all (1/5) + GET page2 (2/5); token3: GET page1 (1/5); token4: MCP (1/5)
-  it('C1: post_message({scope:issue}) and list_messages with cursor pagination (no dupes/gaps)', async () => {
+  test('C1: post_message({scope:issue}) and list_messages with cursor pagination (no dupes/gaps)', async () => {
     const scope = `issue:${issueId}`
 
     // Post 3 messages so we can page with limit=2
@@ -82,7 +82,7 @@ describe('Agent Messages API', () => {
     const allRes = await listMessages({ scope }, token2, slug)
     expect(allRes.status).toBe(200)
     const all = (await allRes.json()) as {
-      items: Array<{ body: string }>
+      items: { body: string }[]
       nextCursor: string | null
     }
     expect(all.items).toHaveLength(3)
@@ -94,7 +94,7 @@ describe('Agent Messages API', () => {
     const page1Res = await listMessages({ scope, limit: '2' }, token3, slug)
     expect(page1Res.status).toBe(200)
     const page1 = (await page1Res.json()) as {
-      items: Array<{ body: string }>
+      items: { body: string }[]
       nextCursor: string | null
     }
     expect(page1.items).toHaveLength(2)
@@ -106,7 +106,7 @@ describe('Agent Messages API', () => {
     const page2Res = await listMessages({ scope, limit: '2', cursor: page1.nextCursor! }, token2, slug)
     expect(page2Res.status).toBe(200)
     const page2 = (await page2Res.json()) as {
-      items: Array<{ body: string }>
+      items: { body: string }[]
       nextCursor: string | null
     }
     expect(page2.items).toHaveLength(1)
@@ -117,9 +117,9 @@ describe('Agent Messages API', () => {
     const token4 = await seedToken(workspaceId, userId)
     const mcpRes = await mcpCall('list_messages', { scope }, token4, slug)
     expect(mcpRes.status).toBe(200)
-    const mcpBody = (await mcpRes.json()) as { result: { content: Array<{ text: string }> } }
+    const mcpBody = (await mcpRes.json()) as { result: { content: { text: string }[] } }
     const mcpData = JSON.parse(mcpBody.result.content[0].text) as {
-      items: Array<{ body: string }>
+      items: { body: string }[]
     }
     expect(mcpData.items).toHaveLength(3)
 
@@ -127,24 +127,24 @@ describe('Agent Messages API', () => {
     // must be accepted back by the argument validator.
     const token5 = await seedToken(workspaceId, userId)
     const p1Res = await mcpCall('list_messages', { scope, limit: 2 }, token5, slug)
-    const p1Body = (await p1Res.json()) as { result: { content: Array<{ text: string }> } }
+    const p1Body = (await p1Res.json()) as { result: { content: { text: string }[] } }
     const p1 = JSON.parse(p1Body.result.content[0].text) as { nextCursor: string | null }
     expect(typeof p1.nextCursor).toBe('string')
     const p2Res = await mcpCall('list_messages', { scope, limit: 2, cursor: p1.nextCursor }, token5, slug)
     const p2Body = (await p2Res.json()) as {
-      result?: { content: Array<{ text: string }> }
+      result?: { content: { text: string }[] }
       error?: { message: string }
     }
     expect(p2Body.error).toBeUndefined()
     const p2 = JSON.parse(p2Body.result?.content[0].text ?? '{}') as {
-      items: Array<{ body: string }>
+      items: { body: string }[]
     }
     expect(p2.items.map((m) => m.body)).toEqual(['message three'])
   })
 
   // C2: workspace scope; messages visible via workspace scope; not returned under issue scope
   // 3 requests (post, list workspace scope, list issue scope) — within RATE_LIMIT_API_MAX=5
-  it('C2: workspace-scoped post_message visible under workspace scope; not under issue scope', async () => {
+  test('C2: workspace-scoped post_message visible under workspace scope; not under issue scope', async () => {
     const wsScope = 'workspace'
     const issueScope = `issue:${issueId}`
 
@@ -158,31 +158,31 @@ describe('Agent Messages API', () => {
     // Should appear in workspace channel
     const wsListRes = await listMessages({ scope: wsScope }, token2, slug)
     expect(wsListRes.status).toBe(200)
-    const wsBody = (await wsListRes.json()) as { items: Array<{ body: string; scope: string }> }
+    const wsBody = (await wsListRes.json()) as { items: { body: string; scope: string }[] }
     expect(wsBody.items.some((m) => m.body === 'workspace-wide notice')).toBe(true)
 
     // Should NOT appear in issue channel
     const issueListRes = await listMessages({ scope: issueScope }, token2, slug)
     expect(issueListRes.status).toBe(200)
-    const issueBody = (await issueListRes.json()) as { items: Array<{ body: string }> }
+    const issueBody = (await issueListRes.json()) as { items: { body: string }[] }
     expect(issueBody.items.some((m) => m.body === 'workspace-wide notice')).toBe(false)
   })
 
   // C3: CAPSTONE — spans agents + file-claims + agent-messages
   // Uses multiple tokens to stay within rate limit (5 per token)
-  it('C3: capstone — two agents coordinate via messages; force-claim posts override notice', async () => {
+  test('C3: capstone — two agents coordinate via messages; force-claim posts override notice', async () => {
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Agent Issue' })
     const scope = `issue:${issue2.id}`
 
     // Phase 1 (token): register agents, claim, conflict, post message
     const agent1Res = await mcpCall('register_agent', { name: 'agent-one' })
     expect(agent1Res.status).toBe(200)
-    const a1Body = (await agent1Res.json()) as { result: { content: Array<{ text: string }> } }
+    const a1Body = (await agent1Res.json()) as { result: { content: { text: string }[] } }
     const agent1 = JSON.parse(a1Body.result.content[0].text) as { id: string }
 
     const agent2Res = await mcpCall('register_agent', { name: 'agent-two' })
     expect(agent2Res.status).toBe(200)
-    const a2Body = (await agent2Res.json()) as { result: { content: Array<{ text: string }> } }
+    const a2Body = (await agent2Res.json()) as { result: { content: { text: string }[] } }
     const agent2 = JSON.parse(a2Body.result.content[0].text) as { id: string }
 
     // agent1 claims path A
@@ -192,7 +192,7 @@ describe('Agent Messages API', () => {
       paths: ['src/coord.ts'],
     })
     expect(claimRes.status).toBe(200)
-    const claimBody = (await claimRes.json()) as { result: { content: Array<{ text: string }> } }
+    const claimBody = (await claimRes.json()) as { result: { content: { text: string }[] } }
     expect(JSON.parse(claimBody.result.content[0].text)).toMatchObject({
       created: [{ path: 'src/coord.ts' }],
     })
@@ -224,9 +224,9 @@ describe('Agent Messages API', () => {
 
     const readRes = await mcpCall('list_messages', { scope }, token2, slug)
     expect(readRes.status).toBe(200)
-    const readBody = (await readRes.json()) as { result: { content: Array<{ text: string }> } }
+    const readBody = (await readRes.json()) as { result: { content: { text: string }[] } }
     const readData = JSON.parse(readBody.result.content[0].text) as {
-      items: Array<{ body: string }>
+      items: { body: string }[]
     }
     expect(readData.items.some((m) => m.body.includes('can you release?'))).toBe(true)
 
@@ -247,10 +247,10 @@ describe('Agent Messages API', () => {
     )
     expect(reclaimRes.status).toBe(200)
     const reclaimBody = (await reclaimRes.json()) as {
-      result: { content: Array<{ text: string }> }
+      result: { content: { text: string }[] }
     }
     const reclaimData = JSON.parse(reclaimBody.result.content[0].text) as {
-      created: Array<{ issueId: string }>
+      created: { issueId: string }[]
     }
     expect(reclaimData.created[0].issueId).toBe(issue2.id)
 
@@ -284,9 +284,9 @@ describe('Agent Messages API', () => {
       slug,
     )
     expect(forceRes.status).toBe(200)
-    const forceBody = (await forceRes.json()) as { result: { content: Array<{ text: string }> } }
+    const forceBody = (await forceRes.json()) as { result: { content: { text: string }[] } }
     const forceData = JSON.parse(forceBody.result.content[0].text) as {
-      overridden: Array<unknown>
+      overridden: unknown[]
     }
     expect(forceData.overridden).toHaveLength(1)
 
@@ -294,18 +294,18 @@ describe('Agent Messages API', () => {
     const noticeScope = `issue:${issue3.id}`
     const noticeRes = await mcpCall('list_messages', { scope: noticeScope }, token3, slug)
     expect(noticeRes.status).toBe(200)
-    const noticeBody = (await noticeRes.json()) as { result: { content: Array<{ text: string }> } }
+    const noticeBody = (await noticeRes.json()) as { result: { content: { text: string }[] } }
     const noticeData = JSON.parse(noticeBody.result.content[0].text) as {
-      items: Array<{ body: string }>
+      items: { body: string }[]
     }
     expect(noticeData.items.some((m) => m.body.includes('force-claimed') && m.body.includes('src/forced.ts'))).toBe(
       true,
     )
-  }, 15000) // PROJ-248: many sequential MCP round-trips; full-suite contention pushes this past the 5s default
+  }, 15_000) // PROJ-248: many sequential MCP round-trips; full-suite contention pushes this past the 5s default
 
   // C4: workspace isolation; issue-scope isolation; cursor stability
   // 4 requests (post, list from other ws, post other-issue, list-ws scope) within limit
-  it('C4: workspace isolation and issue-scope isolation', async () => {
+  test('C4: workspace isolation and issue-scope isolation', async () => {
     const scope = `issue:${issueId}`
 
     // Post a message in workspace X
@@ -331,7 +331,7 @@ describe('Agent Messages API', () => {
     // Workspace X cannot see workspace Y messages
     const xListRes = await listMessages({ scope }, token2, slug)
     expect(xListRes.status).toBe(200)
-    const xBody = (await xListRes.json()) as { items: Array<{ body: string }> }
+    const xBody = (await xListRes.json()) as { items: { body: string }[] }
     expect(xBody.items.some((m) => m.body === 'workspace-Y message')).toBe(false)
     expect(xBody.items.some((m) => m.body === 'workspace-X message')).toBe(true)
 
@@ -342,7 +342,7 @@ describe('Agent Messages API', () => {
     const token3 = await seedToken(workspaceId, userId)
     const isoRes = await listMessages({ scope }, token3, slug)
     expect(isoRes.status).toBe(200)
-    const isoBody = (await isoRes.json()) as { items: Array<{ body: string }> }
+    const isoBody = (await isoRes.json()) as { items: { body: string }[] }
     expect(isoBody.items.some((m) => m.body === 'ws-channel msg')).toBe(false)
   })
 
@@ -362,7 +362,7 @@ describe('Agent Messages API', () => {
       .run()
   }
 
-  it("post_message refreshes a live agentId's heartbeat, but never revives a stale one", async () => {
+  test("post_message refreshes a live agentId's heartbeat, but never revives a stale one", async () => {
     const { agentSessionId: live } = await seedAgentLease(workspaceId, issueId)
     await ownSession(live)
     const backdated = Math.floor(Date.now() / 1000) - 10

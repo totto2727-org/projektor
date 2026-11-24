@@ -1,8 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, type JsonRpcError, type JsonRpcResult, seedIssueFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedIssueFixture } from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 
 describe('MCP prompts', () => {
   let token: string
@@ -32,13 +33,13 @@ describe('MCP prompts', () => {
     return res.json()
   }
 
-  it('prompts/list returns the epic-goal prompt with its arguments', async () => {
+  test('prompts/list returns the epic-goal prompt with its arguments', async () => {
     const json = (await mcpCall('prompts/list', {})) as JsonRpcResult<{
-      prompts: Array<{
+      prompts: {
         name: string
         description: string
         arguments: Array<{ name: string; required: boolean }>
-      }>
+      }[]
     }>
     const prompt = json.result.prompts.find((p) => p.name === 'epic-goal')
     expect(prompt).toBeDefined()
@@ -48,13 +49,13 @@ describe('MCP prompts', () => {
     expect(prompt!.arguments.find((a) => a.name === 'variant')?.required).toBe(false)
   })
 
-  it('prompts/get with only epicRef returns the composed directive as a user message', async () => {
+  test('prompts/get with only epicRef returns the composed directive as a user message', async () => {
     const json = (await mcpCall('prompts/get', {
       name: 'epic-goal',
       arguments: { epicRef: `PROJ-${epicNumber}` },
     })) as JsonRpcResult<{
       description: string
-      messages: Array<{ role: string; content: { type: string; text: string } }>
+      messages: { role: string; content: { type: string; text: string } }[]
     }>
     expect(json.result.messages).toHaveLength(1)
     expect(json.result.messages[0].role).toBe('user')
@@ -65,7 +66,7 @@ describe('MCP prompts', () => {
     expect(json.result.messages[0].content.text).toContain('every 10 completed tickets')
   })
 
-  it('prompts/get honors string-valued variant/reviewModel/cadence/checkpointInterval arguments', async () => {
+  test('prompts/get honors string-valued variant/reviewModel/cadence/checkpointInterval arguments', async () => {
     const json = (await mcpCall('prompts/get', {
       name: 'epic-goal',
       arguments: {
@@ -75,7 +76,7 @@ describe('MCP prompts', () => {
         cadence: '5',
         checkpointInterval: '3',
       },
-    })) as JsonRpcResult<{ messages: Array<{ content: { text: string } }> }>
+    })) as JsonRpcResult<{ messages: { content: { text: string } }[] }>
     const text = json.result.messages[0].content.text
     expect(text).toContain('Self-feed (full)')
     expect(text).toContain('every 5 completed tickets')
@@ -83,16 +84,16 @@ describe('MCP prompts', () => {
     expect(text).toContain('every 3 completed tickets')
   })
 
-  it('prompts/get on an unresolvable epicRef surfaces the compose error', async () => {
+  test('prompts/get on an unresolvable epicRef surfaces the compose error', async () => {
     const json = (await mcpCall('prompts/get', {
       name: 'epic-goal',
       arguments: { epicRef: 'PROJ-999999' },
     })) as JsonRpcError
-    expect(json.error.code).toBe(-32000)
+    expect(json.error.code).toBe(-32_000)
     expect(json.error.message).toContain('not found')
   })
 
-  it('prompts/get on an unknown prompt name errors, naming valid options', async () => {
+  test('prompts/get on an unknown prompt name errors, naming valid options', async () => {
     const json = (await mcpCall('prompts/get', {
       name: 'does-not-exist',
       arguments: {},

@@ -1,6 +1,6 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
-import { users, workspaces } from './core'
+import { users, workspaces } from './core.ts'
 
 export const projects = sqliteTable(
   'projects',

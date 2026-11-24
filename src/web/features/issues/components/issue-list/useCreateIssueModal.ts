@@ -2,10 +2,10 @@
 import { Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 
-import { createIssue } from '../../actions'
-import { BodyText, Priority, RequiredText, Text, TitleText, useIssueForm } from '../../forms'
-import { useUnsavedUnloadGuard } from '../../utils/use-unsaved-unload-guard'
-import type { ProjectMeta } from './types'
+import { createIssue } from '../../actions.ts'
+import { BodyText, Priority, RequiredText, Text, TitleText, useIssueForm } from '../../forms.ts'
+import { useUnsavedUnloadGuard } from '../../utils/use-unsaved-unload-guard.ts'
+import type { ProjectMeta } from './types.ts'
 
 interface Params {
   workspaceSlug?: string
@@ -45,15 +45,21 @@ export function useCreateIssueModal({ workspaceSlug, filterProject, projects }: 
   const createError =
     result && result !== openedResult && !result.ok ? `Failed to create issue: ${result.message}` : null
   useEffect(() => {
-    if (result?.ok) setShowCreateModal(false)
+    if (result?.ok) {
+      setShowCreateModal(false)
+    }
   }, [result])
   useUnsavedUnloadGuard(showCreateModal && Boolean(createTitle.trim() || createBody.trim()))
 
   // Escape closes the create modal
   useEffect(() => {
-    if (!showCreateModal) return
+    if (!showCreateModal) {
+      return
+    }
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowCreateModal(false)
+      if (e.key === 'Escape') {
+        setShowCreateModal(false)
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)

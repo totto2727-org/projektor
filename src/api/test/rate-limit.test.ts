@@ -1,13 +1,13 @@
 import { SELF } from 'cloudflare:test'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { bumpRateCounter } from '#services/request-rate-limit'
+import { bumpRateCounter } from '#services/request-rate-limit.ts'
 import type { Env } from '#types'
 
-import { LIMITER_TIMEOUT_MS } from '../middleware/rate-limit'
-import { configureCore, env, getCoreLimiterCalls } from './fixture-api'
-import { authHeaders, seedFixture } from './helpers'
-import { seedRateLimitCounter } from './rate-limit-reset'
+import { LIMITER_TIMEOUT_MS } from '../middleware/rate-limit.ts'
+import { configureCore, env, getCoreLimiterCalls } from './fixture-api.ts'
+import { authHeaders, seedFixture } from './helpers.ts'
+import { seedRateLimitCounter } from './rate-limit-reset.ts'
 
 // Must match vite.config.ts values.
 const AUTH_LIMIT = 3
@@ -56,14 +56,14 @@ describe('PROJ-19: rate limiting', () => {
   const ENDPOINT = 'http://localhost/api/workspaces'
 
   describe('IP-keyed (no bearer token)', () => {
-    it('allows a request within the limit', async () => {
+    test('allows a request within the limit', async () => {
       // No CF-Connecting-IP → middleware falls back to '127.0.0.1'
       const res = await SELF.fetch(ENDPOINT)
       // 401 from auth is the expected non-rate-limited response
       expect(res.status).not.toBe(429)
     })
 
-    it('returns 429 with Retry-After when the IP limit is exceeded', async () => {
+    test('returns 429 with Retry-After when the IP limit is exceeded', async () => {
       // Seed against the fallback IP used when CF-Connecting-IP is absent in tests
       await seedCounter('ip:127.0.0.1', AUTH_LIMIT)
 
@@ -74,7 +74,7 @@ describe('PROJ-19: rate limiting', () => {
       expect(retryAfter).toBeLessThanOrEqual(WINDOW_SECS)
     })
 
-    it('IP-keyed and token-keyed buckets are independent', async () => {
+    test('IP-keyed and token-keyed buckets are independent', async () => {
       // Exhaust the IP bucket; authenticated requests must not be affected
       await seedCounter('ip:127.0.0.1', AUTH_LIMIT)
 
@@ -88,7 +88,7 @@ describe('PROJ-19: rate limiting', () => {
   })
 
   describe('token-keyed (bearer token present)', () => {
-    it('allows a request within the limit', async () => {
+    test('allows a request within the limit', async () => {
       const fixture = await seedFixture()
       const res = await SELF.fetch(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
@@ -96,7 +96,7 @@ describe('PROJ-19: rate limiting', () => {
       expect(res.status).not.toBe(429)
     })
 
-    it('returns 429 with Retry-After when the token limit is exceeded', async () => {
+    test('returns 429 with Retry-After when the token limit is exceeded', async () => {
       const fixture = await seedFixture()
       const fingerprint = await sha256Prefix(fixture.token)
       await seedCounter(`tok:${fingerprint}`, API_LIMIT)
@@ -110,7 +110,7 @@ describe('PROJ-19: rate limiting', () => {
       expect(retryAfter).toBeLessThanOrEqual(WINDOW_SECS)
     })
 
-    it('does not share buckets between different tokens', async () => {
+    test('does not share buckets between different tokens', async () => {
       const fixtureA = await seedFixture()
       const fixtureB = await seedFixture()
 
@@ -130,14 +130,14 @@ describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
   const ENDPOINT = 'http://localhost/api/workspaces'
   const AUTH_FAIL_LIMIT = 3 // RATE_LIMIT_AUTH_FAIL_MAX in vite.config.ts
 
-  it('returns 401 for an invalid bearer token while under the failure limit', async () => {
+  test('returns 401 for an invalid bearer token while under the failure limit', async () => {
     const res = await SELF.fetch(ENDPOINT, {
       headers: { Authorization: 'Bearer pk_not_a_real_token' },
     })
     expect(res.status).toBe(401)
   })
 
-  it('returns 429 once invalid bearer auths from one IP exceed the limit', async () => {
+  test('returns 429 once invalid bearer auths from one IP exceed the limit', async () => {
     // Pre-seed the IP's failure counter at the limit; the next invalid-token attempt trips it.
     // Without CF-Connecting-IP the middleware keys by the 127.0.0.1 fallback.
     await seedCounter('authfail:127.0.0.1', AUTH_FAIL_LIMIT)
@@ -148,7 +148,7 @@ describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
     expect(res.status).toBe(429)
   })
 
-  it("does not throttle a valid token even when the IP's failure counter is high", async () => {
+  test("does not throttle a valid token even when the IP's failure counter is high", async () => {
     // A successful auth never touches the authfail counter, so legit clients sharing an IP
     // with an attacker are unaffected.
     await seedCounter('authfail:127.0.0.1', AUTH_FAIL_LIMIT + 5)
@@ -170,8 +170,12 @@ describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
     const counts = { prepare: 0, batch: 0 }
     const proxy = new Proxy(db, {
       get(target, prop, receiver) {
-        if (prop === 'prepare') counts.prepare++
-        if (prop === 'batch') counts.batch++
+        if (prop === 'prepare') {
+          counts.prepare++
+        }
+        if (prop === 'batch') {
+          counts.batch++
+        }
         const value = Reflect.get(target, prop, receiver)
         return typeof value === 'function' ? value.bind(target) : value
       },
@@ -179,7 +183,7 @@ describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
     return { counts, proxy }
   }
 
-  it('issues a single batch rather than sequential statements', async () => {
+  test('issues a single batch rather than sequential statements', async () => {
     const { counts, proxy } = countingDb(env.DB)
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5) // no prune
     try {
@@ -191,7 +195,7 @@ describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
     expect(counts.batch).toBe(1)
   })
 
-  it('still counts correctly through the batch', async () => {
+  test('still counts correctly through the batch', async () => {
     const key = `ip:batch-count-${crypto.randomUUID().slice(0, 8)}`
     expect(await bumpRateCounter(d1Only(env.DB), key, WINDOW_SECS)).toBe(1)
     expect(await bumpRateCounter(d1Only(env.DB), key, WINDOW_SECS)).toBe(2)
@@ -207,7 +211,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
     return row?.n ?? 0
   }
 
-  it('GET requests write nothing to D1', async () => {
+  test('GET requests write nothing to D1', async () => {
     const fixture = await seedFixture()
     for (let i = 0; i < 3; i++) {
       const res = await SELF.fetch(ENDPOINT, {
@@ -219,7 +223,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
     expect(await rateLimitRows()).toBe(0)
   })
 
-  it('still enforces the token limit (API max 5) from the Durable Object counter', async () => {
+  test('still enforces the token limit (API max 5) from the Durable Object counter', async () => {
     const fixture = await seedFixture()
     const statuses: number[] = []
     for (let i = 0; i < API_LIMIT + 1; i++) {
@@ -233,7 +237,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
     expect(await rateLimitRows()).toBe(0)
   })
 
-  it('Retry-After is the seconds left in the fixed window, as before', async () => {
+  test('Retry-After is the seconds left in the fixed window, as before', async () => {
     const slotStartMs = currentSlot() * 1000
     env.RATE_LIMIT_TEST_NOW_MS = String(slotStartMs + 20_000) // 20s into the window
     await configureCore()
@@ -257,7 +261,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       await configureCore()
     })
 
-    it('allows the request when the Durable Object call throws', async () => {
+    test('allows the request when the Durable Object call throws', async () => {
       await configureCore({ FIXTURE_LIMITER_MODE: 'reject' })
       const fixture = await seedFixture()
       const res = await SELF.fetch(ENDPOINT, {
@@ -267,7 +271,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       expect(res.status).toBe(200)
     })
 
-    it('an invalid token still gets 401, not 500, from the auth-failure throttle', async () => {
+    test('an invalid token still gets 401, not 500, from the auth-failure throttle', async () => {
       await configureCore({ FIXTURE_LIMITER_MODE: 'reject' })
       const res = await SELF.fetch(ENDPOINT, {
         headers: { Authorization: 'Bearer pk_not_a_real_token' },
@@ -276,7 +280,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       expect(res.status).toBe(401)
     })
 
-    it("allows the request when the Durable Object doesn't answer in time", async () => {
+    test("allows the request when the Durable Object doesn't answer in time", async () => {
       await configureCore({ FIXTURE_LIMITER_MODE: 'hang' })
       const fixture = await seedFixture()
       const started = Date.now()
@@ -285,14 +289,14 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       })
       expect(await getCoreLimiterCalls()).toBeGreaterThan(0)
       expect(res.status).toBe(200)
-      expect(Date.now() - started).toBeLessThan(LIMITER_TIMEOUT_MS + 5_000)
+      expect(Date.now() - started).toBeLessThan(LIMITER_TIMEOUT_MS + 5000)
     })
   })
 
   describe('without the binding (deploys not yet updated)', () => {
     withoutLimiterBinding()
 
-    it('falls back to the D1 counter and still enforces the limit', async () => {
+    test('falls back to the D1 counter and still enforces the limit', async () => {
       await seedD1Counter('ip:127.0.0.1', AUTH_LIMIT)
       const res = await SELF.fetch(ENDPOINT)
       expect(res.status).toBe(429)

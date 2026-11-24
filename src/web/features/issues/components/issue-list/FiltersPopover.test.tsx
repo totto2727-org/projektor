@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 'use client'
 
-import '../../test/browser'
-import { afterEach, describe, expect, it } from 'vite-plus/test'
+import '../../test/browser.ts'
+import { afterEach, describe, expect, test } from 'vite-plus/test'
 
-import { computeFiltersPopoverPosition } from './FiltersPopover'
+import { computeFiltersPopoverPosition } from './FiltersPopover.tsx'
 
 /** jsdom has no layout: every rect is 0×0 unless stubbed. */
 function rectAt(top: number, left = 10, height = 24, width = 100): DOMRect {
@@ -32,7 +32,7 @@ describe('computeFiltersPopoverPosition (PROJ-588)', () => {
     window.innerWidth = originalWidth
   })
 
-  it('opens below the trigger and clamps maxHeight to the space available', () => {
+  test('opens below the trigger and clamps maxHeight to the space available', () => {
     window.innerHeight = 500
     // 500 - 224 - 4 - 8 = 264px below.
     expect(computeFiltersPopoverPosition(rectAt(200))).toEqual({
@@ -42,12 +42,12 @@ describe('computeFiltersPopoverPosition (PROJ-588)', () => {
     })
   })
 
-  it("never exceeds the panel's 420px ceiling when there is ample room", () => {
+  test("never exceeds the panel's 420px ceiling when there is ample room", () => {
     window.innerHeight = 2000
     expect(computeFiltersPopoverPosition(rectAt(100)).maxHeight).toBe(420)
   })
 
-  it("flips above the trigger when there's too little room below but more above", () => {
+  test("flips above the trigger when there's too little room below but more above", () => {
     window.innerHeight = 500
     // Trigger near the bottom: 500 - 480 - 4 - 8 = 8px below (< the 160px floor).
     // Above: 460 - 4 - 8 = 448px, clamped to the 420px ceiling.
@@ -56,7 +56,7 @@ describe('computeFiltersPopoverPosition (PROJ-588)', () => {
     expect(pos.maxHeight).toBe(420)
   })
 
-  it("clamps left so the panel's 16rem width stays within a narrow viewport", () => {
+  test("clamps left so the panel's 16rem width stays within a narrow viewport", () => {
     window.innerWidth = 300
     // Trigger near the right edge: left=280 would push the 256px-wide panel off-screen.
     const pos = computeFiltersPopoverPosition(rectAt(50, 280, 24, 40))

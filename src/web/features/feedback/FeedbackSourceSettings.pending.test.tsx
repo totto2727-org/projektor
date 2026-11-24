@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, expect, it, vi } from 'vite-plus/test'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('./actions', () => ({
   rotateFeedbackSourceToken: vi.fn(),
@@ -8,8 +8,8 @@ vi.mock('./actions', () => ({
   setFeedbackSourceActive: vi.fn(),
 }))
 
-import { rotateFeedbackSourceToken } from './actions'
-import FeedbackSourceSettings from './FeedbackSourceSettings'
+import { rotateFeedbackSourceToken } from './actions.ts'
+import FeedbackSourceSettings from './FeedbackSourceSettings.tsx'
 
 // The transport is deferred so repeated confirmation arrives before completion.
 afterEach(() => {
@@ -17,7 +17,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-it('single-flights rapid rotation confirmation and reveals only its resulting token', async () => {
+test('single-flights rapid rotation confirmation and reveals only its resulting token', async () => {
   const pending = Promise.withResolvers<Awaited<ReturnType<typeof rotateFeedbackSourceToken>>>()
   vi.mocked(rotateFeedbackSourceToken).mockReturnValue(pending.promise)
   render(
@@ -49,7 +49,7 @@ it('single-flights rapid rotation confirmation and reveals only its resulting to
   expect(screen.queryByRole('button', { name: 'Rotating…' })).toBeNull()
 })
 
-it('releases rotation confirmation after a failure so a deliberate retry can succeed', async () => {
+test('releases rotation confirmation after a failure so a deliberate retry can succeed', async () => {
   vi.mocked(rotateFeedbackSourceToken).mockRejectedValueOnce(new Error('Unavailable'))
   vi.mocked(rotateFeedbackSourceToken).mockResolvedValueOnce({ ok: true, value: { token: 'retry-token' } })
   render(

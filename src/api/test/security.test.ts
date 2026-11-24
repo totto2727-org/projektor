@@ -1,10 +1,10 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { seedFixture, seedMember } from './helpers'
+import { seedFixture, seedMember } from './helpers.ts'
 
 describe('PROJ-16: API token workspace scope', () => {
-  it('rejects a token for workspace A used against workspace B, even when the user is a member of both', async () => {
+  test('rejects a token for workspace A used against workspace B, even when the user is a member of both', async () => {
     const wsA = await seedFixture()
     const wsB = await seedFixture()
     // Make wsA's user a member of wsB so the only rejection reason is the token's workspace scope
@@ -19,7 +19,7 @@ describe('PROJ-16: API token workspace scope', () => {
     expect(res.status).toBe(403)
   })
 
-  it('allows a valid token used against its own workspace', async () => {
+  test('allows a valid token used against its own workspace', async () => {
     const fixture = await seedFixture()
     const res = await SELF.fetch('http://localhost/api/issues', {
       headers: {
@@ -37,24 +37,24 @@ describe('PROJ-16: API token workspace scope', () => {
 describe('PROJ-18: /bootstrap fail-closed', () => {
   const CORRECT_SECRET = 'test-bootstrap-secret-do-not-use-in-production'
 
-  it('returns 403 when no setup secret is provided', async () => {
+  test('returns 403 when no setup secret is provided', async () => {
     const res = await SELF.fetch('http://localhost/bootstrap')
     expect(res.status).toBe(403)
   })
 
-  it('returns 403 when a wrong secret is provided via header', async () => {
+  test('returns 403 when a wrong secret is provided via header', async () => {
     const res = await SELF.fetch('http://localhost/bootstrap', {
       headers: { 'X-Bootstrap-Secret': 'not-the-right-secret' },
     })
     expect(res.status).toBe(403)
   })
 
-  it('returns 403 when a wrong secret is provided via query param', async () => {
+  test('returns 403 when a wrong secret is provided via query param', async () => {
     const res = await SELF.fetch('http://localhost/bootstrap?setup_secret=wrong')
     expect(res.status).toBe(403)
   })
 
-  it('returns 200 and mints a token when correct secret is in X-Bootstrap-Secret header', async () => {
+  test('returns 200 and mints a token when correct secret is in X-Bootstrap-Secret header', async () => {
     const res = await SELF.fetch('http://localhost/bootstrap', {
       headers: { 'X-Bootstrap-Secret': CORRECT_SECRET },
     })
@@ -68,7 +68,7 @@ describe('PROJ-18: /bootstrap fail-closed', () => {
     expect(body.workspace.slug).toBe('projektor')
   })
 
-  it('returns 200 when correct secret is provided via setup_secret query param', async () => {
+  test('returns 200 when correct secret is provided via setup_secret query param', async () => {
     const res = await SELF.fetch(`http://localhost/bootstrap?setup_secret=${CORRECT_SECRET}`)
     expect(res.status).toBe(200)
     const body = (await res.json()) as { token: string }

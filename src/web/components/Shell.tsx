@@ -1,12 +1,13 @@
 'use client'
 
-import { type ReactNode, useEffect, useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
+import type { ReactNode } from 'react'
 
 import pkg from '../../../package.json'
-import type { BrandConfig } from '../brand'
-import type { RequestScope } from '../server/request-context'
-import { Avatar, AvatarFallback } from './generated/avatar'
-import { Button } from './generated/button'
+import type { BrandConfig } from '../brand.ts'
+import type { RequestScope } from '../server/request-context.ts'
+import { Avatar, AvatarFallback } from './generated/avatar.tsx'
+import { Button } from './generated/button.tsx'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,8 +18,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from './generated/dropdown-menu'
-import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from './generated/popover'
+} from './generated/dropdown-menu.tsx'
+import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from './generated/popover.tsx'
 import {
   Sidebar,
   SidebarContent,
@@ -35,8 +36,8 @@ import {
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
-} from './generated/sidebar'
-import { TooltipProvider } from './generated/tooltip'
+} from './generated/sidebar.tsx'
+import { TooltipProvider } from './generated/tooltip.tsx'
 
 export interface ShellProps {
   children: ReactNode
@@ -84,8 +85,11 @@ function readPrefs(): Prefs {
 /** safe-ls: cosmetic theme, density and navigation preferences never reach an API request. */
 function applyPrefs(prefs: Prefs) {
   const root = document.documentElement
-  if (prefs.theme === 'system') root.removeAttribute('data-theme')
-  else root.dataset.theme = prefs.theme
+  if (prefs.theme === 'system') {
+    root.removeAttribute('data-theme')
+  } else {
+    root.dataset.theme = prefs.theme
+  }
   root.dataset.density = prefs.density
   root.dataset.sidebar = prefs.sidebar
 }
@@ -216,7 +220,7 @@ function AccountMenu({
   const refreshId = useId()
   const logoutId = useId()
   const user = scope?.user
-  if (!user)
+  if (!user) {
     return (
       <form method='post' action='/auth/session'>
         <input type='hidden' name='action' value='login' />
@@ -226,6 +230,7 @@ function AccountMenu({
         </Button>
       </form>
     )
+  }
   return (
     <>
       {/* Keep native auth forms outside the portalled menu so closing it cannot discard the form. */}
@@ -329,7 +334,9 @@ const nav = [
 
 function workspaceHref(path: string, scope: RequestScope | null) {
   const selection = scope?.selection
-  if (selection?.kind !== 'workspace' && selection?.kind !== 'project') return path
+  if (selection?.kind !== 'workspace' && selection?.kind !== 'project') {
+    return path
+  }
   return `${path}?${new URLSearchParams({ workspace: selection.workspace.slug })}`
 }
 

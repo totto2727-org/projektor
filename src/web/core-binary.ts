@@ -1,8 +1,8 @@
 import { Effect, Schema } from 'effect'
 
-import { CORE_ACTOR_HEADER } from '../core/contract'
-import { RequestServices } from './request'
-import { ApiError } from './server/errors'
+import { CORE_ACTOR_HEADER } from '../core/contract.ts'
+import { RequestServices } from './request.ts'
+import { ApiError } from './server/errors.ts'
 
 const BinaryFailure = Schema.Struct({ error: Schema.String })
 

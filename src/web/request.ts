@@ -6,8 +6,9 @@ import type { ReactNode } from 'react'
 
 import type { Env as ApiEnvironment } from '#types'
 
-import type { CoreRpcShape } from '../core/contract'
-import { type ApiError, loadRequestScope, type RequestScope, type ScopeError, type ScopeOptions } from './server'
+import type { CoreRpcShape } from '../core/contract.ts'
+import { loadRequestScope } from './server/index.ts'
+import type { ApiError, RequestScope, ScopeError, ScopeOptions } from './server/index.ts'
 
 export interface Env extends Pick<
   ApiEnvironment,
@@ -28,13 +29,18 @@ export interface Env extends Pick<
 }
 
 export function isWebEnvironment(value: unknown): value is Env {
-  if (typeof value !== 'object' || value === null) return false
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
   const core: unknown = Reflect.get(value, 'CORE')
-  if (typeof core !== 'object' || core === null || typeof Reflect.get(core, 'fetch') !== 'function') return false
+  if (typeof core !== 'object' || core === null || typeof Reflect.get(core, 'fetch') !== 'function') {
+    return false
+  }
   if (
     !['development', 'staging', 'production'].some((environment) => environment === Reflect.get(value, 'ENVIRONMENT'))
-  )
+  ) {
     return false
+  }
   const limiter: unknown = Reflect.get(value, 'RATE_LIMITER')
   if (
     limiter !== undefined &&
@@ -42,8 +48,9 @@ export function isWebEnvironment(value: unknown): value is Env {
       limiter === null ||
       typeof Reflect.get(limiter, 'get') !== 'function' ||
       typeof Reflect.get(limiter, 'idFromName') !== 'function')
-  )
+  ) {
     return false
+  }
   const strings = [
     'RATE_LIMIT_AUTH_MAX',
     'RATE_LIMIT_API_MAX',
@@ -121,7 +128,9 @@ export const RequestServicesLive = Layer.effect(
   Effect.gen(function* () {
     const request = yield* WorkerRequest
     const env = yield* WorkerEnvironment
-    if (!isWebEnvironment(env)) return yield* Effect.die(new Error('Invalid Web Worker bindings'))
+    if (!isWebEnvironment(env)) {
+      return yield* Effect.die(new Error('Invalid Web Worker bindings'))
+    }
     return yield* makeRequestServices(request, env)
   }),
 )

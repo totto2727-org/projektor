@@ -1,9 +1,9 @@
 'use client'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import type { Issue, TaskStatus } from '../board-utils'
-import { deriveProjectDescription, deriveProjectOptions, deriveStatusOptions, deriveTypeOptions } from './derive'
-import type { ProjectMeta } from './types'
+import type { Issue, TaskStatus } from '../board-utils.ts'
+import { deriveProjectDescription, deriveProjectOptions, deriveStatusOptions, deriveTypeOptions } from './derive.ts'
+import type { ProjectMeta } from './types.ts'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -46,15 +46,15 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
 // ─── deriveProjectDescription ──────────────────────────────────────────────
 
 describe('deriveProjectDescription', () => {
-  it('returns null when no project filter is active', () => {
+  test('returns null when no project filter is active', () => {
     expect(deriveProjectDescription([makeProject()], '')).toBeNull()
   })
 
-  it("returns the matching project's description", () => {
+  test("returns the matching project's description", () => {
     expect(deriveProjectDescription([makeProject({ key: 'PROJ', description: 'desc' })], 'PROJ')).toBe('desc')
   })
 
-  it('returns null when no project matches the filter key', () => {
+  test('returns null when no project matches the filter key', () => {
     expect(deriveProjectDescription([makeProject({ key: 'OTHER' })], 'PROJ')).toBeNull()
   })
 })
@@ -62,12 +62,12 @@ describe('deriveProjectDescription', () => {
 // ─── deriveStatusOptions ────────────────────────────────────────────────────
 
 describe('deriveStatusOptions', () => {
-  it('prefers the statuses endpoint result when non-empty', () => {
+  test('prefers the statuses endpoint result when non-empty', () => {
     const statuses: TaskStatus[] = [{ id: 's1', key: 'todo', name: 'To Do', category: 'todo', color: null }]
     expect(deriveStatusOptions([makeIssue()], statuses)).toBe(statuses)
   })
 
-  it('derives unique statuses from issues when the endpoint returned none', () => {
+  test('derives unique statuses from issues when the endpoint returned none', () => {
     const issues = [
       makeIssue({ status_id: 's1', status_key: 'todo', status_name: 'To Do' }),
       makeIssue({ status_id: 's1', status_key: 'todo', status_name: 'To Do' }),
@@ -84,7 +84,7 @@ describe('deriveStatusOptions', () => {
     ])
   })
 
-  it('skips issues with no status_id', () => {
+  test('skips issues with no status_id', () => {
     const issues = [makeIssue({ status_id: null })]
     expect(deriveStatusOptions(issues, [])).toEqual([])
   })
@@ -93,7 +93,7 @@ describe('deriveStatusOptions', () => {
 // ─── deriveProjectOptions ───────────────────────────────────────────────────
 
 describe('deriveProjectOptions', () => {
-  it('derives unique project options from issues', () => {
+  test('derives unique project options from issues', () => {
     const issues = [
       makeIssue({ project_key: 'A', project_name: 'Alpha' }),
       makeIssue({ project_key: 'A', project_name: 'Alpha' }),
@@ -105,13 +105,13 @@ describe('deriveProjectOptions', () => {
     ])
   })
 
-  it('falls back to the key as the name when project_name is missing', () => {
+  test('falls back to the key as the name when project_name is missing', () => {
     expect(deriveProjectOptions([makeIssue({ project_key: 'A', project_name: null })])).toEqual([
       { key: 'A', name: 'A' },
     ])
   })
 
-  it('skips issues with no project_key', () => {
+  test('skips issues with no project_key', () => {
     expect(deriveProjectOptions([makeIssue({ project_key: null })])).toEqual([])
   })
 })
@@ -119,7 +119,7 @@ describe('deriveProjectOptions', () => {
 // ─── deriveTypeOptions ──────────────────────────────────────────────────────
 
 describe('deriveTypeOptions', () => {
-  it('derives unique type options as [key, name] entries', () => {
+  test('derives unique type options as [key, name] entries', () => {
     const issues = [
       makeIssue({ type_key: 'bug', type_name: 'Bug' }),
       makeIssue({ type_key: 'bug', type_name: 'Bug' }),
@@ -131,11 +131,11 @@ describe('deriveTypeOptions', () => {
     ])
   })
 
-  it('falls back to the key as the name when type_name is missing', () => {
+  test('falls back to the key as the name when type_name is missing', () => {
     expect(deriveTypeOptions([makeIssue({ type_key: 'bug', type_name: null })])).toEqual([['bug', 'bug']])
   })
 
-  it('skips issues with no type_key', () => {
+  test('skips issues with no type_key', () => {
     expect(deriveTypeOptions([makeIssue({ type_key: null })])).toEqual([])
   })
 })

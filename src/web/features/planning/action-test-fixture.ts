@@ -2,9 +2,10 @@ import { Effect, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 import { afterEach, vi } from 'vite-plus/test'
 
-import { makeRequestServices, RequestServices } from '../../request'
-import { inMemoryKV, inMemoryR2, testEnvironment, type TestEnvironment } from '../../server/test/resources'
-import { createTestDatabase } from '../../test/database'
+import { makeRequestServices, RequestServices } from '../../request.ts'
+import { inMemoryKV, inMemoryR2, testEnvironment } from '../../server/test/resources.ts'
+import type { TestEnvironment } from '../../server/test/resources.ts'
+import { createTestDatabase } from '../../test/database.ts'
 
 type InputSchema = Schema.Constraint & Schema.Decoder<unknown>
 interface Definition {
@@ -32,7 +33,9 @@ vi.mock('@effront/core/workers', async () => {
 })
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 /** Shared page/action fixtures execute every read against the fully migrated real schema. */
@@ -89,7 +92,9 @@ export function actionFixture(
   })
   function invoke<Input extends unknown[], Output>(operation: (...input: Input) => Promise<Output>, ...input: Input) {
     const definition = definitions.get(operation)
-    if (!definition) throw new Error('Unregistered feature ServerFn.')
+    if (!definition) {
+      throw new Error('Unregistered feature ServerFn.')
+    }
     return Effect.runPromise(
       Effect.gen(function* () {
         const services = yield* makeRequestServices(
@@ -117,6 +122,8 @@ export function actionFixture(
 /** Native action test boundary uses the browser's actual submitted fields. */
 export function formData(values: Record<string, string | number>) {
   const data = new FormData()
-  for (const [name, value] of Object.entries(values)) data.set(name, String(value))
+  for (const [name, value] of Object.entries(values)) {
+    data.set(name, String(value))
+  }
   return data
 }

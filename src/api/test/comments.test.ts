@@ -1,11 +1,9 @@
 import { SELF } from 'cloudflare:test'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
-  type JsonRpcError,
-  type JsonRpcResult,
   seedComment,
   seedFixture,
   seedGroupGrant,
@@ -14,7 +12,8 @@ import {
   seedProjectFixture,
   seedWorkspaceRoles,
   toolError,
-} from './helpers'
+} from './helpers.ts'
+import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 
 async function mcpCall<T>(
   workspaceId: string,
@@ -49,7 +48,7 @@ describe('Comments REST API', () => {
     issueId = body.id
   })
 
-  it('GET /:issueId/comments returns empty list', async () => {
+  test('GET /:issueId/comments returns empty list', async () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
@@ -59,7 +58,7 @@ describe('Comments REST API', () => {
     expect(data).toHaveLength(0)
   })
 
-  it('POST /:issueId/comments creates a comment', async () => {
+  test('POST /:issueId/comments creates a comment', async () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -73,7 +72,7 @@ describe('Comments REST API', () => {
   // PROJ-328: author_kind is stamped from the authenticated principal type, not a
   // caller-supplied field. Tests authenticate over Bearer tokens (see authHeaders),
   // same as agents — see middleware/auth.ts / conventions.md for the human/agent split.
-  it('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
+  test('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -88,7 +87,7 @@ describe('Comments REST API', () => {
     expect(row?.author_kind).toBe('agent')
   })
 
-  it('GET after POST returns the comment', async () => {
+  test('GET after POST returns the comment', async () => {
     await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -98,21 +97,21 @@ describe('Comments REST API', () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
-    const data = (await res.json()) as Array<{ body: string }>
+    const data = (await res.json()) as { body: string }[]
     expect(data).toHaveLength(1)
     expect(data[0].body).toBe('First comment')
   })
 
-  it('POST rejects body that exceeds 10000 chars', async () => {
+  test('POST rejects body that exceeds 10000 chars', async () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ body: 'x'.repeat(10001) }),
+      body: JSON.stringify({ body: 'x'.repeat(10_001) }),
     })
     expect(res.status).toBe(400)
   })
 
-  it('POST rejects empty body', async () => {
+  test('POST rejects empty body', async () => {
     const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -123,7 +122,7 @@ describe('Comments REST API', () => {
 
   // PROJ-374: addComment was missing the viewer-role guard every other write path
   // enforces (comments.ts:76) — a workspace/project viewer could post comments.
-  it('POST returns 403 for a project viewer', async () => {
+  test('POST returns 403 for a project viewer', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
@@ -143,7 +142,7 @@ describe('Comments REST API', () => {
     expect(res.status).toBe(403)
   })
 
-  it('GET returns 404 for issue in another workspace', async () => {
+  test('GET returns 404 for issue in another workspace', async () => {
     const other = await seedFixture()
     // issueId belongs to the first workspace; use other workspace's token+slug
     const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
@@ -152,7 +151,7 @@ describe('Comments REST API', () => {
     expect(res.status).toBe(404)
   })
 
-  it('PATCH updates own comment', async () => {
+  test('PATCH updates own comment', async () => {
     const comment = await seedComment(issueId, userId)
 
     const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
@@ -165,11 +164,11 @@ describe('Comments REST API', () => {
     const listRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
-    const data = (await listRes.json()) as Array<{ body: string }>
+    const data = (await listRes.json()) as { body: string }[]
     expect(data[0].body).toBe('Updated text')
   })
 
-  it("PATCH returns 403 when editing another user's comment", async () => {
+  test("PATCH returns 403 when editing another user's comment", async () => {
     const other = await seedFixture()
     // Seed a comment by a different user on the same issue (cross-user test within same ws)
     const comment = await seedComment(issueId, other.user.id)
@@ -182,7 +181,7 @@ describe('Comments REST API', () => {
     expect(res.status).toBe(403)
   })
 
-  it('DELETE removes own comment', async () => {
+  test('DELETE removes own comment', async () => {
     const comment = await seedComment(issueId, userId)
 
     const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
@@ -200,7 +199,7 @@ describe('Comments REST API', () => {
 })
 
 describe('Comments MCP cross-workspace security', () => {
-  it('MCP add_comment rejects issueId belonging to another workspace', async () => {
+  test('MCP add_comment rejects issueId belonging to another workspace', async () => {
     const wsA = await seedFixture({ slug: `ws-a-${crypto.randomUUID().slice(0, 6)}` })
     const wsB = await seedFixture({ slug: `ws-b-${crypto.randomUUID().slice(0, 6)}` })
     const projB = await seedProject(wsB.workspace.id, 'VIC')
@@ -213,7 +212,7 @@ describe('Comments MCP cross-workspace security', () => {
     })
     const { id: victimIssueId } = (await issueRes.json()) as { id: string }
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       wsA.workspace.id,
       'tools/call',
       { name: 'add_comment', arguments: { issueId: victimIssueId, body: 'Injected comment' } },
@@ -224,7 +223,7 @@ describe('Comments MCP cross-workspace security', () => {
     expect(toolError(res)?.code).toBe('not_found')
   })
 
-  it('MCP list_comments rejects issueId belonging to another workspace', async () => {
+  test('MCP list_comments rejects issueId belonging to another workspace', async () => {
     const wsA = await seedFixture({ slug: `ws-c-${crypto.randomUUID().slice(0, 6)}` })
     const wsB = await seedFixture({ slug: `ws-d-${crypto.randomUUID().slice(0, 6)}` })
     const projB = await seedProject(wsB.workspace.id, 'SEC')
@@ -244,7 +243,7 @@ describe('Comments MCP cross-workspace security', () => {
       body: JSON.stringify({ body: 'Secret comment content' }),
     })
 
-    const res = (await mcpCall<{ content: Array<{ text: string }> }>(
+    const res = (await mcpCall<{ content: { text: string }[] }>(
       wsA.workspace.id,
       'tools/call',
       { name: 'list_comments', arguments: { issueId: victimIssueId } },
@@ -260,7 +259,7 @@ describe('Comments MCP cross-workspace security', () => {
 // before it can ask for comments put a whole round trip of dead time on the critical
 // path. These reads now take either identifier.
 describe('PROJ-438 — comments accept an issue ref', () => {
-  it('GET /:ref/comments returns the same comments as GET /:uuid/comments', async () => {
+  test('GET /:ref/comments returns the same comments as GET /:uuid/comments', async () => {
     const fixture = await seedProjectFixture({ role: 'owner' })
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
       title: 'Referenced issue',
@@ -294,7 +293,7 @@ describe('PROJ-438 — comments accept an issue ref', () => {
   // With distinct keys this would still pass with the resolver's workspace filter
   // deleted, because listComments re-filters on workspace and 404s anyway — the test
   // would be green while the thing it names was broken.
-  it("resolves a colliding ref inside the caller's own workspace, not the other one", async () => {
+  test("resolves a colliding ref inside the caller's own workspace, not the other one", async () => {
     const mine = await seedFixture({ role: 'owner' })
     const myProject = await seedProject(mine.workspace.id, 'DUP')
     const myIssue = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, {
@@ -314,11 +313,11 @@ describe('PROJ-438 — comments accept an issue ref', () => {
     })
 
     expect(res.status).toBe(200)
-    const bodies = ((await res.json()) as Array<{ body: string }>).map((c) => c.body)
+    const bodies = ((await res.json()) as { body: string }[]).map((c) => c.body)
     expect(bodies).toEqual(['mine'])
   })
 
-  it('a ref that exists only in another workspace is 404', async () => {
+  test('a ref that exists only in another workspace is 404', async () => {
     const mine = await seedProjectFixture({ role: 'owner' })
     const theirs = await seedFixture({ role: 'owner' })
     const theirProject = await seedProject(theirs.workspace.id, 'OTHER')
@@ -335,7 +334,7 @@ describe('PROJ-438 — comments accept an issue ref', () => {
   })
 
   // The ref path must not become a way around PROJ-311 project grants.
-  it('a ref for an issue in a project the caller has no grant on is 404', async () => {
+  test('a ref for an issue in a project the caller has no grant on is 404', async () => {
     const fixture = await seedProjectFixture({ role: 'member' })
     const ungranted = await seedProject(fixture.workspaceId, 'NOGRANT')
     const issue = await seedIssue(fixture.workspaceId, ungranted.id, fixture.userId, {

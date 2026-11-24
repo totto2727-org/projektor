@@ -1,14 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
 
-import { createTestDatabase } from '../web/test/database'
-import { type CoreActor, resolveCorePrincipal, resolveCoreServiceCtx } from './authorization'
-import type { CoreEnvironment } from './environment'
+import { createTestDatabase } from '../web/test/database.ts'
+import { resolveCorePrincipal, resolveCoreServiceCtx } from './authorization.ts'
+import type { CoreActor } from './authorization.ts'
+import type { CoreEnvironment } from './environment.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
   resetAuthCachesForTests()
 })
 
@@ -43,7 +46,7 @@ async function fixture() {
 }
 
 describe('Core persistent authorization', () => {
-  it('rechecks membership and role for each named domain operation', async () => {
+  test('rechecks membership and role for each named domain operation', async () => {
     const f = await fixture()
     const first = await resolveCoreServiceCtx(f.actor, 'w', 'write', f.env)
     expect(first).toMatchObject({
@@ -58,7 +61,7 @@ describe('Core persistent authorization', () => {
     await expect(resolveCoreServiceCtx(f.actor, 'w', 'read', f.env)).rejects.toMatchObject({ status: 403 })
   })
 
-  it('rechecks token revocation and current scope rather than trusting a prior principal', async () => {
+  test('rechecks token revocation and current scope rather than trusting a prior principal', async () => {
     const f = await fixture()
     await resolveCoreServiceCtx(f.actor, 'w', 'write', f.env)
     f.sqlite.exec(`UPDATE api_tokens SET scopes = '["read"]' WHERE id = 't'`)
@@ -67,18 +70,18 @@ describe('Core persistent authorization', () => {
     await expect(resolveCoreServiceCtx(f.actor, 'w', 'read', f.env)).rejects.toMatchObject({ status: 401 })
   })
 
-  it('confines a workspace token even when the user owns another workspace', async () => {
+  test('confines a workspace token even when the user owns another workspace', async () => {
     const f = await fixture()
     await expect(resolveCoreServiceCtx(f.actor, 'other', 'read', f.env)).rejects.toMatchObject({ status: 403 })
   })
 
-  it('rejects expired credentials before domain execution', async () => {
+  test('rejects expired credentials before domain execution', async () => {
     const f = await fixture()
     f.sqlite.exec('UPDATE api_tokens SET expires_at = 1')
     await expect(resolveCorePrincipal(f.actor, f.env)).rejects.toMatchObject({ status: 401, message: 'Token expired' })
   })
 
-  it('preserves provider OAuth workspace, scope, grant and agent confinement', async () => {
+  test('preserves provider OAuth workspace, scope, grant and agent confinement', async () => {
     const f = await fixture()
     const actor: CoreActor = {
       requestUrl: 'https://api.test/mcp/w',
@@ -105,14 +108,14 @@ describe('Core persistent authorization', () => {
     await expect(resolveCoreServiceCtx(actor, 'w', 'read', f.env)).rejects.toMatchObject({ status: 403 })
   })
 
-  it('never falls back to development identity for a present invalid Access proof', async () => {
+  test('never falls back to development identity for a present invalid Access proof', async () => {
     const f = await fixture()
     const env = { ...f.env, ENVIRONMENT: 'development' as const, DEV_USER_EMAIL: 'dev@example.test' }
     await expect(resolveCorePrincipal({ ...f.actor, accessJwt: 'invalid' }, env)).rejects.toMatchObject({ status: 401 })
     expect(f.sqlite.prepare("SELECT id FROM users WHERE email = 'dev@example.test'").get()).toBeUndefined()
   })
 
-  it('keeps unauthenticated MCP challengeable when the development bypass is enabled', async () => {
+  test('keeps unauthenticated MCP challengeable when the development bypass is enabled', async () => {
     const f = await fixture()
     const env = { ...f.env, ENVIRONMENT: 'development' as const, DEV_USER_EMAIL: 'dev@example.test' }
     await expect(
@@ -120,7 +123,7 @@ describe('Core persistent authorization', () => {
     ).rejects.toMatchObject({ status: 401 })
   })
 
-  it('registers coarsened token audit work on the Core invocation lifecycle', async () => {
+  test('registers coarsened token audit work on the Core invocation lifecycle', async () => {
     const f = await fixture()
     await resolveCorePrincipal(f.actor, f.env)
     expect(f.waitUntil).toHaveBeenCalledTimes(1)

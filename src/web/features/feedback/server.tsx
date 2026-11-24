@@ -1,12 +1,12 @@
 import { Effect } from 'effect'
 
-import { browserRequest, coreResult } from '../../core'
-import { RequestServices } from '../../request'
-import { ScopeError } from '../../server/errors'
-import type { RequestScope } from '../../server/request-context'
-import { FeedbackDetailClient } from './FeedbackDetailClient'
-import { FeedbackGridClient } from './FeedbackGridClient'
-import { FeedbackIndexSchema, FeedbackDetailSchema } from './schemas'
+import { browserRequest, coreResult } from '../../core.ts'
+import { RequestServices } from '../../request.ts'
+import { ScopeError } from '../../server/errors.ts'
+import type { RequestScope } from '../../server/request-context.ts'
+import { FeedbackDetailClient } from './FeedbackDetailClient.tsx'
+import { FeedbackGridClient } from './FeedbackGridClient.tsx'
+import { FeedbackIndexSchema, FeedbackDetailSchema } from './schemas.ts'
 
 function NeedProject() {
   return (
@@ -25,10 +25,13 @@ function NotFound() {
 }
 export function renderFeedback(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
-    if (scope.selection.kind !== 'project') return <NeedProject />
+    if (scope.selection.kind !== 'project') {
+      return <NeedProject />
+    }
     const { project, workspace } = scope.selection
-    if (workspace.role !== 'owner' && workspace.role !== 'admin')
+    if (workspace.role !== 'owner' && workspace.role !== 'admin') {
       return yield* new ScopeError(403, 'Insufficient permissions')
+    }
     const services = yield* RequestServices
     const { sources, summaries } = yield* coreResult(
       FeedbackIndexSchema,
@@ -52,7 +55,9 @@ export function renderFeedbackDetail(
 ) {
   return Effect.gen(function* () {
     const sourceId = params.sourceId ?? url.searchParams.get('sourceId') ?? url.searchParams.get('id')
-    if (!sourceId) return <NotFound />
+    if (!sourceId) {
+      return <NotFound />
+    }
     const services = yield* RequestServices
     const chosen =
       scope.selection.kind === 'workspace' || scope.selection.kind === 'project' ? scope.selection.workspace : null
@@ -65,7 +70,9 @@ export function renderFeedbackDetail(
         chosen?.id,
       ),
     )
-    if (!data) return <NotFound />
+    if (!data) {
+      return <NotFound />
+    }
     const tab = url.searchParams.get('tab')
     const initialTab = tab === 'summary' || tab === 'settings' ? tab : 'items'
     return (

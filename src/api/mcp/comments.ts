@@ -1,7 +1,7 @@
-import { addComment, deleteComment, listComments, updateComment } from '../services/comments'
-import { DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations'
-import { toPage } from './serialize'
-import type { MCPTool } from './types'
+import { addComment, deleteComment, listComments, updateComment } from '../services/comments.ts'
+import { DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
+import { toPage } from './serialize.ts'
+import type { MCPTool } from './types.ts'
 
 export const commentsTools: MCPTool[] = [
   {
@@ -25,7 +25,7 @@ export const commentsTools: MCPTool[] = [
       required: ['issueId', 'body'],
       properties: {
         issueId: { type: 'string' },
-        body: { type: 'string', minLength: 1, maxLength: 10000 },
+        body: { type: 'string', minLength: 1, maxLength: 10_000 },
       },
     },
     annotations: PLAIN_WRITE,
@@ -42,7 +42,7 @@ export const commentsTools: MCPTool[] = [
       properties: {
         issueId: { type: 'string' },
         commentId: { type: 'string' },
-        body: { type: 'string', minLength: 1, maxLength: 10000 },
+        body: { type: 'string', minLength: 1, maxLength: 10_000 },
       },
     },
     annotations: IDEMPOTENT_WRITE,

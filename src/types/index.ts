@@ -1,6 +1,6 @@
-export type { ApiEnv, CoreEnv, Env, HonoEnv, RealtimeEvent, Variables } from './env'
-export type { McpAddCommandParts } from './mcp-command'
-export { buildMcpAddCommand, buildMcpAddCommandMultiline } from './mcp-command'
+export type { ApiEnv, CoreEnv, Env, HonoEnv, RealtimeEvent, Variables } from './env.ts'
+export type { McpAddCommandParts } from './mcp-command.ts'
+export { buildMcpAddCommand, buildMcpAddCommandMultiline } from './mcp-command.ts'
 export type {
   AuthInfo,
   AuthMethod,
@@ -10,4 +10,4 @@ export type {
   Plugin,
   PluginContext,
   Role,
-} from './plugin'
+} from './plugin.ts'

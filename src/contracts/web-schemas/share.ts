@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { WorkspaceBrand } from '../web-brand'
+import { WorkspaceBrand } from '../web-brand.ts'
 
 const nullable = Schema.NullOr(Schema.String)
 export const SharedIssue = Schema.Struct({

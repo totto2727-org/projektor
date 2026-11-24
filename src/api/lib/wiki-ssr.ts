@@ -4,11 +4,11 @@ import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
-import { ApiWorkspace } from '../../contracts/api-auth'
-import { authMiddleware } from '../middleware/auth'
-import { subdomainRoutingEnabled } from '../middleware/workspace'
-import { ctxFromHono } from '../services/types'
-import { getWikiPage } from '../services/wiki'
+import { ApiWorkspace } from '../../contracts/api-auth.ts'
+import { authMiddleware } from '../middleware/auth.ts'
+import { subdomainRoutingEnabled } from '../middleware/workspace.ts'
+import { ctxFromHono } from '../services/types.ts'
+import { getWikiPage } from '../services/wiki.ts'
 
 // PROJ-487 fix-up: server-side redirect + metadata injection for the /wiki catch-all
 // need a workspace-scoped ServiceCtx, but a plain top-level browser navigation carries
@@ -27,10 +27,14 @@ async function resolveWikiWorkspaceContext(
   const routingEnabled = subdomainRoutingEnabled(c.env.WORKSPACE_SUBDOMAIN_ROUTING)
   const subdomainSlug = routingEnabled ? c.req.header('host')?.split('.')[0] : undefined
   const slug = headerSlug ?? subdomainSlug ?? c.env.DEFAULT_WORKSPACE_SLUG
-  if (!slug) return null
+  if (!slug) {
+    return null
+  }
 
   const user = c.get('user') as { id: string } | undefined
-  if (!user) return null
+  if (!user) {
+    return null
+  }
 
   try {
     return await Effect.runPromise(
@@ -60,10 +64,14 @@ export async function resolveWikiPageForSsr(c: Context<HonoEnv>, slugOrId: strin
   const authResponse = await authMiddleware(c, async () => {
     authenticated = true
   })
-  if (authResponse || !authenticated) return null
+  if (authResponse || !authenticated) {
+    return null
+  }
 
   const workspace = await resolveWikiWorkspaceContext(c)
-  if (!workspace) return null
+  if (!workspace) {
+    return null
+  }
   c.set('workspace', { id: workspace.id, name: workspace.name, slug: workspace.slug })
   c.set('role', workspace.role)
 

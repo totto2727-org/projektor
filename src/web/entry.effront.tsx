@@ -1,17 +1,17 @@
 import { Effect, Schema } from 'effect'
 
-import { brandStyles, loadBrand } from './brand'
-import { Shell } from './components/Shell'
-import { EFFRONT } from './effront'
-import { renderFeedback, renderFeedbackDetail } from './features/feedback/server'
-import { renderEpics, renderIssue, renderIssues, renderMyIssues } from './features/issues/server'
-import { renderMetrics, renderSprints } from './features/planning/server'
-import { renderHelp, renderOverview, renderProjects } from './features/projects/server'
-import { renderGroups, renderTokens } from './features/settings/server'
-import { renderShare } from './features/share/server'
-import { renderWiki } from './features/wiki/server'
-import { pageRenderer } from './page'
-import { RequestServices, RequestServicesLive } from './request'
+import { brandStyles, loadBrand } from './brand.ts'
+import { Shell } from './components/Shell.tsx'
+import { EFFRONT } from './effront.ts'
+import { renderFeedback, renderFeedbackDetail } from './features/feedback/server.tsx'
+import { renderEpics, renderIssue, renderIssues, renderMyIssues } from './features/issues/server.tsx'
+import { renderMetrics, renderSprints } from './features/planning/server.tsx'
+import { renderHelp, renderOverview, renderProjects } from './features/projects/server.tsx'
+import { renderGroups, renderTokens } from './features/settings/server.tsx'
+import { renderShare } from './features/share/server.tsx'
+import { renderWiki } from './features/wiki/server.tsx'
+import { pageRenderer } from './page.tsx'
+import { RequestServices, RequestServicesLive } from './request.ts'
 
 // safe-ls: only cosmetic preferences, synchronously applied before the stylesheet can paint.
 // No tenant or identity data is kept in localStorage and no router lifecycle is installed.
@@ -58,6 +58,7 @@ const RootLayout = EFFRONT.Layout.make({
               href={brand.logoUrl ?? '/favicon.svg'}
             />
             <link rel='apple-touch-icon' href={brand.logoUrl ?? '/icon-192.png'} />
+            {/* oxlint-disable-next-line rules/no-jsx-script-tag -- Apply stored cosmetic preferences before the first paint and hydration. */}
             <script>{cosmeticPrefs}</script>
             <link
               rel='preload'
@@ -188,6 +189,7 @@ const routes = EFFRONT.Routes.make({ layout: RootLayout })
       ),
   )
 
+// oxlint-disable-next-line import/no-default-export -- Effront loads the application from the configured module default export.
 export default EFFRONT.make({
   routes,
   layer: RequestServicesLive,

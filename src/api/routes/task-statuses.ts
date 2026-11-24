@@ -2,10 +2,10 @@ import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
 
-import { jsonBody } from '../http/body'
-import { serviceErrToResponse } from '../http/error-adapter'
-import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '../services/task-statuses'
-import { ctxFromHono } from '../services/types'
+import { jsonBody } from '../http/body.ts'
+import { serviceErrToResponse } from '../http/error-adapter.ts'
+import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '../services/task-statuses.ts'
+import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 

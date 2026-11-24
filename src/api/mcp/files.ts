@@ -1,13 +1,13 @@
-import { REVIEW_STATUSES } from '../../contracts/review-targets'
+import { REVIEW_STATUSES } from '../../contracts/review-targets.ts'
 import {
   createLinkAttachment,
   deleteAttachment,
   getAttachment,
   listAttachments,
   setAttachmentReviewStatus,
-} from '../services/files'
-import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
-import type { MCPTool } from './types'
+} from '../services/files.ts'
+import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
+import type { MCPTool } from './types.ts'
 
 // Binary upload and streamed download can't cross JSON-RPC, so those two operations
 // stay REST-only (POST /api/files, GET /api/files/:id) — a deliberate parity exception

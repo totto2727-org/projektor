@@ -1,4 +1,4 @@
-import type { ProjectSummary, RequestScope } from '../../../server/request-context'
+import type { ProjectSummary, RequestScope } from '../../../server/request-context.ts'
 
 export function projectHref(project: ProjectSummary, path: 'issues' | 'epics'): string {
   return `/${path}?projectId=${encodeURIComponent(project.id)}&workspace=${encodeURIComponent(project.workspace_slug)}`

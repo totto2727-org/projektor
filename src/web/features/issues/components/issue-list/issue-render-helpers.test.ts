@@ -1,8 +1,8 @@
 'use client'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import type { Issue } from '../board-utils'
-import { getStoryPoints } from './issue-render-helpers'
+import type { Issue } from '../board-utils.ts'
+import { getStoryPoints } from './issue-render-helpers.tsx'
 
 function makeIssue(overrides: Partial<Issue> = {}): Issue {
   return {
@@ -30,18 +30,18 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
 }
 
 describe('getStoryPoints', () => {
-  it('returns null when the issue has no custom fields', () => {
+  test('returns null when the issue has no custom fields', () => {
     expect(getStoryPoints(makeIssue())).toBeNull()
   })
 
-  it('returns null when no custom field has the story_points key', () => {
+  test('returns null when no custom field has the story_points key', () => {
     const issue = makeIssue({
       customFields: [{ key: 'team', label: 'Team', type: 'text', value: 'Core' }],
     })
     expect(getStoryPoints(issue)).toBeNull()
   })
 
-  it('returns the story_points field value when present', () => {
+  test('returns the story_points field value when present', () => {
     const issue = makeIssue({
       customFields: [{ key: 'story_points', label: 'Story Points', type: 'number', value: '5' }],
     })

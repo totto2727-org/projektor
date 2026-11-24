@@ -1,11 +1,11 @@
 import { Effect, Schema } from 'effect'
 import type { CSSProperties } from 'react'
 
-import { WorkspaceBrand } from '../contracts/web-brand'
-import { makeCoreClient } from '../core/client'
-import { browserRequest, coreResult } from './core'
-import type { Env } from './request'
-import type { RequestScope } from './server'
+import { WorkspaceBrand } from '../contracts/web-brand.ts'
+import { makeCoreClient } from '../core/client.ts'
+import { browserRequest, coreResult } from './core.ts'
+import type { Env } from './request.ts'
+import type { RequestScope } from './server/index.ts'
 
 const DeploymentBrand = Schema.Struct({
   name: Schema.String,
@@ -34,11 +34,16 @@ export function deploymentBrand(env: BrandEnvironment): BrandConfig {
 /** Cosmetic failures do not turn otherwise valid project data into an error page. */
 export function loadBrand(env: Env, scope: RequestScope | null, request?: Request): Effect.Effect<BrandConfig> {
   const brand = deploymentBrand(env)
-  if (scope?.selection.kind !== 'workspace' && scope?.selection.kind !== 'project') return Effect.succeed(brand)
-  const workspace = scope.selection.workspace
-  if (!scope.workspaces.some((member) => member.id === workspace.id && member.slug === workspace.slug))
+  if (scope?.selection.kind !== 'workspace' && scope?.selection.kind !== 'project') {
     return Effect.succeed(brand)
-  if (!request) return Effect.succeed(brand)
+  }
+  const workspace = scope.selection.workspace
+  if (!scope.workspaces.some((member) => member.id === workspace.id && member.slug === workspace.slug)) {
+    return Effect.succeed(brand)
+  }
+  if (!request) {
+    return Effect.succeed(brand)
+  }
   return coreResult(
     WorkspaceBrand,
     makeCoreClient(env.CORE).browserWorkspaceBrand(browserRequest(request), workspace.slug),

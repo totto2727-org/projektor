@@ -210,6 +210,8 @@ Scope Vitest projects with source directory globs instead of file lists or test 
 Keep native Worker tests under `src/api/test` and `tests/native-workers`, and keep API tests that require Node under `src/api/test-node`.
 The root Vite+ config uses `@totto2727/gitignore-patterns` filesystem snapshots for formatting and lint exclusions; the frontend acceptance config inherits those settings, while the standalone build-only API config needs no check settings.
 TypeScript inherits the template's strictest and node-ts presets, with Vite's bundled module resolution, React JSX, Worker runtime types and aliases.
+Use explicit TypeScript extensions in relative imports and private package subpaths.
+The compiler checks those paths without emitting files, so the root configuration allows TypeScript import extensions and leaves path rewriting to the bundler.
 Use directory-level TypeScript `include` globs for maintained `.ts` and `.tsx` files rather than listing individual files.
 The existing application/SDK contracts retain three explicit compatibility settings: exact optional properties, indexed-property syntax and unchecked index access are not additionally tightened in this toolchain migration; standard strict checking and the other preset checks remain enabled.
 Parameter properties are expanded to ordinary declarations and assignments for the template's erasable-syntax setting without changing their runtime values or error protocol.

@@ -66,19 +66,27 @@ export function captureView(name: string, filters: SavedViewFilters): SavedView 
 
 /** Parse the sessionStorage payload, dropping anything malformed or unnamed. */
 export function parseSavedViews(raw: string | null): SavedView[] {
-  if (!raw) return []
+  if (!raw) {
+    return []
+  }
   let data: unknown
   try {
     data = JSON.parse(raw)
   } catch {
     return []
   }
-  if (!Array.isArray(data)) return []
+  if (!Array.isArray(data)) {
+    return []
+  }
   const out: SavedView[] = []
   for (const v of data) {
-    if (typeof v !== 'object' || v === null) continue
+    if (typeof v !== 'object' || v === null) {
+      continue
+    }
     const name = (v as { name?: unknown }).name
-    if (typeof name !== 'string' || name.length === 0) continue
+    if (typeof name !== 'string' || name.length === 0) {
+      continue
+    }
     out.push({
       name,
       filters: normalizeFilters((v as { filters?: Partial<SavedViewFilters> }).filters),

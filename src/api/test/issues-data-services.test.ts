@@ -1,17 +1,17 @@
 import { SELF } from 'cloudflare:test'
 import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
-import { listComments } from '#services/comments'
-import { batchLoadCustomFields, listCustomFieldDefs } from '#services/custom-fields'
-import { listLinksForIssue } from '#services/issue-links'
-import * as queries from '#services/issues'
-import { listTaskStatuses } from '#services/task-statuses'
-import { listTaskTypes } from '#services/task-types'
+import { listComments } from '#services/comments.ts'
+import { batchLoadCustomFields, listCustomFieldDefs } from '#services/custom-fields.ts'
+import { listLinksForIssue } from '#services/issue-links.ts'
+import * as queries from '#services/issues.ts'
+import { listTaskStatuses } from '#services/task-statuses.ts'
+import { listTaskTypes } from '#services/task-types.ts'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedComment,
@@ -22,7 +22,7 @@ import {
   seedProject,
   seedTaskStatus,
   seedTaskType,
-} from './helpers'
+} from './helpers.ts'
 
 describe('Shared issue queries over the API D1 pool', () => {
   let fixture: Awaited<ReturnType<typeof seedProjectFixture>>
@@ -36,7 +36,8 @@ describe('Shared issue queries over the API D1 pool', () => {
     expect(response.status).toBe(200)
     return response.json() as Promise<Record<string, unknown>>
   }
-  it('preserves single row keys, JSON labels, joined nulls and extras without adding assignee_name', async () => {
+
+  test('preserves single row keys, JSON labels, joined nulls and extras without adding assignee_name', async () => {
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
       assigneeId: fixture.userId,
     })
@@ -67,12 +68,14 @@ describe('Shared issue queries over the API D1 pool', () => {
     expect(links).toEqual([])
     expect(actual).toEqual({ ...row, ...extras })
   })
-  it('keeps cursor tie-breaking, first-page totals, optional body/rollups and assignee metadata', async () => {
-    for (let i = 0; i < 3; i++)
+
+  test('keeps cursor tie-breaking, first-page totals, optional body/rollups and assignee metadata', async () => {
+    for (let i = 0; i < 3; i++) {
       await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
         createdAt: 100,
         assigneeId: fixture.userId,
       })
+    }
     const page = await Effect.runPromise(
       queries.listIssues(env.DB, fixture.workspaceId, { limit: 2, includeRollups: true }),
     )
@@ -98,7 +101,8 @@ describe('Shared issue queries over the API D1 pool', () => {
       items: (actual.items as Record<string, unknown>[]).map(({ url: _url, ...row }) => row),
     }).toEqual(page)
   })
-  it('takes app-supplied visibility and applies numeric custom-field filters without owning authorization', async () => {
+
+  test('takes app-supplied visibility and applies numeric custom-field filters without owning authorization', async () => {
     const visible = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     const hiddenProject = await seedProject(fixture.workspaceId, 'HIDDEN')
     await seedIssue(fixture.workspaceId, hiddenProject.id, fixture.userId)
@@ -117,7 +121,8 @@ describe('Shared issue queries over the API D1 pool', () => {
     expect(page.items.map((r) => r.id)).toEqual([visible.id])
     expect(await Effect.runPromise(queries.findIssueCustomField(env.DB, fixture.workspaceId, 'missing'))).toBeNull()
   })
-  it('preserves batch order, padded refs, deduplication and caller identifiers for missing rows', async () => {
+
+  test('preserves batch order, padded refs, deduplication and caller identifiers for missing rows', async () => {
     const first = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     const second = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     const page = await Effect.runPromise(
@@ -135,7 +140,8 @@ describe('Shared issue queries over the API D1 pool', () => {
       items: (actual.items as Record<string, unknown>[]).map(({ url: _url, ...row }) => row),
     }).toEqual(page)
   })
-  it('scopes single rows, comments, fields and links to the workspace independently', async () => {
+
+  test('scopes single rows, comments, fields and links to the workspace independently', async () => {
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     await seedComment(issue.id, fixture.userId, 'Shared comment')
     const other = await seedProjectFixture({ role: 'owner' })
@@ -147,7 +153,8 @@ describe('Shared issue queries over the API D1 pool', () => {
     const actual = await api(`issues/${issue.id}/comments`)
     expect(actual).toEqual(rows)
   })
-  it('preserves directional links and taxonomy/definition data conversion', async () => {
+
+  test('preserves directional links and taxonomy/definition data conversion', async () => {
     const source = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     const target = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId)
     await env.DB.prepare(
@@ -175,7 +182,8 @@ describe('Shared issue queries over the API D1 pool', () => {
       await Effect.runPromise(listCustomFieldDefs(env.DB, fixture.workspaceId)),
     )
   })
-  it('uses literal FTS sanitization and unchanged search result keys', async () => {
+
+  test('uses literal FTS sanitization and unchanged search result keys', async () => {
     const issue = await seedIssue(fixture.workspaceId, fixture.projectId, fixture.userId, {
       title: 'needle issue',
     })

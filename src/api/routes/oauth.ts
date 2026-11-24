@@ -1,22 +1,23 @@
 import type { AuthRequest, OAuthHelpers } from '@cloudflare/workers-oauth-provider'
 import { AuthorizationError } from '@cloudflare/workers-oauth-provider'
-import { type Context, Hono } from 'hono'
+import { Hono } from 'hono'
+import type { Context } from 'hono'
 import { makeCoreClient } from 'projektor/core-client'
 
 import type { HonoEnv } from '#types'
 
-import { ApiConsentWorkspace } from '../../contracts/api-public'
+import { ApiConsentWorkspace } from '../../contracts/api-public.ts'
 import {
   describeScope,
   isLoopbackOnlyClient,
   OAuthRequestError,
   parseConsentRequest,
   relyingPartyHost,
-} from '../../contracts/oauth-consent'
-import type { AuthUser } from '../middleware/auth'
-import { isPublicViewer } from '../middleware/auth'
-import { signConsentToken, verifyConsentToken } from '../oauth/consent-token'
-import { apiReply } from '../services/reply'
+} from '../../contracts/oauth-consent.ts'
+import type { AuthUser } from '../middleware/auth.ts'
+import { isPublicViewer } from '../middleware/auth.ts'
+import { signConsentToken, verifyConsentToken } from '../oauth/consent-token.ts'
+import { apiReply } from '../services/reply.ts'
 
 // PROJ-656: the consent screen.
 //
@@ -179,10 +180,14 @@ function authorizationFailure(c: Context<HonoEnv>, err: AuthorizationError) {
   const url = new URL(err.redirectUri)
   url.searchParams.set('error', err.code)
   url.searchParams.set('error_description', err.description)
-  if (err.state) url.searchParams.set('state', err.state)
+  if (err.state) {
+    url.searchParams.set('state', err.state)
+  }
   // RFC 9207: error responses carry `iss` too, so a client with several
   // authorization servers configured can tell which one rejected it.
-  if (err.issuer) url.searchParams.set('iss', err.issuer)
+  if (err.issuer) {
+    url.searchParams.set('iss', err.issuer)
+  }
   return c.redirect(url.toString(), 302)
 }
 
@@ -198,9 +203,13 @@ function authorizationFailure(c: Context<HonoEnv>, err: AuthorizationError) {
  * rather than silently issuing a grant as the public viewer.
  */
 function consentingUser(c: Context<HonoEnv>): AuthUser | null {
-  if (c.get('authKind') !== 'human' || !['access', 'dev'].includes(c.get('auth')?.method ?? '')) return null
+  if (c.get('authKind') !== 'human' || !['access', 'dev'].includes(c.get('auth')?.method ?? '')) {
+    return null
+  }
   const user = c.get('user') as AuthUser | undefined
-  if (!user || isPublicViewer(user)) return null
+  if (!user || isPublicViewer(user)) {
+    return null
+  }
   return user
 }
 
@@ -214,10 +223,14 @@ const NO_CONSENTER =
 
 oauthRouter.get('/authorize', async (c) => {
   const user = consentingUser(c)
-  if (!user) return errorPage(c, 403, 'Sign-in required', NO_CONSENTER)
+  if (!user) {
+    return errorPage(c, 403, 'Sign-in required', NO_CONSENTER)
+  }
 
   const signingKey = consentSigningKey(c)
-  if (!signingKey) return errorPage(c, 500, 'Not configured', NO_SIGNING_KEY)
+  if (!signingKey) {
+    return errorPage(c, 500, 'Not configured', NO_SIGNING_KEY)
+  }
 
   // parseAuthRequest is also the client and redirect-URI validator: it resolves the
   // client (fetching and checking the CIMD document for a URL client_id) and rejects
@@ -227,7 +240,9 @@ oauthRouter.get('/authorize', async (c) => {
   try {
     authRequest = await helpers(c).parseAuthRequest(c.req.raw)
   } catch (err) {
-    if (err instanceof AuthorizationError) return authorizationFailure(c, err)
+    if (err instanceof AuthorizationError) {
+      return authorizationFailure(c, err)
+    }
     return errorPage(c, 400, 'Unknown application', `The application could not be verified: ${String(err)}`)
   }
 
@@ -235,7 +250,9 @@ oauthRouter.get('/authorize', async (c) => {
   try {
     consent = parseConsentRequest(authRequest)
   } catch (err) {
-    if (!(err instanceof OAuthRequestError)) throw err
+    if (!(err instanceof OAuthRequestError)) {
+      throw err
+    }
     return authorizationFailure(
       c,
       new AuthorizationError(err.code, {
@@ -310,10 +327,14 @@ oauthRouter.get('/authorize', async (c) => {
 
 oauthRouter.post('/authorize', async (c) => {
   const user = consentingUser(c)
-  if (!user) return errorPage(c, 403, 'Sign-in required', NO_CONSENTER)
+  if (!user) {
+    return errorPage(c, 403, 'Sign-in required', NO_CONSENTER)
+  }
 
   const signingKey = consentSigningKey(c)
-  if (!signingKey) return errorPage(c, 500, 'Not configured', NO_SIGNING_KEY)
+  if (!signingKey) {
+    return errorPage(c, 500, 'Not configured', NO_SIGNING_KEY)
+  }
 
   const form = await c.req.parseBody()
   const submitted = typeof form.consent_token === 'string' ? form.consent_token : ''
@@ -339,8 +360,9 @@ oauthRouter.post('/authorize', async (c) => {
   }
 
   const workspace = await consentWorkspace(c, payload.workspaceId)
-  if (!workspace)
+  if (!workspace) {
     return errorPage(c, 403, 'Workspace unavailable', 'That workspace does not exist, or you are not a member of it.')
+  }
 
   const { redirectTo } = await helpers(c).completeAuthorization({
     request: payload.authRequest,

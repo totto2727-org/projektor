@@ -1,5 +1,5 @@
-import { NotFoundError } from './errors'
-import { PLAYBOOKS } from './playbook-content'
+import { NotFoundError } from './errors.ts'
+import { PLAYBOOKS } from './playbook-content.ts'
 
 export function listPlaybooks() {
   return PLAYBOOKS.map(({ name, title, description, whenToUse }) => ({

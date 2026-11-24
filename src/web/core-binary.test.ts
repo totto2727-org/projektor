@@ -1,9 +1,9 @@
 import { Effect } from 'effect'
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { CORE_ACTOR_HEADER } from '../core/contract'
-import { transferCoreBinary } from './core-binary'
-import { makeRequestServices, RequestServices } from './request'
+import { CORE_ACTOR_HEADER } from '../core/contract.ts'
+import { transferCoreBinary } from './core-binary.ts'
+import { makeRequestServices, RequestServices } from './request.ts'
 
 function execute(request: Request, fetch: (request: Request) => Promise<Response>) {
   return Effect.gen(function* () {
@@ -13,7 +13,7 @@ function execute(request: Request, fetch: (request: Request) => Promise<Response
 }
 
 describe('Web same-binding binary transport', () => {
-  it('preserves response streams and forwards only raw Access proof, never claimed identity headers', async () => {
+  test('preserves response streams and forwards only raw Access proof, never claimed identity headers', async () => {
     const stream = new ReadableStream<Uint8Array>()
     const fetch = vi.fn<(request: Request) => Promise<Response>>(async () => new Response(stream))
     const incoming = new Request('https://front.test/api/files/a', {
@@ -30,7 +30,7 @@ describe('Web same-binding binary transport', () => {
     )
   })
 
-  it('retains original request cancellation on the native binding request', async () => {
+  test('retains original request cancellation on the native binding request', async () => {
     const abort = new AbortController()
     const incoming = new Request('https://front.test/api/files/a', { signal: abort.signal })
     const fetch = vi.fn(async (request: Request) => {
@@ -41,7 +41,7 @@ describe('Web same-binding binary transport', () => {
     await Effect.runPromise(execute(incoming, fetch))
   })
 
-  it('does not expose transport diagnostics or malformed failure response contents', async () => {
+  test('does not expose transport diagnostics or malformed failure response contents', async () => {
     const incoming = new Request('https://front.test/api/files/a')
     const failure = await Effect.runPromise(
       execute(incoming, async () => {

@@ -7,7 +7,7 @@ export const SubmitFeedbackSchema = z
   .object({
     rating: z.number().int().optional(),
     ratingScale: RatingScaleEnum.optional(),
-    body: z.string().min(1).max(10000).optional(),
+    body: z.string().min(1).max(10_000).optional(),
     submitterLabel: z.string().max(200).optional(),
     sourceUrl: z.string().max(2000).optional(),
     appVersion: z.string().max(100).optional(),
@@ -20,8 +20,12 @@ export const SubmitFeedbackSchema = z
   })
   .refine(
     (d) => {
-      if (d.rating === undefined || d.ratingScale === undefined) return true
-      if (d.ratingScale === 'thumbs') return d.rating === -1 || d.rating === 1
+      if (d.rating === undefined || d.ratingScale === undefined) {
+        return true
+      }
+      if (d.ratingScale === 'thumbs') {
+        return d.rating === -1 || d.rating === 1
+      }
       return d.rating >= 1 && d.rating <= 5
     },
     { message: 'rating must be -1 or 1 for thumbs, or an integer 1-5 for five_star' },

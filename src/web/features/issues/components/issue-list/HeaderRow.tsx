@@ -1,8 +1,9 @@
 'use client'
-import { Button } from '../../../../components/ui/Button'
-import { getBacklogIssues, type Issue } from '../board-utils'
-import type { ViewMode } from './types-view'
-import type { SearchResult } from './useIssueSearch'
+import { Button } from '../../../../components/ui/Button.tsx'
+import { getBacklogIssues } from '../board-utils.ts'
+import type { Issue } from '../board-utils.ts'
+import type { ViewMode } from './types-view.ts'
+import type { SearchResult } from './useIssueSearch.ts'
 
 function countLabel(view: ViewMode, filtered: Issue[], totalIssues: number | null): string {
   const listCount = view === 'backlog' ? getBacklogIssues(filtered).length : filtered.length

@@ -1,21 +1,23 @@
-import { ValidationError } from '../../contracts/errors'
+import { ValidationError } from '../../contracts/errors.ts'
 
 // PROJ-892: windowed reads of long text (wiki pages, issue bodies) so one call never
 // returns an unbounded blob. Offsets are UTF-16 code units (JS string indices) and are
 // only ever placed on code-point boundaries, so a window never splits an emoji.
 
-export const WIKI_DEFAULT_MAX_CHARS = 8_000
+export const WIKI_DEFAULT_MAX_CHARS = 8000
 export const WIKI_MAX_CHARS = 20_000
 export const ISSUE_BODY_MAX_CHARS = 16_000
-export const LIST_BODY_MAX_CHARS = 1_000
+export const LIST_BODY_MAX_CHARS = 1000
 
 function isHighSurrogate(code: number): boolean {
-  return code >= 0xd800 && code <= 0xdbff
+  return code >= 0xd8_00 && code <= 0xdb_ff
 }
 
 /** Pull `end` back so it doesn't fall between the halves of a surrogate pair. */
 function safeEnd(text: string, end: number): number {
-  if (end > 0 && end < text.length && isHighSurrogate(text.charCodeAt(end - 1))) return end - 1
+  if (end > 0 && end < text.length && isHighSurrogate(text.charCodeAt(end - 1))) {
+    return end - 1
+  }
   return end
 }
 
@@ -35,7 +37,9 @@ export function windowText(text: string, opts: { max: number; cursor?: string })
   }
   let end = safeEnd(text, Math.min(text.length, start + opts.max))
   // A window smaller than one code point (max:1 on an emoji) must still make progress.
-  if (end <= start && start < text.length) end = start + (isHighSurrogate(text.charCodeAt(start)) ? 2 : 1)
+  if (end <= start && start < text.length) {
+    end = start + (isHighSurrogate(text.charCodeAt(start)) ? 2 : 1)
+  }
   return {
     text: text.slice(start, end),
     totalChars: text.length,
@@ -63,18 +67,27 @@ function headings(content: string): Heading[] {
       }
     }
     if (inFrontmatter) {
-      if (line.trim() === '---') inFrontmatter = false
+      if (line.trim() === '---') {
+        inFrontmatter = false
+      }
       continue
     }
     const fenceMatch = /^\s*(```|~~~)/.exec(line)
     if (fenceMatch) {
-      if (fence === null) fence = fenceMatch[1]
-      else if (fenceMatch[1] === fence) fence = null
+      if (fence === null) {
+        fence = fenceMatch[1]
+      } else if (fenceMatch[1] === fence) {
+        fence = null
+      }
       continue
     }
-    if (fence) continue
+    if (fence) {
+      continue
+    }
     const m = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line)
-    if (m) out.push({ level: m[1].length, text: m[2], start: lineStart })
+    if (m) {
+      out.push({ level: m[1].length, text: m[2], start: lineStart })
+    }
   }
   return out
 }
@@ -104,7 +117,9 @@ export function sectionOf(content: string, name: string): string | undefined {
     .toLowerCase()
   const hs = headings(content)
   const i = hs.findIndex((h) => h.text.toLowerCase() === wanted || slugify(h.text) === wanted)
-  if (i < 0) return undefined
+  if (i < 0) {
+    return undefined
+  }
   const next = hs.slice(i + 1).find((h) => h.level <= hs[i].level)
   return content.slice(hs[i].start, next ? next.start : content.length).replace(/\n+$/, '')
 }
@@ -112,6 +127,8 @@ export function sectionOf(content: string, name: string): string | undefined {
 /** `bodyChars` on lists: a prefix of the body, flagged when it was cut. */
 export function bodyPreview(body: unknown, chars: number): { body: string; bodyTruncated?: true } {
   const text = typeof body === 'string' ? body : ''
-  if (text.length <= chars) return { body: text }
+  if (text.length <= chars) {
+    return { body: text }
+  }
   return { body: text.slice(0, safeEnd(text, chars)), bodyTruncated: true }
 }

@@ -5,10 +5,11 @@ import { WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Wo
 import { WorkerEntrypoint } from 'cloudflare:workers'
 import { Effect, Exit } from 'effect'
 
-import { isCoreEnvironment, type CoreEnvironment, type CoreEnvironmentSource } from '../../src/core/environment'
-import { makeCoreHandlersWithEnvironment } from '../../src/core/worker'
-import { resetAuthCachesForTests } from '../../src/services/authentication'
-import { Core as CoreIdentity } from '../../src/workers/identities'
+import { isCoreEnvironment } from '../../src/core/environment.ts'
+import type { CoreEnvironment, CoreEnvironmentSource } from '../../src/core/environment.ts'
+import { makeCoreHandlersWithEnvironment } from '../../src/core/worker.ts'
+import { resetAuthCachesForTests } from '../../src/services/authentication.ts'
+import { Core as CoreIdentity } from '../../src/workers/identities.ts'
 
 // Test-only composition uses the same named domain handlers and official bridge.
 // Loopback props must be resolved during invocation, not from the SDK's shared build.
@@ -20,7 +21,9 @@ const fixtureEnvironmentSource: CoreEnvironmentSource = Effect.gen(function* () 
     ...resolved,
     invocation: { waitUntil: (promise: Promise<unknown>) => context.raw.waitUntil(promise) },
   }
-  if (!isCoreEnvironment(environment)) return yield* Effect.die(new Error('Invalid native fixture bindings'))
+  if (!isCoreEnvironment(environment)) {
+    return yield* Effect.die(new Error('Invalid native fixture bindings'))
+  }
   return instrumentEnvironment(environment, context.raw.props)
 })
 
@@ -37,7 +40,9 @@ globalThis.fetch = async (input, init) => {
     (settings.FIXTURE_JWKS_BODY !== undefined || settings.FIXTURE_JWKS_MODE !== undefined)
   ) {
     observationFor(props).jwksFetches.push(url)
-    if (settings.FIXTURE_JWKS_MODE === 'reject') throw new Error('Fixture JWKS transport unavailable')
+    if (settings.FIXTURE_JWKS_MODE === 'reject') {
+      throw new Error('Fixture JWKS transport unavailable')
+    }
     return new Response(settings.FIXTURE_JWKS_BODY, { headers: { 'Content-Type': 'application/json' } })
   }
   return nativeFetch(input, init)
@@ -70,7 +75,9 @@ const FixtureCoreLive = CoreIdentity.make(
         new Proxy(handlers, {
           get(target, key, receiver): unknown {
             const method: unknown = Reflect.get(target, key, receiver)
-            if (key === 'fetch' || typeof method !== 'function') return method
+            if (key === 'fetch' || typeof method !== 'function') {
+              return method
+            }
             return (...args: unknown[]) => {
               const invocation = Reflect.apply(method, target, args) as Effect.Effect<
                 unknown,
@@ -147,7 +154,7 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
     ...env,
     KV: new Proxy(env.KV, {
       get(target, key): unknown {
-        if (key === 'get')
+        if (key === 'get') {
           return (...args: unknown[]) => {
             const name = args[0]
             if (typeof name === 'string') {
@@ -159,19 +166,22 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
             if (typeof get !== 'function') throw new Error('Missing native KV get')
             return Reflect.apply(get, target, args)
           }
-        if (key === 'put')
+        }
+        if (key === 'put') {
           return (...args: Parameters<typeof target.put>) => {
             observation.authCachePuts.push(args[0])
             if (matches(args[0], settings.FIXTURE_AUTH_KV_PUT_FAILURE))
               return Promise.reject(new Error('Fixture auth KV write unavailable'))
             return target.put(...args)
           }
-        if (key === 'delete')
+        }
+        if (key === 'delete') {
           return async (name: string) => {
             observation.cacheDeletes.push(name)
             if (rejectDelete) throw new Error('10048: your account has reached the free usage limit')
             return target.delete(name)
           }
+        }
         const value: unknown = Reflect.get(target, key)
         return typeof value === 'function' ? value.bind(target) : value
       },
@@ -180,7 +190,7 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
       env.WORKSPACE_HUB &&
       new Proxy(env.WORKSPACE_HUB, {
         get(target, key): unknown {
-          if (key === 'get')
+          if (key === 'get') {
             return (...args: Parameters<typeof target.get>) => {
               const stub = target.get(...args)
               return new Proxy(stub, {
@@ -196,6 +206,7 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
                 },
               })
             }
+          }
           const value: unknown = Reflect.get(target, key)
           return typeof value === 'function' ? value.bind(target) : value
         },
@@ -227,9 +238,15 @@ function configuration(props: unknown): Record<string, string | undefined> {
   }
   const result: Record<string, string | undefined> = {}
   for (const [key, value] of Object.entries(props)) {
-    if (value !== null && typeof value !== 'string') throw new Error(`Invalid fixture configuration: ${key}`)
-    if (key === 'FIXTURE_LIMITER_MODE') continue
-    if (['DB', 'KV', 'OAUTH_KV', 'R2', 'CORE', 'RATE_LIMITER', 'WORKSPACE_HUB', 'JWT_SECRET'].includes(key)) continue
+    if (value !== null && typeof value !== 'string') {
+      throw new Error(`Invalid fixture configuration: ${key}`)
+    }
+    if (key === 'FIXTURE_LIMITER_MODE') {
+      continue
+    }
+    if (['DB', 'KV', 'OAUTH_KV', 'R2', 'CORE', 'RATE_LIMITER', 'WORKSPACE_HUB', 'JWT_SECRET'].includes(key)) {
+      continue
+    }
     result[key] = value === null ? undefined : value
   }
   return result
@@ -258,6 +275,7 @@ function objectMetadata(object: R2Object) {
 }
 
 /** Only this native-test artifact exports fixture storage operations, never production Core. */
+// oxlint-disable-next-line import/no-default-export -- Workerd loads the native test Core service class from the default export.
 export default class NativeFixtureCore extends FixtureCore {
   declare readonly env: CoreEnvironment
   fixtureEnvironment() {
@@ -303,13 +321,17 @@ export default class NativeFixtureCore extends FixtureCore {
 
   async fixtureR2(method: 'get' | 'head' | 'put' | 'delete' | 'list', args: unknown[]): Promise<unknown> {
     const bucket = this.env.R2
-    if (method === 'delete') return Reflect.apply(bucket[method], bucket, args)
+    if (method === 'delete') {
+      return Reflect.apply(bucket[method], bucket, args)
+    }
     if (method === 'list') {
       const listed: R2Objects = await Reflect.apply(bucket[method], bucket, args)
       return { ...listed, objects: listed.objects.map(objectMetadata) }
     }
     const object: R2Object | R2ObjectBody | null = await Reflect.apply(bucket[method], bucket, args)
-    if (!object) return null
+    if (!object) {
+      return null
+    }
     return {
       ...objectMetadata(object),
       ...('body' in object ? { body: object.body, bodyUsed: object.bodyUsed } : {}),
@@ -382,7 +404,9 @@ function resolveFixtureEnvironment(props: unknown, env: object) {
 export class Session extends NativeFixtureCore {
   constructor(context: ExecutionContext, env: CoreEnvironment) {
     const resolved = resolveFixtureEnvironment(context.props, env)
-    if (!isCoreEnvironment(resolved)) throw new Error('Invalid native fixture bindings')
+    if (!isCoreEnvironment(resolved)) {
+      throw new Error('Invalid native fixture bindings')
+    }
     super(context, resolved)
   }
 }

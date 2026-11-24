@@ -1,6 +1,6 @@
-import { GetWorkflowSchema } from '../../contracts/inputs/workflow'
-import { ValidationError } from './errors'
-import { WORKFLOW_SPEC } from './workflow-content'
+import { GetWorkflowSchema } from '../../contracts/inputs/workflow.ts'
+import { ValidationError } from './errors.ts'
+import { WORKFLOW_SPEC } from './workflow-content.ts'
 
 // PROJ-933: agents re-fetch the ~1k token workflow spec every session even though it
 // rarely changes. `version` is a stable content hash of everything get_workflow returns (title,
@@ -45,7 +45,9 @@ function getWorkflowVersion(): Promise<string> {
 
 export async function getWorkflow(raw: unknown = {}) {
   const result = GetWorkflowSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { ifVersion } = result.data
 
   const version = await getWorkflowVersion()

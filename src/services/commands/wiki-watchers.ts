@@ -14,13 +14,13 @@ import {
   ListWikiNotificationsInputSchema,
   MarkWikiNotificationsReadInputSchema,
   WatchWikiPageInputSchema,
-} from '../../contracts/inputs/wiki'
-import { wikiPagePath } from '../../contracts/urls'
-import { assertProjectAccess, hasProjectAccess, usersWithProjectReadAccess } from './access'
-import { NotFoundError, ValidationError } from './errors'
-import { inChunks } from './sql'
-import type { ServiceCtx } from './types'
-import { idFirst, idOrSlugMatch, WIKI_MAX_NESTING_DEPTH } from './wiki-lookup'
+} from '../../contracts/inputs/wiki.ts'
+import { wikiPagePath } from '../../contracts/urls.ts'
+import { assertProjectAccess, hasProjectAccess, usersWithProjectReadAccess } from './access.ts'
+import { NotFoundError, ValidationError } from './errors.ts'
+import { inChunks } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
+import { idFirst, idOrSlugMatch, WIKI_MAX_NESTING_DEPTH } from './wiki-lookup.ts'
 
 type Orm = ReturnType<typeof drizzle<typeof schema>>
 
@@ -85,7 +85,9 @@ async function resolveWatchTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
         .get()
     }
   }
-  if (!page) throw new NotFoundError('Wiki page not found')
+  if (!page) {
+    throw new NotFoundError('Wiki page not found')
+  }
 
   if (page.projectId !== null) {
     await assertProjectAccess(ctx, page.projectId, 'read', {
@@ -98,7 +100,9 @@ async function resolveWatchTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
 
 export async function watchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = WatchWikiPageInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const page = await resolveWatchTarget(ctx, idOrSlug)
 
   const orm = drizzle(ctx.db, { schema })
@@ -185,7 +189,9 @@ async function resolveAncestorChain(
       .prepare('SELECT parent_id FROM wiki_pages WHERE id = ? AND workspace_id = ?')
       .bind(cur, workspaceId)
       .first<{ parent_id: string | null }>()
-    if (!row?.parent_id) break
+    if (!row?.parent_id) {
+      break
+    }
     cur = row.parent_id
     depth++
   }
@@ -229,7 +235,9 @@ export async function notifyWikiWatchers(
     )
 
   const userIds = [...new Set(rows.map((r) => r.userId))].filter((id) => id !== ctx.userId)
-  if (userIds.length === 0) return
+  if (userIds.length === 0) {
+    return
+  }
 
   await insertNotifications(
     ctx,
@@ -265,7 +273,9 @@ async function filterRecipientsWithAccess<E extends { userId: string; pageId: st
 
   const usersByProject = new Map<string | null, Set<string>>()
   for (const e of entries) {
-    if (!projectOf.has(e.pageId)) continue // page not in this workspace — never deliver
+    if (!projectOf.has(e.pageId)) {
+      continue
+    } // page not in this workspace — never deliver
     const projectId = projectOf.get(e.pageId) ?? null
     const users = usersByProject.get(projectId) ?? new Set<string>()
     users.add(e.userId)
@@ -277,7 +287,9 @@ async function filterRecipientsWithAccess<E extends { userId: string; pageId: st
   }
 
   return entries.filter((e) => {
-    if (!projectOf.has(e.pageId)) return false
+    if (!projectOf.has(e.pageId)) {
+      return false
+    }
     return allowedByProject.get(projectOf.get(e.pageId) ?? null)?.has(e.userId) ?? false
   })
 }
@@ -293,9 +305,13 @@ async function insertNotifications(
     action: 'created' | 'updated' | 'deleted'
   }[],
 ): Promise<void> {
-  if (entries.length === 0) return
+  if (entries.length === 0) {
+    return
+  }
   const deliverable = await filterRecipientsWithAccess(ctx, orm, entries)
-  if (deliverable.length === 0) return
+  if (deliverable.length === 0) {
+    return
+  }
   const now = Math.floor(Date.now() / 1000)
   const values = deliverable.map((e) => ({
     id: crypto.randomUUID(),
@@ -335,7 +351,9 @@ export async function notifyCascadeDescendantWatchers(
   action: 'created' | 'updated' | 'deleted' = 'deleted',
 ): Promise<void> {
   const pages = descendants.filter((p) => !p.isTemplate)
-  if (pages.length === 0) return
+  if (pages.length === 0) {
+    return
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const rows = await inChunks(
@@ -352,7 +370,9 @@ export async function notifyCascadeDescendantWatchers(
     .filter((r) => r.userId !== ctx.userId)
     .map((r) => {
       const page = byId.get(r.pageId)
-      if (!page) return null
+      if (!page) {
+        return null
+      }
       return {
         userId: r.userId,
         pageId: page.id,
@@ -371,7 +391,9 @@ export async function notifyCascadeDescendantWatchers(
 // guarantee FK enforcement on every connection, so leaning on the FK alone would leave
 // watch rows pointing at pages that no longer exist.
 export async function deleteWikiWatchersForPages(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
-  if (pageIds.length === 0) return
+  if (pageIds.length === 0) {
+    return
+  }
   const orm = drizzle(ctx.db, { schema })
   await inChunks(pageIds, async (chunk) => {
     await orm
@@ -383,7 +405,9 @@ export async function deleteWikiWatchersForPages(ctx: ServiceCtx, pageIds: strin
 
 export async function listWikiNotifications(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiNotificationsInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { unreadOnly, limit, offset } = parsed.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -391,7 +415,9 @@ export async function listWikiNotifications(ctx: ServiceCtx, input: unknown) {
     eq(schema.wikiNotifications.workspaceId, ctx.workspaceId),
     eq(schema.wikiNotifications.userId, ctx.userId),
   ]
-  if (unreadOnly) conditions.push(isNull(schema.wikiNotifications.readAt))
+  if (unreadOnly) {
+    conditions.push(isNull(schema.wikiNotifications.readAt))
+  }
 
   const rows = await orm
     .select({
@@ -416,7 +442,9 @@ export async function listWikiNotifications(ctx: ServiceCtx, input: unknown) {
 
 export async function markWikiNotificationsRead(ctx: ServiceCtx, input: unknown) {
   const parsed = MarkWikiNotificationsReadInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { ids, all } = parsed.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -484,7 +512,7 @@ function extractDeletedPageInfo(rawDiff: string | null): {
   deletedPageIdsTruncated: boolean
 } {
   const diff = parseJsonObject(rawDiff)
-  if (!diff)
+  if (!diff) {
     return {
       slug: null,
       title: null,
@@ -492,6 +520,7 @@ function extractDeletedPageInfo(rawDiff: string | null): {
       deletedPageIds: null,
       deletedPageIdsTruncated: false,
     }
+  }
   return {
     slug: typeof diff.slug === 'string' ? diff.slug : null,
     title: typeof diff.title === 'string' ? diff.title : null,
@@ -506,7 +535,9 @@ function extractDeletedPageInfo(rawDiff: string | null): {
 }
 
 function parseJsonObject(raw: string | null): Record<string, unknown> | null {
-  if (!raw) return null
+  if (!raw) {
+    return null
+  }
   try {
     const parsed = JSON.parse(raw)
     return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null
@@ -557,8 +588,12 @@ async function isEventVisible(
   eventProjectId: string | null,
   canSeeProject: (id: string) => Promise<boolean>,
 ): Promise<boolean> {
-  if (projectId) return eventProjectId === projectId
-  if (eventProjectId === null) return true
+  if (projectId) {
+    return eventProjectId === projectId
+  }
+  if (eventProjectId === null) {
+    return true
+  }
   return canSeeProject(eventProjectId)
 }
 
@@ -570,10 +605,14 @@ async function toWikiChangeEvent(
   canSeeProject: (id: string) => Promise<boolean>,
 ): Promise<WikiChangeEvent | null> {
   const action = r.action as 'created' | 'updated' | 'deleted'
-  if (action !== 'deleted' && r.pageDeletedAt !== null && r.pageDeletedAt !== undefined) return null
+  if (action !== 'deleted' && r.pageDeletedAt !== null && r.pageDeletedAt !== undefined) {
+    return null
+  }
 
   const { slug, title, eventProjectId, deleted } = eventFieldsFor(action, r)
-  if (!(await isEventVisible(projectId, eventProjectId, canSeeProject))) return null
+  if (!(await isEventVisible(projectId, eventProjectId, canSeeProject))) {
+    return null
+  }
 
   return {
     id: r.id,
@@ -644,7 +683,9 @@ async function matchSubtreeWatches(
 
 async function watchedPageIds(ctx: ServiceCtx, orm: Orm, candidatePageIds: string[]): Promise<Set<string>> {
   const { directWatchIds, subtreeRootIds } = await loadWikiWatchSets(ctx, orm)
-  if (directWatchIds.size === 0 && subtreeRootIds.size === 0) return new Set()
+  if (directWatchIds.size === 0 && subtreeRootIds.size === 0) {
+    return new Set()
+  }
 
   const matched = new Set<string>()
   // candidate page -> the ancestor its chain walk has currently reached.
@@ -654,7 +695,9 @@ async function watchedPageIds(ctx: ServiceCtx, orm: Orm, candidatePageIds: strin
       matched.add(pageId)
       continue
     }
-    if (subtreeRootIds.size > 0) pending.set(pageId, pageId)
+    if (subtreeRootIds.size > 0) {
+      pending.set(pageId, pageId)
+    }
   }
 
   await matchSubtreeWatches(ctx, orm, pending, subtreeRootIds, matched)
@@ -667,9 +710,13 @@ async function watchedPageIds(ctx: ServiceCtx, orm: Orm, candidatePageIds: strin
 // up whole. (If the WHOLE batch is one second there's nothing to trim — that needs `limit`
 // changes inside a single second, and the alternative is a poll that can never advance.)
 function trimTrailingPartialSecond<T extends { createdAt: number }>(rows: readonly T[], limit: number): readonly T[] {
-  if (rows.length !== limit || rows.length === 0) return rows
+  if (rows.length !== limit || rows.length === 0) {
+    return rows
+  }
   const maxTs = rows[rows.length - 1].createdAt
-  if (rows[0].createdAt === maxTs) return rows
+  if (rows[0].createdAt === maxTs) {
+    return rows
+  }
   return rows.filter((r) => r.createdAt < maxTs)
 }
 
@@ -692,7 +739,9 @@ export async function listWikiChanges(
   nextSince: number
 }> {
   const parsed = ListWikiChangesInputSchema.safeParse(input)
-  if (!parsed.success) throw new ValidationError(parsed.error.flatten())
+  if (!parsed.success) {
+    throw new ValidationError(parsed.error.flatten())
+  }
   const { since, limit, projectId, watchedOnly } = parsed.data
 
   if (projectId) {
@@ -740,7 +789,9 @@ export async function listWikiChanges(
   const roleCache = new Map<string, boolean>()
   const canSeeProject = async (id: string): Promise<boolean> => {
     const cached = roleCache.get(id)
-    if (cached !== undefined) return cached
+    if (cached !== undefined) {
+      return cached
+    }
     const visible = await hasProjectAccess(ctx, id)
     roleCache.set(id, visible)
     return visible
@@ -749,9 +800,13 @@ export async function listWikiChanges(
   let nextSince = since
   const events: WikiChangeEvent[] = []
   for (const r of batch) {
-    if (r.createdAt > nextSince) nextSince = r.createdAt
+    if (r.createdAt > nextSince) {
+      nextSince = r.createdAt
+    }
     const event = await toWikiChangeEvent(r, projectId, canSeeProject)
-    if (event) events.push(event)
+    if (event) {
+      events.push(event)
+    }
   }
 
   if (watchedOnly) {

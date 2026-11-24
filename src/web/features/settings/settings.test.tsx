@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { ConnectAgentGuide } from './ConnectAgentGuide'
-import { ConnectorManager } from './ConnectorManager'
-import { GroupManager } from './GroupManager'
-import { TokenManager } from './TokenManager'
-import type { ConnectorGrant, GroupData, Token } from './types'
+import { ConnectAgentGuide } from './ConnectAgentGuide.tsx'
+import { ConnectorManager } from './ConnectorManager.tsx'
+import { GroupManager } from './GroupManager.tsx'
+import { TokenManager } from './TokenManager.tsx'
+import type { ConnectorGrant, GroupData, Token } from './types.ts'
 
 const request = vi.hoisted(() => vi.fn())
 const nativeSubmitted = vi.hoisted(() => vi.fn())
@@ -82,7 +82,7 @@ const grant = (client = 'Claude'): ConnectorGrant => ({
   clientId: 'client',
   scopes: ['projektor:read', 'projektor:write'],
   grantedAt: 1,
-  expiresAt: 2000000000,
+  expiresAt: 2_000_000_000,
 })
 const groupScope = { workspaceSlug: 'alpha', groupId: 'g1' }
 const writeText = vi.fn().mockResolvedValue(undefined)
@@ -99,7 +99,7 @@ beforeEach(() => {
 })
 
 describe('original settings controls with TanStack schemas and semantic ServerFns', () => {
-  it('releases delayed member-removal failures and preserves editor drafts through canonical refresh', async () => {
+  test('releases delayed member-removal failures and preserves editor drafts through canonical refresh', async () => {
     const pending = Promise.withResolvers<unknown>()
     request.mockReturnValueOnce(pending.promise)
     const view = render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
@@ -121,7 +121,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByRole('button', { name: 'Close' }).hasAttribute('disabled')).toBe(false)
   })
-  it('keeps native group creation drafts after typed failure and clears them only after success', async () => {
+
+  test('keeps native group creation drafts after typed failure and clears them only after success', async () => {
     request.mockResolvedValueOnce({ ok: false, status: 409, message: 'Group conflict' })
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.change(screen.getByLabelText('New group name'), { target: { value: 'Retry team' } })
@@ -131,7 +132,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
     await waitFor(() => expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe(''))
   })
-  it('never fetches primary lists/details and preserves all active group form drafts on canonical refresh', () => {
+
+  test('never fetches primary lists/details and preserves all active group form drafts on canonical refresh', () => {
     const view = render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Team' })[0])
     fireEvent.change(screen.getByLabelText('Group name'), { target: { value: 'Unsaved rename' } })
@@ -154,7 +156,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe('Unsaved new group')
     expect(request).not.toHaveBeenCalled()
   })
-  it('submits original rename/description/member/grant controls through typed semantic actions', async () => {
+
+  test('submits original rename/description/member/grant controls through typed semantic actions', async () => {
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Team' })[0])
     const submitted = async (operation: string, fields: object) => {
@@ -186,10 +189,12 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.change(screen.getByLabelText('New grant role'), { target: { value: 'admin' } })
     fireEvent.click(screen.getByRole('button', { name: 'Grant' }))
     await submitted('setGrant', { projectId: 'p2', role: 'admin' })
-    for (const operation of ['renameGroup', 'describeGroup', 'addMember', 'createGrant'])
+    for (const operation of ['renameGroup', 'describeGroup', 'addMember', 'createGrant']) {
       expect(nativeSubmitted).toHaveBeenCalledWith(operation, null, expect.any(FormData))
+    }
   })
-  it('creates groups without fake aggregate DTOs and requires deletion confirmation', async () => {
+
+  test('creates groups without fake aggregate DTOs and requires deletion confirmation', async () => {
     render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.change(screen.getByLabelText('New group name'), { target: { value: 'New team' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
@@ -206,7 +211,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
     await waitFor(() => expect(request).toHaveBeenLastCalledWith('deleteGroup', groupScope))
   })
-  it('retains accessible tabs, member chips/pending/admin bypass and read-only groups', () => {
+
+  test('retains accessible tabs, member chips/pending/admin bypass and read-only groups', () => {
     const data = groupData()
     const view = render(<GroupManager workspaceSlug='alpha' initialData={data} />)
     expect(screen.getByRole('heading', { name: 'Groups', level: 1 })).toBeTruthy()
@@ -231,7 +237,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect(screen.queryByRole('button', { name: 'Create group' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Team' })).toBeNull()
   })
-  it('preserves token form fields on refresh and reveals/copies the one-time token and SSR MCP template', async () => {
+
+  test('preserves token form fields on refresh and reveals/copies the one-time token and SSR MCP template', async () => {
     const props = {
       workspaceSlug: 'alpha',
       mcpUrl: 'https://api.example/mcp/ws',
@@ -279,7 +286,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(screen.queryByText('pk_test_secret')).toBeNull()
   })
-  it('uses Effect Standard Schema to reject whitespace group names and fractional/out-of-range token expiry', async () => {
+
+  test('uses Effect Standard Schema to reject whitespace group names and fractional/out-of-range token expiry', async () => {
     const view = render(<GroupManager workspaceSlug='alpha' initialData={groupData()} />)
     fireEvent.change(screen.getByLabelText('New group name'), { target: { value: '  ' } })
     await waitFor(() =>
@@ -297,7 +305,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     expect((screen.getByRole('button', { name: 'Create token' }) as HTMLButtonElement).disabled).toBe(true)
     expect(request).not.toHaveBeenCalled()
   })
-  it('requires token revoke confirmation and retains expected failure/retry controls', async () => {
+
+  test('requires token revoke confirmation and retains expected failure/retry controls', async () => {
     render(<TokenManager workspaceSlug='alpha' mcpUrl={null} initialTokens={[token()]} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'Revoke' })[0])
     expect(request).not.toHaveBeenCalled()
@@ -312,7 +321,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
       }),
     )
   })
-  it('refreshes connector rows without state copies and retains disconnect confirmation/failure/retry', async () => {
+
+  test('refreshes connector rows without state copies and retains disconnect confirmation/failure/retry', async () => {
     const view = render(<ConnectorManager workspaceSlug='alpha' initialGrants={[grant()]} />)
     view.rerender(<ConnectorManager workspaceSlug='alpha' initialGrants={[grant('Refreshed Claude')]} />)
     expect(screen.getAllByText('Refreshed Claude').length).toBe(2)
@@ -330,7 +340,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
       }),
     )
   })
-  it('preserves every guide step and copies the refreshed server URL', async () => {
+
+  test('preserves every guide step and copies the refreshed server URL', async () => {
     const view = render(<ConnectAgentGuide workspaceSlug='alpha' mcpUrl='https://api.example/mcp/first' />)
     view.rerender(<ConnectAgentGuide workspaceSlug='alpha' mcpUrl='https://api.example/mcp/second' />)
     expect(screen.getByText(/leave request headers empty/)).toBeTruthy()

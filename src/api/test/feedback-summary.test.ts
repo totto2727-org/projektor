@@ -1,8 +1,8 @@
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedProjectFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedProjectFixture } from './helpers.ts'
 
 async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
@@ -51,7 +51,7 @@ async function seedFeedbackRow(
 }
 
 describe('GET /api/projects/:id/feedback/summary', () => {
-  it('aggregates thumbs %, five-star avg, and comment counts per source+version', async () => {
+  test('aggregates thumbs %, five-star avg, and comment counts per source+version', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f, { name: 'Widget A' })
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -96,7 +96,7 @@ describe('GET /api/projects/:id/feedback/summary', () => {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)
-    const summary = (await res.json()) as Array<{
+    const summary = (await res.json()) as {
       sourceId: string
       sourceName: string | null
       totalCount: number
@@ -107,7 +107,7 @@ describe('GET /api/projects/:id/feedback/summary', () => {
         thumbsUpPct: number | null
         avgFiveStar: number | null
       }>
-    }>
+    }[]
 
     expect(summary).toHaveLength(1)
     expect(summary[0].sourceName).toBe('Widget A')
@@ -125,7 +125,7 @@ describe('GET /api/projects/:id/feedback/summary', () => {
     expect(summary[0].versions[1].withCommentCount).toBe(1)
   })
 
-  it('groups rows with a null app_version under a null bucket', async () => {
+  test('groups rows with a null app_version under a null bucket', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     await mintSource(f)
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
@@ -136,11 +136,11 @@ describe('GET /api/projects/:id/feedback/summary', () => {
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
       headers: authHeaders(f.token, f.slug),
     })
-    const summary = (await res.json()) as Array<{ versions: Array<{ appVersion: string | null }> }>
+    const summary = (await res.json()) as { versions: Array<{ appVersion: string | null }> }[]
     expect(summary[0].versions[0].appVersion).toBeNull()
   })
 
-  it('404s for a caller with no project access', async () => {
+  test('404s for a caller with no project access', async () => {
     const owner = await seedProjectFixture({ role: 'owner' })
     const stranger = await seedProjectFixture({ role: 'owner' })
     const res = await SELF.fetch(`http://localhost/api/projects/${owner.projectId}/feedback/summary`, {
@@ -149,7 +149,7 @@ describe('GET /api/projects/:id/feedback/summary', () => {
     expect(res.status).toBe(404)
   })
 
-  it('is readable by a viewer', async () => {
+  test('is readable by a viewer', async () => {
     const f = await seedProjectFixture({ role: 'viewer' })
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
       headers: authHeaders(f.token, f.slug),
@@ -157,7 +157,7 @@ describe('GET /api/projects/:id/feedback/summary', () => {
     expect(res.status).toBe(200)
   })
 
-  it('returns an empty array for a project with no feedback', async () => {
+  test('returns an empty array for a project with no feedback', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
       headers: authHeaders(f.token, f.slug),

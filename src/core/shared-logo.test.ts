@@ -1,14 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { createShareToken } from '#commands/share'
+import { createShareToken } from '#commands/share.ts'
 
-import { createTestDatabase } from '../web/test/database'
-import type { CoreEnvironment } from './environment'
-import { handleSharedLogoRequest } from './shared-logo'
+import { createTestDatabase } from '../web/test/database.ts'
+import type { CoreEnvironment } from './environment.ts'
+import { handleSharedLogoRequest } from './shared-logo.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) database.close()
+  for (const database of databases.splice(0)) {
+    database.close()
+  }
 })
 
 async function fixture() {
@@ -47,7 +49,7 @@ async function fixture() {
 }
 
 describe('Core shared logo binary delivery', () => {
-  it('streams the exact body and forwards cancellation without buffering', async () => {
+  test('streams the exact body and forwards cancellation without buffering', async () => {
     const f = await fixture()
     const response = await handleSharedLogoRequest(f.request(), f.env)
     expect(response?.status).toBe(200)
@@ -59,14 +61,14 @@ describe('Core shared logo binary delivery', () => {
     expect(f.buffer).not.toHaveBeenCalled()
   })
 
-  it('rechecks the share creator membership before touching storage', async () => {
+  test('rechecks the share creator membership before touching storage', async () => {
     const f = await fixture()
     f.sqlite.exec('DELETE FROM workspace_members')
     expect((await handleSharedLogoRequest(f.request(), f.env))?.status).toBe(404)
     expect(f.get).not.toHaveBeenCalled()
   })
 
-  it('closes the authorized logo stream on HEAD without buffering it', async () => {
+  test('closes the authorized logo stream on HEAD without buffering it', async () => {
     const f = await fixture()
     const response = await handleSharedLogoRequest(f.request('HEAD'), f.env)
     expect(response?.status).toBe(200)
@@ -75,7 +77,7 @@ describe('Core shared logo binary delivery', () => {
     expect(f.buffer).not.toHaveBeenCalled()
   })
 
-  it('refuses revoked or archived share sources and unsupported methods', async () => {
+  test('refuses revoked or archived share sources and unsupported methods', async () => {
     const f = await fixture()
     f.sqlite.exec('UPDATE projects SET archived_at = 2')
     expect((await handleSharedLogoRequest(f.request(), f.env))?.status).toBe(404)

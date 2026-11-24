@@ -1,9 +1,10 @@
 import { Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 
-import { transferCoreBinary } from './core-binary'
-import { type PageFailure, RequestServices } from './request'
-import { ScopeError } from './server/errors'
+import { transferCoreBinary } from './core-binary.ts'
+import { RequestServices } from './request.ts'
+import type { PageFailure } from './request.ts'
+import { ScopeError } from './server/errors.ts'
 
 const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
@@ -15,14 +16,19 @@ export function downloadFile(
     const services = yield* RequestServices
     const url = new URL(request.url)
     const match = /^\/api\/files\/([^/]+)$/.exec(url.pathname)
-    if (!match) return yield* new ScopeError(404, 'Not found')
-    if (request.method !== 'GET' && request.method !== 'HEAD')
+    if (!match) {
+      return yield* new ScopeError(404, 'Not found')
+    }
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
       return HttpServerResponse.empty({
         status: 405,
         headers: { allow: 'GET, HEAD', 'cache-control': 'private, no-store' },
       })
+    }
     const workspaceHints = url.searchParams.getAll('workspace')
-    if (new Set(workspaceHints).size > 1) return yield* new ScopeError(400, 'Ambiguous workspace parameter.')
+    if (new Set(workspaceHints).size > 1) {
+      return yield* new ScopeError(400, 'Ambiguous workspace parameter.')
+    }
     const workspaceHint = workspaceHints[0]
     const id = yield* Effect.try({
       try: () => decodeURIComponent(match[1]),
@@ -30,8 +36,9 @@ export function downloadFile(
     })
     // A download target is not a page selector. Archived owners are not in the active catalog.
     const scope = yield* services.scope({ workspaceHint, projectHint: '', requireWorkspace: true })
-    if (scope.selection.kind !== 'workspace' && scope.selection.kind !== 'project')
+    if (scope.selection.kind !== 'workspace' && scope.selection.kind !== 'project') {
       return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+    }
     const stored = yield* transferCoreBinary(
       `/files/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(scope.selection.workspace.id)}`,
       { method: request.method },

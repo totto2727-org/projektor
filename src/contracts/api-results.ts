@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
-import { ApiPrincipal, ApiUserBootstrap, ApiWorkspace } from './api-auth'
-import { ReviewStatusSchema } from './review-targets'
+import { ApiPrincipal, ApiUserBootstrap, ApiWorkspace } from './api-auth.ts'
+import { ReviewStatusSchema } from './review-targets.ts'
 
 const array = <Item extends Schema.Top>(item: Item) => Schema.mutable(Schema.Array(item))
 

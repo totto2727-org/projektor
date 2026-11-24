@@ -1,13 +1,13 @@
 // PROJ-857: issue list pagination + query plans.
 
 import { SELF } from 'cloudflare:test'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
-import { env } from './fixture-api'
-import { authHeaders, seedIssueFixture } from './helpers'
+import { env } from './fixture-api.ts'
+import { authHeaders, seedIssueFixture } from './helpers.ts'
 
 describe('PROJ-857: issue list cursor', () => {
-  it('pages through 35 issues created in the same second with no gaps or duplicates', async () => {
+  test('pages through 35 issues created in the same second with no gaps or duplicates', async () => {
     const f = await seedIssueFixture()
     // The fixture issue plus 34 more, all stamped with the same created_at.
     const createdAt = Math.floor(Date.now() / 1000)
@@ -27,18 +27,23 @@ describe('PROJ-857: issue list cursor', () => {
     let firstTotal: number | null = null
     do {
       const qs = new URLSearchParams({ projectId: f.projectId, limit: '10' })
-      if (cursor) qs.set('cursor', cursor)
+      if (cursor) {
+        qs.set('cursor', cursor)
+      }
       const res = await SELF.fetch(`http://localhost/api/issues?${qs}`, {
         headers: authHeaders(f.token, f.slug),
       })
       expect(res.status).toBe(200)
       const body = (await res.json()) as {
-        items: Array<{ id: string }>
+        items: { id: string }[]
         nextCursor: string | null
         total: number | null
       }
-      if (pages === 0) firstTotal = body.total
-      else expect(body.total).toBeNull() // count only on the first page
+      if (pages === 0) {
+        firstTotal = body.total
+      } else {
+        expect(body.total).toBeNull()
+      } // count only on the first page
       seen.push(...body.items.map((i) => i.id))
       cursor = body.nextCursor
       pages++
@@ -50,7 +55,7 @@ describe('PROJ-857: issue list cursor', () => {
     expect(pages).toBe(4)
   })
 
-  it('still accepts a legacy numeric cursor', async () => {
+  test('still accepts a legacy numeric cursor', async () => {
     const f = await seedIssueFixture()
     const res = await SELF.fetch(
       `http://localhost/api/issues?projectId=${f.projectId}&cursor=${Math.floor(Date.now() / 1000) + 60}`,
@@ -69,7 +74,7 @@ describe('PROJ-857: hot queries use an index (no table scan, no temp sort)', () 
     return (rows.results ?? []).map((r) => r.detail).join(' | ')
   }
 
-  it.each([
+  test.each([
     [
       'project list',
       'SELECT id FROM issues WHERE workspace_id = ? AND project_id = ? ORDER BY created_at DESC, id DESC LIMIT 31',

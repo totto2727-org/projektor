@@ -1,9 +1,9 @@
 import type { D1Database } from '@cloudflare/workers-types'
-import { describe, expect, it } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
 
-import { ApiError } from '../../contracts/errors'
+import { ApiError } from '../../contracts/errors.ts'
 import {
   authorizeDataEntity,
   dataError,
@@ -11,8 +11,8 @@ import {
   requireDataProject,
   requireDataWorkspace,
   visibleProjectPredicate,
-} from './data-context'
-import type { RequestScope } from './scope'
+} from './data-context.ts'
+import type { RequestScope } from './scope.ts'
 
 const workspace = { id: 'wa', slug: 'alpha', name: 'Alpha', role: 'member' } as const
 const project = {
@@ -38,13 +38,14 @@ const scope: RequestScope = {
 }
 
 describe('frontend application data authorization', () => {
-  it('requires explicit or selected authenticated workspace, never a first membership', () => {
+  test('requires explicit or selected authenticated workspace, never a first membership', () => {
     expect(() => requireDataWorkspace(scope)).toThrow('Selected workspace is not accessible.')
     expect(requireDataWorkspace(scope, 'wa')).toBe(workspace)
     expect(requireDataWorkspace({ ...scope, selection: { kind: 'workspace', workspace } })).toBe(workspace)
     expect(() => requireDataWorkspace(scope, 'other')).toThrow('Selected workspace is not accessible.')
   })
-  it('hides inaccessible project existence and enforces matching workspace catalog membership', () => {
+
+  test('hides inaccessible project existence and enforces matching workspace catalog membership', () => {
     expect(requireDataProject(scope, 'pa', 'wa')).toBe(project)
     for (const [current, id, workspaceId] of [
       [scope, 'hidden', 'wa'],
@@ -60,7 +61,8 @@ describe('frontend application data authorization', () => {
       }
     }
   })
-  it('authorizes workspace wiki rows with null project and project entities against the visible catalog', () => {
+
+  test('authorizes workspace wiki rows with null project and project entities against the visible catalog', () => {
     const wiki = { projectId: null, title: 'Workspace page' }
     expect(authorizeDataEntity(scope, 'wa', wiki)).toBe(wiki)
     expect(authorizeDataEntity(scope, 'wa', { projectId: 'pa' })).toEqual({ projectId: 'pa' })
@@ -72,7 +74,8 @@ describe('frontend application data authorization', () => {
       'Selected workspace is not accessible.',
     )
   })
-  it('keeps role/grant predicate policy in the web app with owner/admin bypass only', () => {
+
+  test('keeps role/grant predicate policy in the web app with owner/admin bypass only', () => {
     expect(visibleProjectPredicate(scope, 'wa', schema.issues.projectId)).toBeDefined()
     for (const role of ['owner', 'admin'] as const) {
       expect(
@@ -83,7 +86,8 @@ describe('frontend application data authorization', () => {
       'Selected workspace is not accessible.',
     )
   })
-  it('binds data context to request services and rejects missing bindings', () => {
+
+  test('binds data context to request services and rejects missing bindings', () => {
     const db = { prepare: () => {} } as unknown as D1Database
     expect(makeDataContext({ db }, scope, 'wa')).toMatchObject({
       db,
@@ -96,14 +100,16 @@ describe('frontend application data authorization', () => {
       'The application database is not configured.',
     )
   })
-  it('does not accept anonymous public membership as authenticated workspace authorization', () => {
+
+  test('does not accept anonymous public membership as authenticated workspace authorization', () => {
     const publicScope = {
       ...scope,
       user: { ...scope.user, email: 'public-viewer@projektor.local' },
     }
     expect(() => requireDataWorkspace(publicScope, 'wa')).toThrow('An interactive browser session is required.')
   })
-  it('redacts driver causes and preserves existing typed API errors', () => {
+
+  test('redacts driver causes and preserves existing typed API errors', () => {
     const error = dataError(new Error('SQL private credentials'))
     expect(error).toMatchObject({
       _tag: 'ApiError',

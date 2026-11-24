@@ -1,12 +1,12 @@
 import { Effect } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
-import { beforeEach, describe, expect, it } from 'vite-plus/test'
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
-import { configureCore, env } from '../../src/api/test/fixture-api'
-import type { ReviewFilter, ReviewStatus } from '../../src/contracts/review-targets'
-import { SearchResultsSchema } from '../../src/contracts/web-schemas/issue-actions'
-import { IssuePageSchema } from '../../src/contracts/web-schemas/issues'
-import type { WebRequest } from '../../src/core/web/scope'
+import { configureCore, env } from '../../src/api/test/fixture-api.ts'
+import type { ReviewFilter, ReviewStatus } from '../../src/contracts/review-targets.ts'
+import { SearchResultsSchema } from '../../src/contracts/web-schemas/issue-actions.ts'
+import { IssuePageSchema } from '../../src/contracts/web-schemas/issues.ts'
+import type { WebRequest } from '../../src/core/web/scope.ts'
 
 let request: WebRequest
 let workspaceId: string
@@ -103,15 +103,18 @@ beforeEach(async () => {
         "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,url,review_status,entity_type,entity_id,created_by_id,created_at) VALUES (?,?,'url','','Design','',0,'https://example.test',?,'issue',?,?,1)",
       ).bind(`target-${id}`, ownerWorkspace, status, id, userId),
     )
-    if (active && status) selected.push({ id, projectId, status })
+    if (active && status) {
+      selected.push({ id, projectId, status })
+    }
   }
   statements.push(
     env.DB.prepare(
       "INSERT INTO attachments (id,workspace_id,kind,r2_key,filename,content_type,size,review_status,entity_type,entity_id,created_by_id,created_at) VALUES (?,?,'file','foreign/key','Foreign','text/plain',1,'in_review','issue',?,?,1)",
     ).bind(`cross-workspace-target-${suffix}`, foreignWorkspaceId, `filter-issue-${suffix}-35`, userId),
   )
-  for (let offset = 0; offset < statements.length; offset += 75)
+  for (let offset = 0; offset < statements.length; offset += 75) {
     await env.DB.batch(statements.slice(offset, offset + 75))
+  }
   request = { url: `https://front.test/issues?workspace=${slug}`, method: 'GET', headers: [] }
 })
 
@@ -130,12 +133,14 @@ function search(review?: ReviewFilter, projectId?: string, workspace = workspace
 }
 
 describe('cross-project review filters through actual named Core bindings', () => {
-  it('counts all filtered visible issues and pages them without unselected or hidden leaks', async () => {
+  test('counts all filtered visible issues and pages them without unselected or hidden leaks', async () => {
     const seen: string[] = []
     let cursor: string | null | undefined
     do {
       const query = new URLSearchParams({ review: 'active', limit: '7' })
-      if (cursor) query.set('cursor', cursor)
+      if (cursor) {
+        query.set('cursor', cursor)
+      }
       const result = await page(query.toString())
       expect(result.total).toBe(cursor ? null : 35)
       expect(result.items).toHaveLength(7)
@@ -145,7 +150,7 @@ describe('cross-project review filters through actual named Core bindings', () =
     expect(seen).toEqual(selected.map((row) => row.id).reverse())
   })
 
-  it.each(['fixing', 'in_review', 'changes_requested'] as const)(
+  test.each(['fixing', 'in_review', 'changes_requested'] as const)(
     'uses the same %s filter for list and native FTS search across projects',
     async (review) => {
       const expected = selected
@@ -159,14 +164,14 @@ describe('cross-project review filters through actual named Core bindings', () =
     },
   )
 
-  it('applies active review selection before the native FTS result limit', async () => {
+  test('applies active review selection before the native FTS result limit', async () => {
     const rows = await search('active')
     expect(rows).toHaveLength(20)
     expect(rows.every((row) => selected.some((entry) => entry.id === row.id))).toBe(true)
     expect(new Set(rows.map((row) => row.project_id))).toEqual(new Set([firstProject, secondProject]))
   })
 
-  it('intersects selected project filters and denies ungranted projects and foreign workspaces', async () => {
+  test('intersects selected project filters and denies ungranted projects and foreign workspaces', async () => {
     const expected = selected
       .filter((row) => row.projectId === secondProject)
       .map((row) => row.id)
@@ -181,7 +186,7 @@ describe('cross-project review filters through actual named Core bindings', () =
     await expect(search('active', undefined, foreignWorkspaceId)).rejects.toMatchObject({ status: 403 })
   })
 
-  it('rechecks revoked project grants in filtered counts and search results on the next invocation', async () => {
+  test('rechecks revoked project grants in filtered counts and search results on the next invocation', async () => {
     await env.DB.prepare('DELETE FROM group_project_grants WHERE group_id=? AND project_id=?')
       .bind(groupId, secondProject)
       .run()
@@ -195,8 +200,9 @@ describe('cross-project review filters through actual named Core bindings', () =
     expect((await search('active')).map((row) => row.id).sort()).toEqual(expected)
   })
 
-  it('rejects malformed review query values at the native Core boundary', async () => {
-    for (const review of ['done', 'invalid', ''])
+  test('rejects malformed review query values at the native Core boundary', async () => {
+    for (const review of ['done', 'invalid', '']) {
       await expect(page(`review=${review}`)).rejects.toMatchObject({ status: 400 })
+    }
   })
 })

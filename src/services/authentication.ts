@@ -2,7 +2,7 @@ import { Effect, Schema } from 'effect'
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { z } from 'zod'
 
-import { ensureUserProvisioned } from '#commands/provisioning'
+import { ensureUserProvisioned } from '#commands/provisioning.ts'
 import type { AuthInfo, Env } from '#types'
 
 /** Only browser verification/provisioning capabilities, never OAuth signing secrets. */
@@ -44,9 +44,13 @@ export async function authenticateBrowser(request: Request, env: BrowserAuthEnvi
   const jwt =
     request.headers.get('Cf-Access-Jwt-Assertion') ??
     parseCookie(request.headers.get('cookie') ?? '', 'CF_Authorization')
-  if (jwt) return authenticateAccessJwt(jwt, env)
+  if (jwt) {
+    return authenticateAccessJwt(jwt, env)
+  }
   const principal = await authenticateDevelopment(env)
-  if (principal) return principal
+  if (principal) {
+    return principal
+  }
   throw new BrowserAuthenticationError(401, 'Unauthorized')
 }
 
@@ -54,23 +58,30 @@ export async function authenticateAccessJwt(jwt: string, env: BrowserAuthEnviron
   const parts = jwt.split('.')
   const decoded = parts.length === 3 ? decodeJwtFields(parts) : null
   const issuer = `https://${env.CF_ACCESS_TEAM_DOMAIN}`
-  if (!decoded || !jwtClaimsValid(decoded.header, decoded.payload, env.CF_ACCESS_AUDIENCE, issuer))
+  if (!decoded || !jwtClaimsValid(decoded.header, decoded.payload, env.CF_ACCESS_AUDIENCE, issuer)) {
     throw new BrowserAuthenticationError(401, 'Invalid Access token')
+  }
   const keys = await getCfAccessKeysOrUnavailable(env)
   let result = await verifyJwtPayload(jwt, keys, env.CF_ACCESS_AUDIENCE, issuer)
   if (!result) {
     // Preserve the single rate-limited refresh on signing-key rotation.
     const freshKeys = await getCfAccessKeysOrUnavailable(env, { forceRefresh: true })
-    if (freshKeys !== keys) result = await verifyJwtPayload(jwt, freshKeys, env.CF_ACCESS_AUDIENCE, issuer)
+    if (freshKeys !== keys) {
+      result = await verifyJwtPayload(jwt, freshKeys, env.CF_ACCESS_AUDIENCE, issuer)
+    }
   }
-  if (!result) throw new BrowserAuthenticationError(401, 'Invalid Access token')
+  if (!result) {
+    throw new BrowserAuthenticationError(401, 'Invalid Access token')
+  }
   const user = await upsertUserByEmail(result.email, env.DB, env.KV)
   await ensureUserProvisioned(env, user)
   return { user, auth: { kind: 'human', method: 'access' } }
 }
 
 export async function authenticateDevelopment(env: BrowserAuthEnvironment): Promise<BrowserPrincipal | null> {
-  if (env.ENVIRONMENT !== 'development' || !env.DEV_USER_EMAIL) return null
+  if (env.ENVIRONMENT !== 'development' || !env.DEV_USER_EMAIL) {
+    return null
+  }
   const user = await upsertUserByEmail(env.DEV_USER_EMAIL, env.DB)
   await ensureUserProvisioned(env, user)
   return { user, auth: { kind: 'human', method: 'dev' } }
@@ -101,7 +112,9 @@ function jwtClaimsValid(
   audience: string,
   issuer: string,
 ): payload is JwtPayload & { email: string } {
-  if (header.alg !== 'RS256' || payload.exp < Math.floor(Date.now() / 1000)) return false
+  if (header.alg !== 'RS256' || payload.exp < Math.floor(Date.now() / 1000)) {
+    return false
+  }
   const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
   return audiences.includes(audience) && payload.iss === issuer && typeof payload.email === 'string'
 }
@@ -113,9 +126,13 @@ export async function verifyJwtPayload(
   issuer: string,
 ): Promise<{ email: string } | null> {
   const parts = jwt.split('.')
-  if (parts.length !== 3) return null
+  if (parts.length !== 3) {
+    return null
+  }
   const decoded = decodeJwtFields(parts)
-  if (!decoded || !jwtClaimsValid(decoded.header, decoded.payload, audience, issuer)) return null
+  if (!decoded || !jwtClaimsValid(decoded.header, decoded.payload, audience, issuer)) {
+    return null
+  }
   let sig: Uint8Array<ArrayBuffer>
   try {
     sig = Uint8Array.from(base64urlDecode(parts[2]), (c) => c.charCodeAt(0))
@@ -128,7 +145,9 @@ export async function verifyJwtPayload(
       const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, [
         'verify',
       ])
-      if (await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig, input)) return { email: decoded.payload.email }
+      if (await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig, input)) {
+        return { email: decoded.payload.email }
+      }
     } catch {}
   }
   return null
@@ -194,7 +213,9 @@ async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefres
     lastForcedRefreshAt = Date.now()
     return fetchAndCacheCfAccessKeys(env)
   }
-  if (inMemoryCertsCache && inMemoryCertsCache.expiresAt > Date.now()) return inMemoryCertsCache.keys
+  if (inMemoryCertsCache && inMemoryCertsCache.expiresAt > Date.now()) {
+    return inMemoryCertsCache.keys
+  }
   let cached: unknown
   try {
     cached = await env.KV.get('cf-access-certs', 'json')
@@ -217,7 +238,9 @@ export function resetAuthCachesForTests(): void {
 /** Shared by Access/dev and the API-only opt-in public identity strategy. */
 export async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNamespace): Promise<AuthUser> {
   const local = inMemoryUserCache.get(email)
-  if (local && local.expiresAt > Date.now()) return local.user
+  if (local && local.expiresAt > Date.now()) {
+    return local.user
+  }
   if (kv) {
     let cached: unknown
     try {
@@ -237,7 +260,9 @@ export async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNa
     .bind(crypto.randomUUID(), email, email.split('@')[0], Math.floor(Date.now() / 1000))
     .run()
   const user = await db.prepare('SELECT id, email, name FROM users WHERE email = ?').bind(email).first<AuthUser>()
-  if (!user) throw new Error('Failed to upsert user')
+  if (!user) {
+    throw new Error('Failed to upsert user')
+  }
   if (kv) {
     try {
       await kv.put(`user-by-email:${email}`, JSON.stringify(user), { expirationTtl: 300 })
@@ -251,7 +276,9 @@ export async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNa
 export function parseCookie(cookieHeader: string, name: string): string | undefined {
   for (const part of cookieHeader.split(';')) {
     const [key, ...rest] = part.trim().split('=')
-    if (key.trim() === name) return rest.join('=').trim()
+    if (key.trim() === name) {
+      return rest.join('=').trim()
+    }
   }
   return undefined
 }

@@ -3,15 +3,15 @@ import { Effect } from 'effect'
 import type { z } from 'zod'
 
 import { drizzle, schema } from '#db'
-import { listTaskStatuses as queryStatuses } from '#services/task-statuses'
+import { listTaskStatuses as queryStatuses } from '#services/task-statuses.ts'
 
-import { IdSchema } from '../../contracts/inputs/common'
-import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '../../contracts/inputs/task-statuses'
-import * as cache from './cache'
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
-import { buildCloseIssueReviewTargetsStatement } from './review-targets'
-import { prepareQuery } from './sql'
-import type { ServiceCtx } from './types'
+import { IdSchema } from '../../contracts/inputs/common.ts'
+import { CreateTaskStatusSchema, UpdateTaskStatusSchema } from '../../contracts/inputs/task-statuses.ts'
+import * as cache from './cache.ts'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
+import { buildCloseIssueReviewTargetsStatement } from './review-targets.ts'
+import { prepareQuery } from './sql.ts'
+import type { ServiceCtx } from './types.ts'
 
 const WS_META_TTL = 60
 const WS_META_LOCAL_TTL_MS = 5000
@@ -21,7 +21,9 @@ const localCache = cache.createLocalCache<unknown[]>(WS_META_LOCAL_TTL_MS)
 export async function listTaskStatuses(ctx: ServiceCtx) {
   const cacheKey = TASK_STATUSES_CACHE_KEY(ctx.workspaceId)
   const local = localCache.get(cacheKey)
-  if (local) return local
+  if (local) {
+    return local
+  }
 
   const cached = await cache.get<unknown[]>(ctx.kv, cacheKey)
   if (cached) {
@@ -42,9 +44,13 @@ async function invalidateTaskStatusesCache(ctx: ServiceCtx) {
 }
 
 export async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const result = CreateTaskStatusSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { key, name, category, color, position, isDefault, isReviewStep } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -53,7 +59,9 @@ export async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
     .from(schema.taskStatuses)
     .where(and(eq(schema.taskStatuses.workspaceId, ctx.workspaceId), eq(schema.taskStatuses.key, key)))
     .get()
-  if (existing) throw new ConflictError(`Task status key '${key}' already exists`)
+  if (existing) {
+    throw new ConflictError(`Task status key '${key}' already exists`)
+  }
 
   if (isDefault) {
     await orm
@@ -83,19 +91,35 @@ type TaskStatusUpdateData = z.infer<typeof UpdateTaskStatusSchema>
 
 function buildTaskStatusSetObj(data: TaskStatusUpdateData) {
   const setObj: Record<string, unknown> = {}
-  if (data.name !== undefined) setObj.name = data.name
-  if (data.category !== undefined) setObj.category = data.category
-  if ('color' in data) setObj.color = data.color ?? null
-  if (data.position !== undefined) setObj.position = data.position
-  if (data.isDefault !== undefined) setObj.isDefault = data.isDefault ? 1 : 0
-  if (data.isReviewStep !== undefined) setObj.isReviewStep = data.isReviewStep ? 1 : 0
+  if (data.name !== undefined) {
+    setObj.name = data.name
+  }
+  if (data.category !== undefined) {
+    setObj.category = data.category
+  }
+  if ('color' in data) {
+    setObj.color = data.color ?? null
+  }
+  if (data.position !== undefined) {
+    setObj.position = data.position
+  }
+  if (data.isDefault !== undefined) {
+    setObj.isDefault = data.isDefault ? 1 : 0
+  }
+  if (data.isReviewStep !== undefined) {
+    setObj.isReviewStep = data.isReviewStep ? 1 : 0
+  }
   return setObj
 }
 
 export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown) {
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
   const result = UpdateTaskStatusSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const data = result.data
 
   const setObj = buildTaskStatusSetObj(data)
@@ -106,7 +130,9 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
     .from(schema.taskStatuses)
     .where(and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)))
     .get()
-  if (!existing) throw new NotFoundError('Task status not found')
+  if (!existing) {
+    throw new NotFoundError('Task status not found')
+  }
 
   // PROJ-849: a status's category can change after issues already reference it by
   // status_id — re-sync issues.status_category for every issue on this status in the
@@ -147,8 +173,12 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
 
 export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
-  if (!idCheck.success) throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
-  if (ctx.role === 'member' || ctx.role === 'viewer') throw new ForbiddenError()
+  if (!idCheck.success) {
+    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+  }
+  if (ctx.role === 'member' || ctx.role === 'viewer') {
+    throw new ForbiddenError()
+  }
 
   const orm = drizzle(ctx.db, { schema })
   const row = await orm
@@ -156,15 +186,21 @@ export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
     .from(schema.taskStatuses)
     .where(and(eq(schema.taskStatuses.id, id), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)))
     .get()
-  if (!row) throw new NotFoundError('Task status not found')
-  if (row.isDefault === 1) throw new ConflictError('Cannot delete the default task status')
+  if (!row) {
+    throw new NotFoundError('Task status not found')
+  }
+  if (row.isDefault === 1) {
+    throw new ConflictError('Cannot delete the default task status')
+  }
 
   const inUse = await orm
     .select({ id: schema.issues.id })
     .from(schema.issues)
     .where(and(eq(schema.issues.statusId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
     .get()
-  if (inUse) throw new ConflictError('Task status is in use by one or more issues')
+  if (inUse) {
+    throw new ConflictError('Task status is in use by one or more issues')
+  }
 
   await orm
     .delete(schema.taskStatuses)
@@ -274,11 +310,12 @@ export async function resolveStatus(
       .from(schema.taskStatuses)
       .where(and(eq(schema.taskStatuses.id, statusId), eq(schema.taskStatuses.workspaceId, ctx.workspaceId)))
       .get()
-    if (!found)
+    if (!found) {
       throw new ValidationError({
         formErrors: ['Task status not found in this workspace'],
         fieldErrors: {},
       })
+    }
     return fromRow(found)
   }
   if (legacyStatus) {

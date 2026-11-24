@@ -2,11 +2,11 @@ import { and, asc, eq, gt, sql } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { ListMessagesSchema, PostMessageSchema } from '../../contracts/inputs/agent-messages'
-import { assertIssueAccess } from './access'
-import { assertAgentSessionAccess } from './agent-identity'
-import { ForbiddenError, ValidationError } from './errors'
-import type { ServiceCtx } from './types'
+import { ListMessagesSchema, PostMessageSchema } from '../../contracts/inputs/agent-messages.ts'
+import { assertIssueAccess } from './access.ts'
+import { assertAgentSessionAccess } from './agent-identity.ts'
+import { ForbiddenError, ValidationError } from './errors.ts'
+import type { ServiceCtx } from './types.ts'
 
 // PROJ-929: mirrors ACTIVE_TTL in services/agents.ts (and SESSION_TTL_SECONDS in
 // services/issue-leases.ts / file-claims.ts). Kept local rather than imported for the
@@ -58,7 +58,9 @@ export function buildPostMessageStatements(
   orm: ReturnType<typeof drizzle>,
   messages: readonly Readonly<{ scope: string; agentId?: string; body: string }>[],
 ): D1PreparedStatement[] {
-  if (messages.length === 0) return []
+  if (messages.length === 0) {
+    return []
+  }
   const now = Date.now()
   const rows = messages.map((m) => ({
     id: crypto.randomUUID(),
@@ -78,7 +80,9 @@ export function buildPostMessageStatements(
 
 export async function postMessage(ctx: ServiceCtx, raw: unknown) {
   const result = PostMessageSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { scope, agentId, body } = result.data
 
   const orm = drizzle(ctx.db, { schema })
@@ -119,9 +123,13 @@ export async function postMessage(ctx: ServiceCtx, raw: unknown) {
 
 export async function listMessages(ctx: ServiceCtx, raw: unknown) {
   const result = ListMessagesSchema.safeParse(raw)
-  if (!result.success) throw new ValidationError(result.error.flatten())
+  if (!result.success) {
+    throw new ValidationError(result.error.flatten())
+  }
   const { scope, cursor, limit } = result.data
-  if (scope.startsWith('issue:')) await assertIssueAccess(ctx, scope.slice('issue:'.length), 'read')
+  if (scope.startsWith('issue:')) {
+    await assertIssueAccess(ctx, scope.slice('issue:'.length), 'read')
+  }
 
   const orm = drizzle(ctx.db, { schema })
 

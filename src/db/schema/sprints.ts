@@ -1,7 +1,7 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
-import { workspaces } from './core'
-import { projects } from './issues'
+import { workspaces } from './core.ts'
+import { projects } from './issues.ts'
 
 export const sprints = sqliteTable(
   'sprints',

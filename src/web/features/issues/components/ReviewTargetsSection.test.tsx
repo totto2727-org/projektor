@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { afterEach, expect, it, vi } from 'vite-plus/test'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../actions', () => ({ setAttachmentReviewStatus: vi.fn(), updateIssue: vi.fn() }))
 vi.mock('./IssueDetailParts', () => ({
@@ -17,12 +17,12 @@ vi.mock('./IssueDetailParts', () => ({
   TitleSection: ({ issue }: { issue: { title: string } }) => <h1>{issue.title}</h1>,
 }))
 
-import type { ReviewStatus } from '../../../../contracts/review-targets'
-import { setAttachmentReviewStatus } from '../actions'
-import type { Attachment } from '../types'
-import type { IssueDetailInitialData } from '../views/IssueDetailPage'
-import IssueDetail from './IssueDetail'
-import { ReviewTargetsSection } from './ReviewTargetsSection'
+import type { ReviewStatus } from '../../../../contracts/review-targets.ts'
+import { setAttachmentReviewStatus } from '../actions.ts'
+import type { Attachment } from '../types.ts'
+import type { IssueDetailInitialData } from '../views/IssueDetailPage.tsx'
+import IssueDetail from './IssueDetail.tsx'
+import { ReviewTargetsSection } from './ReviewTargetsSection.tsx'
 
 function attachment(id: string, status: ReviewStatus | null = null, kind: Attachment['kind'] = 'file'): Attachment {
   return {
@@ -46,7 +46,7 @@ afterEach(() => {
   vi.resetAllMocks()
 })
 
-it.each(['file', 'url'] as const)('selects one %s attachment independently, starting at fixing', async (kind) => {
+test.each(['file', 'url'] as const)('selects one %s attachment independently, starting at fixing', async (kind) => {
   const pending = Promise.withResolvers<Awaited<ReturnType<typeof setAttachmentReviewStatus>>>()
   vi.mocked(setAttachmentReviewStatus).mockReturnValue(pending.promise)
   const first = attachment('first', null, kind)
@@ -73,7 +73,7 @@ it.each(['file', 'url'] as const)('selects one %s attachment independently, star
   expect(screen.getByRole('checkbox', { name: 'second.pdfをレビュー対象にする' })).toHaveProperty('checked', false)
 })
 
-it.each(['file', 'url'] as const)(
+test.each(['file', 'url'] as const)(
   'unselects one %s target without removing the attachment or other targets',
   async (kind) => {
     vi.mocked(setAttachmentReviewStatus).mockResolvedValue(success)
@@ -96,7 +96,7 @@ it.each(['file', 'url'] as const)(
   },
 )
 
-it.each([
+test.each([
   ['fixing', 'in_review', 'レビュー中'],
   ['in_review', 'changes_requested', '要修正'],
   ['changes_requested', 'done', '完了'],
@@ -132,7 +132,7 @@ it.each([
   },
 )
 
-it.each([
+test.each([
   ['changes_requested', 'before'],
   ['fixing', 'before'],
   ['changes_requested', 'after'],
@@ -174,7 +174,7 @@ it.each([
   },
 )
 
-it('preserves canonical selection on delayed failure, while a separate target remains editable', async () => {
+test('preserves canonical selection on delayed failure, while a separate target remains editable', async () => {
   const pending = Promise.withResolvers<Awaited<ReturnType<typeof setAttachmentReviewStatus>>>()
   vi.mocked(setAttachmentReviewStatus).mockReturnValueOnce(pending.promise).mockResolvedValueOnce(success)
   const first = attachment('first', 'in_review')
@@ -196,7 +196,7 @@ it('preserves canonical selection on delayed failure, while a separate target re
   expect(setAttachmentReviewStatus).toHaveBeenCalledTimes(2)
 })
 
-it('handles a transport failure without exposing diagnostics or changing canonical selection', async () => {
+test('handles a transport failure without exposing diagnostics or changing canonical selection', async () => {
   vi.mocked(setAttachmentReviewStatus).mockRejectedValue(new Error('Private database diagnostics'))
   render(<ReviewTargetsSection {...props} attachments={[attachment('first')]} />)
   fireEvent.click(screen.getByRole('checkbox'))
@@ -208,7 +208,7 @@ it('handles a transport failure without exposing diagnostics or changing canonic
   expect(screen.getByRole('checkbox')).toHaveProperty('disabled', false)
 })
 
-it('puts in-review targets first with deterministic ties and gives access links in the focused view', () => {
+test('puts in-review targets first with deterministic ties and gives access links in the focused view', () => {
   render(
     <ReviewTargetsSection
       {...props}
@@ -234,7 +234,7 @@ it('puts in-review targets first with deterministic ties and gives access links 
   expect(screen.getByText('レビュー対象を選択 (1)').closest('details')).toHaveProperty('open', false)
 })
 
-it('renders a textual and colored no-review-needed indicator for mixed fixing and changes-requested targets', () => {
+test('renders a textual and colored no-review-needed indicator for mixed fixing and changes-requested targets', () => {
   render(
     <ReviewTargetsSection
       {...props}
@@ -258,7 +258,7 @@ it('renders a textual and colored no-review-needed indicator for mixed fixing an
   )
 })
 
-it.each([false, true])(
+test.each([false, true])(
   'hides done names, controls and counts, and never offers them as candidates (focused=%s)',
   (focused) => {
     render(
@@ -283,7 +283,7 @@ it.each([false, true])(
   },
 )
 
-it('retains React standard protection for executable URLs in browser and server rendering', () => {
+test('retains React standard protection for executable URLs in browser and server rendering', () => {
   const target = { ...attachment('unsafe', 'in_review', 'url'), url: 'javascript:alert(1)' }
   render(<ReviewTargetsSection {...props} attachments={[target]} />)
   const link = screen.getByRole('link', { name: 'unsafe.pdf' })
@@ -292,7 +292,7 @@ it('retains React standard protection for executable URLs in browser and server 
   expect(renderToStaticMarkup(<ReviewTargetsSection {...props} attachments={[target]} />)).not.toContain('alert(1)')
 })
 
-it('shows active-empty guidance when every selected target is completed', () => {
+test('shows active-empty guidance when every selected target is completed', () => {
   render(<ReviewTargetsSection {...props} focused attachments={[attachment('finished', 'done')]} />)
   expect(screen.getByRole('heading', { name: 'レビュー対象 (0)' })).toBeTruthy()
   expect(screen.getByText('表示するレビュー対象はありません。')).toBeTruthy()
@@ -301,7 +301,7 @@ it('shows active-empty guidance when every selected target is completed', () => 
   expect(screen.queryByRole('checkbox')).toBeNull()
 })
 
-it.each(['file', 'url'] as const)(
+test.each(['file', 'url'] as const)(
   'shows an unselected %s candidate as text with selection controls but no access link',
   (kind) => {
     render(<ReviewTargetsSection {...props} attachments={[attachment('candidate', null, kind)]} />)
@@ -315,7 +315,7 @@ it.each(['file', 'url'] as const)(
   },
 )
 
-it('distinguishes reviewing rows from fixing and changes-requested rows in the same target list', () => {
+test('distinguishes reviewing rows from fixing and changes-requested rows in the same target list', () => {
   render(
     <ReviewTargetsSection
       {...props}
@@ -341,7 +341,7 @@ it('distinguishes reviewing rows from fixing and changes-requested rows in the s
   expect(screen.getByText('レビュー待ち: 1件')).toBeTruthy()
 })
 
-it('renders focused issue context, status, access links, and back navigation on the server without full issue sections', () => {
+test('renders focused issue context, status, access links, and back navigation on the server without full issue sections', () => {
   const initialData: IssueDetailInitialData = {
     issue: {
       id: 'issue',

@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { MAX_METRICS_DAYS } from '../../../contracts/web-limits'
+import { MAX_METRICS_DAYS } from '../../../contracts/web-limits.ts'
 
 export const SprintListModeSchema = Schema.Literals(['all', 'planned', 'active', 'completed'])
 export type SprintListMode = typeof SprintListModeSchema.Type
@@ -108,7 +108,7 @@ export const MetricsWindowSchema = Schema.Struct({
   ),
   Schema.makeFilter(
     (value) =>
-      (Date.parse(value.until) - Date.parse(value.since)) / 86400000 < MAX_METRICS_DAYS || {
+      (Date.parse(value.until) - Date.parse(value.since)) / 86_400_000 < MAX_METRICS_DAYS || {
         path: ['until'],
         issue: `Choose a range of at most ${MAX_METRICS_DAYS} days.`,
       },
@@ -117,7 +117,9 @@ export const MetricsWindowSchema = Schema.Struct({
 
 /** Calendar input offset is semantic data, preserving original local-midnight timestamps. */
 export function calendarOffset(value: string): number {
-  if (!value) return 0
+  if (!value) {
+    return 0
+  }
   const [year, month, day] = value.split('-').map(Number)
   return new Date(year, month - 1, day).getTimezoneOffset()
 }

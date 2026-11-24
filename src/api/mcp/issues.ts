@@ -1,4 +1,4 @@
-import { ValidationError } from '../../contracts/errors'
+import { ValidationError } from '../../contracts/errors.ts'
 import {
   createIssue,
   deleteIssue,
@@ -8,11 +8,11 @@ import {
   listIssues,
   searchIssues,
   updateIssue,
-} from '../services/issues'
-import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations'
-import { capPage, OMISSION_NOTE, shapeIssue, splitShapeOpts, toPage, VIEW_FIELDS_PROPS } from './serialize'
-import type { MCPTool } from './types'
-import { bodyPreview, ISSUE_BODY_MAX_CHARS, LIST_BODY_MAX_CHARS, windowText } from './windowing'
+} from '../services/issues.ts'
+import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
+import { capPage, OMISSION_NOTE, shapeIssue, splitShapeOpts, toPage, VIEW_FIELDS_PROPS } from './serialize.ts'
+import type { MCPTool } from './types.ts'
+import { bodyPreview, ISSUE_BODY_MAX_CHARS, LIST_BODY_MAX_CHARS, windowText } from './windowing.ts'
 
 const BODY_CHARS_PROP = {
   bodyChars: {
@@ -31,7 +31,9 @@ function splitBodyChars(rest: Record<string, unknown>): {
   bodyChars: number
 } {
   const { bodyChars, ...others } = rest
-  if (bodyChars === undefined) return { rest: others, bodyChars: 0 }
+  if (bodyChars === undefined) {
+    return { rest: others, bodyChars: 0 }
+  }
   if (!Number.isInteger(bodyChars) || (bodyChars as number) < 0 || (bodyChars as number) > LIST_BODY_MAX_CHARS) {
     throw new ValidationError({
       formErrors: [],
@@ -43,7 +45,9 @@ function splitBodyChars(rest: Record<string, unknown>): {
 }
 
 function withBodyPreview(item: Record<string, unknown>, bodyChars: number): Record<string, unknown> {
-  if (bodyChars <= 0) return item
+  if (bodyChars <= 0) {
+    return item
+  }
   return { ...item, ...bodyPreview(item.body, bodyChars) }
 }
 
@@ -196,10 +200,14 @@ export const issuesTools: MCPTool[] = [
       const { cursor, ...rest } = shapeRest as { cursor?: string } & Record<string, unknown>
       const issue = (await getIssue(ctx, rest)) as Record<string, unknown>
       const shaped = shapeIssue(issue, shape)
-      if (typeof shaped.body !== 'string') return shaped
+      if (typeof shaped.body !== 'string') {
+        return shaped
+      }
       // PROJ-892: a long body is windowed; \`next\` continues it.
       const w = windowText(shaped.body, { max: ISSUE_BODY_MAX_CHARS, cursor })
-      if (!w.next && cursor === undefined) return shaped
+      if (!w.next && cursor === undefined) {
+        return shaped
+      }
       return {
         ...shaped,
         body: w.text,

@@ -2,9 +2,9 @@
 // -32700/-32600/-32602), never a 500 — and never reach app.onError.
 
 import { SELF } from 'cloudflare:test'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { authHeaders, seedIssueFixture, toolError } from './helpers'
+import { authHeaders, seedIssueFixture, toolError } from './helpers.ts'
 
 let f: Awaited<ReturnType<typeof seedIssueFixture>>
 let unhandled: ReturnType<typeof vi.spyOn>
@@ -20,7 +20,7 @@ afterEach(() => {
 })
 
 describe('REST: invalid JSON bodies → 400', () => {
-  it.each([
+  test.each([
     ['POST', '/api/issues'],
     ['PATCH', '/api/issues/:issueId'],
     ['POST', '/api/issues/:issueId/comments'],
@@ -58,24 +58,24 @@ describe('MCP: parse and envelope errors', () => {
   }
   const errorCode = async (res: Response) => ((await res.json()) as { error?: { code: number } }).error?.code
 
-  it('invalid JSON → -32700', async () => {
+  test('invalid JSON → -32700', async () => {
     const res = await mcp('{bad')
     expect(res.status).toBe(400)
-    expect(await errorCode(res)).toBe(-32700)
+    expect(await errorCode(res)).toBe(-32_700)
   })
 
-  it('not a request object → -32600', async () => {
+  test('not a request object → -32600', async () => {
     const res = await mcp('[1,2,3]')
-    expect(await errorCode(res)).toBe(-32600)
+    expect(await errorCode(res)).toBe(-32_600)
   })
 
-  it('tools/call with no params → -32602', async () => {
+  test('tools/call with no params → -32602', async () => {
     const res = await mcp(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call' }))
     expect(res.status).toBe(200)
-    expect(await errorCode(res)).toBe(-32602)
+    expect(await errorCode(res)).toBe(-32_602)
   })
 
-  it('tools/call get_project with no arguments → validation tool error naming the field', async () => {
+  test('tools/call get_project with no arguments → validation tool error naming the field', async () => {
     const res = await mcp(
       JSON.stringify({
         jsonrpc: '2.0',

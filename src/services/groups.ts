@@ -2,7 +2,7 @@ import { and, asc, eq } from 'drizzle-orm'
 
 import { drizzle, schema } from '#db'
 
-import { queryEffect } from './errors'
+import { queryEffect } from './errors.ts'
 
 /** The app decides whether to pass a membership filter or request all workspace groups. */
 export function listGroups(db: D1Database, workspaceId: string, options: { memberUserId?: string } = {}) {
@@ -98,8 +98,12 @@ export function listMemberGroups(db: D1Database, workspaceId: string) {
       .where(eq(schema.workspaceMembers.workspaceId, workspaceId))
     const byUser = new Map<string, { id: string; name: string }[]>()
     for (const row of rows) {
-      if (!byUser.has(row.userId)) byUser.set(row.userId, [])
-      if (row.groupId && row.groupName) byUser.get(row.userId)?.push({ id: row.groupId, name: row.groupName })
+      if (!byUser.has(row.userId)) {
+        byUser.set(row.userId, [])
+      }
+      if (row.groupId && row.groupName) {
+        byUser.get(row.userId)?.push({ id: row.groupId, name: row.groupName })
+      }
     }
     return Array.from(byUser, ([userId, groups]) => ({ userId, groups }))
   })

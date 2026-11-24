@@ -1,13 +1,13 @@
 import { Effect, Schema } from 'effect'
 
-import { coreReply } from '../contract'
-import { publicDomainFailure } from '../domain-errors'
-import type { CoreEnvironment } from '../environment'
-import { makeApiDomainHandlers } from './domain-operations'
-import { makeApiIdentityHandlers } from './identity-operations'
-import { runMaintenance } from './maintenance'
-import { makeApiPublicHandlers } from './public-operations'
-import { makeApiRateLimitHandlers } from './rate-limit'
+import { coreReply } from '../contract.ts'
+import { publicDomainFailure } from '../domain-errors.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { makeApiDomainHandlers } from './domain-operations.ts'
+import { makeApiIdentityHandlers } from './identity-operations.ts'
+import { runMaintenance } from './maintenance.ts'
+import { makeApiPublicHandlers } from './public-operations.ts'
+import { makeApiRateLimitHandlers } from './rate-limit.ts'
 
 /** Compose concrete named families without an operation dispatcher or protocol proxy. */
 export function makeApiCoreHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {

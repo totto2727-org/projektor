@@ -1,7 +1,7 @@
 import { SELF } from 'cloudflare:test'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { env } from './fixture-api'
+import { env } from './fixture-api.ts'
 import {
   authHeaders,
   seedFixture,
@@ -10,7 +10,7 @@ import {
   seedProject,
   seedProjectFixture,
   seedWorkspaceRoles,
-} from './helpers'
+} from './helpers.ts'
 
 // PROJ-311: role-guard tests grant the member a member-role and the viewer a
 // viewer-role on the project so both can see it — the assertions then verify the
@@ -35,14 +35,14 @@ describe('Sprints API', () => {
     })
   }
 
-  it('POST /api/sprints creates a sprint', async () => {
+  test('POST /api/sprints creates a sprint', async () => {
     const res = await createSprint({ projectId, name: 'Sprint 1' })
     expect(res.status).toBe(201)
     const body = (await res.json()) as { id: string }
     expect(body.id).toBeTruthy()
   })
 
-  it('GET /api/sprints?projectId= returns empty list initially', async () => {
+  test('GET /api/sprints?projectId= returns empty list initially', async () => {
     const res = await SELF.fetch(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
@@ -52,20 +52,20 @@ describe('Sprints API', () => {
     expect(body.items).toHaveLength(0)
   })
 
-  it('POST then GET lists the sprint', async () => {
+  test('POST then GET lists the sprint', async () => {
     await createSprint({ projectId, name: 'Sprint 1', goal: 'Ship the feature' })
 
     const res = await SELF.fetch(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
-    const body = (await res.json()) as { items: Array<Record<string, unknown>> }
+    const body = (await res.json()) as { items: Record<string, unknown>[] }
     expect(body.items).toHaveLength(1)
     expect(body.items[0].name).toBe('Sprint 1')
     expect(body.items[0].goal).toBe('Ship the feature')
     expect(body.items[0].status).toBe('planned')
   })
 
-  it('GET /api/sprints/:id returns the sprint', async () => {
+  test('GET /api/sprints/:id returns the sprint', async () => {
     const createRes = await createSprint({ projectId, name: 'Sprint 2' })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -78,14 +78,14 @@ describe('Sprints API', () => {
     expect(sprint.status).toBe('planned')
   })
 
-  it('GET /api/sprints/:id returns 404 for unknown id', async () => {
+  test('GET /api/sprints/:id returns 404 for unknown id', async () => {
     const res = await SELF.fetch(`http://localhost/api/sprints/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
-  it('PATCH /api/sprints/:id updates sprint fields', async () => {
+  test('PATCH /api/sprints/:id updates sprint fields', async () => {
     const createRes = await createSprint({ projectId, name: 'Draft Sprint' })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -105,7 +105,7 @@ describe('Sprints API', () => {
     expect(sprint.goal).toBe('Updated goal')
   })
 
-  it('POST /api/sprints/:id/complete marks active sprint completed', async () => {
+  test('POST /api/sprints/:id/complete marks active sprint completed', async () => {
     const createRes = await createSprint({ projectId, name: 'Active Sprint' })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -129,7 +129,7 @@ describe('Sprints API', () => {
     expect(sprint.status).toBe('completed')
   })
 
-  it('POST /api/sprints/:id/complete rejects planned sprint', async () => {
+  test('POST /api/sprints/:id/complete rejects planned sprint', async () => {
     const createRes = await createSprint({ projectId, name: 'Planned Sprint' })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -140,7 +140,7 @@ describe('Sprints API', () => {
     expect(completeRes.status).toBe(400)
   })
 
-  it('DELETE /api/sprints/:id removes the sprint', async () => {
+  test('DELETE /api/sprints/:id removes the sprint', async () => {
     const createRes = await createSprint({ projectId, name: 'To delete' })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -156,7 +156,7 @@ describe('Sprints API', () => {
     expect(getRes.status).toBe(404)
   })
 
-  it('POST /api/sprints/:id/move-issues bulk moves issues to sprint', async () => {
+  test('POST /api/sprints/:id/move-issues bulk moves issues to sprint', async () => {
     const sprintRes = await createSprint({ projectId, name: 'Target Sprint' })
     const { id: sprintId } = (await sprintRes.json()) as { id: string }
 
@@ -177,13 +177,13 @@ describe('Sprints API', () => {
     const listRes = await SELF.fetch(`http://localhost/api/issues?sprintId=${sprintId}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await listRes.json()) as { items: Array<{ title: string }> }
+    const page = (await listRes.json()) as { items: { title: string }[] }
     expect(page.items).toHaveLength(2)
     const titles = page.items.map((i) => i.title).sort()
     expect(titles).toEqual(['Issue A', 'Issue B'])
   })
 
-  it('DELETE sprint clears sprint_id on issues (ON DELETE SET NULL)', async () => {
+  test('DELETE sprint clears sprint_id on issues (ON DELETE SET NULL)', async () => {
     const sprintRes = await createSprint({ projectId, name: 'Sprint to delete' })
     const { id: sprintId } = (await sprintRes.json()) as { id: string }
 
@@ -209,7 +209,7 @@ describe('Sprints API', () => {
     expect(issueData.sprint_id).toBeNull()
   })
 
-  it('PROJ-356: move-issues invalidates the issue KV cache — an immediate GET reflects the new sprint_id', async () => {
+  test('PROJ-356: move-issues invalidates the issue KV cache — an immediate GET reflects the new sprint_id', async () => {
     const sprintRes = await createSprint({ projectId, name: 'Cache Target Sprint' })
     const { id: sprintId } = (await sprintRes.json()) as { id: string }
 
@@ -237,7 +237,7 @@ describe('Sprints API', () => {
     expect(afterBody.sprint_id).toBe(sprintId)
   })
 
-  it('POST /api/sprints/:id/move-issues returns 404 for unknown sprint', async () => {
+  test('POST /api/sprints/:id/move-issues returns 404 for unknown sprint', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Orphan issue' })
 
     const res = await SELF.fetch(`http://localhost/api/sprints/${crypto.randomUUID()}/move-issues`, {
@@ -262,7 +262,7 @@ describe('Sprints API', () => {
       env.RATE_LIMIT_API_MAX = prevApiMax
     })
 
-    it('moving 500 issues succeeds within <=50 KV deletes, and a subsequent GET shows the new sprint', async () => {
+    test('moving 500 issues succeeds within <=50 KV deletes, and a subsequent GET shows the new sprint', async () => {
       const sprintRes = await createSprint({ projectId, name: 'Bulk Target Sprint' })
       const { id: sprintId } = (await sprintRes.json()) as { id: string }
 
@@ -314,7 +314,7 @@ describe('Sprints API', () => {
     })
   })
 
-  it('lists multiple sprints ordered by created_at', async () => {
+  test('lists multiple sprints ordered by created_at', async () => {
     await createSprint({ projectId, name: 'First Sprint' })
     await createSprint({ projectId, name: 'Second Sprint' })
     await createSprint({ projectId, name: 'Third Sprint' })
@@ -322,13 +322,13 @@ describe('Sprints API', () => {
     const res = await SELF.fetch(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
-    const body = (await res.json()) as { items: Array<{ name: string }> }
+    const body = (await res.json()) as { items: { name: string }[] }
     expect(body.items).toHaveLength(3)
     expect(body.items[0].name).toBe('First Sprint')
     expect(body.items[2].name).toBe('Third Sprint')
   })
 
-  it('sprints are scoped to workspace — cross-workspace sprint not visible', async () => {
+  test('sprints are scoped to workspace — cross-workspace sprint not visible', async () => {
     const other = await seedFixture()
     const otherProject = await seedProject(other.workspace.id, 'OTH')
 
@@ -349,7 +349,7 @@ describe('Sprints API', () => {
 })
 
 describe('Sprints role guards', () => {
-  it('viewer cannot create a sprint (403)', async () => {
+  test('viewer cannot create a sprint (403)', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
@@ -378,7 +378,7 @@ describe('Sprints role guards', () => {
     return { roles, id }
   }
 
-  it('viewer cannot update a sprint (403)', async () => {
+  test('viewer cannot update a sprint (403)', async () => {
     const { roles, id } = await seedMemberSprintWithViewer('Member Sprint')
 
     const patchRes = await SELF.fetch(`http://localhost/api/sprints/${id}`, {
@@ -389,7 +389,7 @@ describe('Sprints role guards', () => {
     expect(patchRes.status).toBe(403)
   })
 
-  it('viewer cannot delete a sprint (403)', async () => {
+  test('viewer cannot delete a sprint (403)', async () => {
     const { roles, id } = await seedMemberSprintWithViewer('Member Sprint')
 
     const deleteRes = await SELF.fetch(`http://localhost/api/sprints/${id}`, {
@@ -399,7 +399,7 @@ describe('Sprints role guards', () => {
     expect(deleteRes.status).toBe(403)
   })
 
-  it('viewer cannot complete a sprint (403)', async () => {
+  test('viewer cannot complete a sprint (403)', async () => {
     const { roles, id } = await seedMemberSprintWithViewer('Sprint')
     await SELF.fetch(`http://localhost/api/sprints/${id}`, {
       method: 'PATCH',
@@ -414,7 +414,7 @@ describe('Sprints role guards', () => {
     expect(completeRes.status).toBe(403)
   })
 
-  it("PROJ-357: write access only on the sprint's project can't move an issue from an ungranted one", async () => {
+  test("PROJ-357: write access only on the sprint's project can't move an issue from an ungranted one", async () => {
     const roles = await seedWorkspaceRoles()
     const projectA = await seedProject(roles.workspace.id, 'PJA')
     const projectB = await seedProject(roles.workspace.id, 'PJB')
@@ -447,7 +447,7 @@ describe('Sprints role guards', () => {
     expect(row?.sprint_id).toBeNull()
   })
 
-  it('viewer cannot move issues to a sprint (403)', async () => {
+  test('viewer cannot move issues to a sprint (403)', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')

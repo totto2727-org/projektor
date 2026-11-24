@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
-import { afterEach, expect, it, vi } from 'vite-plus/test'
+import { afterEach, expect, test, vi } from 'vite-plus/test'
 
-import type { Props } from './MarkdownEditor'
+import type { Props } from './MarkdownEditor.tsx'
 
 const chunk = vi.hoisted(() => Promise.withResolvers<{ default: (props: Props) => React.ReactNode }>())
 vi.mock('./MarkdownEditor', () => chunk.promise)
 
-import LazyMarkdownEditor from './LazyMarkdownEditor'
+import LazyMarkdownEditor from './LazyMarkdownEditor.tsx'
 
 afterEach(cleanup)
 
-it('commits fallback input before blur and preserves it when the editor chunk resolves', async () => {
+test('commits fallback input before blur and preserves it when the editor chunk resolves', async () => {
   const changed = vi.fn()
   function Editor() {
     const [value, setValue] = useState('')

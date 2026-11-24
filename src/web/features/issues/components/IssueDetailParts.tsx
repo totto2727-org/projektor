@@ -1,13 +1,14 @@
 'use client'
 import { query as serverQuery } from '@effront/core/query'
 import { Effect, Schema } from 'effect'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 
-import { unwrapResult } from '../../../client/functions'
-import { AttachmentUpload } from '../../../components/AttachmentUpload'
-import { MarkdownPreview } from '../../../components/markdown/MarkdownPreview'
-import { Button } from '../../../components/ui/Button'
-import Select from '../../../components/ui/Select'
+import { unwrapResult } from '../../../client/functions.ts'
+import { AttachmentUpload } from '../../../components/AttachmentUpload.tsx'
+import { MarkdownPreview } from '../../../components/markdown/MarkdownPreview.tsx'
+import { Button } from '../../../components/ui/Button.tsx'
+import Select from '../../../components/ui/Select.tsx'
 import {
   addAttachmentLink,
   addComment,
@@ -20,16 +21,16 @@ import {
   searchWikiAttachments,
   shareIssue,
   updateIssue,
-} from '../actions'
-import { BodyText, CommentText, IssueReference, PointsText, Text, TitleText, UrlText, useIssueForm } from '../forms'
-import { formatIssueRef, normalizeIssueRef } from '../lib/issue-ref'
-import { parseStoryPoints } from '../lib/story-points'
-import { clearDraft, draftKey, loadDraft, saveDraft } from '../utils/drafts'
-import { issueUrl } from '../utils/issue-url'
-import { PRIORITY_OPTIONS } from '../utils/issue-utils'
-import { useUnsavedUnloadGuard } from '../utils/use-unsaved-unload-guard'
-import { categoryColor } from './board-utils'
-import type { Attachment, Comment, IssueData, IssueLink, Member, TaskStatus, TaskType } from './issue-detail-helpers'
+} from '../actions.ts'
+import { BodyText, CommentText, IssueReference, PointsText, Text, TitleText, UrlText, useIssueForm } from '../forms.ts'
+import { formatIssueRef, normalizeIssueRef } from '../lib/issue-ref.ts'
+import { parseStoryPoints } from '../lib/story-points.ts'
+import { clearDraft, draftKey, loadDraft, saveDraft } from '../utils/drafts.ts'
+import { issueUrl } from '../utils/issue-url.ts'
+import { PRIORITY_OPTIONS } from '../utils/issue-utils.ts'
+import { useUnsavedUnloadGuard } from '../utils/use-unsaved-unload-guard.ts'
+import { categoryColor } from './board-utils.ts'
+import type { Attachment, Comment, IssueData, IssueLink, Member, TaskStatus, TaskType } from './issue-detail-helpers.ts'
 import {
   formatBytes,
   formatDate,
@@ -37,8 +38,8 @@ import {
   LINK_TYPE_OPTIONS,
   PRIORITY_COLORS,
   relativeTime,
-} from './issue-detail-helpers'
-import MarkdownEditor from './LazyMarkdownEditor'
+} from './issue-detail-helpers.ts'
+import MarkdownEditor from './LazyMarkdownEditor.tsx'
 
 const PencilIcon = () => (
   <svg
@@ -153,7 +154,9 @@ export function ShareButton({ issueId, workspaceSlug }: { issueId: string; works
   }
 
   function copyShareUrl() {
-    if (!shareUrl) return
+    if (!shareUrl) {
+      return
+    }
     navigator.clipboard.writeText(shareUrl).catch(() => {})
     setCopiedShare(true)
     setTimeout(() => setCopiedShare(false), 2000)
@@ -194,7 +197,9 @@ export function ShareButton({ issueId, workspaceSlug }: { issueId: string; works
 }
 
 export function ParentBadge({ parentEpic }: { parentEpic: IssueData | null }) {
-  if (!parentEpic) return null
+  if (!parentEpic) {
+    return null
+  }
   const isEpic = parentEpic.type_key === 'epic'
   const ref = parentEpic.project_key ? `${parentEpic.project_key}-${parentEpic.number}` : `#${parentEpic.number}`
   return (
@@ -274,8 +279,12 @@ export function TitleSection({
           value={editTitle}
           onInput={(e) => setEditTitle((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') void saveTitle()
-            if (e.key === 'Escape') cancelEditTitle()
+            if (e.key === 'Enter') {
+              void saveTitle()
+            }
+            if (e.key === 'Escape') {
+              cancelEditTitle()
+            }
           }}
           disabled={savingTitle}
           // biome-ignore lint/a11y/noAutofocus: intentional focus when the inline editor opens
@@ -301,7 +310,9 @@ export function TitleSection({
         className='m-0 text-2xl font-bold text-text-base leading-tight cursor-pointer'
         onClick={startEditTitle}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') startEditTitle()
+          if (e.key === 'Enter') {
+            startEditTitle()
+          }
         }}
         title='Click to edit title'
       >
@@ -345,13 +356,17 @@ function useBodyEditor(
   }, [key])
 
   useEffect(() => {
-    if (!awaitingBody) return
+    if (!awaitingBody) {
+      return
+    }
     if (bodyRevision.current !== awaitingBody.revision) {
       setAwaitingBody(null)
       setSavingBody(false)
       return
     }
-    if ((issue.body ?? '') !== awaitingBody.body) return
+    if ((issue.body ?? '') !== awaitingBody.body) {
+      return
+    }
     clearDraft(key)
     setHasDraft(false)
     setEditingBody(false)
@@ -382,7 +397,9 @@ function useBodyEditor(
   async function saveBody() {
     const revision = bodyRevision.current
     const submittedBody = editBody
-    if (!(await bodyForm.validate())) return
+    if (!(await bodyForm.validate())) {
+      return
+    }
     setSavingBody(true)
     setSaveBodyError(null)
     try {
@@ -523,7 +540,9 @@ export function BodySection({
 }
 
 export function ChildIssuesSection({ issue, childIssues }: { issue: IssueData; childIssues: IssueData[] }) {
-  if (issue.type_key !== 'epic') return null
+  if (issue.type_key !== 'epic') {
+    return null
+  }
 
   return (
     <section className='mb-8'>
@@ -664,8 +683,12 @@ function LinkForm({
           setLinkFormError(null)
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') onAdd()
-          if (e.key === 'Escape') onCancel()
+          if (e.key === 'Enter') {
+            onAdd()
+          }
+          if (e.key === 'Escape') {
+            onCancel()
+          }
         }}
         placeholder='PROJ-12'
         // biome-ignore lint/a11y/noAutofocus: intentional focus when the inline editor opens
@@ -1035,11 +1058,17 @@ function WikiPageLinkForm({
         const data = unwrapResult(
           await Effect.runPromise(serverQuery(searchWikiAttachments)({ query: query.trim(), workspaceSlug })),
         )
-        if (!cancelled) setResults(Array.isArray(data) ? data : [])
+        if (!cancelled) {
+          setResults(Array.isArray(data) ? data : [])
+        }
       } catch {
-        if (!cancelled) setResults([])
+        if (!cancelled) {
+          setResults([])
+        }
       }
-      if (!cancelled) setSearching(false)
+      if (!cancelled) {
+        setSearching(false)
+      }
     }, 250)
     return () => {
       cancelled = true
@@ -1057,7 +1086,9 @@ function WikiPageLinkForm({
           setLinkError(null)
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') onCancel()
+          if (e.key === 'Escape') {
+            onCancel()
+          }
         }}
         placeholder='Search wiki pages…'
         // biome-ignore lint/a11y/noAutofocus: intentional focus when the inline picker opens
@@ -1134,8 +1165,12 @@ function UrlLinkForm({
           setLinkError(null)
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') onAdd()
-          if (e.key === 'Escape') onCancel()
+          if (e.key === 'Enter') {
+            onAdd()
+          }
+          if (e.key === 'Escape') {
+            onCancel()
+          }
         }}
         placeholder='https://example.com/…'
         // biome-ignore lint/a11y/noAutofocus: intentional focus when the inline editor opens
@@ -1149,8 +1184,12 @@ function UrlLinkForm({
         value={labelValue}
         onInput={(e) => setLabelValue((e.target as HTMLInputElement).value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') onAdd()
-          if (e.key === 'Escape') onCancel()
+          if (e.key === 'Enter') {
+            onAdd()
+          }
+          if (e.key === 'Escape') {
+            onCancel()
+          }
         }}
         placeholder='Label (optional)'
         disabled={linking}
@@ -1486,7 +1525,9 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
     setEditCommentError(null)
     try {
       unwrapResult(await editComment({ workspaceSlug, issueId, commentId, body: submittedBody }))
-      if (commentRevision.current === revision) setEditingCommentId(null)
+      if (commentRevision.current === revision) {
+        setEditingCommentId(null)
+      }
     } catch (e) {
       setEditCommentError(`Save failed: ${String(e)}`)
     }
@@ -1494,7 +1535,9 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
   }
 
   async function doDeleteComment(commentId: string) {
-    if (!window.confirm('Delete this comment?')) return
+    if (!window.confirm('Delete this comment?')) {
+      return
+    }
     try {
       unwrapResult(await deleteComment({ workspaceSlug, issueId, commentId }))
     } catch {
@@ -1740,7 +1783,9 @@ function PointsField({
   }
 
   async function savePoints() {
-    if (!(await pointsForm.validate())) return
+    if (!(await pointsForm.validate())) {
+      return
+    }
     const parsed = parseStoryPoints(pointsValue)
     setSavingPoints(true)
     try {
@@ -1766,8 +1811,12 @@ function PointsField({
           value={pointsValue}
           onInput={(e) => setPointsValue((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') void savePoints()
-            if (e.key === 'Escape') setEditingPoints(false)
+            if (e.key === 'Enter') {
+              void savePoints()
+            }
+            if (e.key === 'Escape') {
+              setEditingPoints(false)
+            }
           }}
           onBlur={savePoints}
           disabled={savingPoints}

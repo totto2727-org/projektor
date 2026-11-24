@@ -1,19 +1,19 @@
 import { Effect, Schema } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 
-import { resetProvisioningCacheForTests } from '#commands/provisioning'
-import { resetAuthCachesForTests } from '#services/authentication'
+import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import { resetAuthCachesForTests } from '#services/authentication.ts'
 
-import { coreResult, browserRequest } from '../../core'
-import { makeRequestServices, RequestServices } from '../../request'
-import type { ApiError, ScopeError } from '../../server/errors'
-import type { RequestScope } from '../../server/request-context'
-import { testEnvironment } from '../../server/test/resources'
-import { featureDatabase } from './action-test-fixture'
-import { defaultRange, rangeFromUrl } from './helpers'
-import { HeatmapSchema, MetricsSchema, SprintsSchema } from './schemas'
-import { loadSprintIssues, renderMetrics, renderSprints } from './server'
+import { coreResult, browserRequest } from '../../core.ts'
+import { makeRequestServices, RequestServices } from '../../request.ts'
+import type { ApiError, ScopeError } from '../../server/errors.ts'
+import type { RequestScope } from '../../server/request-context.ts'
+import { testEnvironment } from '../../server/test/resources.ts'
+import { featureDatabase } from './action-test-fixture.ts'
+import { defaultRange, rangeFromUrl } from './helpers.ts'
+import { HeatmapSchema, MetricsSchema, SprintsSchema } from './schemas.ts'
+import { loadSprintIssues, renderMetrics, renderSprints } from './server.tsx'
 
 vi.mock('./actions', () => ({
   createSprint: vi.fn(),
@@ -54,12 +54,13 @@ function issueRows(database: ReturnType<typeof featureDatabase>, count: number) 
   const statement = database.sqlite.prepare(
     "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at,sprint_id,status) VALUES (?, 'w1', 'p1', ?, ?, 'u1', 1, 1, 's1', 'done')",
   )
-  for (let index = 0; index < count; index++)
+  for (let index = 0; index < count; index++) {
     statement.run(`i${String(index).padStart(3, '0')}`, index + 1, `Completed task ${index}`)
+  }
 }
 
 describe('planning SSR named shared queries on real migrated D1', () => {
-  it.each(['all', 'planned', 'active', 'completed'] as const)(
+  test.each(['all', 'planned', 'active', 'completed'] as const)(
     'renders URL %s mode with full sprint and velocity context without read HTTP',
     async (mode) => {
       const database = featureDatabase()
@@ -81,7 +82,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       expect(run.transport).toHaveBeenCalledTimes(0)
     },
   )
-  it('loads every issue page, including same-timestamp ties and real custom fields, for velocity', async () => {
+
+  test('loads every issue page, including same-timestamp ties and real custom fields, for velocity', async () => {
     const database = featureDatabase()
     issueRows(database, 205)
     database.sqlite
@@ -102,7 +104,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     expect(issues.some((item) => item.id === 'private')).toBe(false)
     expect(run.transport).toHaveBeenCalledTimes(0)
   })
-  it('rejects aggregates over the explicit budget instead of returning partial velocity', async () => {
+
+  test('rejects aggregates over the explicit budget instead of returning partial velocity', async () => {
     const database = featureDatabase()
     issueRows(database, 1001)
     await expect(
@@ -111,14 +114,16 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       ).result,
     ).rejects.toMatchObject({ _tag: 'ApiError', status: 422 })
   })
-  it('rejects inaccessible selected projects before loading project data', async () => {
+
+  test('rejects inaccessible selected projects before loading project data', async () => {
     const database = featureDatabase()
     const run = runWithDatabase(database, new URL('https://front.example/sprints'), (scope) =>
       renderSprints({ ...scope, projects: [] }, new URL('https://front.example/sprints')),
     )
     await expect(run.result).rejects.toMatchObject({ _tag: 'ScopeError', status: 404 })
   })
-  it('rejects invalid sprint modes and metrics ranges rather than sending HTTP reads', async () => {
+
+  test('rejects invalid sprint modes and metrics ranges rather than sending HTTP reads', async () => {
     const database = featureDatabase()
     await expect(
       runWithDatabase(database, new URL('https://front.example/sprints'), (scope) =>
@@ -137,7 +142,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       ).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
     }
   })
-  it('private Core rejects excessive metrics ranges with HTTP 400 before chart allocation', async () => {
+
+  test('private Core rejects excessive metrics ranges with HTTP 400 before chart allocation', async () => {
     const database = featureDatabase()
     const run = runWithDatabase(database, new URL('https://front.example/metrics'), () =>
       Effect.gen(function* () {
@@ -147,7 +153,7 @@ describe('planning SSR named shared queries on real migrated D1', () => {
           services.core.webFlowMetrics(browserRequest(services.request), 'w1', {
             projectId: 'p1',
             since: 0,
-            until: 366 * 86400,
+            until: 366 * 86_400,
             granularity: 'day',
             mode: 'claims',
             prefix: '',
@@ -157,7 +163,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     )
     await expect(run.result).rejects.toMatchObject({ _tag: 'ScopeError', status: 400 })
   })
-  it('uses the exact UTC metrics window and contention prefix from the URL against real rows', async () => {
+
+  test('uses the exact UTC metrics window and contention prefix from the URL against real rows', async () => {
     const database = featureDatabase()
     issueRows(database, 1)
     const doneAt = Date.parse('2026-09-02T12:00:00Z') / 1000
@@ -202,7 +209,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     expect(renderToStaticMarkup(node)).toContain('Where the fleet queues up')
     expect(run.transport).toHaveBeenCalledTimes(0)
   })
-  it('retains core metrics when optional heatmap queries fail and safely reports core failures', async () => {
+
+  test('retains core metrics when optional heatmap queries fail and safely reports core failures', async () => {
     const database = featureDatabase()
     database.sqlite.exec('DROP TABLE claim_conflicts')
     const url = new URL('https://front.example/metrics?heatmapMode=contention')
@@ -216,7 +224,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       message: 'An unexpected error occurred.',
     })
   })
-  it('decodes the existing concrete sprint, metrics and heatmap DTO contracts', () => {
+
+  test('decodes the existing concrete sprint, metrics and heatmap DTO contracts', () => {
     expect(() => Schema.decodeUnknownSync(SprintsSchema)({ items: [{ id: 's1', status: 'archived' }] })).toThrow()
     expect(() => Schema.decodeUnknownSync(MetricsSchema)({ bugTypeTracked: 'false' })).toThrow()
     expect(() =>
@@ -227,7 +236,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
       }),
     ).toThrow()
   })
-  it('keeps the six-week weekly default and date normalization', () => {
+
+  test('keeps the six-week weekly default and date normalization', () => {
     const now = new Date('2026-10-04T12:00:00Z')
     expect(defaultRange(now)).toEqual({
       since: '2026-08-24',

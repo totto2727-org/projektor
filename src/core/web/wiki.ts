@@ -1,11 +1,11 @@
 import { Effect } from 'effect'
 
-import { WikiSeedDataSchema } from '../../contracts/web-schemas/wiki'
-import { coreReply } from '../contract'
-import type { CoreEnvironment } from '../environment'
-import { webRead } from './issue-operations'
-import type { WebRequest } from './scope'
-import { loadWikiData } from './wiki-data'
+import { WikiSeedDataSchema } from '../../contracts/web-schemas/wiki.ts'
+import { coreReply } from '../contract.ts'
+import type { CoreEnvironment } from '../environment.ts'
+import { webRead } from './issue-operations.ts'
+import type { WebRequest } from './scope.ts'
+import { loadWikiData } from './wiki-data.ts'
 
 export const makeWikiHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => ({
   webWikiSeed: (request: WebRequest, workspaceId: string, url: string, slug?: string, projectId?: string) =>

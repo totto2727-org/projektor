@@ -1,26 +1,26 @@
-import { agentMessagesTools } from './agent-messages'
-import { agentsTools } from './agents'
-import { codeHeatmapTools } from './code-heatmap'
-import { commentsTools } from './comments'
-import { customFieldsTools } from './custom-fields'
-import { feedbackTools } from './feedback'
-import { fileClaimsTools } from './file-claims'
-import { filesTools } from './files'
-import { flowMetricsTools } from './flow-metrics'
-import { groupsTools } from './groups'
-import { issueLeasesTools } from './issue-leases'
-import { issueLinksTools } from './issue-links'
-import { issuesTools } from './issues'
-import { playbooksTools } from './playbooks'
-import { projectActivityTools } from './project-activity'
-import { projectsTools } from './projects'
-import { sprintsTools } from './sprints'
-import { taskStatusesTools } from './task-statuses'
-import { taskTypesTools } from './task-types'
-import type { MCPTool } from './types'
-import { wikiTools } from './wiki'
-import { workflowTools } from './workflow'
-import { workspacesTools } from './workspaces'
+import { agentMessagesTools } from './agent-messages.ts'
+import { agentsTools } from './agents.ts'
+import { codeHeatmapTools } from './code-heatmap.ts'
+import { commentsTools } from './comments.ts'
+import { customFieldsTools } from './custom-fields.ts'
+import { feedbackTools } from './feedback.ts'
+import { fileClaimsTools } from './file-claims.ts'
+import { filesTools } from './files.ts'
+import { flowMetricsTools } from './flow-metrics.ts'
+import { groupsTools } from './groups.ts'
+import { issueLeasesTools } from './issue-leases.ts'
+import { issueLinksTools } from './issue-links.ts'
+import { issuesTools } from './issues.ts'
+import { playbooksTools } from './playbooks.ts'
+import { projectActivityTools } from './project-activity.ts'
+import { projectsTools } from './projects.ts'
+import { sprintsTools } from './sprints.ts'
+import { taskStatusesTools } from './task-statuses.ts'
+import { taskTypesTools } from './task-types.ts'
+import type { MCPTool } from './types.ts'
+import { wikiTools } from './wiki.ts'
+import { workflowTools } from './workflow.ts'
+import { workspacesTools } from './workspaces.ts'
 
 /**
  * A domain-facing grouping of the MCP tool registry.
@@ -105,7 +105,9 @@ export function toolNamesForDomains(slugs: Iterable<string>): Set<string> {
   const names = new Set<string>()
   for (const d of TOOL_DOMAINS) {
     if (wanted.has(d.domain)) {
-      for (const t of d.tools) names.add(t.name)
+      for (const t of d.tools) {
+        names.add(t.name)
+      }
     }
   }
   return names
