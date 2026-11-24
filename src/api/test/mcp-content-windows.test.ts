@@ -1,5 +1,7 @@
-// PROJ-892: windowed reads — bodyChars previews on lists, get_wiki_page maxChars/cursor/
-// section/outline, and get_issue's long-body cursor.
+/*
+ * PROJ-892: windowed reads — bodyChars previews on lists, get_wiki_page maxChars/cursor/
+ * section/outline, and get_issue's long-body cursor.
+ */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { outlineOf, sectionOf, windowText } from '../mcp/windowing.ts'

@@ -60,7 +60,7 @@ const props = {
   },
 }
 afterEach(cleanup)
-// jsdom has no layout. Give the real ResponsiveContainer a representative measured rectangle.
+// Jsdom has no layout. Give the real ResponsiveContainer a representative measured rectangle.
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     return new DOMRect(0, 0, 600, this.classList.contains('recharts-legend-wrapper') ? 24 : 220)

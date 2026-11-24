@@ -74,13 +74,15 @@ router.patch('/:slug/members/:userId', async (c) => {
   }
 })
 
-// PROJ-917: workspace tokens follow the same rule as personal access tokens
-// (PROJ-903, routes/auth.ts) — minted and revoked only from an interactive human
-// session. Otherwise an agent's pk_ token or OAuth grant could mint a sibling token
-// with wider scopes than its own, and the new secret would land in an agent's
-// context. Chosen over "new scopes must be a subset of the caller's": there is no
-// machine use case for minting workspace tokens. Listing stays open to admins on any
-// credential — it returns no secrets.
+/*
+ * PROJ-917: workspace tokens follow the same rule as personal access tokens
+ * (PROJ-903, routes/auth.ts) — minted and revoked only from an interactive human
+ * session. Otherwise an agent's pk_ token or OAuth grant could mint a sibling token
+ * with wider scopes than its own, and the new secret would land in an agent's
+ * context. Chosen over "new scopes must be a subset of the caller's": there is no
+ * machine use case for minting workspace tokens. Listing stays open to admins on any
+ * credential — it returns no secrets.
+ */
 const WORKSPACE_TOKEN_HUMAN_ONLY =
   'Workspace tokens can only be created or revoked from a signed-in browser session, not with an API token or connected app.'
 
@@ -119,14 +121,16 @@ router.delete('/:slug/tokens/:tokenId', async (c) => {
   }
 })
 
-// PROJ-659. Deliberately not mirrored as MCP tools: withdrawing a credential is a
-// sensitive operation, and one a connector should not be able to perform on itself.
-//
-// The shared PUBLIC_READ_ONLY viewer is one identity for every anonymous visitor on the
-// internet and a real `viewer` member of the default workspace, so "your own grants"
-// would mean "everyone's grants" for it. It cannot consent to a grant in the first place
-// (routes/oauth.ts), which makes the list provably empty today — but that is an
-// invariant enforced two files away, and this endpoint should not depend on it.
+/*
+ * PROJ-659. Deliberately not mirrored as MCP tools: withdrawing a credential is a
+ * sensitive operation, and one a connector should not be able to perform on itself.
+ *
+ * The shared PUBLIC_READ_ONLY viewer is one identity for every anonymous visitor on the
+ * internet and a real `viewer` member of the default workspace, so "your own grants"
+ * would mean "everyone's grants" for it. It cannot consent to a grant in the first place
+ * (routes/oauth.ts), which makes the list provably empty today — but that is an
+ * invariant enforced two files away, and this endpoint should not depend on it.
+ */
 function connectorsDenied(c: Parameters<typeof ctxFromHono>[0]): Response | null {
   return requireInteractiveHuman(
     c,

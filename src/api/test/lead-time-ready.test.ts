@@ -5,10 +5,12 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-921: lead time (ready -> done) came out as a 0s median because an issue moved
-// straight from backlog to done in one update got ready_at = done_at. ready_at is now
-// stamped only when an issue actually enters a ready status (including on create), and
-// issues that never did are excluded from lead time and counted separately.
+/*
+ * PROJ-921: lead time (ready -> done) came out as a 0s median because an issue moved
+ * straight from backlog to done in one update got ready_at = done_at. ready_at is now
+ * stamped only when an issue actually enters a ready status (including on create), and
+ * issues that never did are excluded from lead time and counted separately.
+ */
 describe('PROJ-921: ready_at and lead time', () => {
   let token: string
   let slug: string

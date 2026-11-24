@@ -179,8 +179,10 @@ function listConditions(workspaceId: string, options: IssueListOptions, visibili
     ?.split(',')
     .map((s) => s.trim())
     .filter(Boolean)
-  // Membership filters bind one JSON value instead of an input-scaled array, keeping
-  // the complete filtered count and cursor page under D1's 100-parameter cap.
+  /*
+   * Membership filters bind one JSON value instead of an input-scaled array, keeping
+   * the complete filtered count and cursor page under D1's 100-parameter cap.
+   */
   if (statusIds?.length) {
     conditions.push(sql`${schema.issues.statusId} IN (SELECT value FROM json_each(${JSON.stringify(statusIds)}))`)
   }

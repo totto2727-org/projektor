@@ -591,10 +591,12 @@ describe('PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
     expect(loaded[issueB.id]).toBeUndefined()
   })
 
-  // Regression: a full 100-issue page bound 100 ids + 1 workspaceId = 101 params,
-  // exceeding D1's 100-bound-parameter cap → the query threw and listIssues 500'd
-  // (invisible in CI because SQLite allows 32766 params). batchLoadCustomFields now
-  // chunks the ids; this proves results still merge correctly across chunk boundaries.
+  /*
+   * Regression: a full 100-issue page bound 100 ids + 1 workspaceId = 101 params,
+   * exceeding D1's 100-bound-parameter cap → the query threw and listIssues 500'd
+   * (invisible in CI because SQLite allows 32766 params). batchLoadCustomFields now
+   * chunks the ids; this proves results still merge correctly across chunk boundaries.
+   */
   test('loads values for more issues than the chunk size (spans multiple D1 queries)', async () => {
     const ws = await seedFixture({ role: 'owner' })
     const proj = await seedProject(ws.workspace.id, 'CHK')

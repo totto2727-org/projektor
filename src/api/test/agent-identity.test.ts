@@ -1,6 +1,8 @@
-// PROJ-894: stateless agent identity. register_agent records the credential that made the
-// call; claim_issue / heartbeat_agent / end_agent may then omit the agent id when that
-// credential owns exactly one (live) session, and must pass it otherwise.
+/*
+ * PROJ-894: stateless agent identity. register_agent records the credential that made the
+ * call; claim_issue / heartbeat_agent / end_agent may then omit the agent id when that
+ * credential owns exactly one (live) session, and must pass it otherwise.
+ */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -47,8 +49,10 @@ describe('PROJ-894: stateless agent identity', () => {
       }),
     })
     const body = (await res.json()) as RpcBody
-    // A failure is either a JSON-RPC error or (PROJ-893) an isError tool result;
-    // this suite is about identity resolution, not the error envelope.
+    /*
+     * A failure is either a JSON-RPC error or (PROJ-893) an isError tool result;
+     * this suite is about identity resolution, not the error envelope.
+     */
     if (body.error) {
       return { ok: false, value: {}, message: body.error.message ?? JSON.stringify(body) }
     }

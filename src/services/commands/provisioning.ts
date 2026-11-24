@@ -18,9 +18,11 @@ export type ProvisioningEnvironment = Pick<
 import { ConflictError } from './errors.ts'
 import { createWorkspace } from './workspaces.ts'
 
-// PROJ-436: an owner's explicit removeMember call is durable — provisioning must not
-// re-add a tombstoned (workspace, user) pair, even though ADMIN_EMAILS / AUTO_JOIN_ROLE /
-// WORKSPACE_DOMAIN_MAP would otherwise say they belong. inviteMember clears the tombstone.
+/*
+ * PROJ-436: an owner's explicit removeMember call is durable — provisioning must not
+ * re-add a tombstoned (workspace, user) pair, even though ADMIN_EMAILS / AUTO_JOIN_ROLE /
+ * WORKSPACE_DOMAIN_MAP would otherwise say they belong. inviteMember clears the tombstone.
+ */
 async function isRemovalTombstoned(
   orm: ReturnType<typeof drizzle>,
   workspaceId: string,
@@ -49,11 +51,13 @@ function parseEmailSet(raw?: string): Set<string> {
 }
 
 function resolveAutoJoinRole(raw?: string): Role | null {
-  // Safe default for public self-hosting (PROJ-193): invite-only. When AUTO_JOIN_ROLE
-  // is unset we do NOT auto-join CF-Access-admitted users — an operator who wants
-  // open auto-join must opt in explicitly (e.g. AUTO_JOIN_ROLE=viewer). This prevents
-  // a fresh public instance from silently granting every admitted user read access to
-  // the default workspace.
+  /*
+   * Safe default for public self-hosting (PROJ-193): invite-only. When AUTO_JOIN_ROLE
+   * is unset we do NOT auto-join CF-Access-admitted users — an operator who wants
+   * open auto-join must opt in explicitly (e.g. AUTO_JOIN_ROLE=viewer). This prevents
+   * a fresh public instance from silently granting every admitted user read access to
+   * the default workspace.
+   */
   const v = (raw ?? 'none').trim().toLowerCase()
   if (v === 'none') {
     return null
@@ -127,8 +131,10 @@ function resolveDomainMapping(raw: string | undefined, email: string): { slug: s
  * previously self-healing on the next request, but now cached for the whole TTL.
  */
 async function grantOwner(orm: ReturnType<typeof drizzle>, workspaceId: string, userId: string): Promise<void> {
-  // PROJ-436: an owner who was explicitly removed from this workspace stays removed,
-  // even though they're still an admin instance-wide.
+  /*
+   * PROJ-436: an owner who was explicitly removed from this workspace stays removed,
+   * even though they're still an admin instance-wide.
+   */
   if (await isRemovalTombstoned(orm, workspaceId, userId)) {
     return
   }
@@ -152,10 +158,12 @@ async function provisionAdmin(
   slug: string,
   name: string,
 ): Promise<void> {
-  // PROJ-433: every workspace plus this admin's role in each, in one query. The previous
-  // shape read the workspace list and then looped a per-workspace membership SELECT, so
-  // the cost of an already-provisioned admin grew with the number of workspaces. Steady
-  // state is now this single read and no writes.
+  /*
+   * PROJ-433: every workspace plus this admin's role in each, in one query. The previous
+   * shape read the workspace list and then looped a per-workspace membership SELECT, so
+   * the cost of an already-provisioned admin grew with the number of workspaces. Steady
+   * state is now this single read and no writes.
+   */
   const rows = await orm
     .select({
       id: schema.workspaces.id,
@@ -169,15 +177,19 @@ async function provisionAdmin(
     )
     .all()
 
-  // First-run bootstrap: createWorkspace inserts the caller as `owner` and seeds default
-  // task types/statuses. Only reachable once per instance, so the extra read it costs
-  // never lands on the warm path.
+  /*
+   * First-run bootstrap: createWorkspace inserts the caller as `owner` and seeds default
+   * task types/statuses. Only reachable once per instance, so the extra read it costs
+   * never lands on the warm path.
+   */
   if (!rows.some((r) => r.slug === slug)) {
     try {
       await createWorkspace(env.DB, user.id, { name, slug })
     } catch (e) {
-      // Lost a race with another admin's concurrent login — they created it, so we are
-      // not its owner and the join above never saw it. Ensure membership explicitly.
+      /*
+       * Lost a race with another admin's concurrent login — they created it, so we are
+       * not its owner and the join above never saw it. Ensure membership explicitly.
+       */
       if (!(e instanceof ConflictError)) {
         throw e
       }
@@ -192,8 +204,10 @@ async function provisionAdmin(
     }
   }
 
-  // Admins own every workspace, including migrated ones they didn't create. The role here
-  // only decides whether a write is worth issuing; grantOwner is correct either way.
+  /*
+   * Admins own every workspace, including migrated ones they didn't create. The role here
+   * only decides whether a write is worth issuing; grantOwner is correct either way.
+   */
   for (const w of rows) {
     if (w.role !== 'owner') {
       await grantOwner(orm, w.id, user.id)
@@ -201,13 +215,15 @@ async function provisionAdmin(
   }
 }
 
-// PROJ-433: this is reached on every authenticated request, not on a login event —
-// Cloudflare Access mints its cookie at the edge, so the Worker only ever sees an
-// already-valid JWT and there is no login to hang the work off. Its inputs (ADMIN_EMAILS,
-// AUTO_JOIN_ROLE, WORKSPACE_DOMAIN_MAP) are fixed until redeploy and the work is
-// idempotent, so re-running it per request bought nothing but D1 latency. Remember that it
-// ran instead: isolate-local, with KV behind it for cold isolates — the same two-layer
-// shape middleware/auth.ts already uses for Access keys and users (PROJ-354).
+/*
+ * PROJ-433: this is reached on every authenticated request, not on a login event —
+ * Cloudflare Access mints its cookie at the edge, so the Worker only ever sees an
+ * already-valid JWT and there is no login to hang the work off. Its inputs (ADMIN_EMAILS,
+ * AUTO_JOIN_ROLE, WORKSPACE_DOMAIN_MAP) are fixed until redeploy and the work is
+ * idempotent, so re-running it per request bought nothing but D1 latency. Remember that it
+ * ran instead: isolate-local, with KV behind it for cold isolates — the same two-layer
+ * shape middleware/auth.ts already uses for Access keys and users (PROJ-354).
+ */
 const inMemoryProvisionedCache = new Map<string, number>()
 const PROVISIONED_LOCAL_TTL_MS = 300 * 1000
 const PROVISIONED_KV_TTL_SECS = 300
@@ -299,9 +315,11 @@ export async function ensureUserProvisioned(
   if (await alreadyProvisioned(env, user.id)) {
     return
   }
-  // Only remember runs that reached a settled outcome. Bailing because a workspace hasn't
-  // been bootstrapped yet is transient — caching it would leave that user unprovisioned
-  // for the whole TTL after an admin finally creates it.
+  /*
+   * Only remember runs that reached a settled outcome. Bailing because a workspace hasn't
+   * been bootstrapped yet is transient — caching it would leave that user unprovisioned
+   * for the whole TTL after an admin finally creates it.
+   */
   if (await runProvisioning(env, user)) {
     await markProvisioned(env, user.id)
   }
@@ -320,8 +338,10 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
     return true
   }
 
-  // Domain confinement: a non-admin whose email domain is mapped joins ONLY the mapped
-  // workspace (never the default), so membership-scoped reads naturally confine them to it.
+  /*
+   * Domain confinement: a non-admin whose email domain is mapped joins ONLY the mapped
+   * workspace (never the default), so membership-scoped reads naturally confine them to it.
+   */
   const mapped = resolveDomainMapping(env.WORKSPACE_DOMAIN_MAP, user.email)
   if (mapped) {
     const ws = await orm
@@ -390,11 +410,13 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
  * on this is the hot path for every anonymous request. There is exactly one public-viewer
  * identity, so the marker is shared by all of them.
  */
-// PROJ-581: the group the public viewer is placed in. Project access stays default-deny
-// (PROJ-311) for the public viewer exactly as for any other viewer: an admin publishes a
-// project to anonymous visitors by granting it to this group — nothing is public by
-// default. Bumping the marker suffix re-runs provisioning for deploys provisioned before
-// the group existed.
+/*
+ * PROJ-581: the group the public viewer is placed in. Project access stays default-deny
+ * (PROJ-311) for the public viewer exactly as for any other viewer: an admin publishes a
+ * project to anonymous visitors by granting it to this group — nothing is public by
+ * default. Bumping the marker suffix re-runs provisioning for deploys provisioned before
+ * the group existed.
+ */
 export const PUBLIC_VIEWERS_GROUP_NAME = 'Public viewers'
 const PUBLIC_VIEWER_MARKER_SUFFIX = ':public-v2'
 

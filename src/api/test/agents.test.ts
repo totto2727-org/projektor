@@ -95,8 +95,10 @@ describe('Agents API', () => {
     expect(listBody.items.some((s) => s.id === session.id)).toBe(false)
   })
 
-  // A4 (PROJ-336): kind is deprecated — still accepted for MCP compatibility but
-  // ignored, and no longer present in register/list responses as a trust signal.
+  /*
+   * A4 (PROJ-336): kind is deprecated — still accepted for MCP compatibility but
+   * ignored, and no longer present in register/list responses as a trust signal.
+   */
   test('A4: caller-supplied kind is accepted but ignored, and absent from responses', async () => {
     const agentRes = await registerAgent({ name: 'bot' })
     const agentSession = (await agentRes.json()) as Record<string, unknown>
@@ -280,8 +282,10 @@ describe('Agents API', () => {
         id: string
         status: string
       }>()
-      // The session was registered internally, then compensated — either absent, or
-      // present but already ended, never left active.
+      /*
+       * The session was registered internally, then compensated — either absent, or
+       * present but already ended, never left active.
+       */
       for (const s of sessions.results) {
         expect(s.status).toBe('ended')
       }
@@ -292,8 +296,10 @@ describe('Agents API', () => {
       expect(claim).toBeNull()
     })
 
-    // PROJ-929 review fix-up: the compensating endAgent() in startWork's catch block must
-    // not let its own failure hide the original error, or silently crash the request.
+    /*
+     * PROJ-929 review fix-up: the compensating endAgent() in startWork's catch block must
+     * not let its own failure hide the original error, or silently crash the request.
+     */
     describe('compensating endAgent failure is isolated (PROJ-929 fix-up)', () => {
       afterEach(() => {
         vi.restoreAllMocks()
@@ -319,9 +325,11 @@ describe('Agents API', () => {
         const origPrepare = env.DB.prepare.bind(env.DB)
         vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
           const stmt = origPrepare(sql)
-          // Simulate a D1 outage specifically for endAgent's own status='ended' update
-          // (its bind args carry "ended" as the new status), leaving every other query —
-          // including the earlier successful claimIssue/claimFiles calls — untouched.
+          /*
+           * Simulate a D1 outage specifically for endAgent's own status='ended' update
+           * (its bind args carry "ended" as the new status), leaving every other query —
+           * including the earlier successful claimIssue/claimFiles calls — untouched.
+           */
           if (/update .*agent_sessions/i.test(sql)) {
             const origBind = stmt.bind.bind(stmt)
             // Copy only the same enumerable own properties as the original spread, not prototype methods.
@@ -494,10 +502,12 @@ describe('Agents API', () => {
     })
   })
 
-  // PROJ-932: list_active_agents defaults to live entries only; includeStale widens the
-  // heartbeat check but never returns an ended session; projectId scopes to one project
-  // (key or uuid) via the linked issue; every item carries `live`, and a linked item
-  // carries issueRef.
+  /*
+   * PROJ-932: list_active_agents defaults to live entries only; includeStale widens the
+   * heartbeat check but never returns an ended session; projectId scopes to one project
+   * (key or uuid) via the linked issue; every item carries `live`, and a linked item
+   * carries issueRef.
+   */
   describe('PROJ-932: live-only default, includeStale, projectId, issueRef, live flag', () => {
     const projectKey = 'PROJ' // seedProject's default key
 
@@ -573,9 +583,11 @@ describe('Agents API', () => {
       expect(byId.get(unlinkedSession.id)).toBeNull()
     })
 
-    // The fixture project is the only one the fixture user (role: member) has a grant
-    // on; a second project in the SAME workspace, also granted, proves the projectId
-    // filter itself excludes the other project's sessions — not merely visibility.
+    /*
+     * The fixture project is the only one the fixture user (role: member) has a grant
+     * on; a second project in the SAME workspace, also granted, proves the projectId
+     * filter itself excludes the other project's sessions — not merely visibility.
+     */
     test("projectId filters to the granted project's sessions, excluding a second same-workspace project's (by key and uuid)", async () => {
       const otherProject = await seedProject(workspaceId, 'OTHR')
       await seedGroupGrant(workspaceId, userId, otherProject.id, 'member')

@@ -3,10 +3,12 @@ import { describe, expect, test } from 'vite-plus/test'
 import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-319: pin the admin-bypass path through the hand-written SQL callers of
-// visibleProjectSqlFragment (search) and the effectiveProjectRole/isWorkspaceAdmin
-// bypass used by flow-metrics, contrasted against a non-admin member who is
-// default-deny until granted.
+/*
+ * PROJ-319: pin the admin-bypass path through the hand-written SQL callers of
+ * visibleProjectSqlFragment (search) and the effectiveProjectRole/isWorkspaceAdmin
+ * bypass used by flow-metrics, contrasted against a non-admin member who is
+ * default-deny until granted.
+ */
 
 async function search(token: string, slug: string, q: string) {
   const res = await fetchNativeApi(`http://localhost/api/issues/search?q=${encodeURIComponent(q)}`, {

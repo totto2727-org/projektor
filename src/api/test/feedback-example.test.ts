@@ -5,8 +5,10 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// Proves the maintained client example works against the real API Worker,
-// including successful persistence and rejected credentials.
+/*
+ * Proves the maintained client example works against the real API Worker,
+ * including successful persistence and rejected credentials.
+ */
 describe('feedback widget example', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -21,9 +23,11 @@ describe('feedback widget example', () => {
     })
     const { token } = (await created.json()) as { token: string }
 
-    // The example calls the ambient global `fetch`, exactly as it would in a
-    // browser; stub it to dispatch into the worker under test instead of the
-    // real network.
+    /*
+     * The example calls the ambient global `fetch`, exactly as it would in a
+     * browser; stub it to dispatch into the worker under test instead of the
+     * real network.
+     */
     vi.stubGlobal('fetch', (url: string, init?: RequestInit) => fetchNativeApi(url, init))
 
     const result = await submitFeedback('http://localhost/api/feedback/submit', token, {

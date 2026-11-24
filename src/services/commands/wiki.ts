@@ -66,9 +66,11 @@ type TreeNode = {
   children: TreeNode[]
 }
 
-// PROJ-311: a wiki page is either workspace-level (projectId null — every member
-// sees it) or project-scoped (visible only when the project is granted). Writes to
-// a project-scoped page need a member/admin grant; deletes need admin.
+/*
+ * PROJ-311: a wiki page is either workspace-level (projectId null — every member
+ * sees it) or project-scoped (visible only when the project is granted). Writes to
+ * a project-scoped page need a member/admin grant; deletes need admin.
+ */
 async function assertWikiPageVisible(ctx: ServiceCtx, projectId: string | null): Promise<void> {
   if (projectId === null) {
     return
@@ -87,8 +89,10 @@ async function requireWikiWrite(ctx: ServiceCtx, projectId: string | null): Prom
     }
     return
   }
-  // PROJ-389/837: the guard confirms projectId belongs to this workspace BEFORE the
-  // admin bypass, so an owner/admin can't write into another workspace's project.
+  /*
+   * PROJ-389/837: the guard confirms projectId belongs to this workspace BEFORE the
+   * admin bypass, so an owner/admin can't write into another workspace's project.
+   */
   await assertProjectAccess(ctx, projectId, 'edit', { notFoundMessage: 'Wiki page not found' })
 }
 
@@ -99,22 +103,24 @@ function slugify(title: string): string {
     .replace(/^-|-$/g, '')
 }
 
-// PROJ-487: "view" is the shell path segment the Worker's pretty-URL fallback serves
-// static assets from (/wiki/view/index.html) — a page slugged "view" would collide
-// with it and never resolve. "index" collides the same way: Static Assets' default
-// html_handling maps /wiki/index -> /wiki/index.html, so it never reaches the Worker
-// either. Both reserved outright rather than special-cased in routing.
-//
-// PROJ-491: "templates" collides the same way at the API layer — GET /api/wiki/templates
-// is the template-picker endpoint (routes/wiki.ts), registered before the /:slug
-// catch-all, so a page slugged "templates" would be shadowed by it and never load. The
-// seeded Templates parent page therefore uses "page-templates" (seedDefaultWikiTemplates
-// / migration 0047).
-//
-// PROJ-811: every other fixed first segment under /api/wiki (search, tree, trash, …) is
-// registered before the /:slug catch-all too, so a page slugged with any of them can
-// never load. test/wiki-reserved-slugs.test.ts walks the wiki router and fails if a new
-// fixed route isn't listed here; migration 0060 renamed any pages that already had one.
+/*
+ * PROJ-487: "view" is the shell path segment the Worker's pretty-URL fallback serves
+ * static assets from (/wiki/view/index.html) — a page slugged "view" would collide
+ * with it and never resolve. "index" collides the same way: Static Assets' default
+ * html_handling maps /wiki/index -> /wiki/index.html, so it never reaches the Worker
+ * either. Both reserved outright rather than special-cased in routing.
+ *
+ * PROJ-491: "templates" collides the same way at the API layer — GET /api/wiki/templates
+ * is the template-picker endpoint (routes/wiki.ts), registered before the /:slug
+ * catch-all, so a page slugged "templates" would be shadowed by it and never load. The
+ * seeded Templates parent page therefore uses "page-templates" (seedDefaultWikiTemplates
+ * / migration 0047).
+ *
+ * PROJ-811: every other fixed first segment under /api/wiki (search, tree, trash, …) is
+ * registered before the /:slug catch-all too, so a page slugged with any of them can
+ * never load. test/wiki-reserved-slugs.test.ts walks the wiki router and fails if a new
+ * fixed route isn't listed here; migration 0060 renamed any pages that already had one.
+ */
 export const RESERVED_WIKI_SLUGS: ReadonlySet<string> = new Set([
   'view',
   'index',
@@ -132,21 +138,27 @@ export const RESERVED_WIKI_SLUGS: ReadonlySet<string> = new Set([
   'export',
 ])
 
-// PROJ-496 (R14): 30-day trash retention — purgeExpiredWikiPages permanently removes a
-// page (and its R2 attachments) once it's been soft-deleted for at least this long.
-// PROJ-865: exported so index.ts's cron can find which workspaces have expired trash
-// with the same cutoff, without duplicating the constant.
+/*
+ * PROJ-496 (R14): 30-day trash retention — purgeExpiredWikiPages permanently removes a
+ * page (and its R2 attachments) once it's been soft-deleted for at least this long.
+ * PROJ-865: exported so index.ts's cron can find which workspaces have expired trash
+ * with the same cutoff, without duplicating the constant.
+ */
 export const WIKI_TRASH_RETENTION_SECONDS = 30 * 24 * 60 * 60
 
-// PROJ-526: caps the deletedPageIds list written into a cascade delete's activity row —
-// an unbounded BFS result (collectDescendantIds has no depth/count limit) would otherwise
-// write an arbitrarily large JSON blob into a single activity row and every list_wiki_changes
-// response covering it. deletedCount always reports the true total regardless of truncation.
+/*
+ * PROJ-526: caps the deletedPageIds list written into a cascade delete's activity row —
+ * an unbounded BFS result (collectDescendantIds has no depth/count limit) would otherwise
+ * write an arbitrarily large JSON blob into a single activity row and every list_wiki_changes
+ * response covering it. deletedCount always reports the true total regardless of truncation.
+ */
 const MAX_DELETED_PAGE_IDS = 500
 
-// PROJ-812: a slug shaped like a page id would make id-or-slug lookups ambiguous.
-// Checked only when a slug is newly chosen (create, rename), never when an existing
-// slug is re-validated (undelete), so a page created before this rule still restores.
+/*
+ * PROJ-812: a slug shaped like a page id would make id-or-slug lookups ambiguous.
+ * Checked only when a slug is newly chosen (create, rename), never when an existing
+ * slug is re-validated (undelete), so a page created before this rule still restores.
+ */
 function assertSlugNotIdShaped(slug: string): void {
   if (isIdShapedSlug(slug)) {
     throw new ValidationError({
@@ -156,11 +168,13 @@ function assertSlugNotIdShaped(slug: string): void {
   }
 }
 
-// PROJ-483: wiki_pages(workspace_id, slug) is unique among LIVE pages — surface a
-// structured ConflictError instead of letting the constraint throw a raw D1 error.
-// PROJ-496: the underlying unique index is now PARTIAL (`WHERE deleted_at IS NULL`,
-// 0051_wiki_trash.sql) so a trashed page's slug is immediately available again — this
-// check mirrors that by only considering live rows.
+/*
+ * PROJ-483: wiki_pages(workspace_id, slug) is unique among LIVE pages — surface a
+ * structured ConflictError instead of letting the constraint throw a raw D1 error.
+ * PROJ-496: the underlying unique index is now PARTIAL (`WHERE deleted_at IS NULL`,
+ * 0051_wiki_trash.sql) so a trashed page's slug is immediately available again — this
+ * check mirrors that by only considering live rows.
+ */
 async function assertSlugAvailable(
   orm: ReturnType<typeof drizzle<typeof schema>>,
   workspaceId: string,
@@ -220,8 +234,10 @@ async function resolvePageByIdOrSlug(
       and(
         idOrSlugMatch(idOrSlug),
         eq(schema.wikiPages.workspaceId, workspaceId),
-        // PROJ-496: a trashed page is treated as gone for every normal read/write
-        // entry point — only undeleteWikiPage/listWikiTrash bypass this filter.
+        /*
+         * PROJ-496: a trashed page is treated as gone for every normal read/write
+         * entry point — only undeleteWikiPage/listWikiTrash bypass this filter.
+         */
         isNull(schema.wikiPages.deletedAt),
       ),
     )
@@ -230,8 +246,10 @@ async function resolvePageByIdOrSlug(
   if (direct) {
     return direct
   }
-  // PROJ-483: fall back to a redirect (old slug -> page id) so operations other
-  // than getWikiPage also resolve a renamed page's previous slug rather than 404ing.
+  /*
+   * PROJ-483: fall back to a redirect (old slug -> page id) so operations other
+   * than getWikiPage also resolve a renamed page's previous slug rather than 404ing.
+   */
   const redirected = await resolveWikiPageByRedirect(orm, workspaceId, idOrSlug)
   if (redirected) {
     return {
@@ -248,17 +266,21 @@ async function resolvePageByIdOrSlug(
   throw new NotFoundError('Wiki page not found')
 }
 
-// PROJ-820: the height (in extra levels) of the subtree rooted at `pageId` — 0 for a
-// leaf, 1 if it has children, etc. Computed with a single workspace-scoped recursive
-// CTE rather than a per-level walk, since a move can carry an arbitrarily deep subtree
-// with it and we only need the max depth, not the shape.
+/*
+ * PROJ-820: the height (in extra levels) of the subtree rooted at `pageId` — 0 for a
+ * leaf, 1 if it has children, etc. Computed with a single workspace-scoped recursive
+ * CTE rather than a per-level walk, since a move can carry an arbitrarily deep subtree
+ * with it and we only need the max depth, not the shape.
+ */
 async function getSubtreeHeight(db: D1Database, pageId: string, workspaceId: string): Promise<number> {
-  // PROJ-820 (post-review correction): a legacy row with a cyclic parent_id (pre-dating
-  // validateParentDepth, or written directly against D1) would otherwise make this
-  // recursive CTE never terminate — SQLite keeps joining back into the cycle forever.
-  // The depth bound below caps recursion at one level past what validateParentDepth would
-  // ever allow anyway, so a real (acyclic) subtree is never truncated, while a cycle stops
-  // after WIKI_MAX_NESTING_DEPTH + 1 steps instead of hanging until statement timeout.
+  /*
+   * PROJ-820 (post-review correction): a legacy row with a cyclic parent_id (pre-dating
+   * validateParentDepth, or written directly against D1) would otherwise make this
+   * recursive CTE never terminate — SQLite keeps joining back into the cycle forever.
+   * The depth bound below caps recursion at one level past what validateParentDepth would
+   * ever allow anyway, so a real (acyclic) subtree is never truncated, while a cycle stops
+   * after WIKI_MAX_NESTING_DEPTH + 1 steps instead of hanging until statement timeout.
+   */
   const row = await db
     .prepare(
       `WITH RECURSIVE subtree(id, depth) AS (
@@ -276,10 +298,12 @@ async function getSubtreeHeight(db: D1Database, pageId: string, workspaceId: str
   return row?.maxDepth ?? 0
 }
 
-// PROJ-820: the check must account for the new parent's depth PLUS the height of the
-// subtree being moved — a page with 3 levels of children moved under a level-3 parent
-// would otherwise land at 7 levels deep even though this function only ever "saw" the
-// single hop from parent to moved page.
+/*
+ * PROJ-820: the check must account for the new parent's depth PLUS the height of the
+ * subtree being moved — a page with 3 levels of children moved under a level-3 parent
+ * would otherwise land at 7 levels deep even though this function only ever "saw" the
+ * single hop from parent to moved page.
+ */
 async function validateParentDepth(
   db: D1Database,
   parentId: string,
@@ -429,8 +453,10 @@ function buildWikiPageUpdateSet(
   if (fields.slug !== undefined) {
     setData.slug = fields.slug
   }
-  // PROJ-488: only reparsed (and only overwritten) when content changes — a
-  // title/parent/slug-only update leaves the page's existing frontmatter metadata as-is.
+  /*
+   * PROJ-488: only reparsed (and only overwritten) when content changes — a
+   * title/parent/slug-only update leaves the page's existing frontmatter metadata as-is.
+   */
   if (fields.meta !== undefined) {
     setData.type = fields.meta.type
     setData.tags = fields.meta.tags
@@ -444,12 +470,14 @@ function buildWikiPageUpdateSet(
   return setData
 }
 
-// PROJ-869: content can be up to the wiki page size cap, and is already persisted in
-// wiki_pages, wiki_revisions and the FTS index — storing it a 4th time in `diff` (times
-// every workspace's `activity` retention window) is the dominant source of table growth,
-// and it's read back in full by list_wiki_changes for every row even though only
-// "deleted" events use `diff` at all (services/wiki-watchers.ts). Record just that
-// content changed; the actual before/after text lives in wiki_revisions.
+/*
+ * PROJ-869: content can be up to the wiki page size cap, and is already persisted in
+ * wiki_pages, wiki_revisions and the FTS index — storing it a 4th time in `diff` (times
+ * every workspace's `activity` retention window) is the dominant source of table growth,
+ * and it's read back in full by list_wiki_changes for every row even though only
+ * "deleted" events use `diff` at all (services/wiki-watchers.ts). Record just that
+ * content changed; the actual before/after text lives in wiki_revisions.
+ */
 function buildWikiPageUpdateDiff(
   fields: Readonly<{
     title?: string
@@ -538,10 +566,12 @@ const wikiPageDetailColumns = {
   is_template: schema.wikiPages.isTemplate,
 }
 
-// PROJ-483: a slug with no live page may still be a former slug of one — recorded in
-// wiki_redirects when the page was renamed (updateWikiPage below). Redirects always
-// point at the page's current id, so this is a single hop regardless of how many
-// times the page has been renamed since.
+/*
+ * PROJ-483: a slug with no live page may still be a former slug of one — recorded in
+ * wiki_redirects when the page was renamed (updateWikiPage below). Redirects always
+ * point at the page's current id, so this is a single hop regardless of how many
+ * times the page has been renamed since.
+ */
 async function resolveWikiPageByRedirect(
   orm: ReturnType<typeof drizzle<typeof schema>>,
   workspaceId: string,
@@ -562,9 +592,11 @@ async function resolveWikiPageByRedirect(
       and(
         eq(schema.wikiPages.id, redirect.pageId),
         eq(schema.wikiPages.workspaceId, workspaceId),
-        // PROJ-496: a redirect to a page that's since been trashed does not resolve —
-        // a trashed page is treated as gone, same as a hard-deleted one, until it's
-        // undeleted (see the PR description for this call).
+        /*
+         * PROJ-496: a redirect to a page that's since been trashed does not resolve —
+         * a trashed page is treated as gone, same as a hard-deleted one, until it's
+         * undeleted (see the PR description for this call).
+         */
         isNull(schema.wikiPages.deletedAt),
       ),
     )
@@ -579,9 +611,11 @@ export async function getWikiPage(ctx: ServiceCtx, slugOrId: string) {
   await assertWikiPageVisible(ctx, page.project_id)
   return {
     ...page,
-    // PROJ-809: the revision pointer for exactly this content — the value to send back
-    // as baseRevisionId. Read with the page, so a save that lands between a caller's
-    // read and a separate list_wiki_revisions call can't hand them a newer base.
+    /*
+     * PROJ-809: the revision pointer for exactly this content — the value to send back
+     * as baseRevisionId. Read with the page, so a save that lands between a caller's
+     * read and a separate list_wiki_revisions call can't hand them a newer base.
+     */
     revisionId: await Effect.runPromise(wikiData.getLatestWikiRevisionId(ctx.db, ctx.workspaceId, page.id)),
     url: wikiPagePath(page.slug),
     // PROJ-489 (R7): computed/derived, not a stored column — surfaced for the page header.
@@ -593,9 +627,11 @@ export async function getWikiPage(ctx: ServiceCtx, slugOrId: string) {
   }
 }
 
-// PROJ-485: "what links here" — pages that link to `slugOrId` via a resolved wiki_links
-// row. Resolves the target the same way getWikiPage does (live slug/id, then redirect
-// fallback) and enforces the same visibility check before exposing anything.
+/*
+ * PROJ-485: "what links here" — pages that link to `slugOrId` via a resolved wiki_links
+ * row. Resolves the target the same way getWikiPage does (live slug/id, then redirect
+ * fallback) and enforces the same visibility check before exposing anything.
+ */
 export async function getWikiBacklinks(ctx: ServiceCtx, slugOrId: string): Promise<WikiBacklink[]> {
   const orm = drizzle(ctx.db, { schema })
   const direct = await orm
@@ -618,14 +654,18 @@ export async function getWikiBacklinks(ctx: ServiceCtx, slugOrId: string): Promi
   return backlinksForResolvedPage(ctx, { id: page.id })
 }
 
-// PROJ-485: re-exported so routes/wiki.ts and mcp/wiki.ts only need to import from this
-// module, matching every other domain function's entry point.
+/*
+ * PROJ-485: re-exported so routes/wiki.ts and mcp/wiki.ts only need to import from this
+ * module, matching every other domain function's entry point.
+ */
 export { backfillWikiLinks, listBrokenWikiLinks } from './wiki-links.ts'
 
-// PROJ-491 (R9): resolves create_wiki_page's `templateSlug` to seed content — the target
-// must exist and carry frontmatter `template: true`, or this throws a ValidationError
-// rather than silently falling back to blank content. Strips the `template` flag itself
-// out of the seeded content (a page created from a template isn't itself a template).
+/*
+ * PROJ-491 (R9): resolves create_wiki_page's `templateSlug` to seed content — the target
+ * must exist and carry frontmatter `template: true`, or this throws a ValidationError
+ * rather than silently falling back to blank content. Strips the `template` flag itself
+ * out of the seeded content (a page created from a template isn't itself a template).
+ */
 async function resolveTemplateContent(ctx: ServiceCtx, templateSlug: string): Promise<string> {
   let template: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>
   try {
@@ -650,19 +690,23 @@ async function resolveTemplateContent(ctx: ServiceCtx, templateSlug: string): Pr
   return stripTemplateFlag(template.content)
 }
 
-// PROJ-517: slugify's charset can't produce "/", but a symbol-only or non-Latin title
-// can still derive an empty or over-length slug — run it through the same SlugSchema
-// the custom-slug path is validated against rather than trusting it. A title that
-// fails this (CJK, emoji-only, etc.) still gets a usable page: fall back to a short
-// opaque slug rather than hard-failing creation, since the title itself (unconstrained
-// by SlugSchema) remains the actual display name.
+/*
+ * PROJ-517: slugify's charset can't produce "/", but a symbol-only or non-Latin title
+ * can still derive an empty or over-length slug — run it through the same SlugSchema
+ * the custom-slug path is validated against rather than trusting it. A title that
+ * fails this (CJK, emoji-only, etc.) still gets a usable page: fall back to a short
+ * opaque slug rather than hard-failing creation, since the title itself (unconstrained
+ * by SlugSchema) remains the actual display name.
+ */
 function deriveSlugFromTitle(title: string): string {
   const derivedSlug = SlugSchema.safeParse(slugify(title))
   if (!derivedSlug.success) {
     return `page-${crypto.randomUUID().slice(0, 8)}`
   }
-  // PROJ-811/812: a title that derives a reserved or id-shaped slug gets a suffix
-  // instead (a page titled "Search" becomes search-page), so it stays loadable.
+  /*
+   * PROJ-811/812: a title that derives a reserved or id-shaped slug gets a suffix
+   * instead (a page titled "Search" becomes search-page), so it stays loadable.
+   */
   const needsSuffix = RESERVED_WIKI_SLUGS.has(derivedSlug.data) || isIdShapedSlug(derivedSlug.data)
   return needsSuffix ? `${derivedSlug.data}-page` : derivedSlug.data
 }
@@ -713,9 +757,11 @@ function buildCreateWikiPageInsertStatement(
   )
 }
 
-// PROJ-483: assertSlugAvailable-then-insert isn't atomic — a concurrent create can win
-// the race between the check and this insert. Surface the resulting unique-index
-// violation as a structured conflict, not a raw 500.
+/*
+ * PROJ-483: assertSlugAvailable-then-insert isn't atomic — a concurrent create can win
+ * the race between the check and this insert. Surface the resulting unique-index
+ * violation as a structured conflict, not a raw 500.
+ */
 async function writeCreateWikiPageBatch(
   ctx: ServiceCtx,
   statements: readonly D1PreparedStatement[],
@@ -731,9 +777,11 @@ async function writeCreateWikiPageBatch(
   }
 }
 
-// PROJ-493 (R11): a subtree watcher on an ancestor is notified of a page newly created
-// underneath them (there's no possible DIRECT watch on `id` yet — it didn't exist until
-// this insert). Template pages never notify (see wiki-watchers.ts).
+/*
+ * PROJ-493 (R11): a subtree watcher on an ancestor is notified of a page newly created
+ * underneath them (there's no possible DIRECT watch on `id` yet — it didn't exist until
+ * this insert). Template pages never notify (see wiki-watchers.ts).
+ */
 async function finalizeWikiPageCreate(
   ctx: ServiceCtx,
   fields: Readonly<{
@@ -775,8 +823,10 @@ export async function createWikiPage(ctx: ServiceCtx, input: unknown) {
   await assertSlugAvailable(orm, ctx.workspaceId, slug)
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
-  // PROJ-488 (R6): parse+validate the optional frontmatter block up front, so an
-  // invalid frontmatter throws before any row is written (never a partial create).
+  /*
+   * PROJ-488 (R6): parse+validate the optional frontmatter block up front, so an
+   * invalid frontmatter throws before any row is written (never a partial create).
+   */
   const meta = parseWikiFrontmatter(content)
 
   const insertStatement = buildCreateWikiPageInsertStatement(ctx, orm, {
@@ -789,14 +839,18 @@ export async function createWikiPage(ctx: ServiceCtx, input: unknown) {
     now,
     meta,
   })
-  // PROJ-485: parse [[Target]]/URL links out of the new page's content into wiki_links.
-  // PROJ-511: resolution (the async reads inside this call) happens before any of these
-  // statements exist, so by the time the batch below runs there's nothing left to throw
-  // mid-write — the content row, its FTS mirror, and its wiki_links all land atomically.
+  /*
+   * PROJ-485: parse [[Target]]/URL links out of the new page's content into wiki_links.
+   * PROJ-511: resolution (the async reads inside this call) happens before any of these
+   * statements exist, so by the time the batch below runs there's nothing left to throw
+   * mid-write — the content row, its FTS mirror, and its wiki_links all land atomically.
+   */
   const linkStatements = await buildWikiLinksReindexStatements(ctx, orm, id, content)
-  // PROJ-814: other pages' links whose raw text names this page by its title/slug and
-  // are still unresolved (created before this page existed) become resolved to it now,
-  // without those pages needing to be re-saved.
+  /*
+   * PROJ-814: other pages' links whose raw text names this page by its title/slug and
+   * are still unresolved (created before this page existed) become resolved to it now,
+   * without those pages needing to be re-saved.
+   */
   const incomingLinkStatement = buildResolveIncomingLinksStatement(ctx, { id, title, slug })
 
   await writeCreateWikiPageBatch(
@@ -813,20 +867,22 @@ export async function createWikiPage(ctx: ServiceCtx, input: unknown) {
   return { id, slug, projectId: resolvedProjectId, url: wikiPagePath(slug), ...meta }
 }
 
-// PROJ-484: id of the most recently created revision for a page, or null if the page
-// has never been edited (no revision row exists yet). This is the "current revision"
-// pointer optimistic-locking compares a caller's baseRevisionId against — each content
-// edit inserts a new revision snapshotting the pre-edit state, which moves this
-// pointer forward, so a stale baseRevisionId always fails the equality check below.
-// Raw SQL (not drizzle) so the ORDER BY can tiebreak on rowid: createdAt is unix
-// SECONDS (repo convention), so two edits within the same second tie on it, and only
-// rowid (monotonic insertion order) reliably picks the most recently inserted row.
-// TOCTOU note: this read, the later revision insert, and the page update are not
-// wrapped in one transaction/batch, so two concurrent writers who both read the same
-// baseRevisionId can both pass this check and both succeed (last one wins on the page
-// row, though each still gets its own revision snapshot). Acceptable for now — same
-// class of race already accepted elsewhere in this file (slug availability, issue
-// numbering) — but note it here since "optimistic locking" implies stronger.
+/*
+ * PROJ-484: id of the most recently created revision for a page, or null if the page
+ * has never been edited (no revision row exists yet). This is the "current revision"
+ * pointer optimistic-locking compares a caller's baseRevisionId against — each content
+ * edit inserts a new revision snapshotting the pre-edit state, which moves this
+ * pointer forward, so a stale baseRevisionId always fails the equality check below.
+ * Raw SQL (not drizzle) so the ORDER BY can tiebreak on rowid: createdAt is unix
+ * SECONDS (repo convention), so two edits within the same second tie on it, and only
+ * rowid (monotonic insertion order) reliably picks the most recently inserted row.
+ * TOCTOU note: this read, the later revision insert, and the page update are not
+ * wrapped in one transaction/batch, so two concurrent writers who both read the same
+ * baseRevisionId can both pass this check and both succeed (last one wins on the page
+ * row, though each still gets its own revision snapshot). Acceptable for now — same
+ * class of race already accepted elsewhere in this file (slug availability, issue
+ * numbering) — but note it here since "optimistic locking" implies stronger.
+ */
 async function getLatestRevisionId(db: D1Database, pageId: string): Promise<string | null> {
   const row = await db
     .prepare('SELECT id FROM wiki_revisions WHERE page_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1')
@@ -835,19 +891,23 @@ async function getLatestRevisionId(db: D1Database, pageId: string): Promise<stri
   return row?.id ?? null
 }
 
-// PROJ-810: the write guard. A batch's UPDATE used to filter only on `id`, so two
-// writers that both read content C could both pass the revision check and the second
-// silently reverted the first. This statement goes first in every content-write batch:
-// if the page's content is no longer what the caller read, it raises (json() on a
-// non-JSON literal errors, and CASE only evaluates that branch when stale), which rolls
-// back the whole batch; writeGuarded turns that into a 409.
+/*
+ * PROJ-810: the write guard. A batch's UPDATE used to filter only on `id`, so two
+ * writers that both read content C could both pass the revision check and the second
+ * silently reverted the first. This statement goes first in every content-write batch:
+ * if the page's content is no longer what the caller read, it raises (json() on a
+ * non-JSON literal errors, and CASE only evaluates that branch when stale), which rolls
+ * back the whole batch; writeGuarded turns that into a 409.
+ */
 const STALE_WRITE_MARKER = '__projektor_stale_wiki_write__'
 
-//
-// PROJ-919: content alone missed metadata-only races — two writes that only changed
-// title, slug or parent both passed and the second silently won. The guard now also
-// compares the row's `version`, which every write to wiki_pages bumps, so any write
-// that landed after the caller's read (metadata, trash, reparent) fails it.
+/*
+ *
+ * PROJ-919: content alone missed metadata-only races — two writes that only changed
+ * title, slug or parent both passed and the second silently won. The guard now also
+ * compares the row's `version`, which every write to wiki_pages bumps, so any write
+ * that landed after the caller's read (metadata, trash, reparent) fails it.
+ */
 type GuardedPage = Readonly<{ id: string; content: string; version: number }>
 
 function staleWriteGuard(ctx: ServiceCtx, page: GuardedPage): D1PreparedStatement {
@@ -888,15 +948,17 @@ async function staleConflict(ctx: ServiceCtx, pageId: string): Promise<ConflictE
   })
 }
 
-// PROJ-484: content to diff a conflicting write's base against. Revisions snapshot
-// PRE-edit content, so the content the caller actually had for revision pointer R is
-// held by the NEXT-newer revision's snapshot (R's own `content` column is the state
-// *before* R, i.e. one edit further back) — falling back to the page's live content
-// when R is the latest revision. `null` means the caller read the page before it had
-// ever been revised, so the oldest revision's snapshot (the first edit's pre-change
-// content) is the base. An unknown/garbage baseRevisionId doesn't belong to this page
-// and can't be resolved to any content, so it's rejected rather than silently diffed
-// against an empty string (which would render as "everything added").
+/*
+ * PROJ-484: content to diff a conflicting write's base against. Revisions snapshot
+ * PRE-edit content, so the content the caller actually had for revision pointer R is
+ * held by the NEXT-newer revision's snapshot (R's own `content` column is the state
+ * *before* R, i.e. one edit further back) — falling back to the page's live content
+ * when R is the latest revision. `null` means the caller read the page before it had
+ * ever been revised, so the oldest revision's snapshot (the first edit's pre-change
+ * content) is the base. An unknown/garbage baseRevisionId doesn't belong to this page
+ * and can't be resolved to any content, so it's rejected rather than silently diffed
+ * against an empty string (which would render as "everything added").
+ */
 async function resolveBaseContent(
   db: D1Database,
   pageId: string,
@@ -931,13 +993,15 @@ async function resolveBaseContent(
   return nextRow?.content ?? currentContent
 }
 
-// PROJ-524: append_to_page skips the section-conflict check entirely (there's no
-// section to compare against — see patchWikiPage's comment for the actual, unresolved
-// race this leaves), but a non-null baseRevisionId
-// still needs to actually belong to this page, same as the section ops' base-content
-// lookup (resolveBaseContent) rejects a foreign/garbage id. Unlike resolveBaseContent,
-// this never needs the base content itself (append never diffs against it), so it's a
-// plain existence check rather than resolving a snapshot.
+/*
+ * PROJ-524: append_to_page skips the section-conflict check entirely (there's no
+ * section to compare against — see patchWikiPage's comment for the actual, unresolved
+ * race this leaves), but a non-null baseRevisionId
+ * still needs to actually belong to this page, same as the section ops' base-content
+ * lookup (resolveBaseContent) rejects a foreign/garbage id. Unlike resolveBaseContent,
+ * this never needs the base content itself (append never diffs against it), so it's a
+ * plain existence check rather than resolving a snapshot.
+ */
 async function assertRevisionBelongsToPage(
   db: D1Database,
   pageId: string,
@@ -960,31 +1024,39 @@ async function assertRevisionBelongsToPage(
 
 export const buildUnifiedDiff = wikiData.buildUnifiedDiff
 
-// PROJ-511: converts an un-awaited drizzle query builder (insert/update/delete) into a
-// raw D1PreparedStatement, so it can sit in the same ctx.db.batch() array as hand-written
-// SQL (wiki_fts/wiki_links) — batch() is D1's native API and only accepts
-// D1PreparedStatement, not drizzle's own query builders.
+/*
+ * PROJ-511: converts an un-awaited drizzle query builder (insert/update/delete) into a
+ * raw D1PreparedStatement, so it can sit in the same ctx.db.batch() array as hand-written
+ * SQL (wiki_fts/wiki_links) — batch() is D1's native API and only accepts
+ * D1PreparedStatement, not drizzle's own query builders.
+ */
 function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
-// PROJ-816: a new page's wiki_fts rowid. Random 52-bit (safe JS integer), offset past
-// the small rowids migration 0065 backfilled from wiki_pages.rowid; the unique index on
-// wiki_pages.search_rowid backs it.
+/*
+ * PROJ-816: a new page's wiki_fts rowid. Random 52-bit (safe JS integer), offset past
+ * the small rowids migration 0065 backfilled from wiki_pages.rowid; the unique index on
+ * wiki_pages.search_rowid backs it.
+ */
 export function newSearchRowid(): number {
   const [hi, lo] = crypto.getRandomValues(new Uint32Array(2))
   // 20 + 32 = 52 random bits; + 2^40 stays below Number.MAX_SAFE_INTEGER (2^53).
   return 2 ** 40 + ((hi & 0xf_ff_ff) * 2 ** 32 + lo)
 }
 
-// PROJ-816: wiki_fts rows are keyed by the page's search_rowid, so both the insert and
-// the delete below are rowid lookups instead of a scan over the UNINDEXED page_id column.
+/*
+ * PROJ-816: wiki_fts rows are keyed by the page's search_rowid, so both the insert and
+ * the delete below are rowid lookups instead of a scan over the UNINDEXED page_id column.
+ */
 const FTS_ROWID_OF_PAGE = '(SELECT search_rowid FROM wiki_pages WHERE id = ? AND workspace_id = ?)'
 
-// PROJ-486/PROJ-511: builds (without executing) the INSERT that mirrors a page into
-// wiki_fts. tags is passed in explicitly rather than re-read from the DB — callers
-// already know the post-write title/content/tags before any statement runs, since that's
-// what lets these statements sit alongside the content write in one atomic batch.
+/*
+ * PROJ-486/PROJ-511: builds (without executing) the INSERT that mirrors a page into
+ * wiki_fts. tags is passed in explicitly rather than re-read from the DB — callers
+ * already know the post-write title/content/tags before any statement runs, since that's
+ * what lets these statements sit alongside the content write in one atomic batch.
+ */
 function buildFtsInsertStatements(
   ctx: ServiceCtx,
   id: string,
@@ -992,9 +1064,11 @@ function buildFtsInsertStatements(
   content: string,
   tags: readonly string[],
 ): D1PreparedStatement[] {
-  // PROJ-488: tags is space-joined — wiki_fts's default unicode61 tokenizer splits on
-  // non-alphanumeric, so a comma join would tokenize identically, but space matches how
-  // title/content are naturally tokenized.
+  /*
+   * PROJ-488: tags is space-joined — wiki_fts's default unicode61 tokenizer splits on
+   * non-alphanumeric, so a comma join would tokenize identically, but space matches how
+   * title/content are naturally tokenized.
+   */
   return [
     // A page written outside this module (or before 0065) may have no search_rowid yet.
     ctx.db
@@ -1009,10 +1083,12 @@ function buildFtsInsertStatements(
   ]
 }
 
-// PROJ-486/PROJ-511: mirrors issues.ts's reindexIssueFts — delete-then-reinsert the
-// wiki_fts mirror row after a title/content edit, as a pair of statements meant to run in
-// the same db.batch() as the page's content write (services/wiki.ts#updateWikiPage/
-// createWikiPage/patchWikiPage), not sequentially afterward.
+/*
+ * PROJ-486/PROJ-511: mirrors issues.ts's reindexIssueFts — delete-then-reinsert the
+ * wiki_fts mirror row after a title/content edit, as a pair of statements meant to run in
+ * the same db.batch() as the page's content write (services/wiki.ts#updateWikiPage/
+ * createWikiPage/patchWikiPage), not sequentially afterward.
+ */
 function buildFtsReindexStatements(
   ctx: ServiceCtx,
   id: string,
@@ -1026,11 +1102,13 @@ function buildFtsReindexStatements(
   ]
 }
 
-// PROJ-511: the tags column isn't part of `data` for a title-only update (content
-// undefined, so frontmatter was never reparsed) — read it so the FTS row being rebuilt
-// doesn't lose the page's existing tags. A plain read before any write statement is
-// built, not a read sandwiched between writes, so it carries none of the old
-// read-after-write ordering risk this function used to have.
+/*
+ * PROJ-511: the tags column isn't part of `data` for a title-only update (content
+ * undefined, so frontmatter was never reparsed) — read it so the FTS row being rebuilt
+ * doesn't lose the page's existing tags. A plain read before any write statement is
+ * built, not a read sandwiched between writes, so it carries none of the old
+ * read-after-write ordering risk this function used to have.
+ */
 async function currentPageTags(
   orm: ReturnType<typeof drizzle<typeof schema>>,
   ctx: ServiceCtx,
@@ -1044,10 +1122,12 @@ async function currentPageTags(
   return row?.tags ?? []
 }
 
-// PROJ-816: must run BEFORE the pages themselves are deleted (it finds the FTS rowids
-// through wiki_pages.search_rowid).
-// PROJ-486: chunked so a cascade delete of a large subtree stays under D1's 100-bound
-// parameter cap (services/sql.ts#inChunks).
+/*
+ * PROJ-816: must run BEFORE the pages themselves are deleted (it finds the FTS rowids
+ * through wiki_pages.search_rowid).
+ * PROJ-486: chunked so a cascade delete of a large subtree stays under D1's 100-bound
+ * parameter cap (services/sql.ts#inChunks).
+ */
 async function deleteWikiFtsEntries(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
   await inChunks(pageIds, async (chunk) => {
     const placeholders = chunk.map(() => '?').join(',')
@@ -1062,11 +1142,13 @@ async function deleteWikiFtsEntries(ctx: ServiceCtx, pageIds: string[]): Promise
   })
 }
 
-// Builds the batch of statements for a single updateWikiPage call — content revision
-// snapshot, the page row update itself, FTS/link reindex, and the redirect upsert on
-// rename. Extracted from updateWikiPage to keep that function's own complexity/length
-// down; behavior (including the PROJ-511 atomicity guarantee — all of this lands in one
-// ctx.db.batch() call in the caller) is unchanged.
+/*
+ * Builds the batch of statements for a single updateWikiPage call — content revision
+ * snapshot, the page row update itself, FTS/link reindex, and the redirect upsert on
+ * rename. Extracted from updateWikiPage to keep that function's own complexity/length
+ * down; behavior (including the PROJ-511 atomicity guarantee — all of this lands in one
+ * ctx.db.batch() call in the caller) is unchanged.
+ */
 function buildUpdateWikiPageStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
@@ -1089,9 +1171,11 @@ function buildUpdateWikiPageStatements(
   const statements: D1PreparedStatement[] = []
 
   if (content !== undefined) {
-    // PROJ-484: title snapshot is the page's title as of THIS revision (i.e. before
-    // this update applies any new title) — consistent with content, which snapshots
-    // the pre-edit value too. summary is this edit's optional changelog note.
+    /*
+     * PROJ-484: title snapshot is the page's title as of THIS revision (i.e. before
+     * this update applies any new title) — consistent with content, which snapshots
+     * the pre-edit value too. summary is this edit's optional changelog note.
+     */
     statements.push(
       toD1Statement(
         ctx,
@@ -1124,13 +1208,17 @@ function buildUpdateWikiPageStatements(
     ),
   )
 
-  // FTS and link-graph reindex statements are built separately by the caller (both need
-  // an async lookup — current tags / link-target resolution — before their statements
-  // exist) and concatenated onto this array; see updateWikiPage.
+  /*
+   * FTS and link-graph reindex statements are built separately by the caller (both need
+   * an async lookup — current tags / link-target resolution — before their statements
+   * exist) and concatenated onto this array; see updateWikiPage.
+   */
 
   if (isRename) {
-    // Upsert: the old slug may already carry a stale redirect from an earlier rename
-    // of some other page — this rename takes ownership of it.
+    /*
+     * Upsert: the old slug may already carry a stale redirect from an earlier rename
+     * of some other page — this rename takes ownership of it.
+     */
     statements.push(
       toD1Statement(
         ctx,
@@ -1155,11 +1243,13 @@ function buildUpdateWikiPageStatements(
   return statements
 }
 
-// PROJ-484: optimistic locking. Omitting baseRevisionId keeps today's last-write-wins
-// behavior during the transition (deprecated — see mcp/wiki.ts docs). When supplied, it
-// must match the page's current latest revision id, or the write is rejected with a
-// structured conflict (current revision id + a unified diff) so the caller can rebase
-// and retry.
+/*
+ * PROJ-484: optimistic locking. Omitting baseRevisionId keeps today's last-write-wins
+ * behavior during the transition (deprecated — see mcp/wiki.ts docs). When supplied, it
+ * must match the page's current latest revision id, or the write is rejected with a
+ * structured conflict (current revision id + a unified diff) so the caller can rebase
+ * and retry.
+ */
 async function assertNoUpdateConflict(
   db: D1Database,
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
@@ -1179,10 +1269,12 @@ async function assertNoUpdateConflict(
   }
 }
 
-// PROJ-486/PROJ-520: FTS is only reindexed when title or content actually changed — a
-// parentId/slug-only update leaves the FTS mirror row untouched, matching the old
-// reindexWikiFts's early-return. PROJ-485: outgoing links are derived purely from
-// content, so they're only reindexed when content actually changed.
+/*
+ * PROJ-486/PROJ-520: FTS is only reindexed when title or content actually changed — a
+ * parentId/slug-only update leaves the FTS mirror row untouched, matching the old
+ * reindexWikiFts's early-return. PROJ-485: outgoing links are derived purely from
+ * content, so they're only reindexed when content actually changed.
+ */
 async function buildUpdateWikiPageReindexStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle<typeof schema>>,
@@ -1207,9 +1299,11 @@ async function buildUpdateWikiPageReindexStatements(
   return statements
 }
 
-// PROJ-483: assertSlugAvailable-then-update isn't atomic — a concurrent rename can win
-// the race between the check and this update. Surface the resulting unique-index
-// violation as a structured conflict, not a raw 500.
+/*
+ * PROJ-483: assertSlugAvailable-then-update isn't atomic — a concurrent rename can win
+ * the race between the check and this update. Surface the resulting unique-index
+ * violation as a structured conflict, not a raw 500.
+ */
 async function writeUpdateWikiPageBatch(
   ctx: ServiceCtx,
   page: GuardedPage,
@@ -1230,9 +1324,11 @@ async function writeUpdateWikiPageBatch(
   }
 }
 
-// PROJ-493 (R11): covers plain edits, verify_wiki_page, and restore (all routed through
-// this function). meta is only recomputed when content changed — otherwise fall back to
-// the page's existing isTemplate, which this write left untouched.
+/*
+ * PROJ-493 (R11): covers plain edits, verify_wiki_page, and restore (all routed through
+ * this function). meta is only recomputed when content changed — otherwise fall back to
+ * the page's existing isTemplate, which this write left untouched.
+ */
 async function finalizeWikiPageUpdate(
   ctx: ServiceCtx,
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
@@ -1281,39 +1377,45 @@ export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: u
     await validateUpdatedPageParent(ctx.db, parentId, ctx.workspaceId, page)
   }
 
-  // PROJ-488 (R6): parse+validate frontmatter up front (before any write) when content
-  // changes, so invalid frontmatter throws before the revision insert below — never a
-  // partial update. `undefined` (not reparsed) means the update doesn't touch content,
-  // so buildWikiPageUpdateSet leaves the page's existing metadata columns untouched.
+  /*
+   * PROJ-488 (R6): parse+validate frontmatter up front (before any write) when content
+   * changes, so invalid frontmatter throws before the revision insert below — never a
+   * partial update. `undefined` (not reparsed) means the update doesn't touch content,
+   * so buildWikiPageUpdateSet leaves the page's existing metadata columns untouched.
+   */
   const meta = content !== undefined ? parseWikiFrontmatter(content) : undefined
 
-  // PROJ-483: renaming the slug — check the new slug isn't already live, then leave a
-  // redirect from the old slug to this page so existing links keep resolving.
+  /*
+   * PROJ-483: renaming the slug — check the new slug isn't already live, then leave a
+   * redirect from the old slug to this page so existing links keep resolving.
+   */
   const isRename = slug !== undefined && slug !== page.slug
   if (isRename) {
     assertSlugNotIdShaped(slug)
     await assertSlugAvailable(orm, ctx.workspaceId, slug, page.id)
   }
 
-  // PROJ-484: a revision snapshots a CONTENT edit; a title-only update (content
-  // undefined) has nothing to diff against later, so it doesn't create a revision row
-  // and any `summary` passed alongside a title-only update is silently dropped rather
-  // than stored somewhere with no corresponding snapshot.
-  //
-  // PROJ-520 / PROJ-919: the revision pointer only advances on a content edit, so
-  // baseRevisionId (the check above) says nothing about metadata. What stops a
-  // title/slug/parent-only write from being silently overwritten is the write guard:
-  // it compares the page's `version`, which every write bumps, so a write that lands
-  // between this call's read and its batch → 409, whatever it changed. Callers that
-  // hold no base at all — moves (parentId only) and renames from the web UI, and any
-  // MCP caller that omits baseRevisionId — are last-write-wins against writes that
-  // finished before their request arrived; that's documented on update_wiki_page.
-  // PROJ-511: every statement below is collected, not awaited, and executed as one
-  // ctx.db.batch() call — the content write, its revision snapshot, its wiki_fts
-  // mirror, and its wiki_links reindex all land atomically. A throw anywhere in the
-  // resolution work above (frontmatter parse, link-target resolution inside
-  // buildWikiLinksReindexStatements) happens before any of these exist, so it can no
-  // longer leave the page updated with a stale/wiped links or FTS row.
+  /*
+   * PROJ-484: a revision snapshots a CONTENT edit; a title-only update (content
+   * undefined) has nothing to diff against later, so it doesn't create a revision row
+   * and any `summary` passed alongside a title-only update is silently dropped rather
+   * than stored somewhere with no corresponding snapshot.
+   *
+   * PROJ-520 / PROJ-919: the revision pointer only advances on a content edit, so
+   * baseRevisionId (the check above) says nothing about metadata. What stops a
+   * title/slug/parent-only write from being silently overwritten is the write guard:
+   * it compares the page's `version`, which every write bumps, so a write that lands
+   * between this call's read and its batch → 409, whatever it changed. Callers that
+   * hold no base at all — moves (parentId only) and renames from the web UI, and any
+   * MCP caller that omits baseRevisionId — are last-write-wins against writes that
+   * finished before their request arrived; that's documented on update_wiki_page.
+   * PROJ-511: every statement below is collected, not awaited, and executed as one
+   * ctx.db.batch() call — the content write, its revision snapshot, its wiki_fts
+   * mirror, and its wiki_links reindex all land atomically. A throw anywhere in the
+   * resolution work above (frontmatter parse, link-target resolution inside
+   * buildWikiLinksReindexStatements) happens before any of these exist, so it can no
+   * longer leave the page updated with a stale/wiped links or FTS row.
+   */
   const statements = buildUpdateWikiPageStatements(
     ctx,
     orm,
@@ -1323,9 +1425,11 @@ export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: u
   )
   statements.push(...(await buildUpdateWikiPageReindexStatements(ctx, orm, page, { title, content, meta })))
 
-  // PROJ-814: a title and/or slug change can make this page newly match (or stop
-  // matching) other pages' raw link text — re-resolve both directions in the same
-  // batch as the rename itself.
+  /*
+   * PROJ-814: a title and/or slug change can make this page newly match (or stop
+   * matching) other pages' raw link text — re-resolve both directions in the same
+   * batch as the rename itself.
+   */
   const titleChanged = title !== undefined && title !== page.title
   if (titleChanged || isRename) {
     await healTitleFolds(ctx) // PROJ-818: link folds must be filled before matching
@@ -1347,15 +1451,17 @@ export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: u
   return { ok: true, url: wikiPagePath(slug ?? page.slug) }
 }
 
-// PROJ-489 (R7): stamps verified_at/verified_by using the CALLING user's identity —
-// never a caller-supplied value, so an agent can't backdate/forge another user's
-// verification. Frontmatter (not just the denormalized columns) is the canonical source
-// (PRD principle 1), so this rewrites the page's content frontmatter block and routes
-// through updateWikiPage's normal content-write path (revision snapshot, frontmatter
-// re-parse into columns, FTS/link reindex, activity log) rather than UPDATE-ing the
-// verified_at/verified_by columns directly — that would drift out of sync with content
-// the moment someone next makes an unrelated content-only edit (parseWikiFrontmatter
-// would re-parse the page's still-stale frontmatter and silently wipe the stamp).
+/*
+ * PROJ-489 (R7): stamps verified_at/verified_by using the CALLING user's identity —
+ * never a caller-supplied value, so an agent can't backdate/forge another user's
+ * verification. Frontmatter (not just the denormalized columns) is the canonical source
+ * (PRD principle 1), so this rewrites the page's content frontmatter block and routes
+ * through updateWikiPage's normal content-write path (revision snapshot, frontmatter
+ * re-parse into columns, FTS/link reindex, activity log) rather than UPDATE-ing the
+ * verified_at/verified_by columns directly — that would drift out of sync with content
+ * the moment someone next makes an unrelated content-only edit (parseWikiFrontmatter
+ * would re-parse the page's still-stale frontmatter and silently wipe the stamp).
+ */
 export async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
   const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
   await requireWikiWrite(ctx, page.projectId)
@@ -1370,12 +1476,14 @@ export async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
     throw new NotFoundError('Calling user not found')
   }
 
-  // PROJ-489: stamping the frontmatter is a read-modify-write of the WHOLE content, so
-  // without a base revision a content edit landing between the read and the write would
-  // be silently reverted by a verification click — exactly the loss PROJ-484 added
-  // optimistic locking for. Read the base revision id BEFORE the content it describes:
-  // a writer racing us either lands before both reads (we stamp on top of their edit) or
-  // bumps the latest revision past our base (updateWikiPage rejects with a conflict).
+  /*
+   * PROJ-489: stamping the frontmatter is a read-modify-write of the WHOLE content, so
+   * without a base revision a content edit landing between the read and the write would
+   * be silently reverted by a verification click — exactly the loss PROJ-484 added
+   * optimistic locking for. Read the base revision id BEFORE the content it describes:
+   * a writer racing us either lands before both reads (we stamp on top of their edit) or
+   * bumps the latest revision past our base (updateWikiPage rejects with a conflict).
+   */
   const baseRevisionId = await getLatestRevisionId(ctx.db, page.id)
   const current = await resolvePageByIdOrSlug(ctx.db, page.id, ctx.workspaceId)
 
@@ -1383,8 +1491,10 @@ export async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
   const newContent = stampWikiFrontmatterVerification(current.content, now, user.email)
   await updateWikiPage(ctx, page.id, { content: newContent, summary: 'Verified', baseRevisionId })
 
-  // Re-derive from the same frontmatter just written, so the response matches exactly
-  // what a subsequent read would parse back out (rather than re-fetching the page).
+  /*
+   * Re-derive from the same frontmatter just written, so the response matches exactly
+   * what a subsequent read would parse back out (rather than re-fetching the page).
+   */
   const meta = parseWikiFrontmatter(newContent)
   return {
     ok: true,
@@ -1400,11 +1510,13 @@ export async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
   }
 }
 
-// PROJ-489 (R7): the maintenance queue — pages that are computed-stale (verify_interval
-// elapsed), unverified (verify_interval declared but never verified), or explicitly
-// `status: stale|deprecated`. Same condition as searchWiki's ranking demotion
-// (staleWikiPageCondition above), so "what search demotes" and "what this queue lists"
-// never disagree.
+/*
+ * PROJ-489 (R7): the maintenance queue — pages that are computed-stale (verify_interval
+ * elapsed), unverified (verify_interval declared but never verified), or explicitly
+ * `status: stale|deprecated`. Same condition as searchWiki's ranking demotion
+ * (staleWikiPageCondition above), so "what search demotes" and "what this queue lists"
+ * never disagree.
+ */
 export async function listStaleWikiPages(ctx: ServiceCtx, input: unknown) {
   const parsed = ListStaleWikiPagesInputSchema.safeParse(input)
   if (!parsed.success) {
@@ -1439,20 +1551,24 @@ export async function listStaleWikiPages(ctx: ServiceCtx, input: unknown) {
   }))
 }
 
-// PROJ-490 (R8): a "section" is a markdown ATX heading (`#`..`######`) plus every
-// line up to the next heading of ANY level (or end of document). Headings are
-// addressed by their exact trimmed text; nested subheadings become their own
-// separate sections rather than being folded into their parent's — flat and
-// predictable, and it's what makes the heading lookup a simple linear scan.
+/*
+ * PROJ-490 (R8): a "section" is a markdown ATX heading (`#`..`######`) plus every
+ * line up to the next heading of ANY level (or end of document). Headings are
+ * addressed by their exact trimmed text; nested subheadings become their own
+ * separate sections rather than being folded into their parent's — flat and
+ * predictable, and it's what makes the heading lookup a simple linear scan.
+ */
 const ATX_HEADING_RE = /^(#{1,6})\s+(.+?)\s*#*\s*$/
 
-// PROJ-490: a `#` at the start of a line is only a heading in ordinary block context.
-// Two other blocks routinely contain lines that look exactly like one and must be
-// skipped, or section boundaries land inside them and a patch shreds the page:
-//   - fenced code blocks — `# install deps` in a ```bash block is the single most
-//     common line in a runbook, the PRD's headline page type;
-//   - the leading YAML frontmatter block — `# a yaml comment` sits before any real
-//     heading, so "patching" it would rewrite the metadata block itself.
+/*
+ * PROJ-490: a `#` at the start of a line is only a heading in ordinary block context.
+ * Two other blocks routinely contain lines that look exactly like one and must be
+ * skipped, or section boundaries land inside them and a patch shreds the page:
+ *   - fenced code blocks — `# install deps` in a ```bash block is the single most
+ *     common line in a runbook, the PRD's headline page type;
+ *   - the leading YAML frontmatter block — `# a yaml comment` sits before any real
+ *     heading, so "patching" it would rewrite the metadata block itself.
+ */
 const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/
 const FRONTMATTER_DELIM_RE = /^---\s*$/
 
@@ -1521,9 +1637,11 @@ function trimLeadingBlankLines(lines: readonly string[]): string[] {
   return out
 }
 
-// PROJ-490: appends at the absolute end of the document, with a single blank-line
-// separator. Never section-scoped, so it has no target section to conflict-check —
-// see patchWikiPage's comment on why append_to_page skips the section-lock entirely.
+/*
+ * PROJ-490: appends at the absolute end of the document, with a single blank-line
+ * separator. Never section-scoped, so it has no target section to conflict-check —
+ * see patchWikiPage's comment on why append_to_page skips the section-lock entirely.
+ */
 function appendToPageEnd(content: string, text: string): string {
   const trimmed = content.replace(/\s+$/, '')
   if (trimmed === '') {
@@ -1532,11 +1650,13 @@ function appendToPageEnd(content: string, text: string): string {
   return `${trimmed}\n\n${text.trimEnd()}\n`
 }
 
-// PROJ-490: applies one of the three heading-addressed ops to `content`, given the
-// section it resolved to (already confirmed to exist in the CURRENT content by the
-// caller). The heading line itself is always preserved — only the body under it
-// (append_to_section/replace_section) or the position right after it
-// (insert_after_heading) changes.
+/*
+ * PROJ-490: applies one of the three heading-addressed ops to `content`, given the
+ * section it resolved to (already confirmed to exist in the CURRENT content by the
+ * caller). The heading line itself is always preserved — only the body under it
+ * (append_to_section/replace_section) or the position right after it
+ * (insert_after_heading) changes.
+ */
 function applySectionOp(
   content: string,
   section: HeadingSection,
@@ -1564,42 +1684,44 @@ function applySectionOp(
   return [...before, ...newSectionLines, ...separator, ...afterLines].join('\n')
 }
 
-// PROJ-490 (R8): patch_wiki_page — section-addressed patch ops so multiple agents can
-// co-edit disjoint parts of the same page without conflicting.
-//
-// Conflict detection is deliberately SECTION-scoped, not whole-page: reusing
-// updateWikiPage's baseRevisionId-vs-latest-revision check verbatim would make two
-// agents patching two different sections of the same page conflict with each other
-// just because the page's overall revision advanced — which defeats the entire point
-// of section patch ops (PRD R8: "disjoint-section writes never conflict"). Instead:
-//   1. Resolve the target section in the page's CURRENT content. Missing there ->
-//      NotFoundError with the current heading list (covers both "never existed" and
-//      "existed at base but was deleted/renamed since" — same response shape for both,
-//      since from the caller's perspective they're indistinguishable: the heading they
-//      asked for isn't there to patch).
-//   2. If baseRevisionId doesn't match the page's current latest revision, resolve
-//      the SAME section's text as of baseRevisionId (via the same resolveBaseContent
-//      helper update_wiki_page uses for its whole-page diff) and compare only that
-//      section's text, base vs current. Only reject if that comparison differs —
-//      edits to other sections in between never trip this check.
-// Tradeoff accepted: this compares base-section-text directly against current-section-
-// text, skipping over any intermediate revisions. A section that was edited and then
-// edited BACK to its original text between base and now is (correctly) treated as no
-// conflict — but a section edited by someone else and then re-edited to a different
-// value that happens to text-match some intermediate state is not distinguished from
-// "unchanged since base". This is the same class of approximation update_wiki_page
-// already accepts for its whole-page check (see getLatestRevisionId's TOCTOU note
-// above) — full section-level history tracking is out of scope for R8.
-//
-// append_to_page is exempt from the section-lock entirely: there is no section to
-// compare it against, and it never conflicts with edits to OTHER sections. It is NOT
-// truly race-free, though — this is a whole-page read (currentContent)/modify/write,
-// so two concurrent appends can still race: both read content C, compute C+A and C+B,
-// and the second UPDATE silently overwrites the first (lost update, no conflict
-// surfaced, both callers see 200). See PROJ-524 for tracking; fixing this for real
-// needs either a SQL-level `content = content || ?` append or an optimistic-lock retry,
-// which is out of scope here. baseRevisionId is still required on the input for API
-// consistency and because a revision snapshot is still created either way.
+/*
+ * PROJ-490 (R8): patch_wiki_page — section-addressed patch ops so multiple agents can
+ * co-edit disjoint parts of the same page without conflicting.
+ *
+ * Conflict detection is deliberately SECTION-scoped, not whole-page: reusing
+ * updateWikiPage's baseRevisionId-vs-latest-revision check verbatim would make two
+ * agents patching two different sections of the same page conflict with each other
+ * just because the page's overall revision advanced — which defeats the entire point
+ * of section patch ops (PRD R8: "disjoint-section writes never conflict"). Instead:
+ *   1. Resolve the target section in the page's CURRENT content. Missing there ->
+ *      NotFoundError with the current heading list (covers both "never existed" and
+ *      "existed at base but was deleted/renamed since" — same response shape for both,
+ *      since from the caller's perspective they're indistinguishable: the heading they
+ *      asked for isn't there to patch).
+ *   2. If baseRevisionId doesn't match the page's current latest revision, resolve
+ *      the SAME section's text as of baseRevisionId (via the same resolveBaseContent
+ *      helper update_wiki_page uses for its whole-page diff) and compare only that
+ *      section's text, base vs current. Only reject if that comparison differs —
+ *      edits to other sections in between never trip this check.
+ * Tradeoff accepted: this compares base-section-text directly against current-section-
+ * text, skipping over any intermediate revisions. A section that was edited and then
+ * edited BACK to its original text between base and now is (correctly) treated as no
+ * conflict — but a section edited by someone else and then re-edited to a different
+ * value that happens to text-match some intermediate state is not distinguished from
+ * "unchanged since base". This is the same class of approximation update_wiki_page
+ * already accepts for its whole-page check (see getLatestRevisionId's TOCTOU note
+ * above) — full section-level history tracking is out of scope for R8.
+ *
+ * append_to_page is exempt from the section-lock entirely: there is no section to
+ * compare it against, and it never conflicts with edits to OTHER sections. It is NOT
+ * truly race-free, though — this is a whole-page read (currentContent)/modify/write,
+ * so two concurrent appends can still race: both read content C, compute C+A and C+B,
+ * and the second UPDATE silently overwrites the first (lost update, no conflict
+ * surfaced, both callers see 200). See PROJ-524 for tracking; fixing this for real
+ * needs either a SQL-level `content = content || ?` append or an optimistic-lock retry,
+ * which is out of scope here. baseRevisionId is still required on the input for API
+ * consistency and because a revision snapshot is still created either way.
+ */
 function findUniqueSectionOrThrow(currentSections: readonly HeadingSection[], heading: string): HeadingSection {
   const currentMatches = findSections(currentSections, heading)
   if (currentMatches.length === 0) {
@@ -1607,11 +1729,13 @@ function findUniqueSectionOrThrow(currentSections: readonly HeadingSection[], he
       currentHeadings: currentSections.map((s) => s.heading),
     })
   }
-  // PROJ-490: heading text is the whole address, so a page carrying the same heading
-  // twice (a "## Notes" under two different parents, or an H1 and H2 that read the
-  // same) has no unambiguous target. Silently taking the first match would write to a
-  // section the caller never looked at — rejected instead, per the PRD's "integrity
-  // over convenience" principle.
+  /*
+   * PROJ-490: heading text is the whole address, so a page carrying the same heading
+   * twice (a "## Notes" under two different parents, or an H1 and H2 that read the
+   * same) has no unambiguous target. Silently taking the first match would write to a
+   * section the caller never looked at — rejected instead, per the PRD's "integrity
+   * over convenience" principle.
+   */
   if (currentMatches.length > 1) {
     throw new ValidationError({
       formErrors: [
@@ -1619,9 +1743,11 @@ function findUniqueSectionOrThrow(currentSections: readonly HeadingSection[], he
           `(levels ${currentMatches.map((s) => `h${s.level}`).join(', ')}); ` +
           'patch operations need a unique heading',
       ],
-      // PROJ-523: alongside the prose, expose which heading levels collided as a
-      // structured field — an agent shouldn't have to regex the sentence to recover
-      // this, and NotFoundError's sibling case already hands back currentHeadings.
+      /*
+       * PROJ-523: alongside the prose, expose which heading levels collided as a
+       * structured field — an agent shouldn't have to regex the sentence to recover
+       * this, and NotFoundError's sibling case already hands back currentHeadings.
+       */
       fieldErrors: { heading: currentMatches.map((s) => `h${s.level}`) },
     })
   }
@@ -1640,9 +1766,11 @@ async function assertNoSectionPatchConflict(
     return
   }
   const baseContent = await resolveBaseContent(ctx.db, pageId, data.baseRevisionId, currentContent)
-  // A heading that was absent — or ambiguous — at base but resolves uniquely now means
-  // the section itself changed shape underneath the caller, so the empty base text
-  // below (correctly) trips the conflict check.
+  /*
+   * A heading that was absent — or ambiguous — at base but resolves uniquely now means
+   * the section itself changed shape underneath the caller, so the empty base text
+   * below (correctly) trips the conflict check.
+   */
   const baseMatches = findSections(parseHeadingSections(baseContent), data.heading)
   const baseSectionText = baseMatches.length === 1 ? extractSectionText(baseContent, baseMatches[0]) : ''
   const currentSectionText = extractSectionText(currentContent, currentSection)
@@ -1666,9 +1794,11 @@ async function resolveSectionPatchContent(
   return applySectionOp(currentContent, currentSection, data)
 }
 
-// PROJ-810: append and set_frontmatter are recomputed from whatever the page holds
-// now, so when a concurrent write wins the guard they simply re-read and re-apply
-// (bounded). Section edits carry a caller-visible base, so they return the 409.
+/*
+ * PROJ-810: append and set_frontmatter are recomputed from whatever the page holds
+ * now, so when a concurrent write wins the guard they simply re-read and re-apply
+ * (bounded). Section edits carry a caller-visible base, so they return the 409.
+ */
 const PATCH_RETRIES = 3
 
 export async function patchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
@@ -1715,14 +1845,18 @@ async function patchWikiPageOnce(
 
   const now = Math.floor(Date.now() / 1000)
   const orm = drizzle(ctx.db, { schema })
-  // PROJ-490: parse+validate frontmatter up front, same as updateWikiPage, so
-  // invalid frontmatter (which a patch op cannot introduce on its own since it only
-  // edits section bodies, but a malformed source page could already carry) throws
-  // before the revision insert below — never a partial write.
+  /*
+   * PROJ-490: parse+validate frontmatter up front, same as updateWikiPage, so
+   * invalid frontmatter (which a patch op cannot introduce on its own since it only
+   * edits section bodies, but a malformed source page could already carry) throws
+   * before the revision insert below — never a partial write.
+   */
   const meta = parseWikiFrontmatter(newContent)
 
-  // PROJ-511: same atomic-batch shape as updateWikiPage — content write, revision
-  // snapshot, FTS mirror, and wiki_links reindex all in one ctx.db.batch() call.
+  /*
+   * PROJ-511: same atomic-batch shape as updateWikiPage — content write, revision
+   * snapshot, FTS mirror, and wiki_links reindex all in one ctx.db.batch() call.
+   */
   const revisionStatement = toD1Statement(
     ctx,
     orm
@@ -1762,9 +1896,11 @@ async function patchWikiPageOnce(
     diff: buildWikiPageUpdateDiff({ content: newContent }),
   })
 
-  // PROJ-493 (R11): meta is always reparsed from newContent above (patches only touch
-  // section bodies, so template status can't itself change here, but the check stays
-  // consistent with the other write paths).
+  /*
+   * PROJ-493 (R11): meta is always reparsed from newContent above (patches only touch
+   * section bodies, so template status can't itself change here, but the check stays
+   * consistent with the other write paths).
+   */
   if (!meta.isTemplate) {
     await notifyWikiWatchers(ctx, {
       pageId: page.id,
@@ -1778,9 +1914,11 @@ async function patchWikiPageOnce(
   return { ok: true, url: wikiPagePath(page.slug) }
 }
 
-// PROJ-491 (R9): the template picker — pages carrying frontmatter `template: true`,
-// visible to the caller. Deliberately not filtered by the search/staleness exclusion
-// above (this IS the discovery path templates are meant to be found through).
+/*
+ * PROJ-491 (R9): the template picker — pages carrying frontmatter `template: true`,
+ * visible to the caller. Deliberately not filtered by the search/staleness exclusion
+ * above (this IS the discovery path templates are meant to be found through).
+ */
 export async function listWikiTemplates(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiTemplatesInputSchema.safeParse(input)
   if (!parsed.success) {
@@ -1789,8 +1927,10 @@ export async function listWikiTemplates(ctx: ServiceCtx, input: unknown) {
   const { projectId } = parsed.data
 
   if (projectId) {
-    // PROJ-311: same as searchWiki/listStaleWikiPages — a project the caller can't
-    // see returns nothing.
+    /*
+     * PROJ-311: same as searchWiki/listStaleWikiPages — a project the caller can't
+     * see returns nothing.
+     */
     if (!(await hasProjectAccess(ctx, projectId))) {
       return []
     }
@@ -1873,11 +2013,13 @@ const DEFAULT_WIKI_TEMPLATES: { slug: string; title: string; type: string; body:
   },
 ]
 
-// PROJ-491 (R9): seeds the built-in templates (runbook, adr, spec) for a newly created
-// workspace, under a "Templates" parent page (slugged "page-templates" — see
-// RESERVED_WIKI_SLUGS) — same content the 0047 migration backfills
-// for pre-existing workspaces (kept in sync by hand, same as seedDefaultTaskTypes/0016 for
-// task types). Authored as the workspace's creator (the only user guaranteed to exist yet).
+/*
+ * PROJ-491 (R9): seeds the built-in templates (runbook, adr, spec) for a newly created
+ * workspace, under a "Templates" parent page (slugged "page-templates" — see
+ * RESERVED_WIKI_SLUGS) — same content the 0047 migration backfills
+ * for pre-existing workspaces (kept in sync by hand, same as seedDefaultTaskTypes/0016 for
+ * task types). Authored as the workspace's creator (the only user guaranteed to exist yet).
+ */
 export function buildDefaultWikiTemplateStatements(
   db: D1Database,
   workspaceId: string,
@@ -1910,10 +2052,12 @@ export function buildDefaultWikiTemplateStatements(
         .toSQL(),
     ),
   ]
-  // PROJ-522: unlike the three templates below (search-excluded by is_template=0/1),
-  // this parent page is a real browsable, non-template page — it needs the same
-  // wiki_fts mirror row every other write path maintains (reindexWikiFts), or it's
-  // invisible to search_wiki until someone happens to edit it.
+  /*
+   * PROJ-522: unlike the three templates below (search-excluded by is_template=0/1),
+   * this parent page is a real browsable, non-template page — it needs the same
+   * wiki_fts mirror row every other write path maintains (reindexWikiFts), or it's
+   * invisible to search_wiki until someone happens to edit it.
+   */
   statements.push(
     db
       .prepare(
@@ -1959,12 +2103,14 @@ export async function seedDefaultWikiTemplates(db: D1Database, workspaceId: stri
   await db.batch(buildDefaultWikiTemplateStatements(db, workspaceId, userId))
 }
 
-// PROJ-238: breadth-first walk of parent_id children, chunked to stay under D1's
-// bound-parameter cap regardless of subtree size.
-// PROJ-496: only walks LIVE descendants — an already-trashed descendant (trashed
-// independently, or a leftover from an earlier soft-delete) is left with its own
-// deleted_at untouched rather than being folded into this cascade and having its
-// retention clock reset.
+/*
+ * PROJ-238: breadth-first walk of parent_id children, chunked to stay under D1's
+ * bound-parameter cap regardless of subtree size.
+ * PROJ-496: only walks LIVE descendants — an already-trashed descendant (trashed
+ * independently, or a leftover from an earlier soft-delete) is left with its own
+ * deleted_at untouched rather than being folded into this cascade and having its
+ * retention clock reset.
+ */
 async function collectDescendantIds(db: D1Database, rootId: string, workspaceId: string): Promise<string[]> {
   const orm = drizzle(db, { schema })
   const descendants: string[] = []
@@ -1988,14 +2134,16 @@ async function collectDescendantIds(db: D1Database, rootId: string, workspaceId:
   return descendants
 }
 
-// PROJ-496 follow-up: mirror of collectDescendantIds for the undelete path — walks
-// parent_id children that are IN THE TRASH and share the exact same trash_batch_id as
-// the root being restored (deleteWikiPage's cascade branch stamps the whole subtree
-// with one batch id in a single call). Batch id — not deleted_at — is what identifies
-// "trashed together": two independent single-page trashes can land in the same
-// wall-clock second and would otherwise be mistaken for one cascade batch. A
-// descendant trashed independently (different batch id) is left out, same as
-// collectDescendantIds leaves it out of a subsequent cascade delete.
+/*
+ * PROJ-496 follow-up: mirror of collectDescendantIds for the undelete path — walks
+ * parent_id children that are IN THE TRASH and share the exact same trash_batch_id as
+ * the root being restored (deleteWikiPage's cascade branch stamps the whole subtree
+ * with one batch id in a single call). Batch id — not deleted_at — is what identifies
+ * "trashed together": two independent single-page trashes can land in the same
+ * wall-clock second and would otherwise be mistaken for one cascade batch. A
+ * descendant trashed independently (different batch id) is left out, same as
+ * collectDescendantIds leaves it out of a subsequent cascade delete.
+ */
 async function collectCascadeTrashedDescendantIds(
   db: D1Database,
   rootId: string,
@@ -2027,14 +2175,16 @@ async function collectCascadeTrashedDescendantIds(
   return descendants
 }
 
-// PROJ-426: file attachments uploaded directly to a wiki page (entityType="wiki_page",
-// entityId=pageId) aren't covered by the FK cascade on linkedWikiPageId — that column is
-// only set for wiki_ref pointer attachments elsewhere that link to this page. Delete the
-// R2 objects before dropping the rows, mirroring mcp/files.ts's delete_attachment handler.
-// PROJ-865: R2 accepts up to 1,000 keys per delete() call — batch into arrays instead
-// of one subrequest per file. `workspace_id` is included on both the select and the two
-// deletes below: `attachments` has no other index that narrows a purge-scale scan, so an
-// unscoped query here was effectively `SCAN attachments` across every tenant.
+/*
+ * PROJ-426: file attachments uploaded directly to a wiki page (entityType="wiki_page",
+ * entityId=pageId) aren't covered by the FK cascade on linkedWikiPageId — that column is
+ * only set for wiki_ref pointer attachments elsewhere that link to this page. Delete the
+ * R2 objects before dropping the rows, mirroring mcp/files.ts's delete_attachment handler.
+ * PROJ-865: R2 accepts up to 1,000 keys per delete() call — batch into arrays instead
+ * of one subrequest per file. `workspace_id` is included on both the select and the two
+ * deletes below: `attachments` has no other index that narrows a purge-scale scan, so an
+ * unscoped query here was effectively `SCAN attachments` across every tenant.
+ */
 const R2_DELETE_BATCH_SIZE = 1000
 
 async function deleteWikiPageAttachments(
@@ -2068,9 +2218,11 @@ async function deleteWikiPageAttachments(
       ),
     )
 
-  // PROJ-407: mirror the migration's ON DELETE CASCADE at the app level too, since
-  // D1 does not guarantee FK enforcement is on for every connection. wiki_ref pointer
-  // rows have no R2 object (r2Key is "").
+  /*
+   * PROJ-407: mirror the migration's ON DELETE CASCADE at the app level too, since
+   * D1 does not guarantee FK enforcement is on for every connection. wiki_ref pointer
+   * rows have no R2 object (r2Key is "").
+   */
   await orm
     .delete(schema.attachments)
     .where(
@@ -2078,8 +2230,10 @@ async function deleteWikiPageAttachments(
     )
 }
 
-// PROJ-311: workspace-level pages need a workspace admin/owner; a project-scoped
-// page can also be deleted by someone with a project-admin grant.
+/*
+ * PROJ-311: workspace-level pages need a workspace admin/owner; a project-scoped
+ * page can also be deleted by someone with a project-admin grant.
+ */
 async function requireWikiDelete(ctx: ServiceCtx, projectId: string | null): Promise<void> {
   if (projectId === null) {
     if (ctx.role !== 'admin' && ctx.role !== 'owner') {
@@ -2092,16 +2246,18 @@ async function requireWikiDelete(ctx: ServiceCtx, projectId: string | null): Pro
   }
 }
 
-// PROJ-496 (R14): deletes are now SOFT — this stamps deleted_at instead of removing
-// rows. Everything the pre-R14 hard delete used to clean up immediately (R2 attachment
-// objects, wiki_links, wiki_watchers, wiki_drafts, wiki_fts rows, wiki_redirects) now
-// waits for purgeExpiredWikiPages, 30 days later — see deleteWikiPageAttachments and
-// the other per-table helpers below, which purgeExpiredWikiPages calls directly.
-//
-// PROJ-509: resolved via resolvePageByIdOrSlug (id-or-slug + redirect fallback), same
-// as getWikiPage/updateWikiPage/getWikiBacklinks/listWikiRevisions/getWikiRevision —
-// a delete-by-old-slug-after-rename request resolves to the same page rather than
-// 404ing, for consistency across every other page-reference entry point.
+/*
+ * PROJ-496 (R14): deletes are now SOFT — this stamps deleted_at instead of removing
+ * rows. Everything the pre-R14 hard delete used to clean up immediately (R2 attachment
+ * objects, wiki_links, wiki_watchers, wiki_drafts, wiki_fts rows, wiki_redirects) now
+ * waits for purgeExpiredWikiPages, 30 days later — see deleteWikiPageAttachments and
+ * the other per-table helpers below, which purgeExpiredWikiPages calls directly.
+ *
+ * PROJ-509: resolved via resolvePageByIdOrSlug (id-or-slug + redirect fallback), same
+ * as getWikiPage/updateWikiPage/getWikiBacklinks/listWikiRevisions/getWikiRevision —
+ * a delete-by-old-slug-after-rename request resolves to the same page rather than
+ * 404ing, for consistency across every other page-reference entry point.
+ */
 export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?: unknown) {
   const idCheck = IdSchema.safeParse(idOrSlug)
   if (!idCheck.success) {
@@ -2127,25 +2283,31 @@ export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?
   await requireWikiDelete(ctx, page.projectId)
 
   const now = Math.floor(Date.now() / 1000)
-  // PROJ-493 (R11)/PROJ-496: slug/title/projectId are captured here (not re-read off
-  // the row later) so list_wiki_changes can still report what a "deleted" event was
-  // about even after the page drops out of every deleted_at IS NULL read path, and
-  // still enforce the workspace-scoping/project-visibility invariant for it — see
-  // wiki-watchers.ts#extractDeletedPageInfo.
+  /*
+   * PROJ-493 (R11)/PROJ-496: slug/title/projectId are captured here (not re-read off
+   * the row later) so list_wiki_changes can still report what a "deleted" event was
+   * about even after the page drops out of every deleted_at IS NULL read path, and
+   * still enforce the workspace-scoping/project-visibility invariant for it — see
+   * wiki-watchers.ts#extractDeletedPageInfo.
+   */
   const deleteDiffBase = { slug: page.slug, title: page.title, projectId: page.projectId }
 
   if (cascade) {
-    // PROJ-496: moves the WHOLE subtree to trash as a single unit — every id here gets
-    // the same deleted_at AND trash_batch_id stamp, so undeleting the root later doesn't
-    // leave descendants behind (undeleting a descendant independently is still possible,
-    // see undeleteWikiPage's "orphan-in-trash" note). trash_batch_id (not deleted_at) is
-    // what identifies batch membership — see collectCascadeTrashedDescendantIds.
+    /*
+     * PROJ-496: moves the WHOLE subtree to trash as a single unit — every id here gets
+     * the same deleted_at AND trash_batch_id stamp, so undeleting the root later doesn't
+     * leave descendants behind (undeleting a descendant independently is still possible,
+     * see undeleteWikiPage's "orphan-in-trash" note). trash_batch_id (not deleted_at) is
+     * what identifies batch membership — see collectCascadeTrashedDescendantIds.
+     */
     const descendantIds = await collectDescendantIds(ctx.db, page.id, ctx.workspaceId)
     const allIds = [page.id, ...descendantIds]
     const trashBatchId = crypto.randomUUID()
-    // PROJ-485: read before the trash stamp — not that it would change (soft delete
-    // doesn't touch wiki_links), but kept for parity with the pre-R14 read-before-write
-    // ordering and because a future purge racing this call shouldn't matter either way.
+    /*
+     * PROJ-485: read before the trash stamp — not that it would change (soft delete
+     * doesn't touch wiki_links), but kept for parity with the pre-R14 read-before-write
+     * ordering and because a future purge racing this call shouldn't matter either way.
+     */
     const linkedByCount = await countBacklinkSources(ctx, allIds)
     if (!page.isTemplate) {
       await notifyWikiWatchers(ctx, {
@@ -2156,9 +2318,11 @@ export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?
         action: 'deleted',
       })
     }
-    // PROJ-493: subtree watchers rooted at/above the cascade root got the single
-    // notification above, but someone watching one of the DESCENDANTS directly would
-    // otherwise hear nothing at all about their page being trashed.
+    /*
+     * PROJ-493: subtree watchers rooted at/above the cascade root got the single
+     * notification above, but someone watching one of the DESCENDANTS directly would
+     * otherwise hear nothing at all about their page being trashed.
+     */
     if (descendantIds.length > 0) {
       const descendants = await inChunks(descendantIds, (chunk) =>
         orm
@@ -2180,16 +2344,20 @@ export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?
         .where(inArray(schema.wikiPages.id, chunk))
       return []
     })
-    // PROJ-814: links keep pointing at a trashed page (reads already treat a trashed
-    // target as broken/hidden), so restore brings them back intact; a new page with the
-    // same title/slug may claim them meanwhile (buildResolveIncomingLinksStatement).
+    /*
+     * PROJ-814: links keep pointing at a trashed page (reads already treat a trashed
+     * target as broken/hidden), so restore brings them back intact; a new page with the
+     * same title/slug may claim them meanwhile (buildResolveIncomingLinksStatement).
+     */
     await recordActivity(ctx, {
       entityType: 'wiki_page',
       entityId: page.id,
       action: 'deleted',
-      // PROJ-526: descendant ids so a list_wiki_changes poller can evict them from a
-      // local mirror without a per-descendant activity row (which would make project
-      // activity feeds noisier — see the ticket's rationale for this shape).
+      /*
+       * PROJ-526: descendant ids so a list_wiki_changes poller can evict them from a
+       * local mirror without a per-descendant activity row (which would make project
+       * activity feeds noisier — see the ticket's rationale for this shape).
+       */
       diff: {
         ...deleteDiffBase,
         cascade: true,
@@ -2201,12 +2369,14 @@ export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?
     return { ok: true, deletedCount: allIds.length, linkedByCount }
   }
 
-  // PROJ-238: no FK constraint on parent_id, so a plain (non-cascade) trash would
-  // otherwise leave children pointing at a parent that's no longer visible. Default
-  // behavior is to promote them to the trashed page's own parent (which may be null,
-  // i.e. the root) — unchanged by PROJ-496, this still runs against the LIVE children
-  // (a child that's independently trashed keeps its own parent_id untouched, same as
-  // the pre-R14 behavior for a hard-deleted child).
+  /*
+   * PROJ-238: no FK constraint on parent_id, so a plain (non-cascade) trash would
+   * otherwise leave children pointing at a parent that's no longer visible. Default
+   * behavior is to promote them to the trashed page's own parent (which may be null,
+   * i.e. the root) — unchanged by PROJ-496, this still runs against the LIVE children
+   * (a child that's independently trashed keeps its own parent_id untouched, same as
+   * the pre-R14 behavior for a hard-deleted child).
+   */
   await orm
     .update(schema.wikiPages)
     .set({ parentId: page.parentId, version: sql`${schema.wikiPages.version} + 1` })
@@ -2239,25 +2409,27 @@ export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?
   return { ok: true, deletedCount: 1, linkedByCount }
 }
 
-// PROJ-496 (R14): undelete a trashed page. Takes an ID only (not a slug) — a slug is
-// only unique among LIVE pages (0051_wiki_trash.sql's partial index), so more than one
-// trashed page can carry the same now-recycled slug; an id is the only unambiguous
-// reference once a page is in the trash. Same permission as deleteWikiPage (reversing a
-// delete needs the same authority as performing one).
-//
-// Design decisions (see PR description for the full reasoning):
-//   - Parent's trash state is NOT checked. Undeleting a page whose parent is still
-//     trashed (or was cascade-trashed alongside it) is allowed; the page shows up as a
-//     root in list/tree views until its parent is also undeleted — the same "orphan"
-//     rendering getWikiTree already does for any page whose parent isn't in the current
-//     result set (map.has() check), so this needs no special-casing there.
-//   - Slug reuse: every page in the restore batch (root AND every descendant) has its
-//     slug re-checked against LIVE pages only (assertSlugAvailable, which now filters
-//     deleted_at IS NULL) and rejected with a structured ConflictError naming the
-//     colliding slug if a new page has since taken it — the caller must rename the new
-//     page (or the page being undeleted, via update_wiki_page, which isn't possible
-//     until it's live again) to resolve the collision. No partial restore happens: the
-//     whole batch is checked before any row is updated.
+/*
+ * PROJ-496 (R14): undelete a trashed page. Takes an ID only (not a slug) — a slug is
+ * only unique among LIVE pages (0051_wiki_trash.sql's partial index), so more than one
+ * trashed page can carry the same now-recycled slug; an id is the only unambiguous
+ * reference once a page is in the trash. Same permission as deleteWikiPage (reversing a
+ * delete needs the same authority as performing one).
+ *
+ * Design decisions (see PR description for the full reasoning):
+ *   - Parent's trash state is NOT checked. Undeleting a page whose parent is still
+ *     trashed (or was cascade-trashed alongside it) is allowed; the page shows up as a
+ *     root in list/tree views until its parent is also undeleted — the same "orphan"
+ *     rendering getWikiTree already does for any page whose parent isn't in the current
+ *     result set (map.has() check), so this needs no special-casing there.
+ *   - Slug reuse: every page in the restore batch (root AND every descendant) has its
+ *     slug re-checked against LIVE pages only (assertSlugAvailable, which now filters
+ *     deleted_at IS NULL) and rejected with a structured ConflictError naming the
+ *     colliding slug if a new page has since taken it — the caller must rename the new
+ *     page (or the page being undeleted, via update_wiki_page, which isn't possible
+ *     until it's live again) to resolve the collision. No partial restore happens: the
+ *     whole batch is checked before any row is updated.
+ */
 export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
@@ -2288,11 +2460,13 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
 
   await requireWikiDelete(ctx, page.projectId)
 
-  // PROJ-496 follow-up: restore the whole cascade-trashed subtree, not just the root —
-  // a page trashed via deleteWikiPage's cascade branch stamps every descendant with the
-  // same trash_batch_id, so walking descendants that share that exact id recovers
-  // exactly the batch that was trashed together (see collectCascadeTrashedDescendantIds).
-  // Independently-trashed descendants (a different batch id) are left alone.
+  /*
+   * PROJ-496 follow-up: restore the whole cascade-trashed subtree, not just the root —
+   * a page trashed via deleteWikiPage's cascade branch stamps every descendant with the
+   * same trash_batch_id, so walking descendants that share that exact id recovers
+   * exactly the batch that was trashed together (see collectCascadeTrashedDescendantIds).
+   * Independently-trashed descendants (a different batch id) are left alone.
+   */
   const descendantIds = await collectCascadeTrashedDescendantIds(ctx.db, page.id, ctx.workspaceId, page.trashBatchId)
   const allIds = [page.id, ...descendantIds]
 
@@ -2311,12 +2485,14 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
         )
       : []
 
-  // PROJ-496 follow-up: every id in the cascade batch must clear the slug check, not
-  // just the root — the partial-unique slug index only enforces uniqueness among LIVE
-  // pages, so a descendant's slug can have been taken by an unrelated new page while
-  // the whole subtree sat in the trash. Checking only the root let that case fall
-  // through to a raw SQLite constraint violation on the batch UPDATE below (a 500)
-  // instead of the structured ConflictError the design here promises.
+  /*
+   * PROJ-496 follow-up: every id in the cascade batch must clear the slug check, not
+   * just the root — the partial-unique slug index only enforces uniqueness among LIVE
+   * pages, so a descendant's slug can have been taken by an unrelated new page while
+   * the whole subtree sat in the trash. Checking only the root let that case fall
+   * through to a raw SQLite constraint violation on the batch UPDATE below (a 500)
+   * instead of the structured ConflictError the design here promises.
+   */
   await assertSlugAvailable(orm, ctx.workspaceId, page.slug, page.id)
   for (const descendant of descendantRows) {
     await assertSlugAvailable(orm, ctx.workspaceId, descendant.slug, descendant.id)
@@ -2337,19 +2513,23 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
     return []
   })
 
-  // PROJ-814: every restored page (root and cascade-restored descendants) can be the
-  // target other pages' still-unresolved links were waiting on — re-resolve for each.
+  /*
+   * PROJ-814: every restored page (root and cascade-restored descendants) can be the
+   * target other pages' still-unresolved links were waiting on — re-resolve for each.
+   */
   await healTitleFolds(ctx) // PROJ-818
   await ctx.db.batch([
     buildResolveIncomingLinksStatement(ctx, { id: page.id, title: page.title, slug: page.slug }),
     ...descendantRows.map((d) => buildResolveIncomingLinksStatement(ctx, { id: d.id, title: d.title, slug: d.slug })),
   ])
 
-  // PROJ-496: recorded as "updated" (not a new activity/notification action) so it
-  // slots into the existing typed action union (recordActivity, WikiChangeEvent,
-  // notifyWikiWatchers) rather than widening it repo-wide for a single edge case — a
-  // restore genuinely IS "this page changed state and is worth telling watchers about",
-  // which is exactly what an "updated" event already means to every consumer.
+  /*
+   * PROJ-496: recorded as "updated" (not a new activity/notification action) so it
+   * slots into the existing typed action union (recordActivity, WikiChangeEvent,
+   * notifyWikiWatchers) rather than widening it repo-wide for a single edge case — a
+   * restore genuinely IS "this page changed state and is worth telling watchers about",
+   * which is exactly what an "updated" event already means to every consumer.
+   */
   await recordActivity(ctx, {
     entityType: 'wiki_page',
     entityId: page.id,
@@ -2371,9 +2551,11 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
       action: 'updated',
     })
   }
-  // PROJ-496 follow-up: mirrors deleteWikiPage's cascade branch notifying descendant
-  // watchers on trash — without this, someone watching a descendant directly hears
-  // about the delete but never a matching "restored" event on cascade undelete.
+  /*
+   * PROJ-496 follow-up: mirrors deleteWikiPage's cascade branch notifying descendant
+   * watchers on trash — without this, someone watching a descendant directly hears
+   * about the delete but never a matching "restored" event on cascade undelete.
+   */
   if (descendantRows.length > 0) {
     await notifyCascadeDescendantWatchers(ctx, descendantRows, 'updated')
   }
@@ -2387,9 +2569,11 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
   }
 }
 
-// PROJ-496 (R14): trash listing, scoped the same way listWikiPages is — a project-scoped
-// trashed page is only listed for callers who could see that project (workspace admins
-// see everything).
+/*
+ * PROJ-496 (R14): trash listing, scoped the same way listWikiPages is — a project-scoped
+ * trashed page is only listed for callers who could see that project (workspace admins
+ * see everything).
+ */
 export async function listWikiTrash(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiTrashInputSchema.safeParse(input)
   if (!parsed.success) {
@@ -2417,20 +2601,22 @@ export async function listWikiTrash(ctx: ServiceCtx, input: unknown) {
   }))
 }
 
-// PROJ-496 (R14): permanently removes every page in this workspace that's been trashed
-// for at least WIKI_TRASH_RETENTION_SECONDS — R2 attachment objects, wiki_revisions,
-// wiki_links, wiki_watchers, wiki_drafts, wiki_fts rows, and wiki_redirects that were
-// left in place at (soft) delete time, plus a re-parent fixup for any live child left
-// pointing at a page in this batch. Owner/admin only, same as backfill_wiki_links —
-// this is a maintenance action over the whole workspace, not scoped to a single
-// project's grants. Also reachable via a daily Workers Cron Trigger (see the
-// `scheduled` handler in index.ts, which iterates every workspace) in addition to the
-// manual REST/MCP call.
-// PROJ-865: default per-invocation page cap. A workspace with thousands of expired pages
-// would otherwise run this whole function (attachments, FTS, revisions, links, redirects —
-// roughly a dozen D1/R2 calls per page once chunked) unbounded in one cron tick; ~200 pages
-// keeps a single call's cost predictable and lets the cron's KV cursor (index.ts) revisit
-// the same workspace on the next run for the remainder instead of moving on and starving it.
+/*
+ * PROJ-496 (R14): permanently removes every page in this workspace that's been trashed
+ * for at least WIKI_TRASH_RETENTION_SECONDS — R2 attachment objects, wiki_revisions,
+ * wiki_links, wiki_watchers, wiki_drafts, wiki_fts rows, and wiki_redirects that were
+ * left in place at (soft) delete time, plus a re-parent fixup for any live child left
+ * pointing at a page in this batch. Owner/admin only, same as backfill_wiki_links —
+ * this is a maintenance action over the whole workspace, not scoped to a single
+ * project's grants. Also reachable via a daily Workers Cron Trigger (see the
+ * `scheduled` handler in index.ts, which iterates every workspace) in addition to the
+ * manual REST/MCP call.
+ * PROJ-865: default per-invocation page cap. A workspace with thousands of expired pages
+ * would otherwise run this whole function (attachments, FTS, revisions, links, redirects —
+ * roughly a dozen D1/R2 calls per page once chunked) unbounded in one cron tick; ~200 pages
+ * keeps a single call's cost predictable and lets the cron's KV cursor (index.ts) revisit
+ * the same workspace on the next run for the remainder instead of moving on and starving it.
+ */
 export const WIKI_TRASH_PURGE_DEFAULT_PAGE_LIMIT = 200
 
 export async function purgeExpiredWikiPages(
@@ -2444,10 +2630,12 @@ export async function purgeExpiredWikiPages(
   const limit = options.limit ?? WIKI_TRASH_PURGE_DEFAULT_PAGE_LIMIT
   const orm = drizzle(ctx.db, { schema })
   const cutoff = Math.floor(Date.now() / 1000) - WIKI_TRASH_RETENTION_SECONDS
-  // PROJ-865: ORDER BY deleted_at (oldest-expired-first) + LIMIT bounds this call's work;
-  // fetching limit+1 tells us whether more expired pages remain without a second COUNT
-  // query. Oldest-first also means a workspace that's never been purged before works
-  // through its backlog in FIFO order across repeated runs.
+  /*
+   * PROJ-865: ORDER BY deleted_at (oldest-expired-first) + LIMIT bounds this call's work;
+   * fetching limit+1 tells us whether more expired pages remain without a second COUNT
+   * query. Oldest-first also means a workspace that's never been purged before works
+   * through its backlog in FIFO order across repeated runs.
+   */
   const expiredPlusOne = await orm
     .select({ id: schema.wikiPages.id, parentId: schema.wikiPages.parentId })
     .from(schema.wikiPages)
@@ -2467,12 +2655,14 @@ export async function purgeExpiredWikiPages(
     return { purgedCount: 0, purgedIds: [], moreExpired: false }
   }
 
-  // PROJ-238/PROJ-496: a live child can end up pointing at a page that's about to be
-  // purged — e.g. it was cascade-trashed alongside its parent, then undeleted on its
-  // own while the parent stayed in the trash. parent_id has no FK, so without this
-  // fixup a purge would leave it dangling. Walk each purged page's parent chain past
-  // any other page that's ALSO being purged in this batch, mirroring deleteWikiPage's
-  // re-parent-to-nearest-surviving-ancestor behavior.
+  /*
+   * PROJ-238/PROJ-496: a live child can end up pointing at a page that's about to be
+   * purged — e.g. it was cascade-trashed alongside its parent, then undeleted on its
+   * own while the parent stayed in the trash. parent_id has no FK, so without this
+   * fixup a purge would leave it dangling. Walk each purged page's parent chain past
+   * any other page that's ALSO being purged in this batch, mirroring deleteWikiPage's
+   * re-parent-to-nearest-surviving-ancestor behavior.
+   */
   const expiredSet = new Set(ids)
   const parentById = new Map(expired.map((p) => [p.id, p.parentId]))
   const resolveReparentTarget = (id: string): string | null => {
@@ -2484,10 +2674,12 @@ export async function purgeExpiredWikiPages(
     }
     return current
   }
-  // PROJ-865: one UPDATE per (target, chunk) instead of one per purged page — pages
-  // resolving to the same surviving ancestor (almost always the common case: most
-  // purged batches share few distinct reparent targets) share a single statement, and
-  // `inChunks` still caps each statement's bound `parent_id IN (...)` list at D1's limit.
+  /*
+   * PROJ-865: one UPDATE per (target, chunk) instead of one per purged page — pages
+   * resolving to the same surviving ancestor (almost always the common case: most
+   * purged batches share few distinct reparent targets) share a single statement, and
+   * `inChunks` still caps each statement's bound `parent_id IN (...)` list at D1's limit.
+   */
   const idsByTarget = new Map<string | null, string[]>()
   for (const id of ids) {
     const target = resolveReparentTarget(id)
@@ -2512,9 +2704,11 @@ export async function purgeExpiredWikiPages(
     await deleteWikiPageAttachments(ctx, orm, chunk)
     return []
   })
-  // PROJ-814: re-point incoming links to another live match (else unresolve) BEFORE the
-  // pages are deleted — once they're gone, ON DELETE SET NULL (where enforced) would
-  // already have cleared target_page_id and there'd be nothing left to re-point.
+  /*
+   * PROJ-814: re-point incoming links to another live match (else unresolve) BEFORE the
+   * pages are deleted — once they're gone, ON DELETE SET NULL (where enforced) would
+   * already have cleared target_page_id and there'd be nothing left to re-point.
+   */
   await repointIncomingLinks(ctx, ids)
   await deleteWikiFtsEntries(ctx, ids) // PROJ-816: before the pages go
   await inChunks(ids, async (chunk) => {
@@ -2528,9 +2722,11 @@ export async function purgeExpiredWikiPages(
   await deleteWikiLinksForPages(ctx, ids)
   await deleteWikiWatchersForPages(ctx, ids)
   await deleteWikiDraftsForPages(ctx, ids)
-  // PROJ-407-style defensive cleanup, same rationale as every other per-table helper
-  // here: D1 doesn't guarantee FK enforcement on every connection, so wiki_redirects'
-  // ON DELETE CASCADE on page_id is mirrored explicitly.
+  /*
+   * PROJ-407-style defensive cleanup, same rationale as every other per-table helper
+   * here: D1 doesn't guarantee FK enforcement on every connection, so wiki_redirects'
+   * ON DELETE CASCADE on page_id is mirrored explicitly.
+   */
   await inChunks(ids, async (chunk) => {
     await orm
       .delete(schema.wikiRedirects)
@@ -2578,10 +2774,12 @@ export async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise
   return roots
 }
 
-// PROJ-509: resolves via resolvePageByIdOrSlug (id-or-slug + redirect fallback) so a
-// renamed page's old slug still resolves here, matching getWikiPage/updateWikiPage/
-// getWikiBacklinks instead of 404ing on the exact reference PROJ-484's optimistic-
-// locking workflow tells agents to fetch.
+/*
+ * PROJ-509: resolves via resolvePageByIdOrSlug (id-or-slug + redirect fallback) so a
+ * renamed page's old slug still resolves here, matching getWikiPage/updateWikiPage/
+ * getWikiBacklinks instead of 404ing on the exact reference PROJ-484's optimistic-
+ * locking workflow tells agents to fetch.
+ */
 export async function listWikiRevisions(ctx: ServiceCtx, idOrSlug: string) {
   const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
   await assertWikiPageVisible(ctx, page.projectId)
@@ -2600,13 +2798,15 @@ export async function getWikiRevision(ctx: ServiceCtx, idOrSlug: string, revisio
   return revision
 }
 
-// PROJ-492 (R10): server-side unified diff between one revision (`revisionId`) and either
-// another revision or the page's current content (`against`, defaulting to "current").
-// Reuses buildUnifiedDiff (PROJ-484) — same format as update_wiki_page/patch_wiki_page's
-// conflict responses, so the UI/agent can render both with one diff renderer. Each
-// revision's own `content` column already IS the snapshot at that point in time (unlike
-// resolveBaseContent's off-by-one lookahead, which exists only to answer "what did the
-// caller actually have"), so both sides are read directly with no shifting.
+/*
+ * PROJ-492 (R10): server-side unified diff between one revision (`revisionId`) and either
+ * another revision or the page's current content (`against`, defaulting to "current").
+ * Reuses buildUnifiedDiff (PROJ-484) — same format as update_wiki_page/patch_wiki_page's
+ * conflict responses, so the UI/agent can render both with one diff renderer. Each
+ * revision's own `content` column already IS the snapshot at that point in time (unlike
+ * resolveBaseContent's off-by-one lookahead, which exists only to answer "what did the
+ * caller actually have"), so both sides are read directly with no shifting.
+ */
 export async function getWikiRevisionDiff(ctx: ServiceCtx, idOrSlug: string, revisionId: string, input: unknown) {
   const parsed = WikiRevisionDiffInputSchema.safeParse(input)
   if (!parsed.success) {

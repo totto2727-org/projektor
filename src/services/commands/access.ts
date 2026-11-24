@@ -8,24 +8,28 @@ import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 
-// PROJ-311: group-based project access.
-//
-// Authorization model: workspace owner/admin see and can do everything (they
-// bypass groups — this preserves the ADMIN_EMAILS bootstrap and makes lockout
-// impossible). Every other member is default-deny: a project is visible only if
-// one of the user's groups holds a grant on it, and the grant's role — not the
-// member's workspace role — governs what they can do inside that project.
-//
-// Visibility is computed per-request from an indexed join
-// (user_group_members ⋈ group_project_grants); there is no session state, so a
-// membership change takes effect on the user's very next request.
+/*
+ * PROJ-311: group-based project access.
+ *
+ * Authorization model: workspace owner/admin see and can do everything (they
+ * bypass groups — this preserves the ADMIN_EMAILS bootstrap and makes lockout
+ * impossible). Every other member is default-deny: a project is visible only if
+ * one of the user's groups holds a grant on it, and the grant's role — not the
+ * member's workspace role — governs what they can do inside that project.
+ *
+ * Visibility is computed per-request from an indexed join
+ * (user_group_members ⋈ group_project_grants); there is no session state, so a
+ * membership change takes effect on the user's very next request.
+ */
 
 export function isWorkspaceAdmin(role: Role | undefined): boolean {
   return role === 'owner' || role === 'admin'
 }
 
-// Grant roles, weakest → strongest. A user in several groups with grants on the
-// same project gets the strongest.
+/*
+ * Grant roles, weakest → strongest. A user in several groups with grants on the
+ * same project gets the strongest.
+ */
 const PROJECT_ROLE_RANK: Record<'viewer' | 'member' | 'admin', number> = {
   viewer: 1,
   member: 2,
@@ -61,9 +65,11 @@ export async function effectiveProjectRole(ctx: ServiceCtx, projectId: string): 
   if (rows.length === 0) {
     return null
   }
-  // PROJ-581: the anonymous PUBLIC_READ_ONLY viewer is read-only everywhere, whatever
-  // role a group grant carries — publishing a project to the "Public viewers" group with
-  // the grant picker's default (`member`) must never let the internet write to it.
+  /*
+   * PROJ-581: the anonymous PUBLIC_READ_ONLY viewer is read-only everywhere, whatever
+   * role a group grant carries — publishing a project to the "Public viewers" group with
+   * the grant picker's default (`member`) must never let the internet write to it.
+   */
   if (ctx.auth?.method === 'public') {
     return 'viewer'
   }
@@ -110,22 +116,24 @@ export async function requireProjectInWorkspace(ctx: ServiceCtx, projectId: stri
   }
 }
 
-// ─── PROJ-837: the central access guard ─────────────────────────────────────
-//
-// One policy for every project-scoped resource (issue, wiki page, sprint,
-// project, share link, …):
-//
-//   • no access at all  → 404 (NotFoundError). The resource's existence must not
-//     leak to someone who was never granted its project.
-//   • can see, can't write (mode "edit" with a viewer-level role) → 403
-//     (ForbiddenError). They can already see it, so 404 would only confuse.
-//   • project not in ctx.workspaceId → 404, for everyone including owner/admin
-//     (PROJ-389 — the admin bypass must never cross a tenant boundary).
-//
-// New service code should call `assertProjectAccess` (single resource) or
-// `hasProjectAccess` (a soft check that returns false instead of throwing, for
-// "unknown project → empty list" read paths), and `visibleProjectFilter` for
-// list queries. The Node API architecture tests enforce this.
+/*
+ * ─── PROJ-837: the central access guard ─────────────────────────────────────
+ *
+ * One policy for every project-scoped resource (issue, wiki page, sprint,
+ * project, share link, …):
+ *
+ *   • no access at all  → 404 (NotFoundError). The resource's existence must not
+ *     leak to someone who was never granted its project.
+ *   • can see, can't write (mode "edit" with a viewer-level role) → 403
+ *     (ForbiddenError). They can already see it, so 404 would only confuse.
+ *   • project not in ctx.workspaceId → 404, for everyone including owner/admin
+ *     (PROJ-389 — the admin bypass must never cross a tenant boundary).
+ *
+ * New service code should call `assertProjectAccess` (single resource) or
+ * `hasProjectAccess` (a soft check that returns false instead of throwing, for
+ * "unknown project → empty list" read paths), and `visibleProjectFilter` for
+ * list queries. The Node API architecture tests enforce this.
+ */
 
 export type AccessMode = 'read' | 'edit'
 

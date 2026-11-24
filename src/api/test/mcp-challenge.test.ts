@@ -3,15 +3,17 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 import { seedFixture, seedToken } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-651: RFC 9728 WWW-Authenticate challenges on the MCP endpoint.
-//
-// The challenge is the only discovery entry point an MCP client has, and Anthropic
-// is explicit that Claude does not honour the header on a non-401 response. So these
-// tests care about two things a JSON-body assertion cannot see: the transport-level
-// status, and the header riding on it.
-//
-// A realistic https host throughout — resource_metadata is a URL built from the
-// request, and a localhost assertion would not catch an origin-derivation bug.
+/*
+ * PROJ-651: RFC 9728 WWW-Authenticate challenges on the MCP endpoint.
+ *
+ * The challenge is the only discovery entry point an MCP client has, and Anthropic
+ * is explicit that Claude does not honour the header on a non-401 response. So these
+ * tests care about two things a JSON-body assertion cannot see: the transport-level
+ * status, and the header riding on it.
+ *
+ * A realistic https host throughout — resource_metadata is a URL built from the
+ * request, and a localhost assertion would not catch an origin-derivation bug.
+ */
 const HOST = 'https://projektor.example.com'
 
 function mcpUrl(workspaceId: string): string {
@@ -82,8 +84,10 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
 })
 
 describe('/api/* 401s are unchanged', () => {
-  // PROJ-430: the frontend reloads the page to re-authenticate on a 401, so the
-  // shape of an /api/* 401 is load-bearing. The challenge must not leak onto it.
+  /*
+   * PROJ-430: the frontend reloads the page to re-authenticate on a 401, so the
+   * shape of an /api/* 401 is load-bearing. The challenge must not leak onto it.
+   */
   test('carries no WWW-Authenticate header and the same bare body', async () => {
     const res = await fetchNativeApi(`${HOST}/api/projects`)
 
@@ -126,17 +130,21 @@ describe('insufficient scope is a 403 challenge, not a 200 with a JSON-RPC error
       arguments: { name: 'nope', key: 'NOPE' },
     })
 
-    // The status is the point. A 200 carrying a JSON-RPC error is invisible to
-    // the client's step-up flow: Claude hands the text to the model as a tool
-    // result and moves on, so the user reads "please sign in" prose in the chat
-    // instead of being offered a Connect button.
+    /*
+     * The status is the point. A 200 carrying a JSON-RPC error is invisible to
+     * the client's step-up flow: Claude hands the text to the model as a tool
+     * result and moves on, so the user reads "please sign in" prose in the chat
+     * instead of being offered a Connect button.
+     */
     expect(res.status).toBe(403)
 
     const challenge = parseChallenge(res.headers.get('WWW-Authenticate'))
     expect(challenge.error).toBe('insufficient_scope')
     expect(challenge.resource_metadata).toBe(`${HOST}/.well-known/oauth-protected-resource/mcp/${workspaceId}`)
-    // All scopes in one go — challenging incrementally would force a second
-    // consent round-trip the moment the client touched another operation.
+    /*
+     * All scopes in one go — challenging incrementally would force a second
+     * consent round-trip the moment the client touched another operation.
+     */
     expect(challenge.scope).toBe('projektor:read projektor:write')
   })
 

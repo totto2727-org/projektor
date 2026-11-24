@@ -21,9 +21,11 @@ function rectAt(top: number, left = 10, height = 24, width = 100): DOMRect {
   } as DOMRect
 }
 
-// PROJ-588: opened low on a phone, this fixed-position panel had no viewport clamping —
-// the date-range fields and "Clear all" could fall below the viewport with nothing to
-// scroll to reach them.
+/*
+ * PROJ-588: opened low on a phone, this fixed-position panel had no viewport clamping —
+ * the date-range fields and "Clear all" could fall below the viewport with nothing to
+ * scroll to reach them.
+ */
 describe('computeFiltersPopoverPosition (PROJ-588)', () => {
   const originalHeight = window.innerHeight
   const originalWidth = window.innerWidth

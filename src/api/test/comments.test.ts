@@ -69,9 +69,11 @@ describe('Comments REST API', () => {
     expect(data.id).toBeTruthy()
   })
 
-  // PROJ-328: author_kind is stamped from the authenticated principal type, not a
-  // caller-supplied field. Tests authenticate over Bearer tokens (see authHeaders),
-  // same as agents — see middleware/auth.ts / conventions.md for the human/agent split.
+  /*
+   * PROJ-328: author_kind is stamped from the authenticated principal type, not a
+   * caller-supplied field. Tests authenticate over Bearer tokens (see authHeaders),
+   * same as agents — see middleware/auth.ts / conventions.md for the human/agent split.
+   */
   test('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
@@ -120,8 +122,10 @@ describe('Comments REST API', () => {
     expect(res.status).toBe(400)
   })
 
-  // PROJ-374: addComment was missing the viewer-role guard every other write path
-  // enforces (comments.ts:76) — a workspace/project viewer could post comments.
+  /*
+   * PROJ-374: addComment was missing the viewer-role guard every other write path
+   * enforces (comments.ts:76) — a workspace/project viewer could post comments.
+   */
   test('POST returns 403 for a project viewer', async () => {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
@@ -255,9 +259,11 @@ describe('Comments MCP cross-workspace security', () => {
   })
 })
 
-// PROJ-438: the browser reaches an issue page by ref, so making it resolve the UUID
-// before it can ask for comments put a whole round trip of dead time on the critical
-// path. These reads now take either identifier.
+/*
+ * PROJ-438: the browser reaches an issue page by ref, so making it resolve the UUID
+ * before it can ask for comments put a whole round trip of dead time on the critical
+ * path. These reads now take either identifier.
+ */
 describe('PROJ-438 — comments accept an issue ref', () => {
   test('GET /:ref/comments returns the same comments as GET /:uuid/comments', async () => {
     const fixture = await seedProjectFixture({ role: 'owner' })
@@ -285,14 +291,16 @@ describe('PROJ-438 — comments accept an issue ref', () => {
     expect(await byRef.json()).toEqual(await byUuid.json())
   })
 
-  // The whole point of resolving inside the caller's workspace. A ref is guessable in a
-  // way a UUID isn't — KEY-1 exists almost everywhere — so this is the case that would
-  // turn refs into a cross-tenant read.
-  //
-  // Both workspaces get the *same* project key and the same issue number deliberately.
-  // With distinct keys this would still pass with the resolver's workspace filter
-  // deleted, because listComments re-filters on workspace and 404s anyway — the test
-  // would be green while the thing it names was broken.
+  /*
+   * The whole point of resolving inside the caller's workspace. A ref is guessable in a
+   * way a UUID isn't — KEY-1 exists almost everywhere — so this is the case that would
+   * turn refs into a cross-tenant read.
+   *
+   * Both workspaces get the *same* project key and the same issue number deliberately.
+   * With distinct keys this would still pass with the resolver's workspace filter
+   * deleted, because listComments re-filters on workspace and 404s anyway — the test
+   * would be green while the thing it names was broken.
+   */
   test("resolves a colliding ref inside the caller's own workspace, not the other one", async () => {
     const mine = await seedFixture({ role: 'owner' })
     const myProject = await seedProject(mine.workspace.id, 'DUP')

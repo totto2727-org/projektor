@@ -330,8 +330,10 @@ describe('Wiki server prop adoption', () => {
     const backdrop = Array.from(mobileRules?.cssRules ?? []).find(
       (rule) => (rule as CSSStyleRule).selectorText === '.wiki-drawer-overlay',
     ) as CSSStyleRule | undefined
-    // jsdom exposes the authored CSS geometry, not a visual layout. Worker/browser
-    // acceptance checks the actual header pixels and stacking in the mobile viewport.
+    /*
+     * Jsdom exposes the authored CSS geometry, not a visual layout. Worker/browser
+     * acceptance checks the actual header pixels and stacking in the mobile viewport.
+     */
     expect(sidebar?.style.getPropertyValue('top')).toBe('var(--topbar-height, 0px)')
     expect(backdrop?.style.getPropertyValue('inset')).toBe('var(--topbar-height, 0px) 0 0')
     expect(backdrop?.style.getPropertyValue('z-index')).toBe('30')

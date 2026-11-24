@@ -10,8 +10,10 @@ import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 
-// GET /api/issues/:issueId/links — accepts a ref ("PROJ-42") as well as a UUID, so the
-// browser can ask for these alongside the issue itself rather than after it (PROJ-438).
+/*
+ * GET /api/issues/:issueId/links — accepts a ref ("PROJ-42") as well as a UUID, so the
+ * browser can ask for these alongside the issue itself rather than after it (PROJ-438).
+ */
 router.get('/:issueId/links', async (c) => {
   const ctx = ctxFromHono(c)
   try {

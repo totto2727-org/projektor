@@ -2,11 +2,13 @@ import { GetWorkflowSchema } from '../../contracts/inputs/workflow.ts'
 import { ValidationError } from './errors.ts'
 import { WORKFLOW_SPEC } from './workflow-content.ts'
 
-// PROJ-933: agents re-fetch the ~1k token workflow spec every session even though it
-// rarely changes. `version` is a stable content hash of everything get_workflow returns (title,
-// description and body); a caller that
-// already holds it can pass it back as `ifVersion` and get `{ unchanged: true, version }`
-// instead of the full spec.
+/*
+ * PROJ-933: agents re-fetch the ~1k token workflow spec every session even though it
+ * rarely changes. `version` is a stable content hash of everything get_workflow returns (title,
+ * description and body); a caller that
+ * already holds it can pass it back as `ifVersion` and get `{ unchanged: true, version }`
+ * instead of the full spec.
+ */
 
 const VERSION_HASH_LENGTH = 12
 
@@ -20,8 +22,10 @@ export async function hashWorkflowContent(content: string): Promise<string> {
   return hex.slice(0, VERSION_HASH_LENGTH)
 }
 
-// The full returned payload, built once: the spec is a compile-time constant. The version
-// hashes exactly this object, so a change to the title or description bumps it too.
+/*
+ * The full returned payload, built once: the spec is a compile-time constant. The version
+ * hashes exactly this object, so a change to the title or description bumps it too.
+ */
 const WORKFLOW_PAYLOAD = {
   title: WORKFLOW_SPEC.title,
   description: WORKFLOW_SPEC.description,

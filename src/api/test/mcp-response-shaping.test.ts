@@ -1,5 +1,7 @@
-// PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
-// one `{items, next}` pagination shape, and a hard per-result size cap.
+/*
+ * PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
+ * one `{items, next}` pagination shape, and a hard per-result size cap.
+ */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { capPage, shapeIssue, splitShapeOpts, toPage } from '../mcp/serialize.ts'
@@ -143,7 +145,7 @@ describe('PROJ-891 review fixes (unit)', () => {
     })
     expect(out.truncated).toBe(true)
     const last = out.items[out.items.length - 1].t
-    // nothing sharing the cursor's second was left behind
+    // Nothing sharing the cursor's second was left behind
     expect(items.slice(out.items.length).every((i) => i.t > last)).toBe(true)
     expect(out.next).toBe(String(last))
   })

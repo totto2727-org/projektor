@@ -1,5 +1,7 @@
-// PROJ-863: GET of an issue never shows stale data about OTHER entities (linked
-// issues, status/type names, project key, sprint) after those change.
+/*
+ * PROJ-863: GET of an issue never shows stale data about OTHER entities (linked
+ * issues, status/type names, project key, sprint) after those change.
+ */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { getIssue } from '#commands/issues.ts'

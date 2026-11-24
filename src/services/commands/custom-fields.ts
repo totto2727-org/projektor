@@ -305,10 +305,12 @@ export async function validateCustomFields(
   return writes
 }
 
-// PROJ-870: replaces writeCustomFieldValues' one-upsert-per-field loop. Builds (without
-// executing) multi-row upserts for every custom-field write on one issue, so the caller can
-// fold them into its own ctx.db.batch() alongside the issue write. Chunked for D1's
-// 100-bound-param cap: 3 params/row x 30 rows = 90, same headroom as services/sql.ts.
+/*
+ * PROJ-870: replaces writeCustomFieldValues' one-upsert-per-field loop. Builds (without
+ * executing) multi-row upserts for every custom-field write on one issue, so the caller can
+ * fold them into its own ctx.db.batch() alongside the issue write. Chunked for D1's
+ * 100-bound-param cap: 3 params/row x 30 rows = 90, same headroom as services/sql.ts.
+ */
 const CUSTOM_FIELD_UPSERT_CHUNK_SIZE = 30 // 3 cols/row
 
 export function buildCustomFieldUpsertStatements(

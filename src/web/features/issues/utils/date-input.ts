@@ -1,10 +1,12 @@
 import { formatTimestampDate } from '../../timestamp.ts'
 
-// PROJ-875: one conversion pair between <input type="date"> strings ("YYYY-MM-DD") and
-// the API's unix seconds. Both directions use LOCAL midnight, so a date typed in and
-// read back is the same calendar day in every timezone. (`new Date("YYYY-MM-DD")`
-// parses as UTC midnight, which read back through local getters shifts the date a day
-// earlier anywhere west of UTC.)
+/*
+ * PROJ-875: one conversion pair between <input type="date"> strings ("YYYY-MM-DD") and
+ * the API's unix seconds. Both directions use LOCAL midnight, so a date typed in and
+ * read back is the same calendar day in every timezone. (`new Date("YYYY-MM-DD")`
+ * parses as UTC midnight, which read back through local getters shifts the date a day
+ * earlier anywhere west of UTC.)
+ */
 
 /** "YYYY-MM-DD" → unix seconds at local midnight; empty/invalid → null. */
 export function dateInputToUnix(value: string): number | null {

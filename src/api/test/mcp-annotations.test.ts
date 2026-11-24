@@ -1,6 +1,8 @@
-// PROJ-887 — MCP tool annotations (readOnlyHint / destructiveHint / idempotentHint /
-// openWorldHint) on every core tool, and their presence on the `tools/list` wire
-// response.
+/*
+ * PROJ-887 — MCP tool annotations (readOnlyHint / destructiveHint / idempotentHint /
+ * openWorldHint) on every core tool, and their presence on the `tools/list` wire
+ * response.
+ */
 import { describe, expect, test } from 'vite-plus/test'
 
 import { capabilityForMcpTool } from '../auth/scopes.ts'

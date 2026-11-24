@@ -1,8 +1,10 @@
 import { ValidationError } from '../../contracts/errors.ts'
 
-// PROJ-892: windowed reads of long text (wiki pages, issue bodies) so one call never
-// returns an unbounded blob. Offsets are UTF-16 code units (JS string indices) and are
-// only ever placed on code-point boundaries, so a window never splits an emoji.
+/*
+ * PROJ-892: windowed reads of long text (wiki pages, issue bodies) so one call never
+ * returns an unbounded blob. Offsets are UTF-16 code units (JS string indices) and are
+ * only ever placed on code-point boundaries, so a window never splits an emoji.
+ */
 
 export const WIKI_DEFAULT_MAX_CHARS = 8000
 export const WIKI_MAX_CHARS = 20_000

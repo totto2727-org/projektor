@@ -18,8 +18,10 @@ describe('KV caching', () => {
   })
 
   describe('single-issue cache (TTL 300s, write-through invalidation)', () => {
-    // PROJ-863: the cache holds only issue-owned extras (rollup, custom fields); the
-    // row itself is always read, so a deleted issue is a 404 even with a warm cache.
+    /*
+     * PROJ-863: the cache holds only issue-owned extras (rollup, custom fields); the
+     * row itself is always read, so a deleted issue is a 404 even with a warm cache.
+     */
     test('a warm cache never resurrects a deleted issue (row is always read)', async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Cached Issue' })
       const url = `http://localhost/api/issues/${issue.id}`

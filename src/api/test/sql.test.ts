@@ -59,7 +59,7 @@ describe('inChunks', () => {
       expect(size).toBeLessThanOrEqual(100)
     }
     expect(chunkSizes.reduce((a, b) => a + b, 0)).toBe(250)
-    // concatenation preserves order and every item exactly once
+    // Concatenation preserves order and every item exactly once
     expect(result).toEqual(items)
   })
 

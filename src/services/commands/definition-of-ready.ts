@@ -1,7 +1,9 @@
-// Heuristic definition-of-ready check (PROJ-253/291, spec: docs/design/agentic-workflow.md
-// Phase 3). Deliberately a text heuristic over the existing body field, not a new
-// structured schema — the epic's own child issues are already written this way, and a
-// schema change would break every existing issue's readiness overnight.
+/*
+ * Heuristic definition-of-ready check (PROJ-253/291, spec: docs/design/agentic-workflow.md
+ * Phase 3). Deliberately a text heuristic over the existing body field, not a new
+ * structured schema — the epic's own child issues are already written this way, and a
+ * schema change would break every existing issue's readiness overnight.
+ */
 
 export interface ReadinessCheck {
   ready: boolean
@@ -17,8 +19,10 @@ function ci(source: string, flags: string): RegExp {
   return new RegExp(source, flags.includes('i') ? 'i' : '')
 }
 
-// PROJ-859: the per-label regexes are compiled once per label (and cached), not once
-// per line — this used to rebuild two RegExps for every line of every open issue.
+/*
+ * PROJ-859: the per-label regexes are compiled once per label (and cached), not once
+ * per line — this used to rebuild two RegExps for every line of every open issue.
+ */
 interface LabelMatchers {
   word: RegExp
   prefix: RegExp
@@ -55,8 +59,10 @@ function isLabelLine(line: string, m: LabelMatchers): boolean {
   return m.prefix.test(stripped)
 }
 
-// Non-empty content for `label`'s section: inline after a "Label:" or on a following
-// non-blank line before the next section boundary.
+/*
+ * Non-empty content for `label`'s section: inline after a "Label:" or on a following
+ * non-blank line before the next section boundary.
+ */
 function sectionHasContent(body: string, label: RegExp): boolean {
   const lines = body.split(/\r?\n/)
   const m = labelMatchers(label)
@@ -88,8 +94,10 @@ function sectionHasContent(body: string, label: RegExp): boolean {
   return false
 }
 
-// A path-shaped token inside an inline code span: contains a directory separator or a
-// filename.ext. A lone span like `true` no longer satisfies "scope/files" (PROJ-291).
+/*
+ * A path-shaped token inside an inline code span: contains a directory separator or a
+ * filename.ext. A lone span like `true` no longer satisfies "scope/files" (PROJ-291).
+ */
 function hasFilePathToken(body: string): boolean {
   const spans = body.match(/`[^`\n]+`/g)
   if (!spans) {

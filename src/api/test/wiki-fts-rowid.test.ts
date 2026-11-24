@@ -1,6 +1,8 @@
-// PROJ-816: wiki_fts rows are keyed by wiki_pages.search_rowid, so a page's re-index
-// deletes its FTS row by rowid (a direct lookup) rather than scanning the UNINDEXED
-// page_id column across every tenant's pages.
+/*
+ * PROJ-816: wiki_fts rows are keyed by wiki_pages.search_rowid, so a page's re-index
+ * deletes its FTS row by rowid (a direct lookup) rather than scanning the UNINDEXED
+ * page_id column across every tenant's pages.
+ */
 
 import { describe, expect, test } from 'vite-plus/test'
 
@@ -37,8 +39,10 @@ describe("PROJ-816: wiki_fts is keyed by the page's search_rowid", () => {
       'x',
       'y',
     )
-    // FTS5 reports its xBestIndex choice as "VIRTUAL TABLE INDEX <n>:<constraints>";
-    // a rowid-equality lookup carries an '=' constraint, the page_id filter none.
+    /*
+     * FTS5 reports its xBestIndex choice as "VIRTUAL TABLE INDEX <n>:<constraints>";
+     * a rowid-equality lookup carries an '=' constraint, the page_id filter none.
+     */
     expect(fullScan).toMatch(/VIRTUAL TABLE INDEX \d+:(\s|$|\|)/)
     expect(byRowid).toMatch(/VIRTUAL TABLE INDEX \d+:=/)
   })

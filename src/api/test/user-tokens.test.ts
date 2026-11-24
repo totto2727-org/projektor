@@ -128,8 +128,10 @@ describe('PROJ-91: workspace-scoped token regression', () => {
 // §4: Minting user-scoped tokens via POST /auth/tokens
 // ---------------------------------------------------------------------------
 
-// PROJ-903: minting happens from an interactive human session. In tests that's the
-// dev bypass: ENVIRONMENT=development + DEV_USER_EMAIL, no Authorization header.
+/*
+ * PROJ-903: minting happens from an interactive human session. In tests that's the
+ * dev bypass: ENVIRONMENT=development + DEV_USER_EMAIL, no Authorization header.
+ */
 async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
   const prev = env.DEV_USER_EMAIL
   env.DEV_USER_EMAIL = email

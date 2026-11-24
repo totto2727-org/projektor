@@ -1,5 +1,7 @@
-// PROJ-858: saving a page resolves its slug links in a fixed number of queries,
-// not 1–3 per link, and produces the same wiki_links rows as before.
+/*
+ * PROJ-858: saving a page resolves its slug links in a fixed number of queries,
+ * not 1–3 per link, and produces the same wiki_links rows as before.
+ */
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -45,7 +47,7 @@ describe('PROJ-858: batched slug link resolution on save', () => {
       ...Array.from({ length: 80 }, (_, i) => `[d${i}](/wiki/direct-${i})`),
       ...Array.from({ length: 40 }, (_, i) => `[r${i}](/wiki/old-${i})`),
       ...Array.from({ length: 80 }, (_, i) => `[m${i}](/wiki/missing-${i})`),
-      // duplicates must not create extra rows or queries
+      // Duplicates must not create extra rows or queries
       ...Array.from({ length: 30 }, () => '[again](/wiki/direct-0)'),
     ]
 
@@ -64,8 +66,10 @@ describe('PROJ-858: batched slug link resolution on save', () => {
     expect(res.status).toBe(201)
     vi.restoreAllMocks()
 
-    // Every read of wiki_pages / wiki_redirects during the save — slug checks, parent
-    // lookups and link resolution together. Per-link resolution made this ~300.
+    /*
+     * Every read of wiki_pages / wiki_redirects during the save — slug checks, parent
+     * lookups and link resolution together. Per-link resolution made this ~300.
+     */
     const wikiReads = sqls.filter((q) => /^select/i.test(q.trim()) && /from "?wiki_(pages|redirects)"?/i.test(q))
     expect(wikiReads.length).toBeLessThanOrEqual(12)
 

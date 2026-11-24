@@ -1,13 +1,15 @@
-// Saved views (PROJ-141, hardened in PROJ-208).
-//
-// A saved view is a named combination of issue-list filters. Entity-bearing
-// preferences are kept in user/workspace/project-scoped sessionStorage, never
-// localStorage, and are applied only through explicit canonical URL navigation.
-//
-// This module is the pure, testable core: capture the current filters into a
-// view, normalise/parse stored payloads defensively (older views may be missing
-// fields), apply a view back to filter state, and compare filters for the
-// "active view" indicator. The IssueList island wires these to component state.
+/*
+ * Saved views (PROJ-141, hardened in PROJ-208).
+ *
+ * A saved view is a named combination of issue-list filters. Entity-bearing
+ * preferences are kept in user/workspace/project-scoped sessionStorage, never
+ * localStorage, and are applied only through explicit canonical URL navigation.
+ *
+ * This module is the pure, testable core: capture the current filters into a
+ * view, normalise/parse stored payloads defensively (older views may be missing
+ * fields), apply a view back to filter state, and compare filters for the
+ * "active view" indicator. The IssueList island wires these to component state.
+ */
 
 export interface SavedViewFilters {
   statuses: string[]

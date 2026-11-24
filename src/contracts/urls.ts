@@ -22,10 +22,12 @@ export function wikiPagePath(slug: string): string {
   return `/wiki/${encodeURIComponent(slug)}`
 }
 
-// PROJ-510/PROJ-512: decodeURIComponent throws on a malformed percent-escape (e.g. a
-// bare "%" not followed by two hex digits). Callers that parse a slug out of a raw URL
-// or path segment (wiki-links.ts's extractWikiSlugFromUrl, index.ts's SSR fallback)
-// want "not decodable" treated as "no slug", not a crash.
+/*
+ * PROJ-510/PROJ-512: decodeURIComponent throws on a malformed percent-escape (e.g. a
+ * bare "%" not followed by two hex digits). Callers that parse a slug out of a raw URL
+ * or path segment (wiki-links.ts's extractWikiSlugFromUrl, index.ts's SSR fallback)
+ * want "not decodable" treated as "no slug", not a crash.
+ */
 export function safeDecodeURIComponent(raw: string): string | null {
   try {
     return decodeURIComponent(raw)

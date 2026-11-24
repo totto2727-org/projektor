@@ -4,10 +4,12 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-316: the fleet-coordination list surfaces (issue-leases, file-claims,
-// agents) must respect the same default-deny project visibility as issues — a
-// non-admin member with no grant on a project must not be able to enumerate its
-// issue IDs, file paths, or agent activity. Owner/admin bypass groups.
+/*
+ * PROJ-316: the fleet-coordination list surfaces (issue-leases, file-claims,
+ * agents) must respect the same default-deny project visibility as issues — a
+ * non-admin member with no grant on a project must not be able to enumerate its
+ * issue IDs, file paths, or agent activity. Owner/admin bypass groups.
+ */
 
 type ListResult = { items: Record<string, unknown>[] }
 
@@ -74,8 +76,10 @@ describe('PROJ-316 coordination data respects project visibility', () => {
     issueA = (await seedIssue(ws.workspace.id, projectA.id, ws.owner.user.id, { title: 'A' })).id
     issueB = (await seedIssue(ws.workspace.id, projectB.id, ws.owner.user.id, { title: 'B' })).id
 
-    // A live lease + agent on each issue, a file claim on each, and one agent
-    // pinned to no issue (workspace-level coordination).
+    /*
+     * A live lease + agent on each issue, a file claim on each, and one agent
+     * pinned to no issue (workspace-level coordination).
+     */
     await seedAgentLease(ws.workspace.id, issueA, { name: 'agent-A' })
     await seedAgentLease(ws.workspace.id, issueB, { name: 'agent-B' })
     await seedFileClaim(ws.workspace.id, issueA, 'a/only.ts')
@@ -118,7 +122,7 @@ describe('PROJ-316 coordination data respects project visibility', () => {
     const claims = await mcpList('list_file_claims', t, slug, ws.workspace.id)
     expect(claims.items).toHaveLength(0)
     const agents = await mcpList('list_active_agents', t, slug, ws.workspace.id)
-    // only the issue-less floating agent leaks nothing about a hidden project
+    // Only the issue-less floating agent leaks nothing about a hidden project
     expect(agents.items.map((a) => a.name)).toEqual(['floating'])
   })
 })

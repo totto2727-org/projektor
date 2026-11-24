@@ -1,13 +1,15 @@
-// PROJ-923: every foreign key declared with ON DELETE CASCADE / SET NULL must have
-// matching explicit cleanup in the app, because D1 does not guarantee FK actions
-// (PROJ-407, PROJ-918). This test parses root migrations/ for those FKs and checks
-// each against FK_CLEANUP_ALLOWLIST:
-//   - a new FK with no entry fails (add cleanup + an entry — see AGENTS.md);
-//   - a `cleanedBy` entry must point at code that exists and mentions the child table
-//     (snake_case or its drizzle camelCase name);
-//   - an entry for an FK that no longer exists fails (keep the list honest).
-//
-// Runs in node (reads source off disk) — hence the .node.test.ts suffix.
+/*
+ * PROJ-923: every foreign key declared with ON DELETE CASCADE / SET NULL must have
+ * matching explicit cleanup in the app, because D1 does not guarantee FK actions
+ * (PROJ-407, PROJ-918). This test parses root migrations/ for those FKs and checks
+ * each against FK_CLEANUP_ALLOWLIST:
+ *   - a new FK with no entry fails (add cleanup + an entry — see AGENTS.md);
+ *   - a `cleanedBy` entry must point at code that exists and mentions the child table
+ *     (snake_case or its drizzle camelCase name);
+ *   - an entry for an FK that no longer exists fails (keep the list honest).
+ *
+ * Runs in node (reads source off disk) — hence the .node.test.ts suffix.
+ */
 
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -40,8 +42,10 @@ function declaredFkActions(): Set<string> {
   return keys
 }
 
-// The source text of a top-level declaration (function or const): from its declaration
-// line up to the next top-level declaration.
+/*
+ * The source text of a top-level declaration (function or const): from its declaration
+ * line up to the next top-level declaration.
+ */
 function declarationSource(ref: string): string | null {
   const [file, name] = ref.split('#')
   let text: string

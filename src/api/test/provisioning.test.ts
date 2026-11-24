@@ -11,9 +11,11 @@ import type { Env } from '#types'
 import { env } from './fixture-api.ts'
 import { seedMember, seedUser, seedWorkspace } from './helpers.ts'
 
-// PROJ-433: provisioning short-circuits on a cached marker, which is module state and
-// outlives an individual test. Clear it between cases, or a test asserting on
-// provisioning's writes could be reading the previous test's.
+/*
+ * PROJ-433: provisioning short-circuits on a cached marker, which is module state and
+ * outlives an individual test. Clear it between cases, or a test asserting on
+ * provisioning's writes could be reading the previous test's.
+ */
 beforeEach(resetProvisioningCacheForTests)
 
 // ensureUserProvisioned reads its config from the Env it's handed, so each test builds an
@@ -223,9 +225,11 @@ describe('login provisioning', () => {
   })
 })
 
-// PROJ-436: removeMember tombstones the removal (provisioning_removals); provisioning must
-// respect it across all three re-add paths, without affecting workspaces the user wasn't
-// removed from.
+/*
+ * PROJ-436: removeMember tombstones the removal (provisioning_removals); provisioning must
+ * respect it across all three re-add paths, without affecting workspaces the user wasn't
+ * removed from.
+ */
 describe('PROJ-436: removal tombstone', () => {
   test('a tombstoned admin is not re-owned of that workspace, but still owns others', async () => {
     const removedFrom = await seedWorkspace('prov-436-admin-removed')
@@ -283,10 +287,12 @@ describe('PROJ-436: removal tombstone', () => {
   })
 })
 
-// PROJ-433: provisioning used to run in full on every authenticated request. It now runs
-// once per user per TTL. There's no query counter to assert against here, so these prove
-// the short-circuit the way it's actually observable: delete what provisioning wrote, call
-// again, and see whether it comes back.
+/*
+ * PROJ-433: provisioning used to run in full on every authenticated request. It now runs
+ * once per user per TTL. There's no query counter to assert against here, so these prove
+ * the short-circuit the way it's actually observable: delete what provisioning wrote, call
+ * again, and see whether it comes back.
+ */
 describe('PROJ-433: provisioning runs once per user, not per request', () => {
   async function dropMembership(workspaceId: string, userId: string) {
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
@@ -357,7 +363,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
     expect(await memberRole(ws.id, user.id)).toBe('viewer')
   })
 
-  // yet — that user would then stay unprovisioned for the whole TTL after bootstrap.
+  // Yet — that user would then stay unprovisioned for the whole TTL after bootstrap.
   test('does not cache a run that bailed waiting for the default workspace', async () => {
     const slug = 'prov-cache-early-bird'
     const user = await seedUser('cache-early-bird@example.com')
@@ -419,17 +425,21 @@ describe('PROJ-433: provisioning query count', () => {
       DEFAULT_WORKSPACE_SLUG: slug,
     })
 
-    // An admin owns *every* workspace, and this suite's D1 is shared, so the first run
-    // legitimately writes a membership for each one. Measure the steady state after that:
-    // same admin, same workspaces, nothing left to do.
+    /*
+     * An admin owns *every* workspace, and this suite's D1 is shared, so the first run
+     * legitimately writes a membership for each one. Measure the steady state after that:
+     * same admin, same workspaces, nothing left to do.
+     */
     await ensureUserProvisioned(config, admin)
     await forgetProvisionedForTests(config, admin.id)
 
     const { counts, proxy } = countingDb(env.DB)
     await ensureUserProvisioned(envWith({ ...config, DB: proxy }), admin)
 
-    // One joined read of every workspace plus this admin's role in each. Previously it
-    // was a workspace-list read plus a membership SELECT per workspace — dozens here.
+    /*
+     * One joined read of every workspace plus this admin's role in each. Previously it
+     * was a workspace-list read plus a membership SELECT per workspace — dozens here.
+     */
     expect(counts.prepare).toBe(1)
   })
 
@@ -451,9 +461,11 @@ describe('PROJ-433: provisioning query count', () => {
   })
 })
 
-// PROJ-373: the anonymous public-viewer's workspace membership, provisioned by
-// middleware/auth.ts's PUBLIC_READ_ONLY path. HTTP-level behavior (auth fallback
-// order, 401 when off) is covered in auth.test.ts.
+/*
+ * PROJ-373: the anonymous public-viewer's workspace membership, provisioned by
+ * middleware/auth.ts's PUBLIC_READ_ONLY path. HTTP-level behavior (auth fallback
+ * order, 401 when off) is covered in auth.test.ts.
+ */
 describe('public viewer provisioning (PROJ-373)', () => {
   test('joins the default workspace as viewer', async () => {
     const slug = 'prov-public-viewer'

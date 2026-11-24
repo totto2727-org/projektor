@@ -1,5 +1,7 @@
-// PROJ-859: get_prioritized_issues ranks in SQL. Parity with the previous in-memory
-// algorithm (reimplemented below as the reference) and a bounded query count.
+/*
+ * PROJ-859: get_prioritized_issues ranks in SQL. Parity with the previous in-memory
+ * algorithm (reimplemented below as the reference) and a bounded query count.
+ */
 
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -87,8 +89,10 @@ async function seedWorkspaceWithIssues(n: number) {
   return { ctx }
 }
 
-// The pre-PROJ-859 algorithm: load every open issue, score in memory, stable-sort,
-// then apply the definition-of-ready gate. Ties resolve in insertion (rowid) order.
+/*
+ * The pre-PROJ-859 algorithm: load every open issue, score in memory, stable-sort,
+ * then apply the definition-of-ready gate. Ties resolve in insertion (rowid) order.
+ */
 async function reference(ctx: ServiceCtx, includeBacklog: boolean) {
   const { results: open } = await env.DB.prepare(
     `SELECT id, priority, body, rowid AS rid FROM issues
@@ -194,9 +198,11 @@ describe('PROJ-859: bounded query count', () => {
   })
 })
 
-// PROJ-920: the MCP argument validator lets through the string forms the services coerce
-// ("false", "5"), so get_prioritized_issues must read them the same way — not treat the
-// string "false" as true.
+/*
+ * PROJ-920: the MCP argument validator lets through the string forms the services coerce
+ * ("false", "5"), so get_prioritized_issues must read them the same way — not treat the
+ * string "false" as true.
+ */
 describe('PROJ-920: string flags and limit are coerced like BooleanQueryParam / z.coerce', () => {
   test('includeBacklog: "false" and limit: "3" behave like false and 3', async () => {
     const { ctx } = await seedWorkspaceWithIssues(40)

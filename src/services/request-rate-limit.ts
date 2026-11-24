@@ -17,9 +17,11 @@ export type RequestRateLimitEnv = Pick<
   | 'RATE_LIMIT_TEST_NOW_MS'
 >
 
-// Fixed-window policy shared by API requests and browser commands. Both adapters must
-// supply the same RATE_LIMITER namespace, not a worker-specific counter namespace.
-// Defaults: 300 IP-keyed requests, 600 bearer-keyed requests, per 60-second window.
+/*
+ * Fixed-window policy shared by API requests and browser commands. Both adapters must
+ * supply the same RATE_LIMITER namespace, not a worker-specific counter namespace.
+ * Defaults: 300 IP-keyed requests, 600 bearer-keyed requests, per 60-second window.
+ */
 export async function checkRateLimit(
   request: Request,
   env: RequestRateLimitEnv,
@@ -61,8 +63,10 @@ export async function checkRateLimit(
   return undefined
 }
 
-// PROJ-658: token rotation must not refresh an OAuth grant's budget. The random
-// grant id, rather than the guessable user id alone, prevents naming another bucket.
+/*
+ * PROJ-658: token rotation must not refresh an OAuth grant's budget. The random
+ * grant id, rather than the guessable user id alone, prevents naming another bucket.
+ */
 function oauthGrantKey(token: string): string | null {
   const parts = token.split(':')
   if (parts.length !== 3 || !parts[0] || !parts[1]) {
@@ -126,8 +130,10 @@ async function incrementCounter(
 }
 
 async function incrementD1Counter(db: D1Database, key: string, slot: number, windowSecs: number): Promise<number> {
-  // PROJ-432: one transactional batch, with a SELECT because local D1 may not
-  // reliably return DML RETURNING values. Same slot increments, rollover resets.
+  /*
+   * PROJ-432: one transactional batch, with a SELECT because local D1 may not
+   * reliably return DML RETURNING values. Same slot increments, rollover resets.
+   */
   const statements = [
     db
       .prepare(`

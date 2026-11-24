@@ -289,11 +289,13 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
   })
 })
 
-// ---------------------------------------------------------------------------
-// PROJ-79 §2b: CF Access JWT — HTTP-level rejection paths
-// These tests go through fetchNativeApi to verify the middleware rejects early
-// without requiring the JWKS fetch path (network or KV).
-// ---------------------------------------------------------------------------
+/*
+ * ---------------------------------------------------------------------------
+ * PROJ-79 §2b: CF Access JWT — HTTP-level rejection paths
+ * These tests go through fetchNativeApi to verify the middleware rejects early
+ * without requiring the JWKS fetch path (network or KV).
+ * ---------------------------------------------------------------------------
+ */
 
 describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
   test('malformed Cf-Access-Jwt-Assertion header returns 401', async () => {
@@ -317,7 +319,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
   })
 
   test('JWT with non-RS256 alg header returns 401', async () => {
-    // header: {"alg":"HS256"}, payload: {"exp": far-future, "email":"x"}, bogus sig
+    // Header: {"alg":"HS256"}, payload: {"exp": far-future, "email":"x"}, bogus sig
     const header = btoa(JSON.stringify({ alg: 'HS256' }))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
@@ -381,12 +383,14 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// PROJ-354: isolate-local auth caches survive KV backing-store loss
-// (getCfAccessKeys / upsertUserByEmail are memoized per-isolate so most
-// requests never touch KV at all — this proves the local cache, not just KV,
-// is what's serving the second request).
-// ---------------------------------------------------------------------------
+/*
+ * ---------------------------------------------------------------------------
+ * PROJ-354: isolate-local auth caches survive KV backing-store loss
+ * (getCfAccessKeys / upsertUserByEmail are memoized per-isolate so most
+ * requests never touch KV at all — this proves the local cache, not just KV,
+ * is what's serving the second request).
+ * ---------------------------------------------------------------------------
+ */
 
 describe('PROJ-354: CF Access auth caches are isolate-local', () => {
   test('second CF Access login succeeds after both KV cache entries are deleted', async () => {
@@ -429,11 +433,13 @@ describe('PROJ-354: CF Access auth caches are isolate-local', () => {
     const firstBody = (await first.json()) as { user: { id: string; email: string } }
     expect(firstBody.user.email).toBe(email)
 
-    // Delete both KV entries the first request would have populated. If the
-    // second request only relied on KV, it would now have to re-fetch the
-    // JWKS over the network (which fails in this test env) and re-run the
-    // D1 upsert path from scratch — it should instead be served entirely
-    // from the isolate-local caches.
+    /*
+     * Delete both KV entries the first request would have populated. If the
+     * second request only relied on KV, it would now have to re-fetch the
+     * JWKS over the network (which fails in this test env) and re-run the
+     * D1 upsert path from scratch — it should instead be served entirely
+     * from the isolate-local caches.
+     */
     await env.KV.delete('cf-access-certs')
     await env.KV.delete(`user-by-email:${email}`)
 
@@ -529,9 +535,11 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
         ['sign', 'verify'],
       ) as Promise<CryptoKeyPair>
 
-    // `otherKeyPair` is never returned by the Core network fixture, so a token signed
-    // with it never matches whatever the cache holds — used for the
-    // cooldown assertion without needing a second real refresh.
+    /*
+     * `otherKeyPair` is never returned by the Core network fixture, so a token signed
+     * with it never matches whatever the cache holds — used for the
+     * cooldown assertion without needing a second real refresh.
+     */
     const currentKeyPair = await genKeyPair()
     const otherKeyPair = await genKeyPair()
     const currentPublicJwk = (await crypto.subtle.exportKey('jwk', currentKeyPair.publicKey)) as JsonWebKey
@@ -546,14 +554,18 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
 
     await resetCoreAuthCaches()
     await resetCoreObservations()
-    // A real but stale signing key makes the initial verification fail, so
-    // success requires the production force-refresh path rather than a cold fetch.
+    /*
+     * A real but stale signing key makes the initial verification fail, so
+     * success requires the production force-refresh path rather than a cold fetch.
+     */
     await env.KV.put('cf-access-certs', JSON.stringify([await crypto.subtle.exportKey('jwk', otherKeyPair.publicKey)]))
     await configureCore({ FIXTURE_JWKS_BODY: JSON.stringify({ keys: [currentPublicJwk] }) })
 
     try {
-      // The pre-seeded stale key cannot verify this token. Core must fetch the
-      // current keys and retry the real signature verification.
+      /*
+       * The pre-seeded stale key cannot verify this token. Core must fetch the
+       * current keys and retry the real signature verification.
+       */
       const currentJwt = await signTestJwt(currentKeyPair.privateKey, {
         exp: now + 3600,
         aud: audience,
@@ -566,9 +578,11 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
       expect(rotated.status).toBe(200)
       expect((await getCoreObservations()).jwksFetches).toHaveLength(1)
 
-      // The cache now holds only currentPublicJwk, so a token signed by an
-      // unrelated key still doesn't verify — but the forced refresh above
-      // happened moments ago, so the cooldown should block a second fetch.
+      /*
+       * The cache now holds only currentPublicJwk, so a token signed by an
+       * unrelated key still doesn't verify — but the forced refresh above
+       * happened moments ago, so the cooldown should block a second fetch.
+       */
       const badJwt = await signTestJwt(otherKeyPair.privateKey, {
         exp: now + 3600,
         aud: audience,
@@ -834,10 +848,12 @@ describe('PROJ-274: read-scoped token is denied write on every request', () => {
     expect(res.status).toBe(403)
   })
 
-  // PROJ-432 folded the workspace lookup and the membership lookup into one LEFT JOIN.
-  // The two failure modes it has to keep apart: no row at all is a workspace that doesn't
-  // exist (404, covered above), a row with no membership is a non-member (403 — this).
-  // Collapsing them would leak workspace existence, or hide it from legitimate members.
+  /*
+   * PROJ-432 folded the workspace lookup and the membership lookup into one LEFT JOIN.
+   * The two failure modes it has to keep apart: no row at all is a workspace that doesn't
+   * exist (404, covered above), a row with no membership is a non-member (403 — this).
+   * Collapsing them would leak workspace existence, or hide it from legitimate members.
+   */
   test('an existing workspace the caller is not a member of returns 403, not 404', async () => {
     const fixture = await seedFixture()
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
@@ -860,9 +876,11 @@ describe('PROJ-660: dev bypass and /mcp/', () => {
     env.DEV_USER_EMAIL = ''
   })
 
-  // A remote MCP client only learns it needs a credential from the 401 and the
-  // challenge on it. If the bypass answered here the server would be claiming it
-  // wants no credential at all, and no connector flow could ever start.
+  /*
+   * A remote MCP client only learns it needs a credential from the 401 and the
+   * challenge on it. If the bypass answered here the server would be claiming it
+   * wants no credential at all, and no connector flow could ever start.
+   */
   test('still 401s with the RFC 9728 challenge when DEV_USER_EMAIL is set', async () => {
     const ws = await seedWorkspace()
     env.DEV_USER_EMAIL = 'dev@projektor.dev'
@@ -892,9 +910,11 @@ describe('PROJ-660: dev bypass and /mcp/', () => {
 // ---------------------------------------------------------------------------
 
 describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
-  // Every test in this block flips PUBLIC_READ_ONLY/DEFAULT_WORKSPACE_SLUG on the shared
-  // worker env — reset them so later describe blocks (which assume the defaults) don't
-  // see an anonymous viewer where they expect a 401.
+  /*
+   * Every test in this block flips PUBLIC_READ_ONLY/DEFAULT_WORKSPACE_SLUG on the shared
+   * worker env — reset them so later describe blocks (which assume the defaults) don't
+   * see an anonymous viewer where they expect a 401.
+   */
   afterEach(() => {
     env.PUBLIC_READ_ONLY = undefined
     env.DEFAULT_WORKSPACE_SLUG = 'projektor'
@@ -1127,8 +1147,10 @@ describe('PROJ-79: DELETE /auth/tokens/:id', () => {
   })
 
   test("cannot delete another user's token (silently no-ops, returns ok)", async () => {
-    // The DELETE handler scopes by user_id, so deleting another user's token
-    // silently succeeds (no row deleted). This is the current behaviour — confirmed here.
+    /*
+     * The DELETE handler scopes by user_id, so deleting another user's token
+     * silently succeeds (no row deleted). This is the current behaviour — confirmed here.
+     */
     const alice = await seedFixture()
     const bob = await seedFixture()
 
@@ -1331,13 +1353,15 @@ describe('PROJ-79: MCP protocol validation', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// PROJ-430: an auth *infrastructure* failure (the JWKS endpoint unreachable)
-// must not masquerade as a session problem. The frontend reloads the page to
-// re-authenticate on a 401 (PROJ-427), so answering a certs-fetch failure with
-// a 401 sends the client off to re-login for something re-login cannot fix.
-// It must also not be a bare, unlogged 500.
-// ---------------------------------------------------------------------------
+/*
+ * ---------------------------------------------------------------------------
+ * PROJ-430: an auth *infrastructure* failure (the JWKS endpoint unreachable)
+ * must not masquerade as a session problem. The frontend reloads the page to
+ * re-authenticate on a 401 (PROJ-427), so answering a certs-fetch failure with
+ * a 401 sends the client off to re-login for something re-login cannot fix.
+ * It must also not be a bare, unlogged 500.
+ * ---------------------------------------------------------------------------
+ */
 
 describe('PROJ-430: CF Access certs fetch failure', () => {
   test('returns 503, not 401 or 500, when the JWKS endpoint is unreachable', async () => {

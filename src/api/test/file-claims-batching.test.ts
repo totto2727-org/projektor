@@ -1,10 +1,12 @@
-// PROJ-864: claim_files/release_files batch their per-path writes into a constant number
-// of db.batch() calls instead of issuing 1-2+ D1 round trips per path (100 paths measured
-// at 209 queries before this fix). This test proves it two ways: a direct round-trip count
-// (proxying the shared command's native D1 fixture so a standalone execution counts once,
-// and a whole db.batch() call counts once) plus a separate native REST behavioural check.
-// Query budgets cover shared domain work, not private Core authentication overhead.
-// Conflict/force/stale semantics remain asserted at 100-path scale.
+/*
+ * PROJ-864: claim_files/release_files batch their per-path writes into a constant number
+ * of db.batch() calls instead of issuing 1-2+ D1 round trips per path (100 paths measured
+ * at 209 queries before this fix). This test proves it two ways: a direct round-trip count
+ * (proxying the shared command's native D1 fixture so a standalone execution counts once,
+ * and a whole db.batch() call counts once) plus a separate native REST behavioural check.
+ * Query budgets cover shared domain work, not private Core authentication overhead.
+ * Conflict/force/stale semantics remain asserted at 100-path scale.
+ */
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
@@ -187,8 +189,10 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
         .first<{ n: number }>()
       expect(fresh?.n).toBe(0)
 
-      // The stale claim was still reclaimed even though the overall request was rejected —
-      // documented pre-existing behaviour (reclaim happens before conflict evaluation).
+      /*
+       * The stale claim was still reclaimed even though the overall request was rejected —
+       * documented pre-existing behaviour (reclaim happens before conflict evaluation).
+       */
       const staleRow = await env.DB.prepare('SELECT release_reason FROM issue_file_claims WHERE path = ?')
         .bind('src/rstale-0.ts')
         .first<{ release_reason: string | null }>()
@@ -204,8 +208,10 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
     },
   )
 
-  // Native REST preserves observable behavior. The paired command case measures
-  // actual D1 calls because public-isolate spies cannot observe private Core execution.
+  /*
+   * Native REST preserves observable behavior. The paired command case measures
+   * actual D1 calls because public-isolate spies cannot observe private Core execution.
+   */
   test.each(['native REST', 'shared command'] as const)('releasing 100 claimed paths, %s', async (boundary) => {
     const { token, slug, issueId, workspaceId, userId } = await seedIssueFixture()
     const paths = Array.from({ length: 100 }, (_, i) => `src/release-${i}.ts`)
@@ -251,12 +257,14 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
     })
     expect(claimRes.status).toBe(201)
 
-    // Native REST creation above remains an observable integration check. Inject this
-    // deterministic race at the shared command boundary: public-isolate spies cannot
-    // modify the private Core Worker's DB methods across the service binding.
-    // Simulate another request releasing one claim between releaseFiles' read and its
-    // write batch. Armed when the release UPDATE is prepared (i.e. after the read), so
-    // the auth middleware's own batch() calls earlier in the request don't trigger it.
+    /*
+     * Native REST creation above remains an observable integration check. Inject this
+     * deterministic race at the shared command boundary: public-isolate spies cannot
+     * modify the private Core Worker's DB methods across the service binding.
+     * Simulate another request releasing one claim between releaseFiles' read and its
+     * write batch. Armed when the release UPDATE is prepared (i.e. after the read), so
+     * the auth middleware's own batch() calls earlier in the request don't trigger it.
+     */
     const origPrepare = env.DB.prepare.bind(env.DB)
     const origBatch = env.DB.batch.bind(env.DB)
     let armed = false

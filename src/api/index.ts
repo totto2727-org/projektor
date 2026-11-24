@@ -246,8 +246,10 @@ export async function scheduled(_controller: ScheduledController, env: ApiEnv, c
   ctx.waitUntil(Effect.runPromise(decodeCoreReply(Schema.Null, makeCoreClient(env.CORE).apiMaintenance())))
 }
 
-// Only provider-shaped OAuth credentials enter the provider. Browser Access,
-// opaque tokens, development identity, and public viewer retain their precedence.
+/*
+ * Only provider-shaped OAuth credentials enter the provider. Browser Access,
+ * opaque tokens, development identity, and public viewer retain their precedence.
+ */
 const oauthProvider = createOAuthProvider(app as unknown as ExportedHandler<ApiEnv>)
 // oxlint-disable-next-line import/no-default-export -- Cloudflare Workers loads the API fetch and scheduled handlers from the default export.
 export default {

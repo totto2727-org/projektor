@@ -70,14 +70,18 @@ describe('MCP endpoint', () => {
       serverInfo: { name: string; version: string }
       instructions: string
     }>
-    // "2025-11-25" is the latest *legacy* protocol version (initialize handshake).
-    // "2026-07-28" denotes the modern per-request `_meta` era, which has no
-    // initialize method — claiming it here while still running the legacy
-    // handshake would misrepresent what this server actually implements.
+    /*
+     * "2025-11-25" is the latest *legacy* protocol version (initialize handshake).
+     * "2026-07-28" denotes the modern per-request `_meta` era, which has no
+     * initialize method — claiming it here while still running the legacy
+     * handshake would misrepresent what this server actually implements.
+     */
     expect(res.result.protocolVersion).toBe('2025-11-25')
     expect(res.result.serverInfo.name).toBe('projektor')
-    // __PROJEKTOR_VERSION__ is only injected by the release build (scripts/build-release.sh);
-    // tests run without that define, so the fallback applies.
+    /*
+     * __PROJEKTOR_VERSION__ is only injected by the release build (scripts/build-release.sh);
+     * tests run without that define, so the fallback applies.
+     */
     expect(res.result.serverInfo.version).toBe('dev')
     // Instructions point at the canonical workflow spec rather than restating rules (PROJ-251).
     expect(res.result.instructions).toContain('get_workflow')
@@ -95,10 +99,12 @@ describe('MCP endpoint', () => {
   })
 
   test('calls tools/list directly with no prior initialize and no session header (PROJ-452)', async () => {
-    // The 2026-07-28 spec drops the initialize/initialized handshake and
-    // Mcp-Session-Id requirement; this asserts projektor never depended on
-    // either in the first place — a fresh request with no session state
-    // attached succeeds identically to one preceded by `initialize`.
+    /*
+     * The 2026-07-28 spec drops the initialize/initialized handshake and
+     * Mcp-Session-Id requirement; this asserts projektor never depended on
+     * either in the first place — a fresh request with no session state
+     * attached succeeds identically to one preceded by `initialize`.
+     */
     const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
@@ -254,8 +260,10 @@ describe('MCP endpoint', () => {
     expect(err?.hint).toContain('title')
   })
 
-  // A ServiceError with no structured `details` (e.g. a plain not-found)
-  // still omits `details` entirely rather than sending it as null.
+  /*
+   * A ServiceError with no structured `details` (e.g. a plain not-found)
+   * still omits `details` entirely rather than sending it as null.
+   */
   test('tools/call error without structured details omits details', async () => {
     const res = await mcpCall(
       workspaceId,
@@ -761,7 +769,7 @@ describe('MCP endpoint', () => {
       priority: 'none',
     })
 
-    // target is blocked by blocker → target gets in-degree 1
+    // Target is blocked by blocker → target gets in-degree 1
     await fetchNativeApi(`http://localhost/api/issues/${blocker.id}/links`, {
       method: 'POST',
       headers,

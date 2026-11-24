@@ -1,6 +1,8 @@
-// PROJ-849: project tiles show "N open · M backlog" instead of a single (broken)
-// total-issue count, and issues.status_category stays in sync with a status's
-// category on every write path that can change it.
+/*
+ * PROJ-849: project tiles show "N open · M backlog" instead of a single (broken)
+ * total-issue count, and issues.status_category stays in sync with a status's
+ * category on every write path that can change it.
+ */
 import { describe, expect, test } from 'vite-plus/test'
 
 import { listProjectsAcrossWorkspaces } from '#commands/projects.ts'
@@ -26,12 +28,12 @@ describe('listProjectsAcrossWorkspaces: open vs backlog counts (PROJ-849)', () =
     await seedMember(ws.id, user.id, 'owner')
     const project = await seedProject(ws.id, 'TILE')
 
-    // done and cancelled: excluded from open.
+    // Done and cancelled: excluded from open.
     await seedIssue(ws.id, project.id, user.id, { status: 'done' })
     await seedIssue(ws.id, project.id, user.id, { status: 'cancelled' })
-    // backlog: open, and also counted as backlog.
+    // Backlog: open, and also counted as backlog.
     await seedIssue(ws.id, project.id, user.id, { status: 'backlog' })
-    // todo and in_progress: open, not backlog.
+    // Todo and in_progress: open, not backlog.
     await seedIssue(ws.id, project.id, user.id, { status: 'todo' })
     await seedIssue(ws.id, project.id, user.id, { status: 'in_progress' })
     // empty-category (no status_id, a custom legacy key that isn't done/cancelled/backlog):
@@ -100,13 +102,17 @@ describe('migration 0066: repairs drifted status_category (PROJ-849)', () => {
       status: status.key,
       statusId: status.id,
     })
-    // Simulate drift: the status's category changed underneath the issue without a
-    // re-sync (the bug this migration repairs).
+    /*
+     * Simulate drift: the status's category changed underneath the issue without a
+     * re-sync (the bug this migration repairs).
+     */
     await env.DB.prepare("UPDATE issues SET status_category = 'todo' WHERE id = ?").bind(issue.id).run()
 
-    // A status of the same key/id exists in another workspace with a different
-    // category — the repair must not cross workspaces even though status_id alone
-    // would match it.
+    /*
+     * A status of the same key/id exists in another workspace with a different
+     * category — the repair must not cross workspaces even though status_id alone
+     * would match it.
+     */
     const crossWsStatus = await seedTaskStatus(otherWs.id, {
       key: 'unrelated',
       category: 'cancelled',

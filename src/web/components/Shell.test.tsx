@@ -193,8 +193,10 @@ describe('generated Base UI Shell', () => {
     expect(dialog.getAttribute('data-mobile')).toBe('true')
     const link = screen.getByRole('link', { name: 'My Issues' })
     expect(link.getAttribute('href')).toBe('/my-issues?workspace=team')
-    // jsdom cannot perform native document navigation. Only suppress its default navigation,
-    // leaving the real generated Sheet and the Shell's close-on-navigation handler intact.
+    /*
+     * Jsdom cannot perform native document navigation. Only suppress its default navigation,
+     * leaving the real generated Sheet and the Shell's close-on-navigation handler intact.
+     */
     link.addEventListener('click', (event) => event.preventDefault())
     fireEvent.click(link)
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sidebar' })).toBeNull())

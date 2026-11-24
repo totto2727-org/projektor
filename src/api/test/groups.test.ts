@@ -116,7 +116,7 @@ describe('Groups REST', () => {
 
   test('add/remove members and reject non-workspace members', async () => {
     const gid = await createGroup('Team')
-    // add the workspace member
+    // Add the workspace member
     const add = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -124,7 +124,7 @@ describe('Groups REST', () => {
     })
     expect(add.status).toBe(201)
 
-    // a user who is not a workspace member cannot be added
+    // A user who is not a workspace member cannot be added
     const outsider = await seedUser(`outsider-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const bad = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
       method: 'POST',
@@ -158,7 +158,7 @@ describe('Groups REST', () => {
     })
     expect(set.status).toBe(200)
 
-    // upsert to a stronger role
+    // Upsert to a stronger role
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
       method: 'PUT',
       headers: ownerHeaders,

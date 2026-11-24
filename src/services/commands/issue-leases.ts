@@ -10,15 +10,19 @@ import { resolveVisibleProjectIdParam } from './projects.ts'
 import { broadcastWorkspaceEvent } from './realtime.ts'
 import type { ServiceCtx } from './types.ts'
 
-// Mirrors ACTIVE_TTL in services/agents.ts: a session (and therefore its leases)
-// is live only while it has heartbeat within this window. Kept local to avoid a
-// circular import (agents.ts already imports releaseLeasesForAgent from here).
+/*
+ * Mirrors ACTIVE_TTL in services/agents.ts: a session (and therefore its leases)
+ * is live only while it has heartbeat within this window. Kept local to avoid a
+ * circular import (agents.ts already imports releaseLeasesForAgent from here).
+ */
 export const SESSION_TTL_SECONDS = 120
 
 const liveCutoff = () => Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
 
-// PROJ-253: per-project agent WIP cap, used when a project doesn't set its own
-// projects.agent_wip_limit.
+/*
+ * PROJ-253: per-project agent WIP cap, used when a project doesn't set its own
+ * projects.agent_wip_limit.
+ */
 const DEFAULT_AGENT_WIP_LIMIT = 3
 
 // The project's agent WIP cap (its own agent_wip_limit, else the default).
@@ -35,8 +39,10 @@ export async function fetchAgentWipCap(
   return project?.agentWipLimit ?? DEFAULT_AGENT_WIP_LIMIT
 }
 
-// The issue ids currently held by a live lease in this project — only used to build
-// a helpful error when a claim is rejected for hitting the cap.
+/*
+ * The issue ids currently held by a live lease in this project — only used to build
+ * a helpful error when a claim is rejected for hitting the cap.
+ */
 async function liveLeaseHoldersForProject(
   orm: ReturnType<typeof drizzle>,
   ctx: ServiceCtx,
@@ -86,15 +92,17 @@ async function assertAgentSessionLive(
   }
 }
 
-// PROJ-929: a call that carries a live agentId implicitly refreshes that session's
-// heartbeat, so explicit heartbeat_agent calls become optional during a claim loop.
-// Safe to call unconditionally at its one call site below: that call only happens after
-// assertAgentSessionLive already confirmed this session is live, so this can't revive a
-// crashed agent's session the way an unconditional touch in claimFiles could (see
-// touchAgentHeartbeatIfLive there, which guards it explicitly for that reason).
-// Local rather than imported from services/agents.ts for the same reason
-// SESSION_TTL_SECONDS is duplicated below: agents.ts already imports from this file
-// (releaseLeasesForAgent), so importing back would cycle.
+/*
+ * PROJ-929: a call that carries a live agentId implicitly refreshes that session's
+ * heartbeat, so explicit heartbeat_agent calls become optional during a claim loop.
+ * Safe to call unconditionally at its one call site below: that call only happens after
+ * assertAgentSessionLive already confirmed this session is live, so this can't revive a
+ * crashed agent's session the way an unconditional touch in claimFiles could (see
+ * touchAgentHeartbeatIfLive there, which guards it explicitly for that reason).
+ * Local rather than imported from services/agents.ts for the same reason
+ * SESSION_TTL_SECONDS is duplicated below: agents.ts already imports from this file
+ * (releaseLeasesForAgent), so importing back would cycle.
+ */
 async function touchAgentHeartbeat(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, agentId: string): Promise<void> {
   await orm
     .update(schema.agentSessions)
@@ -108,13 +116,15 @@ async function touchAgentHeartbeat(orm: ReturnType<typeof drizzle>, ctx: Service
     )
 }
 
-// PROJ-929: statement-builder twin of touchAgentHeartbeat above, for callers (e.g.
-// updateIssue) that need it folded into their own ctx.db.batch() rather than executed
-// on its own — same PROJ-870 convention as buildReleaseLeaseForClosedIssueStatement.
-// Gated on status='active' AND heartbeat > cutoff (not just active) so it's a no-op for
-// an already-stale session, same reasoning as touchAgentHeartbeatIfLive in
-// file-claims.ts: the caller here has NOT already confirmed liveness the way
-// claimIssue's touchAgentHeartbeat call site has, so the guard must be explicit.
+/*
+ * PROJ-929: statement-builder twin of touchAgentHeartbeat above, for callers (e.g.
+ * updateIssue) that need it folded into their own ctx.db.batch() rather than executed
+ * on its own — same PROJ-870 convention as buildReleaseLeaseForClosedIssueStatement.
+ * Gated on status='active' AND heartbeat > cutoff (not just active) so it's a no-op for
+ * an already-stale session, same reasoning as touchAgentHeartbeatIfLive in
+ * file-claims.ts: the caller here has NOT already confirmed liveness the way
+ * claimIssue's touchAgentHeartbeat call site has, so the guard must be explicit.
+ */
 export function buildTouchAgentHeartbeatIfLiveStatement(ctx: ServiceCtx, agentSessionId: string): D1PreparedStatement {
   const orm = drizzle(ctx.db, { schema })
   const query = orm
@@ -132,8 +142,10 @@ export function buildTouchAgentHeartbeatIfLiveStatement(ctx: ServiceCtx, agentSe
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
-// Is there already an active lease on this issue? Join the session to decide
-// whether it's a live conflict or a stale lease we can reclaim.
+/*
+ * Is there already an active lease on this issue? Join the session to decide
+ * whether it's a live conflict or a stale lease we can reclaim.
+ */
 async function reclaimStaleLeaseOrThrow(
   orm: ReturnType<typeof drizzle>,
   ctx: ServiceCtx,
@@ -200,10 +212,12 @@ export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
   const cutoff = liveCutoff()
 
   await assertAgentSessionLive(orm, ctx, agentId, cutoff)
-  // PROJ-929: this call carries a live agentId, so it refreshes the session's heartbeat
-  // (see touchAgentHeartbeat) — done even if the claim itself is later rejected below,
-  // since the agent proved itself live regardless of whether this particular issue was
-  // available.
+  /*
+   * PROJ-929: this call carries a live agentId, so it refreshes the session's heartbeat
+   * (see touchAgentHeartbeat) — done even if the claim itself is later rejected below,
+   * since the agent proved itself live regardless of whether this particular issue was
+   * available.
+   */
   await touchAgentHeartbeat(orm, ctx, agentId)
   const cap = await fetchAgentWipCap(orm, ctx, projectId)
 
@@ -228,8 +242,10 @@ export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
       .bind(id, ctx.workspaceId, issueId, agentId, now, ctx.workspaceId, projectId, cutoff, cap)
       .run()
   } catch (e) {
-    // Lost a genuine race: another claim inserted the active lease for THIS
-    // issue first and the partial UNIQUE index rejected ours.
+    /*
+     * Lost a genuine race: another claim inserted the active lease for THIS
+     * issue first and the partial UNIQUE index rejected ours.
+     */
     if (e instanceof Error && /UNIQUE constraint failed/i.test(e.message)) {
       throw new ConflictError('Issue was just leased by another agent')
     }
@@ -238,8 +254,10 @@ export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
 
   // No row inserted and no UNIQUE violation ⇒ the WIP-cap guard subquery held.
   if (res.meta.changes === 0) {
-    // PROJ-342: record the denial — issue, project, timestamp, requesting agent —
-    // so the factory-health tile has fault data instead of nothing tracked.
+    /*
+     * PROJ-342: record the denial — issue, project, timestamp, requesting agent —
+     * so the factory-health tile has fault data instead of nothing tracked.
+     */
     await ctx.db
       .prepare(
         'INSERT INTO wip_cap_denials (id, workspace_id, project_id, issue_id, agent_session_id, ' +
@@ -486,10 +504,12 @@ export async function listIssueLeases(ctx: ServiceCtx, raw: unknown) {
     conditions.push(gt(schema.agentSessions.lastHeartbeatAt, cutoff))
   }
 
-  // PROJ-316: a non-admin member only sees leases on issues whose project they
-  // can access; owner/admin (predicate undefined) see every lease. Every lease is
-  // joined to its issue below (issue_id is NOT NULL), so the predicate can take the
-  // joined project id column directly instead of a correlated subquery.
+  /*
+   * PROJ-316: a non-admin member only sees leases on issues whose project they
+   * can access; owner/admin (predicate undefined) see every lease. Every lease is
+   * joined to its issue below (issue_id is NOT NULL), so the predicate can take the
+   * joined project id column directly instead of a correlated subquery.
+   */
   const vis = visibleProjectPredicate(ctx, schema.issues.projectId)
   if (vis) {
     conditions.push(vis)

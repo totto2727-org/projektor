@@ -147,8 +147,10 @@ export class WorkspaceHub {
           // Intersect the client-supplied list with the server-side visible set.
           effectiveProjects = requestedProjects.filter((id) => allowedProjects.has(id))
         } else if (!isWorkspaceAdmin(attachment.role)) {
-          // Non-admin with no explicit filter defaults to their visible set,
-          // never "every project in the workspace".
+          /*
+           * Non-admin with no explicit filter defaults to their visible set,
+           * never "every project in the workspace".
+           */
           effectiveProjects = attachment.visibleProjectIds
         }
 
@@ -202,9 +204,11 @@ export class WorkspaceHub {
         attachment = await this.refreshSnapshot(attachment)
         ws.serializeAttachment(attachment)
 
-        // Server-side project visibility check: non-admins must receive only
-        // events scoped to a project they can see. Missing projectId is treated
-        // as "deny" for non-admins (fail-closed).
+        /*
+         * Server-side project visibility check: non-admins must receive only
+         * events scoped to a project they can see. Missing projectId is treated
+         * as "deny" for non-admins (fail-closed).
+         */
         if (!isWorkspaceAdmin(attachment.role)) {
           if (!event.projectId) {
             continue
@@ -217,8 +221,10 @@ export class WorkspaceHub {
 
         const filters = attachment.filters
 
-        // Apply the client-requested project filter (already intersected with
-        // visibility at subscribe time, but re-checking is cheap and robust).
+        /*
+         * Apply the client-requested project filter (already intersected with
+         * visibility at subscribe time, but re-checking is cheap and robust).
+         */
         if (filters?.projects && filters.projects.length > 0 && event.projectId) {
           if (!filters.projects.includes(event.projectId)) {
             continue

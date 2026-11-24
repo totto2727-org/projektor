@@ -41,8 +41,10 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
     expect(res.status).toBe(200)
   })
 
-  // Uses a REST route: PROJ-348 gives the /mcp/<id> route a path-UUID fallback, so
-  // the "no header → 400" contract now only holds for non-MCP routes.
+  /*
+   * Uses a REST route: PROJ-348 gives the /mcp/<id> route a path-UUID fallback, so
+   * the "no header → 400" contract now only holds for non-MCP routes.
+   */
   test('flag off + no header: clean 400 naming the missing header, Host subdomain is ignored', async () => {
     const fixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/api/task-types', {
@@ -108,8 +110,10 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
       expect(res.status).toBe(400)
       expect(await res.json()).toMatchObject({ error: 'Workspace not specified: missing X-Workspace-Slug header' })
 
-      // Observe the routing adapter's diagnostic locally while resolution still
-      // executes against the native Core binding, not a primary DB fixture spy.
+      /*
+       * Observe the routing adapter's diagnostic locally while resolution still
+       * executes against the native Core binding, not a primary DB fixture spy.
+       */
       const app = new Hono<HonoEnv>()
       app.use('*', authMiddleware, workspaceMiddleware)
       app.get('/api/task-types', (c) => c.json({ unexpected: true }))

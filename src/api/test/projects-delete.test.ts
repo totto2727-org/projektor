@@ -1,9 +1,11 @@
-// PROJ-819/918: deleteProject must clean up everything under the project explicitly —
-// Note: `PRAGMA foreign_keys = OFF` is a no-op on D1/Miniflare (verified: it still
-// reads 1), so FK-backed children are also removed by the database's own cascade here —
-// for those, these are end-state checks. What they prove is the cleanup the database
-// can't do: FTS mirrors, share tokens, R2 objects and references without an FK.
-// fk-cleanup.node.test.ts is the guard that the app-level cleanup exists.
+/*
+ * PROJ-819/918: deleteProject must clean up everything under the project explicitly —
+ * Note: `PRAGMA foreign_keys = OFF` is a no-op on D1/Miniflare (verified: it still
+ * reads 1), so FK-backed children are also removed by the database's own cascade here —
+ * for those, these are end-state checks. What they prove is the cleanup the database
+ * can't do: FTS mirrors, share tokens, R2 objects and references without an FK.
+ * fk-cleanup.node.test.ts is the guard that the app-level cleanup exists.
+ */
 import { describe, expect, test } from 'vite-plus/test'
 
 import type { ServiceCtx } from '#commands/types.ts'

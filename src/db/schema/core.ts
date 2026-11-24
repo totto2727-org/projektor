@@ -47,9 +47,11 @@ export const workspaceMembers = sqliteTable(
   }),
 )
 
-// PROJ-436: a durable record that an owner explicitly removed this user from this
-// workspace, so provisioning (ADMIN_EMAILS / AUTO_JOIN_ROLE / WORKSPACE_DOMAIN_MAP) skips
-// re-adding them here. Cleared by re-inviting the user to the same workspace.
+/*
+ * PROJ-436: a durable record that an owner explicitly removed this user from this
+ * workspace, so provisioning (ADMIN_EMAILS / AUTO_JOIN_ROLE / WORKSPACE_DOMAIN_MAP) skips
+ * re-adding them here. Cleared by re-inviting the user to the same workspace.
+ */
 export const provisioningRemovals = sqliteTable(
   'provisioning_removals',
   {

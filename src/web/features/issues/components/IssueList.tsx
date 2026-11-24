@@ -18,8 +18,10 @@ interface Props {
 }
 
 export default function IssueList({ workspaceSlug, initialData, route }: Props) {
-  // The URL owns the view and its SSR-loaded working set. Browser preferences
-  // cannot change the initial tree or replace primary data after hydration.
+  /*
+   * The URL owns the view and its SSR-loaded working set. Browser preferences
+   * cannot change the initial tree or replace primary data after hydration.
+   */
   const view = initialData.view
   const setView = (next: ViewMode) => {
     const params = new URLSearchParams(route.search)
@@ -44,9 +46,11 @@ export default function IssueList({ workspaceSlug, initialData, route }: Props) 
     projects: data.projects,
   })
 
-  // Filtering happens server-side (PROJ-211): `issues` is already the filtered,
-  // paginated result set, so the client only sorts the loaded rows. (Sorting is
-  // still page-local — tracked separately as a follow-up.)
+  /*
+   * Filtering happens server-side (PROJ-211): `issues` is already the filtered,
+   * paginated result set, so the client only sorts the loaded rows. (Sorting is
+   * still page-local — tracked separately as a follow-up.)
+   */
   const filtered = sortIssues(data.issues, filters.sortBy, filters.sortDir)
 
   return (

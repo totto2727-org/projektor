@@ -29,8 +29,10 @@ const fixtureEnvironmentSource: CoreEnvironmentSource = Effect.gen(function* () 
 
 const fixtureRequest = new AsyncLocalStorage<unknown>()
 const nativeFetch = globalThis.fetch
-// Installed once in this test-only artifact. Async-local invocation settings,
-// rather than mutable global policy, select a fixture for the real HTTP client.
+/*
+ * Installed once in this test-only artifact. Async-local invocation settings,
+ * rather than mutable global policy, select a fixture for the real HTTP client.
+ */
 globalThis.fetch = async (input, init) => {
   const props = fixtureRequest.getStore()
   const settings = configuration(props ?? {})
@@ -217,8 +219,10 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
 const fixtureLimiterCalls = new Map<string, number>()
 
 function fixtureLimiterNamespace(epoch: string, mode: 'reject' | 'hang'): NonNullable<CoreEnvironment['RATE_LIMITER']> {
-  // Only the native test artifact injects failures. The real Core policy still
-  // runs, and this counter observes each actual attempt from that policy.
+  /*
+   * Only the native test artifact injects failures. The real Core policy still
+   * runs, and this counter observes each actual attempt from that policy.
+   */
   return {
     idFromName: (name: string) => name,
     get: () => ({

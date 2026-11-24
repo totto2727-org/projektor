@@ -135,7 +135,7 @@ export function filterIssues(
 }
 
 function statusSortOrder(issue: Issue): number {
-  // backlog issues: status_category=todo, status_key=backlog → order slot 4
+  // Backlog issues: status_category=todo, status_key=backlog → order slot 4
   if (issue.status_key === 'backlog') {
     return 4
   }

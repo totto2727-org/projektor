@@ -22,10 +22,12 @@ function fillEpicGoalDirective(params: {
   openChildCount: number
   wipLimit: number
 }): string {
-  // Plain split/join instead of String.replace: replace's *replacement* string
-  // treats "$&", "$`", "$'", "$$" as special patterns, so a caller-controlled
-  // epic title or review model containing e.g. "$'" would silently corrupt the
-  // directive.
+  /*
+   * Plain split/join instead of String.replace: replace's *replacement* string
+   * treats "$&", "$`", "$'", "$$" as special patterns, so a caller-controlled
+   * epic title or review model containing e.g. "$'" would silently corrupt the
+   * directive.
+   */
   const fill = (template: string, placeholder: string, value: string) => template.split(placeholder).join(value)
 
   const epicLabel = `${params.epicRef} ("${params.epicTitle}")`

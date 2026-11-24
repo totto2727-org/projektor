@@ -349,9 +349,11 @@ export async function seedFixture(opts?: Readonly<{ slug?: string; email?: strin
 export async function seedProjectFixture(opts?: Readonly<{ role?: string }>) {
   const fixture = await seedFixture({ role: opts?.role })
   const project = await seedProject(fixture.workspace.id)
-  // PROJ-311: access is default-deny, so a non-admin fixture would otherwise see
-  // nothing. Grant the fixture user their workspace role on the project so the
-  // pre-existing (pre-groups) behaviour is preserved for all these tests.
+  /*
+   * PROJ-311: access is default-deny, so a non-admin fixture would otherwise see
+   * nothing. Grant the fixture user their workspace role on the project so the
+   * pre-existing (pre-groups) behaviour is preserved for all these tests.
+   */
   const role = opts?.role ?? 'member'
   if (role === 'member' || role === 'viewer') {
     await seedGroupGrant(fixture.workspace.id, fixture.user.id, project.id, role)
@@ -404,10 +406,12 @@ export async function seedWorkspaceRoles() {
   }
 }
 
-// PROJ-893: a failed tools/call is a *result* with `isError: true`, whose single text
-// content item is `{"error": {code, message, fields?, hint?, details?}}` — not a JSON-RPC
-// `error`. JSON-RPC errors remain only for protocol faults (parse error, invalid request,
-// method not found, unknown tool) and unexpected internal failures.
+/*
+ * PROJ-893: a failed tools/call is a *result* with `isError: true`, whose single text
+ * content item is `{"error": {code, message, fields?, hint?, details?}}` — not a JSON-RPC
+ * `error`. JSON-RPC errors remain only for protocol faults (parse error, invalid request,
+ * method not found, unknown tool) and unexpected internal failures.
+ */
 export type ToolErrorBody = {
   code: 'not_found' | 'forbidden' | 'conflict' | 'validation' | 'payload_too_large' | 'rate_limited'
   message: string

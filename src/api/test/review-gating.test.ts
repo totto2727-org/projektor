@@ -11,12 +11,14 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-254 gate, hardened by PROJ-287/289/292/293: the in_review report requirement is
-// bound to the issue's LIVE AGENT LEASE (an agent can't spoof it by omitting
-// agentSessionId or self-declaring kind:"human"); the done-report requirement is scoped
-// to agent-worked issues; review is keyed on any review-like status; the report is only
-// stamped on a real transition. PROJ-375 removed the old block on an agent (live lease)
-// transitioning to done — agents can close freely now; see the needsAudit tests below.
+/*
+ * PROJ-254 gate, hardened by PROJ-287/289/292/293: the in_review report requirement is
+ * bound to the issue's LIVE AGENT LEASE (an agent can't spoof it by omitting
+ * agentSessionId or self-declaring kind:"human"); the done-report requirement is scoped
+ * to agent-worked issues; review is keyed on any review-like status; the report is only
+ * stamped on a real transition. PROJ-375 removed the old block on an agent (live lease)
+ * transitioning to done — agents can close freely now; see the needsAudit tests below.
+ */
 describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
   let token: string
   let slug: string
@@ -298,8 +300,10 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
   test('list_issues({ needsAudit: false }) surfaces unflagged closures only (PROJ-449)', async () => {
     const { flagged, clean } = await seedFlaggedAndCleanDoneIssues()
 
-    // z.coerce.boolean() would coerce the string "false" to true, silently
-    // inverting this filter. Guards against regressing to that.
+    /*
+     * Z.coerce.boolean() would coerce the string "false" to true, silently
+     * inverting this filter. Guards against regressing to that.
+     */
     const res = await fetchNativeApi(`http://localhost/api/issues?projectId=${projectId}&needsAudit=false`, {
       headers: authHeaders(token, slug),
     })

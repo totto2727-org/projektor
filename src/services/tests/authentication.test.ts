@@ -98,8 +98,10 @@ describe('shared browser authentication without API transport or signing secrets
     database.close()
   })
   function api(request: Request, settings: BrowserAuthEnvironment & { PUBLIC_READ_ONLY?: string } = env) {
-    // The API sees only a native-style RPC binding. Its method runs the real Core
-    // handler and returns the application's wire reply through the public SDK.
+    /*
+     * The API sees only a native-style RPC binding. Its method runs the real Core
+     * handler and returns the application's wire reply through the public SDK.
+     */
     const coreEnv: CoreEnvironment = { ...createTestResources(), ...settings }
     const handlers = makeApiIdentityHandlers(Effect.succeed(coreEnv))
     const CORE = {

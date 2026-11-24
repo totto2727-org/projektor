@@ -20,8 +20,10 @@ router.get('/', async (c) => {
     const type = c.req.query('type')
     const status = c.req.query('status')
     const tags = c.req.query('tags')
-    // PROJ-525: "true"/"1" opt-in for the template-picker's own use case; any other
-    // value (including absent) leaves the schema's default false in place.
+    /*
+     * PROJ-525: "true"/"1" opt-in for the template-picker's own use case; any other
+     * value (including absent) leaves the schema's default false in place.
+     */
     const includeTemplatesParam = c.req.query('includeTemplates')
     const includeTemplates = includeTemplatesParam === 'true' || includeTemplatesParam === '1' ? true : undefined
     return c.json(
@@ -137,8 +139,10 @@ router.post('/backfill-links', async (c) => {
   }
 })
 
-// PROJ-493 (R11): must be registered before the /:slug catch-all below, same as every
-// other fixed-path route above.
+/*
+ * PROJ-493 (R11): must be registered before the /:slug catch-all below, same as every
+ * other fixed-path route above.
+ */
 router.get('/watches', async (c) => {
   const ctx = ctxFromHono(c)
   try {
@@ -170,8 +174,10 @@ router.post('/notifications/read', async (c) => {
   }
 })
 
-// PROJ-496 (R14): must be registered before the /:slug catch-all below, same as every
-// other fixed-path route above.
+/*
+ * PROJ-496 (R14): must be registered before the /:slug catch-all below, same as every
+ * other fixed-path route above.
+ */
 router.get('/trash', async (c) => {
   const ctx = ctxFromHono(c)
   try {
@@ -215,9 +221,11 @@ router.get('/changes', async (c) => {
   }
 })
 
-// PROJ-497 (R15): must be registered before the /:slug catch-all below, same as every
-// other fixed-path route above. REST-only — see AGENTS.md's "Deliberate REST↔MCP
-// parity exceptions" for why (binary zip response, same rationale as file downloads).
+/*
+ * PROJ-497 (R15): must be registered before the /:slug catch-all below, same as every
+ * other fixed-path route above. REST-only — see AGENTS.md's "Deliberate REST↔MCP
+ * parity exceptions" for why (binary zip response, same rationale as file downloads).
+ */
 router.get('/export', (c) => {
   const query = new URLSearchParams()
   for (const name of ['scope', 'projectId', 'pageId']) {

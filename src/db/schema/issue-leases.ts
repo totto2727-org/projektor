@@ -4,9 +4,11 @@ import { agentSessions } from './agents.ts'
 import { workspaces } from './core.ts'
 import { issues, projects } from './issues.ts'
 
-// Issue leases (PROJ-184). The partial UNIQUE index that enforces "one active
-// lease per issue" lives in the raw migration (0021) — Drizzle can't express a
-// partial index — so only the non-partial agent lookup index is declared here.
+/*
+ * Issue leases (PROJ-184). The partial UNIQUE index that enforces "one active
+ * lease per issue" lives in the raw migration (0021) — Drizzle can't express a
+ * partial index — so only the non-partial agent lookup index is declared here.
+ */
 export const issueLeases = sqliteTable(
   'issue_leases',
   {
@@ -29,9 +31,11 @@ export const issueLeases = sqliteTable(
   }),
 )
 
-// WIP-cap denials (PROJ-342): an event log of claimIssue rejections caused by the
-// per-project agent WIP cap, recorded at the denial site in claimIssue since the
-// per-project rejection subquery leaves no row of its own to derive it from.
+/*
+ * WIP-cap denials (PROJ-342): an event log of claimIssue rejections caused by the
+ * per-project agent WIP cap, recorded at the denial site in claimIssue since the
+ * per-project rejection subquery leaves no row of its own to derive it from.
+ */
 export const wipCapDenials = sqliteTable(
   'wip_cap_denials',
   {

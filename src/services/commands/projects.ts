@@ -69,8 +69,10 @@ export async function listProjectsAcrossWorkspaces(
   db: D1Database,
   includeArchived = false,
 ): Promise<ProjectSummary[]> {
-  // PROJ-311: this app owns the role/grant policy. The shared query only
-  // evaluates the explicitly supplied predicate within the user's memberships.
+  /*
+   * PROJ-311: this app owns the role/grant policy. The shared query only
+   * evaluates the explicitly supplied predicate within the user's memberships.
+   */
   const visibility: data.ProjectSummaryVisibility = {
     sql: `wm.role IN ('owner','admin')
          OR EXISTS (
@@ -124,8 +126,10 @@ export async function getProject(ctx: ServiceCtx, id: string) {
   return project
 }
 
-// PROJ-376: pretty project URLs (/projects/view/<slug>) resolve here instead of
-// the UUID route. Same visibility rules as getProject.
+/*
+ * PROJ-376: pretty project URLs (/projects/view/<slug>) resolve here instead of
+ * the UUID route. Same visibility rules as getProject.
+ */
 export async function getProjectBySlug(ctx: ServiceCtx, slug: string) {
   const project = await Effect.runPromise(data.findProjectBySlug(ctx.db, ctx.workspaceId, slug))
   if (!project) {
@@ -148,8 +152,10 @@ function slugify(name: string): string {
   )
 }
 
-// Generates a workspace-unique slug from the project name, appending -2, -3, ...
-// on collision. Bounded query count: at most one SELECT per candidate tried.
+/*
+ * Generates a workspace-unique slug from the project name, appending -2, -3, ...
+ * on collision. Bounded query count: at most one SELECT per candidate tried.
+ */
 async function generateUniqueSlug(orm: ReturnType<typeof drizzle>, workspaceId: string, name: string): Promise<string> {
   const base = slugify(name)
   let candidate = base
@@ -271,8 +277,10 @@ export async function updateProject(ctx: ServiceCtx, id: string, input: unknown)
 const ISSUES_OF_PROJECT = 'SELECT id FROM issues WHERE project_id = ?1 AND workspace_id = ?2'
 const PAGES_OF_PROJECT = 'SELECT id FROM wiki_pages WHERE project_id = ?1 AND workspace_id = ?2'
 
-// PROJ-819: explicit cleanup for deleteProject, children before parents. Mirrors
-// deleteIssue's per-issue list (PROJ-922) and the wiki purge's per-page list.
+/*
+ * PROJ-819: explicit cleanup for deleteProject, children before parents. Mirrors
+ * deleteIssue's per-issue list (PROJ-922) and the wiki purge's per-page list.
+ */
 const PROJECT_CLEANUP_SQL: readonly string[] = [
   // Issue dependents.
   `DELETE FROM issues_fts WHERE workspace_id = ?2 AND issue_id IN (${ISSUES_OF_PROJECT})`,
@@ -300,8 +308,10 @@ const PROJECT_CLEANUP_SQL: readonly string[] = [
   `DELETE FROM wiki_notifications WHERE page_id IN (${PAGES_OF_PROJECT})`,
   `DELETE FROM wiki_redirects WHERE page_id IN (${PAGES_OF_PROJECT})`,
   `DELETE FROM wiki_links WHERE source_page_id IN (${PAGES_OF_PROJECT})`,
-  // Links from other projects into this one: re-point to another live page they still
-  // match (outside this project), else unresolve — same rule as a wiki purge (PROJ-814).
+  /*
+   * Links from other projects into this one: re-point to another live page they still
+   * match (outside this project), else unresolve — same rule as a wiki purge (PROJ-814).
+   */
   `UPDATE wiki_links SET target_page_id = (
 	   SELECT p.id FROM wiki_pages p
 	   WHERE p.workspace_id = ?2 AND p.deleted_at IS NULL AND (p.project_id IS NULL OR p.project_id <> ?1)
@@ -343,12 +353,14 @@ export async function deleteProject(ctx: ServiceCtx, id: string) {
     throw new NotFoundError('Project not found')
   }
 
-  // PROJ-819/918: D1 doesn't guarantee the FK cascades the schema declares (PROJ-407),
-  // and several references have no FK at all (FTS mirrors, R2 objects, other projects'
-  // links into this one). Clean everything up explicitly. Every statement is set-based
-  // (subqueries keyed on the project), so the statement and bound-parameter counts stay
-  // constant however large the project is; the whole thing is one atomic batch. R2
-  // objects are listed first and deleted only after the batch commits.
+  /*
+   * PROJ-819/918: D1 doesn't guarantee the FK cascades the schema declares (PROJ-407),
+   * and several references have no FK at all (FTS mirrors, R2 objects, other projects'
+   * links into this one). Clean everything up explicitly. Every statement is set-based
+   * (subqueries keyed on the project), so the statement and bound-parameter counts stay
+   * constant however large the project is; the whole thing is one atomic batch. R2
+   * objects are listed first and deleted only after the batch commits.
+   */
   const r2Keys = (
     await ctx.db
       .prepare(

@@ -20,13 +20,15 @@ import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
-// PROJ-869: wraps a D1Database so every row a `.all()`/`.first()`/`.raw()` call resolves
-// with is pushed into `captured` — used to inspect what actually came back over the D1
-// binding from a service call, since a service's return value (here, WikiChangeEvent)
-// can hide a regression that already happened one layer down (the full row read out of
-// D1). drizzle-orm's D1 driver uses `.raw()` (not `.all()`) whenever a query selects a
-// custom field shape — which is exactly what listWikiChanges' select does — so all three
-// read methods need to be captured, not just `.all()`.
+/*
+ * PROJ-869: wraps a D1Database so every row a `.all()`/`.first()`/`.raw()` call resolves
+ * with is pushed into `captured` — used to inspect what actually came back over the D1
+ * binding from a service call, since a service's return value (here, WikiChangeEvent)
+ * can hide a regression that already happened one layer down (the full row read out of
+ * D1). drizzle-orm's D1 driver uses `.raw()` (not `.all()`) whenever a query selects a
+ * custom field shape — which is exactly what listWikiChanges' select does — so all three
+ * read methods need to be captured, not just `.all()`.
+ */
 function wrapD1CapturingReads(db: D1Database, captured: unknown[]): D1Database {
   const READ_METHODS = new Set(['all', 'first', 'raw'])
   return new Proxy(db, {
@@ -96,9 +98,11 @@ function mcpData<T>(r: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcE
   return JSON.parse(r.result.content[0].text) as T
 }
 
-// PROJ-238: the test env's RATE_LIMIT_API_MAX is 5 req/window (vite.config.ts), and
-// many describe blocks below fire more than that against one token — reset the counter
-// before every request.
+/*
+ * PROJ-238: the test env's RATE_LIMIT_API_MAX is 5 req/window (vite.config.ts), and
+ * many describe blocks below fire more than that against one token — reset the counter
+ * before every request.
+ */
 async function resetRateLimitAndFetch(url: string, opts?: RequestInit) {
   await resetRateLimits()
   return fetchNativeApi(url, opts)
@@ -288,9 +292,11 @@ describe('Wiki API', () => {
     expect(results[0].title).toBe('Deployment Guide')
   })
 
-  // PROJ-489 (R7): a page with no verify_interval/status frontmatter signal at all gets
-  // `freshness: null` — never fabricated. (R7 landed; full freshness behavior is
-  // exercised in the "Wiki freshness model (PROJ-489)" describe block below.)
+  /*
+   * PROJ-489 (R7): a page with no verify_interval/status frontmatter signal at all gets
+   * `freshness: null` — never fabricated. (R7 landed; full freshness behavior is
+   * exercised in the "Wiki freshness model (PROJ-489)" describe block below.)
+   */
   test('GET /api/wiki/search returns freshness: null for a page with no verification signal', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -307,9 +313,11 @@ describe('Wiki API', () => {
     }
   })
 
-  // PROJ-513: `type` is freeform (per the PRD) — an arbitrary value like "guide" is a
-  // valid filter, just one that (correctly) matches nothing here. `status` stays a
-  // closed enum, so an unrecognized value there is still rejected.
+  /*
+   * PROJ-513: `type` is freeform (per the PRD) — an arbitrary value like "guide" is a
+   * valid filter, just one that (correctly) matches nothing here. `status` stays a
+   * closed enum, so an unrecognized value there is still rejected.
+   */
   test('GET /api/wiki/search accepts an arbitrary type filter but rejects an unknown status (PROJ-513)', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -400,8 +408,10 @@ describe('Wiki API', () => {
     expect(await res.json()).toEqual([])
   })
 
-  // PROJ-486: replaces the old "first 250 chars" excerpt with an FTS5 snippet()
-  // that is anchored to the actual match and highlighted with ** markers.
+  /*
+   * PROJ-486: replaces the old "first 250 chars" excerpt with an FTS5 snippet()
+   * that is anchored to the actual match and highlighted with ** markers.
+   */
   test('GET /api/wiki/search snippet is match-anchored and highlighted', async () => {
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
     await fetchNativeApi('http://localhost/api/wiki', {
@@ -417,15 +427,19 @@ describe('Wiki API', () => {
     })
     const results = (await res.json()) as { excerpt: string }[]
     expect(results).toHaveLength(1)
-    // The match is buried deep in a long page; a static first-250-chars excerpt
-    // would never contain it, but a match-anchored snippet does.
+    /*
+     * The match is buried deep in a long page; a static first-250-chars excerpt
+     * would never contain it, but a match-anchored snippet does.
+     */
     expect(results[0].excerpt).toContain('needle')
     expect(results[0].excerpt).toContain('**')
   })
 
-  // PROJ-486: BM25 ranking with a title-weight boost — a query matching only the
-  // title of one page should rank it above a page where the term only appears deep
-  // in a long body.
+  /*
+   * PROJ-486: BM25 ranking with a title-weight boost — a query matching only the
+   * title of one page should rank it above a page where the term only appears deep
+   * in a long body.
+   */
   test('GET /api/wiki/search ranks a title match above a buried body match', async () => {
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
     await fetchNativeApi('http://localhost/api/wiki', {
@@ -474,11 +488,13 @@ describe('Wiki API', () => {
   })
 
   test('GET /api/wiki/search paginates deterministically when results tie in rank', async () => {
-    // All three pages below match equally (same term, same content shape), so bm25()
-    // alone ties -- pagination must fall back to a stable tiebreaker (page id) rather
-    // than duplicating or dropping rows across pages. Distinct titles avoid PROJ-483
-    // slug-collision 409s; the rate_limit reset avoids tripping the 5-req/window cap
-    // (RATE_LIMIT_API_MAX) across the create + fetch calls below.
+    /*
+     * All three pages below match equally (same term, same content shape), so bm25()
+     * alone ties -- pagination must fall back to a stable tiebreaker (page id) rather
+     * than duplicating or dropping rows across pages. Distinct titles avoid PROJ-483
+     * slug-collision 409s; the rate_limit reset avoids tripping the 5-req/window cap
+     * (RATE_LIMIT_API_MAX) across the create + fetch calls below.
+     */
     for (let i = 0; i < 3; i++) {
       const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
@@ -896,9 +912,11 @@ describe('Wiki API', () => {
 
     await resetRateLimits()
 
-    // Moving A (height 2) under L3 (depth 3) would put A2 at depth 3+1+2 = 6, which
-    // exceeds the max nesting depth of 5 (indices 0..4) even though A's OWN new depth
-    // (4) is within range — the check must look at the whole subtree, not just A.
+    /*
+     * Moving A (height 2) under L3 (depth 3) would put A2 at depth 3+1+2 = 6, which
+     * exceeds the max nesting depth of 5 (indices 0..4) even though A's OWN new depth
+     * (4) is within range — the check must look at the whole subtree, not just A.
+     */
     const moveRes = await fetchNativeApi(`http://localhost/api/wiki/${a.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
@@ -910,13 +928,15 @@ describe('Wiki API', () => {
   })
 
   test("PUT /api/wiki/:slug doesn't hang when a legacy parent_id cycle exists in the subtree being moved (PROJ-820)", async () => {
-    // A cycle can't be created through the API (validateParentDepth's ancestor walk has
-    // its own `seen`-set cycle guard), but a legacy row or a direct DB write could leave
-    // one behind IN THE SUBTREE being moved. Seed X -> Y -> X directly via raw SQL (Y's
-    // parent is X, then X's parent is reset to Y), then move X itself somewhere else:
-    // getSubtreeHeight(db, X, ...) starts its recursive walk AT X and, joining into
-    // children by parent_id, finds Y then loops back to X — without the depth bound this
-    // never terminates.
+    /*
+     * A cycle can't be created through the API (validateParentDepth's ancestor walk has
+     * its own `seen`-set cycle guard), but a legacy row or a direct DB write could leave
+     * one behind IN THE SUBTREE being moved. Seed X -> Y -> X directly via raw SQL (Y's
+     * parent is X, then X's parent is reset to Y), then move X itself somewhere else:
+     * getSubtreeHeight(db, X, ...) starts its recursive walk AT X and, joining into
+     * children by parent_id, finds Y then loops back to X — without the depth bound this
+     * never terminates.
+     */
     const xRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -947,8 +967,10 @@ describe('Wiki API', () => {
     const other = (await otherRes.json()) as { id: string }
 
     await resetRateLimits()
-    // Moving X under `other` computes getSubtreeHeight(X), which walks into the X<->Y
-    // cycle. This must resolve promptly (reject or succeed), never hang.
+    /*
+     * Moving X under `other` computes getSubtreeHeight(X), which walks into the X<->Y
+     * cycle. This must resolve promptly (reject or succeed), never hang.
+     */
     const moveRes = await fetchNativeApi(`http://localhost/api/wiki/${x.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
@@ -1132,8 +1154,10 @@ describe('Wiki API', () => {
     })
     expect(delRes.status).toBe(200)
 
-    // PROJ-496: R2 cleanup moved to purge time — a soft-deleted page's attachment
-    // object/row must still exist (e.g. so undelete leaves the page fully intact).
+    /*
+     * PROJ-496: R2 cleanup moved to purge time — a soft-deleted page's attachment
+     * object/row must still exist (e.g. so undelete leaves the page fully intact).
+     */
     expect(await env.R2.get(r2Key)).not.toBeNull()
     const row = await env.DB.prepare('SELECT id FROM attachments WHERE id = ?').bind(attachmentId).first()
     expect(row).not.toBeNull()
@@ -1418,8 +1442,10 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('a slashy slug rewritten by the PROJ-517 backfill still resolves, and the old slug redirects (#1)', async () => {
-    // Simulate a pre-PROJ-517 row that predates SlugSchema's no-slash rule by
-    // inserting directly (SlugSchema would now reject this via the service layer).
+    /*
+     * Simulate a pre-PROJ-517 row that predates SlugSchema's no-slash rule by
+     * inserting directly (SlugSchema would now reject this via the service layer).
+     */
     const pageId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
@@ -1430,8 +1456,10 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
       .bind(pageId, workspaceId, 'operations/admin-allow-list', 'Admin Allow List', 'content', userId, userId, now, now)
       .run()
 
-    // Apply the same rewrite migration 0050 performs, since the fixture DB's
-    // migrations already ran in beforeAll before this row existed.
+    /*
+     * Apply the same rewrite migration 0050 performs, since the fixture DB's
+     * migrations already ran in beforeAll before this row existed.
+     */
     const redirectId = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO wiki_redirects (id, workspace_id, old_slug, page_id, created_at) VALUES (?, ?, ?, ?, ?)`,
@@ -1447,9 +1475,11 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     })
     expect(newRes.status).toBe(200)
 
-    // Resolve via MCP's get_wiki_page, passing the old slug as a plain argument
-    // (not a URL path segment) — sidesteps any router-level handling of an
-    // encoded "/" and tests the redirect-fallback resolution itself.
+    /*
+     * Resolve via MCP's get_wiki_page, passing the old slug as a plain argument
+     * (not a URL path segment) — sidesteps any router-level handling of an
+     * encoded "/" and tests the redirect-fallback resolution itself.
+     */
     const oldPage = mcpData<{ slug: string }>(
       await mcpCall(workspaceId, 'get_wiki_page', { slug: 'operations/admin-allow-list' }, authHeaders(token, slug)),
     )
@@ -1680,9 +1710,11 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 })
 
-// PROJ-488 (R6): YAML frontmatter parsed and denormalized into wiki_pages columns on
-// write, plus type/tags/status filtering on listWikiPages/searchWiki. REST/MCP parity
-// throughout — each behavior is exercised via both surfaces.
+/*
+ * PROJ-488 (R6): YAML frontmatter parsed and denormalized into wiki_pages columns on
+ * write, plus type/tags/status filtering on listWikiPages/searchWiki. REST/MCP parity
+ * throughout — each behavior is exercised via both surfaces.
+ */
 describe('Wiki frontmatter metadata (PROJ-488)', () => {
   let token: string, slug: string, workspaceId: string
 
@@ -1735,7 +1767,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     }
     expect(page.type).toBe('runbook')
     expect(page.status).toBe('current')
-    // tags column comes back through drizzle's JSON mode as a real array on GET.
+    // Tags column comes back through drizzle's JSON mode as a real array on GET.
     expect(page.tags).toEqual(['ops', 'oncall'])
   })
 
@@ -1769,8 +1801,10 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(created.status).toBeNull()
   })
 
-  // PROJ-513: `type` is freeform per the PRD — a value outside the well-known
-  // runbook/adr/spec/note set is accepted and stored as-is, not rejected.
+  /*
+   * PROJ-513: `type` is freeform per the PRD — a value outside the well-known
+   * runbook/adr/spec/note set is accepted and stored as-is, not rejected.
+   */
   test('REST POST /api/wiki accepts a `type` value outside the well-known set (PROJ-513)', async () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -1797,8 +1831,10 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(created.type).toBe('whitepaper')
   })
 
-  // PROJ-513: the freeform value has to survive the whole round trip — stored on create,
-  // then usable as a filter on both list and search, exactly like a well-known one.
+  /*
+   * PROJ-513: the freeform value has to survive the whole round trip — stored on create,
+   * then usable as a filter on both list and search, exactly like a well-known one.
+   */
   test('filters list/search by a `type` value outside the well-known set (PROJ-513)', async () => {
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -1995,8 +2031,10 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     const res = await mcpCall(
       workspaceId,
       'update_wiki_page',
-      // PROJ-513: `type` is freeform now, so use an invalid `status` (still a closed
-      // enum) to exercise the same "invalid frontmatter on update" path.
+      /*
+       * PROJ-513: `type` is freeform now, so use an invalid `status` (still a closed
+       * enum) to exercise the same "invalid frontmatter on update" path.
+       */
       { slug: created.slug, content: '---\nstatus: not-a-real-status\n---\nbody' },
       authHeaders(token, slug),
     )
@@ -2151,11 +2189,13 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 })
 
-// PROJ-509: list_wiki_revisions/get_wiki_revision/delete_wiki_page resolve via
-// id-or-slug + redirect fallback, matching get_wiki_page/update_wiki_page/
-// get_wiki_backlinks — a renamed page's old slug must keep working for every entry
-// point, not just get_wiki_page (PROJ-484's optimistic-locking workflow fetches
-// baseRevisionId via list_wiki_revisions using whatever reference the caller holds).
+/*
+ * PROJ-509: list_wiki_revisions/get_wiki_revision/delete_wiki_page resolve via
+ * id-or-slug + redirect fallback, matching get_wiki_page/update_wiki_page/
+ * get_wiki_backlinks — a renamed page's old slug must keep working for every entry
+ * point, not just get_wiki_page (PROJ-484's optimistic-locking workflow fetches
+ * baseRevisionId via list_wiki_revisions using whatever reference the caller holds).
+ */
 describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', () => {
   let token: string, slug: string, workspaceId: string
 
@@ -2186,8 +2226,10 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     expect(renameRes.status).toBe(200)
     await resetRateLimits()
 
-    // "runbook" is now only a redirect — the old slug must still resolve here, same
-    // as GET /:slug (getWikiPage).
+    /*
+     * "runbook" is now only a redirect — the old slug must still resolve here, same
+     * as GET /:slug (getWikiPage).
+     */
     const revRes = await fetchNativeApi('http://localhost/api/wiki/runbook/revisions', {
       headers: authHeaders(token, slug),
     })
@@ -2275,8 +2317,10 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     })
     await resetRateLimits()
 
-    // "draft-notes" is now only a redirect — deleting by the old slug should resolve
-    // to the same (renamed) page rather than 404ing.
+    /*
+     * "draft-notes" is now only a redirect — deleting by the old slug should resolve
+     * to the same (renamed) page rather than 404ing.
+     */
     const deleteRes = await fetchNativeApi('http://localhost/api/wiki/draft-notes', {
       method: 'DELETE',
       headers: authHeaders(owner.token, owner.workspace.slug),
@@ -2301,9 +2345,11 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
     ;({ token, slug, workspaceId } = await seedWorkspaceFixture())
   })
 
-  // The test env's RATE_LIMIT_API_MAX is 5 req/window (vite.config.ts), and these
-  // tests each fire more than that against one token — reset the counter before every
-  // request (same escape hatch as PROJ-238's nesting-depth test above).
+  /*
+   * The test env's RATE_LIMIT_API_MAX is 5 req/window (vite.config.ts), and these
+   * tests each fire more than that against one token — reset the counter before every
+   * request (same escape hatch as PROJ-238's nesting-depth test above).
+   */
   async function req(url: string, opts?: RequestInit) {
     return resetRateLimitAndFetch(url, opts)
   }
@@ -2505,11 +2551,13 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
   })
 })
 
-// PROJ-492 (R10): revision diff endpoint + restore-via-update_wiki_page. Restore is
-// deliberately NOT a dedicated endpoint — it's a client-side convenience that reads an
-// old revision's content and re-submits it through update_wiki_page/PUT with a
-// baseRevisionId, so it gets normal optimistic-locking/frontmatter/FTS/link-reindex
-// treatment for free (see PR description for the design rationale).
+/*
+ * PROJ-492 (R10): revision diff endpoint + restore-via-update_wiki_page. Restore is
+ * deliberately NOT a dedicated endpoint — it's a client-side convenience that reads an
+ * old revision's content and re-submits it through update_wiki_page/PUT with a
+ * baseRevisionId, so it gets normal optimistic-locking/frontmatter/FTS/link-reindex
+ * treatment for free (see PR description for the design rationale).
+ */
 describe('Wiki revision diff (PROJ-492)', () => {
   let token: string, slug: string, workspaceId: string
 
@@ -2688,9 +2736,11 @@ describe('Wiki revision diff (PROJ-492)', () => {
     })
     expect(((await pageRes.json()) as { content: string }).content).toBe('original content')
 
-    // Restoring created a NEW (third) revision snapshotting the pre-restore "mistaken
-    // edit" content — it never rewrote or deleted the original "original content"
-    // revision, which is still present in history.
+    /*
+     * Restoring created a NEW (third) revision snapshotting the pre-restore "mistaken
+     * edit" content — it never rewrote or deleted the original "original content"
+     * revision, which is still present in history.
+     */
     const revisions = await getRevisions('restorable-doc')
     expect(revisions.length).toBe(2)
     expect(revisions[0].id).not.toBe(latest.id)
@@ -2752,9 +2802,11 @@ describe('Wiki revision diff (PROJ-492)', () => {
     })
     const [latest] = await getRevisions('legacy-frontmatter-doc')
 
-    // Simulate a snapshot taken before R6's frontmatter validation existed, carrying a
-    // `status` value outside today's closed enum. Written straight to the revision row
-    // because the API (correctly) refuses to create such content in the first place.
+    /*
+     * Simulate a snapshot taken before R6's frontmatter validation existed, carrying a
+     * `status` value outside today's closed enum. Written straight to the revision row
+     * because the API (correctly) refuses to create such content in the first place.
+     */
     await env.DB.prepare('UPDATE wiki_revisions SET content = ? WHERE id = ?')
       .bind('---\nstatus: archived\n---\n\nlegacy body', latest.id)
       .run()
@@ -2784,9 +2836,11 @@ describe('Wiki revision diff (PROJ-492)', () => {
   })
 })
 
-// PROJ-490: section-addressed patch operations (R8). Disjoint-section writes must
-// never conflict — that's the headline behavior a naive whole-page baseRevisionId
-// check would break.
+/*
+ * PROJ-490: section-addressed patch operations (R8). Disjoint-section writes must
+ * never conflict — that's the headline behavior a naive whole-page baseRevisionId
+ * check would break.
+ */
 describe('Wiki patch operations (PROJ-490)', () => {
   let token: string, slug: string, workspaceId: string
 
@@ -2960,9 +3014,11 @@ describe('Wiki patch operations (PROJ-490)', () => {
     })
     expect(resA.status).toBe(200)
 
-    // Agent B still holds the same stale baseRevisionId (null — pre-A's edit) but
-    // targets the disjoint Beta section. This must succeed, not conflict, even
-    // though the page's overall revision has advanced since A's write.
+    /*
+     * Agent B still holds the same stale baseRevisionId (null — pre-A's edit) but
+     * targets the disjoint Beta section. This must succeed, not conflict, even
+     * though the page's overall revision has advanced since A's write.
+     */
     const resB = await req('http://localhost/api/wiki/patch-disjoint', {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -2995,8 +3051,10 @@ describe('Wiki patch operations (PROJ-490)', () => {
       }),
     })
 
-    // Agent B still holds the stale null base but targets the SAME Alpha section —
-    // this must conflict.
+    /*
+     * Agent B still holds the stale null base but targets the SAME Alpha section —
+     * this must conflict.
+     */
     const res = await req('http://localhost/api/wiki/patch-conflict', {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -3104,10 +3162,12 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(res.status).toBe(400)
   })
 
-  // PROJ-524: append_to_page skips the *conflict* check for baseRevisionId (append is
-  // commutative), but still must validate the id belongs to the page — same as the
-  // section-addressed ops above — so a caller confused about which page it's targeting
-  // gets a signal instead of silent acceptance.
+  /*
+   * PROJ-524: append_to_page skips the *conflict* check for baseRevisionId (append is
+   * commutative), but still must validate the id belongs to the page — same as the
+   * section-addressed ops above — so a caller confused about which page it's targeting
+   * gets a signal instead of silent acceptance.
+   */
   test("REST: append_to_page rejects a baseRevisionId that doesn't belong to the page", async () => {
     await createPage('patch-append-garbage-base', 'Patch Append Garbage Base', TWO_SECTIONS)
     const res = await req('http://localhost/api/wiki/patch-append-garbage-base', {
@@ -3396,10 +3456,12 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(missingErr?.details?.currentHeadings).toEqual(['Alpha', 'Beta'])
   })
 
-  // PROJ-523: the sibling ambiguous-heading case is a ValidationError, not a
-  // NotFoundError — before PROJ-508's error.data plumbing it collapsed to a bare
-  // "Invalid params" over MCP, dropping the duplicate-heading detail REST callers
-  // got via body.error.formErrors. Twin of the REST test below.
+  /*
+   * PROJ-523: the sibling ambiguous-heading case is a ValidationError, not a
+   * NotFoundError — before PROJ-508's error.data plumbing it collapsed to a bare
+   * "Invalid params" over MCP, dropping the duplicate-heading detail REST callers
+   * got via body.error.formErrors. Twin of the REST test below.
+   */
   test('MCP: patch_wiki_page rejects an ambiguous heading with formErrors as the tool error message', async () => {
     const created = mcpData<{ slug: string }>(
       await mcp('create_wiki_page', {
@@ -3422,10 +3484,12 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(err?.fields?.heading).toEqual(['h1', 'h2'])
   })
 
-  // PROJ-490: `#` lines only start a section in ordinary block context. A shell
-  // comment in a fenced code block is the most common line in a runbook — treating
-  // it as a heading would end the enclosing section mid-fence and a replace would
-  // eat the opening fence, leaving an orphaned closing one.
+  /*
+   * PROJ-490: `#` lines only start a section in ordinary block context. A shell
+   * comment in a fenced code block is the most common line in a runbook — treating
+   * it as a heading would end the enclosing section mid-fence and a replace would
+   * eat the opening fence, leaving an orphaned closing one.
+   */
   test('REST: a `#` line inside a fenced code block is not a heading', async () => {
     const content = '## Setup\n\n```bash\n# install deps\npnpm i\n```\n\n## Usage\nUse it.\n'
     await createPage('patch-fenced', 'Patch Fenced', content)
@@ -3456,8 +3520,10 @@ describe('Wiki patch operations (PROJ-490)', () => {
     })
     expect(res.status).toBe(200)
     const page = await getPage('patch-fenced')
-    // The whole fenced block belonged to Setup, so it goes with the replaced body —
-    // intact, not shredded into an orphan closing fence.
+    /*
+     * The whole fenced block belonged to Setup, so it goes with the replaced body —
+     * intact, not shredded into an orphan closing fence.
+     */
     expect(page.content).not.toContain('pnpm i')
     expect(page.content).not.toContain('```')
     expect(page.content).toContain('## Setup\nReplaced.')
@@ -3551,13 +3617,15 @@ describe('Wiki patch operations (PROJ-490)', () => {
   })
 })
 
-// PROJ-483: exercises the dedup UPDATE statement from 0041_wiki_slug_unique.sql in
-// isolation. The migration itself runs before any tests seed data (test/setup.ts's
-// beforeAll), so by the time tests execute the unique index is already enforcing —
-// there is no way to get duplicate wiki_pages rows through the running app to
-// re-verify the migration end-to-end. Running the identical dedup SQL against a
-// scratch table shaped like the pre-migration wiki_pages table verifies the
-// algorithm's correctness directly instead.
+/*
+ * PROJ-483: exercises the dedup UPDATE statement from 0041_wiki_slug_unique.sql in
+ * isolation. The migration itself runs before any tests seed data (test/setup.ts's
+ * beforeAll), so by the time tests execute the unique index is already enforcing —
+ * there is no way to get duplicate wiki_pages rows through the running app to
+ * re-verify the migration end-to-end. Running the identical dedup SQL against a
+ * scratch table shaped like the pre-migration wiki_pages table verifies the
+ * algorithm's correctness directly instead.
+ */
 describe('wiki slug dedup algorithm (0041_wiki_slug_unique.sql)', () => {
   const DEDUP_SQL = `WITH ranked AS (
 		SELECT id, ROW_NUMBER() OVER (
@@ -3609,10 +3677,12 @@ describe('wiki slug dedup algorithm (0041_wiki_slug_unique.sql)', () => {
   })
 
   test("doesn't collide with a pre-existing slug that looks like a row-number suffix", async () => {
-    // Regression case: a plain `-2` / `-3` row-number suffix would collide with an
-    // unrelated page that already happens to be named e.g. "operations-2", aborting
-    // the UNIQUE INDEX creation that follows this UPDATE. An id-derived suffix can't
-    // collide with a pre-existing slug this way.
+    /*
+     * Regression case: a plain `-2` / `-3` row-number suffix would collide with an
+     * unrelated page that already happens to be named e.g. "operations-2", aborting
+     * the UNIQUE INDEX creation that follows this UPDATE. An id-derived suffix can't
+     * collide with a pre-existing slug this way.
+     */
     await withScratchTable(async () => {
       await env.DB.prepare(
         'INSERT INTO dedup_scratch (id, workspace_id, slug, created_at) VALUES ' +
@@ -3853,8 +3923,10 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     })
     expect(getRes.status).toBe(404)
 
-    // The now-deleted target turns the surviving linker's outgoing link into a broken
-    // link (target_page_id set null) rather than silently vanishing.
+    /*
+     * The now-deleted target turns the surviving linker's outgoing link into a broken
+     * link (target_page_id set null) rather than silently vanishing.
+     */
     const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
@@ -3908,9 +3980,11 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
       body: JSON.stringify({ title: 'B Source', content: 'see [[Shared Title]]' }),
     })
 
-    // workspace B's link can only resolve against workspace B's own pages, so it's
-    // unresolved there (no "Shared Title" page exists in B) — never leaking a match
-    // against workspace A's page of the same title.
+    /*
+     * Workspace B's link can only resolve against workspace B's own pages, so it's
+     * unresolved there (no "Shared Title" page exists in B) — never leaking a match
+     * against workspace A's page of the same title.
+     */
     const brokenB = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(workspaceB.token, workspaceB.workspace.slug),
     })
@@ -3930,8 +4004,10 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
 
   test('backfill_wiki_links (MCP, owner-only) recomputes links for pre-existing content', async () => {
     const owner = await seedFixture({ role: 'owner' })
-    // Seed pages directly at the DB layer, bypassing reindexWikiLinks, to simulate
-    // pre-PROJ-485 content that predates the link graph.
+    /*
+     * Seed pages directly at the DB layer, bypassing reindexWikiLinks, to simulate
+     * pre-PROJ-485 content that predates the link graph.
+     */
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
       'INSERT INTO wiki_pages (id, workspace_id, slug, title, content, created_by_id, ' +
@@ -4204,8 +4280,10 @@ describe('Wiki freshness model (PROJ-489)', () => {
     // The page was overdue (verified_at 2020-01-01); verifying it now resets the clock.
     expect(verified.freshness.state).toBe('fresh')
 
-    // The stamp is written into the page's frontmatter (not just the denormalized
-    // columns), so a subsequent read reflects it without needing an unrelated edit.
+    /*
+     * The stamp is written into the page's frontmatter (not just the denormalized
+     * columns), so a subsequent read reflects it without needing an unrelated edit.
+     */
     const pageRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
@@ -4239,8 +4317,10 @@ describe('Wiki freshness model (PROJ-489)', () => {
     expect(afterRevisions.length).toBe(beforeRevisions.length + 1)
   })
 
-  // PROJ-489: verifying rewrites the whole content (frontmatter stamp + body), so it must
-  // stamp the CURRENT content — a stale read would silently revert the edit before it.
+  /*
+   * PROJ-489: verifying rewrites the whole content (frontmatter stamp + body), so it must
+   * stamp the CURRENT content — a stale read would silently revert the edit before it.
+   */
   test('POST /api/wiki/:slug/verify stamps on top of the latest content, never a stale snapshot', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -4353,15 +4433,19 @@ describe('Wiki freshness model (PROJ-489)', () => {
     expect(results.map((r) => r.title)).toEqual(['Current Onboarding', 'Deprecated Onboarding'])
   })
 
-  // PROJ-515: decided to NOT demote "unverified" (verify_interval declared, never
-  // verified) in search ranking — only in list_stale_pages (the maintenance queue).
-  // A freshly authored page that opts into verification tracking shouldn't rank worse
-  // than a legacy page with no frontmatter at all just for declaring an interval.
+  /*
+   * PROJ-515: decided to NOT demote "unverified" (verify_interval declared, never
+   * verified) in search ranking — only in list_stale_pages (the maintenance queue).
+   * A freshly authored page that opts into verification tracking shouldn't rank worse
+   * than a legacy page with no frontmatter at all just for declaring an interval.
+   */
   test('GET /api/wiki/search does NOT demote an unverified page below a page with no freshness signal', async () => {
-    // If "unverified" were still in the demotion tier, this page would sort AFTER
-    // "No Signal" below regardless of relevance, the same way a stale/deprecated page
-    // is forced below a fresh one in the tests above. Giving it the stronger (title)
-    // match proves the opposite: bm25 alone decides the order now.
+    /*
+     * If "unverified" were still in the demotion tier, this page would sort AFTER
+     * "No Signal" below regardless of relevance, the same way a stale/deprecated page
+     * is forced below a fresh one in the tests above. Giving it the stronger (title)
+     * match proves the opposite: bm25 alone decides the order now.
+     */
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4454,9 +4538,11 @@ describe('Wiki freshness model (PROJ-489)', () => {
   })
 })
 
-// PROJ-491 (R9): workspace-level page templates — `template: true` frontmatter,
-// create_wiki_page's templateSlug, and the list_wiki_templates picker. REST/MCP parity
-// throughout, same as the other frontmatter-driven features above.
+/*
+ * PROJ-491 (R9): workspace-level page templates — `template: true` frontmatter,
+ * create_wiki_page's templateSlug, and the list_wiki_templates picker. REST/MCP parity
+ * throughout, same as the other frontmatter-driven features above.
+ */
 describe('Wiki page templates (PROJ-491)', () => {
   let token: string, slug: string, workspaceId: string
 
@@ -4506,8 +4592,10 @@ describe('Wiki page templates (PROJ-491)', () => {
     })
     expect(res.status).toBe(201)
     const created = (await res.json()) as { slug: string; isTemplate: boolean; type: string }
-    // The seeded page keeps the template's other frontmatter (type) but is not itself
-    // a template — only the `template` key is stripped.
+    /*
+     * The seeded page keeps the template's other frontmatter (type) but is not itself
+     * a template — only the `template` key is stripped.
+     */
     expect(created.isTemplate).toBe(false)
     expect(created.type).toBe('runbook')
 
@@ -4590,9 +4678,11 @@ describe('Wiki page templates (PROJ-491)', () => {
     expect(results.map((r) => r.title)).not.toContain('Runbook Template')
   })
 
-  // PROJ-525: listWikiPages/GET /api/wiki previously had no is_template exclusion,
-  // unlike search_wiki and listStaleWikiPages above — so a type=runbook filter listed
-  // "Runbook Template" alongside real runbook pages.
+  /*
+   * PROJ-525: listWikiPages/GET /api/wiki previously had no is_template exclusion,
+   * unlike search_wiki and listStaleWikiPages above — so a type=runbook filter listed
+   * "Runbook Template" alongside real runbook pages.
+   */
   test('GET /api/wiki excludes template pages by default, matching search_wiki/list_stale_pages', async () => {
     await createTemplate()
     await fetchNativeApi('http://localhost/api/wiki', {
@@ -4672,9 +4762,11 @@ describe('Wiki page templates (PROJ-491)', () => {
   })
 })
 
-// PROJ-491 (R9): createWorkspace seeds the three built-in templates under a "Templates"
-// parent page — exercised against the real service (not the seedWorkspace test helper,
-// which bypasses createWorkspace entirely) so this only runs where it matters.
+/*
+ * PROJ-491 (R9): createWorkspace seeds the three built-in templates under a "Templates"
+ * parent page — exercised against the real service (not the seedWorkspace test helper,
+ * which bypasses createWorkspace entirely) so this only runs where it matters.
+ */
 describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () => {
   test('seeds a Templates parent page plus runbook/adr/spec templates', async () => {
     const fixture = await seedFixture({ role: 'owner' })
@@ -4704,9 +4796,11 @@ describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () =
     const templatesNode = tree.find((n) => n.title === 'Templates')
     expect(templatesNode?.children.length).toBe(3)
 
-    // The seeded parent must stay reachable by slug: GET /api/wiki/templates is the
-    // template-list endpoint, so a parent slugged "templates" would be shadowed by it
-    // and the page would never render.
+    /*
+     * The seeded parent must stay reachable by slug: GET /api/wiki/templates is the
+     * template-list endpoint, so a parent slugged "templates" would be shadowed by it
+     * and the page would never render.
+     */
     const parentRes = await fetchNativeApi(`http://localhost/api/wiki/${templatesNode?.slug}`, {
       headers: newHeaders,
     })
@@ -4714,10 +4808,12 @@ describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () =
     expect(((await parentRes.json()) as { title: string }).title).toBe('Templates')
   })
 
-  // PROJ-522: the seeded "Templates" parent is a real, non-template, browsable page —
-  // unlike the three template pages under it (deliberately search-excluded) it needs a
-  // wiki_fts mirror row like every other write path maintains, or it's invisible to
-  // search_wiki until someone happens to edit it.
+  /*
+   * PROJ-522: the seeded "Templates" parent is a real, non-template, browsable page —
+   * unlike the three template pages under it (deliberately search-excluded) it needs a
+   * wiki_fts mirror row like every other write path maintains, or it's invisible to
+   * search_wiki until someone happens to edit it.
+   */
   test('the seeded Templates parent page is findable via search_wiki', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(await seedUserToken(fixture.user.id), fixture.workspace.slug)
@@ -4738,8 +4834,10 @@ describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () =
   })
 })
 
-// PROJ-493 (R11): watch/unwatch per page or subtree, per-user notifications, and the
-// list_wiki_changes delta feed.
+/*
+ * PROJ-493 (R11): watch/unwatch per page or subtree, per-user notifications, and the
+ * list_wiki_changes delta feed.
+ */
 describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
   let token: string
   let userId: string
@@ -4747,8 +4845,10 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
   let workspaceId: string
 
   beforeEach(async () => {
-    // admin: several tests (cascade delete, delta-delete) delete workspace-level
-    // pages, which requireWikiDelete restricts to admin/owner.
+    /*
+     * Admin: several tests (cascade delete, delta-delete) delete workspace-level
+     * pages, which requireWikiDelete restricts to admin/owner.
+     */
     const fixture = await seedFixture({ role: 'admin' })
     token = fixture.token
     userId = fixture.user.id
@@ -4980,9 +5080,11 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(deleteNotifs.length).toBe(1)
     expect(deleteNotifs[0]).toMatchObject({ pageId: child.id, slug: 'cascade-kid' })
 
-    // PROJ-496: the watch row itself is no longer cleared at delete time (that moved
-    // to purge, along with R2/wiki_links/wiki_drafts cleanup) — but the trashed page
-    // still drops out of the caller's watch LIST (listWikiWatches filters deleted_at).
+    /*
+     * PROJ-496: the watch row itself is no longer cleared at delete time (that moved
+     * to purge, along with R2/wiki_links/wiki_drafts cleanup) — but the trashed page
+     * still drops out of the caller's watch LIST (listWikiWatches filters deleted_at).
+     */
     const watchesRes = await req('http://localhost/api/wiki/watches', {
       headers: authHeaders(watcher.token, slug),
     })
@@ -5112,22 +5214,26 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(empty.changes).toEqual([])
   })
 
-  // PROJ-869: list_wiki_changes used to select the full activity `diff` for EVERY row
-  // (created/updated/deleted alike), even though only 'deleted' events read it — so a
-  // batch of up to 500 rows could pull the full new content of every changed page out of
-  // D1 into the Worker's memory. That never showed up in the HTTP response itself (a
-  // WikiChangeEvent never serializes `diff`), so the regression test has to look at what
-  // comes back from D1, not at the JSON sent to the client: it wraps ctx.db to record
-  // every row D1 hands back during a real listWikiChanges call and asserts a
-  // deliberately huge 'updated'-row diff never appears in any of them.
+  /*
+   * PROJ-869: list_wiki_changes used to select the full activity `diff` for EVERY row
+   * (created/updated/deleted alike), even though only 'deleted' events read it — so a
+   * batch of up to 500 rows could pull the full new content of every changed page out of
+   * D1 into the Worker's memory. That never showed up in the HTTP response itself (a
+   * WikiChangeEvent never serializes `diff`), so the regression test has to look at what
+   * comes back from D1, not at the JSON sent to the client: it wraps ctx.db to record
+   * every row D1 hands back during a real listWikiChanges call and asserts a
+   * deliberately huge 'updated'-row diff never appears in any of them.
+   */
   test("list_wiki_changes never pulls a non-deleted row's full diff out of D1 (PROJ-869)", async () => {
     const page = await createPage('delta-size', 'Delta Size', 'seed')
     const bigContent = 'x'.repeat(50_000)
     const t0 = Math.floor(Date.now() / 1000) - 1
-    // Simulate an 'updated' activity row still carrying a large diff (either legacy
-    // data predating the 0064 migration, or a future regression that reintroduces
-    // storing full content) — the row-fetch guard must exclude it regardless of how it
-    // got there.
+    /*
+     * Simulate an 'updated' activity row still carrying a large diff (either legacy
+     * data predating the 0064 migration, or a future regression that reintroduces
+     * storing full content) — the row-fetch guard must exclude it regardless of how it
+     * got there.
+     */
     await env.DB.prepare(
       `INSERT INTO activity (id, workspace_id, entity_type, entity_id, actor_id, action, diff, created_at)
 			 VALUES (?, ?, 'wiki_page', ?, ?, 'updated', ?, ?)`,
@@ -5173,9 +5279,11 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     expect(deleteEvent).toMatchObject({ slug: 'delta-delete', title: 'Delta Delete' })
   })
 
-  // PROJ-526: a cascade delete only records one activity row (for the root), so a
-  // poller building a local mirror needs the descendant ids surfaced on that one event
-  // to evict them too — otherwise they never get told the descendants also vanished.
+  /*
+   * PROJ-526: a cascade delete only records one activity row (for the root), so a
+   * poller building a local mirror needs the descendant ids surfaced on that one event
+   * to evict them too — otherwise they never get told the descendants also vanished.
+   */
   test("list_wiki_changes surfaces deletedPageIds on a cascade delete's root event", async () => {
     const t0 = Math.floor(Date.now() / 1000) - 1
     const parent = await createPage('delta-cascade-parent', 'Delta Cascade Parent', 'content')
@@ -5265,16 +5373,20 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test('MCP: watch_wiki_page / list_wiki_watches / list_wiki_changes mirror the REST behavior', async () => {
-    // Several MCP calls back-to-back would otherwise trip the same per-token rate
-    // limit that req() clears for REST calls above.
+    /*
+     * Several MCP calls back-to-back would otherwise trip the same per-token rate
+     * limit that req() clears for REST calls above.
+     */
     async function mcp<T>(name: string, args: unknown) {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
     }
 
-    // Captured before createPage — since is exclusive and page creation's own
-    // activity row must land after this cutoff, not before it (a slow full-suite
-    // run can otherwise push several real seconds between here and list_wiki_changes).
+    /*
+     * Captured before createPage — since is exclusive and page creation's own
+     * activity row must land after this cutoff, not before it (a slow full-suite
+     * run can otherwise push several real seconds between here and list_wiki_changes).
+     */
     const t0 = Math.floor(Date.now() / 1000) - 1
     const page = await createPage('mcp-watch', 'MCP Watch', 'content')
 
@@ -5402,8 +5514,10 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
       body: JSON.stringify({ title: 'Draft Publish', content: 'draft content', baseRevisionId }),
     })
 
-    // Publish reuses the EXISTING conflict-checked update path — not a separate
-    // draft-publish endpoint — with the draft's own baseRevisionId.
+    /*
+     * Publish reuses the EXISTING conflict-checked update path — not a separate
+     * draft-publish endpoint — with the draft's own baseRevisionId.
+     */
     const publishRes = await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
@@ -5426,8 +5540,10 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
   test('a stale baseRevisionId on publish still hits the normal 409 — no separate draft conflict mechanism', async () => {
     const page = await createPage('draft-conflict', 'Draft Conflict', 'v0')
 
-    // Establish a first revision, and capture its id the way startEdit() would —
-    // this is the baseRevisionId the draft freezes and later resubmits on publish.
+    /*
+     * Establish a first revision, and capture its id the way startEdit() would —
+     * this is the baseRevisionId the draft freezes and later resubmits on publish.
+     */
     await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
@@ -5451,17 +5567,21 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
       }),
     })
 
-    // Someone else's edit advances the page's latest revision past what the draft
-    // was based on.
+    /*
+     * Someone else's edit advances the page's latest revision past what the draft
+     * was based on.
+     */
     await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: "someone else's edit" }),
     })
 
-    // Publish resubmits the DRAFT's own (now-stale) baseRevisionId — exactly what
-    // useWikiEditing's save() sends after a restoreDraft() — and must hit the same
-    // 409 conflict path as any other stale edit.
+    /*
+     * Publish resubmits the DRAFT's own (now-stale) baseRevisionId — exactly what
+     * useWikiEditing's save() sends after a restoreDraft() — and must hit the same
+     * 409 conflict path as any other stale edit.
+     */
     const publishRes = await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
@@ -5507,8 +5627,10 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     })
     expect(delRes.status).toBe(200)
 
-    // PROJ-496: draft cleanup moved to purge time — trashing the page (even cascaded)
-    // leaves the draft rows untouched.
+    /*
+     * PROJ-496: draft cleanup moved to purge time — trashing the page (even cascaded)
+     * leaves the draft rows untouched.
+     */
     const rowsAfterDelete = await env.DB.prepare('SELECT page_id FROM wiki_drafts WHERE workspace_id = ?')
       .bind(workspaceId)
       .all()
@@ -5572,8 +5694,10 @@ describe('Wiki trash (PROJ-496)', () => {
   let workspaceId: string
 
   beforeEach(async () => {
-    // admin: deleteWikiPage/undeleteWikiPage/purgeExpiredWikiPages on a workspace-level
-    // page all require admin/owner (requireWikiDelete / isWorkspaceAdmin).
+    /*
+     * Admin: deleteWikiPage/undeleteWikiPage/purgeExpiredWikiPages on a workspace-level
+     * page all require admin/owner (requireWikiDelete / isWorkspaceAdmin).
+     */
     const fixture = await seedFixture({ role: 'admin' })
     token = fixture.token
     slug = fixture.workspace.slug
@@ -5683,8 +5807,10 @@ describe('Wiki trash (PROJ-496)', () => {
     })
     expect(stillLive.status).toBe(200)
 
-    // ...but once the page (now at the new slug) is trashed, the redirect must 404
-    // rather than resolving to a page that no longer exists in any live read path.
+    /*
+     * ...but once the page (now at the new slug) is trashed, the redirect must 404
+     * rather than resolving to a page that no longer exists in any live read path.
+     */
     await trashPage('trash-redirect-target-renamed')
     const afterTrash = await req(`http://localhost/api/wiki/${page.slug}`, {
       headers: authHeaders(token, slug),
@@ -5906,9 +6032,11 @@ describe('Wiki trash (PROJ-496)', () => {
       ((await brokenRes.json()) as { targetTitle: string }[]).some((b) => b.targetTitle === 'Trash Broken Link Target'),
     ).toBe(false)
 
-    // The target is trashed but not yet purged — target_page_id is still set (purge
-    // is what nulls it out), so without the EXISTS-deleted_at clause this link would
-    // stay silently "resolved" until the 30-day purge finally clears it.
+    /*
+     * The target is trashed but not yet purged — target_page_id is still set (purge
+     * is what nulls it out), so without the EXISTS-deleted_at clause this link would
+     * stay silently "resolved" until the 30-day purge finally clears it.
+     */
     await trashPage(target.slug)
 
     brokenRes = await req('http://localhost/api/wiki/broken-links', {
@@ -6025,8 +6153,10 @@ describe('Wiki trash (PROJ-496)', () => {
     const message = body.error ?? body.message ?? ''
     expect(message).toContain(child.slug)
 
-    // Nothing in the batch should have been restored — the whole check runs before
-    // any row is updated.
+    /*
+     * Nothing in the batch should have been restored — the whole check runs before
+     * any row is updated.
+     */
     const parentRow = await env.DB.prepare('SELECT deleted_at FROM wiki_pages WHERE id = ?')
       .bind(parent.id)
       .first<{ deleted_at: number | null }>()
@@ -6034,12 +6164,14 @@ describe('Wiki trash (PROJ-496)', () => {
   })
 
   test('undeleting a cascade-trashed root does NOT restore a descendant trashed separately, same window', async () => {
-    // Regression test for the trash_batch_id disambiguation (PROJ-496 follow-up):
-    // trashing the child alone and then cascade-trashing the parent right after, with
-    // no artificial time offset, used to be indistinguishable from "trashed in one
-    // cascade batch" when both landed on the same deleted_at second. trash_batch_id
-    // gives each deleteWikiPage call its own identity regardless of timestamp, so this
-    // now correctly leaves the independently-trashed child alone.
+    /*
+     * Regression test for the trash_batch_id disambiguation (PROJ-496 follow-up):
+     * trashing the child alone and then cascade-trashing the parent right after, with
+     * no artificial time offset, used to be indistinguishable from "trashed in one
+     * cascade batch" when both landed on the same deleted_at second. trash_batch_id
+     * gives each deleteWikiPage call its own identity regardless of timestamp, so this
+     * now correctly leaves the independently-trashed child alone.
+     */
     const parent = await createPage('Cascade Undelete Mixed Parent', 'content')
     const child = await createPage('Cascade Undelete Mixed Child', 'content', {
       parentId: parent.id,
@@ -6093,9 +6225,11 @@ describe('Wiki trash (PROJ-496)', () => {
     })
     const child = await createPage('Purge Reparent Child', 'content', { parentId: parent.id })
 
-    // Cascade-trash grandparent -> parent -> child as one batch, then undelete just the
-    // child on its own — it's now live again with parent_id still pointing at the
-    // still-trashed `parent`.
+    /*
+     * Cascade-trash grandparent -> parent -> child as one batch, then undelete just the
+     * child on its own — it's now live again with parent_id still pointing at the
+     * still-trashed `parent`.
+     */
     await trashPage(grandparent.slug, true)
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${child.id}/undelete`, {
       method: 'POST',
@@ -6149,8 +6283,10 @@ describe('Wiki trash (PROJ-496)', () => {
   })
 })
 
-// PROJ-812: a slug equal to another page's id must never make an id-or-slug lookup
-// hit the wrong page, and new id-shaped slugs are rejected outright.
+/*
+ * PROJ-812: a slug equal to another page's id must never make an id-or-slug lookup
+ * hit the wrong page, and new id-shaped slugs are rejected outright.
+ */
 describe('wiki slug/id collisions (PROJ-812)', () => {
   let token: string
   let slug: string
@@ -6199,8 +6335,10 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
   })
 
   test("resolves GET, PUT and DELETE by id to the id's page when a legacy slug equals that id", async () => {
-    // Legacy (pre-PROJ-812) data, inserted directly since the API now refuses it: the
-    // impostor row is written FIRST, so a lookup without an id preference returns it.
+    /*
+     * Legacy (pre-PROJ-812) data, inserted directly since the API now refuses it: the
+     * impostor row is written FIRST, so a lookup without an id preference returns it.
+     */
     const target = { id: crypto.randomUUID() }
     const impostorId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)

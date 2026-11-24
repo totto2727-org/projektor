@@ -4,10 +4,12 @@ import { configureCore, env } from './fixture-api.ts'
 import { MIGRATIONS } from './migrations.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
-// Strip line comments before splitting on ; — Drizzle breakpoints and any
-// semicolons inside comments (e.g. "ON CONFLICT; old windows are") would
-// otherwise produce spurious fragments. prepare().run() is used per statement
-// because Miniflare's exec() doesn't handle multi-statement SQL.
+/*
+ * Strip line comments before splitting on ; — Drizzle breakpoints and any
+ * semicolons inside comments (e.g. "ON CONFLICT; old windows are") would
+ * otherwise produce spurious fragments. prepare().run() is used per statement
+ * because Miniflare's exec() doesn't handle multi-statement SQL.
+ */
 function splitStatements(sql: string): string[] {
   return sql
     .replace(/--[^\n]*/g, '')

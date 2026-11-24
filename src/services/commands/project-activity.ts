@@ -26,8 +26,10 @@ async function fetchActivityRows(
   since: number | undefined,
   limit: number,
 ): Promise<ActivityEvent[]> {
-  // D1 limits compound SELECT to a small number of terms, so we run separate
-  // queries per event category and merge/sort in JS.
+  /*
+   * D1 limits compound SELECT to a small number of terms, so we run separate
+   * queries per event category and merge/sort in JS.
+   */
   const sinceFilter = (col: string) => (since !== undefined ? `AND ${col} >= ?` : '')
   const s = since !== undefined ? [since] : []
 

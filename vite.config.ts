@@ -136,9 +136,11 @@ export default defineConfig({
         ],
         test: {
           name: 'workers',
-          // The public SDK barrel includes deployment providers. Prebundle only the
-          // application's named runtime exports so real Workers execute the same
-          // tree-shaken native RPC client as production, without provider imports.
+          /*
+           * The public SDK barrel includes deployment providers. Prebundle only the
+           * application's named runtime exports so real Workers execute the same
+           * tree-shaken native RPC client as production, without provider imports.
+           */
           deps: {
             optimizer: {
               ssr: {

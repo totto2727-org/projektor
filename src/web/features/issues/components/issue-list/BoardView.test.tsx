@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import '../../test/browser.ts'
-// BoardView — mobile viewport tests (PROJ-417).
-//
-// BoardView disables HTML5 drag-and-drop below 640px (native DnD doesn't work
-// on touch devices) by checking `window.innerWidth` directly in its drag
-// handlers. This exercises that branch with the shared viewport helper,
-// rather than relying on the `max-sm:` CSS classes alone.
+/*
+ * BoardView — mobile viewport tests (PROJ-417).
+ *
+ * BoardView disables HTML5 drag-and-drop below 640px (native DnD doesn't work
+ * on touch devices) by checking `window.innerWidth` directly in its drag
+ * handlers. This exercises that branch with the shared viewport helper,
+ * rather than relying on the `max-sm:` CSS classes alone.
+ */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
@@ -127,10 +129,12 @@ describe('BoardView — mobile status menu (PROJ-416)', () => {
   })
 
   test("renders the status menu outside the card's link, not nested inside it", () => {
-    // The whole card body is a draggable <a> (desktop DnD target); nesting an
-    // interactive Select inside it would be invalid HTML (no interactive
-    // descendants in an <a>) and would risk taps on the menu also triggering
-    // navigation. The status menu must be a sibling of the <a>, not a child.
+    /*
+     * The whole card body is a draggable <a> (desktop DnD target); nesting an
+     * interactive Select inside it would be invalid HTML (no interactive
+     * descendants in an <a>) and would risk taps on the menu also triggering
+     * navigation. The status menu must be a sibling of the <a>, not a child.
+     */
     const changeStatus = vi.fn()
     render(<BoardView issues={[TODO_ISSUE]} statuses={STATUSES} changeStatus={changeStatus} />)
 

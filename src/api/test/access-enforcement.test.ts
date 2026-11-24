@@ -6,9 +6,11 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-311: group-based project access. Authorization lives entirely in projektor:
-// access is default-deny, granted per (project, role) through a group the user
-// belongs to. Workspace owner/admin bypass groups and see everything.
+/*
+ * PROJ-311: group-based project access. Authorization lives entirely in projektor:
+ * access is default-deny, granted per (project, role) through a group the user
+ * belongs to. Workspace owner/admin bypass groups and see everything.
+ */
 
 async function listProjects(token: string, slug: string) {
   const res = await fetchNativeApi('http://localhost/api/projects', {
@@ -84,8 +86,10 @@ describe('PROJ-311 group-based project access', () => {
 
     expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toEqual(['TOGGLE'])
 
-    // Admin removes the member from the group; access is per-request, so the next
-    // call reflects it immediately with no session state to invalidate.
+    /*
+     * Admin removes the member from the group; access is per-request, so the next
+     * call reflects it immediately with no session state to invalidate.
+     */
     const del = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}/groups/${groupId}/members/${roles.member.user.id}`,
       { method: 'DELETE', headers: authHeaders(roles.owner.token, slug) },
@@ -99,8 +103,10 @@ describe('PROJ-311 group-based project access', () => {
     const roles = await seedWorkspaceRoles()
     const slug = roles.workspace.slug
     const project = await seedProject(roles.workspace.id, 'MULTI')
-    // A viewer grant and a member grant on the same project via two groups: the
-    // effective role is the stronger one, so writes are allowed.
+    /*
+     * A viewer grant and a member grant on the same project via two groups: the
+     * effective role is the stronger one, so writes are allowed.
+     */
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'viewer')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 

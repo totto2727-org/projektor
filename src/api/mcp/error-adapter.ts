@@ -16,11 +16,13 @@ function truncate(s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max)}…` : s
 }
 
-// Not every MCP host surfaces the JSON-RPC 2.0 `error.data` member to the calling
-// model — many render only `code`/`message`. `data` stays the primary, complete
-// machine-readable channel, but a bounded human-readable summary is folded into
-// `message` too so an agent without `data` access isn't left blind to *why* a
-// structured error (conflict diff, ambiguous headings, ...) happened.
+/*
+ * Not every MCP host surfaces the JSON-RPC 2.0 `error.data` member to the calling
+ * model — many render only `code`/`message`. `data` stays the primary, complete
+ * machine-readable channel, but a bounded human-readable summary is folded into
+ * `message` too so an agent without `data` access isn't left blind to *why* a
+ * structured error (conflict diff, ambiguous headings, ...) happened.
+ */
 function summarizeDetails(details: Record<string, unknown>): string {
   const summary = Object.entries(details)
     .map(([key, value]) => {
@@ -39,9 +41,11 @@ function hasDetails(details: Record<string, unknown> | undefined): details is Re
   return details !== undefined && Object.keys(details).length > 0
 }
 
-// Same bounded-summary treatment as NotFoundError/ConflictError's `details`, but for
-// ValidationError's Zod-flattened `issues` shape (formErrors + fieldErrors) instead of
-// a flat details object.
+/*
+ * Same bounded-summary treatment as NotFoundError/ConflictError's `details`, but for
+ * ValidationError's Zod-flattened `issues` shape (formErrors + fieldErrors) instead of
+ * a flat details object.
+ */
 function summarizeIssues(issues: ZodFlattenOutput): string {
   const parts: string[] = [
     ...(issues.formErrors.length > 0 ? [truncate(issues.formErrors.join(', '), MAX_DETAIL_VALUE_CHARS)] : []),
@@ -59,13 +63,15 @@ function hasIssues(issues: ZodFlattenOutput): boolean {
   )
 }
 
-// PROJ-508/PROJ-523: surface the Zod issue detail (formErrors/fieldErrors) via the
-// JSON-RPC 2.0 `error.data` member instead of dropping it. This covers ordinary
-// schema-validation failures and hand-thrown ValidationErrors alike (e.g.
-// patch_wiki_page's ambiguous-heading case), so an MCP agent can always read back
-// *why* its params were rejected, not just that they were. A bounded summary is also
-// folded into `message` — same fallback as NotFoundError/ConflictError below — for MCP
-// hosts that don't surface `data`.
+/*
+ * PROJ-508/PROJ-523: surface the Zod issue detail (formErrors/fieldErrors) via the
+ * JSON-RPC 2.0 `error.data` member instead of dropping it. This covers ordinary
+ * schema-validation failures and hand-thrown ValidationErrors alike (e.g.
+ * patch_wiki_page's ambiguous-heading case), so an MCP agent can always read back
+ * *why* its params were rejected, not just that they were. A bounded summary is also
+ * folded into `message` — same fallback as NotFoundError/ConflictError below — for MCP
+ * hosts that don't surface `data`.
+ */
 function toMcpValidationError(err: { issues: ZodFlattenOutput }): {
   code: number
   message: string
@@ -81,10 +87,12 @@ function toMcpValidationError(err: { issues: ZodFlattenOutput }): {
   }
 }
 
-// PROJ-490 / PROJ-508 / PROJ-484: structured details (e.g. patch_wiki_page's
-// currentHeadings, or wiki's currentRevisionId + diff) travel in `data` — the proper
-// JSON-RPC 2.0 channel — rather than JSON-encoded into `message`. A bounded summary is
-// also folded into `message` as a fallback for MCP hosts that don't surface `data`.
+/*
+ * PROJ-490 / PROJ-508 / PROJ-484: structured details (e.g. patch_wiki_page's
+ * currentHeadings, or wiki's currentRevisionId + diff) travel in `data` — the proper
+ * JSON-RPC 2.0 channel — rather than JSON-encoded into `message`. A bounded summary is
+ * also folded into `message` as a fallback for MCP hosts that don't surface `data`.
+ */
 function toMcpServiceErrorWithDetails(
   message: string,
   details: Record<string, unknown> | undefined,
@@ -109,12 +117,14 @@ export function toMcpError(err: unknown, requestId: string): { code: number; mes
     return toMcpValidationError(err)
   }
   if (err instanceof ServiceError) {
-    // Only the kinds whose messages are deliberately client-facing are
-    // surfaced (audited 2026-06-30: not_found / forbidden / conflict messages
-    // are controlled domain strings — "Issue not found", "Slug already taken",
-    // or the caller's own key echoed back — never internals). Any other
-    // ServiceError kind is treated as internal so a future subclass can't
-    // leak its message to clients by default. (PROJ-204)
+    /*
+     * Only the kinds whose messages are deliberately client-facing are
+     * surfaced (audited 2026-06-30: not_found / forbidden / conflict messages
+     * are controlled domain strings — "Issue not found", "Slug already taken",
+     * or the caller's own key echoed back — never internals). Any other
+     * ServiceError kind is treated as internal so a future subclass can't
+     * leak its message to clients by default. (PROJ-204)
+     */
     switch (err.kind) {
       case 'not_found':
         return toMcpServiceErrorWithDetails(err.message, err instanceof NotFoundError ? err.details : undefined)
@@ -135,19 +145,21 @@ export function toMcpError(err: unknown, requestId: string): { code: number; mes
   return { code: -32_000, message: `Internal error (request: ${requestId})`, data: { requestId } }
 }
 
-// ---------------------------------------------------------------------------
-// PROJ-893: tool execution failures are tool *results* (`isError: true`), not JSON-RPC
-// protocol errors. The MCP spec puts them there so the model sees the failure and can
-// self-correct; a client only MAY show a protocol error to the model. JSON-RPC errors
-// (toMcpError above) stay reserved for protocol faults — parse error, invalid request,
-// method not found, unknown tool — and for an unexpected internal failure, whose
-// message must never carry anything but a request id.
-//
-// The code set is the kinds services already throw (services/errors.ts: PROJ-878's
-// not_found / forbidden / conflict / validation / payload_too_large) plus rate_limited,
-// which the request-limiter work (PROJ-899) will produce. Scope denials are neither: they
-// stay an HTTP 403 with a WWW-Authenticate challenge (PROJ-651), handled in routes/mcp.ts.
-// ---------------------------------------------------------------------------
+/*
+ * ---------------------------------------------------------------------------
+ * PROJ-893: tool execution failures are tool *results* (`isError: true`), not JSON-RPC
+ * protocol errors. The MCP spec puts them there so the model sees the failure and can
+ * self-correct; a client only MAY show a protocol error to the model. JSON-RPC errors
+ * (toMcpError above) stay reserved for protocol faults — parse error, invalid request,
+ * method not found, unknown tool — and for an unexpected internal failure, whose
+ * message must never carry anything but a request id.
+ *
+ * The code set is the kinds services already throw (services/errors.ts: PROJ-878's
+ * not_found / forbidden / conflict / validation / payload_too_large) plus rate_limited,
+ * which the request-limiter work (PROJ-899) will produce. Scope denials are neither: they
+ * stay an HTTP 403 with a WWW-Authenticate challenge (PROJ-651), handled in routes/mcp.ts.
+ * ---------------------------------------------------------------------------
+ */
 
 export type ToolErrorCode = 'not_found' | 'forbidden' | 'conflict' | 'validation' | 'payload_too_large' | 'rate_limited'
 

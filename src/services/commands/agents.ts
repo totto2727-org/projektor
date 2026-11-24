@@ -22,11 +22,13 @@ import type { ServiceCtx } from './types.ts'
 
 const ACTIVE_TTL = 120
 
-// PROJ-336: agent_sessions.kind is caller-declared at register_agent with no
-// privilege check (the original review-gate spoof vector; PROJ-287 rebound the
-// gate to live leases instead, ignoring kind entirely). It drives no remaining
-// behavior, so it's excluded here to stop it reading as a trust/attribution
-// signal in list_active_agents and register/heartbeat/end responses.
+/*
+ * PROJ-336: agent_sessions.kind is caller-declared at register_agent with no
+ * privilege check (the original review-gate spoof vector; PROJ-287 rebound the
+ * gate to live leases instead, ignoring kind entirely). It drives no remaining
+ * behavior, so it's excluded here to stop it reading as a trust/attribution
+ * signal in list_active_agents and register/heartbeat/end responses.
+ */
 const AGENT_SESSION_COLUMNS = {
   id: schema.agentSessions.id,
   workspaceId: schema.agentSessions.workspaceId,
@@ -59,16 +61,20 @@ export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
 
-  // PROJ-336: kind is no longer read from the caller — see AGENT_SESSION_COLUMNS
-  // for why it's dropped from every response. The DB column keeps its "agent"
-  // default so existing rows/queries are unaffected.
+  /*
+   * PROJ-336: kind is no longer read from the caller — see AGENT_SESSION_COLUMNS
+   * for why it's dropped from every response. The DB column keeps its "agent"
+   * default so existing rows/queries are unaffected.
+   */
   await orm.insert(schema.agentSessions).values({
     id,
     workspaceId: ctx.workspaceId,
     issueId: issueId ?? null,
-    // PROJ-894: the credential is recorded so an omitted agentId can later resolve to
-    // this session. token_id keeps its FK meaning (api_tokens.id), so it is only set
-    // for pk/pat credentials; an OAuth grant id lives in credential_id alone.
+    /*
+     * PROJ-894: the credential is recorded so an omitted agentId can later resolve to
+     * this session. token_id keeps its FK meaning (api_tokens.id), so it is only set
+     * for pk/pat credentials; an OAuth grant id lives in credential_id alone.
+     */
     tokenId: ctx.auth?.credentialId && isApiTokenMethod(ctx.auth.method) ? ctx.auth.credentialId : null,
     authMethod: ctx.auth?.method ?? null,
     credentialId: agentSessionCredential(ctx) ?? null,
@@ -145,8 +151,10 @@ export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
   if (!result.success) {
     throw new ValidationError(result.error.flatten())
   }
-  // PROJ-894: heartbeat resolves against still-active sessions (not only live ones) —
-  // this call is what revives a session that just went stale.
+  /*
+   * PROJ-894: heartbeat resolves against still-active sessions (not only live ones) —
+   * this call is what revives a session that just went stale.
+   */
   const id = await resolveAgentSessionId(ctx, result.data.id, { includeStale: true })
 
   const orm = drizzle(ctx.db, { schema })
@@ -240,9 +248,11 @@ export async function finishWork(ctx: ServiceCtx, raw: unknown) {
     await updateIssue(ctx, issueId, {
       ...(status !== undefined ? { status } : {}),
       ...(completionReport !== undefined ? { completionReport } : {}),
-      // Attributes the transition to this session for the PROJ-375 audit flag and
-      // the review-gate's completion-report requirement, exactly as a caller passing
-      // agentSessionId on a plain update_issue already does.
+      /*
+       * Attributes the transition to this session for the PROJ-375 audit flag and
+       * the review-gate's completion-report requirement, exactly as a caller passing
+       * agentSessionId on a plain update_issue already does.
+       */
       agentSessionId: sessionId,
     })
   }
@@ -271,8 +281,10 @@ export async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
   const orm = drizzle(ctx.db, { schema })
   const cutoff = Math.floor(Date.now() / 1000) - ACTIVE_TTL
 
-  // `status='active'` is unconditional — an ended session is never returned, whether or
-  // not includeStale is set. includeStale only lifts the heartbeat-freshness check below.
+  /*
+   * `status='active'` is unconditional — an ended session is never returned, whether or
+   * not includeStale is set. includeStale only lifts the heartbeat-freshness check below.
+   */
   const conditions = [eq(schema.agentSessions.workspaceId, ctx.workspaceId), eq(schema.agentSessions.status, 'active')]
   if (!includeStale) {
     conditions.push(gt(schema.agentSessions.lastHeartbeatAt, cutoff))
@@ -281,17 +293,21 @@ export async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
   if (issueId) {
     conditions.push(eq(schema.agentSessions.issueId, issueId))
   }
-  // PROJ-932: a session with no issue link has no project to check, so it's excluded
-  // once a projectId filter is given (see the list_active_agents tool description).
+  /*
+   * PROJ-932: a session with no issue link has no project to check, so it's excluded
+   * once a projectId filter is given (see the list_active_agents tool description).
+   */
   if (projectId) {
     conditions.push(eq(schema.issues.projectId, projectId))
   }
 
-  // PROJ-316: a non-admin member only sees agents working an issue in a project
-  // they can access. Agents not tied to any issue carry no project, so they stay
-  // workspace-visible. Owner/admin (predicate undefined) see every agent. The LEFT
-  // JOIN to issues below lets the predicate take the joined project id column
-  // directly instead of a correlated subquery.
+  /*
+   * PROJ-316: a non-admin member only sees agents working an issue in a project
+   * they can access. Agents not tied to any issue carry no project, so they stay
+   * workspace-visible. Owner/admin (predicate undefined) see every agent. The LEFT
+   * JOIN to issues below lets the predicate take the joined project id column
+   * directly instead of a correlated subquery.
+   */
   const vis = visibleProjectPredicate(ctx, schema.issues.projectId)
   if (vis) {
     conditions.push(or(isNull(schema.agentSessions.issueId), vis) ?? vis)

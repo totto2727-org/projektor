@@ -4,8 +4,10 @@ import m0028 from '../../../migrations/0028_downgrade_viewer_grants.sql?raw'
 import { env } from './fixture-api.ts'
 import { seedMember, seedProject, seedUser, seedWorkspace } from './helpers.ts'
 
-// PROJ-318: 0028 splits the 0027 all-projects backfill so a pre-existing workspace
-// viewer keeps a read-only grant instead of being silently promoted to member.
+/*
+ * PROJ-318: 0028 splits the 0027 all-projects backfill so a pre-existing workspace
+ * viewer keeps a read-only grant instead of being silently promoted to member.
+ */
 
 function splitStatements(sql: string): string[] {
   return sql
@@ -21,8 +23,10 @@ async function runMigration0028() {
   }
 }
 
-// Recreate the post-0027 backfill state for a fresh workspace: an 'all-projects'
-// group granting `member` on every project, enrolling both members and viewers.
+/*
+ * Recreate the post-0027 backfill state for a fresh workspace: an 'all-projects'
+ * group granting `member` on every project, enrolling both members and viewers.
+ */
 async function seed0027Backfill() {
   const ws = await seedWorkspace()
   const memberGroupId = `grp-allproj-${ws.id}`

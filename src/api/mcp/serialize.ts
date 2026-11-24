@@ -2,10 +2,12 @@ import { z } from 'zod'
 
 import { ValidationError } from '../../contracts/errors.ts'
 
-// PROJ-891 (builds on PROJ-931): MCP-only response shaping. Applied in the MCP layer, not
-// the service, so REST keeps returning the full shape — the service is the single source
-// of truth for the data, this is presentation for the token-metered MCP surface.
-// Conventions: apps/docs/src/content/docs/agents/response-conventions.md.
+/*
+ * PROJ-891 (builds on PROJ-931): MCP-only response shaping. Applied in the MCP layer, not
+ * the service, so REST keeps returning the full shape — the service is the single source
+ * of truth for the data, this is presentation for the token-metered MCP surface.
+ * Conventions: apps/docs/src/content/docs/agents/response-conventions.md.
+ */
 
 export const RESPONSE_CONVENTIONS_DOC = '/projektor/agents/response-conventions/'
 
@@ -16,9 +18,11 @@ export const OMISSION_NOTE =
 /** Per-result size ceiling (characters of serialized JSON). */
 export const MAX_RESULT_CHARS = 20_000
 
-// Every key any issue-returning tool can emit (get_issue's full shape ∪ list items ∪ the
-// derived `ref`/`type`/`updated`). `fields` is checked against this so a typo is a
-// validation error, not a silent `null`.
+/*
+ * Every key any issue-returning tool can emit (get_issue's full shape ∪ list items ∪ the
+ * derived `ref`/`type`/`updated`). `fields` is checked against this so a typo is a
+ * validation error, not a silent `null`.
+ */
 export const ISSUE_FIELD_NAMES = [
   'ref',
   'type',
@@ -129,12 +133,16 @@ function isZeroRollup(v: unknown): boolean {
   return !!v && typeof v === 'object' && (v as { total?: unknown }).total === 0
 }
 
-// Dropped when null/unset: a caller checks the id, and the key/name pair only exists to
-// save a lookup, so it is noise once the id is gone.
+/*
+ * Dropped when null/unset: a caller checks the id, and the key/name pair only exists to
+ * save a lookup, so it is noise once the id is gone.
+ */
 const NULLABLE_DEFAULT_KEYS = ['sprint_id', 'parent_id', 'completed_at', 'author_kind', 'status_category'] as const
 
-// Internal ids a caller never needs: the workspace is the URL, the project is in `ref`,
-// type/status are named by `type`/`status`, and the author is in `author_kind`.
+/*
+ * Internal ids a caller never needs: the workspace is the URL, the project is in `ref`,
+ * type/status are named by `type`/`status`, and the author is in `author_kind`.
+ */
 const INTERNAL_ID_KEYS = ['workspace_id', 'project_id', 'type_id', 'status_id', 'created_by_id'] as const
 
 // Name/key duplicates of things kept elsewhere: `ref` carries project_key + number,
@@ -252,8 +260,10 @@ export function shapeIssue(issue: Record<string, unknown>, opts: ShapeOpts = {})
   for (const key of DUPLICATE_KEYS) {
     delete out[key]
   }
-  // `status` is the legacy enum; a custom workflow status (e.g. "qa" within in_progress)
-  // is only distinguishable by its key, so keep it whenever it adds information.
+  /*
+   * `status` is the legacy enum; a custom workflow status (e.g. "qa" within in_progress)
+   * is only distinguishable by its key, so keep it whenever it adds information.
+   */
   if (typeof issue.status_key === 'string' && issue.status_key !== issue.status) {
     out.status_key = issue.status_key
   }
@@ -314,8 +324,10 @@ export function capPage<P extends { items: unknown[]; next?: string }>(
       hi = mid - 1
     }
   }
-  // Back off to a cut the tool says is resumable. If none exists (e.g. every event shares
-  // one second), an over-cap page is better than a cursor that silently skips items.
+  /*
+   * Back off to a cut the tool says is resumable. If none exists (e.g. every event shares
+   * one second), an over-cap page is better than a cursor that silently skips items.
+   */
   let k = lo
   while (k > 1 && opts.canCutAt && !opts.canCutAt(k)) {
     k--

@@ -60,8 +60,10 @@ export async function configureCore(settings: Readonly<Record<string, string | n
   await originalCore.fixtureSession(settingsSnapshot)
 }
 
-// Direct Hono calls run in the driver's context. Resolve their native session at
-// dispatch, never retain an I/O capability created by an earlier test invocation.
+/*
+ * Direct Hono calls run in the driver's context. Resolve their native session at
+ * dispatch, never retain an I/O capability created by an earlier test invocation.
+ */
 const directCore = new Proxy(
   {},
   {

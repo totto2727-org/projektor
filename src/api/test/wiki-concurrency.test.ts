@@ -1,5 +1,7 @@
-// PROJ-809 / PROJ-810: wiki reads carry their revision pointer, and every content
-// write is guarded so a concurrent write can't be silently reverted.
+/*
+ * PROJ-809 / PROJ-810: wiki reads carry their revision pointer, and every content
+ * write is guarded so a concurrent write can't be silently reverted.
+ */
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { ConflictError } from '#commands/errors.ts'
@@ -26,8 +28,10 @@ async function setup() {
   return { ctx, slug: created.slug, token, wsSlug: workspace.slug }
 }
 
-// Run `concurrent` just before the next db.batch — i.e. after the service has read the
-// page but before its write lands, which is exactly the race window.
+/*
+ * Run `concurrent` just before the next db.batch — i.e. after the service has read the
+ * page but before its write lands, which is exactly the race window.
+ */
 function interleaveBeforeNextBatch(times: number, concurrent: () => Promise<void>) {
   const orig = env.DB.batch.bind(env.DB)
   let remaining = times

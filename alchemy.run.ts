@@ -7,8 +7,10 @@ import { DeploymentLayer } from './worker-environment.ts'
 
 export const workers = WorkerResources.pipe(Effect.provide(DeploymentLayer))
 
-// Development stays entirely local. Production state survives ephemeral CI runners
-// in Alchemy's official encrypted Cloudflare state store, not plaintext artifacts.
+/*
+ * Development stays entirely local. Production state survives ephemeral CI runners
+ * in Alchemy's official encrypted Cloudflare state store, not plaintext artifacts.
+ */
 export const DeploymentState = Layer.unwrap(
   ALCHEMY_DEV.pipe(
     Effect.orDie,

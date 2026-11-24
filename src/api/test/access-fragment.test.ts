@@ -3,9 +3,11 @@ import { describe, expect, test } from 'vite-plus/test'
 import { visibleProjectSqlFragment } from '#commands/access.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 
-// PROJ-317: visibleProjectSqlFragment inlines its column expression verbatim into
-// raw SQL, so it must reject anything that isn't a bare/qualified column identifier
-// before it can become an injection vector.
+/*
+ * PROJ-317: visibleProjectSqlFragment inlines its column expression verbatim into
+ * raw SQL, so it must reject anything that isn't a bare/qualified column identifier
+ * before it can become an injection vector.
+ */
 
 const memberCtx = { role: 'member', userId: 'u1' } as unknown as ServiceCtx
 const ownerCtx = { role: 'owner', userId: 'u1' } as unknown as ServiceCtx

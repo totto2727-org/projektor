@@ -49,8 +49,10 @@ export const GetFeedbackSourceSchema = z.object({
 export const UpdateFeedbackSourceSchema = z
   .object({
     sourceId: z.string(),
-    // Optional: REST routes always pass the URL path's projectId (scoping the
-    // lookup to that project); MCP tools omit it and stay workspace-scoped.
+    /*
+     * Optional: REST routes always pass the URL path's projectId (scoping the
+     * lookup to that project); MCP tools omit it and stay workspace-scoped.
+     */
     projectId: z.string().min(1).optional(),
     name: z.string().min(1).max(100).optional(),
     description: z.string().max(500).nullable().optional(),
@@ -76,8 +78,10 @@ export const ListFeedbackSchema = z.object({
 })
 
 export const UpdateFeedbackSchema = z.object({
-  // Optional: REST routes always pass the URL path's projectId (scoping the
-  // lookup to that project); MCP tools omit it and resolve it from the feedback row.
+  /*
+   * Optional: REST routes always pass the URL path's projectId (scoping the
+   * lookup to that project); MCP tools omit it and resolve it from the feedback row.
+   */
   projectId: z.string().min(1).optional(),
   feedbackId: z.string(),
   status: FeedbackStatusEnum,

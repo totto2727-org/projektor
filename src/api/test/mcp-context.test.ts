@@ -1,5 +1,7 @@
-// PROJ-889: MCP calls get the full ServiceCtx (realtime hub, waitUntil) and every auth
-// strategy records its method + credential on the request context.
+/*
+ * PROJ-889: MCP calls get the full ServiceCtx (realtime hub, waitUntil) and every auth
+ * strategy records its method + credential on the request context.
+ */
 import { Hono } from 'hono'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 

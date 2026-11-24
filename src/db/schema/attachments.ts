@@ -11,10 +11,12 @@ export const attachments = sqliteTable(
     workspaceId: text('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    // "file" = uploaded to R2 (r2Key/contentType/size populated); "wiki_ref" = reference to a
-    // wiki page (linkedWikiPageId populated); "url" = external link (url populated, filename
-    // holds the optional display label). Unused columns for a given kind are "" / 0, not null,
-    // since D1/SQLite can't cheaply relax NOT NULL on existing columns via ALTER TABLE.
+    /*
+     * "file" = uploaded to R2 (r2Key/contentType/size populated); "wiki_ref" = reference to a
+     * wiki page (linkedWikiPageId populated); "url" = external link (url populated, filename
+     * holds the optional display label). Unused columns for a given kind are "" / 0, not null,
+     * since D1/SQLite can't cheaply relax NOT NULL on existing columns via ALTER TABLE.
+     */
     kind: text('kind', { enum: ['file', 'wiki_ref', 'url'] })
       .notNull()
       .default('file'),

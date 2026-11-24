@@ -17,12 +17,14 @@ type ExportedPage = {
   content: string
 }
 
-// A Worker isolate has a 128 MB memory ceiling and uploads allow up to 50 MB per file
-// (MAX_UPLOAD_SIZE in services/files.ts). These caps bound export size before any R2
-// fetch or zip work starts, so an oversized export fails fast with a typed error
-// instead of buffering its way into an OOM/500. The streaming zip build below (buildZip)
-// is the primary defense against memory blowup — these are a belt-and-braces backstop
-// against pathological page counts / attachment totals.
+/*
+ * A Worker isolate has a 128 MB memory ceiling and uploads allow up to 50 MB per file
+ * (MAX_UPLOAD_SIZE in services/files.ts). These caps bound export size before any R2
+ * fetch or zip work starts, so an oversized export fails fast with a typed error
+ * instead of buffering its way into an OOM/500. The streaming zip build below (buildZip)
+ * is the primary defense against memory blowup — these are a belt-and-braces backstop
+ * against pathological page counts / attachment totals.
+ */
 const MAX_EXPORT_PAGES = 500
 const MAX_EXPORT_ATTACHMENT_BYTES = 100 * 1024 * 1024 // 100 MB total per export
 
@@ -47,9 +49,11 @@ function assertExportSizeAllowed(pageCount: number, totalAttachmentBytes: number
   }
 }
 
-// PROJ-311: same visibility rule as wiki.ts's assertWikiPageVisible — a workspace-level
-// page (projectId null) is visible to every member; a project-scoped page needs an
-// admin bypass or a group grant on that project.
+/*
+ * PROJ-311: same visibility rule as wiki.ts's assertWikiPageVisible — a workspace-level
+ * page (projectId null) is visible to every member; a project-scoped page needs an
+ * admin bypass or a group grant on that project.
+ */
 async function requireSpaceVisible(ctx: ServiceCtx, projectId: string | null): Promise<void> {
   if (projectId === null) {
     return
@@ -57,8 +61,10 @@ async function requireSpaceVisible(ctx: ServiceCtx, projectId: string | null): P
   await assertProjectAccess(ctx, projectId, 'read', { notFoundMessage: 'Project not found' })
 }
 
-// Mirrors wiki.ts's resolvePageByIdOrSlug direct-match branch (no redirect chasing —
-// this is an export utility, not a citation path that needs stale-link tolerance).
+/*
+ * Mirrors wiki.ts's resolvePageByIdOrSlug direct-match branch (no redirect chasing —
+ * this is an export utility, not a citation path that needs stale-link tolerance).
+ */
 async function resolveExportRoot(
   ctx: ServiceCtx,
   idOrSlug: string,
@@ -107,15 +113,17 @@ async function resolveExportRoot(
   return bySlug
 }
 
-// Mirrors wiki.ts's collectDescendantIds BFS over parent_id, chunked to stay under
-// D1's bound-parameter cap regardless of subtree size (see AGENTS.md's D1 limit note).
-//
-// wiki.ts's validateNewPageParent/validateExistingPageParent enforce "a page's parent
-// must belong to the same project" on every write, so a descendant should never carry
-// a different projectId than the subtree root — but that invariant lives in a file
-// this domain doesn't own, so it's re-asserted here defensively rather than trusted
-// blindly: any row whose projectId doesn't match the root's is dropped rather than
-// exported, so a future regression of that invariant fails closed, not open.
+/*
+ * Mirrors wiki.ts's collectDescendantIds BFS over parent_id, chunked to stay under
+ * D1's bound-parameter cap regardless of subtree size (see AGENTS.md's D1 limit note).
+ *
+ * wiki.ts's validateNewPageParent/validateExistingPageParent enforce "a page's parent
+ * must belong to the same project" on every write, so a descendant should never carry
+ * a different projectId than the subtree root — but that invariant lives in a file
+ * this domain doesn't own, so it's re-asserted here defensively rather than trusted
+ * blindly: any row whose projectId doesn't match the root's is dropped rather than
+ * exported, so a future regression of that invariant fails closed, not open.
+ */
 async function collectDescendantIds(ctx: ServiceCtx, rootId: string, rootProjectId: string | null): Promise<string[]> {
   const orm = drizzle(ctx.db, { schema })
   const descendants: string[] = []
@@ -136,9 +144,11 @@ async function collectDescendantIds(ctx: ServiceCtx, rootId: string, rootProject
     const inScope = children.filter((c) => (c.projectId ?? null) === rootProjectId)
     frontier = inScope.map((c) => c.id)
     descendants.push(...frontier)
-    // Bail out as soon as the walk itself proves the subtree is oversized, rather than
-    // continuing to accumulate ids and only rejecting after pagesByIds fetches every body.
-    // +1 accounts for the root page, which isn't in `descendants`.
+    /*
+     * Bail out as soon as the walk itself proves the subtree is oversized, rather than
+     * continuing to accumulate ids and only rejecting after pagesByIds fetches every body.
+     * +1 accounts for the root page, which isn't in `descendants`.
+     */
     assertPageCountAllowed(descendants.length + 1)
   }
   return descendants
@@ -165,10 +175,12 @@ async function pagesByIds(ctx: ServiceCtx, ids: string[]): Promise<ExportedPage[
   )
 }
 
-// PROJ-488: a page's frontmatter (if any) already lives inline in `content` — that's
-// the canonical source, and it round-trips through create/update/revisions untouched.
-// A page with no leading `---` block gets a minimal one synthesized here (title only)
-// so every exported file carries frontmatter, per the R15 spec.
+/*
+ * PROJ-488: a page's frontmatter (if any) already lives inline in `content` — that's
+ * the canonical source, and it round-trips through create/update/revisions untouched.
+ * A page with no leading `---` block gets a minimal one synthesized here (title only)
+ * so every exported file carries frontmatter, per the R15 spec.
+ */
 function ensureFrontmatter(page: ExportedPage): string {
   if (/^---\r?\n/.test(page.content)) {
     return page.content
@@ -177,8 +189,10 @@ function ensureFrontmatter(page: ExportedPage): string {
   return `---\n${yamlText}\n---\n${page.content}`
 }
 
-// PROJ-426-style: only `kind: "file"` attachments carry a real R2 object (wiki_ref
-// pointer attachments have an empty r2_key and nothing to zip).
+/*
+ * PROJ-426-style: only `kind: "file"` attachments carry a real R2 object (wiki_ref
+ * pointer attachments have an empty r2_key and nothing to zip).
+ */
 async function collectAttachments(
   ctx: ServiceCtx,
   pages: readonly ExportedPage[],
@@ -228,10 +242,12 @@ function safeZipPathSegment(value: string): string {
   return /^\.+$/.test(stripped) ? '_' : stripped
 }
 
-// Keeps incrementing the collision suffix until it lands on a name nobody has used yet
-// (including previously-renamed names) — a plain "rename once" scheme can produce a
-// second collision (e.g. two "notes.txt" plus a real "1-notes.txt") that silently
-// clobbers a file, since the zip entries are looked up by name.
+/*
+ * Keeps incrementing the collision suffix until it lands on a name nobody has used yet
+ * (including previously-renamed names) — a plain "rename once" scheme can produce a
+ * second collision (e.g. two "notes.txt" plus a real "1-notes.txt") that silently
+ * clobbers a file, since the zip entries are looked up by name.
+ */
 function reserveUniqueName(usedNames: Set<string>, candidate: string, altFor: (n: number) => string): string {
   if (!usedNames.has(candidate)) {
     usedNames.add(candidate)
@@ -247,11 +263,13 @@ function reserveUniqueName(usedNames: Set<string>, candidate: string, altFor: (n
   return alt
 }
 
-// Streams the archive rather than building it fully in memory: fflate's streaming Zip
-// writer emits compressed chunks as each entry is pushed, so the response body never
-// requires holding the complete zip (or every page/attachment at once) in memory. Only
-// one attachment's bytes are held at a time, and the total attachment budget is checked
-// up front (assertExportSizeAllowed) before any R2 fetch happens.
+/*
+ * Streams the archive rather than building it fully in memory: fflate's streaming Zip
+ * writer emits compressed chunks as each entry is pushed, so the response body never
+ * requires holding the complete zip (or every page/attachment at once) in memory. Only
+ * one attachment's bytes are held at a time, and the total attachment budget is checked
+ * up front (assertExportSizeAllowed) before any R2 fetch happens.
+ */
 async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<ReadableStream<Uint8Array>> {
   const attachments = await collectAttachments(ctx, pages)
   const totalAttachmentBytes = attachments.reduce((sum, a) => sum + a.size, 0)
@@ -348,8 +366,10 @@ export async function exportWiki(
           data.projectId ? eq(schema.wikiPages.projectId, data.projectId) : isNull(schema.wikiPages.projectId),
         ),
       )
-      // Fetch one row past the cap so an oversized space can be rejected here, before
-      // content bodies for the full (potentially huge) page set are ever loaded.
+      /*
+       * Fetch one row past the cap so an oversized space can be rejected here, before
+       * content bodies for the full (potentially huge) page set are ever loaded.
+       */
       .limit(MAX_EXPORT_PAGES + 1)
     assertPageCountAllowed(pages.length)
 

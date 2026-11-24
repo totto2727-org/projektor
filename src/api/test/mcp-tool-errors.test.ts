@@ -1,6 +1,8 @@
-// PROJ-893: a failed tools/call is a tool *result* (`isError: true`) with a code and a
-// next-step hint, so the model can self-correct. JSON-RPC errors are reserved for protocol
-// faults; scope denials stay an HTTP 403 with a WWW-Authenticate challenge (PROJ-651).
+/*
+ * PROJ-893: a failed tools/call is a tool *result* (`isError: true`) with a code and a
+ * next-step hint, so the model can self-correct. JSON-RPC errors are reserved for protocol
+ * faults; scope denials stay an HTTP 403 with a WWW-Authenticate challenge (PROJ-651).
+ */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'

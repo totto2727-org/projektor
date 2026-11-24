@@ -1,12 +1,14 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
-// PROJ-495 (R13): server-side per-user drafts, replacing the PROJ-227 localStorage
-// autosave so an in-progress edit survives a device switch.
-//
-// No dependency on services/wiki.ts (avoids a circular import — wiki.ts calls into
-// this file's deleteWikiDraftsForPages on delete). Page resolution + visibility checks
-// are duplicated in miniature here rather than imported, mirroring
-// services/wiki-watchers.ts's resolveWatchTarget precedent.
+/*
+ * PROJ-495 (R13): server-side per-user drafts, replacing the PROJ-227 localStorage
+ * autosave so an in-progress edit survives a device switch.
+ *
+ * No dependency on services/wiki.ts (avoids a circular import — wiki.ts calls into
+ * this file's deleteWikiDraftsForPages on delete). Page resolution + visibility checks
+ * are duplicated in miniature here rather than imported, mirroring
+ * services/wiki-watchers.ts's resolveWatchTarget precedent.
+ */
 import { drizzle, schema } from '#db'
 
 import {
@@ -25,9 +27,11 @@ type ResolvedDraftTarget = {
   slug: string
 }
 
-// PROJ-495: same id-or-slug + redirect-fallback resolution as services/wiki.ts's
-// resolvePageByIdOrSlug, plus the same project-visibility check — duplicated (not
-// imported) to avoid a circular import, see module comment above.
+/*
+ * PROJ-495: same id-or-slug + redirect-fallback resolution as services/wiki.ts's
+ * resolvePageByIdOrSlug, plus the same project-visibility check — duplicated (not
+ * imported) to avoid a circular import, see module comment above.
+ */
 async function resolveDraftTarget(ctx: ServiceCtx, idOrSlug: string): Promise<ResolvedDraftTarget> {
   const orm = drizzle(ctx.db, { schema })
   const direct = await orm
@@ -41,8 +45,10 @@ async function resolveDraftTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
       and(
         idOrSlugMatch(idOrSlug),
         eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-        // PROJ-496: no drafts on a trashed page — same "trashed = gone" rule as every
-        // other page reference entry point (services/wiki.ts).
+        /*
+         * PROJ-496: no drafts on a trashed page — same "trashed = gone" rule as every
+         * other page reference entry point (services/wiki.ts).
+         */
         isNull(schema.wikiPages.deletedAt),
       ),
     )
@@ -87,8 +93,10 @@ async function resolveDraftTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
   return { id: page.id, slug: page.slug }
 }
 
-// PROJ-495: returns null (not 404) when the caller has no draft for this page — "no
-// draft yet" is the expected common case, not an error.
+/*
+ * PROJ-495: returns null (not 404) when the caller has no draft for this page — "no
+ * draft yet" is the expected common case, not an error.
+ */
 export async function getWikiDraft(ctx: ServiceCtx, idOrSlug: string) {
   const page = await resolveDraftTarget(ctx, idOrSlug)
   const orm = drizzle(ctx.db, { schema })
@@ -111,8 +119,10 @@ export async function getWikiDraft(ctx: ServiceCtx, idOrSlug: string) {
   return row ?? null
 }
 
-// The head and scratch snapshot are read together, including after a discard removed
-// the scratch row. Only Core calls this after authorizing the page and current user.
+/*
+ * The head and scratch snapshot are read together, including after a discard removed
+ * the scratch row. Only Core calls this after authorizing the page and current user.
+ */
 export async function readWikiDraftState(db: D1Database, workspaceId: string, pageId: string, userId: string) {
   const row = await db
     .prepare(`
@@ -142,8 +152,10 @@ export async function readWikiDraftState(db: D1Database, workspaceId: string, pa
 function advanceHead(ctx: ServiceCtx, pageId: string, expected: string | null | undefined, revision: string) {
   const key = [ctx.workspaceId, ctx.userId, pageId]
   if (expected === undefined) {
-    // Existing REST/MCP callers remain last-write-wins, but invalidate any older
-    // versioned browser request rather than bypassing the head.
+    /*
+     * Existing REST/MCP callers remain last-write-wins, but invalidate any older
+     * versioned browser request rather than bypassing the head.
+     */
     return ctx.db
       .prepare(`INSERT INTO wiki_draft_heads(workspace_id,user_id,page_id,revision) VALUES (?,?,?,?)
       ON CONFLICT(workspace_id,user_id,page_id) DO UPDATE SET revision = excluded.revision RETURNING revision`)
@@ -233,8 +245,10 @@ export async function discardWikiDraft(ctx: ServiceCtx, idOrSlug: string, input?
   return discardResolvedDraft(ctx, page.id, expected)
 }
 
-// Publication invalidates older writers first, without deleting recoverable text
-// if the page update fails. A newly accepted draft must survive its later cleanup.
+/*
+ * Publication invalidates older writers first, without deleting recoverable text
+ * if the page update fails. A newly accepted draft must survive its later cleanup.
+ */
 export async function beginWikiDraftPublish(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = VersionedWikiDraftInputSchema.safeParse(input)
   if (!parsed.success) {
@@ -256,17 +270,21 @@ export async function finishWikiDraftPublish(ctx: ServiceCtx, pageId: string, re
     if (!(error instanceof ConflictError)) {
       throw error
     }
-    // Another editor has advanced the head. Publication succeeded, but this
-    // caller must reconcile that draft rather than overwrite it automatically.
+    /*
+     * Another editor has advanced the head. Publication succeeded, but this
+     * caller must reconcile that draft rather than overwrite it automatically.
+     */
     return { ok: true as const, draftRevision: null }
   }
 }
 
-// PROJ-495: app-level mirror of wiki_drafts.page_id's ON DELETE CASCADE, called from
-// services/wiki.ts#purgeExpiredWikiPages (PROJ-496: draft cleanup moved from delete
-// time to purge time) — same belt-and-braces precedent as
-// wiki-watchers.ts#deleteWikiWatchersForPages (PROJ-407: D1 doesn't guarantee FK
-// enforcement on every connection).
+/*
+ * PROJ-495: app-level mirror of wiki_drafts.page_id's ON DELETE CASCADE, called from
+ * services/wiki.ts#purgeExpiredWikiPages (PROJ-496: draft cleanup moved from delete
+ * time to purge time) — same belt-and-braces precedent as
+ * wiki-watchers.ts#deleteWikiWatchersForPages (PROJ-407: D1 doesn't guarantee FK
+ * enforcement on every connection).
+ */
 export async function deleteWikiDraftsForPages(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
   if (pageIds.length === 0) {
     return

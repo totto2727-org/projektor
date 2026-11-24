@@ -1,8 +1,10 @@
 import { CreateUserTokenSchema } from '../../contracts/inputs/user-tokens.ts'
 import { ForbiddenError, ValidationError } from './errors.ts'
 
-// These handlers run pre-workspace-context (login/token minting are user-scoped,
-// not workspace-scoped), so they take a narrower ctx than ServiceCtx.
+/*
+ * These handlers run pre-workspace-context (login/token minting are user-scoped,
+ * not workspace-scoped), so they take a narrower ctx than ServiceCtx.
+ */
 export interface UserCtx {
   db: D1Database
   userId: string
@@ -36,9 +38,11 @@ export async function createUserToken(ctx: UserCtx, raw: unknown) {
 
   const { name, workspaceId, scopes, expiresAt } = result.data
 
-  // PROJ-17: when minting a workspace-scoped token, the caller must be a member
-  // of that workspace. Omitting workspaceId mints a user-scoped token (NULL in DB),
-  // which is valid across all workspaces the user is a member of.
+  /*
+   * PROJ-17: when minting a workspace-scoped token, the caller must be a member
+   * of that workspace. Omitting workspaceId mints a user-scoped token (NULL in DB),
+   * which is valid across all workspaces the user is a member of.
+   */
   if (workspaceId !== undefined) {
     const member = await ctx.db
       .prepare('SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
@@ -73,8 +77,10 @@ export async function createUserToken(ctx: UserCtx, raw: unknown) {
 }
 
 export async function deleteUserToken(ctx: UserCtx, id: string) {
-  // PROJ-923: null agent_sessions.token_id explicitly (ON DELETE SET NULL isn't
-  // guaranteed on D1, PROJ-407), in the same batch as the delete.
+  /*
+   * PROJ-923: null agent_sessions.token_id explicitly (ON DELETE SET NULL isn't
+   * guaranteed on D1, PROJ-407), in the same batch as the delete.
+   */
   await ctx.db.batch([
     ctx.db
       .prepare(

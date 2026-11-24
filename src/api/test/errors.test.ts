@@ -55,9 +55,11 @@ describe('ConflictError', () => {
   })
 })
 
-// The adapters key off `err.kind` (ServiceError) / `instanceof` to decide what a
-// caller is allowed to see, so a regression there is a silent info leak or a
-// wrong HTTP/JSON-RPC status. Cover both surfaces directly here.
+/*
+ * The adapters key off `err.kind` (ServiceError) / `instanceof` to decide what a
+ * caller is allowed to see, so a regression there is a silent info leak or a
+ * wrong HTTP/JSON-RPC status. Cover both surfaces directly here.
+ */
 describe('http/error-adapter: serviceErrToResponse', () => {
   const fakeCtx = { json: (body: unknown, status: number) => ({ body, status }) } as never
 
@@ -104,10 +106,12 @@ describe('http/error-adapter: serviceErrToResponse', () => {
 })
 
 describe('mcp/error-adapter: toMcpError', () => {
-  // PROJ-508: previously the Zod issues were dropped entirely so an MCP caller had
-  // no way to learn why its params were rejected. They're deliberately client-facing
-  // (field names + validation messages, never internals), so they now travel in the
-  // JSON-RPC 2.0 `error.data` member instead.
+  /*
+   * PROJ-508: previously the Zod issues were dropped entirely so an MCP caller had
+   * no way to learn why its params were rejected. They're deliberately client-facing
+   * (field names + validation messages, never internals), so they now travel in the
+   * JSON-RPC 2.0 `error.data` member instead.
+   */
   test('maps ValidationError to -32602 with the issues in error.data and a message summary', () => {
     const issues = { formErrors: ['ambiguous heading'], fieldErrors: {} }
     const result = toMcpError(new ValidationError(issues), 'req-1')
@@ -125,10 +129,12 @@ describe('mcp/error-adapter: toMcpError', () => {
     })
   })
 
-  // PROJ-508: structured NotFoundError.details (e.g. patch_wiki_page's currentHeadings)
-  // used to be JSON-encoded into `message` as a workaround; now it travels in `data`,
-  // with a bounded human-readable summary also folded into `message` as a fallback for
-  // MCP hosts that don't surface `data` to the calling model.
+  /*
+   * PROJ-508: structured NotFoundError.details (e.g. patch_wiki_page's currentHeadings)
+   * used to be JSON-encoded into `message` as a workaround; now it travels in `data`,
+   * with a bounded human-readable summary also folded into `message` as a fallback for
+   * MCP hosts that don't surface `data` to the calling model.
+   */
   test('maps a NotFoundError with details to -32000 with the details in error.data and a message summary', () => {
     const result = toMcpError(
       new NotFoundError("Heading 'Nope' not found", { currentHeadings: ['Alpha', 'Beta'] }),
@@ -141,8 +147,10 @@ describe('mcp/error-adapter: toMcpError', () => {
     })
   })
 
-  // PROJ-508: an empty details object must be treated the same as no details at all —
-  // omit `data` (per the JSON-RPC 2.0 contract) rather than sending `data: {}`.
+  /*
+   * PROJ-508: an empty details object must be treated the same as no details at all —
+   * omit `data` (per the JSON-RPC 2.0 contract) rather than sending `data: {}`.
+   */
   test('treats an empty NotFoundError.details object as no details', () => {
     expect(toMcpError(new NotFoundError('Issue not found', {}), 'req-1')).toEqual({
       code: -32_000,
@@ -164,10 +172,12 @@ describe('mcp/error-adapter: toMcpError', () => {
     })
   })
 
-  // PROJ-508: structured ConflictError.details (e.g. wiki's optimistic-lock
-  // currentRevisionId + diff) used to be JSON-encoded into `message` as a workaround
-  // (PROJ-484); now it travels in `data`, with a bounded human-readable summary also
-  // folded into `message` as a fallback for MCP hosts that don't surface `data`.
+  /*
+   * PROJ-508: structured ConflictError.details (e.g. wiki's optimistic-lock
+   * currentRevisionId + diff) used to be JSON-encoded into `message` as a workaround
+   * (PROJ-484); now it travels in `data`, with a bounded human-readable summary also
+   * folded into `message` as a fallback for MCP hosts that don't surface `data`.
+   */
   test('maps a ConflictError with details to -32000 with the details in error.data and a message summary', () => {
     const result = toMcpError(
       new ConflictError('Revision conflict', { currentRevisionId: 'rev-2', diff: '...' }),
@@ -180,8 +190,10 @@ describe('mcp/error-adapter: toMcpError', () => {
     })
   })
 
-  // PROJ-508: a long diff shouldn't blow up the message with unbounded text — the
-  // summary folded into `message` is truncated; `data` still carries the full value.
+  /*
+   * PROJ-508: a long diff shouldn't blow up the message with unbounded text — the
+   * summary folded into `message` is truncated; `data` still carries the full value.
+   */
   test('truncates a long detail value in the message summary but not in error.data', () => {
     const longDiff = 'x'.repeat(500)
     const result = toMcpError(new ConflictError('Revision conflict', { diff: longDiff }), 'req-1')
@@ -190,8 +202,10 @@ describe('mcp/error-adapter: toMcpError', () => {
     expect(result.message).toContain('diff: xxx')
   })
 
-  // PROJ-508: an empty details object must be treated the same as no details at all —
-  // omit `data` (per the JSON-RPC 2.0 contract) rather than sending `data: {}`.
+  /*
+   * PROJ-508: an empty details object must be treated the same as no details at all —
+   * omit `data` (per the JSON-RPC 2.0 contract) rather than sending `data: {}`.
+   */
   test('treats an empty ConflictError.details object as no details', () => {
     expect(toMcpError(new ConflictError('Slug taken', {}), 'req-1')).toEqual({
       code: -32_000,

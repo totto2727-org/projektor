@@ -8,8 +8,10 @@ import { capPage, toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 import { outlineOf, sectionOf, WIKI_DEFAULT_MAX_CHARS, WIKI_MAX_CHARS, windowText } from './windowing.ts'
 
-// PROJ-513: `type` is freeform — these are advertised as hints, never as an
-// inputSchema `enum` (which clients treat as the only legal values).
+/*
+ * PROJ-513: `type` is freeform — these are advertised as hints, never as an
+ * inputSchema `enum` (which clients treat as the only legal values).
+ */
 const WELL_KNOWN_TYPES = WIKI_WELL_KNOWN_TYPES.join('|')
 const TYPE_FILTER_DESCRIPTION =
   'Filter to pages whose frontmatter `type` matches (freeform; well-known ' + `values are ${WELL_KNOWN_TYPES})`
@@ -765,7 +767,7 @@ export const wikiTools: MCPTool[] = [
     annotations: READ,
     async handler(input, ctx) {
       const { cursor, ...rest } = (input ?? {}) as Record<string, unknown>
-      // null / "" mean "no cursor", not "since the epoch".
+      // Null / "" mean "no cursor", not "since the epoch".
       if (cursor !== undefined && cursor !== null && cursor !== '') {
         rest.since = Number(cursor)
       }
@@ -776,8 +778,10 @@ export const wikiTools: MCPTool[] = [
         })
       }
       const result = await wikiWatchersService.listWikiChanges(ctx, rest)
-      // `next` is present whenever the cursor moved (even if every row in the batch was filtered
-      // out, so a poller keeps advancing); the feed is drained when it is absent.
+      /*
+       * `next` is present whenever the cursor moved (even if every row in the batch was filtered
+       * out, so a poller keeps advancing); the feed is drained when it is absent.
+       */
       const events = result.changes as { createdAt: number }[]
       const page = toPage(events, result.nextSince > (rest.since as number) ? result.nextSince : null)
       // `since` is exclusive, so a cut must not split events sharing one second.

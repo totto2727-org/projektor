@@ -51,9 +51,11 @@ import type { ServiceCtx } from './types.ts'
 
 const ISSUE_TTL = 300
 
-// PROJ-870: turns a drizzle-built query into a D1PreparedStatement without executing it, so
-// it can be folded into a caller's own ctx.db.batch() array — same pattern as
-// services/wiki.ts and services/file-claims.ts.
+/*
+ * PROJ-870: turns a drizzle-built query into a D1PreparedStatement without executing it, so
+ * it can be folded into a caller's own ctx.db.batch() array — same pattern as
+ * services/wiki.ts and services/file-claims.ts.
+ */
 function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
@@ -68,11 +70,13 @@ async function validateParent(ctx: ServiceCtx, parentId: string, issueId: string
     })
   }
 
-  // PROJ-870: one recursive CTE replaces the parent SELECT plus one SELECT per ancestor
-  // level. Row depth 0 is the parent itself (existence + project for the visibility
-  // check); depths 1..5 are its ancestors, nearest first, every step workspace-scoped.
-  // `depth < 5` stops the recursion at the 5th ancestor — the most the checks below can
-  // ever look at, and a hard bound should the stored tree ever contain a cycle.
+  /*
+   * PROJ-870: one recursive CTE replaces the parent SELECT plus one SELECT per ancestor
+   * level. Row depth 0 is the parent itself (existence + project for the visibility
+   * check); depths 1..5 are its ancestors, nearest first, every step workspace-scoped.
+   * `depth < 5` stops the recursion at the 5th ancestor — the most the checks below can
+   * ever look at, and a hard bound should the stored tree ever contain a cycle.
+   */
   const { results: chain } = await ctx.db
     .prepare(
       `WITH RECURSIVE chain(id, parent_id, project_id, depth) AS (
@@ -96,10 +100,12 @@ async function validateParent(ctx: ServiceCtx, parentId: string, issueId: string
     throw new NotFoundError('Parent issue not found')
   }
 
-  // Same checks, in the same order, as the old per-level loop: for each ancestor of the
-  // parent (nearest first) test for a cycle, then count it and test the cap. So when the
-  // issue itself is the 5th ancestor, the cycle error still wins over the depth error.
-  // If the parent already has 5 ancestors, the child would be at depth 6 — exceeds the cap.
+  /*
+   * Same checks, in the same order, as the old per-level loop: for each ancestor of the
+   * parent (nearest first) test for a cycle, then count it and test the cap. So when the
+   * issue itself is the 5th ancestor, the cycle error still wins over the depth error.
+   * If the parent already has 5 ancestors, the child would be at depth 6 — exceeds the cap.
+   */
   let ancestorCount = 0
   for (const { id: ancestorId } of chain.slice(1)) {
     if (issueId && ancestorId === issueId) {
@@ -155,9 +161,11 @@ export async function listIssues(ctx: ServiceCtx, raw: unknown) {
   return { ...page, items: page.items.map((item) => ({ ...item, url: buildIssueUrl(item) })) }
 }
 
-// Digits are bounded: parseInt("9".repeat(400)) is Infinity, which drizzle would happily
-// bind and D1 would reject as a type error — a 500 where a 404 belongs. Anything longer
-// than this isn't a ref, so it falls through to being treated as an id and 404s.
+/*
+ * Digits are bounded: parseInt("9".repeat(400)) is Infinity, which drizzle would happily
+ * bind and D1 would reject as a type error — a 500 where a 404 belongs. Anything longer
+ * than this isn't a ref, so it falls through to being treated as an id and 404s.
+ */
 export const ISSUE_REF_PATTERN = issueQueries.ISSUE_REF_PATTERN
 
 /**
@@ -194,9 +202,11 @@ export async function resolveIssueIdParam(
 
 const computeChildRollup = issueQueries.computeChildRollup
 
-// PROJ-311: an issue is only visible if its project is granted to one of the
-// user's groups (owner/admin bypass). Throw the issue-not-found error rather than a
-// project one so an invisible issue's existence never leaks.
+/*
+ * PROJ-311: an issue is only visible if its project is granted to one of the
+ * user's groups (owner/admin bypass). Throw the issue-not-found error rather than a
+ * project one so an invisible issue's existence never leaks.
+ */
 async function assertIssueProjectVisible(ctx: ServiceCtx, projectId: string): Promise<void> {
   if (isWorkspaceAdmin(ctx.role)) {
     return
@@ -212,13 +222,15 @@ function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
     : null
 }
 
-// PROJ-863: what the KV cache holds for an issue — only data owned by the issue itself
-// and invalidated by its own writes (child rollup via the parent invalidation, custom
-// field values via the issue update). Everything that embeds OTHER entities — linked
-// issues' titles/statuses, status/type names, project key, sprint — is read live on
-// every request (the row fetch is one joined query, links one more), so renaming or
-// deleting those can never leave a stale copy behind. Entries written in the old
-// full-payload shape still carry these two keys, so they stay readable.
+/*
+ * PROJ-863: what the KV cache holds for an issue — only data owned by the issue itself
+ * and invalidated by its own writes (child rollup via the parent invalidation, custom
+ * field values via the issue update). Everything that embeds OTHER entities — linked
+ * issues' titles/statuses, status/type names, project key, sprint — is read live on
+ * every request (the row fetch is one joined query, links one more), so renaming or
+ * deleting those can never leave a stale copy behind. Entries written in the old
+ * full-payload shape still carry these two keys, so they stay readable.
+ */
 type CachedIssueExtras = { rollup: ReturnType<typeof computeChildRollup>; customFields: unknown[] }
 
 async function loadIssueExtras(ctx: ServiceCtx, issueId: string): Promise<CachedIssueExtras> {
@@ -270,14 +282,16 @@ export async function getIssue(ctx: ServiceCtx, raw: unknown) {
   return full
 }
 
-// PROJ-931: fetch up to 50 issues in one call, by ref (KEY-NUMBER) and/or id, for agents
-// triaging many issues at once. Refs are resolved to ids first — one query per distinct
-// project key (batching the numbers for that key via inChunks) since a tuple IN
-// (project_id, number) isn't expressible through drizzle's inArray. The resolved ids are
-// then merged with any explicit ids and fetched in one inChunks-batched query, scoped by
-// workspace and project visibility like every other issue read. Shape matches listIssues'
-// items (customFields, no rollup/links) rather than getIssue's full shape, since loading
-// rollup/links per issue here would be an N+1 the batch is meant to avoid.
+/*
+ * PROJ-931: fetch up to 50 issues in one call, by ref (KEY-NUMBER) and/or id, for agents
+ * triaging many issues at once. Refs are resolved to ids first — one query per distinct
+ * project key (batching the numbers for that key via inChunks) since a tuple IN
+ * (project_id, number) isn't expressible through drizzle's inArray. The resolved ids are
+ * then merged with any explicit ids and fetched in one inChunks-batched query, scoped by
+ * workspace and project visibility like every other issue read. Shape matches listIssues'
+ * items (customFields, no rollup/links) rather than getIssue's full shape, since loading
+ * rollup/links per issue here would be an N+1 the batch is meant to avoid.
+ */
 export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
   const result = GetIssuesBatchSchema.safeParse(raw)
   if (!result.success) {
@@ -330,12 +344,14 @@ async function resolveTypeId(ctx: ServiceCtx, typeId: string | null | undefined)
 
 type CreateIssueData = z.infer<typeof CreateIssueSchema>
 
-// PROJ-870: build (without executing) the single INSERT that creates the issue row.
-// status_category is bound directly from the category resolveStatus already read (no
-// separate post-insert UPDATE re-looking it up), and RETURNING number hands back the
-// atomically-allocated number without a follow-up SELECT. Kept as a raw ctx.db.prepare
-// (like the pre-PROJ-870 version) since the number subquery isn't expressible through
-// drizzle's insert builder.
+/*
+ * PROJ-870: build (without executing) the single INSERT that creates the issue row.
+ * status_category is bound directly from the category resolveStatus already read (no
+ * separate post-insert UPDATE re-looking it up), and RETURNING number hands back the
+ * atomically-allocated number without a follow-up SELECT. Kept as a raw ctx.db.prepare
+ * (like the pre-PROJ-870 version) since the number subquery isn't expressible through
+ * drizzle's insert builder.
+ */
 function buildInsertIssueStatement(
   ctx: ServiceCtx,
   params: Readonly<{
@@ -357,12 +373,14 @@ function buildInsertIssueStatement(
     feedbackIds?: readonly string[]
   }>,
 ): D1PreparedStatement {
-  // Atomic number allocation: the subquery for MAX(number) and the INSERT run as
-  // a single SQLite statement, eliminating the read-then-write race that existed
-  // when they were two separate operations. The UNIQUE index on (project_id, number)
-  // is a hard safety net — see migration 0002_issue_number_unique.sql.
-  // The feedback guard runs at the write boundary, not at the earlier display-data read.
-  // json_each keeps a 500-item selection to one bound parameter under D1's 100-bind cap.
+  /*
+   * Atomic number allocation: the subquery for MAX(number) and the INSERT run as
+   * a single SQLite statement, eliminating the read-then-write race that existed
+   * when they were two separate operations. The UNIQUE index on (project_id, number)
+   * is a hard safety net — see migration 0002_issue_number_unique.sql.
+   * The feedback guard runs at the write boundary, not at the earlier display-data read.
+   * json_each keeps a 500-item selection to one bound parameter under D1's 100-bind cap.
+   */
   return ctx.db
     .prepare(
       `INSERT INTO issues
@@ -396,8 +414,10 @@ function buildInsertIssueStatement(
       params.parentId ?? null,
       params.resolvedTypeId,
       ctx.userId,
-      // PROJ-396: stamped from the authenticated principal type, not a caller-supplied
-      // field — see ServiceCtx.authKind and the issueComments.authorKind precedent (PROJ-328).
+      /*
+       * PROJ-396: stamped from the authenticated principal type, not a caller-supplied
+       * field — see ServiceCtx.authKind and the issueComments.authorKind precedent (PROJ-328).
+       */
       ctx.authKind ?? null,
       params.now,
       params.now,
@@ -428,10 +448,12 @@ function buildFtsInsertStatement(
     .bind(id, ctx.workspaceId, title, body, id, ctx.workspaceId)
 }
 
-// PROJ-870: build (without executing) an activity-log INSERT identical in shape to
-// recordActivity's, so it can be folded into the caller's own ctx.db.batch() instead of
-// being a separate awaited round trip. recordActivity itself is left unchanged for its
-// other (non-batched) callers (wiki_page, project, group).
+/*
+ * PROJ-870: build (without executing) an activity-log INSERT identical in shape to
+ * recordActivity's, so it can be folded into the caller's own ctx.db.batch() instead of
+ * being a separate awaited round trip. recordActivity itself is left unchanged for its
+ * other (non-batched) callers (wiki_page, project, group).
+ */
 function buildActivityInsertStatement(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
@@ -519,12 +541,16 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
   const data = { ...result.data, projectId, parentId }
   const { title, body, priority, assigneeId, labels } = data
 
-  // PROJ-389: confirm projectId belongs to this workspace BEFORE the admin-bypass
-  // check below, so an owner/admin can't write into another workspace's project.
+  /*
+   * PROJ-389: confirm projectId belongs to this workspace BEFORE the admin-bypass
+   * check below, so an owner/admin can't write into another workspace's project.
+   */
   await requireProjectInWorkspace(ctx, projectId)
 
-  // PROJ-311: writing requires a member/admin grant on this project (owner/admin
-  // bypass). No grant → the project is invisible → 404; a viewer grant is read-only.
+  /*
+   * PROJ-311: writing requires a member/admin grant on this project (owner/admin
+   * bypass). No grant → the project is invisible → 404; a viewer grant is read-only.
+   */
   if (!isWorkspaceAdmin(ctx.role)) {
     const projRole = await effectiveProjectRole(ctx, projectId)
     if (projRole === null) {
@@ -535,8 +561,10 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
     }
   }
 
-  // PROJ-785: an assignee must be a member of this workspace — otherwise we'd
-  // persist a dangling or wrong-workspace user reference.
+  /*
+   * PROJ-785: an assignee must be a member of this workspace — otherwise we'd
+   * persist a dangling or wrong-workspace user reference.
+   */
   if (assigneeId) {
     await requireWorkspaceMember(ctx, assigneeId)
   }
@@ -550,11 +578,13 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
 
   const orm = drizzle(ctx.db, { schema })
 
-  // PROJ-870: everything below is independent of everything above it having already
-  // happened (all validation/resolution reads are done), so the issue INSERT (with its
-  // status_category computed inline and its allocated number returned), the FTS mirror
-  // insert, the custom-field upserts, and the activity-log insert all go in one
-  // ctx.db.batch() — one D1 round trip instead of up to 6 sequential ones.
+  /*
+   * PROJ-870: everything below is independent of everything above it having already
+   * happened (all validation/resolution reads are done), so the issue INSERT (with its
+   * status_category computed inline and its allocated number returned), the FTS mirror
+   * insert, the custom-field upserts, and the activity-log insert all go in one
+   * ctx.db.batch() — one D1 round trip instead of up to 6 sequential ones.
+   */
   const statements: D1PreparedStatement[] = [
     buildInsertIssueStatement(ctx, {
       id,
@@ -663,11 +693,13 @@ function buildSimpleFields(data: UpdateIssueData): SetValues {
   return setValues
 }
 
-// PROJ-212: stamp completed_at when an issue first enters a done-category
-// status, clear it when it leaves. We keep the original completion time if
-// the issue was already done and is merely re-saved. Done is detected from
-// either the configured status category or the legacy `status` enum, so it
-// works whether or not the workspace uses custom task statuses.
+/*
+ * PROJ-212: stamp completed_at when an issue first enters a done-category
+ * status, clear it when it leaves. We keep the original completion time if
+ * the issue was already done and is merely re-saved. Done is detected from
+ * either the configured status category or the legacy `status` enum, so it
+ * works whether or not the workspace uses custom task statuses.
+ */
 function buildCompletedAtTransition(
   existing: ExistingIssue,
   resolvedStatusKey: string,
@@ -684,12 +716,14 @@ function buildCompletedAtTransition(
   return {}
 }
 
-// PROJ-252 flow metrics: stamp ready_at/claimed_at/done_at the first time an issue
-// enters the corresponding state, using the same category-or-legacy-key detection as
-// applyCompletedAtTransition. Unlike completed_at these are write-once — never cleared
-// on re-entry — so lead/cycle time still reflects rework after a reopen. "Ready" isn't
-// its own status_category (backlog and todo share category 'todo'), so it's detected
-// from the legacy `status` key instead: any status other than 'backlog'.
+/*
+ * PROJ-252 flow metrics: stamp ready_at/claimed_at/done_at the first time an issue
+ * enters the corresponding state, using the same category-or-legacy-key detection as
+ * applyCompletedAtTransition. Unlike completed_at these are write-once — never cleared
+ * on re-entry — so lead/cycle time still reflects rework after a reopen. "Ready" isn't
+ * its own status_category (backlog and todo share category 'todo'), so it's detected
+ * from the legacy `status` key instead: any status other than 'backlog'.
+ */
 function isClaimedState(
   category: string | null | undefined,
   key: string | null | undefined,
@@ -706,12 +740,14 @@ function isCancelledState(category: string | null | undefined, key: string | nul
   return category === 'cancelled' || key === 'cancelled'
 }
 
-// PROJ-921: an issue becomes "ready" when it leaves backlog for an open status —
-// todo/ready, or straight into in_progress (PROJ-252: a fast-tracked issue was ready the
-// moment it was picked up, so its lead time equals its cycle time). Going straight from
-// backlog to done or cancelled in one update is NOT a ready transition: that issue never
-// waited to be worked, and used to get ready_at = done_at, a 0s lead time that dragged
-// the median to zero. Issues created in an open non-backlog status are ready from creation.
+/*
+ * PROJ-921: an issue becomes "ready" when it leaves backlog for an open status —
+ * todo/ready, or straight into in_progress (PROJ-252: a fast-tracked issue was ready the
+ * moment it was picked up, so its lead time equals its cycle time). Going straight from
+ * backlog to done or cancelled in one update is NOT a ready transition: that issue never
+ * waited to be worked, and used to get ready_at = done_at, a 0s lead time that dragged
+ * the median to zero. Issues created in an open non-backlog status are ready from creation.
+ */
 function isOpenPastBacklog(key: string, category: string | null | undefined): boolean {
   if (key === 'backlog' || key === 'cancelled' || category === 'cancelled') {
     return false
@@ -746,19 +782,21 @@ function buildFlowTimestampTransitions(
   return setValues
 }
 
-// PROJ-328 (collaboration-shape metrics): stamp in_review_at the first time an issue
-// enters a review status (write-once, same rule as applyFlowTimestampTransitions), and
-// count a bounce every time it leaves review back to non-review, non-done — the "a human
-// sent it back for more work" signal for the human-interventions metric. "Entering
-// review" is detected the same way the review gate (PROJ-292) detects it: isReviewStatusKey,
-// not status_category (there is no dedicated in_review category).
-//
-// PROJ-334: also reports whether this specific transition is a "gate rejection" —
-// in_review -> in_progress, narrower than reviewBounceCount above (which also counts
-// review -> cancelled as a bounce). The factory-health tile wants the literal rework
-// signal the ticket names ("in_review -> in_progress bounces"), not "left review for any
-// reason", so review -> cancelled (the issue was killed, not sent back for more work)
-// must not count here even though it still increments the aggregate.
+/*
+ * PROJ-328 (collaboration-shape metrics): stamp in_review_at the first time an issue
+ * enters a review status (write-once, same rule as applyFlowTimestampTransitions), and
+ * count a bounce every time it leaves review back to non-review, non-done — the "a human
+ * sent it back for more work" signal for the human-interventions metric. "Entering
+ * review" is detected the same way the review gate (PROJ-292) detects it: isReviewStatusKey,
+ * not status_category (there is no dedicated in_review category).
+ *
+ * PROJ-334: also reports whether this specific transition is a "gate rejection" —
+ * in_review -> in_progress, narrower than reviewBounceCount above (which also counts
+ * review -> cancelled as a bounce). The factory-health tile wants the literal rework
+ * signal the ticket names ("in_review -> in_progress bounces"), not "left review for any
+ * reason", so review -> cancelled (the issue was killed, not sent back for more work)
+ * must not count here even though it still increments the aggregate.
+ */
 function buildReviewTransitions(
   existing: ExistingIssue,
   transition: Readonly<{
@@ -797,15 +835,17 @@ function assertCompletionReportPresent(data: UpdateIssueData): void {
   }
 }
 
-// Pure classification of what this status change is entering, shared by the gate
-// (what to enforce) and the completion-report stamp (PROJ-293 — stamp/post only on a
-// real transition, not on any update that happens to carry a completionReport).
-//
-// PROJ-749 (supersedes PROJ-292's /review/i key match): a review step is the status's
-// explicit task_statuses.is_review_step flag. Matching the key let any status merely
-// *named* like a review ("contract_review", "legal_review") acquire the completion-report
-// gate and pollute review flow metrics. Migration 0061 backfilled the flag from the old
-// rule, so existing custom review statuses ("code_review", "peer_review") keep the gate.
+/*
+ * Pure classification of what this status change is entering, shared by the gate
+ * (what to enforce) and the completion-report stamp (PROJ-293 — stamp/post only on a
+ * real transition, not on any update that happens to carry a completionReport).
+ *
+ * PROJ-749 (supersedes PROJ-292's /review/i key match): a review step is the status's
+ * explicit task_statuses.is_review_step flag. Matching the key let any status merely
+ * *named* like a review ("contract_review", "legal_review") acquire the completion-report
+ * gate and pollute review flow metrics. Migration 0061 backfilled the flag from the old
+ * rule, so existing custom review statuses ("code_review", "peer_review") keep the gate.
+ */
 function classifyStatusTransition(
   existing: ExistingIssue,
   resolvedStatusKey: string,
@@ -820,12 +860,14 @@ function classifyStatusTransition(
   return { enteringInReview, enteringDone }
 }
 
-// PROJ-254/287/289/292, relaxed by PROJ-375: entering review while an agent holds a
-// live lease requires a completion report; the done-report requirement applies only
-// to issues an agent has actually worked, so ordinary human closes (duplicates,
-// won't-fix, chores) aren't blocked. PROJ-375 removed the old hard block on an agent
-// (live lease) transitioning to done — agents can close freely now; see
-// computeNeedsAudit below for the audit-after-the-fact replacement.
+/*
+ * PROJ-254/287/289/292, relaxed by PROJ-375: entering review while an agent holds a
+ * live lease requires a completion report; the done-report requirement applies only
+ * to issues an agent has actually worked, so ordinary human closes (duplicates,
+ * won't-fix, chores) aren't blocked. PROJ-375 removed the old hard block on an agent
+ * (live lease) transitioning to done — agents can close freely now; see
+ * computeNeedsAudit below for the audit-after-the-fact replacement.
+ */
 async function assertReviewGate(
   ctx: ServiceCtx,
   data: UpdateIssueData,
@@ -855,13 +897,15 @@ async function assertReviewGate(
   }
 }
 
-// PROJ-375: audit-after-the-fact replacement for the removed done-gate block. Only
-// flags a call that's actually agent-initiated — `isLiveAgentSessionId` checks the
-// session is real and live, not just a self-declared string, so a caller can't get
-// flagged/unflagged by lease state (the bug that started this ticket: an agent that
-// released its lease before closing slipped the old gate unintentionally). A caller
-// can still dodge the flag by omitting agentSessionId entirely — accepted limitation,
-// see the module doc on evidence-classification.ts.
+/*
+ * PROJ-375: audit-after-the-fact replacement for the removed done-gate block. Only
+ * flags a call that's actually agent-initiated — `isLiveAgentSessionId` checks the
+ * session is real and live, not just a self-declared string, so a caller can't get
+ * flagged/unflagged by lease state (the bug that started this ticket: an agent that
+ * released its lease before closing slipped the old gate unintentionally). A caller
+ * can still dodge the flag by omitting agentSessionId entirely — accepted limitation,
+ * see the module doc on evidence-classification.ts.
+ */
 async function computeNeedsAudit(ctx: ServiceCtx, data: UpdateIssueData): Promise<boolean> {
   if (!data.agentSessionId) {
     return false
@@ -883,9 +927,11 @@ async function applyStatusFields(
   setValues: SetValues
   reviewOrDoneTransition: boolean
   gateRejectionStatement: D1PreparedStatement | null
-  // PROJ-928: resolved to done/cancelled by category OR legacy key — a workspace with
-  // no custom task_statuses row backing this key has category === null (see
-  // resolveStatus), so status_category alone would miss the legacy-key case.
+  /*
+   * PROJ-928: resolved to done/cancelled by category OR legacy key — a workspace with
+   * no custom task_statuses row backing this key has category === null (see
+   * resolveStatus), so status_category alone would miss the legacy-key case.
+   */
   closing: boolean
 }> {
   if (data.status === undefined && !('statusId' in data)) {
@@ -897,9 +943,11 @@ async function applyStatusFields(
     }
   }
 
-  // PROJ-870: resolveStatus returns the category from the same row lookup that resolves
-  // the status id/key, replacing the separate fetchStatusCategory re-query of that id and
-  // the COALESCE((SELECT category ...)) subquery that used to sit in the UPDATE.
+  /*
+   * PROJ-870: resolveStatus returns the category from the same row lookup that resolves
+   * the status id/key, replacing the separate fetchStatusCategory re-query of that id and
+   * the COALESCE((SELECT category ...)) subquery that used to sit in the UPDATE.
+   */
   const resolved = await resolveStatus(ctx, 'statusId' in data ? data.statusId : undefined, data.status)
   const { id: resolvedStatusId, key: resolvedStatusKey } = resolved
   const newStatusCategory = resolved.category ?? undefined
@@ -930,13 +978,15 @@ async function applyStatusFields(
     enteringDone: transition.enteringDone,
   })
   Object.assign(setValues, reviewSetValues)
-  // PROJ-334/PROJ-870: recorded as its own event, built here but not executed — folded
-  // into the caller's single ctx.db.batch() alongside the issue UPDATE. Batching it
-  // (rather than the pre-PROJ-870 stray extra await) is strictly safer than before: the
-  // batch is one atomic transaction, so the rejection row and the status change can no
-  // longer disagree (either both land or neither does), whereas the old comment's "a
-  // stray extra row on a later failure is harmless" was tolerating exactly the gap this
-  // closes.
+  /*
+   * PROJ-334/PROJ-870: recorded as its own event, built here but not executed — folded
+   * into the caller's single ctx.db.batch() alongside the issue UPDATE. Batching it
+   * (rather than the pre-PROJ-870 stray extra await) is strictly safer than before: the
+   * batch is one atomic transaction, so the rejection row and the status change can no
+   * longer disagree (either both land or neither does), whereas the old comment's "a
+   * stray extra row on a later failure is harmless" was tolerating exactly the gap this
+   * closes.
+   */
   const gateRejectionStatement = isGateRejection
     ? ctx.db
         .prepare('INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)')
@@ -956,10 +1006,12 @@ function now(): number {
   return Math.floor(Date.now() / 1000)
 }
 
-// The completion report is posted as a comment, so the formatted body has to satisfy the
-// comment body limit. addComment used to enforce that (after the issue UPDATE had already
-// been written); the batched insert doesn't re-validate, so check it here, before the
-// batch, and fail the whole update with a 400 instead of storing an oversize comment.
+/*
+ * The completion report is posted as a comment, so the formatted body has to satisfy the
+ * comment body limit. addComment used to enforce that (after the issue UPDATE had already
+ * been written); the batched insert doesn't re-validate, so check it here, before the
+ * batch, and fail the whole update with a 400 instead of storing an oversize comment.
+ */
 function completionReportCommentBody(report: Parameters<typeof formatCompletionReportComment>[0]): string {
   const body = formatCompletionReportComment(report)
   const max = AddCommentSchema.shape.body.maxLength
@@ -996,10 +1048,12 @@ function formatCompletionReportComment(
   return lines.join('\n')
 }
 
-// PROJ-571: changing an epic's type away from Epic silently orphans its children
-// from the epic UI/rollups (parentId is untouched, but nothing surfaces the epic
-// view for them anymore). Block it at the service layer so REST and MCP both get
-// the guard, rather than only a frontend confirm dialog.
+/*
+ * PROJ-571: changing an epic's type away from Epic silently orphans its children
+ * from the epic UI/rollups (parentId is untouched, but nothing surfaces the epic
+ * view for them anymore). Block it at the service layer so REST and MCP both get
+ * the guard, rather than only a frontend confirm dialog.
+ */
 async function assertNotDemotingEpicWithChildren(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
@@ -1051,9 +1105,11 @@ async function buildUpdateSetValues(
     await assertNotDemotingEpicWithChildren(ctx, orm, existing, resolvedTypeId)
     setValues.typeId = resolvedTypeId
   }
-  // PROJ-293: only stamp/post the report when the issue actually transitions into
-  // review or done — a title-only update carrying a completionReport must not
-  // pre-stamp completion_report_at (which would later satisfy the human-done gate).
+  /*
+   * PROJ-293: only stamp/post the report when the issue actually transitions into
+   * review or done — a title-only update carrying a completionReport must not
+   * pre-stamp completion_report_at (which would later satisfy the human-done gate).
+   */
   const recordCompletionReport = Boolean(data.completionReport) && reviewOrDoneTransition
   if (recordCompletionReport) {
     setValues.completionReportAt = now()
@@ -1066,10 +1122,12 @@ async function buildUpdateSetValues(
   }
 }
 
-// PROJ-870: build (without executing) the FTS delete+insert pair using title/body already
-// known from the caller (either the new value being written, or the existing row's value
-// fetched alongside `existing` at the top of updateIssue) — no re-SELECT of the row that
-// was just written, unlike the pre-PROJ-870 version.
+/*
+ * PROJ-870: build (without executing) the FTS delete+insert pair using title/body already
+ * known from the caller (either the new value being written, or the existing row's value
+ * fetched alongside `existing` at the top of updateIssue) — no re-SELECT of the row that
+ * was just written, unlike the pre-PROJ-870 version.
+ */
 function buildFtsReindexStatements(ctx: ServiceCtx, id: string, title: string, body: string): D1PreparedStatement[] {
   return [
     ctx.db.prepare('DELETE FROM issues_fts WHERE issue_id = ? AND workspace_id = ?').bind(id, ctx.workspaceId),
@@ -1079,11 +1137,13 @@ function buildFtsReindexStatements(ctx: ServiceCtx, id: string, title: string, b
   ]
 }
 
-// PROJ-869: body can be arbitrarily large and is already persisted on the issue row
-// itself and re-indexed into issues_fts on every update — storing it again in `diff`
-// (kept for the activity retention window) is the dominant source of the `activity`
-// table's growth. Record just that body changed, not the text itself; every other field
-// here is a small scalar, so those keep recording the actual (new) value.
+/*
+ * PROJ-869: body can be arbitrarily large and is already persisted on the issue row
+ * itself and re-indexed into issues_fts on every update — storing it again in `diff`
+ * (kept for the activity retention window) is the dominant source of the `activity`
+ * table's growth. Record just that body changed, not the text itself; every other field
+ * here is a small scalar, so those keep recording the actual (new) value.
+ */
 function buildUpdateDiffCore(data: UpdateIssueData): Record<string, unknown> {
   const diff: Record<string, unknown> = {}
   if (data.title !== undefined) {
@@ -1210,9 +1270,11 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
     await assertAgentSessionAccess(ctx, data.agentSessionId)
   }
 
-  // PROJ-785: a non-null assigneeId must be a member of this workspace —
-  // otherwise we'd persist a dangling or wrong-workspace user reference. `null`
-  // (clearing the assignee) and "not provided" (key absent) both skip this.
+  /*
+   * PROJ-785: a non-null assigneeId must be a member of this workspace —
+   * otherwise we'd persist a dangling or wrong-workspace user reference. `null`
+   * (clearing the assignee) and "not provided" (key absent) both skip this.
+   */
   if ('assigneeId' in data && data.assigneeId) {
     await requireWorkspaceMember(ctx, data.assigneeId)
   }
@@ -1224,9 +1286,11 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
     existing,
   )
 
-  // PROJ-870: custom-field writes are validated (read) before the batch, same as before,
-  // but the upserts themselves are now built as statements and folded in below instead of
-  // looping one round trip per field.
+  /*
+   * PROJ-870: custom-field writes are validated (read) before the batch, same as before,
+   * but the upserts themselves are now built as statements and folded in below instead of
+   * looping one round trip per field.
+   */
   const cfWrites =
     data.customFields && Object.keys(data.customFields).length > 0
       ? await validateCustomFields(ctx.db, ctx.workspaceId, data.customFields)
@@ -1236,10 +1300,12 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
   const commentNow = now()
   const diff = { ...buildUpdateDiffCore(data), ...buildUpdateDiffRefs(data) }
 
-  // PROJ-870: the issue UPDATE (status_category included, from resolveStatus), the FTS delete+insert, the custom-field upserts, the completion-report
-  // comment insert, the gate-rejection insert, and the activity-log insert are all
-  // independent writes derived from data resolved above — fold them into one
-  // ctx.db.batch() instead of up to ~10 sequential round trips.
+  /*
+   * PROJ-870: the issue UPDATE (status_category included, from resolveStatus), the FTS delete+insert, the custom-field upserts, the completion-report
+   * comment insert, the gate-rejection insert, and the activity-log insert are all
+   * independent writes derived from data resolved above — fold them into one
+   * ctx.db.batch() instead of up to ~10 sequential round trips.
+   */
   const updateStatement = toD1Statement(
     ctx,
     orm
@@ -1281,12 +1347,14 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
     }),
   )
 
-  // PROJ-928: an issue moving to done/cancelled releases its lease and file claims so
-  // they don't keep blocking the fleet after the work they were guarding is over — folded
-  // into this same batch (PROJ-870 convention) rather than a separate round trip. `closing`
-  // is only computed when this update actually carries a status/statusId change (see
-  // applyStatusFields' early return), so a title-only save of an already-closed issue
-  // never reaches here; re-saving status=done again is a harmless no-op release.
+  /*
+   * PROJ-928: an issue moving to done/cancelled releases its lease and file claims so
+   * they don't keep blocking the fleet after the work they were guarding is over — folded
+   * into this same batch (PROJ-870 convention) rather than a separate round trip. `closing`
+   * is only computed when this update actually carries a status/statusId change (see
+   * applyStatusFields' early return), so a title-only save of an already-closed issue
+   * never reaches here; re-saving status=done again is a harmless no-op release.
+   */
   if (closing) {
     statements.push(
       buildReleaseLeaseForClosedIssueStatement(ctx, id),
@@ -1295,11 +1363,13 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
     )
   }
 
-  // PROJ-929: a call that carries a live agentSessionId implicitly refreshes that
-  // session's heartbeat, same as claim_issue/claim_files/post_message. Folded into this
-  // same batch (PROJ-870 convention) rather than a separate round trip; the statement's
-  // own WHERE guard (status='active' AND heartbeat > cutoff) makes it a no-op if the
-  // session went stale between this check and the batch executing.
+  /*
+   * PROJ-929: a call that carries a live agentSessionId implicitly refreshes that
+   * session's heartbeat, same as claim_issue/claim_files/post_message. Folded into this
+   * same batch (PROJ-870 convention) rather than a separate round trip; the statement's
+   * own WHERE guard (status='active' AND heartbeat > cutoff) makes it a no-op if the
+   * session went stale between this check and the batch executing.
+   */
   if (data.agentSessionId && (await isLiveAgentSessionId(ctx, data.agentSessionId))) {
     statements.push(buildTouchAgentHeartbeatIfLiveStatement(ctx, data.agentSessionId))
   }
@@ -1339,16 +1409,20 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
     .from(schema.issues)
     .where(and(eq(schema.issues.id, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
     .get()
-  // PROJ-922: every dependent-row statement below keys on this id, several without a
-  // workspace filter of their own — so the id MUST be proven to be in this workspace
-  // first, or an admin of workspace A could wipe workspace B's comments/links/files by
-  // passing one of B's issue UUIDs.
+  /*
+   * PROJ-922: every dependent-row statement below keys on this id, several without a
+   * workspace filter of their own — so the id MUST be proven to be in this workspace
+   * first, or an admin of workspace A could wipe workspace B's comments/links/files by
+   * passing one of B's issue UUIDs.
+   */
   if (!existing) {
     throw new NotFoundError('Issue not found')
   }
 
-  // PROJ-311: deletion needs admin inside the project — workspace owner/admin bypass
-  // groups; everyone else needs a project-admin grant.
+  /*
+   * PROJ-311: deletion needs admin inside the project — workspace owner/admin bypass
+   * groups; everyone else needs a project-admin grant.
+   */
   if (!isWorkspaceAdmin(ctx.role)) {
     const projRole = await effectiveProjectRole(ctx, existing.projectId)
     if (projRole !== 'admin') {
@@ -1356,17 +1430,19 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
     }
   }
 
-  // PROJ-922: D1 does not reliably enforce the FK ON DELETE CASCADE/SET NULL declared in
-  // the schema (PROJ-407), so every row that references this issue must be cleaned up
-  // explicitly here, in the same batch as the issue row itself — final list from
-  // grepping root migrations/ for `REFERENCES issues`, plus two references that
-  // exist without a physical FK constraint (issues.parent_id, attachments' polymorphic
-  // entity_type/entity_id) but the same dangling-reference risk.
-  //
-  // R2 objects for "file"-kind attachments hanging directly off this issue
-  // (entity_type='issue') are looked up before the batch (their D1 rows are deleted in
-  // it) and removed only after the batch commits, so a failed batch never leaves
-  // attachment metadata pointing at bytes we already destroyed.
+  /*
+   * PROJ-922: D1 does not reliably enforce the FK ON DELETE CASCADE/SET NULL declared in
+   * the schema (PROJ-407), so every row that references this issue must be cleaned up
+   * explicitly here, in the same batch as the issue row itself — final list from
+   * grepping root migrations/ for `REFERENCES issues`, plus two references that
+   * exist without a physical FK constraint (issues.parent_id, attachments' polymorphic
+   * entity_type/entity_id) but the same dangling-reference risk.
+   *
+   * R2 objects for "file"-kind attachments hanging directly off this issue
+   * (entity_type='issue') are looked up before the batch (their D1 rows are deleted in
+   * it) and removed only after the batch commits, so a failed batch never leaves
+   * attachment metadata pointing at bytes we already destroyed.
+   */
   const fileAttachments = await orm
     .select({ r2Key: schema.attachments.r2Key })
     .from(schema.attachments)
@@ -1378,8 +1454,10 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
         eq(schema.attachments.kind, 'file'),
       ),
     )
-  // Issues whose cached payload mentions this one (link targets/sources, children) —
-  // invalidated after the batch so they stop showing a deleted issue.
+  /*
+   * Issues whose cached payload mentions this one (link targets/sources, children) —
+   * invalidated after the batch so they stop showing a deleted issue.
+   */
   const affected = await ctx.db
     .prepare(
       `SELECT target_issue_id AS id FROM issue_links WHERE source_issue_id = ?1
@@ -1450,8 +1528,10 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
     ctx.db
       .prepare('UPDATE feedback SET linked_issue_id = NULL WHERE linked_issue_id = ? AND workspace_id = ?')
       .bind(id, ctx.workspaceId),
-    // Not a physically-declared FK (issues.parent_id carries no REFERENCES clause), but
-    // the same dangling-reference risk: null child issues' parent_id.
+    /*
+     * Not a physically-declared FK (issues.parent_id carries no REFERENCES clause), but
+     * the same dangling-reference risk: null child issues' parent_id.
+     */
     toD1Statement(
       ctx,
       orm
@@ -1464,8 +1544,10 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
 
   await ctx.db.batch(deleteStatements)
 
-  // The issue is gone once the batch commits. Bound each storage request, and
-  // continue other chunks if one fails so a large issue does not strand every object.
+  /*
+   * The issue is gone once the batch commits. Bound each storage request, and
+   * continue other chunks if one fails so a large issue does not strand every object.
+   */
   const r2Keys = fileAttachments.map((a) => a.r2Key).filter((k): k is string => Boolean(k))
   for (let offset = 0; offset < r2Keys.length; offset += 1000) {
     const keys = r2Keys.slice(offset, offset + 1000)
@@ -1512,9 +1594,11 @@ function parsePrioritizedFilters(raw: unknown): PrioritizedFilters {
     includeNotReady?: unknown
     projectId?: unknown
   }
-  // PROJ-920: MCP clients may send "5" / "false" (the arg validator allows what the
-  // services coerce), so parse like BooleanQueryParam / z.coerce rather than comparing
-  // with === true / !== false, which read the string "false" as true.
+  /*
+   * PROJ-920: MCP clients may send "5" / "false" (the arg validator allows what the
+   * services coerce), so parse like BooleanQueryParam / z.coerce rather than comparing
+   * with === true / !== false, which read the string "false" as true.
+   */
   const flag = (v: unknown, fallback: boolean): boolean => {
     const parsed = BooleanQueryParam.safeParse(v)
     return parsed.success ? parsed.data : fallback
@@ -1529,10 +1613,12 @@ function parsePrioritizedFilters(raw: unknown): PrioritizedFilters {
   return { limit, includeBacklog, excludeClaimed, includeNotReady, projectId }
 }
 
-// PROJ-859: fill in dor_ready/dor_missing for rows written before migration 0058.
-// One-time per row (writes keep the columns current afterwards), in bounded batches so
-// a large workspace heals over a few calls instead of one huge request. Steady state
-// is a single indexed SELECT that returns nothing.
+/*
+ * PROJ-859: fill in dor_ready/dor_missing for rows written before migration 0058.
+ * One-time per row (writes keep the columns current afterwards), in bounded batches so
+ * a large workspace heals over a few calls instead of one huge request. Steady state
+ * is a single indexed SELECT that returns nothing.
+ */
 const DOR_HEAL_BATCH = 200
 const DOR_HEAL_MAX_BATCHES = 5
 
@@ -1699,10 +1785,12 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
   await healDefinitionOfReady(ctx)
   const base = { limit, includeBacklog, excludeClaimed, projectId }
 
-  // PROJ-253: definition-of-ready gate. By default, issues missing acceptance
-  // criteria/scope are dropped from "what should I work on next?" — an agent that
-  // claims one is set up to guess. includeNotReady surfaces them anyway, annotated
-  // with what's missing, for grooming.
+  /*
+   * PROJ-253: definition-of-ready gate. By default, issues missing acceptance
+   * criteria/scope are dropped from "what should I work on next?" — an agent that
+   * claims one is set up to guess. includeNotReady surfaces them anyway, annotated
+   * with what's missing, for grooming.
+   */
   if (includeNotReady) {
     const rows = await queryPrioritized(ctx, { ...base, readyOnly: false })
     if (rows.length === 0) {
@@ -1712,14 +1800,18 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
   }
 
   const ready = await queryPrioritized(ctx, { ...base, readyOnly: true })
-  // PROJ-291: don't SILENTLY drop not-ready issues — surface the count so a caller
-  // seeing few results knows to groom (or re-query with includeNotReady).
+  /*
+   * PROJ-291: don't SILENTLY drop not-ready issues — surface the count so a caller
+   * seeing few results knows to groom (or re-query with includeNotReady).
+   */
   if (ready.length > 0) {
     return { issues: ready.map(toPrioritizedIssue), droppedNotReady: ready[0].not_ready_count }
   }
 
-  // Nothing ready: return the ranked not-ready list, flagged, rather than an empty
-  // array that reads as "no open work".
+  /*
+   * Nothing ready: return the ranked not-ready list, flagged, rather than an empty
+   * array that reads as "no open work".
+   */
   const all = await queryPrioritized(ctx, { ...base, readyOnly: false })
   if (all.length === 0) {
     return { issues: [] }

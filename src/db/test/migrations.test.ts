@@ -109,9 +109,11 @@ describe('schema constraints', () => {
     ).toThrow()
   })
 
-  // PROJ-376: the 0035 backfill must not violate its own unique index when two
-  // pre-existing projects in the same workspace slugify to the same value —
-  // this previously aborted the whole migration on real data (opus review finding).
+  /*
+   * PROJ-376: the 0035 backfill must not violate its own unique index when two
+   * pre-existing projects in the same workspace slugify to the same value —
+   * this previously aborted the whole migration on real data (opus review finding).
+   */
   test('0035_project_slug backfill dedupes colliding slugs instead of aborting', () => {
     const migrationFiles = readdirSync(MIGRATIONS_DIR)
       .filter((f) => f.endsWith('.sql'))

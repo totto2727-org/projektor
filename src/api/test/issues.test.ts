@@ -95,9 +95,11 @@ describe('Issues API', () => {
     expect(body.id).toBeTruthy()
   })
 
-  // PROJ-396: author_kind is stamped from the authenticated principal type, not a
-  // caller-supplied field — same convention as issue_comments.author_kind (PROJ-328).
-  // Tests authenticate over Bearer tokens (see authHeaders), same as agents.
+  /*
+   * PROJ-396: author_kind is stamped from the authenticated principal type, not a
+   * caller-supplied field — same convention as issue_comments.author_kind (PROJ-328).
+   * Tests authenticate over Bearer tokens (see authHeaders), same as agents.
+   */
   test('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -392,8 +394,10 @@ describe('Issues API', () => {
       })
     }
 
-    // The first page only loads 30 rows, but `total` must reflect all 35 matches —
-    // this is what the frontend header count relies on instead of items.length.
+    /*
+     * The first page only loads 30 rows, but `total` must reflect all 35 matches —
+     * this is what the frontend header count relies on instead of items.length.
+     */
     const { page: first } = await listIssues('http://localhost/api/issues')
     expect(first.items).toHaveLength(30)
     expect(first.total).toBe(35)
@@ -1064,10 +1068,12 @@ describe('Issues API', () => {
     expect(titles).toEqual(['A plain issue'])
   })
 
-  // ─── PROJ-212: completed_at + date-range filters ──────────────────────────
-  // The test rate limiter allows only RATE_LIMIT_API_MAX (5) API requests per
-  // window, so set up state via env.DB and assert via env.DB where possible —
-  // DB access bypasses both the rate limiter and the getIssue KV cache.
+  /*
+   * ─── PROJ-212: completed_at + date-range filters ──────────────────────────
+   * The test rate limiter allows only RATE_LIMIT_API_MAX (5) API requests per
+   * window, so set up state via env.DB and assert via env.DB where possible —
+   * DB access bypasses both the rate limiter and the getIssue KV cache.
+   */
   async function patch(id: string, body: Record<string, unknown>) {
     return fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
@@ -1243,9 +1249,11 @@ describe('Issues API', () => {
     return row?.n ?? 0
   }
 
-  // Split into two tests (each gets a fresh token from beforeEach) — the test rate
-  // limiter allows only RATE_LIMIT_API_MAX (5) requests per token per window, and
-  // each case alone already needs 3 patches.
+  /*
+   * Split into two tests (each gets a fresh token from beforeEach) — the test rate
+   * limiter allows only RATE_LIMIT_API_MAX (5) requests per token per window, and
+   * each case alone already needs 3 patches.
+   */
   test('records a gate-rejection event for in_review -> in_progress', async () => {
     const rejected = await seedIssue(workspaceId, projectId, userId, { title: 'Sent back' })
     await patch(rejected.id, { status: 'in_progress' })
@@ -1261,8 +1269,10 @@ describe('Issues API', () => {
     await patch(killed.id, { status: 'in_progress' })
     await patch(killed.id, { status: 'in_review' })
     await patch(killed.id, { status: 'cancelled' })
-    // Not a gate rejection — the issue was cancelled, not sent back for rework —
-    // even though the aggregate reviewBounceCount still increments for it.
+    /*
+     * Not a gate rejection — the issue was cancelled, not sent back for rework —
+     * even though the aggregate reviewBounceCount still increments for it.
+     */
     expect(await gateRejectionCountOf(killed.id)).toBe(0)
     expect((await reviewFieldsOf(killed.id)).review_bounce_count).toBe(1)
   })
@@ -1357,8 +1367,10 @@ describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
       parentId,
       status: 'backlog',
     })
-    // Custom-status issues carry a status_category distinct from their raw status;
-    // the list rollup must still key byStatus on the raw status like getIssue does.
+    /*
+     * Custom-status issues carry a status_category distinct from their raw status;
+     * the list rollup must still key byStatus on the raw status like getIssue does.
+     */
     await env.DB.prepare("UPDATE issues SET status_category = 'done' WHERE id = ?").bind(childId).run()
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${parentId}`, {
@@ -1459,9 +1471,11 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_key).toBe('epic')
   })
 
-  // Regression for PROJ-69: seeded default task types use 32-char hex hash IDs
-  // (not dashed UUIDs). The typeId schema must accept them, or the seeded Epic
-  // type can never be assigned to an issue.
+  /*
+   * Regression for PROJ-69: seeded default task types use 32-char hex hash IDs
+   * (not dashed UUIDs). The typeId schema must accept them, or the seeded Epic
+   * type can never be assigned to an issue.
+   */
   test('MCP create_issue accepts a seeded-style 32-hex (non-UUID) typeId', async () => {
     const hashId = 'ea3df70345804c3d26ebf139816cae8f'
     const { id: typeId } = await seedTaskType(workspaceId, {
@@ -1522,9 +1536,11 @@ describe('Issues MCP — typeId', () => {
     expect(issue.type_id).toBeNull()
   })
 
-  // PROJ-571: changing an epic's type away from Epic while it still has children
-  // silently orphans them from the epic UI/rollups — block it at the service layer
-  // so both REST and MCP callers get the guard.
+  /*
+   * PROJ-571: changing an epic's type away from Epic while it still has children
+   * silently orphans them from the epic UI/rollups — block it at the service layer
+   * so both REST and MCP callers get the guard.
+   */
   test('MCP update_issue rejects demoting an epic that still has children', async () => {
     const { id: epicTypeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
@@ -1782,9 +1798,11 @@ describe('Issues KV cache', () => {
     expect(issue.title).toBe('After update')
   })
 
-  // PROJ-359: ref lookups ("PROJ-42", the primary MCP agent read path) resolve
-  // via fetchIssueByRef rather than the id-keyed cache check at the top of
-  // getIssue, so they never got any cache benefit before this fix.
+  /*
+   * PROJ-359: ref lookups ("PROJ-42", the primary MCP agent read path) resolve
+   * via fetchIssueByRef rather than the id-keyed cache check at the top of
+   * getIssue, so they never got any cache benefit before this fix.
+   */
   test('getIssue by ref: row is always fresh; rollup/custom fields come from the KV cache (PROJ-863)', async () => {
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -2147,14 +2165,18 @@ describe('GET /api/issues/prioritized', () => {
 
     const { res, body } = await getPrioritized({ includeNotReady: 'true' })
     expect(res.status).toBe(200)
-    // Seeded low-first so a route that returned insertion order rather than the
-    // service's ranking would fail here instead of passing by coincidence.
+    /*
+     * Seeded low-first so a route that returned insertion order rather than the
+     * service's ranking would fail here instead of passing by coincidence.
+     */
     expect(body.issues.map((i) => i.title)).toEqual(['High prio', 'Low prio'])
   })
 
-  // Proves query-string coercion actually happens — a route that passed the raw
-  // string "3" through unparsed would fail `typeof input.limit === "number"` and
-  // silently fall back to the default of 10, returning all 5 seeded issues.
+  /*
+   * Proves query-string coercion actually happens — a route that passed the raw
+   * string "3" through unparsed would fail `typeof input.limit === "number"` and
+   * silently fall back to the default of 10, returning all 5 seeded issues.
+   */
   test('limit is honoured', async () => {
     for (let i = 0; i < 5; i++) {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })
@@ -2785,15 +2807,19 @@ describe('PROJ-931 — compact MCP responses', () => {
   })
 
   test('PROJ-931: get_issue MCP bytes drop by at least 40% vs the full pretty shape', async () => {
-    // A "typical" seeded issue per the ticket: no assignee, no custom fields, no
-    // children/parent, no links — exactly the empty/default fields PROJ-931 targets.
+    /*
+     * A "typical" seeded issue per the ticket: no assignee, no custom fields, no
+     * children/parent, no links — exactly the empty/default fields PROJ-931 targets.
+     */
     const { id } = await seedIssue(workspaceId, projectId, userId, {
       title: 'A typical seeded issue for byte measurement',
       priority: 'high',
     })
 
-    // "Before": the full shape, pretty-printed — what every MCP tool result looked like
-    // pre-PROJ-931 (REST returns exactly this shape and formatting is reproduced here).
+    /*
+     * "Before": the full shape, pretty-printed — what every MCP tool result looked like
+     * pre-PROJ-931 (REST returns exactly this shape and formatting is reproduced here).
+     */
     const restRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })

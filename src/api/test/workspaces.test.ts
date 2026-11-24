@@ -201,8 +201,10 @@ describe('Workspaces MCP', () => {
     expect(data.ok).toBe(true)
   })
 
-  // The zero-project path above only proves the guard's count reads 0. This covers the
-  // other side of it, which nothing else exercised (PROJ-647 rewrote it to use $count).
+  /*
+   * The zero-project path above only proves the guard's count reads 0. This covers the
+   * other side of it, which nothing else exercised (PROJ-647 rewrote it to use $count).
+   */
   test('delete_workspace refuses while the workspace still has projects', async () => {
     const extra = await seedFixture({ role: 'owner' })
     const extraHeaders = authHeaders(extra.token, extra.workspace.slug)
@@ -387,9 +389,11 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
   })
 
   test('URL slug mismatched with X-Workspace-Slug header → 404, neither workspace is deleted (PROJ-437)', async () => {
-    // ctx.workspaceId (and thus the actual delete target) is resolved from the header,
-    // not the URL. Naming a *different* workspace in the URL must not silently delete
-    // the header's workspace, nor the URL's.
+    /*
+     * Ctx.workspaceId (and thus the actual delete target) is resolved from the header,
+     * not the URL. Naming a *different* workspace in the URL must not silently delete
+     * the header's workspace, nor the URL's.
+     */
     const other = await seedWorkspace(`del-437-${crypto.randomUUID().slice(0, 8)}`)
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${other.slug}`, {
       method: 'DELETE',

@@ -278,9 +278,11 @@ describe('PROJ-438 — links accept an issue ref', () => {
     expect(await byRef.json()).toEqual(await byUuid.json())
   })
 
-  // Same key and number in both workspaces on purpose — see the matching test in
-  // comments.test.ts for why distinct keys would let this pass with the resolver's
-  // workspace filter removed.
+  /*
+   * Same key and number in both workspaces on purpose — see the matching test in
+   * comments.test.ts for why distinct keys would let this pass with the resolver's
+   * workspace filter removed.
+   */
   test("resolves a colliding ref inside the caller's own workspace", async () => {
     const mine = await seedFixture({ role: 'owner' })
     const myProject = await seedProject(mine.workspace.id, 'DUP')

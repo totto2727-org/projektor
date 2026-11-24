@@ -59,8 +59,10 @@ describe('Agent Messages API', () => {
     })
   }
 
-  // C1: post_message to issue scope; list_messages returns it; cursor pagination stable
-  // token: POST×3 (3/5); token2: GET all (1/5) + GET page2 (2/5); token3: GET page1 (1/5); token4: MCP (1/5)
+  /*
+   * C1: post_message to issue scope; list_messages returns it; cursor pagination stable
+   * token: POST×3 (3/5); token2: GET all (1/5) + GET page2 (2/5); token3: GET page1 (1/5); token4: MCP (1/5)
+   */
   test('C1: post_message({scope:issue}) and list_messages with cursor pagination (no dupes/gaps)', async () => {
     const scope = `issue:${issueId}`
 
@@ -123,8 +125,10 @@ describe('Agent Messages API', () => {
     }
     expect(mcpData.items).toHaveLength(3)
 
-    // PROJ-920: MCP paging round-trip — page 1's nextCursor (a "createdAt:id" string)
-    // must be accepted back by the argument validator.
+    /*
+     * PROJ-920: MCP paging round-trip — page 1's nextCursor (a "createdAt:id" string)
+     * must be accepted back by the argument validator.
+     */
     const token5 = await seedToken(workspaceId, userId)
     const p1Res = await mcpCall('list_messages', { scope, limit: 2 }, token5, slug)
     const p1Body = (await p1Res.json()) as { result: { content: { text: string }[] } }

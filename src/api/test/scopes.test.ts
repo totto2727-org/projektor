@@ -283,10 +283,12 @@ describe('PROJ-17: POST /auth/tokens', () => {
   })
 })
 
-// PROJ-655: the OAuth wire names are a public contract — they ship in
-// `scopes_supported` on the discovery documents, which Claude caches globally by
-// URL across every user of an instance. Pinning them in a test makes a rename a
-// deliberate act rather than a refactor's collateral damage.
+/*
+ * PROJ-655: the OAuth wire names are a public contract — they ship in
+ * `scopes_supported` on the discovery documents, which Claude caches globally by
+ * URL across every user of an instance. Pinning them in a test makes a rename a
+ * deliberate act rather than a refactor's collateral damage.
+ */
 describe('OAuth wire scope names (PROJ-655)', () => {
   test('advertises exactly the two namespaced scopes', () => {
     expect([...OAUTH_SCOPES_SUPPORTED]).toEqual(['projektor:read', 'projektor:write'])
@@ -298,8 +300,10 @@ describe('OAuth wire scope names (PROJ-655)', () => {
   })
 
   test('fails closed on a scope it does not issue', () => {
-    // Notably the bare internal names: they are NOT valid on the wire, so a
-    // client that guesses them gets nothing rather than accidental read access.
+    /*
+     * Notably the bare internal names: they are NOT valid on the wire, so a
+     * client that guesses them gets nothing rather than accidental read access.
+     */
     for (const scope of ['read', 'write', '*', 'offline_access', 'projektor:admin', '']) {
       expect(capabilityForOAuthScope(scope)).toBeNull()
     }

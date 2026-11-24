@@ -212,8 +212,10 @@ describe('Files API', () => {
     expect(getRes.status).toBe(404)
   })
 
-  // PROJ-494: an inline <img> tag rendering an attachment in wiki content can't set a
-  // custom X-Workspace-Slug header, so GET falls back to a `?workspace=` query param.
+  /*
+   * PROJ-494: an inline <img> tag rendering an attachment in wiki content can't set a
+   * custom X-Workspace-Slug header, so GET falls back to a `?workspace=` query param.
+   */
   test('GET /api/files/:id resolves the workspace from a ?workspace= query param when no header is sent', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'query-param content', 'q.txt')
     const { id } = (await uploadRes.json()) as { id: string }
@@ -544,9 +546,11 @@ describe('Files API', () => {
     })
 
     test('rejects attaching a project-scoped wiki page the caller cannot see → 404', async () => {
-      // The default fixture user is a plain member with no group grant, so a
-      // freshly created project-scoped page is invisible to them (PROJ-311
-      // default-deny). Bootstrap an admin in the same workspace to create it.
+      /*
+       * The default fixture user is a plain member with no group grant, so a
+       * freshly created project-scoped page is invisible to them (PROJ-311
+       * default-deny). Bootstrap an admin in the same workspace to create it.
+       */
       const adminUser = await seedUser(`admin-${crypto.randomUUID()}@example.com`)
       await seedMember(workspaceId, adminUser.id, 'admin')
       const adminToken = await seedToken(workspaceId, adminUser.id)
@@ -594,8 +598,10 @@ describe('Files API', () => {
       })
       const { id: restrictedPageId } = (await pageRes.json()) as { id: string }
 
-      // Admin attaches it to an entity — the attachment itself is workspace-visible,
-      // only the joined wiki page details should be gated.
+      /*
+       * Admin attaches it to an entity — the attachment itself is workspace-visible,
+       * only the joined wiki page details should be gated.
+       */
       const entityId = crypto.randomUUID()
       const linkRes = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
@@ -618,8 +624,10 @@ describe('Files API', () => {
     })
 
     test('trashing the linked wiki page leaves the wiki_ref attachment in place until purge (PROJ-496)', async () => {
-      // Deleting a workspace-level page requires admin/owner, so create+delete
-      // through a dedicated admin rather than the default member fixture.
+      /*
+       * Deleting a workspace-level page requires admin/owner, so create+delete
+       * through a dedicated admin rather than the default member fixture.
+       */
       const adminUser = await seedUser(`admin-${crypto.randomUUID()}@example.com`)
       await seedMember(workspaceId, adminUser.id, 'admin')
       const adminToken = await seedToken(workspaceId, adminUser.id)
@@ -649,18 +657,22 @@ describe('Files API', () => {
       })
       expect(delRes.status).toBe(200)
 
-      // PROJ-496: wiki attachment/wiki_ref cleanup (deleteWikiPageAttachments) moved
-      // from delete time to purge time — the pointer attachment must still exist right
-      // after the page is trashed.
+      /*
+       * PROJ-496: wiki attachment/wiki_ref cleanup (deleteWikiPageAttachments) moved
+       * from delete time to purge time — the pointer attachment must still exist right
+       * after the page is trashed.
+       */
       const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: adminHeaders,
       })
       const list = (await listRes.json()) as { kind: string; id: string; wikiPage: unknown }[]
       const trashedEntry = list.find((l) => l.kind === 'wiki_ref')
       expect(trashedEntry).toBeDefined()
-      // The page still exists (not yet purged) but is trashed — it must behave like the
-      // existing "unavailable ref" case (a non-visible/deleted page), not resolve full
-      // title/url details for a page the user can no longer see live.
+      /*
+       * The page still exists (not yet purged) but is trashed — it must behave like the
+       * existing "unavailable ref" case (a non-visible/deleted page), not resolve full
+       * title/url details for a page the user can no longer see live.
+       */
       expect(trashedEntry?.wikiPage).toBeNull()
 
       await resetRateLimits()
@@ -746,9 +758,11 @@ describe('Files API', () => {
   })
 })
 
-// PROJ-234: attachments previously had no MCP surface at all. list/get/create-link/delete
-// are metadata-only (no binary), so they get full MCP parity; upload/download remain
-// REST-only (AGENTS.md exception).
+/*
+ * PROJ-234: attachments previously had no MCP surface at all. list/get/create-link/delete
+ * are metadata-only (no binary), so they get full MCP parity; upload/download remain
+ * REST-only (AGENTS.md exception).
+ */
 describe('Files MCP tools', () => {
   let token: string
   let slug: string
@@ -908,9 +922,11 @@ describe('Files MCP tools', () => {
   })
 })
 
-// PROJ-639: an attachment hangs off an issue or a wiki page, and those live in projects
-// that are default-deny. Nothing resolved that chain, so workspace membership alone got
-// you the filename, size and bytes of every attachment in the workspace.
+/*
+ * PROJ-639: an attachment hangs off an issue or a wiki page, and those live in projects
+ * that are default-deny. Nothing resolved that chain, so workspace membership alone got
+ * you the filename, size and bytes of every attachment in the workspace.
+ */
 describe('Attachment project visibility', () => {
   let slug: string
   let workspaceId: string
@@ -968,8 +984,10 @@ describe('Attachment project visibility', () => {
       headers: asMember(),
     })
     expect(res.status).toBe(200)
-    // The filename alone is the leak this closes — "acquisition-terms.pdf" on a ticket
-    // you cannot see tells you plenty without the bytes.
+    /*
+     * The filename alone is the leak this closes — "acquisition-terms.pdf" on a ticket
+     * you cannot see tells you plenty without the bytes.
+     */
     expect(await res.json()).toEqual([])
   })
 
@@ -985,9 +1003,11 @@ describe('Attachment project visibility', () => {
       headers: asMember(),
     })
     expect(res.status).toBe(404)
-    // Assert on the body too: the route 404s separately when the R2 object is missing,
-    // so a status check alone would pass even if authz were bypassed and the object
-    // simply absent. This proves the row was never handed over.
+    /*
+     * Assert on the body too: the route 404s separately when the R2 object is missing,
+     * so a status check alone would pass even if authz were bypassed and the object
+     * simply absent. This proves the row was never handed over.
+     */
     expect(await res.text()).not.toContain('secret bytes')
   })
 
@@ -1038,8 +1058,10 @@ describe('Attachment project visibility', () => {
     })
     expect(await scoped.json()).toEqual([])
 
-    // A null project_id is a workspace-level page. Filtering these out too would be a
-    // silent regression that the invisible-project assertions above cannot catch.
+    /*
+     * A null project_id is a workspace-level page. Filtering these out too would be a
+     * silent regression that the invisible-project assertions above cannot catch.
+     */
     const global = await fetchNativeApi(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.global}`, {
       headers: asMember(),
     })
@@ -1047,8 +1069,10 @@ describe('Attachment project visibility', () => {
   })
 
   test('still shows the attachment to a workspace admin', async () => {
-    // The filter must be scoped to grant-less members; an admin losing access would be
-    // this fix overshooting into a denial of service.
+    /*
+     * The filter must be scoped to grant-less members; an admin losing access would be
+     * this fix overshooting into a denial of service.
+     */
     const list = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
       headers: authHeaders(adminToken, slug),
     })
@@ -1087,8 +1111,10 @@ describe('Attachment project visibility', () => {
       headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
       body: form,
     })
-    // 404, not 403: an invisible project 404s so its existence never leaks (see
-    // requireProjectAccess).
+    /*
+     * 404, not 403: an invisible project 404s so its existence never leaks (see
+     * requireProjectAccess).
+     */
     expect(res.status).toBe(404)
 
     const after = await env.DB.prepare('SELECT COUNT(*) AS n FROM attachments WHERE workspace_id = ?')
@@ -1096,8 +1122,10 @@ describe('Attachment project visibility', () => {
       .first<{ n: number }>()
     expect(after?.n).toBe(before?.n)
 
-    // The route puts bytes in R2 before recordUpload can reject, so it must clean up or
-    // every rejected upload leaves a billable orphan.
+    /*
+     * The route puts bytes in R2 before recordUpload can reject, so it must clean up or
+     * every rejected upload leaves a billable orphan.
+     */
     const keys = await env.R2.list({ prefix: `${workspaceId}/` })
     expect(keys.objects.map((o) => o.key)).toEqual([hiddenR2Key])
   })
@@ -1132,9 +1160,11 @@ describe('Attachment project visibility', () => {
       headers: { Authorization: `Bearer ${viewerToken}`, 'X-Workspace-Slug': slug },
       body: form,
     })
-    // 403, not 404: the project is visible to them, the write is what's refused. Their
-    // workspace role is `member`, so the flat requireAttachmentWrite guard passes and only
-    // the per-project grant can reject this.
+    /*
+     * 403, not 404: the project is visible to them, the write is what's refused. Their
+     * workspace role is `member`, so the flat requireAttachmentWrite guard passes and only
+     * the per-project grant can reject this.
+     */
     expect(res.status).toBe(403)
   })
 

@@ -149,8 +149,10 @@ describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
   })
 
   test("does not throttle a valid token even when the IP's failure counter is high", async () => {
-    // A successful auth never touches the authfail counter, so legit clients sharing an IP
-    // with an attacker are unaffected.
+    /*
+     * A successful auth never touches the authfail counter, so legit clients sharing an IP
+     * with an attacker are unaffected.
+     */
     await seedCounter('authfail:127.0.0.1', AUTH_FAIL_LIMIT + 5)
     const fixture = await seedFixture()
 
@@ -162,8 +164,10 @@ describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
   })
 })
 
-// PROJ-432: the limiter runs on every request, and its upsert + read-back used to be two
-// sequential awaits. They're one D1 batch now — same statements, same order, one round trip.
+/*
+ * PROJ-432: the limiter runs on every request, and its upsert + read-back used to be two
+ * sequential awaits. They're one D1 batch now — same statements, same order, one round trip.
+ */
 describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
   const d1Only = (db: D1Database): Env => ({ ...env, DB: db, RATE_LIMITER: undefined })
   function countingDb(db: D1Database) {

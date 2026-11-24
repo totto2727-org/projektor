@@ -4,11 +4,13 @@ import m0050 from '../../../migrations/0050_wiki_slug_slash_backfill.sql?raw'
 import { env } from './fixture-api.ts'
 import { seedUser, seedWorkspace } from './helpers.ts'
 
-// PROJ-517/512: runs the actual 0050 migration SQL against seeded rows, rather than
-// hand-simulating what it does — the earlier test in wiki.test.ts only exercised the
-// resulting redirect/slug shape, not the migration's own collision-handling logic
-// (row-number disambiguation, EXISTS collision against a pre-existing slug, and the
-// wiki_redirects ON CONFLICT upsert).
+/*
+ * PROJ-517/512: runs the actual 0050 migration SQL against seeded rows, rather than
+ * hand-simulating what it does — the earlier test in wiki.test.ts only exercised the
+ * resulting redirect/slug shape, not the migration's own collision-handling logic
+ * (row-number disambiguation, EXISTS collision against a pre-existing slug, and the
+ * wiki_redirects ON CONFLICT upsert).
+ */
 
 function splitStatements(sql: string): string[] {
   return sql

@@ -23,14 +23,18 @@ import { ctxFromHono } from '../services/types.ts'
 
 const publicRouter = new Hono<HonoEnv>()
 
-// PROJ-378: this router is mounted ahead of the global app.use("*", logger())
-// in index.ts (see Step 6 below), so it needs its own logging or submit
-// requests go unlogged entirely.
+/*
+ * PROJ-378: this router is mounted ahead of the global app.use("*", logger())
+ * in index.ts (see Step 6 below), so it needs its own logging or submit
+ * requests go unlogged entirely.
+ */
 publicRouter.use('*', logger())
 
-// Anonymous end-user feedback preflight. We cannot know the source (no token on a
-// preflight), so reflect the requesting Origin; the POST response is what actually
-// enforces the per-source allow-list.
+/*
+ * Anonymous end-user feedback preflight. We cannot know the source (no token on a
+ * preflight), so reflect the requesting Origin; the POST response is what actually
+ * enforces the per-source allow-list.
+ */
 publicRouter.options('/submit', (c) => {
   const origin = c.req.header('Origin')
   const headers: Record<string, string> = {
@@ -45,10 +49,12 @@ publicRouter.options('/submit', (c) => {
 })
 
 async function checkFeedbackRateLimit(c: Context<HonoEnv>, token: string): Promise<Response | null> {
-  // Dual-keyed rate limit (token hash + IP) — reject if either trips its bucket.
-  // Dedicated PROJ-378 env vars, not RATE_LIMIT_API_MAX/RATE_LIMIT_AUTH_MAX: this
-  // route runs outside the global rateLimitMiddleware chain (mounted before it),
-  // and anonymous feedback traffic must not share a budget with authenticated callers.
+  /*
+   * Dual-keyed rate limit (token hash + IP) — reject if either trips its bucket.
+   * Dedicated PROJ-378 env vars, not RATE_LIMIT_API_MAX/RATE_LIMIT_AUTH_MAX: this
+   * route runs outside the global rateLimitMiddleware chain (mounted before it),
+   * and anonymous feedback traffic must not share a budget with authenticated callers.
+   */
   const windowSecs = parseInt(c.env.RATE_LIMIT_WINDOW_SECS ?? '60', 10)
   const tokenLimit = parseInt(c.env.RATE_LIMIT_FEEDBACK_MAX ?? '30', 10)
   const ipLimit = parseInt(c.env.RATE_LIMIT_FEEDBACK_IP_MAX ?? '100', 10)
@@ -82,9 +88,11 @@ async function parseFeedbackBody(c: Context<HonoEnv>): Promise<unknown> {
 }
 
 function submitFeedbackErrorResponse(c: Context<HonoEnv>, e: unknown): Response {
-  // Endpoint-specific mapping: an unknown/revoked source is an invalid
-  // credential (401), an inactive source is a paused resource (403), a bad
-  // body is 400. (NotFound → 401 here, unlike every other endpoint.)
+  /*
+   * Endpoint-specific mapping: an unknown/revoked source is an invalid
+   * credential (401), an inactive source is a paused resource (403), a bad
+   * body is 400. (NotFound → 401 here, unlike every other endpoint.)
+   */
   if (e instanceof CorePublicError) {
     if (e.kind === 'validation') {
       return c.json({ error: e.details }, 400)

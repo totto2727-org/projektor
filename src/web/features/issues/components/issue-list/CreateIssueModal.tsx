@@ -9,10 +9,12 @@ import type { TaskStatus } from '../board-utils.ts'
 import MarkdownEditor from '../LazyMarkdownEditor.tsx'
 import type { ProjectMeta } from './types.ts'
 
-// PROJ-566: a caption *sibling*, never a wrapper. A <label> with no `for` binds to
-// its first labelable descendant — for a Select that's the trigger <button>, so the
-// menu's own <li> options (not interactive content) forwarded their clicks to it too.
-// Matches EpicList.tsx's create-epic form; the Select names itself via `ariaLabel`.
+/*
+ * PROJ-566: a caption *sibling*, never a wrapper. A <label> with no `for` binds to
+ * its first labelable descendant — for a Select that's the trigger <button>, so the
+ * menu's own <li> options (not interactive content) forwarded their clicks to it too.
+ * Matches EpicList.tsx's create-epic form; the Select names itself via `ariaLabel`.
+ */
 const FIELD_CAPTION_CLASS = 'block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'
 
 interface CreateIssueModalProps {

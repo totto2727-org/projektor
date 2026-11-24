@@ -1,18 +1,20 @@
-// PROJ-623: mechanical parity across the four tool surfaces.
-//
-// Parity used to be held by convention plus two hand-written spot checks in mcp.test.ts
-// (issues and wiki — 2 of 22 domains), and mcp/catalog.ts carried a comment asking a
-// human to keep its order in sync with the runtime registry by hand. This test replaces
-// both with a check that fails the build.
-//
-// The four surfaces:
-//   1. service functions   src/services/commands/*.ts — the operations that exist at all
-//   2. REST routes         src/api/routes/*.ts   — the browser/HTTP surface
-//   3. runtime MCP registry src/api/routes/mcp.ts — what tools/call can actually dispatch
-//   4. grouped catalog     src/api/mcp/catalog.ts — the domain-grouped tool registry
-//
-// This runs in node, not workerd: it reads the repo's own source off disk, and workerd
-// has no node:fs. See the `projects` block in root vite.config.ts.
+/*
+ * PROJ-623: mechanical parity across the four tool surfaces.
+ *
+ * Parity used to be held by convention plus two hand-written spot checks in mcp.test.ts
+ * (issues and wiki — 2 of 22 domains), and mcp/catalog.ts carried a comment asking a
+ * human to keep its order in sync with the runtime registry by hand. This test replaces
+ * both with a check that fails the build.
+ *
+ * The four surfaces:
+ *   1. service functions   src/services/commands/*.ts — the operations that exist at all
+ *   2. REST routes         src/api/routes/*.ts   — the browser/HTTP surface
+ *   3. runtime MCP registry src/api/routes/mcp.ts — what tools/call can actually dispatch
+ *   4. grouped catalog     src/api/mcp/catalog.ts — the domain-grouped tool registry
+ *
+ * This runs in node, not workerd: it reads the repo's own source off disk, and workerd
+ * has no node:fs. See the `projects` block in root vite.config.ts.
+ */
 
 import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
@@ -28,16 +30,18 @@ import { coreMCPTools } from '../routes/mcp.ts'
 const SRC = join(import.meta.dirname, '..')
 const COMMANDS = join(SRC, '..', 'services', 'commands')
 
-// ---------------------------------------------------------------------------
-// Deliberate exceptions.
-//
-// Note what is NOT here: internal helpers. A service function referenced by neither
-// src/mcp nor src/routes is internal *by construction*, so it needs no entry — which is
-// why this list stays short as the codebase grows. Only an operation deliberately
-// exposed on one surface but not the other has to be named, and every name carries its
-// reason. A stale entry (one that no longer applies) fails the test too, so the list
-// shrinks when a gap is closed instead of quietly rotting.
-// ---------------------------------------------------------------------------
+/*
+ * ---------------------------------------------------------------------------
+ * Deliberate exceptions.
+ *
+ * Note what is NOT here: internal helpers. A service function referenced by neither
+ * src/mcp nor src/routes is internal *by construction*, so it needs no entry — which is
+ * why this list stays short as the codebase grows. Only an operation deliberately
+ * exposed on one surface but not the other has to be named, and every name carries its
+ * reason. A stale entry (one that no longer applies) fails the test too, so the list
+ * shrinks when a gap is closed instead of quietly rotting.
+ * ---------------------------------------------------------------------------
+ */
 
 /** MCP tools with no REST equivalent. Each is a real parity gap, tracked in PROJ-633. */
 const MCP_ONLY: Record<string, string> = {
@@ -78,13 +82,17 @@ const REST_ONLY: Record<string, string> = {
   'feedback.ts:bulkMarkReviewed': 'human triage action (PROJ-634)',
   'feedback.ts:bulkConvertToIssue': 'human triage action (PROJ-634)',
   'feedback.ts:getFeedbackSummary': 'human triage dashboard (PROJ-634)',
-  // Bootstrap seeds — called by GET /bootstrap in index.ts to populate a new workspace's
-  // defaults. Not operations a client invokes; they only run as part of provisioning.
+  /*
+   * Bootstrap seeds — called by GET /bootstrap in index.ts to populate a new workspace's
+   * defaults. Not operations a client invokes; they only run as part of provisioning.
+   */
   'custom-fields.ts:seedDefaultCustomFields': 'bootstrap seed for a new workspace',
   'task-statuses.ts:seedDefaultTaskStatuses': 'bootstrap seed for a new workspace',
   'task-types.ts:seedDefaultTaskTypes': 'bootstrap seed for a new workspace',
-  // OAuth consent (PROJ-656) — the browser-only half of the connector flow. An agent
-  // is the *subject* of these, never the caller: it cannot decide who may connect it.
+  /*
+   * OAuth consent (PROJ-656) — the browser-only half of the connector flow. An agent
+   * is the *subject* of these, never the caller: it cannot decide who may connect it.
+   */
   'oauth.ts:lookupConsentWorkspace': 'membership check for the human on the consent screen',
   'oauth.ts:listConnectorGrants': 'settings-only: a connector must not enumerate credentials',
   'oauth.ts:revokeConnectorGrant': 'settings-only: revoking a credential is a browser action',
@@ -104,9 +112,11 @@ const REST_ONLY: Record<string, string> = {
  * is the public contract and reads better; the service name is internal.
  */
 const TOOL_NAME_ALIASES: Record<string, string> = {
-  // PROJ-931: "get_issues" reads better as the public tool name than the derived
-  // "get_issues_batch" — the service name spells out the implementation (batched), the
-  // tool name is the public contract.
+  /*
+   * PROJ-931: "get_issues" reads better as the public tool name than the derived
+   * "get_issues_batch" — the service name spells out the implementation (batched), the
+   * tool name is the public contract.
+   */
   'issues.ts:getIssuesBatch': 'get_issues',
   'issue-links.ts:createLink': 'create_issue_link',
   'issue-links.ts:deleteLink': 'delete_issue_link',
@@ -498,11 +508,13 @@ interface ServiceFn {
   onRest: boolean
 }
 
-// index.ts is part of the REST surface, not just app wiring: it registers eight endpoints
-// directly, three of which call service functions (GET/POST /api/workspaces, GET
-// /api/projects). Scanning only routes/ made those read as unwired, which is how two
-// MCP_ONLY entries came to claim a REST equivalent was missing when one existed, and how
-// listAllProjects got swallowed by the internal-by-construction rule. PROJ-638.
+/*
+ * Index.ts is part of the REST surface, not just app wiring: it registers eight endpoints
+ * directly, three of which call service functions (GET/POST /api/workspaces, GET
+ * /api/projects). Scanning only routes/ made those read as unwired, which is how two
+ * MCP_ONLY entries came to claim a REST equivalent was missing when one existed, and how
+ * listAllProjects got swallowed by the internal-by-construction rule. PROJ-638.
+ */
 /**
  * The concrete R2 wrappers replace route-local I/O, not the metadata contracts.
  * Follow their actual local calls instead of treating an import as the entire path.
@@ -645,8 +657,10 @@ describe('MCP surface parity (PROJ-623)', () => {
   })
 
   test('finds the source it is meant to be checking', () => {
-    // Guards against the scanners silently matching nothing — a regex that stops
-    // matching would otherwise turn every assertion below into a vacuous pass.
+    /*
+     * Guards against the scanners silently matching nothing — a regex that stops
+     * matching would otherwise turn every assertion below into a vacuous pass.
+     */
     expect(serviceFns.length).toBeGreaterThan(150)
     expect(restIdentifiers.size).toBeGreaterThan(50)
     expect(mcpIdentifiers.size).toBeGreaterThan(50)
@@ -654,11 +668,13 @@ describe('MCP surface parity (PROJ-623)', () => {
   })
 
   test('sees the REST surface registered in index.ts, not just routes/', () => {
-    // PROJ-638: listProjectsAcrossWorkspaces is wired only by GET /api/projects in
-    // index.ts. When the scan covered routes/ alone it read as unwired, so the
-    // internal-by-construction rule swallowed it and two MCP_ONLY entries wrongly
-    // claimed no REST equivalent existed. Naming a specific index.ts-only identifier
-    // makes that regression fail here rather than resurface as a false parity gap.
+    /*
+     * PROJ-638: listProjectsAcrossWorkspaces is wired only by GET /api/projects in
+     * index.ts. When the scan covered routes/ alone it read as unwired, so the
+     * internal-by-construction rule swallowed it and two MCP_ONLY entries wrongly
+     * claimed no REST equivalent existed. Naming a specific index.ts-only identifier
+     * makes that regression fail here rather than resurface as a false parity gap.
+     */
     expect(restIdentifiers.has('listProjectsAcrossWorkspaces')).toBe(true)
     expect(restIdentifiers.has('createWorkspace')).toBe(true)
   })
@@ -708,9 +724,11 @@ describe('MCP surface parity (PROJ-623)', () => {
 
   describe('catalog vs runtime registry', () => {
     test('agrees on membership and order', () => {
-      // Not two set comparisons: the arrays must be identical sequences. tools/list
-      // returns the runtime order and the docs table renders the catalog order, so
-      // reordering one without the other makes the docs lie about dispatch.
+      /*
+       * Not two set comparisons: the arrays must be identical sequences. tools/list
+       * returns the runtime order and the docs table renders the catalog order, so
+       * reordering one without the other makes the docs lie about dispatch.
+       */
       expect(runtimeToolNames).toEqual(catalogToolNames)
     })
 

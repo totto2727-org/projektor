@@ -244,8 +244,10 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     })
   }
 
-  // Under a WIP cap of 1: registers an agent, seeds two issues, and asserts the first
-  // claim succeeds while the second is rejected as over-cap.
+  /*
+   * Under a WIP cap of 1: registers an agent, seeds two issues, and asserts the first
+   * claim succeeds while the second is rejected as over-cap.
+   */
   async function expectWipCapBlocksSecondClaim() {
     const agent = await registerAgent('worker')
     const [first, second] = await Promise.all([
@@ -274,10 +276,12 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     expect(JSON.stringify(body)).toMatch(/WIP limit/i)
   })
 
-  // PROJ-624: the Nth claim (at the cap) must succeed and the (N+1)th must be
-  // rejected with an error that names the actual configured cap — read from
-  // fetchAgentWipCap (exported), not retyped as a literal, so the assertion
-  // stays honest if DEFAULT_AGENT_WIP_LIMIT ever changes.
+  /*
+   * PROJ-624: the Nth claim (at the cap) must succeed and the (N+1)th must be
+   * rejected with an error that names the actual configured cap — read from
+   * fetchAgentWipCap (exported), not retyped as a literal, so the assertion
+   * stays honest if DEFAULT_AGENT_WIP_LIMIT ever changes.
+   */
   test('PROJ-624: claim at the cap succeeds; the (cap+1)th is rejected and the error names the cap', async () => {
     const orm = drizzle(env.DB, { schema })
     const cap = await fetchAgentWipCap(orm, { workspaceId } as ServiceCtx, projectId)
@@ -294,9 +298,11 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     const res = await claim(issues[cap].id, agent)
     expect(res.status).toBe(409)
     const body = (await res.json()) as { error?: string }
-    // Anchored to the phrase, not a bare `toContain(String(cap))`: the message
-    // also lists `cap` held issue UUIDs, and a single digit occurs in those by
-    // chance often enough that the loose form passes even if the cap is dropped.
+    /*
+     * Anchored to the phrase, not a bare `toContain(String(cap))`: the message
+     * also lists `cap` held issue UUIDs, and a single digit occurs in those by
+     * chance often enough that the loose form passes even if the cap is dropped.
+     */
     expect(body.error).toMatch(new RegExp(`WIP limit reached \\(${cap}\\)`))
   })
 
@@ -330,8 +336,10 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
       Array.from({ length: 8 }, (_, i) => seedIssue(workspaceId, projectId, userId, { title: `C${i}` })),
     )
 
-    // Fire all claims at once: the read-then-insert bug let several each see cap-1
-    // and all proceed. The guarded INSERT must let at most `cap` (default 3) win.
+    /*
+     * Fire all claims at once: the read-then-insert bug let several each see cap-1
+     * and all proceed. The guarded INSERT must let at most `cap` (default 3) win.
+     */
     const results = await Promise.all(issues.map((iss) => claim(iss.id, agent)))
     const granted = results.filter((r) => r.status === 201).length
     expect(granted).toBeLessThanOrEqual(3)
@@ -405,9 +413,11 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     expect(res.status).toBe(409)
   })
 
-  // PROJ-928: moving an issue to done/cancelled releases its lease (release_reason
-  // "issue_closed") so a closed issue doesn't keep blocking the fleet's WIP cap on a
-  // lease no one is still working.
+  /*
+   * PROJ-928: moving an issue to done/cancelled releases its lease (release_reason
+   * "issue_closed") so a closed issue doesn't keep blocking the fleet's WIP cap on a
+   * lease no one is still working.
+   */
   describe('PROJ-928: issue close releases its lease', () => {
     function patchStatus(id: string, status: string, completionReport?: object) {
       return fetchNativeApi(`http://localhost/api/issues/${id}`, {
@@ -474,11 +484,13 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   })
 })
 
-// PROJ-932: list_issue_leases defaults to live entries only (unreleased AND the holding
-// session is within the heartbeat TTL); includeStale restores the old unfiltered
-// behaviour; projectId scopes to one project (key or uuid); and every item carries
-// issueRef. Visibility (PROJ-316) is covered by coordination-access.test.ts, which
-// exercises this same query.
+/*
+ * PROJ-932: list_issue_leases defaults to live entries only (unreleased AND the holding
+ * session is within the heartbeat TTL); includeStale restores the old unfiltered
+ * behaviour; projectId scopes to one project (key or uuid); and every item carries
+ * issueRef. Visibility (PROJ-316) is covered by coordination-access.test.ts, which
+ * exercises this same query.
+ */
 describe('PROJ-932: list_issue_leases live-only default', () => {
   let token: string
   let slug: string
@@ -616,11 +628,13 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     expect(staleBody.items).toHaveLength(1)
   })
 
-  // PROJ-932: GET /api/issue-leases is the workspace-wide REST twin of MCP's
-  // list_issue_leases (matching /api/file-claims and /api/agents), distinct from the
-  // single-issue GET /api/issues/:id/leases tested above. The lease is seeded directly
-  // (bypassing register/claim API calls) so the five GET calls below stay within the
-  // test environment's per-token rate limit (RATE_LIMIT_API_MAX=5).
+  /*
+   * PROJ-932: GET /api/issue-leases is the workspace-wide REST twin of MCP's
+   * list_issue_leases (matching /api/file-claims and /api/agents), distinct from the
+   * single-issue GET /api/issues/:id/leases tested above. The lease is seeded directly
+   * (bypassing register/claim API calls) so the five GET calls below stay within the
+   * test environment's per-token rate limit (RATE_LIMIT_API_MAX=5).
+   */
   test('REST parity: GET /api/issue-leases accepts issueId, agentId, projectId and includeStale', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Workspace-wide REST' })
     const { agentSessionId: agent } = await seedAgentLease(workspaceId, issue.id, {
@@ -669,9 +683,11 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
   })
 })
 
-// PROJ-932: a member without a group grant on a project must get an empty result for
-// that project's key or uuid — not just fewer results, none at all — proving the
-// projectId filter composes with (rather than bypasses) PROJ-316 visibility.
+/*
+ * PROJ-932: a member without a group grant on a project must get an empty result for
+ * that project's key or uuid — not just fewer results, none at all — proving the
+ * projectId filter composes with (rather than bypasses) PROJ-316 visibility.
+ */
 describe('PROJ-932: list_issue_leases projectId + visibility for a non-admin member', () => {
   test("a hidden project's key or uuid returns no leases", async () => {
     const { token, slug, workspaceId, userId } = await seedProjectFixture({
@@ -687,8 +703,10 @@ describe('PROJ-932: list_issue_leases projectId + visibility for a non-admin mem
       body: JSON.stringify({ name: 'hidden-holder' }),
     })
     const agent = (await agentRes.json()) as { id: string }
-    // Claiming from an owner-equivalent path isn't needed — seed the lease directly so
-    // this test isn't gated on claim_issue's own access rules.
+    /*
+     * Claiming from an owner-equivalent path isn't needed — seed the lease directly so
+     * this test isn't gated on claim_issue's own access rules.
+     */
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
       `INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)

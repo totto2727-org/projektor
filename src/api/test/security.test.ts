@@ -31,9 +31,11 @@ describe('PROJ-16: API token workspace scope', () => {
   })
 })
 
-// vite.config.ts sets ENVIRONMENT=development and BOOTSTRAP_SECRET=test-bootstrap-secret-...
-// Tests cover the secret-validation path; the "non-development env → 403" invariant is
-// enforced by the `!== 'development'` guard in index.ts (fail-closed, not opt-in-to-block).
+/*
+ * Vite.config.ts sets ENVIRONMENT=development and BOOTSTRAP_SECRET=test-bootstrap-secret-...
+ * Tests cover the secret-validation path; the "non-development env → 403" invariant is
+ * enforced by the `!== 'development'` guard in index.ts (fail-closed, not opt-in-to-block).
+ */
 describe('PROJ-18: /bootstrap fail-closed', () => {
   const CORRECT_SECRET = 'test-bootstrap-secret-do-not-use-in-production'
 

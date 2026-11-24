@@ -10,8 +10,10 @@ import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
-// PROJ-238: the test env's RATE_LIMIT_API_MAX is 5 req/window, and each test below fires
-// more than that against one token — reset before every request.
+/*
+ * PROJ-238: the test env's RATE_LIMIT_API_MAX is 5 req/window, and each test below fires
+ * more than that against one token — reset before every request.
+ */
 async function fetchFresh(url: string, opts?: RequestInit): Promise<Response> {
   await resetRateLimits()
   return fetchNativeApi(url, opts)
@@ -98,7 +100,7 @@ describe("PROJ-814: lifecycle events re-resolve other pages' wiki links", () => 
 
     let broken = await brokenLinks(token, workspace.slug)
     expect(broken.some((l) => l.sourcePageId === linker.id && l.targetTitle === 'Foo')).toBe(true)
-    // slug is unchanged (only the title was renamed) — target.slug still resolves the page.
+    // Slug is unchanged (only the title was renamed) — target.slug still resolves the page.
     expect((await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)).toBe(false)
 
     // Rename a THIRD, unrelated page onto "Foo" — it should claim the now-broken link.

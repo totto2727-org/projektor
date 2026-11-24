@@ -18,9 +18,11 @@ export const issueFileClaims = sqliteTable(
     path: text('path').notNull(),
     claimedAt: integer('claimed_at').notNull(),
     releasedAt: integer('released_at'),
-    // PROJ-334: distinguishes a deliberate release (completion) from an abandoned
-    // claim (agent session ended without releasing). NULL for claims released
-    // before this column existed, and for still-active claims.
+    /*
+     * PROJ-334: distinguishes a deliberate release (completion) from an abandoned
+     * claim (agent session ended without releasing). NULL for claims released
+     * before this column existed, and for still-active claims.
+     */
     releaseReason: text('release_reason'),
   },
   (t) => ({
@@ -28,11 +30,13 @@ export const issueFileClaims = sqliteTable(
   }),
 )
 
-// PROJ-337: claim conflicts — an event log of rejected/overridden claimFiles attempts.
-// assertNoConflicts pre-checks and rejects all-or-nothing before any insert into
-// issue_file_claims, so a rejected attempt leaves no row to derive overlap from; this
-// records the attempt directly. `forced` distinguishes a hard rejection (force: false)
-// from an override (force: true, an existing claim was evicted).
+/*
+ * PROJ-337: claim conflicts — an event log of rejected/overridden claimFiles attempts.
+ * assertNoConflicts pre-checks and rejects all-or-nothing before any insert into
+ * issue_file_claims, so a rejected attempt leaves no row to derive overlap from; this
+ * records the attempt directly. `forced` distinguishes a hard rejection (force: false)
+ * from an override (force: true, an existing claim was evicted).
+ */
 export const claimConflicts = sqliteTable(
   'claim_conflicts',
   {

@@ -1,6 +1,8 @@
-// PROJ-818: link titles fold case the same way on both sides (in JS, stored), so
-// accented Latin titles resolve; and link reads never reveal pages in projects the
-// caller can't see.
+/*
+ * PROJ-818: link titles fold case the same way on both sides (in JS, stored), so
+ * accented Latin titles resolve; and link reads never reveal pages in projects the
+ * caller can't see.
+ */
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'

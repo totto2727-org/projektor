@@ -26,9 +26,11 @@ interface CommentRow {
   author_email: string
 }
 
-// PROJ-311: a comment is reachable only if its issue's project is visible to the
-// user (owner/admin bypass). Throw the issue-not-found error to avoid leaking that
-// an issue exists in a project the user was never granted.
+/*
+ * PROJ-311: a comment is reachable only if its issue's project is visible to the
+ * user (owner/admin bypass). Throw the issue-not-found error to avoid leaking that
+ * an issue exists in a project the user was never granted.
+ */
 async function assertIssueVisible(ctx: ServiceCtx, issueId: string, mode: AccessMode = 'read'): Promise<string> {
   const orm = drizzle(ctx.db, { schema })
   const issue = await orm
@@ -81,11 +83,13 @@ export async function addComment(ctx: ServiceCtx, input: unknown): Promise<{ id:
   return { id }
 }
 
-// PROJ-870: build (without executing) the comment INSERT, for a caller that has already
-// validated issue visibility/permissions itself (e.g. updateIssue, recording a completion
-// report) and wants to fold this insert into its own ctx.db.batch() instead of paying for
-// addComment's separate assertIssueVisible re-check and its own round trip. addComment
-// runs the same statement, so the row shape (incl. authorKind) has one source of truth.
+/*
+ * PROJ-870: build (without executing) the comment INSERT, for a caller that has already
+ * validated issue visibility/permissions itself (e.g. updateIssue, recording a completion
+ * report) and wants to fold this insert into its own ctx.db.batch() instead of paying for
+ * addComment's separate assertIssueVisible re-check and its own round trip. addComment
+ * runs the same statement, so the row shape (incl. authorKind) has one source of truth.
+ */
 export function buildAddCommentInsertStatement(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
@@ -100,8 +104,10 @@ export function buildAddCommentInsertStatement(
       body: opts.body,
       createdAt: opts.now,
       updatedAt: opts.now,
-      // PROJ-328: stamped from the authenticated principal type, not a caller-supplied
-      // field — see ServiceCtx.authKind.
+      /*
+       * PROJ-328: stamped from the authenticated principal type, not a caller-supplied
+       * field — see ServiceCtx.authKind.
+       */
       authorKind: ctx.authKind ?? null,
     })
     .toSQL()

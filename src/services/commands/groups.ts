@@ -177,8 +177,10 @@ export async function updateGroup(ctx: ServiceCtx, groupId: string, input: unkno
 export async function deleteGroup(ctx: ServiceCtx, groupId: string) {
   await requireAdminGroup(ctx, groupId)
 
-  // PROJ-923: D1 doesn't guarantee the FK cascades (PROJ-407) — remove the group's
-  // members and project grants explicitly, in the same batch as the group itself.
+  /*
+   * PROJ-923: D1 doesn't guarantee the FK cascades (PROJ-407) — remove the group's
+   * members and project grants explicitly, in the same batch as the group itself.
+   */
   await ctx.db.batch([
     ctx.db.prepare('DELETE FROM user_group_members WHERE group_id = ?').bind(groupId),
     ctx.db.prepare('DELETE FROM group_project_grants WHERE group_id = ?').bind(groupId),

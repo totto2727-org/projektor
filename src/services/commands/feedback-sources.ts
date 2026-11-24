@@ -52,11 +52,13 @@ interface SourceRow {
   revoked_at: number | null
 }
 
-// Resolve a source scoped to the workspace (404 before any role check). Management
-// ops take a sourceId; when projectId is also given (REST routes always pass the
-// URL path's projectId) the source must belong to that project too, so a source
-// from project A can't be mutated via project B's path in the same workspace. MCP
-// tools omit projectId and stay workspace-scoped, matching their existing contract.
+/*
+ * Resolve a source scoped to the workspace (404 before any role check). Management
+ * ops take a sourceId; when projectId is also given (REST routes always pass the
+ * URL path's projectId) the source must belong to that project too, so a source
+ * from project A can't be mutated via project B's path in the same workspace. MCP
+ * tools omit projectId and stay workspace-scoped, matching their existing contract.
+ */
 async function requireSource(ctx: ServiceCtx, sourceId: string, projectId?: string): Promise<SourceRow> {
   const clauses = ['id = ?', 'workspace_id = ?']
   const binds: unknown[] = [sourceId, ctx.workspaceId]

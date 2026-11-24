@@ -41,10 +41,12 @@ describe('Code heatmap (PROJ-332)', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  // Bypasses the claim_files API (which always stamps "now") so tests can place claims
-  // inside/outside an arbitrary window, and the active-claim unique index (which is
-  // scoped to workspace+path, not directory) is never at risk since each seeded path is
-  // distinct.
+  /*
+   * Bypasses the claim_files API (which always stamps "now") so tests can place claims
+   * inside/outside an arbitrary window, and the active-claim unique index (which is
+   * scoped to workspace+path, not directory) is never at risk since each seeded path is
+   * distinct.
+   */
   async function seedClaim(issueId: string, path: string, claimedAt: number, releasedAt?: number) {
     await env.DB.prepare(
       'INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, ' +

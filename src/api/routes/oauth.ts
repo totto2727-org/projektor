@@ -19,20 +19,22 @@ import { isPublicViewer } from '../middleware/auth.ts'
 import { signConsentToken, verifyConsentToken } from '../oauth/consent-token.ts'
 import { apiReply } from '../services/reply.ts'
 
-// PROJ-656: the consent screen.
-//
-// This is the one part of the OAuth flow the library deliberately does not own. It
-// hands us a parsed authorization request and takes back a decision; everything
-// between — who is asking, which workspace, and whether this human agrees — is
-// projektor's, because only projektor knows what a workspace is.
-//
-// Server-rendered from the Worker rather than built as a page in apps/web (which the
-// ticket originally proposed). The consent screen has to be correct on a deployment
-// with no static assets at all — `wrangler dev` has no ASSETS binding — and it has to
-// read the authorization request, resolve the workspace and mint a signed token in the
-// same request that renders. Shipping it as an SPA island would mean a second
-// round-trip through a JSON endpoint that has to reproduce all of the checks below,
-// and an unstyled flash on the most security-sensitive page in the product.
+/*
+ * PROJ-656: the consent screen.
+ *
+ * This is the one part of the OAuth flow the library deliberately does not own. It
+ * hands us a parsed authorization request and takes back a decision; everything
+ * between — who is asking, which workspace, and whether this human agrees — is
+ * projektor's, because only projektor knows what a workspace is.
+ *
+ * Server-rendered from the Worker rather than built as a page in apps/web (which the
+ * ticket originally proposed). The consent screen has to be correct on a deployment
+ * with no static assets at all — `wrangler dev` has no ASSETS binding — and it has to
+ * read the authorization request, resolve the workspace and mint a signed token in the
+ * same request that renders. Shipping it as an SPA island would mean a second
+ * round-trip through a JSON endpoint that has to reproduce all of the checks below,
+ * and an unstyled flash on the most security-sensitive page in the product.
+ */
 
 export const oauthRouter = new Hono<HonoEnv>()
 
@@ -40,14 +42,16 @@ function helpers(c: Context<HonoEnv>): OAuthHelpers {
   return (c.env as unknown as { OAUTH_PROVIDER: OAuthHelpers }).OAUTH_PROVIDER
 }
 
-// PROJ-660, seen on a real deployment: Cloudflare's Email Address Obfuscation is a
-// zone setting, on by default, and it rewrites any address it finds in an HTML response
-// into a placeholder plus a `/cdn-cgi/` script that decodes it. This page's CSP is
-// `default-src 'none'` with no script-src, so that script never runs and the one line
-// telling the user *which account* they are about to hand out reads "[email protected]".
-//
-// `<!--email_off-->` is Cloudflare's documented opt-out and is an ordinary HTML comment
-// everywhere else, so it costs nothing on a deployment that never sees the rewriter.
+/*
+ * PROJ-660, seen on a real deployment: Cloudflare's Email Address Obfuscation is a
+ * zone setting, on by default, and it rewrites any address it finds in an HTML response
+ * into a placeholder plus a `/cdn-cgi/` script that decodes it. This page's CSP is
+ * `default-src 'none'` with no script-src, so that script never runs and the one line
+ * telling the user *which account* they are about to hand out reads "[email protected]".
+ *
+ * `<!--email_off-->` is Cloudflare's documented opt-out and is an ordinary HTML comment
+ * everywhere else, so it costs nothing on a deployment that never sees the rewriter.
+ */
 function emailOff(escaped: string): string {
   return `<!--email_off-->${escaped}<!--/email_off-->`
 }
@@ -94,21 +98,23 @@ function page(title: string, body: string): string {
 <body><main>${body}</main></body></html>`
 }
 
-// A consent screen is the canonical clickjacking target: frame it invisibly over
-// something the user wants to click and the "Allow access" button gets pressed for
-// them. `frame-ancestors 'none'` is the control that stops it, with X-Frame-Options
-// alongside for anything that predates CSP level 2. `form-action 'self'` keeps the
-// decision POST from being retargeted, and `default-src 'none'` means the page cannot
-// pull in anything at all — it needs nothing beyond its own inline stylesheet.
-// `form-action` is enforced on the redirect the POST lands on, not only on the URL
-// the form names. Approving sends the browser to the client's redirect_uri — another
-// origin — so 'self' alone blocks the submission outright, and the browser reports it
-// against /oauth/authorize, which is genuinely same-origin and looks like a false
-// positive. The client's redirect origin therefore has to be named here.
-//
-// It is the origin only, and only the one this request already validated: the library
-// checked redirect_uri against the client's registered URIs before this page rendered,
-// so nothing widens the policy that was not already the approved destination.
+/*
+ * A consent screen is the canonical clickjacking target: frame it invisibly over
+ * something the user wants to click and the "Allow access" button gets pressed for
+ * them. `frame-ancestors 'none'` is the control that stops it, with X-Frame-Options
+ * alongside for anything that predates CSP level 2. `form-action 'self'` keeps the
+ * decision POST from being retargeted, and `default-src 'none'` means the page cannot
+ * pull in anything at all — it needs nothing beyond its own inline stylesheet.
+ * `form-action` is enforced on the redirect the POST lands on, not only on the URL
+ * the form names. Approving sends the browser to the client's redirect_uri — another
+ * origin — so 'self' alone blocks the submission outright, and the browser reports it
+ * against /oauth/authorize, which is genuinely same-origin and looks like a false
+ * positive. The client's redirect origin therefore has to be named here.
+ *
+ * It is the origin only, and only the one this request already validated: the library
+ * checked redirect_uri against the client's registered URIs before this page rendered,
+ * so nothing widens the policy that was not already the approved destination.
+ */
 function consentCsp(redirectUri?: string): string {
   let formAction = "'self'"
   if (redirectUri) {
@@ -183,8 +189,10 @@ function authorizationFailure(c: Context<HonoEnv>, err: AuthorizationError) {
   if (err.state) {
     url.searchParams.set('state', err.state)
   }
-  // RFC 9207: error responses carry `iss` too, so a client with several
-  // authorization servers configured can tell which one rejected it.
+  /*
+   * RFC 9207: error responses carry `iss` too, so a client with several
+   * authorization servers configured can tell which one rejected it.
+   */
   if (err.issuer) {
     url.searchParams.set('iss', err.issuer)
   }
@@ -272,9 +280,11 @@ oauthRouter.get('/authorize', async (c) => {
 
   const workspace = await consentWorkspace(c, consent.workspaceId)
   if (!workspace) {
-    // Rendered locally, not redirected: whether this user is a member of that
-    // workspace is not the client's business, and an `access_denied` bounce would
-    // tell it. The human is the one who needs to know, and they are right here.
+    /*
+     * Rendered locally, not redirected: whether this user is a member of that
+     * workspace is not the client's business, and an `access_denied` bounce would
+     * tell it. The human is the one who needs to know, and they are right here.
+     */
     return errorPage(c, 403, 'Workspace unavailable', 'That workspace does not exist, or you are not a member of it.')
   }
 
@@ -285,10 +295,12 @@ oauthRouter.get('/authorize', async (c) => {
 
   const host = relyingPartyHost(authRequest.clientId)
   const name = client.clientName ?? host
-  // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-  // lookupClient returns ClientInfo without a registration method in workers-oauth-provider v0.10.4.
-  // CIMD uses validated HTTPS document URLs, while DCR issues opaque IDs here.
-  // The prefix only selects the consent label after parseAuthRequest validates the request.
+  /*
+   * TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
+   * lookupClient returns ClientInfo without a registration method in workers-oauth-provider v0.10.4.
+   * CIMD uses validated HTTPS document URLs, while DCR issues opaque IDs here.
+   * The prefix only selects the consent label after parseAuthRequest validates the request.
+   */
   const identity = authRequest.clientId.startsWith('https://') ? 'Verified identity' : 'Registered client ID'
   const scopeItems = consent.scopes.map((s) => `<li>${escapeHtml(describeScope(s))}</li>`).join('')
   const loopbackWarning = isLoopbackOnlyClient(client.redirectUris)
@@ -344,10 +356,12 @@ oauthRouter.post('/authorize', async (c) => {
   }
 
   if (form.decision !== 'approve') {
-    // Safe to redirect: this redirect_uri came out of parseAuthRequest, which
-    // validated it against the client's registered set, and the signature above
-    // proves it has not been altered since. Telling the client explicitly beats
-    // leaving it waiting on a callback that will never arrive.
+    /*
+     * Safe to redirect: this redirect_uri came out of parseAuthRequest, which
+     * validated it against the client's registered set, and the signature above
+     * proves it has not been altered since. Telling the client explicitly beats
+     * leaving it waiting on a callback that will never arrive.
+     */
     return authorizationFailure(
       c,
       new AuthorizationError('access_denied', {
@@ -369,8 +383,10 @@ oauthRouter.post('/authorize', async (c) => {
     userId: user.id,
     metadata: { workspaceId: payload.workspaceId, consentedAt: Math.floor(Date.now() / 1000) },
     scope: payload.scopes,
-    // Carried on every request this grant authorizes; middleware/auth.ts turns it
-    // back into projektor's own user + workspace + scope context.
+    /*
+     * Carried on every request this grant authorizes; middleware/auth.ts turns it
+     * back into projektor's own user + workspace + scope context.
+     */
     props: {
       userId: user.id,
       email: user.email,
@@ -379,9 +395,11 @@ oauthRouter.post('/authorize', async (c) => {
       scopes: payload.scopes,
       clientId: payload.authRequest.clientId,
     },
-    // The library defaults this to true, which would revoke the user's other grants
-    // for the same client. Grants here are per-workspace by design, so the default
-    // would mean connecting a second workspace silently disconnects the first.
+    /*
+     * The library defaults this to true, which would revoke the user's other grants
+     * for the same client. Grants here are per-workspace by design, so the default
+     * would mean connecting a second workspace silently disconnects the first.
+     */
     revokeExistingGrants: false,
   })
 

@@ -12,9 +12,11 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-311: role-guard tests grant the member a member-role and the viewer a
-// viewer-role on the project so both can see it — the assertions then verify the
-// viewer's writes are still refused (read-only), not merely hidden.
+/*
+ * PROJ-311: role-guard tests grant the member a member-role and the viewer a
+ * viewer-role on the project so both can see it — the assertions then verify the
+ * viewer's writes are still refused (read-only), not merely hidden.
+ */
 
 describe('Sprints API', () => {
   let token: string
@@ -248,11 +250,13 @@ describe('Sprints API', () => {
     expect(res.status).toBe(404)
   })
 
-  // PROJ-871: moving up to 500 issues used to fire one KV `invalidate` (a subrequest) per
-  // issue — 500 subrequests, 10x the free-plan cap. PROJ-863 already narrowed the per-issue
-  // KV cache to rollup/customFields only (sprint_id is read live from the row on every
-  // getIssue/listIssues), so that invalidation loop was invalidating a field the cache
-  // doesn't hold — it's deleted outright rather than chunked/deferred.
+  /*
+   * PROJ-871: moving up to 500 issues used to fire one KV `invalidate` (a subrequest) per
+   * issue — 500 subrequests, 10x the free-plan cap. PROJ-863 already narrowed the per-issue
+   * KV cache to rollup/customFields only (sprint_id is read live from the row on every
+   * getIssue/listIssues), so that invalidation loop was invalidating a field the cache
+   * doesn't hold — it's deleted outright rather than chunked/deferred.
+   */
   describe('PROJ-871: moving many issues stays within the KV subrequest budget', () => {
     const prevApiMax = env.RATE_LIMIT_API_MAX
     beforeAll(() => {
@@ -272,9 +276,11 @@ describe('Sprints API', () => {
         issueIds.push(issue.id)
       }
 
-      // Warm the per-issue KV cache first, so the GET after the move proves sprint_id
-      // isn't served stale from it (it's read live from the row; the cache only holds
-      // rollup/customFields).
+      /*
+       * Warm the per-issue KV cache first, so the GET after the move proves sprint_id
+       * isn't served stale from it (it's read live from the row; the cache only holds
+       * rollup/customFields).
+       */
       const warmRes = await fetchNativeApi(`http://localhost/api/issues/${issueIds[0]}`, {
         headers: authHeaders(token, slug),
       })
@@ -302,8 +308,10 @@ describe('Sprints API', () => {
       expect(result.count).toBe(500)
       expect(kvDeletes).toBeLessThanOrEqual(50)
 
-      // The cache entry is still there (nothing invalidated it), yet the GET shows the
-      // new sprint.
+      /*
+       * The cache entry is still there (nothing invalidated it), yet the GET shows the
+       * new sprint.
+       */
       expect(await env.KV.get(`issue:${workspaceId}:${issueIds[0]}`)).not.toBeNull()
       const getRes = await fetchNativeApi(`http://localhost/api/issues/${issueIds[0]}`, {
         headers: authHeaders(token, slug),

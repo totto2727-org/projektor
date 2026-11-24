@@ -191,8 +191,10 @@ describe('Flow metrics (PROJ-252)', () => {
   test('returns non-empty lead/cycle metrics for issues with backfilled done_at (PROJ-288)', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Pre-migration done' })
-    // Simulates the 0026 backfill outcome: done_at populated from completed_at
-    // for an issue that finished before flow-timestamp stamping existed.
+    /*
+     * Simulates the 0026 backfill outcome: done_at populated from completed_at
+     * for an issue that finished before flow-timestamp stamping existed.
+     */
     await stampFlowTimestamps(issue.id, {
       readyAt: now - 300,
       claimedAt: now - 200,
@@ -389,8 +391,10 @@ describe('Flow metrics (PROJ-252)', () => {
   test('excludes a NULL-timestamp legacy issue from lead/cycle time without crashing (PROJ-301)', async () => {
     const now = Math.floor(Date.now() / 1000)
 
-    // Pre-dates the PROJ-328 backfill: ready_at/claimed_at/done_at all NULL, even
-    // though the issue is otherwise done.
+    /*
+     * Pre-dates the PROJ-328 backfill: ready_at/claimed_at/done_at all NULL, even
+     * though the issue is otherwise done.
+     */
     const legacyIssue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Legacy done issue',
       status: 'done',
@@ -454,8 +458,10 @@ describe('Flow metrics (PROJ-252)', () => {
     const metrics = await getFlowMetrics()
 
     expect(metrics.humanInterventions.count).toBe(1)
-    // 1 human comment + 2 review bounces; the agent comment and the authorKind-less
-    // legacy comment are both excluded.
+    /*
+     * 1 human comment + 2 review bounces; the agent comment and the authorKind-less
+     * legacy comment are both excluded.
+     */
     expect(metrics.humanInterventions.avg).toBe(3)
   })
 
@@ -489,9 +495,11 @@ describe('Flow metrics (PROJ-252)', () => {
     const DAY = 86_400
     const WEEK = 7 * DAY
     const now = Math.floor(Date.now() / 1000)
-    // Day-align since/until so the bucket loop (which starts at a day boundary and
-    // steps by exactly one day) lands its first/last samples exactly on since/until,
-    // regardless of what time of day the suite runs.
+    /*
+     * Day-align since/until so the bucket loop (which starts at a day boundary and
+     * steps by exactly one day) lands its first/last samples exactly on since/until,
+     * regardless of what time of day the suite runs.
+     */
     const todayStart = now - (now % DAY)
     const since = todayStart - 2 * WEEK
     const until = todayStart
@@ -536,14 +544,16 @@ describe('Flow metrics (PROJ-252)', () => {
       expect(bucket.done).toBeGreaterThanOrEqual(0)
     }
 
-    // done is cumulative — never decreases bucket over bucket.
+    // Done is cumulative — never decreases bucket over bucket.
     for (let i = 1; i < metrics.cfdOverTime.length; i++) {
       expect(metrics.cfdOverTime[i].done).toBeGreaterThanOrEqual(metrics.cfdOverTime[i - 1].done)
     }
 
-    // PROJ-377: buckets are now sampled at their *end* (clamped to until/now), not
-    // their start — the "Done" issue's claimedAt (since + 10s) already falls before
-    // the first bucket's end, so it reads as in_progress rather than backlog/todo.
+    /*
+     * PROJ-377: buckets are now sampled at their *end* (clamped to until/now), not
+     * their start — the "Done" issue's claimedAt (since + 10s) already falls before
+     * the first bucket's end, so it reads as in_progress rather than backlog/todo.
+     */
     const firstBucket = metrics.cfdOverTime[0]
     expect(firstBucket.backlogTodo).toBe(2)
     expect(firstBucket.inProgress).toBe(1)
@@ -556,10 +566,12 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(lastBucket.done).toBe(1)
   })
 
-  // PROJ-377: the current (still-partial) bucket must reflect state as of "now", not
-  // as of the bucket's start — previously an issue created and completed entirely
-  // within the current week's bucket read as all-zero because the sample instant (the
-  // bucket's start) predated the activity.
+  /*
+   * PROJ-377: the current (still-partial) bucket must reflect state as of "now", not
+   * as of the bucket's start — previously an issue created and completed entirely
+   * within the current week's bucket read as all-zero because the sample instant (the
+   * bucket's start) predated the activity.
+   */
   test('reflects a same-bucket create+complete burst in the current (partial) bucket', async () => {
     const now = Math.floor(Date.now() / 1000)
 
@@ -635,7 +647,7 @@ describe('Flow metrics (PROJ-252)', () => {
   test('computes flow efficiency as lease-held time over lead time, distinct from autonomy ratio', async () => {
     const now = Math.floor(Date.now() / 1000)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Queued then leased' })
-    // ready -500, claimed -300 (200s queued before claim), done now: lead time 500, cycle time 300.
+    // Ready -500, claimed -300 (200s queued before claim), done now: lead time 500, cycle time 300.
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 300, doneAt: now })
     await stampLease(crypto.randomUUID(), issue.id, now - 300, now - 150) // 150s held
 
@@ -698,8 +710,10 @@ describe('Flow metrics (PROJ-252)', () => {
     })
     await stampFlowTimestamps(task1.id, { doneAt: now - 10 * DAY })
 
-    // Bucket B (recent): 1 bug + 1 untyped completed -> 50% bug share, untyped counts
-    // toward total but not bugCount.
+    /*
+     * Bucket B (recent): 1 bug + 1 untyped completed -> 50% bug share, untyped counts
+     * toward total but not bugCount.
+     */
     const bug2 = await seedIssue(workspaceId, projectId, userId, {
       title: 'Bug 2',
       typeId: bugType.id,
@@ -733,8 +747,10 @@ describe('Flow metrics (PROJ-252)', () => {
     expect(metrics.bugTypeTracked).toBe(true)
   })
 
-  // PROJ-341: a workspace with no "bug"-keyed task type (renamed/deleted default) must
-  // produce a clearly-distinguishable state, not indistinguishable "0 bugs, tracked".
+  /*
+   * PROJ-341: a workspace with no "bug"-keyed task type (renamed/deleted default) must
+   * produce a clearly-distinguishable state, not indistinguishable "0 bugs, tracked".
+   */
   test("flags bugTypeTracked false when no 'bug'-keyed task type exists in the workspace", async () => {
     const now = Math.floor(Date.now() / 1000)
     await seedTaskType(workspaceId, { key: 'defect', name: 'Defect' })
@@ -751,9 +767,11 @@ describe('Flow metrics (PROJ-252)', () => {
   })
 })
 
-// PROJ-334: factory health tiles — fault signals for the machinery itself, windowed by
-// when the fault EVENT happened (released_at/occurred_at), not by issue doneAt like the
-// distribution tiles above.
+/*
+ * PROJ-334: factory health tiles — fault signals for the machinery itself, windowed by
+ * when the fault EVENT happened (released_at/occurred_at), not by issue doneAt like the
+ * distribution tiles above.
+ */
 describe('Factory health tiles (PROJ-334)', () => {
   let token: string
   let slug: string
@@ -765,8 +783,10 @@ describe('Factory health tiles (PROJ-334)', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  // Bypasses the claim/release APIs so tests can place events at an arbitrary
-  // timestamp, inside or outside the window under test.
+  /*
+   * Bypasses the claim/release APIs so tests can place events at an arbitrary
+   * timestamp, inside or outside the window under test.
+   */
   async function seedLease(issueId: string, releaseReason: string | null, releasedAt: number | null) {
     const agentSessionId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
@@ -832,8 +852,10 @@ describe('Factory health tiles (PROJ-334)', () => {
     await seedGateRejection(issue.id, now - 10 * DAY)
     await seedWipCapDenial(projectId, issue.id, now - 10 * DAY)
 
-    // Right reason but not a fault (deliberate release / reclaim by another agent) —
-    // excluded regardless of window.
+    /*
+     * Right reason but not a fault (deliberate release / reclaim by another agent) —
+     * excluded regardless of window.
+     */
     await seedLease(issue.id, 'released', now - 1 * DAY)
     await seedLease(issue.id, 'agent_ended', now - 1 * DAY)
     await seedFileClaim(issue.id, 'released', now - 1 * DAY)

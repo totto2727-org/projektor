@@ -1,21 +1,25 @@
 import { OAUTH_SCOPES_SUPPORTED } from './scopes.ts'
 
-// PROJ-651: RFC 9728 `WWW-Authenticate` challenges for the MCP endpoint.
-//
-// This header is the only discovery entry point an MCP client has. Anthropic is
-// explicit that Claude does not honour a `WWW-Authenticate` header on any non-401
-// response, so the challenge has to ride on a real transport-level 401/403 — a 200
-// carrying a JSON-RPC error is invisible to the step-up flow, and the user ends up
-// reading "please sign in" prose in the chat instead of being offered a Connect
-// button.
-//
-// Scoped to /mcp/* on purpose. /api/* 401s keep their bare shape: the frontend
-// reloads the page to re-authenticate on a 401 and that behaviour is load-bearing
-// (PROJ-430).
+/*
+ * PROJ-651: RFC 9728 `WWW-Authenticate` challenges for the MCP endpoint.
+ *
+ * This header is the only discovery entry point an MCP client has. Anthropic is
+ * explicit that Claude does not honour a `WWW-Authenticate` header on any non-401
+ * response, so the challenge has to ride on a real transport-level 401/403 — a 200
+ * carrying a JSON-RPC error is invisible to the step-up flow, and the user ends up
+ * reading "please sign in" prose in the chat instead of being offered a Connect
+ * button.
+ *
+ * Scoped to /mcp/* on purpose. /api/* 401s keep their bare shape: the frontend
+ * reloads the page to re-authenticate on a 401 and that behaviour is load-bearing
+ * (PROJ-430).
+ */
 
-// RFC 9110 quoted-string. The values used here (a URL built from the request, and
-// scope names from a fixed list) contain neither quotes nor backslashes today, but a
-// challenge header that can be broken by its own payload is not worth the gamble.
+/*
+ * RFC 9110 quoted-string. The values used here (a URL built from the request, and
+ * scope names from a fixed list) contain neither quotes nor backslashes today, but a
+ * challenge header that can be broken by its own payload is not worth the gamble.
+ */
 function quote(value: string): string {
   return `"${value.replace(/[\\"]/g, (ch) => `\\${ch}`)}"`
 }

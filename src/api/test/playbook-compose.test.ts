@@ -22,10 +22,12 @@ describe('compose_playbook', () => {
     projectId = fixture.projectId
     userId = fixture.userId
     epicId = fixture.issueId
-    // Read the seeded number directly from D1 rather than via the API — hitting
-    // GET /api/issues/:id here would warm getIssue's cache before children are
-    // seeded below, and compose_playbook's own getIssue call would then read a
-    // stale (childless) rollup for the rest of the test.
+    /*
+     * Read the seeded number directly from D1 rather than via the API — hitting
+     * GET /api/issues/:id here would warm getIssue's cache before children are
+     * seeded below, and compose_playbook's own getIssue call would then read a
+     * stale (childless) rollup for the rest of the test.
+     */
     const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?').bind(epicId).first<{ number: number }>()
     epicNumber = row!.number
   })
@@ -51,9 +53,11 @@ describe('compose_playbook', () => {
       status: 'done',
       parentId: epicId,
     })
-    // Non-default WIP limit so the assertion below can't pass on the fallback
-    // default (DEFAULT_AGENT_WIP_LIMIT is also 3) — prove the value actually
-    // flows from the project row, not from fetchAgentWipCap's no-match default.
+    /*
+     * Non-default WIP limit so the assertion below can't pass on the fallback
+     * default (DEFAULT_AGENT_WIP_LIMIT is also 3) — prove the value actually
+     * flows from the project row, not from fetchAgentWipCap's no-match default.
+     */
     await env.DB.prepare('UPDATE projects SET agent_wip_limit = ? WHERE id = ?').bind(7, projectId).run()
 
     const res = await compose({ epicRef: `PROJ-${epicNumber}` })
@@ -76,11 +80,13 @@ describe('compose_playbook', () => {
     expect(body.directive).toContain('every 10 completed tickets')
     expect(body.directive).toContain('Least confident about')
     expect(body.directive).toContain('cheap to reverse now and expensive later')
-    // one open child (Child 1), one done (Child 2) -> rollup.remaining == 1
+    // One open child (Child 1), one done (Child 2) -> rollup.remaining == 1
     expect(body.directive).toContain('1 open child ticket(s)')
     expect(body.directive).toContain('WIP limit is 7')
-    // every quoted line starts with "> " and there's no run-on "clause>clause"
-    // artifact from a malformed line-join
+    /*
+     * Every quoted line starts with "> " and there's no run-on "clause>clause"
+     * artifact from a malformed line-join
+     */
     for (const line of body.directive.split('\n')) {
       expect(line === '>' || line.startsWith('> ')).toBe(true)
     }
@@ -121,10 +127,12 @@ describe('compose_playbook', () => {
   })
 
   test("errors like an unresolvable ref when epicRef points at a project the caller can't see", async () => {
-    // A second project in the same workspace that the fixture's member token
-    // was never granted access to (seedIssueFixture only grants the first
-    // project) — assertIssueProjectVisible must reject this before any
-    // title/rollup data is returned.
+    /*
+     * A second project in the same workspace that the fixture's member token
+     * was never granted access to (seedIssueFixture only grants the first
+     * project) — assertIssueProjectVisible must reject this before any
+     * title/rollup data is returned.
+     */
     const otherProject = await seedProject(workspaceId, 'SECRET')
     const otherEpic = await seedIssue(workspaceId, otherProject.id, userId, {
       title: 'Confidential epic',
@@ -214,9 +222,11 @@ describe('POST /api/playbooks/:name/compose', () => {
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     })
-    // Specifically 400, not a 4xx range: an unregistered route would 404 and satisfy
-    // a range assertion, so the loose form cannot tell "validation rejected this"
-    // from "this endpoint does not exist".
+    /*
+     * Specifically 400, not a 4xx range: an unregistered route would 404 and satisfy
+     * a range assertion, so the loose form cannot tell "validation rejected this"
+     * from "this endpoint does not exist".
+     */
     expect(res.status).toBe(400)
   })
 })

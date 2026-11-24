@@ -311,8 +311,10 @@ describe('File Claims API', () => {
     return (await res.json()) as { items: { body: string }[] }
   }
 
-  // PROJ-624: rejection (force=false) must not post any agent message — this was
-  // previously mis-stated in the project's own docs as a message-posting path.
+  /*
+   * PROJ-624: rejection (force=false) must not post any agent message — this was
+   * previously mis-stated in the project's own docs as a message-posting path.
+   */
   test('PROJ-624: a rejected claim (force=false) posts no agent message to any scope', async () => {
     await claimFiles({ issueId, paths: ['src/no-message-on-reject.ts'] })
 
@@ -378,12 +380,14 @@ describe('File Claims API', () => {
     expect(priorHolderMessages2.items[0].body).toContain('src/multi-c.ts')
   })
 
-  // PROJ-636: a claim whose holding session stopped heartbeating is reclaimed by the next
-  // claim on that path, the way issue leases already were.
-  //
-  // The distinction that matters throughout: a *crashed* agent keeps status 'active' with a
-  // stale heartbeat, because status only becomes 'ended' when it calls end_agent — which by
-  // definition it didn't. B4b above covers the clean-exit path; none of these do.
+  /*
+   * PROJ-636: a claim whose holding session stopped heartbeating is reclaimed by the next
+   * claim on that path, the way issue leases already were.
+   *
+   * The distinction that matters throughout: a *crashed* agent keeps status 'active' with a
+   * stale heartbeat, because status only becomes 'ended' when it calls end_agent — which by
+   * definition it didn't. B4b above covers the clean-exit path; none of these do.
+   */
   describe('PROJ-636: stale-holder reclaim', () => {
     async function seedSession(
       opts: Readonly<{ status?: string; heartbeatAgeSecs?: number; name?: string }> = {},
@@ -434,8 +438,10 @@ describe('File Claims API', () => {
         reclaimed: { path: string; releaseReason: string }[]
       }
       expect(body.created[0].issueId).toBe(issue2.id)
-      // Reported, not silent: an agent that took over an abandoned path should be able to
-      // tell that from an uncontested first claim.
+      /*
+       * Reported, not silent: an agent that took over an abandoned path should be able to
+       * tell that from an uncontested first claim.
+       */
       expect(body.reclaimed.map((r) => r.path)).toEqual(['src/abandoned.ts'])
       expect(body.reclaimed[0].releaseReason).toBe('expired')
     })
@@ -453,14 +459,18 @@ describe('File Claims API', () => {
       )
         .bind('src/reason.ts')
         .first<{ release_reason: string }>()
-      // Not 'agent_ended' — the factory-health tile uses that to mean a clean exit, and a
-      // crash reported as a clean exit would hide exactly the failure this ticket is about.
+      /*
+       * Not 'agent_ended' — the factory-health tile uses that to mean a clean exit, and a
+       * crash reported as a clean exit would hide exactly the failure this ticket is about.
+       */
       expect(released?.release_reason).toBe('expired')
     })
 
     test("a live agent's claim still blocks, and is not silently expired", async () => {
-      // The control. Without this, a bug that expired every claim regardless of heartbeat
-      // would satisfy every other test in this block.
+      /*
+       * The control. Without this, a bug that expired every claim regardless of heartbeat
+       * would satisfy every other test in this block.
+       */
       const live = await seedSession({ heartbeatAgeSecs: 5, name: 'live-agent' })
       await claimFiles({ issueId, agentId: live, paths: ['src/held.ts'] })
 
@@ -470,9 +480,11 @@ describe('File Claims API', () => {
     })
 
     test('an agentless claim within its TTL is not auto-reclaimed', async () => {
-      // No session means no heartbeat to judge, so freshness is judged by claim age instead
-      // (PROJ-928, FILE_CLAIM_TTL_SECONDS, default 24h) — a claim made moments ago is well
-      // inside that window and still blocks; `force` remains the only way past it early.
+      /*
+       * No session means no heartbeat to judge, so freshness is judged by claim age instead
+       * (PROJ-928, FILE_CLAIM_TTL_SECONDS, default 24h) — a claim made moments ago is well
+       * inside that window and still blocks; `force` remains the only way past it early.
+       */
       await claimFiles({ issueId, paths: ['src/no-agent.ts'] })
 
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Blocked' })
@@ -496,8 +508,10 @@ describe('File Claims API', () => {
     })
 
     test('still records a conflict when the holder is live', async () => {
-      // The paired control for the assertion above: proves the zero there comes from the
-      // holder being dead, not from conflict recording having been broken outright.
+      /*
+       * The paired control for the assertion above: proves the zero there comes from the
+       * holder being dead, not from conflict recording having been broken outright.
+       */
       const live = await seedSession({ heartbeatAgeSecs: 5 })
       await claimFiles({ issueId, agentId: live, paths: ['src/live-conflict.ts'] })
 
@@ -511,9 +525,11 @@ describe('File Claims API', () => {
     })
 
     test('reclaims only the stale paths in a mixed multi-path claim', async () => {
-      // Claims are all-or-nothing, so a request spanning a dead holder and a live one must
-      // still be refused whole — and must not expire the dead one as a side effect of a
-      // request that failed.
+      /*
+       * Claims are all-or-nothing, so a request spanning a dead holder and a live one must
+       * still be refused whole — and must not expire the dead one as a side effect of a
+       * request that failed.
+       */
       const dead = await seedSession({ heartbeatAgeSecs: 200 })
       const live = await seedSession({ heartbeatAgeSecs: 5 })
       await claimFiles({ issueId, agentId: dead, paths: ['src/dead-path.ts'] })
@@ -529,11 +545,13 @@ describe('File Claims API', () => {
 
       // The live path is untouched.
       expect((await claimRow('src/live-path.ts'))?.released_at).toBeNull()
-      // The dead one was released on the way through. Documenting the actual behaviour
-      // rather than asserting the tidier alternative: reclaim happens before conflict
-      // evaluation, so a refused request can still have freed an abandoned path. That is
-      // harmless — the path was reclaimable by anyone — but it is a real ordering
-      // consequence and worth pinning so a future change to it is a visible decision.
+      /*
+       * The dead one was released on the way through. Documenting the actual behaviour
+       * rather than asserting the tidier alternative: reclaim happens before conflict
+       * evaluation, so a refused request can still have freed an abandoned path. That is
+       * harmless — the path was reclaimable by anyone — but it is a real ordering
+       * consequence and worth pinning so a future change to it is a visible decision.
+       */
       expect((await claimRow('src/dead-path.ts'))?.release_reason).toBe('expired')
     })
 
@@ -544,8 +562,10 @@ describe('File Claims API', () => {
       const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Live' })
       await claimFiles({ issueId: issue2.id, agentId: live, paths: ['src/listed-live.ts'] })
 
-      // PROJ-932: the default listing excludes stale holders outright — pass
-      // includeStale to see both, still flagged via `live`.
+      /*
+       * PROJ-932: the default listing excludes stale holders outright — pass
+       * includeStale to see both, still flagged via `live`.
+       */
       const listRes = await listFileClaims({ includeStale: 'true' })
       const body = (await listRes.json()) as { items: { path: string; live: boolean }[] }
       const byPath = new Map(body.items.map((i) => [i.path, i.live]))
@@ -553,8 +573,10 @@ describe('File Claims API', () => {
       expect(byPath.get('src/listed-live.ts')).toBe(true)
     })
 
-    // PROJ-929: claim_files refreshes an already-live agent's heartbeat, but must never
-    // revive a crashed one — that would silently defeat the reclaim this block tests.
+    /*
+     * PROJ-929: claim_files refreshes an already-live agent's heartbeat, but must never
+     * revive a crashed one — that would silently defeat the reclaim this block tests.
+     */
     test("refreshes a live agent's heartbeat, but does not revive a dead one", async () => {
       const live = await seedSession({ heartbeatAgeSecs: 5 })
       await claimFiles({ issueId, agentId: live, paths: ['src/touch-live.ts'] })
@@ -575,9 +597,11 @@ describe('File Claims API', () => {
       expect(deadAfter?.last_heartbeat_at).toBe(deadBefore?.last_heartbeat_at)
     })
 
-    // PROJ-928: an agentless claim has no heartbeat to judge staleness by, so it is judged
-    // by claim age against a configurable TTL (FILE_CLAIM_TTL_SECONDS, default 24h) instead —
-    // same reclaim path as a claim whose agent session went stale.
+    /*
+     * PROJ-928: an agentless claim has no heartbeat to judge staleness by, so it is judged
+     * by claim age against a configurable TTL (FILE_CLAIM_TTL_SECONDS, default 24h) instead —
+     * same reclaim path as a claim whose agent session went stale.
+     */
     describe('PROJ-928: agentless claim TTL', () => {
       async function backdateClaim(path: string, secondsAgo: number) {
         const claimedAt = Math.floor(Date.now() / 1000) - secondsAgo
@@ -619,9 +643,11 @@ describe('File Claims API', () => {
     })
   })
 
-  // PROJ-928: moving an issue to done/cancelled releases its file claims (release_reason
-  // "issue_closed") so a closed issue doesn't keep blocking the fleet on paths no one is
-  // still working.
+  /*
+   * PROJ-928: moving an issue to done/cancelled releases its file claims (release_reason
+   * "issue_closed") so a closed issue doesn't keep blocking the fleet on paths no one is
+   * still working.
+   */
   describe('PROJ-928: issue close releases file claims', () => {
     async function patchStatus(id: string, status: string) {
       return fetchNativeApi(`http://localhost/api/issues/${id}`, {
@@ -660,8 +686,10 @@ describe('File Claims API', () => {
 
     test('a title-only update of an already-done issue does not re-release a new claim', async () => {
       expect((await patchStatus(issueId, 'done')).status).toBe(200)
-      // A fresh claim made after the issue is already done — a subsequent non-status
-      // update must not sweep it up.
+      /*
+       * A fresh claim made after the issue is already done — a subsequent non-status
+       * update must not sweep it up.
+       */
       await claimFiles({ issueId, paths: ['src/after-done.ts'] })
 
       const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
@@ -677,8 +705,10 @@ describe('File Claims API', () => {
     })
   })
 
-  // PROJ-932: list_file_claims defaults to live entries only; projectId scopes to one
-  // project (key or uuid); every item carries the linked issue's ref.
+  /*
+   * PROJ-932: list_file_claims defaults to live entries only; projectId scopes to one
+   * project (key or uuid); every item carries the linked issue's ref.
+   */
   describe('PROJ-932: projectId filter and issueRef', () => {
     const projectKey = 'PROJ' // seedProject's default key
 
@@ -791,9 +821,11 @@ describe('File Claims API', () => {
   })
 })
 
-// PROJ-932: a member without a group grant on a project must get an empty result for
-// that project's key or uuid — not just fewer results, none at all — proving the
-// projectId filter composes with (rather than bypasses) PROJ-316 visibility.
+/*
+ * PROJ-932: a member without a group grant on a project must get an empty result for
+ * that project's key or uuid — not just fewer results, none at all — proving the
+ * projectId filter composes with (rather than bypasses) PROJ-316 visibility.
+ */
 describe('PROJ-932: list_file_claims projectId + visibility for a non-admin member', () => {
   test("a hidden project's key or uuid returns no claims", async () => {
     const { token, slug, workspaceId, userId } = await seedIssueFixture({ role: 'member' })

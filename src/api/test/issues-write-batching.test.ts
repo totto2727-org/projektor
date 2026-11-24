@@ -1,16 +1,18 @@
-// PROJ-870: issue create/update fold their independent writes (issue INSERT/UPDATE incl.
-// status_category, FTS delete+insert, custom-field upserts, activity, completion-report
-// comment, gate rejection) into one db.batch(), drop the post-write re-SELECTs and the
-// duplicate status lookup, and walk the parent's ancestors with one recursive CTE.
-//
-// The services are called directly with a ServiceCtx so the counts exclude auth/rate-limit
-// middleware (the AC's "excluding auth"). A D1 round trip is counted the way D1 bills it:
-// each statement executed on its own counts once, and a whole db.batch() counts once
-// however many statements it carries (same counter as file-claims-batching.test.ts).
-//
-// Measured with this counter (before -> after this ticket): create 15 -> 6, update 15 -> 6,
-// review transition with completion report 7 -> 4, and the parent walk no longer grows
-// with depth (a 4-ancestor parent cost 3 more round trips than a 1-ancestor one; now equal).
+/*
+ * PROJ-870: issue create/update fold their independent writes (issue INSERT/UPDATE incl.
+ * status_category, FTS delete+insert, custom-field upserts, activity, completion-report
+ * comment, gate rejection) into one db.batch(), drop the post-write re-SELECTs and the
+ * duplicate status lookup, and walk the parent's ancestors with one recursive CTE.
+ *
+ * The services are called directly with a ServiceCtx so the counts exclude auth/rate-limit
+ * middleware (the AC's "excluding auth"). A D1 round trip is counted the way D1 bills it:
+ * each statement executed on its own counts once, and a whole db.batch() counts once
+ * however many statements it carries (same counter as file-claims-batching.test.ts).
+ *
+ * Measured with this counter (before -> after this ticket): create 15 -> 6, update 15 -> 6,
+ * review transition with completion report 7 -> 4, and the parent walk no longer grows
+ * with depth (a 4-ancestor parent cost 3 more round trips than a 1-ancestor one; now equal).
+ */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { createIssue, updateIssue } from '#commands/issues.ts'
@@ -344,10 +346,12 @@ describe('PROJ-870: recursive-CTE ancestor walk', () => {
   })
 
   test('stops the walk at an ancestor link that leaves the workspace', async () => {
-    // P (this workspace) has parent_id pointing at X in another workspace, and X sits
-    // under 5 more foreign ancestors. Only in-workspace rows may be walked, so P has no
-    // visible ancestors and a child under it is fine — counting the foreign chain would
-    // wrongly hit the depth cap.
+    /*
+     * P (this workspace) has parent_id pointing at X in another workspace, and X sits
+     * under 5 more foreign ancestors. Only in-workspace rows may be walked, so P has no
+     * visible ancestors and a child under it is fine — counting the foreign chain would
+     * wrongly hit the depth cap.
+     */
     const other = await seedProjectFixture({ role: 'owner' })
     const foreignChain = await seedChain(other, 6)
     const p = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'P' })

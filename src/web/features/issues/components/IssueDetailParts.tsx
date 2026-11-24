@@ -349,8 +349,10 @@ function useBodyEditor(
   const bodyRevision = useRef(0)
   const bodyRef = useRef<HTMLDivElement>(null)
 
-  // Surface an unsaved edit from a previous visit, rather than silently reopening the
-  // editor — the user may have moved on, and the issue may have changed since.
+  /*
+   * Surface an unsaved edit from a previous visit, rather than silently reopening the
+   * editor — the user may have moved on, and the issue may have changed since.
+   */
   useEffect(() => {
     setHasDraft(loadDraft(key) !== null)
   }, [key])
@@ -923,8 +925,10 @@ function resolveAttachmentDisplay(
       external: true,
     }
   }
-  // A wiki_ref whose target page was deleted, or is no longer visible to this
-  // user (project access revoked) — the join comes back empty either way.
+  /*
+   * A wiki_ref whose target page was deleted, or is no longer visible to this
+   * user (project access revoked) — the join comes back empty either way.
+   */
   return {
     icon: <WikiIcon />,
     href: null,
@@ -1567,8 +1571,10 @@ function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, c
   useUnsavedUnloadGuard(newComment.trim().length > 0)
   const key = draftKey(workspaceSlug, `${currentUserId ?? '-'}:${issueId}`, 'comment')
 
-  // Restore any unsent comment. Keyed on issueId so switching issues picks up that
-  // issue's own draft rather than carrying text across.
+  /*
+   * Restore any unsent comment. Keyed on issueId so switching issues picks up that
+   * issue's own draft rather than carrying text across.
+   */
   useEffect(() => {
     setNewComment(loadDraft(key) ?? '')
   }, [key, setNewComment])

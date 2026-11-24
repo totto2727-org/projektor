@@ -5,8 +5,10 @@ import { authHeaders, seedFixture, seedGroupGrant, seedMember, seedProject, seed
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
-// PROJ-821: a watcher who loses access to a page (grant revoked, or removed from the
-// workspace) must stop receiving its notifications, which carry the page title.
+/*
+ * PROJ-821: a watcher who loses access to a page (grant revoked, or removed from the
+ * workspace) must stop receiving its notifications, which carry the page title.
+ */
 describe('wiki watch notifications respect current access (PROJ-821)', () => {
   let adminToken: string
   let slug: string

@@ -3,10 +3,12 @@ import { describe, expect, test } from 'vite-plus/test'
 import { seedFixture, seedMember, seedToken } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-348: the MCP endpoint (POST /mcp/<workspaceId>) must resolve its workspace
-// from the URL path UUID when no X-Workspace-Slug header is sent — the Claude app's
-// Connectors UI can't send custom headers. The token-workspace-scope check stays the
-// security boundary: a token minted for another workspace is still rejected.
+/*
+ * PROJ-348: the MCP endpoint (POST /mcp/<workspaceId>) must resolve its workspace
+ * from the URL path UUID when no X-Workspace-Slug header is sent — the Claude app's
+ * Connectors UI can't send custom headers. The token-workspace-scope check stays the
+ * security boundary: a token minted for another workspace is still rejected.
+ */
 describe('MCP workspace resolution without X-Workspace-Slug (PROJ-348)', () => {
   function mcpRequest(workspaceId: string, token: string, extraHeaders?: Record<string, string>) {
     return fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
@@ -55,17 +57,21 @@ describe('MCP workspace resolution without X-Workspace-Slug (PROJ-348)', () => {
 
   test('accepts a user-scoped (null-workspace) token against the path workspace', async () => {
     const fixture = await seedFixture()
-    // A token whose workspace_id is the same workspace still works; a genuinely
-    // user-scoped token is exercised by auth tests. Here we confirm the happy path
-    // resolves purely from the path UUID.
+    /*
+     * A token whose workspace_id is the same workspace still works; a genuinely
+     * user-scoped token is exercised by auth tests. Here we confirm the happy path
+     * resolves purely from the path UUID.
+     */
     const secondToken = await seedToken(fixture.workspace.id, fixture.user.id)
     const res = await mcpRequest(fixture.workspace.id, secondToken)
     expect(res.status).toBe(200)
   })
 })
 
-// PROJ-348: the path-UUID fallback is scoped to the MCP route only. Non-MCP routes
-// must keep requiring X-Workspace-Slug (subdomain routing off by default).
+/*
+ * PROJ-348: the path-UUID fallback is scoped to the MCP route only. Non-MCP routes
+ * must keep requiring X-Workspace-Slug (subdomain routing off by default).
+ */
 describe('non-MCP routes still require X-Workspace-Slug (PROJ-348 scope guard)', () => {
   test('REST route without the header 400s naming the missing header', async () => {
     const fixture = await seedFixture()

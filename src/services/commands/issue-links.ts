@@ -13,8 +13,10 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '.
 import { resolveIssueIdParam } from './issues.ts'
 import type { ServiceCtx } from './types.ts'
 
-// PROJ-311: linking touches two issues; a non-admin must be able to write to the
-// project each issue belongs to (a missing grant reads as "issue not found").
+/*
+ * PROJ-311: linking touches two issues; a non-admin must be able to write to the
+ * project each issue belongs to (a missing grant reads as "issue not found").
+ */
 async function requireIssueProjectWrite(ctx: ServiceCtx, projectId: string, notFoundLabel: string): Promise<void> {
   if (isWorkspaceAdmin(ctx.role)) {
     return

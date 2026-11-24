@@ -1,7 +1,9 @@
-// PROJ-856: auth + workspace middleware must run exactly once per request, including on
-// bare collection paths. Hono's `/x/*` also matches `/x`, so registering both `/x` and
-// `/x/*` ran the pair twice. Observe only the middleware's named authenticate
-// dispatch. Domain operations must still independently reauthorize inside Core.
+/*
+ * PROJ-856: auth + workspace middleware must run exactly once per request, including on
+ * bare collection paths. Hono's `/x/*` also matches `/x`, so registering both `/x` and
+ * `/x/*` ran the pair twice. Observe only the middleware's named authenticate
+ * dispatch. Domain operations must still independently reauthorize inside Core.
+ */
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { getCoreObservations, resetCoreObservations } from './fixture-api.ts'

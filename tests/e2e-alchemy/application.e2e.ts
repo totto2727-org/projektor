@@ -434,8 +434,10 @@ test('issue review targets persist optional selection and four statuses across f
     { name: 'search', path: `/issues?${scope}&q=${suffix}` },
   ]
   for (const route of routes) {
-    // Board intentionally excludes backlog. Move only the fixture's issue workflow,
-    // leaving review selection and review statuses exclusively browser-mutated.
+    /*
+     * Board intentionally excludes backlog. Move only the fixture's issue workflow,
+     * leaving review selection and review statuses exclusively browser-mutated.
+     */
     if (route.name === 'board' || route.name === 'my-issues') {
       for (const fixture of [issue, emptyIssue]) {
         const moved = await request.patch(`http://127.0.0.1:4392/api/issues/${fixture.id}`, {
@@ -511,8 +513,10 @@ test('issue review targets persist optional selection and four statuses across f
   await expect(attachments.getByRole('link', { name: ordinaryLabel, exact: true })).toBeVisible()
   await checkpoint(page, testInfo, 'review-targets-complete-normal-attachments-preserved')
 
-  // Completed targets are intentionally hidden in Web. The supported external
-  // review API reopens them before each owning-issue terminal transition.
+  /*
+   * Completed targets are intentionally hidden in Web. The supported external
+   * review API reopens them before each owning-issue terminal transition.
+   */
   for (const terminal of ['done', 'cancelled']) {
     const reopened = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
       headers,
@@ -1096,8 +1100,10 @@ test('native create project and issue refresh canonical reads and navigation', a
   await expect(page.getByRole('heading', { name: wikiTitle, exact: true, level: 1 })).toBeVisible()
   expect(await page.evaluate(() => performance.timeOrigin)).not.toBe(timeOrigin)
   await checkpoint(page, testInfo, 'native-session-document-refresh')
-  // A fresh document with JS disabled proves the mutation reached real D1,
-  // rather than being held in hydrated component state.
+  /*
+   * A fresh document with JS disabled proves the mutation reached real D1,
+   * rather than being held in hydrated component state.
+   */
   const noJs = await browser.newContext({
     baseURL,
     javaScriptEnabled: false,

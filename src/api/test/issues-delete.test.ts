@@ -1,9 +1,11 @@
-// PROJ-922: deleteIssue must explicitly remove/null every row that references the
-// deleted issue via an FK with ON DELETE CASCADE/SET NULL, since D1 does not guarantee
-// FK enforcement (PROJ-407). Note: `PRAGMA foreign_keys = OFF` is a no-op on
-// D1/Miniflare (it still reads 1), so FK-backed rows are also removed by the database's
-// cascade here — those assertions are end-state checks. The non-FK references (share
-// tokens, R2 objects, FTS) are what this proves; fk-cleanup.node.test.ts guards the rest.
+/*
+ * PROJ-922: deleteIssue must explicitly remove/null every row that references the
+ * deleted issue via an FK with ON DELETE CASCADE/SET NULL, since D1 does not guarantee
+ * FK enforcement (PROJ-407). Note: `PRAGMA foreign_keys = OFF` is a no-op on
+ * D1/Miniflare (it still reads 1), so FK-backed rows are also removed by the database's
+ * cascade here — those assertions are end-state checks. The non-FK references (share
+ * tokens, R2 objects, FTS) are what this proves; fk-cleanup.node.test.ts guards the rest.
+ */
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -117,7 +119,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       .bind(crypto.randomUUID(), workspaceId, issueId, Math.floor(Date.now() / 1000))
       .run()
 
-    // feedback.linked_issue_id (SET NULL) — needs a feedback_sources row first
+    // Feedback.linked_issue_id (SET NULL) — needs a feedback_sources row first
     const sourceId = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO feedback_sources (id, token_hash, workspace_id, project_id, name, is_active, created_by, created_at)
@@ -133,7 +135,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       .bind(feedbackId, sourceId, workspaceId, projectId, issueId, Math.floor(Date.now() / 1000))
       .run()
 
-    // attachments (no physical FK, entity_type/entity_id polymorphic) — a real R2 object
+    // Attachments (no physical FK, entity_type/entity_id polymorphic) — a real R2 object
     const form = new FormData()
     form.append('file', new File(['hello'], 'hello.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
@@ -241,9 +243,11 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
   })
 })
 
-// PROJ-922 review: the dependent-row deletes key on the issue id, so deleting an id
-// from ANOTHER workspace must be a 404 that touches nothing — not a silent wipe of that
-// workspace's comments/links/attachments by an admin of this one.
+/*
+ * PROJ-922 review: the dependent-row deletes key on the issue id, so deleting an id
+ * from ANOTHER workspace must be a 404 that touches nothing — not a silent wipe of that
+ * workspace's comments/links/attachments by an admin of this one.
+ */
 describe("PROJ-922: deleteIssue refuses another workspace's issue", () => {
   test("404s and leaves the other workspace's rows intact", async () => {
     const { seedComment, seedIssue, seedProjectFixture, authHeaders } = await import('./helpers.ts')

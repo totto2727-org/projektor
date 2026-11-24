@@ -8,8 +8,10 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-811: every fixed first path segment under /api/wiki is matched before the /:slug
-// catch-all, so a page with that slug could never load.
+/*
+ * PROJ-811: every fixed first path segment under /api/wiki is matched before the /:slug
+ * catch-all, so a page with that slug could never load.
+ */
 describe('reserved wiki slugs (PROJ-811)', () => {
   let token: string
   let slug: string

@@ -36,8 +36,10 @@ export function resolveFunctionContext(
       Effect.mapError(() => new ScopeError(400, 'Invalid workspace or project selection.')),
     )
     const scope = yield* services.scope({
-      // Empty hints explicitly suppress page-URL inference. /_effront/query
-      // and a function invoked from an unrelated page resolve identically.
+      /*
+       * Empty hints explicitly suppress page-URL inference. /_effront/query
+       * and a function invoked from an unrelated page resolve identically.
+       */
       workspaceHint: input.workspaceSlug ?? '',
       projectHint: input.projectId ?? '',
       requireWorkspace: options.requireWorkspace,

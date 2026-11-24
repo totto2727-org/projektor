@@ -10,16 +10,18 @@ import { subdomainRoutingEnabled } from '../middleware/workspace.ts'
 import { ctxFromHono } from '../services/types.ts'
 import { getWikiPage } from '../services/wiki.ts'
 
-// PROJ-487 fix-up: server-side redirect + metadata injection for the /wiki catch-all
-// need a workspace-scoped ServiceCtx, but a plain top-level browser navigation carries
-// none of the signals workspaceMiddleware requires (no X-Workspace-Slug header, and
-// subdomain routing is opt-in) — so this deliberately does NOT reuse workspaceMiddleware
-// verbatim. Instead it mirrors its resolution order and adds DEFAULT_WORKSPACE_SLUG as a
-// final fallback (the common case for a single-tenant deployment, matching the
-// PUBLIC_READ_ONLY/provisioning convention elsewhere in this file), and never writes an
-// error response itself — callers treat a null return as "fall back to the plain shell",
-// not an error, since this is a best-effort enhancement over the client-side behavior
-// that already exists.
+/*
+ * PROJ-487 fix-up: server-side redirect + metadata injection for the /wiki catch-all
+ * need a workspace-scoped ServiceCtx, but a plain top-level browser navigation carries
+ * none of the signals workspaceMiddleware requires (no X-Workspace-Slug header, and
+ * subdomain routing is opt-in) — so this deliberately does NOT reuse workspaceMiddleware
+ * verbatim. Instead it mirrors its resolution order and adds DEFAULT_WORKSPACE_SLUG as a
+ * final fallback (the common case for a single-tenant deployment, matching the
+ * PUBLIC_READ_ONLY/provisioning convention elsewhere in this file), and never writes an
+ * error response itself — callers treat a null return as "fall back to the plain shell",
+ * not an error, since this is a best-effort enhancement over the client-side behavior
+ * that already exists.
+ */
 async function resolveWikiWorkspaceContext(
   c: Context<HonoEnv>,
 ): Promise<{ id: string; name: string; slug: string; role: string } | null> {
@@ -54,11 +56,13 @@ export interface WikiSsrPage {
   url: string
 }
 
-// Best-effort: authenticates the request and resolves a workspace-scoped wiki page for
-// SSR purposes (redirect target / injected metadata). Returns null on ANY failure to
-// authenticate, resolve a workspace, or find/view the page — callers must fall back to
-// serving the plain static shell rather than erroring the page load, and must never let
-// this leak page existence/content to an unauthenticated caller.
+/*
+ * Best-effort: authenticates the request and resolves a workspace-scoped wiki page for
+ * SSR purposes (redirect target / injected metadata). Returns null on ANY failure to
+ * authenticate, resolve a workspace, or find/view the page — callers must fall back to
+ * serving the plain static shell rather than erroring the page load, and must never let
+ * this leak page existence/content to an unauthenticated caller.
+ */
 export async function resolveWikiPageForSsr(c: Context<HonoEnv>, slugOrId: string): Promise<WikiSsrPage | null> {
   let authenticated = false
   const authResponse = await authMiddleware(c, async () => {
@@ -79,8 +83,10 @@ export async function resolveWikiPageForSsr(c: Context<HonoEnv>, slugOrId: strin
     const page = await getWikiPage(ctxFromHono(c), slugOrId)
     return { title: page.title, content: page.content, url: page.url }
   } catch {
-    // NotFoundError / ForbiddenError / anything else — no metadata to inject, no
-    // redirect target; the plain shell (or a client-side 404) still works.
+    /*
+     * NotFoundError / ForbiddenError / anything else — no metadata to inject, no
+     * redirect target; the plain shell (or a client-side 404) still works.
+     */
     return null
   }
 }
@@ -119,9 +125,11 @@ class TextSetter {
   }
 }
 
-// Rewrites <title> and og:title/og:description/og:url on the static wiki shell response
-// with real values for a resolved page. Never throws — a rewrite failure just means the
-// caller serves the unmodified shell.
+/*
+ * Rewrites <title> and og:title/og:description/og:url on the static wiki shell response
+ * with real values for a resolved page. Never throws — a rewrite failure just means the
+ * caller serves the unmodified shell.
+ */
 export function injectWikiMetadata(response: Response, page: WikiSsrPage, pageUrl: string): Response {
   const description = plainTextExcerpt(page.content)
   return new HTMLRewriter()

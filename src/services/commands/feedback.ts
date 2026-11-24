@@ -250,8 +250,10 @@ export async function convertFeedbackToIssue(
   if (!fb) {
     throw new NotFoundError('Feedback not found')
   }
-  // Already converted — reject re-conversion rather than silently creating a
-  // second issue or re-linking; the caller should follow the existing linked issue.
+  /*
+   * Already converted — reject re-conversion rather than silently creating a
+   * second issue or re-linking; the caller should follow the existing linked issue.
+   */
   if (fb.linked_issue_id) {
     throw new ConflictError('Feedback already converted to an issue')
   }
@@ -334,8 +336,10 @@ export async function bulkConvertToIssue(
   if (rows.length !== feedbackIds.length) {
     throw new NotFoundError('Feedback not found')
   }
-  // All-or-nothing: any row already converted rejects the whole batch rather than
-  // partially converting or silently re-linking.
+  /*
+   * All-or-nothing: any row already converted rejects the whole batch rather than
+   * partially converting or silently re-linking.
+   */
   if (rows.some((r) => r.linked_issue_id)) {
     throw new ConflictError('One or more selected items are already linked to an issue')
   }

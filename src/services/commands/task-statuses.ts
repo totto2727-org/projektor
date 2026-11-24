@@ -134,10 +134,12 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
     throw new NotFoundError('Task status not found')
   }
 
-  // PROJ-849: a status's category can change after issues already reference it by
-  // status_id — re-sync issues.status_category for every issue on this status in the
-  // same batch as the status update, so the two never drift (open/backlog tile counts
-  // and anything else reading status_category depend on it staying in sync).
+  /*
+   * PROJ-849: a status's category can change after issues already reference it by
+   * status_id — re-sync issues.status_category for every issue on this status in the
+   * same batch as the status update, so the two never drift (open/backlog tile counts
+   * and anything else reading status_category depend on it staying in sync).
+   */
   const categoryChanged = setObj.category !== undefined && setObj.category !== existing.category
 
   const statusUpdate = orm
@@ -274,11 +276,13 @@ export async function seedDefaultTaskStatuses(db: D1Database, workspaceId: strin
   await db.batch(buildDefaultTaskStatusStatements(db, workspaceId))
 }
 
-// PROJ-870: also returns the resolved status's category, read from the same row lookup —
-// the issue write paths previously re-queried task_statuses by id just to get it.
-// category is null when no task_statuses row backs the result (legacy key / fallback).
-// PROJ-749: isReviewStep is the status's explicit review-step flag (only the built-in
-// "in_review" key counts when there is no backing row).
+/*
+ * PROJ-870: also returns the resolved status's category, read from the same row lookup —
+ * the issue write paths previously re-queried task_statuses by id just to get it.
+ * category is null when no task_statuses row backs the result (legacy key / fallback).
+ * PROJ-749: isReviewStep is the status's explicit review-step flag (only the built-in
+ * "in_review" key counts when there is no backing row).
+ */
 export async function resolveStatus(
   ctx: ServiceCtx,
   statusId: string | null | undefined,

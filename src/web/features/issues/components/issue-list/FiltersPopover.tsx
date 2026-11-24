@@ -7,10 +7,12 @@ import type { TaskStatus } from '../board-utils.ts'
 
 export type DateField = '' | 'completed' | 'updated'
 
-// PROJ-588: opened low on a phone, this fixed-position panel had no viewport clamping —
-// the date-range fields and "Clear all" could fall below the viewport with nothing to
-// scroll to reach them. Same flip/clamp/scroll shape as Select.tsx's computeMenuPosition,
-// tuned for this panel's own width and content height rather than a listbox row.
+/*
+ * PROJ-588: opened low on a phone, this fixed-position panel had no viewport clamping —
+ * the date-range fields and "Clear all" could fall below the viewport with nothing to
+ * scroll to reach them. Same flip/clamp/scroll shape as Select.tsx's computeMenuPosition,
+ * tuned for this panel's own width and content height rather than a listbox row.
+ */
 const POPOVER_WIDTH = 256 // 16rem, matches the inline minWidth below
 const POPOVER_GAP = 4
 const POPOVER_MARGIN = 8
@@ -323,8 +325,10 @@ export default function FiltersPopover({
         setShowFiltersPopover(false)
       }
     }
-    // Orientation change / desktop resize can invalidate a clamped position computed
-    // at open time (e.g. rotating the phone the popover was flipped-above on).
+    /*
+     * Orientation change / desktop resize can invalidate a clamped position computed
+     * at open time (e.g. rotating the phone the popover was flipped-above on).
+     */
     window.addEventListener('resize', reposition)
     document.addEventListener('mousedown', onPointer)
     return () => {

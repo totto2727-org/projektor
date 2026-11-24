@@ -26,10 +26,12 @@ describe('Playbooks', () => {
     expect(body.find((p) => p.name === 'idea-discovery')).toBeTruthy()
   })
 
-  // PROJ-633: the playbook reads are deliberately global — no workspace. Adding the
-  // compose route required workspace context, and applying workspaceMiddleware to the
-  // whole /api/playbooks prefix to get it would make these two 400 without a slug.
-  // Every other test here sends one, so only this asserts the prefix stays global.
+  /*
+   * PROJ-633: the playbook reads are deliberately global — no workspace. Adding the
+   * compose route required workspace context, and applying workspaceMiddleware to the
+   * whole /api/playbooks prefix to get it would make these two 400 without a slug.
+   * Every other test here sends one, so only this asserts the prefix stays global.
+   */
   test('GET /api/playbooks and /:name work without an X-Workspace-Slug header', async () => {
     const auth = { Authorization: `Bearer ${token}` }
 

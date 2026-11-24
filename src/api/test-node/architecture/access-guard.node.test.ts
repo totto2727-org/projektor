@@ -1,27 +1,29 @@
-// PROJ-837: every exported service operation that takes a project-scoped entity id
-// must reach the central access guard (services/access.ts) — directly, or through a
-// helper that does.
-//
-// Why: PROJ-792 (share links), 794, 818 and 822 were all the same bug — a service
-// that hand-rolled its project check and forgot it, or never had one. A per-service
-// review can't keep up with the number of services; this test makes "forgot the
-// guard" a build failure instead of a security report.
-//
-// How it works (static, TypeScript compiler API, no execution):
-//   1. Parse every src/services/commands/*.ts file.
-//   2. Build a call graph of top-level functions, resolving `./x` imports across files.
-//   3. A function is GUARDED if it calls a guard from services/access.ts, or calls
-//      (transitively) a function that is guarded.
-//   4. An exported function is a TARGET if its first parameter is `ctx` and another
-//      parameter names a project-scoped entity (issueId, projectId, pageId, …; or a
-//      bare `id`/`slug` in a project-scoped domain file).
-//   5. Every target must be guarded, or be listed in ALLOWLIST with a reason.
-//
-// Known limitation: operations that take `input: unknown` and parse the id out of it
-// are not detected by parameter name. PROJ-896 moves this onto the operation
-// registry's `projectScoped` flag, which removes the heuristic.
-//
-// This runs in node (reads source off disk) — hence the .node.test.ts suffix.
+/*
+ * PROJ-837: every exported service operation that takes a project-scoped entity id
+ * must reach the central access guard (services/access.ts) — directly, or through a
+ * helper that does.
+ *
+ * Why: PROJ-792 (share links), 794, 818 and 822 were all the same bug — a service
+ * that hand-rolled its project check and forgot it, or never had one. A per-service
+ * review can't keep up with the number of services; this test makes "forgot the
+ * guard" a build failure instead of a security report.
+ *
+ * How it works (static, TypeScript compiler API, no execution):
+ *   1. Parse every src/services/commands/*.ts file.
+ *   2. Build a call graph of top-level functions, resolving `./x` imports across files.
+ *   3. A function is GUARDED if it calls a guard from services/access.ts, or calls
+ *      (transitively) a function that is guarded.
+ *   4. An exported function is a TARGET if its first parameter is `ctx` and another
+ *      parameter names a project-scoped entity (issueId, projectId, pageId, …; or a
+ *      bare `id`/`slug` in a project-scoped domain file).
+ *   5. Every target must be guarded, or be listed in ALLOWLIST with a reason.
+ *
+ * Known limitation: operations that take `input: unknown` and parse the id out of it
+ * are not detected by parameter name. PROJ-896 moves this onto the operation
+ * registry's `projectScoped` flag, which removes the heuristic.
+ *
+ * This runs in node (reads source off disk) — hence the .node.test.ts suffix.
+ */
 
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -108,7 +110,7 @@ function collect(): Map<string, FnInfo> {
         throw new Error(`Could not parse architecture source: ${fileName}`)
       }
 
-      // import name → "file:name" (or "guard:name" for access.ts guards)
+      // Import name → "file:name" (or "guard:name" for access.ts guards)
       const imports = new Map<string, string>()
       const locals: { name: string; node: ts.Node; exported: boolean; params: string[] }[] = []
 

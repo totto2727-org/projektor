@@ -13,18 +13,20 @@ import { broadcastWorkspaceEvent } from './realtime.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 
-// PROJ-929: a call that carries an already-live agentId implicitly refreshes that
-// session's heartbeat, so explicit heartbeat_agent calls become optional during a claim
-// loop. Local rather than imported from services/agents.ts for the same reason
-// SESSION_TTL_SECONDS below is duplicated: agents.ts already imports from this file
-// (releaseClaimsForAgent), so importing back would cycle.
-//
-// Deliberately gated on the session being live ALREADY (status='active' AND heartbeat
-// > cutoff), not just active — otherwise this would revive a crashed agent's session
-// merely because some other issue's claim/release call happened to name its id, which
-// would silently defeat the PROJ-636 stale-holder reclaim this same file implements: a
-// dead session must stay reclaimable, not get its heartbeat bumped by a call that isn't
-// actually coming from it.
+/*
+ * PROJ-929: a call that carries an already-live agentId implicitly refreshes that
+ * session's heartbeat, so explicit heartbeat_agent calls become optional during a claim
+ * loop. Local rather than imported from services/agents.ts for the same reason
+ * SESSION_TTL_SECONDS below is duplicated: agents.ts already imports from this file
+ * (releaseClaimsForAgent), so importing back would cycle.
+ *
+ * Deliberately gated on the session being live ALREADY (status='active' AND heartbeat
+ * > cutoff), not just active — otherwise this would revive a crashed agent's session
+ * merely because some other issue's claim/release call happened to name its id, which
+ * would silently defeat the PROJ-636 stale-holder reclaim this same file implements: a
+ * dead session must stay reclaimable, not get its heartbeat bumped by a call that isn't
+ * actually coming from it.
+ */
 async function touchAgentHeartbeatIfLive(
   orm: ReturnType<typeof drizzle>,
   ctx: ServiceCtx,
@@ -44,24 +46,28 @@ async function touchAgentHeartbeatIfLive(
     )
 }
 
-// PROJ-636: mirrors SESSION_TTL_SECONDS in services/issue-leases.ts, which in turn mirrors
-// ACTIVE_TTL in services/agents.ts. Kept local for the same reason theirs are: agents.ts
-// already imports releaseClaimsForAgent from here, so importing back would cycle.
+/*
+ * PROJ-636: mirrors SESSION_TTL_SECONDS in services/issue-leases.ts, which in turn mirrors
+ * ACTIVE_TTL in services/agents.ts. Kept local for the same reason theirs are: agents.ts
+ * already imports releaseClaimsForAgent from here, so importing back would cycle.
+ */
 const SESSION_TTL_SECONDS = 120
 
 const liveCutoff = () => Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
 
-// PROJ-928: an agentless claim (agentId null — see loadActiveClaimsByPath) has no
-// heartbeat to judge staleness by, so it used to be treated as live forever, reclaimable
-// only via `force`. This TTL bounds that: after it elapses since claimedAt, the claim is
-// reclaimed by the next claimer the same way a dead agent's claim is. Configurable via
-// FILE_CLAIM_TTL_SECONDS (default 24h); invalid/non-positive values fall back to it.
-//
-// Fix-up: the raw env value is parsed once, in ctxFromHono, into ctx.config —
-// never carried on ServiceCtx as a whole, which (PluginContext being shared by every
-// service and MCP/plugin handler) would otherwise hand every tool every secret and
-// binding. This function is exported so ctxFromHono can reuse the same parsing/default
-// without duplicating it.
+/*
+ * PROJ-928: an agentless claim (agentId null — see loadActiveClaimsByPath) has no
+ * heartbeat to judge staleness by, so it used to be treated as live forever, reclaimable
+ * only via `force`. This TTL bounds that: after it elapses since claimedAt, the claim is
+ * reclaimed by the next claimer the same way a dead agent's claim is. Configurable via
+ * FILE_CLAIM_TTL_SECONDS (default 24h); invalid/non-positive values fall back to it.
+ *
+ * Fix-up: the raw env value is parsed once, in ctxFromHono, into ctx.config —
+ * never carried on ServiceCtx as a whole, which (PluginContext being shared by every
+ * service and MCP/plugin handler) would otherwise hand every tool every secret and
+ * binding. This function is exported so ctxFromHono can reuse the same parsing/default
+ * without duplicating it.
+ */
 export const DEFAULT_FILE_CLAIM_TTL_SECONDS = 24 * 60 * 60
 
 export function parseFileClaimTtlSeconds(raw: string | undefined): number {
@@ -69,20 +75,24 @@ export function parseFileClaimTtlSeconds(raw: string | undefined): number {
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_FILE_CLAIM_TTL_SECONDS
 }
 
-// The cutoff before which an agentless claim (no session to judge staleness by) counts as
-// stale — see DEFAULT_FILE_CLAIM_TTL_SECONDS/parseFileClaimTtlSeconds above. Shared by
-// claimFiles (stale-holder reclaim) and listFileClaims (default live-only filter and the
-// `live` flag) so the two definitions of "stale" can't drift apart.
+/*
+ * The cutoff before which an agentless claim (no session to judge staleness by) counts as
+ * stale — see DEFAULT_FILE_CLAIM_TTL_SECONDS/parseFileClaimTtlSeconds above. Shared by
+ * claimFiles (stale-holder reclaim) and listFileClaims (default live-only filter and the
+ * `live` flag) so the two definitions of "stale" can't drift apart.
+ */
 function fileClaimAgentlessCutoff(ctx: ServiceCtx, now: number): number {
   return now - (ctx.config?.fileClaimTtlSeconds ?? DEFAULT_FILE_CLAIM_TTL_SECONDS)
 }
 
-// PROJ-932 fix-up: one SQL expression for "is this claim live", used both to filter
-// listFileClaims' default listing and to populate the `live` flag on every row it
-// returns — a single rule kept in one place so the filter and the flag can't silently
-// disagree. Evaluates to 1/0: an agentless claim is judged by claimedAt against the TTL
-// cutoff; an agent-linked claim by the session's status/heartbeat. Requires the query to
-// LEFT JOIN agent_sessions on issue_file_claims.agent_id, as listFileClaims does.
+/*
+ * PROJ-932 fix-up: one SQL expression for "is this claim live", used both to filter
+ * listFileClaims' default listing and to populate the `live` flag on every row it
+ * returns — a single rule kept in one place so the filter and the flag can't silently
+ * disagree. Evaluates to 1/0: an agentless claim is judged by claimedAt against the TTL
+ * cutoff; an agent-linked claim by the session's status/heartbeat. Requires the query to
+ * LEFT JOIN agent_sessions on issue_file_claims.agent_id, as listFileClaims does.
+ */
 function fileClaimLiveExpr(cutoff: number, agentlessCutoff: number) {
   return sql<number>`(CASE
 		WHEN ${schema.issueFileClaims.agentId} IS NULL THEN (${schema.issueFileClaims.claimedAt} > ${agentlessCutoff})
@@ -102,8 +112,10 @@ async function loadActiveClaimsByPath(
 ): Promise<Map<string, ActiveClaim>> {
   const activeClaims = await inChunks(paths, (chunk) =>
     orm
-      // Columns enumerated rather than `.select()` because the session fields have to
-      // come along; LEFT JOIN, not INNER, so an agentless claim still appears.
+      /*
+       * Columns enumerated rather than `.select()` because the session fields have to
+       * come along; LEFT JOIN, not INNER, so an agentless claim still appears.
+       */
       .select({
         id: schema.issueFileClaims.id,
         workspaceId: schema.issueFileClaims.workspaceId,
@@ -145,11 +157,13 @@ async function loadActiveClaimsByPath(
   )
 }
 
-// PROJ-864: multi-row insert chunk sizes, calibrated per-statement for D1's 100-bound-param
-// cap with headroom — unlike services/sql.ts#inChunks, which is calibrated for single-param
-// IN-list queries, not multi-column inserts. More chunks costs nothing here: every statement
-// these produce is folded into one ctx.db.batch() call by the caller, so it's the number of
-// batch() calls that's bounded (the AC), not the number of statements inside one.
+/*
+ * PROJ-864: multi-row insert chunk sizes, calibrated per-statement for D1's 100-bound-param
+ * cap with headroom — unlike services/sql.ts#inChunks, which is calibrated for single-param
+ * IN-list queries, not multi-column inserts. More chunks costs nothing here: every statement
+ * these produce is folded into one ctx.db.batch() call by the caller, so it's the number of
+ * batch() calls that's bounded (the AC), not the number of statements inside one.
+ */
 const CLAIM_INSERT_CHUNK_SIZE = 10 // 7 cols/row
 const CONFLICT_INSERT_CHUNK_SIZE = 8 // 9 cols/row
 // Single-param-per-item IN-list chunk size for id-keyed UPDATEs, mirroring services/sql.ts.
@@ -167,11 +181,13 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
   return out
 }
 
-// Builds (without executing) the UPDATEs that release a set of claims by id, all with the
-// same releasedAt/reason — used for stale-holder reclaim, force-override release and
-// releaseFiles. The workspace and still-active guards mean a claim another request
-// released in the meantime is left as that request wrote it; RETURNING id lets the
-// caller report only the rows this batch actually released (releasedIdsFrom below).
+/*
+ * Builds (without executing) the UPDATEs that release a set of claims by id, all with the
+ * same releasedAt/reason — used for stale-holder reclaim, force-override release and
+ * releaseFiles. The workspace and still-active guards mean a claim another request
+ * released in the meantime is left as that request wrote it; RETURNING id lets the
+ * caller report only the rows this batch actually released (releasedIdsFrom below).
+ */
 function buildReleaseByIdsStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
@@ -202,13 +218,17 @@ function releasedIdsFrom(results: readonly D1Result[]): Set<string> {
   return new Set(results.flatMap((r) => (r.results as { id: string }[]).map((row) => row.id)))
 }
 
-// PostMessageSchema's body cap: force-claim notifications are built server-side and
-// inserted without re-validation (buildPostMessageStatements), so they must respect it
-// themselves.
+/*
+ * PostMessageSchema's body cap: force-claim notifications are built server-side and
+ * inserted without re-validation (buildPostMessageStatements), so they must respect it
+ * themselves.
+ */
 const MESSAGE_BODY_MAX = PostMessageSchema.shape.body.maxLength ?? 5000
 
-// Quoted, comma-separated paths, cut short with "…and N more" so the result (plus the
-// caller's `overhead` characters of surrounding text) fits within MESSAGE_BODY_MAX.
+/*
+ * Quoted, comma-separated paths, cut short with "…and N more" so the result (plus the
+ * caller's `overhead` characters of surrounding text) fits within MESSAGE_BODY_MAX.
+ */
 function formatPathList(paths: readonly string[], overhead: number): string {
   const max = MESSAGE_BODY_MAX - overhead
   let out = ''
@@ -250,9 +270,11 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
     throw new ValidationError(result.error.flatten())
   }
   const { issueId, agentId, force } = result.data
-  // A path listed twice would insert two active claims on it in one batch, which the
-  // active-claim unique index rejects (rolling the whole batch back). Claim it once,
-  // keeping the caller's order.
+  /*
+   * A path listed twice would insert two active claims on it in one batch, which the
+   * active-claim unique index rejects (rolling the whole batch back). Claim it once,
+   * keeping the caller's order.
+   */
   const paths = [...new Set(result.data.paths)]
 
   const orm = drizzle(ctx.db, { schema })
@@ -260,8 +282,10 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
   const projectId = await assertIssueAccess(ctx, issueId, 'edit')
   if (agentId) {
     await assertAgentSessionAccess(ctx, agentId)
-    // PROJ-929: refresh the acting session's heartbeat if it's already live (see
-    // touchAgentHeartbeatIfLive) — done even if the claim itself is later rejected below.
+    /*
+     * PROJ-929: refresh the acting session's heartbeat if it's already live (see
+     * touchAgentHeartbeatIfLive) — done even if the claim itself is later rejected below.
+     */
     await touchAgentHeartbeatIfLive(orm, ctx, agentId, liveCutoff())
   }
 
@@ -279,10 +303,12 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
     await assertIssueAccess(ctx, issue, force ? 'edit' : 'read')
   }
 
-  // PROJ-636: split stale holders out before conflict evaluation — a dead holder neither
-  // blocks the claim nor lands in claim_conflicts. Same semantics as before reclaimStaleClaims
-  // was inlined here; the release itself is now just one statement folded into the batch
-  // below instead of an immediate per-claim UPDATE.
+  /*
+   * PROJ-636: split stale holders out before conflict evaluation — a dead holder neither
+   * blocks the claim nor lands in claim_conflicts. Same semantics as before reclaimStaleClaims
+   * was inlined here; the release itself is now just one statement folded into the batch
+   * below instead of an immediate per-claim UPDATE.
+   */
   const stale: ActiveClaim[] = []
   for (const [path, claim] of claimsByPath) {
     if (!claim.live) {
@@ -306,10 +332,12 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
     .filter((p): p is { path: string; existing: ActiveClaim } => Boolean(p.existing))
 
   if (!force && contended.length > 0) {
-    // Record every contended path (rejection is all-or-nothing, but each simultaneously
-    // held path is its own contention signal for the heat map). The reclaim above and
-    // these conflict records must persist even though the claim itself is rejected, so
-    // they go out together before throwing.
+    /*
+     * Record every contended path (rejection is all-or-nothing, but each simultaneously
+     * held path is its own contention signal for the heat map). The reclaim above and
+     * these conflict records must persist even though the claim itself is rejected, so
+     * they go out together before throwing.
+     */
     statements.push(
       ...buildConflictInsertStatements(
         ctx,
@@ -335,8 +363,10 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
     )
   }
 
-  // force:true — release every contended claim and record the override, in the same batch
-  // as everything else (no conflict is possible when force is false and contended is empty).
+  /*
+   * Force:true — release every contended claim and record the override, in the same batch
+   * as everything else (no conflict is possible when force is false and contended is empty).
+   */
   const overridden: ActiveClaim[] = []
   if (force && contended.length > 0) {
     const displacedPaths = new Map<string, string[]>()
@@ -388,8 +418,10 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
     statements.push(...buildPostMessageStatements(ctx, orm, messages))
   }
 
-  // Every field is caller-supplied or server-generated (id, timestamp), so the inserted
-  // rows are built here directly — no RETURNING/re-SELECT needed (PROJ-864).
+  /*
+   * Every field is caller-supplied or server-generated (id, timestamp), so the inserted
+   * rows are built here directly — no RETURNING/re-SELECT needed (PROJ-864).
+   */
   const created = paths.map((path) => ({
     id: crypto.randomUUID(),
     workspaceId: ctx.workspaceId,
@@ -472,10 +504,12 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
   const releaseStatements = buildReleaseByIdsStatements(ctx, orm, releaseIds, now, 'released')
   const releasedIds = releasedIdsFrom(await ctx.db.batch(releaseStatements))
 
-  // Every field is already known from the read above — the released row is just that
-  // snapshot with releasedAt/releaseReason applied, so no re-SELECT is needed (PROJ-864).
-  // Only rows this batch actually released count: one released by a concurrent request
-  // between the read and the batch is someone else's release.
+  /*
+   * Every field is already known from the read above — the released row is just that
+   * snapshot with releasedAt/releaseReason applied, so no re-SELECT is needed (PROJ-864).
+   * Only rows this batch actually released count: one released by a concurrent request
+   * between the read and the batch is someone else's release.
+   */
   const releasedRows = toRelease.filter((r) => releasedIds.has(r.id))
   if (releasedRows.length === 0) {
     return { released: [], count: 0 }
@@ -486,8 +520,10 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
     releaseReason: 'released',
   }))
 
-  // Stamp projectId on the broadcast. When issueId is provided there is exactly one
-  // project; otherwise released rows may span projects, so fan out one event per project.
+  /*
+   * Stamp projectId on the broadcast. When issueId is provided there is exactly one
+   * project; otherwise released rows may span projects, so fan out one event per project.
+   */
   if (issueId) {
     await broadcastWorkspaceEvent(ctx, {
       type: 'claims.released',
@@ -533,11 +569,13 @@ export async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
   const cutoff = liveCutoff()
   const now = Math.floor(Date.now() / 1000)
   const agentlessCutoff = fileClaimAgentlessCutoff(ctx, now)
-  // PROJ-636/928: one rule for "is this claim live" (see fileClaimLiveExpr), reused below
-  // for both the default listing's filter and every row's `live` flag — false means the
-  // holder stopped heartbeating (or, for an agentless claim, its TTL elapsed) and the next
-  // claim on that path will reclaim it. Without it a reclaimable claim is indistinguishable
-  // from a held one, which would make the self-healing the docs now describe unobservable.
+  /*
+   * PROJ-636/928: one rule for "is this claim live" (see fileClaimLiveExpr), reused below
+   * for both the default listing's filter and every row's `live` flag — false means the
+   * holder stopped heartbeating (or, for an agentless claim, its TTL elapsed) and the next
+   * claim on that path will reclaim it. Without it a reclaimable claim is indistinguishable
+   * from a held one, which would make the self-healing the docs now describe unobservable.
+   */
   const liveExpr = fileClaimLiveExpr(cutoff, agentlessCutoff)
 
   const conditions = [
@@ -558,10 +596,12 @@ export async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
     conditions.push(eq(liveExpr, 1))
   }
 
-  // PROJ-316: a non-admin member only sees claims on issues whose project they can
-  // access; owner/admin (predicate undefined) see every claim. Every claim is joined to
-  // its issue below (issue_id is NOT NULL), so the predicate can take the joined project
-  // id column directly instead of a correlated subquery.
+  /*
+   * PROJ-316: a non-admin member only sees claims on issues whose project they can
+   * access; owner/admin (predicate undefined) see every claim. Every claim is joined to
+   * its issue below (issue_id is NOT NULL), so the predicate can take the joined project
+   * id column directly instead of a correlated subquery.
+   */
   const vis = visibleProjectPredicate(ctx, schema.issues.projectId)
   if (vis) {
     conditions.push(vis)
@@ -600,14 +640,16 @@ export async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
   return { items }
 }
 
-// PROJ-334: "abandoned claim" for the factory-health tile — released because the
-// agent's session ended, not because the work was released deliberately.
-//
-// PROJ-636: this is no longer the only abandonment path. A claim whose holder stopped
-// heartbeating is reclaimed as `expired` by the next claim on the same path, so a crashed
-// agent no longer deadlocks its paths. Agent-end remains the *eager* path — it frees the
-// claim immediately rather than leaving it to the next claimant — and it is the one that
-// records `agent_ended` for the health tile, which distinguishes a clean exit from a crash.
+/*
+ * PROJ-334: "abandoned claim" for the factory-health tile — released because the
+ * agent's session ended, not because the work was released deliberately.
+ *
+ * PROJ-636: this is no longer the only abandonment path. A claim whose holder stopped
+ * heartbeating is reclaimed as `expired` by the next claim on the same path, so a crashed
+ * agent no longer deadlocks its paths. Agent-end remains the *eager* path — it frees the
+ * claim immediately rather than leaving it to the next claimant — and it is the one that
+ * records `agent_ended` for the health tile, which distinguishes a clean exit from a crash.
+ */
 export async function releaseClaimsForAgent(ctx: ServiceCtx, agentId: string) {
   const orm = drizzle(ctx.db, { schema })
   const now = Math.floor(Date.now() / 1000)

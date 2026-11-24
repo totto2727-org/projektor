@@ -7,9 +7,11 @@ import { assertIssueAccess, isWorkspaceAdmin } from './access.ts'
 import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
 
-// Mirrors ACTIVE_TTL in services/agents.ts (and SESSION_TTL_SECONDS in
-// services/issue-leases.ts). Duplicated rather than imported: both of those files import
-// this one, so importing back would cycle.
+/*
+ * Mirrors ACTIVE_TTL in services/agents.ts (and SESSION_TTL_SECONDS in
+ * services/issue-leases.ts). Duplicated rather than imported: both of those files import
+ * this one, so importing back would cycle.
+ */
 const LIVE_TTL_SECONDS = 120
 
 export function agentSessionCredential(ctx: ServiceCtx): string | undefined {

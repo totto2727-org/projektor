@@ -33,8 +33,10 @@ afterEach(() => {
   }
 })
 
-// Capture the framework's schema boundary while exercising migrated D1, real development
-// authentication, shared domain authorization and direct command side effects.
+/*
+ * Capture the framework's schema boundary while exercising migrated D1, real development
+ * authentication, shared domain authorization and direct command side effects.
+ */
 vi.mock('../../effront', () => ({
   EFFRONT: { ServerFn: { make: (definition: unknown) => ({ definition }) } },
 }))

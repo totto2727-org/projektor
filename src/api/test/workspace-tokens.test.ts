@@ -1,11 +1,13 @@
-// PROJ-917: workspace tokens (POST/DELETE /api/workspaces/:slug/tokens) are minted and
-// revoked only from an interactive human session — the same rule PROJ-903 applied to
-// personal access tokens. A pk_ token (even an owner's, with `*` scopes) and an OAuth
-// grant are refused; see oauth.test.ts for the OAuth-grant case, which needs that
-// file's consent-flow helpers.
-//
-// In tests the human session is the dev bypass: ENVIRONMENT=development +
-// DEV_USER_EMAIL, no Authorization header.
+/*
+ * PROJ-917: workspace tokens (POST/DELETE /api/workspaces/:slug/tokens) are minted and
+ * revoked only from an interactive human session — the same rule PROJ-903 applied to
+ * personal access tokens. A pk_ token (even an owner's, with `*` scopes) and an OAuth
+ * grant are refused; see oauth.test.ts for the OAuth-grant case, which needs that
+ * file's consent-flow helpers.
+ *
+ * In tests the human session is the dev bypass: ENVIRONMENT=development +
+ * DEV_USER_EMAIL, no Authorization header.
+ */
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'

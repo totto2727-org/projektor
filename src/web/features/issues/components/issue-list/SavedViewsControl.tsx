@@ -11,8 +11,10 @@ import type { useSavedViews } from './useSavedViews.ts'
 
 type Saved = ReturnType<typeof useSavedViews>
 
-// Standard menu items keep selection and deletion keyboard-accessible without
-// nesting action buttons inside a Select option or maintaining a custom menu.
+/*
+ * Standard menu items keep selection and deletion keyboard-accessible without
+ * nesting action buttons inside a Select option or maintaining a custom menu.
+ */
 function ViewsMenu({ saved }: { saved: Saved }) {
   const { savedViews, activeViewName, applyView, deleteView } = saved
   if (savedViews.length === 0) {

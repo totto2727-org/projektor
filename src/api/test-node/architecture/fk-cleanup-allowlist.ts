@@ -1,9 +1,11 @@
-// PROJ-923: every FK declared with ON DELETE CASCADE / SET NULL in root migrations/,
-// and how the app handles it. D1 does not guarantee FK actions (PROJ-407), so a delete of
-// the parent must clean up the child explicitly (cleanedBy: the code that does it, checked
-// by fk-cleanup.node.test.ts to mention the child table), or be impossible/refused while
-// children exist (guarded: why). Adding an FK with ON DELETE without an entry here fails
-// the test — see AGENTS.md "Deletes never rely on FK cascades".
+/*
+ * PROJ-923: every FK declared with ON DELETE CASCADE / SET NULL in root migrations/,
+ * and how the app handles it. D1 does not guarantee FK actions (PROJ-407), so a delete of
+ * the parent must clean up the child explicitly (cleanedBy: the code that does it, checked
+ * by fk-cleanup.node.test.ts to mention the child table), or be impossible/refused while
+ * children exist (guarded: why). Adding an FK with ON DELETE without an entry here fails
+ * the test — see AGENTS.md "Deletes never rely on FK cascades".
+ */
 
 export type FkCleanupEntry = { cleanedBy: readonly string[] } | { guarded: string }
 

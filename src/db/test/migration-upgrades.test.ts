@@ -5,9 +5,11 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { loadMigrations } from './helpers.ts'
 
-// These are offline, explicitly approved fixture mappings, not a production repair
-// algorithm. Execute complete historical files, including FTS, without rewriting SQL
-// or simulating an Alchemy ledger. Node SQLite does not prove native D1 atomicity.
+/*
+ * These are offline, explicitly approved fixture mappings, not a production repair
+ * algorithm. Execute complete historical files, including FTS, without rewriting SQL
+ * or simulating an Alchemy ledger. Node SQLite does not prove native D1 atomicity.
+ */
 const pageId = 'abcdef12-0000-4000-8000-000000000001'
 const migrations = loadMigrations()
 const filenames = readdirSync(new URL('../../../migrations/', import.meta.url))
@@ -96,8 +98,10 @@ const cases = [
       expect(
         db.prepare("UPDATE wiki_pages SET slug='a-b-legacy-copy' WHERE id=? AND slug='a/b'").run(pageId).changes,
       ).toBe(1)
-      // The reviewed mapping transfers this exact old URL to the repaired page,
-      // preserving the existing redirect ID rather than silently replacing it.
+      /*
+       * The reviewed mapping transfers this exact old URL to the repaired page,
+       * preserving the existing redirect ID rather than silently replacing it.
+       */
       expect(
         db.prepare("UPDATE wiki_redirects SET page_id=? WHERE id='prior' AND page_id='other-2'").run(pageId).changes,
       ).toBe(1)

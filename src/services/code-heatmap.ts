@@ -15,13 +15,17 @@ export interface CodeHeatmapRange {
 }
 
 export interface CodeHeatmapEntry {
-  // Full path from the workspace root to this segment (the drill-down cursor for a
-  // non-leaf entry's children).
+  /*
+   * Full path from the workspace root to this segment (the drill-down cursor for a
+   * non-leaf entry's children).
+   */
   path: string
   // This entry's own path component, relative to the request's `prefix`.
   segment: string
-  // True when this entry is an exact claimed file path (no further segments beneath
-  // it) rather than a directory grouping further claims.
+  /*
+   * True when this entry is an exact claimed file path (no further segments beneath
+   * it) rather than a directory grouping further claims.
+   */
   isLeaf: boolean
   distinctIssueCount: number
   claimCount: number
@@ -37,8 +41,10 @@ export interface ContentionHeatmapEntry {
   conflictCount: number
 }
 
-// Resolves the path segment one level below `prefix` that `itemPath` falls under, or null
-// if `itemPath` IS `prefix` (nothing left to drill into).
+/*
+ * Resolves the path segment one level below `prefix` that `itemPath` falls under, or null
+ * if `itemPath` IS `prefix` (nothing left to drill into).
+ */
 function resolveNextSegment(
   itemPath: string,
   prefix: string,
@@ -57,11 +63,13 @@ function resolveNextSegment(
 
 type SegmentGroup = { ids: Set<string>; count: number; isLeaf: boolean }
 
-// PROJ-332/338: group items (claims or conflicts) one path segment below `prefix` — the
-// natural "list this directory's children" step a file explorer takes, so the caller
-// drills down by re-requesting with `prefix` set to the entry clicked. Shared by
-// groupClaimsByNextSegment and groupConflictsByNextSegment (below), which differ only in
-// how they extract the distinct id to count per group.
+/*
+ * PROJ-332/338: group items (claims or conflicts) one path segment below `prefix` — the
+ * natural "list this directory's children" step a file explorer takes, so the caller
+ * drills down by re-requesting with `prefix` set to the entry clicked. Shared by
+ * groupClaimsByNextSegment and groupConflictsByNextSegment (below), which differ only in
+ * how they extract the distinct id to count per group.
+ */
 function groupItemsByNextSegment<T extends { path: string }>(
   items: readonly T[],
   prefix: string,
@@ -85,8 +93,10 @@ function groupItemsByNextSegment<T extends { path: string }>(
       group = { ids: new Set(), count: 0, isLeaf }
       groups.set(path, group)
     }
-    // A path claimed as both a file and a directory (e.g. `docs` and `docs/x.md`) is a
-    // directory: keep it drillable rather than freezing isLeaf on the first item seen.
+    /*
+     * A path claimed as both a file and a directory (e.g. `docs` and `docs/x.md`) is a
+     * directory: keep it drillable rather than freezing isLeaf on the first item seen.
+     */
     if (!isLeaf) {
       group.isLeaf = false
     }
@@ -137,18 +147,22 @@ async function readCodeHeatmap(db: D1Database, workspaceId: string, range: CodeH
   const { projectId, since, until, prefix, mode } = range
   const orm = drizzle(db, { schema })
 
-  // Default window mirrors flow-metrics' throughput default (current ISO week plus the
-  // preceding 5 weeks) so the heatmap agrees with the rest of the dashboard when no
-  // explicit range is passed.
+  /*
+   * Default window mirrors flow-metrics' throughput default (current ISO week plus the
+   * preceding 5 weeks) so the heatmap agrees with the rest of the dashboard when no
+   * explicit range is passed.
+   */
   const windowSince = since ?? now - 42 * 86_400
   const windowUntil = until ?? now
 
   const resolvedMode = mode ?? 'claims'
 
   if (resolvedMode === 'contention') {
-    // PROJ-338: same window predicate as claims mode, but over claim_conflicts —
-    // occurredAt within [since, until], joined to issues (via rejectedIssueId) to scope
-    // by project.
+    /*
+     * PROJ-338: same window predicate as claims mode, but over claim_conflicts —
+     * occurredAt within [since, until], joined to issues (via rejectedIssueId) to scope
+     * by project.
+     */
     const conflicts = await orm
       .select({
         path: schema.claimConflicts.path,
@@ -170,17 +184,21 @@ async function readCodeHeatmap(db: D1Database, workspaceId: string, range: CodeH
     return {
       prefix: prefix ?? '',
       mode: resolvedMode,
-      // Reuses the claims-mode field name so the response shape doesn't fork in two —
-      // here it's the distinct count of *rejected* issues, i.e. issues whose claim
-      // attempt lost.
+      /*
+       * Reuses the claims-mode field name so the response shape doesn't fork in two —
+       * here it's the distinct count of *rejected* issues, i.e. issues whose claim
+       * attempt lost.
+       */
       totalDistinctIssues: new Set(conflicts.map((c) => c.rejectedIssueId)).size,
       entries,
     }
   }
 
-  // PROJ-332: window predicate matches the rest of flow-metrics — claimedAt within
-  // [since, until], not claim overlap. issue_file_claims has no project column, so join
-  // issues to scope by project.
+  /*
+   * PROJ-332: window predicate matches the rest of flow-metrics — claimedAt within
+   * [since, until], not claim overlap. issue_file_claims has no project column, so join
+   * issues to scope by project.
+   */
   const claims = await orm
     .select({ path: schema.issueFileClaims.path, issueId: schema.issueFileClaims.issueId })
     .from(schema.issueFileClaims)

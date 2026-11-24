@@ -19,9 +19,11 @@ export const CreateIssueSchema = z
   })
   .strict()
 
-// PROJ-254: completion report an agent (or human) submits when entering review /
-// before an issue can be marked done. Exported (PROJ-929) so finish_work's schema can
-// reuse it rather than duplicating the shape.
+/*
+ * PROJ-254: completion report an agent (or human) submits when entering review /
+ * before an issue can be marked done. Exported (PROJ-929) so finish_work's schema can
+ * reuse it rather than duplicating the shape.
+ */
 export const CompletionReportSchema = z.object({
   summary: z.string().min(1),
   verification: z.string().min(1),
@@ -68,8 +70,10 @@ export const ListIssuesSchema = z
     priority: PriorityEnum.optional(),
     priorities: z.string().optional(),
     projectId: z.string().optional(),
-    // PROJ-444: "me" is a sentinel the service resolves to ctx.userId — kept visible in
-    // the schema (rather than folded silently into z.string()) so both surfaces document it.
+    /*
+     * PROJ-444: "me" is a sentinel the service resolves to ctx.userId — kept visible in
+     * the schema (rather than folded silently into z.string()) so both surfaces document it.
+     */
     assignee: z.union([z.literal('me'), z.string()]).optional(),
     parentId: z.string().optional(),
     noParent: BooleanQueryParam.optional(),
@@ -82,19 +86,27 @@ export const ListIssuesSchema = z
     completedBefore: z.coerce.number().optional(),
     updatedAfter: z.coerce.number().optional(),
     updatedBefore: z.coerce.number().optional(),
-    // PROJ-375: surface agent-initiated done-closures whose evidence wasn't
-    // externally checkable, for periodic human audit.
+    /*
+     * PROJ-375: surface agent-initiated done-closures whose evidence wasn't
+     * externally checkable, for periodic human audit.
+     */
     needsAudit: BooleanQueryParam.optional(),
-    // PROJ-441: compute child rollups for the returned page in one grouped query
-    // (see computeChildRollupsForParents in services/issues.ts) instead of the
-    // frontend fanning out a getIssue call per row.
+    /*
+     * PROJ-441: compute child rollups for the returned page in one grouped query
+     * (see computeChildRollupsForParents in services/issues.ts) instead of the
+     * frontend fanning out a getIssue call per row.
+     */
     includeRollups: BooleanQueryParam.optional(),
-    // PROJ-442: list items omit `body` by default (it's rarely needed and can be
-    // large); set this to restore it.
+    /*
+     * PROJ-442: list items omit `body` by default (it's rarely needed and can be
+     * large); set this to restore it.
+     */
     includeBody: BooleanQueryParam.optional(),
-    // PROJ-857: `<created_at>:<id>` — created_at alone (1 s precision) skipped rows
-    // created in the same second across a page boundary. A bare number (the old
-    // format) is still accepted from clients holding a pre-upgrade cursor.
+    /*
+     * PROJ-857: `<created_at>:<id>` — created_at alone (1 s precision) skipped rows
+     * created in the same second across a page boundary. A bare number (the old
+     * format) is still accepted from clients holding a pre-upgrade cursor.
+     */
     cursor: IssueListCursorSchema.optional(),
     limit: z.coerce.number().min(1).max(100).default(30),
   })

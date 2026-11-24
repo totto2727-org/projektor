@@ -53,9 +53,11 @@ export function useFilterUrlSync(
     filterDateTo,
   } = state
 
-  // PROJ-862: initial state is read from the URL synchronously (useIssueFilters'
-  // lazy initialisers), not in a mount effect — the effect ran after the first
-  // render, so the first issues request went out with no filters at all.
+  /*
+   * PROJ-862: initial state is read from the URL synchronously (useIssueFilters'
+   * lazy initialisers), not in a mount effect — the effect ran after the first
+   * render, so the first issues request went out with no filters at all.
+   */
 
   // Sync filter state back to URL without page reload.
   const previous = useRef(

@@ -1,18 +1,20 @@
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider'
 
-// PROJ-656: the value that carries an authorization request across the consent screen.
-//
-// The consent POST needs CSRF protection, and it needs the authorization request it is
-// approving to be exactly the one that was displayed. A hidden field holding the raw
-// query string gives neither: an attacker's page can POST a form to another origin, so
-// without a bound secret a cross-site request would silently mint a grant on the
-// victim's session for the attacker's client — and without integrity, a tampered field
-// would consent to a different client or a wider scope than the screen showed.
-//
-// So the whole displayed decision is serialised and signed. Verification re-checks the
-// signature, the expiry, and that the session presenting it is the same session it was
-// issued to. Nothing here is secret — it is integrity and origin-binding, not
-// confidentiality — so the payload is plain base64url, not encrypted.
+/*
+ * PROJ-656: the value that carries an authorization request across the consent screen.
+ *
+ * The consent POST needs CSRF protection, and it needs the authorization request it is
+ * approving to be exactly the one that was displayed. A hidden field holding the raw
+ * query string gives neither: an attacker's page can POST a form to another origin, so
+ * without a bound secret a cross-site request would silently mint a grant on the
+ * victim's session for the attacker's client — and without integrity, a tampered field
+ * would consent to a different client or a wider scope than the screen showed.
+ *
+ * So the whole displayed decision is serialised and signed. Verification re-checks the
+ * signature, the expiry, and that the session presenting it is the same session it was
+ * issued to. Nothing here is secret — it is integrity and origin-binding, not
+ * confidentiality — so the payload is plain base64url, not encrypted.
+ */
 
 const CONSENT_TTL_SECS = 600
 

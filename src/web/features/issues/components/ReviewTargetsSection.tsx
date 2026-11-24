@@ -51,9 +51,11 @@ function ReviewTargetRow({
       unwrapResult(
         await setAttachmentReviewStatus({ workspaceSlug, issueId, attachmentId: attachment.id, status: nextStatus }),
       )
-      // A refreshed attachment acknowledges invalidation, even if another writer
-      // has already superseded this status or reverted it to the original value.
-      // Never unlock during the write, or copy the submitted status into the UI.
+      /*
+       * A refreshed attachment acknowledges invalidation, even if another writer
+       * has already superseded this status or reverted it to the original value.
+       * Never unlock during the write, or copy the submitted status into the UI.
+       */
       setPending({ attachment, saved: true })
     } catch (cause) {
       setError(

@@ -14,9 +14,11 @@ export const ReleaseFilesSchema = z.object({
   issueId: z.string().uuid().optional(),
 })
 
-// PROJ-932: projectId accepts a UUID or a project key, resolved the same way list_issues
-// resolves its projectId filter. includeStale restores the pre-PROJ-932 behaviour of
-// returning every unreleased claim regardless of holder health.
+/*
+ * PROJ-932: projectId accepts a UUID or a project key, resolved the same way list_issues
+ * resolves its projectId filter. includeStale restores the pre-PROJ-932 behaviour of
+ * returning every unreleased claim regardless of holder health.
+ */
 export const ListFileClaimsSchema = z.object({
   issueId: z.string().uuid().optional(),
   path: z.string().optional(),

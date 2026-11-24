@@ -1,12 +1,14 @@
 import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
 
-// PROJ-493 (R11): watch/unwatch per page or subtree, a per-user notification list, and
-// list_wiki_changes — cheap delta polling for agents.
-//
-// No dependency on services/wiki.ts (avoids a circular import — wiki.ts calls into this
-// file's notifyWikiWatchers on every write). Page resolution + visibility checks are
-// duplicated in miniature here rather than imported, mirroring services/wiki-links.ts's
-// resolveSlugTargets precedent.
+/*
+ * PROJ-493 (R11): watch/unwatch per page or subtree, a per-user notification list, and
+ * list_wiki_changes — cheap delta polling for agents.
+ *
+ * No dependency on services/wiki.ts (avoids a circular import — wiki.ts calls into this
+ * file's notifyWikiWatchers on every write). Page resolution + visibility checks are
+ * duplicated in miniature here rather than imported, mirroring services/wiki-links.ts's
+ * resolveSlugTargets precedent.
+ */
 import { drizzle, schema } from '#db'
 
 import {
@@ -32,9 +34,11 @@ type ResolvedWatchTarget = {
   parentId: string | null
 }
 
-// PROJ-493: same id-or-slug + redirect-fallback resolution as services/wiki.ts's
-// resolvePageByIdOrSlug, plus the same project-visibility check as assertWikiPageVisible —
-// duplicated (not imported) to avoid a circular import, see module comment above.
+/*
+ * PROJ-493: same id-or-slug + redirect-fallback resolution as services/wiki.ts's
+ * resolvePageByIdOrSlug, plus the same project-visibility check as assertWikiPageVisible —
+ * duplicated (not imported) to avoid a circular import, see module comment above.
+ */
 async function resolveWatchTarget(ctx: ServiceCtx, idOrSlug: string): Promise<ResolvedWatchTarget> {
   const orm = drizzle(ctx.db, { schema })
   const direct = await orm
@@ -50,8 +54,10 @@ async function resolveWatchTarget(ctx: ServiceCtx, idOrSlug: string): Promise<Re
       and(
         idOrSlugMatch(idOrSlug),
         eq(schema.wikiPages.workspaceId, ctx.workspaceId),
-        // PROJ-496: a trashed page can't be (un)watched — same "trashed = gone" rule
-        // as every other page reference entry point (services/wiki.ts).
+        /*
+         * PROJ-496: a trashed page can't be (un)watched — same "trashed = gone" rule
+         * as every other page reference entry point (services/wiki.ts).
+         */
         isNull(schema.wikiPages.deletedAt),
       ),
     )
@@ -157,9 +163,11 @@ export async function listWikiWatches(ctx: ServiceCtx) {
       and(
         eq(schema.wikiWatchers.workspaceId, ctx.workspaceId),
         eq(schema.wikiWatchers.userId, ctx.userId),
-        // PROJ-496: a watch row on a page that's since been trashed lingers until
-        // purge (deleteWikiWatchersForPages now only runs at purge time) — filtered
-        // out here so the caller's watch list doesn't show a page they can't open.
+        /*
+         * PROJ-496: a watch row on a page that's since been trashed lingers until
+         * purge (deleteWikiWatchersForPages now only runs at purge time) — filtered
+         * out here so the caller's watch list doesn't show a page they can't open.
+         */
         isNull(schema.wikiPages.deletedAt),
       ),
     )
@@ -168,12 +176,14 @@ export async function listWikiWatches(ctx: ServiceCtx) {
   return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }))
 }
 
-// PROJ-493/PROJ-820: walks UP from `pageId` through parent_id, bounded by the wiki's
-// own max nesting depth (WIKI_MAX_NESTING_DEPTH — services/wiki.ts's
-// validateParentDepth) plus one for headroom. Takes `parentId` explicitly (rather than
-// re-reading pageId's own row) so callers can use it for a page that's about to be
-// created (parentId known, pageId's row doesn't exist yet) or one that's mid-delete
-// (parentId captured before the row is removed).
+/*
+ * PROJ-493/PROJ-820: walks UP from `pageId` through parent_id, bounded by the wiki's
+ * own max nesting depth (WIKI_MAX_NESTING_DEPTH — services/wiki.ts's
+ * validateParentDepth) plus one for headroom. Takes `parentId` explicitly (rather than
+ * re-reading pageId's own row) so callers can use it for a page that's about to be
+ * created (parentId known, pageId's row doesn't exist yet) or one that's mid-delete
+ * (parentId captured before the row is removed).
+ */
 async function resolveAncestorChain(
   db: D1Database,
   pageId: string,
@@ -204,13 +214,15 @@ const ACTION_LABEL: Record<'created' | 'updated' | 'deleted', string> = {
   deleted: 'Deleted',
 }
 
-// PROJ-493: called from services/wiki.ts after every create/update/patch/delete write
-// (not called at all when the affected page is currently flagged `is_template` — R9
-// template pages are scaffolding, not content watchers signed up to be notified about;
-// see the PR description for this reasoned call). A watch on page P matches a change to
-// page X when either P === X (a direct watch, regardless of its subtree flag) or P is a
-// PROPER ancestor of X and the watch has subtree=true. The actor is never notified of
-// their own change.
+/*
+ * PROJ-493: called from services/wiki.ts after every create/update/patch/delete write
+ * (not called at all when the affected page is currently flagged `is_template` — R9
+ * template pages are scaffolding, not content watchers signed up to be notified about;
+ * see the PR description for this reasoned call). A watch on page P matches a change to
+ * page X when either P === X (a direct watch, regardless of its subtree flag) or P is a
+ * PROPER ancestor of X and the watch has subtree=true. The actor is never notified of
+ * their own change.
+ */
 export async function notifyWikiWatchers(
   ctx: ServiceCtx,
   opts: Readonly<{
@@ -252,10 +264,12 @@ export async function notifyWikiWatchers(
   )
 }
 
-// PROJ-821: a watch row outlives the watcher's access — a removed member, or one whose
-// group lost its grant on the page's project, must not keep receiving notifications
-// (which carry the page title). Access is checked per recipient at send time; watch
-// rows themselves are left alone, so restoring access restores notifications.
+/*
+ * PROJ-821: a watch row outlives the watcher's access — a removed member, or one whose
+ * group lost its grant on the page's project, must not keep receiving notifications
+ * (which carry the page title). Access is checked per recipient at send time; watch
+ * rows themselves are left alone, so restoring access restores notifications.
+ */
 async function filterRecipientsWithAccess<E extends { userId: string; pageId: string }>(
   ctx: ServiceCtx,
   orm: Orm,
@@ -327,24 +341,28 @@ async function insertNotifications(
     readAt: null,
   }))
 
-  // Each row binds 11 params; 8 rows/insert stays comfortably under D1's 100-param cap
-  // (services/sql.ts#inChunks is calibrated for single-param-per-item IN-lists, not
-  // multi-column inserts — same rationale as wiki-links.ts's LINK_INSERT_CHUNK_SIZE).
+  /*
+   * Each row binds 11 params; 8 rows/insert stays comfortably under D1's 100-param cap
+   * (services/sql.ts#inChunks is calibrated for single-param-per-item IN-lists, not
+   * multi-column inserts — same rationale as wiki-links.ts's LINK_INSERT_CHUNK_SIZE).
+   */
   const NOTIFICATION_INSERT_CHUNK_SIZE = 8
   for (let i = 0; i < values.length; i += NOTIFICATION_INSERT_CHUNK_SIZE) {
     await orm.insert(schema.wikiNotifications).values(values.slice(i, i + NOTIFICATION_INSERT_CHUNK_SIZE))
   }
 }
 
-// PROJ-493: a cascade delete also removes every descendant page. Watchers rooted at (or
-// above) the cascade root already got the single root-level notification, but a watcher
-// whose watch row points AT one of the descendants matches only that descendant — without
-// this they'd be told nothing at all and then have their watch row removed underneath
-// them. One notification per (watcher, deleted descendant they watched).
-//
-// PROJ-496 follow-up: also used by undeleteWikiPage's cascade-restore path (action:
-// "updated") so a descendant watcher hears about the restore too, mirroring the delete
-// side — otherwise they'd get a "deleted" event with no matching "restored" one.
+/*
+ * PROJ-493: a cascade delete also removes every descendant page. Watchers rooted at (or
+ * above) the cascade root already got the single root-level notification, but a watcher
+ * whose watch row points AT one of the descendants matches only that descendant — without
+ * this they'd be told nothing at all and then have their watch row removed underneath
+ * them. One notification per (watcher, deleted descendant they watched).
+ *
+ * PROJ-496 follow-up: also used by undeleteWikiPage's cascade-restore path (action:
+ * "updated") so a descendant watcher hears about the restore too, mirroring the delete
+ * side — otherwise they'd get a "deleted" event with no matching "restored" one.
+ */
 export async function notifyCascadeDescendantWatchers(
   ctx: ServiceCtx,
   descendants: readonly { id: string; slug: string; title: string; isTemplate: boolean }[],
@@ -386,10 +404,12 @@ export async function notifyCascadeDescendantWatchers(
   await insertNotifications(ctx, orm, entries)
 }
 
-// PROJ-493: mirror wiki_watchers.page_id's ON DELETE CASCADE at the app level, same
-// PROJ-407 precedent as deleteWikiPageAttachments/deleteWikiLinksForPages — D1 does not
-// guarantee FK enforcement on every connection, so leaning on the FK alone would leave
-// watch rows pointing at pages that no longer exist.
+/*
+ * PROJ-493: mirror wiki_watchers.page_id's ON DELETE CASCADE at the app level, same
+ * PROJ-407 precedent as deleteWikiPageAttachments/deleteWikiLinksForPages — D1 does not
+ * guarantee FK enforcement on every connection, so leaning on the FK alone would leave
+ * watch rows pointing at pages that no longer exist.
+ */
 export async function deleteWikiWatchersForPages(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
   if (pageIds.length === 0) {
     return
@@ -480,30 +500,36 @@ export interface WikiChangeEvent {
   projectId: string | null
   actorId: string | null
   createdAt: number
-  // PROJ-526: for a cascade delete's root event only — ids of every page removed by the
-  // cascade, INCLUDING the root's own id (== `pageId`), capped at MAX_DELETED_PAGE_IDS.
-  // null for every non-cascade event, so a poller building a local mirror can evict
-  // these ids without needing a separate activity row per descendant. Note: post-R14
-  // (PROJ-496), "deleted" here means "trashed" — the pages are recoverable via
-  // undelete_wiki_page within the retention window, so a poller should treat eviction
-  // as provisional, not permanent.
+  /*
+   * PROJ-526: for a cascade delete's root event only — ids of every page removed by the
+   * cascade, INCLUDING the root's own id (== `pageId`), capped at MAX_DELETED_PAGE_IDS.
+   * null for every non-cascade event, so a poller building a local mirror can evict
+   * these ids without needing a separate activity row per descendant. Note: post-R14
+   * (PROJ-496), "deleted" here means "trashed" — the pages are recoverable via
+   * undelete_wiki_page within the retention window, so a poller should treat eviction
+   * as provisional, not permanent.
+   */
   deletedPageIds: string[] | null
-  // PROJ-526: true when the cascade exceeded MAX_DELETED_PAGE_IDS and deletedPageIds was
-  // truncated — deletedCount on the same event still reports the true total, so a poller
-  // can detect a truncated mirror-eviction list and fall back to a full resync.
+  /*
+   * PROJ-526: true when the cascade exceeded MAX_DELETED_PAGE_IDS and deletedPageIds was
+   * truncated — deletedCount on the same event still reports the true total, so a poller
+   * can detect a truncated mirror-eviction list and fall back to a full resync.
+   */
   deletedPageIdsTruncated: boolean
 }
 
-// PROJ-493: for created/updated events, current page state (slug/title/projectId) is
-// read live off wiki_pages — always up to date even if the page changed again since.
-// For deleted events there's no current row, so the same fields captured at delete time
-// in the activity diff (services/wiki.ts#deleteWikiPage) are used instead — including
-// projectId, which is what lets a deleted project-scoped page's event still be hidden
-// from a caller who can't see that project (the workspace-scoping invariant applies to
-// deleted pages too, not just live ones).
-// PROJ-869: `diff` now arrives as the raw JSON text (see listWikiChanges' CASE
-// expression, which only selects it for 'deleted' rows) rather than pre-parsed, since a
-// raw sql fragment loses the wiki_pages.diff column's mode:"json" auto-decoding.
+/*
+ * PROJ-493: for created/updated events, current page state (slug/title/projectId) is
+ * read live off wiki_pages — always up to date even if the page changed again since.
+ * For deleted events there's no current row, so the same fields captured at delete time
+ * in the activity diff (services/wiki.ts#deleteWikiPage) are used instead — including
+ * projectId, which is what lets a deleted project-scoped page's event still be hidden
+ * from a caller who can't see that project (the workspace-scoping invariant applies to
+ * deleted pages too, not just live ones).
+ * PROJ-869: `diff` now arrives as the raw JSON text (see listWikiChanges' CASE
+ * expression, which only selects it for 'deleted' rows) rather than pre-parsed, since a
+ * raw sql fragment loses the wiki_pages.diff column's mode:"json" auto-decoding.
+ */
 function extractDeletedPageInfo(rawDiff: string | null): {
   slug: string | null
   title: string | null
@@ -525,8 +551,10 @@ function extractDeletedPageInfo(rawDiff: string | null): {
     slug: typeof diff.slug === 'string' ? diff.slug : null,
     title: typeof diff.title === 'string' ? diff.title : null,
     projectId: typeof diff.projectId === 'string' ? diff.projectId : null,
-    // PROJ-526: only present on a cascade root's diff (services/wiki.ts#deleteWikiPage);
-    // includes the root's own id — see WikiChangeEvent's doc for the full contract.
+    /*
+     * PROJ-526: only present on a cascade root's diff (services/wiki.ts#deleteWikiPage);
+     * includes the root's own id — see WikiChangeEvent's doc for the full contract.
+     */
     deletedPageIds: Array.isArray(diff.deletedPageIds)
       ? diff.deletedPageIds.filter((id): id is string => typeof id === 'string')
       : null,
@@ -560,11 +588,13 @@ type WikiActivityRow = {
   pageDeletedAt: number | null
 }
 
-// PROJ-496: a "created"/"updated" event for a page that's now trashed is stale — the page
-// itself is excluded from every other read path, so the delta feed drops it too rather
-// than pointing an agent at a page get_wiki_page will 404 on. The "deleted" event for that
-// same trash action is NOT dropped: it's the one event that's supposed to report the page
-// went away.
+/*
+ * PROJ-496: a "created"/"updated" event for a page that's now trashed is stale — the page
+ * itself is excluded from every other read path, so the delta feed drops it too rather
+ * than pointing an agent at a page get_wiki_page will 404 on. The "deleted" event for that
+ * same trash action is NOT dropped: it's the one event that's supposed to report the page
+ * went away.
+ */
 function eventFieldsFor(
   action: 'created' | 'updated' | 'deleted',
   r: WikiActivityRow,
@@ -597,8 +627,10 @@ async function isEventVisible(
   return canSeeProject(eventProjectId)
 }
 
-// Resolves one activity row to an event, or null if it should be dropped (stale
-// trash-shadowed row, wrong project, or not visible to the caller).
+/*
+ * Resolves one activity row to an event, or null if it should be dropped (stale
+ * trash-shadowed row, wrong project, or not visible to the caller).
+ */
 async function toWikiChangeEvent(
   r: WikiActivityRow,
   projectId: string | undefined,
@@ -628,11 +660,13 @@ async function toWikiChangeEvent(
   }
 }
 
-// PROJ-493: resolves the (pageId -> is-watched) set for the caller, for list_wiki_changes'
-// watchedOnly filter. Mirrors notifyWikiWatchers' match rule (direct watch, or a
-// subtree watch on a proper ancestor) but walks the CURRENT tree — a page reparented out
-// of a watched subtree since the change occurred is (deliberately) not flagged watched,
-// same class of "current tree, not historical" approximation as the rest of this file.
+/*
+ * PROJ-493: resolves the (pageId -> is-watched) set for the caller, for list_wiki_changes'
+ * watchedOnly filter. Mirrors notifyWikiWatchers' match rule (direct watch, or a
+ * subtree watch on a proper ancestor) but walks the CURRENT tree — a page reparented out
+ * of a watched subtree since the change occurred is (deliberately) not flagged watched,
+ * same class of "current tree, not historical" approximation as the rest of this file.
+ */
 async function loadWikiWatchSets(
   ctx: ServiceCtx,
   orm: Orm,
@@ -647,10 +681,12 @@ async function loadWikiWatchSets(
   }
 }
 
-// Walks every candidate's parent chain in lock-step — one batched query per tree level
-// (nesting is capped at WIKI_MAX_NESTING_DEPTH) rather than a per-candidate chain walk,
-// which would be O(candidates x depth) round-trips for a `limit` of up to 500. Mutates
-// `matched` in place.
+/*
+ * Walks every candidate's parent chain in lock-step — one batched query per tree level
+ * (nesting is capped at WIKI_MAX_NESTING_DEPTH) rather than a per-candidate chain walk,
+ * which would be O(candidates x depth) round-trips for a `limit` of up to 500. Mutates
+ * `matched` in place.
+ */
 async function matchSubtreeWatches(
   ctx: ServiceCtx,
   orm: Orm,
@@ -688,7 +724,7 @@ async function watchedPageIds(ctx: ServiceCtx, orm: Orm, candidatePageIds: strin
   }
 
   const matched = new Set<string>()
-  // candidate page -> the ancestor its chain walk has currently reached.
+  // Candidate page -> the ancestor its chain walk has currently reached.
   const pending = new Map<string, string>()
   for (const pageId of new Set(candidatePageIds)) {
     if (directWatchIds.has(pageId)) {
@@ -704,11 +740,13 @@ async function watchedPageIds(ctx: ServiceCtx, orm: Orm, candidatePageIds: strin
   return matched
 }
 
-// `since` is second-granular and exclusive, so a batch cut off mid-second by `limit` would
-// strand the rest of that second: the caller polls with nextSince = that second and `gt`
-// skips them forever. Drop the trailing partial second instead, so the next poll picks it
-// up whole. (If the WHOLE batch is one second there's nothing to trim — that needs `limit`
-// changes inside a single second, and the alternative is a poll that can never advance.)
+/*
+ * `since` is second-granular and exclusive, so a batch cut off mid-second by `limit` would
+ * strand the rest of that second: the caller polls with nextSince = that second and `gt`
+ * skips them forever. Drop the trailing partial second instead, so the next poll picks it
+ * up whole. (If the WHOLE batch is one second there's nothing to trim — that needs `limit`
+ * changes inside a single second, and the alternative is a poll that can never advance.)
+ */
 function trimTrailingPartialSecond<T extends { createdAt: number }>(rows: readonly T[], limit: number): readonly T[] {
   if (rows.length !== limit || rows.length === 0) {
     return rows
@@ -720,17 +758,19 @@ function trimTrailingPartialSecond<T extends { createdAt: number }>(rows: readon
   return rows.filter((r) => r.createdAt < maxTs)
 }
 
-// PROJ-493 (R11): cheap delta feed — piggybacks entirely on the `activity` table every
-// wiki_page write already populates (services/activity.ts#recordActivity, called from
-// every create/update/patch/delete path in services/wiki.ts) rather than a separate
-// change log. Defaults to every wiki page the caller can see (same visibility rule as
-// list_wiki_pages/search_wiki), NOT scoped to watched pages by default — a delta-polling
-// agent syncing "what changed in the wiki" is a broader use case than "what am I
-// watching", and requiring a watch registration for every page an agent wants to poll
-// would defeat the point of a cheap, low-ceremony polling tool. Pass watchedOnly=true to
-// narrow to watched pages. Unlike notifyWikiWatchers, this does NOT exclude template
-// pages — it's a ground-truth delta feed, not a notification stream, and callers that
-// care can filter client-side on the page's `type`/`is_template` themselves.
+/*
+ * PROJ-493 (R11): cheap delta feed — piggybacks entirely on the `activity` table every
+ * wiki_page write already populates (services/activity.ts#recordActivity, called from
+ * every create/update/patch/delete path in services/wiki.ts) rather than a separate
+ * change log. Defaults to every wiki page the caller can see (same visibility rule as
+ * list_wiki_pages/search_wiki), NOT scoped to watched pages by default — a delta-polling
+ * agent syncing "what changed in the wiki" is a broader use case than "what am I
+ * watching", and requiring a watch registration for every page an agent wants to poll
+ * would defeat the point of a cheap, low-ceremony polling tool. Pass watchedOnly=true to
+ * narrow to watched pages. Unlike notifyWikiWatchers, this does NOT exclude template
+ * pages — it's a ground-truth delta feed, not a notification stream, and callers that
+ * care can filter client-side on the page's `type`/`is_template` themselves.
+ */
 export async function listWikiChanges(
   ctx: ServiceCtx,
   input: unknown,
@@ -757,11 +797,13 @@ export async function listWikiChanges(
       action: schema.activity.action,
       entityId: schema.activity.entityId,
       actorId: schema.activity.actorId,
-      // PROJ-869: only 'deleted' events read `diff` at all (extractDeletedPageInfo,
-      // for the small slug/title/projectId/deletedPageIds fields it captures) — every
-      // other action returns NULL here instead of D1 shipping the full diff blob back
-      // for every row, which is what made list_wiki_changes' response size scale with
-      // page content size.
+      /*
+       * PROJ-869: only 'deleted' events read `diff` at all (extractDeletedPageInfo,
+       * for the small slug/title/projectId/deletedPageIds fields it captures) — every
+       * other action returns NULL here instead of D1 shipping the full diff blob back
+       * for every row, which is what made list_wiki_changes' response size scale with
+       * page content size.
+       */
       diff: sql<
         string | null
       >`CASE WHEN ${schema.activity.action} = 'deleted' THEN ${schema.activity.diff} ELSE NULL END`,

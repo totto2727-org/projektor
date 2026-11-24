@@ -1,7 +1,9 @@
-// PROJ-431: losing a half-typed comment on a phone — backgrounded tab, dropped
-// connection, accidental back — is a real pain point. Drafts are the user's own
-// *unsent* input, which is why they're persisted while fetched issue data deliberately
-// isn't (see the ticket's caching recommendation).
+/*
+ * PROJ-431: losing a half-typed comment on a phone — backgrounded tab, dropped
+ * connection, accidental back — is a real pain point. Drafts are the user's own
+ * *unsent* input, which is why they're persisted while fetched issue data deliberately
+ * isn't (see the ticket's caching recommendation).
+ */
 
 const PREFIX = 'projektor:draft:'
 const TTL_MS = 7 * 24 * 60 * 60 * 1000
@@ -51,8 +53,10 @@ export function saveDraft(key: string, value: string): void {
     }
     sessionStorage.setItem(key, JSON.stringify({ value, at: Date.now() } satisfies StoredDraft))
   } catch {
-    // Quota exceeded or storage blocked. Draft persistence is a convenience, never a
-    // precondition for editing — degrade silently.
+    /*
+     * Quota exceeded or storage blocked. Draft persistence is a convenience, never a
+     * precondition for editing — degrade silently.
+     */
   }
 }
 

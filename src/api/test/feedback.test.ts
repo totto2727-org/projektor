@@ -607,7 +607,7 @@ describe('Feedback source MCP tools', () => {
       body: JSON.stringify({ body: 'y' }),
     })
     expect(newRes.status).toBe(201)
-    // id + history intact
+    // Id + history intact
     const stillThere = await env.DB.prepare('SELECT id FROM feedback WHERE id = ? AND source_id = ?')
       .bind(fbId, id)
       .first<{ id: string }>()

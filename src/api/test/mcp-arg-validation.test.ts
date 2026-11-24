@@ -5,9 +5,11 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-920: MCP arguments are validated against each tool's inputSchema (types, enums,
-// lengths, required) before the handler runs, so a wrongly-typed argument is a validation
-// tool error naming the field — never a handler crash surfacing as an internal error.
+/*
+ * PROJ-920: MCP arguments are validated against each tool's inputSchema (types, enums,
+ * lengths, required) before the handler runs, so a wrongly-typed argument is a validation
+ * tool error naming the field — never a handler crash surfacing as an internal error.
+ */
 
 type Schema = Record<string, unknown>
 

@@ -17,8 +17,10 @@ import { ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 
-// PROJ-311: sprints inherit their project's visibility. Reads on an ungranted
-// project 404/return empty; writes need a member/admin grant (owner/admin bypass).
+/*
+ * PROJ-311: sprints inherit their project's visibility. Reads on an ungranted
+ * project 404/return empty; writes need a member/admin grant (owner/admin bypass).
+ */
 async function assertSprintProjectVisible(ctx: ServiceCtx, projectId: string): Promise<void> {
   if (isWorkspaceAdmin(ctx.role)) {
     return
@@ -213,9 +215,11 @@ export async function deleteSprint(ctx: ServiceCtx, id: string) {
   }
   await requireSprintProjectWrite(ctx, existing.projectId)
 
-  // PROJ-863: unassign its issues explicitly — D1 doesn't guarantee FK enforcement
-  // (see PROJ-407), so ON DELETE SET NULL alone can leave issues pointing at a
-  // sprint that no longer exists.
+  /*
+   * PROJ-863: unassign its issues explicitly — D1 doesn't guarantee FK enforcement
+   * (see PROJ-407), so ON DELETE SET NULL alone can leave issues pointing at a
+   * sprint that no longer exists.
+   */
   await orm
     .update(schema.issues)
     .set({ sprintId: null })
@@ -245,11 +249,13 @@ export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
   }
   await requireSprintProjectWrite(ctx, sprint.projectId)
 
-  // PROJ-357: requireSprintProjectWrite only checked the *sprint's* project.
-  // Reject any caller-supplied issue that doesn't belong to that project —
-  // otherwise a write grant on the sprint's project alone would let a caller
-  // move issues from a project they have no access to (and sprints are
-  // project-scoped, so cross-project membership would also be a data bug).
+  /*
+   * PROJ-357: requireSprintProjectWrite only checked the *sprint's* project.
+   * Reject any caller-supplied issue that doesn't belong to that project —
+   * otherwise a write grant on the sprint's project alone would let a caller
+   * move issues from a project they have no access to (and sprints are
+   * project-scoped, so cross-project membership would also be a data bug).
+   */
   const foreignIssues = await inChunks(issueIds, async (chunk) =>
     orm
       .select({ id: schema.issues.id })
@@ -277,12 +283,14 @@ export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
     return []
   })
 
-  // PROJ-871: no KV invalidation needed here. PROJ-863 narrowed the per-issue KV cache
-  // (services/issues.ts's CachedIssueExtras) to only `rollup` and `customFields` —
-  // sprint_id is read live from the issues row on every getIssue/listIssues call, never
-  // served from that cache, so there is nothing to invalidate. This used to be
-  // `Promise.all(issueIds.map(id => cache.invalidate(...)))`, one KV subrequest per issue
-  // (up to 500, 10x the free-plan subrequest limit) invalidating a field the cache no
-  // longer even stores.
+  /*
+   * PROJ-871: no KV invalidation needed here. PROJ-863 narrowed the per-issue KV cache
+   * (services/issues.ts's CachedIssueExtras) to only `rollup` and `customFields` —
+   * sprint_id is read live from the issues row on every getIssue/listIssues call, never
+   * served from that cache, so there is nothing to invalidate. This used to be
+   * `Promise.all(issueIds.map(id => cache.invalidate(...)))`, one KV subrequest per issue
+   * (up to 500, 10x the free-plan subrequest limit) invalidating a field the cache no
+   * longer even stores.
+   */
   return { ok: true, count: issueIds.length }
 }

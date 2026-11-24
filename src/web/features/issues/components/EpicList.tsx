@@ -23,8 +23,10 @@ import { useIssueFilters } from './issue-list/useIssueFilters.ts'
 
 type EpicRollup = { done: number; remaining: number; total: number }
 
-// PROJ-441: rollup is attached server-side per item when includeRollups=1 is passed —
-// see the /api/issues fetch in useEpicsData below.
+/*
+ * PROJ-441: rollup is attached server-side per item when includeRollups=1 is passed —
+ * see the /api/issues fetch in useEpicsData below.
+ */
 type EpicItem = Issue & { rollup?: EpicRollup }
 
 const PRIORITY_LABEL: Record<string, string> = {

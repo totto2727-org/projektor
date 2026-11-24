@@ -1,8 +1,10 @@
-// PROJ-581: project visibility is default-deny (PROJ-311) for every non-admin member,
-// including a bare `viewer` and the anonymous PUBLIC_READ_ONLY viewer — the
-// cross-workspace list (GET /api/projects) and the single-workspace list (list_projects)
-// agree. The public viewer is placed in a "Public viewers" group, so publishing a
-// project to anonymous visitors is one explicit grant to that group.
+/*
+ * PROJ-581: project visibility is default-deny (PROJ-311) for every non-admin member,
+ * including a bare `viewer` and the anonymous PUBLIC_READ_ONLY viewer — the
+ * cross-workspace list (GET /api/projects) and the single-workspace list (list_projects)
+ * agree. The public viewer is placed in a "Public viewers" group, so publishing a
+ * project to anonymous visitors is one explicit grant to that group.
+ */
 
 import { describe, expect, test } from 'vite-plus/test'
 

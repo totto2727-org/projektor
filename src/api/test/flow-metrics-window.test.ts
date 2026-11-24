@@ -1,14 +1,16 @@
-// PROJ-866: bound the flow-metrics window and stop loading every project issue.
-//
-// - Schema validation rejects an excessive since/until span with a 400 before any
-//   query runs.
-// - A snapshot-style equality test on a representative fixture, captured against the
-//   pre-refactor implementation (apps/api/src/services/flow-metrics.ts as it stood
-//   before this ticket), pins the exact output shape so the bucket-algorithm rewrite
-//   in this ticket can't silently change a number.
-// - A 2,000-issue project queried over a 12-week window stays within a small, fixed
-//   number of D1 queries — proving the issue SELECT and lease lookup are now scoped to
-//   the window instead of the whole project.
+/*
+ * PROJ-866: bound the flow-metrics window and stop loading every project issue.
+ *
+ * - Schema validation rejects an excessive since/until span with a 400 before any
+ *   query runs.
+ * - A snapshot-style equality test on a representative fixture, captured against the
+ *   pre-refactor implementation (apps/api/src/services/flow-metrics.ts as it stood
+ *   before this ticket), pins the exact output shape so the bucket-algorithm rewrite
+ *   in this ticket can't silently change a number.
+ * - A 2,000-issue project queried over a 12-week window stays within a small, fixed
+ *   number of D1 queries — proving the issue SELECT and lease lookup are now scoped to
+ *   the window instead of the whole project.
+ */
 import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { getFlowMetrics } from '#commands/flow-metrics.ts'
@@ -90,25 +92,31 @@ describe('PROJ-866: flow-metrics window validation', () => {
 })
 
 describe('PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixture)', () => {
-  // A fixture exercising every bucketed series (WIP, throughput, bug share, review
-  // latency, CFD, arrival/completion) with issues at different lifecycle stages,
-  // spanning a 3-week window at day granularity so bucket boundaries and edge-clamping
-  // are both exercised. Captured against the pre-rewrite implementation; any future
-  // change to the bucket algorithms must keep producing this exact shape.
+  /*
+   * A fixture exercising every bucketed series (WIP, throughput, bug share, review
+   * latency, CFD, arrival/completion) with issues at different lifecycle stages,
+   * spanning a 3-week window at day granularity so bucket boundaries and edge-clamping
+   * are both exercised. Captured against the pre-rewrite implementation; any future
+   * change to the bucket algorithms must keep producing this exact shape.
+   */
   test('produces the pinned output for a representative multi-stage fixture', async () => {
     const { token, slug, workspaceId, projectId, userId } = await seedProjectFixture({
       role: 'owner',
     })
     const DAY = 86_400
     const WEEK = 7 * DAY
-    // A fixed past window, not one relative to "now": the output carries date labels
-    // (bucketStart/date), so a now-relative fixture changed the snapshot every day.
-    // The window is entirely in the past, so the service's clamping to "now" (the CFD
-    // sample time) never applies, and every issue is in backlog, so agingWip is empty.
+    /*
+     * A fixed past window, not one relative to "now": the output carries date labels
+     * (bucketStart/date), so a now-relative fixture changed the snapshot every day.
+     * The window is entirely in the past, so the service's clamping to "now" (the CFD
+     * sample time) never applies, and every issue is in backlog, so agingWip is empty.
+     */
     const windowEnd = Date.UTC(2026, 5, 1) / 1000 // 2026-06-01T00:00:00Z, a Monday
-    // An hour into a day, not day-aligned: wipOverTime's first sample is at that day's
-    // start, before `since`, so the fixture covers the SQL lower bound being pushed
-    // back to it (PROJ-866 review).
+    /*
+     * An hour into a day, not day-aligned: wipOverTime's first sample is at that day's
+     * start, before `since`, so the fixture covers the SQL lower bound being pushed
+     * back to it (PROJ-866 review).
+     */
     const since = windowEnd - 3 * WEEK + 3600
     const until = windowEnd
 
@@ -210,11 +218,13 @@ describe('PROJ-866: D1 query bound at scale', () => {
     const since = now - 12 * WEEK
     const until = now
 
-    // Bulk-insert directly (one env.DB.batch, outside the counted section). All 2,000
-    // in-window issues are done inside the window, so every one of them is in the set
-    // the per-issue comment/lease lookups serve — the case that used to bind 2,000-id
-    // IN-lists in 90-id chunks (23 statements per lookup). The 1,000 long-closed issues
-    // finished before `since` and must stay out of the SQL result entirely.
+    /*
+     * Bulk-insert directly (one env.DB.batch, outside the counted section). All 2,000
+     * in-window issues are done inside the window, so every one of them is in the set
+     * the per-issue comment/lease lookups serve — the case that used to bind 2,000-id
+     * IN-lists in 90-id chunks (23 statements per lookup). The 1,000 long-closed issues
+     * finished before `since` and must stay out of the SQL result entirely.
+     */
     const IN_WINDOW = 2000
     const agentSessionId = crypto.randomUUID()
     const statements: D1PreparedStatement[] = [
@@ -242,8 +252,10 @@ describe('PROJ-866: D1 query bound at scale', () => {
     for (let i = 0; i < IN_WINDOW; i++) {
       const claimedAt = since + 60 * i
       const id = insertIssue(1001 + i, since - 86_400, claimedAt, claimedAt + 1000)
-      // A human comment on every 10th issue, and a lease covering half the cycle time
-      // on every 4th — so the joined lookups are exercised, not just counted.
+      /*
+       * A human comment on every 10th issue, and a lease covering half the cycle time
+       * on every 4th — so the joined lookups are exercised, not just counted.
+       */
       if (i % 10 === 0) {
         statements.push(
           env.DB.prepare(
@@ -324,9 +336,11 @@ describe('PROJ-866 review: window defaults and aging WIP', () => {
   })
 
   test("caps an until-only window by its span from the service's default since, not from now", async () => {
-    // 340 days ahead is under 366 days from now, but over 366 days from the default
-    // bucket start (the Monday 5 weeks before this week's), which is what the service
-    // would actually bucket from.
+    /*
+     * 340 days ahead is under 366 days from now, but over 366 days from the default
+     * bucket start (the Monday 5 weeks before this week's), which is what the service
+     * would actually bucket from.
+     */
     const now = Math.floor(Date.now() / 1000)
     const res = await fetchMetrics(`until=${now + 340 * 86_400}&granularity=day`)
     expect(res.status).toBe(400)
@@ -385,8 +399,10 @@ describe('PROJ-866 review: window defaults and aging WIP', () => {
       cfdOverTime: { done: number; inProgress: number }[]
     }
     expect(metrics.agingWip.map((w) => w.id).sort()).toEqual([newer, reopened].sort())
-    // Neither issue was active in the window: no WIP, arrivals or completions there,
-    // and the reopened one sits in the CFD done band (done before since) only.
+    /*
+     * Neither issue was active in the window: no WIP, arrivals or completions there,
+     * and the reopened one sits in the CFD done band (done before since) only.
+     */
     expect(metrics.wipOverTime.every((b) => b.count === 0)).toBe(true)
     expect(metrics.arrivalVsCompletionOverTime.every((b) => b.created === 0 && b.completed === 0)).toBe(true)
     expect(metrics.cfdOverTime.every((b) => b.done === 1 && b.inProgress === 0)).toBe(true)

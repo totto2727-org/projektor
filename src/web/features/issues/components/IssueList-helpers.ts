@@ -41,17 +41,21 @@ function applyEpicParams(
   if (filterEpicId === 'none') {
     qs.set('noParent', 'true')
   }
-  // Epic exclusion runs server-side (PROJ-211): both "Hide epics" and the
-  // "No epic" option drop epic-typed issues via excludeTypeIds, so the result
-  // is correct across pagination rather than only on the loaded page.
+  /*
+   * Epic exclusion runs server-side (PROJ-211): both "Hide epics" and the
+   * "No epic" option drop epic-typed issues via excludeTypeIds, so the result
+   * is correct across pagination rather than only on the loaded page.
+   */
   const epicTypeId = taskTypes.find((t) => t.key === 'epic')?.id
   if (epicTypeId && (hideEpics || filterEpicId === 'none')) {
     qs.set('excludeTypeIds', epicTypeId)
   }
 }
 
-// Date-range filter (PROJ-212) runs server-side against the chosen timestamp
-// column; bounds are inclusive (from = start of day, to = end).
+/*
+ * Date-range filter (PROJ-212) runs server-side against the chosen timestamp
+ * column; bounds are inclusive (from = start of day, to = end).
+ */
 export function applyDateRangeParams(
   qs: URLSearchParams,
   filterDateField: FilterQueryFilters['filterDateField'],

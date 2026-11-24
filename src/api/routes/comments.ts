@@ -10,9 +10,11 @@ import { ctxFromHono } from '../services/types.ts'
 
 const router = new Hono<HonoEnv>()
 
-// Reads accept a ref ("PROJ-42") as well as a UUID so the browser doesn't have to
-// resolve one before asking (PROJ-438). Writes stay UUID-only — they're never on a
-// first-paint path, so there's nothing to gain for the extra surface.
+/*
+ * Reads accept a ref ("PROJ-42") as well as a UUID so the browser doesn't have to
+ * resolve one before asking (PROJ-438). Writes stay UUID-only — they're never on a
+ * first-paint path, so there's nothing to gain for the extra surface.
+ */
 router.get('/:issueId/comments', async (c) => {
   const ctx = ctxFromHono(c)
   try {

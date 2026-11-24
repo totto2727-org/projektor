@@ -16,10 +16,12 @@ export const projects = sqliteTable(
     updatedAt: integer('updated_at').notNull(),
     // Per-project agent WIP cap (PROJ-253). NULL = use the workspace default.
     agentWipLimit: integer('agent_wip_limit'),
-    // Human-readable URL slug, e.g. "start-line" (PROJ-376). Nullable for
-    // pre-migration rows that failed backfill; unique per workspace, enforced
-    // by a partial index (see migrations/0035_project_slug.sql) so NULLs don't
-    // collide.
+    /*
+     * Human-readable URL slug, e.g. "start-line" (PROJ-376). Nullable for
+     * pre-migration rows that failed backfill; unique per workspace, enforced
+     * by a partial index (see migrations/0035_project_slug.sql) so NULLs don't
+     * collide.
+     */
     slug: text('slug'),
     archivedAt: integer('archived_at'),
   },
@@ -105,34 +107,46 @@ export const issues = sqliteTable(
     createdById: text('created_by_id')
       .notNull()
       .references(() => users.id),
-    // PROJ-396: the authenticated principal type at write time ("human" = Cloudflare
-    // Access JWT, "agent" = Bearer API token — see middleware/auth.ts), same convention
-    // as issueComments.authorKind (PROJ-328). NULL for issues created before this column
-    // existed — no reliable signal to backfill, so they're excluded rather than guessed.
+    /*
+     * PROJ-396: the authenticated principal type at write time ("human" = Cloudflare
+     * Access JWT, "agent" = Bearer API token — see middleware/auth.ts), same convention
+     * as issueComments.authorKind (PROJ-328). NULL for issues created before this column
+     * existed — no reliable signal to backfill, so they're excluded rather than guessed.
+     */
     authorKind: text('author_kind', { enum: ['human', 'agent'] }),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
-    // Stamped when the issue enters a done-category status, cleared when it
-    // leaves (PROJ-212). Indexed for completed-date range filtering.
+    /*
+     * Stamped when the issue enters a done-category status, cleared when it
+     * leaves (PROJ-212). Indexed for completed-date range filtering.
+     */
     completedAt: integer('completed_at'),
-    // Flow metrics (PROJ-252): stamped once, the first time the issue enters the
-    // corresponding state; never cleared (reopening is rework, not un-history).
+    /*
+     * Flow metrics (PROJ-252): stamped once, the first time the issue enters the
+     * corresponding state; never cleared (reopening is rework, not un-history).
+     */
     readyAt: integer('ready_at'),
     claimedAt: integer('claimed_at'),
     doneAt: integer('done_at'),
     // Review gating (PROJ-254): stamped when a completion report is submitted.
     completionReportAt: integer('completion_report_at'),
-    // Collaboration-shape metrics (PROJ-328): write-once, same rules as ready_at/
-    // claimed_at/done_at above. reviewBounceCount counts status bounces OUT of
-    // review back to in-progress (never cleared, never re-derived from history).
+    /*
+     * Collaboration-shape metrics (PROJ-328): write-once, same rules as ready_at/
+     * claimed_at/done_at above. reviewBounceCount counts status bounces OUT of
+     * review back to in-progress (never cleared, never re-derived from history).
+     */
     inReviewAt: integer('in_review_at'),
     reviewBounceCount: integer('review_bounce_count').notNull().default(0),
-    // PROJ-375: agents can close issues to done directly (no gate blocks it); this
-    // flags agent-initiated closures whose completion-report verification wasn't
-    // externally checkable (no CI run/PR/commit link) for after-the-fact human review.
+    /*
+     * PROJ-375: agents can close issues to done directly (no gate blocks it); this
+     * flags agent-initiated closures whose completion-report verification wasn't
+     * externally checkable (no CI run/PR/commit link) for after-the-fact human review.
+     */
     needsAudit: integer('needs_audit', { mode: 'boolean' }).notNull().default(false),
-    // PROJ-859: stored definition-of-ready result (1/0, JSON array of missing
-    // criteria). NULL until first computed — see migration 0058.
+    /*
+     * PROJ-859: stored definition-of-ready result (1/0, JSON array of missing
+     * criteria). NULL until first computed — see migration 0058.
+     */
     dorReady: integer('dor_ready'),
     dorMissing: text('dor_missing'),
   },
@@ -170,9 +184,11 @@ export const issueComments = sqliteTable(
     body: text('body').notNull(),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
-    // Collaboration-shape metrics (PROJ-328): the authenticated principal type at
-    // write time ("human" = Cloudflare Access JWT, "agent" = Bearer API token — see
-    // middleware/auth.ts). NULL for comments written before this column existed.
+    /*
+     * Collaboration-shape metrics (PROJ-328): the authenticated principal type at
+     * write time ("human" = Cloudflare Access JWT, "agent" = Bearer API token — see
+     * middleware/auth.ts). NULL for comments written before this column existed.
+     */
     authorKind: text('author_kind', { enum: ['human', 'agent'] }),
   },
   (t) => ({
@@ -222,17 +238,21 @@ export const activity = sqliteTable(
   (t) => ({
     wsIdx: index('activity_workspace_idx').on(t.workspaceId),
     entityIdx: index('activity_entity_idx').on(t.entityType, t.entityId),
-    // PROJ-493 (R11): list_wiki_changes filters entity_type='wiki_page' AND
-    // created_at >= since within a workspace — an indexed range scan instead of a
-    // full scan of the workspace's activity rows.
+    /*
+     * PROJ-493 (R11): list_wiki_changes filters entity_type='wiki_page' AND
+     * created_at >= since within a workspace — an indexed range scan instead of a
+     * full scan of the workspace's activity rows.
+     */
     wsEntityCreatedIdx: index('activity_workspace_entity_created_idx').on(t.workspaceId, t.entityType, t.createdAt),
   }),
 )
 
-// PROJ-334: gate rejections — an event log of in_review -> in_progress bounces
-// specifically (narrower than the aggregate issues.review_bounce_count, which also
-// counts review -> cancelled). A timestamped event, unlike the aggregate counter, so
-// the factory-health tile can count rejections within an arbitrary date window.
+/*
+ * PROJ-334: gate rejections — an event log of in_review -> in_progress bounces
+ * specifically (narrower than the aggregate issues.review_bounce_count, which also
+ * counts review -> cancelled). A timestamped event, unlike the aggregate counter, so
+ * the factory-health tile can count rejections within an arbitrary date window.
+ */
 export const issueGateRejections = sqliteTable(
   'issue_gate_rejections',
   {

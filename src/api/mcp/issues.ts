@@ -162,8 +162,10 @@ export const issuesTools: MCPTool[] = [
         nextCursor: string | null
         total?: number
       }
-      // The cursor is derived from the raw rows so a capped page can resume exactly
-      // after its last kept item (PROJ-857's (created_at,id) compound cursor).
+      /*
+       * The cursor is derived from the raw rows so a capped page can resume exactly
+       * after its last kept item (PROJ-857's (created_at,id) compound cursor).
+       */
       const raw = result.items
       const page = toPage(
         raw.map((i) => shapeIssue(withBodyPreview(i, bodyChars), shape)),

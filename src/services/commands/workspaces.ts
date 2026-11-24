@@ -127,8 +127,10 @@ export async function inviteMember(ctx: ServiceCtx, input: unknown) {
   await orm
     .insert(schema.workspaceMembers)
     .values({ workspaceId: ctx.workspaceId, userId: user.id, role: newRole, joinedAt: now })
-  // PROJ-436: re-inviting a previously-removed user clears their removal tombstone, so
-  // provisioning can re-add them again if config (ADMIN_EMAILS etc) says it should.
+  /*
+   * PROJ-436: re-inviting a previously-removed user clears their removal tombstone, so
+   * provisioning can re-add them again if config (ADMIN_EMAILS etc) says it should.
+   */
   await orm
     .delete(schema.provisioningRemovals)
     .where(
@@ -157,9 +159,11 @@ export async function removeMember(ctx: ServiceCtx, targetUserId: string) {
     .where(
       and(eq(schema.workspaceMembers.workspaceId, ctx.workspaceId), eq(schema.workspaceMembers.userId, targetUserId)),
     )
-  // PROJ-436: tombstone the removal so ensureUserProvisioned (ADMIN_EMAILS / AUTO_JOIN_ROLE /
-  // WORKSPACE_DOMAIN_MAP) doesn't silently re-add this user once their provisioning cache
-  // expires. Cleared by inviteMember above.
+  /*
+   * PROJ-436: tombstone the removal so ensureUserProvisioned (ADMIN_EMAILS / AUTO_JOIN_ROLE /
+   * WORKSPACE_DOMAIN_MAP) doesn't silently re-add this user once their provisioning cache
+   * expires. Cleared by inviteMember above.
+   */
   await orm
     .insert(schema.provisioningRemovals)
     .values({
@@ -240,8 +244,10 @@ export async function revokeToken(ctx: ServiceCtx, tokenId: string) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
-  // PROJ-923: agent_sessions.token_id is ON DELETE SET NULL, which D1 doesn't
-  // guarantee (PROJ-407) — null it explicitly in the same batch.
+  /*
+   * PROJ-923: agent_sessions.token_id is ON DELETE SET NULL, which D1 doesn't
+   * guarantee (PROJ-407) — null it explicitly in the same batch.
+   */
   await ctx.db.batch([
     ctx.db
       .prepare(
@@ -316,9 +322,11 @@ export async function deleteWorkspace(
     throw new NotFoundError('Workspace not found')
   }
 
-  // PROJ-437: ctx.workspaceId is resolved from the X-Workspace-Slug header (or Host
-  // subdomain), not the URL's :slug — without this check a caller whose header names
-  // workspace A but whose URL names workspace B would silently delete A instead of B.
+  /*
+   * PROJ-437: ctx.workspaceId is resolved from the X-Workspace-Slug header (or Host
+   * subdomain), not the URL's :slug — without this check a caller whose header names
+   * workspace A but whose URL names workspace B would silently delete A instead of B.
+   */
   if (ws.slug !== pathSlug) {
     throw new NotFoundError('Workspace not found')
   }
@@ -337,10 +345,12 @@ export async function deleteWorkspace(
   }
 
   const brand = await readBrand(ctx)
-  // PROJ-923: every table hanging off the workspace is cleaned up explicitly — D1
-  // doesn't guarantee the FK cascades (PROJ-407), and FTS mirrors / R2 objects have no
-  // FK at all. Projects are already gone (checked above), so this is workspace-level
-  // data only. Set-based, constant statement count, one atomic batch; R2 after commit.
+  /*
+   * PROJ-923: every table hanging off the workspace is cleaned up explicitly — D1
+   * doesn't guarantee the FK cascades (PROJ-407), and FTS mirrors / R2 objects have no
+   * FK at all. Projects are already gone (checked above), so this is workspace-level
+   * data only. Set-based, constant statement count, one atomic batch; R2 after commit.
+   */
   const r2Keys = (
     await ctx.db
       .prepare("SELECT r2_key AS k FROM attachments WHERE workspace_id = ?1 AND kind = 'file' AND r2_key IS NOT NULL")

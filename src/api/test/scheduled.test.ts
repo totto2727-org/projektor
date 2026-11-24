@@ -12,10 +12,12 @@ import { authHeaders, seedAgentLease, seedFixture, seedIssueFixture, seedUser, s
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
-// PROJ-865: counts every real D1 statement execution (.all/.first/.raw/.run, .batch as
-// one) and every R2/KV call made through a wrapped `env`, so a test can assert on the
-// actual number of subrequests a call made — independent of (and a check on) the
-// production code's own internal budget accounting in index.ts.
+/*
+ * PROJ-865: counts every real D1 statement execution (.all/.first/.raw/.run, .batch as
+ * one) and every R2/KV call made through a wrapped `env`, so a test can assert on the
+ * actual number of subrequests a call made — independent of (and a check on) the
+ * production code's own internal budget accounting in index.ts.
+ */
 function countSubrequests(realEnv: typeof env): { env: Env; count: () => number } {
   let used = 0
   const bump = () => {
@@ -85,11 +87,13 @@ function countSubrequests(realEnv: typeof env): { env: Env; count: () => number 
   return { env: wrappedEnv, count: () => used }
 }
 
-// PROJ-496: the Workers Cron Trigger itself can't be exercised locally (no local cron
-// firing in dev/test), so this calls the exported `purgeAllWorkspacesExpiredWikiPages`
-// helper directly — the same function the `scheduled` handler in index.ts invokes on
-// its daily fire — with the real test env, mirroring how the REST/MCP purge tests seed
-// and backdate trash.
+/*
+ * PROJ-496: the Workers Cron Trigger itself can't be exercised locally (no local cron
+ * firing in dev/test), so this calls the exported `purgeAllWorkspacesExpiredWikiPages`
+ * helper directly — the same function the `scheduled` handler in index.ts invokes on
+ * its daily fire — with the real test env, mirroring how the REST/MCP purge tests seed
+ * and backdate trash.
+ */
 describe('scheduled wiki trash purge (PROJ-496)', () => {
   let token: string
   let slug: string
@@ -145,10 +149,12 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
   })
 })
 
-// PROJ-869: retention for wiki_notifications, ended agent_sessions (only ones no
-// issue_leases row references), and the activity log — each pruned only once past its own
-// window, and left alone otherwise. issue_leases is never pruned by age (post-review
-// correction): flow metrics read old leases for lease-held time and lease expiries.
+/*
+ * PROJ-869: retention for wiki_notifications, ended agent_sessions (only ones no
+ * issue_leases row references), and the activity log — each pruned only once past its own
+ * window, and left alone otherwise. issue_leases is never pruned by age (post-review
+ * correction): flow metrics read old leases for lease-held time and lease expiries.
+ */
 describe('scheduled retention purge (PROJ-869)', () => {
   const now = () => Math.floor(Date.now() / 1000)
   const DAY = 24 * 60 * 60
@@ -195,7 +201,7 @@ describe('scheduled retention purge (PROJ-869)', () => {
       .run()
     const live = await seedAgentLease(workspaceId, issueId, { live: true })
 
-    // activity: one older than 1 year, one recent.
+    // Activity: one older than 1 year, one recent.
     const expiredActivityId = crypto.randomUUID()
     const freshActivityId = crypto.randomUUID()
     await env.DB.prepare(
@@ -223,9 +229,11 @@ describe('scheduled retention purge (PROJ-869)', () => {
     // The lease-less expired session is purged.
     expect(await env.DB.prepare('SELECT id FROM agent_sessions WHERE id = ?').bind(expiredNoLeaseId).first()).toBeNull()
 
-    // PROJ-869 (must-fix): an old ended session that STILL has a lease survives, and so
-    // does its lease — issue_leases is never pruned by age, and the NOT EXISTS clause on
-    // agent_sessions keeps any session a lease still references.
+    /*
+     * PROJ-869 (must-fix): an old ended session that STILL has a lease survives, and so
+     * does its lease — issue_leases is never pruned by age, and the NOT EXISTS clause on
+     * agent_sessions keeps any session a lease still references.
+     */
     expect(
       await env.DB.prepare('SELECT id FROM issue_leases WHERE id = ?').bind(expiredWithLease.leaseId).first(),
     ).not.toBeNull()
@@ -247,10 +255,12 @@ describe('scheduled retention purge (PROJ-869)', () => {
   })
 })
 
-// PROJ-865: the daily cron's wiki-trash purge must scale with the number of workspaces
-// that actually have expired trash, not the number of workspaces in the instance, and
-// must never risk the Workers per-invocation subrequest ceiling regardless of backlog
-// size — bounding the work per invocation via a budget + KV cursor instead.
+/*
+ * PROJ-865: the daily cron's wiki-trash purge must scale with the number of workspaces
+ * that actually have expired trash, not the number of workspaces in the instance, and
+ * must never risk the Workers per-invocation subrequest ceiling regardless of backlog
+ * size — bounding the work per invocation via a budget + KV cursor instead.
+ */
 describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
   const EXPIRED_AT = Math.floor(Date.now() / 1000) - 40 * 24 * 60 * 60 // well past the 30-day retention
 
@@ -307,8 +317,10 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
         .run()
     }
 
-    // Run the real cron function repeatedly (as separate scheduled fires would),
-    // checking every single invocation's subrequest count, until nothing is left.
+    /*
+     * Run the real cron function repeatedly (as separate scheduled fires would),
+     * checking every single invocation's subrequest count, until nothing is left.
+     */
     let iterations = 0
     let remainingPages = 300
     while (remainingPages > 0 && iterations < 20) {
@@ -340,14 +352,16 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
     expect(leftoverAttachments?.n ?? 0).toBe(0)
   }, 60_000)
 
-  // PROJ-865 (must-fix): purgeExpiredWikiPages itself must bound its own per-call work —
-  // previously it selected every expired page in a workspace with no LIMIT, so a single
-  // workspace with a large backlog could blow the subrequest budget in ONE workspace's
-  // worth of work before the outer loop's per-workspace budget check ever got a chance to
-  // stop it. A single workspace with 500 expired pages must therefore stay within budget
-  // on every call, and the KV cursor must keep re-visiting that SAME workspace (instead of
-  // moving on) until it's fully drained, since findWorkspacesWithExpiredTrash won't be
-  // re-run while the cursor still lists it.
+  /*
+   * PROJ-865 (must-fix): purgeExpiredWikiPages itself must bound its own per-call work —
+   * previously it selected every expired page in a workspace with no LIMIT, so a single
+   * workspace with a large backlog could blow the subrequest budget in ONE workspace's
+   * worth of work before the outer loop's per-workspace budget check ever got a chance to
+   * stop it. A single workspace with 500 expired pages must therefore stay within budget
+   * on every call, and the KV cursor must keep re-visiting that SAME workspace (instead of
+   * moving on) until it's fully drained, since findWorkspacesWithExpiredTrash won't be
+   * re-run while the cursor still lists it.
+   */
   test('1 workspace / 500 expired pages: every run stays within budget, repeated runs purge them all', async () => {
     const creator = await seedUser(`cron-purge-one-ws-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const ws = await seedWorkspace(`cron-purge-one-ws-${crypto.randomUUID().slice(0, 6)}`)
@@ -405,9 +419,11 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
   }, 60_000)
 })
 
-// PROJ-816 follow-up: a one-off wiki_fts dedupe, guarded by a KV flag so it runs exactly
-// once ever, removes stray FTS rows that pre-0065 worker code inserted during the deploy
-// window with an auto-assigned rowid instead of the page's search_rowid.
+/*
+ * PROJ-816 follow-up: a one-off wiki_fts dedupe, guarded by a KV flag so it runs exactly
+ * once ever, removes stray FTS rows that pre-0065 worker code inserted during the deploy
+ * window with an auto-assigned rowid instead of the page's search_rowid.
+ */
 describe('scheduled one-off wiki_fts dedupe (PROJ-816)', () => {
   test('removes a stray FTS row and runs the DELETE only once across repeated cron fires', async () => {
     await env.KV.delete('maint:fts-dedupe-0065')

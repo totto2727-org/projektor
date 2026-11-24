@@ -3,9 +3,11 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { WikiFrontmatterSchema } from '../../contracts/inputs/wiki.ts'
 import { ValidationError } from './errors.ts'
 
-// PROJ-488 (R6): matches a leading `---\n<yaml>\n---\n` block, the standard frontmatter
-// convention. CRLF-tolerant since pages can be edited from any client. A page with no
-// leading `---` line has no frontmatter at all (not an error — frontmatter is optional).
+/*
+ * PROJ-488 (R6): matches a leading `---\n<yaml>\n---\n` block, the standard frontmatter
+ * convention. CRLF-tolerant since pages can be edited from any client. A page with no
+ * leading `---` line has no frontmatter at all (not an error — frontmatter is optional).
+ */
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
 
 export type WikiFrontmatterMeta = {
@@ -30,12 +32,14 @@ const EMPTY_WIKI_FRONTMATTER: WikiFrontmatterMeta = {
   isTemplate: false,
 }
 
-// YAML 1.1 (what the `yaml` package parses by default) auto-converts an unquoted
-// `verified_at: 2026-01-01`-shaped scalar into a JS Date — Zod's z.number() would reject
-// that outright, so normalize before validation. A plain number is treated as an
-// already-unix-seconds value (matching this repo's timestamp convention); a string is
-// parsed as an ISO date. Throws a plain Error (caller wraps it as a ValidationError) on
-// anything else, or an unparseable string.
+/*
+ * YAML 1.1 (what the `yaml` package parses by default) auto-converts an unquoted
+ * `verified_at: 2026-01-01`-shaped scalar into a JS Date — Zod's z.number() would reject
+ * that outright, so normalize before validation. A plain number is treated as an
+ * already-unix-seconds value (matching this repo's timestamp convention); a string is
+ * parsed as an ISO date. Throws a plain Error (caller wraps it as a ValidationError) on
+ * anything else, or an unparseable string.
+ */
 function normalizeVerifiedAt(value: unknown): number | null {
   if (value === null) {
     return null
@@ -60,8 +64,10 @@ function parseFrontmatterYaml(yamlBlock: string): unknown {
   try {
     return parseYaml(yamlBlock)
   } catch {
-    // Never interpolate the third-party YAML parser's own exception message —
-    // it can describe internal parser state, not just the caller's input.
+    /*
+     * Never interpolate the third-party YAML parser's own exception message —
+     * it can describe internal parser state, not just the caller's input.
+     */
     throw new ValidationError({
       formErrors: ['Invalid YAML frontmatter'],
       fieldErrors: {},
@@ -84,15 +90,17 @@ function normalizeFrontmatterRecord(raw: object): Record<string, unknown> {
   return normalized
 }
 
-// PROJ-488: parses+validates the optional frontmatter block out of a wiki page's raw
-// `content`. `content` itself is left untouched — frontmatter is denormalized into
-// columns purely for filtering; the canonical markdown (frontmatter included) keeps
-// round-tripping through create/update/revisions/diff exactly as before this feature.
-// Invalid YAML or a frontmatter value that fails schema validation throws a
-// ValidationError — this is intentionally never silently ignored or coerced.
-// An empty `---\n---\n` block parses to null/undefined — treat as "no frontmatter"
-// rather than an error, since it's an easy no-op state to end up in when editing.
-// Anything else that isn't a plain mapping (a list, a scalar) is a genuine error.
+/*
+ * PROJ-488: parses+validates the optional frontmatter block out of a wiki page's raw
+ * `content`. `content` itself is left untouched — frontmatter is denormalized into
+ * columns purely for filtering; the canonical markdown (frontmatter included) keeps
+ * round-tripping through create/update/revisions/diff exactly as before this feature.
+ * Invalid YAML or a frontmatter value that fails schema validation throws a
+ * ValidationError — this is intentionally never silently ignored or coerced.
+ * An empty `---\n---\n` block parses to null/undefined — treat as "no frontmatter"
+ * rather than an error, since it's an easy no-op state to end up in when editing.
+ * Anything else that isn't a plain mapping (a list, a scalar) is a genuine error.
+ */
 function requireFrontmatterMapping(raw: unknown): Record<string, unknown> | null {
   if (raw === null || raw === undefined) {
     return null
@@ -139,11 +147,13 @@ export function parseWikiFrontmatter(content: string): WikiFrontmatterMeta {
   return toFrontmatterMeta(parsed.data)
 }
 
-// PROJ-491 (R9): strips the `template: true` frontmatter key when seeding a new page's
-// content from a template page — a page created FROM a template is not itself a template
-// unless the author explicitly adds the flag back. Every other frontmatter key (type,
-// tags, status, ...) carries over untouched. If stripping leaves no frontmatter keys at
-// all, the block is dropped entirely rather than left as an empty `---\n---\n` shell.
+/*
+ * PROJ-491 (R9): strips the `template: true` frontmatter key when seeding a new page's
+ * content from a template page — a page created FROM a template is not itself a template
+ * unless the author explicitly adds the flag back. Every other frontmatter key (type,
+ * tags, status, ...) carries over untouched. If stripping leaves no frontmatter keys at
+ * all, the block is dropped entirely rather than left as an empty `---\n---\n` shell.
+ */
 export function stripTemplateFlag(content: string): string {
   const match = FRONTMATTER_RE.exec(content)
   if (!match) {

@@ -11,10 +11,12 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-439: conditional GETs. The ETag is a hash of the response body, so a mutation
-// that changes the body changes the tag by construction — there is no invalidation list
-// to keep in step. What these tests protect is the part that isn't structural: that a
-// 304 can only ever replace a 200 the same caller was already entitled to.
+/*
+ * PROJ-439: conditional GETs. The ETag is a hash of the response body, so a mutation
+ * that changes the body changes the tag by construction — there is no invalidation list
+ * to keep in step. What these tests protect is the part that isn't structural: that a
+ * 304 can only ever replace a 200 the same caller was already entitled to.
+ */
 
 async function get(path: string, token: string, slug: string, ifNoneMatch?: string | null) {
   return fetchNativeApi(`http://localhost${path}`, {
@@ -39,8 +41,10 @@ describe('PROJ-439 — ETag / conditional GET', () => {
     expect(second.status).toBe(304)
     expect(await second.text()).toBe('')
     expect(second.headers.get('ETag')).toBe(etag)
-    // Retained on the 304 so the browser keeps revalidating rather than falling back
-    // to a heuristic freshness lifetime for the entry it just refreshed.
+    /*
+     * Retained on the 304 so the browser keeps revalidating rather than falling back
+     * to a heuristic freshness lifetime for the entry it just refreshed.
+     */
     expect(second.headers.get('Cache-Control')).toBe('private, no-cache')
   })
 
@@ -112,12 +116,14 @@ describe('PROJ-439 — ETag / conditional GET', () => {
     expect(after.status).toBe(200)
   })
 
-  // ---- a 304 must never stand in for a 403 or a 404 ----
-  //
-  // Each of these replays a validator obtained by someone who *was* entitled to the
-  // resource. That's the case that matters: an unauthorised caller who guesses or is
-  // handed a valid ETag must still be refused, not handed an empty 304 that tells them
-  // their copy is current.
+  /*
+   * ---- a 304 must never stand in for a 403 or a 404 ----
+   *
+   * Each of these replays a validator obtained by someone who *was* entitled to the
+   * resource. That's the case that matters: an unauthorised caller who guesses or is
+   * handed a valid ETag must still be refused, not handed an empty 304 that tells them
+   * their copy is current.
+   */
 
   test('a non-member replaying a valid ETag gets 403, not 304', async () => {
     const owner = await seedIssueFixture({ role: 'owner' })
@@ -135,9 +141,11 @@ describe('PROJ-439 — ETag / conditional GET', () => {
     const owner = await seedIssueFixture({ role: 'owner' })
     const etag = (await get(`/api/issues/${owner.issueId}`, owner.token, owner.slug)).headers.get('ETag')
 
-    // API tokens are workspace-scoped (PROJ-16). Pointing one at another workspace's
-    // slug is refused by the confinement check, which runs ahead of the membership
-    // check — so this 403 is the token scope, distinct from the non-member case above.
+    /*
+     * API tokens are workspace-scoped (PROJ-16). Pointing one at another workspace's
+     * slug is refused by the confinement check, which runs ahead of the membership
+     * check — so this 403 is the token scope, distinct from the non-member case above.
+     */
     const other = await seedFixture({ role: 'owner' })
 
     const res = await get(`/api/issues/${owner.issueId}`, other.token, owner.slug, etag)
@@ -145,8 +153,10 @@ describe('PROJ-439 — ETag / conditional GET', () => {
   })
 
   test('a member with no project grant replaying a valid ETag gets 404, not 304', async () => {
-    // PROJ-311 access is default-deny per project, so this is the in-workspace
-    // equivalent of the two cases above.
+    /*
+     * PROJ-311 access is default-deny per project, so this is the in-workspace
+     * equivalent of the two cases above.
+     */
     const f = await seedProjectFixture({ role: 'member' })
     const ungranted = await seedProject(f.workspaceId, 'NOGRANT')
     const issue = await seedIssue(f.workspaceId, ungranted.id, f.userId, { title: 'Invisible' })

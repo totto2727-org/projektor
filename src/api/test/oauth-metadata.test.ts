@@ -3,12 +3,14 @@ import { describe, expect, test } from 'vite-plus/test'
 import { env } from './fixture-api.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// PROJ-655: the two public OAuth discovery documents.
-//
-// Every assertion here deliberately uses a realistic https host rather than
-// http://localhost. Origin derivation is the bug-prone part of these documents —
-// a hardcoded origin, or one taken from the wrong header, passes a localhost test
-// and then emits a `resource` that no client can match in production.
+/*
+ * PROJ-655: the two public OAuth discovery documents.
+ *
+ * Every assertion here deliberately uses a realistic https host rather than
+ * http://localhost. Origin derivation is the bug-prone part of these documents —
+ * a hardcoded origin, or one taken from the wrong header, passes a localhost test
+ * and then emits a `resource` that no client can match in production.
+ */
 const HOST = 'https://projektor.example.com'
 const WORKSPACE_ID = 'ws-projektor'
 
@@ -48,10 +50,12 @@ describe('RFC 9728 protected resource metadata', () => {
   })
 
   test('answers for an unknown workspace id rather than leaking whether it exists', async () => {
-    // A 404 here would be an existence oracle on an unauthenticated endpoint.
-    // The document is derived entirely from the request URL and reveals nothing,
-    // so an unknown id gets the same 200 as a real one; the id is rejected later,
-    // at the MCP request itself, behind authentication.
+    /*
+     * A 404 here would be an existence oracle on an unauthenticated endpoint.
+     * The document is derived entirely from the request URL and reveals nothing,
+     * so an unknown id gets the same 200 as a real one; the id is rejected later,
+     * at the MCP request itself, behind authentication.
+     */
     const res = await fetchNativeApi(
       `${HOST}/.well-known/oauth-protected-resource/mcp/00000000-0000-0000-0000-000000000000`,
     )
@@ -74,22 +78,26 @@ describe('RFC 9728 protected resource metadata', () => {
   })
 })
 
-// PROJ-655: PROJ-650 routed /.well-known/* to the Worker, so an unmatched path under
-// it now reaches index.ts's SPA catch-all, which in a real deploy answers 200 with the
-// app shell — a success status carrying HTML to a client that asked for discovery JSON.
-//
-// The status alone cannot catch a regression here: the test runtime has no ASSETS
-// binding, so the catch-all already 404s and both the fixed and broken versions look
-// identical. The CONTENT TYPE is what distinguishes them — the explicit handlers
-// answer application/json, while falling through to the catch-all yields Hono's
-// text/plain "404 Not Found". Assert on that, or this test proves nothing.
+/*
+ * PROJ-655: PROJ-650 routed /.well-known/* to the Worker, so an unmatched path under
+ * it now reaches index.ts's SPA catch-all, which in a real deploy answers 200 with the
+ * app shell — a success status carrying HTML to a client that asked for discovery JSON.
+ *
+ * The status alone cannot catch a regression here: the test runtime has no ASSETS
+ * binding, so the catch-all already 404s and both the fixed and broken versions look
+ * identical. The CONTENT TYPE is what distinguishes them — the explicit handlers
+ * answer application/json, while falling through to the catch-all yields Hono's
+ * text/plain "404 Not Found". Assert on that, or this test proves nothing.
+ */
 describe('unmatched OAuth discovery paths 404 as JSON, never the SPA shell', () => {
   test.each([
     '/.well-known/oauth-protected-resource',
     '/.well-known/oauth-protected-resource/not-mcp',
     '/.well-known/oauth-authorization-server/extra-segment',
-    // PROJ-660: OIDC Discovery is an alternative route to the same metadata, so a
-    // client may probe here. Found serving 200 text/html on a real deployment.
+    /*
+     * PROJ-660: OIDC Discovery is an alternative route to the same metadata, so a
+     * client may probe here. Found serving 200 text/html on a real deployment.
+     */
     '/.well-known/openid-configuration',
   ])('%s', async (path) => {
     const res = await fetchNativeApi(`${HOST}${path}`)
@@ -98,8 +106,10 @@ describe('unmatched OAuth discovery paths 404 as JSON, never the SPA shell', () 
   })
 
   test('leaves unrelated /.well-known paths alone for the asset handler', async () => {
-    // Scoping matters: a blanket catch-all on /.well-known would break a
-    // self-hoster's security.txt or ACME challenge, which must still fall through.
+    /*
+     * Scoping matters: a blanket catch-all on /.well-known would break a
+     * self-hoster's security.txt or ACME challenge, which must still fall through.
+     */
     const res = await fetchNativeApi(`${HOST}/.well-known/security.txt`)
     expect(res.headers.get('Content-Type') ?? '').not.toContain('application/json')
   })
@@ -114,9 +124,11 @@ describe('RFC 8414 authorization server metadata', () => {
     expect(body.issuer).toBe(HOST)
     expect(body.authorization_endpoint).toBe(`${HOST}/oauth/authorize`)
     expect(body.token_endpoint).toBe(`${HOST}/oauth/token`)
-    // Deliberately the token endpoint, not a distinct /oauth/revoke: the provider
-    // serves RFC 7009 revocation there. A separate path would 200 through the SPA
-    // fallback and report success for a revocation that never happened.
+    /*
+     * Deliberately the token endpoint, not a distinct /oauth/revoke: the provider
+     * serves RFC 7009 revocation there. A separate path would 200 through the SPA
+     * fallback and report success for a revocation that never happened.
+     */
     expect(body.revocation_endpoint).toBe(`${HOST}/oauth/token`)
     expect(body.response_types_supported).toEqual(['code'])
     expect(body.grant_types_supported).toEqual(['authorization_code', 'refresh_token'])
@@ -167,10 +179,12 @@ describe('RFC 8414 authorization server metadata', () => {
 
 describe('discovery endpoints are rate-limited', () => {
   test('returns 429 once the unauthenticated IP limit is exceeded', async () => {
-    // vite.config.ts sets RATE_LIMIT_AUTH_MAX=3, and setup.ts clears the
-    // counter before each test, so the 4th request in this test is the first to
-    // exceed it. Without the /.well-known/* limiter mount these would all be 200:
-    // rateLimitMiddleware was previously mounted on /api/* and /mcp/* only.
+    /*
+     * Vite.config.ts sets RATE_LIMIT_AUTH_MAX=3, and setup.ts clears the
+     * counter before each test, so the 4th request in this test is the first to
+     * exceed it. Without the /.well-known/* limiter mount these would all be 200:
+     * rateLimitMiddleware was previously mounted on /api/* and /mcp/* only.
+     */
     env.RATE_LIMIT_TEST_NOW_MS = String(Date.now())
     const ip = { 'CF-Connecting-IP': '203.0.113.7' }
     for (let i = 0; i < 3; i++) {

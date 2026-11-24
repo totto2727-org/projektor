@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import '../../test/browser.ts'
-// SearchResultsSection — mobile viewport test (PROJ-412).
-//
-// Below 640px the desktop table (`max-sm:hidden`) renders nothing, so a
-// mobile-card fallback must render whenever there are results. Only the
-// mobile-card presence is JS-visible in jsdom (see apps/web/src/test/viewport.ts) -
-// the `max-sm:hidden`/`max-sm:flex` CSS itself isn't evaluated here.
+/*
+ * SearchResultsSection — mobile viewport test (PROJ-412).
+ *
+ * Below 640px the desktop table (`max-sm:hidden`) renders nothing, so a
+ * mobile-card fallback must render whenever there are results. Only the
+ * mobile-card presence is JS-visible in jsdom (see apps/web/src/test/viewport.ts) -
+ * the `max-sm:hidden`/`max-sm:flex` CSS itself isn't evaluated here.
+ */
 import { render, screen } from '@testing-library/react'
 import { describe, expect, test } from 'vite-plus/test'
 

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import '../../test/browser.ts'
-// PROJ-566 / CD-294: the Description caption must not *wrap* the markdown editor.
-// A <label> with no `for` binds to its first labelable descendant, which inside
-// MarkdownEditor is the toolbar's Bold button — so every click in the editor body
-// was forwarded to Bold and wrapped subsequent typing in `**`.
+/*
+ * PROJ-566 / CD-294: the Description caption must not *wrap* the markdown editor.
+ * A <label> with no `for` binds to its first labelable descendant, which inside
+ * MarkdownEditor is the toolbar's Bold button — so every click in the editor body
+ * was forwarded to Bold and wrapped subsequent typing in `**`.
+ */
 import { render, screen } from '@testing-library/react'
 import { describe, expect, test } from 'vite-plus/test'
 
@@ -27,9 +29,11 @@ describe('CreateIssueModal — Description caption (PROJ-566)', () => {
 
     const caption = screen.getByText('Description')
     expect(caption.tagName).toBe('LABEL')
-    // The assertion that fails on the old markup: a wrapping label captures the
-    // editor's first labelable descendant (the Bold button, or the lazy fallback's
-    // textarea before the chunk lands) as its implicit control.
+    /*
+     * The assertion that fails on the old markup: a wrapping label captures the
+     * editor's first labelable descendant (the Bold button, or the lazy fallback's
+     * textarea before the chunk lands) as its implicit control.
+     */
     expect((caption as HTMLLabelElement).control).toBeNull()
   })
 
@@ -54,10 +58,12 @@ function FieldsHarness() {
   return <CreateIssueModal {...modal} projects={TWO_PROJECTS} taskTypes={TASK_TYPES} statuses={STATUSES} />
 }
 
-// PROJ-566 (same class, other fields): the Project/Priority/Type/Status captions
-// wrapped their <Select>. A <label> with no `for` binds to its first labelable
-// descendant — Select's trigger <button> — and forwards clicks from every
-// non-interactive descendant to it, including the menu's own <li> options.
+/*
+ * PROJ-566 (same class, other fields): the Project/Priority/Type/Status captions
+ * wrapped their <Select>. A <label> with no `for` binds to its first labelable
+ * descendant — Select's trigger <button> — and forwards clicks from every
+ * non-interactive descendant to it, including the menu's own <li> options.
+ */
 describe('CreateIssueModal — Select field captions (PROJ-566)', () => {
   for (const caption of ['Project', 'Priority', 'Type', 'Status']) {
     test(`renders the ${caption} label as a caption with no implicit control`, () => {

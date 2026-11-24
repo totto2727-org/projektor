@@ -1,21 +1,25 @@
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 
-// PROJ-485: server-side wiki link graph. Parses [[Target]] / [[Target|label]] wikilinks
-// and same-workspace wiki URLs out of a page's content on every write, resolves each to
-// a page id (or leaves it unresolved for broken-link reporting), and stores the result in
-// `wiki_links` — id-backed so renames never break a link (target_title is kept purely for
-// display/re-resolution, target_page_id is the source of truth).
-//
-// No dependency on services/wiki.ts (avoids a circular import) — page resolution/
-// visibility for a *specific* page stays in wiki.ts, which calls into this file's
-// `backlinksForResolvedPage` after resolving. listBrokenWikiLinks/backfillWikiLinks
-// don't need a single resolved page so they're self-contained here.
+/*
+ * PROJ-485: server-side wiki link graph. Parses [[Target]] / [[Target|label]] wikilinks
+ * and same-workspace wiki URLs out of a page's content on every write, resolves each to
+ * a page id (or leaves it unresolved for broken-link reporting), and stores the result in
+ * `wiki_links` — id-backed so renames never break a link (target_title is kept purely for
+ * display/re-resolution, target_page_id is the source of truth).
+ *
+ * No dependency on services/wiki.ts (avoids a circular import) — page resolution/
+ * visibility for a *specific* page stays in wiki.ts, which calls into this file's
+ * `backlinksForResolvedPage` after resolving. listBrokenWikiLinks/backfillWikiLinks
+ * don't need a single resolved page so they're self-contained here.
+ */
 import { drizzle, schema } from '#db'
 
 import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '../../contracts/inputs/wiki.ts'
-// PROJ-496 (R14): a trashed page is treated as gone for link resolution purposes — see
-// resolveTitleTargets/resolveSlugTargets/backlinksForResolvedPage/listBrokenWikiLinks
-// below for the `isNull(schema.wikiPages.deletedAt)` filters this adds.
+/*
+ * PROJ-496 (R14): a trashed page is treated as gone for link resolution purposes — see
+ * resolveTitleTargets/resolveSlugTargets/backlinksForResolvedPage/listBrokenWikiLinks
+ * below for the `isNull(schema.wikiPages.deletedAt)` filters this adds.
+ */
 import { safeDecodeURIComponent, wikiPagePath } from '../../contracts/urls.ts'
 import { hasProjectAccess, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
 import { ForbiddenError, ValidationError } from './errors.ts'
@@ -24,23 +28,29 @@ import type { ServiceCtx } from './types.ts'
 
 type Orm = ReturnType<typeof drizzle<typeof schema>>
 
-// Mirrors apps/web/src/utils/markdown.ts's resolveWikilinks regex — same link syntax
-// rules, server-side.
+/*
+ * Mirrors apps/web/src/utils/markdown.ts's resolveWikilinks regex — same link syntax
+ * rules, server-side.
+ */
 const WIKILINK_RE = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g
-// Markdown link syntax `[label](url)` — used to catch same-workspace wiki URLs
-// (`/wiki/:slug`, `/wiki?slug=...`, or the relative `?slug=...` form markdown.ts emits
-// for already-resolved wikilinks).
+/*
+ * Markdown link syntax `[label](url)` — used to catch same-workspace wiki URLs
+ * (`/wiki/:slug`, `/wiki?slug=...`, or the relative `?slug=...` form markdown.ts emits
+ * for already-resolved wikilinks).
+ */
 const MD_LINK_RE = /\[[^\]]*\]\(([^)\s]+)\)/g
 
 type ParsedLinkTarget = { kind: 'title'; title: string } | { kind: 'slug'; slug: string }
 
 function extractWikiSlugFromUrl(url: string): string | null {
-  // Only relative, path-rooted URLs are treated as same-workspace links. An absolute
-  // URL (http://, https://, //host/...) is never resolved here — we have no reliable
-  // request origin at parse time to compare it against, so treating "strip whatever
-  // origin is present" as "same workspace" would wrongly index links to other hosts
-  // as same-workspace links (even a same-origin absolute URL is written as relative
-  // by the app, so this doesn't lose any real link).
+  /*
+   * Only relative, path-rooted URLs are treated as same-workspace links. An absolute
+   * URL (http://, https://, //host/...) is never resolved here — we have no reliable
+   * request origin at parse time to compare it against, so treating "strip whatever
+   * origin is present" as "same workspace" would wrongly index links to other hosts
+   * as same-workspace links (even a same-origin absolute URL is written as relative
+   * by the app, so this doesn't lose any real link).
+   */
   if (/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(url)) {
     return null
   }
@@ -50,10 +60,12 @@ function extractWikiSlugFromUrl(url: string): string | null {
   if (!raw) {
     return null
   }
-  // PROJ-510: a malformed percent-escape makes decodeURIComponent throw. This runs
-  // mid-reindex, after the content write and the old wiki_links delete have already
-  // committed, so an uncaught throw leaves the page's links wiped. An undecodable
-  // URL is treated as "not a wiki link" rather than propagating.
+  /*
+   * PROJ-510: a malformed percent-escape makes decodeURIComponent throw. This runs
+   * mid-reindex, after the content write and the old wiki_links delete have already
+   * committed, so an uncaught throw leaves the page's links wiped. An undecodable
+   * URL is treated as "not a wiki link" rather than propagating.
+   */
   return safeDecodeURIComponent(raw)
 }
 
@@ -74,15 +86,17 @@ export function parseWikiLinkTargets(content: string): ParsedLinkTarget[] {
   return targets
 }
 
-// PROJ-814/PROJ-818: the single place that decides whether a raw link target's text
-// matches a page's title. PROJ-818 will change this fold (e.g. Unicode-aware
-// normalization) — every title comparison in this file, both initial resolution and
-// lifecycle re-resolution below, routes through here so that ticket only has to touch
-// this one function.
-//
-// PROJ-818: NFC-normalise then lowercase in JS. SQLite's lower() only folds ASCII, so
-// titles are compared through the stored folds (wiki_pages.title_fold,
-// wiki_links.target_fold), which are always computed here — never with SQL lower().
+/*
+ * PROJ-814/PROJ-818: the single place that decides whether a raw link target's text
+ * matches a page's title. PROJ-818 will change this fold (e.g. Unicode-aware
+ * normalization) — every title comparison in this file, both initial resolution and
+ * lifecycle re-resolution below, routes through here so that ticket only has to touch
+ * this one function.
+ *
+ * PROJ-818: NFC-normalise then lowercase in JS. SQLite's lower() only folds ASCII, so
+ * titles are compared through the stored folds (wiki_pages.title_fold,
+ * wiki_links.target_fold), which are always computed here — never with SQL lower().
+ */
 export function foldWikiTitle(value: string): string {
   return value.normalize('NFC').toLowerCase()
 }
@@ -124,12 +138,14 @@ export async function healTitleFolds(ctx: ServiceCtx): Promise<number> {
   return statements.length
 }
 
-// Resolves all title-kind targets in one query (rather than one round trip per link),
-// matched case-insensitively. Page titles aren't unique like slugs are (PROJ-483 only
-// enforces slug uniqueness); when more than one page shares a (lowercased) title, this
-// picks whichever row the query happens to return first — an arbitrary but stable-ish
-// match, not a documented/guaranteed one. Undocumented behavior, not a bug: titles were
-// never meant to be a stable identifier, slugs are.
+/*
+ * Resolves all title-kind targets in one query (rather than one round trip per link),
+ * matched case-insensitively. Page titles aren't unique like slugs are (PROJ-483 only
+ * enforces slug uniqueness); when more than one page shares a (lowercased) title, this
+ * picks whichever row the query happens to return first — an arbitrary but stable-ish
+ * match, not a documented/guaranteed one. Undocumented behavior, not a bug: titles were
+ * never meant to be a stable identifier, slugs are.
+ */
 async function resolveTitleTargets(
   orm: Orm,
   workspaceId: string,
@@ -158,9 +174,11 @@ async function resolveTitleTargets(
         ),
       ),
   )
-  // PROJ-818: pages whose fold hasn't been healed yet (non-ASCII titles from before
-  // migration 0063) are invisible to the IN above — fold them here in JS so a link that
-  // resolved before the migration still resolves. The set shrinks with every heal.
+  /*
+   * PROJ-818: pages whose fold hasn't been healed yet (non-ASCII titles from before
+   * migration 0063) are invisible to the IN above — fold them here in JS so a link that
+   * resolved before the migration still resolves. The set shrinks with every heal.
+   */
   const unhealed = await orm
     .select(cols)
     .from(schema.wikiPages)
@@ -174,8 +192,10 @@ async function resolveTitleTargets(
   const candidates = [...rows, ...unhealed.filter((r) => wanted.has(foldWikiTitle(r.title)))].sort(
     (a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   )
-  // Duplicate titles: the oldest page wins (created_at, then id) — the same order the
-  // set-based lifecycle statements use, so both paths agree.
+  /*
+   * Duplicate titles: the oldest page wins (created_at, then id) — the same order the
+   * set-based lifecycle statements use, so both paths agree.
+   */
   for (const row of candidates) {
     const key = foldWikiTitle(row.title)
     if (!byLower.has(key)) {
@@ -185,9 +205,11 @@ async function resolveTitleTargets(
   return byLower
 }
 
-// PROJ-858: all slug targets resolve in a fixed number of queries — one slug IN (…),
-// one wiki_redirects IN (…) for the misses, one page load for redirect targets (each
-// chunked under D1's bind limit) — instead of 1–3 sequential queries per link.
+/*
+ * PROJ-858: all slug targets resolve in a fixed number of queries — one slug IN (…),
+ * one wiki_redirects IN (…) for the misses, one page load for redirect targets (each
+ * chunked under D1's bind limit) — instead of 1–3 sequential queries per link.
+ */
 async function resolveSlugTargets(
   orm: Orm,
   workspaceId: string,
@@ -243,9 +265,11 @@ async function resolveSlugTargets(
         and(
           inArray(schema.wikiPages.id, chunk),
           eq(schema.wikiPages.workspaceId, workspaceId),
-          // PROJ-496: same "trashed = gone" rule as resolveWikiPageByRedirect in
-          // services/wiki.ts — a link to a page's old slug doesn't resolve while the
-          // page is in the trash.
+          /*
+           * PROJ-496: same "trashed = gone" rule as resolveWikiPageByRedirect in
+           * services/wiki.ts — a link to a page's old slug doesn't resolve while the
+           * page is in the trash.
+           */
           isNull(schema.wikiPages.deletedAt),
         ),
       ),
@@ -274,18 +298,22 @@ function isSlugTarget(t: ParsedLinkTarget): t is Extract<ParsedLinkTarget, { kin
   return t.kind === 'slug'
 }
 
-// Turns one page's parsed targets into its resolved wiki_links rows using ALREADY-FETCHED
-// title/slug lookup maps — no I/O. Split out from resolveLinkTargets so PROJ-815's
-// backfill can resolve every page in a chunk from ONE shared pair of maps (one
-// resolveTitleTargets + one resolveSlugTargets call for the whole chunk) instead of a
-// pair per page.
+/*
+ * Turns one page's parsed targets into its resolved wiki_links rows using ALREADY-FETCHED
+ * title/slug lookup maps — no I/O. Split out from resolveLinkTargets so PROJ-815's
+ * backfill can resolve every page in a chunk from ONE shared pair of maps (one
+ * resolveTitleTargets + one resolveSlugTargets call for the whole chunk) instead of a
+ * pair per page.
+ */
 function resolveTargetsFromMaps(
   targets: readonly ParsedLinkTarget[],
   titleMatches: ReadonlyMap<string, string>,
   slugMatches: ReadonlyMap<string, { id: string; title: string }>,
 ): ResolvedLink[] {
-  // Dedupe by resolved page id (or the raw unresolved key) so a page linking to the
-  // same target multiple times only gets one wiki_links row.
+  /*
+   * Dedupe by resolved page id (or the raw unresolved key) so a page linking to the
+   * same target multiple times only gets one wiki_links row.
+   */
   const resolved = new Map<string, ResolvedLink>()
   for (const t of targets) {
     if (isTitleTarget(t)) {
@@ -335,11 +363,13 @@ async function resolveLinkTargets(
   return resolveTargetsFromMaps(targets, titleMatches, slugMatches)
 }
 
-// PROJ-815: resolves link targets for MANY pages' content with exactly one
-// resolveTitleTargets + one resolveSlugTargets call covering the union of every page's
-// targets — not one pair per page — then fans the shared maps back out per page in
-// memory. Query count for the whole batch stays flat as the page count grows (each of
-// those two calls is itself already chunked under D1's bound-param cap by inChunks).
+/*
+ * PROJ-815: resolves link targets for MANY pages' content with exactly one
+ * resolveTitleTargets + one resolveSlugTargets call covering the union of every page's
+ * targets — not one pair per page — then fans the shared maps back out per page in
+ * memory. Query count for the whole batch stays flat as the page count grows (each of
+ * those two calls is itself already chunked under D1's bound-param cap by inChunks).
+ */
 async function resolveLinkTargetsForPages(
   orm: Orm,
   workspaceId: string,
@@ -365,10 +395,12 @@ async function resolveLinkTargetsForPages(
   return byPage
 }
 
-// D1 caps bound params at 100; each row binds 9 params (id, workspaceId, sourcePageId,
-// targetPageId, targetTitle, targetFold, targetText, targetKind, createdAt) — unlike
-// services/sql.ts#inChunks (calibrated for single-param-per-item IN-list queries, not
-// multi-column inserts).
+/*
+ * D1 caps bound params at 100; each row binds 9 params (id, workspaceId, sourcePageId,
+ * targetPageId, targetTitle, targetFold, targetText, targetKind, createdAt) — unlike
+ * services/sql.ts#inChunks (calibrated for single-param-per-item IN-list queries, not
+ * multi-column inserts).
+ */
 const LINK_INSERT_CHUNK_SIZE = 11 // 9 columns × 11 = 99 bound params (D1 cap: 100)
 
 /**
@@ -393,9 +425,11 @@ export async function buildWikiLinksReindexStatements(
   return buildLinkWriteStatements(ctx, sourcePageId, resolved)
 }
 
-// The write half of buildWikiLinksReindexStatements, split out so PROJ-815's backfill can
-// build every page's statements from a resolution already computed for the whole chunk
-// (resolveLinkTargetsForPages) instead of re-resolving per page.
+/*
+ * The write half of buildWikiLinksReindexStatements, split out so PROJ-815's backfill can
+ * build every page's statements from a resolution already computed for the whole chunk
+ * (resolveLinkTargetsForPages) instead of re-resolving per page.
+ */
 function buildLinkWriteStatements(
   ctx: ServiceCtx,
   sourcePageId: string,
@@ -523,8 +557,10 @@ export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promi
     conditions.push(sql`${schema.wikiPages.updatedAt} >= ${updatedSince}`)
   }
   if (cursor) {
-    // Resume strictly after the (updatedAt, id) pair the previous call stopped at —
-    // matches the ORDER BY below, so no page is skipped or repeated across calls.
+    /*
+     * Resume strictly after the (updatedAt, id) pair the previous call stopped at —
+     * matches the ORDER BY below, so no page is skipped or repeated across calls.
+     */
     conditions.push(
       sql`(${schema.wikiPages.updatedAt} > ${cursor.updatedAt}
 				OR (${schema.wikiPages.updatedAt} = ${cursor.updatedAt} AND ${schema.wikiPages.id} > ${cursor.id}))`,
@@ -553,9 +589,11 @@ export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promi
   for (const p of parsedPages) {
     statements.push(...buildLinkWriteStatements(ctx, p.id, resolvedByPage.get(p.id) ?? []))
   }
-  // One batch for the whole chunk — each individual statement already respects D1's
-  // per-statement bound-param cap (buildLinkWriteStatements/LINK_INSERT_CHUNK_SIZE), and
-  // db.batch() itself has no such cap, only a single round trip.
+  /*
+   * One batch for the whole chunk — each individual statement already respects D1's
+   * per-statement bound-param cap (buildLinkWriteStatements/LINK_INSERT_CHUNK_SIZE), and
+   * db.batch() itself has no such cap, only a single round trip.
+   */
   if (statements.length > 0) {
     await ctx.db.batch(statements)
   }
@@ -566,10 +604,12 @@ export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promi
   return { processed: pages.length, nextCursor, pagesProcessed: pages.length }
 }
 
-// Called from services/wiki.ts's deleteWikiPage so a deleted page's outgoing link rows
-// don't linger (ON DELETE CASCADE on source_page_id already guarantees this at the DB
-// level for D1 connections that enforce FKs, but PROJ-407 established that isn't
-// guaranteed for every connection — mirrors deleteWikiPageAttachments's rationale).
+/*
+ * Called from services/wiki.ts's deleteWikiPage so a deleted page's outgoing link rows
+ * don't linger (ON DELETE CASCADE on source_page_id already guarantees this at the DB
+ * level for D1 connections that enforce FKs, but PROJ-407 established that isn't
+ * guaranteed for every connection — mirrors deleteWikiPageAttachments's rationale).
+ */
 export async function deleteWikiLinksForPages(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
   await inChunks(pageIds, async (chunk) => {
     const placeholders = chunk.map(() => '?').join(',')
@@ -581,14 +621,16 @@ export async function deleteWikiLinksForPages(ctx: ServiceCtx, pageIds: string[]
   })
 }
 
-// Called from services/wiki.ts's deleteWikiPage alongside deleteWikiLinksForPages —
-// the same app-level-mirrors-the-FK rationale (PROJ-407), but for the *incoming* side.
-// ON DELETE SET NULL on target_page_id already guarantees this at the DB level for
-// connections that enforce FKs; this is the defensive fallback for connections that
-// don't, so a deleted page's id never lingers as a dangling target_page_id (which
-// would make the link invisible to list_broken_wiki_links, since that only looks for
-// target_page_id IS NULL). Only nulls target_page_id — target_title is left untouched
-// so the link still shows up as broken with its original display text.
+/*
+ * Called from services/wiki.ts's deleteWikiPage alongside deleteWikiLinksForPages —
+ * the same app-level-mirrors-the-FK rationale (PROJ-407), but for the *incoming* side.
+ * ON DELETE SET NULL on target_page_id already guarantees this at the DB level for
+ * connections that enforce FKs; this is the defensive fallback for connections that
+ * don't, so a deleted page's id never lingers as a dangling target_page_id (which
+ * would make the link invisible to list_broken_wiki_links, since that only looks for
+ * target_page_id IS NULL). Only nulls target_page_id — target_title is left untouched
+ * so the link still shows up as broken with its original display text.
+ */
 export async function clearIncomingLinkTargets(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
   await inChunks(pageIds, async (chunk) => {
     const placeholders = chunk.map(() => '?').join(',')
@@ -602,22 +644,26 @@ export async function clearIncomingLinkTargets(ctx: ServiceCtx, pageIds: string[
   })
 }
 
-// PROJ-814: builds (without executing) the set-based UPDATE that resolves OTHER pages'
-// unresolved links whose raw target text names this page by its (current) title or slug
-// — e.g. a page linked via [[Onboarding]] before "Onboarding" existed becomes resolved
-// the moment it's created, without the linking page being re-saved. Used on create,
-// rename and restore; meant to be folded into the same db.batch() as the page write where
-// the caller already builds one (create, rename) — restore executes it directly since it
-// isn't otherwise batched. Title matching is case-folded via foldWikiTitle (the ONE place
-// PROJ-818 will change); slug matching is exact, mirroring resolveSlugTargets.
+/*
+ * PROJ-814: builds (without executing) the set-based UPDATE that resolves OTHER pages'
+ * unresolved links whose raw target text names this page by its (current) title or slug
+ * — e.g. a page linked via [[Onboarding]] before "Onboarding" existed becomes resolved
+ * the moment it's created, without the linking page being re-saved. Used on create,
+ * rename and restore; meant to be folded into the same db.batch() as the page write where
+ * the caller already builds one (create, rename) — restore executes it directly since it
+ * isn't otherwise batched. Title matching is case-folded via foldWikiTitle (the ONE place
+ * PROJ-818 will change); slug matching is exact, mirroring resolveSlugTargets.
+ */
 export function buildResolveIncomingLinksStatement(
   ctx: ServiceCtx,
   page: Readonly<{ id: string; title: string; slug: string }>,
 ): D1PreparedStatement {
-  // Each link matches the way it was written: [[Title]] links by folded title, URL links
-  // by slug. Legacy rows (target_kind NULL, pre-0063) keep the old either-way match.
-  // A link whose target is in the trash is claimable too (PROJ-814 review: trash no
-  // longer clears links, so restore stays lossless).
+  /*
+   * Each link matches the way it was written: [[Title]] links by folded title, URL links
+   * by slug. Legacy rows (target_kind NULL, pre-0063) keep the old either-way match.
+   * A link whose target is in the trash is claimable too (PROJ-814 review: trash no
+   * longer clears links, so restore stays lossless).
+   */
   return ctx.db
     .prepare(
       `UPDATE wiki_links SET target_page_id = ?1
@@ -633,23 +679,27 @@ export function buildResolveIncomingLinksStatement(
     .bind(page.id, ctx.workspaceId, foldWikiTitle(page.title), page.slug)
 }
 
-// PROJ-814: on rename (title and/or slug), links that had resolved to this page BY ITS
-// OLD title/slug become unresolved again if their raw target text no longer matches the
-// NEW title/slug — e.g. a link's raw text is still "[[OldName]]"; once this page is no
-// longer named that, a different (or no) page should be able to claim that text. Disjoint
-// from buildResolveIncomingLinksStatement (that one only touches target_page_id IS NULL,
-// this one only touches target_page_id = page.id), so the two can run in either order in
-// the same batch.
+/*
+ * PROJ-814: on rename (title and/or slug), links that had resolved to this page BY ITS
+ * OLD title/slug become unresolved again if their raw target text no longer matches the
+ * NEW title/slug — e.g. a link's raw text is still "[[OldName]]"; once this page is no
+ * longer named that, a different (or no) page should be able to claim that text. Disjoint
+ * from buildResolveIncomingLinksStatement (that one only touches target_page_id IS NULL,
+ * this one only touches target_page_id = page.id), so the two can run in either order in
+ * the same batch.
+ */
 export function buildUnresolveStaleIncomingLinksStatement(
   ctx: ServiceCtx,
   page: Readonly<{ id: string; title: string; slug: string }>,
   old: Readonly<{ title: string; slug: string }>,
 ): D1PreparedStatement {
-  // Only [[Title]] links move: a URL/slug link keeps pointing at the page through a
-  // title change, and through a slug change too (the old slug becomes a redirect).
-  // Legacy rows (target_kind NULL) are left alone, as before PROJ-814. A title link
-  // that no longer matches is re-pointed to the oldest other live page with that
-  // title, else unresolved.
+  /*
+   * Only [[Title]] links move: a URL/slug link keeps pointing at the page through a
+   * title change, and through a slug change too (the old slug becomes a redirect).
+   * Legacy rows (target_kind NULL) are left alone, as before PROJ-814. A title link
+   * that no longer matches is re-pointed to the oldest other live page with that
+   * title, else unresolved.
+   */
   return ctx.db
     .prepare(
       `UPDATE wiki_links SET target_page_id = (${repointSubquery('?1')})
@@ -659,9 +709,11 @@ export function buildUnresolveStaleIncomingLinksStatement(
     .bind(ctx.workspaceId, page.id, foldWikiTitle(old.title), foldWikiTitle(page.title))
 }
 
-// The oldest live page in the workspace that a wiki_links row (the UPDATE's own row)
-// would resolve to — shared by rename and purge re-pointing so duplicates resolve the
-// same way resolveTitleTargets does (created_at, then id).
+/*
+ * The oldest live page in the workspace that a wiki_links row (the UPDATE's own row)
+ * would resolve to — shared by rename and purge re-pointing so duplicates resolve the
+ * same way resolveTitleTargets does (created_at, then id).
+ */
 function repointSubquery(workspaceParam: string): string {
   return `SELECT p.id FROM wiki_pages p
 		WHERE p.workspace_id = ${workspaceParam} AND p.deleted_at IS NULL
@@ -691,16 +743,20 @@ export async function repointIncomingLinks(ctx: ServiceCtx, pageIds: string[]): 
   })
 }
 
-// PROJ-485: count of distinct pages that link to any page in `pageIds`, for delete
-// warnings ("N pages link here"). Must be read BEFORE the delete runs — target_page_id
-// is ON DELETE SET NULL, so the count would read as 0 afterwards.
+/*
+ * PROJ-485: count of distinct pages that link to any page in `pageIds`, for delete
+ * warnings ("N pages link here"). Must be read BEFORE the delete runs — target_page_id
+ * is ON DELETE SET NULL, so the count would read as 0 afterwards.
+ */
 export async function countBacklinkSources(ctx: ServiceCtx, pageIds: string[]): Promise<number> {
   if (pageIds.length === 0) {
     return 0
   }
   const orm = drizzle(ctx.db, { schema })
-  // PROJ-818: only count linking pages the caller can see — the count must not reveal
-  // pages in projects hidden from them.
+  /*
+   * PROJ-818: only count linking pages the caller can see — the count must not reveal
+   * pages in projects hidden from them.
+   */
   const visible = visibleProjectPredicate(ctx, schema.wikiPages.projectId)
   const rows = await inChunks(pageIds, (chunk) =>
     orm
@@ -716,17 +772,21 @@ export async function countBacklinkSources(ctx: ServiceCtx, pageIds: string[]): 
       )
       .groupBy(schema.wikiLinks.sourcePageId),
   )
-  // Exclude self-links (a page linking to itself isn't "another page" linking here).
-  // Dedup across chunks too, since a source page could link to targets that land in
-  // different chunks and otherwise be counted more than once.
+  /*
+   * Exclude self-links (a page linking to itself isn't "another page" linking here).
+   * Dedup across chunks too, since a source page could link to targets that land in
+   * different chunks and otherwise be counted more than once.
+   */
   const distinctSources = new Set(rows.map((r) => r.sourcePageId).filter((id) => !pageIds.includes(id)))
   return distinctSources.size
 }
 
-// PROJ-485: best-effort citing context for a backlink — the raw text surrounding the
-// first occurrence of the link syntax in the source page's current content. Returns
-// null rather than guessing if the exact text can't be located (e.g. content changed
-// since the link was indexed).
+/*
+ * PROJ-485: best-effort citing context for a backlink — the raw text surrounding the
+ * first occurrence of the link syntax in the source page's current content. Returns
+ * null rather than guessing if the exact text can't be located (e.g. content changed
+ * since the link was indexed).
+ */
 function extractSnippet(content: string, targetTitle: string): string | null {
   const marker = `[[${targetTitle.toLowerCase()}`
   const idx = content.toLowerCase().indexOf(marker)
@@ -781,8 +841,10 @@ export async function backlinksForResolvedPage(
       ),
     )
 
-  // PROJ-311: a backlink from a project-scoped page the caller can't see shouldn't
-  // leak that page's existence.
+  /*
+   * PROJ-311: a backlink from a project-scoped page the caller can't see shouldn't
+   * leak that page's existence.
+   */
   const visibleSourceIds = new Set(
     isWorkspaceAdmin(ctx.role)
       ? rows.map((r) => r.pageId)
@@ -838,11 +900,13 @@ export async function listBrokenWikiLinks(ctx: ServiceCtx, input: unknown): Prom
   const { projectId } = parsed.data
 
   const orm = drizzle(ctx.db, { schema })
-  // PROJ-818: a link whose target lives in a project the caller can't see is reported
-  // as broken, exactly as if no such page existed — otherwise "is this link broken?"
-  // answers "does a page with this title exist in a project hidden from me?".
-  // (Resolution itself is shared, stored data and stays visibility-agnostic; every read
-  // of it is filtered for the caller instead: here, backlinks, backlink counts.)
+  /*
+   * PROJ-818: a link whose target lives in a project the caller can't see is reported
+   * as broken, exactly as if no such page existed — otherwise "is this link broken?"
+   * answers "does a page with this title exist in a project hidden from me?".
+   * (Resolution itself is shared, stored data and stays visibility-agnostic; every read
+   * of it is filtered for the caller instead: here, backlinks, backlink counts.)
+   */
   const targetVisible = visibleProjectPredicate(ctx, sql`tp.project_id`)
   const targetHidden = targetVisible
     ? sql`EXISTS (SELECT 1 FROM wiki_pages tp WHERE tp.id = ${schema.wikiLinks.targetPageId}
@@ -850,27 +914,33 @@ export async function listBrokenWikiLinks(ctx: ServiceCtx, input: unknown): Prom
     : sql`0`
   const conditions = [
     eq(schema.wikiLinks.workspaceId, ctx.workspaceId),
-    // PROJ-496: a link is "broken" both when its target was hard-cleared (targetPageId
-    // IS NULL, e.g. after purge) AND when its target still resolves to an id but that
-    // page is now trashed — target_page_id isn't cleared until purge time anymore, so
-    // without this second clause a link to a trashed-but-not-yet-purged page would
-    // silently stop being reported as broken.
+    /*
+     * PROJ-496: a link is "broken" both when its target was hard-cleared (targetPageId
+     * IS NULL, e.g. after purge) AND when its target still resolves to an id but that
+     * page is now trashed — target_page_id isn't cleared until purge time anymore, so
+     * without this second clause a link to a trashed-but-not-yet-purged page would
+     * silently stop being reported as broken.
+     */
     or(
       isNull(schema.wikiLinks.targetPageId),
       sql`EXISTS (SELECT 1 FROM wiki_pages tp WHERE tp.id = ${schema.wikiLinks.targetPageId}
 				AND tp.deleted_at IS NOT NULL)`,
       targetHidden,
     ),
-    // PROJ-496: a trashed source page's broken links aren't a maintenance concern
-    // anymore — they'll be purged along with the page.
+    /*
+     * PROJ-496: a trashed source page's broken links aren't a maintenance concern
+     * anymore — they'll be purged along with the page.
+     */
     isNull(schema.wikiPages.deletedAt),
   ]
   if (projectId) {
     conditions.push(eq(schema.wikiPages.projectId, projectId))
   }
 
-  // PROJ-311: same visibility filter as listWikiPages — hide project-scoped source
-  // pages the caller isn't granted, workspace-level pages stay visible to everyone.
+  /*
+   * PROJ-311: same visibility filter as listWikiPages — hide project-scoped source
+   * pages the caller isn't granted, workspace-level pages stay visible to everyone.
+   */
   const visible = visibleProjectPredicate(ctx, schema.wikiPages.projectId)
   if (visible) {
     const cond = or(isNull(schema.wikiPages.projectId), visible)
@@ -897,8 +967,10 @@ export async function listBrokenWikiLinks(ctx: ServiceCtx, input: unknown): Prom
   // (a slug link's target_title is the resolved page's title).
   return rows.map(({ targetText, hidden, ...r }) => ({
     ...r,
-    // A legacy resolved row has no target_text, and its target_title may be the hidden
-    // page's own title — show nothing rather than leak it.
+    /*
+     * A legacy resolved row has no target_text, and its target_title may be the hidden
+     * page's own title — show nothing rather than leak it.
+     */
     targetTitle: hidden ? (targetText ?? '') : r.targetTitle,
   }))
 }

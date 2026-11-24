@@ -14,14 +14,16 @@ interface MCPPromptDescriptor {
   arguments: MCPPromptArgument[]
 }
 
-// Native MCP prompts/* primitive (PROJ-600) over the playbook registry, so clients
-// that support it (e.g. Claude Code) surface each composable playbook as a slash
-// command instead of requiring get_playbook/compose_playbook tool calls.
-//
-// epic-goal is the only composable playbook today (see playbook-compose.ts), so this
-// list is hand-maintained rather than derived generically from PLAYBOOKS — same
-// reasoning as playbook-compose.ts's dispatch: not worth building ahead of a second
-// real case.
+/*
+ * Native MCP prompts/* primitive (PROJ-600) over the playbook registry, so clients
+ * that support it (e.g. Claude Code) surface each composable playbook as a slash
+ * command instead of requiring get_playbook/compose_playbook tool calls.
+ *
+ * epic-goal is the only composable playbook today (see playbook-compose.ts), so this
+ * list is hand-maintained rather than derived generically from PLAYBOOKS — same
+ * reasoning as playbook-compose.ts's dispatch: not worth building ahead of a second
+ * real case.
+ */
 const PROMPTS: MCPPromptDescriptor[] = [
   {
     name: 'epic-goal',
@@ -50,8 +52,10 @@ export async function getPrompt(ctx: PluginContext, name: string, args: Record<s
     throw new NotFoundError(`Unknown prompt "${name}"`, { validNames: PROMPTS.map((p) => p.name) })
   }
 
-  // MCP prompt arguments are always string-valued (clients fill a form); compose_playbook
-  // expects cadence as a number and the optional fields as undefined when unset.
+  /*
+   * MCP prompt arguments are always string-valued (clients fill a form); compose_playbook
+   * expects cadence as a number and the optional fields as undefined when unset.
+   */
   const { directive } = await composePlaybook(ctx, {
     name: 'epic-goal',
     params: {

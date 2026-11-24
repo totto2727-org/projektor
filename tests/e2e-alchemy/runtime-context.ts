@@ -19,9 +19,11 @@ export async function makePreviewContext(isPreview: boolean | undefined) {
     )
   }
   const scope = Scope.makeUnsafe()
-  // Use the supported public runtime factory, not private Paths/services.
-  // It includes the remote-binding layer, but credentials cannot resolve and
-  // the node-side client only permits loopback transport for the dev registry.
+  /*
+   * Use the supported public runtime factory, not private Paths/services.
+   * It includes the remote-binding layer, but credentials cannot resolve and
+   * the node-side client only permits loopback transport for the dev registry.
+   */
   const noCredentials = Layer.succeed(
     Credentials.Credentials,
     Effect.die(new Error('Cloudflare credentials are forbidden in the isolated E2E host.')),

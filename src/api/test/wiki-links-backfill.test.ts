@@ -1,5 +1,7 @@
-// PROJ-815: backfillWikiLinks batches reads/writes, skips trashed pages, and is
-// incremental/resumable via a cursor + page budget, with an updatedSince scope filter.
+/*
+ * PROJ-815: backfillWikiLinks batches reads/writes, skips trashed pages, and is
+ * incremental/resumable via a cursor + page budget, with an updatedSince scope filter.
+ */
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -73,7 +75,7 @@ describe('PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince', ()
 
     const rows = await env.DB.prepare('SELECT * FROM wiki_links WHERE source_page_id = ?').bind(trashedId).all()
     expect(rows.results).toHaveLength(0)
-    // sanity: the live page was still processed and produced no links of its own.
+    // Sanity: the live page was still processed and produced no links of its own.
     const targetRows = await env.DB.prepare('SELECT * FROM wiki_links WHERE source_page_id = ?').bind(targetId).all()
     expect(targetRows.results).toHaveLength(0)
   })
@@ -102,13 +104,17 @@ describe('PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSince', ()
     vi.restoreAllMocks()
 
     expect(result.processed).toBe(200)
-    // One page-select query plus a handful of chunked title-resolution reads — not
-    // one (or more) reads per page, which would scale to hundreds.
-    // +2 constant: the PROJ-818 fold heal and the unhealed-title fallback query.
+    /*
+     * One page-select query plus a handful of chunked title-resolution reads — not
+     * one (or more) reads per page, which would scale to hundreds.
+     * +2 constant: the PROJ-818 fold heal and the unhealed-title fallback query.
+     */
     expect(selects.length).toBeLessThanOrEqual(12)
-    // Every page's DELETE+INSERT lands in exactly one db.batch() round trip for the
-    // whole chunk, not one batch per page.
-    // one link-write batch, plus at most one PROJ-818 fold-heal batch (constant, not per page)
+    /*
+     * Every page's DELETE+INSERT lands in exactly one db.batch() round trip for the
+     * whole chunk, not one batch per page.
+     * one link-write batch, plus at most one PROJ-818 fold-heal batch (constant, not per page)
+     */
     expect(batchSpy.mock.calls.length).toBeLessThanOrEqual(2)
   })
 

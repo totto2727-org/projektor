@@ -390,8 +390,10 @@ describe('Share tokens', () => {
     })
   })
 
-  // PROJ-794: a share link dies with its issue, its project's archival, or its
-  // creator's access — checked every time the link is read.
+  /*
+   * PROJ-794: a share link dies with its issue, its project's archival, or its
+   * creator's access — checked every time the link is read.
+   */
   describe("PROJ-794: share links stop resolving when the issue or the creator's access goes", () => {
     async function sharedIssue(workspaceRole: string, grant: 'none' | 'member') {
       const { workspace, user, token } = await seedFixture({ role: workspaceRole })

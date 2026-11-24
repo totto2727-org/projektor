@@ -13,22 +13,28 @@ export interface Props {
   value: string
   onChange: (value: string) => void
   minHeight?: string
-  // PROJ-494: paste/drag-drop an image into the editor. Returning the URL to embed
-  // inserts `![filename](url)` at the cursor/drop position; returning null (upload
-  // failed, or the caller has no entity to attach to yet, e.g. the create-page form)
-  // leaves the editor untouched. Undefined disables image interception entirely —
-  // paste/drop of non-image content is never affected either way.
+  /*
+   * PROJ-494: paste/drag-drop an image into the editor. Returning the URL to embed
+   * inserts `![filename](url)` at the cursor/drop position; returning null (upload
+   * failed, or the caller has no entity to attach to yet, e.g. the create-page form)
+   * leaves the editor untouched. Undefined disables image interception entirely —
+   * paste/drop of non-image content is never affected either way.
+   */
   onImageFile?: (file: File) => Promise<string | null>
-  // Accessible name for the editing surface. CodeMirror's `.cm-content` is a bare
-  // contenteditable div, so it has no name of its own — call sites that render a
-  // caption next to the editor (rather than a wrapping <label>, see PROJ-566) pass
-  // that caption's text here.
+  /*
+   * Accessible name for the editing surface. CodeMirror's `.cm-content` is a bare
+   * contenteditable div, so it has no name of its own — call sites that render a
+   * caption next to the editor (rather than a wrapping <label>, see PROJ-566) pass
+   * that caption's text here.
+   */
   ariaLabel?: string
 }
 
-// Mirrors services/files.ts's INLINE_TYPES on the API side — the set of image types the
-// API will actually serve inline (SVG is excluded there for script-execution risk, so
-// pasting one falls through to a manual "Attach file" upload instead of auto-embedding).
+/*
+ * Mirrors services/files.ts's INLINE_TYPES on the API side — the set of image types the
+ * API will actually serve inline (SVG is excluded there for script-execution risk, so
+ * pasting one falls through to a manual "Attach file" upload instead of auto-embedding).
+ */
 export const PASTE_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
 function imageFilesFromClipboard(data: DataTransfer | null): File[] {
@@ -54,8 +60,10 @@ function imageFilesFromDrop(data: DataTransfer | null): File[] {
   return Array.from(data.files).filter((f) => PASTE_IMAGE_TYPES.has(f.type))
 }
 
-// Sub-640px gets a 44px-square touch target (the toolbar was ~24px tall, well under
-// the accessible minimum on a phone). Desktop keeps the original compact sizing.
+/*
+ * Sub-640px gets a 44px-square touch target (the toolbar was ~24px tall, well under
+ * the accessible minimum on a phone). Desktop keeps the original compact sizing.
+ */
 const TOOLBAR_BUTTON_CLASS =
   'min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 inline-flex items-center justify-center ' +
   'px-[7px] py-[2px] border border-transparent rounded-[3px] bg-transparent text-text-base ' +
@@ -100,13 +108,15 @@ function prefixLines(view: EditorView, prefix: string): boolean {
   return true
 }
 
-// PROJ-566: a <label> with no `for` forwards clicks on its non-interactive descendants
-// to its first labelable control. When the editor is mounted inside such a label, that
-// control is this toolbar's first button — so every tap in the editor body (a plain
-// contenteditable div, not interactive content) silently ran Bold, wrapping whatever was
-// typed next in `**`. The forwarded event carries the pointer coordinates of the original
-// click, which land outside the button's own box; a genuine click on the button never
-// does. Keyboard activation reports detail 0 (and 0,0 coords) and must still pass.
+/*
+ * PROJ-566: a <label> with no `for` forwards clicks on its non-interactive descendants
+ * to its first labelable control. When the editor is mounted inside such a label, that
+ * control is this toolbar's first button — so every tap in the editor body (a plain
+ * contenteditable div, not interactive content) silently ran Bold, wrapping whatever was
+ * typed next in `**`. The forwarded event carries the pointer coordinates of the original
+ * click, which land outside the button's own box; a genuine click on the button never
+ * does. Keyboard activation reports detail 0 (and 0,0 coords) and must still pass.
+ */
 function isDirectPointerActivation(e: React.MouseEvent): boolean {
   if (e.detail === 0) {
     return true
@@ -227,23 +237,29 @@ function useMarkdownEditorView(
 ) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
-  // The domEventHandlers extension below is installed once, in the mount effect — read
-  // through a ref (updated at commit, not just on mount) so it always calls whichever
-  // onImageFile the latest render passed, rather than closing over the first one forever.
+  /*
+   * The domEventHandlers extension below is installed once, in the mount effect — read
+   * through a ref (updated at commit, not just on mount) so it always calls whichever
+   * onImageFile the latest render passed, rather than closing over the first one forever.
+   */
   const onImageFileRef = useRef(onImageFile)
-  // The last doc content WE emitted via onChange. The "sync externally-driven value"
-  // effect below compares the incoming `value` prop against this — not against the
-  // live doc — so a same-tick echo of our own change (however delayed by Preact's
-  // scheduling) is recognized as our own and skipped, instead of being re-dispatched
-  // as if it were an external change and potentially clobbering keystrokes typed since
-  // (PROJ-305: this race was making the editor appear to freeze mid-typing).
+  /*
+   * The last doc content WE emitted via onChange. The "sync externally-driven value"
+   * effect below compares the incoming `value` prop against this — not against the
+   * live doc — so a same-tick echo of our own change (however delayed by Preact's
+   * scheduling) is recognized as our own and skipped, instead of being re-dispatched
+   * as if it were an external change and potentially clobbering keystrokes typed since
+   * (PROJ-305: this race was making the editor appear to freeze mid-typing).
+   */
   const lastEmitted = useRef(value)
-  // True while the sync effect below is applying an external `value` change via
-  // view.dispatch(). CM's own dispatch->updateListener call is synchronous, so
-  // without this flag that dispatch re-enters onChange, which re-renders, whose
-  // effect dispatches again — a synchronous ping-pong that locks the tab on every
-  // keystroke (PROJ-312; the lastEmitted equality check alone doesn't catch this
-  // because the echoed update can race ahead of it).
+  /*
+   * True while the sync effect below is applying an external `value` change via
+   * view.dispatch(). CM's own dispatch->updateListener call is synchronous, so
+   * without this flag that dispatch re-enters onChange, which re-renders, whose
+   * effect dispatches again — a synchronous ping-pong that locks the tab on every
+   * keystroke (PROJ-312; the lastEmitted equality check alone doesn't catch this
+   * because the echoed update can race ahead of it).
+   */
   const applyingExternal = useRef(false)
   const initialConfigRef = useRef({ value, minHeight, ariaLabel })
   const onChangeRef = useRef(onChange)
@@ -253,11 +269,13 @@ function useMarkdownEditorView(
   }, [onImageFile, onChange])
 
   useEffect(() => {
-    // PROJ-506: this effect is scheduled via Preact's rAF-batched effect flush, so it
-    // can still run after the environment it was scheduled in has gone away — e.g. a
-    // test's jsdom `document` torn down between when this mount effect was queued and
-    // when it fires. `new EditorView` internally touches `document`, so guard both
-    // halves of that race rather than just the DOM node.
+    /*
+     * PROJ-506: this effect is scheduled via Preact's rAF-batched effect flush, so it
+     * can still run after the environment it was scheduled in has gone away — e.g. a
+     * test's jsdom `document` torn down between when this mount effect was queued and
+     * when it fires. `new EditorView` internally touches `document`, so guard both
+     * halves of that race rather than just the DOM node.
+     */
     if (!containerRef.current || typeof document === 'undefined') {
       return
     }
@@ -286,9 +304,11 @@ function useMarkdownEditorView(
           '&': { background: 'var(--bg)', color: 'var(--text)' },
           '.cm-content': {
             fontFamily: "ui-monospace, 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace",
-            // 16px on phones. Below 16px, iOS Safari zooms the viewport when a
-            // field takes focus, and the viewport meta sets no maximum-scale —
-            // so tapping into the editor used to jump the whole page.
+            /*
+             * 16px on phones. Below 16px, iOS Safari zooms the viewport when a
+             * field takes focus, and the viewport meta sets no maximum-scale —
+             * so tapping into the editor used to jump the whole page.
+             */
             fontSize: '1rem',
             padding: '0.5rem 0.75rem',
             minHeight: config.minHeight,
@@ -342,9 +362,11 @@ function useMarkdownEditorView(
     }
   }, [])
 
-  // Sync externally-driven value changes (e.g. switching issues). If `value` matches
-  // what we last emitted, this render is just our own change echoing back through
-  // props — nothing to do, regardless of whether the doc has since moved on further.
+  /*
+   * Sync externally-driven value changes (e.g. switching issues). If `value` matches
+   * what we last emitted, this render is just our own change echoing back through
+   * props — nothing to do, regardless of whether the doc has since moved on further.
+   */
   useEffect(() => {
     if (value === lastEmitted.current) {
       return

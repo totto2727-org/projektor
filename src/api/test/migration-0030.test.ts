@@ -4,9 +4,11 @@ import m0030 from '../../../migrations/0030_backfill_review_timestamp.sql?raw'
 import { env } from './fixture-api.ts'
 import { seedIssue, seedProject, seedUser, seedWorkspace } from './helpers.ts'
 
-// PROJ-328: 0030 backfills in_review_at (added by 0029) for issues that were already
-// sitting in a review status before 0029 landed — see the migration file for why it's
-// deliberately narrower than 0026's claimed_at/ready_at backfill.
+/*
+ * PROJ-328: 0030 backfills in_review_at (added by 0029) for issues that were already
+ * sitting in a review status before 0029 landed — see the migration file for why it's
+ * deliberately narrower than 0026's claimed_at/ready_at backfill.
+ */
 
 function splitStatements(sql: string): string[] {
   return sql

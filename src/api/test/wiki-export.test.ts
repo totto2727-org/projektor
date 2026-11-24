@@ -5,9 +5,11 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProject, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-// MAX_EXPORT_PAGES in services/wiki-export.ts — kept in sync manually since the
-// constant isn't exported; a mismatch would just make this test seed a few more/fewer
-// rows than strictly necessary, not silently pass.
+/*
+ * MAX_EXPORT_PAGES in services/wiki-export.ts — kept in sync manually since the
+ * constant isn't exported; a mismatch would just make this test seed a few more/fewer
+ * rows than strictly necessary, not silently pass.
+ */
 const MAX_EXPORT_PAGES = 500
 
 /**
@@ -219,8 +221,10 @@ describe('Wiki export (PROJ-497)', () => {
 
   test('keeps colliding attachment filenames distinct in the zip, with correct content each', async () => {
     const page = await createPage(token, slug, { title: 'Collide', content: 'body' })
-    // The second "notes.txt" renames to "1-notes.txt", which must not clobber the
-    // real "1-notes.txt" uploaded after it.
+    /*
+     * The second "notes.txt" renames to "1-notes.txt", which must not clobber the
+     * real "1-notes.txt" uploaded after it.
+     */
     await uploadAttachment(token, slug, page.id, 'notes.txt', 'first')
     await uploadAttachment(token, slug, page.id, 'notes.txt', 'second')
     await uploadAttachment(token, slug, page.id, '1-notes.txt', 'third')
@@ -245,9 +249,11 @@ describe('Wiki export (PROJ-497)', () => {
     })
     const now = Math.floor(Date.now() / 1000)
     const mismatchedId = crypto.randomUUID()
-    // Bypasses validateNewPageParent (services/wiki.ts), which normally forbids a
-    // child's projectId from diverging from its parent's — writing directly via SQL
-    // simulates a regression of that write-time invariant.
+    /*
+     * Bypasses validateNewPageParent (services/wiki.ts), which normally forbids a
+     * child's projectId from diverging from its parent's — writing directly via SQL
+     * simulates a regression of that write-time invariant.
+     */
     await env.DB.prepare(
       `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 			 parent_id, created_by_id, updated_by_id, created_at, updated_at)
@@ -274,9 +280,11 @@ describe('Wiki export (PROJ-497)', () => {
     expect(names).toEqual(['pages/root.md'])
   })
 
-  // Follow-up: these two tests only assert the 400 status, not that the cap check ran
-  // before content was fetched — a mutation reverting the early-exit ordering would
-  // still pass. Properly covering that needs a query-recording proxy on ctx.db.
+  /*
+   * Follow-up: these two tests only assert the 400 status, not that the cap check ran
+   * before content was fetched — a mutation reverting the early-exit ordering would
+   * still pass. Properly covering that needs a query-recording proxy on ctx.db.
+   */
   test('rejects a space export whose page count exceeds the cap before fetching content', async () => {
     await seedManyPages(workspaceId, userId, MAX_EXPORT_PAGES + 1)
 
@@ -286,9 +294,11 @@ describe('Wiki export (PROJ-497)', () => {
 
   test('rejects a subtree export whose descendant count exceeds the cap during the BFS walk', async () => {
     const root = await createPage(token, slug, { title: 'Big Root', content: 'root' })
-    // Every bulk page is parented directly under root, so collectDescendantIds's BFS
-    // sees the whole set on its first level and must bail before pagesByIds fetches
-    // content for MAX_EXPORT_PAGES+1 rows.
+    /*
+     * Every bulk page is parented directly under root, so collectDescendantIds's BFS
+     * sees the whole set on its first level and must bail before pagesByIds fetches
+     * content for MAX_EXPORT_PAGES+1 rows.
+     */
     const now = Math.floor(Date.now() / 1000)
     const statements = Array.from({ length: MAX_EXPORT_PAGES + 1 }, (_, i) =>
       env.DB.prepare(

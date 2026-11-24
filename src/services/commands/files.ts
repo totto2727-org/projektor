@@ -23,32 +23,36 @@ import {
 import type { ServiceCtx } from './types.ts'
 import * as wikiService from './wiki.ts'
 
-// PROJ-425: attachments never checked ctx.role at all — a viewer could create/delete
-// them. Mirrors comments.ts's flat viewer guard rather than wiki.ts's per-project
-// requireWikiWrite: attachment entityIds aren't required to reference an existing
-// issue/wiki page row (they're free-floating metadata keyed by entity_type/entity_id),
-// so resolving a project to check per-project role isn't possible in general.
+/*
+ * PROJ-425: attachments never checked ctx.role at all — a viewer could create/delete
+ * them. Mirrors comments.ts's flat viewer guard rather than wiki.ts's per-project
+ * requireWikiWrite: attachment entityIds aren't required to reference an existing
+ * issue/wiki page row (they're free-floating metadata keyed by entity_type/entity_id),
+ * so resolving a project to check per-project role isn't possible in general.
+ */
 function requireAttachmentWrite(ctx: ServiceCtx): void {
   if (ctx.role === 'viewer') {
     throw new ForbiddenError('Insufficient permissions')
   }
 }
 
-// PROJ-639: nothing resolved an attachment to the project it hangs off, so project
-// visibility was never consulted on any attachment path. Workspace membership alone got
-// you the filename, size and *bytes* of every attachment in the workspace, including
-// those on issues and wiki pages in projects you hold no grant on.
-//
-// entity_id is deliberately not a foreign key (see requireAttachmentWrite), so it can
-// reference a row that does not exist. The guard is therefore "no resolvable owning row
-// is invisible" rather than "the owning row is visible": an unresolvable entity_id has no
-// project and so nothing to authorise, and stays workspace-scoped exactly as before.
-// Inverting that — requiring a visible owner — would make every free-floating attachment
-// vanish from its own uploader's view. Wiki pages with a null project_id are
-// workspace-level and visible to every member.
-//
-// Queries applying this must alias `attachments` as `a`. Returns null for workspace
-// owner/admin, who see every project.
+/*
+ * PROJ-639: nothing resolved an attachment to the project it hangs off, so project
+ * visibility was never consulted on any attachment path. Workspace membership alone got
+ * you the filename, size and *bytes* of every attachment in the workspace, including
+ * those on issues and wiki pages in projects you hold no grant on.
+ *
+ * entity_id is deliberately not a foreign key (see requireAttachmentWrite), so it can
+ * reference a row that does not exist. The guard is therefore "no resolvable owning row
+ * is invisible" rather than "the owning row is visible": an unresolvable entity_id has no
+ * project and so nothing to authorise, and stays workspace-scoped exactly as before.
+ * Inverting that — requiring a visible owner — would make every free-floating attachment
+ * vanish from its own uploader's view. Wiki pages with a null project_id are
+ * workspace-level and visible to every member.
+ *
+ * Queries applying this must alias `attachments` as `a`. Returns null for workspace
+ * owner/admin, who see every project.
+ */
 function ownerVisibleFilter(ctx: ServiceCtx): { sql: string; params: unknown[] } | null {
   const issue = visibleProjectSqlFragment(ctx, 'i.project_id')
   const page = visibleProjectSqlFragment(ctx, 'p.project_id')
@@ -111,8 +115,10 @@ export const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'im
 
 export const MAX_UPLOAD_SIZE = 50 * 1024 * 1024 // 50 MB
 
-// file.type is supplied by the client and can be spoofed; this allowlist prevents accidental
-// or casual abuse but is not a hard security boundary on its own.
+/*
+ * File.type is supplied by the client and can be spoofed; this allowlist prevents accidental
+ * or casual abuse but is not a hard security boundary on its own.
+ */
 const ALLOWED_UPLOAD_TYPES = new Set([
   'image/png',
   'image/jpeg',
@@ -150,11 +156,13 @@ export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<
   }
   const { entityType, entityId } = parsed.data
 
-  // PROJ-311/PROJ-407: only join in wiki page details the caller is actually allowed to
-  // see (workspace-level pages, or project-scoped pages they have a grant on). A row
-  // referencing a page outside the caller's visibility joins to nothing, same as a
-  // deleted page — the row still lists as an unavailable wiki_ref rather than leaking
-  // the restricted page's title.
+  /*
+   * PROJ-311/PROJ-407: only join in wiki page details the caller is actually allowed to
+   * see (workspace-level pages, or project-scoped pages they have a grant on). A row
+   * referencing a page outside the caller's visibility joins to nothing, same as a
+   * deleted page — the row still lists as an unavailable wiki_ref rather than leaking
+   * the restricted page's title.
+   */
   const visible = visibleProjectSqlFragment(ctx, 'w.project_id')
   const owner = ownerVisibleFilter(ctx)
   const rows = await Effect.runPromise(
@@ -206,8 +214,10 @@ export async function createLinkAttachment(
   await assertEntityWritable(ctx, data.entityType, data.entityId)
 
   if (data.kind === 'wiki_ref') {
-    // PROJ-311: getWikiPage enforces project-grant visibility, not just existence —
-    // a page in a project the caller can't see 404s the same as a nonexistent one.
+    /*
+     * PROJ-311: getWikiPage enforces project-grant visibility, not just existence —
+     * a page in a project the caller can't see 404s the same as a nonexistent one.
+     */
     await wikiService.getWikiPage(ctx, data.wikiPageId)
   }
 
@@ -238,8 +248,10 @@ export async function createLinkAttachment(
   return { id, kind: data.kind }
 }
 
-// Resolve the per-workspace storage quota from env (STORAGE_QUOTA_BYTES), falling
-// back to the default for unset/invalid/non-positive values.
+/*
+ * Resolve the per-workspace storage quota from env (STORAGE_QUOTA_BYTES), falling
+ * back to the default for unset/invalid/non-positive values.
+ */
 const DEFAULT_STORAGE_QUOTA_BYTES = 1024 * 1024 * 1024 // 1 GiB per workspace
 
 export function storageQuotaBytes(env: Readonly<{ STORAGE_QUOTA_BYTES?: string }>): number {

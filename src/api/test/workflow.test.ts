@@ -80,8 +80,10 @@ describe('Workflow spec', () => {
     expect(mcpBody).toEqual(restBody)
   })
 
-  // PROJ-933: version present, stable across requests/processes, and the same on both
-  // surfaces.
+  /*
+   * PROJ-933: version present, stable across requests/processes, and the same on both
+   * surfaces.
+   */
   test('version is present and stable across repeated requests', async () => {
     const res1 = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),

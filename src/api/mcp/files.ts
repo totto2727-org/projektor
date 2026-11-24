@@ -9,10 +9,12 @@ import {
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 
-// Binary upload and streamed download can't cross JSON-RPC, so those two operations
-// stay REST-only (POST /api/files, GET /api/files/:id) — a deliberate parity exception
-// (AGENTS.md). Everything else, including review-status updates, is metadata-only
-// and gets full MCP parity here (PROJ-234).
+/*
+ * Binary upload and streamed download can't cross JSON-RPC, so those two operations
+ * stay REST-only (POST /api/files, GET /api/files/:id) — a deliberate parity exception
+ * (AGENTS.md). Everything else, including review-status updates, is metadata-only
+ * and gets full MCP parity here (PROJ-234).
+ */
 export const filesTools: MCPTool[] = [
   {
     name: 'set_attachment_review_status',

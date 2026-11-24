@@ -1,20 +1,22 @@
-// PROJ-920: validate MCP tool arguments against the tool's JSON `inputSchema` before the
-// handler runs, so a wrongly-typed argument is a -32602 naming the field — never a handler
-// that trips over `input as {...}` and surfaces as -32000 / 500.
-//
-// This covers the JSON Schema subset the hand-written tool schemas actually use: type
-// (string/number/integer/boolean/object/array, or a list of them), nullable, enum,
-// properties/required (recursively), items, min/maxLength, minimum/maximum and
-// min/maxItems. Any other keyword is ignored rather than guessed at. Properties a schema
-// doesn't declare are left alone: services still validate with their Zod schemas, which
-// remain the source of truth for business rules (PROJ-895 will generate these schemas
-// from them).
-//
-// Deliberately lenient where the services already are, so this never rejects a call that
-// used to work: numeric strings pass for number/integer (the Zod schemas use z.coerce),
-// "true"/"1"/"false"/"0"/"" pass for boolean (BooleanQueryParam), and null passes for any optional
-// property (Zod's .nullable().optional() "clear this field" idiom). Everything else that
-// doesn't match the declared type is rejected.
+/*
+ * PROJ-920: validate MCP tool arguments against the tool's JSON `inputSchema` before the
+ * handler runs, so a wrongly-typed argument is a -32602 naming the field — never a handler
+ * that trips over `input as {...}` and surfaces as -32000 / 500.
+ *
+ * This covers the JSON Schema subset the hand-written tool schemas actually use: type
+ * (string/number/integer/boolean/object/array, or a list of them), nullable, enum,
+ * properties/required (recursively), items, min/maxLength, minimum/maximum and
+ * min/maxItems. Any other keyword is ignored rather than guessed at. Properties a schema
+ * doesn't declare are left alone: services still validate with their Zod schemas, which
+ * remain the source of truth for business rules (PROJ-895 will generate these schemas
+ * from them).
+ *
+ * Deliberately lenient where the services already are, so this never rejects a call that
+ * used to work: numeric strings pass for number/integer (the Zod schemas use z.coerce),
+ * "true"/"1"/"false"/"0"/"" pass for boolean (BooleanQueryParam), and null passes for any optional
+ * property (Zod's .nullable().optional() "clear this field" idiom). Everything else that
+ * doesn't match the declared type is rejected.
+ */
 
 type Schema = Record<string, unknown>
 

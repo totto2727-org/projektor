@@ -277,14 +277,16 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     })
     // Fetch member token from the same fixture
     const roles = await seedWorkspaceRoles() // second workspace — need same slug
-    // Actually member is already in the fixture via seedWorkspaceRoles above —
-    // but each beforeEach creates a NEW seedWorkspaceRoles. Use the memberHeaders directly.
-    // Re-derive memberHeaders from the same roles used in beforeEach:
-    // Since beforeEach already set viewerHeaders/ownerHeaders, we use the member from the
-    // same workspace. However seedWorkspaceRoles is called again here for a new workspace.
-    // To avoid using the wrong workspace, simply verify member in the correct workspace
-    // gets 200. We do this inline without an extra seedWorkspaceRoles call.
-    // (This test just validates the owner can also delete.)
+    /*
+     * Actually member is already in the fixture via seedWorkspaceRoles above —
+     * but each beforeEach creates a NEW seedWorkspaceRoles. Use the memberHeaders directly.
+     * Re-derive memberHeaders from the same roles used in beforeEach:
+     * Since beforeEach already set viewerHeaders/ownerHeaders, we use the member from the
+     * same workspace. However seedWorkspaceRoles is called again here for a new workspace.
+     * To avoid using the wrong workspace, simply verify member in the correct workspace
+     * gets 200. We do this inline without an extra seedWorkspaceRoles call.
+     * (This test just validates the owner can also delete.)
+     */
     const res = await fetchNativeApi('http://localhost/api/wiki/member-page', {
       method: 'DELETE',
       headers: ownerHeaders,
@@ -294,15 +296,19 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     void roles
   })
 
-  // -- Comments --
-  // PROJ-374: addComment now rejects viewers, mirroring the other
-  // mutating-route guards in this file.
+  /*
+   * -- Comments --
+   * PROJ-374: addComment now rejects viewers, mirroring the other
+   * mutating-route guards in this file.
+   */
 
   test('viewer cannot POST /api/issues/:issueId/comments', async () => {
     const project = await seedProject(workspaceId)
     const issue = await seedIssue(workspaceId, project.id, ownerId)
-    // Grant the viewer visibility into the project (PROJ-311 default-deny)
-    // so the request reaches the viewer-role guard instead of a 404.
+    /*
+     * Grant the viewer visibility into the project (PROJ-311 default-deny)
+     * so the request reaches the viewer-role guard instead of a 404.
+     */
     await seedGroupGrant(workspaceId, viewerId, project.id, 'viewer')
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/comments`, {
@@ -545,9 +551,11 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
     expect(res.status).toBe(200)
   })
 
-  // POST/DELETE /:slug/tokens — admin/owner only, and (PROJ-917) only from a human
-  // session: the dev bypass here. Bearer-token refusal is covered in
-  // workspace-tokens.test.ts.
+  /*
+   * POST/DELETE /:slug/tokens — admin/owner only, and (PROJ-917) only from a human
+   * session: the dev bypass here. Bearer-token refusal is covered in
+   * workspace-tokens.test.ts.
+   */
 
   async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
     const prev = env.DEV_USER_EMAIL

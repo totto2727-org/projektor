@@ -125,9 +125,11 @@ async function undeleteWikiPage(id: string, workspaceSlug?: string): Promise<{ s
 /** Matches Base.astro's mobile `@media (max-width: 640px)` breakpoint. */
 const WIKI_MOBILE_QUERY = '(max-width: 640px)'
 
-// PROJ-664: reactive (unlike Select.tsx's imperative isMobileMenu() check) since
-// the wiki reader switches whole sections of the layout on crossing the
-// breakpoint, not just a menu opened on demand.
+/*
+ * PROJ-664: reactive (unlike Select.tsx's imperative isMobileMenu() check) since
+ * the wiki reader switches whole sections of the layout on crossing the
+ * breakpoint, not just a menu opened on demand.
+ */
 function useIsMobileViewport(): boolean {
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -150,8 +152,10 @@ interface TemplateOption {
   title: string
 }
 
-// PROJ-489 (R7): computed/derived at read time, never stored — null when the page has
-// no verify_interval/status frontmatter signal at all.
+/*
+ * PROJ-489 (R7): computed/derived at read time, never stored — null when the page has
+ * no verify_interval/status frontmatter signal at all.
+ */
 interface WikiFreshness {
   state: 'fresh' | 'stale' | 'unverified'
   staleSince: number | null
@@ -167,8 +171,10 @@ interface SearchResult {
   type: string | null
   status: string | null
   tags: string[]
-  // PROJ-489 (R7): search demotes stale/deprecated results — surfaced here so the UI
-  // can show why a result ranks low.
+  /*
+   * PROJ-489 (R7): search demotes stale/deprecated results — surfaced here so the UI
+   * can show why a result ranks low.
+   */
   freshness: WikiFreshness | null
 }
 
@@ -202,9 +208,11 @@ interface StalePageItem {
   freshness: WikiFreshness | null
 }
 
-// PROJ-488: shape returned by GET /api/wiki (listWikiPages) — used for the sidebar's
-// type/status/tags filtered browse view (WikiSidebar's flat list, distinct from the
-// hierarchical tree shown when no filter is active).
+/*
+ * PROJ-488: shape returned by GET /api/wiki (listWikiPages) — used for the sidebar's
+ * type/status/tags filtered browse view (WikiSidebar's flat list, distinct from the
+ * hierarchical tree shown when no filter is active).
+ */
 interface WikiListItem {
   id: string
   slug: string
@@ -224,12 +232,14 @@ const WIKI_TYPE_FILTER_OPTIONS: SelectOption[] = [
 
 const WIKI_WELL_KNOWN_TYPES = new Set(WIKI_TYPE_FILTER_OPTIONS.map((o) => o.value).filter(Boolean))
 
-// PROJ-514: frontmatter `type` is freeform (PROJ-513) — merge in any other distinct
-// types actually present in the workspace so pages using e.g. `type: whitepaper` stay
-// discoverable, without losing the well-known values' friendly labels/ordering. Dedupe
-// case-insensitively (frontmatter `type` is never case-normalized) so e.g. `Runbook`
-// doesn't produce a second, visually-indistinguishable entry alongside the well-known
-// lowercase `runbook`.
+/*
+ * PROJ-514: frontmatter `type` is freeform (PROJ-513) — merge in any other distinct
+ * types actually present in the workspace so pages using e.g. `type: whitepaper` stay
+ * discoverable, without losing the well-known values' friendly labels/ordering. Dedupe
+ * case-insensitively (frontmatter `type` is never case-normalized) so e.g. `Runbook`
+ * doesn't produce a second, visually-indistinguishable entry alongside the well-known
+ * lowercase `runbook`.
+ */
 function buildTypeFilterOptions(discoveredTypes: readonly string[]): SelectOption[] {
   const seen = new Set(Array.from(WIKI_WELL_KNOWN_TYPES).map((t) => t.toLowerCase()))
   const extras: string[] = []
@@ -278,9 +288,11 @@ function WikiStatusPill({ status }: { status: string }) {
   )
 }
 
-// PROJ-489 (R7): "fresh" renders nothing — only stale/unverified pages need a visual
-// nudge; a page with no freshness signal at all (`null`) also renders nothing (handled
-// by the caller, not this component).
+/*
+ * PROJ-489 (R7): "fresh" renders nothing — only stale/unverified pages need a visual
+ * nudge; a page with no freshness signal at all (`null`) also renders nothing (handled
+ * by the caller, not this component).
+ */
 const WIKI_FRESHNESS_BADGE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   stale: { bg: 'var(--priority-high-bg)', color: 'var(--priority-high-text)', label: 'Stale' },
   unverified: {
@@ -324,13 +336,15 @@ function TagChips({ tags }: { tags: string[] | undefined | null }) {
   )
 }
 
-// PROJ-488: header card summarizing a page's frontmatter metadata (type/status/tags/
-// owners/verification). Omitted entirely for a page with no frontmatter at all, so
-// pages predating this feature (or that simply don't use it) render exactly as before.
-//
-// PROJ-489 (R7): the Verify button/freshness badge only render when the page has opted
-// into verification tracking (a verify_interval or a status set) — a page with neither
-// has freshness: null and nothing meaningful to verify against.
+/*
+ * PROJ-488: header card summarizing a page's frontmatter metadata (type/status/tags/
+ * owners/verification). Omitted entirely for a page with no frontmatter at all, so
+ * pages predating this feature (or that simply don't use it) render exactly as before.
+ *
+ * PROJ-489 (R7): the Verify button/freshness badge only render when the page has opted
+ * into verification tracking (a verify_interval or a status set) — a page with neither
+ * has freshness: null and nothing meaningful to verify against.
+ */
 function WikiMetadataBadges({ page }: { page: WikiPageData }) {
   return (
     <>
@@ -451,21 +465,23 @@ interface TocItem {
   id: string
 }
 
-// PROJ-804: pure and exported so it's unit-testable without mounting WikiPage. Turns
-// heading text into a URL-safe id and de-duplicates within one pass over the page's
-// headings — repeated text (two "Overview" headings) gets `-1`, `-2`, … suffixes
-// instead of two headings sharing an id (which broke the second TOC entry's link and
-// its React/Preact list key). A heading whose text produces an empty slug (e.g. all
-// punctuation, or a script `[^a-z0-9]` strips entirely) falls back to `section-N`
-// (1-based, N = that heading's position) rather than `id=""`.
-//
-// Uniqueness is checked against every id handed out so far, not a per-base counter:
-// ["Overview", "Overview", "Overview 1"] must not give `overview-1` twice, so a suffix
-// is only taken once it's actually free. An id the author wrote (`<h2 id="install">`,
-// which DOMPurify keeps) is reserved up front and left as-is — links elsewhere point
-// at it — and generated ids steer around it. Only a *repeated* authored id is
-// re-suffixed, since two elements can't share it either. Because kept ids are left
-// alone, running this again over headings it already labelled is a no-op.
+/*
+ * PROJ-804: pure and exported so it's unit-testable without mounting WikiPage. Turns
+ * heading text into a URL-safe id and de-duplicates within one pass over the page's
+ * headings — repeated text (two "Overview" headings) gets `-1`, `-2`, … suffixes
+ * instead of two headings sharing an id (which broke the second TOC entry's link and
+ * its React/Preact list key). A heading whose text produces an empty slug (e.g. all
+ * punctuation, or a script `[^a-z0-9]` strips entirely) falls back to `section-N`
+ * (1-based, N = that heading's position) rather than `id=""`.
+ *
+ * Uniqueness is checked against every id handed out so far, not a per-base counter:
+ * ["Overview", "Overview", "Overview 1"] must not give `overview-1` twice, so a suffix
+ * is only taken once it's actually free. An id the author wrote (`<h2 id="install">`,
+ * which DOMPurify keeps) is reserved up front and left as-is — links elsewhere point
+ * at it — and generated ids steer around it. Only a *repeated* authored id is
+ * re-suffixed, since two elements can't share it either. Because kept ids are left
+ * alone, running this again over headings it already labelled is a no-op.
+ */
 interface WikiRevision {
   id: string
   author_id: string | null
@@ -523,8 +539,10 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-// PROJ-514: walks the tree already fetched by useWikiTree to discover distinct `type`
-// values for the sidebar filter dropdown, instead of issuing a second unfiltered fetch.
+/*
+ * PROJ-514: walks the tree already fetched by useWikiTree to discover distinct `type`
+ * values for the sidebar filter dropdown, instead of issuing a second unfiltered fetch.
+ */
 function collectTreeTypes(nodes: readonly TreeNode[]): string[] {
   const types: string[] = []
   for (const node of nodes) {
@@ -607,9 +625,11 @@ function TreeNodeItem({
   )
 }
 
-// PROJ-486: search excerpts come back with `**match**` markers from the
-// backend's FTS5 snippet() highlighting — split and render as <mark> instead
-// of showing the literal asterisks.
+/*
+ * PROJ-486: search excerpts come back with `**match**` markers from the
+ * backend's FTS5 snippet() highlighting — split and render as <mark> instead
+ * of showing the literal asterisks.
+ */
 function renderHighlightedExcerpt(excerpt: string) {
   const parts = excerpt.split(/(\*\*[^*]*\*\*)/g).filter((part) => part !== '')
   let offset = 0
@@ -685,9 +705,11 @@ function SearchResultsList({
   )
 }
 
-// PROJ-489 (R7): the list_stale_pages maintenance queue — a simple flat list, matching
-// FilteredPagesList's styling below (no existing "maintenance queue" UI precedent to
-// follow elsewhere in this codebase).
+/*
+ * PROJ-489 (R7): the list_stale_pages maintenance queue — a simple flat list, matching
+ * FilteredPagesList's styling below (no existing "maintenance queue" UI precedent to
+ * follow elsewhere in this codebase).
+ */
 function StalePagesList({
   loading,
   results,
@@ -721,10 +743,12 @@ function StalePagesList({
   )
 }
 
-// PROJ-488: flat, non-hierarchical list shown in the sidebar when a type/status/tag
-// filter is active — filtering the page *tree* (does any descendant match?) is out of
-// scope for this ticket, so an active filter temporarily replaces the tree view instead
-// of pruning it.
+/*
+ * PROJ-488: flat, non-hierarchical list shown in the sidebar when a type/status/tag
+ * filter is active — filtering the page *tree* (does any descendant match?) is out of
+ * scope for this ticket, so an active filter temporarily replaces the tree view instead
+ * of pruning it.
+ */
 function FilteredPagesList({
   loading,
   results,
@@ -783,9 +807,11 @@ function PageTreeList({
   )
 }
 
-// Lets a user viewing the workspace-wide wiki (or one project's wiki) switch to another
-// scope explicitly, since the only other entry point is a project's nav tab. Switching
-// scope is a full navigation (fresh tree/search for the new scope), not an in-place swap.
+/*
+ * Lets a user viewing the workspace-wide wiki (or one project's wiki) switch to another
+ * scope explicitly, since the only other entry point is a project's nav tab. Switching
+ * scope is a full navigation (fresh tree/search for the new scope), not an in-place swap.
+ */
 function useProjects(_workspaceSlug: string | undefined) {
   return useWikiSeed().projects
 }
@@ -816,8 +842,10 @@ function ScopeControl({ workspaceSlug, projectId }: { workspaceSlug: string | un
   )
 }
 
-// PROJ-488: type/status dropdowns + a comma-separated tags text filter, shared between
-// the sidebar's filtered browse view and (via useWikiSearch) text search.
+/*
+ * PROJ-488: type/status dropdowns + a comma-separated tags text filter, shared between
+ * the sidebar's filtered browse view and (via useWikiSearch) text search.
+ */
 function WikiFilterBar({
   filterType,
   onFilterTypeChange,
@@ -923,9 +951,11 @@ function WikiSidebar({
   // PROJ-664: below 640px this aside becomes an off-canvas drawer (see
   // WikiPageShell) instead of stacking full-width in flow above the article.
   drawerOpen: boolean
-  // PROJ-806: whether the drawer is acting as a drawer at all (mobile viewport) — on
-  // desktop the sidebar is always in normal flow and must never be inert, even though
-  // `drawerOpen` itself stays false there (it's only ever opened via the mobile trigger).
+  /*
+   * PROJ-806: whether the drawer is acting as a drawer at all (mobile viewport) — on
+   * desktop the sidebar is always in normal flow and must never be inert, even though
+   * `drawerOpen` itself stays false there (it's only ever opened via the mobile trigger).
+   */
   isMobile: boolean
   sidebarRef: RefObject<HTMLElement | null>
 }) {
@@ -1141,11 +1171,13 @@ function PageBreadcrumbs({
         Home
       </button>
       {breadcrumbs.slice(1, -1).map((crumb) => (
-        // PROJ-806: the key belongs on the list item itself (this fragment), not a
-        // DOM node nested inside it — Preact reconciles the fragment's children by
-        // their position, not the key on a descendant, so a key here (rather than on
-        // the button) is what actually makes each breadcrumb crumb identifiable
-        // across re-renders when the list changes.
+        /*
+         * PROJ-806: the key belongs on the list item itself (this fragment), not a
+         * DOM node nested inside it — Preact reconciles the fragment's children by
+         * their position, not the key on a descendant, so a key here (rather than on
+         * the button) is what actually makes each breadcrumb crumb identifiable
+         * across re-renders when the list changes.
+         */
         <Fragment key={crumb.id}>
           <span>›</span>
           <button type='button' className={BREADCRUMB_BUTTON_CLASS} onClick={() => onNavigate(crumb.slug)}>
@@ -1224,10 +1256,12 @@ function TocList({ toc, activeHeadingId, onClick }: { toc: TocItem[]; activeHead
   )
 }
 
-// PROJ-664: on mobile the [+ Child page]/[Move]/[Delete] buttons that used to
-// sit inline (326px, shrink-0, no scrolling ancestor) pushed scrollWidth past
-// the viewport and crushed the title. Below 640px only Edit stays inline;
-// the rest move behind this menu. Mirrors AccountMenu's trigger+Popover shape.
+/*
+ * PROJ-664: on mobile the [+ Child page]/[Move]/[Delete] buttons that used to
+ * sit inline (326px, shrink-0, no scrolling ancestor) pushed scrollWidth past
+ * the viewport and crushed the title. Below 640px only Edit stays inline;
+ * the rest move behind this menu. Mirrors AccountMenu's trigger+Popover shape.
+ */
 function useDuplicateWikiPage() {
   const seed = useWikiSeed()
   const [duplicating, setDuplicating] = useState(false)
@@ -1287,14 +1321,16 @@ function PageActionOverflowMenu({
     triggerRef.current?.focus()
   }, [])
 
-  // PROJ-806: a menu that opens without moving focus into itself, or that doesn't
-  // support arrow keys, forces a screen reader or keyboard user to tab through the
-  // rest of the page to reach it. Focus moves to the first item on open; ArrowUp/
-  // ArrowDown cycle between items (wrapping), matching the standard menu pattern. The
-  // items are tabindex=-1 (arrows move between them, not Tab), and Tab or Escape close
-  // the menu back to its trigger — the menu is portalled to <body>, so letting Tab run
-  // on would jump to wherever the portal sits in the document, not the next control
-  // after ⋯.
+  /*
+   * PROJ-806: a menu that opens without moving focus into itself, or that doesn't
+   * support arrow keys, forces a screen reader or keyboard user to tab through the
+   * rest of the page to reach it. Focus moves to the first item on open; ArrowUp/
+   * ArrowDown cycle between items (wrapping), matching the standard menu pattern. The
+   * items are tabindex=-1 (arrows move between them, not Tab), and Tab or Escape close
+   * the menu back to its trigger — the menu is portalled to <body>, so letting Tab run
+   * on would jump to wherever the portal sits in the document, not the next control
+   * after ⋯.
+   */
   useEffect(() => {
     if (!open) {
       return
@@ -1332,9 +1368,11 @@ function PageActionOverflowMenu({
     }
   }, [open, menuItems, isInside, closeToTrigger])
 
-  // Refocus the trigger *before* running the action: the menu (and the focused item)
-  // is about to unmount, which would otherwise drop focus to <body>. An action that
-  // moves focus somewhere deliberately still gets the last word.
+  /*
+   * Refocus the trigger *before* running the action: the menu (and the focused item)
+   * is about to unmount, which would otherwise drop focus to <body>. An action that
+   * moves focus somewhere deliberately still gets the last word.
+   */
   function runAndClose(fn: () => void) {
     closeToTrigger()
     fn()
@@ -1500,8 +1538,10 @@ function PageHeader({
   )
 }
 
-// PROJ-495 (R13): the draft lives server-side now, so this can surface on any device —
-// not just after a crash on the same browser.
+/*
+ * PROJ-495 (R13): the draft lives server-side now, so this can surface on any device —
+ * not just after a crash on the same browser.
+ */
 function DraftRestoreBanner({
   updatedAt,
   pageChangedSince,
@@ -1541,9 +1581,11 @@ function DraftRestoreBanner({
   )
 }
 
-// PROJ-492 (R10): renders the server's unified diff text (--- base / +++ current, @@
-// hunks, +/- lines) with per-line coloring. An empty diff means the two sides are
-// identical (services/wiki.ts#buildUnifiedDiff returns "" in that case).
+/*
+ * PROJ-492 (R10): renders the server's unified diff text (--- base / +++ current, @@
+ * hunks, +/- lines) with per-line coloring. An empty diff means the two sides are
+ * identical (services/wiki.ts#buildUnifiedDiff returns "" in that case).
+ */
 function RevisionDiffView({ diff }: { diff: string }) {
   if (diff === '') {
     return <p className='mt-2 mb-1 text-[0.75rem] text-text-muted italic'>No changes.</p>
@@ -1570,10 +1612,12 @@ function RevisionDiffView({ diff }: { diff: string }) {
   )
 }
 
-// PROJ-808: restoring while the page is being edited raced the edit's own save against
-// the restore's PUT — both build their request off the revision the user started from,
-// so whichever lands second gets a 409 against a revision it created itself. Simplest
-// correct fix: disable Restore during editing rather than trying to reconcile the two.
+/*
+ * PROJ-808: restoring while the page is being edited raced the edit's own save against
+ * the restore's PUT — both build their request off the revision the user started from,
+ * so whichever lands second gets a 409 against a revision it created itself. Simplest
+ * correct fix: disable Restore during editing rather than trying to reconcile the two.
+ */
 const RESTORE_DISABLED_WHILE_EDITING_REASON = 'Finish or cancel editing before restoring a previous revision'
 
 function RevisionRow({
@@ -1701,10 +1745,12 @@ function RevisionsHistory({
   )
 }
 
-// PROJ-494: whether an attachment's id appears anywhere in the page's current markdown
-// (e.g. as part of an inline `![alt](/api/files/:id...)` ref). A plain substring check —
-// good enough to tell "referenced" from "orphaned" without parsing markdown image syntax,
-// and it also catches an id pasted into a manual link or wiki_ref-style reference.
+/*
+ * PROJ-494: whether an attachment's id appears anywhere in the page's current markdown
+ * (e.g. as part of an inline `![alt](/api/files/:id...)` ref). A plain substring check —
+ * good enough to tell "referenced" from "orphaned" without parsing markdown image syntax,
+ * and it also catches an id pasted into a manual link or wiki_ref-style reference.
+ */
 function isReferenced(attachmentId: string, content: string): boolean {
   return content.includes(attachmentId)
 }
@@ -1894,9 +1940,11 @@ interface PageArticleProps {
   showToc: boolean
   toc: TocItem[]
   activeHeadingId: string
-  // PROJ-803: a callback ref (not a plain RefObject) so remounting the content div
-  // (Cancel edit / Verify / Move) is observable as a mount-token bump, not just a
-  // silent `.current` update — see useWikiPageData's contentMountToken.
+  /*
+   * PROJ-803: a callback ref (not a plain RefObject) so remounting the content div
+   * (Cancel edit / Verify / Move) is observable as a mount-token bump, not just a
+   * silent `.current` update — see useWikiPageData's contentMountToken.
+   */
   setContentRef: (node: HTMLDivElement | null) => void
   editing: boolean
   editTitle: string
@@ -2195,8 +2243,10 @@ function WikiMainContent(
     return <p aria-live='polite'>Loading…</p>
   }
   if (props.error) {
-    // PROJ-487: a slug that resolves to nothing (not even via a PROJ-483 redirect)
-    // gets a dedicated 404 message rather than the generic failure text.
+    /*
+     * PROJ-487: a slug that resolves to nothing (not even via a PROJ-483 redirect)
+     * gets a dedicated 404 message rather than the generic failure text.
+     */
     if (props.error.includes('404')) {
       return (
         <p role='alert' className='text-text-muted'>
@@ -2241,9 +2291,11 @@ function useWikiStalePages(_workspaceSlug: string | undefined, _projectId: strin
   return { staleOpen, setStaleOpen, stalePages: seed.stalePages, staleLoading: false }
 }
 
-// PROJ-488: type/status/tags filters shared between the sidebar's filtered browse view
-// (no search query — a flat list from listWikiPages) and text search below (combined
-// with the FTS query via search_wiki's own type/status/tags params).
+/*
+ * PROJ-488: type/status/tags filters shared between the sidebar's filtered browse view
+ * (no search query — a flat list from listWikiPages) and text search below (combined
+ * with the FTS query via search_wiki's own type/status/tags params).
+ */
 function useWikiFilters(
   _workspaceSlug: string | undefined,
   _projectId: string | undefined,
@@ -2307,29 +2359,33 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
   const loading = false
   const error = seed.slug && !seed.page ? '404' : null
   const revisions = seed.revisions
-  // PROJ-507: whether `revisions` reflects a completed fetch for this page. An empty
-  // list means two very different things to the optimistic lock — "this page has never
-  // been revised" (baseRevisionId: null) vs "we don't know yet" — and conflating them
-  // makes a legitimate save look like a conflict.
+  /*
+   * PROJ-507: whether `revisions` reflects a completed fetch for this page. An empty
+   * list means two very different things to the optimistic lock — "this page has never
+   * been revised" (baseRevisionId: null) vs "we don't know yet" — and conflating them
+   * makes a legitimate save look like a conflict.
+   */
   const revisionsLoaded = true
   const [showHistory, setShowHistory] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
-  // PROJ-803: the content div only mounts when `!editing` (PageArticle), so Cancel
-  // edit / Verify / Move — anything that flips `editing` or otherwise remounts that
-  // div without page.content changing — used to leave the TOC pointing at detached
-  // nodes and mermaid blocks unrendered, because the post-render effects keyed only
-  // on content. A callback ref bumps this token on every mount so those effects can
-  // key on "the DOM actually changed" instead, composing with PROJ-860's HTML memo
-  // (effects now depend on [renderedHtml, contentMountToken] — either changing means
-  // there's new DOM to process).
-  //
-  // Why a counter and not the node itself in state: Preact recycles the same <div>
-  // across Edit → Cancel (it morphs the article div into MarkdownEditor's root and
-  // back, resetting innerHTML on the way), so the ref is called again with the
-  // *identical* node and a [node] dependency would never change — the original bug. It
-  // can also deliver the old mount's `null` after the new node. A bump on every non-null
-  // call survives both. The cost is one extra run of these effects on first mount (the
-  // bump lands in the commit after the HTML does).
+  /*
+   * PROJ-803: the content div only mounts when `!editing` (PageArticle), so Cancel
+   * edit / Verify / Move — anything that flips `editing` or otherwise remounts that
+   * div without page.content changing — used to leave the TOC pointing at detached
+   * nodes and mermaid blocks unrendered, because the post-render effects keyed only
+   * on content. A callback ref bumps this token on every mount so those effects can
+   * key on "the DOM actually changed" instead, composing with PROJ-860's HTML memo
+   * (effects now depend on [renderedHtml, contentMountToken] — either changing means
+   * there's new DOM to process).
+   *
+   * Why a counter and not the node itself in state: Preact recycles the same <div>
+   * across Edit → Cancel (it morphs the article div into MarkdownEditor's root and
+   * back, resetting innerHTML on the way), so the ref is called again with the
+   * *identical* node and a [node] dependency would never change — the original bug. It
+   * can also deliver the old mount's `null` after the new node. A bump on every non-null
+   * call survives both. The cost is one extra run of these effects on first mount (the
+   * bump lands in the commit after the HTML does).
+   */
   const [contentMountToken, setContentMountToken] = useState(0)
   const setContentRef = useCallback((node: HTMLDivElement | null) => {
     contentRef.current = node
@@ -2338,10 +2394,12 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
     }
   }, [])
 
-  // Revisions belong to the page the `slug` prop points at, so they're reset when it
-  // changes — not on every fetchPage(), which also runs as a same-page refresh (after
-  // a save or a move) and would leave the list empty until something refetched it.
-  // Same-URL ServerFn refresh updates canonical state without touching editor drafts.
+  /*
+   * Revisions belong to the page the `slug` prop points at, so they're reset when it
+   * changes — not on every fetchPage(), which also runs as a same-page refresh (after
+   * a save or a move) and would leave the list empty until something refetched it.
+   * Same-URL ServerFn refresh updates canonical state without touching editor drafts.
+   */
   useEffect(() => {
     if (seed.page) {
       setDeletedPageId(null)
@@ -2395,9 +2453,11 @@ function useTableOfContents(
   _page: WikiPageData | null,
   contentRef: RefObject<HTMLDivElement | null>,
   rendered: RenderedMarkdown,
-  // PROJ-803: bumped by the content div's callback ref every time it mounts, so
-  // Cancel/Verify/Move (which remount the div without page.content changing) still
-  // re-run these effects against the new DOM node.
+  /*
+   * PROJ-803: bumped by the content div's callback ref every time it mounts, so
+   * Cancel/Verify/Move (which remount the div without page.content changing) still
+   * re-run these effects against the new DOM node.
+   */
   contentMountToken: number,
 ) {
   const toc = useMemo(() => [...rendered.toc], [rendered])
@@ -2433,22 +2493,26 @@ function useTableOfContents(
   return { toc, activeHeadingId }
 }
 
-// PROJ-802: heading ids are only assigned once the content has rendered (the effects
-// above), so a link like /wiki/foo#setup used to always open at the top of the page —
-// nothing ever re-checked location.hash once the target id actually existed. `toc`
-// changing covers first load and framework navigation, which rebuild the
-// page and its TOC); hashchange covers clicking a same-page #anchor (including a TOC
-// link) without a full navigation. Native currententrychange covers Back/Forward.
-//
-// A TOC rebuild is *not* a navigation, though: Cancel edit, Verify, Move and a late tree
-// load all rebuild it on the same page and hash. Re-scrolling on each of those yanked the
-// reader back to the anchor and stole focus from whatever they were doing, so each
-// page-slug + hash pair is handled once. Only hash or native entry changes (navigation,
-// even back to the same hash) clear that and allow another scroll.
+/*
+ * PROJ-802: heading ids are only assigned once the content has rendered (the effects
+ * above), so a link like /wiki/foo#setup used to always open at the top of the page —
+ * nothing ever re-checked location.hash once the target id actually existed. `toc`
+ * changing covers first load and framework navigation, which rebuild the
+ * page and its TOC); hashchange covers clicking a same-page #anchor (including a TOC
+ * link) without a full navigation. Native currententrychange covers Back/Forward.
+ *
+ * A TOC rebuild is *not* a navigation, though: Cancel edit, Verify, Move and a late tree
+ * load all rebuild it on the same page and hash. Re-scrolling on each of those yanked the
+ * reader back to the anchor and stole focus from whatever they were doing, so each
+ * page-slug + hash pair is handled once. Only hash or native entry changes (navigation,
+ * even back to the same hash) clear that and allow another scroll.
+ */
 function findInContent(container: HTMLElement, id: string): HTMLElement | null {
-  // Only the rendered page body counts — an id elsewhere (the sidebar's
-  // `wiki-page-tree`, the TOC nav, …) must not hijack the anchor. Matched by property
-  // rather than a `#id` selector so ids needing CSS escaping still work.
+  /*
+   * Only the rendered page body counts — an id elsewhere (the sidebar's
+   * `wiki-page-tree`, the TOC nav, …) must not hijack the anchor. Matched by property
+   * rather than a `#id` selector so ids needing CSS escaping still work.
+   */
   for (const el of container.querySelectorAll<HTMLElement>('[id]')) {
     if (el.id === id) {
       return el
@@ -2480,16 +2544,20 @@ function useHashScroll(
       return
     }
     const heading = findInContent(container, safeDecodeURIComponent(raw) ?? raw)
-    // Not rendered yet (or not on this page) — leave it unhandled so the next TOC
-    // build, once the target exists, can still scroll to it.
+    /*
+     * Not rendered yet (or not on this page) — leave it unhandled so the next TOC
+     * build, once the target exists, can still scroll to it.
+     */
     if (!heading) {
       return
     }
     handledRef.current = key
     heading.scrollIntoView()
-    // Headings aren't focusable by default — tabindex=-1 lets focus() target them
-    // programmatically (screen reader users land there too) without adding them to
-    // the normal Tab order.
+    /*
+     * Headings aren't focusable by default — tabindex=-1 lets focus() target them
+     * programmatically (screen reader users land there too) without adding them to
+     * the normal Tab order.
+     */
     heading.setAttribute('tabindex', '-1')
     heading.focus({ preventScroll: true })
   }, [contentRef, pageSlug])
@@ -2572,17 +2640,19 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
   }
 }
 
-// PROJ-495 (R13): server-side per-user draft autosave, replacing the PROJ-227
-// localStorage version so an in-progress edit survives a device switch, not just a
-// same-browser crash. Same ~1s debounce cadence as before; debouncing stays entirely
-// client-side (no server-side throttling) so this is just a plain PUT on a timer.
-//
-// PROJ-799: a draft is only written when the edit actually differs from the
-// published page (so opening and cancelling never leaves a spurious "Restore unsaved
-// draft?" behind), and reverting to the published text deletes the draft this
-// session wrote. Autosave is paused while a save is in flight, and stays off until
-// the existing server draft has been checked — if that check fails, autosave is
-// disabled for the session rather than risk overwriting a draft from another device.
+/*
+ * PROJ-495 (R13): server-side per-user draft autosave, replacing the PROJ-227
+ * localStorage version so an in-progress edit survives a device switch, not just a
+ * same-browser crash. Same ~1s debounce cadence as before; debouncing stays entirely
+ * client-side (no server-side throttling) so this is just a plain PUT on a timer.
+ *
+ * PROJ-799: a draft is only written when the edit actually differs from the
+ * published page (so opening and cancelling never leaves a spurious "Restore unsaved
+ * draft?" behind), and reverting to the published text deletes the draft this
+ * session wrote. Autosave is paused while a save is in flight, and stays off until
+ * the existing server draft has been checked — if that check fails, autosave is
+ * disabled for the session rather than risk overwriting a draft from another device.
+ */
 export type DraftStatus = 'loading' | 'ready' | 'failed'
 
 interface UseServerDraftAutosaveOptions {
@@ -2612,8 +2682,10 @@ function mayWrite(s: UseServerDraftAutosaveOptions): s is UseServerDraftAutosave
 function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   const { workspaceSlug, editing, editTitle, editContent, page, draftBanner, baseRevisionId, saving, draftStatus } =
     options
-  // Latest edit state for the flush-on-leave effect below, since its cleanup
-  // closure would otherwise only see the values from when `editing` last changed.
+  /*
+   * Latest edit state for the flush-on-leave effect below, since its cleanup
+   * closure would otherwise only see the values from when `editing` last changed.
+   */
   const latestDraftStateRef = useRef(options)
   useLayoutEffect(() => {
     latestDraftStateRef.current = options
@@ -2622,9 +2694,11 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   // save() clears the draft itself right before leaving edit mode; set this to
   // suppress the flush below so it doesn't resurrect the just-cleared draft.
   const skipLeaveFlushRef = useRef(false)
-  // PROJ-799: whether a server draft for this page is known to exist (this session
-  // wrote one, or the user restored the one found on open). Only then does reverting
-  // to the published text issue a DELETE — never for a draft this session hasn't seen.
+  /*
+   * PROJ-799: whether a server draft for this page is known to exist (this session
+   * wrote one, or the user restored the one found on open). Only then does reverting
+   * to the published text issue a DELETE — never for a draft this session hasn't seen.
+   */
   const seed = useWikiSeed()
   const serverHasDraftRef = useRef(seed.mode === 'edit' && !!seed.draft)
   const revisionRef = useRef(seed.draftRevision ?? null)
@@ -2637,8 +2711,10 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   const suspendedRef = useRef(false)
   const [writeWarning, setWriteWarning] = useState<string | null>(null)
 
-  // One page-local chain orders autosave, explicit discard and publication. Only
-  // its pending snapshot is replaceable, so typing B/C while A saves writes C next.
+  /*
+   * One page-local chain orders autosave, explicit discard and publication. Only
+   * its pending snapshot is replaceable, so typing B/C while A saves writes C next.
+   */
   const drainDrafts = useCallback(() => {
     if (drainingRef.current) {
       return
@@ -2799,9 +2875,11 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     return () => clearTimeout(timer)
   }, [editing, editTitle, editContent, page, draftBanner, baseRevisionId, saving, draftStatus, persistDraft])
 
-  // Flush any not-yet-debounced edits when leaving edit mode via navigation (not
-  // just Save/Cancel), so a quick click-away doesn't drop the last <1s of
-  // keystrokes from the safety-net draft.
+  /*
+   * Flush any not-yet-debounced edits when leaving edit mode via navigation (not
+   * just Save/Cancel), so a quick click-away doesn't drop the last <1s of
+   * keystrokes from the safety-net draft.
+   */
   useEffect(() => {
     const wasEditing = editing
     return () => {
@@ -2820,10 +2898,12 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
     }
   }, [editing, persistDraft])
 
-  // PROJ-800: an explicit flush for callers about to clear page state in the same
-  // batch as leaving edit mode (navigation). By the time the leave-flush cleanup
-  // above runs, the ref already holds `page: null`, so it can't write — flush here
-  // first, then suppress that now-redundant cleanup.
+  /*
+   * PROJ-800: an explicit flush for callers about to clear page state in the same
+   * batch as leaving edit mode (navigation). By the time the leave-flush cleanup
+   * above runs, the ref already holds `page: null`, so it can't write — flush here
+   * first, then suppress that now-redundant cleanup.
+   */
   function flushDraftNow() {
     const s = latestDraftStateRef.current
     if (!s.editing) {
@@ -2848,8 +2928,10 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   }
 }
 
-// PROJ-800: closing or reloading the tab mid-edit asks first when there are unsaved
-// changes — a debounced draft can't be flushed from an unloading page reliably.
+/*
+ * PROJ-800: closing or reloading the tab mid-edit asks first when there are unsaved
+ * changes — a debounced draft can't be flushed from an unloading page reliably.
+ */
 function useUnsavedChangesGuard(editing: boolean, page: WikiPageData | null, editTitle: string, editContent: string) {
   const dirty = editing && !!page && differsFromPublished(page, editTitle, editContent)
   useEffect(() => {
@@ -2909,10 +2991,12 @@ async function saveWikiPageEdit(
   )
 }
 
-// PROJ-507: a 409 means someone else saved this page after we loaded it (PROJ-484's
-// optimistic lock rejected our stale baseRevisionId) — surface that distinctly rather
-// than the generic failure message, so the user knows to reload instead of retrying the
-// A typed ServerFn conflict is distinct from a protocol/network failure.
+/*
+ * PROJ-507: a 409 means someone else saved this page after we loaded it (PROJ-484's
+ * optimistic lock rejected our stale baseRevisionId) — surface that distinctly rather
+ * than the generic failure message, so the user knows to reload instead of retrying the
+ * A typed ServerFn conflict is distinct from a protocol/network failure.
+ */
 function isWikiSaveConflict(e: unknown): boolean {
   return e instanceof FunctionError ? e.status === 409 : String(e).endsWith('failed: 409')
 }
@@ -2973,19 +3057,21 @@ function useWikiEditing(
       ? { ...seed.draft, pageChangedSince: seed.draft.baseRevisionId !== seed.page.revisionId }
       : null,
   )
-  // PROJ-507: the revision id of the content the user actually started editing,
-  // frozen at startEdit() time — sent back as baseRevisionId so the server can
-  // detect a concurrent edit landing between load and save (PROJ-484's optimistic
-  // lock). Using the live `latestRevisionId` at save time instead would defeat the
-  // check, since it tracks whatever the page's latest revision is *right now*.
-  // `undefined` (revisions not loaded when editing started) omits the field, which
-  // the server treats as the transitional last-write-wins path — sending `null` there
-  // would instead assert "this page has no revisions" and fail every save.
-  // PROJ-495: this same value is what the draft autosave stamps as its own
-  // baseRevisionId, and restoring a draft snaps it back to the draft's own
-  // baseRevisionId — so publishing a restored draft conflict-checks against what the
-  // draft actually started from, not whatever the page's latest revision happens to
-  // be now.
+  /*
+   * PROJ-507: the revision id of the content the user actually started editing,
+   * frozen at startEdit() time — sent back as baseRevisionId so the server can
+   * detect a concurrent edit landing between load and save (PROJ-484's optimistic
+   * lock). Using the live `latestRevisionId` at save time instead would defeat the
+   * check, since it tracks whatever the page's latest revision is *right now*.
+   * `undefined` (revisions not loaded when editing started) omits the field, which
+   * the server treats as the transitional last-write-wins path — sending `null` there
+   * would instead assert "this page has no revisions" and fail every save.
+   * PROJ-495: this same value is what the draft autosave stamps as its own
+   * baseRevisionId, and restoring a draft snaps it back to the draft's own
+   * baseRevisionId — so publishing a restored draft conflict-checks against what the
+   * draft actually started from, not whatever the page's latest revision happens to
+   * be now.
+   */
 
   const [draftStatus, setDraftStatus] = useState<DraftStatus>(seed.draftStatus)
 
@@ -3011,11 +3097,13 @@ function useWikiEditing(
   })
   useUnsavedChangesGuard(editing, page, editTitle, editContent)
 
-  // PROJ-495: draft is fetched from the server (not just a local check) so it
-  // restores across devices, not only after a same-browser crash. Editing opens
-  // immediately with the published content; the restore banner appears once the
-  // fetch resolves, matching the R10 diff/choice pattern of offering rather than
-  // silently applying.
+  /*
+   * PROJ-495: draft is fetched from the server (not just a local check) so it
+   * restores across devices, not only after a same-browser crash. Editing opens
+   * immediately with the published content; the restore banner appears once the
+   * fetch resolves, matching the R10 diff/choice pattern of offering rather than
+   * silently applying.
+   */
   async function startEdit() {
     if (!page) {
       return
@@ -3025,8 +3113,10 @@ function useWikiEditing(
     setDraftBanner(null)
     setDraftStatus('loading')
     serverHasDraftRef.current = false
-    // PROJ-809: prefer the revision read together with this content; the separately
-    // fetched revisions list can already include a save that the content predates.
+    /*
+     * PROJ-809: prefer the revision read together with this content; the separately
+     * fetched revisions list can already include a save that the content predates.
+     */
     setBaseRevisionId(page.revisionId !== undefined ? page.revisionId : latestRevisionId)
     setEditTitle(page.title)
     setEditContent(page.content)
@@ -3038,25 +3128,31 @@ function useWikiEditing(
       }
       adoptDraftState(state)
       const draft = state.draft
-      // PROJ-797: offer any draft that differs from what's published, regardless
-      // of timestamp order — a publish by someone else after the last autosave
-      // used to hide the user's draft silently. The banner notes when the page
-      // has changed since the draft was started.
+      /*
+       * PROJ-797: offer any draft that differs from what's published, regardless
+       * of timestamp order — a publish by someone else after the last autosave
+       * used to hide the user's draft silently. The banner notes when the page
+       * has changed since the draft was started.
+       */
       if (draft && (draft.content !== page.content || draft.title !== page.title)) {
         const pageChangedSince =
           page.revisionId !== undefined ? draft.baseRevisionId !== page.revisionId : draft.updatedAt <= page.updated_at
         setDraftBanner({ ...draft, pageChangedSince })
       }
-      // A draft identical to the published page is still a row we may delete if
-      // the user types and then reverts.
+      /*
+       * A draft identical to the published page is still a row we may delete if
+       * the user types and then reverts.
+       */
       serverHasDraftRef.current = !!draft
       setDraftStatus('ready')
     } catch {
       if (sessionRef.current !== session) {
         return
       }
-      // PROJ-799: we can't tell whether a draft from another device exists, so
-      // autosaving now could silently overwrite it. Keep editing, but don't autosave.
+      /*
+       * PROJ-799: we can't tell whether a draft from another device exists, so
+       * autosaving now could silently overwrite it. Keep editing, but don't autosave.
+       */
       setDraftStatus('failed')
     }
   }
@@ -3107,9 +3203,11 @@ function useWikiEditing(
 
   function cancelEdit() {
     sessionRef.current += 1
-    // PROJ-796: while the restore banner is unresolved, the server draft is the
-    // user's unsaved work from elsewhere — leaving must not overwrite it with the
-    // published text the editor was opened with.
+    /*
+     * PROJ-796: while the restore banner is unresolved, the server draft is the
+     * user's unsaved work from elsewhere — leaving must not overwrite it with the
+     * published text the editor was opened with.
+     */
     if (draftBanner) {
       skipLeaveFlushRef.current = true
     }
@@ -3205,9 +3303,11 @@ function useWikiEditing(
     return saveWithBase(undefined)
   }
 
-  // PROJ-797: after a 409 the user is never stuck — this re-reads the page's current
-  // revision and saves their text on top of it (a deliberate overwrite). Their text
-  // stays in the editor either way, so they can also copy it out instead.
+  /*
+   * PROJ-797: after a 409 the user is never stuck — this re-reads the page's current
+   * revision and saves their text on top of it (a deliberate overwrite). Their text
+   * stays in the editor either way, so they can also copy it out instead.
+   */
   async function overwriteWithMine() {
     if (!page) {
       return
@@ -3219,8 +3319,10 @@ function useWikiEditing(
       const current = unwrapResult(await Effect.runPromise(query(getWikiPage)({ workspaceSlug, slug: page.slug })))
       const base = current.revisionId !== undefined ? current.revisionId : undefined
       setBaseRevisionId(base)
-      // null is a real base ("page has no revisions"); undefined means "server
-      // predates revisionId", which falls back to last-write-wins.
+      /*
+       * Null is a real base ("page has no revisions"); undefined means "server
+       * predates revisionId", which falls back to last-write-wins.
+       */
       await saveWithBase(base === undefined ? null : base)
     } catch (e) {
       setSaveError(wikiSaveErrorMessage(e))
@@ -3251,11 +3353,13 @@ function useWikiEditing(
   }
 }
 
-// PROJ-492 (R10): one-click restore is a client-side convenience — it reads the old
-// revision's content, then resubmits it through the SAME update_wiki_page write path as
-// a normal edit (baseRevisionId + summary), so it gets ordinary optimistic-locking/
-// frontmatter/FTS/link-reindex treatment for free and creates a new revision rather than
-// rewriting history. No dedicated restore endpoint.
+/*
+ * PROJ-492 (R10): one-click restore is a client-side convenience — it reads the old
+ * revision's content, then resubmits it through the SAME update_wiki_page write path as
+ * a normal edit (baseRevisionId + summary), so it gets ordinary optimistic-locking/
+ * frontmatter/FTS/link-reindex treatment for free and creates a new revision rather than
+ * rewriting history. No dedicated restore endpoint.
+ */
 function useWikiRestore(
   workspaceSlug: string | undefined,
   page: WikiPageData | null,
@@ -3268,9 +3372,11 @@ function useWikiRestore(
     if (!page) {
       return
     }
-    // PROJ-808: the Restore button is disabled while editing, but guard the action
-    // itself too — restoring mid-edit races the edit's own save against this PUT,
-    // and whichever lands second 409s against a revision it created itself.
+    /*
+     * PROJ-808: the Restore button is disabled while editing, but guard the action
+     * itself too — restoring mid-edit races the edit's own save against this PUT,
+     * and whichever lands second 409s against a revision it created itself.
+     */
     if (editing) {
       return
     }
@@ -3305,8 +3411,10 @@ function useWikiRestore(
   return { restoringId, restore }
 }
 
-// PROJ-237: re-parent a page from the page menu. Backend validation (cycle guard,
-// workspace scoping) already exists on PUT /api/wiki/:slug — this is UI-only.
+/*
+ * PROJ-237: re-parent a page from the page menu. Backend validation (cycle guard,
+ * workspace scoping) already exists on PUT /api/wiki/:slug — this is UI-only.
+ */
 function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | null) {
   const [moving, setMoving] = useState(false)
   const moveForm = useForm({
@@ -3359,9 +3467,11 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
   }
 }
 
-// PROJ-489 (R7): stamps verified_at/verified_by (server resolves the CALLING user's
-// identity — nothing to pass here) and refetches the page so the header reflects the
-// new freshness state immediately.
+/*
+ * PROJ-489 (R7): stamps verified_at/verified_by (server resolves the CALLING user's
+ * identity — nothing to pass here) and refetches the page so the header reflects the
+ * new freshness state immediately.
+ */
 function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | null) {
   const [verifying, setVerifying] = useState(false)
   const [verifyError, setVerifyError] = useState<string | null>(null)
@@ -3411,9 +3521,11 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
   const [createError, setCreateError] = useState<string | null>(null)
   const [createSaving, setCreateSaving] = useState(false)
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
-  // PROJ-491 (R9): "" means no template selected — content is edited freely. Selecting a
-  // template seeds content from create_wiki_page's templateSlug (server-side, mutually
-  // exclusive with content) rather than duplicating the strip-template-flag logic here.
+  /*
+   * PROJ-491 (R9): "" means no template selected — content is edited freely. Selecting a
+   * template seeds content from create_wiki_page's templateSlug (server-side, mutually
+   * exclusive with content) rather than duplicating the strip-template-flag logic here.
+   */
 
   function startCreate(parentId: string | null = null) {
     setCreating(true)
@@ -3519,8 +3631,10 @@ function createWikiActions(
     rawStartCreate: (parentId: string | null) => void
     rawSubmitCreate: () => Promise<string | undefined>
     cancelMove: () => void
-    // PROJ-807: shown after a successful delete, with an Undo action that calls the
-    // existing trash-undelete endpoint. null dismisses whatever toast is showing.
+    /*
+     * PROJ-807: shown after a successful delete, with an Undo action that calls the
+     * existing trash-undelete endpoint. null dismisses whatever toast is showing.
+     */
     showUndoToast: (toast: UndoToast | null) => void
     navigate: (path: string) => void
   }>,
@@ -3549,8 +3663,10 @@ function createWikiActions(
     if (!page) {
       return
     }
-    // PROJ-807: the backend soft-deletes into a 30-day trash (undeleteWikiPage) —
-    // this used to claim the opposite.
+    /*
+     * PROJ-807: the backend soft-deletes into a 30-day trash (undeleteWikiPage) —
+     * this used to claim the opposite.
+     */
     if (
       !window.confirm(
         `Delete "${page.title}"? The page (and any children) will move to trash for 30 days. You can undo this right after, or restore it from the trash later.`,
@@ -3722,10 +3838,12 @@ const WIKI_PAGE_STYLES = `
 	.page-action-menu-item-danger { color: var(--danger-text); }
 `
 
-// PROJ-664: owns the off-canvas page-tree drawer's open state, Esc-to-close,
-// reset-on-resize-past-breakpoint, and a focus trap scoped to when the drawer
-// is actually acting as a drawer (mobile) — on desktop the sidebar stays in
-// normal flow, so trapping focus there would break ordinary tabbing.
+/*
+ * PROJ-664: owns the off-canvas page-tree drawer's open state, Esc-to-close,
+ * reset-on-resize-past-breakpoint, and a focus trap scoped to when the drawer
+ * is actually acting as a drawer (mobile) — on desktop the sidebar stays in
+ * normal flow, so trapping focus there would break ordinary tabbing.
+ */
 function useWikiSidebarDrawer() {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -3756,11 +3874,13 @@ function useWikiSidebarDrawer() {
     }
   }, [open, close])
 
-  // PROJ-806: this effect also fires on mount (effects always run after the first
-  // render, `open` "changing" from nothing to its initial value), which used to move
-  // focus to the "Pages" trigger button on every mobile page load even though the
-  // user never opened or closed anything. Only actual open/close transitions —
-  // something the person did — should move focus.
+  /*
+   * PROJ-806: this effect also fires on mount (effects always run after the first
+   * render, `open` "changing" from nothing to its initial value), which used to move
+   * focus to the "Pages" trigger button on every mobile page load even though the
+   * user never opened or closed anything. Only actual open/close transitions —
+   * something the person did — should move focus.
+   */
   const isFirstRenderRef = useRef(true)
   useEffect(() => {
     const isFirstRender = isFirstRenderRef.current
@@ -3847,8 +3967,10 @@ function WikiPageShell(
   const { close, open, setOpen, triggerRef, sidebarRef } = useWikiSidebarDrawer()
   const { onNavigate, onCreate } = props
   const isMobile = useIsMobileViewport()
-  // PROJ-664: picking a page or starting a create must close the drawer, or
-  // tapping a page in the tree leaves the drawer covering the page just opened.
+  /*
+   * PROJ-664: picking a page or starting a create must close the drawer, or
+   * tapping a page in the tree leaves the drawer covering the page just opened.
+   */
   const navigateAndClose = useCallback(
     (s: string) => {
       close()
@@ -3937,8 +4059,10 @@ function WikiPageShell(
 function deriveWikiPageState(
   pageData: ReturnType<typeof useWikiPageData>,
   pageMap: Record<string, FlatEntry>,
-  // PROJ-860: passed in (memoised on [pageMap]) rather than recomputed here, so its
-  // identity stays stable across renders this function runs on but pageMap doesn't change.
+  /*
+   * PROJ-860: passed in (memoised on [pageMap]) rather than recomputed here, so its
+   * identity stays stable across renders this function runs on but pageMap doesn't change.
+   */
   wikiPages: readonly FlatEntry[],
   editState: ReturnType<typeof useWikiEditing>,
   createForm: ReturnType<typeof useCreatePageForm>,
@@ -4276,14 +4400,18 @@ function useAssembledWikiPageProps(state: ReturnType<typeof useWikiPageState>, w
   return { navigateTo, startCreate, createProps, articleProps }
 }
 
-// PROJ-807: shown after deleting a page. No existing toast utility in apps/web/src —
-// this is deliberately minimal (a fixed-position bar, not a general-purpose stack)
-// rather than introducing a new shared abstraction for a single call site.
+/*
+ * PROJ-807: shown after deleting a page. No existing toast utility in apps/web/src —
+ * this is deliberately minimal (a fixed-position bar, not a general-purpose stack)
+ * rather than introducing a new shared abstraction for a single call site.
+ */
 const UNDO_TOAST_TIMEOUT_MS = 8000
 
-// Each toast gets its own UndoToastBar instance (keyed when deletion succeeds), so undo/hover/
-// focus state always starts fresh — no reset effect that could race a hover or focus
-// arriving before it runs.
+/*
+ * Each toast gets its own UndoToastBar instance (keyed when deletion succeeds), so undo/hover/
+ * focus state always starts fresh — no reset effect that could race a hover or focus
+ * arriving before it runs.
+ */
 function UndoToastView({ toast, onDismiss }: { toast: UndoToast | null; onDismiss: () => void }) {
   if (!toast) {
     return null
@@ -4296,9 +4424,11 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
   const [undoError, setUndoError] = useState<string | null>(null)
   const [hovered, setHovered] = useState(false)
   const [focusWithin, setFocusWithin] = useState(false)
-  // Don't pull the toast out from under someone who is reading it, reaching for Undo
-  // with a keyboard, or waiting on an Undo already in progress. Any of those resets the
-  // countdown; it restarts in full once they're all false again.
+  /*
+   * Don't pull the toast out from under someone who is reading it, reaching for Undo
+   * with a keyboard, or waiting on an Undo already in progress. Any of those resets the
+   * countdown; it restarts in full once they're all false again.
+   */
   const paused = undoing || hovered || focusWithin
 
   useEffect(() => {
