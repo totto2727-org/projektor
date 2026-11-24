@@ -93,9 +93,9 @@ describe('groups REST', () => {
   test('member cannot create a group (403)', async () => {
     const { memberHeaders, slug } = await seedGroupFixture()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
-      method: 'POST',
-      headers: memberHeaders,
       body: JSON.stringify({ name: 'Sneaky' }),
+      headers: memberHeaders,
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })
@@ -104,9 +104,9 @@ describe('groups REST', () => {
     const { createGroup, ownerHeaders, slug } = await seedGroupFixture()
     await createGroup('Dupe')
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ name: 'Dupe' }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     expect(res.status).toBe(409)
   })
@@ -116,15 +116,15 @@ describe('groups REST', () => {
     const a = await createGroup('Alpha')
     await createGroup('Beta')
     const ok = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${a}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
       body: JSON.stringify({ name: 'Alpha2' }),
+      headers: ownerHeaders,
+      method: 'PATCH',
     })
     expect(ok.status).toBe(200)
     const clash = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${a}`, {
-      method: 'PATCH',
-      headers: ownerHeaders,
       body: JSON.stringify({ name: 'Beta' }),
+      headers: ownerHeaders,
+      method: 'PATCH',
     })
     expect(clash.status).toBe(409)
   })
@@ -134,18 +134,18 @@ describe('groups REST', () => {
     const gid = await createGroup('Team')
     // Add the workspace member
     const add = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ userId: roles.member.user.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     expect(add.status).toBe(201)
 
     // A user who is not a workspace member cannot be added
     const outsider = await seedUser(`outsider-${crypto.randomUUID().slice(0, 8)}@example.com`)
     const bad = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ userId: outsider.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     expect(bad.status).toBe(400)
 
@@ -169,17 +169,17 @@ describe('groups REST', () => {
     const project = await seedProject(roles.workspace.id, 'GRP')
 
     const set = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
-      method: 'PUT',
-      headers: ownerHeaders,
       body: JSON.stringify({ projectId: project.id, role: 'viewer' }),
+      headers: ownerHeaders,
+      method: 'PUT',
     })
     expect(set.status).toBe(200)
 
     // Upsert to a stronger role
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
-      method: 'PUT',
-      headers: ownerHeaders,
       body: JSON.stringify({ projectId: project.id, role: 'admin' }),
+      headers: ownerHeaders,
+      method: 'PUT',
     })
     const detail = (await (
       await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
@@ -200,9 +200,9 @@ describe('groups REST', () => {
     const { createGroup, ownerHeaders, slug } = await seedGroupFixture()
     const gid = await createGroup('BadGrant')
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
-      method: 'PUT',
-      headers: ownerHeaders,
       body: JSON.stringify({ projectId: crypto.randomUUID(), role: 'member' }),
+      headers: ownerHeaders,
+      method: 'PUT',
     })
     expect(res.status).toBe(404)
   })
@@ -212,9 +212,9 @@ describe('groups REST', () => {
     const mine = await createGroup('Mine')
     await createGroup('Theirs')
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${mine}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ userId: roles.member.user.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
 
     const memberList = (await (
@@ -232,9 +232,9 @@ describe('groups REST', () => {
     const { createGroup, ownerHeaders, roles, slug } = await seedGroupFixture()
     const gid = await createGroup('Assigned')
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ userId: roles.member.user.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/member-groups`, {
       headers: ownerHeaders,
@@ -258,9 +258,9 @@ describe('groups REST', () => {
     const gid = await createGroup('Doomed')
     const project = await seedProject(roles.workspace.id, 'DOOM')
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
-      method: 'PUT',
-      headers: ownerHeaders,
       body: JSON.stringify({ projectId: project.id, role: 'member' }),
+      headers: ownerHeaders,
+      method: 'PUT',
     })
     const del = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
       headers: ownerHeaders,

@@ -1101,23 +1101,23 @@ describe('wiki API', () => {
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
     const grandparentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'Grandparent' }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const grandparent = await readNativeJson(grandparentRes, IdResponse)
 
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ title: 'Parent To Delete', content: '', parentId: grandparent.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ title: 'Child', content: '', parentId: parent.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const child = await readNativeJson(childRes, IdAndSlugResponse)
 
@@ -1140,23 +1140,23 @@ describe('wiki API', () => {
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'Cascade Parent' }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Child', content: '', parentId: parent.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const child = await readNativeJson(childRes, IdAndSlugResponse)
 
     const grandchildRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Grandchild', content: '', parentId: child.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const grandchild = await readNativeJson(grandchildRes, SlugResponse)
 
@@ -1186,9 +1186,9 @@ describe('wiki API', () => {
     form.append('entityType', 'wiki_page')
     form.append('entityId', pageId)
     const res = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     const { id } = await readNativeJson(res, IdResponse)
     const row = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?').bind(id).first<{ r2_key: string }>()
@@ -1200,9 +1200,9 @@ describe('wiki API', () => {
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
     const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'Page With File' }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const page = await readNativeJson(pageRes, IdAndSlugResponse)
 
@@ -1229,16 +1229,16 @@ describe('wiki API', () => {
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'Cascade Parent With File' }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Child With File', content: '', parentId: parent.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const child = await readNativeJson(childRes, IdAndSlugResponse)
 

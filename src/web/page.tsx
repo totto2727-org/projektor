@@ -2,6 +2,14 @@ import { Predicate, Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 import type { ReactNode } from 'react'
 
+import {
+  HTTP_BAD_REQUEST,
+  HTTP_FORBIDDEN,
+  HTTP_NOT_FOUND,
+  HTTP_UNAUTHORIZED,
+  HTTP_UNPROCESSABLE_CONTENT,
+} from '#contracts/http-status.ts'
+
 import { RuntimeProvider } from './client/runtime.tsx'
 import { ProjectNav } from './components/project-nav.tsx'
 import { EFFRONT } from './effront.ts'
@@ -25,15 +33,15 @@ export type PublicRenderer = (
 const errorResponse = function errorResponse(error: PageFailure): HttpServerResponse.HttpServerResponse {
   const status = error.status
   const message =
-    status === 401
+    status === HTTP_UNAUTHORIZED
       ? 'Your session has expired. Refresh this page to sign in.'
-      : status === 403
+      : status === HTTP_FORBIDDEN
         ? 'You do not have access to this workspace or project.'
-        : status === 404
+        : status === HTTP_NOT_FOUND
           ? 'The requested page was not found.'
-          : status === 422
+          : status === HTTP_UNPROCESSABLE_CONTENT
             ? 'This view exceeds its supported data range. Narrow the date or issue filters, or use the paginated issue list.'
-            : status === 400
+            : status === HTTP_BAD_REQUEST
               ? 'The page address is invalid.'
               : 'The page is temporarily unavailable. Please try again.'
   return HttpServerResponse.text(

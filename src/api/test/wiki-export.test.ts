@@ -72,9 +72,9 @@ const uploadAttachment = async function uploadAttachment(
   form.append('entityType', 'wiki_page')
   form.append('entityId', pageId)
   const res = await fetchNativeApi('http://localhost/api/files', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
     body: form,
+    headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+    method: 'POST',
   })
   expect(res.status).toBe(201)
 }

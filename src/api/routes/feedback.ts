@@ -113,7 +113,7 @@ const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(
       return httpContext.json({ error: e.details }, HTTP_BAD_REQUEST)
     }
     if (e.status === HTTP_FORBIDDEN || e.status === HTTP_NOT_FOUND) {
-      return httpContext.json({ error: e.message }, e.status === HTTP_NOT_FOUND ? 401 : 403)
+      return httpContext.json({ error: e.message }, e.status === HTTP_NOT_FOUND ? HTTP_UNAUTHORIZED : HTTP_FORBIDDEN)
     }
     return serviceErrToResponse(httpContext, e)
   }

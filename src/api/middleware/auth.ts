@@ -7,7 +7,7 @@ import { unauthorizedChallenge } from '#api/auth/challenge.ts'
 import { ApiPrincipal, VerifiedApiOauthGrant } from '#contracts/api-auth.ts'
 import type { ApiUser } from '#contracts/api-auth.ts'
 import { capabilityForMethod, tokenAllows } from '#contracts/auth-scopes.ts'
-import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
+import { HTTP_TOO_MANY_REQUESTS, HTTP_UNAUTHORIZED, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import type { HonoEnv } from '#types'
 
@@ -101,13 +101,17 @@ export const authMiddleware = async function authMiddleware(
     }
     let status = error.status
     let message = error.message
-    if (status === 401 && Predicate.isNotNullish(actor.bearer) && (await authFailureLimited(httpContext))) {
-      status = 429
+    if (
+      status === HTTP_UNAUTHORIZED &&
+      Predicate.isNotNullish(actor.bearer) &&
+      (await authFailureLimited(httpContext))
+    ) {
+      status = HTTP_TOO_MANY_REQUESTS
       message = 'Too Many Requests'
     }
     const response = Response.json({ error: message }, { status })
     const workspaceId = mcpWorkspaceIdFromPath(httpContext.req.path)
-    if (status === 401 && Predicate.isNotNullish(workspaceId) && String.isNonEmpty(workspaceId)) {
+    if (status === HTTP_UNAUTHORIZED && Predicate.isNotNullish(workspaceId) && String.isNonEmpty(workspaceId)) {
       response.headers.set('WWW-Authenticate', unauthorizedChallenge(httpContext.req.url, workspaceId))
     }
     return response

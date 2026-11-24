@@ -68,12 +68,12 @@ const makeUploadRequest = function makeUploadRequest(
   form.append('entityType', 'issue')
   form.append('entityId', ENTITY_ID)
   return fetchNativeApi('http://localhost/api/files', {
-    method: 'POST',
+    body: form,
     headers: {
       Authorization: `Bearer ${token}`,
       'X-Workspace-Slug': slug,
     },
-    body: form,
+    method: 'POST',
   })
 }
 
@@ -173,9 +173,9 @@ describe('files API', () => {
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
     const uploadRes = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     const { id } = await readNativeJson(uploadRes, IdResponse)
 
@@ -259,9 +259,9 @@ describe('files API', () => {
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
     const res = await fetchNativeApi(`http://localhost/api/files?workspace=${slug}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
       body: form,
+      headers: { Authorization: `Bearer ${token}` },
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -307,12 +307,12 @@ describe('files API', () => {
     form.append('entityType', 'project')
     form.append('entityId', ENTITY_ID)
     const res = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
+      body: form,
       headers: {
         Authorization: `Bearer ${token}`,
         'X-Workspace-Slug': slug,
       },
-      body: form,
+      method: 'POST',
     })
     expect(res.status).toBe(400)
   })
@@ -323,9 +323,9 @@ describe('files API', () => {
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
     const res = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(415)
     const body = await readNativeJson(res, ErrorMessageResponse)
@@ -338,9 +338,9 @@ describe('files API', () => {
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
     const res = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(415)
     const body = await readNativeJson(res, ErrorMessageResponse)
@@ -354,9 +354,9 @@ describe('files API', () => {
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
     const res = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(413)
     const body = await readNativeJson(res, ErrorMessageResponse)
@@ -370,9 +370,9 @@ describe('files API', () => {
     form.append('entityType', 'wiki_page')
     form.append('entityId', wikiPageId)
     const res = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(201)
     const body = await readNativeJson(res, Schema.Struct({ filename: Schema.String, id: Schema.String }))
@@ -420,9 +420,9 @@ describe('files API', () => {
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
     const res = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(413)
     const body = await readNativeJson(res, ErrorMessageResponse)
@@ -615,13 +615,13 @@ describe('files API', () => {
 
       const project = await seedProject(workspaceId)
       const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: adminHeaders,
         body: JSON.stringify({
           title: 'Secret project page',
           content: 'secret',
           projectId: project.id,
         }),
+        headers: adminHeaders,
+        method: 'POST',
       })
       const { id: restrictedPageId } = await readNativeJson(pageRes, IdResponse)
 
@@ -631,14 +631,14 @@ describe('files API', () => {
        */
       const entityId = crypto.randomUUID()
       const linkRes = await fetchNativeApi('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: adminHeaders,
         body: JSON.stringify({
           kind: 'wiki_ref',
           entityType: 'issue',
           entityId,
           wikiPageId: restrictedPageId,
         }),
+        headers: adminHeaders,
+        method: 'POST',
       })
       expect(linkRes.status).toBe(201)
 
@@ -664,17 +664,17 @@ describe('files API', () => {
       const adminHeaders = { ...authHeaders(adminToken, slug), 'Content-Type': 'application/json' }
 
       const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
-        method: 'POST',
-        headers: adminHeaders,
         body: JSON.stringify({ content: 'will be deleted', title: 'Doomed page' }),
+        headers: adminHeaders,
+        method: 'POST',
       })
       const { id: wikiPageId, slug: wikiPageSlug } = await readNativeJson(pageRes, IdAndSlugResponse)
 
       const entityId = crypto.randomUUID()
       const linkRes = await fetchNativeApi('http://localhost/api/files/links', {
-        method: 'POST',
-        headers: adminHeaders,
         body: JSON.stringify({ kind: 'wiki_ref', entityType: 'issue', entityId, wikiPageId }),
+        headers: adminHeaders,
+        method: 'POST',
       })
       expect(linkRes.status).toBe(201)
 
@@ -746,9 +746,9 @@ describe('files API', () => {
       form.append('entityType', 'issue')
       form.append('entityId', crypto.randomUUID())
       const res = await fetchNativeApi('http://localhost/api/files', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${viewer.token}`, 'X-Workspace-Slug': workspace.slug },
         body: form,
+        headers: { Authorization: `Bearer ${viewer.token}`, 'X-Workspace-Slug': workspace.slug },
+        method: 'POST',
       })
       expect(res.status).toBe(403)
     })
@@ -778,9 +778,9 @@ describe('files API', () => {
       form.append('entityType', 'issue')
       form.append('entityId', crypto.randomUUID())
       const uploadRes = await fetchNativeApi('http://localhost/api/files', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${owner.token}`, 'X-Workspace-Slug': workspace.slug },
         body: form,
+        headers: { Authorization: `Bearer ${owner.token}`, 'X-Workspace-Slug': workspace.slug },
+        method: 'POST',
       })
       const { id } = await readNativeJson(uploadRes, IdResponse)
 
@@ -887,9 +887,9 @@ describe('files MCP tools', () => {
     form.append('entityType', 'issue')
     form.append('entityId', crypto.randomUUID())
     const uploadRes = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     const { id } = await readNativeJson(uploadRes, IdResponse)
 
@@ -1143,9 +1143,9 @@ describe('attachment project visibility', () => {
     form.append('entityType', 'issue')
     form.append('entityId', hiddenIssueId)
     const res = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     /*
      * 404, not 403: an invisible project 404s so its existence never leaks (see
@@ -1192,9 +1192,9 @@ describe('attachment project visibility', () => {
     form.append('entityType', 'issue')
     form.append('entityId', issue.id)
     const res = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${viewerToken}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${viewerToken}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     /*
      * 403, not 404: the project is visible to them, the write is what's refused. Their
@@ -1211,9 +1211,9 @@ describe('attachment project visibility', () => {
     form.append('entityType', 'issue')
     form.append('entityId', issue.id)
     const res = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(201)
   })

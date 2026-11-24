@@ -16,7 +16,7 @@ import { ConnectAgentGuide, ConnectorManager, GroupManager, TokenManager } from 
 
 const choose = (scope: RequestScope): WorkspaceMembership | null =>
   scope.selection.kind === 'workspace' || scope.selection.kind === 'project' ? scope.selection.workspace : null
-const forbidden = (error: { status: number }): boolean => error.status === 403
+const forbidden = (error: { status: number }): boolean => error.status === HTTP_FORBIDDEN
 const selected = function selected(scope: RequestScope) {
   return Effect.try({
     catch: (cause) =>

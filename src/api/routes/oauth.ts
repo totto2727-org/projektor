@@ -10,7 +10,13 @@ import { isPublicViewer } from '#api/middleware/auth.ts'
 import { signConsentToken, verifyConsentToken } from '#api/oauth/consent-token.ts'
 import { apiReply } from '#api/services/reply.ts'
 import { ApiConsentWorkspace } from '#contracts/api-public.ts'
-import { HTTP_FOUND } from '#contracts/http-status.ts'
+import {
+  HTTP_BAD_REQUEST,
+  HTTP_FORBIDDEN,
+  HTTP_INTERNAL_SERVER_ERROR,
+  HTTP_OK,
+  HTTP_FOUND,
+} from '#contracts/http-status.ts'
 import {
   describeScope,
   isLoopbackOnlyClient,
@@ -140,7 +146,7 @@ const consentHtml = function consentHtml(
   httpContext: Context<HonoEnv>,
   title: string,
   body: string,
-  status: 200 | 400 | 403 | 500 = 200,
+  status: typeof HTTP_OK | typeof HTTP_BAD_REQUEST | typeof HTTP_FORBIDDEN | typeof HTTP_INTERNAL_SERVER_ERROR = 200,
   redirectUri?: string,
 ): Response {
   return httpContext.html(page(title, body), status, {
@@ -151,7 +157,7 @@ const consentHtml = function consentHtml(
 
 const errorPage = function errorPage(
   httpContext: Context<HonoEnv>,
-  status: 400 | 403 | 500,
+  status: typeof HTTP_BAD_REQUEST | typeof HTTP_FORBIDDEN | typeof HTTP_INTERNAL_SERVER_ERROR,
   heading: string,
   detail: string,
 ): Response {
@@ -191,7 +197,7 @@ const authorizationFailure = function authorizationFailure(
   err: AuthorizationError,
 ): Response {
   if (!err.redirectUri) {
-    return errorPage(httpContext, 400, 'Invalid authorization request', err.description)
+    return errorPage(httpContext, HTTP_BAD_REQUEST, 'Invalid authorization request', err.description)
   }
   const url = new URL(err.redirectUri)
   url.searchParams.set('error', err.code)
@@ -245,12 +251,12 @@ const NO_CONSENTER =
 oauthRouter.get('/authorize', async (httpContext) => {
   const user = consentingUser(httpContext)
   if (!user) {
-    return errorPage(httpContext, 403, 'Sign-in required', NO_CONSENTER)
+    return errorPage(httpContext, HTTP_FORBIDDEN, 'Sign-in required', NO_CONSENTER)
   }
 
   const signingKey = consentSigningKey(httpContext)
   if (Predicate.isNullish(signingKey) || String.isEmpty(signingKey)) {
-    return errorPage(httpContext, 500, 'Not configured', NO_SIGNING_KEY)
+    return errorPage(httpContext, HTTP_INTERNAL_SERVER_ERROR, 'Not configured', NO_SIGNING_KEY)
   }
 
   // parseAuthRequest is also the client and redirect-URI validator: it resolves the
@@ -266,7 +272,7 @@ oauthRouter.get('/authorize', async (httpContext) => {
     }
     return errorPage(
       httpContext,
-      400,
+      HTTP_BAD_REQUEST,
       'Unknown application',
       `The application could not be verified: ${globalThis.String(error)}`,
     )
@@ -293,7 +299,12 @@ oauthRouter.get('/authorize', async (httpContext) => {
   // Read back for display only — parseAuthRequest already validated it.
   const client = await helpers(httpContext).lookupClient(authRequest.clientId)
   if (!client) {
-    return errorPage(httpContext, 400, 'Unknown application', 'This application is not registered with projektor.')
+    return errorPage(
+      httpContext,
+      HTTP_BAD_REQUEST,
+      'Unknown application',
+      'This application is not registered with projektor.',
+    )
   }
 
   const workspace = await consentWorkspace(httpContext, consent.workspaceId)
@@ -305,7 +316,7 @@ oauthRouter.get('/authorize', async (httpContext) => {
      */
     return errorPage(
       httpContext,
-      403,
+      HTTP_FORBIDDEN,
       'Workspace unavailable',
       'That workspace does not exist, or you are not a member of it.',
     )
@@ -355,7 +366,7 @@ oauthRouter.get('/authorize', async (httpContext) => {
          /* TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD. */
          identity
        }: <strong>${escapeHtml(host)}</strong>. The application's name is self-declared.</p>`,
-    200,
+    HTTP_OK,
     authRequest.redirectUri,
   )
 })
@@ -363,19 +374,24 @@ oauthRouter.get('/authorize', async (httpContext) => {
 oauthRouter.post('/authorize', async (httpContext) => {
   const user = consentingUser(httpContext)
   if (!user) {
-    return errorPage(httpContext, 403, 'Sign-in required', NO_CONSENTER)
+    return errorPage(httpContext, HTTP_FORBIDDEN, 'Sign-in required', NO_CONSENTER)
   }
 
   const signingKey = consentSigningKey(httpContext)
   if (Predicate.isNullish(signingKey) || String.isEmpty(signingKey)) {
-    return errorPage(httpContext, 500, 'Not configured', NO_SIGNING_KEY)
+    return errorPage(httpContext, HTTP_INTERNAL_SERVER_ERROR, 'Not configured', NO_SIGNING_KEY)
   }
 
   const form = await httpContext.req.parseBody()
   const submitted = Predicate.isString(form.consent_token) ? form.consent_token : ''
   const payload = await verifyConsentToken(submitted, user.id, signingKey)
   if (!payload) {
-    return errorPage(httpContext, 400, 'This request has expired', 'Start the connection again from the application.')
+    return errorPage(
+      httpContext,
+      HTTP_BAD_REQUEST,
+      'This request has expired',
+      'Start the connection again from the application.',
+    )
   }
 
   if (form.decision !== 'approve') {
@@ -400,7 +416,7 @@ oauthRouter.post('/authorize', async (httpContext) => {
   if (!workspace) {
     return errorPage(
       httpContext,
-      403,
+      HTTP_FORBIDDEN,
       'Workspace unavailable',
       'That workspace does not exist, or you are not a member of it.',
     )

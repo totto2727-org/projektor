@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test'
 import { Iterable, Predicate } from 'effect'
 
-import { HTTP_CREATED, HTTP_NOT_FOUND, HTTP_NO_CONTENT, HTTP_OK } from '#contracts/http-status.ts'
+import { HTTP_FORBIDDEN, HTTP_CREATED, HTTP_NOT_FOUND, HTTP_NO_CONTENT, HTTP_OK } from '#contracts/http-status.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 interface BrowserAudit {
@@ -1518,6 +1518,6 @@ test('two real memberships require native selection and preserve workspace acros
   await expect(page.getByRole('heading', { exact: true, level: 1, name: projectName })).toBeVisible()
   await checkpoint(page, testInfo, 'second-workspace-history-overview')
   const mismatch = await request.get(`/issues?workspace=projektor&projectId=${projects[1].id}`)
-  expect([403, 404]).toContain(mismatch.status())
+  expect([HTTP_FORBIDDEN, HTTP_NOT_FOUND]).toContain(mismatch.status())
   expect(await mismatch.text()).not.toContain(projects[1].name)
 })

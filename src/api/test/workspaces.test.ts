@@ -441,9 +441,9 @@ describe('member removal tombstone (PROJ-436)', () => {
     await expect(tombstoneRow(fixture.workspace.id, memberUser.id)).resolves.not.toBeNull()
 
     const inviteRes = await fetchNativeApi(`http://localhost/api/workspaces/${fixture.workspace.slug}/members`, {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ email: memberUser.email, role: 'member' }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     expect(inviteRes.status).toBe(201)
     await expect(tombstoneRow(fixture.workspace.id, memberUser.id)).resolves.toBeNull()
@@ -624,9 +624,9 @@ describe('workspace brand (PROJ-761)', () => {
     const form = new FormData()
     form.append('file', new File([pngBytes], 'logo.png', { type: 'image/png' }))
     const uploadRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
-      method: 'POST',
-      headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(uploadRes.status).toBe(201)
 
@@ -646,9 +646,9 @@ describe('workspace brand (PROJ-761)', () => {
     const form2 = new FormData()
     form2.append('file', new File([pngBytes], 'logo2.png', { type: 'image/png' }))
     const reuploadRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
-      method: 'POST',
-      headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form2,
+      headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(reuploadRes.status).toBe(201)
   })
@@ -658,9 +658,9 @@ describe('workspace brand (PROJ-761)', () => {
     const form = new FormData()
     form.append('file', new File([big], 'big.png', { type: 'image/png' }))
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
-      method: 'POST',
-      headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(413)
   })
@@ -669,9 +669,9 @@ describe('workspace brand (PROJ-761)', () => {
     const form = new FormData()
     form.append('file', new File(['<svg></svg>'], 'logo.svg', { type: 'image/svg+xml' }))
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
-      method: 'POST',
-      headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(415)
   })
@@ -680,9 +680,9 @@ describe('workspace brand (PROJ-761)', () => {
     const form = new FormData()
     form.append('file', new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }))
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
-      method: 'POST',
-      headers: { Authorization: memberHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: memberHeaders.Authorization, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(res.status).toBe(403)
   })
@@ -698,9 +698,9 @@ describe('workspace brand (PROJ-761)', () => {
     const form = new FormData()
     form.append('file', new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }))
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
-      method: 'POST',
-      headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
 
     const delRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
@@ -807,12 +807,12 @@ describe('workspace brand R2 cleanup (review finding 5)', () => {
     const form = new FormData()
     form.append('file', new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }))
     await fetchNativeApi(`http://localhost/api/workspaces/${owner.workspace.slug}/brand/logo`, {
-      method: 'POST',
+      body: form,
       headers: {
         Authorization: ownerHeaders.Authorization,
         'X-Workspace-Slug': owner.workspace.slug,
       },
-      body: form,
+      method: 'POST',
     })
 
     const { env } = await import('./fixture-api.ts')

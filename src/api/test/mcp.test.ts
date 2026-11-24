@@ -612,16 +612,16 @@ describe('covers MCP endpoint', () => {
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'MCP Cascade Parent' }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ title: 'MCP Cascade Child', content: '', parentId: parent.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const child = await readNativeJson(childRes, SlugResponse)
 
@@ -648,16 +648,16 @@ describe('covers MCP endpoint', () => {
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'MCP Promote Parent' }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
-      method: 'POST',
-      headers: ownerHeaders,
       body: JSON.stringify({ title: 'MCP Promote Child', content: '', parentId: parent.id }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
     const child = await readNativeJson(childRes, SlugResponse)
 

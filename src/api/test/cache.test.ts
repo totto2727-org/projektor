@@ -58,9 +58,9 @@ describe('covers KV caching', () => {
 
       // PATCH to update — should invalidate the cache entry
       const patch = await fetchNativeApi(url, {
-        method: 'PATCH',
-        headers: hdrs,
         body: JSON.stringify({ title: 'After' }),
+        headers: hdrs,
+        method: 'PATCH',
       })
       expect(patch.status).toBe(200)
 
@@ -183,9 +183,9 @@ describe('covers KV caching', () => {
       const before = await mcpListProjects()
 
       const created = await fetchNativeApi('http://localhost/api/projects', {
-        method: 'POST',
-        headers: hdrs,
         body: JSON.stringify({ key: 'NEWP', name: 'New Project' }),
+        headers: hdrs,
+        method: 'POST',
       })
       expect(created.status).toBe(201)
 
@@ -203,9 +203,9 @@ describe('covers KV caching', () => {
       const beforeBody = await readNativeJson(before, JsonListResponse)
 
       const created = await fetchNativeApi(url, {
-        method: 'POST',
-        headers: hdrs,
         body: JSON.stringify({ key: 'blocked', name: 'Blocked', category: 'in_progress' }),
+        headers: hdrs,
+        method: 'POST',
       })
       expect(created.status).toBe(201)
 

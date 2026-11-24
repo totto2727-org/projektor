@@ -2,7 +2,7 @@ import { String, Predicate, Effect } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 import type React from 'react'
 
-import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
+import { HTTP_GONE, HTTP_NOT_FOUND, HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
 import { deploymentBrand } from '@/brand.ts'
 import { renderMarkdownEffect } from '@/components/markdown/effect.ts'
 import { coreResult } from '@/core.ts'
@@ -50,7 +50,7 @@ export const renderShare = function renderShare(
     }
     const issue = yield* coreResult(SharedIssue, makeCoreClient(env.CORE).webSharedIssue(shareToken)).pipe(
       Effect.catchIf(
-        (cause) => [404, 410].includes(cause.status),
+        (cause) => [HTTP_NOT_FOUND, HTTP_GONE].includes(cause.status),
         () => Effect.succeed(null),
       ),
     )

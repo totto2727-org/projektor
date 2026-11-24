@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { ConflictError, NotFoundError, ServiceError, ValidationError } from '#contracts/errors.ts'
 import type { ZodFlattenOutput } from '#contracts/errors.ts'
+import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
 
 const ValidationIssues = z.object({
   formErrors: z.array(z.string()),
@@ -112,7 +113,7 @@ export const toMcpError = function toMcpError(
   err: unknown,
   requestId: string,
 ): { code: number; message: string; data?: unknown } {
-  if (err instanceof CorePublicError && err.status < 500) {
+  if (err instanceof CorePublicError && err.status < HTTP_INTERNAL_SERVER_ERROR) {
     if (err.kind === 'validation') {
       const parsed = ValidationIssues.safeParse(err.details)
       if (parsed.success) {
@@ -256,7 +257,7 @@ const conflictHint = function conflictHint(message: string, details: Record<stri
  */
 export const toToolError = function toToolError(err: unknown, ctx: ToolErrorContext = {}): ToolErrorResult | null {
   if (err instanceof CorePublicError) {
-    if (err.status >= 500) {
+    if (err.status >= HTTP_INTERNAL_SERVER_ERROR) {
       return null
     }
     if (err.kind === 'validation') {

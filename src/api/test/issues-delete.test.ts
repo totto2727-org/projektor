@@ -144,9 +144,9 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
     form.append('entityType', 'issue')
     form.append('entityId', issueId)
     const uploadRes = await fetchNativeApi('http://localhost/api/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
+      headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
+      method: 'POST',
     })
     expect(uploadRes.status).toBe(201)
     const { id: attachmentId } = await readNativeJson(uploadRes, IdResponse)

@@ -43,7 +43,10 @@ router.post('/', async (httpContext) => {
     httpContext.req.raw.body,
     httpContext.req.header('Content-Type'),
   )
-  return new Response(response.body, { status: response.ok ? 201 : response.status, headers: response.headers })
+  return new Response(response.body, {
+    status: response.ok ? HTTP_CREATED : response.status,
+    headers: response.headers,
+  })
 })
 router.patch('/:id/review-status', async (httpContext) => {
   try {

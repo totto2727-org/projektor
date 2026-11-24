@@ -1,6 +1,11 @@
 import { Predicate, Data, Redacted } from 'effect'
 
-import { HTTP_BAD_GATEWAY } from '#contracts/http-status.ts'
+import {
+  type HTTP_BAD_REQUEST,
+  type HTTP_FORBIDDEN,
+  type HTTP_NOT_FOUND,
+  HTTP_BAD_GATEWAY,
+} from '#contracts/http-status.ts'
 
 export interface ZodFlattenOutput {
   formErrors: string[]
@@ -87,10 +92,10 @@ export class ApiError extends Data.TaggedError('ApiError')<{
 }
 
 export class ScopeError extends Data.TaggedError('ScopeError')<{
-  readonly status: 400 | 403 | 404
+  readonly status: typeof HTTP_BAD_REQUEST | typeof HTTP_FORBIDDEN | typeof HTTP_NOT_FOUND
   readonly message: string
 }> {
-  constructor(status: 400 | 403 | 404, message: string) {
+  constructor(status: typeof HTTP_BAD_REQUEST | typeof HTTP_FORBIDDEN | typeof HTTP_NOT_FOUND, message: string) {
     super({ status, message })
   }
 }

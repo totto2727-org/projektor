@@ -9,6 +9,8 @@ import {
   ValidationError,
 } from '#contracts/errors.ts'
 import {
+  HTTP_CONFLICT,
+  HTTP_NOT_FOUND,
   HTTP_BAD_REQUEST,
   HTTP_FORBIDDEN,
   HTTP_PAYLOAD_TOO_LARGE,
@@ -31,7 +33,7 @@ export const publicDomainFailure = function publicDomainFailure(error: unknown):
     return coreFailure(HTTP_BAD_REQUEST, error.message, { kind: error.kind, details: jsonDetails(error.issues) })
   }
   if (error instanceof NotFoundError || error instanceof ConflictError) {
-    return coreFailure(error instanceof NotFoundError ? 404 : 409, error.message, {
+    return coreFailure(error instanceof NotFoundError ? HTTP_NOT_FOUND : HTTP_CONFLICT, error.message, {
       kind: error.kind,
       ...(error.details ? { details: jsonDetails(error.details) } : {}),
     })

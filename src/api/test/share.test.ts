@@ -278,9 +278,9 @@ describe('share tokens', () => {
     form.append('file', new File([pngBytes], 'logo.png', { type: 'image/png' }))
     const ownerAuth = authHeaders(owner.token, owner.slug)
     const uploadRes = await fetchNativeApi(`http://localhost/api/workspaces/${owner.slug}/brand/logo`, {
-      method: 'POST',
-      headers: { Authorization: ownerAuth.Authorization, 'X-Workspace-Slug': owner.slug },
       body: form,
+      headers: { Authorization: ownerAuth.Authorization, 'X-Workspace-Slug': owner.slug },
+      method: 'POST',
     })
     expect(uploadRes.status).toBe(201)
 

@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 
 import { authMiddleware } from '#api/middleware/auth.ts'
 import { workspaceMiddleware } from '#api/middleware/workspace.ts'
+import { HTTP_NOT_IMPLEMENTED, HTTP_UPGRADE_REQUIRED } from '#contracts/http-status.ts'
 import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 import type { HonoEnv } from '#types'
 
@@ -46,13 +47,13 @@ router.get('/workspaces/:slug/realtime', authMiddleware, workspaceMiddleware, as
         error:
           'Realtime WebSockets are not enabled on this instance. Configure WORKSPACE_HUB in wrangler.toml to enable.',
       },
-      501,
+      HTTP_NOT_IMPLEMENTED,
     )
   }
 
   const upgradeHeader = httpContext.req.header('Upgrade')
   if (upgradeHeader !== 'websocket') {
-    return httpContext.text('Expected Upgrade: websocket', 426)
+    return httpContext.text('Expected Upgrade: websocket', HTTP_UPGRADE_REQUIRED)
   }
 
   const workspace = httpContext.get('workspace')
@@ -70,13 +71,13 @@ router.get('/realtime', authMiddleware, workspaceMiddleware, async (httpContext)
         error:
           'Realtime WebSockets are not enabled on this instance. Configure WORKSPACE_HUB in wrangler.toml to enable.',
       },
-      501,
+      HTTP_NOT_IMPLEMENTED,
     )
   }
 
   const upgradeHeader = httpContext.req.header('Upgrade')
   if (upgradeHeader !== 'websocket') {
-    return httpContext.text('Expected Upgrade: websocket', 426)
+    return httpContext.text('Expected Upgrade: websocket', HTTP_UPGRADE_REQUIRED)
   }
 
   const workspace = httpContext.get('workspace')

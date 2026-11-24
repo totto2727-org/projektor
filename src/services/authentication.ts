@@ -3,6 +3,7 @@ import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } fr
 import { z } from 'zod'
 
 import { ensureUserProvisioned } from '#commands/provisioning.ts'
+import { HTTP_MULTIPLE_CHOICES, HTTP_OK, HTTP_SERVICE_UNAVAILABLE, HTTP_UNAUTHORIZED } from '#contracts/http-status.ts'
 import {
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_HOUR,
@@ -37,9 +38,9 @@ export interface BrowserPrincipal {
   auth: AuthInfo
 }
 export class BrowserAuthenticationError extends Error {
-  readonly status: 401 | 503
+  readonly status: typeof HTTP_UNAUTHORIZED | typeof HTTP_SERVICE_UNAVAILABLE
   readonly _tag = 'BrowserAuthenticationError'
-  constructor(status: 401 | 503, message: string) {
+  constructor(status: typeof HTTP_UNAUTHORIZED | typeof HTTP_SERVICE_UNAVAILABLE, message: string) {
     super(message)
     this.status = status
     this.name = 'BrowserAuthenticationError'
@@ -61,7 +62,7 @@ export const authenticateBrowser = async function authenticateBrowser(
   if (principal) {
     return principal
   }
-  throw new BrowserAuthenticationError(401, 'Unauthorized')
+  throw new BrowserAuthenticationError(HTTP_UNAUTHORIZED, 'Unauthorized')
 }
 
 export async function authenticateAccessJwt(jwt: string, env: BrowserAuthEnvironment): Promise<BrowserPrincipal> {
@@ -69,7 +70,7 @@ export async function authenticateAccessJwt(jwt: string, env: BrowserAuthEnviron
   const decoded = parts.length === 3 ? decodeJwtFields(parts) : null
   const issuer = `https://${env.CF_ACCESS_TEAM_DOMAIN}`
   if (!decoded || !jwtClaimsValid(decoded.header, decoded.payload, env.CF_ACCESS_AUDIENCE, issuer)) {
-    throw new BrowserAuthenticationError(401, 'Invalid Access token')
+    throw new BrowserAuthenticationError(HTTP_UNAUTHORIZED, 'Invalid Access token')
   }
   const keys = await getCfAccessKeysOrUnavailable(env)
   let result = await verifyJwtPayload(jwt, keys, env.CF_ACCESS_AUDIENCE, issuer)
@@ -81,7 +82,7 @@ export async function authenticateAccessJwt(jwt: string, env: BrowserAuthEnviron
     }
   }
   if (!result) {
-    throw new BrowserAuthenticationError(401, 'Invalid Access token')
+    throw new BrowserAuthenticationError(HTTP_UNAUTHORIZED, 'Invalid Access token')
   }
   const user = await upsertUserByEmail(result.email, env.DB, env.KV)
   await ensureUserProvisioned(env, user)
@@ -189,7 +190,7 @@ const fetchAndCacheCfAccessKeys = async function fetchAndCacheCfAccessKeys(
   const body = await Effect.runPromise(
     HttpClient.execute(request).pipe(
       Effect.flatMap((response) =>
-        response.status >= 200 && response.status < 300
+        response.status >= HTTP_OK && response.status < HTTP_MULTIPLE_CHOICES
           ? HttpClientResponse.schemaBodyJson(JwksSchema)(response)
           : Effect.fail(new Error('Failed to fetch CF Access certs')),
       ),
@@ -217,7 +218,7 @@ async function getCfAccessKeysOrUnavailable(
   try {
     return await getCfAccessKeys(env, opts)
   } catch {
-    throw new BrowserAuthenticationError(503, 'Authentication temporarily unavailable')
+    throw new BrowserAuthenticationError(HTTP_SERVICE_UNAVAILABLE, 'Authentication temporarily unavailable')
   }
 }
 async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefresh?: boolean }): Promise<JsonWebKey[]> {
