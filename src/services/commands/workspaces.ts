@@ -39,7 +39,10 @@ const sha256hex = async function sha256hex(s: string): Promise<string> {
     .join('')
 }
 
-export const listWorkspaces = async function listWorkspaces(db: D1Database, userId: string) {
+export const listWorkspaces = async function listWorkspaces(
+  db: D1Database,
+  userId: string,
+): Promise<data.WorkspaceMembership[]> {
   return Effect.runPromise(data.listWorkspaces(db, userId))
 }
 
@@ -85,7 +88,10 @@ export const getWorkspaceWithMembers = async function getWorkspaceWithMembers(
   return { ...workspace, members, currentUserRole: ctx.role }
 }
 
-export const updateWorkspace = async function updateWorkspace(ctx: ServiceCtx, input: unknown) {
+export const updateWorkspace = async function updateWorkspace(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ ok: boolean }> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -98,7 +104,7 @@ export const updateWorkspace = async function updateWorkspace(ctx: ServiceCtx, i
   return { ok: true }
 }
 
-export const inviteMember = async function inviteMember(ctx: ServiceCtx, input: unknown) {
+export const inviteMember = async function inviteMember(ctx: ServiceCtx, input: unknown): Promise<{ ok: boolean }> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -144,7 +150,10 @@ export const inviteMember = async function inviteMember(ctx: ServiceCtx, input: 
   return { ok: true }
 }
 
-export const removeMember = async function removeMember(ctx: ServiceCtx, targetUserId: string) {
+export const removeMember = async function removeMember(
+  ctx: ServiceCtx,
+  targetUserId: string,
+): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(targetUserId)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -180,7 +189,11 @@ export const removeMember = async function removeMember(ctx: ServiceCtx, targetU
   return { ok: true }
 }
 
-export const updateMemberRole = async function updateMemberRole(ctx: ServiceCtx, targetUserId: string, input: unknown) {
+export const updateMemberRole = async function updateMemberRole(
+  ctx: ServiceCtx,
+  targetUserId: string,
+  input: unknown,
+): Promise<{ ok: boolean }> {
   if (ctx.role !== 'owner') {
     throw new ForbiddenError()
   }
@@ -235,14 +248,14 @@ export const createToken = async function createToken(ctx: ServiceCtx, input: un
   return { id, token, name, scopes, expiresAt }
 }
 
-export const listTokens = async function listTokens(ctx: ServiceCtx) {
+export const listTokens = async function listTokens(ctx: ServiceCtx): Promise<data.WorkspaceTokenMetadata[]> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
   return Effect.runPromise(data.listWorkspaceTokenMetadata(ctx.db, ctx.workspaceId))
 }
 
-export const revokeToken = async function revokeToken(ctx: ServiceCtx, tokenId: string) {
+export const revokeToken = async function revokeToken(ctx: ServiceCtx, tokenId: string): Promise<{ ok: boolean }> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }

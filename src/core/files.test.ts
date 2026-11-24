@@ -56,7 +56,7 @@ const fixture = function fixture() {
       scopes: ['projektor:read'],
     },
   }
-  const request = (id = 'a', method = 'GET') =>
+  const request = (id = 'a', method = 'GET'): Request<unknown, CfProperties<unknown>> =>
     new Request(`https://core.internal/files/${id}?workspaceId=w`, {
       method,
       headers: { [CORE_ACTOR_HEADER]: JSON.stringify(actor) },

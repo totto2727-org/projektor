@@ -19,7 +19,12 @@ const fetchFresh = async function fetchFresh(url: string, opts?: RequestInit): P
   return fetchNativeApi(url, opts)
 }
 
-const createPage = async function createPage(token: string, slug: string, title: string, content = '') {
+const createPage = async function createPage(
+  token: string,
+  slug: string,
+  title: string,
+  content = '',
+): Promise<{ id: string; slug: string }> {
   const res = await fetchFresh('http://localhost/api/wiki', {
     method: 'POST',
     headers: authHeaders(token, slug),
@@ -34,7 +39,7 @@ const updatePage = async function updatePage(
   wsSlug: string,
   pageSlug: string,
   body: Record<string, unknown>,
-) {
+): Promise<unknown> {
   const res = await fetchFresh(`http://localhost/api/wiki/${pageSlug}`, {
     method: 'PUT',
     headers: authHeaders(token, wsSlug),
@@ -60,7 +65,10 @@ const undeletePage = async function undeletePage(token: string, wsSlug: string, 
   expect(res.status).toBe(200)
 }
 
-const brokenLinks = async function brokenLinks(token: string, wsSlug: string) {
+const brokenLinks = async function brokenLinks(
+  token: string,
+  wsSlug: string,
+): Promise<{ sourcePageId: string; targetTitle: string }[]> {
   const res = await fetchFresh('http://localhost/api/wiki/broken-links', {
     headers: authHeaders(token, wsSlug),
   })
@@ -68,7 +76,11 @@ const brokenLinks = async function brokenLinks(token: string, wsSlug: string) {
   return res.json() as Promise<{ sourcePageId: string; targetTitle: string }[]>
 }
 
-const backlinks = async function backlinks(token: string, wsSlug: string, pageSlug: string) {
+const backlinks = async function backlinks(
+  token: string,
+  wsSlug: string,
+  pageSlug: string,
+): Promise<{ pageId: string; slug: string }[]> {
   const res = await fetchFresh(`http://localhost/api/wiki/${pageSlug}/backlinks`, {
     headers: authHeaders(token, wsSlug),
   })

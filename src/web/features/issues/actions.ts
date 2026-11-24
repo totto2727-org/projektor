@@ -38,7 +38,7 @@ const authorizedIssue = function authorizedIssue(context: FunctionContext, issue
   })
 }
 
-function dataWorkspaceId(context: FunctionContext) {
+function dataWorkspaceId(context: FunctionContext): Effect.Effect<string, ScopeError, never> {
   return Effect.try({
     catch: () => new ScopeError(403, 'Selected workspace is not accessible.'),
     try: () =>

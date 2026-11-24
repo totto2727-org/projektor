@@ -378,7 +378,7 @@ export const coreMCPTools: MCPTool[] = [
   ...codeHeatmapTools,
 ]
 
-function jsonRpcResult(id: unknown, result: unknown) {
+function jsonRpcResult(id: unknown, result: unknown): { jsonrpc: string; id: unknown; result: unknown } {
   return { jsonrpc: '2.0', id, result }
 }
 

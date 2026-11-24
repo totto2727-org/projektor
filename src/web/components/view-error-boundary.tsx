@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 /** Expected operation failures stay in action results. This catches unexpected client/render faults only. */
 export class ViewErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   override state = { failed: false }
-  static getDerivedStateFromError() {
+  static getDerivedStateFromError(): { failed: boolean } {
     return { failed: true }
   }
   override render() {

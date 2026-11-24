@@ -73,7 +73,7 @@ describe('realtime WebSockets (Opt-In)', () => {
     }
   }
 
-  const upgradeRequest = function upgradeRequest(token: string) {
+  const upgradeRequest = function upgradeRequest(token: string): Request<unknown, CfProperties<unknown>> {
     return new Request('http://localhost/realtime', {
       headers: {
         Upgrade: 'websocket',

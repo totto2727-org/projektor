@@ -93,7 +93,7 @@ export const actionFixture = function actionFixture(
   const invoke = function invoke<Input extends unknown[], Output>(
     operation: (...input: Input) => Promise<Output>,
     ...input: Input
-  ) {
+  ): Promise<unknown> {
     const definition = definitions.get(operation)
     if (!definition) {
       throw new Error('Unregistered feature ServerFn.')

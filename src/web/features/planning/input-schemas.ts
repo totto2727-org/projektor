@@ -5,7 +5,7 @@ import { MAX_METRICS_DAYS } from '#contracts/web-limits.ts'
 export const SprintListModeSchema = Schema.Literals(['all', 'planned', 'active', 'completed'])
 export type SprintListMode = typeof SprintListModeSchema.Type
 
-const required = (label: string, maximum = 200) =>
+const required = (label: string, maximum = 200): Schema.String =>
   Schema.String.check(
     Schema.isMaxLength(maximum),
     Schema.makeFilter((value) => value.trim().length > 0 || `${label} is required.`),

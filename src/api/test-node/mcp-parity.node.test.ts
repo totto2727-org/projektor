@@ -667,7 +667,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
   })
 
   test('traces only the selected native binary pathname and HTTP method', () => {
-    const operations = function operations(method: string, pathname: string) {
+    const operations = function operations(method: string, pathname: string): Set<string> {
       const module = sourceModule(
         join(SRC, 'routes', `parity-binary-${method}-${encodeURIComponent(pathname)}.ts`),
         `

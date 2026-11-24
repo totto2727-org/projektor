@@ -10,7 +10,10 @@ const sessionNavigation = (request: Request): Promise<Response> =>
   runTestEffect(navigate(request).pipe(Effect.map(HttpServerResponse.toWeb)))
 
 const origin = 'https://frontend.example'
-const form = function form(fields: Record<string, string>, requestOrigin = origin) {
+const form = function form(
+  fields: Record<string, string>,
+  requestOrigin = origin,
+): Request<unknown, CfProperties<unknown>> {
   return new Request(`${origin}/auth/session`, {
     method: 'POST',
     headers: { origin: requestOrigin },

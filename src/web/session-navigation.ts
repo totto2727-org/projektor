@@ -11,7 +11,9 @@ const SessionForm = Schema.Struct({
 })
 
 /** Native POST forms bypass Flight and discard the previous identity's JS runtime. */
-export const sessionNavigation = function sessionNavigation(request: Request) {
+export const sessionNavigation = function sessionNavigation(
+  request: Request,
+): Effect.Effect<HttpServerResponse.HttpServerResponse, ApiError, never> {
   return Effect.gen(function* () {
     const incoming = HttpServerRequest.fromWeb(request)
     if (incoming.method !== 'POST') {

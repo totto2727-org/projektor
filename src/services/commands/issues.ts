@@ -258,7 +258,7 @@ const loadIssueExtras = async function loadIssueExtras(ctx: ServiceCtx, issueId:
   return extras
 }
 
-export async function getIssue(ctx: ServiceCtx, raw: unknown) {
+export async function getIssue(ctx: ServiceCtx, raw: unknown): Promise<Record<string, unknown>> {
   const result = GetIssueSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
@@ -1232,7 +1232,7 @@ const invalidateUpdateCaches = async function invalidateUpdateCaches(
   }
 }
 
-export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) {
+export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown): Promise<{ ok: boolean }> {
   const id = await resolveIssueIdParam(ctx, rawId)
   const result = UpdateIssueSchema.safeParse(raw)
   if (!result.success) {
@@ -1426,7 +1426,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
   return { ok: true }
 }
 
-export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
+export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok: boolean }> {
   const id = await resolveIssueIdParam(ctx, rawId)
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
@@ -1853,7 +1853,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
   }
 }
 
-export async function searchIssues(ctx: ServiceCtx, raw: unknown) {
+export async function searchIssues(ctx: ServiceCtx, raw: unknown): Promise<issueQueries.IssueSearchRow[]> {
   const result = SearchIssuesInputSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))

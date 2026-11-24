@@ -118,7 +118,7 @@ const resetRateLimitAndMcpCall = async function resetRateLimitAndMcpCall<T>(
   slug: string,
   name: string,
   args: unknown,
-) {
+): Promise<JsonRpcError | JsonRpcResult<T>> {
   await resetRateLimits()
   return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
 }
@@ -512,7 +512,7 @@ describe('wiki API', () => {
     }
     await resetRateLimits()
 
-    const fetchAll = () =>
+    const fetchAll = (): Promise<{ id: string }[]> =>
       fetchNativeApi('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2', {
         headers: authHeaders(token, slug),
       }).then((response) => response.json() as Promise<{ id: string }[]>)
@@ -1128,7 +1128,11 @@ describe('wiki API', () => {
     }
   })
 
-  const uploadFileToPage = async function uploadFileToPage(token: string, slug: string, pageId: string) {
+  const uploadFileToPage = async function uploadFileToPage(
+    token: string,
+    slug: string,
+    pageId: string,
+  ): Promise<{ attachmentId: string; r2Key: string }> {
     const form = new FormData()
     form.append('file', new File(['attachment content'], 'doc.txt', { type: 'text/plain' }))
     form.append('entityType', 'wiki_page')
@@ -2363,11 +2367,13 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  const mcp = async function mcp<T>(name: string, args: unknown) {
+  const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
     return resetRateLimitAndMcpCall<T>(workspaceId, token, slug, name, args)
   }
 
-  const getRevisions = async function getRevisions(pageSlug: string) {
+  const getRevisions = async function getRevisions(
+    pageSlug: string,
+  ): Promise<{ id: string; title: string; summary: string | null; created_at: number }[]> {
     const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
       headers: authHeaders(token, slug),
     })
@@ -2578,11 +2584,11 @@ describe('wiki revision diff (PROJ-492)', () => {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  const mcp = async function mcp<T>(name: string, args: unknown) {
+  const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
     return resetRateLimitAndMcpCall<T>(workspaceId, token, slug, name, args)
   }
 
-  const getRevisions = async function getRevisions(pageSlug: string) {
+  const getRevisions = async function getRevisions(pageSlug: string): Promise<{ id: string; created_at: number }[]> {
     const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
       headers: authHeaders(token, slug),
     })
@@ -2862,11 +2868,15 @@ describe('wiki patch operations (PROJ-490)', () => {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  const mcp = async function mcp<T>(name: string, args: unknown) {
+  const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
     return resetRateLimitAndMcpCall<T>(workspaceId, token, slug, name, args)
   }
 
-  const createPage = async function createPage(pageSlug: string, title: string, content: string) {
+  const createPage = async function createPage(
+    pageSlug: string,
+    title: string,
+    content: string,
+  ): Promise<{ id: string; slug: string }> {
     const res = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2876,7 +2886,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     return (await res.json()) as { id: string; slug: string }
   }
 
-  const getPage = async function getPage(pageSlug: string) {
+  const getPage = async function getPage(pageSlug: string): Promise<{ content: string }> {
     const res = await req(`http://localhost/api/wiki/${pageSlug}`, {
       headers: authHeaders(token, slug),
     })
@@ -3724,7 +3734,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     slug = fixture.workspace.slug
   })
 
-  const createPage = async function createPage(title: string, content: string) {
+  const createPage = async function createPage(title: string, content: string): Promise<{ id: string; slug: string }> {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4575,7 +4585,7 @@ describe('wiki page templates (PROJ-491)', () => {
     '## Steps',
   ].join('\n')
 
-  const createTemplate = async function createTemplate() {
+  const createTemplate = async function createTemplate(): Promise<{ id: string; slug: string; isTemplate: boolean }> {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4878,7 +4888,11 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  const createPage = async function createPage(pageSlug: string, title: string, content = '') {
+  const createPage = async function createPage(
+    pageSlug: string,
+    title: string,
+    content = '',
+  ): Promise<{ id: string; slug: string }> {
     const res = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4893,7 +4907,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     title: string,
     content: string,
     parentId: string,
-  ) {
+  ): Promise<{ id: string; slug: string }> {
     const res = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -5400,7 +5414,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
      * Several MCP calls back-to-back would otherwise trip the same per-token rate
      * limit that req() clears for REST calls above.
      */
-    const mcp = async function mcp<T>(name: string, args: unknown) {
+    const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
     }
@@ -5447,7 +5461,11 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  const createPage = async function createPage(pageSlug: string, title: string, content = '') {
+  const createPage = async function createPage(
+    pageSlug: string,
+    title: string,
+    content = '',
+  ): Promise<{ id: string; slug: string }> {
     const res = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -5686,7 +5704,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
   })
 
   test('covers MCP: save_wiki_draft / get_wiki_draft / discard_wiki_draft mirror the REST behavior', async () => {
-    const mcp = async function mcp<T>(name: string, args: unknown) {
+    const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
     }
@@ -5731,7 +5749,11 @@ describe('wiki trash (PROJ-496)', () => {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  const createPage = async function createPage(title: string, content: string, opts?: Record<string, unknown>) {
+  const createPage = async function createPage(
+    title: string,
+    content: string,
+    opts?: Record<string, unknown>,
+  ): Promise<{ id: string; slug: string }> {
     const res = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -5749,7 +5771,9 @@ describe('wiki trash (PROJ-496)', () => {
     expect(res.status).toBe(200)
   }
 
-  const backdateTrash = function backdateTrash(seconds = 31 * 24 * 60 * 60) {
+  const backdateTrash = function backdateTrash(
+    seconds = 31 * 24 * 60 * 60,
+  ): Promise<D1Result<Record<string, unknown>>> {
     return env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE workspace_id = ? AND deleted_at IS NOT NULL')
       .bind(Math.floor(Date.now() / 1000) - seconds, workspaceId)
       .run()
@@ -6033,7 +6057,7 @@ describe('wiki trash (PROJ-496)', () => {
   })
 
   test('covers MCP list_wiki_trash / undelete_wiki_page / purge_wiki_trash mirror the REST behavior', async () => {
-    const mcp = async function mcp<T>(name: string, args: unknown) {
+    const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
     }

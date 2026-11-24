@@ -69,7 +69,10 @@ const authFailureLimited = async function authFailureLimited(httpContext: Contex
   }
 }
 
-export const authMiddleware = async function authMiddleware(httpContext: Context<HonoEnv>, next: Next) {
+export const authMiddleware = async function authMiddleware(
+  httpContext: Context<HonoEnv>,
+  next: Next,
+): Promise<void | Response> {
   const actor = requestActor(httpContext)
   try {
     const principal = await Effect.runPromise(

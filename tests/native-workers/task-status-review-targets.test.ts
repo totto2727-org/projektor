@@ -33,7 +33,7 @@ const fixture = async function fixture() {
       .run()
   }
   const ids = [selected, done, ordinary, wiki, unrelatedAttachment, foreignAttachment]
-  const attachments = () =>
+  const attachments = (): Promise<D1Result<{ id: string; review_status: string | null; r2_key: string }>> =>
     env.DB.prepare(
       `SELECT id,review_status,r2_key FROM attachments WHERE id IN (${ids.map(() => '?').join(',')}) ORDER BY id`,
     )

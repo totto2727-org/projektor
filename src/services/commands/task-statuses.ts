@@ -18,7 +18,7 @@ const WS_META_LOCAL_TTL_MS = 5000
 const TASK_STATUSES_CACHE_KEY = (workspaceId: string): string => `ws-meta:${workspaceId}:task-statuses`
 const localCache = cache.createLocalCache<unknown[]>(WS_META_LOCAL_TTL_MS)
 
-export const listTaskStatuses = async function listTaskStatuses(ctx: ServiceCtx) {
+export const listTaskStatuses = async function listTaskStatuses(ctx: ServiceCtx): Promise<unknown[]> {
   const cacheKey = TASK_STATUSES_CACHE_KEY(ctx.workspaceId)
   const local = localCache.get(cacheKey)
   if (local) {
@@ -89,7 +89,7 @@ export const createTaskStatus = async function createTaskStatus(ctx: ServiceCtx,
 
 type TaskStatusUpdateData = z.infer<typeof UpdateTaskStatusSchema>
 
-const buildTaskStatusSetObj = function buildTaskStatusSetObj(data: TaskStatusUpdateData) {
+const buildTaskStatusSetObj = function buildTaskStatusSetObj(data: TaskStatusUpdateData): Record<string, unknown> {
   const setObj: Record<string, unknown> = {}
   if (Predicate.isNotNullish(data.name)) {
     setObj.name = data.name
@@ -112,7 +112,11 @@ const buildTaskStatusSetObj = function buildTaskStatusSetObj(data: TaskStatusUpd
   return setObj
 }
 
-export const updateTaskStatus = async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown) {
+export const updateTaskStatus = async function updateTaskStatus(
+  ctx: ServiceCtx,
+  id: string,
+  raw: unknown,
+): Promise<{ ok: boolean }> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -173,7 +177,7 @@ export const updateTaskStatus = async function updateTaskStatus(ctx: ServiceCtx,
   return { ok: true }
 }
 
-export const deleteTaskStatus = async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
+export const deleteTaskStatus = async function deleteTaskStatus(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -302,9 +306,12 @@ export const resolveStatus = async function resolveStatus(
     isReviewStep: schema.taskStatuses.isReviewStep,
   }
   type Row = { id: string; key: string; category: string | null; isReviewStep: number }
-  const fromRow = (r: Row) => ({ ...r, isReviewStep: r.isReviewStep === 1 })
+  const fromRow = (r: Row): { isReviewStep: boolean; id: string; key: string; category: string | null } => ({
+    ...r,
+    isReviewStep: r.isReviewStep === 1,
+  })
   // No task_statuses row backs the key: only the built-in "in_review" is a review step.
-  const fromKey = (key: string) => ({
+  const fromKey = (key: string): { id: null; key: string; category: null; isReviewStep: boolean } => ({
     id: null,
     key,
     category: null,

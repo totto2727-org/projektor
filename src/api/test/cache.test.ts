@@ -126,7 +126,7 @@ describe('covers KV caching', () => {
       const hdrs = authHeaders(token, slug)
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
-      const mcpListProjects = async function mcpListProjects() {
+      const mcpListProjects = async function mcpListProjects(): Promise<unknown[]> {
         const res = await fetchNativeApi(mcpUrl, {
           method: 'POST',
           headers: hdrs,
@@ -157,7 +157,7 @@ describe('covers KV caching', () => {
       const hdrs = authHeaders(token, slug)
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
-      const mcpListProjects = async function mcpListProjects() {
+      const mcpListProjects = async function mcpListProjects(): Promise<{ key: string }[]> {
         const res = await fetchNativeApi(mcpUrl, {
           method: 'POST',
           headers: hdrs,

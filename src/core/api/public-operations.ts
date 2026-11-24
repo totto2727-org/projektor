@@ -21,7 +21,7 @@ import type { CoreEnvironment } from '#core/environment.ts'
 export const makeApiPublicHandlers = function makeApiPublicHandlers<R>(
   envSource: Effect.Effect<CoreEnvironment, never, R>,
 ) {
-  const attempt = function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>) {
+  const attempt = function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>): Effect.Effect<A, unknown, R> {
     return Effect.flatMap(envSource, (env) =>
       Effect.tryPromise({ catch: publicDomainFailure, try: () => operation(env) }),
     )

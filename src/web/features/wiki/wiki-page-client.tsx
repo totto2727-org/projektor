@@ -2342,7 +2342,10 @@ function useWikiScope(_workspaceSlug: string | undefined, _projectIdProp: string
   return useWikiSeed().projectId
 }
 
-function useWikiTree(_workspaceSlug: string | undefined, _projectId: string | undefined) {
+function useWikiTree(
+  _workspaceSlug: string | undefined,
+  _projectId: string | undefined,
+): { pageTree: TreeNode[]; pageMap: Record<string, FlatEntry>; treeLoading: boolean } {
   const seed = useWikiSeed()
   const pageTree = seed.tree
   const pageMap = useMemo(() => flattenTree(pageTree), [pageTree])

@@ -110,7 +110,11 @@ const resolveWatchTarget = async function resolveWatchTarget(
   return page
 }
 
-export const watchWikiPage = async function watchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
+export const watchWikiPage = async function watchWikiPage(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+  input: unknown,
+): Promise<{ ok: boolean; pageId: string; subtree: boolean; url: string }> {
   const parsed = WatchWikiPageInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -137,7 +141,10 @@ export const watchWikiPage = async function watchWikiPage(ctx: ServiceCtx, idOrS
   return { ok: true, pageId: page.id, subtree: parsed.data.subtree, url: wikiPagePath(page.slug) }
 }
 
-export const unwatchWikiPage = async function unwatchWikiPage(ctx: ServiceCtx, idOrSlug: string) {
+export const unwatchWikiPage = async function unwatchWikiPage(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+): Promise<{ ok: boolean }> {
   const page = await resolveWatchTarget(ctx, idOrSlug)
   const orm = drizzle(ctx.db, { schema })
   await orm
@@ -469,7 +476,10 @@ export const listWikiNotifications = async function listWikiNotifications(ctx: S
   return rows.map((row) => ({ ...row, url: wikiPagePath(row.slug) }))
 }
 
-export const markWikiNotificationsRead = async function markWikiNotificationsRead(ctx: ServiceCtx, input: unknown) {
+export const markWikiNotificationsRead = async function markWikiNotificationsRead(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ ok: boolean }> {
   const parsed = MarkWikiNotificationsReadInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))

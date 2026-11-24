@@ -132,7 +132,7 @@ const getCustomFieldDefForUpdate = async function getCustomFieldDefForUpdate(
   orm: ReturnType<typeof drizzle>,
   workspaceId: string,
   id: string,
-) {
+): Promise<{ id: string; type: 'number' | 'user' | 'text' | 'select' | 'date' }> {
   const existing = await orm
     .select({ id: schema.customFieldDefinitions.id, type: schema.customFieldDefinitions.type })
     .from(schema.customFieldDefinitions)
@@ -147,7 +147,7 @@ const getCustomFieldDefForUpdate = async function getCustomFieldDefForUpdate(
 const buildCustomFieldUpdateSet = function buildCustomFieldUpdateSet(
   data: ReturnType<typeof UpdateCustomFieldDefSchema.parse>,
   existingType: string,
-) {
+): Record<string, unknown> {
   if ('options' in data && data.options !== undefined && existingType !== 'select') {
     throw new ValidationError({
       formErrors: ['options can only be set for select fields'],
@@ -170,7 +170,11 @@ const buildCustomFieldUpdateSet = function buildCustomFieldUpdateSet(
   return setObj
 }
 
-export const updateCustomFieldDef = async function updateCustomFieldDef(ctx: ServiceCtx, id: string, raw: unknown) {
+export const updateCustomFieldDef = async function updateCustomFieldDef(
+  ctx: ServiceCtx,
+  id: string,
+  raw: unknown,
+): Promise<{ ok: boolean }> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -194,7 +198,10 @@ export const updateCustomFieldDef = async function updateCustomFieldDef(ctx: Ser
   return { ok: true }
 }
 
-export const deleteCustomFieldDef = async function deleteCustomFieldDef(ctx: ServiceCtx, id: string) {
+export const deleteCustomFieldDef = async function deleteCustomFieldDef(
+  ctx: ServiceCtx,
+  id: string,
+): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })

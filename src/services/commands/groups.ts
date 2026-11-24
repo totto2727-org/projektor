@@ -88,7 +88,9 @@ export const getGroup = async function getGroup(ctx: ServiceCtx, groupId: string
  * screen (group chips + the "no groups / pending" badge). Owner/admin only.
  * Includes members with zero groups so the pending state is visible.
  */
-export const listMemberGroups = async function listMemberGroups(ctx: ServiceCtx) {
+export const listMemberGroups = async function listMemberGroups(
+  ctx: ServiceCtx,
+): Promise<{ userId: string; groups: { id: string; name: string }[] }[]> {
   requireAdmin(ctx)
   return Effect.runPromise(groupData.listMemberGroups(ctx.db, ctx.workspaceId))
 }
@@ -130,7 +132,11 @@ export const createGroup = async function createGroup(ctx: ServiceCtx, input: un
   return { id, name, description: description ?? null }
 }
 
-export const updateGroup = async function updateGroup(ctx: ServiceCtx, groupId: string, input: unknown) {
+export const updateGroup = async function updateGroup(
+  ctx: ServiceCtx,
+  groupId: string,
+  input: unknown,
+): Promise<{ ok: boolean }> {
   requireAdmin(ctx)
   const parsed = UpdateGroupSchema.safeParse(input)
   if (!parsed.success) {
@@ -176,7 +182,7 @@ export const updateGroup = async function updateGroup(ctx: ServiceCtx, groupId: 
   return { ok: true }
 }
 
-export const deleteGroup = async function deleteGroup(ctx: ServiceCtx, groupId: string) {
+export const deleteGroup = async function deleteGroup(ctx: ServiceCtx, groupId: string): Promise<{ ok: boolean }> {
   await requireAdminGroup(ctx, groupId)
 
   /*
@@ -193,7 +199,11 @@ export const deleteGroup = async function deleteGroup(ctx: ServiceCtx, groupId: 
   return { ok: true }
 }
 
-export const addGroupMember = async function addGroupMember(ctx: ServiceCtx, groupId: string, input: unknown) {
+export const addGroupMember = async function addGroupMember(
+  ctx: ServiceCtx,
+  groupId: string,
+  input: unknown,
+): Promise<{ ok: boolean }> {
   requireAdmin(ctx)
   const parsed = AddGroupMemberSchema.safeParse(input)
   if (!parsed.success) {
@@ -229,7 +239,11 @@ export const addGroupMember = async function addGroupMember(ctx: ServiceCtx, gro
   return { ok: true }
 }
 
-export const removeGroupMember = async function removeGroupMember(ctx: ServiceCtx, groupId: string, userId: string) {
+export const removeGroupMember = async function removeGroupMember(
+  ctx: ServiceCtx,
+  groupId: string,
+  userId: string,
+): Promise<{ ok: boolean }> {
   const { orm } = await requireAdminGroup(ctx, groupId)
 
   await orm
@@ -245,7 +259,11 @@ export const removeGroupMember = async function removeGroupMember(ctx: ServiceCt
   return { ok: true }
 }
 
-export const setGroupGrant = async function setGroupGrant(ctx: ServiceCtx, groupId: string, input: unknown) {
+export const setGroupGrant = async function setGroupGrant(
+  ctx: ServiceCtx,
+  groupId: string,
+  input: unknown,
+): Promise<{ ok: boolean }> {
   requireAdmin(ctx)
   const parsed = SetGroupGrantSchema.safeParse(input)
   if (!parsed.success) {
@@ -283,7 +301,11 @@ export const setGroupGrant = async function setGroupGrant(ctx: ServiceCtx, group
   return { ok: true }
 }
 
-export const removeGroupGrant = async function removeGroupGrant(ctx: ServiceCtx, groupId: string, projectId: string) {
+export const removeGroupGrant = async function removeGroupGrant(
+  ctx: ServiceCtx,
+  groupId: string,
+  projectId: string,
+): Promise<{ ok: boolean }> {
   requireAdmin(ctx)
   const orm = drizzle(ctx.db, { schema })
   await loadGroup(orm, ctx, groupId)

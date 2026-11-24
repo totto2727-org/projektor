@@ -293,7 +293,7 @@ export const claimIssue = async function claimIssue(ctx: ServiceCtx, raw: unknow
 }
 
 /** Release the active lease on an issue, optionally only if held by `agentId`. */
-export const releaseIssue = async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
+export const releaseIssue = async function releaseIssue(ctx: ServiceCtx, raw: unknown): Promise<{ ok: boolean }> {
   const result = ReleaseIssueSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

@@ -130,7 +130,7 @@ const fixture = async function fixture(
         ),
     invalidate: native.invalidate.pipe(Effect.andThen(Effect.sync(invalidate))),
   }
-  const run = function run(operation: unknown, input: unknown) {
+  const run = function run(operation: unknown, input: unknown): Promise<unknown> {
     const definition = definitions.get(operation)
     if (!definition) {
       throw new Error('Missing operation definition')

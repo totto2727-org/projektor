@@ -22,7 +22,10 @@ import { deployment } from './worker-graph.ts'
 import CoreEntrypoint from './workers/core.ts'
 import Frontend from './workers/frontend.ts'
 
-const configured = function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<string, string>) {
+const configured = function configured<A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+  values: Record<string, string>,
+): Effect.Effect<A, E, Exclude<R, never>> {
   return effect.pipe(Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromUnknown(values)))
 }
 

@@ -68,7 +68,11 @@ const summaryColumns = {
 }
 const detailColumns = { ...summaryColumns, content: schema.wikiPages.content }
 
-const scopeConditions = function scopeConditions(workspaceId: string, opts: WikiScopeOptions, trash = false) {
+const scopeConditions = function scopeConditions(
+  workspaceId: string,
+  opts: WikiScopeOptions,
+  trash = false,
+): SQL<unknown>[] {
   const conditions = [
     eq(schema.wikiPages.workspaceId, workspaceId),
     trash ? isNotNull(schema.wikiPages.deletedAt) : isNull(schema.wikiPages.deletedAt),
@@ -262,7 +266,7 @@ const revisionColumns = {
   author_id: schema.wikiRevisions.authorId,
   created_at: schema.wikiRevisions.createdAt,
 }
-const revisionScope = function revisionScope(workspaceId: string, pageId: string) {
+const revisionScope = function revisionScope(workspaceId: string, pageId: string): SQL<unknown> | undefined {
   return and(
     eq(schema.wikiRevisions.pageId, pageId),
     sql`EXISTS (SELECT 1 FROM wiki_pages WHERE wiki_pages.id = ${schema.wikiRevisions.pageId} AND wiki_pages.workspace_id = ${workspaceId})`,

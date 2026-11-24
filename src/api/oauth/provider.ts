@@ -59,7 +59,7 @@ export const isOAuthProviderPath = function isOAuthProviderPath(pathname: string
  * revocation on the one token endpoint, which is why the discovery document
  * advertises `revocation_endpoint` as the same path rather than a separate /oauth/revoke.
  */
-export const createOAuthProvider = function createOAuthProvider(app: ExportedHandler<ApiEnv>) {
+export const createOAuthProvider = function createOAuthProvider(app: ExportedHandler<ApiEnv>): OAuthProvider<ApiEnv> {
   return new OAuthProvider<ApiEnv>(providerOptions(app))
 }
 

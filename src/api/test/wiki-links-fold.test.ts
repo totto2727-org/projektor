@@ -19,7 +19,7 @@ const createPage = async function createPage(
   token: string,
   slug: string,
   body: { title: string; content?: string; projectId?: string },
-) {
+): Promise<{ id: string; slug: string }> {
   const res = await call('http://localhost/api/wiki', token, slug, {
     method: 'POST',
     body: JSON.stringify({ content: '', ...body }),
@@ -28,7 +28,10 @@ const createPage = async function createPage(
   return (await res.json()) as { id: string; slug: string }
 }
 
-const broken = async function broken(token: string, slug: string) {
+const broken = async function broken(
+  token: string,
+  slug: string,
+): Promise<{ sourceSlug: string; targetTitle: string }[]> {
   const res = await call('http://localhost/api/wiki/broken-links', token, slug)
   expect(res.status).toBe(200)
   return (await res.json()) as { sourceSlug: string; targetTitle: string }[]

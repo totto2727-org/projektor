@@ -22,7 +22,7 @@ export type PublicRenderer = (
   params: RouteParams,
 ) => Effect.Effect<ReactNode, PageFailure, RequestServices>
 
-const errorResponse = function errorResponse(error: PageFailure) {
+const errorResponse = function errorResponse(error: PageFailure): HttpServerResponse.HttpServerResponse {
   const status = error.status
   const message =
     status === 401

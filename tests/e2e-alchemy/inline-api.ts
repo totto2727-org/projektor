@@ -62,7 +62,9 @@ const readWorkerModules = async function readWorkerModules(
   return [entry, ...modules]
 }
 
-export const makeInlineApiLayer = async function makeInlineApiLayer(directory: string) {
+export const makeInlineApiLayer = async function makeInlineApiLayer(
+  directory: string,
+): Promise<Layer.Layer<InlineApi, never, never>> {
   const [apiModules, coreModules] = await Promise.all([
     readWorkerModules(fileURLToPath(new URL('./dist/ssr/', import.meta.url)), 'api.worker.js'),
     readWorkerModules(fileURLToPath(new URL('./core-dist/ssr/', import.meta.url)), 'core.worker.js'),

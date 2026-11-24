@@ -398,7 +398,10 @@ describe('covers PROJ-433: provisioning runs once per user, not per request', ()
 
 // PROJ-432/433: the point of this work was round trips, so count them. A Proxy over the
 // D1 binding records every statement the code under test issues.
-const countingDb = function countingDb(db: D1Database) {
+const countingDb = function countingDb(db: D1Database): {
+  counts: { prepare: number; batch: number }
+  proxy: D1Database
+} {
   const counts = { prepare: 0, batch: 0 }
   const proxy = new Proxy(db, {
     get(target, prop, receiver) {

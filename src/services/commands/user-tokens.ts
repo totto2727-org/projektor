@@ -22,7 +22,7 @@ const hashToken = async function hashToken(token: string): Promise<string> {
     .join('')
 }
 
-export const getUserWorkspaces = async function getUserWorkspaces(ctx: UserCtx) {
+export const getUserWorkspaces = async function getUserWorkspaces(ctx: UserCtx): Promise<Record<string, unknown>[]> {
   const { results } = await ctx.db
     .prepare(
       `SELECT w.id, w.name, w.slug, wm.role
@@ -35,7 +35,7 @@ export const getUserWorkspaces = async function getUserWorkspaces(ctx: UserCtx) 
   return results
 }
 
-export const createUserToken = async function createUserToken(ctx: UserCtx, raw: unknown) {
+export const createUserToken = async function createUserToken(ctx: UserCtx, raw: unknown): Promise<{ token: string }> {
   const result = CreateUserTokenSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -81,7 +81,7 @@ export const createUserToken = async function createUserToken(ctx: UserCtx, raw:
   return { token: rawToken }
 }
 
-export const deleteUserToken = async function deleteUserToken(ctx: UserCtx, id: string) {
+export const deleteUserToken = async function deleteUserToken(ctx: UserCtx, id: string): Promise<{ ok: boolean }> {
   /*
    * PROJ-923: null agent_sessions.token_id explicitly (ON DELETE SET NULL isn't
    * guaranteed on D1, PROJ-407), in the same batch as the delete.

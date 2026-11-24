@@ -39,7 +39,9 @@ describe('issue Links API', () => {
     })
   }
 
-  const listLinks = async function listLinks(issueId: string) {
+  const listLinks = async function listLinks(
+    issueId: string,
+  ): Promise<{ res: Response; links: Record<string, unknown>[] }> {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/links`, {
       headers: authHeaders(token, slug),
     })

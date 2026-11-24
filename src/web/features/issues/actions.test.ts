@@ -58,7 +58,7 @@ const fixture = function fixture(options: { origin?: string } = {}) {
   const invalidated = vi.fn()
   const kv = inMemoryKV()
   const r2 = inMemoryR2()
-  const invoke = async function invoke(action: unknown, input: unknown) {
+  const invoke = async function invoke(action: unknown, input: unknown): Promise<unknown> {
     const definition = (action as { definition: Definition }).definition
     const multiple = Array.isArray(definition.input)
     const inputSchema = multiple

@@ -40,7 +40,9 @@ describe('covers PROJ-921: ready_at and lead time', () => {
     expect(res.status).toBe(200)
   }
 
-  const stamps = async function stamps(id: string) {
+  const stamps = async function stamps(
+    id: string,
+  ): Promise<{ ready_at: number | null; done_at: number | null } | null> {
     return env.DB.prepare('SELECT ready_at, done_at FROM issues WHERE id = ?')
       .bind(id)
       .first<{ ready_at: number | null; done_at: number | null }>()

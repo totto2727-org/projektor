@@ -25,7 +25,7 @@ const fixture = function fixture() {
     method: 'POST',
     headers: { origin: 'https://front.test' },
   })
-  const run = <A, E>(effect: Effect.Effect<A, E, RequestServices>) =>
+  const run = <A, E>(effect: Effect.Effect<A, E, RequestServices>): Promise<A> =>
     runTestEffect(
       makeRequestServices(request, env).pipe(
         Effect.flatMap((services) => effect.pipe(Effect.provideService(RequestServices, services))),

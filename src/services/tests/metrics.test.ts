@@ -33,7 +33,12 @@ const readDatabase = function readDatabase(sqlite: DatabaseSync, onQuery: () => 
   return { prepare } as unknown as D1Database
 }
 
-const distribution = (value: number) => ({ count: 1, avg: value, p50: value, p90: value })
+const distribution = (value: number): { count: number; avg: number; p50: number; p90: number } => ({
+  count: 1,
+  avg: value,
+  p50: value,
+  p90: value,
+})
 
 describe('shared metrics migrated SQLite reads', () => {
   let sqlite: DatabaseSync

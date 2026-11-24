@@ -36,7 +36,7 @@ const fakeCloudflare = function fakeCloudflare(responses: Readonly<Record<string
       E,
       CloudflareEnvironment | Credentials | HttpClient.HttpClient | FileSystem.FileSystem | Path.Path | Stack | Stage
     >,
-  ) =>
+  ): Promise<A> =>
     runTestEffect(
       effect.pipe(
         Effect.provide(NodeServices.layer),

@@ -136,7 +136,10 @@ export const seedGroupGrant = async function seedGroupGrant(
 }
 
 /** Returns headers needed for every authenticated request */
-export const authHeaders = function authHeaders(token: string, slug: string) {
+export const authHeaders = function authHeaders(
+  token: string,
+  slug: string,
+): { Authorization: string; 'X-Workspace-Slug': string; 'Content-Type': string } {
   return {
     Authorization: `Bearer ${token}`,
     'X-Workspace-Slug': slug,
@@ -170,7 +173,7 @@ export const seedTaskType = async function seedTaskType(
     isDefault?: boolean
     position?: number
   }>,
-) {
+): Promise<{ id: string; key: string; name: string }> {
   const id = opts?.id ?? crypto.randomUUID()
   const key = opts?.key ?? `type-${id.slice(0, 8)}`
   await env.DB.prepare(

@@ -30,7 +30,7 @@ const fixture = function fixture() {
   `)
   return database
 }
-const incoming = () => new Request('https://front.example.test/')
+const incoming = (): Request<unknown, CfProperties<unknown>> => new Request('https://front.example.test/')
 
 describe('request-scoped native services', () => {
   test('requires a native Core fetch capability and valid browser-only configuration', () => {

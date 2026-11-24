@@ -1296,7 +1296,9 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  const listIssues = async function listIssues(url: string) {
+  const listIssues = async function listIssues(
+    url: string,
+  ): Promise<{ res: Response; page: { items: Record<string, unknown>[] } }> {
     const res = await fetchNativeApi(url, { headers: authHeaders(token, slug) })
     return { res, page: (await res.json()) as { items: Record<string, unknown>[] } }
   }
@@ -2157,7 +2159,9 @@ describe('handles GET /api/issues/prioritized', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  const getPrioritized = async function getPrioritized(query: Record<string, string> = {}) {
+  const getPrioritized = async function getPrioritized(
+    query: Record<string, string> = {},
+  ): Promise<{ res: Response; body: { issues: { title: string }[] } }> {
     const qs = new URLSearchParams(query).toString()
     const res = await fetchNativeApi(`http://localhost/api/issues/prioritized${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(token, slug),

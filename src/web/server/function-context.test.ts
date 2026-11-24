@@ -91,7 +91,7 @@ const fixture = function fixture(
   })
   const invalidated = vi.fn()
   const env = testEnvironment(database.db, auth.user.email)
-  const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {
+  const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>): Promise<A> {
     return runTestEffect(
       Effect.gen(function* () {
         const request = new Request(`https://front.example.test${path}`, {

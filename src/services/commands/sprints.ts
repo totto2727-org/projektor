@@ -145,7 +145,11 @@ const buildSprintSetData = function buildSprintSetData(data: SprintUpdateData, n
   return setData
 }
 
-export const updateSprint = async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
+export const updateSprint = async function updateSprint(
+  ctx: ServiceCtx,
+  id: string,
+  raw: unknown,
+): Promise<{ ok: boolean }> {
   const result = UpdateSprintSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
@@ -174,7 +178,7 @@ export const updateSprint = async function updateSprint(ctx: ServiceCtx, id: str
   return { ok: true }
 }
 
-export const completeSprint = async function completeSprint(ctx: ServiceCtx, id: string) {
+export const completeSprint = async function completeSprint(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -206,7 +210,7 @@ export const completeSprint = async function completeSprint(ctx: ServiceCtx, id:
   return { ok: true }
 }
 
-export const deleteSprint = async function deleteSprint(ctx: ServiceCtx, id: string) {
+export const deleteSprint = async function deleteSprint(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -238,7 +242,10 @@ export const deleteSprint = async function deleteSprint(ctx: ServiceCtx, id: str
   return { ok: true }
 }
 
-export const moveIssuesToSprint = async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
+export const moveIssuesToSprint = async function moveIssuesToSprint(
+  ctx: ServiceCtx,
+  raw: unknown,
+): Promise<{ ok: boolean; count: number }> {
   const result = MoveIssuesToSprintSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))

@@ -43,7 +43,7 @@
 | `chart`                                                                | 独自ロジック変更なし。`cn` パッケージを直接 import。文字列補間3箇所の lint 対応のみ |
 | `generated.test`                                                       | 公式生成物ではない。アプリの SSR、フォーム、クラス結合、設定の統合テスト            |
 
-生成 hook は [`src/web/hooks/use-mobile.ts`](src/web/hooks/use-mobile.ts) の **1 ファイル**で、768px の判定と `matchMedia` の購読を含めて公式結果と一致する。
+生成 hook は [`src/web/hooks/use-mobile.ts`](src/web/hooks/use-mobile.ts) の **1 ファイル**。共有 lint preset に合わせて型とグローバル参照を明示し、768px の判定、`matchMedia` の購読、初回描画後の幅の同期は公式実装の動作を維持している。
 UI と hook を合わせた公式由来ソースは **24 ファイル**、独自テストを含めた対象総数は **25 ファイル**。
 
 ### 残すべき import 接続

@@ -69,7 +69,7 @@ test.each([
   expect(initialHistory.map(({ name }) => name)).not.toContain(pending)
   expect(draftHeads()).toEqual([])
 
-  const execute = <A>(sql: string, body: () => A) =>
+  const execute = <A>(sql: string, body: () => A): Effect.Effect<A, MigrationError, never> =>
     Effect.try({ catch: (cause) => new MigrationError({ message: `SQLite fixture failed: ${sql}`, cause }), try: body })
   const executor: SqlExecutor = {
     dialect: 'sqlite',

@@ -20,7 +20,7 @@ const commonApplicationEnvironment = {
   AUTO_JOIN_ROLE: 'none',
 }
 
-export const rateLimiterReference = () =>
+export const rateLimiterReference = (): Cloudflare.DurableObjectLike<unknown> =>
   Cloudflare.DurableObject('RateLimiter', {
     className: 'RateLimiter',
     // Preserve the deployed namespace without a Core -> Api -> Core resource cycle.

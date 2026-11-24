@@ -60,7 +60,7 @@ const token = async function token(
   )
   return `${header}.${payload}.${Buffer.from(signature).toString('base64url')}`
 }
-const browser = function browser(jwt: string, cookie = false) {
+const browser = function browser(jwt: string, cookie = false): Request<unknown, CfProperties<unknown>> {
   return new Request('https://front.example.test/issues', {
     headers: cookie
       ? { cookie: `unrelated=private; CF_Authorization=${jwt}; other=value` }

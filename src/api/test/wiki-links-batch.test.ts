@@ -15,7 +15,12 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
   test('200 distinct slug links (direct, redirected, missing) resolve correctly in O(1) reads', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
     const now = Math.floor(Date.now() / 1000)
-    const insertPage = (id: string, slug: string, title: string, deletedAt: number | null = null) =>
+    const insertPage = (
+      id: string,
+      slug: string,
+      title: string,
+      deletedAt: number | null = null,
+    ): Promise<D1Result<Record<string, unknown>>> =>
       env.DB.prepare(
         `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, parent_id,
 				   created_by_id, updated_by_id, created_at, updated_at, deleted_at)

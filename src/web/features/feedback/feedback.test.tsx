@@ -64,7 +64,7 @@ async function fixture(currentScope = scope) {
   const services = await runTestEffect(makeRequestServices(request, testEnvironment(database.db, 'alice@example.test')))
   const authenticated = await runTestEffect(services.scope({ workspaceHint: 'team' }))
   expect(authenticated.user.id).toBe(currentScope.user.id)
-  function run<T, E>(effect: Effect.Effect<T, E, RequestServices>) {
+  function run<T, E>(effect: Effect.Effect<T, E, RequestServices>): Promise<T> {
     return runTestEffect(effect.pipe(Effect.provideService(RequestServices, services)))
   }
   return { ...database, execute, run }

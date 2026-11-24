@@ -58,7 +58,7 @@ const fixture = function fixture() {
   })
   attach('selected-other', 'in_review', 'workspace-b')
   attach('issue-a', 'in_review', 'workspace-b')
-  const run = function run<A, E>(operation: Effect.Effect<A, E, CoreReadServices>) {
+  const run = function run<A, E>(operation: Effect.Effect<A, E, CoreReadServices>): Promise<A> {
     return runTestEffect(operation.pipe(Effect.provideService(CoreReadServices, { db: database.db })))
   }
   const page = (params: string) => run(readDataIssuePage(scope, workspace.id, new URLSearchParams(params)))

@@ -28,7 +28,7 @@ const invalidateProjectsCache = async function invalidateProjectsCache(ctx: Serv
 
 const ListProjectsOptionsSchema = z.object({ includeArchived: BooleanQueryParam.optional() })
 
-export const listProjects = async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
+export const listProjects = async function listProjects(ctx: ServiceCtx, opts: unknown = {}): Promise<unknown[]> {
   const parsed = ListProjectsOptionsSchema.safeParse(opts)
   if (!parsed.success) {
     throw new ValidationError(z.flattenError(parsed.error))
@@ -227,7 +227,11 @@ export const createProject = async function createProject(ctx: ServiceCtx, input
   return { id, name, key, slug }
 }
 
-export const updateProject = async function updateProject(ctx: ServiceCtx, id: string, input: unknown) {
+export const updateProject = async function updateProject(
+  ctx: ServiceCtx,
+  id: string,
+  input: unknown,
+): Promise<{ ok: boolean }> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -346,7 +350,7 @@ const PROJECT_CLEANUP_SQL: Readonly<string[]> = [
   'DELETE FROM projects WHERE id = ?1 AND workspace_id = ?2',
 ]
 
-export const deleteProject = async function deleteProject(ctx: ServiceCtx, id: string) {
+export const deleteProject = async function deleteProject(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })

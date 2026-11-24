@@ -23,7 +23,10 @@ const mondayAtOrBefore = function mondayAtOrBefore(t: number): number {
   return (dayIndex - daysSinceMonday) * DAY
 }
 
-const flowMetricsDefaultStarts = function flowMetricsDefaultStarts(now: number) {
+const flowMetricsDefaultStarts = function flowMetricsDefaultStarts(now: number): {
+  bucketSince: number
+  wipSince: number
+} {
   return { bucketSince: mondayAtOrBefore(now) - 5 * 7 * DAY, wipSince: now - 30 * DAY }
 }
 
@@ -612,7 +615,7 @@ const fetchWindowCounts = async function fetchWindowCounts(
   }>,
 ): Promise<FactoryHealth & { doneBeforeWindow: number }> {
   const { since, until } = opts
-  const countOf = (query: SQLWrapper) => sql<number>`(${query})`
+  const countOf = (query: SQLWrapper): SQL<number> => sql<number>`(${query})`
   const count = sql<number>`count(*)`
   const row = await orm
     .select({

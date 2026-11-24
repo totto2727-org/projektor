@@ -54,7 +54,10 @@ const warnIfIgnoredSubdomain = async function warnIfIgnoredSubdomain(
 }
 
 /** Routing chooses a target only. Core resolves membership and scope for every operation. */
-export const workspaceMiddleware = async function workspaceMiddleware(httpContext: Context<HonoEnv>, next: Next) {
+export const workspaceMiddleware = async function workspaceMiddleware(
+  httpContext: Context<HonoEnv>,
+  next: Next,
+): Promise<void | Response> {
   const routingEnabled = subdomainRoutingEnabled(httpContext.env.WORKSPACE_SUBDOMAIN_ROUTING)
   const slug =
     httpContext.req.header('X-Workspace-Slug') ??

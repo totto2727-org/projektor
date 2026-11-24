@@ -2,7 +2,8 @@ import { Schema } from 'effect'
 
 const nullableText = Schema.NullOr(Schema.String)
 const nullableNumber = Schema.NullOr(Schema.Finite)
-const array = <S extends Schema.Constraint>(schema: S) => Schema.Array(schema).pipe(Schema.mutable)
+const array = <S extends Schema.Constraint>(schema: S): Schema.mutable<Schema.$Array<S>> =>
+  Schema.Array(schema).pipe(Schema.mutable)
 
 export const GroupSchema = Schema.Struct({
   id: Schema.String,

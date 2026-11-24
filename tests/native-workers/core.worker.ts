@@ -52,7 +52,7 @@ globalThis.fetch = async (input, init) => {
 
 const withFixtureRequest = function withFixtureRequest<A, E>(
   effect: Effect.Effect<A, E, WorkerEnvironment | WorkerExecutionContext>,
-) {
+): Effect.Effect<A, E, WorkerEnvironment | WorkerExecutionContext> {
   return Effect.gen(function* () {
     const env = yield* WorkerEnvironment
     const context = yield* WorkerExecutionContext

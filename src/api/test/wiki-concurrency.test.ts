@@ -12,7 +12,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-const setup = async function setup() {
+const setup = async function setup(): Promise<{ ctx: ServiceCtx; slug: string; token: string; wsSlug: string }> {
   const { workspace, user, token } = await seedFixture({ role: 'owner' })
   const ctx: ServiceCtx = {
     db: env.DB,

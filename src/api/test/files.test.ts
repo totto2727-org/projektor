@@ -982,7 +982,8 @@ describe('attachment project visibility', () => {
     hiddenR2Key = att.r2Key
   })
 
-  const asMember = () => authHeaders(memberToken, slug)
+  const asMember = (): { Authorization: string; 'X-Workspace-Slug': string; 'Content-Type': string } =>
+    authHeaders(memberToken, slug)
 
   test('hides attachments on an issue in a project the member has no grant on', async () => {
     const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {

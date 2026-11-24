@@ -45,7 +45,8 @@ const fixture = async function fixture() {
     { db: env.DB, kv: env.KV, r2: env.R2, workspaceId: 'w', userId: 'u', role: 'owner' },
     'i',
   )
-  const request = (method = 'GET') => new Request(`https://core.internal/share-logo/${token}`, { method })
+  const request = (method = 'GET'): Request<unknown, CfProperties<unknown>> =>
+    new Request(`https://core.internal/share-logo/${token}`, { method })
   return { ...database, env, request, bytes, get, cancel, buffer }
 }
 

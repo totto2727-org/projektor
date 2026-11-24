@@ -38,7 +38,7 @@ const invoke = function invoke(
   kind: 'native' | 'inline',
   upload = file(),
   workspaceSlug = 'alpha',
-) {
+): Promise<unknown> {
   const input = { workspaceSlug, entityType: 'wiki_page' as const, entityId: 'wiki-1', file: upload }
   if (kind === 'inline') {
     return fixture.invoke(uploadInlineImage, input)

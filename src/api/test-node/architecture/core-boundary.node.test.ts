@@ -251,7 +251,7 @@ describe('private Core ownership', () => {
     const entry = join(SOURCE, 'api', 'boundary-fixture.ts')
     const barrel = join(SOURCE, 'core', 'boundary-fixture.ts')
     const domain = join(SOURCE, 'services', 'boundary-fixture.ts')
-    const source = (text: string) =>
+    const source = (text: string): Map<string, ModuleInfo> =>
       analyze({
         [entry]: text,
         [barrel]: "export { query } from '../services/boundary-fixture'",
@@ -279,7 +279,7 @@ describe('private Core ownership', () => {
   test('rejects shared runtime dependencies on adapters without rejecting shared type references', () => {
     const adapter = join(SOURCE, 'web', 'boundary-fixture.ts')
     const shared = join(SOURCE, 'contracts', 'boundary-fixture.ts')
-    const source = (text: string) =>
+    const source = (text: string): Map<string, ModuleInfo> =>
       analyze({
         [adapter]: 'export const value = 1',
         [shared]: text,

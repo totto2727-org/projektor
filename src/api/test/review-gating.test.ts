@@ -34,7 +34,7 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     workspace: string,
     issue: string,
     options?: Parameters<typeof seedLease>[2],
-  ) {
+  ): Promise<{ agentSessionId: string; leaseId: string }> {
     const seeded = await seedLease(workspace, issue, options)
     await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
       (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)

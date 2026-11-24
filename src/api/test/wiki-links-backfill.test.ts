@@ -43,7 +43,11 @@ const insertPage = async function insertPage(
   return id
 }
 
-const backfill = async function backfill(token: string, slug: string, body: Record<string, unknown> = {}) {
+const backfill = async function backfill(
+  token: string,
+  slug: string,
+  body: Record<string, unknown> = {},
+): Promise<{ processed: number; nextCursor: { updatedAt: number; id: string } | null }> {
   const res = await fetchNativeApi('http://localhost/api/wiki/backfill-links', {
     method: 'POST',
     headers: authHeaders(token, slug),

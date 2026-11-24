@@ -1381,7 +1381,11 @@ const finalizeWikiPageUpdate = async function finalizeWikiPageUpdate(
   }
 }
 
-export const updateWikiPage = async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
+export const updateWikiPage = async function updateWikiPage(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+  input: unknown,
+): Promise<{ ok: boolean; url: string }> {
   const parsed = UpdatePageSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -1832,7 +1836,11 @@ const resolveSectionPatchContent = async function resolveSectionPatchContent(
  */
 const PATCH_RETRIES = 3
 
-export const patchWikiPage = async function patchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
+export const patchWikiPage = async function patchWikiPage(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+  input: unknown,
+): Promise<{ ok: boolean; url: string }> {
   const parsed = PatchWikiPageInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -1859,7 +1867,7 @@ async function patchWikiPageOnce(
   ctx: ServiceCtx,
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
   data: PatchWikiPageInput,
-) {
+): Promise<{ ok: boolean; url: string }> {
   await requireWikiWrite(ctx, page.projectId)
   const currentContent = page.content
 
@@ -2293,7 +2301,11 @@ const requireWikiDelete = async function requireWikiDelete(ctx: ServiceCtx, proj
  * a delete-by-old-slug-after-rename request resolves to the same page rather than
  * 404ing, for consistency across every other page-reference entry point.
  */
-export const deleteWikiPage = async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?: unknown) {
+export const deleteWikiPage = async function deleteWikiPage(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+  options?: unknown,
+): Promise<{ ok: boolean; deletedCount: number; linkedByCount: number }> {
   const idCheck = IdSchema.safeParse(idOrSlug)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -2847,7 +2859,7 @@ export const getWikiRevisionDiff = async function getWikiRevisionDiff(
   idOrSlug: string,
   revisionId: string,
   input: unknown,
-) {
+): Promise<{ from: string; to: string; diff: string }> {
   const parsed = WikiRevisionDiffInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))

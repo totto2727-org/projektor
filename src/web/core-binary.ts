@@ -12,7 +12,7 @@ const BinaryFailure = Schema.Struct({ error: Schema.String })
 export const transferCoreBinary = function transferCoreBinary(
   path: string,
   options: { readonly method?: string; readonly body?: BodyInit; readonly headers?: HeadersInit } = {},
-) {
+): Effect.Effect<Response, ApiError, RequestServices> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const headers = new Headers(options.headers)

@@ -10,7 +10,11 @@ import { fetchNativeApi } from './native-fetch.ts'
  * default-deny until granted.
  */
 
-const search = async function search(token: string, slug: string, q: string) {
+const search = async function search(
+  token: string,
+  slug: string,
+  q: string,
+): Promise<{ status: number; body: { project_id: string }[] }> {
   const res = await fetchNativeApi(`http://localhost/api/issues/search?q=${encodeURIComponent(q)}`, {
     headers: authHeaders(token, slug),
   })

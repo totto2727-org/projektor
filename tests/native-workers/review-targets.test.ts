@@ -77,7 +77,7 @@ const update = function update(status: unknown, command = proof, owner = issueId
   )
 }
 
-const persistedStatus = async function persistedStatus() {
+const persistedStatus = async function persistedStatus(): Promise<Record<string, unknown> | null> {
   return env.DB.prepare('SELECT review_status FROM attachments WHERE id = ? AND workspace_id = ?')
     .bind(attachmentId, workspaceId)
     .first()

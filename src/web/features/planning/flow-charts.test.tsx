@@ -50,7 +50,7 @@ vi.mock('recharts', () => {
 })
 beforeEach(() => calls.clear())
 afterEach(cleanup)
-const first = (name: string) => {
+const first = (name: string): Record<string, unknown> => {
   const props = calls.get(name)?.[0]
   if (!props) {
     throw new Error(`Missing ${name}`)

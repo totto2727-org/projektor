@@ -1,7 +1,12 @@
 import { NotFoundError } from './errors.ts'
 import { PLAYBOOKS } from './playbook-content.ts'
 
-export const listPlaybooks = function listPlaybooks() {
+export const listPlaybooks = function listPlaybooks(): {
+  name: string
+  title: string
+  description: string
+  whenToUse: string
+}[] {
   return PLAYBOOKS.map(({ name, title, description, whenToUse }) => ({
     name,
     title,

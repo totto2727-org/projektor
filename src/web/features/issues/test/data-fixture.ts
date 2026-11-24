@@ -116,7 +116,7 @@ export const issueDataFixture = function issueDataFixture() {
       })),
     )
   }
-  const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {
+  const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>): Promise<A> {
     return Effect.runPromise(
       Effect.gen(function* () {
         const native = yield* services()

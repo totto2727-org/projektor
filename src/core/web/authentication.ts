@@ -21,11 +21,11 @@ import {
 } from './scope.ts'
 import type { WebRequest, ScopeOptions } from './scope.ts'
 
-export const nativeRequest = function nativeRequest(input: WebRequest) {
+export const nativeRequest = function nativeRequest(input: WebRequest): Request<unknown, CfProperties<unknown>> {
   return new Request(input.url, { method: input.method, headers: input.headers.map(([name, value]) => [name, value]) })
 }
 
-export const publicWebFailure = function publicWebFailure(error: unknown) {
+export const publicWebFailure = function publicWebFailure(error: unknown): unknown {
   if (error instanceof ApiError || error instanceof ScopeError) {
     return coreFailure(error.status, error.message)
   }

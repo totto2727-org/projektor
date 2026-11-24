@@ -130,7 +130,7 @@ async function fixture(currentScope = scope) {
   )
   const authenticated = await runTestEffect(services.scope())
   const requestScope: RequestScope = { ...currentScope, user: authenticated.user, auth: authenticated.auth }
-  function run<T, E>(effect: Effect.Effect<T, E, RequestServices>) {
+  function run<T, E>(effect: Effect.Effect<T, E, RequestServices>): Promise<T> {
     return runTestEffect(effect.pipe(Effect.provideService(RequestServices, services)))
   }
   return { ...database, scope: requestScope, calls, run }

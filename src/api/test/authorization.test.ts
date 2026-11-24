@@ -566,7 +566,10 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
       env.DEV_USER_EMAIL = prev
     }
   }
-  const humanHeaders = () => ({ 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' })
+  const humanHeaders = (): { 'X-Workspace-Slug': string; 'Content-Type': string } => ({
+    'X-Workspace-Slug': slug,
+    'Content-Type': 'application/json',
+  })
   const mint = (email: string, name: string, scopes: string[]): Promise<Response> =>
     asHuman(email, () =>
       fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {

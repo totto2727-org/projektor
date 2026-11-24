@@ -171,7 +171,10 @@ describe('covers PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
  */
 describe('covers PROJ-432: the D1 fallback counter costs one round trip', () => {
   const d1Only = (db: D1Database): Env => ({ ...env, DB: db, RATE_LIMITER: undefined })
-  const countingDb = function countingDb(db: D1Database) {
+  const countingDb = function countingDb(db: D1Database): {
+    counts: { prepare: number; batch: number }
+    proxy: D1Database
+  } {
     const counts = { prepare: 0, batch: 0 }
     const proxy = new Proxy(db, {
       get(target, prop, receiver) {

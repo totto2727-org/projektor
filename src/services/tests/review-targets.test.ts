@@ -52,7 +52,7 @@ const fixture = function fixture() {
     userId: 'u',
     role: 'member',
   }
-  const set = (attachmentId: string, status: unknown, issueId = 'i') =>
+  const set = (attachmentId: string, status: unknown, issueId = 'i'): Promise<{ ok: true }> =>
     setAttachmentReviewStatus(ctx, { issueId, attachmentId, status })
   return { ...database, ctx, set }
 }

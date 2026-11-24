@@ -27,7 +27,7 @@ const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
   return { prepare } as unknown as D1Database
 }
 
-const wikiReadFixture = function wikiReadFixture() {
+const wikiReadFixture = function wikiReadFixture(): { sqlite: DatabaseSync; db: D1Database } {
   const sqlite = migratedDb()
   sqlite.exec(`
 	 INSERT INTO workspaces(id,name,slug,created_at) VALUES ('wa','A','alpha',1),('wb','B','beta',1);

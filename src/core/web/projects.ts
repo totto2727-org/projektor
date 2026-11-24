@@ -25,7 +25,7 @@ import { checked } from './issue-data.ts'
 import { webRead } from './issue-operations.ts'
 import type { WebRequest } from './scope.ts'
 
-const sixWeekRange = function sixWeekRange(now = new Date()) {
+const sixWeekRange = function sixWeekRange(now = new Date()): { since: number; until: number } {
   const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
   monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) - 35)
   return {

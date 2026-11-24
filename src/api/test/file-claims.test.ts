@@ -318,7 +318,9 @@ describe('file Claims API', () => {
     expect(rows.results).toHaveLength(0)
   })
 
-  const listMessagesForScope = async function listMessagesForScope(scope: string) {
+  const listMessagesForScope = async function listMessagesForScope(
+    scope: string,
+  ): Promise<{ items: { body: string }[] }> {
     const res = await fetchNativeApi(`http://localhost/api/agent-messages?scope=${encodeURIComponent(scope)}`, {
       headers: authHeaders(token, slug),
     })
@@ -431,7 +433,9 @@ describe('file Claims API', () => {
       return id
     }
 
-    const claimRow = async function claimRow(path: string) {
+    const claimRow = async function claimRow(
+      path: string,
+    ): Promise<{ released_at: number | null; release_reason: string | null } | null> {
       return env.DB.prepare(
         'SELECT released_at, release_reason FROM issue_file_claims WHERE path = ? AND workspace_id = ?',
       )

@@ -45,7 +45,7 @@ const buildTaskTypeUpdateSet = function buildTaskTypeUpdateSet(
   return setObj
 }
 
-export const listTaskTypes = async function listTaskTypes(ctx: ServiceCtx) {
+export const listTaskTypes = async function listTaskTypes(ctx: ServiceCtx): Promise<unknown[]> {
   const cacheKey = TASK_TYPES_CACHE_KEY(ctx.workspaceId)
   const local = localCache.get(cacheKey)
   if (local) {
@@ -104,7 +104,11 @@ export const createTaskType = async function createTaskType(ctx: ServiceCtx, raw
   return { id, key, name }
 }
 
-export const updateTaskType = async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) {
+export const updateTaskType = async function updateTaskType(
+  ctx: ServiceCtx,
+  id: string,
+  raw: unknown,
+): Promise<{ ok: boolean }> {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -143,7 +147,7 @@ export const updateTaskType = async function updateTaskType(ctx: ServiceCtx, id:
   return { ok: true }
 }
 
-export const deleteTaskType = async function deleteTaskType(ctx: ServiceCtx, id: string) {
+export const deleteTaskType = async function deleteTaskType(ctx: ServiceCtx, id: string): Promise<{ ok: boolean }> {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })

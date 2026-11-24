@@ -46,7 +46,10 @@ describe('issue leases API (PROJ-184)', () => {
     })
   }
 
-  const backdateHeartbeat = function backdateHeartbeat(agentId: string, secondsAgo = 200) {
+  const backdateHeartbeat = function backdateHeartbeat(
+    agentId: string,
+    secondsAgo = 200,
+  ): Promise<D1Result<Record<string, unknown>>> {
     const stale = Math.floor(Date.now() / 1000) - secondsAgo
     return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
   }
@@ -170,7 +173,9 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
   })
 
-  const callPrioritized = async function callPrioritized(args: Record<string, unknown>) {
+  const callPrioritized = async function callPrioritized(
+    args: Record<string, unknown>,
+  ): Promise<{ issues: { id: string }[] }> {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
@@ -532,7 +537,10 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     })
   }
 
-  const backdateHeartbeat = function backdateHeartbeat(agentId: string, secondsAgo = 200) {
+  const backdateHeartbeat = function backdateHeartbeat(
+    agentId: string,
+    secondsAgo = 200,
+  ): Promise<D1Result<Record<string, unknown>>> {
     const stale = Math.floor(Date.now() / 1000) - secondsAgo
     return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
   }
@@ -721,7 +729,7 @@ describe('covers PROJ-932: list_issue_leases projectId + visibility for a non-ad
       .bind(crypto.randomUUID(), workspaceId, hiddenIssue.id, agent.id, now)
       .run()
 
-    const mcpLeases = async function mcpLeases(args: Record<string, unknown>) {
+    const mcpLeases = async function mcpLeases(args: Record<string, unknown>): Promise<{ items: unknown[] }> {
       const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
         method: 'POST',
         headers: authHeaders(token, slug),

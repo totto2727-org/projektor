@@ -2,7 +2,8 @@ import { Schema } from 'effect'
 
 const nullableText = Schema.NullOr(Schema.String)
 const nullableNumber = Schema.NullOr(Schema.Finite)
-const array = <S extends Schema.Constraint>(schema: S) => Schema.Array(schema).pipe(Schema.mutable)
+const array = <S extends Schema.Constraint>(schema: S): Schema.mutable<Schema.$Array<S>> =>
+  Schema.Array(schema).pipe(Schema.mutable)
 
 /** These are the actual API wire shapes, not the frontend's mutation DTOs. */
 export const SprintSchema = Schema.Struct({

@@ -55,7 +55,11 @@ const fixture = function fixture() {
   const file = new File([new Uint8Array([0, 255, 7, 128])], 'diagram.png', { type: 'image/png' })
   return { ...database, ctx, objects, put, get, remove, file }
 }
-const input = (file: File, entityId = 'i1') => ({ file, entityType: 'issue' as const, entityId })
+const input = (file: File, entityId = 'i1'): { file: File; entityType: 'issue'; entityId: string } => ({
+  file,
+  entityType: 'issue' as const,
+  entityId,
+})
 
 describe('shared file transfer commands over migrated SQLite and bounded R2', () => {
   test('accepts only one concurrent upload when both preflights see the same remaining quota', async () => {

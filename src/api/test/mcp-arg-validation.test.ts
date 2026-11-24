@@ -57,7 +57,12 @@ const wrongValue = function wrongValue(s: Schema): unknown {
   }
 }
 
-const rpc = async function rpc(workspaceId: string, headers: Record<string, string>, method: string, params: unknown) {
+const rpc = async function rpc(
+  workspaceId: string,
+  headers: Record<string, string>,
+  method: string,
+  params: unknown,
+): Promise<{ result?: { tools: { name: string; inputSchema: Schema }[] } }> {
   const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,

@@ -18,7 +18,7 @@ const NOT_READY_BODY = 'Something is off, look into it.'
 const PRIORITIES = ['urgent', 'high', 'medium', 'low', 'none'] as const
 const PRIORITY_SCORE: Record<string, number> = { high: 3, low: 1, medium: 2, none: 0, urgent: 4 }
 
-const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number) {
+const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number): Promise<{ ctx: ServiceCtx }> {
   const { workspace, user } = await seedFixture({ role: 'owner' })
   const project = await seedProject(workspace.id)
   const now = Math.floor(Date.now() / 1000)
@@ -94,7 +94,10 @@ const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number
  * The pre-PROJ-859 algorithm: load every open issue, score in memory, stable-sort,
  * then apply the definition-of-ready gate. Ties resolve in insertion (rowid) order.
  */
-const reference = async function reference(ctx: ServiceCtx, includeBacklog: boolean) {
+const reference = async function reference(
+  ctx: ServiceCtx,
+  includeBacklog: boolean,
+): Promise<{ id: string; score: number; ready: boolean }[]> {
   const { results: open } = await env.DB.prepare(
     `SELECT id, priority, body, rowid AS rid FROM issues
 		 WHERE workspace_id = ? AND status NOT IN ('done', 'cancelled') ${includeBacklog ? '' : "AND status != 'backlog'"}

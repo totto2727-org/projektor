@@ -19,7 +19,7 @@ export interface BrowserCommandClient {
 export const runBrowserCommand = function runBrowserCommand<A, E, R>(
   context: FunctionContext,
   operation: (client: BrowserCommandClient) => Effect.Effect<A, E, R>,
-) {
+): Effect.Effect<A, ApiError | ScopeError | E, RequestServices | R> {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const auth = context.scope.auth

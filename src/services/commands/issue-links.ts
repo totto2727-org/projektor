@@ -132,7 +132,7 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
   return { id }
 }
 
-export async function deleteLink(ctx: ServiceCtx, raw: unknown) {
+export async function deleteLink(ctx: ServiceCtx, raw: unknown): Promise<{ ok: boolean }> {
   if (ctx.role === 'viewer') {
     throw new ForbiddenError('Insufficient permissions')
   }

@@ -31,7 +31,7 @@ const update = function update(
   })
 }
 
-const readMetadata = async function readMetadata() {
+const readMetadata = async function readMetadata(): Promise<unknown> {
   const response = await fetchNativeApi(`http://localhost/api/files/${attachmentId}/metadata`, {
     headers: authHeaders(fixture.token, fixture.slug),
   })

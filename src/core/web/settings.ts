@@ -100,7 +100,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
     groupId: string,
     projectId: string,
     role?: 'viewer' | 'member' | 'admin',
-  ) {
+  ): Effect.Effect<string, never, R> {
     return Effect.flatMap(envSource, (env) =>
       coreReply(
         name,

@@ -410,7 +410,10 @@ describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
 })
 
 describe('member removal tombstone (PROJ-436)', () => {
-  const tombstoneRow = async function tombstoneRow(workspaceId: string, userId: string) {
+  const tombstoneRow = async function tombstoneRow(
+    workspaceId: string,
+    userId: string,
+  ): Promise<{ removed_at: number } | null> {
     return env.DB.prepare('SELECT removed_at FROM provisioning_removals WHERE workspace_id = ? AND user_id = ?')
       .bind(workspaceId, userId)
       .first<{ removed_at: number }>()

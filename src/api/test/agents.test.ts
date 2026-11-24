@@ -512,7 +512,10 @@ describe('agents API', () => {
   describe('covers PROJ-932: live-only default, includeStale, projectId, issueRef, live flag', () => {
     const projectKey = 'PROJ' // seedProject's default key
 
-    const backdateHeartbeat = function backdateHeartbeat(agentId: string, secondsAgo = 200) {
+    const backdateHeartbeat = function backdateHeartbeat(
+      agentId: string,
+      secondsAgo = 200,
+    ): Promise<D1Result<Record<string, unknown>>> {
       const stale = Math.floor(Date.now() / 1000) - secondsAgo
       return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
     }

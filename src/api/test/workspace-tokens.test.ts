@@ -24,7 +24,7 @@ const asHuman = async function asHuman<T>(email: string, fn: () => Promise<T>): 
   }
 }
 
-const humanHeaders = function humanHeaders(slug: string) {
+const humanHeaders = function humanHeaders(slug: string): { 'X-Workspace-Slug': string; 'Content-Type': string } {
   return { 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' }
 }
 
@@ -38,7 +38,7 @@ const mintAsHuman = function mintAsHuman(email: string, slug: string, body: stri
   )
 }
 
-const tokenRow = async function tokenRow(name: string) {
+const tokenRow = async function tokenRow(name: string): Promise<{ id: string } | null> {
   return env.DB.prepare('SELECT id FROM api_tokens WHERE name = ?').bind(name).first<{
     id: string
   }>()
