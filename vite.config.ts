@@ -1,4 +1,5 @@
 import { builtinModules } from 'node:module'
+import { fileURLToPath } from 'node:url'
 
 import { cloudflareTest, getRunnerName } from '@cloudflare/vitest-plugin'
 import { effrontAlchemy } from '@effront/alchemy/cloudflare/vite'
@@ -44,7 +45,15 @@ export default defineConfig({
     semi: false,
     singleQuote: true,
   },
-  lint: { ignorePatterns, options: { typeAware: true, typeCheck: true } },
+  lint: {
+    ignorePatterns,
+    jsPlugins: [fileURLToPath(import.meta.resolve('@totto2727/oxlint'))],
+    options: { typeAware: true, typeCheck: true },
+    rules: {
+      'rules/no-eslint-disable-comments': 'error',
+      'rules/require-disable-reason': 'error',
+    },
+  },
   test: {
     projects: [
       {
