@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
 import { hashFeedbackToken } from '#commands/feedback.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { configureCore, env, getCoreLimiterCalls } from './fixture-api.ts'
 import {
@@ -333,7 +334,7 @@ const seedFeedbackRow = async function seedFeedbackRow(
   opts: Readonly<{ body?: string; status?: string }> = {},
 ): Promise<string> {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO feedback (id, source_id, workspace_id, project_id, body, status, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -701,7 +702,7 @@ describe('feedback convert-to-issue', () => {
       .bind(testFixture.projectId)
       .first<{ id: string }>()
     const id = crypto.randomUUID()
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       `INSERT INTO feedback (id, source_id, workspace_id, project_id, rating, rating_scale, body, status, created_at)
 			 VALUES (?, ?, ?, ?, ?, ?, NULL, 'new', ?)`,

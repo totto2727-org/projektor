@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
+
 /**
  * PROJ-78 — Authorization test coverage
  *
@@ -12,7 +14,7 @@
  * Issues do NOT enforce a viewer role — any member can write — so they are
  * intentionally excluded from the viewer-403 matrix below.
  */
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -276,7 +278,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
       body: JSON.stringify({ title: 'Member Page', content: 'content' }),
     })
     // Fetch member token from the same fixture
-    const roles = await seedWorkspaceRoles() // second workspace — need same slug
+    const roles = await seedWorkspaceRoles() // Second workspace — need same slug
     /*
      * Actually member is already in the fixture via seedWorkspaceRoles above —
      * but each beforeEach creates a NEW seedWorkspaceRoles. Use the memberHeaders directly.
@@ -648,7 +650,7 @@ describe('covers PROJ-78: seedToken scopes parameter', () => {
     const user = await seedUser(`exp-user-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, user.id, 'member')
 
-    const expiresAt = Math.floor(Date.now() / 1000) + 3600
+    const expiresAt = currentEpochSeconds() + 3600
     await seedToken(ws.id, user.id, { expiresAt })
 
     const row = await env.DB.prepare('SELECT expires_at FROM api_tokens WHERE workspace_id = ? AND user_id = ?')

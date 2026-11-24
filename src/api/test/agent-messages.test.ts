@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { env } from './fixture-api.ts'
 import {
   authHeaders,
@@ -383,7 +385,7 @@ describe('agent Messages API', () => {
   test("post_message refreshes a live agentId's heartbeat, but never revives a stale one", async () => {
     const { agentSessionId: live } = await seedAgentLease(workspaceId, issueId)
     await ownSession(live)
-    const backdated = Math.floor(Date.now() / 1000) - 10
+    const backdated = currentEpochSeconds() - 10
     await env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(backdated, live).run()
 
     const res = await postMessage({ scope: `issue:${issueId}`, agentId: live, body: 'still here' })

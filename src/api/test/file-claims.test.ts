@@ -1,6 +1,8 @@
 import { Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { configureCore, env } from './fixture-api.ts'
 import { authHeaders, hashToken, seedFixture, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -410,7 +412,7 @@ describe('file Claims API', () => {
       opts: Readonly<{ status?: string; heartbeatAgeSecs?: number; name?: string }> = {},
     ): Promise<string> {
       const id = crypto.randomUUID()
-      const now = Math.floor(Date.now() / 1000)
+      const now = currentEpochSeconds()
       await env.DB.prepare(
         `INSERT INTO agent_sessions
 	         (id, workspace_id, issue_id, token_id, name, kind, status, started_at,
@@ -604,7 +606,7 @@ describe('file Claims API', () => {
       const liveRow = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
         .bind(live)
         .first<{ last_heartbeat_at: number }>()
-      expect(liveRow?.last_heartbeat_at).toBeGreaterThan(Math.floor(Date.now() / 1000) - 5)
+      expect(liveRow?.last_heartbeat_at).toBeGreaterThan(currentEpochSeconds() - 5)
 
       const dead = await seedSession({ heartbeatAgeSecs: 200 })
       const deadBefore = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
@@ -625,7 +627,7 @@ describe('file Claims API', () => {
      */
     describe('covers PROJ-928: agentless claim TTL', () => {
       const backdateClaim = async function backdateClaim(path: string, secondsAgo: number): Promise<void> {
-        const claimedAt = Math.floor(Date.now() / 1000) - secondsAgo
+        const claimedAt = currentEpochSeconds() - secondsAgo
         await env.DB.prepare('UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?')
           .bind(claimedAt, path, workspaceId)
           .run()
@@ -787,7 +789,7 @@ describe('file Claims API', () => {
   describe('covers PROJ-932: default excludes stale/expired claims; includeStale includes them', () => {
     const seedStaleAgentSession = async function seedStaleAgentSession(): Promise<string> {
       const id = crypto.randomUUID()
-      const now = Math.floor(Date.now() / 1000)
+      const now = currentEpochSeconds()
       await env.DB.prepare(
         `INSERT INTO agent_sessions
 				   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
@@ -822,7 +824,7 @@ describe('file Claims API', () => {
       expect((await claimFiles({ issueId, paths: ['src/expired-agentless-932.ts'] })).status).toBe(201)
       await env.DB.prepare('UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?')
         .bind(
-          Math.floor(Date.now() / 1000) - (24 * 60 * 60 + 1), // past the default 24h TTL
+          currentEpochSeconds() - (24 * 60 * 60 + 1), // past the default 24h TTL
           'src/expired-agentless-932.ts',
           workspaceId,
         )
@@ -864,7 +866,7 @@ describe('covers PROJ-932: list_file_claims projectId + visibility for a non-adm
     await env.DB.prepare(`INSERT INTO issue_file_claims
       (id, workspace_id, issue_id, path, claimed_at)
       VALUES (?, ?, ?, 'hidden/secret.ts', ?)`)
-      .bind(crypto.randomUUID(), workspaceId, hiddenIssue.id, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, hiddenIssue.id, currentEpochSeconds())
       .run()
 
     const list = async function list(params: Record<string, string>): Promise<Response> {

@@ -1,4 +1,5 @@
 import { rateLimiterObjectName } from '#api/middleware/rate-limit.ts'
+import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 
@@ -30,7 +31,7 @@ export const seedRateLimitCounter = async function seedRateLimitCounter(
   windowSecs = 60,
 ): Promise<void> {
   const windowMs = windowSecs * 1000
-  const intoWindow = Date.now() % windowMs
+  const intoWindow = currentEpochMilliseconds() % windowMs
   const HEADROOM_MS = 5000
   if (intoWindow > windowMs - HEADROOM_MS) {
     await new Promise((resolve) => setTimeout(resolve, windowMs - intoWindow + 50))
@@ -40,7 +41,7 @@ export const seedRateLimitCounter = async function seedRateLimitCounter(
     throw new Error('RATE_LIMITER binding missing from vite.config.ts')
   }
   const stub = ns.get(ns.idFromName(rateLimiterObjectName(env, key)))
-  const nowSecs = Math.floor(Date.now() / 1000)
+  const nowSecs = currentEpochSeconds()
   for (let index = 0; index < count; index++) {
     await stub.increment(windowSecs, nowSecs)
   }

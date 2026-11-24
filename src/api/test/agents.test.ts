@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 
 import { startWork as startWorkDirect } from '#commands/agents.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
@@ -61,7 +62,7 @@ describe('agents API', () => {
     expect(typeof updated.lastHeartbeatAt).toBe('number')
 
     // Backdate the heartbeat to simulate staleness (> 120s ago)
-    const stale = Math.floor(Date.now() / 1000) - 200
+    const stale = currentEpochSeconds() - 200
     await env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, session.id).run()
 
     // Should now be excluded from active list
@@ -448,7 +449,7 @@ describe('agents API', () => {
 
     test("claim_issue (via start_work) refreshes the session's heartbeat", async () => {
       const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Heartbeat' })
-      const before = Math.floor(Date.now() / 1000) - 100
+      const before = currentEpochSeconds() - 100
 
       const res = await startWork({ issue: issue.id, name: 'w' })
       const { sessionId } = (await res.json()) as { sessionId: string }
@@ -516,7 +517,7 @@ describe('agents API', () => {
       agentId: string,
       secondsAgo = 200,
     ): Promise<D1Result<Record<string, unknown>>> {
-      const stale = Math.floor(Date.now() / 1000) - secondsAgo
+      const stale = currentEpochSeconds() - secondsAgo
       return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
     }
 

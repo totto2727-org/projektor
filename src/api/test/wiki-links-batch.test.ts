@@ -1,9 +1,11 @@
+import { Predicate } from 'effect'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+
 /*
  * PROJ-858: saving a page resolves its slug links in a fixed number of queries,
  * not 1–3 per link, and produces the same wiki_links rows as before.
  */
-import { Predicate } from 'effect'
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
@@ -14,7 +16,7 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
 
   test('200 distinct slug links (direct, redirected, missing) resolve correctly in O(1) reads', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const insertPage = (
       id: string,
       slug: string,

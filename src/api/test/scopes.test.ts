@@ -1,12 +1,3 @@
-/**
- * PROJ-17 — API-token scope enforcement.
- *
- * Covers:
- *  - the pure scope helpers (auth/scopes.ts),
- *  - REST enforcement (read token blocked from writes, write/`*` allowed),
- *  - MCP per-tool enforcement (read token blocked from write tools),
- *  - scope validation + membership check at token creation (/auth/tokens).
- */
 import { Iterable } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
@@ -18,6 +9,16 @@ import {
   parseScopes,
   tokenAllows,
 } from '#api/auth/scopes.ts'
+/**
+ * PROJ-17 — API-token scope enforcement.
+ *
+ * Covers:
+ *  - the pure scope helpers (auth/scopes.ts),
+ *  - REST enforcement (read token blocked from writes, write/`*` allowed),
+ *  - MCP per-tool enforcement (read token blocked from write tools),
+ *  - scope validation + membership check at token creation (/auth/tokens).
+ */
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProject, seedToken, seedUser, seedWorkspace } from './helpers.ts'
@@ -31,7 +32,7 @@ const seedScopeFixture = async function seedScopeFixture() {
   await env.DB.prepare(
     "INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
   )
-    .bind(ws.id, user.id, Math.floor(Date.now() / 1000))
+    .bind(ws.id, user.id, currentEpochSeconds())
     .run()
   const project = await seedProject(ws.id)
   return { slug: ws.slug, workspaceId: ws.id, userId: user.id, projectId: project.id }
@@ -250,7 +251,7 @@ describe('covers PROJ-17: POST /auth/tokens', () => {
     await env.DB.prepare(
       "INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)",
     )
-      .bind(workspaceId, userId, Math.floor(Date.now() / 1000))
+      .bind(workspaceId, userId, currentEpochSeconds())
       .run()
     prevDevEmail = env.DEV_USER_EMAIL
     env.DEV_USER_EMAIL = email

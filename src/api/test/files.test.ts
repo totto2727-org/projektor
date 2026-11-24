@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { env } from './fixture-api.ts'
 import {
   authHeaders,
@@ -380,7 +382,7 @@ describe('files API', () => {
 
   test('handles POST /api/files rejects when workspace quota would be exceeded → 413', async () => {
     const QUOTA = 1024 * 1024 * 1024 // 1 GB
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     // Insert a fake attachment that consumes all but 1 byte of the quota
     await env.DB.prepare(
       `INSERT INTO attachments (id, workspace_id, r2_key, filename, content_type, size, entity_type,
@@ -690,7 +692,7 @@ describe('files API', () => {
       expect(metadata.wikiPage).toBeNull()
 
       await env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE id = ?')
-        .bind(Math.floor(Date.now() / 1000) - 31 * 24 * 60 * 60, wikiPageId)
+        .bind(currentEpochSeconds() - 31 * 24 * 60 * 60, wikiPageId)
         .run()
       await resetRateLimits()
       const purgeRes = await fetchNativeApi('http://localhost/api/wiki/purge-trash', {
@@ -954,7 +956,7 @@ describe('attachment project visibility', () => {
 	       entity_type, entity_id, created_by_id, created_at)
 	     VALUES (?, ?, 'file', ?, ?, 'text/plain', 12, ?, ?, ?, ?)`,
     )
-      .bind(id, workspaceId, r2Key, filename, entityType, entityId, memberId, Math.floor(Date.now() / 1000))
+      .bind(id, workspaceId, r2Key, filename, entityType, entityId, memberId, currentEpochSeconds())
       .run()
     return { id, r2Key }
   }
@@ -1029,7 +1031,7 @@ describe('attachment project visibility', () => {
   })
 
   test('hides attachments on a wiki page in an invisible project, but not workspace-level ones', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const hiddenProject = await env.DB.prepare("SELECT id FROM projects WHERE workspace_id = ? AND key = 'SECRET'")
       .bind(workspaceId)
       .first<{ id: string }>()

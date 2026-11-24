@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { computeFreshness } from '#commands/wiki-freshness.ts'
 import { listWikiChanges } from '#commands/wiki-watchers.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -1460,7 +1461,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
      * inserting directly (SlugSchema would now reject this via the service layer).
      */
     const pageId = crypto.randomUUID()
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 				parent_id, created_by_id, updated_by_id, created_at, updated_at)
@@ -4028,7 +4029,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
      * Seed pages directly at the DB layer, bypassing reindexWikiLinks, to simulate
      * pre-PROJ-485 content that predates the link graph.
      */
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       'INSERT INTO wiki_pages (id, workspace_id, slug, title, content, created_by_id, ' +
         'updated_by_id, created_at, updated_at) ' +
@@ -4215,7 +4216,7 @@ describe('computeFreshness (PROJ-489)', () => {
 
   test("treats an explicit status: deprecated as stale even when verify_interval hasn't elapsed yet", () => {
     const now = 1_000_000
-    const verifiedAt = now - 1 * 86_400 // verified yesterday
+    const verifiedAt = now - 1 * 86_400 // Verified yesterday
     expect(computeFreshness({ verifiedAt, verifyInterval: 365, status: 'deprecated', now })).toEqual({
       staleSince: null,
       state: 'stale',
@@ -5167,7 +5168,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       headers: authHeaders(watcher.token, slug),
       body: JSON.stringify({}),
     })
-    const t0 = Math.floor(Date.now() / 1000) - 1
+    const t0 = currentEpochSeconds() - 1
     await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
@@ -5229,7 +5230,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test("list_wiki_changes: since is exclusive, nextSince advances, default scope isn't watched-only", async () => {
-    const t0 = Math.floor(Date.now() / 1000) - 1
+    const t0 = currentEpochSeconds() - 1
     const page = await createPage('delta-doc', 'Delta Doc', 'content')
 
     const res = await req(`http://localhost/api/wiki/changes?since=${t0}`, {
@@ -5264,7 +5265,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   test("list_wiki_changes never pulls a non-deleted row's full diff out of D1 (PROJ-869)", async () => {
     const page = await createPage('delta-size', 'Delta Size', 'seed')
     const bigContent = 'x'.repeat(50_000)
-    const t0 = Math.floor(Date.now() / 1000) - 1
+    const t0 = currentEpochSeconds() - 1
     /*
      * Simulate an 'updated' activity row still carrying a large diff (either legacy
      * data predating the 0064 migration, or a future regression that reintroduces
@@ -5281,7 +5282,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
         page.id,
         userId,
         JSON.stringify({ content: bigContent }),
-        Math.floor(Date.now() / 1000),
+        currentEpochSeconds(),
       )
       .run()
 
@@ -5300,7 +5301,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   })
 
   test("list_wiki_changes reports a deleted page's slug/title even though the row is gone", async () => {
-    const t0 = Math.floor(Date.now() / 1000) - 1
+    const t0 = currentEpochSeconds() - 1
     const page = await createPage('delta-delete', 'Delta Delete', 'content')
     await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'DELETE',
@@ -5322,7 +5323,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
    * to evict them too — otherwise they never get told the descendants also vanished.
    */
   test("list_wiki_changes surfaces deletedPageIds on a cascade delete's root event", async () => {
-    const t0 = Math.floor(Date.now() / 1000) - 1
+    const t0 = currentEpochSeconds() - 1
     const parent = await createPage('delta-cascade-parent', 'Delta Cascade Parent', 'content')
     const child = await createChildPage('delta-cascade-child', 'Delta Cascade Child', 'child', parent.id)
 
@@ -5350,7 +5351,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
   test("list_wiki_changes hides changes to a project-scoped page the caller can't see", async () => {
     const project = await seedProject(workspaceId, `PRJ${crypto.randomUUID().slice(0, 4)}`)
     await seedGroupGrant(workspaceId, userId, project.id)
-    const t0 = Math.floor(Date.now() / 1000) - 1
+    const t0 = currentEpochSeconds() - 1
 
     const created = await req('http://localhost/api/wiki', {
       method: 'POST',
@@ -5424,7 +5425,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
      * activity row must land after this cutoff, not before it (a slow full-suite
      * run can otherwise push several real seconds between here and list_wiki_changes).
      */
-    const t0 = Math.floor(Date.now() / 1000) - 1
+    const t0 = currentEpochSeconds() - 1
     const page = await createPage('mcp-watch', 'MCP Watch', 'content')
 
     const watchRes = await mcp('watch_wiki_page', { slug: page.slug })
@@ -5679,7 +5680,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
 
     // Backdate past the 30-day retention window and purge.
     await env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE workspace_id = ? AND deleted_at IS NOT NULL')
-      .bind(Math.floor(Date.now() / 1000) - 31 * 24 * 60 * 60, workspaceId)
+      .bind(currentEpochSeconds() - 31 * 24 * 60 * 60, workspaceId)
       .run()
     const purgeRes = await req('http://localhost/api/wiki/purge-trash', {
       method: 'POST',
@@ -5775,7 +5776,7 @@ describe('wiki trash (PROJ-496)', () => {
     seconds = 31 * 24 * 60 * 60,
   ): Promise<D1Result<Record<string, unknown>>> {
     return env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE workspace_id = ? AND deleted_at IS NOT NULL')
-      .bind(Math.floor(Date.now() / 1000) - seconds, workspaceId)
+      .bind(currentEpochSeconds() - seconds, workspaceId)
       .run()
   }
 
@@ -6015,7 +6016,7 @@ describe('wiki trash (PROJ-496)', () => {
 
     // Only the OLD page's trash timestamp is backdated past the retention window.
     await env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE id = ?')
-      .bind(Math.floor(Date.now() / 1000) - 31 * 24 * 60 * 60, oldPage.id)
+      .bind(currentEpochSeconds() - 31 * 24 * 60 * 60, oldPage.id)
       .run()
 
     const purgeRes = await req('http://localhost/api/wiki/purge-trash', {
@@ -6117,7 +6118,7 @@ describe('wiki trash (PROJ-496)', () => {
       headers: authHeaders(other.token, other.workspace.slug),
     })
     await env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE id = ?')
-      .bind(Math.floor(Date.now() / 1000) - 31 * 24 * 60 * 60, otherPage.id)
+      .bind(currentEpochSeconds() - 31 * 24 * 60 * 60, otherPage.id)
       .run()
 
     const purgeRes = await req('http://localhost/api/wiki/purge-trash', {
@@ -6398,7 +6399,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
      */
     const target = { id: crypto.randomUUID() }
     const impostorId = crypto.randomUUID()
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const insert = (id: string, pageSlug: string, title: string): D1PreparedStatement =>
       env.DB.prepare(
         `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,

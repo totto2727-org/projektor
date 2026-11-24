@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL, SQLWrapper } from 'drizzle-orm'
-import { Array, Predicate } from 'effect'
+import { Iterable, Array, Predicate } from 'effect'
 import type { Effect } from 'effect'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -151,15 +151,15 @@ const buildWipOverTime = function buildWipOverTime(
    * buckets loop and the event list are each walked once.
    */
   const events: [number, number][] = []
-  for (const issue of issues) {
+  Iterable.forEach(issues, (issue) => {
     if (Predicate.isNullish(issue.claimedAt)) {
-      continue
+      return
     }
     events.push([issue.claimedAt, 1])
     if (Predicate.isNotNullish(issue.doneAt)) {
       events.push([issue.doneAt, -1])
     }
-  }
+  })
   events.sort((left, right) => left[0] - right[0])
 
   const buckets: { date: string; count: number }[] = []
@@ -319,10 +319,10 @@ const buildCfdEvents = function buildCfdEvents(
       ),
     ].toSorted((left, right) => left - right)
     let prevBand: CfdBand = 'excluded'
-    for (const t of thresholds) {
+    Iterable.forEach(thresholds, (t) => {
       const band = classifyCfdBand(issue, t)
       if (band === prevBand) {
-        continue
+        return
       }
       if (prevBand !== 'excluded') {
         events.push({ time: t, band: prevBand, delta: -1 })
@@ -331,7 +331,7 @@ const buildCfdEvents = function buildCfdEvents(
         events.push({ time: t, band, delta: 1 })
       }
       prevBand = band
-    }
+    })
   }
   events.sort((left, right) => left.time - right.time)
   return events
@@ -438,14 +438,14 @@ const fetchLeaseHeldSeconds = async function fetchLeaseHeldSeconds(
     .innerJoin(schema.issues, eq(schema.issueLeases.issueId, schema.issues.id))
     .where(and(eq(schema.issueLeases.workspaceId, workspaceId), issueScope))
   const held = new Map<string, number>()
-  for (const row of rows) {
+  Iterable.forEach(rows, (row) => {
     const end = row.releasedAt ?? row.doneAt ?? null
     if (Predicate.isNullish(end)) {
-      continue
+      return
     }
     const seconds = Math.max(0, end - row.claimedAt)
     held.set(row.issueId, (held.get(row.issueId) ?? 0) + seconds)
-  }
+  })
   return held
 }
 
@@ -463,21 +463,21 @@ const computeCoreDistributions = function computeCoreDistributions(
       (issue) =>
         Predicate.isNotNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
-    // biome-ignore lint/style/noNonNullAssertion: filtered above
+    // Filtered above
     .map((i) => i.doneAt! - i.readyAt!)
   const cycleTimes = issues
     .filter(
       (issue) =>
         Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
-    // biome-ignore lint/style/noNonNullAssertion: filtered above
+    // Filtered above
     .map((i) => i.doneAt! - i.claimedAt!)
   const reviewLatencies = issues
     .filter(
       (issue) =>
         Predicate.isNotNullish(issue.inReviewAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
-    // biome-ignore lint/style/noNonNullAssertion: filtered above
+    // Filtered above
     .map((i) => i.doneAt! - i.inReviewAt!)
   // PROJ-329: time in in_progress = claimed -> the issue's next recorded stage
   // (entering review, or done directly for issues that skipped review).
@@ -486,7 +486,7 @@ const computeCoreDistributions = function computeCoreDistributions(
       (issue) =>
         Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
-    // biome-ignore lint/style/noNonNullAssertion: filtered above
+    // Filtered above
     .map((i) => (i.inReviewAt ?? i.doneAt!) - i.claimedAt!)
   return { leadTimes, cycleTimes, reviewLatencies, timeInProgress }
 }
@@ -520,7 +520,7 @@ const computeAutonomyRatios = function computeAutonomyRatios(
         Predicate.isNotNullish(issue.claimedAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
     .map((i) => {
-      // biome-ignore lint/style/noNonNullAssertion: filtered above
+      // Filtered above
       const cycle = i.doneAt! - i.claimedAt!
       if (cycle <= 0) {
         return 0
@@ -549,7 +549,7 @@ const computeFlowEfficiencies = function computeFlowEfficiencies(
         Predicate.isNotNullish(issue.readyAt) && Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt),
     )
     .map((i) => {
-      // biome-ignore lint/style/noNonNullAssertion: filtered above
+      // Filtered above
       const leadTime = i.doneAt! - i.readyAt!
       if (leadTime <= 0) {
         return 0

@@ -1,5 +1,5 @@
 import type { OAuthHelpers } from '@cloudflare/workers-oauth-provider'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 import { relyingPartyHost } from '#contracts/oauth-consent.ts'
 import type { ConsentWorkspace } from '#contracts/oauth-consent.ts'
@@ -56,13 +56,13 @@ export const listConnectorGrants = async function listConnectorGrants(
   let cursor: string | undefined
   for (let page = 0; page < GRANT_MAX_PAGES; page++) {
     const result = await api.listUserGrants(userId, { limit: GRANT_PAGE_SIZE, cursor })
-    for (const grant of result.items) {
+    Iterable.forEach(result.items, (grant) => {
       if ((grant.metadata as { workspaceId?: string } | null)?.workspaceId !== workspaceId) {
-        continue
+        return
       }
       // An unredeemed authorization code is pending, not a live connector. Keep the provider's finite refresh TTL.
       if (Predicate.isNullish(grant.expiresAt)) {
-        continue
+        return
       }
       grants.push({
         id: grant.id,
@@ -72,7 +72,7 @@ export const listConnectorGrants = async function listConnectorGrants(
         grantedAt: grant.createdAt,
         expiresAt: grant.expiresAt,
       })
-    }
+    })
     if (!result.cursor) {
       break
     }

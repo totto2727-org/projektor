@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { issuesTools } from '#api/mcp/issues.ts'
 import { ListIssuesSchema } from '#contracts/inputs/issues.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -423,7 +424,7 @@ describe('issues API', () => {
   test('projectId filter returns all project issues up to limit, not just newest workspace-wide', async () => {
     // Seed a second project with many newer issues so workspace-wide listing would return them first
     const newerProject = await seedProject(workspaceId, 'NEW')
-    const base = Math.floor(Date.now() / 1000)
+    const base = currentEpochSeconds()
     for (let index = 0; index < 55; index++) {
       await seedIssue(workspaceId, newerProject.id, userId, {
         title: `Newer issue ${index}`,
@@ -1117,7 +1118,7 @@ describe('issues API', () => {
     // Seed + stamp completion via env.DB so only the 2 list calls hit the API.
     const older = await seedIssue(workspaceId, projectId, userId, { title: 'Completed long ago' })
     const recent = await seedIssue(workspaceId, projectId, userId, { title: 'Completed just now' })
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare('UPDATE issues SET completed_at = ? WHERE id = ?')
       .bind(now - 10 * 86_400, older.id)
       .run()
@@ -1133,7 +1134,7 @@ describe('issues API', () => {
   })
 
   test('filters by updatedAfter / updatedBefore (PROJ-212)', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const stale = await seedIssue(workspaceId, projectId, userId, { title: 'Edited long ago' })
     const fresh = await seedIssue(workspaceId, projectId, userId, { title: 'Edited just now' })
     await env.DB.prepare('UPDATE issues SET updated_at = ? WHERE id = ?')

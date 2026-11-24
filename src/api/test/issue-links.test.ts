@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -171,7 +173,7 @@ describe('issue Links API', () => {
 
     // Directly insert a link into the DB scoped to workspace2 referencing issueOther and issueA
     // (won't happen via API due to workspace isolation, but checks the service layer)
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       `INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,

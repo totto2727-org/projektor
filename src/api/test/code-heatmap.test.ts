@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { CodeHeatmapEntry, ContentionHeatmapEntry } from '#commands/code-heatmap.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
@@ -86,7 +87,7 @@ describe('code heatmap (PROJ-332)', () => {
   }
 
   test('aggregates distinct issues per top-level directory within the window', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const apiIssue = await seedIssue(workspaceId, projectId, userId, { title: 'API work' })
     const apiIssue2 = await seedIssue(workspaceId, projectId, userId, { title: 'More API work' })
     const webIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Web work' })
@@ -111,7 +112,7 @@ describe('code heatmap (PROJ-332)', () => {
   })
 
   test('drills down via prefix, one segment at a time', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const issueB = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
 
@@ -133,7 +134,7 @@ describe('code heatmap (PROJ-332)', () => {
   })
 
   test('counts a released claim toward the aggregate (soft-release retains history)', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Released work' })
     await seedClaim(issue.id, 'apps/api/src/routes/code-heatmap.ts', now - 500, now - 100)
 
@@ -143,7 +144,7 @@ describe('code heatmap (PROJ-332)', () => {
   })
 
   test('treats a path claimed as both file and directory as a drillable directory', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const fileIssue = await seedIssue(workspaceId, projectId, userId, { title: 'File claim' })
     const dirIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Dir claim' })
     // File claim seeded first so its isLeaf=true must not freeze the group as a leaf.
@@ -159,7 +160,7 @@ describe('code heatmap (PROJ-332)', () => {
   })
 
   test('returns an empty entries array when no claims exist in the window', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const res = await getHeatmap({ since: String(now - 3600), until: String(now) })
     expect(res.status).toBe(200)
     const body = (await res.json()) as CodeHeatmapResponse
@@ -168,7 +169,7 @@ describe('code heatmap (PROJ-332)', () => {
   })
 
   test('covers MCP get_code_heatmap matches REST', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Parity check' })
     await seedClaim(issue.id, 'apps/api/src/services/code-heatmap.ts', now - 100)
 
@@ -201,7 +202,7 @@ describe('code heatmap (PROJ-332)', () => {
 
   describe('contention mode (PROJ-338)', () => {
     test('aggregates distinct rejected issues per top-level directory within the window', async () => {
-      const now = Math.floor(Date.now() / 1000)
+      const now = currentEpochSeconds()
       const holdingIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
       const apiIssue = await seedIssue(workspaceId, projectId, userId, { title: 'API rejected' })
       const apiIssue2 = await seedIssue(workspaceId, projectId, userId, {
@@ -234,7 +235,7 @@ describe('code heatmap (PROJ-332)', () => {
     })
 
     test('drills down via prefix, one segment at a time', async () => {
-      const now = Math.floor(Date.now() / 1000)
+      const now = currentEpochSeconds()
       const holdingIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Holder' })
       const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
       const issueB = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
@@ -259,7 +260,7 @@ describe('code heatmap (PROJ-332)', () => {
     })
 
     test('returns an empty entries array when no conflicts exist in the workspace', async () => {
-      const now = Math.floor(Date.now() / 1000)
+      const now = currentEpochSeconds()
       const res = await getHeatmap({
         since: String(now - 3600),
         until: String(now),

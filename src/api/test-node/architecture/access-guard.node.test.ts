@@ -71,7 +71,7 @@ interface FnInfo {
   name: string
   exported: boolean
   params: string[]
-  calls: string[] // resolved keys "file:name", or "guard:<name>"
+  calls: string[] // Resolved keys "file:name", or "guard:<name>"
 }
 
 const paramName = function paramName(p: ts.ParameterDeclaration): string {
@@ -199,15 +199,15 @@ const guardedSet = function guardedSet(fns: Map<string, FnInfo>): Set<string> {
   let changed = true
   while (changed) {
     changed = false
-    for (const [key, fn] of fns) {
+    Iterable.forEach(fns, ([key, fn]) => {
       if (guarded.has(key)) {
-        continue
+        return
       }
       if (fn.calls.some((c) => c.startsWith('guard:') || guarded.has(c))) {
         guarded.add(key)
         changed = true
       }
-    }
+    })
   }
   return guarded
 }

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { env } from './fixture-api.ts'
 import {
   authHeaders,
@@ -342,7 +344,7 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
   test("update_issue refreshes a live agentSessionId's heartbeat, but never revives a stale one", async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Heartbeat live' })
     const { agentSessionId: live } = await seedAgentLease(workspaceId, issue.id)
-    const backdated = Math.floor(Date.now() / 1000) - 10
+    const backdated = currentEpochSeconds() - 10
     await env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(backdated, live).run()
 
     const res = await patch(issue.id, { title: 'Renamed by agent', agentSessionId: live })

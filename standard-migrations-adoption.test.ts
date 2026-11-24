@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { NodeServices } from '@effect/platform-node'
 import { inlineSqlParams, MigrationError, runMigrations } from 'alchemy/SQL/Migrations/index'
 import type { SqlExecutor } from 'alchemy/SQL/Migrations/index'
-import { Effect } from 'effect'
+import { Iterable, Effect } from 'effect'
 import { expect, test } from 'vite-plus/test'
 
 import { runTestEffect } from '#tests/run-effect.ts'
@@ -28,15 +28,15 @@ test.each([
     .sort()
   const insertApplied = db.prepare('INSERT INTO d1_migrations (name, applied_at) VALUES (?, ?)')
   const hashes = new Map<string, string>()
-  for (const name of files) {
+  Iterable.forEach(files, (name) => {
     const sql = readFileSync(new URL(name, directory), 'utf8')
     hashes.set(name, createHash('sha256').update(sql).digest('hex'))
     if (name === pending) {
-      continue
+      return
     }
     db.exec(sql)
     insertApplied.run(name, '2026-11-19 00:00:00')
-  }
+  })
   const unknownName = 'unrecognized_fixture_migration.sql'
   if (unknown) {
     insertApplied.run(unknownName, '2026-11-19 00:00:00')

@@ -683,7 +683,7 @@ type ExistingIssue = {
   statusIsReviewStep: boolean
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: Drizzle set() requires typed columns; setValues is safe
+// Drizzle set() requires typed columns; setValues is safe
 type SetValues = Record<string, any>
 
 const buildSimpleFields = function buildSimpleFields(data: UpdateIssueData): SetValues {

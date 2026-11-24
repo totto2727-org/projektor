@@ -11,7 +11,7 @@ const DAY = 86_400
  */
 export const mondayAtOrBefore = function mondayAtOrBefore(t: number): number {
   const dayIndex = Math.floor(t / DAY)
-  const daysSinceMonday = ((dayIndex % 7) + 7 - 4) % 7 // day 0 (Thu) is 4 days after Monday
+  const daysSinceMonday = ((dayIndex % 7) + 7 - 4) % 7 // Day 0 (Thu) is 4 days after Monday
   return (dayIndex - daysSinceMonday) * DAY
 }
 

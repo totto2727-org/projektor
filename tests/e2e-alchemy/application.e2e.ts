@@ -6,6 +6,8 @@ import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page, TestInfo } from '@playwright/test'
 import { Iterable, Predicate } from 'effect'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 type BrowserAudit = {
   pageErrors: string[]
   consoleErrors: string[]
@@ -1212,7 +1214,7 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
   })
   expect(createdGroup.status(), await createdGroup.text()).toBe(201)
   const group = await createdGroup.json()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const sprints: { status: string; name: string }[] = []
   for (const status of ['planned', 'completed', 'active']) {
     const name = `Reader ${status} sprint ${suffix}`

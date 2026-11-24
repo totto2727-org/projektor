@@ -29,10 +29,10 @@ export const deriveStatusOptions = function deriveStatusOptions(
       issues
         .filter((issue) => issue.status_id)
         .map((issue) => [
-          // biome-ignore lint/style/noNonNullAssertion: filter above guarantees status_id is set
+          // Filter above guarantees status_id is set
           issue.status_id!,
           {
-            // biome-ignore lint/style/noNonNullAssertion: filter above guarantees status_id is set
+            // Filter above guarantees status_id is set
             id: issue.status_id!,
             key: issue.status_key ?? '',
             name: issue.status_name ?? issue.status_key ?? '',
@@ -52,9 +52,9 @@ export const deriveProjectOptions = function deriveProjectOptions(
       issues
         .filter((issue) => issue.project_key)
         .map((issue) => [
-          // biome-ignore lint/style/noNonNullAssertion: filter above guarantees project_key is set
+          // Filter above guarantees project_key is set
           issue.project_key!,
-          // biome-ignore lint/style/noNonNullAssertion: filter above guarantees project_key is set
+          // Filter above guarantees project_key is set
           { key: issue.project_key!, name: issue.project_name ?? issue.project_key! },
         ]),
     ).values(),
@@ -67,9 +67,9 @@ export const deriveTypeOptions = function deriveTypeOptions(issues: Readonly<Iss
       issues
         .filter((issue) => issue.type_key)
         .map((issue) => [
-          // biome-ignore lint/style/noNonNullAssertion: filter above guarantees type_key is set
+          // Filter above guarantees type_key is set
           issue.type_key!,
-          // biome-ignore lint/style/noNonNullAssertion: filter above guarantees type_key is set
+          // Filter above guarantees type_key is set
           issue.type_name ?? issue.type_key!,
         ]),
     ).entries(),

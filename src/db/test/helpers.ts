@@ -3,6 +3,8 @@ import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 
+import { Iterable } from 'effect'
+
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../migrations')
 
 /*
@@ -30,17 +32,17 @@ export const migratedDb = function migratedDb(): DatabaseSync {
   const db = new DatabaseSync(':memory:')
   db.exec('PRAGMA foreign_keys = ON;')
   for (const sql of loadMigrations()) {
-    for (const stmt of splitStatements(sql)) {
+    Iterable.forEach(splitStatements(sql), (stmt) => {
       /*
        * Node:sqlite's bundled build doesn't consistently ship the fts5 module
        * across Node patch versions; production D1/Cloudflare sqlite does.
        * Skip fts5-dependent statements here rather than gate tests on it.
        */
       if (/\bfts5\b/i.test(stmt) || /\b(issues|wiki)_fts\b/i.test(stmt)) {
-        continue
+        return
       }
       db.exec(stmt)
-    }
+    })
   }
   return db
 }

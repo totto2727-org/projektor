@@ -1,6 +1,8 @@
-// PROJ-857: issue list pagination + query plans.
 import { String, Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
+
+// PROJ-857: issue list pagination + query plans.
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
@@ -10,7 +12,7 @@ describe('covers PROJ-857: issue list cursor', () => {
   test('pages through 35 issues created in the same second with no gaps or duplicates', async () => {
     const testFixture = await seedIssueFixture()
     // The fixture issue plus 34 more, all stamped with the same created_at.
-    const createdAt = Math.floor(Date.now() / 1000)
+    const createdAt = currentEpochSeconds()
     for (let n = 2; n <= 35; n++) {
       await env.DB.prepare(
         `INSERT INTO issues (id, workspace_id, project_id, number, title, status, priority, labels, created_by_id, created_at, updated_at)
@@ -69,7 +71,7 @@ describe('covers PROJ-857: issue list cursor', () => {
   test('still accepts a legacy numeric cursor', async () => {
     const testFixture = await seedIssueFixture()
     const res = await fetchNativeApi(
-      `http://localhost/api/issues?projectId=${testFixture.projectId}&cursor=${Math.floor(Date.now() / 1000) + 60}`,
+      `http://localhost/api/issues?projectId=${testFixture.projectId}&cursor=${currentEpochSeconds() + 60}`,
       { headers: authHeaders(testFixture.token, testFixture.slug) },
     )
     expect(res.status).toBe(200)

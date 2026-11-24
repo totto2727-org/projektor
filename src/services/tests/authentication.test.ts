@@ -6,6 +6,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vi
 
 import { authMiddleware } from '#api/middleware/auth.ts'
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import { makeApiIdentityHandlers } from '#core/api/identity-operations.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import {
@@ -46,7 +47,7 @@ const token = async function token(
   const header = Buffer.from(JSON.stringify({ alg: algorithm })).toString('base64url')
   const payload = Buffer.from(
     JSON.stringify({
-      exp: Math.floor(Date.now() / 1000) + 3600,
+      exp: currentEpochSeconds() + 3600,
       aud: [audience],
       iss: issuer,
       email: 'person@example.test',
@@ -277,7 +278,7 @@ describe('shared browser authentication without API transport or signing secrets
   )
 
   test('refreshes a rotated signing key once and verifies against the real replacement', async () => {
-    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120_000)
+    vi.spyOn(Date, 'now').mockReturnValue(currentEpochMilliseconds() + 120_000)
     externalFetch.mockResolvedValue(Response.json({ keys: [otherKey] }))
     await expect(authenticateBrowser(browser(await token({}, otherPair)), env)).resolves.toMatchObject({
       auth: { kind: 'human', method: 'access' },

@@ -20,7 +20,7 @@ export const dateInputToUnix = function dateInputToUnix(value: string): number |
   return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / 1000)
 }
 
-/** unix seconds → "YYYY-MM-DD" in local time; null → "". */
+/** Unix seconds → "YYYY-MM-DD" in local time; null → "". */
 export const unixToDateInput = function unixToDateInput(ts: number | null | undefined): string {
   if (ts === null || Predicate.isNullish(ts)) {
     return ''
@@ -32,7 +32,7 @@ export const unixToDateInput = function unixToDateInput(ts: number | null | unde
   return `${y}-${m}-${day}`
 }
 
-/** unix seconds → a UTC date for display; null → "—". */
+/** Unix seconds → a UTC date for display; null → "—". */
 export const formatUnixDate = function formatUnixDate(ts: number | null | undefined): string {
   if (ts === null || Predicate.isNullish(ts)) {
     return '—'

@@ -288,7 +288,7 @@ export const claimIssue = async function claimIssue(ctx: ServiceCtx, raw: unknow
     data: { issueId, agentId, id },
   })
 
-  // biome-ignore lint/style/noNonNullAssertion: row was just inserted; SELECT immediately after guarantees it exists
+  // Row was just inserted; SELECT immediately after guarantees it exists
   return row!
 }
 

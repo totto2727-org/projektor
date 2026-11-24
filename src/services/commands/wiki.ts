@@ -2809,7 +2809,7 @@ export const getWikiTree = async function getWikiTree(ctx: ServiceCtx, input: un
 
   const roots: TreeNode[] = []
   Iterable.forEach(rows, (p) => {
-    // biome-ignore lint/style/noNonNullAssertion: every row was inserted into map on the previous loop
+    // Every row was inserted into map on the previous loop
     const node = map.get(p.id)!
     if (p.parentId && map.has(p.parentId)) {
       map.get(p.parentId)?.children.push(node)

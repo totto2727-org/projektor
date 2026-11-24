@@ -1,11 +1,12 @@
-/*
- * PROJ-889: MCP calls get the full ServiceCtx (realtime hub, waitUntil) and every auth
- * strategy records its method + credential on the request context.
- */
 import { Hono } from 'hono'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { authMiddleware } from '#api/middleware/auth.ts'
+/*
+ * PROJ-889: MCP calls get the full ServiceCtx (realtime hub, waitUntil) and every auth
+ * strategy records its method + credential on the request context.
+ */
+import { currentEpochSeconds } from '#contracts/time.ts'
 import type { AuthInfo, HonoEnv } from '#types'
 
 import { env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
@@ -74,7 +75,7 @@ describe('covers PROJ-889: auth middleware records method + credential', () => {
       `INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, created_at)
 			 VALUES (?, ?, ?, 'pk', ?, '["read"]', ?)`,
     )
-      .bind(id, workspace.id, user.id, await hashToken(raw), Math.floor(Date.now() / 1000))
+      .bind(id, workspace.id, user.id, await hashToken(raw), currentEpochSeconds())
       .run()
 
     const auth = await whoami({ Authorization: `Bearer ${raw}` })

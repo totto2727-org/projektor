@@ -1,5 +1,7 @@
 import { Predicate } from 'effect'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { env } from './fixture-api.ts'
 
 export type JsonRpcResult<T = unknown> = { jsonrpc: '2.0'; id: unknown; result: T }
@@ -18,7 +20,7 @@ export const hashToken = async function hashToken(token: string): Promise<string
 
 export const seedWorkspace = async function seedWorkspace(slug = `test-ws-${crypto.randomUUID().slice(0, 8)}`) {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
     .bind(id, 'Test Workspace', slug, now)
     .run()
@@ -27,7 +29,7 @@ export const seedWorkspace = async function seedWorkspace(slug = `test-ws-${cryp
 
 export const seedUser = async function seedUser(email = 'user@example.com') {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare('INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)')
     .bind(id, email, 'Test User', now)
     .run()
@@ -39,7 +41,7 @@ export const seedMember = async function seedMember(
   userId: string,
   role = 'member',
 ): Promise<void> {
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare('INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)')
     .bind(workspaceId, userId, role, now)
     .run()
@@ -52,7 +54,7 @@ export const seedToken = async function seedToken(
 ): Promise<string> {
   const raw = `tok_${crypto.randomUUID().replace(/-/gu, '')}`
   const hash = await hashToken(raw)
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, expires_at, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -78,7 +80,7 @@ export const seedUserToken = async function seedUserToken(
 ): Promise<string> {
   const raw = `tok_${crypto.randomUUID().replace(/-/gu, '')}`
   const hash = await hashToken(raw)
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, expires_at, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -99,7 +101,7 @@ export const seedUserToken = async function seedUserToken(
 
 export const seedProject = async function seedProject(workspaceId: string, key = 'PROJ') {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     'INSERT INTO projects (id, workspace_id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
   )
@@ -119,7 +121,7 @@ export const seedGroupGrant = async function seedGroupGrant(
   projectId: string,
   role = 'member',
 ): Promise<{ groupId: string }> {
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const groupId = crypto.randomUUID()
   await env.DB.prepare(
     'INSERT INTO user_groups (id, workspace_id, name, description, created_at) VALUES (?, ?, ?, NULL, ?)',
@@ -154,7 +156,7 @@ export const seedComment = async function seedComment(
   authorKind?: 'human' | 'agent',
 ) {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     'INSERT INTO issue_comments (id, issue_id, author_id, body, created_at, updated_at, ' +
       'author_kind) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -232,7 +234,7 @@ export const seedIssue = async function seedIssue(
   }>,
 ) {
   const id = crypto.randomUUID()
-  const now = opts?.createdAt ?? Math.floor(Date.now() / 1000)
+  const now = opts?.createdAt ?? currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO issues (id, workspace_id, project_id, number, title, body, status, status_id, priority,
        assignee_id, labels, parent_id, type_id, created_by_id, created_at, updated_at)
@@ -276,7 +278,7 @@ export const seedCustomFieldDef = async function seedCustomFieldDef(
   }>,
 ) {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO custom_field_definitions (id, workspace_id, project_id, key, label, type, options, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -319,7 +321,7 @@ export const seedAgentLease = async function seedAgentLease(
   issueId: string,
   opts?: Readonly<{ kind?: 'agent' | 'human'; live?: boolean; name?: string }>,
 ): Promise<{ agentSessionId: string; leaseId: string }> {
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const live = opts?.live ?? true
   const agentSessionId = crypto.randomUUID()
   await env.DB.prepare(

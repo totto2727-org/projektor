@@ -248,7 +248,7 @@ router.post('/:workspaceId', async (httpContext) => {
             fieldErrors,
           }),
         )
-        // biome-ignore lint/style/noNonNullAssertion: a ValidationError always maps
+        // A ValidationError always maps
         return httpContext.json(jsonRpcResult(body.id, toolError!))
       }
 

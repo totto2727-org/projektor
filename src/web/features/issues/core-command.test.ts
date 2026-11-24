@@ -2,6 +2,7 @@ import { Iterable, Effect, Exit } from 'effect'
 import { decodeCoreReply } from 'projektor/core-client'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { CommandOkSchema } from '#core/web/command-contract.ts'
 import type { BrowserCommand } from '#core/web/command-contract.ts'
 import { makeWebCoreHandlers } from '#core/web/operations.ts'
@@ -44,7 +45,7 @@ const signedAccess = async function signedAccess(email: string) {
   )
   const jwk = await crypto.subtle.exportKey('jwk', keys.publicKey)
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url')
-  const input = `${encode({ alg: 'RS256', kid: 'test-key' })}.${encode({ email, aud: 'test-audience', iss: 'https://team.example.test', exp: Math.floor(Date.now() / 1000) + 300 })}`
+  const input = `${encode({ alg: 'RS256', kid: 'test-key' })}.${encode({ email, aud: 'test-audience', iss: 'https://team.example.test', exp: currentEpochSeconds() + 300 })}`
   const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', keys.privateKey, new TextEncoder().encode(input))
   return { token: `${input}.${Buffer.from(signature).toString('base64url')}`, jwk: { ...jwk, kid: 'test-key' } }
 }

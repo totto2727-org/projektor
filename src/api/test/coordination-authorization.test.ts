@@ -5,6 +5,7 @@ import { registerAgent } from '#commands/agents.ts'
 import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
 import { claimIssue, releaseIssue } from '#commands/issue-leases.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { seedFixture, seedGroupGrant, seedIssue, seedProject } from './helpers.ts'
@@ -33,7 +34,7 @@ describe('coordination project authorization', () => {
     const id = crypto.randomUUID()
     await env.DB.prepare(`INSERT INTO issue_file_claims (id,workspace_id,issue_id,path,claimed_at)
       VALUES (?, ?, ?, 'src/shared.ts', ?)`)
-      .bind(id, testFixture.workspace.id, hiddenIssue.id, Math.floor(Date.now() / 1000))
+      .bind(id, testFixture.workspace.id, hiddenIssue.id, currentEpochSeconds())
       .run()
     for (const force of [false, true]) {
       await expect(

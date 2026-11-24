@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
 import m0028 from '#migrations/0028_downgrade_viewer_grants.sql?raw'
 
 import { env } from './fixture-api.ts'
@@ -38,7 +39,7 @@ const seed0027Backfill = async function seed0027Backfill() {
   await seedMember(ws.id, viewer.id, 'viewer')
   await seedMember(ws.id, member.id, 'member')
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     "INSERT INTO user_groups (id, workspace_id, name, description, created_at) VALUES (?, ?, 'all-projects', NULL, ?)",
   )
@@ -110,7 +111,7 @@ describe('0028 viewer-preserving migration', () => {
     const project = await seedProject(ws.id, 'Z')
     const member = await seedUser(`m2-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(ws.id, member.id, 'member')
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       "INSERT INTO user_groups (id, workspace_id, name, description, created_at) VALUES (?, ?, 'all-projects', NULL, ?)",
     )

@@ -2,6 +2,7 @@ import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { Distribution } from '#commands/flow-metrics.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers.ts'
@@ -104,7 +105,7 @@ describe('flow metrics (PROJ-252)', () => {
   }
 
   test('computes lead/cycle time', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
 
     const agentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Agent-worked' })
     await stampFlowTimestamps(agentIssue.id, {
@@ -163,7 +164,7 @@ describe('flow metrics (PROJ-252)', () => {
 
   test('includes an issue created before the window but claimed+done inside it (PROJ-294)', async () => {
     const DAY = 86_400
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 3 * DAY
     const until = now
 
@@ -190,7 +191,7 @@ describe('flow metrics (PROJ-252)', () => {
   })
 
   test('returns non-empty lead/cycle metrics for issues with backfilled done_at (PROJ-288)', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Pre-migration done' })
     /*
      * Simulates the 0026 backfill outcome: done_at populated from completed_at
@@ -213,7 +214,7 @@ describe('flow metrics (PROJ-252)', () => {
     const lastWeekIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Last week' })
     const outsideWindowIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Too old' })
     const WEEK = 7 * 86_400
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 3 * WEEK
     const until = now
 
@@ -252,7 +253,7 @@ describe('flow metrics (PROJ-252)', () => {
 
   test('excludes an issue completed just before `since` even though it falls in the aligned first bucket', async () => {
     const WEEK = 7 * 86_400
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 2 * WEEK
     const until = now
 
@@ -287,7 +288,7 @@ describe('flow metrics (PROJ-252)', () => {
 
   test('aligns weekly bucketStart labels to Monday', async () => {
     const res = await fetchNativeApi(
-      `http://localhost/api/projects/${projectId}/flow-metrics?since=${Math.floor(Date.now() / 1000) - 4 * 7 * 86_400}`,
+      `http://localhost/api/projects/${projectId}/flow-metrics?since=${currentEpochSeconds() - 4 * 7 * 86_400}`,
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
@@ -303,7 +304,7 @@ describe('flow metrics (PROJ-252)', () => {
     const WEEK = 7 * 86_400
     const issueA = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const issueB = await seedIssue(workspaceId, projectId, userId, { title: 'B' })
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 2 * WEEK
     const until = now
 
@@ -340,7 +341,7 @@ describe('flow metrics (PROJ-252)', () => {
   test('defaults the throughput window to Monday-of-current-week minus 5 weeks', async () => {
     const WEEK = 7 * 86_400
     const DAY = 86_400
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
 
     const oldIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Old' })
     await stampFlowTimestamps(oldIssue.id, {
@@ -390,7 +391,7 @@ describe('flow metrics (PROJ-252)', () => {
   })
 
   test('excludes a NULL-timestamp legacy issue from lead/cycle time without crashing (PROJ-301)', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
 
     /*
      * Pre-dates the PROJ-328 backfill: ready_at/claimed_at/done_at all NULL, even
@@ -423,7 +424,7 @@ describe('flow metrics (PROJ-252)', () => {
     claimedAt: number,
     releasedAt: number | null,
   ): Promise<void> {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       `INSERT INTO agent_sessions
 			   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
@@ -440,7 +441,7 @@ describe('flow metrics (PROJ-252)', () => {
   }
 
   test('computes review latency (in_review -> done)', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Reviewed' })
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
     await stampReviewFields(issue.id, { inReviewAt: now - 100 })
@@ -453,7 +454,7 @@ describe('flow metrics (PROJ-252)', () => {
   })
 
   test('counts human comments + review bounces as human interventions, excluding agent comments', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Intervened' })
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
     await stampReviewFields(issue.id, { inReviewAt: now - 100, reviewBounceCount: 2 })
@@ -472,7 +473,7 @@ describe('flow metrics (PROJ-252)', () => {
   })
 
   test('computes autonomy ratio as lease-held time over cycle time', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Leased' })
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
     await stampLease(crypto.randomUUID(), issue.id, now - 400, now - 200)
@@ -484,7 +485,7 @@ describe('flow metrics (PROJ-252)', () => {
   })
 
   test('clamps autonomy ratio to 1 when leases held time exceeds cycle time', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Over-leased' })
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
     // Lease still held past doneAt (released_at NULL) — counts through doneAt, not "now".
@@ -500,7 +501,7 @@ describe('flow metrics (PROJ-252)', () => {
   test('buckets CFD bands correctly for seeded transitions, never negative, done monotonic', async () => {
     const DAY = 86_400
     const WEEK = 7 * DAY
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     /*
      * Day-align since/until so the bucket loop (which starts at a day boundary and
      * steps by exactly one day) lands its first/last samples exactly on since/until,
@@ -579,7 +580,7 @@ describe('flow metrics (PROJ-252)', () => {
    * bucket's start) predated the activity.
    */
   test('reflects a same-bucket create+complete burst in the current (partial) bucket', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
 
     const burstIssue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Created and finished this week',
@@ -602,7 +603,7 @@ describe('flow metrics (PROJ-252)', () => {
   })
 
   test('computes time in progress (claimed -> next stage) for issues completing in the window', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Progressed' })
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 400, doneAt: now })
     await stampReviewFields(issue.id, { inReviewAt: now - 100 })
@@ -616,7 +617,7 @@ describe('flow metrics (PROJ-252)', () => {
   // PROJ-330: arrival vs completion, flow efficiency, aging-WIP scatter.
   test('buckets arrival vs completion, reporting net = created - completed', async () => {
     const WEEK = 7 * 86_400
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 2 * WEEK
     const until = now
 
@@ -651,7 +652,7 @@ describe('flow metrics (PROJ-252)', () => {
   })
 
   test('computes flow efficiency as lease-held time over lead time, distinct from autonomy ratio', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Queued then leased' })
     // Ready -500, claimed -300 (200s queued before claim), done now: lead time 500, cycle time 300.
     await stampFlowTimestamps(issue.id, { readyAt: now - 500, claimedAt: now - 300, doneAt: now })
@@ -660,14 +661,14 @@ describe('flow metrics (PROJ-252)', () => {
     const metrics = await getFlowMetrics()
 
     expect(metrics.flowEfficiency.count).toBe(1)
-    expect(metrics.flowEfficiency.avg).toBeCloseTo(150 / 500, 1) // held / lead time
-    expect(metrics.autonomyRatio.avg).toBeCloseTo(150 / 300, 1) // held / cycle time
+    expect(metrics.flowEfficiency.avg).toBeCloseTo(150 / 500, 1) // Held / lead time
+    expect(metrics.autonomyRatio.avg).toBeCloseTo(150 / 300, 1) // Held / cycle time
     expect(metrics.flowEfficiency.avg).toBeLessThan(metrics.autonomyRatio.avg ?? 0)
   })
 
   test('includes an old still-open issue in the aging-WIP scatter', async () => {
     const DAY = 86_400
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
 
     const oldInProgress = await seedIssue(workspaceId, projectId, userId, {
       title: 'Stuck in progress',
@@ -700,7 +701,7 @@ describe('flow metrics (PROJ-252)', () => {
   // PROJ-331: throughput by task type — bug-share % trend, untyped grouped in (not dropped).
   test('computes bug share per bucket, counting untyped issues toward total but not bugCount', async () => {
     const DAY = 86_400
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const bugType = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const taskType = await seedTaskType(workspaceId, { key: 'task', name: 'Task' })
 
@@ -758,7 +759,7 @@ describe('flow metrics (PROJ-252)', () => {
    * produce a clearly-distinguishable state, not indistinguishable "0 bugs, tracked".
    */
   test("flags bugTypeTracked false when no 'bug'-keyed task type exists in the workspace", async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await seedTaskType(workspaceId, { key: 'defect', name: 'Defect' })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Untracked' })
     await stampFlowTimestamps(issue.id, { doneAt: now })
@@ -799,7 +800,7 @@ describe('factory health tiles (PROJ-334)', () => {
     releasedAt: number | null,
   ): Promise<void> {
     const agentSessionId = crypto.randomUUID()
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       `INSERT INTO agent_sessions
 			   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
@@ -820,7 +821,7 @@ describe('factory health tiles (PROJ-334)', () => {
     releaseReason: string | null,
     releasedAt: number | null,
   ): Promise<void> {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       'INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, ' +
         'released_at, release_reason) VALUES (?, ?, ?, NULL, ?, ?, ?, ?)',
@@ -852,7 +853,7 @@ describe('factory health tiles (PROJ-334)', () => {
 
   test('counts lease expiries, abandoned claims, and gate rejections within the window', async () => {
     const DAY = 86_400
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 3 * DAY
     const until = now
 
@@ -895,7 +896,7 @@ describe('factory health tiles (PROJ-334)', () => {
   })
 
   test('scopes factory health counts to the requested project', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const other = await seedProjectFixture({ role: 'owner' })
 
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'This project' })
@@ -924,7 +925,7 @@ describe('factory health tiles (PROJ-334)', () => {
   })
 
   test('empty state: all counts are zero when nothing has faulted', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await seedIssue(workspaceId, projectId, userId, { title: 'Healthy' })
 
     const res = await fetchNativeApi(

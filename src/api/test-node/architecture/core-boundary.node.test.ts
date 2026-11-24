@@ -199,16 +199,16 @@ const violations = function violations(
     Iterable.forEach(info.capabilities, (capability) => {
       failures.push(`${next.join(' -> ')}: ${capability}`)
     })
-    for (const specifier of info.imports) {
+    Iterable.forEach(info.imports, (specifier) => {
       if (/^(drizzle-orm(?:\/|$)|node:sqlite$)/u.test(specifier)) {
         failures.push(`${next.join(' -> ')} -> ${specifier}: database runtime imported by a public adapter`)
-        continue
+        return
       }
       const dependency = resolveModule(path, specifier, graph)
       if (Predicate.isNotNullish(dependency) && String.isNonEmpty(dependency)) {
         walk(dependency, next)
       }
-    }
+    })
   }
   Iterable.forEach(entrypoints, (entrypoint) => {
     walk(resolve(ROOT, entrypoint), [])
@@ -218,10 +218,10 @@ const violations = function violations(
 
 const reverseViolations = function reverseViolations(graph: ReadonlyMap<string, ModuleInfo>): string[] {
   const failures: string[] = []
-  for (const [path, info] of graph) {
+  Iterable.forEach(graph, ([path, info]) => {
     const localPath = relative(ROOT, path)
     if (!/^src\/(core|contracts|services|db|plugins|plugin-sdk)\//u.test(localPath)) {
-      continue
+      return
     }
     Iterable.forEach(info.imports, (specifier) => {
       const dependency = resolveModule(path, specifier, graph)
@@ -235,7 +235,7 @@ const reverseViolations = function reverseViolations(graph: ReadonlyMap<string, 
         )
       }
     })
-  }
+  })
   return failures
 }
 

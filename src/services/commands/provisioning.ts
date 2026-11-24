@@ -370,7 +370,7 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
       .get()
     if (!ws) {
       return false
-    } // mapped workspace doesn't exist yet — nothing to join
+    } // Mapped workspace doesn't exist yet — nothing to join
     // PROJ-436: a removed user's domain mapping no longer re-adds them to this workspace.
     if (await isRemovalTombstoned(orm, ws.id, user.id)) {
       return true
@@ -400,7 +400,7 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
     .get()
   if (!ws) {
     return false
-  } // wait for an admin to bootstrap the default workspace
+  } // Wait for an admin to bootstrap the default workspace
 
   // PROJ-436: a removed user isn't auto-rejoined to the default workspace.
   if (await isRemovalTombstoned(orm, ws.id, user.id)) {

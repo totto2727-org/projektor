@@ -7,6 +7,7 @@ import {
   provisionPublicViewer,
   resetProvisioningCacheForTests,
 } from '#commands/provisioning.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import type { Env } from '#types'
 
 import { env } from './fixture-api.ts'
@@ -36,7 +37,7 @@ const memberRole = async function memberRole(workspaceId: string, userId: string
 // Simulates a prior removeMember call without going through the HTTP route.
 const tombstoneRemoval = async function tombstoneRemoval(workspaceId: string, userId: string): Promise<void> {
   await env.DB.prepare('INSERT INTO provisioning_removals (workspace_id, user_id, removed_at) VALUES (?, ?, ?)')
-    .bind(workspaceId, userId, Math.floor(Date.now() / 1000))
+    .bind(workspaceId, userId, currentEpochSeconds())
     .run()
 }
 

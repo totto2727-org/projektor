@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { makeWorkerBridge } from 'alchemy/Cloudflare/Bridge'
 import { WorkerEnvironment, WorkerExecutionContext } from 'alchemy/Cloudflare/Workers'
 import { WorkerEntrypoint } from 'cloudflare:workers'
-import { Predicate, Effect, Exit } from 'effect'
+import { Iterable, Predicate, Effect, Exit } from 'effect'
 
 import { isCoreEnvironment } from '#core/environment.ts'
 import type { CoreEnvironment, CoreEnvironmentSource } from '#core/environment.ts'
@@ -253,18 +253,18 @@ function configuration(props: unknown): Record<string, string | undefined> {
     throw new Error('Invalid native fixture configuration')
   }
   const result: Record<string, string | undefined> = {}
-  for (const [key, value] of Object.entries(props)) {
+  Iterable.forEach(Object.entries(props), ([key, value]) => {
     if (value !== null && !Predicate.isString(value)) {
       throw new Error(`Invalid fixture configuration: ${key}`)
     }
     if (key === 'FIXTURE_LIMITER_MODE') {
-      continue
+      return
     }
     if (['DB', 'KV', 'OAUTH_KV', 'R2', 'CORE', 'RATE_LIMITER', 'WORKSPACE_HUB', 'JWT_SECRET'].includes(key)) {
-      continue
+      return
     }
     result[key] = value === null ? undefined : value
-  }
+  })
   return result
 }
 

@@ -2,6 +2,7 @@ import { Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { relyingPartyHost } from '#commands/oauth.ts'
+import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import { purgeExpiredOAuthData } from '#core/api/maintenance.ts'
 import type { Env } from '#types'
 
@@ -75,7 +76,7 @@ const accessJwt = async function accessJwt(email: string): Promise<string> {
   const part = (obj: unknown): string => b64url(new TextEncoder().encode(JSON.stringify(obj)))
   const header = part({ alg: 'RS256', typ: 'JWT' })
   const body = part({
-    exp: Math.floor(Date.now() / 1000) + 3600,
+    exp: currentEpochSeconds() + 3600,
     aud: CF_AUDIENCE,
     iss: `https://${CF_DOMAIN}`,
     email,
@@ -113,7 +114,7 @@ const seedOAuthClient = async function seedOAuthClient(
       clientName: 'Test Connector',
       grantTypes: ['authorization_code', 'refresh_token'],
       responseTypes: ['code'],
-      registrationDate: Math.floor(Date.now() / 1000),
+      registrationDate: currentEpochSeconds(),
       /*
        * Public client: no secret, PKCE is the only proof of possession. This is
        * what Claude is, and what the metadata document advertises via
@@ -959,7 +960,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
     const user = await seedUser(email)
     await seedMember(workspace.id, user.id, 'member')
 
-    env.RATE_LIMIT_TEST_NOW_MS = String(Date.now())
+    env.RATE_LIMIT_TEST_NOW_MS = String(currentEpochMilliseconds())
     const { tokens, clientId } = await connect({ email, workspaceId: workspace.id })
     for (let index = 0; index < API_LIMIT; index++) {
       expect((await mcpCall(workspace.id, tokens.access_token, 'list_projects')).status).toBe(200)
@@ -980,7 +981,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
      * And the other direction: a second connector for the same person gets its own
      * budget, so one noisy client cannot lock the user out of the rest.
      */
-    clientIp = '203.0.113.251' // the consent screen's own IP budget is 3 per window
+    clientIp = '203.0.113.251' // The consent screen's own IP budget is 3 per window
     const second = await connect({ email, workspaceId: workspace.id })
     expect((await mcpCall(workspace.id, second.tokens.access_token, 'list_projects')).status).toBe(200)
   })
@@ -1053,7 +1054,7 @@ describe('settings lists and withdraws connectors (PROJ-659)', () => {
     clientIp = '203.0.113.246'
     const grants = await (await settings(workspace.slug, jwt)).json<{ expiresAt: number }[]>()
     expect(grants).toHaveLength(1)
-    expect(grants[0].expiresAt).toBeGreaterThan(Math.floor(Date.now() / 1000))
+    expect(grants[0].expiresAt).toBeGreaterThan(currentEpochSeconds())
   })
 
   test('withdrawing a connector kills its token on the next request', async () => {

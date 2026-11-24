@@ -1,9 +1,11 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
+
 /*
  * PROJ-894: stateless agent identity. register_agent records the credential that made the
  * call; claim_issue / heartbeat_agent / end_agent may then omit the agent id when that
  * credential owns exactly one (live) session, and must pass it otherwise.
  */
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { hashToken, seedIssue, seedProjectFixture, seedToken } from './helpers.ts'
@@ -160,7 +162,7 @@ describe('covers PROJ-894: stateless agent identity', () => {
     const sessionId = await register()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Stale claim' })
     await env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?')
-      .bind(Math.floor(Date.now() / 1000) - 600, sessionId)
+      .bind(currentEpochSeconds() - 600, sessionId)
       .run()
 
     const claim = await call(token, 'claim_issue', { issueId: issue.id })
@@ -192,7 +194,7 @@ describe('covers PROJ-894: stateless agent identity', () => {
   test("an abandoned stale session does not make a lone live agent's id-less heartbeat ambiguous", async () => {
     const abandoned = await register(token, 'crashed')
     await env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?')
-      .bind(Math.floor(Date.now() / 1000) - 3600, abandoned)
+      .bind(currentEpochSeconds() - 3600, abandoned)
       .run()
     const live = await register(token, 'restarted')
 

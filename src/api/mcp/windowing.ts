@@ -1,4 +1,4 @@
-import { String, Predicate } from 'effect'
+import { Iterable, String, Predicate } from 'effect'
 
 import { ValidationError } from '#contracts/errors.ts'
 
@@ -60,21 +60,21 @@ const headings = function headings(content: string): Heading[] {
   let fence: string | null = null
   let first = true
   let inFrontmatter = false
-  for (const line of content.split('\n')) {
+  Iterable.forEach(content.split('\n'), (line) => {
     const lineStart = pos
     pos += line.length + 1
     if (first) {
       first = false
       if (line.trim() === '---') {
         inFrontmatter = true
-        continue
+        return
       }
     }
     if (inFrontmatter) {
       if (line.trim() === '---') {
         inFrontmatter = false
       }
-      continue
+      return
     }
     const fenceMatch = /^\s*(```|~~~)/u.exec(line)
     if (fenceMatch) {
@@ -83,16 +83,16 @@ const headings = function headings(content: string): Heading[] {
       } else if (fenceMatch[1] === fence) {
         fence = null
       }
-      continue
+      return
     }
     if (Predicate.isNotNullish(fence) && String.isNonEmpty(fence)) {
-      continue
+      return
     }
     const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line)
     if (match) {
       out.push({ level: match[1].length, text: match[2], start: lineStart })
     }
-  }
+  })
   return out
 }
 

@@ -58,7 +58,7 @@ const matchesType = function matchesType(v: unknown, t: string): boolean {
     case 'null':
       return v === null
     default:
-      return true // unknown type keyword: don't reject on a guess
+      return true // Unknown type keyword: don't reject on a guess
   }
 }
 
@@ -137,16 +137,16 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
     })
   }
   const required = new Set(globalThis.Array.isArray(schema.required) ? schema.required : [])
-  for (const [key, sub] of Object.entries(props)) {
+  Iterable.forEach(Object.entries(props), ([key, sub]) => {
     const v = obj[key]
     if (v === undefined || !sub || typeof sub !== 'object') {
-      continue
+      return
     }
     if (Predicate.isNullish(v) && !required.has(key)) {
-      continue
+      return
     } // optional field cleared
     validate(v, sub, `${prefix}${key}`, issues)
-  }
+  })
 }
 
 /** Validate a tool call's `arguments` object against the tool's inputSchema. */

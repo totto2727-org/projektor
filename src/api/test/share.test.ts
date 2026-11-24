@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { env } from './fixture-api.ts'
 import {
   authHeaders,
@@ -58,7 +60,7 @@ describe('share tokens', () => {
   })
 
   test('handles GET /api/share/<expired-token> returns 404', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const expiredToken = '00000000000000000000000000000001'
     const { env } = await import('./fixture-api.ts')
     await env.DB.prepare(
@@ -154,7 +156,7 @@ describe('share tokens', () => {
 
   test('covers PROJ-241: public share payload excludes internal custom fields, includes non-internal ones', async () => {
     const { env } = await import('./fixture-api.ts')
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
 
     const internalFieldId = crypto.randomUUID()
     await env.DB.prepare(
@@ -299,7 +301,7 @@ describe('share tokens', () => {
   test('covers PROJ-242: viewer role cannot revoke a share link', async () => {
     const viewerFixture = await seedIssueFixture({ role: 'viewer' })
     const { env } = await import('./fixture-api.ts')
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       'INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
     )
@@ -357,7 +359,7 @@ describe('share tokens', () => {
     test("member without a grant cannot revoke someone else's share link", async () => {
       const f = await restrictedIssue('none')
       const { env } = await import('./fixture-api.ts')
-      const now = Math.floor(Date.now() / 1000)
+      const now = currentEpochSeconds()
       await env.DB.prepare(
         'INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
       )
@@ -437,7 +439,7 @@ describe('share tokens', () => {
       const f = await sharedIssue('admin', 'none')
       await expect(shareStatus(f.shareToken)).resolves.toBe(200)
       await env.DB.prepare('UPDATE projects SET archived_at = ? WHERE id = ?')
-        .bind(Math.floor(Date.now() / 1000), f.projectId)
+        .bind(currentEpochSeconds(), f.projectId)
         .run()
       await expect(shareStatus(f.shareToken)).resolves.toBe(404)
     })

@@ -135,12 +135,12 @@ describe('schema constraints', () => {
         .filter((s) => s.length > 0)
     for (const file of preSlugFiles) {
       const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8')
-      for (const stmt of splitStatements(sql)) {
+      Iterable.forEach(splitStatements(sql), (stmt) => {
         if (/\bfts5\b/i.test(stmt) || /\bissues_fts\b/i.test(stmt)) {
-          continue
+          return
         }
         db.exec(stmt)
-      }
+      })
     }
 
     db.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)').run('w1', 'Acme', 'acme', 0)

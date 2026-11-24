@@ -115,7 +115,7 @@ describe('covers PROJ-870: issue write batching', () => {
   afterEach(() => vi.restoreAllMocks())
 
   test('createIssue with parent chain, status, type and custom fields uses ≤8 D1 round trips', async () => {
-    const chain = await seedChain(f, 4) // parent has 3 ancestors → the ancestor walk runs
+    const chain = await seedChain(f, 4) // Parent has 3 ancestors → the ancestor walk runs
     const status = await seedTaskStatus(f.workspaceId, { key: 'doing', category: 'in_progress' })
     const type = await seedTaskType(f.workspaceId, { key: 'task' })
     await seedCustomFieldDef(f.workspaceId, { key: 'points', type: 'number' })
@@ -292,8 +292,8 @@ describe('covers PROJ-870: recursive-CTE ancestor walk', () => {
   afterEach(() => vi.restoreAllMocks())
 
   test('walks a 4-ancestor chain in one query regardless of depth', async () => {
-    const shallow = await seedChain(f, 2) // parent has 1 ancestor
-    const deep = await seedChain(f, 5) // parent has 4 ancestors (the deepest allowed)
+    const shallow = await seedChain(f, 2) // Parent has 1 ancestor
+    const deep = await seedChain(f, 5) // Parent has 4 ancestors (the deepest allowed)
 
     let tracker = trackD1RoundTrips()
     await createIssue(ctx, { projectId: f.projectId, title: 'shallow', parentId: shallow[1] })

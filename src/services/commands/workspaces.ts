@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Predicate, Effect } from 'effect'
+import { Iterable, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -484,9 +484,9 @@ export const updateWorkspaceBrand = async function updateWorkspaceBrand(
 
   const current = await readBrand(ctx)
   const next: WorkspaceBrand = { ...current }
-  for (const key of BRAND_FIELDS) {
+  Iterable.forEach(BRAND_FIELDS, (key) => {
     if (!(key in parsed.data)) {
-      continue
+      return
     }
     const value = parsed.data[key]
     if (value === null || Predicate.isNullish(value)) {
@@ -494,7 +494,7 @@ export const updateWorkspaceBrand = async function updateWorkspaceBrand(
     } else {
       next[key] = value
     }
-  }
+  })
 
   await writeBrand(ctx, next)
   return toBrandDto(next, workspaceSlug)

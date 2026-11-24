@@ -422,20 +422,20 @@ export const getIssuesBatch = function getIssuesBatch(
     })[] = []
     const missing: string[] = []
     const seen = new Set<string>()
-    for (const entry of selection.order) {
+    Iterable.forEach(selection.order, (entry) => {
       const row = entry.id ? rowsById.get(entry.id) : undefined
       if (!row) {
         if (!missing.includes(entry.requested)) {
           missing.push(entry.requested)
         }
-        continue
+        return
       }
       if (seen.has(row.id)) {
-        continue
+        return
       }
       seen.add(row.id)
       items.push(row)
-    }
+    })
     return { items, missing }
   })
 }

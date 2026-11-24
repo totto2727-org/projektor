@@ -1,6 +1,8 @@
 import { unzipSync } from 'fflate'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProject, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -23,7 +25,7 @@ const seedManyPages = async function seedManyPages(
   count: number,
   projectId: string | null = null,
 ): Promise<void> {
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const statements = Array.from({ length: count }, (_value, index) =>
     env.DB.prepare(
       `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
@@ -199,7 +201,7 @@ describe('wiki export (PROJ-497)', () => {
 
   test('404s a space export scoped to a project the caller has no grant on', async () => {
     const member = await seedFixture({ role: 'member' })
-    const project = await seedProject(member.workspace.id) // no group grant for member.user
+    const project = await seedProject(member.workspace.id) // No group grant for member.user
 
     const { status } = await exportZip(member.token, member.workspace.slug, `scope=space&projectId=${project.id}`)
     expect(status).toBe(404)
@@ -257,7 +259,7 @@ describe('wiki export (PROJ-497)', () => {
       content: 'root body',
       projectId: project.id,
     })
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const mismatchedId = crypto.randomUUID()
     /*
      * Bypasses validateNewPageParent (services/wiki.ts), which normally forbids a
@@ -309,7 +311,7 @@ describe('wiki export (PROJ-497)', () => {
      * sees the whole set on its first level and must bail before pagesByIds fetches
      * content for MAX_EXPORT_PAGES+1 rows.
      */
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const statements = Array.from({ length: MAX_EXPORT_PAGES + 1 }, (_value, index) =>
       env.DB.prepare(
         `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,

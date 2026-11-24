@@ -133,7 +133,7 @@ export const postMessage = async function postMessage(ctx: ServiceCtx, raw: unkn
 
   const row = await orm.select().from(schema.agentMessages).where(eq(schema.agentMessages.id, id)).get()
 
-  // biome-ignore lint/style/noNonNullAssertion: row was just inserted; SELECT immediately after guarantees it exists
+  // Row was just inserted; SELECT immediately after guarantees it exists
   return row!
 }
 

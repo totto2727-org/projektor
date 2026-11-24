@@ -247,17 +247,17 @@ const WIKI_WELL_KNOWN_TYPES = new Set(WIKI_TYPE_FILTER_OPTIONS.map((o) => o.valu
 function buildTypeFilterOptions(discoveredTypes: Readonly<string[]>): SelectOption[] {
   const seen = new Set(globalThis.Array.from(WIKI_WELL_KNOWN_TYPES).map((t) => t.toLowerCase()))
   const extras: string[] = []
-  for (const t of discoveredTypes) {
+  Iterable.forEach(discoveredTypes, (t) => {
     if (!t) {
-      continue
+      return
     }
     const key = t.toLowerCase()
     if (seen.has(key)) {
-      continue
+      return
     }
     seen.add(key)
     extras.push(t)
-  }
+  })
   extras.sort((left, right) => left.localeCompare(right))
   return [...WIKI_TYPE_FILTER_OPTIONS, ...extras.map((t) => ({ value: t, label: t }))]
 }
@@ -1165,7 +1165,7 @@ function CreatePageForm({
           </p>
         ) : (
           <>
-            {/* biome-ignore lint/a11y/noLabelWithoutControl: caption for MarkdownEditor, which has no associable control */}
+            {/* Caption for MarkdownEditor, which has no associable control */}
             <label className='block font-medium text-sm text-text-base mb-1'>Content (Markdown)</label>
             <MarkdownEditor value={content} onChange={onContentChange} minHeight='280px' />
           </>

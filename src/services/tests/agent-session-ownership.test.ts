@@ -8,6 +8,7 @@ import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
 import { claimIssue, releaseIssue } from '#commands/issue-leases.ts'
 import { updateIssue } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
@@ -104,7 +105,7 @@ describe('agent session ownership at shared command boundaries', () => {
     await claimFiles(testFixture.ctx, { issueId: testFixture.issueId, agentId: session.id, paths: ['src/a.ts'] })
     testFixture.sqlite
       .prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?')
-      .run(Math.floor(Date.now() / 1000) - 10, session.id)
+      .run(currentEpochSeconds() - 10, session.id)
     const before = testFixture.sqlite.prepare('SELECT * FROM agent_sessions WHERE id = ?').get(session.id)
     const other: ServiceCtx = { ...testFixture.ctx, auth: { kind: 'agent', method: 'oauth', credentialId: 'grant-b' } }
     const actions = [

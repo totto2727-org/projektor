@@ -469,7 +469,7 @@ function CreateEpicModal({
         <div className='flex gap-3 mb-5 flex-wrap items-end'>
           {projects.length > 1 && (
             <div>
-              {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
+              {/* Select uses ariaLabel for accessibility */}
               <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
                 Project
               </label>
@@ -483,7 +483,7 @@ function CreateEpicModal({
           )}
 
           <div>
-            {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
+            {/* Select uses ariaLabel for accessibility */}
             <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
               Priority
             </label>

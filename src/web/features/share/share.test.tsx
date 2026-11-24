@@ -2,6 +2,7 @@ import { Iterable } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
 import { createTestDatabase } from '@/test/database.ts'
@@ -48,7 +49,7 @@ async function fixture() {
     .prepare(
       'INSERT INTO share_tokens (id,issue_id,workspace_id,created_by,expires_at,created_at) VALUES (?,?,?,?,?,?)',
     )
-    .run(hash, 'issue', 'workspace', 'user', Math.floor(Date.now() / 1000) + 86_400, 1)
+    .run(hash, 'issue', 'workspace', 'user', currentEpochSeconds() + 86_400, 1)
   return { ...database, token, env: testEnvironment(database.db) }
 }
 describe('public Share SSR', () => {

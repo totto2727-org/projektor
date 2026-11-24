@@ -1,11 +1,12 @@
-/*
- * PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
- * one `{items, next}` pagination shape, and a hard per-result size cap.
- */
 import { String, Predicate, Iterable } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { capPage, shapeIssue, splitShapeOpts, toPage } from '#api/mcp/serialize.ts'
+/*
+ * PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
+ * one `{items, next}` pagination shape, and a hard per-result size cap.
+ */
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { seedIssue, seedProjectFixture } from './helpers.ts'
@@ -359,7 +360,7 @@ describe('covers PROJ-891: MCP tools', () => {
 
   test('list_wiki_changes: no changes means no `next`; an empty cursor does not replay from the epoch', async () => {
     await tool('create_wiki_page', { title: 'Some Page', content: 'x' })
-    const future = Math.floor(Date.now() / 1000) + 3600
+    const future = currentEpochSeconds() + 3600
     const none = await tool<{ items: unknown[]; next?: string }>('list_wiki_changes', {
       since: future,
     })

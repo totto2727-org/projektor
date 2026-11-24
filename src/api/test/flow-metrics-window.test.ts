@@ -1,3 +1,7 @@
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
+
+import { getFlowMetrics } from '#commands/flow-metrics.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 /*
  * PROJ-866: bound the flow-metrics window and stop loading every project issue.
  *
@@ -11,10 +15,7 @@
  *   number of D1 queries — proving the issue SELECT and lease lookup are now scoped to
  *   the window instead of the whole project.
  */
-import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
-
-import { getFlowMetrics } from '#commands/flow-metrics.ts'
-import type { ServiceCtx } from '#commands/types.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
@@ -36,7 +37,7 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
   }
 
   test('400s a day-granularity window spanning more than 366 days', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 400 * 86_400
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=day`)
     expect(res.status).toBe(400)
@@ -45,14 +46,14 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
   })
 
   test('accepts a day-granularity window of exactly 366 days', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 366 * 86_400
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=day`)
     expect(res.status).toBe(200)
   })
 
   test('400s a week-granularity window spanning more than 5 years', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - (5 * 365 * 86_400 + 86_400)
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=week`)
     expect(res.status).toBe(400)
@@ -61,7 +62,7 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
   })
 
   test('accepts a week-granularity window of exactly 5 years', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 5 * 365 * 86_400
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=week`)
     expect(res.status).toBe(200)
@@ -73,7 +74,7 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
   })
 
   test('400s until < since', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const res = await getFlowMetrics(`since=${now}&until=${now - 1000}`)
     expect(res.status).toBe(400)
   })
@@ -84,7 +85,7 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
   })
 
   test('400s when only `since` is given and it is more than 366 days before now at day granularity', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 400 * 86_400
     const res = await getFlowMetrics(`since=${since}&granularity=day`)
     expect(res.status).toBe(400)
@@ -214,7 +215,7 @@ describe('covers PROJ-866: D1 query bound at scale', () => {
   test('2,000 in-window issues (plus 1,000 long-closed): <=10 D1 queries, same numbers', async () => {
     const { workspaceId, projectId, userId } = await seedProjectFixture({ role: 'owner' })
     const WEEK = 7 * 86_400
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 12 * WEEK
     const until = now
 
@@ -330,7 +331,7 @@ describe('covers PROJ-866 review: window defaults and aging WIP', () => {
   }
 
   test("accepts an until-only window in the past (the service's own default since applies)", async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const res = await fetchMetrics(`until=${now - 90 * 86_400}&granularity=day`)
     expect(res.status).toBe(200)
   })
@@ -341,14 +342,14 @@ describe('covers PROJ-866 review: window defaults and aging WIP', () => {
      * bucket start (the Monday 5 weeks before this week's), which is what the service
      * would actually bucket from.
      */
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const res = await fetchMetrics(`until=${now + 340 * 86_400}&granularity=day`)
     expect(res.status).toBe(400)
   })
 
   test('agingWip keeps currently open issues outside the window without changing the windowed series', async () => {
     const DAY = 86_400
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const since = now - 60 * DAY
     const until = now - 20 * DAY
     const insert = async (

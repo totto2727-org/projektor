@@ -1,6 +1,8 @@
 import { Iterable, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProject, seedProjectFixture, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
@@ -41,7 +43,7 @@ const seedSprint = async function seedSprint(
   opts: Readonly<{ name?: string; status?: string; startDate?: number; endDate?: number }> = {},
 ) {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO sprints (id, workspace_id, project_id, name, status, start_date, end_date, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -68,7 +70,7 @@ const seedWikiPage = async function seedWikiPage(
   opts: Readonly<{ title?: string; slug?: string; updatedAt?: number; deletedAt?: number }> = {},
 ) {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const slug = opts.slug ?? (opts.title ?? 'test-page').toLowerCase().replace(/\s+/gu, '-')
   const updatedAt = opts.updatedAt ?? now
   await env.DB.prepare(
@@ -183,7 +185,7 @@ describe('list_project_activity MCP tool', () => {
   test('returns wiki_page_edited events when updated_at differs from created_at', async () => {
     await seedWikiPage(workspaceId, projectId, userId, {
       title: 'Edited Doc',
-      updatedAt: Math.floor(Date.now() / 1000) + 10,
+      updatedAt: currentEpochSeconds() + 10,
     })
 
     const res = (await mcpCall<McpContent>(
@@ -220,8 +222,8 @@ describe('list_project_activity MCP tool', () => {
   test('excludes trashed wiki pages from wiki_page_created/wiki_page_edited events', async () => {
     await seedWikiPage(workspaceId, projectId, userId, {
       title: 'Trashed Doc',
-      deletedAt: Math.floor(Date.now() / 1000),
-      updatedAt: Math.floor(Date.now() / 1000) + 10,
+      deletedAt: currentEpochSeconds(),
+      updatedAt: currentEpochSeconds() + 10,
     })
 
     const res = (await mcpCall<McpContent>(
@@ -239,7 +241,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns sprint_started events for active sprints with a start_date', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await seedSprint(workspaceId, projectId, {
       name: 'Sprint Alpha',
       status: 'active',
@@ -265,7 +267,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns sprint_completed events for completed sprints', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await seedSprint(workspaceId, projectId, {
       name: 'Sprint Beta',
       status: 'completed',
@@ -308,7 +310,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('respects the since filter', async () => {
-    const past = Math.floor(Date.now() / 1000) - 3600
+    const past = currentEpochSeconds() - 3600
     await seedIssue(workspaceId, projectId, userId, { title: 'Old issue', createdAt: past - 1 })
     await seedIssue(workspaceId, projectId, userId, { title: 'New issue' })
 
@@ -328,7 +330,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns events ordered most-recent first', async () => {
-    const base = Math.floor(Date.now() / 1000) - 100
+    const base = currentEpochSeconds() - 100
     await seedIssue(workspaceId, projectId, userId, { title: 'Older', createdAt: base })
     await seedIssue(workspaceId, projectId, userId, { title: 'Newer', createdAt: base + 50 })
 

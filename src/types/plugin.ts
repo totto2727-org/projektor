@@ -88,7 +88,7 @@ export interface Plugin {
   name: string
   version: string
   migrations?: Migration[]
-  // biome-ignore lint/suspicious/noExplicitAny: Hono app type not available in this package
+  // Hono app type not available in this package
   register?: (app: any) => void
   mcpTools?: MCPTool[]
 }

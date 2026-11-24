@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -42,7 +44,7 @@ const mcpList = async function mcpList(
 }
 
 const seedFileClaim = async function seedFileClaim(workspaceId: string, issueId: string, path: string): Promise<void> {
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, released_at)
 		 VALUES (?, ?, ?, NULL, ?, ?, NULL)`,
@@ -53,7 +55,7 @@ const seedFileClaim = async function seedFileClaim(workspaceId: string, issueId:
 
 const seedFloatingAgent = async function seedFloatingAgent(workspaceId: string, name: string): Promise<string> {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO agent_sessions
 		   (id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)

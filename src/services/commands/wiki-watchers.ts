@@ -297,15 +297,15 @@ const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
   const projectOf = new Map(pages.map((page) => [page.id, page.projectId ?? null]))
 
   const usersByProject = new Map<string | null, Set<string>>()
-  for (const e of entries) {
+  Iterable.forEach(entries, (e) => {
     if (!projectOf.has(e.pageId)) {
-      continue
+      return
     } // page not in this workspace — never deliver
     const projectId = projectOf.get(e.pageId) ?? null
     const users = usersByProject.get(projectId) ?? new Set<string>()
     users.add(e.userId)
     usersByProject.set(projectId, users)
-  }
+  })
   const allowedByProject = new Map<string | null, Set<string>>()
   for (const [projectId, users] of usersByProject) {
     allowedByProject.set(projectId, await usersWithProjectReadAccess(ctx, projectId, [...users]))
@@ -749,15 +749,15 @@ const watchedPageIds = async function watchedPageIds(
   const matched = new Set<string>()
   // Candidate page -> the ancestor its chain walk has currently reached.
   const pending = new Map<string, string>()
-  for (const pageId of new Set(candidatePageIds)) {
+  Iterable.forEach(new Set(candidatePageIds), (pageId) => {
     if (directWatchIds.has(pageId)) {
       matched.add(pageId)
-      continue
+      return
     }
     if (subtreeRootIds.size > 0) {
       pending.set(pageId, pageId)
     }
-  }
+  })
 
   await matchSubtreeWatches(ctx, orm, pending, subtreeRootIds, matched)
   return matched

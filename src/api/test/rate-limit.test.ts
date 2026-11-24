@@ -2,6 +2,7 @@ import { Predicate } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { LIMITER_TIMEOUT_MS } from '#api/middleware/rate-limit.ts'
+import { currentEpochMilliseconds } from '#contracts/time.ts'
 import { bumpRateCounter } from '#services/request-rate-limit.ts'
 import type { Env } from '#types'
 
@@ -30,7 +31,7 @@ const seedCounter = async function seedCounter(key: string, count: number): Prom
 
 // ── Deprecated D1 fallback (no RATE_LIMITER binding; removed in PROJ-924) ──
 const currentSlot = function currentSlot(): number {
-  return Math.floor(Date.now() / 1000 / WINDOW_SECS) * WINDOW_SECS
+  return Math.floor(currentEpochMilliseconds() / 1000 / WINDOW_SECS) * WINDOW_SECS
 }
 
 const seedD1Counter = async function seedD1Counter(key: string, count: number): Promise<void> {
@@ -68,7 +69,7 @@ describe('covers PROJ-19: rate limiting', () => {
       // Seed against the fallback IP used when CF-Connecting-IP is absent in tests
       await seedCounter('ip:127.0.0.1', AUTH_LIMIT)
 
-      const res = await fetchNativeApi(ENDPOINT) // no CF-Connecting-IP → key = ip:127.0.0.1
+      const res = await fetchNativeApi(ENDPOINT) // No CF-Connecting-IP → key = ip:127.0.0.1
       expect(res.status).toBe(429)
       const retryAfter = parseInt(res.headers.get('Retry-After') ?? '0', 10)
       expect(retryAfter).toBeGreaterThan(0)
@@ -193,7 +194,7 @@ describe('covers PROJ-432: the D1 fallback counter costs one round trip', () => 
 
   test('issues a single batch rather than sequential statements', async () => {
     const { counts, proxy } = countingDb(env.DB)
-    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5) // no prune
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5) // No prune
     try {
       await bumpRateCounter(d1Only(proxy), `ip:batch-${crypto.randomUUID().slice(0, 8)}`, WINDOW_SECS)
     } finally {
@@ -291,13 +292,13 @@ describe('covers PROJ-867: counters live in the RateLimiter Durable Object, not 
     test("allows the request when the Durable Object doesn't answer in time", async () => {
       await configureCore({ FIXTURE_LIMITER_MODE: 'hang' })
       const fixture = await seedFixture()
-      const started = Date.now()
+      const started = currentEpochMilliseconds()
       const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
       await expect(getCoreLimiterCalls()).resolves.toBeGreaterThan(0)
       expect(res.status).toBe(200)
-      expect(Date.now() - started).toBeLessThan(LIMITER_TIMEOUT_MS + 5000)
+      expect(currentEpochMilliseconds() - started).toBeLessThan(LIMITER_TIMEOUT_MS + 5000)
     })
   })
 

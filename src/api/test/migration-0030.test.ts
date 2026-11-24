@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
 import m0030 from '#migrations/0030_backfill_review_timestamp.sql?raw'
 
 import { env } from './fixture-api.ts'
@@ -40,7 +41,7 @@ describe('0030 backfill in_review_at', () => {
   })
 
   test('backfills in_review_at from claimed_at for an issue currently in a review status', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'In review',
       status: 'in_review',
@@ -58,7 +59,7 @@ describe('0030 backfill in_review_at', () => {
   })
 
   test('does not backfill a done issue that never carried a review status (no signal to guess from)', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Closed without review',
       status: 'done',
@@ -76,7 +77,7 @@ describe('0030 backfill in_review_at', () => {
   })
 
   test('does not overwrite an already-stamped in_review_at', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Already stamped',
       status: 'in_review',
@@ -94,7 +95,7 @@ describe('0030 backfill in_review_at', () => {
   })
 
   test('is idempotent — re-running changes nothing', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'In review',
       status: 'in_review',

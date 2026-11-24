@@ -21,9 +21,9 @@ export interface CoreEnv {
   // Login provisioning (see services/provisioning.ts). Runs on every Cloudflare Access
   // (browser) login. Cloudflare Access is the gate; these decide what a user gets inside.
   ADMIN_EMAILS?: string // comma-separated; these emails become workspace owners
-  DEFAULT_WORKSPACE_SLUG?: string // default 'projektor' (matches the workers.dev subdomain)
-  DEFAULT_WORKSPACE_NAME?: string // default 'Projektor'
-  AUTO_JOIN_ROLE?: string // role for non-admins CF admits: viewer|member|admin|owner|none (default none = invite-only)
+  DEFAULT_WORKSPACE_SLUG?: string // Default 'projektor' (matches the workers.dev subdomain)
+  DEFAULT_WORKSPACE_NAME?: string // Default 'Projektor'
+  AUTO_JOIN_ROLE?: string // Role for non-admins CF admits: viewer|member|admin|owner|none (default none = invite-only)
   // Confine non-admin logins by email domain to a single workspace. JSON object:
   // {"example.com":{"slug":"example-team","role":"member"}}. Admins (ADMIN_EMAILS) bypass this.
   WORKSPACE_DOMAIN_MAP?: string
@@ -96,9 +96,9 @@ export interface CoreEnv {
    * (src/api/worker.ts's scheduled -> purgeExpiredRetentionData). All optional;
    * unset falls back to the documented default in that function.
    */
-  WIKI_NOTIFICATION_RETENTION_DAYS?: string // default 90
-  AGENT_SESSION_RETENTION_DAYS?: string // ended agent_sessions with no referencing lease, default 90
-  ACTIVITY_RETENTION_DAYS?: string // default 365
+  WIKI_NOTIFICATION_RETENTION_DAYS?: string // Default 90
+  AGENT_SESSION_RETENTION_DAYS?: string // Ended agent_sessions with no referencing lease, default 90
+  ACTIVITY_RETENTION_DAYS?: string // Default 365
   /*
    * PROJ-928: TTL in seconds before a file claim with no agentId (agentId is nullable —
    * see services/file-claims.ts) becomes reclaimable by the next claimant, same as a

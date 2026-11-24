@@ -330,7 +330,7 @@ const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[])
           const obj = await ctx.r2.get(att.r2Key)
           if (!obj) {
             continue
-          } // orphaned row (object missing from storage) — skip, don't fail the export
+          } // Orphaned row (object missing from storage) — skip, don't fail the export
           const dir = safeZipPathSegment(att.pageSlug)
           const filename = safeZipPathSegment(att.filename)
           const name = reserveUniqueName(

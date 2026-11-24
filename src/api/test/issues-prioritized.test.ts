@@ -9,6 +9,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { checkDefinitionOfReady } from '#commands/definition-of-ready.ts'
 import { getPrioritizedIssues } from '#commands/issues.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { seedFixture, seedProject } from './helpers.ts'
@@ -21,7 +22,7 @@ const PRIORITY_SCORE: Record<string, number> = { high: 3, low: 1, medium: 2, non
 const seedWorkspaceWithIssues = async function seedWorkspaceWithIssues(n: number): Promise<{ ctx: ServiceCtx }> {
   const { workspace, user } = await seedFixture({ role: 'owner' })
   const project = await seedProject(workspace.id)
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const ids: string[] = []
   const stmts: D1PreparedStatement[] = []
   for (let index = 0; index < n; index++) {

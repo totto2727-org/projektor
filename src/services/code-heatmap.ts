@@ -1,4 +1,5 @@
 import { and, eq, gte, lte } from 'drizzle-orm'
+import { Iterable } from 'effect'
 import type { Effect } from 'effect'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -79,13 +80,13 @@ const groupItemsByNextSegment = function groupItemsByNextSegment<T extends { pat
 ): Map<string, SegmentGroup> {
   const groups = new Map<string, SegmentGroup>()
 
-  for (const item of items) {
+  Iterable.forEach(items, (item) => {
     if (prefix && !item.path.startsWith(prefixWithSlash)) {
-      continue
+      return
     }
     const resolved = resolveNextSegment(item.path, prefix, prefixWithSlash)
     if (!resolved) {
-      continue
+      return
     }
     const { path, isLeaf } = resolved
 
@@ -103,7 +104,7 @@ const groupItemsByNextSegment = function groupItemsByNextSegment<T extends { pat
     }
     group.ids.add(getId(item))
     group.count++
-  }
+  })
 
   return groups
 }

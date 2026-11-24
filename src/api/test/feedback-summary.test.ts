@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
@@ -29,7 +31,7 @@ const seedFeedbackRow = async function seedFeedbackRow(
   }> = {},
 ): Promise<string> {
   const id = crypto.randomUUID()
-  const now = opts.createdAt ?? Math.floor(Date.now() / 1000)
+  const now = opts.createdAt ?? currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO feedback
        (id, source_id, workspace_id, project_id, rating, rating_scale, body, app_version, status, created_at)

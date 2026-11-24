@@ -2,6 +2,7 @@ import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { batchLoadCustomFields } from '#commands/custom-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -457,7 +458,7 @@ describe('custom Fields — story_points seed', () => {
   test('seedDefaultCustomFields creates story_points for new workspace', async () => {
     const { seedDefaultCustomFields } = await import('#commands/custom-fields.ts')
     const ws = crypto.randomUUID()
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
       .bind(ws, 'Test WS', `seed-test-${ws.slice(0, 8)}`, now)
       .run()
@@ -478,7 +479,7 @@ describe('custom Fields — story_points seed', () => {
   test('seedDefaultCustomFields is idempotent', async () => {
     const { seedDefaultCustomFields } = await import('#commands/custom-fields.ts')
     const ws = crypto.randomUUID()
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
       .bind(ws, 'Test WS 2', `seed-idempotent-${ws.slice(0, 8)}`, now)
       .run()

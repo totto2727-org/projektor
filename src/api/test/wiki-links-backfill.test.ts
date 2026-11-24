@@ -1,8 +1,10 @@
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+
 /*
  * PROJ-815: backfillWikiLinks batches reads/writes, skips trashed pages, and is
  * incremental/resumable via a cursor + page budget, with an updatedSince scope filter.
  */
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
@@ -21,7 +23,7 @@ const insertPage = async function insertPage(
   }>,
 ): Promise<string> {
   const id = fields.id ?? crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(
     `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, parent_id,
 		   created_by_id, updated_by_id, created_at, updated_at, deleted_at)
@@ -70,11 +72,11 @@ describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSin
       slug: 'trashed-linker',
       title: 'Trashed Linker',
       content: '[[Target]]',
-      deletedAt: Math.floor(Date.now() / 1000),
+      deletedAt: currentEpochSeconds(),
     })
 
     const result = await backfill(token, workspace.slug)
-    expect(result.processed).toBe(1) // only "target" — the trashed page is skipped
+    expect(result.processed).toBe(1) // Only "target" — the trashed page is skipped
     expect(result.nextCursor).toBeNull()
 
     const rows = await env.DB.prepare('SELECT * FROM wiki_links WHERE source_page_id = ?').bind(trashedId).all()
@@ -124,7 +126,7 @@ describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSin
 
   test('a cursor resumes where the previous call stopped', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const ids: string[] = []
     for (let index = 0; index < 10; index++) {
       ids.push(
@@ -157,7 +159,7 @@ describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSin
 
   test('updatedSince limits the scope to pages touched at/after that time', async () => {
     const { workspace, user, token } = await seedFixture({ role: 'owner' })
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await insertPage(workspace.id, user.id, { slug: 'old', title: 'Old', updatedAt: now - 1000 })
     await insertPage(workspace.id, user.id, { slug: 'new', title: 'New', updatedAt: now })
 

@@ -1,3 +1,8 @@
+import { Iterable, Predicate } from 'effect'
+import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
+
+import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
+import type { ServiceCtx } from '#commands/types.ts'
 /*
  * PROJ-864: claim_files/release_files batch their per-path writes into a constant number
  * of db.batch() calls instead of issuing 1-2+ D1 round trips per path (100 paths measured
@@ -7,11 +12,7 @@
  * Query budgets cover shared domain work, not private Core authentication overhead.
  * Conflict/force/stale semantics remain asserted at 100-path scale.
  */
-import { Iterable, Predicate } from 'effect'
-import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
-
-import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
-import type { ServiceCtx } from '#commands/types.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture } from './helpers.ts'
@@ -71,7 +72,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     path: string,
   ): Promise<void> {
     const agentId = crypto.randomUUID()
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       `INSERT INTO agent_sessions
 				(id, workspace_id, issue_id, token_id, name, kind, status, started_at, last_heartbeat_at, ended_at)
@@ -93,7 +94,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     issueId: string,
     path: string,
   ): Promise<void> {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     // agentId NULL: an agentless claim is live until its claim TTL expires.
     await env.DB.prepare(
       `INSERT INTO issue_file_claims

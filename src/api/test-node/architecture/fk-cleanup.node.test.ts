@@ -26,19 +26,19 @@ const declaredFkActions = function declaredFkActions(): Set<string> {
   const keys = new Set<string>()
   for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql'))) {
     const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replace(/--[^\n]*/g, '')
-    for (const stmt of sql.split(';')) {
+    Iterable.forEach(sql.split(';'), (stmt) => {
       const table =
         /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?[`"]?(\w+)[`"]?/i.exec(stmt) ??
         /ALTER TABLE\s+[`"]?(\w+)[`"]?\s+ADD/i.exec(stmt)
       if (!table) {
-        continue
+        return
       }
       const fk =
         /[`"]?\w+[`"]?\s+\w[^,]*?REFERENCES\s+[`"]?(\w+)[`"]?\s*\([^)]*\)[^,]*?ON DELETE\s+(CASCADE|SET NULL)/gi
       Iterable.forEach(stmt.matchAll(fk), (match) => {
         keys.add(`${table[1]} -> ${match[1]} (${match[2].toUpperCase()})`)
       })
-    }
+    })
   }
   return keys
 }
@@ -90,9 +90,9 @@ describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () =
 
   test('every cleanedBy reference exists and mentions the child table', () => {
     const problems: string[] = []
-    for (const [key, entry] of Object.entries(FK_CLEANUP_ALLOWLIST)) {
+    Iterable.forEach(Object.entries(FK_CLEANUP_ALLOWLIST), ([key, entry]) => {
       if (!('cleanedBy' in entry)) {
-        continue
+        return
       }
       const child = key.split(' -> ')[0]
       const sources = entry.cleanedBy.map((ref) => ({ ref, src: declarationSource(ref) }))
@@ -108,7 +108,7 @@ describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () =
       if (!mentions) {
         problems.push(`${key}: not every one of ${entry.cleanedBy.join(', ')} mentions ${child}`)
       }
-    }
+    })
     expect(problems).toStrictEqual([])
   })
 })

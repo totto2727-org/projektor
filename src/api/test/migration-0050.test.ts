@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
 import m0050 from '#migrations/0050_wiki_slug_slash_backfill.sql?raw'
 
 import { env } from './fixture-api.ts'
@@ -51,7 +52,7 @@ describe('0050 wiki slug slash backfill', () => {
   })
 
   test('rewrites a simple slashy slug with no collision and leaves a redirect', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const pageId = await insertPage(workspaceId, userId, 'docs/setup', now)
 
     await runMigration0050()
@@ -66,7 +67,7 @@ describe('0050 wiki slug slash backfill', () => {
   })
 
   test('disambiguates two slashy slugs that rewrite to the same candidate with an id suffix', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const firstId = await insertPage(workspaceId, userId, 'a/b/c', now)
     const secondId = await insertPage(workspaceId, userId, 'a-b/c', now + 1)
 
@@ -81,7 +82,7 @@ describe('0050 wiki slug slash backfill', () => {
   })
 
   test('suffixes a slashy slug whose rewritten candidate collides with a pre-existing non-slashy page', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await insertPage(workspaceId, userId, 'docs-faq', now)
     const slashyId = await insertPage(workspaceId, userId, 'docs/faq', now + 1)
 
@@ -94,7 +95,7 @@ describe('0050 wiki slug slash backfill', () => {
   })
 
   test('upserts a pre-existing wiki_redirects row instead of aborting the migration on collision', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const otherPageId = await insertPage(workspaceId, userId, 'unrelated', now - 2000)
     await env.DB.prepare(
       'INSERT INTO wiki_redirects (id, workspace_id, old_slug, page_id, created_at) VALUES (?, ?, ?, ?, ?)',
@@ -113,7 +114,7 @@ describe('0050 wiki slug slash backfill', () => {
   })
 
   test('truncates an oversized rewritten candidate before appending the id suffix, staying under 200 chars', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const candidate = `${'b'.repeat(120)}-${'c'.repeat(120)}` // 241 chars
     const slashy = `${'b'.repeat(120)}/${'c'.repeat(120)}` // same length, collides once rewritten
     await insertPage(workspaceId, userId, candidate, now)

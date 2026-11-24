@@ -72,7 +72,7 @@ const CreateIssueModalFields = function CreateIssueModalFields({
     <div className='flex gap-3 mb-5 flex-wrap items-end'>
       {projects.length > 1 && (
         <div>
-          {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
+          {/* Select uses ariaLabel for accessibility */}
           <label className={FIELD_CAPTION_CLASS}>Project</label>
           <Select
             ariaLabel='Select project'
@@ -84,7 +84,7 @@ const CreateIssueModalFields = function CreateIssueModalFields({
       )}
 
       <div>
-        {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
+        {/* Select uses ariaLabel for accessibility */}
         <label className={FIELD_CAPTION_CLASS}>Priority</label>
         <Select
           ariaLabel='Select priority'
@@ -103,7 +103,7 @@ const CreateIssueModalFields = function CreateIssueModalFields({
 
       {Array.isArrayNonEmpty(taskTypes) && (
         <div>
-          {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
+          {/* Select uses ariaLabel for accessibility */}
           <label className={FIELD_CAPTION_CLASS}>Type</label>
           <Select
             ariaLabel='Select type'
@@ -119,7 +119,7 @@ const CreateIssueModalFields = function CreateIssueModalFields({
 
       {Array.isArrayNonEmpty(statuses) && (
         <div>
-          {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
+          {/* Select uses ariaLabel for accessibility */}
           <label className={FIELD_CAPTION_CLASS}>Status</label>
           <Select
             ariaLabel='Select status'
@@ -196,7 +196,7 @@ export default function CreateIssueModal(props: CreateIssueModalProps) {
 							    clicks on its non-interactive descendants to its first labelable control —
 							    here the editor toolbar's Bold button — so every tap in the editor body ran
 							    Bold. The editor names itself via ariaLabel instead. */}
-            {/* biome-ignore lint/a11y/noLabelWithoutControl: caption for MarkdownEditor, which has no associable control */}
+            {/* Caption for MarkdownEditor, which has no associable control */}
             <label className='block text-[0.78rem] font-semibold text-text-muted mb-[0.3rem] uppercase tracking-[0.04em]'>
               Description
             </label>

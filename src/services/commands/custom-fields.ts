@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
-import { String, Array, Predicate, Effect } from 'effect'
+import { Iterable, String, Array, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -311,7 +311,7 @@ export const validateCustomFields = async function validateCustomFields(
   const defsByKey = new Map(defs.map((d) => [d.key, d]))
   const writes: { fieldId: string; value: string }[] = []
 
-  for (const [key, rawValue] of Object.entries(customFields)) {
+  Iterable.forEach(Object.entries(customFields), ([key, rawValue]) => {
     const def = defsByKey.get(key)
     if (!def) {
       throw new ValidationError({
@@ -321,7 +321,7 @@ export const validateCustomFields = async function validateCustomFields(
     }
 
     if (rawValue === null || Predicate.isNullish(rawValue) || rawValue === '') {
-      continue
+      return
     }
 
     // oxlint-disable-next-line @typescript-eslint/no-base-to-string -- Preserve existing custom-field coercion before validation, including object values.
@@ -329,7 +329,7 @@ export const validateCustomFields = async function validateCustomFields(
     assertValidCustomFieldValue(key, value, def)
 
     writes.push({ fieldId: def.id, value })
-  }
+  })
 
   return writes
 }

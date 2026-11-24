@@ -8,6 +8,7 @@ import { realtimeRouter } from '#api/routes/realtime.ts'
 import { createIssue } from '#commands/issues.ts'
 import { broadcastWorkspaceEvent } from '#commands/realtime.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 import type { ApiEnv, HonoEnv, RealtimeEvent } from '#types'
@@ -89,7 +90,7 @@ describe('realtime WebSockets (Opt-In)', () => {
       workspaceId: roles.workspace.id,
       projectId,
       data: { id: 'issue-123' },
-      timestamp: Math.floor(Date.now() / 1000),
+      timestamp: currentEpochSeconds(),
       ...overrides,
     }
   }
@@ -305,7 +306,7 @@ describe('realtime WebSockets (Opt-In)', () => {
   })
 
   test('drops a revoked grant on a passive socket immediately without a ping or stale-snapshot delay', async () => {
-    const ws = socket(attachmentFor('member', { snapshotAt: Math.floor(Date.now() / 1000) }))
+    const ws = socket(attachmentFor('member', { snapshotAt: currentEpochSeconds() }))
     const { hub } = hubFor([ws])
     await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 1 })
     ws.send.mockClear()
@@ -320,7 +321,7 @@ describe('realtime WebSockets (Opt-In)', () => {
   })
 
   test('denies passive broadcasts immediately after token revocation', async () => {
-    const ws = socket(attachmentFor('owner', { snapshotAt: Math.floor(Date.now() / 1000) }))
+    const ws = socket(attachmentFor('owner', { snapshotAt: currentEpochSeconds() }))
     const { hub } = hubFor([ws])
     await expect(hub.broadcast(event())).resolves.toEqual({ recipientCount: 1 })
     ws.send.mockClear()

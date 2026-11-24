@@ -309,7 +309,7 @@ export const TitleSection = function TitleSection({
             }
           }}
           disabled={savingTitle}
-          // biome-ignore lint/a11y/noAutofocus: intentional focus when the inline editor opens
+          // Intentional focus when the inline editor opens
           autoFocus
           className='w-full text-2xl font-bold text-text-base bg-bg border border-border rounded-md px-3
 						py-1.5 mb-2 focus:outline-hidden focus:ring-1 focus:ring-accent'
@@ -725,7 +725,7 @@ const LinkForm = function LinkForm({
           }
         }}
         placeholder='PROJ-12'
-        // biome-ignore lint/a11y/noAutofocus: intentional focus when the inline editor opens
+        // Intentional focus when the inline editor opens
         autoFocus
         className='px-[0.625rem] py-[0.375rem] border border-border rounded text-sm w-28 max-sm:w-full bg-bg text-text-base'
       />
@@ -1134,7 +1134,7 @@ const WikiPageLinkForm = function WikiPageLinkForm({
           }
         }}
         placeholder='Search wiki pages…'
-        // biome-ignore lint/a11y/noAutofocus: intentional focus when the inline picker opens
+        // Intentional focus when the inline picker opens
         autoFocus
         disabled={linking}
         className='px-[0.625rem] py-[0.5rem] border border-border rounded text-sm bg-bg text-text-base min-h-[44px]'
@@ -1218,7 +1218,7 @@ const UrlLinkForm = function UrlLinkForm({
           }
         }}
         placeholder='https://example.com/…'
-        // biome-ignore lint/a11y/noAutofocus: intentional focus when the inline editor opens
+        // Intentional focus when the inline editor opens
         autoFocus
         disabled={linking}
         className='px-[0.625rem] py-[0.375rem] border border-border rounded text-sm flex-1 min-w-[10rem]
@@ -1897,7 +1897,7 @@ const PointsField = function PointsField({
           }}
           onBlur={savePoints}
           disabled={savingPoints}
-          // biome-ignore lint/a11y/noAutofocus: intentional focus when the inline editor opens
+          // Intentional focus when the inline editor opens
           autoFocus
           className='w-16 px-[0.375rem] py-[0.125rem] border border-border rounded text-[0.8rem]
 						text-center bg-bg text-text-base'

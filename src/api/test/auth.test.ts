@@ -2,6 +2,7 @@ import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { ApiPrincipal } from '#contracts/api-auth.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { verifyJwtPayload } from '#services/authentication.ts'
 /**
  * PROJ-79 — Auth-middleware & MCP error-mapping tests
@@ -70,7 +71,7 @@ describe('covers PROJ-79: token expiry', () => {
     const fixture = await seedFixture()
     // Seed a second token for the same user/workspace that is already expired
     const expiredToken = await seedToken(fixture.workspace.id, fixture.user.id, {
-      expiresAt: Math.floor(Date.now() / 1000) - 60, // 1 minute ago
+      expiresAt: currentEpochSeconds() - 60, // 1 minute ago
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -85,7 +86,7 @@ describe('covers PROJ-79: token expiry', () => {
     const fixture = await seedFixture()
     // Token that expires in the future
     const futureToken = await seedToken(fixture.workspace.id, fixture.user.id, {
-      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      expiresAt: currentEpochSeconds() + 3600,
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -131,7 +132,7 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
   })
 
   test('valid signed JWT with correct audience and issuer is accepted', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
       aud: TEST_AUDIENCE,
@@ -145,9 +146,9 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
   })
 
   test('expired JWT (exp < now) is rejected', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const jwt = await signTestJwt(privateKey, {
-      exp: now - 10, // already expired
+      exp: now - 10, // Already expired
       aud: TEST_AUDIENCE,
       iss: TEST_ISSUER,
       email: TEST_EMAIL,
@@ -158,7 +159,7 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
   })
 
   test('covers JWT with wrong audience is rejected', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
       aud: 'wrong-audience',
@@ -171,7 +172,7 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
   })
 
   test('covers JWT with wrong issuer is rejected', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
       aud: TEST_AUDIENCE,
@@ -184,7 +185,7 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
   })
 
   test('covers JWT with wrong signature (corrupt last segment) is rejected', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const validJwt = await signTestJwt(privateKey, {
       exp: now + 3600,
       aud: TEST_AUDIENCE,
@@ -200,7 +201,7 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
   })
 
   test('covers JWT with no matching key in the keyset is rejected', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const jwt = await signTestJwt(privateKey, {
       exp: now + 3600,
       aud: TEST_AUDIENCE,
@@ -220,7 +221,7 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
 
   test('covers JWT with non-RS256 algorithm header is rejected', async () => {
     // Manually craft a JWT with alg: HS256 to bypass the alg check
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const header = encodeJwtPart({ alg: 'HS256', typ: 'JWT' })
     const body = encodeJwtPart({
       exp: now + 3600,
@@ -239,7 +240,7 @@ describe('covers PROJ-79: CF Access JWT verification (verifyJwtPayload unit test
 
   // PROJ-879: the payload is schema-validated, not cast.
   describe('covers PROJ-879: payload validation', () => {
-    const now = (): number => Math.floor(Date.now() / 1000)
+    const now = (): number => currentEpochSeconds()
 
     test('missing exp is rejected (previously never expired)', async () => {
       const jwt = await signTestJwt(privateKey, {
@@ -327,7 +328,7 @@ describe('covers PROJ-79: CF Access JWT HTTP rejection paths', () => {
       .replace(/\+/gu, '-')
       .replace(/\//gu, '_')
       .replace(/=/gu, '')
-    const payload = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600, email: 'x@x.com' }))
+    const payload = btoa(JSON.stringify({ exp: currentEpochSeconds() + 3600, email: 'x@x.com' }))
       .replace(/\+/gu, '-')
       .replace(/\//gu, '_')
       .replace(/=/gu, '')
@@ -345,7 +346,7 @@ describe('covers PROJ-79: CF Access JWT HTTP rejection paths', () => {
   test('expired CF Access JWT (exp < now) returns 401 before any key fetch', async () => {
     const header = encodeJwtPart({ alg: 'RS256', typ: 'JWT' })
     const payload = encodeJwtPart({
-      exp: Math.floor(Date.now() / 1000) - 60, // already expired
+      exp: currentEpochSeconds() - 60, // Already expired
       email: 'old@example.com',
     })
     const jwt = `${header}.${payload}.fakesig`
@@ -368,7 +369,7 @@ describe('covers PROJ-79: CF Access JWT HTTP rejection paths', () => {
     try {
       const header = encodeJwtPart({ alg: 'RS256', typ: 'JWT' })
       const payload = encodeJwtPart({
-        exp: Math.floor(Date.now() / 1000) + 3600,
+        exp: currentEpochSeconds() + 3600,
         aud,
         iss: `https://${domain}`,
       })
@@ -423,7 +424,7 @@ describe('covers PROJ-354: CF Access auth caches are isolate-local', () => {
     await env.KV.put('cf-access-certs', JSON.stringify([publicJwk]))
 
     const jwt = await signTestJwt(keyPair.privateKey, {
-      exp: Math.floor(Date.now() / 1000) + 3600,
+      exp: currentEpochSeconds() + 3600,
       aud: audience,
       iss: `https://${domain}`,
       email,
@@ -481,7 +482,7 @@ describe('native Core authentication invocation isolation', () => {
         const audience = `${name}-${epoch}`
         const publicJwk = await crypto.subtle.exportKey('jwk', pair.publicKey)
         const jwt = await signTestJwt(pair.privateKey, {
-          exp: Math.floor(Date.now() / 1000) + 3600,
+          exp: currentEpochSeconds() + 3600,
           aud: audience,
           iss: `https://${domain}`,
           email,
@@ -551,7 +552,7 @@ describe('covers PROJ-358: JWKS force-refresh on signature verification failure'
     const domain = `proj-358-${crypto.randomUUID().slice(0, 8)}.example.com`
     const audience = 'proj-358-audience'
     const email = `proj-358-${crypto.randomUUID().slice(0, 8)}@example.com`
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
 
     env.CF_ACCESS_TEAM_DOMAIN = domain
     env.CF_ACCESS_AUDIENCE = audience
@@ -635,7 +636,7 @@ describe("covers PROJ-730: JWKS cache write failure doesn't fail auth", () => {
 
     try {
       const jwt = await signTestJwt(keyPair.privateKey, {
-        exp: Math.floor(Date.now() / 1000) + 3600,
+        exp: currentEpochSeconds() + 3600,
         aud: audience,
         iss: `https://${domain}`,
         email: `proj-730-${crypto.randomUUID().slice(0, 8)}@example.com`,
@@ -683,7 +684,7 @@ describe('covers PROJ-735: JWKS cache read failure falls back to a fresh fetch',
 
     try {
       const jwt = await signTestJwt(keyPair.privateKey, {
-        exp: Math.floor(Date.now() / 1000) + 3600,
+        exp: currentEpochSeconds() + 3600,
         aud: audience,
         iss: `https://${domain}`,
         email: `proj-735-${crypto.randomUUID().slice(0, 8)}@example.com`,
@@ -733,7 +734,7 @@ describe('covers PROJ-746: user-by-email cache read failure falls back to the DB
     try {
       const email = `proj-746-${crypto.randomUUID().slice(0, 8)}@example.com`
       const jwt = await signTestJwt(keyPair.privateKey, {
-        exp: Math.floor(Date.now() / 1000) + 3600,
+        exp: currentEpochSeconds() + 3600,
         aud: audience,
         iss: `https://${domain}`,
         email,
@@ -757,8 +758,8 @@ describe('covers PROJ-360: api_tokens.last_used_at write throttling', () => {
   test('a request within the throttle window does not rewrite a recent last_used_at', async () => {
     const fixture = await seedFixture()
     const hash = await hashToken(fixture.token)
-    const now = Math.floor(Date.now() / 1000)
-    const recentTimestamp = now - 30 // inside the 60s throttle window
+    const now = currentEpochSeconds()
+    const recentTimestamp = now - 30 // Inside the 60s throttle window
 
     await env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?')
       .bind(recentTimestamp, hash)
@@ -778,8 +779,8 @@ describe('covers PROJ-360: api_tokens.last_used_at write throttling', () => {
   test('a request outside the throttle window (or with no prior value) updates last_used_at', async () => {
     const fixture = await seedFixture()
     const hash = await hashToken(fixture.token)
-    const now = Math.floor(Date.now() / 1000)
-    const staleTimestamp = now - 120 // outside the 60s throttle window
+    const now = currentEpochSeconds()
+    const staleTimestamp = now - 120 // Outside the 60s throttle window
 
     await env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?').bind(staleTimestamp, hash).run()
 
@@ -973,7 +974,7 @@ describe('covers PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
     await env.KV.put('cf-access-certs', JSON.stringify([publicJwk]))
 
     const jwt = await signTestJwt(keyPair.privateKey, {
-      exp: Math.floor(Date.now() / 1000) + 3600,
+      exp: currentEpochSeconds() + 3600,
       aud: audience,
       iss: `https://${domain}`,
       email,
@@ -1277,7 +1278,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({
-        jsonrpc: '1.0', // wrong version
+        jsonrpc: '1.0', // Wrong version
         id: 1,
         method: 'tools/list',
         params: {},
@@ -1397,7 +1398,7 @@ describe('covers PROJ-430: CF Access certs fetch failure', () => {
     try {
       // Claims are entirely valid — only the certs fetch is broken.
       const jwt = await signTestJwt(keyPair.privateKey, {
-        exp: Math.floor(Date.now() / 1000) + 3600,
+        exp: currentEpochSeconds() + 3600,
         aud: audience,
         iss: `https://${domain}`,
         email: `proj-430-${crypto.randomUUID().slice(0, 8)}@example.com`,

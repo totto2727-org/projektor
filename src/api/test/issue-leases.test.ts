@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { fetchAgentWipCap } from '#commands/issue-leases.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { env } from './fixture-api.ts'
@@ -50,7 +51,7 @@ describe('issue leases API (PROJ-184)', () => {
     agentId: string,
     secondsAgo = 200,
   ): Promise<D1Result<Record<string, unknown>>> {
-    const stale = Math.floor(Date.now() / 1000) - secondsAgo
+    const stale = currentEpochSeconds() - secondsAgo
     return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
   }
 
@@ -541,7 +542,7 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     agentId: string,
     secondsAgo = 200,
   ): Promise<D1Result<Record<string, unknown>>> {
-    const stale = Math.floor(Date.now() / 1000) - secondsAgo
+    const stale = currentEpochSeconds() - secondsAgo
     return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
   }
 
@@ -721,7 +722,7 @@ describe('covers PROJ-932: list_issue_leases projectId + visibility for a non-ad
      * Claiming from an owner-equivalent path isn't needed — seed the lease directly so
      * this test isn't gated on claim_issue's own access rules.
      */
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     await env.DB.prepare(
       `INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)
 			 VALUES (?, ?, ?, ?, ?, NULL, NULL)`,

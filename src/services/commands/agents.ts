@@ -94,7 +94,7 @@ export const registerAgent = async function registerAgent(ctx: ServiceCtx, raw: 
     .where(eq(schema.agentSessions.id, id))
     .get()
 
-  // biome-ignore lint/style/noNonNullAssertion: row was just inserted; SELECT immediately after guarantees it exists
+  // Row was just inserted; SELECT immediately after guarantees it exists
   return row!
 }
 
@@ -189,7 +189,7 @@ export const heartbeatAgent = async function heartbeatAgent(ctx: ServiceCtx, raw
     .where(eq(schema.agentSessions.id, id))
     .get()
 
-  // biome-ignore lint/style/noNonNullAssertion: row was just updated; SELECT immediately after guarantees it exists
+  // Row was just updated; SELECT immediately after guarantees it exists
   return row!
 }
 
@@ -228,7 +228,7 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
     .where(eq(schema.agentSessions.id, id))
     .get()
 
-  // biome-ignore lint/style/noNonNullAssertion: row was just updated; SELECT immediately after guarantees it exists
+  // Row was just updated; SELECT immediately after guarantees it exists
   return row!
 }
 

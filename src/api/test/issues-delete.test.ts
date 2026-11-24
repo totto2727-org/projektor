@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, test } from 'vite-plus/test'
+
 /*
  * PROJ-922: deleteIssue must explicitly remove/null every row that references the
  * deleted issue via an FK with ON DELETE CASCADE/SET NULL, since D1 does not guarantee
@@ -6,7 +8,7 @@
  * cascade here — those assertions are end-state checks. The non-FK references (share
  * tokens, R2 objects, FTS) are what this proves; fk-cleanup.node.test.ts guards the rest.
  */
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -63,13 +65,13 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       `INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
 			 VALUES (?, ?, ?, ?, 'relates_to', ?, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, issueId, otherIssueId, userId, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, issueId, otherIssueId, userId, currentEpochSeconds())
       .run()
     await env.DB.prepare(
       `INSERT INTO issue_links (id, workspace_id, source_issue_id, target_issue_id, type, created_by_id, created_at)
 			 VALUES (?, ?, ?, ?, 'relates_to', ?, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, otherIssueId, issueId, userId, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, otherIssueId, issueId, userId, currentEpochSeconds())
       .run()
 
     // custom_field_values (CASCADE)
@@ -81,7 +83,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       `INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, released_at)
 			 VALUES (?, ?, ?, NULL, ?, ?, NULL)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, issueId, 'src/foo.ts', Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, issueId, 'src/foo.ts', currentEpochSeconds())
       .run()
 
     // issue_leases (CASCADE) + agent_sessions.issue_id (SET NULL)
@@ -92,7 +94,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       `INSERT INTO claim_conflicts (id, workspace_id, path, rejected_issue_id, holding_issue_id, forced, occurred_at)
 			 VALUES (?, ?, ?, ?, ?, 0, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, 'src/bar.ts', issueId, otherIssueId, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, 'src/bar.ts', issueId, otherIssueId, currentEpochSeconds())
       .run()
 
     // wip_cap_denials (CASCADE)
@@ -100,7 +102,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       `INSERT INTO wip_cap_denials (id, workspace_id, project_id, issue_id, agent_session_id, occurred_at)
 			 VALUES (?, ?, ?, ?, ?, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, projectId, issueId, agentSessionId, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, projectId, issueId, agentSessionId, currentEpochSeconds())
       .run()
 
     // share_tokens (no FK at all)
@@ -116,7 +118,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       `INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at)
 			 VALUES (?, ?, ?, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, issueId, Math.floor(Date.now() / 1000))
+      .bind(crypto.randomUUID(), workspaceId, issueId, currentEpochSeconds())
       .run()
 
     // Feedback.linked_issue_id (SET NULL) — needs a feedback_sources row first
@@ -125,14 +127,14 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       `INSERT INTO feedback_sources (id, token_hash, workspace_id, project_id, name, is_active, created_by, created_at)
 			 VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
     )
-      .bind(sourceId, 'hash', workspaceId, projectId, 'Test source', userId, Math.floor(Date.now() / 1000))
+      .bind(sourceId, 'hash', workspaceId, projectId, 'Test source', userId, currentEpochSeconds())
       .run()
     const feedbackId = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO feedback (id, source_id, workspace_id, project_id, status, linked_issue_id, created_at)
 			 VALUES (?, ?, ?, ?, 'actioned', ?, ?)`,
     )
-      .bind(feedbackId, sourceId, workspaceId, projectId, issueId, Math.floor(Date.now() / 1000))
+      .bind(feedbackId, sourceId, workspaceId, projectId, issueId, currentEpochSeconds())
       .run()
 
     // Attachments (no physical FK, entity_type/entity_id polymorphic) — a real R2 object

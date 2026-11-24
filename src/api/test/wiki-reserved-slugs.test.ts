@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { wikiRouter } from '#api/routes/wiki.ts'
 import { RESERVED_WIKI_SLUGS } from '#commands/wiki.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import m0060 from '#migrations/0060_wiki_reserved_slug_rename.sql?raw'
 
 import { env } from './fixture-api.ts'
@@ -76,7 +77,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
   })
 
   test('migration 0060 renames existing pages off reserved slugs, trashed ones included', async () => {
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const insert = (pageSlug: string, deletedAt: number | null) => {
       const id = crypto.randomUUID()
       return {

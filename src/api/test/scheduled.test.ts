@@ -1,6 +1,7 @@
 import { String, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
 import {
   purgeAllWorkspacesExpiredWikiPages,
   purgeExpiredRetentionData,
@@ -124,7 +125,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
       headers: authHeaders(token, slug),
     })
     await env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE id = ?')
-      .bind(Math.floor(Date.now() / 1000) - 31 * 24 * 60 * 60, page.id)
+      .bind(currentEpochSeconds() - 31 * 24 * 60 * 60, page.id)
       .run()
 
     const otherPageRes = await req('http://localhost/api/wiki', {
@@ -159,7 +160,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
  * correction): flow metrics read old leases for lease-held time and lease expiries.
  */
 describe('scheduled retention purge (PROJ-869)', () => {
-  const now = (): number => Math.floor(Date.now() / 1000)
+  const now = (): number => currentEpochSeconds()
   const DAY = 24 * 60 * 60
 
   test("deletes only rows older than each category's retention window", async () => {
@@ -273,7 +274,7 @@ describe('scheduled retention purge (PROJ-869)', () => {
  * size — bounding the work per invocation via a budget + KV cursor instead.
  */
 describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
-  const EXPIRED_AT = Math.floor(Date.now() / 1000) - 40 * 24 * 60 * 60 // well past the 30-day retention
+  const EXPIRED_AT = currentEpochSeconds() - 40 * 24 * 60 * 60 // well past the 30-day retention
 
   test('50 workspaces / 300 expired pages / 100 files: each invocation stays within 100 subrequests, and repeated invocations purge everything', async () => {
     const creator = await seedUser(`cron-purge-${crypto.randomUUID().slice(0, 8)}@example.com`)
@@ -351,7 +352,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
       const row = await env.DB.prepare(
         'SELECT COUNT(*) AS n FROM wiki_pages WHERE deleted_at IS NOT NULL AND deleted_at < ?',
       )
-        .bind(Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60)
+        .bind(currentEpochSeconds() - 30 * 24 * 60 * 60)
         .first<{ n: number }>()
       remainingPages = row?.n ?? 0
     }
@@ -422,7 +423,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
       const row = await env.DB.prepare(
         'SELECT COUNT(*) AS n FROM wiki_pages WHERE workspace_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?',
       )
-        .bind(ws.id, Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60)
+        .bind(ws.id, currentEpochSeconds() - 30 * 24 * 60 * 60)
         .first<{ n: number }>()
       remainingPages = row?.n ?? 0
     }
@@ -470,7 +471,7 @@ describe('scheduled one-off wiki_fts dedupe (PROJ-816)', () => {
     } as unknown as Env
 
     await runFtsDedupeOnce(spyEnv)
-    await runFtsDedupeOnce(spyEnv) // second cron fire: must be a no-op, guarded by the KV flag
+    await runFtsDedupeOnce(spyEnv) // Second cron fire: must be a no-op, guarded by the KV flag
 
     expect(ran).toBe(1)
     await expect(env.DB.prepare('SELECT rowid FROM wiki_fts WHERE rowid = 999999999').first()).resolves.toBeNull()
