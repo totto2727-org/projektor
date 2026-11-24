@@ -19,9 +19,9 @@ import { HTTP_CREATED } from '#contracts/http-status.ts'
 import { ISSUE_REF_PATTERN } from '#contracts/issue-ref.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const issuesRouter = new Hono<HonoEnv>()
 
-router.get('/', async (httpContext) => {
+issuesRouter.get('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const {
     status,
@@ -85,7 +85,7 @@ router.get('/', async (httpContext) => {
   }
 })
 
-router.get('/prioritized', async (httpContext) => {
+issuesRouter.get('/prioritized', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const { limit, includeBacklog, excludeClaimed, includeNotReady, projectId } = httpContext.req.query()
   try {
@@ -103,7 +103,7 @@ router.get('/prioritized', async (httpContext) => {
   }
 })
 
-router.get('/search', async (httpContext) => {
+issuesRouter.get('/search', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const { q, projectId, limit } = httpContext.req.query()
   try {
@@ -115,7 +115,7 @@ router.get('/search', async (httpContext) => {
 
 // PROJ-931: batch fetch for triage (MCP: get_issues). Registered before "/:id" so
 // "batch" is never captured as an issue id/ref.
-router.get('/batch', async (httpContext) => {
+issuesRouter.get('/batch', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const { refs, ids, includeBody } = httpContext.req.query()
   try {
@@ -125,7 +125,7 @@ router.get('/batch', async (httpContext) => {
   }
 })
 
-router.get('/:id', async (httpContext) => {
+issuesRouter.get('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const param = httpContext.req.param('id')
   // Accept KEY-NUMBER refs (e.g. PROJ-42) as well as UUIDs
@@ -137,7 +137,7 @@ router.get('/:id', async (httpContext) => {
   }
 })
 
-router.post('/', async (httpContext) => {
+issuesRouter.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await createIssue(ctx, await jsonBody(httpContext)), HTTP_CREATED)
@@ -147,7 +147,7 @@ router.post('/', async (httpContext) => {
 })
 
 // Note: PATCH now accepts `assigneeId` (camelCase) instead of `assignee_id`.
-router.patch('/:id', async (httpContext) => {
+issuesRouter.patch('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await updateIssue(ctx, httpContext.req.param('id'), await jsonBody(httpContext)))
@@ -156,7 +156,7 @@ router.patch('/:id', async (httpContext) => {
   }
 })
 
-router.delete('/:id', async (httpContext) => {
+issuesRouter.delete('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await deleteIssue(ctx, httpContext.req.param('id')))
@@ -166,7 +166,7 @@ router.delete('/:id', async (httpContext) => {
 })
 
 // Issue leasing for parallel agents (PROJ-184)
-router.post('/:id/claim', async (httpContext) => {
+issuesRouter.post('/:id/claim', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const body = (await jsonBody(httpContext).catch(() => ({}))) as { agentId?: string }
   try {
@@ -179,7 +179,7 @@ router.post('/:id/claim', async (httpContext) => {
   }
 })
 
-router.post('/:id/release', async (httpContext) => {
+issuesRouter.post('/:id/release', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const body = (await jsonBody(httpContext).catch(() => ({}))) as { agentId?: string }
   try {
@@ -189,7 +189,7 @@ router.post('/:id/release', async (httpContext) => {
   }
 })
 
-router.get('/:id/leases', async (httpContext) => {
+issuesRouter.get('/:id/leases', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const { includeStale } = httpContext.req.query()
   try {
@@ -198,5 +198,3 @@ router.get('/:id/leases', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as issuesRouter }

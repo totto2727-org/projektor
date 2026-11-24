@@ -133,7 +133,7 @@ describe('schema constraints', () => {
         .split(';')
         .map((statement) => statement.trim())
         .filter((statement) => String.isNonEmpty(statement))
-    for (const file of preSlugFiles) {
+    Iterable.forEach(preSlugFiles, (file): void => {
       const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8')
       Iterable.forEach(splitStatements(sql), (stmt) => {
         if (/\bfts5\b/i.test(stmt) || /\bissues_fts\b/i.test(stmt)) {
@@ -141,7 +141,7 @@ describe('schema constraints', () => {
         }
         db.exec(stmt)
       })
-    }
+    })
 
     db.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)').run('w1', 'Acme', 'acme', 0)
     // Two projects that slugify to the same base value ("start-line").

@@ -1,2 +1,4 @@
 'use client'
-export { LazyMarkdownEditor as default } from '@/features/wiki/markdown.tsx'
+import { LazyMarkdownEditor } from '@/features/wiki/markdown.tsx'
+
+export const IssueMarkdownEditor = LazyMarkdownEditor

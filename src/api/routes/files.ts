@@ -11,10 +11,10 @@ import { HTTP_CREATED } from '#contracts/http-status.ts'
 import { SetAttachmentReviewStatusSchema } from '#contracts/inputs/files.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const filesRouter = new Hono<HonoEnv>()
 const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 const ReviewStatusBodySchema = SetAttachmentReviewStatusSchema.omit({ attachmentId: true })
-router.get('/', async (httpContext) => {
+filesRouter.get('/', async (httpContext) => {
   try {
     return httpContext.json(
       await filesService.listAttachments(ctxFromHono(httpContext), {
@@ -26,7 +26,7 @@ router.get('/', async (httpContext) => {
     return serviceErrToResponse(httpContext, error)
   }
 })
-router.post('/links', async (httpContext) => {
+filesRouter.post('/links', async (httpContext) => {
   try {
     return httpContext.json(
       await filesService.createLinkAttachment(ctxFromHono(httpContext), await jsonBody(httpContext).catch(() => null)),
@@ -36,7 +36,7 @@ router.post('/links', async (httpContext) => {
     return serviceErrToResponse(httpContext, error)
   }
 })
-router.post('/', async (httpContext) => {
+filesRouter.post('/', async (httpContext) => {
   const response = await coreFileRequest(
     httpContext,
     '/files',
@@ -48,7 +48,7 @@ router.post('/', async (httpContext) => {
     headers: response.headers,
   })
 })
-router.patch('/:id/review-status', async (httpContext) => {
+filesRouter.patch('/:id/review-status', async (httpContext) => {
   try {
     const parsed = ReviewStatusBodySchema.safeParse(await jsonBody(httpContext))
     if (!parsed.success) {
@@ -64,7 +64,7 @@ router.patch('/:id/review-status', async (httpContext) => {
     return serviceErrToResponse(httpContext, error)
   }
 })
-router.get('/:id/metadata', async (httpContext) => {
+filesRouter.get('/:id/metadata', async (httpContext) => {
   try {
     return httpContext.json(
       await filesService.getAttachment(ctxFromHono(httpContext), { id: httpContext.req.param('id') }),
@@ -73,7 +73,7 @@ router.get('/:id/metadata', async (httpContext) => {
     return serviceErrToResponse(httpContext, error)
   }
 })
-router.get('/:id', async (httpContext) => {
+filesRouter.get('/:id', async (httpContext) => {
   const response = await coreFileRequest(httpContext, `/files/${encodeURIComponent(httpContext.req.param('id'))}`)
   if (!response.ok) {
     return response
@@ -95,7 +95,7 @@ router.get('/:id', async (httpContext) => {
     },
   })
 })
-router.delete('/:id', async (httpContext) => {
+filesRouter.delete('/:id', async (httpContext) => {
   try {
     await filesService.deleteAttachment(ctxFromHono(httpContext), { id: httpContext.req.param('id') })
     return new Response(undefined, { status: 204 })
@@ -103,4 +103,3 @@ router.delete('/:id', async (httpContext) => {
     return serviceErrToResponse(httpContext, error)
   }
 })
-export { router as filesRouter }

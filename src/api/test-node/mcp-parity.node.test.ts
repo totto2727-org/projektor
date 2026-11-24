@@ -20,7 +20,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { String, Array, Predicate } from 'effect'
+import { Iterable, String, Array, Predicate } from 'effect'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
@@ -189,12 +189,12 @@ const sourceModule = function sourceModule(path: string, sourceOverride?: string
   const source = sourceOverride ?? readFileSync(path, 'utf8')
   const ast = parseSource(path, source)
   const imports: SourceModule['imports'] = new Map()
-  for (const declaration of ast.statements) {
+  Iterable.forEach(ast.statements, (declaration): void => {
     if (!ts.isImportDeclaration(declaration) && !ts.isExportDeclaration(declaration)) {
-      continue
+      return
     }
     if (!declaration.moduleSpecifier || !ts.isStringLiteral(declaration.moduleSpecifier)) {
-      continue
+      return
     }
     const specifier = declaration.moduleSpecifier.text
     const target = specifier.startsWith('#')
@@ -203,7 +203,7 @@ const sourceModule = function sourceModule(path: string, sourceOverride?: string
         ? join(path, '..', `${specifier.replace(/\.ts$/u, '')}.ts`)
         : undefined
     if (Predicate.isNullish(target) || String.isEmpty(target)) {
-      continue
+      return
     }
     const bindings = ts.isImportDeclaration(declaration)
       ? declaration.importClause?.namedBindings
@@ -216,9 +216,9 @@ const sourceModule = function sourceModule(path: string, sourceOverride?: string
         imports.set(binding.name.text, { path: target, name: binding.propertyName?.text ?? binding.name.text })
       }
     }
-  }
+  })
   const functions = new Map<string, ts.Node>()
-  for (const node of ast.statements) {
+  Iterable.forEach(ast.statements, (node): void => {
     if (ts.isFunctionDeclaration(node) && node.name && node.body) {
       functions.set(node.name.text, node.body)
     }
@@ -229,7 +229,7 @@ const sourceModule = function sourceModule(path: string, sourceOverride?: string
         }
       }
     }
-  }
+  })
   const module = { path, ast, imports, functions }
   modules.set(path, module)
   return module
@@ -258,19 +258,22 @@ const importedSymbol = function importedSymbol(
 }
 
 const coreMethods = new Map<string, { module: SourceModule; node: ts.Node }>()
-for (const path of expandToFiles(join(SRC, '..', 'core', 'api')).filter((path) => !path.endsWith('.test.ts'))) {
-  const module = sourceModule(path)
-  const visit = function visit(node: ts.Node): void {
-    if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && /^api[A-Z]/u.test(node.name.text)) {
-      if (coreMethods.has(node.name.text)) {
-        throw new Error(`Duplicate named Core operation: ${node.name.text}`)
+Iterable.forEach(
+  expandToFiles(join(SRC, '..', 'core', 'api')).filter((path) => !path.endsWith('.test.ts')),
+  (path): void => {
+    const module = sourceModule(path)
+    const visit = function visit(node: ts.Node): void {
+      if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && /^api[A-Z]/u.test(node.name.text)) {
+        if (coreMethods.has(node.name.text)) {
+          throw new Error(`Duplicate named Core operation: ${node.name.text}`)
+        }
+        coreMethods.set(node.name.text, { module, node: node.initializer })
       }
-      coreMethods.set(node.name.text, { module, node: node.initializer })
+      node.forEachChild(visit)
     }
-    node.forEachChild(visit)
-  }
-  visit(module.ast)
-}
+    visit(module.ast)
+  },
+)
 
 interface BinaryContext {
   pathname: string
@@ -359,9 +362,9 @@ const domainOperations = function domainOperations(
 ): Set<string> {
   const keys = new Set<string>()
   const merge = (items: Iterable<string>): void => {
-    for (const key of items) {
+    Iterable.forEach(items, (key): void => {
       keys.add(key)
-    }
+    })
   }
   const target = function target(path: string, name: string): void {
     const id = `${path}:${name}`
@@ -470,12 +473,12 @@ const domainOperations = function domainOperations(
         target(imported.path, imported.name)
       }
       // Factory arguments bind commands just as calls do: operation(..., agents.registerAgent).
-      for (const argument of child.arguments) {
+      Iterable.forEach(child.arguments, (argument): void => {
         const reference = importedSymbol(module, argument)
         if (reference) {
           target(reference.path, reference.name)
         }
-      }
+      })
       if (
         ts.isPropertyAccessExpression(expression) &&
         /^(get|post|put|patch|delete|head|all)$/u.test(expression.name.text)
@@ -494,20 +497,23 @@ const domainOperations = function domainOperations(
 
 const serviceOperationsUsedIn = function serviceOperationsUsedIn(...paths: string[]): Set<string> {
   const keys = new Set<string>()
-  for (const path of paths.flatMap(expandToFiles).filter((path) => !path.endsWith('.test.ts'))) {
-    const module = sourceModule(path)
-    for (const statement of module.ast.statements) {
-      if (
-        ts.isImportDeclaration(statement) ||
-        (isFunctionStatement(statement) && Array.isArrayNonEmpty(declaredFunctions(statement)))
-      ) {
-        continue
+  Iterable.forEach(
+    paths.flatMap(expandToFiles).filter((path) => !path.endsWith('.test.ts')),
+    (path): void => {
+      const module = sourceModule(path)
+      for (const statement of module.ast.statements) {
+        if (
+          ts.isImportDeclaration(statement) ||
+          (isFunctionStatement(statement) && Array.isArrayNonEmpty(declaredFunctions(statement)))
+        ) {
+          continue
+        }
+        for (const key of domainOperations(module, statement)) {
+          keys.add(key)
+        }
       }
-      for (const key of domainOperations(module, statement)) {
-        keys.add(key)
-      }
-    }
-  }
+    },
+  )
   return keys
 }
 
@@ -554,7 +560,7 @@ const fileIoCalls = function fileIoCalls(source: string): Map<string, Set<string
   const ast = parseSource(join(COMMANDS, 'files.ts'), source)
   const calls = new Map<string, Set<string>>()
   const functions = ast.statements.filter(isFunctionStatement).flatMap(declaredFunctions)
-  for (const fn of functions) {
+  Iterable.forEach(functions, (fn): void => {
     const names = new Set<string>()
     const visit = function visit(child: ts.Node): void {
       if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) {
@@ -564,7 +570,7 @@ const fileIoCalls = function fileIoCalls(source: string): Map<string, Set<string
     }
     visit(fn.body)
     calls.set(fn.name, names)
-  }
+  })
   return calls
 }
 
@@ -572,7 +578,7 @@ const fileWrapperCalls = fileIoCalls(readFileSync(join(COMMANDS, 'files.ts'), 'u
 const restOperations = serviceOperationsUsedIn(join(SRC, 'routes'), join(SRC, 'worker.ts'))
 const mcpOperations = serviceOperationsUsedIn(join(SRC, 'mcp'))
 const toolOperations = new Map<string, Set<string>>()
-for (const path of expandToFiles(join(SRC, 'mcp'))) {
+Iterable.forEach(expandToFiles(join(SRC, 'mcp')), (path): void => {
   const module = sourceModule(path)
   const visit = function visit(node: ts.Node): void {
     if (ts.isObjectLiteralExpression(node)) {
@@ -596,12 +602,12 @@ for (const path of expandToFiles(join(SRC, 'mcp'))) {
     node.forEachChild(visit)
   }
   visit(module.ast)
-}
+})
 const restIdentifiers = new Set([...restOperations].map((key) => key.split(':')[1]))
 const mcpIdentifiers = new Set([...mcpOperations].map((key) => key.split(':')[1]))
 
 const serviceFns: ServiceFn[] = []
-for (const path of expandToFiles(COMMANDS)) {
+Iterable.forEach(expandToFiles(COMMANDS), (path): void => {
   const file = basename(path)
   const exportedFunctions = sourceModule(path)
     .ast.statements.filter(isFunctionStatement)
@@ -615,7 +621,7 @@ for (const path of expandToFiles(COMMANDS)) {
       onRest: restOperations.has(`${file}:${fn}`),
     })
   }
-}
+})
 
 const catalogToolNames = TOOL_DOMAINS.flatMap((d) => d.tools.map((tool) => tool.name))
 const runtimeToolNames = coreMCPTools.map((tool) => tool.name)
@@ -719,17 +725,20 @@ describe('covers MCP surface parity (PROJ-623)', () => {
     ])
     expect([...(fileWrapperCalls.get('getStoredAttachment') ?? [])]).toStrictEqual(['getAttachmentForDownload'])
     expect([...(fileWrapperCalls.get('deleteStoredAttachment') ?? [])]).toStrictEqual(['deleteAttachment'])
-    for (const fn of ['assertUploadAllowed', 'recordUpload', 'getAttachmentForDownload', 'deleteAttachment']) {
-      expect(restIdentifiers.has(fn)).toBe(true)
-    }
+    Iterable.forEach(
+      ['assertUploadAllowed', 'recordUpload', 'getAttachmentForDownload', 'deleteAttachment'],
+      (fn): void => {
+        expect(restIdentifiers.has(fn)).toBe(true)
+      },
+    )
     expect(mcpIdentifiers.has('deleteAttachment')).toBe(true)
     expect(restIdentifiers.has('uploadStoredAttachment')).toBe(true)
-    for (const wrapper of ['getStoredAttachment', 'deleteStoredAttachment']) {
+    Iterable.forEach(['getStoredAttachment', 'deleteStoredAttachment'], (wrapper): void => {
       expect(restIdentifiers.has(wrapper)).toBe(false)
-    }
-    for (const wrapper of FILE_IO_WRAPPERS) {
+    })
+    Iterable.forEach(FILE_IO_WRAPPERS, (wrapper): void => {
       expect(mcpIdentifiers.has(wrapper)).toBe(false)
-    }
+    })
   })
 
   test('ignores comments, type references and unrelated function bodies when tracing wrapper calls', () => {
@@ -747,9 +756,9 @@ describe('covers MCP surface parity (PROJ-623)', () => {
   test('has no service function name exported from two different files', () => {
     // Count only canonical domain exports, not the intentional same-named adapter facades.
     const byName = new Map<string, string[]>()
-    for (const { fn, key } of serviceFns) {
+    Iterable.forEach(serviceFns, ({ fn, key }): void => {
       byName.set(fn, [...(byName.get(fn) ?? []), key.split(':')[0]])
-    }
+    })
     const collisions = [...byName].filter(([, files]) => files.length > 1)
     expect(collisions).toStrictEqual([])
   })
@@ -773,25 +782,25 @@ describe('covers MCP surface parity (PROJ-623)', () => {
 
     test('has no duplicate tool names', () => {
       const counts = new Map<string, number>()
-      for (const name of runtimeToolNames) {
+      Iterable.forEach(runtimeToolNames, (name): void => {
         counts.set(name, (counts.get(name) ?? 0) + 1)
-      }
+      })
       const dupes = [...counts].filter(([, n]) => n > 1).map(([name]) => name)
       expect(dupes).toStrictEqual([])
     })
 
     test('classifies every tool into exactly one group', () => {
       const byTool = new Map<string, string[]>()
-      for (const domain of TOOL_DOMAINS) {
+      Iterable.forEach(TOOL_DOMAINS, (domain): void => {
         for (const tool of domain.tools) {
           byTool.set(tool.name, [...(byTool.get(tool.name) ?? []), domain.group])
         }
-      }
+      })
       const unclassified = runtimeToolNames.filter((n) => (byTool.get(n) ?? []).length !== 1)
       expect(unclassified).toStrictEqual([])
-      for (const groups of byTool.values()) {
+      Iterable.forEach(byTool.values(), (groups): void => {
         expect(['Coordination', 'Project data']).toContain(groups[0])
-      }
+      })
     })
 
     test('gives every tool a description and an object inputSchema', () => {

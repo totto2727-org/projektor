@@ -7,11 +7,11 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const projectsRouter = new Hono<HonoEnv>()
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-router.post('/', async (httpContext) => {
+projectsRouter.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext)
@@ -21,7 +21,7 @@ router.post('/', async (httpContext) => {
   }
 })
 
-router.get('/:id', async (httpContext) => {
+projectsRouter.get('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const param = httpContext.req.param('id')
   try {
@@ -35,7 +35,7 @@ router.get('/:id', async (httpContext) => {
   }
 })
 
-router.patch('/:id', async (httpContext) => {
+projectsRouter.patch('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext)
@@ -45,7 +45,7 @@ router.patch('/:id', async (httpContext) => {
   }
 })
 
-router.delete('/:id', async (httpContext) => {
+projectsRouter.delete('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await deleteProject(ctx, httpContext.req.param('id')))
@@ -53,5 +53,3 @@ router.delete('/:id', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as projectsRouter }

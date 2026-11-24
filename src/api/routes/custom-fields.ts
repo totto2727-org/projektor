@@ -12,9 +12,9 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const customFieldsRouter = new Hono<HonoEnv>()
 
-router.get('/', async (httpContext) => {
+customFieldsRouter.get('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.query('projectId')
   try {
@@ -24,7 +24,7 @@ router.get('/', async (httpContext) => {
   }
 })
 
-router.post('/', async (httpContext) => {
+customFieldsRouter.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await createCustomFieldDef(ctx, await jsonBody(httpContext)), HTTP_CREATED)
@@ -33,7 +33,7 @@ router.post('/', async (httpContext) => {
   }
 })
 
-router.patch('/:id', async (httpContext) => {
+customFieldsRouter.patch('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await updateCustomFieldDef(ctx, httpContext.req.param('id'), await jsonBody(httpContext)))
@@ -42,7 +42,7 @@ router.patch('/:id', async (httpContext) => {
   }
 })
 
-router.delete('/:id', async (httpContext) => {
+customFieldsRouter.delete('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await deleteCustomFieldDef(ctx, httpContext.req.param('id')))
@@ -50,5 +50,3 @@ router.delete('/:id', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as customFieldsRouter }

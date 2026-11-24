@@ -8,13 +8,13 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const issueLinksRouter = new Hono<HonoEnv>()
 
 /*
  * GET /api/issues/:issueId/links — accepts a ref ("PROJ-42") as well as a UUID, so the
  * browser can ask for these alongside the issue itself rather than after it (PROJ-438).
  */
-router.get('/:issueId/links', async (httpContext) => {
+issueLinksRouter.get('/:issueId/links', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const issueId = await resolveIssueIdParam(ctx, httpContext.req.param('issueId'))
@@ -25,7 +25,7 @@ router.get('/:issueId/links', async (httpContext) => {
 })
 
 // POST /api/issues/:issueId/links
-router.post('/:issueId/links', async (httpContext) => {
+issueLinksRouter.post('/:issueId/links', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const body = await jsonBody(httpContext)
   try {
@@ -39,7 +39,7 @@ router.post('/:issueId/links', async (httpContext) => {
 })
 
 // DELETE /api/issues/:issueId/links/:linkId
-router.delete('/:issueId/links/:linkId', async (httpContext) => {
+issueLinksRouter.delete('/:issueId/links/:linkId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await deleteLink(ctx, { id: httpContext.req.param('linkId') }))
@@ -47,5 +47,3 @@ router.delete('/:issueId/links/:linkId', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as issueLinksRouter }

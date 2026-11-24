@@ -14,10 +14,10 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const agentsRouter = new Hono<HonoEnv>()
 
 // PROJ-929: REST parity for the start_work/finish_work MCP tools.
-router.post('/start-work', async (httpContext) => {
+agentsRouter.post('/start-work', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await startWork(ctx, await jsonBody(httpContext)), HTTP_CREATED)
@@ -26,7 +26,7 @@ router.post('/start-work', async (httpContext) => {
   }
 })
 
-router.post('/finish-work', async (httpContext) => {
+agentsRouter.post('/finish-work', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await finishWork(ctx, await jsonBody(httpContext)))
@@ -35,7 +35,7 @@ router.post('/finish-work', async (httpContext) => {
   }
 })
 
-router.get('/', async (httpContext) => {
+agentsRouter.get('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const { issueId, projectId, includeStale } = httpContext.req.query()
   try {
@@ -45,7 +45,7 @@ router.get('/', async (httpContext) => {
   }
 })
 
-router.post('/', async (httpContext) => {
+agentsRouter.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await registerAgent(ctx, await jsonBody(httpContext)), HTTP_CREATED)
@@ -54,7 +54,7 @@ router.post('/', async (httpContext) => {
   }
 })
 
-router.post('/:id/heartbeat', async (httpContext) => {
+agentsRouter.post('/:id/heartbeat', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await heartbeatAgent(ctx, { id: httpContext.req.param('id') }))
@@ -63,7 +63,7 @@ router.post('/:id/heartbeat', async (httpContext) => {
   }
 })
 
-router.post('/:id/end', async (httpContext) => {
+agentsRouter.post('/:id/end', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await endAgent(ctx, { id: httpContext.req.param('id') }))
@@ -71,5 +71,3 @@ router.post('/:id/end', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as agentsRouter }

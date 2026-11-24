@@ -24,22 +24,25 @@ const MIGRATIONS = join(import.meta.dirname, '..', '..', '..', '..', 'migrations
 
 const declaredFkActions = function declaredFkActions(): Set<string> {
   const keys = new Set<string>()
-  for (const file of readdirSync(MIGRATIONS).filter((selectedFile) => selectedFile.endsWith('.sql'))) {
-    const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replace(/--[^\n]*/g, '')
-    Iterable.forEach(sql.split(';'), (stmt) => {
-      const table =
-        /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?[`"]?(\w+)[`"]?/i.exec(stmt) ??
-        /ALTER TABLE\s+[`"]?(\w+)[`"]?\s+ADD/i.exec(stmt)
-      if (!table) {
-        return
-      }
-      const fk =
-        /[`"]?\w+[`"]?\s+\w[^,]*?REFERENCES\s+[`"]?(\w+)[`"]?\s*\([^)]*\)[^,]*?ON DELETE\s+(CASCADE|SET NULL)/gi
-      Iterable.forEach(stmt.matchAll(fk), (match) => {
-        keys.add(`${table[1]} -> ${match[1]} (${match[2].toUpperCase()})`)
+  Iterable.forEach(
+    readdirSync(MIGRATIONS).filter((selectedFile) => selectedFile.endsWith('.sql')),
+    (file): void => {
+      const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replace(/--[^\n]*/g, '')
+      Iterable.forEach(sql.split(';'), (stmt) => {
+        const table =
+          /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?[`"]?(\w+)[`"]?/i.exec(stmt) ??
+          /ALTER TABLE\s+[`"]?(\w+)[`"]?\s+ADD/i.exec(stmt)
+        if (!table) {
+          return
+        }
+        const fk =
+          /[`"]?\w+[`"]?\s+\w[^,]*?REFERENCES\s+[`"]?(\w+)[`"]?\s*\([^)]*\)[^,]*?ON DELETE\s+(CASCADE|SET NULL)/gi
+        Iterable.forEach(stmt.matchAll(fk), (match) => {
+          keys.add(`${table[1]} -> ${match[1]} (${match[2].toUpperCase()})`)
+        })
       })
-    })
-  }
+    },
+  )
   return keys
 }
 

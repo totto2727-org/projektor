@@ -4,7 +4,7 @@ import { Hono } from 'hono'
 import { HTTP_OK } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const configRouter = new Hono<HonoEnv>()
 
 const firstChar = function firstChar(value: string): string {
   return Array.from(value)[0] ?? ''
@@ -15,7 +15,7 @@ export const deriveBrandMark = function deriveBrandMark(name: string): string {
   return trimmed ? firstChar(trimmed).toUpperCase() : 'P'
 }
 
-router.get('/brand', (httpContext) => {
+configRouter.get('/brand', (httpContext) => {
   const name = httpContext.env.BRAND_NAME?.trim() || 'Projektor'
   const markOverride = httpContext.env.BRAND_MARK?.trim()
   return httpContext.json(
@@ -33,5 +33,3 @@ router.get('/brand', (httpContext) => {
     { 'Cache-Control': 'public, max-age=300' },
   )
 })
-
-export { router as configRouter }

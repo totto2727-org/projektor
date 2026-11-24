@@ -36,11 +36,11 @@ const buildHubRequest = function buildHubRequest(httpContext: Context<HonoEnv>):
   })
 }
 
-const router = new Hono<HonoEnv>()
+export const realtimeRouter = new Hono<HonoEnv>()
 
 // GET /api/workspaces/:slug/realtime
 // Opens an opt-in WebSocket connection to the workspace's Durable Object hub.
-router.get('/workspaces/:slug/realtime', authMiddleware, workspaceMiddleware, async (httpContext) => {
+realtimeRouter.get('/workspaces/:slug/realtime', authMiddleware, workspaceMiddleware, async (httpContext) => {
   if (!httpContext.env.WORKSPACE_HUB) {
     return httpContext.json(
       {
@@ -64,7 +64,7 @@ router.get('/workspaces/:slug/realtime', authMiddleware, workspaceMiddleware, as
 })
 
 // GET /api/realtime (workspace resolved via header or fallback query param)
-router.get('/realtime', authMiddleware, workspaceMiddleware, async (httpContext) => {
+realtimeRouter.get('/realtime', authMiddleware, workspaceMiddleware, async (httpContext) => {
   if (!httpContext.env.WORKSPACE_HUB) {
     return httpContext.json(
       {
@@ -86,5 +86,3 @@ router.get('/realtime', authMiddleware, workspaceMiddleware, async (httpContext)
 
   return stub.fetch(buildHubRequest(httpContext))
 })
-
-export { router as realtimeRouter }

@@ -6,9 +6,9 @@ import { getFlowMetrics } from '#api/services/flow-metrics.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const flowMetricsRouter = new Hono<HonoEnv>()
 
-router.get('/:id/flow-metrics', async (httpContext) => {
+flowMetricsRouter.get('/:id/flow-metrics', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const since = httpContext.req.query('since')
@@ -26,5 +26,3 @@ router.get('/:id/flow-metrics', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as flowMetricsRouter }

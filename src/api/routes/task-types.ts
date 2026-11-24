@@ -7,9 +7,9 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const taskTypesRouter = new Hono<HonoEnv>()
 
-router.get('/', async (httpContext) => {
+taskTypesRouter.get('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await listTaskTypes(ctx))
@@ -18,7 +18,7 @@ router.get('/', async (httpContext) => {
   }
 })
 
-router.post('/', async (httpContext) => {
+taskTypesRouter.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await createTaskType(ctx, await jsonBody(httpContext)), HTTP_CREATED)
@@ -27,7 +27,7 @@ router.post('/', async (httpContext) => {
   }
 })
 
-router.patch('/:id', async (httpContext) => {
+taskTypesRouter.patch('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await updateTaskType(ctx, httpContext.req.param('id'), await jsonBody(httpContext)))
@@ -36,7 +36,7 @@ router.patch('/:id', async (httpContext) => {
   }
 })
 
-router.delete('/:id', async (httpContext) => {
+taskTypesRouter.delete('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await deleteTaskType(ctx, httpContext.req.param('id')))
@@ -44,5 +44,3 @@ router.delete('/:id', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as taskTypesRouter }

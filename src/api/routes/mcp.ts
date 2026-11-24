@@ -105,7 +105,7 @@ const buildServerInstructions = function buildServerInstructions(workflowVersion
   )
 }
 
-const router = new Hono<HonoEnv>()
+export const mcpRouter = new Hono<HonoEnv>()
 
 /*
  * MCP endpoint: POST /mcp/{workspaceId}
@@ -122,7 +122,7 @@ const router = new Hono<HonoEnv>()
  * bump — tracked separately, not attempted here. See PROJ-452 and
  * docs/superpowers/specs/2026-07-29-mcp-2026-07-28-update-plan.md.
  */
-router.post('/:workspaceId', async (httpContext) => {
+mcpRouter.post('/:workspaceId', async (httpContext) => {
   const workspace = httpContext.get('workspace') as { id: string }
   /*
    * PROJ-877: malformed JSON is a JSON-RPC parse error (-32700), and a body that
@@ -404,5 +404,3 @@ export const coreMCPTools: MCPTool[] = [
   ...flowMetricsTools,
   ...codeHeatmapTools,
 ]
-
-export { router as mcpRouter }

@@ -15,9 +15,9 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const sprintsRouter = new Hono<HonoEnv>()
 
-router.get('/', async (httpContext) => {
+sprintsRouter.get('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const { projectId } = httpContext.req.query()
   try {
@@ -27,7 +27,7 @@ router.get('/', async (httpContext) => {
   }
 })
 
-router.post('/', async (httpContext) => {
+sprintsRouter.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await createSprint(ctx, await jsonBody(httpContext)), HTTP_CREATED)
@@ -36,7 +36,7 @@ router.post('/', async (httpContext) => {
   }
 })
 
-router.get('/:id', async (httpContext) => {
+sprintsRouter.get('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await getSprint(ctx, httpContext.req.param('id')))
@@ -45,7 +45,7 @@ router.get('/:id', async (httpContext) => {
   }
 })
 
-router.patch('/:id', async (httpContext) => {
+sprintsRouter.patch('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await updateSprint(ctx, httpContext.req.param('id'), await jsonBody(httpContext)))
@@ -54,7 +54,7 @@ router.patch('/:id', async (httpContext) => {
   }
 })
 
-router.post('/:id/complete', async (httpContext) => {
+sprintsRouter.post('/:id/complete', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await completeSprint(ctx, httpContext.req.param('id')))
@@ -63,7 +63,7 @@ router.post('/:id/complete', async (httpContext) => {
   }
 })
 
-router.delete('/:id', async (httpContext) => {
+sprintsRouter.delete('/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await deleteSprint(ctx, httpContext.req.param('id')))
@@ -72,7 +72,7 @@ router.delete('/:id', async (httpContext) => {
   }
 })
 
-router.post('/:id/move-issues', async (httpContext) => {
+sprintsRouter.post('/:id/move-issues', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const body = (await jsonBody(httpContext)) as Record<string, unknown>
   try {
@@ -81,5 +81,3 @@ router.post('/:id/move-issues', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as sprintsRouter }

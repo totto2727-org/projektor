@@ -296,7 +296,7 @@ const buildCfdEvents = function buildCfdEvents(
   issues: Readonly<FlowIssueRow[]>,
 ): { time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }[] {
   const events: { time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }[] = []
-  for (const issue of issues) {
+  Iterable.forEach(issues, (issue): void => {
     const thresholds = [
       ...new Set(
         [issue.createdAt, issue.claimedAt, issue.inReviewAt, issue.doneAt].filter((t): t is number =>
@@ -318,7 +318,7 @@ const buildCfdEvents = function buildCfdEvents(
       }
       prevBand = band
     })
-  }
+  })
   events.sort((left, right) => left.time - right.time)
   return events
 }

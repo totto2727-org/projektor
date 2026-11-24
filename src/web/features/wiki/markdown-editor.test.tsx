@@ -7,7 +7,7 @@ vi.mock('../../components/markdown/markdown-preview.tsx', () => ({
   useMarkdownPreview: () => ({ html: '' }),
 }))
 
-import MarkdownEditor from './markdown-editor.tsx'
+import { MarkdownEditor } from './markdown-editor.tsx'
 
 afterEach(cleanup)
 

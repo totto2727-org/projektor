@@ -8,9 +8,9 @@ import { getPlaybook, listPlaybooks } from '#api/services/playbooks.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const playbooksRouter = new Hono<HonoEnv>()
 
-router.get('/', async (httpContext) => {
+playbooksRouter.get('/', async (httpContext) => {
   try {
     return httpContext.json(
       await listPlaybooks({ core: makeCoreClient(httpContext.env.CORE), actor: httpContext.get('coreActor') }),
@@ -20,7 +20,7 @@ router.get('/', async (httpContext) => {
   }
 })
 
-router.post('/:name/compose', async (httpContext) => {
+playbooksRouter.post('/:name/compose', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(
@@ -31,7 +31,7 @@ router.post('/:name/compose', async (httpContext) => {
   }
 })
 
-router.get('/:name', async (httpContext) => {
+playbooksRouter.get('/:name', async (httpContext) => {
   try {
     return httpContext.json(
       await getPlaybook(
@@ -43,5 +43,3 @@ router.get('/:name', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as playbooksRouter }

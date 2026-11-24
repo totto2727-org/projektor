@@ -47,7 +47,7 @@ import {
   verifyWikiPage,
 } from './actions.ts'
 import { AttachmentFields, CreateFields, EditFields, FilterFields, MoveFields, SearchFields } from './form-schemas.ts'
-import MarkdownEditor from './lazy-markdown-editor.tsx'
+import { LazyMarkdownEditor as MarkdownEditor } from './lazy-markdown-editor.tsx'
 import { navigateFeature } from './navigation.ts'
 import { stripFrontmatter } from './render-markdown.ts'
 

@@ -6,9 +6,9 @@ import { getCodeHeatmap } from '#api/services/code-heatmap.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const codeHeatmapRouter = new Hono<HonoEnv>()
 
-router.get('/:id/code-heatmap', async (httpContext) => {
+codeHeatmapRouter.get('/:id/code-heatmap', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const since = httpContext.req.query('since')
@@ -28,5 +28,3 @@ router.get('/:id/code-heatmap', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as codeHeatmapRouter }

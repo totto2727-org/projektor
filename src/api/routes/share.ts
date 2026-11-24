@@ -10,9 +10,9 @@ import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 // Authenticated router — POST/DELETE /api/issues/:id/share
-const authedRouter = new Hono<HonoEnv>()
+export const shareIssuesRouter = new Hono<HonoEnv>()
 
-authedRouter.post('/:id/share', async (httpContext) => {
+shareIssuesRouter.post('/:id/share', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const issueId = httpContext.req.param('id')
   try {
@@ -23,7 +23,7 @@ authedRouter.post('/:id/share', async (httpContext) => {
   }
 })
 
-authedRouter.delete('/:id/share', async (httpContext) => {
+shareIssuesRouter.delete('/:id/share', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const issueId = httpContext.req.param('id')
   try {
@@ -34,12 +34,10 @@ authedRouter.delete('/:id/share', async (httpContext) => {
   }
 })
 
-export { authedRouter as shareIssuesRouter }
-
 // Unauthenticated router — GET /api/share/:token
-const publicRouter = new Hono<HonoEnv>()
+export const sharePublicRouter = new Hono<HonoEnv>()
 
-publicRouter.get('/:token', async (httpContext) => {
+sharePublicRouter.get('/:token', async (httpContext) => {
   const token = httpContext.req.param('token')
   try {
     const issue = await apiReply(ApiSharedIssue, makeCoreClient(httpContext.env.CORE).apiGetSharedIssue(token))
@@ -49,9 +47,7 @@ publicRouter.get('/:token', async (httpContext) => {
   }
 })
 
-publicRouter.get('/:token/logo', async (httpContext) => {
+sharePublicRouter.get('/:token/logo', async (httpContext) => {
   const token = httpContext.req.param('token')
   return httpContext.env.CORE.fetch(new Request(`https://core.internal/share-logo/${encodeURIComponent(token)}`))
 })
-
-export { publicRouter as sharePublicRouter }

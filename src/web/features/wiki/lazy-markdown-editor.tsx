@@ -43,7 +43,7 @@ const EditorFallback = function EditorFallback({
   )
 }
 
-export default function LazyMarkdownEditor(props: MarkdownEditorModule.Props): JSX.Element {
+export function LazyMarkdownEditor(props: MarkdownEditorModule.Props): JSX.Element {
   const [Editor, setEditor] = useState<ComponentType<MarkdownEditorModule.Props> | null>(null)
   const [fallbackInteracted, setFallbackInteracted] = useState(false)
 
@@ -53,7 +53,7 @@ export default function LazyMarkdownEditor(props: MarkdownEditorModule.Props): J
       .then((m) => {
         // Wrapped in a thunk: a bare component would be read as a state updater.
         if (!cancelled) {
-          setEditor(() => m.default)
+          setEditor(() => m.MarkdownEditor)
         }
       })
       .catch((err) => {

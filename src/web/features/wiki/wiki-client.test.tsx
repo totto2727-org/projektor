@@ -41,7 +41,7 @@ vi.mock('@effront/core/query', () => ({
     Effect.promise(() => operation(input)),
 }))
 vi.mock('./lazy-markdown-editor.tsx', () => ({
-  default: ({
+  LazyMarkdownEditor: ({
     value,
     onChange,
     onImageFile,

@@ -6,9 +6,9 @@ import { listProjectActivity } from '#api/services/project-activity.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const projectActivityRouter = new Hono<HonoEnv>()
 
-router.get('/:id/activity', async (httpContext) => {
+projectActivityRouter.get('/:id/activity', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const since = httpContext.req.query('since')
@@ -24,5 +24,3 @@ router.get('/:id/activity', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as projectActivityRouter }

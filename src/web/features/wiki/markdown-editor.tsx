@@ -458,7 +458,7 @@ function useMarkdownCommands(viewRef: Readonly<{ current: EditorView | null }>) 
   return { bold, italic, heading, link, codeBlock, bulletList, numberedList }
 }
 
-export default function MarkdownEditor({
+export function MarkdownEditor({
   value,
   onChange,
   minHeight = '240px',

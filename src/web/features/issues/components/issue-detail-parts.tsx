@@ -49,7 +49,7 @@ import {
   PRIORITY_COLORS,
   relativeTime,
 } from './issue-detail-helpers.ts'
-import MarkdownEditor from './lazy-markdown-editor.tsx'
+import { IssueMarkdownEditor as MarkdownEditor } from './lazy-markdown-editor.tsx'
 
 const PencilIcon = (): JSX.Element => (
   <svg

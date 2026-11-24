@@ -6,10 +6,10 @@ import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 import type { Props } from './markdown-editor.tsx'
 
-const chunk = vi.hoisted(() => Promise.withResolvers<{ default: (props: Props) => React.ReactNode }>())
+const chunk = vi.hoisted(() => Promise.withResolvers<{ MarkdownEditor: (props: Props) => React.ReactNode }>())
 vi.mock('./markdown-editor.tsx', () => chunk.promise)
 
-import LazyMarkdownEditor from './lazy-markdown-editor.tsx'
+import { LazyMarkdownEditor } from './lazy-markdown-editor.tsx'
 
 afterEach(cleanup)
 
@@ -34,7 +34,7 @@ test('commits fallback input before blur and preserves it when the editor chunk 
   fireEvent.input(fallback, { target: { value: 'Early native draft' } })
   expect(changed).toHaveBeenLastCalledWith('Early native draft')
   await act(async () =>
-    chunk.resolve({ default: ({ value }) => <textarea aria-label='Loaded editor' value={value} readOnly /> }),
+    chunk.resolve({ MarkdownEditor: ({ value }) => <textarea aria-label='Loaded editor' value={value} readOnly /> }),
   )
   expect(screen.queryByRole('textbox', { name: 'Loaded editor' })).toBeNull()
   expect(screen.getByRole('textbox', { name: 'Markdown editor' })).toBe(fallback)

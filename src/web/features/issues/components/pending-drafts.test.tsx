@@ -18,7 +18,7 @@ vi.mock('../actions', () => ({
   shareIssue: vi.fn(),
 }))
 vi.mock('./lazy-markdown-editor.tsx', () => ({
-  default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
+  IssueMarkdownEditor: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
     <textarea
       aria-label='Markdown draft'
       value={value}

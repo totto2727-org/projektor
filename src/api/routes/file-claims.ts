@@ -7,9 +7,9 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const fileClaimsRouter = new Hono<HonoEnv>()
 
-router.get('/', async (httpContext) => {
+fileClaimsRouter.get('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const { issueId, path, projectId, includeStale } = httpContext.req.query()
   try {
@@ -19,7 +19,7 @@ router.get('/', async (httpContext) => {
   }
 })
 
-router.post('/', async (httpContext) => {
+fileClaimsRouter.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await claimFiles(ctx, await jsonBody(httpContext)), HTTP_CREATED)
@@ -28,7 +28,7 @@ router.post('/', async (httpContext) => {
   }
 })
 
-router.post('/release', async (httpContext) => {
+fileClaimsRouter.post('/release', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await releaseFiles(ctx, await jsonBody(httpContext)))
@@ -36,5 +36,3 @@ router.post('/release', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as fileClaimsRouter }

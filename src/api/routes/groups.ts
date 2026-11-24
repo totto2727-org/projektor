@@ -18,9 +18,9 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const groupsRouter = new Hono<HonoEnv>()
 
-router.get('/:slug/groups', async (httpContext) => {
+groupsRouter.get('/:slug/groups', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await listGroups(ctx))
@@ -29,7 +29,7 @@ router.get('/:slug/groups', async (httpContext) => {
   }
 })
 
-router.post('/:slug/groups', async (httpContext) => {
+groupsRouter.post('/:slug/groups', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await createGroup(ctx, await jsonBody(httpContext)), HTTP_CREATED)
@@ -40,7 +40,7 @@ router.post('/:slug/groups', async (httpContext) => {
 
 // Per-member group membership for the members-admin screen. Registered before
 // /:slug/groups/:groupId so "member-groups" isn't captured as a group id.
-router.get('/:slug/member-groups', async (httpContext) => {
+groupsRouter.get('/:slug/member-groups', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await listMemberGroups(ctx))
@@ -49,7 +49,7 @@ router.get('/:slug/member-groups', async (httpContext) => {
   }
 })
 
-router.get('/:slug/groups/:groupId', async (httpContext) => {
+groupsRouter.get('/:slug/groups/:groupId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await getGroup(ctx, httpContext.req.param('groupId')))
@@ -58,7 +58,7 @@ router.get('/:slug/groups/:groupId', async (httpContext) => {
   }
 })
 
-router.patch('/:slug/groups/:groupId', async (httpContext) => {
+groupsRouter.patch('/:slug/groups/:groupId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await updateGroup(ctx, httpContext.req.param('groupId'), await jsonBody(httpContext)))
@@ -67,7 +67,7 @@ router.patch('/:slug/groups/:groupId', async (httpContext) => {
   }
 })
 
-router.delete('/:slug/groups/:groupId', async (httpContext) => {
+groupsRouter.delete('/:slug/groups/:groupId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await deleteGroup(ctx, httpContext.req.param('groupId')))
@@ -76,7 +76,7 @@ router.delete('/:slug/groups/:groupId', async (httpContext) => {
   }
 })
 
-router.post('/:slug/groups/:groupId/members', async (httpContext) => {
+groupsRouter.post('/:slug/groups/:groupId/members', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(
@@ -88,7 +88,7 @@ router.post('/:slug/groups/:groupId/members', async (httpContext) => {
   }
 })
 
-router.delete('/:slug/groups/:groupId/members/:userId', async (httpContext) => {
+groupsRouter.delete('/:slug/groups/:groupId/members/:userId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(
@@ -99,7 +99,7 @@ router.delete('/:slug/groups/:groupId/members/:userId', async (httpContext) => {
   }
 })
 
-router.put('/:slug/groups/:groupId/grants', async (httpContext) => {
+groupsRouter.put('/:slug/groups/:groupId/grants', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await setGroupGrant(ctx, httpContext.req.param('groupId'), await jsonBody(httpContext)))
@@ -108,7 +108,7 @@ router.put('/:slug/groups/:groupId/grants', async (httpContext) => {
   }
 })
 
-router.delete('/:slug/groups/:groupId/grants/:projectId', async (httpContext) => {
+groupsRouter.delete('/:slug/groups/:groupId/grants/:projectId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(
@@ -118,5 +118,3 @@ router.delete('/:slug/groups/:groupId/grants/:projectId', async (httpContext) =>
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as groupsRouter }

@@ -24,11 +24,11 @@ import {
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const workspacesRouter = new Hono<HonoEnv>()
 
 // GET / and POST / are handled inline in worker.ts (no workspace context yet at that point)
 
-router.get('/:slug', async (httpContext) => {
+workspacesRouter.get('/:slug', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const workspace = httpContext.get('workspace')
   try {
@@ -38,7 +38,7 @@ router.get('/:slug', async (httpContext) => {
   }
 })
 
-router.patch('/:slug', async (httpContext) => {
+workspacesRouter.patch('/:slug', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await updateWorkspace(ctx, await jsonBody(httpContext)))
@@ -47,7 +47,7 @@ router.patch('/:slug', async (httpContext) => {
   }
 })
 
-router.post('/:slug/members', async (httpContext) => {
+workspacesRouter.post('/:slug/members', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await inviteMember(ctx, await jsonBody(httpContext)), HTTP_CREATED)
@@ -56,7 +56,7 @@ router.post('/:slug/members', async (httpContext) => {
   }
 })
 
-router.delete('/:slug/members/:userId', async (httpContext) => {
+workspacesRouter.delete('/:slug/members/:userId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await removeMember(ctx, httpContext.req.param('userId')))
@@ -65,7 +65,7 @@ router.delete('/:slug/members/:userId', async (httpContext) => {
   }
 })
 
-router.patch('/:slug/members/:userId', async (httpContext) => {
+workspacesRouter.patch('/:slug/members/:userId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await updateMemberRole(ctx, httpContext.req.param('userId'), await jsonBody(httpContext)))
@@ -86,7 +86,7 @@ router.patch('/:slug/members/:userId', async (httpContext) => {
 const WORKSPACE_TOKEN_HUMAN_ONLY =
   'Workspace tokens can only be created or revoked from a signed-in browser session, not with an API token or connected app.'
 
-router.post('/:slug/tokens', async (httpContext) => {
+workspacesRouter.post('/:slug/tokens', async (httpContext) => {
   const denied = requireInteractiveHuman(httpContext, WORKSPACE_TOKEN_HUMAN_ONLY)
   if (denied) {
     return denied
@@ -99,7 +99,7 @@ router.post('/:slug/tokens', async (httpContext) => {
   }
 })
 
-router.get('/:slug/tokens', async (httpContext) => {
+workspacesRouter.get('/:slug/tokens', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await listTokens(ctx))
@@ -108,7 +108,7 @@ router.get('/:slug/tokens', async (httpContext) => {
   }
 })
 
-router.delete('/:slug/tokens/:tokenId', async (httpContext) => {
+workspacesRouter.delete('/:slug/tokens/:tokenId', async (httpContext) => {
   const denied = requireInteractiveHuman(httpContext, WORKSPACE_TOKEN_HUMAN_ONLY)
   if (denied) {
     return denied
@@ -138,7 +138,7 @@ const connectorsDenied = function connectorsDenied(httpContext: Parameters<typeo
   )
 }
 
-router.get('/:slug/connectors', async (httpContext) => {
+workspacesRouter.get('/:slug/connectors', async (httpContext) => {
   const denied = connectorsDenied(httpContext)
   if (denied) {
     return denied
@@ -151,7 +151,7 @@ router.get('/:slug/connectors', async (httpContext) => {
   }
 })
 
-router.delete('/:slug/connectors/:grantId', async (httpContext) => {
+workspacesRouter.delete('/:slug/connectors/:grantId', async (httpContext) => {
   const denied = connectorsDenied(httpContext)
   if (denied) {
     return denied
@@ -164,7 +164,7 @@ router.delete('/:slug/connectors/:grantId', async (httpContext) => {
   }
 })
 
-router.delete('/:slug', async (httpContext) => {
+workspacesRouter.delete('/:slug', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(
@@ -175,7 +175,7 @@ router.delete('/:slug', async (httpContext) => {
   }
 })
 
-router.get('/:slug/brand', async (httpContext) => {
+workspacesRouter.get('/:slug/brand', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const workspace = httpContext.get('workspace') as { slug: string }
   try {
@@ -185,7 +185,7 @@ router.get('/:slug/brand', async (httpContext) => {
   }
 })
 
-router.patch('/:slug/brand', async (httpContext) => {
+workspacesRouter.patch('/:slug/brand', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const workspace = httpContext.get('workspace') as { slug: string }
   try {
@@ -195,11 +195,11 @@ router.patch('/:slug/brand', async (httpContext) => {
   }
 })
 
-router.post('/:slug/brand/logo', (httpContext) =>
+workspacesRouter.post('/:slug/brand/logo', (httpContext) =>
   coreFileRequest(httpContext, '/workspace-logo', httpContext.req.raw.body, httpContext.req.header('Content-Type')),
 )
 
-router.delete('/:slug/brand/logo', async (httpContext) => {
+workspacesRouter.delete('/:slug/brand/logo', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     await deleteWorkspaceLogo(ctx)
@@ -209,9 +209,9 @@ router.delete('/:slug/brand/logo', async (httpContext) => {
   }
 })
 
-router.get('/:slug/brand/logo', (httpContext) => coreFileRequest(httpContext, '/workspace-logo'))
+workspacesRouter.get('/:slug/brand/logo', (httpContext) => coreFileRequest(httpContext, '/workspace-logo'))
 
-router.get('/:slug/mcp-info', async (httpContext) => {
+workspacesRouter.get('/:slug/mcp-info', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const workspace = httpContext.get('workspace')
   const origin = new URL(httpContext.req.url).origin
@@ -221,5 +221,3 @@ router.get('/:slug/mcp-info', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as workspacesRouter }

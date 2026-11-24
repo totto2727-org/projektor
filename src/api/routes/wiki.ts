@@ -11,9 +11,9 @@ import * as wikiService from '#api/services/wiki.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const wikiRouter = new Hono<HonoEnv>()
 
-router.get('/', async (httpContext) => {
+wikiRouter.get('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const projectId = httpContext.req.query('projectId')
@@ -43,7 +43,7 @@ router.get('/', async (httpContext) => {
   }
 })
 
-router.get('/tree', async (httpContext) => {
+wikiRouter.get('/tree', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const projectId = httpContext.req.query('projectId')
@@ -58,7 +58,7 @@ router.get('/tree', async (httpContext) => {
   }
 })
 
-router.get('/search', async (httpContext) => {
+wikiRouter.get('/search', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const q = httpContext.req.query('q') ?? ''
   const projectId = httpContext.req.query('projectId')
@@ -87,7 +87,7 @@ router.get('/search', async (httpContext) => {
   }
 })
 
-router.get('/broken-links', async (httpContext) => {
+wikiRouter.get('/broken-links', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const projectId = httpContext.req.query('projectId')
@@ -99,7 +99,7 @@ router.get('/broken-links', async (httpContext) => {
 
 // PROJ-489 (R7): must be registered before the /:slug catch-all below, same as
 // /tree, /search, /broken-links above.
-router.get('/stale-pages', async (httpContext) => {
+wikiRouter.get('/stale-pages', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const projectId = httpContext.req.query('projectId')
@@ -120,7 +120,7 @@ router.get('/stale-pages', async (httpContext) => {
 
 // PROJ-491 (R9): must be registered before the /:slug catch-all below, same as
 // /tree, /search, /broken-links, /stale-pages above.
-router.get('/templates', async (httpContext) => {
+wikiRouter.get('/templates', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const projectId = httpContext.req.query('projectId')
@@ -130,7 +130,7 @@ router.get('/templates', async (httpContext) => {
   }
 })
 
-router.post('/backfill-links', async (httpContext) => {
+wikiRouter.post('/backfill-links', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext).catch(() => ({}))
@@ -144,7 +144,7 @@ router.post('/backfill-links', async (httpContext) => {
  * PROJ-493 (R11): must be registered before the /:slug catch-all below, same as every
  * other fixed-path route above.
  */
-router.get('/watches', async (httpContext) => {
+wikiRouter.get('/watches', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await wikiWatchersService.listWikiWatches(ctx))
@@ -153,7 +153,7 @@ router.get('/watches', async (httpContext) => {
   }
 })
 
-router.get('/notifications', async (httpContext) => {
+wikiRouter.get('/notifications', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const unreadOnly = httpContext.req.query('unreadOnly')
@@ -165,7 +165,7 @@ router.get('/notifications', async (httpContext) => {
   }
 })
 
-router.post('/notifications/read', async (httpContext) => {
+wikiRouter.post('/notifications/read', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext).catch(() => ({}))
@@ -179,7 +179,7 @@ router.post('/notifications/read', async (httpContext) => {
  * PROJ-496 (R14): must be registered before the /:slug catch-all below, same as every
  * other fixed-path route above.
  */
-router.get('/trash', async (httpContext) => {
+wikiRouter.get('/trash', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const projectId = httpContext.req.query('projectId')
@@ -191,7 +191,7 @@ router.get('/trash', async (httpContext) => {
   }
 })
 
-router.post('/trash/:id/undelete', async (httpContext) => {
+wikiRouter.post('/trash/:id/undelete', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await wikiService.undeleteWikiPage(ctx, httpContext.req.param('id')))
@@ -200,7 +200,7 @@ router.post('/trash/:id/undelete', async (httpContext) => {
   }
 })
 
-router.post('/purge-trash', async (httpContext) => {
+wikiRouter.post('/purge-trash', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await wikiService.purgeExpiredWikiPages(ctx))
@@ -209,7 +209,7 @@ router.post('/purge-trash', async (httpContext) => {
   }
 })
 
-router.get('/changes', async (httpContext) => {
+wikiRouter.get('/changes', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const since = httpContext.req.query('since')
@@ -227,7 +227,7 @@ router.get('/changes', async (httpContext) => {
  * other fixed-path route above. REST-only — see AGENTS.md's "Deliberate REST↔MCP
  * parity exceptions" for why (binary zip response, same rationale as file downloads).
  */
-router.get('/export', (httpContext) => {
+wikiRouter.get('/export', (httpContext) => {
   const query = new URLSearchParams()
   Iterable.forEach(['scope', 'projectId', 'pageId'], (name) => {
     const value = httpContext.req.query(name)
@@ -238,7 +238,7 @@ router.get('/export', (httpContext) => {
   return coreFileRequest(httpContext, `/wiki-export?${query}`)
 })
 
-router.get('/:slug/backlinks', async (httpContext) => {
+wikiRouter.get('/:slug/backlinks', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await wikiService.getWikiBacklinks(ctx, httpContext.req.param('slug')))
@@ -247,7 +247,7 @@ router.get('/:slug/backlinks', async (httpContext) => {
   }
 })
 
-router.get('/:slug/revisions/:revisionId', async (httpContext) => {
+wikiRouter.get('/:slug/revisions/:revisionId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(
@@ -258,7 +258,7 @@ router.get('/:slug/revisions/:revisionId', async (httpContext) => {
   }
 })
 
-router.get('/:slug/revisions/:revisionId/diff', async (httpContext) => {
+wikiRouter.get('/:slug/revisions/:revisionId/diff', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(
@@ -271,7 +271,7 @@ router.get('/:slug/revisions/:revisionId/diff', async (httpContext) => {
   }
 })
 
-router.get('/:slug/revisions', async (httpContext) => {
+wikiRouter.get('/:slug/revisions', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await wikiService.listWikiRevisions(ctx, httpContext.req.param('slug')))
@@ -280,7 +280,7 @@ router.get('/:slug/revisions', async (httpContext) => {
   }
 })
 
-router.get('/:slug', async (httpContext) => {
+wikiRouter.get('/:slug', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const page = await wikiService.getWikiPage(ctx, httpContext.req.param('slug'))
@@ -292,7 +292,7 @@ router.get('/:slug', async (httpContext) => {
   }
 })
 
-router.post('/', async (httpContext) => {
+wikiRouter.post('/', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext)
@@ -302,7 +302,7 @@ router.post('/', async (httpContext) => {
   }
 })
 
-router.put('/:slug', async (httpContext) => {
+wikiRouter.put('/:slug', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext)
@@ -312,7 +312,7 @@ router.put('/:slug', async (httpContext) => {
   }
 })
 
-router.post('/:slug/verify', async (httpContext) => {
+wikiRouter.post('/:slug/verify', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await wikiService.verifyWikiPage(ctx, httpContext.req.param('slug')))
@@ -321,7 +321,7 @@ router.post('/:slug/verify', async (httpContext) => {
   }
 })
 
-router.post('/:slug/watch', async (httpContext) => {
+wikiRouter.post('/:slug/watch', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext).catch(() => ({}))
@@ -331,7 +331,7 @@ router.post('/:slug/watch', async (httpContext) => {
   }
 })
 
-router.delete('/:slug/watch', async (httpContext) => {
+wikiRouter.delete('/:slug/watch', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await wikiWatchersService.unwatchWikiPage(ctx, httpContext.req.param('slug')))
@@ -340,7 +340,7 @@ router.delete('/:slug/watch', async (httpContext) => {
   }
 })
 
-router.get('/:slug/draft', async (httpContext) => {
+wikiRouter.get('/:slug/draft', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await wikiDraftsService.getWikiDraft(ctx, httpContext.req.param('slug')))
@@ -349,7 +349,7 @@ router.get('/:slug/draft', async (httpContext) => {
   }
 })
 
-router.put('/:slug/draft', async (httpContext) => {
+wikiRouter.put('/:slug/draft', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext)
@@ -359,7 +359,7 @@ router.put('/:slug/draft', async (httpContext) => {
   }
 })
 
-router.delete('/:slug/draft', async (httpContext) => {
+wikiRouter.delete('/:slug/draft', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     return httpContext.json(await wikiDraftsService.discardWikiDraft(ctx, httpContext.req.param('slug')))
@@ -368,7 +368,7 @@ router.delete('/:slug/draft', async (httpContext) => {
   }
 })
 
-router.patch('/:slug', async (httpContext) => {
+wikiRouter.patch('/:slug', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const body = await jsonBody(httpContext)
@@ -378,7 +378,7 @@ router.patch('/:slug', async (httpContext) => {
   }
 })
 
-router.delete('/:slug', async (httpContext) => {
+wikiRouter.delete('/:slug', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const cascade = httpContext.req.query('cascade') === 'true'
@@ -387,5 +387,3 @@ router.delete('/:slug', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as wikiRouter }

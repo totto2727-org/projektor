@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { JSX } from 'react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
-vi.mock('../lazy-markdown-editor.tsx', () => ({ default: () => <textarea aria-label='Description' /> }))
+vi.mock('../lazy-markdown-editor.tsx', () => ({ IssueMarkdownEditor: () => <textarea aria-label='Description' /> }))
 
 import CreateIssueModal from './create-issue-modal.tsx'
 

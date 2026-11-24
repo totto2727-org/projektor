@@ -9,18 +9,18 @@ import { ApiUserBootstrap } from '#contracts/api-auth.ts'
 import { HTTP_CREATED, HTTP_FOUND } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const authRouter = new Hono<HonoEnv>()
 
 const isSafeRedirectPath = function isSafeRedirectPath(url: string): boolean {
   return url.startsWith('/') && !url.startsWith('//')
 }
 
-router.get('/login', (httpContext) => {
+authRouter.get('/login', (httpContext) => {
   const requested = httpContext.req.query('redirect_url') ?? '/'
   return httpContext.redirect(isSafeRedirectPath(requested) ? requested : '/', HTTP_FOUND)
 })
 
-router.get('/me', authMiddleware, async (httpContext) => {
+authRouter.get('/me', authMiddleware, async (httpContext) => {
   try {
     return httpContext.json(
       await Effect.runPromise(
@@ -38,7 +38,7 @@ router.get('/me', authMiddleware, async (httpContext) => {
 const HUMAN_SESSION_REQUIRED =
   'Personal access tokens can only be created or revoked from a signed-in browser session, not with an API token or connected app.'
 
-router.post('/tokens', authMiddleware, async (httpContext) => {
+authRouter.post('/tokens', authMiddleware, async (httpContext) => {
   const denied = requireInteractiveHuman(httpContext, HUMAN_SESSION_REQUIRED)
   if (denied) {
     return denied
@@ -59,7 +59,7 @@ router.post('/tokens', authMiddleware, async (httpContext) => {
   }
 })
 
-router.delete('/tokens/:id', authMiddleware, async (httpContext) => {
+authRouter.delete('/tokens/:id', authMiddleware, async (httpContext) => {
   const denied = requireInteractiveHuman(httpContext, HUMAN_SESSION_REQUIRED)
   if (denied) {
     return denied
@@ -80,5 +80,3 @@ router.delete('/tokens/:id', authMiddleware, async (httpContext) => {
     return serviceErrToResponse(httpContext, error)
   }
 })
-
-export { router as authRouter }

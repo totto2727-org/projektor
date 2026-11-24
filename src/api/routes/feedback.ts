@@ -30,21 +30,21 @@ import {
 } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const publicRouter = new Hono<HonoEnv>()
+export const feedbackPublicRouter = new Hono<HonoEnv>()
 
 /*
  * PROJ-378: this router is mounted ahead of the global app.use("*", logger())
  * in worker.ts (see Step 6 below), so it needs its own logging or submit
  * requests go unlogged entirely.
  */
-publicRouter.use('*', logger())
+feedbackPublicRouter.use('*', logger())
 
 /*
  * Anonymous end-user feedback preflight. We cannot know the source (no token on a
  * preflight), so reflect the requesting Origin; the POST response is what actually
  * enforces the per-source allow-list.
  */
-publicRouter.options('/submit', (httpContext) => {
+feedbackPublicRouter.options('/submit', (httpContext) => {
   const origin = httpContext.req.header('Origin')
   const headers: Record<string, string> = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -120,7 +120,7 @@ const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(
   throw e
 }
 
-publicRouter.post('/submit', async (httpContext) => {
+feedbackPublicRouter.post('/submit', async (httpContext) => {
   const auth = httpContext.req.header('Authorization')
   if (!auth?.startsWith('Bearer ')) {
     return httpContext.json({ error: 'Unauthorized' }, HTTP_UNAUTHORIZED)
@@ -149,11 +149,9 @@ publicRouter.post('/submit', async (httpContext) => {
   }
 })
 
-export { publicRouter as feedbackPublicRouter }
+export const feedbackRouter = new Hono<HonoEnv>()
 
-const authedRouter = new Hono<HonoEnv>()
-
-authedRouter.get('/:id/feedback', async (httpContext) => {
+feedbackRouter.get('/:id/feedback', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   const status = httpContext.req.query('status')
@@ -165,7 +163,7 @@ authedRouter.get('/:id/feedback', async (httpContext) => {
   }
 })
 
-authedRouter.get('/:id/feedback/summary', async (httpContext) => {
+feedbackRouter.get('/:id/feedback/summary', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   try {
@@ -175,7 +173,7 @@ authedRouter.get('/:id/feedback/summary', async (httpContext) => {
   }
 })
 
-authedRouter.patch('/:id/feedback/:feedbackId', async (httpContext) => {
+feedbackRouter.patch('/:id/feedback/:feedbackId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   const feedbackId = httpContext.req.param('feedbackId')
@@ -187,7 +185,7 @@ authedRouter.patch('/:id/feedback/:feedbackId', async (httpContext) => {
   }
 })
 
-authedRouter.post('/:id/feedback/bulk-mark-reviewed', async (httpContext) => {
+feedbackRouter.post('/:id/feedback/bulk-mark-reviewed', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   const raw = await jsonBody(httpContext)
@@ -198,7 +196,7 @@ authedRouter.post('/:id/feedback/bulk-mark-reviewed', async (httpContext) => {
   }
 })
 
-authedRouter.post('/:id/feedback/bulk-convert-to-issue', async (httpContext) => {
+feedbackRouter.post('/:id/feedback/bulk-convert-to-issue', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   const raw = await jsonBody(httpContext)
@@ -209,7 +207,7 @@ authedRouter.post('/:id/feedback/bulk-convert-to-issue', async (httpContext) => 
   }
 })
 
-authedRouter.post('/:id/feedback/:feedbackId/convert-to-issue', async (httpContext) => {
+feedbackRouter.post('/:id/feedback/:feedbackId/convert-to-issue', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   const feedbackId = httpContext.req.param('feedbackId')
@@ -219,5 +217,3 @@ authedRouter.post('/:id/feedback/:feedbackId/convert-to-issue', async (httpConte
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { authedRouter as feedbackRouter }

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button.tsx'
 import { Dialog } from '@/components/ui/dialog.tsx'
 import Select from '@/components/ui/select.tsx'
 import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
-import MarkdownEditor from '@/features/issues/components/lazy-markdown-editor.tsx'
+import { IssueMarkdownEditor as MarkdownEditor } from '@/features/issues/components/lazy-markdown-editor.tsx'
 import { PRIORITY_OPTIONS } from '@/features/issues/utils/issue-utils.ts'
 
 import type { ProjectMeta } from './types.ts'

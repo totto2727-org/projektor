@@ -20,7 +20,7 @@ import type { HonoEnv } from '#types'
  * static-asset handler would otherwise answer with the SPA fallback.
  */
 
-const router = new Hono<HonoEnv>()
+export const oauthMetadataRouter = new Hono<HonoEnv>()
 
 /*
  * Claude caches discovery documents globally by URL for roughly 5 minutes, so a
@@ -61,7 +61,7 @@ const originOf = function originOf(httpContext: { req: { url: string } }): strin
  * from the request URL. An id that does not resolve fails later, at the MCP request
  * itself, behind authentication where it belongs.
  */
-router.get('/oauth-protected-resource/mcp/:workspaceId', (httpContext) => {
+oauthMetadataRouter.get('/oauth-protected-resource/mcp/:workspaceId', (httpContext) => {
   const origin = originOf(httpContext)
   /*
    * Re-encode rather than interpolating the raw segment: this value lands in a URL
@@ -91,7 +91,7 @@ router.get('/oauth-protected-resource/mcp/:workspaceId', (httpContext) => {
  * makes this document's own location (/.well-known/oauth-authorization-server, no
  * path suffix) the correct one per RFC 8414 §3.
  */
-router.get('/oauth-authorization-server', (httpContext) => {
+oauthMetadataRouter.get('/oauth-authorization-server', (httpContext) => {
   const origin = originOf(httpContext)
 
   return httpContext.json(
@@ -159,10 +159,10 @@ router.get('/oauth-authorization-server', (httpContext) => {
  */
 const discoveryNotFound = (httpContext: Context<HonoEnv>) => httpContext.json({ error: 'Not Found' }, HTTP_NOT_FOUND)
 
-router.all('/oauth-protected-resource', discoveryNotFound)
-router.all('/oauth-protected-resource/*', discoveryNotFound)
-router.all('/oauth-authorization-server', discoveryNotFound)
-router.all('/oauth-authorization-server/*', discoveryNotFound)
+oauthMetadataRouter.all('/oauth-protected-resource', discoveryNotFound)
+oauthMetadataRouter.all('/oauth-protected-resource/*', discoveryNotFound)
+oauthMetadataRouter.all('/oauth-authorization-server', discoveryNotFound)
+oauthMetadataRouter.all('/oauth-authorization-server/*', discoveryNotFound)
 
 /*
  * PROJ-660, found on a real deployment rather than in a test: the MCP spec lets a
@@ -172,7 +172,5 @@ router.all('/oauth-authorization-server/*', discoveryNotFound)
  * with the app shell — the exact failure this file exists to prevent, just at a URL
  * outside the `oauth-*` namespace. It gets the same clean 404.
  */
-router.all('/openid-configuration', discoveryNotFound)
-router.all('/openid-configuration/*', discoveryNotFound)
-
-export { router as oauthMetadataRouter }
+oauthMetadataRouter.all('/openid-configuration', discoveryNotFound)
+oauthMetadataRouter.all('/openid-configuration/*', discoveryNotFound)

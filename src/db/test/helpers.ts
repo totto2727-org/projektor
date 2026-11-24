@@ -31,7 +31,7 @@ export const loadMigrations = function loadMigrations(): string[] {
 export const migratedDb = function migratedDb(): DatabaseSync {
   const db = new DatabaseSync(':memory:')
   db.exec('PRAGMA foreign_keys = ON;')
-  for (const sql of loadMigrations()) {
+  Iterable.forEach(loadMigrations(), (sql): void => {
     Iterable.forEach(splitStatements(sql), (stmt) => {
       /*
        * Node:sqlite's bundled build doesn't consistently ship the fts5 module
@@ -43,6 +43,6 @@ export const migratedDb = function migratedDb(): DatabaseSync {
       }
       db.exec(stmt)
     })
-  }
+  })
   return db
 }

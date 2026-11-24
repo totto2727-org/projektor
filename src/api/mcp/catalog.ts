@@ -1,3 +1,5 @@
+import { Iterable } from 'effect'
+
 import { agentMessagesTools } from './agent-messages.ts'
 import { agentsTools } from './agents.ts'
 import { codeHeatmapTools } from './code-heatmap.ts'
@@ -103,12 +105,12 @@ export const TOOL_DOMAIN_SLUGS: string[] = TOOL_DOMAINS.map((d) => d.domain)
 export const toolNamesForDomains = function toolNamesForDomains(slugs: Iterable<string>): Set<string> {
   const wanted = new Set(slugs)
   const names = new Set<string>()
-  for (const d of TOOL_DOMAINS) {
+  Iterable.forEach(TOOL_DOMAINS, (d): void => {
     if (wanted.has(d.domain)) {
       for (const tool of d.tools) {
         names.add(tool.name)
       }
     }
-  }
+  })
   return names
 }

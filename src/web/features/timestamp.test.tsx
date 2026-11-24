@@ -15,7 +15,7 @@ vi.mock('../attachment-actions', () => ({
   uploadInlineImage: vi.fn(),
 }))
 vi.mock('@effront/core/query', () => ({ query: vi.fn() }))
-vi.mock('./wiki/lazy-markdown-editor.tsx', () => ({ default: () => null }))
+vi.mock('./wiki/lazy-markdown-editor.tsx', () => ({ LazyMarkdownEditor: () => null }))
 
 const timestamp = Date.parse('2026-10-04T08:48:46Z') / 1000
 function seed(): WikiSeed {

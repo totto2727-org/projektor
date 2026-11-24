@@ -6,9 +6,9 @@ import { serviceErrToResponse } from '#api/http/error-adapter.ts'
 import { getWorkflow } from '#api/services/workflow.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const workflowRouter = new Hono<HonoEnv>()
 
-router.get('/', async (httpContext) => {
+workflowRouter.get('/', async (httpContext) => {
   try {
     /*
      * Normally a single string; a repeated `?ifVersion=` is passed through as an
@@ -31,5 +31,3 @@ router.get('/', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as workflowRouter }

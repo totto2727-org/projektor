@@ -8,14 +8,14 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const commentsRouter = new Hono<HonoEnv>()
 
 /*
  * Reads accept a ref ("PROJ-42") as well as a UUID so the browser doesn't have to
  * resolve one before asking (PROJ-438). Writes stay UUID-only — they're never on a
  * first-paint path, so there's nothing to gain for the extra surface.
  */
-router.get('/:issueId/comments', async (httpContext) => {
+commentsRouter.get('/:issueId/comments', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     const issueId = await resolveIssueIdParam(ctx, httpContext.req.param('issueId'))
@@ -25,7 +25,7 @@ router.get('/:issueId/comments', async (httpContext) => {
   }
 })
 
-router.post('/:issueId/comments', async (httpContext) => {
+commentsRouter.post('/:issueId/comments', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const issueId = httpContext.req.param('issueId')
   const raw = await jsonBody(httpContext)
@@ -36,7 +36,7 @@ router.post('/:issueId/comments', async (httpContext) => {
   }
 })
 
-router.patch('/:issueId/comments/:id', async (httpContext) => {
+commentsRouter.patch('/:issueId/comments/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const issueId = httpContext.req.param('issueId')
   const commentId = httpContext.req.param('id')
@@ -48,7 +48,7 @@ router.patch('/:issueId/comments/:id', async (httpContext) => {
   }
 })
 
-router.delete('/:issueId/comments/:id', async (httpContext) => {
+commentsRouter.delete('/:issueId/comments/:id', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const issueId = httpContext.req.param('issueId')
   const commentId = httpContext.req.param('id')
@@ -58,5 +58,3 @@ router.delete('/:issueId/comments/:id', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { router as commentsRouter }
