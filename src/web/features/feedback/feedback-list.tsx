@@ -7,7 +7,7 @@ import type { JSX, Dispatch, SetStateAction } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
-import Select from '@/components/ui/select.tsx'
+import { Select } from '@/components/ui/select.tsx'
 import { formatTimestampDate } from '@/features/timestamp.ts'
 import { navigateFeature } from '@/features/wiki/navigation.ts'
 
@@ -369,7 +369,8 @@ const useSelectedFeedback = function useSelectedFeedback() {
   return [selected, toggle, setSelected] as const
 }
 
-export default function FeedbackList({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function FeedbackList({
   workspaceSlug,
   projectId,
   sourceId,

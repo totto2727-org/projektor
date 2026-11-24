@@ -8,6 +8,7 @@ import { ApiResults } from '#contracts/api-results.ts'
 import { HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '#core/authorization.ts'
 import type { CoreActor, CorePrincipal } from '#core/authorization.ts'
+import type { CoreReply } from '#core/contract.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -28,19 +29,19 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
     )
   }
   return {
-    apiBootstrap: (provided: string | undefined, requestUrl: string) =>
+    apiBootstrap: (provided: string | undefined, requestUrl: string): CoreReply<R> =>
       coreReply(
         'apiBootstrap',
         ApiDevelopmentBootstrap,
         attempt((env) => bootstrapDevelopment(env, provided, requestUrl)),
       ),
-    apiAuthenticate: (actor: CoreActor) =>
+    apiAuthenticate: (actor: CoreActor): CoreReply<R> =>
       coreReply(
         'apiAuthenticate',
         ApiPrincipal,
         attempt((env) => resolveCorePrincipal(actor, env)),
       ),
-    apiResolveWorkspace: (actor: CoreActor, target: { kind: 'slug' | 'id'; value: string }) =>
+    apiResolveWorkspace: (actor: CoreActor, target: { kind: 'slug' | 'id'; value: string }): CoreReply<R> =>
       coreReply(
         'apiResolveWorkspace',
         Workspace,
@@ -64,7 +65,7 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
           return { ...row, role: ctx.role ?? 'viewer' }
         }),
       ),
-    apiListWorkspaces: (actor: CoreActor) =>
+    apiListWorkspaces: (actor: CoreActor): CoreReply<R> =>
       coreReply(
         'apiListWorkspaces',
         ApiResults.apiListWorkspaces,
@@ -76,7 +77,7 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
             : memberships
         }),
       ),
-    apiUserBootstrap: (actor: CoreActor) =>
+    apiUserBootstrap: (actor: CoreActor): CoreReply<R> =>
       coreReply(
         'apiUserBootstrap',
         Schema.Struct({ user: User, workspaces: Workspaces }),
@@ -89,7 +90,7 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
           return { user: principal.user, workspaces }
         }),
       ),
-    apiListProjects: (actor: CoreActor, includeArchived: boolean) =>
+    apiListProjects: (actor: CoreActor, includeArchived: boolean): CoreReply<R> =>
       coreReply(
         'apiListProjects',
         ApiResults.apiListProjects,
@@ -101,7 +102,7 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
             : projects
         }),
       ),
-    apiCreateWorkspace: (actor: CoreActor, input: unknown) =>
+    apiCreateWorkspace: (actor: CoreActor, input: unknown): CoreReply<R> =>
       coreReply(
         'apiCreateWorkspace',
         ApiResults.apiCreateWorkspace,
@@ -113,7 +114,7 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
           return createWorkspace(env.DB, principal.user.id, input)
         }),
       ),
-    apiCreateUserToken: (actor: CoreActor, input: unknown) =>
+    apiCreateUserToken: (actor: CoreActor, input: unknown): CoreReply<R> =>
       coreReply(
         'apiCreateUserToken',
         ApiResults.apiCreateUserToken,
@@ -123,7 +124,7 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
           return createUserToken({ db: env.DB, userId: principal.user.id }, input)
         }),
       ),
-    apiDeleteUserToken: (actor: CoreActor, id: string) =>
+    apiDeleteUserToken: (actor: CoreActor, id: string): CoreReply<R> =>
       coreReply(
         'apiDeleteUserToken',
         ApiResults.apiDeleteUserToken,

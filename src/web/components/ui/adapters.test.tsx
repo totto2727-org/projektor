@@ -11,7 +11,7 @@ import { EmptyState } from './empty-state.tsx'
 import { Field } from './field.tsx'
 import { Input, Textarea } from './input.tsx'
 import { Popover, Portal } from './popover.tsx'
-import Select from './select.tsx'
+import { Select } from './select.tsx'
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from './table.tsx'
 
 afterEach(cleanup)

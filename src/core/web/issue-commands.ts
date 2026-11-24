@@ -7,6 +7,7 @@ import * as issues from '#commands/issues.ts'
 import { createShareToken } from '#commands/share.ts'
 import * as sprints from '#commands/sprints.ts'
 import type { ServiceCtx } from '#commands/types.ts'
+import type { CoreReply } from '#core/contract.ts'
 import { coreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
@@ -26,40 +27,40 @@ export const makeIssueCommandHandlers = <R>(envSource: Effect.Effect<CoreEnviron
     schema: S,
     proof: BrowserCommand,
     operation: (ctx: ServiceCtx) => Promise<A>,
-  ) {
+  ): CoreReply<R, S> {
     return Effect.flatMap(envSource, (env) => coreReply(name, schema, browserCommand(env, proof, operation)))
   }
   return {
-    webCreateIssue: (proof: BrowserCommand, input: unknown) =>
+    webCreateIssue: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       reply('webCreateIssue', CreatedIssueSchema, proof, (ctx) => issues.createIssue(ctx, input)),
-    webUpdateIssue: (proof: BrowserCommand, id: string, input: unknown) =>
+    webUpdateIssue: (proof: BrowserCommand, id: string, input: unknown): CoreReply<R> =>
       reply('webUpdateIssue', CommandOkSchema, proof, (ctx) => issues.updateIssue(ctx, id, input)),
-    webAddComment: (proof: BrowserCommand, input: unknown) =>
+    webAddComment: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       reply('webAddComment', CommandIdSchema, proof, (ctx) => comments.addComment(ctx, input)),
-    webUpdateComment: (proof: BrowserCommand, input: unknown) =>
+    webUpdateComment: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       reply('webUpdateComment', CommandOkSchema, proof, (ctx) => comments.updateComment(ctx, input)),
-    webDeleteComment: (proof: BrowserCommand, input: unknown) =>
+    webDeleteComment: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       reply('webDeleteComment', CommandOkSchema, proof, (ctx) => comments.deleteComment(ctx, input)),
-    webCreateIssueLink: (proof: BrowserCommand, input: unknown) =>
+    webCreateIssueLink: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       reply('webCreateIssueLink', CommandIdSchema, proof, (ctx) => links.createLink(ctx, input)),
-    webDeleteIssueLink: (proof: BrowserCommand, input: unknown) =>
+    webDeleteIssueLink: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       reply('webDeleteIssueLink', CommandOkSchema, proof, (ctx) => links.deleteLink(ctx, input)),
-    webCreateShareToken: (proof: BrowserCommand, issueId: string) =>
+    webCreateShareToken: (proof: BrowserCommand, issueId: string): CoreReply<R> =>
       reply('webCreateShareToken', ShareTokenSchema, proof, (ctx) => createShareToken(ctx, issueId)),
-    webCreateLinkAttachment: (proof: BrowserCommand, input: unknown) =>
+    webCreateLinkAttachment: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       reply('webCreateLinkAttachment', CreatedLinkAttachmentSchema, proof, (ctx) =>
         files.createLinkAttachment(ctx, input),
       ),
-    webDeleteStoredAttachment: (proof: BrowserCommand, id: string) =>
+    webDeleteStoredAttachment: (proof: BrowserCommand, id: string): CoreReply<R> =>
       reply('webDeleteStoredAttachment', CommandOkSchema, proof, async (ctx) => {
         await files.deleteStoredAttachment(ctx, id)
         return { ok: true }
       }),
-    webSetAttachmentReviewStatus: (proof: BrowserCommand, input: unknown) =>
+    webSetAttachmentReviewStatus: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       reply('webSetAttachmentReviewStatus', CommandOkSchema, proof, (ctx) =>
         files.setAttachmentReviewStatus(ctx, input),
       ),
-    webUpdateSprint: (proof: BrowserCommand, id: string, input: unknown) =>
+    webUpdateSprint: (proof: BrowserCommand, id: string, input: unknown): CoreReply<R> =>
       reply('webUpdateSprint', CommandOkSchema, proof, (ctx) => sprints.updateSprint(ctx, id, input)),
   }
 }

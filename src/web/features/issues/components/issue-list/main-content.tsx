@@ -3,11 +3,11 @@ import type { JSX } from 'react'
 
 import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
 
-import BacklogView from './backlog-view.tsx'
-import BoardView from './board-view.tsx'
-import ListSection from './list-section.tsx'
+import { BacklogView } from './backlog-view.tsx'
+import { BoardView } from './board-view.tsx'
+import { ListSection } from './list-section.tsx'
 import type { IssuePagination } from './page-navigation.tsx'
-import SearchResultsSection from './search-results-section.tsx'
+import { SearchResultsSection } from './search-results-section.tsx'
 import type { ViewMode } from './types-view.ts'
 import type { SearchResult } from './use-issue-search.ts'
 
@@ -28,7 +28,8 @@ interface MainContentProps {
   pagination: IssuePagination
 }
 
-export default function MainContent({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function MainContent({
   isSearchActive,
   searchResults,
   searchQuery,

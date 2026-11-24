@@ -30,6 +30,7 @@ export interface SelectProps {
 }
 
 /** Translate legacy options into Base UI selection. No app-owned dropdown state. */
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function Select({
   options,
   value,
@@ -79,4 +80,3 @@ export function Select({
     </div>
   )
 }
-export default Select

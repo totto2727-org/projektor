@@ -13,6 +13,7 @@ import {
 import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { requireCoreCapability, resolveCorePrincipal, resolveCoreServiceCtx } from '#core/authorization.ts'
 import type { CoreActor } from '#core/authorization.ts'
+import type { CoreReply } from '#core/contract.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -27,7 +28,7 @@ export const makeApiPublicHandlers = function makeApiPublicHandlers<R>(
     )
   }
   return {
-    apiConsentWorkspace: (actor: CoreActor, workspaceId: string) =>
+    apiConsentWorkspace: (actor: CoreActor, workspaceId: string): CoreReply<R> =>
       coreReply(
         'apiConsentWorkspace',
         ApiConsentWorkspace,
@@ -40,19 +41,19 @@ export const makeApiPublicHandlers = function makeApiPublicHandlers<R>(
           return lookupConsentWorkspace(env.DB, principal.user.id, workspaceId)
         }),
       ),
-    apiSubmitFeedback: (token: string, body: unknown, origin: string | null) =>
+    apiSubmitFeedback: (token: string, body: unknown, origin: string | null): CoreReply<R> =>
       coreReply(
         'apiSubmitFeedback',
         ApiSubmittedFeedback,
         attempt((env) => submitFeedback(env.DB, token, body, origin)),
       ),
-    apiGetSharedIssue: (token: string) =>
+    apiGetSharedIssue: (token: string): CoreReply<R> =>
       coreReply(
         'apiGetSharedIssue',
         ApiSharedIssue,
         attempt((env) => getSharedIssue(env.DB, token)),
       ),
-    apiRealtimeSnapshot: (actor: CoreActor, workspaceId: string) =>
+    apiRealtimeSnapshot: (actor: CoreActor, workspaceId: string): CoreReply<R> =>
       coreReply(
         'apiRealtimeSnapshot',
         ApiRealtimeSnapshot,

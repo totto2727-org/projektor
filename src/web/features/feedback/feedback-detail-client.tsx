@@ -1,3 +1,3 @@
 'use client'
 
-export { default as FeedbackDetailClient } from './feedback-source-detail.tsx'
+export { FeedbackSourceDetail as FeedbackDetailClient } from './feedback-source-detail.tsx'

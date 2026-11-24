@@ -308,7 +308,8 @@ interface SprintBannerSectionProps {
 }
 
 /** Wraps SprintBanner with its own edit-form state, isolated from the parent list. */
-export default function SprintBannerSection({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SprintBannerSection({
   filterSprintId,
   sprintDetail,
   setFilterSprintId,

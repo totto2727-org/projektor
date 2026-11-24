@@ -100,7 +100,8 @@ const SearchResultsMobileCards = function SearchResultsMobileCards({
   )
 }
 
-export default function SearchResultsSection({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SearchResultsSection({
   searchLoading,
   searchResults,
   searchQuery,

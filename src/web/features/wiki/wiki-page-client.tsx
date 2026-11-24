@@ -26,7 +26,7 @@ import { useMarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
 import type { RenderedMarkdown } from '@/components/markdown/render.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { Popover } from '@/components/ui/popover.tsx'
-import Select from '@/components/ui/select.tsx'
+import { Select } from '@/components/ui/select.tsx'
 import type { SelectOption } from '@/components/ui/select.tsx'
 import { formatTimestamp, formatTimestampDate } from '@/features/timestamp.ts'
 import { formatBytes } from '@/lib/file-size.ts'
@@ -4604,6 +4604,7 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
   )
 }
 
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
 export function WikiPageClient({ initial }: { readonly initial: WikiSeed }): JSX.Element {
   return (
     <SeedContext.Provider value={initial}>
@@ -4616,7 +4617,6 @@ export function WikiPageClient({ initial }: { readonly initial: WikiSeed }): JSX
     </SeedContext.Provider>
   )
 }
-export default WikiPageClient
 
 function WikiPageContent({ workspaceSlug, projectId: projectIdProp, slug: slugProp }: Props): JSX.Element {
   const seed = useWikiSeed()

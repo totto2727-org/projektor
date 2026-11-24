@@ -8,7 +8,7 @@ import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { createIssue } from '@/features/issues/actions.ts'
 
-import CreateIssueModal from './create-issue-modal.tsx'
+import { CreateIssueModal } from './create-issue-modal.tsx'
 import { useCreateIssueModal } from './use-create-issue-modal.ts'
 
 const PROJECTS = [{ id: 'p1', key: 'PROJ', name: 'Projektor', description: null, workspace_slug: 'test-workspace' }]

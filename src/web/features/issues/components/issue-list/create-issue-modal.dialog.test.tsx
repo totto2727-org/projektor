@@ -6,7 +6,7 @@ import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../lazy-markdown-editor.tsx', () => ({ IssueMarkdownEditor: () => <textarea aria-label='Description' /> }))
 
-import CreateIssueModal from './create-issue-modal.tsx'
+import { CreateIssueModal } from './create-issue-modal.tsx'
 
 function CreateHarness(): JSX.Element {
   const [open, setOpen] = useState(false)

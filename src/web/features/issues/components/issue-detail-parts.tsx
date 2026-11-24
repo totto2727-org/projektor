@@ -8,7 +8,7 @@ import { unwrapResult } from '@/client/functions.ts'
 import { AttachmentUpload } from '@/components/attachment-upload.tsx'
 import { MarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
 import { Button } from '@/components/ui/button.tsx'
-import Select from '@/components/ui/select.tsx'
+import { Select } from '@/components/ui/select.tsx'
 import {
   addAttachmentLink,
   addComment,

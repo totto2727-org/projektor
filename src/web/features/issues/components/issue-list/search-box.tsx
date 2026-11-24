@@ -4,7 +4,8 @@ import type { JSX, RefObject } from 'react'
 import { queryFields } from '@/features/issues/utils/query-fields.ts'
 import type { IssuesRoute } from '@/features/issues/views/issues-page.tsx'
 
-export default function SearchBox({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function SearchBox({
   searchQuery,
   setSearchQuery,
   isSearchActive,

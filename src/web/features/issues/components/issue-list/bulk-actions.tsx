@@ -5,7 +5,7 @@ import type { JSX, ReactNode } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
-import Select from '@/components/ui/select.tsx'
+import { Select } from '@/components/ui/select.tsx'
 import { updateIssue } from '@/features/issues/actions.ts'
 import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
 

@@ -9,7 +9,7 @@ vi.mock('./actions', () => ({
 }))
 
 import { rotateFeedbackSourceToken } from './actions.ts'
-import FeedbackSourceSettings from './feedback-source-settings.tsx'
+import { FeedbackSourceSettings } from './feedback-source-settings.tsx'
 
 // The transport is deferred so repeated confirmation arrives before completion.
 afterEach(() => {

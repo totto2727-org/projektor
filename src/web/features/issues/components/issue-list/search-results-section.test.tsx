@@ -13,7 +13,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { MOBILE_WIDTH, setViewportWidth } from '@/features/issues/test/viewport.ts'
 
-import SearchResultsSection from './search-results-section.tsx'
+import { SearchResultsSection } from './search-results-section.tsx'
 import type { SearchResult } from './use-issue-search.ts'
 
 const RESULTS: SearchResult[] = [

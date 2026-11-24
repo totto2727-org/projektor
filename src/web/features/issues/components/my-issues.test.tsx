@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test } from 'vite-plus/test'
 import { issue, workspace } from '@/features/issues/test/fixtures.ts'
 import type { ScopedIssue } from '@/features/issues/views/my-issues-page.tsx'
 
-import MyIssues from './my-issues.tsx'
+import { MyIssues } from './my-issues.tsx'
 
 afterEach(cleanup)
 

@@ -99,7 +99,8 @@ const BoardCard = function BoardCard({
   )
 }
 
-export default function BoardView({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function BoardView({
   issues,
   statuses,
   changeStatus,

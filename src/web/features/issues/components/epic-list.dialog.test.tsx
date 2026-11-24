@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../actions', () => ({ createIssue: vi.fn() }))
 
-import EpicList from './epic-list.tsx'
+import { EpicList } from './epic-list.tsx'
 
 const project = {
   id: 'project',

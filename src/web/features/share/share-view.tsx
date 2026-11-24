@@ -120,7 +120,8 @@ const CustomFieldsSection = function CustomFieldsSection({
   )
 }
 
-export default function ShareView({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function ShareView({
   issue,
   renderedBody,
 }: {

@@ -23,7 +23,7 @@ import { setAttachmentReviewStatus } from '@/features/issues/actions.ts'
 import type { Attachment } from '@/features/issues/types.ts'
 import type { IssueDetailInitialData } from '@/features/issues/views/issue-detail-page.tsx'
 
-import IssueDetail from './issue-detail.tsx'
+import { IssueDetail } from './issue-detail.tsx'
 import { ReviewTargetsSection } from './review-targets-section.tsx'
 
 function attachment(id: string, status: ReviewStatus | null = null, kind: Attachment['kind'] = 'file'): Attachment {

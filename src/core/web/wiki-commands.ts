@@ -19,6 +19,7 @@ import {
   SavedDraft,
   Verified,
 } from '#contracts/web-schemas/wiki.ts'
+import type { CoreReply } from '#core/contract.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import * as data from '#services/wiki.ts'
@@ -35,7 +36,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
     schema: S,
     proof: BrowserCommand,
     operation: (ctx: ServiceCtx) => Promise<A>,
-  ) {
+  ): CoreReply<R, S> {
     return Effect.flatMap(envSource, (env) => coreReply(name, schema, browserCommand(env, proof, operation)))
   }
   const read = function read<S extends Schema.Top, A, E>(
@@ -43,7 +44,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
     schema: S,
     proof: BrowserCommand,
     operation: (env: CoreEnvironment, scope: import('./scope').RequestScope) => Effect.Effect<A, E>,
-  ) {
+  ): CoreReply<R, S> {
     return Effect.flatMap(envSource, (env) =>
       coreReply(
         name,
@@ -56,7 +57,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
     )
   }
   return {
-    webWikiPage: (proof: BrowserCommand, slug: string) =>
+    webWikiPage: (proof: BrowserCommand, slug: string): CoreReply<R> =>
       read('webWikiPage', Page, proof, (env, scope) =>
         Effect.gen(function* () {
           const { workspace, page } = yield* readAuthorizedWikiPage(env.DB, scope, slug)
@@ -67,7 +68,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
           }
         }),
       ),
-    webWikiDiff: (proof: BrowserCommand, slug: string, revisionId: string) =>
+    webWikiDiff: (proof: BrowserCommand, slug: string, revisionId: string): CoreReply<R> =>
       read('webWikiDiff', WikiDiffSchema, proof, (env, scope) =>
         Effect.gen(function* () {
           const { workspace, page } = yield* readAuthorizedWikiPage(env.DB, scope, slug)
@@ -78,7 +79,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
           return { diff: data.buildUnifiedDiff(revision.content, page.content) }
         }),
       ),
-    webWikiDraft: (proof: BrowserCommand, slug: string) =>
+    webWikiDraft: (proof: BrowserCommand, slug: string): CoreReply<R> =>
       read('webWikiDraft', DraftState, proof, (env, scope) =>
         Effect.gen(function* () {
           const { workspace, page } = yield* readAuthorizedWikiPage(env.DB, scope, slug)
@@ -89,11 +90,11 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
           })
         }),
       ),
-    webCreateWikiPage: (proof: BrowserCommand, input: unknown) =>
+    webCreateWikiPage: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation('webCreateWikiPage', Created, proof, (ctx) => wiki.createWikiPage(ctx, input)),
-    webUpdateWikiPage: (proof: BrowserCommand, slug: string, input: unknown) =>
+    webUpdateWikiPage: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>
       mutation('webUpdateWikiPage', Ok, proof, (ctx) => wiki.updateWikiPage(ctx, slug, input)),
-    webPublishWikiPage: (proof: BrowserCommand, slug: string, input: unknown) =>
+    webPublishWikiPage: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>
       mutation('webPublishWikiPage', Published, proof, async (ctx) => {
         const reserved = await drafts.beginWikiDraftPublish(ctx, slug, input)
         await wiki.updateWikiPage(ctx, slug, reserved.input)
@@ -102,7 +103,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
           return { ok: true as const, draftRevision: null }
         })
       }),
-    webSaveWikiDraft: (proof: BrowserCommand, slug: string, input: unknown) =>
+    webSaveWikiDraft: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>
       mutation('webSaveWikiDraft', SavedDraft, proof, (ctx) => {
         const parsed = VersionedWikiDraftInputSchema.safeParse(input)
         if (!parsed.success) {
@@ -110,7 +111,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         }
         return drafts.saveWikiDraft(ctx, slug, parsed.data)
       }),
-    webDiscardWikiDraft: (proof: BrowserCommand, slug: string, input: unknown) =>
+    webDiscardWikiDraft: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>
       mutation('webDiscardWikiDraft', DraftRevision, proof, (ctx) => {
         const parsed = WikiDraftRevisionInputSchema.safeParse(input)
         if (!parsed.success) {
@@ -118,13 +119,18 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         }
         return drafts.discardWikiDraft(ctx, slug, parsed.data)
       }),
-    webVerifyWikiPage: (proof: BrowserCommand, slug: string) =>
+    webVerifyWikiPage: (proof: BrowserCommand, slug: string): CoreReply<R> =>
       mutation('webVerifyWikiPage', Verified, proof, (ctx) => wiki.verifyWikiPage(ctx, slug)),
-    webDeleteWikiPage: (proof: BrowserCommand, slug: string, input: unknown) =>
+    webDeleteWikiPage: (proof: BrowserCommand, slug: string, input: unknown): CoreReply<R> =>
       mutation('webDeleteWikiPage', Deleted, proof, (ctx) => wiki.deleteWikiPage(ctx, slug, input)),
-    webUndeleteWikiPage: (proof: BrowserCommand, id: string) =>
+    webUndeleteWikiPage: (proof: BrowserCommand, id: string): CoreReply<R> =>
       mutation('webUndeleteWikiPage', Restored, proof, (ctx) => wiki.undeleteWikiPage(ctx, id)),
-    webRestoreWikiRevision: (proof: BrowserCommand, slug: string, revisionId: string, baseRevisionId: string | null) =>
+    webRestoreWikiRevision: (
+      proof: BrowserCommand,
+      slug: string,
+      revisionId: string,
+      baseRevisionId: string | null,
+    ): CoreReply<R> =>
       mutation('webRestoreWikiRevision', Ok, proof, async (ctx) => {
         const page = await Effect.runPromise(data.findWikiPage(ctx.db, ctx.workspaceId, slug))
         if (!page) {

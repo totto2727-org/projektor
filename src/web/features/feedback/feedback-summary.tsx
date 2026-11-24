@@ -23,7 +23,8 @@ const versionMetric = function versionMetric(version: FeedbackVersionSummary): s
   return Array.isArrayEmpty(parts) ? 'No ratings' : parts.join(' · ')
 }
 
-export default function FeedbackSummary({ initialSummary: summary }: Props): JSX.Element {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function FeedbackSummary({ initialSummary: summary }: Props): JSX.Element {
   if (!summary || Array.isArrayEmpty(summary.versions)) {
     return (
       <div className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>No feedback yet.</div>

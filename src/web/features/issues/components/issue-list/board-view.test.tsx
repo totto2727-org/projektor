@@ -14,7 +14,7 @@ import { describe, expect, test, vi } from 'vite-plus/test'
 import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
 import { MOBILE_WIDTH, setViewportWidth } from '@/features/issues/test/viewport.ts'
 
-import BoardView from './board-view.tsx'
+import { BoardView } from './board-view.tsx'
 
 const TODO_ISSUE: Issue = {
   id: 'i1',

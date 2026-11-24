@@ -165,7 +165,8 @@ function IssuesTable({ issues }: { issues: ScopedIssue[] }): JSX.Element {
   )
 }
 
-export default function MyIssues({ initialData }: { initialData: MyIssuesInitialData }): JSX.Element {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function MyIssues({ initialData }: { initialData: MyIssuesInitialData }): JSX.Element {
   const visible = initialData.issues
     .filter((issue) => OPEN_CATEGORIES.has(issue.status_category ?? ''))
     .sort(compareIssues)

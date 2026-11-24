@@ -119,7 +119,8 @@ const NewSourceForm = function NewSourceForm({
   )
 }
 
-export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCreated }: Props): JSX.Element {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function NewSourceModal({ projectId, workspaceSlug, onClose, onCreated }: Props): JSX.Element {
   const [result, action, creating] = useActionState(createFeedbackSource, null)
   const newToken = result?.ok === true ? result.value.token : null
   const error = result && !result.ok ? result.message : null

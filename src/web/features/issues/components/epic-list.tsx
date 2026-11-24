@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card.tsx'
 import { Dialog } from '@/components/ui/dialog.tsx'
 import { EmptyState } from '@/components/ui/empty-state.tsx'
 import { Input } from '@/components/ui/input.tsx'
-import Select from '@/components/ui/select.tsx'
+import { Select } from '@/components/ui/select.tsx'
 import { createIssue } from '@/features/issues/actions.ts'
 import { Priority, RequiredText, TitleText, useIssueForm } from '@/features/issues/forms.ts'
 import { statusDisplayName } from '@/features/issues/lib/status.ts'
@@ -20,7 +20,7 @@ import type { EpicsInitialData } from '@/features/issues/views/epics-page.tsx'
 import { CATEGORY_COLORS, sortIssues } from './board-utils.ts'
 import type { Issue, ProjectLookup as ProjectMeta, SortKey, TaskStatus } from './board-utils.ts'
 import type { DateField } from './issue-list/filters-popover.tsx'
-import FiltersPopover from './issue-list/filters-popover.tsx'
+import { FiltersPopover } from './issue-list/filters-popover.tsx'
 import { useIssueFilters } from './issue-list/use-issue-filters.ts'
 
 interface EpicRollup {
@@ -183,7 +183,8 @@ const useCreateEpicForm = function useCreateEpicForm(
   }
 }
 
-export default function EpicList({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function EpicList({
   workspaceSlug,
   initialData,
 }: {

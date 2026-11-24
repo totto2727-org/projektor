@@ -3,14 +3,14 @@ import { Array } from 'effect'
 import type { JSX, Dispatch, RefObject, SetStateAction } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
-import Select from '@/components/ui/select.tsx'
+import { Select } from '@/components/ui/select.tsx'
 import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
 import type { IssuesRoute } from '@/features/issues/views/issues-page.tsx'
 
 import type { DateField } from './filters-popover.tsx'
-import FiltersPopover from './filters-popover.tsx'
-import SavedViewsControl from './saved-views-control.tsx'
-import SearchBox from './search-box.tsx'
+import { FiltersPopover } from './filters-popover.tsx'
+import { SavedViewsControl } from './saved-views-control.tsx'
+import { SearchBox } from './search-box.tsx'
 import type { useSavedViews } from './use-saved-views.ts'
 
 interface FilterSelectsProps {
@@ -190,7 +190,8 @@ interface ToolbarProps extends FilterSelectsProps {
   setSortDir: Dispatch<SetStateAction<'asc' | 'desc'>>
 }
 
-export default function Toolbar(props: ToolbarProps): JSX.Element {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function Toolbar(props: ToolbarProps): JSX.Element {
   const {
     searchQuery,
     setSearchQuery,

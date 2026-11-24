@@ -1,7 +1,7 @@
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { definePlugin, defineMCPTool } from '#plugin-sdk'
 
-export default definePlugin({
+export const githubPlugin = definePlugin({
   id: 'github',
   name: 'GitHub',
   version: '0.1.0',

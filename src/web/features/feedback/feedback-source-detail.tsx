@@ -3,15 +3,15 @@ import { String, Predicate } from 'effect'
 import { useRef } from 'react'
 import type { JSX } from 'react'
 
-import Select from '@/components/ui/select.tsx'
+import { Select } from '@/components/ui/select.tsx'
 import { navigateFeature } from '@/features/wiki/navigation.ts'
 
 import type { Feedback } from './feedback-list.tsx'
-import FeedbackList from './feedback-list.tsx'
+import { FeedbackList } from './feedback-list.tsx'
 import type { SourceSummary } from './feedback-source-grid.tsx'
-import FeedbackSourceSettings from './feedback-source-settings.tsx'
+import { FeedbackSourceSettings } from './feedback-source-settings.tsx'
 import type { FeedbackSource } from './feedback-source-settings.tsx'
-import FeedbackSummary from './feedback-summary.tsx'
+import { FeedbackSummary } from './feedback-summary.tsx'
 
 export interface FeedbackDetailProps {
   workspaceSlug: string
@@ -162,7 +162,8 @@ const FeedbackTabBar = function FeedbackTabBar({
   )
 }
 
-export default function FeedbackSourceDetail({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function FeedbackSourceDetail({
   workspaceSlug,
   projectId,
   initialSource,

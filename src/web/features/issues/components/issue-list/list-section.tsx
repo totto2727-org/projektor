@@ -158,7 +158,8 @@ const MobileCards = function MobileCards({ issues, updatingPriorityId, changePri
   )
 }
 
-export default function ListSection({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function ListSection({
   issues,
   statuses,
   updatingId,

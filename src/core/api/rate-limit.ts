@@ -3,6 +3,7 @@ import { Predicate, Effect, Schema } from 'effect'
 import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
 import { RateCounterRequest, RateLimitRequest, RateLimitResult } from '#contracts/request-rate-limit.ts'
 import type { RateLimitTestPolicy } from '#contracts/request-rate-limit.ts'
+import type { CoreReply } from '#core/contract.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
 import { bumpRateCounter, checkRateLimit } from '#services/request-rate-limit.ts'
@@ -30,7 +31,7 @@ export const makeApiRateLimitHandlers = function makeApiRateLimitHandlers<R>(
   envSource: Effect.Effect<RequestRateLimitEnv, never, R>,
 ) {
   return {
-    apiCheckRateLimit: (input: typeof RateLimitRequest.Type) =>
+    apiCheckRateLimit: (input: typeof RateLimitRequest.Type): CoreReply<R> =>
       coreReply(
         'apiCheckRateLimit',
         RateLimitResult,
@@ -54,7 +55,7 @@ export const makeApiRateLimitHandlers = function makeApiRateLimitHandlers<R>(
           })
         }),
       ),
-    apiBumpRateCounter: (input: typeof RateCounterRequest.Type) =>
+    apiBumpRateCounter: (input: typeof RateCounterRequest.Type): CoreReply<R> =>
       coreReply(
         'apiBumpRateCounter',
         Schema.Number,

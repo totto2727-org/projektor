@@ -17,6 +17,7 @@ import {
   normalizeTaskTypes,
 } from '#contracts/web-schemas/issues.ts'
 import { SprintSchema } from '#contracts/web-schemas/planning.ts'
+import type { CoreReply } from '#core/contract.ts'
 import { coreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { findSprintById, listSprints } from '#services/sprints.ts'
@@ -50,11 +51,11 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
     operation: string,
     schema: S,
     read: (env: CoreEnvironment) => Effect.Effect<A, E>,
-  ) {
+  ): CoreReply<R, S> {
     return Effect.flatMap(envSource, (env) => coreReply(operation, schema, read(env)))
   }
   return {
-    webIssue: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string) =>
+    webIssue: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string): CoreReply<R> =>
       reply('webIssue', IssueSchema, (env) =>
         webRead(
           env,
@@ -64,7 +65,7 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           projectId,
         ),
       ),
-    webIssuePage: (request: WebRequest, workspaceId: string, query: string) =>
+    webIssuePage: (request: WebRequest, workspaceId: string, query: string): CoreReply<R> =>
       reply('webIssuePage', IssuePageSchema, (env) =>
         webRead(
           env,
@@ -80,7 +81,7 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
       query: string,
       projectId?: string,
       review?: ReviewFilter,
-    ) =>
+    ): CoreReply<R> =>
       reply('webIssueSearch', SearchResultsSchema, (env) =>
         webRead(
           env,
@@ -90,7 +91,12 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           projectId,
         ),
       ),
-    webIssueComments: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string) =>
+    webIssueComments: (
+      request: WebRequest,
+      workspaceId: string,
+      identifier: string,
+      projectId?: string,
+    ): CoreReply<R> =>
       reply('webIssueComments', CommentsSchema, (env) =>
         webRead(
           env,
@@ -100,7 +106,7 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           projectId,
         ),
       ),
-    webIssueLinks: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string) =>
+    webIssueLinks: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string): CoreReply<R> =>
       reply('webIssueLinks', LinksSchema, (env) =>
         webRead(
           env,
@@ -110,7 +116,12 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           projectId,
         ),
       ),
-    webIssueAttachments: (request: WebRequest, workspaceId: string, identifier: string, projectId?: string) =>
+    webIssueAttachments: (
+      request: WebRequest,
+      workspaceId: string,
+      identifier: string,
+      projectId?: string,
+    ): CoreReply<R> =>
       reply('webIssueAttachments', AttachmentsSchema, (env) =>
         webRead(
           env,
@@ -120,11 +131,11 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           projectId,
         ),
       ),
-    webWikiAttachmentSearch: (request: WebRequest, workspaceId: string, query: string) =>
+    webWikiAttachmentSearch: (request: WebRequest, workspaceId: string, query: string): CoreReply<R> =>
       reply('webWikiAttachmentSearch', WikiSearchResultsSchema, (env) =>
         webRead(env, request, workspaceId, (scope) => data.searchDataWikiAttachments(scope, workspaceId, query)),
       ),
-    webIssueLookups: (request: WebRequest, workspaceId: string) =>
+    webIssueLookups: (request: WebRequest, workspaceId: string): CoreReply<R> =>
       reply('webIssueLookups', Schema.Struct({ statuses: StatusesSchema, taskTypes: TaskTypesSchema }), (env) =>
         webRead(env, request, workspaceId, () =>
           Effect.all(
@@ -136,11 +147,11 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           ),
         ),
       ),
-    webIssueMembers: (request: WebRequest, workspaceId: string) =>
+    webIssueMembers: (request: WebRequest, workspaceId: string): CoreReply<R> =>
       reply('webIssueMembers', Schema.Array(MemberSchema), (env) =>
         webRead(env, request, workspaceId, () => listWorkspaceMembers(env.DB, workspaceId)),
       ),
-    webSprints: (request: WebRequest, workspaceId: string, projectId: string) =>
+    webSprints: (request: WebRequest, workspaceId: string, projectId: string): CoreReply<R> =>
       reply('webSprints', Schema.Array(SprintSchema), (env) =>
         webRead(env, request, workspaceId, (scope) =>
           Effect.gen(function* () {
@@ -151,7 +162,7 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
           }),
         ),
       ),
-    webSprint: (request: WebRequest, workspaceId: string, sprintId: string) =>
+    webSprint: (request: WebRequest, workspaceId: string, sprintId: string): CoreReply<R> =>
       reply('webSprint', SprintSchema, (env) =>
         webRead(env, request, workspaceId, (scope) =>
           Effect.gen(function* () {

@@ -34,7 +34,8 @@ interface HeaderRowProps {
   openCreateModal: () => void
 }
 
-export default function HeaderRow({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function HeaderRow({
   isSearchActive,
   searchResults,
   searchQuery,

@@ -6,7 +6,7 @@ import type { JSX } from 'react'
 import { formatTimestampDate } from '@/features/timestamp.ts'
 
 import type { FeedbackSource, FeedbackVersionSummary } from './feedback-source-settings.tsx'
-import NewSourceModal from './new-source-modal.tsx'
+import { NewSourceModal } from './new-source-modal.tsx'
 
 export interface SourceSummary {
   sourceId: string
@@ -88,12 +88,8 @@ function NewSourceCard({ onClick }: { onClick: () => void }): JSX.Element {
   )
 }
 
-export default function FeedbackSourceGrid({
-  workspaceSlug,
-  projectId,
-  initialSources,
-  initialSummaries,
-}: Props): JSX.Element {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function FeedbackSourceGrid({ workspaceSlug, projectId, initialSources, initialSummaries }: Props): JSX.Element {
   const sources = initialSources
   const summaries = initialSummaries
   const [showCreate, setShowCreate] = useState(false)

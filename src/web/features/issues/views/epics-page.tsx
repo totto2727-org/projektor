@@ -1,7 +1,7 @@
 'use client'
 import type { JSX } from 'react'
 
-import EpicList from '@/features/issues/components/epic-list.tsx'
+import { EpicList } from '@/features/issues/components/epic-list.tsx'
 import type { IssuePage, Status, TaskType } from '@/features/issues/types.ts'
 import type { ProjectSummary, RequestScope } from '@/server/request-context.ts'
 

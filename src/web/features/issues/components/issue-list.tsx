@@ -6,7 +6,7 @@ import type { IssuesInitialData, IssuesRoute } from '@/features/issues/views/iss
 
 import { sortIssues } from './board-utils.ts'
 import { deriveProjectDescription } from './issue-list/derive.ts'
-import IssueListLayout from './issue-list/issue-list-layout.tsx'
+import { IssueListLayout } from './issue-list/issue-list-layout.tsx'
 import type { ViewMode } from './issue-list/types-view.ts'
 import { useCreateIssueModal } from './issue-list/use-create-issue-modal.ts'
 import { useIssueFilters } from './issue-list/use-issue-filters.ts'
@@ -20,7 +20,8 @@ interface Props {
   route: IssuesRoute
 }
 
-export default function IssueList({ workspaceSlug, initialData, route }: Props): JSX.Element {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function IssueList({ workspaceSlug, initialData, route }: Props): JSX.Element {
   /*
    * The URL owns the view and its SSR-loaded working set. Browser preferences
    * cannot change the initial tree or replace primary data after hydration.

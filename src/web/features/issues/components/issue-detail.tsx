@@ -245,7 +245,8 @@ const IssueDetailView = function IssueDetailView(
   )
 }
 
-export default function IssueDetail({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function IssueDetail({
   workspaceSlug,
   initialData,
 }: {

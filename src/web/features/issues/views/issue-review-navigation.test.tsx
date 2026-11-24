@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('../components/issue-list.tsx', () => ({
-  default: ({ initialData }: { initialData: IssuesInitialData }) => (
+  IssueList: ({ initialData }: { initialData: IssuesInitialData }) => (
     <ul aria-label='Canonical issues'>
       {initialData.page.items.map((entry) => (
         <li key={entry.id}>{entry.title}</li>

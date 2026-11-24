@@ -1,7 +1,7 @@
 'use client'
 import type { JSX } from 'react'
 
-import IssueDetail from '@/features/issues/components/issue-detail.tsx'
+import { IssueDetail } from '@/features/issues/components/issue-detail.tsx'
 import type { Attachment, Comment, Issue, IssueLink, Member, Status, TaskType } from '@/features/issues/types.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 

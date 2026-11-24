@@ -102,7 +102,8 @@ const DangerZone = function DangerZone({
   )
 }
 
-export default function FeedbackSourceSettings({ source, projectId, workspaceSlug, onChanged }: Props): JSX.Element {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function FeedbackSourceSettings({ source, projectId, workspaceSlug, onChanged }: Props): JSX.Element {
   const rotationInFlight = useRef(false)
   const [rotationBusy, setRotationBusy] = useState(false)
   const [rotating, setRotating] = useState(false)

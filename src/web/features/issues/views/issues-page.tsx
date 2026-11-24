@@ -1,7 +1,7 @@
 'use client'
 import type { JSX } from 'react'
 
-import IssueList from '@/features/issues/components/issue-list.tsx'
+import { IssueList } from '@/features/issues/components/issue-list.tsx'
 import type { SprintDetail } from '@/features/issues/components/issue-list/sprint-banner-section.tsx'
 import type { Issue, IssuePage, Status, TaskType } from '@/features/issues/types.ts'
 import type { ProjectSummary, RequestScope } from '@/server/request-context.ts'

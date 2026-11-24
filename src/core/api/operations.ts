@@ -1,5 +1,6 @@
 import { Effect, Schema } from 'effect'
 
+import type { CoreReply } from '#core/contract.ts'
 import { coreReply } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -19,7 +20,7 @@ export const makeApiCoreHandlers = function makeApiCoreHandlers<R>(
     ...makeApiDomainHandlers(envSource),
     ...makeApiPublicHandlers(envSource),
     ...makeApiRateLimitHandlers(envSource),
-    apiMaintenance: () =>
+    apiMaintenance: (): CoreReply<R> =>
       coreReply(
         'apiMaintenance',
         Schema.Null,

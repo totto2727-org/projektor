@@ -220,7 +220,8 @@ interface BacklogViewProps {
   onSort: (key: SortKey) => void
 }
 
-export default function BacklogView({
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function BacklogView({
   issues,
   statuses,
   updatingId,

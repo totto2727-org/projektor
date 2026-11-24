@@ -31,6 +31,12 @@ export const CoreProblem = Schema.Struct({
 })
 export type CoreProblem = typeof CoreProblem.Type
 
+export type CoreReply<R, S extends Schema.Top = never> = Effect.Effect<
+  string,
+  never,
+  R | (typeof CoreProblem | S)['EncodingServices']
+>
+
 /** Only explicitly selected public data may cross the native binding. */
 export class CorePublicError extends Data.TaggedError('CorePublicError')<CoreProblem> {}
 
@@ -42,7 +48,9 @@ export const coreFailure = function coreFailure(
   return new CorePublicError({ status, message, occurrenceId: `urn:uuid:${crypto.randomUUID()}`, ...metadata })
 }
 
-export const coreReplyCodec = <S extends Schema.Top>(success: S) =>
+export const coreReplyCodec = <S extends Schema.Top>(
+  success: S,
+): Schema.fromJsonString<Schema.toCodecJson<Schema.Result<S, typeof CoreProblem>>> =>
   Schema.fromJsonString(Schema.toCodecJson(Schema.Result(success, CoreProblem)))
 
 /** Encode at the origin. Neither checked exceptions nor defects leave this Worker. */
@@ -50,7 +58,7 @@ export const coreReply = function coreReply<E, R, S extends Schema.Top>(
   operation: string,
   success: S,
   effect: Effect.Effect<unknown, E, R>,
-) {
+): CoreReply<R, S> {
   const codec = coreReplyCodec(success)
   return effect.pipe(
     Effect.flatMap((value) => Schema.encodeUnknownEffect(codec)(Result.succeed(value))),

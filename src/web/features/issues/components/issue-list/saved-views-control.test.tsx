@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 
 import type { SavedViewFilters } from '@/features/issues/components/saved-views.ts'
 
-import SavedViewsControl from './saved-views-control.tsx'
+import { SavedViewsControl } from './saved-views-control.tsx'
 import { useSavedViews } from './use-saved-views.ts'
 
 afterEach(cleanup)

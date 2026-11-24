@@ -14,6 +14,7 @@ import {
   Converted,
   Ok,
 } from '#contracts/web-schemas/feedback.ts'
+import type { CoreReply } from '#core/contract.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import * as queries from '#services/feedback.ts'
@@ -92,11 +93,11 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
     schema: S,
     proof: BrowserCommand,
     operation: (ctx: ServiceCtx) => Promise<A>,
-  ) {
+  ): CoreReply<R, S> {
     return Effect.flatMap(envSource, (env) => coreReply(name, schema, browserCommand(env, proof, operation)))
   }
   return {
-    webFeedbackIndex: (request: WebRequest, workspaceId: string, projectId: string) =>
+    webFeedbackIndex: (request: WebRequest, workspaceId: string, projectId: string): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webFeedbackIndex',
@@ -124,7 +125,7 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           ),
         ),
       ),
-    webFeedbackDetail: (request: WebRequest, sourceId: string, status: string, workspaceId?: string) =>
+    webFeedbackDetail: (request: WebRequest, sourceId: string, status: string, workspaceId?: string): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webFeedbackDetail',
@@ -207,25 +208,25 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           }).pipe(Effect.mapError(publicWebFailure)),
         ),
       ),
-    webCreateFeedbackSource: (proof: BrowserCommand, input: unknown) =>
+    webCreateFeedbackSource: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation('webCreateFeedbackSource', CreatedSource, proof, (ctx) => sources.createFeedbackSource(ctx, input)),
-    webUpdateFeedbackSource: (proof: BrowserCommand, input: unknown) =>
+    webUpdateFeedbackSource: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation('webUpdateFeedbackSource', Ok, proof, (ctx) => sources.updateFeedbackSource(ctx, input)),
-    webRotateFeedbackSourceToken: (proof: BrowserCommand, input: unknown) =>
+    webRotateFeedbackSourceToken: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation('webRotateFeedbackSourceToken', Schema.Struct({ token: Schema.String }), proof, (ctx) =>
         sources.rotateFeedbackSourceToken(ctx, input),
       ),
-    webRevokeFeedbackSource: (proof: BrowserCommand, input: unknown) =>
+    webRevokeFeedbackSource: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation('webRevokeFeedbackSource', Ok, proof, (ctx) => sources.revokeFeedbackSource(ctx, input)),
-    webUpdateFeedbackStatus: (proof: BrowserCommand, input: unknown) =>
+    webUpdateFeedbackStatus: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation('webUpdateFeedbackStatus', Ok, proof, (ctx) => commands.updateFeedbackStatus(ctx, input)),
-    webConvertFeedback: (proof: BrowserCommand, input: unknown) =>
+    webConvertFeedback: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation('webConvertFeedback', Converted, proof, (ctx) => commands.convertFeedbackToIssue(ctx, input)),
-    webBulkReviewFeedback: (proof: BrowserCommand, input: unknown) =>
+    webBulkReviewFeedback: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation('webBulkReviewFeedback', Schema.Struct({ updated: Schema.Number }), proof, (ctx) =>
         commands.bulkMarkReviewed(ctx, input),
       ),
-    webBulkConvertFeedback: (proof: BrowserCommand, input: unknown) =>
+    webBulkConvertFeedback: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation(
         'webBulkConvertFeedback',
         Schema.Struct({ ...Converted.fields, convertedCount: Schema.Number }),

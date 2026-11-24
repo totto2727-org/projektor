@@ -4,12 +4,12 @@ import type { JSX } from 'react'
 import type { Issue } from '@/features/issues/components/board-utils.ts'
 
 import { IssueBulkProvider } from './bulk-actions.tsx'
-import CreateIssueModal from './create-issue-modal.tsx'
+import { CreateIssueModal } from './create-issue-modal.tsx'
 import { deriveStatusOptions } from './derive.ts'
-import HeaderRow from './header-row.tsx'
-import MainContent from './main-content.tsx'
-import SprintBannerSection from './sprint-banner-section.tsx'
-import Toolbar from './toolbar.tsx'
+import { HeaderRow } from './header-row.tsx'
+import { MainContent } from './main-content.tsx'
+import { SprintBannerSection } from './sprint-banner-section.tsx'
+import { Toolbar } from './toolbar.tsx'
 import type { ViewMode } from './types-view.ts'
 import type { useCreateIssueModal } from './use-create-issue-modal.ts'
 import type { useIssueFilters } from './use-issue-filters.ts'
@@ -184,7 +184,8 @@ const IssueListMain = function IssueListMain({
 }
 
 /** Assembles the toolbar, header, main content, and modals from the parent list's hook state. */
-export default function IssueListLayout(props: IssueListLayoutProps): JSX.Element {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function IssueListLayout(props: IssueListLayoutProps): JSX.Element {
   return (
     <div>
       <IssueListTop {...props} />

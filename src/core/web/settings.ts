@@ -15,6 +15,7 @@ import {
   SettingsOkSchema,
   SettingsTokensSchema,
 } from '#contracts/web-schemas/settings.ts'
+import type { CoreReply } from '#core/contract.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -85,7 +86,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
     codec: S,
     proof: BrowserCommand,
     operation: (ctx: ServiceCtx, env: CoreEnvironment) => Promise<A>,
-  ) {
+  ): CoreReply<R, S> {
     return Effect.flatMap(envSource, (env) =>
       coreReply(
         name,
@@ -118,7 +119,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
     )
   }
   return {
-    webSettingsGroups: (request: WebRequest, workspaceId: string) =>
+    webSettingsGroups: (request: WebRequest, workspaceId: string): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webSettingsGroups',
@@ -171,7 +172,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           ),
         ),
       ),
-    webSettingsTokens: (proof: BrowserCommand) =>
+    webSettingsTokens: (proof: BrowserCommand): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webSettingsTokens',
@@ -200,7 +201,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           }).pipe(Effect.mapError(publicWebFailure)),
         ),
       ),
-    webSettingsConnectors: (proof: BrowserCommand) =>
+    webSettingsConnectors: (proof: BrowserCommand): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webSettingsConnectors',
@@ -219,7 +220,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           }),
         ),
       ),
-    webSettingsMcp: (proof: BrowserCommand) =>
+    webSettingsMcp: (proof: BrowserCommand): CoreReply<R> =>
       Effect.flatMap(envSource, (env) =>
         coreReply(
           'webSettingsMcp',
@@ -233,15 +234,15 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
           }),
         ),
       ),
-    webCreateGroup: (proof: BrowserCommand, input: unknown) =>
+    webCreateGroup: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation('webCreateGroup', CreatedGroupSchema, proof, (ctx) => groups.createGroup(ctx, input)),
-    webUpdateGroup: (proof: BrowserCommand, groupId: string, input: unknown) =>
+    webUpdateGroup: (proof: BrowserCommand, groupId: string, input: unknown): CoreReply<R> =>
       mutation('webUpdateGroup', SettingsOkSchema, proof, (ctx) => groups.updateGroup(ctx, groupId, input)),
-    webDeleteGroup: (proof: BrowserCommand, groupId: string) =>
+    webDeleteGroup: (proof: BrowserCommand, groupId: string): CoreReply<R> =>
       mutation('webDeleteGroup', SettingsOkSchema, proof, (ctx) => groups.deleteGroup(ctx, groupId)),
-    webAddGroupMember: (proof: BrowserCommand, groupId: string, input: unknown) =>
+    webAddGroupMember: (proof: BrowserCommand, groupId: string, input: unknown): CoreReply<R> =>
       mutation('webAddGroupMember', SettingsOkSchema, proof, (ctx) => groups.addGroupMember(ctx, groupId, input)),
-    webRemoveGroupMember: (proof: BrowserCommand, groupId: string, userId: string) =>
+    webRemoveGroupMember: (proof: BrowserCommand, groupId: string, userId: string): CoreReply<R> =>
       mutation('webRemoveGroupMember', SettingsOkSchema, proof, (ctx) =>
         groups.removeGroupMember(ctx, groupId, userId),
       ),
@@ -250,14 +251,14 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
       groupId: string,
       projectId: string,
       role: 'viewer' | 'member' | 'admin',
-    ) => grant('webSetGroupGrant', proof, groupId, projectId, role),
-    webRemoveGroupGrant: (proof: BrowserCommand, groupId: string, projectId: string) =>
+    ): CoreReply<R> => grant('webSetGroupGrant', proof, groupId, projectId, role),
+    webRemoveGroupGrant: (proof: BrowserCommand, groupId: string, projectId: string): CoreReply<R> =>
       grant('webRemoveGroupGrant', proof, groupId, projectId),
-    webCreateToken: (proof: BrowserCommand, input: unknown) =>
+    webCreateToken: (proof: BrowserCommand, input: unknown): CoreReply<R> =>
       mutation('webCreateToken', NewTokenSchema, proof, (ctx) => workspaces.createToken(ctx, input)),
-    webRevokeToken: (proof: BrowserCommand, tokenId: string) =>
+    webRevokeToken: (proof: BrowserCommand, tokenId: string): CoreReply<R> =>
       mutation('webRevokeToken', SettingsOkSchema, proof, (ctx) => workspaces.revokeToken(ctx, tokenId)),
-    webDisconnectConnector: (proof: BrowserCommand, connectorId: string) =>
+    webDisconnectConnector: (proof: BrowserCommand, connectorId: string): CoreReply<R> =>
       mutation('webDisconnectConnector', SettingsOkSchema, proof, async (ctx, env) =>
         revokeConnectorGrant(
           (await import('#services/oauth-provider.ts')).oauthApi(env),

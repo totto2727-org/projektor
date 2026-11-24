@@ -4,7 +4,7 @@ import type { JSX, Dispatch, SetStateAction } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
 import { Dialog } from '@/components/ui/dialog.tsx'
-import Select from '@/components/ui/select.tsx'
+import { Select } from '@/components/ui/select.tsx'
 import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
 import { IssueMarkdownEditor as MarkdownEditor } from '@/features/issues/components/lazy-markdown-editor.tsx'
 import { PRIORITY_OPTIONS } from '@/features/issues/utils/issue-utils.ts'
@@ -133,7 +133,8 @@ const CreateIssueModalFields = function CreateIssueModalFields({
   )
 }
 
-export default function CreateIssueModal(props: CreateIssueModalProps): JSX.Element {
+// oxlint-disable-next-line eslint/func-style -- The React component-definition rule requires a function declaration.
+export function CreateIssueModal(props: CreateIssueModalProps): JSX.Element {
   const {
     createTitle,
     setCreateTitle,
