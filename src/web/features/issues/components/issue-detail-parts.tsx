@@ -51,6 +51,7 @@ import {
 } from './issue-detail-helpers.ts'
 import { IssueMarkdownEditor as MarkdownEditor } from './lazy-markdown-editor.tsx'
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const PencilIcon = (): JSX.Element => (
   <svg
     width='14'
@@ -882,6 +883,7 @@ export const RelationsSection = function RelationsSection({
   )
 }
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const FileIcon = (): JSX.Element => (
   <svg
     width='14'
@@ -900,6 +902,7 @@ const FileIcon = (): JSX.Element => (
   </svg>
 )
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const WikiIcon = (): JSX.Element => (
   <svg
     width='14'
@@ -918,6 +921,7 @@ const WikiIcon = (): JSX.Element => (
   </svg>
 )
 
+// oxlint-disable-next-line react/function-component-definition -- eslint/func-style requires a function expression.
 const LinkIcon = (): JSX.Element => (
   <svg
     width='14'

@@ -92,6 +92,7 @@ const valueFormatter = function valueFormatter(
   formatValue: (value: number) => string,
   onlyDataKey?: string,
 ): ComponentProps<typeof ChartTooltipContent>['formatter'] {
+  // oxlint-disable-next-line react/function-component-definition -- Recharts uses this callback for tooltip formatting. eslint/func-style requires an expression.
   return (value, name, item) =>
     Predicate.isNotNullish(onlyDataKey) && item.dataKey !== onlyDataKey ? null : (
       <div className='flex flex-1 items-center justify-between gap-3'>

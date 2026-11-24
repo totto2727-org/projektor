@@ -70,29 +70,54 @@ const seedOwnerProjectFixture = async function seedOwnerProjectFixture(): Promis
   }
 }
 
+interface IssueProjectFixture {
+  projectId: string
+  slug: string
+  token: string
+  userId: string
+  workspaceId: string
+}
+
 describe('issues API', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
-  })
-
   type IssuesPage = {
     items: Record<string, unknown>[]
     nextCursor: number | null
     total: number
   }
 
-  const listIssues = async function listIssues(url = 'http://localhost/api/issues') {
-    const res = await fetchNativeApi(url, { headers: authHeaders(token, slug) })
-    return { res, page: (await res.json()) as IssuesPage }
+  const seedScenarioFixture = async function seedScenarioFixture(): Promise<
+    IssueProjectFixture & {
+      listIssues: (url?: string) => Promise<{ res: Response; page: IssuesPage }>
+      patch: (id: string, body: Record<string, unknown>) => Promise<Response>
+    }
+  > {
+    const { token, slug, workspaceId, userId, projectId }: IssueProjectFixture = await seedProjectFixture({
+      role: 'owner',
+    })
+
+    const listIssues = async function listIssues(url = 'http://localhost/api/issues') {
+      const res = await fetchNativeApi(url, { headers: authHeaders(token, slug) })
+      return { res, page: (await res.json()) as IssuesPage }
+    }
+
+    /*
+     * ─── PROJ-212: completed_at + date-range filters ──────────────────────────
+     * The test rate limiter allows only RATE_LIMIT_API_MAX (5) API requests per
+     * window, so set up state via env.DB and assert via env.DB where possible —
+     * DB access bypasses both the rate limiter and the getIssue KV cache.
+     */
+    const patch = async function patch(id: string, body: Record<string, unknown>): Promise<Response> {
+      return fetchNativeApi(`http://localhost/api/issues/${id}`, {
+        body: JSON.stringify(body),
+        headers: authHeaders(token, slug),
+        method: 'PATCH',
+      })
+    }
+    return { listIssues, patch, projectId, slug, token, userId, workspaceId }
   }
 
   test('handles GET /api/issues returns empty list initially', async () => {
+    const { listIssues } = await seedScenarioFixture()
     const { res, page } = await listIssues()
     expect(res.status).toBe(200)
     expect(Array.isArray(page.items)).toBe(true)
@@ -101,6 +126,7 @@ describe('issues API', () => {
   })
 
   test('handles POST /api/issues creates an issue', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const res = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ priority: 'high', projectId, title: 'First issue' }),
       headers: authHeaders(token, slug),
@@ -117,6 +143,7 @@ describe('issues API', () => {
    * Tests authenticate over Bearer tokens (see authHeaders), same as agents.
    */
   test('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const res = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Author kind test' }),
       headers: authHeaders(token, slug),
@@ -132,6 +159,7 @@ describe('issues API', () => {
   })
 
   test('covers PROJ-712: rejects an unrecognized field (e.g. a spoofed authorKind) instead of silently ignoring it', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const res = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ authorKind: 'human', projectId, title: 'Author kind test' }),
       headers: authHeaders(token, slug),
@@ -141,6 +169,7 @@ describe('issues API', () => {
   })
 
   test('handles POST then GET returns the created issue', async () => {
+    const { listIssues, projectId, slug, token } = await seedScenarioFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Visible issue' }),
       headers: authHeaders(token, slug),
@@ -153,6 +182,7 @@ describe('issues API', () => {
   })
 
   test('exposes a resolvable url on list items and single-issue fetches (PROJ-307)', async () => {
+    const { listIssues, projectId, slug, token } = await seedScenarioFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Wiki full-text search' }),
       headers: authHeaders(token, slug),
@@ -171,6 +201,7 @@ describe('issues API', () => {
   })
 
   test('auto-increments issue number per project', async () => {
+    const { listIssues, projectId, slug, token } = await seedScenarioFixture()
     for (const title of ['Issue A', 'Issue B', 'Issue C']) {
       await fetchNativeApi('http://localhost/api/issues', {
         body: JSON.stringify({ projectId, title }),
@@ -184,6 +215,7 @@ describe('issues API', () => {
   })
 
   test('concurrent creates in the same project receive distinct issue numbers', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const [res1, res2] = await Promise.all([
       fetchNativeApi('http://localhost/api/issues', {
         body: JSON.stringify({ projectId, title: 'Concurrent A' }),
@@ -204,6 +236,7 @@ describe('issues API', () => {
   })
 
   test('handles PATCH /api/issues/:id updates status', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'To update' }),
       headers: authHeaders(token, slug),
@@ -226,6 +259,7 @@ describe('issues API', () => {
   })
 
   test('handles DELETE /api/issues/:id removes the issue', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'To delete' }),
       headers: authHeaders(token, slug),
@@ -245,6 +279,7 @@ describe('issues API', () => {
   })
 
   test('filters issues by status', async () => {
+    const { listIssues, projectId, slug, token } = await seedScenarioFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Backlog item' }),
       headers: authHeaders(token, slug),
@@ -268,6 +303,7 @@ describe('issues API', () => {
   })
 
   test('rejects requests from non-members', async () => {
+    const { slug } = await seedScenarioFixture()
     const other = await seedFixture()
     const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(other.token, slug),
@@ -276,6 +312,7 @@ describe('issues API', () => {
   })
 
   test('handles POST with assigneeId and labels persists them', async () => {
+    const { projectId, slug, token, workspaceId } = await seedScenarioFixture()
     const assignee = await seedUser('assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -301,6 +338,7 @@ describe('issues API', () => {
   })
 
   test('handles PATCH with assigneeId (camelCase) updates the assignee', async () => {
+    const { projectId, slug, token, workspaceId } = await seedScenarioFixture()
     const assignee = await seedUser('patch-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -326,6 +364,7 @@ describe('issues API', () => {
   })
 
   test('handles PATCH with labels updates labels', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Label test', labels: ['old'] }),
       headers: authHeaders(token, slug),
@@ -347,6 +386,7 @@ describe('issues API', () => {
   })
 
   test('filters issues by assignee', async () => {
+    const { listIssues, projectId, slug, token, workspaceId } = await seedScenarioFixture()
     const assignee = await seedUser('filter-assignee@example.com')
     await seedMember(workspaceId, assignee.id)
 
@@ -367,6 +407,7 @@ describe('issues API', () => {
   })
 
   test('cursor pagination returns next page', async () => {
+    const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     // Seed with explicit distinct timestamps so cursor (created_at <) math works correctly
     const base = 1_700_000_000
     await seedIssue(workspaceId, projectId, userId, { title: 'Issue 1', createdAt: base + 100 })
@@ -383,6 +424,7 @@ describe('issues API', () => {
   })
 
   test('defaults to 30 rows per page when no limit is given (PROJ-201)', async () => {
+    const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const base = 1_700_000_000
     for (let index = 0; index < 35; index++) {
       await seedIssue(workspaceId, projectId, userId, {
@@ -402,6 +444,7 @@ describe('issues API', () => {
   }, 15_000) // PROJ-248: seeds 35 issues sequentially; full-suite contention pushes this past the 5s default
 
   test('reports the real total match count, not just the loaded page size (PROJ-303)', async () => {
+    const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const base = 1_700_000_000
     for (let index = 0; index < 35; index++) {
       await seedIssue(workspaceId, projectId, userId, {
@@ -425,6 +468,7 @@ describe('issues API', () => {
   })
 
   test('projectId filter scopes results to that project only', async () => {
+    const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const otherProject = await seedProject(workspaceId, 'OTH')
     await seedIssue(workspaceId, projectId, userId, { title: 'Project A issue' })
     await seedIssue(workspaceId, otherProject.id, userId, { title: 'Project B issue' })
@@ -435,6 +479,7 @@ describe('issues API', () => {
   })
 
   test('projectId filter returns all project issues up to limit, not just newest workspace-wide', async () => {
+    const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     // Seed a second project with many newer issues so workspace-wide listing would return them first
     const newerProject = await seedProject(workspaceId, 'NEW')
     const base = currentEpochSeconds()
@@ -464,6 +509,7 @@ describe('issues API', () => {
   }, 15_000) // PROJ-248: seeds 65 issues sequentially; full-suite contention pushes this past the 5s default
 
   test('handles GET /api/issues/:id returns 404 for unknown id', async () => {
+    const { slug, token } = await seedScenarioFixture()
     const res = await fetchNativeApi(`http://localhost/api/issues/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
@@ -471,6 +517,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/KEY-NUMBER looks up by ref', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     // beforeEach seeds a project with key='PROJ'; first issue in it is PROJ-1
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Ref issue' }),
@@ -489,6 +536,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/KEY-NUMBER resolves for a project key containing digits (PROJ-440)', async () => {
+    const { slug, token, workspaceId } = await seedScenarioFixture()
     const digitProject = await seedProject(workspaceId, 'WEB2')
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId: digitProject.id, title: 'Digit-key ref issue' }),
@@ -517,6 +565,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/:ref with an absurdly long number is a 404, not a 500 (PROJ-440)', async () => {
+    const { slug, token } = await seedScenarioFixture()
     const res = await fetchNativeApi(`http://localhost/api/issues/PROJ-${'9'.repeat(400)}`, {
       headers: authHeaders(token, slug),
     })
@@ -524,6 +573,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/:id includes project_key (PROJ-226 tab title regression)', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedScenarioFixture()
     const created = await seedIssue(workspaceId, projectId, userId, { title: 'By id' })
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${created.id}`, {
@@ -535,6 +585,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/search finds issues by title keyword', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({
         body: 'Login fails on Safari',
@@ -564,6 +615,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/search finds issues by body keyword', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ body: 'Contains wrangler reference', projectId, title: 'Some issue' }),
       headers: authHeaders(token, slug),
@@ -584,6 +636,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/search respects workspace scoping', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ body: 'unique-sentinel', projectId, title: 'Workspace A issue' }),
       headers: authHeaders(token, slug),
@@ -611,6 +664,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/search with projectId filters to that project', async () => {
+    const { projectId, slug, token, workspaceId } = await seedScenarioFixture()
     const otherProject = await seedProject(workspaceId, 'SEC')
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ body: 'shared-term', projectId, title: 'Alpha project issue' }),
@@ -636,6 +690,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/search returns project fields in results', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Field check issue' }),
       headers: authHeaders(token, slug),
@@ -666,6 +721,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/search returns 400 when query is missing', async () => {
+    const { slug, token } = await seedScenarioFixture()
     const res = await fetchNativeApi('http://localhost/api/issues/search', {
       headers: authHeaders(token, slug),
     })
@@ -673,6 +729,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/search ranks by bm25 (title+body match scores higher than body-only)', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     // Issue with the term in both title AND body — higher bm25 score
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({
@@ -704,6 +761,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/search FTS workspace isolation prevents cross-tenant results', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     // Seed an issue in the primary workspace
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ body: '', projectId, title: 'Primary workspace fts-sentinel' }),
@@ -734,6 +792,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/search returns empty results for whitespace-only query', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Noise issue' }),
       headers: authHeaders(token, slug),
@@ -748,6 +807,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues/search returns empty results for punctuation-only query', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Noise issue' }),
       headers: authHeaders(token, slug),
@@ -764,6 +824,7 @@ describe('issues API', () => {
   // ---- Hierarchy (parent_id) tests ----
 
   test('handles POST creates a child issue with parentId', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Parent issue' }),
       headers: authHeaders(token, slug),
@@ -787,6 +848,7 @@ describe('issues API', () => {
   })
 
   test('handles GET issue includes rollup of child status counts', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedScenarioFixture()
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Parent for rollup' }),
       headers: authHeaders(token, slug),
@@ -812,6 +874,7 @@ describe('issues API', () => {
   })
 
   test('handles GET issue with no children returns empty rollup', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Childless issue' }),
       headers: authHeaders(token, slug),
@@ -831,6 +894,7 @@ describe('issues API', () => {
   })
 
   test('handles PATCH sets parentId on an existing issue', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Parent' }),
       headers: authHeaders(token, slug),
@@ -860,6 +924,7 @@ describe('issues API', () => {
   })
 
   test('handles PATCH clears parentId by setting it to null', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Parent to detach from' }),
       headers: authHeaders(token, slug),
@@ -888,6 +953,7 @@ describe('issues API', () => {
   })
 
   test('handles POST rejects self as parent', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     // Create issue first, then try to set itself as parent via PATCH
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Self-ref' }),
@@ -905,6 +971,7 @@ describe('issues API', () => {
   })
 
   test('handles PATCH rejects a parentId that would create a cycle', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedScenarioFixture()
     // A → B → C; try to set A.parentId = C (cycle: A is ancestor of C)
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'A' })
     const currentIssue = await seedIssue(workspaceId, projectId, userId, { title: 'B', parentId: issue.id })
@@ -919,6 +986,7 @@ describe('issues API', () => {
   })
 
   test('handles POST rejects parent that would exceed depth cap of 5', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedScenarioFixture()
     // Build a chain root → L1 → L2 → L3 → L4 → L5 (L5 is at depth 5)
     const root = await seedIssue(workspaceId, projectId, userId, { title: 'Root' })
     const l1 = await seedIssue(workspaceId, projectId, userId, { title: 'L1', parentId: root.id })
@@ -937,6 +1005,7 @@ describe('issues API', () => {
   })
 
   test('handles POST accepts parent at depth 4 (child at depth 5 is allowed)', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedScenarioFixture()
     const root = await seedIssue(workspaceId, projectId, userId, { title: 'Root' })
     const l1 = await seedIssue(workspaceId, projectId, userId, { title: 'L1', parentId: root.id })
     const l2 = await seedIssue(workspaceId, projectId, userId, { title: 'L2', parentId: l1.id })
@@ -953,6 +1022,7 @@ describe('issues API', () => {
   })
 
   test('handles GET /api/issues?parentId= filters to direct children', async () => {
+    const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const parent = await seedIssue(workspaceId, projectId, userId, { title: 'Parent' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Child 1', parentId: parent.id })
     await seedIssue(workspaceId, projectId, userId, { title: 'Child 2', parentId: parent.id })
@@ -966,6 +1036,7 @@ describe('issues API', () => {
   })
 
   test('handles POST rejects parentId from a different workspace', async () => {
+    const { projectId, slug, token } = await seedScenarioFixture()
     const other = await seedFixture()
     const otherProject = await seedProject(other.workspace.id, 'OTH')
     const otherIssue = await seedIssue(other.workspace.id, otherProject.id, other.user.id, {
@@ -981,6 +1052,7 @@ describe('issues API', () => {
   })
 
   test("covers PROJ-389: another workspace's owner cannot create an issue in this project", async () => {
+    const { projectId } = await seedScenarioFixture()
     const other = await seedFixture({ role: 'owner' })
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -991,6 +1063,7 @@ describe('issues API', () => {
   })
 
   test('filters by multiple statusIds (OR)', async () => {
+    const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const s1 = await seedTaskStatus(workspaceId, { category: 'todo', key: 'todo', name: 'Todo' })
     const s2 = await seedTaskStatus(workspaceId, { category: 'done', key: 'done', name: 'Done' })
     const s3 = await seedTaskStatus(workspaceId, {
@@ -1019,6 +1092,7 @@ describe('issues API', () => {
   })
 
   test('filters by multiple priorities (OR)', async () => {
+    const { listIssues, projectId, slug, token } = await seedScenarioFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ priority: 'urgent', projectId, title: 'Urgent issue' }),
       headers: authHeaders(token, slug),
@@ -1042,6 +1116,7 @@ describe('issues API', () => {
   })
 
   test('filters by projectId', async () => {
+    const { listIssues, projectId, slug, token, workspaceId } = await seedScenarioFixture()
     const project2 = await seedProject(workspaceId)
 
     await fetchNativeApi('http://localhost/api/issues', {
@@ -1061,6 +1136,7 @@ describe('issues API', () => {
   })
 
   test('noParent=true returns only issues without a parent', async () => {
+    const { listIssues, projectId, slug, token } = await seedScenarioFixture()
     const r1 = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Parent issue' }),
       headers: authHeaders(token, slug),
@@ -1080,6 +1156,7 @@ describe('issues API', () => {
   })
 
   test('excludeTypeIds drops issues of those types but keeps untyped ones (PROJ-202)', async () => {
+    const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const epic = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     await seedIssue(workspaceId, projectId, userId, { title: 'An epic', typeId: epic.id })
     await seedIssue(workspaceId, projectId, userId, { title: 'A plain issue' })
@@ -1090,20 +1167,6 @@ describe('issues API', () => {
     expect(titles).toStrictEqual(['A plain issue'])
   })
 
-  /*
-   * ─── PROJ-212: completed_at + date-range filters ──────────────────────────
-   * The test rate limiter allows only RATE_LIMIT_API_MAX (5) API requests per
-   * window, so set up state via env.DB and assert via env.DB where possible —
-   * DB access bypasses both the rate limiter and the getIssue KV cache.
-   */
-  const patch = async function patch(id: string, body: Record<string, unknown>): Promise<Response> {
-    return fetchNativeApi(`http://localhost/api/issues/${id}`, {
-      body: JSON.stringify(body),
-      headers: authHeaders(token, slug),
-      method: 'PATCH',
-    })
-  }
-
   const completedAtOf = async function completedAtOf(id: string): Promise<number | null> {
     const row = await env.DB.prepare('SELECT completed_at FROM issues WHERE id = ?')
       .bind(id)
@@ -1112,6 +1175,7 @@ describe('issues API', () => {
   }
 
   test('stamps completed_at when an issue enters a done status and clears it on exit (PROJ-212)', async () => {
+    const { patch, projectId, userId, workspaceId } = await seedScenarioFixture()
     // 3 API requests (DB seed + 3 patch), under the rate-limit window.
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Will complete' })
     const id = issue.id
@@ -1134,6 +1198,7 @@ describe('issues API', () => {
   })
 
   test('filters by completedAfter / completedBefore (PROJ-212)', async () => {
+    const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     // Seed + stamp completion via env.DB so only the 2 list calls hit the API.
     const older = await seedIssue(workspaceId, projectId, userId, { title: 'Completed long ago' })
     const recent = await seedIssue(workspaceId, projectId, userId, { title: 'Completed just now' })
@@ -1153,6 +1218,7 @@ describe('issues API', () => {
   })
 
   test('filters by updatedAfter / updatedBefore (PROJ-212)', async () => {
+    const { listIssues, projectId, userId, workspaceId } = await seedScenarioFixture()
     const now = currentEpochSeconds()
     const stale = await seedIssue(workspaceId, projectId, userId, { title: 'Edited long ago' })
     const fresh = await seedIssue(workspaceId, projectId, userId, { title: 'Edited just now' })
@@ -1181,6 +1247,7 @@ describe('issues API', () => {
   }
 
   test('stamps ready_at/claimed_at/done_at once, on first entry, and never clears them', async () => {
+    const { patch, projectId, userId, workspaceId } = await seedScenarioFixture()
     // 4 API requests (seed + 4 patches), under the rate-limit window.
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Flows through' })
     const id = issue.id
@@ -1214,6 +1281,7 @@ describe('issues API', () => {
   })
 
   test('stamps ready_at even when an issue skips straight from backlog to in_progress', async () => {
+    const { patch, projectId, userId, workspaceId } = await seedScenarioFixture()
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Fast-tracked' })
     await patch(issue.id, { status: 'in_progress' })
     const stamps = await flowTimestampsOf(issue.id)
@@ -1232,6 +1300,7 @@ describe('issues API', () => {
   }
 
   test('stamps in_review_at once, on first entry, and counts bounces back to in_progress', async () => {
+    const { patch, projectId, userId, workspaceId } = await seedScenarioFixture()
     const issue = await seedIssue(workspaceId, projectId, userId, {
       title: 'Reviewed and bounced',
     })
@@ -1279,6 +1348,7 @@ describe('issues API', () => {
    * each case alone already needs 3 patches.
    */
   test('records a gate-rejection event for in_review -> in_progress', async () => {
+    const { patch, projectId, userId, workspaceId } = await seedScenarioFixture()
     const rejected = await seedIssue(workspaceId, projectId, userId, { title: 'Sent back' })
     await patch(rejected.id, { status: 'in_progress' })
     await patch(rejected.id, { status: 'in_review' })
@@ -1290,6 +1360,7 @@ describe('issues API', () => {
   })
 
   test('does not record a gate-rejection event for in_review -> cancelled', async () => {
+    const { patch, projectId, userId, workspaceId } = await seedScenarioFixture()
     const killed = await seedIssue(workspaceId, projectId, userId, { title: 'Killed in review' })
     await patch(killed.id, { status: 'in_progress' })
     await patch(killed.id, { status: 'in_review' })
@@ -1304,16 +1375,13 @@ describe('issues API', () => {
   })
 })
 
-// ─── PROJ-441/442/444: list-endpoint perf sweep ──────────────────────────────
-describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
+const seedIssueRollupFixture = async function seedIssueRollupFixture(): Promise<
+  IssueProjectFixture & {
+    listIssues: (url: string) => Promise<{ res: Response; page: { items: Record<string, unknown>[] } }>
+  }
+> {
+  const { token, slug, workspaceId, userId, projectId }: IssueProjectFixture = await seedProjectFixture({
+    role: 'owner',
   })
 
   const listIssues = async function listIssues(
@@ -1322,9 +1390,14 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     const res = await fetchNativeApi(url, { headers: authHeaders(token, slug) })
     return { res, page: (await res.json()) as { items: Record<string, unknown>[] } }
   }
+  return { listIssues, projectId, slug, token, userId, workspaceId }
+}
 
+// ─── PROJ-441/442/444: list-endpoint perf sweep ──────────────────────────────
+describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', () => {
   // PROJ-441
   test('includeRollups=1 attaches a rollup per item for parents with mixed-status children', async () => {
+    const { listIssues, projectId, slug, token, userId, workspaceId } = await seedIssueRollupFixture()
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Parent with children' }),
       headers: authHeaders(token, slug),
@@ -1348,6 +1421,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   })
 
   test('without includeRollups, items carry no rollup key', async () => {
+    const { listIssues, projectId, slug, token } = await seedIssueRollupFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'No rollup wanted' }),
       headers: authHeaders(token, slug),
@@ -1359,6 +1433,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   })
 
   test("includeRollups counts children in a different project the same as getIssue's own rollup", async () => {
+    const { listIssues, projectId, slug, token, userId, workspaceId } = await seedIssueRollupFixture()
     const otherProject = await seedProject(workspaceId, 'OTH')
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Cross-project parent' }),
@@ -1388,6 +1463,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   })
 
   test('includeRollups groups by raw status even when status_category diverges, matching getIssue', async () => {
+    const { listIssues, projectId, slug, token, userId, workspaceId } = await seedIssueRollupFixture()
     const parentRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Category-divergent parent' }),
       headers: authHeaders(token, slug),
@@ -1427,6 +1503,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
 
   // PROJ-442
   test('list items omit body by default; includeBody=1 restores it', async () => {
+    const { listIssues, projectId, slug, token } = await seedIssueRollupFixture()
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ body: 'Some body text', projectId, title: 'Has a body' }),
       headers: authHeaders(token, slug),
@@ -1443,6 +1520,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
 
   // PROJ-444
   test("assignee=me returns the calling user's issues", async () => {
+    const { listIssues, projectId, slug, token, userId } = await seedIssueRollupFixture()
     const other = await seedUser('me-filter-other@example.com')
     await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ assigneeId: userId, projectId, title: 'Assigned to me' }),
@@ -1461,6 +1539,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   })
 
   test('assignee filter still accepts a literal user id', async () => {
+    const { listIssues, projectId, slug, token, workspaceId } = await seedIssueRollupFixture()
     const other = await seedUser('literal-id-filter@example.com')
     await seedMember(workspaceId, other.id)
     await fetchNativeApi('http://localhost/api/issues', {
@@ -1475,21 +1554,20 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
   })
 })
 
-describe('issues MCP — typeId', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, projectId } = await seedOwnerProjectFixture())
-  })
+const seedOwnerMcpFixture = async function seedOwnerMcpFixture(): Promise<
+  Omit<IssueProjectFixture, 'userId'> & { mcpCall: (params: unknown) => ReturnType<typeof callMcpTool> }
+> {
+  const { token, slug, workspaceId, projectId }: Omit<IssueProjectFixture, 'userId'> = await seedOwnerProjectFixture()
 
   const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
     return callMcpTool(workspaceId, token, slug, params)
   }
+  return { mcpCall, projectId, slug, token, workspaceId }
+}
 
+describe('issues MCP — typeId', () => {
   test('covers MCP create_issue with typeId persists the type', async () => {
+    const { mcpCall, projectId, slug, token, workspaceId } = await seedOwnerMcpFixture()
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
 
     const createResp = await mcpCall({
@@ -1513,6 +1591,7 @@ describe('issues MCP — typeId', () => {
    * type can never be assigned to an issue.
    */
   test('covers MCP create_issue accepts a seeded-style 32-hex (non-UUID) typeId', async () => {
+    const { mcpCall, projectId, slug, token, workspaceId } = await seedOwnerMcpFixture()
     const hashId = 'ea3df70345804c3d26ebf139816cae8f'
     const { id: typeId } = await seedTaskType(workspaceId, {
       id: hashId,
@@ -1536,6 +1615,7 @@ describe('issues MCP — typeId', () => {
   })
 
   test('covers MCP update_issue sets typeId on an existing issue', async () => {
+    const { mcpCall, projectId, slug, token, workspaceId } = await seedOwnerMcpFixture()
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
     const createResp = await mcpCall({
@@ -1555,6 +1635,7 @@ describe('issues MCP — typeId', () => {
   })
 
   test('covers MCP update_issue clears typeId with null', async () => {
+    const { mcpCall, projectId, slug, token, workspaceId } = await seedOwnerMcpFixture()
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
     const createResp = await mcpCall({
@@ -1578,6 +1659,7 @@ describe('issues MCP — typeId', () => {
    * so both REST and MCP callers get the guard.
    */
   test('covers MCP update_issue rejects demoting an epic that still has children', async () => {
+    const { mcpCall, projectId, slug, token, workspaceId } = await seedOwnerMcpFixture()
     const { id: epicTypeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -1608,6 +1690,7 @@ describe('issues MCP — typeId', () => {
   })
 
   test('covers MCP update_issue allows retyping a non-epic parent that still has children', async () => {
+    const { mcpCall, projectId, slug, token, workspaceId } = await seedOwnerMcpFixture()
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
     const { id: bugTypeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
@@ -1636,6 +1719,7 @@ describe('issues MCP — typeId', () => {
   })
 
   test("covers MCP update_issue allows changing an epic's type once it has no children", async () => {
+    const { mcpCall, projectId, slug, token, workspaceId } = await seedOwnerMcpFixture()
     const { id: epicTypeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -1659,6 +1743,7 @@ describe('issues MCP — typeId', () => {
   })
 
   test('covers MCP list_issues typeId filter returns only matching issues', async () => {
+    const { mcpCall, projectId, workspaceId } = await seedOwnerMcpFixture()
     const { id: bugTypeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const { id: storyTypeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
 
@@ -1681,17 +1766,8 @@ describe('issues MCP — typeId', () => {
 })
 
 describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
-  let token: string, slug: string, workspaceId: string, projectId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, projectId } = await seedOwnerProjectFixture())
-  })
-
-  const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
-    return callMcpTool(workspaceId, token, slug, params)
-  }
-
   test('advertises all ListIssuesSchema optional filter keys in its inputSchema', async () => {
+    const { slug, token, workspaceId } = await seedOwnerMcpFixture()
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
@@ -1717,6 +1793,7 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
   })
 
   test('respects the noParent filter', async () => {
+    const { mcpCall, projectId } = await seedOwnerMcpFixture()
     const parentResp = await mcpCall({
       name: 'create_issue',
       arguments: { projectId, title: 'Parent issue' },
@@ -1964,15 +2041,15 @@ describe('issues role guards', () => {
   })
 })
 
-describe('get_prioritized_issues MCP tool', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
+const seedPrioritizedMcpFixture = async function seedPrioritizedMcpFixture(): Promise<
+  IssueProjectFixture & {
+    callPrioritized: (
+      args?: Record<string, unknown>,
+    ) => Promise<{ result?: { content: { text: string }[] }; error?: { code: number; message: string } }>
+  }
+> {
+  const { token, slug, workspaceId, userId, projectId }: IssueProjectFixture = await seedProjectFixture({
+    role: 'owner',
   })
 
   const callPrioritized = async function callPrioritized(args: Record<string, unknown> = {}) {
@@ -1991,8 +2068,12 @@ describe('get_prioritized_issues MCP tool', () => {
       error?: { code: number; message: string }
     }>
   }
+  return { callPrioritized, projectId, slug, token, userId, workspaceId }
+}
 
+describe('get_prioritized_issues MCP tool', () => {
   test('returns [] (not 500) when no open issues exist', async () => {
+    const { callPrioritized } = await seedPrioritizedMcpFixture()
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
     const data = parseNativeMcpText(
@@ -2004,6 +2085,7 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   test('returns non-empty array with _score fields when open issues exist', async () => {
+    const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
     await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'High prio' })
     await seedIssue(workspaceId, projectId, userId, { priority: 'low', title: 'Low prio' })
 
@@ -2027,6 +2109,7 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   test('handles more open issues than a single D1 query can bind (chunked enrichment)', async () => {
+    const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
     // getPrioritizedIssues fetches every open issue, then batch-loads links + story points
     // keyed by those ids. On real D1 (100-param cap) an un-chunked load throws once there
     // are ~100 open issues; this guards the inChunks split and that results merge across
@@ -2043,6 +2126,7 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   test('excludes done and cancelled issues', async () => {
+    const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
     await seedIssue(workspaceId, projectId, userId, { title: 'Open' })
     await seedIssue(workspaceId, projectId, userId, { status: 'done', title: 'Done' })
     await seedIssue(workspaceId, projectId, userId, { status: 'cancelled', title: 'Cancelled' })
@@ -2057,6 +2141,7 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   test('scores issues with story points correctly (smaller SP = higher score)', async () => {
+    const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
     const field = await seedCustomFieldDef(workspaceId, {
       key: 'story_points',
       label: 'Story Points',
@@ -2088,6 +2173,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
   // ─── PROJ-253: definition-of-ready filtering ──────────────────────────────
   test('drops not-ready issues by default, and surfaces them with includeNotReady', async () => {
+    const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
     const ready = await seedIssue(workspaceId, projectId, userId, { title: 'Ready' })
     await env.DB.prepare('UPDATE issues SET body = ? WHERE id = ?')
       .bind(
@@ -2142,6 +2228,7 @@ describe('get_prioritized_issues MCP tool', () => {
 
   // ─── PROJ-324: projectId scoping ───────────────────────────────────────────
   test('scopes ranking to projectId, and droppedNotReady reflects only that project', async () => {
+    const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
     const otherProject = await seedProject(workspaceId, 'OTHER')
     await seedIssue(workspaceId, projectId, userId, { title: 'In target project' })
     await seedIssue(workspaceId, otherProject.id, userId, { title: 'In other project' })
@@ -2155,6 +2242,7 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   test('degrades to the ranked not-ready list when nothing passes the bar (PROJ-738)', async () => {
+    const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
     await seedIssue(workspaceId, projectId, userId, { title: 'Not ready' })
 
     const body = await callPrioritized()
@@ -2176,6 +2264,7 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   test('computes droppedNotReady scoped to projectId', async () => {
+    const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
     const otherProject = await seedProject(workspaceId, 'OTHER')
     // Neither issue has a body, so both fail the definition-of-ready check.
     await seedIssue(workspaceId, projectId, userId, { title: 'Not ready in target' })
@@ -2188,6 +2277,7 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   test('workspace-wide behavior (no projectId) is unchanged', async () => {
+    const { callPrioritized, projectId, userId, workspaceId } = await seedPrioritizedMcpFixture()
     const otherProject = await seedProject(workspaceId, 'OTHER')
     await seedIssue(workspaceId, projectId, userId, { title: 'In target project' })
     await seedIssue(workspaceId, otherProject.id, userId, { title: 'In other project' })
@@ -2201,16 +2291,15 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 })
 
-// PROJ-633: REST parity for get_prioritized_issues
-describe('handles GET /api/issues/prioritized', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
+const seedPrioritizedApiFixture = async function seedPrioritizedApiFixture(): Promise<
+  IssueProjectFixture & {
+    getPrioritized: (
+      query?: Record<string, string>,
+    ) => Promise<{ res: Response; body: { issues: { title: string }[] } }>
+  }
+> {
+  const { token, slug, workspaceId, userId, projectId }: IssueProjectFixture = await seedProjectFixture({
+    role: 'owner',
   })
 
   const getPrioritized = async function getPrioritized(
@@ -2222,8 +2311,13 @@ describe('handles GET /api/issues/prioritized', () => {
     })
     return { res, body: (await res.json()) as { issues: { title: string }[] } }
   }
+  return { getPrioritized, projectId, slug, token, userId, workspaceId }
+}
 
+// PROJ-633: REST parity for get_prioritized_issues
+describe('handles GET /api/issues/prioritized', () => {
   test('ranks higher-priority issues first', async () => {
+    const { getPrioritized, projectId, userId, workspaceId } = await seedPrioritizedApiFixture()
     await seedIssue(workspaceId, projectId, userId, { priority: 'low', title: 'Low prio' })
     await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'High prio' })
 
@@ -2242,6 +2336,7 @@ describe('handles GET /api/issues/prioritized', () => {
    * silently fall back to the default of 10, returning all 5 seeded issues.
    */
   test('limit is honoured', async () => {
+    const { getPrioritized, projectId, userId, workspaceId } = await seedPrioritizedApiFixture()
     for (let index = 0; index < 5; index++) {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
     }
@@ -2252,6 +2347,7 @@ describe('handles GET /api/issues/prioritized', () => {
   })
 
   test('projectId scopes results to that project', async () => {
+    const { getPrioritized, projectId, userId, workspaceId } = await seedPrioritizedApiFixture()
     const otherProject = await seedProject(workspaceId, 'OTHER')
     await seedIssue(workspaceId, projectId, userId, { title: 'In target project' })
     await seedIssue(workspaceId, otherProject.id, userId, { title: 'In other project' })
@@ -2264,20 +2360,22 @@ describe('handles GET /api/issues/prioritized', () => {
   })
 })
 
-describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently dropped', () => {
-  let token: string, slug: string, workspaceId: string, projectId: string, userId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({
-      role: 'owner',
-    }))
+const seedIssueInputValidationFixture = async function seedIssueInputValidationFixture(): Promise<
+  IssueProjectFixture & { mcpCall: (params: unknown) => ReturnType<typeof callMcpTool> }
+> {
+  const { token, slug, workspaceId, userId, projectId }: IssueProjectFixture = await seedProjectFixture({
+    role: 'owner',
   })
 
   const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
     return callMcpTool(workspaceId, token, slug, params)
   }
+  return { mcpCall, projectId, slug, token, userId, workspaceId }
+}
 
+describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently dropped', () => {
   test('list_issues rejects an unknown param instead of ignoring it', async () => {
+    const { mcpCall, projectId, userId, workspaceId } = await seedIssueInputValidationFixture()
     await seedIssue(workspaceId, projectId, userId, { title: 'Some issue' })
     const res = await mcpCall({ name: 'list_issues', arguments: { projectKey: projectId } })
     expect(res.error).toBeUndefined()
@@ -2285,6 +2383,7 @@ describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently
   })
 
   test('get_issue rejects an unknown param instead of ignoring it', async () => {
+    const { mcpCall, projectId } = await seedIssueInputValidationFixture()
     const createResp = await mcpCall({
       name: 'create_issue',
       arguments: { projectId, title: 'For get_issue' },
@@ -2297,6 +2396,7 @@ describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently
   })
 
   test('create_issue_link rejects an unknown param instead of ignoring it', async () => {
+    const { mcpCall, projectId } = await seedIssueInputValidationFixture()
     const rpcResponse = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'A' } })
     const b = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'B' } })
     const { id: aId } = parseNativeMcpText(rpcResponse.result!.content[0].text, IdResponse)
@@ -2513,20 +2613,8 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
 
 // PROJ-785: assigneeId must reference a member of the issue's workspace.
 describe('issues — assignee workspace membership (PROJ-785)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, projectId } = await seedOwnerProjectFixture())
-  })
-
-  const mcpCall = async function mcpCall(params: unknown): ReturnType<typeof callMcpTool> {
-    return callMcpTool(workspaceId, token, slug, params)
-  }
-
   test('covers REST POST rejects an assigneeId from another workspace with 400', async () => {
+    const { projectId, slug, token } = await seedOwnerMcpFixture()
     const otherFixture = await seedFixture()
     const res = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'Bad assignee', assigneeId: otherFixture.user.id }),
@@ -2544,6 +2632,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
   })
 
   test('covers REST POST accepts an assigneeId that is a real workspace member', async () => {
+    const { projectId, slug, token, workspaceId } = await seedOwnerMcpFixture()
     const assignee = await seedUser('proj785-member@example.com')
     await seedMember(workspaceId, assignee.id)
     const res = await fetchNativeApi('http://localhost/api/issues', {
@@ -2555,6 +2644,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
   })
 
   test('covers REST PATCH rejects reassigning to a user from another workspace with 400', async () => {
+    const { projectId, slug, token } = await seedOwnerMcpFixture()
     const otherFixture = await seedFixture()
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId, title: 'To reassign' }),
@@ -2572,6 +2662,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
   })
 
   test('covers REST PATCH null clears the assignee without a membership check', async () => {
+    const { projectId, slug, token, workspaceId } = await seedOwnerMcpFixture()
     const assignee = await seedUser('proj785-clear@example.com')
     await seedMember(workspaceId, assignee.id)
     const createRes = await fetchNativeApi('http://localhost/api/issues', {
@@ -2599,6 +2690,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
   })
 
   test('covers MCP create_issue rejects an assigneeId from another workspace', async () => {
+    const { mcpCall, projectId } = await seedOwnerMcpFixture()
     const otherFixture = await seedFixture()
     const res = await mcpCall({
       name: 'create_issue',
@@ -2610,6 +2702,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
   })
 
   test('covers MCP create_issue accepts a real workspace member as assignee', async () => {
+    const { mcpCall, projectId, workspaceId } = await seedOwnerMcpFixture()
     const assignee = await seedUser('proj785-mcp-member@example.com')
     await seedMember(workspaceId, assignee.id)
     const res = await mcpCall({
@@ -2620,6 +2713,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
   })
 
   test('covers MCP update_issue rejects reassigning to a user from another workspace', async () => {
+    const { mcpCall, projectId } = await seedOwnerMcpFixture()
     const otherFixture = await seedFixture()
     const createResp = await mcpCall({
       name: 'create_issue',
@@ -2637,6 +2731,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
   })
 
   test('covers MCP update_issue null clears the assignee without a membership check', async () => {
+    const { mcpCall, projectId, slug, token, workspaceId } = await seedOwnerMcpFixture()
     const assignee = await seedUser('proj785-mcp-clear@example.com')
     await seedMember(workspaceId, assignee.id)
     const createResp = await mcpCall({

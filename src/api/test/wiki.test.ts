@@ -2476,14 +2476,14 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
   })
 })
 
+interface WikiWorkspaceFixture {
+  slug: string
+  token: string
+  workspaceId: string
+}
+
 // PROJ-484: optimistic locking (baseRevisionId + conflict diff) on wiki writes
 describe('wiki optimistic locking (PROJ-484)', () => {
-  let token: string, slug: string, workspaceId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId } = await seedWorkspaceFixture())
-  })
-
   /*
    * The test env's RATE_LIMIT_API_MAX is 5 req/window (vite.config.ts), and these
    * tests each fire more than that against one token — reset the counter before every
@@ -2493,28 +2493,41 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
-    return resetRateLimitAndMcpCall<T>(workspaceId, token, slug, name, args)
-  }
+  const seedScenarioFixture = async function seedScenarioFixture(): Promise<
+    WikiWorkspaceFixture & {
+      getRevisions: (
+        pageSlug: string,
+      ) => Promise<{ id: string; title: string; summary: string | null; created_at: number }[]>
+      mcp: <T>(name: string, args: unknown) => Promise<JsonRpcError | JsonRpcResult<T>>
+    }
+  > {
+    const { token, slug, workspaceId }: WikiWorkspaceFixture = await seedWorkspaceFixture()
 
-  const getRevisions = async function getRevisions(
-    pageSlug: string,
-  ): Promise<{ id: string; title: string; summary: string | null; created_at: number }[]> {
-    const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
-      headers: authHeaders(token, slug),
-    })
-    const resShape = Schema.Array(
-      Schema.Struct({
-        created_at: Schema.Number,
-        id: Schema.String,
-        summary: Schema.Union([Schema.String, Schema.Null]),
-        title: Schema.String,
-      }),
-    ).pipe(Schema.mutable)
-    return readNativeJson(res, resShape)
+    const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
+      return resetRateLimitAndMcpCall<T>(workspaceId, token, slug, name, args)
+    }
+
+    const getRevisions = async function getRevisions(
+      pageSlug: string,
+    ): Promise<{ id: string; title: string; summary: string | null; created_at: number }[]> {
+      const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
+        headers: authHeaders(token, slug),
+      })
+      const resShape = Schema.Array(
+        Schema.Struct({
+          created_at: Schema.Number,
+          id: Schema.String,
+          summary: Schema.Union([Schema.String, Schema.Null]),
+          title: Schema.String,
+        }),
+      ).pipe(Schema.mutable)
+      return readNativeJson(res, resShape)
+    }
+    return { getRevisions, mcp, slug, token, workspaceId }
   }
 
   test('covers REST: update with no baseRevisionId still succeeds (transitional last-write-wins)', async () => {
+    const { slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2535,6 +2548,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
   })
 
   test('covers REST: update succeeds when baseRevisionId matches the current latest revision', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2562,6 +2576,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
   })
 
   test('covers REST: update is rejected with a structured conflict when baseRevisionId is stale', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2609,6 +2624,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
   })
 
   test('covers REST: revision rows get a title snapshot', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2625,6 +2641,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
   })
 
   test('covers REST: summary is stored and returned when provided', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2641,6 +2658,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
   })
 
   test("covers REST: update is rejected with a validation error when baseRevisionId doesn't belong to the page", async () => {
+    const { slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2655,6 +2673,7 @@ describe('wiki optimistic locking (PROJ-484)', () => {
   })
 
   test('covers MCP: update_wiki_page — matching baseRevisionId succeeds, stale is rejected with a conflict', async () => {
+    const { mcp } = await seedScenarioFixture()
     const created = mcpData(await mcp('create_wiki_page', { title: 'MCP Locked Doc', content: 'v1' }), SlugResponse)
 
     await mcp('update_wiki_page', { slug: created.slug, content: 'v2' })
@@ -2709,31 +2728,36 @@ describe('wiki optimistic locking (PROJ-484)', () => {
  * treatment for free (see PR description for the design rationale).
  */
 describe('wiki revision diff (PROJ-492)', () => {
-  let token: string, slug: string, workspaceId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId } = await seedWorkspaceFixture())
-  })
-
   const req = async function req(url: string, opts?: RequestInit): Promise<Response> {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
-    return resetRateLimitAndMcpCall<T>(workspaceId, token, slug, name, args)
-  }
+  const seedScenarioFixture = async function seedScenarioFixture(): Promise<
+    WikiWorkspaceFixture & {
+      getRevisions: (pageSlug: string) => Promise<{ id: string; created_at: number }[]>
+      mcp: <T>(name: string, args: unknown) => Promise<JsonRpcError | JsonRpcResult<T>>
+    }
+  > {
+    const { token, slug, workspaceId }: WikiWorkspaceFixture = await seedWorkspaceFixture()
 
-  const getRevisions = async function getRevisions(pageSlug: string): Promise<{ id: string; created_at: number }[]> {
-    const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
-      headers: authHeaders(token, slug),
-    })
-    return readNativeJson(
-      res,
-      Schema.Array(Schema.Struct({ created_at: Schema.Number, id: Schema.String })).pipe(Schema.mutable),
-    )
+    const mcp = async function mcp<T>(name: string, args: unknown): Promise<JsonRpcError | JsonRpcResult<T>> {
+      return resetRateLimitAndMcpCall<T>(workspaceId, token, slug, name, args)
+    }
+
+    const getRevisions = async function getRevisions(pageSlug: string): Promise<{ id: string; created_at: number }[]> {
+      const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
+        headers: authHeaders(token, slug),
+      })
+      return readNativeJson(
+        res,
+        Schema.Array(Schema.Struct({ created_at: Schema.Number, id: Schema.String })).pipe(Schema.mutable),
+      )
+    }
+    return { getRevisions, mcp, slug, token, workspaceId }
   }
 
   test('covers REST: diff against current defaults when `against` is omitted', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2761,6 +2785,7 @@ describe('wiki revision diff (PROJ-492)', () => {
   })
 
   test('covers REST: diff between two explicit revisions', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2789,6 +2814,7 @@ describe('wiki revision diff (PROJ-492)', () => {
   })
 
   test('covers REST: identical revisions diff to an empty string', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2809,6 +2835,7 @@ describe('wiki revision diff (PROJ-492)', () => {
   })
 
   test('covers REST: an unknown `against` revision id 404s', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2829,6 +2856,7 @@ describe('wiki revision diff (PROJ-492)', () => {
   })
 
   test('covers REST: an unknown revisionId 404s', async () => {
+    const { slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2842,6 +2870,7 @@ describe('wiki revision diff (PROJ-492)', () => {
   })
 
   test('covers MCP: get_wiki_revision_diff parity with REST', async () => {
+    const { mcp } = await seedScenarioFixture()
     const created = mcpData(await mcp('create_wiki_page', { title: 'MCP Diff Doc', content: 'alpha' }), SlugResponse)
     await mcp('update_wiki_page', { slug: created.slug, content: 'beta' })
     const [latest] = mcpData(await mcp('list_wiki_revisions', { slug: created.slug }), IdListResponse)
@@ -2856,6 +2885,7 @@ describe('wiki revision diff (PROJ-492)', () => {
   })
 
   test('restore is a plain update_wiki_page call with old content — new revision, never rewrites history', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2903,6 +2933,7 @@ describe('wiki revision diff (PROJ-492)', () => {
   })
 
   test('restore with a baseRevisionId stale from open history is a 409, not a silent overwrite', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2948,6 +2979,7 @@ describe('wiki revision diff (PROJ-492)', () => {
   })
 
   test('restoring a revision whose frontmatter no longer validates fails cleanly — 400, no partial write', async () => {
+    const { getRevisions, slug, token } = await seedScenarioFixture()
     await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4801,12 +4833,6 @@ describe('wiki freshness model (PROJ-489)', () => {
  * throughout, same as the other frontmatter-driven features above.
  */
 describe('wiki page templates (PROJ-491)', () => {
-  let token: string, slug: string, workspaceId: string
-
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId } = await seedWorkspaceFixture())
-  })
-
   const TEMPLATE_CONTENT = [
     '---',
     'type: runbook',
@@ -4818,17 +4844,25 @@ describe('wiki page templates (PROJ-491)', () => {
     '## Steps',
   ].join('\n')
 
-  const createTemplate = async function createTemplate(): Promise<{ id: string; slug: string; isTemplate: boolean }> {
-    const res = await fetchNativeApi('http://localhost/api/wiki', {
-      body: JSON.stringify({ content: TEMPLATE_CONTENT, title: 'Runbook Template' }),
-      headers: authHeaders(token, slug),
-      method: 'POST',
-    })
-    expect(res.status).toBe(201)
-    return readNativeJson(res, Schema.Struct({ id: Schema.String, isTemplate: Schema.Boolean, slug: Schema.String }))
+  const seedScenarioFixture = async function seedScenarioFixture(): Promise<
+    WikiWorkspaceFixture & { createTemplate: () => Promise<{ id: string; slug: string; isTemplate: boolean }> }
+  > {
+    const { token, slug, workspaceId }: WikiWorkspaceFixture = await seedWorkspaceFixture()
+
+    const createTemplate = async function createTemplate(): Promise<{ id: string; slug: string; isTemplate: boolean }> {
+      const res = await fetchNativeApi('http://localhost/api/wiki', {
+        body: JSON.stringify({ content: TEMPLATE_CONTENT, title: 'Runbook Template' }),
+        headers: authHeaders(token, slug),
+        method: 'POST',
+      })
+      expect(res.status).toBe(201)
+      return readNativeJson(res, Schema.Struct({ id: Schema.String, isTemplate: Schema.Boolean, slug: Schema.String }))
+    }
+    return { createTemplate, slug, token, workspaceId }
   }
 
   test('covers REST: frontmatter template:true denormalizes into isTemplate on create', async () => {
+    const { createTemplate, slug, token } = await seedScenarioFixture()
     const created = await createTemplate()
     expect(created.isTemplate).toBe(true)
 
@@ -4840,6 +4874,7 @@ describe('wiki page templates (PROJ-491)', () => {
   })
 
   test('covers REST: create_wiki_page with templateSlug seeds content and strips template:true', async () => {
+    const { createTemplate, slug, token } = await seedScenarioFixture()
     await createTemplate()
 
     const res = await fetchNativeApi('http://localhost/api/wiki', {
@@ -4868,6 +4903,7 @@ describe('wiki page templates (PROJ-491)', () => {
   })
 
   test('covers MCP: create_wiki_page with templateSlug has parity with REST', async () => {
+    const { createTemplate, slug, token, workspaceId } = await seedScenarioFixture()
     await createTemplate()
 
     const result = mcpData(
@@ -4884,6 +4920,7 @@ describe('wiki page templates (PROJ-491)', () => {
   })
 
   test('rejects templateSlug that does not resolve to any page (not a silent blank fallback)', async () => {
+    const { slug, token } = await seedScenarioFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ templateSlug: 'does-not-exist', title: 'Orphan Page' }),
       headers: authHeaders(token, slug),
@@ -4893,6 +4930,7 @@ describe('wiki page templates (PROJ-491)', () => {
   })
 
   test("rejects templateSlug pointing at a page that isn't flagged template:true", async () => {
+    const { slug, token } = await seedScenarioFixture()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: '# Just a page', title: 'Ordinary Page' }),
       headers: authHeaders(token, slug),
@@ -4908,6 +4946,7 @@ describe('wiki page templates (PROJ-491)', () => {
   })
 
   test('rejects content and templateSlug provided together', async () => {
+    const { createTemplate, slug, token } = await seedScenarioFixture()
     await createTemplate()
 
     const res = await fetchNativeApi('http://localhost/api/wiki', {
@@ -4923,6 +4962,7 @@ describe('wiki page templates (PROJ-491)', () => {
   })
 
   test('search_wiki excludes template pages by default', async () => {
+    const { createTemplate, slug, token } = await seedScenarioFixture()
     await createTemplate()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: '# Runbook body content', title: 'Runbook For Deploys' }),
@@ -4944,6 +4984,7 @@ describe('wiki page templates (PROJ-491)', () => {
    * "Runbook Template" alongside real runbook pages.
    */
   test('handles GET /api/wiki excludes template pages by default, matching search_wiki/list_stale_pages', async () => {
+    const { createTemplate, slug, token } = await seedScenarioFixture()
     await createTemplate()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: '# Not a template', title: 'Ordinary Runbook' }),
@@ -4966,6 +5007,7 @@ describe('wiki page templates (PROJ-491)', () => {
   })
 
   test('list_stale_pages excludes template pages even with an overdue verify_interval', async () => {
+    const { slug, token } = await seedScenarioFixture()
     const overdueTemplateContent = [
       '---',
       'template: true',
@@ -4988,6 +5030,7 @@ describe('wiki page templates (PROJ-491)', () => {
   })
 
   test('covers REST GET /api/wiki/templates lists only template-flagged pages', async () => {
+    const { createTemplate, slug, token } = await seedScenarioFixture()
     await createTemplate()
     await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: '# Not a template', title: 'Regular Page' }),
@@ -5004,6 +5047,7 @@ describe('wiki page templates (PROJ-491)', () => {
   })
 
   test("rejects a page slugged 'templates' — it would be shadowed by GET /api/wiki/templates", async () => {
+    const { slug, token } = await seedScenarioFixture()
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       body: JSON.stringify({ content: '', slug: 'templates', title: 'Templates' }),
       headers: authHeaders(token, slug),
@@ -5013,6 +5057,7 @@ describe('wiki page templates (PROJ-491)', () => {
   })
 
   test('covers MCP list_wiki_templates has parity with REST', async () => {
+    const { createTemplate, slug, token, workspaceId } = await seedScenarioFixture()
     await createTemplate()
 
     const result = mcpData(
