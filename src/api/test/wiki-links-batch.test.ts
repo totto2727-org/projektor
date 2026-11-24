@@ -62,9 +62,9 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
 
     const sqls: string[] = []
     const orig = env.DB.prepare.bind(env.DB)
-    vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => {
-      sqls.push(q)
-      return orig(q)
+    vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
+      sqls.push(sql)
+      return orig(sql)
     })
 
     const res = await fetchNativeApi('http://localhost/api/wiki', {
@@ -79,7 +79,7 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
      * Every read of wiki_pages / wiki_redirects during the save — slug checks, parent
      * lookups and link resolution together. Per-link resolution made this ~300.
      */
-    const wikiReads = sqls.filter((q) => /^select/i.test(q.trim()) && /from "?wiki_(pages|redirects)"?/i.test(q))
+    const wikiReads = sqls.filter((sql) => /^select/i.test(sql.trim()) && /from "?wiki_(pages|redirects)"?/i.test(sql))
     expect(wikiReads.length).toBeLessThanOrEqual(12)
 
     const { id: hubId } = await readNativeJson(res, IdResponse)
@@ -87,9 +87,9 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
       .bind(hubId)
       .all<{ target_page_id: string | null; target_title: string }>()
     const resolvedIds = new Set(
-      (rows.results ?? []).map((r) => r.target_page_id).filter((x): x is string => Predicate.isNotNullish(x)),
+      (rows.results ?? []).map((result) => result.target_page_id).filter((x): x is string => Predicate.isNotNullish(x)),
     )
-    const unresolved = (rows.results ?? []).filter((r) => Predicate.isNullish(r.target_page_id))
+    const unresolved = (rows.results ?? []).filter((result) => Predicate.isNullish(result.target_page_id))
 
     expect(resolvedIds).toEqual(new Set([...direct, ...redirected.slice(5)]))
     // 80 missing slugs + 5 redirects whose page is trashed.

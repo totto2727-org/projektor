@@ -27,34 +27,38 @@ describe('file Claims API', () => {
     ;({ token, slug, workspaceId, userId, projectId, issueId } = await seedIssueFixture())
   })
 
-  const claimFiles = async function claimFiles(body: Record<string, unknown>, t = token, s = slug): Promise<Response> {
+  const claimFiles = async function claimFiles(
+    body: Record<string, unknown>,
+    bearerToken = token,
+    workspaceSlug = slug,
+  ): Promise<Response> {
     return fetchNativeApi('http://localhost/api/file-claims', {
       body: JSON.stringify(body),
-      headers: authHeaders(t, s),
+      headers: authHeaders(bearerToken, workspaceSlug),
       method: 'POST',
     })
   }
 
   const releaseFiles = async function releaseFiles(
     body: Record<string, unknown>,
-    t = token,
-    s = slug,
+    bearerToken = token,
+    workspaceSlug = slug,
   ): Promise<Response> {
     return fetchNativeApi('http://localhost/api/file-claims/release', {
       body: JSON.stringify(body),
-      headers: authHeaders(t, s),
+      headers: authHeaders(bearerToken, workspaceSlug),
       method: 'POST',
     })
   }
 
   const listFileClaims = async function listFileClaims(
     params: Record<string, string> = {},
-    t = token,
-    s = slug,
+    bearerToken = token,
+    workspaceSlug = slug,
   ): Promise<Response> {
     const qs = new URLSearchParams(params).toString()
     return fetchNativeApi(`http://localhost/api/file-claims${qs ? `?${qs}` : ''}`, {
-      headers: authHeaders(t, s),
+      headers: authHeaders(bearerToken, workspaceSlug),
     })
   }
 
@@ -62,15 +66,15 @@ describe('file Claims API', () => {
   const mcpCall = async function mcpCall(
     method: string,
     args: Record<string, unknown>,
-    t = token,
-    s = slug,
+    bearerToken = token,
+    workspaceSlug = slug,
     wsId = workspaceId,
   ): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${t}`,
-        'X-Workspace-Slug': s,
+        Authorization: `Bearer ${bearerToken}`,
+        'X-Workspace-Slug': workspaceSlug,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -496,7 +500,7 @@ describe('file Claims API', () => {
        * Reported, not silent: an agent that took over an abandoned path should be able to
        * tell that from an uncontested first claim.
        */
-      expect(body.reclaimed.map((r) => r.path)).toStrictEqual(['src/abandoned.ts'])
+      expect(body.reclaimed.map((fileClaim) => fileClaim.path)).toStrictEqual(['src/abandoned.ts'])
       expect(body.reclaimed[0].releaseReason).toBe('expired')
     })
 
@@ -681,7 +685,7 @@ describe('file Claims API', () => {
           ),
         })
         const body = await readNativeJson(res, bodyShape)
-        expect(body.reclaimed.map((r) => r.path)).toStrictEqual(['src/ttl-expired.ts'])
+        expect(body.reclaimed.map((fileClaim) => fileClaim.path)).toStrictEqual(['src/ttl-expired.ts'])
         expect(body.reclaimed[0].releaseReason).toBe('expired')
       })
 

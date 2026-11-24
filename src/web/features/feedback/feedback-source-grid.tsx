@@ -26,18 +26,18 @@ const formatDate = function formatDate(ts: number): string {
   return formatTimestampDate(ts)
 }
 
-const statusLabel = function statusLabel(s: FeedbackSource): string {
-  if (Predicate.isNotNullish(s.revokedAt)) {
+const statusLabel = function statusLabel(source: FeedbackSource): string {
+  if (Predicate.isNotNullish(source.revokedAt)) {
     return 'Revoked'
   }
-  return s.isActive ? 'Active' : 'Inactive'
+  return source.isActive ? 'Active' : 'Inactive'
 }
 
-const statusClass = function statusClass(s: FeedbackSource): string {
-  if (Predicate.isNotNullish(s.revokedAt)) {
+const statusClass = function statusClass(source: FeedbackSource): string {
+  if (Predicate.isNotNullish(source.revokedAt)) {
     return 'opacity-60'
   }
-  return s.isActive ? '' : 'opacity-75'
+  return source.isActive ? '' : 'opacity-75'
 }
 
 const CARD_CLASS =
@@ -104,11 +104,11 @@ export default function FeedbackSourceGrid({
     <section>
       <h1 className='text-xl font-bold text-text-base mb-4'>Feedback sources</h1>
       <div className='grid gap-4 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]'>
-        {sources.map((s) => (
+        {sources.map((source) => (
           <SourceCard
-            key={s.id}
-            source={s}
-            summary={summaryBySource.get(s.id)}
+            key={source.id}
+            source={source}
+            summary={summaryBySource.get(source.id)}
             workspaceSlug={workspaceSlug}
             projectId={projectId}
           />

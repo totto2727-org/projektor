@@ -181,9 +181,9 @@ describe('covers PROJ-859: bounded query count', () => {
 
     let prepares = 0
     const orig = env.DB.prepare.bind(env.DB)
-    vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => {
+    vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
       prepares++
-      return orig(q)
+      return orig(sql)
     })
     const res = (await getPrioritizedIssues(ctx, { limit: 10 })) as { issues: unknown[] }
     expect(res.issues).toHaveLength(10)

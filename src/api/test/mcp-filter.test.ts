@@ -60,7 +60,7 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
       headers,
       '?domains=issues',
     )) as JsonRpcResult<{ tools: { name: string }[] }>
-    const names = res.result.tools.map((t) => t.name)
+    const names = res.result.tools.map((tool) => tool.name)
     expect(names).toContain('get_issue')
     expect(names).toContain('list_issues')
     expect(names).not.toContain('get_wiki_page')
@@ -75,7 +75,7 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
       headers,
       '?domains=issues,wiki',
     )) as JsonRpcResult<{ tools: { name: string }[] }>
-    const names = res.result.tools.map((t) => t.name)
+    const names = res.result.tools.map((tool) => tool.name)
     expect(names).toContain('get_issue')
     expect(names).toContain('get_wiki_page')
   })
@@ -95,7 +95,9 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
       headers,
       '?domains=issues',
     )) as JsonRpcResult<{ tools: { name: string }[] }>
-    expect(dupRes.result.tools.map((t) => t.name).sort()).toEqual(straightRes.result.tools.map((t) => t.name).sort())
+    expect(dupRes.result.tools.map((tool) => tool.name).sort()).toEqual(
+      straightRes.result.tools.map((tool) => tool.name).sort(),
+    )
 
     const forwardRes = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
@@ -111,8 +113,8 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
       headers,
       '?domains=wiki,issues',
     )) as JsonRpcResult<{ tools: { name: string }[] }>
-    expect(forwardRes.result.tools.map((t) => t.name).sort()).toEqual(
-      reversedRes.result.tools.map((t) => t.name).sort(),
+    expect(forwardRes.result.tools.map((tool) => tool.name).sort()).toEqual(
+      reversedRes.result.tools.map((tool) => tool.name).sort(),
     )
   })
 
@@ -150,7 +152,7 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
       headers,
       '?domains=issues',
     )) as JsonRpcResult<{ tools: { name: string }[] }>
-    expect(listRes.result.tools.map((t) => t.name)).not.toContain('get_wiki_page')
+    expect(listRes.result.tools.map((tool) => tool.name)).not.toContain('get_wiki_page')
 
     const callRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,

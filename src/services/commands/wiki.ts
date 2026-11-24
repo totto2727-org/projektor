@@ -1781,7 +1781,7 @@ const findUniqueSectionOrThrow = function findUniqueSectionOrThrow(
     throw new ValidationError({
       formErrors: [
         `Heading '${heading}' is ambiguous — it appears ${currentMatches.length} times ` +
-          `(levels ${currentMatches.map((s) => `h${s.level}`).join(', ')}); ` +
+          `(levels ${currentMatches.map((selectedHeading) => `h${selectedHeading.level}`).join(', ')}); ` +
           'patch operations need a unique heading',
       ],
       /*
@@ -1789,7 +1789,7 @@ const findUniqueSectionOrThrow = function findUniqueSectionOrThrow(
        * structured field — an agent shouldn't have to regex the sentence to recover
        * this, and NotFoundError's sibling case already hands back currentHeadings.
        */
-      fieldErrors: { heading: currentMatches.map((s) => `h${s.level}`) },
+      fieldErrors: { heading: currentMatches.map((selectedHeading) => `h${selectedHeading.level}`) },
     })
   }
   return currentMatches[0]
@@ -2252,7 +2252,7 @@ const deleteWikiPageAttachments = async function deleteWikiPageAttachments(
         eq(schema.attachments.kind, 'file'),
       ),
     )
-  const r2Keys = fileAttachments.map((a) => a.r2Key).filter((key): key is string => Boolean(key))
+  const r2Keys = fileAttachments.map((attachment) => attachment.r2Key).filter((key): key is string => Boolean(key))
   for (let index = 0; index < r2Keys.length; index += R2_DELETE_BATCH_SIZE) {
     await ctx.r2.delete(r2Keys.slice(index, index + R2_DELETE_BATCH_SIZE))
   }
@@ -2703,7 +2703,7 @@ export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
     .limit(limit + 1)
   const moreExpired = expiredPlusOne.length > limit
   const expired = moreExpired ? expiredPlusOne.slice(0, limit) : expiredPlusOne
-  const ids = expired.map((p) => p.id)
+  const ids = expired.map((expiredPage) => expiredPage.id)
   if (Array.isArrayEmpty(ids)) {
     return { purgedCount: 0, purgedIds: [], moreExpired: false }
   }
@@ -2717,7 +2717,7 @@ export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
    * re-parent-to-nearest-surviving-ancestor behavior.
    */
   const expiredSet = new Set(ids)
-  const parentById = new Map(expired.map((p) => [p.id, p.parentId]))
+  const parentById = new Map(expired.map((expiredPage) => [expiredPage.id, expiredPage.parentId]))
   const resolveReparentTarget = (id: string): string | null => {
     let current = parentById.get(id) ?? null
     const seen = new Set<string>()

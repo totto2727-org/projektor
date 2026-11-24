@@ -470,7 +470,7 @@ describe('files API', () => {
         }),
       ).pipe(Schema.mutable)
       const list = await readNativeJson(listRes, listShape)
-      const entry = list.find((l) => l.kind === 'wiki_ref')
+      const entry = list.find((link) => link.kind === 'wiki_ref')
       expect(entry?.wikiPage?.title).toBe('Linked page')
       expect(entry?.wikiPage?.id).toBe(wikiPageId)
     })
@@ -515,7 +515,7 @@ describe('files API', () => {
         }),
       ).pipe(Schema.mutable)
       const list = await readNativeJson(listRes, listShape)
-      const entry = list.find((l) => l.kind === 'url')
+      const entry = list.find((link) => link.kind === 'url')
       expect(entry?.filename).toBe('Design doc')
       expect(entry?.url).toBe('https://example.com/doc')
     })
@@ -649,7 +649,7 @@ describe('files API', () => {
         listRes,
         Schema.Array(Schema.Struct({ kind: Schema.String, wikiPage: Schema.Unknown })).pipe(Schema.mutable),
       )
-      const entry = list.find((l) => l.kind === 'wiki_ref')
+      const entry = list.find((link) => link.kind === 'wiki_ref')
       expect(entry?.wikiPage).toBeNull()
     })
 
@@ -698,7 +698,7 @@ describe('files API', () => {
           Schema.mutable,
         ),
       )
-      const trashedEntry = list.find((l) => l.kind === 'wiki_ref')
+      const trashedEntry = list.find((link) => link.kind === 'wiki_ref')
       expect(trashedEntry).toBeDefined()
       /*
        * The page still exists (not yet purged) but is trashed — it must behave like the
@@ -734,7 +734,7 @@ describe('files API', () => {
         listAfterPurge,
         Schema.Array(Schema.Struct({ kind: Schema.String })).pipe(Schema.mutable),
       )
-      expect(listAfter.find((l) => l.kind === 'wiki_ref')).toBeUndefined()
+      expect(listAfter.find((link) => link.kind === 'wiki_ref')).toBeUndefined()
     })
   })
 

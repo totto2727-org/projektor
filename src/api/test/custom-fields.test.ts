@@ -593,7 +593,7 @@ describe('custom Fields — MCP parity', () => {
   test('list_custom_field_defs appears in tools/list', async () => {
     const resp = await mcpCall('tools/list', {})
     const tools = (resp.result as unknown as { tools: { name: string }[] }).tools
-    const names = tools.map((t) => t.name)
+    const names = tools.map((tool) => tool.name)
     expect(names).toContain('list_custom_field_defs')
     expect(names).toContain('create_custom_field_def')
     expect(names).toContain('update_custom_field_def')

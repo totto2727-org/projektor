@@ -27,8 +27,8 @@ describe('playbooks', () => {
       res,
       Schema.Array(Schema.Struct({ name: Schema.String, title: Schema.String })).pipe(Schema.mutable),
     )
-    expect(body.find((p) => p.name === 'epic-goal')).toBeTruthy()
-    expect(body.find((p) => p.name === 'idea-discovery')).toBeTruthy()
+    expect(body.find((playbook) => playbook.name === 'epic-goal')).toBeTruthy()
+    expect(body.find((playbook) => playbook.name === 'idea-discovery')).toBeTruthy()
   })
 
   /*

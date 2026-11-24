@@ -131,7 +131,7 @@ export const wikiTools: MCPTool[] = [
       const offset = Predicate.isNumber(rest.offset) ? rest.offset : 0
       const page = toPage(items, items.length >= limit ? offset + limit : null)
       // A cut page resumes at the first dropped result.
-      return capPage(page, { cursorOf: (i) => globalThis.String(offset + i + 1) })
+      return capPage(page, { cursorOf: (index) => globalThis.String(offset + index + 1) })
     },
   },
   {
@@ -789,7 +789,7 @@ export const wikiTools: MCPTool[] = [
       const page = toPage(events, result.nextSince > (rest.since as number) ? result.nextSince : null)
       // `since` is exclusive, so a cut must not split events sharing one second.
       return capPage(page, {
-        cursorOf: (i) => globalThis.String(events[i].createdAt),
+        cursorOf: (index) => globalThis.String(events[index].createdAt),
         canCutAt: (kept) => events[kept - 1].createdAt !== events[kept]?.createdAt,
       })
     },

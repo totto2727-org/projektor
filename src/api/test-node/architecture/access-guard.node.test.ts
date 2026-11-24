@@ -80,7 +80,7 @@ const paramName = function paramName(p: ts.ParameterDeclaration): string {
 
 const collect = function collect(): Map<string, FnInfo> {
   const fns = new Map<string, FnInfo>()
-  const files = readdirSync(SERVICES).filter((f) => f.endsWith('.ts') && !f.endsWith('.d.ts'))
+  const files = readdirSync(SERVICES).filter((file) => file.endsWith('.ts') && !file.endsWith('.d.ts'))
 
   // TS7 parses through its public API session, not the version-only root export.
   // Explicit roots retain the original source coverage without resolving dependencies.

@@ -180,7 +180,7 @@ export const issuesTools: MCPTool[] = [
       )
       return capPage(page, {
         // oxlint-disable-next-line @typescript-eslint/restrict-template-expressions -- Preserve raw-row cursor coercion and the existing MCP cursor protocol.
-        cursorOf: (i) => (raw[i] ? `${raw[i].created_at}:${raw[i].id}` : undefined),
+        cursorOf: (index) => (raw[index] ? `${raw[index].created_at}:${raw[index].id}` : undefined),
       })
     },
   },

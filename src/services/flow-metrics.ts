@@ -88,9 +88,9 @@ const bucketRanges = function bucketRanges(
   since: number,
   until: number,
 ): { start: number; end: number }[] {
-  return starts.map((t) => ({
-    start: Math.max(t, since),
-    end: Math.min(t + bucketSize, until + 1),
+  return starts.map((bucketStart) => ({
+    start: Math.max(bucketStart, since),
+    end: Math.min(bucketStart + bucketSize, until + 1),
   }))
 }
 
@@ -174,7 +174,7 @@ const buildThroughputOverTime = function buildThroughputOverTime(
     Predicate.isNotNullish(issue.doneAt),
   )
   const groups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
-  return starts.map((t, idx) => ({ bucketStart: dateLabel(t), count: groups[idx].length }))
+  return starts.map((bucketStart, idx) => ({ bucketStart: dateLabel(bucketStart), count: groups[idx].length }))
 }
 
 /*
@@ -197,11 +197,11 @@ const buildBugShareOverTime = function buildBugShareOverTime(
     Predicate.isNotNullish(issue.doneAt),
   )
   const groups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
-  return starts.map((t, idx) => {
+  return starts.map((bucketStart, idx) => {
     const group = groups[idx]
     const bugCount = group.filter((i) => i.typeKey === 'bug').length
     return {
-      bucketStart: dateLabel(t),
+      bucketStart: dateLabel(bucketStart),
       total: group.length,
       bugCount,
       bugSharePercent: Array.isArrayNonEmpty(group) ? bugCount / group.length : null,
@@ -227,8 +227,8 @@ const buildReviewLatencyOverTime = function buildReviewLatencyOverTime(
       Predicate.isNotNullish(issue.doneAt) && Predicate.isNotNullish(issue.inReviewAt),
   )
   const groups = groupBySortedRanges(reviewed, (i) => i.doneAt, ranges)
-  return starts.map((t, idx) => ({
-    bucketStart: dateLabel(t),
+  return starts.map((bucketStart, idx) => ({
+    bucketStart: dateLabel(bucketStart),
     p50: summarize(groups[idx].map((i) => i.doneAt - i.inReviewAt)).p50,
   }))
 }
@@ -252,10 +252,10 @@ const buildArrivalVsCompletion = function buildArrivalVsCompletion(
     Predicate.isNotNullish(issue.doneAt),
   )
   const completedGroups = groupBySortedRanges(completed, (i) => i.doneAt, ranges)
-  return starts.map((t, idx) => {
+  return starts.map((bucketStart, idx) => {
     const created = createdGroups[idx].length
     const done = completedGroups[idx].length
-    return { bucketStart: dateLabel(t), created, completed: done, net: created - done }
+    return { bucketStart: dateLabel(bucketStart), created, completed: done, net: created - done }
   })
 }
 
@@ -364,13 +364,13 @@ const buildCfdOverTime = function buildCfdOverTime(
    */
   const counts = { backlogTodo: 0, inProgress: 0, inReview: 0, done: doneBeforeWindow }
   let idx = 0
-  return starts.map((t) => {
-    const sampleAt = Math.min(t + bucketSize - 1, until, now)
+  return starts.map((bucketStart) => {
+    const sampleAt = Math.min(bucketStart + bucketSize - 1, until, now)
     while (idx < events.length && events[idx].time <= sampleAt) {
       counts[events[idx].band] += events[idx].delta
       idx++
     }
-    return { bucketStart: dateLabel(t), ...counts }
+    return { bucketStart: dateLabel(bucketStart), ...counts }
   })
 }
 
@@ -437,7 +437,7 @@ const fetchLeaseHeldSeconds = async function fetchLeaseHeldSeconds(
 
 const computeCoreDistributions = function computeCoreDistributions(
   issues: Readonly<FlowIssueRow[]>,
-  inWindow: (t: number) => boolean,
+  inWindow: (timestamp: number) => boolean,
 ): {
   leadTimes: number[]
   cycleTimes: number[]
@@ -484,7 +484,7 @@ const computeCoreDistributions = function computeCoreDistributions(
 const computeHumanInterventions = function computeHumanInterventions(
   issues: Readonly<FlowIssueRow[]>,
   humanCommentCounts: Map<string, number>,
-  inWindow: (t: number) => boolean,
+  inWindow: (timestamp: number) => boolean,
 ): number[] {
   return issues
     .filter((issue) => Predicate.isNotNullish(issue.doneAt) && inWindow(issue.doneAt))
@@ -498,7 +498,7 @@ const computeHumanInterventions = function computeHumanInterventions(
 const computeAutonomyRatios = function computeAutonomyRatios(
   issues: Readonly<FlowIssueRow[]>,
   leaseHeldSeconds: Map<string, number>,
-  inWindow: (t: number) => boolean,
+  inWindow: (timestamp: number) => boolean,
 ): number[] {
   return issues
     .filter(
@@ -527,7 +527,7 @@ const computeAutonomyRatios = function computeAutonomyRatios(
 const computeFlowEfficiencies = function computeFlowEfficiencies(
   issues: Readonly<FlowIssueRow[]>,
   leaseHeldSeconds: Map<string, number>,
-  inWindow: (t: number) => boolean,
+  inWindow: (timestamp: number) => boolean,
 ): number[] {
   return issues
     .filter(
@@ -768,8 +768,8 @@ const readFlowMetrics = async function readFlowMetrics(
    * still count (e.g. WIP). Row count stays bounded by the window (via the SQL filter
    * above) rather than total project size.
    */
-  const inWindow = (t: number): boolean =>
-    (Predicate.isNullish(since) || t >= since) && (Predicate.isNullish(until) || t <= until)
+  const inWindow = (timestamp: number): boolean =>
+    (Predicate.isNullish(since) || timestamp >= since) && (Predicate.isNullish(until) || timestamp <= until)
 
   const { leadTimes, cycleTimes, reviewLatencies, timeInProgress } = computeCoreDistributions(issues, inWindow)
 

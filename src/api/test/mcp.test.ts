@@ -163,7 +163,7 @@ describe('covers MCP endpoint', () => {
       {},
       headers,
     )) as JsonRpcResult<{ tools: { name: string }[] }>
-    const names = res.result.tools.map((t) => t.name)
+    const names = res.result.tools.map((tool) => tool.name)
     expect(names).toContain('list_issues')
     expect(names).toContain('create_issue')
     expect(names).toContain('search_wiki')

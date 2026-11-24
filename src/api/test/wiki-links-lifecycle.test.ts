@@ -94,12 +94,14 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
     const linker = await createPage(token, workspace.slug, 'Linker', 'See [[Onboarding]].')
 
     let broken = await brokenLinks(token, workspace.slug)
-    expect(broken.some((l) => l.sourcePageId === linker.id && l.targetTitle === 'Onboarding')).toBe(true)
+    expect(
+      broken.some((brokenLink) => brokenLink.sourcePageId === linker.id && brokenLink.targetTitle === 'Onboarding'),
+    ).toBe(true)
 
     const target = await createPage(token, workspace.slug, 'Onboarding')
 
     broken = await brokenLinks(token, workspace.slug)
-    expect(broken.some((l) => l.sourcePageId === linker.id)).toBe(false)
+    expect(broken.some((brokenLink) => brokenLink.sourcePageId === linker.id)).toBe(false)
     const back = await backlinks(token, workspace.slug, target.slug)
     expect(back.some((b) => b.pageId === linker.id)).toBe(true)
   })
@@ -110,23 +112,31 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
     const linker = await createPage(token, workspace.slug, 'Linker2', 'See [[Foo]].')
 
     // Sanity: resolved at creation time (existing per-page resolution).
-    expect((await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)).toBe(true)
+    expect(
+      (await backlinks(token, workspace.slug, target.slug)).some((backlink) => backlink.pageId === linker.id),
+    ).toBe(true)
 
     // Rename the target away from "Foo" — the link's raw text no longer matches it.
     await updatePage(token, workspace.slug, target.slug, { title: 'Bar' })
 
     let broken = await brokenLinks(token, workspace.slug)
-    expect(broken.some((l) => l.sourcePageId === linker.id && l.targetTitle === 'Foo')).toBe(true)
+    expect(broken.some((brokenLink) => brokenLink.sourcePageId === linker.id && brokenLink.targetTitle === 'Foo')).toBe(
+      true,
+    )
     // Slug is unchanged (only the title was renamed) — target.slug still resolves the page.
-    expect((await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)).toBe(false)
+    expect(
+      (await backlinks(token, workspace.slug, target.slug)).some((backlink) => backlink.pageId === linker.id),
+    ).toBe(false)
 
     // Rename a THIRD, unrelated page onto "Foo" — it should claim the now-broken link.
     const claimant = await createPage(token, workspace.slug, 'Unrelated')
     await updatePage(token, workspace.slug, claimant.slug, { title: 'Foo' })
 
     broken = await brokenLinks(token, workspace.slug)
-    expect(broken.some((l) => l.sourcePageId === linker.id)).toBe(false)
-    expect((await backlinks(token, workspace.slug, claimant.slug)).some((b) => b.pageId === linker.id)).toBe(true)
+    expect(broken.some((brokenLink) => brokenLink.sourcePageId === linker.id)).toBe(false)
+    expect(
+      (await backlinks(token, workspace.slug, claimant.slug)).some((backlink) => backlink.pageId === linker.id),
+    ).toBe(true)
   })
 
   test("restore: a link waiting on a trashed page resolves once it's restored", async () => {
@@ -137,13 +147,17 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
     // Written while "Vault" is trashed (treated as gone) — the link is unresolved.
     const linker = await createPage(token, workspace.slug, 'Linker3', 'See [[Vault]].')
     let broken = await brokenLinks(token, workspace.slug)
-    expect(broken.some((l) => l.sourcePageId === linker.id && l.targetTitle === 'Vault')).toBe(true)
+    expect(
+      broken.some((brokenLink) => brokenLink.sourcePageId === linker.id && brokenLink.targetTitle === 'Vault'),
+    ).toBe(true)
 
     await undeletePage(token, workspace.slug, target.id)
 
     broken = await brokenLinks(token, workspace.slug)
-    expect(broken.some((l) => l.sourcePageId === linker.id)).toBe(false)
-    expect((await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)).toBe(true)
+    expect(broken.some((brokenLink) => brokenLink.sourcePageId === linker.id)).toBe(false)
+    expect(
+      (await backlinks(token, workspace.slug, target.slug)).some((backlink) => backlink.pageId === linker.id),
+    ).toBe(true)
   })
 
   test('trash: the link is reported broken but keeps its target, so restore brings it back', async () => {
@@ -153,11 +167,15 @@ describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links",
 
     await deletePage(token, workspace.slug, target.slug)
     const broken = await brokenLinks(token, workspace.slug)
-    expect(broken.some((l) => l.sourcePageId === linker.id && l.targetTitle === 'Doomed')).toBe(true)
+    expect(
+      broken.some((brokenLink) => brokenLink.sourcePageId === linker.id && brokenLink.targetTitle === 'Doomed'),
+    ).toBe(true)
     await expect(targetOf(linker.id)).resolves.toBe(target.id)
 
     await undeletePage(token, workspace.slug, target.id)
-    expect((await backlinks(token, workspace.slug, target.slug)).some((b) => b.pageId === linker.id)).toBe(true)
+    expect(
+      (await backlinks(token, workspace.slug, target.slug)).some((backlink) => backlink.pageId === linker.id),
+    ).toBe(true)
   })
 
   test('purge: links re-point to another live page with the same title, else unresolve', async () => {

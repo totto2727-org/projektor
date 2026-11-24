@@ -17,8 +17,8 @@ const RETARGET = /\{\s*\.\.\.ctx\s*,\s*workspaceId\s*:/u
 
 const tsFiles = function tsFiles(dir: string): string[] {
   return readdirSync(dir)
-    .filter((f) => f.endsWith('.ts'))
-    .map((f) => join(dir, f))
+    .filter((file) => file.endsWith('.ts'))
+    .map((file) => join(dir, file))
 }
 
 describe('no ServiceCtx workspace retargeting', () => {

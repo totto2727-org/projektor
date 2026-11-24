@@ -40,8 +40,8 @@ import type { HonoEnv } from '#types'
 
 export const oauthRouter = new Hono<HonoEnv>()
 
-const helpers = function helpers(c: Context<HonoEnv>): OAuthHelpers {
-  return (c.env as unknown as { OAUTH_PROVIDER: OAuthHelpers }).OAUTH_PROVIDER
+const helpers = function helpers(httpContext: Context<HonoEnv>): OAuthHelpers {
+  return (httpContext.env as unknown as { OAUTH_PROVIDER: OAuthHelpers }).OAUTH_PROVIDER
 }
 
 /*
@@ -150,12 +150,12 @@ const consentHtml = function consentHtml(
 }
 
 const errorPage = function errorPage(
-  c: Context<HonoEnv>,
+  httpContext: Context<HonoEnv>,
   status: 400 | 403 | 500,
   heading: string,
   detail: string,
 ): Response {
-  return consentHtml(c, heading, `<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(detail)}</p>`, status)
+  return consentHtml(httpContext, heading, `<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(detail)}</p>`, status)
 }
 
 /**
@@ -167,8 +167,8 @@ const errorPage = function errorPage(
  * secret, and a forgeable consent token is a working CSRF against the one screen in
  * projektor that grants standing access.
  */
-const consentSigningKey = function consentSigningKey(c: Context<HonoEnv>): string | null {
-  const secret = c.env.JWT_SECRET
+const consentSigningKey = function consentSigningKey(httpContext: Context<HonoEnv>): string | null {
+  const secret = httpContext.env.JWT_SECRET
   return secret && secret.length > 0 ? secret : null
 }
 
@@ -220,19 +220,22 @@ const authorizationFailure = function authorizationFailure(
  * and no Cloudflare Access has nobody who can authorize a connector, and must say so
  * rather than silently issuing a grant as the public viewer.
  */
-const consentingUser = function consentingUser(c: Context<HonoEnv>): AuthUser | null {
-  if (c.get('authKind') !== 'human' || !['access', 'dev'].includes(c.get('auth')?.method ?? '')) {
+const consentingUser = function consentingUser(httpContext: Context<HonoEnv>): AuthUser | null {
+  if (httpContext.get('authKind') !== 'human' || !['access', 'dev'].includes(httpContext.get('auth')?.method ?? '')) {
     return null
   }
-  const user = c.get('user') as AuthUser | undefined
+  const user = httpContext.get('user') as AuthUser | undefined
   if (!user || isPublicViewer(user)) {
     return null
   }
   return user
 }
 
-const consentWorkspace = async function consentWorkspace(c: Context<HonoEnv>, workspaceId: string) {
-  return apiReply(ApiConsentWorkspace, makeCoreClient(c.env.CORE).apiConsentWorkspace(c.get('coreActor'), workspaceId))
+const consentWorkspace = async function consentWorkspace(httpContext: Context<HonoEnv>, workspaceId: string) {
+  return apiReply(
+    ApiConsentWorkspace,
+    makeCoreClient(httpContext.env.CORE).apiConsentWorkspace(httpContext.get('coreActor'), workspaceId),
+  )
 }
 
 const NO_CONSENTER =

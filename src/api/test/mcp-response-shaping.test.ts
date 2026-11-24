@@ -121,7 +121,7 @@ describe('covers PROJ-891: serializer (unit)', () => {
 
   test('capPage keeps valid JSON under the cap, marks truncated, and resumes from the last kept item', () => {
     const items = Array.from({ length: 50 }, (_value, index) => ({ n: index, pad: 'x'.repeat(100) }))
-    const out = capPage(toPage(items, 'orig'), { max: 1000, cursorOf: (i) => `c${i}` })
+    const out = capPage(toPage(items, 'orig'), { max: 1000, cursorOf: (index) => `c${index}` })
     const text = JSON.stringify(out)
     expect(text.length).toBeLessThanOrEqual(1000)
     expect(() => JSON.parse(text)).not.toThrow()
@@ -149,7 +149,7 @@ describe('covers PROJ-891 review fixes (unit)', () => {
     const items = ts.map((t) => ({ t, pad: 'x'.repeat(100) }))
     const out = capPage(toPage(items, 'orig'), {
       max: 600,
-      cursorOf: (i) => globalThis.String(items[i].t),
+      cursorOf: (index) => globalThis.String(items[index].t),
       canCutAt: (kept) => items[kept - 1].t !== items[kept]?.t,
     })
     expect(out.truncated).toBe(true)

@@ -14,8 +14,8 @@ const splitStatements = function splitStatements(sql: string): string[] {
   return sql
     .replace(/--[^\n]*/g, '')
     .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0)
 }
 
 // Migrations run through the test-only Core fixture entrypoint. The actual public

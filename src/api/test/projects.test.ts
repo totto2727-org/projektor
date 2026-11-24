@@ -26,8 +26,8 @@ const mcpCall = async function mcpCall<T>(
   return res.json()
 }
 
-const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
-  return 'error' in r
+const isMcpError = function isMcpError(rpc: JsonRpcResult | JsonRpcError): rpc is JsonRpcError {
+  return 'error' in rpc
 }
 
 describe('projects REST', () => {

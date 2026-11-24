@@ -116,7 +116,7 @@ describe('task Statuses API', () => {
       res,
       Schema.Array(Schema.Struct({ is_default: Schema.Number, key: Schema.String })).pipe(Schema.mutable),
     )
-    const defaults = list.filter((s) => s.is_default === 1)
+    const defaults = list.filter((selectedStatus) => selectedStatus.is_default === 1)
     expect(defaults).toHaveLength(1)
     expect(defaults[0].key).toBe('backlog')
   })
@@ -157,7 +157,7 @@ describe('task Statuses API', () => {
       listRes,
       Schema.Array(Schema.Struct({ key: Schema.String, name: Schema.String })).pipe(Schema.mutable),
     )
-    expect(list.find((s) => s.key === 'todo')?.name).toBe('To Do')
+    expect(list.find((selectedStatus) => selectedStatus.key === 'todo')?.name).toBe('To Do')
   })
 
   test('handles PATCH /api/task-statuses/:id returns 404 for unknown id', async () => {
@@ -195,8 +195,8 @@ describe('task Statuses API', () => {
       res,
       Schema.Array(Schema.Struct({ id: Schema.String, is_default: Schema.Number })).pipe(Schema.mutable),
     )
-    const todoRow = list.find((s) => s.id === todoId)
-    const doneRow = list.find((s) => s.id === doneId)
+    const todoRow = list.find((selectedStatus) => selectedStatus.id === todoId)
+    const doneRow = list.find((selectedStatus) => selectedStatus.id === doneId)
     expect(todoRow?.is_default).toBe(0)
     expect(doneRow?.is_default).toBe(1)
   })

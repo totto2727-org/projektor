@@ -286,7 +286,7 @@ export const notifyWikiWatchers = async function notifyWikiWatchers(
 const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
   E extends { userId: string; pageId: string },
 >(ctx: ServiceCtx, orm: Orm, entries: Readonly<E[]>): Promise<E[]> {
-  const pageIds = [...new Set(entries.map((e) => e.pageId))]
+  const pageIds = [...new Set(entries.map((entry) => entry.pageId))]
   // Trashed pages are included on purpose: "deleted" notifications are sent for them.
   const pages = await inChunks(pageIds, (chunk) =>
     orm
@@ -297,13 +297,13 @@ const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
   const projectOf = new Map(pages.map((page) => [page.id, page.projectId ?? null]))
 
   const usersByProject = new Map<string | null, Set<string>>()
-  Iterable.forEach(entries, (e) => {
-    if (!projectOf.has(e.pageId)) {
+  Iterable.forEach(entries, (entry) => {
+    if (!projectOf.has(entry.pageId)) {
       return
     } // Page not in this workspace — never deliver
-    const projectId = projectOf.get(e.pageId) ?? null
+    const projectId = projectOf.get(entry.pageId) ?? null
     const users = usersByProject.get(projectId) ?? new Set<string>()
-    users.add(e.userId)
+    users.add(entry.userId)
     usersByProject.set(projectId, users)
   })
   const allowedByProject = new Map<string | null, Set<string>>()
@@ -311,11 +311,11 @@ const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
     allowedByProject.set(projectId, await usersWithProjectReadAccess(ctx, projectId, [...users]))
   }
 
-  return entries.filter((e) => {
-    if (!projectOf.has(e.pageId)) {
+  return entries.filter((entry) => {
+    if (!projectOf.has(entry.pageId)) {
       return false
     }
-    return allowedByProject.get(projectOf.get(e.pageId) ?? null)?.has(e.userId) ?? false
+    return allowedByProject.get(projectOf.get(entry.pageId) ?? null)?.has(entry.userId) ?? false
   })
 }
 

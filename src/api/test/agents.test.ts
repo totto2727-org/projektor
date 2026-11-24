@@ -266,7 +266,7 @@ describe('agents API', () => {
       const body = await readNativeJson(res, bodyShape)
       expect(body.sessionId).toBeTruthy()
       expect(body.lease.issueId).toBe(issue.id)
-      expect(body.claimedFiles.map((f) => f.path).sort()).toStrictEqual(['src/a.ts', 'src/b.ts'])
+      expect(body.claimedFiles.map((fileClaim) => fileClaim.path).sort()).toStrictEqual(['src/a.ts', 'src/b.ts'])
 
       const leaseRow = await env.DB.prepare(
         'SELECT agent_session_id FROM issue_leases WHERE issue_id = ? AND released_at IS NULL',

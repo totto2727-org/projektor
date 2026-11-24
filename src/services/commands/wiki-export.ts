@@ -320,7 +320,7 @@ const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[])
 
         Iterable.forEach(pages, (page) => {
           const base = safeZipPathSegment(page.slug || page.id)
-          const name = reserveUniqueName(usedNames, `pages/${base}.md`, (n) => `pages/${base}-${n}.md`)
+          const name = reserveUniqueName(usedNames, `pages/${base}.md`, (suffix) => `pages/${base}-${suffix}.md`)
           const entry = new ZipDeflate(name)
           zip.add(entry)
           entry.push(new TextEncoder().encode(ensureFrontmatter(page)), true)
@@ -336,7 +336,7 @@ const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[])
           const name = reserveUniqueName(
             usedNames,
             `attachments/${dir}/${filename}`,
-            (n) => `attachments/${dir}/${n}-${filename}`,
+            (suffix) => `attachments/${dir}/${suffix}-${filename}`,
           )
           const entry = new ZipDeflate(name)
           zip.add(entry)

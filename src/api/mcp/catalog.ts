@@ -105,8 +105,8 @@ export const toolNamesForDomains = function toolNamesForDomains(slugs: Iterable<
   const names = new Set<string>()
   for (const d of TOOL_DOMAINS) {
     if (wanted.has(d.domain)) {
-      for (const t of d.tools) {
-        names.add(t.name)
+      for (const tool of d.tools) {
+        names.add(tool.name)
       }
     }
   }

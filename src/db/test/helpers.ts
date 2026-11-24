@@ -16,15 +16,15 @@ const splitStatements = function splitStatements(sql: string): string[] {
   return sql
     .replace(/--[^\n]*/g, '')
     .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0)
 }
 
 export const loadMigrations = function loadMigrations(): string[] {
   return readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith('.sql'))
+    .filter((file) => file.endsWith('.sql'))
     .sort()
-    .map((f) => readFileSync(join(MIGRATIONS_DIR, f), 'utf8'))
+    .map((file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8'))
 }
 
 /** A fresh in-memory SQLite DB with every migration applied in order, FK enforcement on. */

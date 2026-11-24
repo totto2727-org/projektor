@@ -24,9 +24,9 @@ describe('covers PROJ-892: windowing (unit)', () => {
     let out = first.text
     let cursor = first.next
     while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)) {
-      const w = windowText(text, { max: 3, cursor })
-      out += w.text
-      cursor = w.next
+      const currentWindow = windowText(text, { max: 3, cursor })
+      out += currentWindow.text
+      cursor = currentWindow.next
     }
     expect(out).toBe(text)
     expect(first.totalChars).toBe(text.length)

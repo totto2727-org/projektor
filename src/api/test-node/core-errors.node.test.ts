@@ -10,9 +10,9 @@ import type { HonoEnv } from '#types'
 describe('core failures at public protocol boundaries', () => {
   test('preserves REST validation fields without serializing error diagnostics', async () => {
     const app = new Hono<HonoEnv>()
-    app.get('/', (c) =>
+    app.get('/', (httpContext) =>
       serviceErrToResponse(
-        c,
+        httpContext,
         coreFailure(400, 'Validation failed', {
           kind: 'validation',
           details: { formErrors: [], fieldErrors: { title: ['Required'] } },
@@ -28,9 +28,9 @@ describe('core failures at public protocol boundaries', () => {
 
   test('preserves REST conflict metadata and retry guidance', async () => {
     const app = new Hono<HonoEnv>()
-    app.get('/', (c) =>
+    app.get('/', (httpContext) =>
       serviceErrToResponse(
-        c,
+        httpContext,
         coreFailure(409, 'Page changed', {
           kind: 'conflict',
           details: { currentRevisionId: 'revision-2', diff: '-old\n+new' },

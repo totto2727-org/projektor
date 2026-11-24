@@ -886,12 +886,12 @@ function WikiFilterBar({
   onFilterTagsChange,
 }: {
   filterType: string
-  onFilterTypeChange: (v: string) => void
+  onFilterTypeChange: (type: string) => void
   typeOptions: SelectOption[]
   filterStatus: string
-  onFilterStatusChange: (v: string) => void
+  onFilterStatusChange: (selectedStatus: string) => void
   filterTags: string
-  onFilterTagsChange: (v: string) => void
+  onFilterTagsChange: (tags: string) => void
 }): JSX.Element {
   return (
     <div className='mb-3 flex flex-col gap-1.5'>
@@ -967,12 +967,12 @@ function WikiSidebar({
   onNavigate: (slug: string) => void
   onCreate: () => void
   filterType: string
-  onFilterTypeChange: (v: string) => void
+  onFilterTypeChange: (type: string) => void
   typeOptions: SelectOption[]
   filterStatus: string
-  onFilterStatusChange: (v: string) => void
+  onFilterStatusChange: (selectedStatus: string) => void
   filterTags: string
-  onFilterTagsChange: (v: string) => void
+  onFilterTagsChange: (tags: string) => void
   hasActiveFilters: boolean
   filteredResults: WikiListItem[]
   filteredLoading: boolean
@@ -2985,11 +2985,11 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
         skipLeaveFlushRef.current = false
         return
       }
-      const s = latestDraftStateRef.current
-      if (!mayWrite(s)) {
+      const draftState = latestDraftStateRef.current
+      if (!mayWrite(draftState)) {
         return
       }
-      persistDraft(s.page, s.editTitle, s.editContent, s.baseRevisionId)
+      persistDraft(draftState.page, draftState.editTitle, draftState.editContent, draftState.baseRevisionId)
     }
   }, [editing, persistDraft])
 
@@ -3000,15 +3000,15 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
    * first, then suppress that now-redundant cleanup.
    */
   function flushDraftNow(): void {
-    const s = latestDraftStateRef.current
-    if (!s.editing) {
+    const draftState = latestDraftStateRef.current
+    if (!draftState.editing) {
       return
     }
     skipLeaveFlushRef.current = true
-    if (!mayWrite(s)) {
+    if (!mayWrite(draftState)) {
       return
     }
-    persistDraft(s.page, s.editTitle, s.editContent, s.baseRevisionId)
+    persistDraft(draftState.page, draftState.editTitle, draftState.editContent, draftState.baseRevisionId)
   }
 
   return {
@@ -3643,21 +3643,21 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
     setCreateError(null)
   }
 
-  function onCreateTitleChange(v: string): void {
-    setCreateTitle(v)
+  function onCreateTitleChange(title: string): void {
+    setCreateTitle(title)
     if (!slugManuallyEdited) {
-      setCreateSlug(slugify(v))
+      setCreateSlug(slugify(title))
     }
   }
 
-  function onCreateSlugChange(v: string): void {
-    setCreateSlug(v)
+  function onCreateSlugChange(slug: string): void {
+    setCreateSlug(slug)
     setSlugManuallyEdited(true)
   }
 
-  function onCreateTemplateChange(v: string): void {
-    setCreateTemplateSlug(v)
-    if (v) {
+  function onCreateTemplateChange(templateSlug: string): void {
+    setCreateTemplateSlug(templateSlug)
+    if (templateSlug) {
       setCreateContent('')
     }
   }
@@ -4197,10 +4197,10 @@ function buildCreateFormProps(
     createSaving: boolean
     templates: TemplateOption[]
     createTemplateSlug: string
-    onCreateTitleChange: (v: string) => void
-    onCreateSlugChange: (v: string) => void
+    onCreateTitleChange: (title: string) => void
+    onCreateSlugChange: (slug: string) => void
     setCreateContent: (v: string) => void
-    onCreateTemplateChange: (v: string) => void
+    onCreateTemplateChange: (templateSlug: string) => void
     submitCreate: () => void
     cancelCreate: () => void
   }>,

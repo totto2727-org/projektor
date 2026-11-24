@@ -135,7 +135,7 @@ const TOOL_NAME_ALIASES: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 const tsFiles = function tsFiles(dir: string): string[] {
-  return readdirSync(dir).filter((f) => f.endsWith('.ts'))
+  return readdirSync(dir).filter((file) => file.endsWith('.ts'))
 }
 
 /** A directory expands to its .ts files; a file path is taken as-is. */
@@ -617,8 +617,8 @@ for (const path of expandToFiles(COMMANDS)) {
   }
 }
 
-const catalogToolNames = TOOL_DOMAINS.flatMap((d) => d.tools.map((t) => t.name))
-const runtimeToolNames = coreMCPTools.map((t) => t.name)
+const catalogToolNames = TOOL_DOMAINS.flatMap((d) => d.tools.map((tool) => tool.name))
+const runtimeToolNames = coreMCPTools.map((tool) => tool.name)
 
 // ---------------------------------------------------------------------------
 
@@ -796,37 +796,50 @@ describe('covers MCP surface parity (PROJ-623)', () => {
 
     test('gives every tool a description and an object inputSchema', () => {
       const bad = coreMCPTools
-        .filter((t) => !t.description?.trim() || (t.inputSchema as { type?: string } | undefined)?.type !== 'object')
-        .map((t) => t.name)
+        .filter(
+          (tool) => !tool.description?.trim() || (tool.inputSchema as { type?: string } | undefined)?.type !== 'object',
+        )
+        .map((tool) => tool.name)
       expect(bad).toStrictEqual([])
     })
   })
 
   describe('service functions vs both surfaces', () => {
     test('exposes every MCP-wired operation over REST too', () => {
-      const gaps = serviceFns.filter((s) => s.onMcp && !s.onRest && !(s.key in MCP_ONLY)).map((s) => s.key)
+      const gaps = serviceFns
+        .filter(
+          (serviceFunction) => serviceFunction.onMcp && !serviceFunction.onRest && !(serviceFunction.key in MCP_ONLY),
+        )
+        .map((serviceFunction) => serviceFunction.key)
       expect(gaps).toStrictEqual([])
     })
 
     test('exposes every REST-wired operation as an MCP tool too', () => {
-      const gaps = serviceFns.filter((s) => s.onRest && !s.onMcp && !(s.key in REST_ONLY)).map((s) => s.key)
+      const gaps = serviceFns
+        .filter(
+          (serviceFunction) => serviceFunction.onRest && !serviceFunction.onMcp && !(serviceFunction.key in REST_ONLY),
+        )
+        .map((serviceFunction) => serviceFunction.key)
       expect(gaps).toStrictEqual([])
     })
 
     test("names every MCP-wired operation's tool after its service function", () => {
       const mismatched = serviceFns
-        .filter((s) => s.onMcp)
-        .filter((s) => {
-          const expected = TOOL_NAME_ALIASES[s.key] ?? snakeCase(s.fn)
-          return !catalogToolNames.includes(expected) || !toolOperations.get(expected)?.has(s.key)
+        .filter((serviceFunction) => serviceFunction.onMcp)
+        .filter((serviceFunction) => {
+          const expected = TOOL_NAME_ALIASES[serviceFunction.key] ?? snakeCase(serviceFunction.fn)
+          return !catalogToolNames.includes(expected) || !toolOperations.get(expected)?.has(serviceFunction.key)
         })
-        .map((s) => `${s.key} -> ${TOOL_NAME_ALIASES[s.key] ?? snakeCase(s.fn)}`)
+        .map(
+          (serviceFunction) =>
+            `${serviceFunction.key} -> ${TOOL_NAME_ALIASES[serviceFunction.key] ?? snakeCase(serviceFunction.fn)}`,
+        )
       expect(mismatched).toStrictEqual([])
     })
   })
 
   describe('the exception lists stay honest', () => {
-    const keys = new Set(serviceFns.map((s) => s.key))
+    const keys = new Set(serviceFns.map((serviceFunction) => serviceFunction.key))
 
     test('names only service functions that still exist', () => {
       const stale = [...Object.keys(MCP_ONLY), ...Object.keys(REST_ONLY), ...Object.keys(TOOL_NAME_ALIASES)].filter(
@@ -836,7 +849,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
     })
 
     test('drops entries whose gap has been closed', () => {
-      const byKey = new Map(serviceFns.map((s) => [s.key, s]))
+      const byKey = new Map(serviceFns.map((serviceFunction) => [serviceFunction.key, serviceFunction]))
       const fixed = [
         ...Object.keys(MCP_ONLY).filter((key) => byKey.get(key)?.onRest),
         ...Object.keys(REST_ONLY).filter((key) => byKey.get(key)?.onMcp),

@@ -52,7 +52,7 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
       },
     })
 
-  vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => wrapStmt(origPrepare(q)))
+  vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => wrapStmt(origPrepare(sql)))
   vi.spyOn(env.DB, 'batch').mockImplementation((stmts: D1PreparedStatement[]) => {
     count++
     return origBatch(stmts)
@@ -118,11 +118,11 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       const paths = [...conflictPaths, ...stalePaths, ...freshPaths]
       expect(paths).toHaveLength(100)
 
-      for (const p of conflictPaths) {
-        await seedLiveClaim(workspaceId, holder.id, p)
+      for (const path of conflictPaths) {
+        await seedLiveClaim(workspaceId, holder.id, path)
       }
-      for (const p of stalePaths) {
-        await seedStaleClaim(workspaceId, holder.id, p)
+      for (const path of stalePaths) {
+        await seedStaleClaim(workspaceId, holder.id, path)
       }
 
       if (boundary === 'shared command') {
@@ -169,11 +169,11 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       const freshPaths = Array.from({ length: 85 }, (_value, index) => `src/rfresh-${index}.ts`)
       const paths = [...conflictPaths, ...stalePaths, ...freshPaths]
 
-      for (const p of conflictPaths) {
-        await seedLiveClaim(workspaceId, holder.id, p)
+      for (const path of conflictPaths) {
+        await seedLiveClaim(workspaceId, holder.id, path)
       }
-      for (const p of stalePaths) {
-        await seedStaleClaim(workspaceId, holder.id, p)
+      for (const path of stalePaths) {
+        await seedStaleClaim(workspaceId, holder.id, path)
       }
 
       if (boundary === 'shared command') {
@@ -283,11 +283,11 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     const origPrepare = env.DB.prepare.bind(env.DB)
     const origBatch = env.DB.batch.bind(env.DB)
     let armed = false
-    vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => {
-      if (/^update "issue_file_claims"/i.test(q)) {
+    vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
+      if (/^update "issue_file_claims"/i.test(sql)) {
         armed = true
       }
-      return origPrepare(q)
+      return origPrepare(sql)
     })
     vi.spyOn(env.DB, 'batch').mockImplementation(async (stmts: D1PreparedStatement[]) => {
       if (armed) {

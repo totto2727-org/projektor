@@ -188,7 +188,7 @@ describe('flow metrics (PROJ-252)', () => {
 
     expect(metrics.cycleTime.count).toBe(1)
     expect(metrics.cycleTime.avg).toBeCloseTo(DAY, 0)
-    expect(metrics.wipOverTime.some((b) => b.count >= 1)).toBe(true)
+    expect(metrics.wipOverTime.some((bucket) => bucket.count >= 1)).toBe(true)
   })
 
   test('returns non-empty lead/cycle metrics for issues with backfilled done_at (PROJ-288)', async () => {
@@ -244,7 +244,7 @@ describe('flow metrics (PROJ-252)', () => {
     expect(res.status).toBe(200)
     const metrics = (await res.json()) as FlowMetrics
 
-    const totalCounted = metrics.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
+    const totalCounted = metrics.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     expect(totalCounted).toBe(2)
     expect(metrics.throughputOverTime.length).toBeGreaterThan(0)
     Iterable.forEach(metrics.throughputOverTime, (bucket) => {
@@ -283,7 +283,7 @@ describe('flow metrics (PROJ-252)', () => {
     expect(res.status).toBe(200)
     const metrics = (await res.json()) as FlowMetrics
 
-    const totalCounted = metrics.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
+    const totalCounted = metrics.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     expect(totalCounted).toBe(1)
   })
 
@@ -333,8 +333,8 @@ describe('flow metrics (PROJ-252)', () => {
     const weekly = (await weeklyRes.json()) as FlowMetrics
     const daily = (await dailyRes.json()) as FlowMetrics
 
-    const weeklyTotal = weekly.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
-    const dailyTotal = daily.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
+    const weeklyTotal = weekly.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
+    const dailyTotal = daily.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     expect(dailyTotal).toBe(weeklyTotal)
     expect(dailyTotal).toBe(2)
   })
@@ -359,7 +359,7 @@ describe('flow metrics (PROJ-252)', () => {
 
     const metrics = await getFlowMetrics()
 
-    const total = metrics.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
+    const total = metrics.throughputOverTime.reduce((sum, bucket) => sum + bucket.count, 0)
     expect(total).toBe(1)
 
     const earliestBucket = metrics.throughputOverTime[0]?.bucketStart
@@ -377,7 +377,7 @@ describe('flow metrics (PROJ-252)', () => {
     const metrics = await getFlowMetrics()
 
     expect(Array.isArray(metrics.throughputOverTime)).toBe(true)
-    expect(metrics.throughputOverTime.every((b) => b.count === 0)).toBe(true)
+    expect(metrics.throughputOverTime.every((bucket) => bucket.count === 0)).toBe(true)
   })
 
   test('returns null (not NaN/throw) percentiles for a project with zero issues (PROJ-301)', async () => {
@@ -415,7 +415,7 @@ describe('flow metrics (PROJ-252)', () => {
     // The legacy issue contributes nothing — only the modern issue is counted.
     expect(metrics.leadTime.count).toBe(1)
     expect(metrics.cycleTime.count).toBe(1)
-    expect(metrics.agingWip.every((a) => a.id !== legacyIssue.id)).toBe(true)
+    expect(metrics.agingWip.every((issue) => issue.id !== legacyIssue.id)).toBe(true)
   })
 
   // PROJ-328: collaboration-shape metrics (review latency, human interventions, autonomy ratio).
@@ -643,8 +643,8 @@ describe('flow metrics (PROJ-252)', () => {
     expect(res.status).toBe(200)
     const metrics = (await res.json()) as FlowMetrics
 
-    const totalCreated = metrics.arrivalVsCompletionOverTime.reduce((sum, b) => sum + b.created, 0)
-    const totalCompleted = metrics.arrivalVsCompletionOverTime.reduce((sum, b) => sum + b.completed, 0)
+    const totalCreated = metrics.arrivalVsCompletionOverTime.reduce((sum, bucket) => sum + bucket.created, 0)
+    const totalCompleted = metrics.arrivalVsCompletionOverTime.reduce((sum, bucket) => sum + bucket.completed, 0)
     expect(totalCreated).toBe(1)
     expect(totalCompleted).toBe(1)
     Iterable.forEach(metrics.arrivalVsCompletionOverTime, (bucket) => {
@@ -691,11 +691,11 @@ describe('flow metrics (PROJ-252)', () => {
     const metrics = await getFlowMetrics()
 
     expect(metrics.agingWip).toHaveLength(2)
-    const stuck = metrics.agingWip.find((a) => a.id === oldInProgress.id)
+    const stuck = metrics.agingWip.find((issue) => issue.id === oldInProgress.id)
     expect(stuck).toBeDefined()
     expect(stuck?.status).toBe('in_progress')
     expect(stuck?.ageSeconds).toBeCloseTo(20 * DAY, -2)
-    const reviewing = metrics.agingWip.find((a) => a.id === inReview.id)
+    const reviewing = metrics.agingWip.find((issue) => issue.id === inReview.id)
     expect(reviewing?.status).toBe('in_review')
   })
 
@@ -740,7 +740,7 @@ describe('flow metrics (PROJ-252)', () => {
     const metrics = (await res.json()) as FlowMetrics
 
     expect(Array.isArray(metrics.bugShareOverTime)).toBe(true)
-    const nonEmptyBuckets = metrics.bugShareOverTime.filter((b) => b.total > 0)
+    const nonEmptyBuckets = metrics.bugShareOverTime.filter((bucket) => bucket.total > 0)
     expect(nonEmptyBuckets).toHaveLength(2)
     Iterable.forEach(nonEmptyBuckets, (bucket) => {
       expect(bucket.total).toBe(2)
@@ -748,7 +748,7 @@ describe('flow metrics (PROJ-252)', () => {
       expect(bucket.bugSharePercent).toBeCloseTo(0.5, 5)
     })
 
-    const emptyBucket = metrics.bugShareOverTime.find((b) => b.total === 0)
+    const emptyBucket = metrics.bugShareOverTime.find((bucket) => bucket.total === 0)
     if (emptyBucket) {
       expect(emptyBucket.bugSharePercent).toBeNull()
     }

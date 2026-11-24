@@ -119,8 +119,8 @@ describe('covers PROJ-921: migration 0062 clears zero lead times', () => {
     const repair = m0062
       .replace(/--[^\n]*/g, '')
       .split(';')
-      .map((s) => s.trim())
-      .find((s) => s.startsWith('UPDATE'))
+      .map((statement) => statement.trim())
+      .find((statement) => statement.startsWith('UPDATE'))
     await env.DB.prepare(repair as string).run()
 
     const after = await Promise.all(

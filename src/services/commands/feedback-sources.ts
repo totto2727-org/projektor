@@ -34,7 +34,7 @@ export interface FeedbackSourceDetailView extends FeedbackSourceView {
 const sha256hex = async function sha256hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
   return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
 }
 
@@ -145,15 +145,15 @@ export const listFeedbackSources = async function listFeedbackSources(
 
   const results = await Effect.runPromise(feedbackQueries.listFeedbackSources(ctx.db, ctx.workspaceId, { projectId }))
 
-  return (results ?? []).map((r) => ({
-    id: r.id,
-    name: r.name,
-    description: r.description,
-    isActive: r.is_active === 1,
-    allowedOrigins: r.allowed_origins ? (JSON.parse(r.allowed_origins) as string[]) : null,
-    tokenPreview: `${r.token_hash.slice(0, 12)}…`,
-    createdAt: r.created_at,
-    revokedAt: r.revoked_at,
+  return (results ?? []).map((result) => ({
+    id: result.id,
+    name: result.name,
+    description: result.description,
+    isActive: result.is_active === 1,
+    allowedOrigins: result.allowed_origins ? (JSON.parse(result.allowed_origins) as string[]) : null,
+    tokenPreview: `${result.token_hash.slice(0, 12)}…`,
+    createdAt: result.created_at,
+    revokedAt: result.revoked_at,
   }))
 }
 

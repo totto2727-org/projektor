@@ -19,15 +19,15 @@ export interface ApiServiceCtx {
 
 const RoleSchema = Schema.UndefinedOr(Schema.Literals(['owner', 'admin', 'member', 'viewer']))
 
-export const ctxFromHono = function ctxFromHono(c: Context<HonoEnv>): ApiServiceCtx {
+export const ctxFromHono = function ctxFromHono(httpContext: Context<HonoEnv>): ApiServiceCtx {
   return {
-    core: makeCoreClient(c.env.CORE),
-    actor: c.get('coreActor'),
-    workspaceId: c.get('workspace').id,
-    userId: c.get('user').id,
-    role: Schema.decodeUnknownSync(RoleSchema)(c.get('role')),
-    authKind: c.get('authKind'),
-    auth: c.get('auth'),
+    core: makeCoreClient(httpContext.env.CORE),
+    actor: httpContext.get('coreActor'),
+    workspaceId: httpContext.get('workspace').id,
+    userId: httpContext.get('user').id,
+    role: Schema.decodeUnknownSync(RoleSchema)(httpContext.get('role')),
+    authKind: httpContext.get('authKind'),
+    auth: httpContext.get('auth'),
   }
 }
 

@@ -88,7 +88,7 @@ export const bumpRateCounter = async function bumpRateCounter(
 async function sha256Prefix(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
   return Array.from(new Uint8Array(buf).slice(0, 8))
-    .map((b) => b.toString(16).padStart(2, '0'))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
 }
 

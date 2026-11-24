@@ -58,7 +58,7 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
       },
     })
 
-  vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => wrapStmt(origPrepare(q)))
+  vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => wrapStmt(origPrepare(sql)))
   vi.spyOn(env.DB, 'batch').mockImplementation((stmts: D1PreparedStatement[]) => {
     count++
     return origBatch(stmts)

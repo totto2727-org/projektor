@@ -24,7 +24,7 @@ const MIGRATIONS = join(import.meta.dirname, '..', '..', '..', '..', 'migrations
 
 const declaredFkActions = function declaredFkActions(): Set<string> {
   const keys = new Set<string>()
-  for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql'))) {
+  for (const file of readdirSync(MIGRATIONS).filter((selectedFile) => selectedFile.endsWith('.sql'))) {
     const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replace(/--[^\n]*/g, '')
     Iterable.forEach(sql.split(';'), (stmt) => {
       const table =

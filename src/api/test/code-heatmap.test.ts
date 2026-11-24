@@ -28,7 +28,7 @@ const expectHeatmapOk = async function expectHeatmapOk(res: Response): Promise<C
 const expectAppsGroup = function expectAppsGroup<E extends { path: string; isLeaf: boolean }>(
   entries: Readonly<E[]>,
 ): E {
-  const apps = entries.find((e) => e.path === 'apps')
+  const apps = entries.find((entry) => entry.path === 'apps')
   expect(apps).toBeDefined()
   expect(apps?.isLeaf).toBe(false)
   return apps as E
@@ -128,10 +128,10 @@ describe('code heatmap (PROJ-332)', () => {
     })
     const apiBody = await expectHeatmapOk(apiRes)
     expect(apiBody.prefix).toBe('apps/api/src/services')
-    const paths = apiBody.entries.map((e) => e.path).sort()
+    const paths = apiBody.entries.map((entry) => entry.path).sort()
     expect(paths).toStrictEqual(['apps/api/src/services/code-heatmap.ts', 'apps/api/src/services/flow-metrics.ts'])
-    expect(apiBody.entries.every((e) => e.isLeaf)).toBe(true)
-    expect(apiBody.entries.every((e) => e.distinctIssueCount === 1)).toBe(true)
+    expect(apiBody.entries.every((entry) => entry.isLeaf)).toBe(true)
+    expect(apiBody.entries.every((entry) => entry.distinctIssueCount === 1)).toBe(true)
   })
 
   test('counts a released claim toward the aggregate (soft-release retains history)', async () => {
@@ -154,7 +154,7 @@ describe('code heatmap (PROJ-332)', () => {
 
     const res = await getHeatmap({ since: String(now - 3600), until: String(now) })
     const body = (await res.json()) as CodeHeatmapResponse
-    const docs = body.entries.find((e) => e.path === 'docs')
+    const docs = body.entries.find((entry) => entry.path === 'docs')
     expect(docs).toBeDefined()
     expect(docs?.isLeaf).toBe(false)
     expect(docs?.distinctIssueCount).toBe(2)
@@ -252,10 +252,10 @@ describe('code heatmap (PROJ-332)', () => {
       expect(apiRes.status).toBe(200)
       const apiBody = (await apiRes.json()) as ContentionHeatmapResponse
       expect(apiBody.prefix).toBe('apps/api/src/services')
-      const paths = apiBody.entries.map((e) => e.path).sort()
+      const paths = apiBody.entries.map((entry) => entry.path).sort()
       expect(paths).toStrictEqual(['apps/api/src/services/code-heatmap.ts', 'apps/api/src/services/flow-metrics.ts'])
-      expect(apiBody.entries.every((e) => e.isLeaf)).toBe(true)
-      expect(apiBody.entries.every((e) => e.distinctRejectedIssueCount === 1)).toBe(true)
+      expect(apiBody.entries.every((entry) => entry.isLeaf)).toBe(true)
+      expect(apiBody.entries.every((entry) => entry.distinctRejectedIssueCount === 1)).toBe(true)
     })
 
     test('returns an empty entries array when no conflicts exist in the workspace', async () => {

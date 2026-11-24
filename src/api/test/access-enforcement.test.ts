@@ -90,7 +90,9 @@ describe('covers PROJ-311 group-based project access', () => {
     const project = await seedProject(roles.workspace.id, 'TOGGLE')
     const { groupId } = await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
-    expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toStrictEqual(['TOGGLE'])
+    expect(
+      (await listProjects(roles.member.token, slug)).body.map((selectedProject) => selectedProject.key),
+    ).toStrictEqual(['TOGGLE'])
 
     /*
      * Admin removes the member from the group; access is per-request, so the next
@@ -132,7 +134,9 @@ describe('covers PROJ-311 group-based project access', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'viewer')
 
     // Visible in the list...
-    expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toStrictEqual(['RO'])
+    expect(
+      (await listProjects(roles.member.token, slug)).body.map((selectedProject) => selectedProject.key),
+    ).toStrictEqual(['RO'])
 
     // ...but a write is a 403, not a 404 (existence is not hidden once granted).
     const res = await fetchNativeApi('http://localhost/api/issues', {

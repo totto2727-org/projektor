@@ -147,7 +147,7 @@ const BacklogRow = function BacklogRow({
           <PrioritySelect
             issue={issue}
             busy={updatingPriorityId === issue.id}
-            onChange={(v) => changePriority(issue.id, v)}
+            onChange={(value) => changePriority(issue.id, value)}
           />
           {pts && spBadge(pts)}
         </div>
@@ -160,7 +160,7 @@ const BacklogRow = function BacklogRow({
           issue={issue}
           statuses={statuses}
           busy={updatingId === issue.id}
-          onChange={(v) => changeStatus(issue.id, v)}
+          onChange={(value) => changeStatus(issue.id, value)}
         />
       </td>
     </tr>
@@ -198,7 +198,7 @@ const BacklogMobileCards = function BacklogMobileCards({
             <PrioritySelect
               issue={issue}
               busy={updatingPriorityId === issue.id}
-              onChange={(v) => changePriority(issue.id, v)}
+              onChange={(value) => changePriority(issue.id, value)}
             />
             {statusBadge(issue)}
           </div>

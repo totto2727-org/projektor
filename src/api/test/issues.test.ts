@@ -455,7 +455,7 @@ describe('issues API', () => {
     // Without projectId: only newest 50 come back — all from newerProject
     const { page: all } = await listIssues('http://localhost/api/issues?limit=50')
     const allTitles = all.items.map((item) => (item as { title: string }).title)
-    expect(allTitles.some((t) => t.startsWith('Older issue'))).toBe(false)
+    expect(allTitles.some((title) => title.startsWith('Older issue'))).toBe(false)
 
     // With projectId: all 10 project-scoped issues come back regardless of workspace age
     const { page: scoped } = await listIssues(`http://localhost/api/issues?project=${projectId}&limit=100`)
@@ -1708,7 +1708,7 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
       }),
     })
     const body = await readNativeJson(res, bodyShape)
-    const listIssuesTool = body.result.tools.find((t) => t.name === 'list_issues')
+    const listIssuesTool = body.result.tools.find((tool) => tool.name === 'list_issues')
     expect(listIssuesTool).toBeDefined()
     const advertised = Object.keys(listIssuesTool!.inputSchema.properties)
     Iterable.forEach(Object.keys(ListIssuesSchema.shape), (key) => {
@@ -2302,9 +2302,9 @@ describe('covers PROJ-712 — unrecognized MCP params are rejected, not silently
   })
 
   test('create_issue_link rejects an unknown param instead of ignoring it', async () => {
-    const a = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'A' } })
+    const rpcResponse = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'A' } })
     const b = await mcpCall({ name: 'create_issue', arguments: { projectId, title: 'B' } })
-    const { id: aId } = parseNativeMcpText(a.result!.content[0].text, IdResponse)
+    const { id: aId } = parseNativeMcpText(rpcResponse.result!.content[0].text, IdResponse)
     const { id: bId } = parseNativeMcpText(b.result!.content[0].text, IdResponse)
 
     const res = await mcpCall({
@@ -2959,8 +2959,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Bodied' })
     await env.DB.prepare('UPDATE issues SET body = ? WHERE id = ?').bind('hello', issue.id).run()
     const without = await mcpCall({ name: 'get_issues', arguments: { ids: [issue.id] } })
-    const w = parseNativeMcpText(without.result!.content[0].text, RecordItemsResponse)
-    expect(w.items[0]).not.toHaveProperty('body')
+    const parsedResult = parseNativeMcpText(without.result!.content[0].text, RecordItemsResponse)
+    expect(parsedResult.items[0]).not.toHaveProperty('body')
     const withBody = await mcpCall({
       name: 'get_issues',
       arguments: { ids: [issue.id], includeBody: true },

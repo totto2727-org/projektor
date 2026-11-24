@@ -98,11 +98,11 @@ describe('covers PROJ-815: backfillWikiLinks batching, trash, cursor, updatedSin
 
     const selects: string[] = []
     const origPrepare = env.DB.prepare.bind(env.DB)
-    vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => {
-      if (/^select/i.test(q.trim())) {
-        selects.push(q)
+    vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
+      if (/^select/i.test(sql.trim())) {
+        selects.push(sql)
       }
-      return origPrepare(q)
+      return origPrepare(sql)
     })
     const batchSpy = vi.spyOn(env.DB, 'batch')
 

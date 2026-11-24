@@ -23,7 +23,7 @@ describe('native client failure identity at the public HTTP adapter', () => {
       })
       const error = await runTestEffect(Effect.flip(decodeCoreReply(Schema.String, Effect.succeed(wire))))
       const app = new Hono<HonoEnv>()
-      app.get('/', (c) => serviceErrToResponse(c, error))
+      app.get('/', (httpContext) => serviceErrToResponse(httpContext, error))
       const response = await app.request('https://api.test/')
       expect(response.status).toBe(status)
       expect(response.headers.get('Retry-After')).toBe('7')

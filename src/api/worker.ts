@@ -73,8 +73,8 @@ app.use('*', logger())
 app.use(
   '*',
   cors({
-    origin: (origin, c) => {
-      const allowed = ((c.env as ApiEnv).CORS_ALLOWED_ORIGINS ?? '')
+    origin: (origin, httpContext) => {
+      const allowed = ((httpContext.env as ApiEnv).CORS_ALLOWED_ORIGINS ?? '')
         .split(',')
         .map((value) => value.trim())
         .filter(Boolean)

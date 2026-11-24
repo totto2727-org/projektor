@@ -1581,7 +1581,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
    * The issue is gone once the batch commits. Bound each storage request, and
    * continue other chunks if one fails so a large issue does not strand every object.
    */
-  const r2Keys = fileAttachments.map((a) => a.r2Key).filter((k): k is string => Boolean(k))
+  const r2Keys = fileAttachments.map((attachment) => attachment.r2Key).filter((k): k is string => Boolean(k))
   for (let offset = 0; offset < r2Keys.length; offset += 1000) {
     const keys = r2Keys.slice(offset, offset + 1000)
     try {

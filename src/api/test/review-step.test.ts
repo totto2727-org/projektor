@@ -136,8 +136,8 @@ describe("covers PROJ-749: migration 0061 backfill preserves today's behaviour",
     const backfill = m0061
       .replace(/--[^\n]*/g, '')
       .split(';')
-      .map((s) => s.trim())
-      .find((s) => s.startsWith('UPDATE'))
+      .map((statement) => statement.trim())
+      .find((statement) => statement.startsWith('UPDATE'))
     expect(backfill).toBeDefined()
     await env.DB.prepare(backfill as string).run()
 

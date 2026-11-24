@@ -51,7 +51,8 @@ export const createFeedbackSource = EFFRONT.ServerFn.make({
       }).pipe(
         Effect.catchTags({
           ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -87,7 +88,8 @@ export const setFeedbackSourceActive = EFFRONT.ServerFn.make({
       }).pipe(
         Effect.catchTags({
           ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -109,7 +111,8 @@ export const rotateFeedbackSourceToken = EFFRONT.ServerFn.make({
       }).pipe(
         Effect.catchTags({
           ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -131,7 +134,8 @@ export const revokeFeedbackSource = EFFRONT.ServerFn.make({
       }).pipe(
         Effect.catchTags({
           ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -157,7 +161,8 @@ export const markFeedbackReviewed = EFFRONT.ServerFn.make({
       }).pipe(
         Effect.catchTags({
           ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -179,7 +184,8 @@ export const convertFeedbackToIssue = EFFRONT.ServerFn.make({
       }).pipe(
         Effect.catchTags({
           ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -201,7 +207,8 @@ export const markSelectedFeedbackReviewed = EFFRONT.ServerFn.make({
       }).pipe(
         Effect.catchTags({
           ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -223,7 +230,8 @@ export const convertSelectedFeedbackToIssue = EFFRONT.ServerFn.make({
       }).pipe(
         Effect.catchTags({
           ApiError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )

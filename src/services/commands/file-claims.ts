@@ -321,12 +321,12 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
       claimsByPath.delete(path)
     }
   })
-  const reclaimed = stale.map((c) => ({ ...c, releasedAt: now, releaseReason: 'expired' }))
+  const reclaimed = stale.map((claim) => ({ ...claim, releasedAt: now, releaseReason: 'expired' }))
 
   const statements: D1PreparedStatement[] = buildReleaseByIdsStatements(
     ctx,
     orm,
-    stale.map((c) => c.id),
+    stale.map((claim) => claim.id),
     now,
     'expired',
   )

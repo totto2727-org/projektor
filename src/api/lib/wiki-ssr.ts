@@ -66,26 +66,26 @@ export interface WikiSsrPage {
  * this leak page existence/content to an unauthenticated caller.
  */
 export const resolveWikiPageForSsr = async function resolveWikiPageForSsr(
-  c: Context<HonoEnv>,
+  httpContext: Context<HonoEnv>,
   slugOrId: string,
 ): Promise<WikiSsrPage | null> {
   let authenticated = false
-  const authResponse = await authMiddleware(c, async () => {
+  const authResponse = await authMiddleware(httpContext, async () => {
     authenticated = true
   })
   if (authResponse || !authenticated) {
     return null
   }
 
-  const workspace = await resolveWikiWorkspaceContext(c)
+  const workspace = await resolveWikiWorkspaceContext(httpContext)
   if (!workspace) {
     return null
   }
-  c.set('workspace', { id: workspace.id, name: workspace.name, slug: workspace.slug })
-  c.set('role', workspace.role)
+  httpContext.set('workspace', { id: workspace.id, name: workspace.name, slug: workspace.slug })
+  httpContext.set('role', workspace.role)
 
   try {
-    const page = await getWikiPage(ctxFromHono(c), slugOrId)
+    const page = await getWikiPage(ctxFromHono(httpContext), slugOrId)
     return { title: page.title, content: page.content, url: page.url }
   } catch {
     /*

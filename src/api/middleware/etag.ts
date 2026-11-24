@@ -60,13 +60,13 @@ function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {
   if (header.trim() === '*') {
     return true
   }
-  const stripWeak = (t: string): string => t.trim().replace(/^W\//u, '')
-  return header.split(',').some((t) => stripWeak(t) === stripWeak(etag))
+  const stripWeak = (tag: string): string => tag.trim().replace(/^W\//u, '')
+  return header.split(',').some((tag) => stripWeak(tag) === stripWeak(etag))
 }
 
 async function sha256Prefix(input: ArrayBuffer): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', input)
   return Array.from(new Uint8Array(buf).slice(0, 16))
-    .map((b) => b.toString(16).padStart(2, '0'))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
 }

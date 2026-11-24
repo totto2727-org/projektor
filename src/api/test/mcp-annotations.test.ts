@@ -17,46 +17,47 @@ import { fetchNativeApi } from './native-fetch.ts'
 describe('covers MCP tool annotations (PROJ-887)', () => {
   test('every core tool declares readOnlyHint and openWorldHint', () => {
     const missing = coreMCPTools.filter(
-      (t) => Predicate.isNullish(t.annotations?.readOnlyHint) || Predicate.isNullish(t.annotations?.openWorldHint),
+      (tool) =>
+        Predicate.isNullish(tool.annotations?.readOnlyHint) || Predicate.isNullish(tool.annotations?.openWorldHint),
     )
-    expect(missing.map((t) => t.name)).toStrictEqual([])
+    expect(missing.map((tool) => tool.name)).toStrictEqual([])
   })
 
   test('openWorldHint is false on every core tool', () => {
-    const wrong = coreMCPTools.filter((t) => t.annotations?.openWorldHint !== false)
-    expect(wrong.map((t) => t.name)).toStrictEqual([])
+    const wrong = coreMCPTools.filter((tool) => tool.annotations?.openWorldHint !== false)
+    expect(wrong.map((tool) => tool.name)).toStrictEqual([])
   })
 
   test('every read-capability tool is annotated readOnlyHint: true', () => {
     const wrong = coreMCPTools.filter(
-      (t) => capabilityForMcpTool(t.name) === 'read' && t.annotations?.readOnlyHint !== true,
+      (tool) => capabilityForMcpTool(tool.name) === 'read' && tool.annotations?.readOnlyHint !== true,
     )
-    expect(wrong.map((t) => t.name)).toStrictEqual([])
+    expect(wrong.map((tool) => tool.name)).toStrictEqual([])
   })
 
   test('readOnlyHint: true only on read-capability tools (never auto-approve a write)', () => {
     const wrong = coreMCPTools.filter(
-      (t) => t.annotations?.readOnlyHint === true && capabilityForMcpTool(t.name) !== 'read',
+      (tool) => tool.annotations?.readOnlyHint === true && capabilityForMcpTool(tool.name) !== 'read',
     )
-    expect(wrong.map((t) => t.name)).toStrictEqual([])
+    expect(wrong.map((tool) => tool.name)).toStrictEqual([])
   })
 
   test('update_wiki_page is not claimed idempotent (each save adds a revision)', () => {
-    const t = coreMCPTools.find((x) => x.name === 'update_wiki_page')
+    const t = coreMCPTools.find((tool) => tool.name === 'update_wiki_page')
     expect(t?.annotations?.idempotentHint).not.toBe(true)
   })
 
   test('every non-read (write-capability) tool declares destructiveHint', () => {
     const missing = coreMCPTools.filter(
-      (t) => capabilityForMcpTool(t.name) === 'write' && Predicate.isNullish(t.annotations?.destructiveHint),
+      (tool) => capabilityForMcpTool(tool.name) === 'write' && Predicate.isNullish(tool.annotations?.destructiveHint),
     )
-    expect(missing.map((t) => t.name)).toStrictEqual([])
+    expect(missing.map((tool) => tool.name)).toStrictEqual([])
   })
 
   test('the destructive set matches exactly the 22 tools from the ticket/wiki', () => {
     const actualDestructive = coreMCPTools
-      .filter((t) => t.annotations?.destructiveHint === true)
-      .map((t) => t.name)
+      .filter((tool) => tool.annotations?.destructiveHint === true)
+      .map((tool) => tool.name)
       .sort()
     expect(actualDestructive).toEqual([...DESTRUCTIVE_TOOLS].toSorted())
     expect(actualDestructive).toHaveLength(22)
@@ -65,7 +66,7 @@ describe('covers MCP tool annotations (PROJ-887)', () => {
   test('no non-destructive tool is marked destructiveHint: true, and vice versa', () => {
     const destructiveSet = new Set(DESTRUCTIVE_TOOLS)
     const mismatched = coreMCPTools.filter(
-      (t) => Boolean(t.annotations?.destructiveHint) !== destructiveSet.has(t.name),
+      (tool) => Boolean(tool.annotations?.destructiveHint) !== destructiveSet.has(tool.name),
     )
     expect(mismatched.map((t) => t.name)).toStrictEqual([])
   })
@@ -83,10 +84,10 @@ describe('tools/list response carries annotations (PROJ-887)', () => {
       tools: { name: string; annotations?: Record<string, unknown> }[]
     }>
 
-    const listIssues = res.result.tools.find((t) => t.name === 'list_issues')
+    const listIssues = res.result.tools.find((tool) => tool.name === 'list_issues')
     expect(listIssues?.annotations).toMatchObject({ openWorldHint: false, readOnlyHint: true })
 
-    const deleteIssue = res.result.tools.find((t) => t.name === 'delete_issue')
+    const deleteIssue = res.result.tools.find((tool) => tool.name === 'delete_issue')
     expect(deleteIssue?.annotations).toMatchObject({
       destructiveHint: true,
       openWorldHint: false,
@@ -94,7 +95,7 @@ describe('tools/list response carries annotations (PROJ-887)', () => {
     })
 
     // Every tool in the wire response must carry annotations at all.
-    const missing = res.result.tools.filter((t) => Predicate.isNullish(t.annotations))
-    expect(missing.map((t) => t.name)).toStrictEqual([])
+    const missing = res.result.tools.filter((tool) => Predicate.isNullish(tool.annotations))
+    expect(missing.map((tool) => tool.name)).toStrictEqual([])
   })
 })

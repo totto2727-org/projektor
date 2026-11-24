@@ -121,7 +121,7 @@ describe('migration 0066: repairs drifted status_category (PROJ-849)', () => {
     const repairSql = m0066
       .replace(/--[^\n]*/g, '')
       .split(';')
-      .map((s) => s.trim())
+      .map((statement) => statement.trim())
       .filter(Boolean)
       .join(';\n')
     await env.DB.prepare(repairSql).run()

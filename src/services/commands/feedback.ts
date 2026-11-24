@@ -31,7 +31,7 @@ const requireProjectWriteAccess = async function requireProjectWriteAccess(
 export const hashFeedbackToken = async function hashFeedbackToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
   return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
 }
 
@@ -163,19 +163,19 @@ export const listFeedback = async function listFeedback(ctx: ServiceCtx, input: 
     feedbackQueries.listFeedback(ctx.db, ctx.workspaceId, { projectId, status, sourceId }),
   )
 
-  return (results ?? []).map((r) => ({
-    id: r.id,
-    sourceId: r.source_id,
-    sourceName: r.source_name,
-    rating: r.rating,
-    ratingScale: r.rating_scale,
-    body: r.body,
-    submitterLabel: r.submitter_label,
-    sourceUrl: r.source_url,
-    appVersion: r.app_version,
-    status: r.status,
-    linkedIssueId: r.linked_issue_id,
-    createdAt: r.created_at,
+  return (results ?? []).map((result) => ({
+    id: result.id,
+    sourceId: result.source_id,
+    sourceName: result.source_name,
+    rating: result.rating,
+    ratingScale: result.rating_scale,
+    body: result.body,
+    submitterLabel: result.submitter_label,
+    sourceUrl: result.source_url,
+    appVersion: result.app_version,
+    status: result.status,
+    linkedIssueId: result.linked_issue_id,
+    createdAt: result.created_at,
   }))
 }
 
@@ -421,20 +421,20 @@ export const getFeedbackSummary = async function getFeedbackSummary(
   const results = await Effect.runPromise(feedbackQueries.readFeedbackSummary(ctx.db, ctx.workspaceId, { projectId }))
 
   const bySource = new Map<string, FeedbackSourceSummary>()
-  Iterable.forEach(results ?? [], (r) => {
-    let src = bySource.get(r.source_id)
+  Iterable.forEach(results ?? [], (result) => {
+    let src = bySource.get(result.source_id)
     if (!src) {
-      src = { sourceId: r.source_id, sourceName: r.source_name, totalCount: 0, versions: [] }
-      bySource.set(r.source_id, src)
+      src = { sourceId: result.source_id, sourceName: result.source_name, totalCount: 0, versions: [] }
+      bySource.set(result.source_id, src)
     }
-    src.totalCount += r.total
+    src.totalCount += result.total
     src.versions.push({
-      appVersion: r.app_version,
-      totalCount: r.total,
-      withCommentCount: r.with_comment_count,
-      thumbsUpPct: r.thumbs_total > 0 ? Math.round((r.thumbs_up / r.thumbs_total) * 100) : null,
-      avgFiveStar: r.five_star_total > 0 ? r.five_star_avg : null,
-      lastSeenAt: r.last_seen_at,
+      appVersion: result.app_version,
+      totalCount: result.total,
+      withCommentCount: result.with_comment_count,
+      thumbsUpPct: result.thumbs_total > 0 ? Math.round((result.thumbs_up / result.thumbs_total) * 100) : null,
+      avgFiveStar: result.five_star_total > 0 ? result.five_star_avg : null,
+      lastSeenAt: result.last_seen_at,
     })
   })
   return Array.from(bySource.values())

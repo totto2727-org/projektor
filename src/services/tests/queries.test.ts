@@ -78,11 +78,9 @@ describe('project/workspace pure queries', () => {
       updatedAt: 101,
       workspaceId: 'wa',
     })
-    expect((await runTestEffect(listProjects(db, 'wa', { includeArchived: true }))).map((p) => p.id)).toStrictEqual([
-      'p2',
-      'p3',
-      'p1',
-    ])
+    expect(
+      (await runTestEffect(listProjects(db, 'wa', { includeArchived: true }))).map((project) => project.id),
+    ).toStrictEqual(['p2', 'p3', 'p1'])
     expect(
       (
         await runTestEffect(
@@ -90,7 +88,7 @@ describe('project/workspace pure queries', () => {
             visibility: eq(schema.projects.id, 'p1'),
           }),
         )
-      ).map((p) => p.id),
+      ).map((project) => project.id),
     ).toStrictEqual(['p1'])
   })
 

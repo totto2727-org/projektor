@@ -109,7 +109,7 @@ describe('task Types API', () => {
       res,
       Schema.Array(Schema.Struct({ is_default: Schema.Number, key: Schema.String })).pipe(Schema.mutable),
     )
-    const defaults = list.filter((t) => t.is_default === 1)
+    const defaults = list.filter((taskType) => taskType.is_default === 1)
     expect(defaults).toHaveLength(1)
     expect(defaults[0].key).toBe('story')
   })
@@ -146,7 +146,7 @@ describe('task Types API', () => {
       listRes,
       Schema.Array(Schema.Struct({ key: Schema.String, name: Schema.String })).pipe(Schema.mutable),
     )
-    expect(list.find((t) => t.key === 'bug')?.name).toBe('Defect')
+    expect(list.find((taskType) => taskType.key === 'bug')?.name).toBe('Defect')
   })
 
   test('handles PATCH /api/task-types/:id returns 404 for unknown id', async () => {
@@ -179,8 +179,8 @@ describe('task Types API', () => {
       res,
       Schema.Array(Schema.Struct({ id: Schema.String, is_default: Schema.Number })).pipe(Schema.mutable),
     )
-    const taskRow = list.find((t) => t.id === taskId)
-    const bugRow = list.find((t) => t.id === bugId)
+    const taskRow = list.find((taskType) => taskType.id === taskId)
+    const bugRow = list.find((taskType) => taskType.id === bugId)
     expect(taskRow?.is_default).toBe(0)
     expect(bugRow?.is_default).toBe(1)
   })

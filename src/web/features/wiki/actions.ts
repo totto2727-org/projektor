@@ -64,7 +64,8 @@ export const getWikiPage = EFFRONT.ServerFn.make({
             message: error.message,
             ...(error.details ? { details: error.details } : {}),
           } as const),
-        ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+        ScopeError: (scopeError) =>
+          Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
       }),
     ),
   input: Reference,
@@ -85,7 +86,8 @@ export const getWikiRevisionDiff = EFFRONT.ServerFn.make({
             message: error.message,
             ...(error.details ? { details: error.details } : {}),
           } as const),
-        ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+        ScopeError: (scopeError) =>
+          Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
       }),
     ),
   input: RevisionReference,
@@ -106,7 +108,8 @@ export const getWikiDraft = EFFRONT.ServerFn.make({
             message: error.message,
             ...(error.details ? { details: error.details } : {}),
           } as const),
-        ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+        ScopeError: (scopeError) =>
+          Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
       }),
     ),
   input: Reference,
@@ -153,7 +156,8 @@ export const createWikiPage = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -188,7 +192,8 @@ export const duplicateWikiPage = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -221,7 +226,8 @@ export const saveWikiPage = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -256,7 +262,8 @@ export const saveWikiDraft = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -288,7 +295,8 @@ export const discardWikiDraft = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -316,7 +324,8 @@ export const moveWikiPage = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -344,7 +353,8 @@ export const verifyWikiPage = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -372,7 +382,8 @@ export const trashWikiPage = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -400,7 +411,8 @@ export const restoreTrashedWikiPage = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -428,7 +440,8 @@ export const restoreWikiRevision = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )
@@ -459,7 +472,8 @@ export const deleteWikiAttachment = EFFRONT.ServerFn.make({
               message: error.message,
               ...(error.details ? { details: error.details } : {}),
             } as const),
-          ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
+          ScopeError: (scopeError) =>
+            Effect.succeed({ ok: false, status: scopeError.status, message: scopeError.message } as const),
         }),
         Effect.ensuring(services.invalidate),
       )

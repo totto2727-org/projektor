@@ -57,44 +57,44 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
   }
 
   test('not_found on an issue ref: code, message, and a hint naming the ref format and search_issues', async () => {
-    const e = await failure('get_issue', { ref: 'PROJ-99999' })
-    expect(e.code).toBe('not_found')
-    expect(e.message).toMatch(/not found/i)
-    expect(e.hint).toContain('PROJ-42')
-    expect(e.hint).toContain('search_issues')
+    const toolFailure = await failure('get_issue', { ref: 'PROJ-99999' })
+    expect(toolFailure.code).toBe('not_found')
+    expect(toolFailure.message).toMatch(/not found/i)
+    expect(toolFailure.hint).toContain('PROJ-42')
+    expect(toolFailure.hint).toContain('search_issues')
   })
 
   test('not_found on a wiki slug: the hint points at search_wiki', async () => {
-    const e = await failure('get_wiki_page', { slug: 'no-such-page' })
-    expect(e.code).toBe('not_found')
-    expect(e.hint).toContain('search_wiki')
+    const toolFailure = await failure('get_wiki_page', { slug: 'no-such-page' })
+    expect(toolFailure.code).toBe('not_found')
+    expect(toolFailure.hint).toContain('search_wiki')
   })
 
   test('not_found on an unknown agent session hints at register_agent, not at issue refs', async () => {
-    const e = await failure('heartbeat_agent', { id: crypto.randomUUID() })
-    expect(e.code).toBe('not_found')
-    expect(e.hint).toContain('register_agent')
+    const toolFailure = await failure('heartbeat_agent', { id: crypto.randomUUID() })
+    expect(toolFailure.code).toBe('not_found')
+    expect(toolFailure.hint).toContain('register_agent')
   })
 
   test('validation: the offending fields are named in `fields` and in the hint', async () => {
-    const e = await failure('create_wiki_page', { title: '', content: 'x' })
-    expect(e.code).toBe('validation')
-    expect(Object.keys(e.fields ?? {})).toContain('title')
-    expect(e.hint).toContain('title')
+    const toolFailure = await failure('create_wiki_page', { title: '', content: 'x' })
+    expect(toolFailure.code).toBe('validation')
+    expect(Object.keys(toolFailure.fields ?? {})).toContain('title')
+    expect(toolFailure.hint).toContain('title')
   })
 
   test('validation: a missing required argument is named', async () => {
-    const e = await failure('get_project', {})
-    expect(e.code).toBe('validation')
-    expect(e.message).toMatch(/Missing required argument/u)
-    expect(e.fields).toBeDefined()
-    expect(e.hint).toMatch(/^Fix /u)
+    const toolFailure = await failure('get_project', {})
+    expect(toolFailure.code).toBe('validation')
+    expect(toolFailure.message).toMatch(/Missing required argument/u)
+    expect(toolFailure.fields).toBeDefined()
+    expect(toolFailure.hint).toMatch(/^Fix /u)
   })
 
   test('validation: a wrongly-typed argument is caught before the handler runs', async () => {
-    const e = await failure('get_issue', { ref: 42 })
-    expect(e.code).toBe('validation')
-    expect(Object.keys(e.fields ?? {})).toContain('ref')
+    const toolFailure = await failure('get_issue', { ref: 42 })
+    expect(toolFailure.code).toBe('validation')
+    expect(Object.keys(toolFailure.fields ?? {})).toContain('ref')
   })
 
   test('forbidden: the hint says what role is needed', async () => {
@@ -111,9 +111,9 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     })
     const body = (await res.json()) as Rpc
     expect(body.error).toBeUndefined()
-    const e = toolError(body)
-    expect(e?.code).toBe('forbidden')
-    expect(e?.hint).toContain('viewer')
+    const problem = toolError(body)
+    expect(problem?.code).toBe('forbidden')
+    expect(problem?.hint).toContain('viewer')
   })
 
   test('conflict on a stale wiki save: re-read, then patch_wiki_page — and the current revision is in details', async () => {
@@ -129,15 +129,15 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
     const stale = revisions[0].id
     await call('update_wiki_page', { slug: created.slug, content: 'v3', baseRevisionId: stale })
 
-    const e = await failure('update_wiki_page', {
+    const toolFailure = await failure('update_wiki_page', {
       slug: created.slug,
       content: 'v4',
       baseRevisionId: stale,
     })
-    expect(e.code).toBe('conflict')
-    expect(e.hint).toContain('get_wiki_page')
-    expect(e.hint).toContain('patch_wiki_page')
-    expect(e.details?.currentRevisionId).toBeTypeOf('string')
+    expect(toolFailure.code).toBe('conflict')
+    expect(toolFailure.hint).toContain('get_wiki_page')
+    expect(toolFailure.hint).toContain('patch_wiki_page')
+    expect(toolFailure.details?.currentRevisionId).toBeTypeOf('string')
   })
 
   test('a successful call is not flagged', async () => {

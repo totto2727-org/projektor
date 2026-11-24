@@ -125,9 +125,9 @@ describe('covers PROJ-863: a cache hit stays cheap', () => {
     }
     let queries = 0
     const orig = env.DB.prepare.bind(env.DB)
-    vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => {
+    vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
       queries++
-      return orig(q)
+      return orig(sql)
     })
     await getIssue(ctx, { ref: `${project_key}-${number}` })
     expect(queries).toBeLessThanOrEqual(5)

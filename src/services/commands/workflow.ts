@@ -20,7 +20,7 @@ const VERSION_HASH_LENGTH = 12
 export const hashWorkflowContent = async function hashWorkflowContent(content: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content))
   const hex = Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
   return hex.slice(0, VERSION_HASH_LENGTH)
 }

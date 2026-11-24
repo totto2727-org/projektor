@@ -188,16 +188,16 @@ router.post('/:workspaceId', async (httpContext) => {
             )
           }
           const allowed = toolNamesForDomains(requested)
-          tools = tools.filter((t) => allowed.has(t.name))
+          tools = tools.filter((tool) => allowed.has(tool.name))
         }
       }
       return httpContext.json(
         jsonRpcResult(body.id, {
-          tools: tools.map((t) => ({
-            name: t.name,
-            description: t.description,
-            inputSchema: t.inputSchema,
-            ...(t.annotations ? { annotations: t.annotations } : {}),
+          tools: tools.map((tool) => ({
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.inputSchema,
+            ...(tool.annotations ? { annotations: tool.annotations } : {}),
           })),
           /*
            * PROJ-454: the tool list is workspace-scoped (core tools + the

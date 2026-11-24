@@ -131,9 +131,9 @@ router.delete('/:slug/tokens/:tokenId', async (httpContext) => {
  * (routes/oauth.ts), which makes the list provably empty today — but that is an
  * invariant enforced two files away, and this endpoint should not depend on it.
  */
-const connectorsDenied = function connectorsDenied(c: Parameters<typeof ctxFromHono>[0]): Response | null {
+const connectorsDenied = function connectorsDenied(httpContext: Parameters<typeof ctxFromHono>[0]): Response | null {
   return requireInteractiveHuman(
-    c,
+    httpContext,
     'Connectors are personal credentials and need a signed-in browser session, not an API token or connected app',
   )
 }
@@ -199,17 +199,17 @@ router.post('/:slug/brand/logo', (httpContext) =>
   coreFileRequest(httpContext, '/workspace-logo', httpContext.req.raw.body, httpContext.req.header('Content-Type')),
 )
 
-router.delete('/:slug/brand/logo', async (c) => {
-  const ctx = ctxFromHono(c)
+router.delete('/:slug/brand/logo', async (httpContext) => {
+  const ctx = ctxFromHono(httpContext)
   try {
     await deleteWorkspaceLogo(ctx)
     return new Response(null, { status: 204 })
   } catch (caughtError) {
-    return serviceErrToResponse(c, caughtError)
+    return serviceErrToResponse(httpContext, caughtError)
   }
 })
 
-router.get('/:slug/brand/logo', (c) => coreFileRequest(c, '/workspace-logo'))
+router.get('/:slug/brand/logo', (httpContext) => coreFileRequest(httpContext, '/workspace-logo'))
 
 router.get('/:slug/mcp-info', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)

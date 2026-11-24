@@ -42,7 +42,7 @@ function compareIssues(issue: Issue, selectedIssue: Issue): number {
   )
 }
 function getStoryPoints(issue: Issue): string | null {
-  const field = (issue.customFields ?? []).find((f) => f.key === 'story_points')
+  const field = (issue.customFields ?? []).find((selectedField) => selectedField.key === 'story_points')
   return field?.value ?? null
 }
 

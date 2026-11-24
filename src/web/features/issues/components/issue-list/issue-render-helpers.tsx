@@ -10,7 +10,7 @@ import { statusDisplayName } from '@/features/issues/lib/status.ts'
 import { PRIORITY_OPTIONS } from '@/features/issues/utils/issue-utils.ts'
 
 export const getStoryPoints = function getStoryPoints(issue: Issue): string | null {
-  const field = (issue.customFields ?? []).find((f) => f.key === 'story_points')
+  const field = (issue.customFields ?? []).find((selectedField) => selectedField.key === 'story_points')
   return field?.value ?? null
 }
 

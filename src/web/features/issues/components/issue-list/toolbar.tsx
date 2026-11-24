@@ -52,8 +52,8 @@ const FilterSelects = function FilterSelects({
         <Select
           ariaLabel='Filter by project'
           value={filterProject}
-          onChange={(v) => {
-            setFilterProject(v)
+          onChange={(value) => {
+            setFilterProject(value)
             setFilterSprintId('')
           }}
           options={[
@@ -129,7 +129,7 @@ const SortControls = function SortControls({
   setSortDir,
 }: {
   sortBy: SortKey
-  setSortBy: (v: SortKey) => void
+  setSortBy: (sortKey: SortKey) => void
   sortDir: 'asc' | 'desc'
   setSortDir: Dispatch<SetStateAction<'asc' | 'desc'>>
 }): JSX.Element {
@@ -139,7 +139,7 @@ const SortControls = function SortControls({
       <Select
         ariaLabel='Sort by'
         value={sortBy}
-        onChange={(v) => setSortBy(v as SortKey)}
+        onChange={(value) => setSortBy(value as SortKey)}
         options={[
           { label: 'Created', value: 'created_at' },
           { label: 'Updated', value: 'updated' },
@@ -155,7 +155,7 @@ const SortControls = function SortControls({
         variant='outline'
         size='sm'
         aria-label={sortDir === 'asc' ? 'Sort descending' : 'Sort ascending'}
-        onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+        onClick={() => setSortDir((direction) => (direction === 'asc' ? 'desc' : 'asc'))}
       >
         {sortDir === 'asc' ? '↑' : '↓'}
       </Button>
@@ -185,7 +185,7 @@ interface ToolbarProps extends FilterSelectsProps {
   saved: ReturnType<typeof useSavedViews>
 
   sortBy: SortKey
-  setSortBy: (v: SortKey) => void
+  setSortBy: (sortKey: SortKey) => void
   sortDir: 'asc' | 'desc'
   setSortDir: Dispatch<SetStateAction<'asc' | 'desc'>>
 }

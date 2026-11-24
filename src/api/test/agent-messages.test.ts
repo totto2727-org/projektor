@@ -39,39 +39,39 @@ describe('agent Messages API', () => {
 
   const postMessage = async function postMessage(
     body: Record<string, unknown>,
-    t = token,
-    s = slug,
+    bearerToken = token,
+    workspaceSlug = slug,
   ): Promise<Response> {
     return fetchNativeApi('http://localhost/api/agent-messages', {
       body: JSON.stringify(body),
-      headers: authHeaders(t, s),
+      headers: authHeaders(bearerToken, workspaceSlug),
       method: 'POST',
     })
   }
 
   const listMessages = async function listMessages(
     params: Record<string, string> = {},
-    t = token,
-    s = slug,
+    bearerToken = token,
+    workspaceSlug = slug,
   ): Promise<Response> {
     const qs = new URLSearchParams(params).toString()
     return fetchNativeApi(`http://localhost/api/agent-messages${qs ? `?${qs}` : ''}`, {
-      headers: authHeaders(t, s),
+      headers: authHeaders(bearerToken, workspaceSlug),
     })
   }
 
   const mcpCall = async function mcpCall(
     method: string,
     args: Record<string, unknown>,
-    t = token,
-    s = slug,
+    bearerToken = token,
+    workspaceSlug = slug,
     wsId = workspaceId,
   ): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${t}`,
-        'X-Workspace-Slug': s,
+        Authorization: `Bearer ${bearerToken}`,
+        'X-Workspace-Slug': workspaceSlug,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

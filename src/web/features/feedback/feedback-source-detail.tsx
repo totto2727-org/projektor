@@ -37,11 +37,11 @@ const tabBtnClass = (active: boolean): string =>
   'px-4 py-2 text-[0.85rem] font-semibold border-b-2 -mb-px bg-transparent cursor-pointer ' +
   (active ? 'border-accent text-text-base' : 'border-transparent text-text-muted hover:text-text-base')
 
-const statusLabel = function statusLabel(s: FeedbackSource): string {
-  if (Predicate.isNotNullish(s.revokedAt)) {
+const statusLabel = function statusLabel(source: FeedbackSource): string {
+  if (Predicate.isNotNullish(source.revokedAt)) {
     return 'Revoked'
   }
-  return s.isActive ? 'Active' : 'Inactive'
+  return source.isActive ? 'Active' : 'Inactive'
 }
 
 const FeedbackSourceHeader = function FeedbackSourceHeader({
@@ -209,7 +209,7 @@ export default function FeedbackSourceDetail({
     navigateFeature(hrefForTab(nextId))
   }
 
-  const source = sources.find((s) => s.id === sourceId)
+  const source = sources.find((selectedSource) => selectedSource.id === sourceId)
   if (!source) {
     return (
       <div className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>

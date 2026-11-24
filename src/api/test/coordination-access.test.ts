@@ -96,25 +96,25 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
   })
 
   test('owner sees leases/claims/agents across every project', async () => {
-    const t = ws.owner.token
-    const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
+    const token = ws.owner.token
+    const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
     expect(leases.items.map((item) => item.issueId).sort(lexicalCompare)).toEqual(
       [issueA, issueB].toSorted(lexicalCompare),
     )
 
-    const claims = await mcpList('list_file_claims', t, slug, ws.workspace.id)
+    const claims = await mcpList('list_file_claims', token, slug, ws.workspace.id)
     expect(claims.items.map((item) => item.path).sort(lexicalCompare)).toStrictEqual(['a/only.ts', 'b/secret.ts'])
 
-    const agents = await mcpList('list_active_agents', t, slug, ws.workspace.id)
+    const agents = await mcpList('list_active_agents', token, slug, ws.workspace.id)
     expect(agents.items.map((item) => item.name).sort(lexicalCompare)).toStrictEqual(['agent-A', 'agent-B', 'floating'])
   })
 
   test("a member sees only the granted project's leases and file claims", async () => {
-    const t = ws.member.token
-    const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
+    const token = ws.member.token
+    const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
     expect(leases.items.map((item) => item.issueId)).toEqual([issueA])
 
-    const claims = await mcpList('list_file_claims', t, slug, ws.workspace.id)
+    const claims = await mcpList('list_file_claims', token, slug, ws.workspace.id)
     expect(claims.items.map((item) => item.path)).toStrictEqual(['a/only.ts'])
   })
 
@@ -126,12 +126,12 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
   })
 
   test("a member with no grants at all sees none of another project's coordination data", async () => {
-    const t = ws.viewer.token // Viewer has no group grant
-    const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
+    const token = ws.viewer.token // Viewer has no group grant
+    const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
     expect(leases.items).toHaveLength(0)
-    const claims = await mcpList('list_file_claims', t, slug, ws.workspace.id)
+    const claims = await mcpList('list_file_claims', token, slug, ws.workspace.id)
     expect(claims.items).toHaveLength(0)
-    const agents = await mcpList('list_active_agents', t, slug, ws.workspace.id)
+    const agents = await mcpList('list_active_agents', token, slug, ws.workspace.id)
     // Only the issue-less floating agent leaks nothing about a hidden project
     expect(agents.items.map((item) => item.name)).toStrictEqual(['floating'])
   })

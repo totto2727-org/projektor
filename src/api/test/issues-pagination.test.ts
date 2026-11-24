@@ -86,7 +86,7 @@ describe('covers PROJ-857: hot queries use an index (no table scan, no temp sort
     const rows = await env.DB.prepare(`EXPLAIN QUERY PLAN ${q}`)
       .bind(...binds)
       .all<{ detail: string }>()
-    return (rows.results ?? []).map((r) => r.detail).join(' | ')
+    return (rows.results ?? []).map((result) => result.detail).join(' | ')
   }
 
   test.each([

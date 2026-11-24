@@ -1780,7 +1780,7 @@ const StatusField = function StatusField({
         ariaLabel='Change status'
         value={issue.status_id ?? ''}
         disabled={updatingStatus}
-        onChange={(v) => changeStatus(v)}
+        onChange={(value) => changeStatus(value)}
         options={statuses.map(({ id, name }) => ({ label: name, value: id }))}
         buttonStyle={{ color: categoryColor(issue.status_category), fontWeight: 500 }}
       />
@@ -1816,7 +1816,7 @@ const TypeField = function TypeField({
           ariaLabel='Change type'
           value={issue.type_id ?? ''}
           disabled={updatingType}
-          onChange={(v) => changeType(v)}
+          onChange={(value) => changeType(value)}
           options={[{ label: 'No type', value: '' }, ...taskTypes.map(({ id, name }) => ({ label: name, value: id }))]}
         />
         {/* PROJ-602: without this, a rejected type change (e.g. demoting an epic
@@ -1954,7 +1954,7 @@ export const SidebarPanel = function SidebarPanel({
   changeType: (typeId: string) => void
 }): JSX.Element {
   const priorityStyle = PRIORITY_COLORS[issue.priority] ?? PRIORITY_COLORS.none
-  const storyPointsField = (issue.customFields ?? []).find((f) => f.key === 'story_points')
+  const storyPointsField = (issue.customFields ?? []).find((field) => field.key === 'story_points')
 
   return (
     <div className='w-[240px] shrink-0 max-sm:w-full sticky top-4 self-start'>
@@ -1979,7 +1979,7 @@ export const SidebarPanel = function SidebarPanel({
             value={issue.priority}
             disabled={updatingPriority}
             capitalize
-            onChange={(v) => changePriority(v)}
+            onChange={(value) => changePriority(value)}
             options={PRIORITY_OPTIONS}
             buttonStyle={{
               color: priorityStyle.text,

@@ -117,7 +117,7 @@ describe('schema constraints', () => {
    */
   test('0035_project_slug backfill dedupes colliding slugs instead of aborting', () => {
     const migrationFiles = readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith('.sql'))
+      .filter((file) => file.endsWith('.sql'))
       .sort()
     const preSlugFiles = migrationFiles.filter((f) => f < '0035')
     const slugFile = migrationFiles.find((f) => f.startsWith('0035'))
@@ -131,8 +131,8 @@ describe('schema constraints', () => {
       sql
         .replace(/--[^\n]*/g, '')
         .split(';')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
+        .map((statement) => statement.trim())
+        .filter((statement) => statement.length > 0)
     for (const file of preSlugFiles) {
       const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8')
       Iterable.forEach(splitStatements(sql), (stmt) => {

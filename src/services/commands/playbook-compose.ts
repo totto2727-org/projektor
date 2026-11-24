@@ -67,10 +67,12 @@ export const composePlaybook = async function composePlaybook(
   // Epic-goal is the only composable playbook today; a future second playbook
   // needs its own composer branch here rather than a generic dispatch table —
   // not worth building ahead of a second real case.
-  const playbook = PLAYBOOKS.find((p) => p.name === name && name === 'epic-goal')
+  const playbook = PLAYBOOKS.find((selectedPlaybook) => selectedPlaybook.name === name && name === 'epic-goal')
   if (!playbook) {
     throw new NotFoundError(`Unknown or non-composable playbook "${name}"`, {
-      validNames: PLAYBOOKS.filter((p) => p.name === 'epic-goal').map((p) => p.name),
+      validNames: PLAYBOOKS.filter((selectedPlaybook) => selectedPlaybook.name === 'epic-goal').map(
+        (selectedPlaybook) => selectedPlaybook.name,
+      ),
     })
   }
 

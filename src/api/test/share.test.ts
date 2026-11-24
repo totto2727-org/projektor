@@ -364,52 +364,59 @@ describe('share tokens', () => {
     }
 
     test('member without a grant cannot create a share link (404, existence hidden)', async () => {
-      const f = await restrictedIssue('none')
-      const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
-        headers: authHeaders(f.token, f.slug),
+      const restrictedFixture = await restrictedIssue('none')
+      const res = await fetchNativeApi(`http://localhost/api/issues/${restrictedFixture.issueId}/share`, {
+        headers: authHeaders(restrictedFixture.token, restrictedFixture.slug),
         method: 'POST',
       })
       expect(res.status).toBe(404)
       const { env } = await import('./fixture-api.ts')
       const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?')
-        .bind(f.issueId)
+        .bind(restrictedFixture.issueId)
         .first<{ n: number }>()
       expect(row?.n).toBe(0)
     })
 
     test("member without a grant cannot revoke someone else's share link", async () => {
-      const f = await restrictedIssue('none')
+      const restrictedFixture = await restrictedIssue('none')
       const { env } = await import('./fixture-api.ts')
       const now = currentEpochSeconds()
       await env.DB.prepare(
         'INSERT INTO share_tokens (id, issue_id, workspace_id, created_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
       )
-        .bind(await hashToken('victim-link'), f.issueId, f.workspaceId, f.userId, now + 3600, now)
+        .bind(
+          await hashToken('victim-link'),
+          restrictedFixture.issueId,
+          restrictedFixture.workspaceId,
+          restrictedFixture.userId,
+          now + 3600,
+          now,
+        )
         .run()
-      const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
-        headers: authHeaders(f.token, f.slug),
+      const res = await fetchNativeApi(`http://localhost/api/issues/${restrictedFixture.issueId}/share`, {
+        headers: authHeaders(restrictedFixture.token, restrictedFixture.slug),
         method: 'DELETE',
       })
       expect(res.status).toBe(404)
       const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM share_tokens WHERE issue_id = ?')
-        .bind(f.issueId)
+        .bind(restrictedFixture.issueId)
         .first<{ n: number }>()
       expect(row?.n).toBe(1)
     })
 
     test('member with only a viewer grant gets 403', async () => {
-      const f = await restrictedIssue('viewer')
-      const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
-        headers: authHeaders(f.token, f.slug),
+      const restrictedFixture = await restrictedIssue('viewer')
+      const res = await fetchNativeApi(`http://localhost/api/issues/${restrictedFixture.issueId}/share`, {
+        headers: authHeaders(restrictedFixture.token, restrictedFixture.slug),
         method: 'POST',
       })
       expect(res.status).toBe(403)
     })
 
     test('workspace viewer with a member grant on the project can share (grant replaces workspace role)', async () => {
-      const f = await restrictedIssue('member', 'viewer')
-      const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
-        headers: authHeaders(f.token, f.slug),
+      const restrictedFixture = await restrictedIssue('member', 'viewer')
+      const res = await fetchNativeApi(`http://localhost/api/issues/${restrictedFixture.issueId}/share`, {
+        headers: authHeaders(restrictedFixture.token, restrictedFixture.slug),
         method: 'POST',
       })
       expect(res.status).toBe(201)
@@ -450,49 +457,49 @@ describe('share tokens', () => {
     }
 
     test('404s once the issue is deleted', async () => {
-      const f = await sharedIssue('admin', 'none')
-      await expect(shareStatus(f.shareToken)).resolves.toBe(200)
-      await env.DB.prepare('DELETE FROM issues WHERE id = ?').bind(f.issueId).run()
-      await expect(shareStatus(f.shareToken)).resolves.toBe(404)
+      const sharedFixture = await sharedIssue('admin', 'none')
+      await expect(shareStatus(sharedFixture.shareToken)).resolves.toBe(200)
+      await env.DB.prepare('DELETE FROM issues WHERE id = ?').bind(sharedFixture.issueId).run()
+      await expect(shareStatus(sharedFixture.shareToken)).resolves.toBe(404)
     })
 
     test("404s once the issue's project is archived", async () => {
-      const f = await sharedIssue('admin', 'none')
-      await expect(shareStatus(f.shareToken)).resolves.toBe(200)
+      const sharedFixture = await sharedIssue('admin', 'none')
+      await expect(shareStatus(sharedFixture.shareToken)).resolves.toBe(200)
       await env.DB.prepare('UPDATE projects SET archived_at = ? WHERE id = ?')
-        .bind(currentEpochSeconds(), f.projectId)
+        .bind(currentEpochSeconds(), sharedFixture.projectId)
         .run()
-      await expect(shareStatus(f.shareToken)).resolves.toBe(404)
+      await expect(shareStatus(sharedFixture.shareToken)).resolves.toBe(404)
     })
 
     test("404s once the creator's project grant is revoked, and resolves again if restored", async () => {
-      const f = await sharedIssue('member', 'member')
-      await expect(shareStatus(f.shareToken)).resolves.toBe(200)
+      const sharedFixture = await sharedIssue('member', 'member')
+      await expect(shareStatus(sharedFixture.shareToken)).resolves.toBe(200)
 
       const grant = await env.DB.prepare('SELECT role FROM group_project_grants WHERE group_id = ? AND project_id = ?')
-        .bind(f.groupId, f.projectId)
+        .bind(sharedFixture.groupId, sharedFixture.projectId)
         .first<{ role: string }>()
       await env.DB.prepare('DELETE FROM group_project_grants WHERE group_id = ? AND project_id = ?')
-        .bind(f.groupId, f.projectId)
+        .bind(sharedFixture.groupId, sharedFixture.projectId)
         .run()
-      await expect(shareStatus(f.shareToken)).resolves.toBe(404)
+      await expect(shareStatus(sharedFixture.shareToken)).resolves.toBe(404)
       await resetRateLimits()
-      const apiResponse = await fetchNativeApi(`http://localhost/api/share/${f.shareToken}/logo`)
+      const apiResponse = await fetchNativeApi(`http://localhost/api/share/${sharedFixture.shareToken}/logo`)
       expect(apiResponse.status).toBe(404)
 
       await env.DB.prepare('INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, ?)')
-        .bind(f.groupId, f.projectId, grant?.role ?? 'member')
+        .bind(sharedFixture.groupId, sharedFixture.projectId, grant?.role ?? 'member')
         .run()
-      await expect(shareStatus(f.shareToken)).resolves.toBe(200)
+      await expect(shareStatus(sharedFixture.shareToken)).resolves.toBe(200)
     })
 
     test('404s once the creator is removed from the workspace', async () => {
-      const f = await sharedIssue('admin', 'none')
-      await expect(shareStatus(f.shareToken)).resolves.toBe(200)
+      const sharedFixture = await sharedIssue('admin', 'none')
+      await expect(shareStatus(sharedFixture.shareToken)).resolves.toBe(200)
       await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
-        .bind(f.workspaceId, f.userId)
+        .bind(sharedFixture.workspaceId, sharedFixture.userId)
         .run()
-      await expect(shareStatus(f.shareToken)).resolves.toBe(404)
+      await expect(shareStatus(sharedFixture.shareToken)).resolves.toBe(404)
     })
   })
 })

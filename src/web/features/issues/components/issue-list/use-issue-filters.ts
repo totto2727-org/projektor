@@ -99,7 +99,7 @@ export const useIssueFilters = function useIssueFilters(
 
   const handleHeaderClick = function handleHeaderClick(key: SortKey): void {
     if (sortBy === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+      setSortDir((direction) => (direction === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortBy(key)
       setSortDir('asc')

@@ -16,10 +16,10 @@ export const listPlaybooks = function listPlaybooks(): {
 }
 
 export const getPlaybook = function getPlaybook(name: string) {
-  const playbook = PLAYBOOKS.find((p) => p.name === name)
+  const playbook = PLAYBOOKS.find((selectedPlaybook) => selectedPlaybook.name === name)
   if (!playbook) {
     throw new NotFoundError(`Unknown playbook "${name}"`, {
-      validNames: PLAYBOOKS.map((p) => p.name),
+      validNames: PLAYBOOKS.map((selectedPlaybook) => selectedPlaybook.name),
     })
   }
   return {

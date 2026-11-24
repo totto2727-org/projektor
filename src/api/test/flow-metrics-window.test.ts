@@ -289,9 +289,9 @@ describe('covers PROJ-866: D1 query bound at scale', () => {
 
     let queries = 0
     const orig = env.DB.prepare.bind(env.DB)
-    vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => {
+    vi.spyOn(env.DB, 'prepare').mockImplementation((sql: string) => {
       queries++
-      return orig(q)
+      return orig(sql)
     })
 
     const metrics = (await getFlowMetrics(ctx, {
@@ -401,13 +401,15 @@ describe('covers PROJ-866 review: window defaults and aging WIP', () => {
       arrivalVsCompletionOverTime: { created: number; completed: number }[]
       cfdOverTime: { done: number; inProgress: number }[]
     }
-    expect(metrics.agingWip.map((w) => w.id).sort()).toEqual([newer, reopened].toSorted())
+    expect(metrics.agingWip.map((issue) => issue.id).sort()).toEqual([newer, reopened].toSorted())
     /*
      * Neither issue was active in the window: no WIP, arrivals or completions there,
      * and the reopened one sits in the CFD done band (done before since) only.
      */
-    expect(metrics.wipOverTime.every((b) => b.count === 0)).toBe(true)
-    expect(metrics.arrivalVsCompletionOverTime.every((b) => b.created === 0 && b.completed === 0)).toBe(true)
+    expect(metrics.wipOverTime.every((bucket) => bucket.count === 0)).toBe(true)
+    expect(metrics.arrivalVsCompletionOverTime.every((bucket) => bucket.created === 0 && bucket.completed === 0)).toBe(
+      true,
+    )
     expect(metrics.cfdOverTime.every((b) => b.done === 1 && b.inProgress === 0)).toBe(true)
   })
 })

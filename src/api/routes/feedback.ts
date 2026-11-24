@@ -91,9 +91,9 @@ const checkFeedbackRateLimit = async function checkFeedbackRateLimit(
   return null
 }
 
-const parseFeedbackBody = async function parseFeedbackBody(c: Context<HonoEnv>): Promise<unknown> {
+const parseFeedbackBody = async function parseFeedbackBody(httpContext: Context<HonoEnv>): Promise<unknown> {
   try {
-    return await jsonBody(c)
+    return await jsonBody(httpContext)
   } catch {
     return {}
   }

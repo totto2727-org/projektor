@@ -99,8 +99,8 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     const statements = m0060
       .replace(/--[^\n]*/g, '')
       .split(';')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0)
     for (const stmt of statements) {
       await env.DB.prepare(stmt).run()
     }

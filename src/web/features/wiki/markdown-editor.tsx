@@ -289,8 +289,8 @@ function useMarkdownEditorView(
     }
 
     const customKeymap = [
-      { key: 'Mod-b', run: (v: EditorView) => wrapSelection(v, '**', '**') },
-      { key: 'Mod-i', run: (v: EditorView) => wrapSelection(v, '_', '_') },
+      { key: 'Mod-b', run: (editor: EditorView) => wrapSelection(editor, '**', '**') },
+      { key: 'Mod-i', run: (editor: EditorView) => wrapSelection(editor, '_', '_') },
     ]
 
     const config = initialConfigRef.current

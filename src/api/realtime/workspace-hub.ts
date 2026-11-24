@@ -163,7 +163,7 @@ export class WorkspaceHub {
         const filters: SubscriptionFilters = {
           projects: effectiveProjects,
           eventTypes: globalThis.Array.isArray(data.eventTypes)
-            ? data.eventTypes.filter((t): t is string => Predicate.isString(t))
+            ? data.eventTypes.filter((eventType): eventType is string => Predicate.isString(eventType))
             : undefined,
         }
 

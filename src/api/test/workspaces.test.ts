@@ -38,8 +38,8 @@ const mcpCall = async function mcpCall<T>(
   return res.json()
 }
 
-const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
-  return 'error' in r
+const isMcpError = function isMcpError(rpc: JsonRpcResult | JsonRpcError): rpc is JsonRpcError {
+  return 'error' in rpc
 }
 
 describe('workspaces MCP', () => {
@@ -94,7 +94,7 @@ describe('workspaces MCP', () => {
     expect(isMcpError(res)).toBe(false)
     const data = parseNativeMcpText(res.result.content[0].text, IdListResponse)
     expect(data).toHaveLength(2)
-    const ids = data.map((w) => w.id)
+    const ids = data.map((workspace) => workspace.id)
     expect(ids).toContain(workspaceId)
     expect(ids).toContain(ws2.id)
     // Silence unused variable warning
@@ -114,7 +114,7 @@ describe('workspaces MCP', () => {
 
     expect(isMcpError(res)).toBe(false)
     const data = parseNativeMcpText(res.result.content[0].text, IdListResponse)
-    const ids = data.map((w) => w.id)
+    const ids = data.map((workspace) => workspace.id)
     expect(ids).not.toContain(other.workspace.id)
   })
 
@@ -271,8 +271,8 @@ describe('workspaces MCP', () => {
 
   test('delete_workspace returns error for non-owner', async () => {
     const ws = await seedWorkspace(`mcp-del-${crypto.randomUUID().slice(0, 8)}`)
-    const memberUser = await import('./helpers.ts').then((h) =>
-      h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
+    const memberUser = await import('./helpers.ts').then((helpers) =>
+      helpers.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
     )
     await seedMember(ws.id, memberUser.id, 'member')
     const memberToken = await seedToken(ws.id, memberUser.id)
@@ -318,8 +318,8 @@ describe('workspaces MCP', () => {
 
   test('update_workspace returns error for member role (PROJ-246)', async () => {
     const ws = await seedWorkspace(`mcp-update-${crypto.randomUUID().slice(0, 8)}`)
-    const memberUser = await import('./helpers.ts').then((h) =>
-      h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
+    const memberUser = await import('./helpers.ts').then((helpers) =>
+      helpers.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
     )
     await seedMember(ws.id, memberUser.id, 'member')
     const memberToken = await seedToken(ws.id, memberUser.id)
@@ -361,8 +361,8 @@ describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
 
   test('non-owner gets 403', async () => {
     const ws = await seedWorkspace(`del-403-${crypto.randomUUID().slice(0, 8)}`)
-    const memberUser = await import('./helpers.ts').then((h) =>
-      h.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
+    const memberUser = await import('./helpers.ts').then((helpers) =>
+      helpers.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
     )
     await seedMember(ws.id, memberUser.id, 'member')
     const memberToken = await seedToken(ws.id, memberUser.id)
@@ -376,8 +376,8 @@ describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
   test('deleting DEFAULT_WORKSPACE_SLUG → 400 ValidationError', async () => {
     // The dev wrangler.toml sets DEFAULT_WORKSPACE_SLUG = "projektor"
     const defaultWs = await seedWorkspace('projektor')
-    const ownerUser = await import('./helpers.ts').then((h) =>
-      h.seedUser(`owner-def-${crypto.randomUUID().slice(0, 8)}@example.com`),
+    const ownerUser = await import('./helpers.ts').then((helpers) =>
+      helpers.seedUser(`owner-def-${crypto.randomUUID().slice(0, 8)}@example.com`),
     )
     await seedMember(defaultWs.id, ownerUser.id, 'owner')
     const ownerTok = await seedToken(defaultWs.id, ownerUser.id)
