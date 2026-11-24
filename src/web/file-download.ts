@@ -1,6 +1,8 @@
 import { Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+
 import { transferCoreBinary } from './core-binary.ts'
 import { RequestServices } from './request.ts'
 import type { PageFailure } from './request.ts'
@@ -17,7 +19,7 @@ export const downloadFile = function downloadFile(
     const url = new URL(request.url)
     const match = /^\/api\/files\/([^/]+)$/.exec(url.pathname)
     if (!match) {
-      return yield* new ScopeError(404, 'Not found')
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Not found')
     }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return HttpServerResponse.empty({
@@ -27,17 +29,17 @@ export const downloadFile = function downloadFile(
     }
     const workspaceHints = url.searchParams.getAll('workspace')
     if (new Set(workspaceHints).size > 1) {
-      return yield* new ScopeError(400, 'Ambiguous workspace parameter.')
+      return yield* new ScopeError(HTTP_BAD_REQUEST, 'Ambiguous workspace parameter.')
     }
     const workspaceHint = workspaceHints[0]
     const id = yield* Effect.try({
-      catch: () => new ScopeError(400, 'Invalid attachment identifier.'),
+      catch: () => new ScopeError(HTTP_BAD_REQUEST, 'Invalid attachment identifier.'),
       try: () => decodeURIComponent(match[1]),
     })
     // A download target is not a page selector. Archived owners are not in the active catalog.
     const scope = yield* services.scope({ workspaceHint, projectHint: '', requireWorkspace: true })
     if (scope.selection.kind !== 'workspace' && scope.selection.kind !== 'project') {
-      return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
     }
     const stored = yield* transferCoreBinary(
       `/files/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(scope.selection.workspace.id)}`,
@@ -45,7 +47,7 @@ export const downloadFile = function downloadFile(
     )
     const contentType = stored.headers.get('content-type') ?? 'application/octet-stream'
     const filename = yield* Effect.try({
-      catch: () => new ScopeError(400, 'Invalid attachment filename.'),
+      catch: () => new ScopeError(HTTP_BAD_REQUEST, 'Invalid attachment filename.'),
       try: () => decodeURIComponent(stored.headers.get('x-projektor-filename') ?? 'download'),
     })
     const inline = INLINE_TYPES.has(contentType)

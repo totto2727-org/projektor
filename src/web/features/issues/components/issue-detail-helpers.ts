@@ -1,6 +1,6 @@
 'use client'
 import type { ReviewStatus } from '#contracts/review-targets.ts'
-import { currentEpochMilliseconds } from '#contracts/time.ts'
+import { MILLISECONDS_PER_SECOND, currentEpochMilliseconds } from '#contracts/time.ts'
 import type { RenderedMarkdown } from '@/components/markdown/render.ts'
 
 import type { CustomFieldValue, TaskStatus } from './board-utils.ts'
@@ -104,7 +104,7 @@ export const LINK_TYPE_OPTIONS = [
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export const formatDate = function formatDate(unixSeconds: number): string {
-  const date = new Date(unixSeconds * 1000)
+  const date = new Date(unixSeconds * MILLISECONDS_PER_SECOND)
   return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
 }
 

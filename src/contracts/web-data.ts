@@ -1,19 +1,19 @@
 import { Predicate } from 'effect'
 
-import { HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
+import { HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
 import type { AuthSession, ProjectSummary, RequestScope, WorkspaceMembership } from '#core/web/scope.ts'
 
 import { ApiError, ScopeError } from './errors.ts'
 
 export const requireBrowserDataRequest = function requireBrowserDataRequest(request: Request): void {
   if (request.headers.has('authorization')) {
-    throw new ScopeError(403, 'An interactive browser session is required.')
+    throw new ScopeError(HTTP_FORBIDDEN, 'An interactive browser session is required.')
   }
 }
 
 export const requireAuthenticatedDataSession = function requireAuthenticatedDataSession(session: AuthSession): void {
   if (session.user.email === 'public-viewer@projektor.local') {
-    throw new ScopeError(403, 'An interactive browser session is required.')
+    throw new ScopeError(HTTP_FORBIDDEN, 'An interactive browser session is required.')
   }
 }
 
@@ -36,7 +36,7 @@ export const requireDataWorkspace = function requireDataWorkspace(
     workspaceId ?? (selected.kind === 'workspace' || selected.kind === 'project' ? selected.workspace.id : undefined)
   const membership = scope.workspaces.find((workspace) => workspace.id === id)
   if (!membership) {
-    throw new ScopeError(403, 'Selected workspace is not accessible.')
+    throw new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
   }
   return membership
 }
@@ -57,7 +57,7 @@ export const requireDataProject = function requireDataProject(
       (workspace) => workspace.id === project.workspace_id && workspace.slug === project.workspace_slug,
     )
   if (!project || !membership) {
-    throw new ScopeError(404, 'Selected project is not accessible.')
+    throw new ScopeError(HTTP_NOT_FOUND, 'Selected project is not accessible.')
   }
   return project
 }
@@ -68,7 +68,7 @@ export const authorizeDataEntity = function authorizeDataEntity<T extends { read
   entity: T | undefined,
 ): T {
   if (!entity) {
-    throw new ScopeError(404, 'Not found.')
+    throw new ScopeError(HTTP_NOT_FOUND, 'Not found.')
   }
   requireDataWorkspace(scope, workspaceId)
   if (Predicate.isNotNullish(entity.projectId)) {

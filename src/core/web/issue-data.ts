@@ -3,6 +3,7 @@ import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
 import { String, Predicate, Effect, Schema } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
+import { HTTP_BAD_REQUEST, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
 import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -82,7 +83,7 @@ const IssueListQuerySchema = Schema.fromURLSearchParams(
 )
 const listOptions = function listOptions(params: URLSearchParams, scope: RequestScope) {
   return Schema.decodeUnknownEffect(IssueListQuerySchema)(params).pipe(
-    Effect.mapError(() => new ScopeError(400, 'Invalid issue filters or cursor.')),
+    Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid issue filters or cursor.')),
     Effect.map(
       ({ cursor, noParent, includeRollups, includeBody, needsAudit, assignee, cfKey, cfValue, cfOp, ...fields }) => {
         const [createdAt, id] = cursor?.split(':') ?? []
@@ -128,11 +129,11 @@ export const readDataIssue = function readDataIssue(
       )
       .pipe(Effect.mapError(dataError))
     if (!row) {
-      return yield* new ScopeError(404, 'Issue not found.')
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Issue not found.')
     }
     yield* checked(() => authorizeDataEntity(scope, workspaceId, { projectId: row.project_id }))
     if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) && row.project_id !== projectId) {
-      return yield* new ScopeError(404, 'Issue not found in the selected project.')
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Issue not found in the selected project.')
     }
     const extras = yield* issueQueries.getIssueExtras(db, workspaceId, row.id).pipe(Effect.mapError(dataError))
     const targets = yield* listIssueReviewTargets(db, workspaceId, [row.id]).pipe(Effect.mapError(dataError))
@@ -163,7 +164,7 @@ export const readDataIssuePage = function readDataIssuePage(
     if (Predicate.isNotNullish(cfKey) && String.isNonEmpty(cfKey)) {
       const field = yield* issueQueries.findIssueCustomField(db, workspaceId, cfKey).pipe(Effect.mapError(dataError))
       if (!field) {
-        return yield* new ScopeError(400, 'Unknown custom field key.')
+        return yield* new ScopeError(HTTP_BAD_REQUEST, 'Unknown custom field key.')
       }
       options.customField = { id: field.id, op: cfOp ?? 'eq', value: cfValue ?? '' }
     }
@@ -191,13 +192,13 @@ export const searchDataIssues = function searchDataIssues(
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
     const reviewFilter = yield* Schema.decodeUnknownEffect(Schema.optional(ReviewFilterSchema))(review).pipe(
-      Effect.mapError(() => new ScopeError(400, 'Invalid review filter.')),
+      Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid review filter.')),
     )
     if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
       yield* checked(() => requireDataProject(scope, projectId, workspaceId))
     }
     if (!query.length) {
-      return yield* new ScopeError(400, 'A search query is required.')
+      return yield* new ScopeError(HTTP_BAD_REQUEST, 'A search query is required.')
     }
     const predicate = yield* checked(() => visibleProjectPredicate(scope, workspaceId, sql`i.project_id`))
     const visibility = predicate ? new SQLiteSyncDialect().sqlToQuery(predicate) : undefined

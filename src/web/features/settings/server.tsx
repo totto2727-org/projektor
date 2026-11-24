@@ -1,5 +1,6 @@
 import { Effect, Schema } from 'effect'
 
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { browserRequest, coreResult } from '@/core.ts'
 import { RequestServices } from '@/request.ts'
 import { runBrowserCommand } from '@/server/browser-command.ts'
@@ -17,7 +18,8 @@ const choose = (scope: RequestScope): WorkspaceMembership | null =>
 const forbidden = (error: { status: number }): boolean => error.status === 403
 const selected = function selected(scope: RequestScope) {
   return Effect.try({
-    catch: (cause) => (cause instanceof ScopeError ? cause : new ScopeError(403, 'Select an accessible workspace.')),
+    catch: (cause) =>
+      cause instanceof ScopeError ? cause : new ScopeError(HTTP_FORBIDDEN, 'Select an accessible workspace.'),
     try: () => requireDataWorkspace(scope),
   })
 }
@@ -92,7 +94,7 @@ export const renderGroups = function renderGroups(scope: RequestScope, url: URL)
     }
     yield* selected(scope)
     const view = yield* Schema.decodeUnknownEffect(GroupViewSchema)(url.searchParams.get('view') ?? 'groups').pipe(
-      Effect.mapError(() => new ScopeError(400, 'Invalid groups view.')),
+      Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid groups view.')),
     )
     const services = yield* RequestServices
     const data = yield* coreResult(

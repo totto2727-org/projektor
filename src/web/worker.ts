@@ -3,6 +3,8 @@ import { Request as WorkerRequest } from 'alchemy/Cloudflare/Workers'
 import { String, Predicate, Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+
 import { transferCoreBinary } from './core-binary.ts'
 import type application from './entry.effront'
 import { downloadFile } from './file-download.ts'
@@ -18,10 +20,10 @@ const logoResponse = function logoResponse(request: Request) {
     const workspaceLogo = /^\/api\/workspaces\/([^/]+)\/brand\/logo$/.exec(pathname)
     const value = publicLogo?.[1] ?? workspaceLogo?.[1]
     if (Predicate.isNullish(value) || String.isEmpty(value)) {
-      return yield* new ScopeError(404, 'Not found')
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Not found')
     }
     const selector = yield* Effect.try({
-      catch: () => new ScopeError(400, 'Invalid logo address.'),
+      catch: () => new ScopeError(HTTP_BAD_REQUEST, 'Invalid logo address.'),
       try: () => decodeURIComponent(value),
     })
     const path = publicLogo
@@ -32,7 +34,7 @@ const logoResponse = function logoResponse(request: Request) {
             Effect.flatMap((scope) =>
               scope.selection.kind === 'workspace' || scope.selection.kind === 'project'
                 ? Effect.succeed(`/workspace-logo?workspaceId=${encodeURIComponent(scope.selection.workspace.id)}`)
-                : Effect.fail(new ScopeError(403, 'Selected workspace is not accessible.')),
+                : Effect.fail(new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')),
             ),
           )
     const object = yield* transferCoreBinary(path, { method: request.method })

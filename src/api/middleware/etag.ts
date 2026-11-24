@@ -1,6 +1,7 @@
 import { String, Predicate } from 'effect'
 import type { Context, Next } from 'hono'
 
+import { HTTP_OK } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
 /*
@@ -33,7 +34,7 @@ export const etagMiddleware = async function etagMiddleware(httpContext: Context
    * unauthorised request never reaches here. This guard is the second lock: a 304 must
    * never stand in for a 401/403/404.
    */
-  if (httpContext.req.method !== 'GET' || httpContext.res.status !== 200) {
+  if (httpContext.req.method !== 'GET' || httpContext.res.status !== HTTP_OK) {
     return
   }
 

@@ -24,7 +24,7 @@ export const runBrowserCommand = function runBrowserCommand<A, E, R>(
     const services = yield* RequestServices
     const auth = context.scope.auth
     if (!auth || auth.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
-      return yield* new ScopeError(403, 'An interactive browser session is required.')
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'An interactive browser session is required.')
     }
     const workspace = yield* Effect.try({
       catch: (cause) =>

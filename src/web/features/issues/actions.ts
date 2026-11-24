@@ -1,7 +1,7 @@
 'use server'
 import { Iterable, Effect, Schema } from 'effect'
 
-import { HTTP_BAD_GATEWAY } from '#contracts/http-status.ts'
+import { HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_BAD_GATEWAY } from '#contracts/http-status.ts'
 import { ReviewStatusSchema } from '#contracts/review-targets.ts'
 import { EFFRONT } from '@/effront.ts'
 import { RequestServices } from '@/request.ts'
@@ -40,7 +40,7 @@ const authorizedIssue = function authorizedIssue(context: FunctionContext, issue
 
 function dataWorkspaceId(context: FunctionContext): Effect.Effect<string, ScopeError, never> {
   return Effect.try({
-    catch: () => new ScopeError(403, 'Selected workspace is not accessible.'),
+    catch: () => new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.'),
     try: () =>
       requireDataWorkspace(
         context.scope,
@@ -370,7 +370,7 @@ export const deleteIssueLink = EFFRONT.ServerFn.make({
         yield* authorizedIssue(ctx, input.issueId)
         const issueLinks = yield* readDataLinks(ctx.scope, yield* dataWorkspaceId(ctx), input.issueId, ctx.projectId)
         if (!issueLinks.some((entry) => entry.id === input.linkId)) {
-          return yield* new ScopeError(404, 'Link not found on this issue.')
+          return yield* new ScopeError(HTTP_NOT_FOUND, 'Link not found on this issue.')
         }
         const deleted = yield* runCommand(ctx, (command) => links.deleteLink(command, { id: input.linkId }))
         const value = yield* Schema.decodeUnknownEffect(OkSchema)(deleted).pipe(
@@ -474,7 +474,7 @@ export const deleteAttachment = EFFRONT.ServerFn.make({
           ctx.projectId,
         )
         if (!attachments.some((entry) => entry.id === input.attachmentId)) {
-          return yield* new ScopeError(404, 'Attachment not found on this issue.')
+          return yield* new ScopeError(HTTP_NOT_FOUND, 'Attachment not found on this issue.')
         }
         yield* runCommand(ctx, (command) => files.deleteStoredAttachment(command, input.attachmentId))
         const value = { ok: true as const }

@@ -1,5 +1,6 @@
 import { String, Predicate, Effect } from 'effect'
 
+import { HTTP_FORBIDDEN } from '#contracts/http-status.ts'
 import { browserRequest, coreResult } from '@/core.ts'
 import { RequestServices } from '@/request.ts'
 import { ScopeError } from '@/server/errors.ts'
@@ -31,7 +32,7 @@ export const renderFeedback = function renderFeedback(scope: RequestScope, _url:
     }
     const { project, workspace } = scope.selection
     if (workspace.role !== 'owner' && workspace.role !== 'admin') {
-      return yield* new ScopeError(403, 'Insufficient permissions')
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Insufficient permissions')
     }
     const services = yield* RequestServices
     const { sources, summaries } = yield* coreResult(

@@ -6,6 +6,7 @@ import * as wiki from '#commands/wiki.ts'
 import { ApiError } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { VersionedWikiDraftInputSchema, WikiDraftRevisionInputSchema } from '#contracts/inputs/wiki.ts'
+import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 import {
   Created,
   Deleted,
@@ -136,7 +137,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
         return wiki.updateWikiPage(ctx, slug, {
           content: revision.content,
           baseRevisionId,
-          summary: `Restored from revision dated ${new Date(revision.created_at * 1000).toISOString()}`,
+          summary: `Restored from revision dated ${new Date(revision.created_at * MILLISECONDS_PER_SECOND).toISOString()}`,
         })
       }),
   }

@@ -1,6 +1,7 @@
 import { Effect, Schema } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
+import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { SearchResultsSchema, WikiSearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import {
@@ -144,7 +145,7 @@ export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironmen
         webRead(env, request, workspaceId, (scope) =>
           Effect.gen(function* () {
             if (!scope.projects.some((project) => project.id === projectId && project.workspace_id === workspaceId)) {
-              return yield* new ScopeError(404, 'Selected project is not accessible.')
+              return yield* new ScopeError(HTTP_NOT_FOUND, 'Selected project is not accessible.')
             }
             return yield* listSprints(env.DB, workspaceId, { projectId })
           }),

@@ -4,7 +4,7 @@ import * as sources from '#commands/feedback-sources.ts'
 import * as commands from '#commands/feedback.ts'
 import type { ServiceCtx } from '#commands/types.ts'
 import { ScopeError } from '#contracts/errors.ts'
-import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
 import { requireDataProject, requireDataWorkspace } from '#contracts/web-data.ts'
 import {
   FeedbackIndexSchema,
@@ -27,7 +27,7 @@ import type { WebRequest } from './scope.ts'
 
 const admin = function admin(role: string): void {
   if (role !== 'owner' && role !== 'admin') {
-    throw new ScopeError(403, 'Insufficient permissions')
+    throw new ScopeError(HTTP_FORBIDDEN, 'Insufficient permissions')
   }
 }
 const sourceDto = function sourceDto(row: queries.FeedbackSourceListRow) {

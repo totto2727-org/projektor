@@ -3,6 +3,7 @@ import { Effect } from 'effect'
 
 import * as commands from '#commands/projects.ts'
 import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 import {
   CreatedProjectSchema,
   ProjectMutationResultSchema,
@@ -29,8 +30,10 @@ const sixWeekRange = function sixWeekRange(now = new Date()): { since: number; u
   const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
   monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) - 35)
   return {
-    since: Math.floor(monday.getTime() / 1000),
-    until: Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000) + 86_399,
+    since: Math.floor(monday.getTime() / MILLISECONDS_PER_SECOND),
+    until:
+      Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / MILLISECONDS_PER_SECOND) +
+      86_399,
   }
 }
 

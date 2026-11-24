@@ -1,17 +1,37 @@
-/** Display API unix seconds identically during SSR and hydration, independent of locale or timezone. */
-export const formatTimestamp = function formatTimestamp(seconds: number): string {
-  const date = new Date(seconds * 1000)
-  if (Number.isNaN(date.getTime())) {
-    return 'Invalid Date'
-  }
-  return `${date.toISOString().slice(0, 19).replace('T', ' ')} UTC`
+import { DateTime, Option } from 'effect'
+
+import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
+
+const ISO_DATE_LENGTH = 10
+const ISO_SECONDS_PREFIX_LENGTH = 19
+const INVALID_DATE_TEXT = 'Invalid Date'
+
+const toIsoTimestamp = function toIsoTimestamp(seconds: number): Option.Option<string> {
+  return Option.map(DateTime.make(seconds * MILLISECONDS_PER_SECOND), DateTime.formatIso)
 }
 
-/** UTC calendar date for display only. Date-input parsing keeps its local-midnight contract. */
+/**
+ * Display API timestamps in UTC during SSR and hydration.
+ *
+ * @param {number} seconds Unix timestamp in seconds.
+ * @returns {string} The UTC date and time or the invalid-date display.
+ */
+export const formatTimestamp = function formatTimestamp(seconds: number): string {
+  return Option.match(toIsoTimestamp(seconds), {
+    onNone: () => INVALID_DATE_TEXT,
+    onSome: (iso) => `${iso.slice(0, ISO_SECONDS_PREFIX_LENGTH).replace('T', ' ')} UTC`,
+  })
+}
+
+/**
+ * Display the UTC calendar day. Date-input parsing keeps its local-midnight contract.
+ *
+ * @param {number} seconds Unix timestamp in seconds.
+ * @returns {string} The UTC calendar day or the invalid-date display.
+ */
 export const formatTimestampDate = function formatTimestampDate(seconds: number): string {
-  const date = new Date(seconds * 1000)
-  if (Number.isNaN(date.getTime())) {
-    return 'Invalid Date'
-  }
-  return `${date.toISOString().slice(0, 10)} UTC`
+  return Option.match(toIsoTimestamp(seconds), {
+    onNone: () => INVALID_DATE_TEXT,
+    onSome: (iso) => `${iso.slice(0, ISO_DATE_LENGTH)} UTC`,
+  })
 }

@@ -1,6 +1,11 @@
 import { String, Predicate, Effect, Schema } from 'effect'
 
-import { HTTP_BAD_GATEWAY, HTTP_UNPROCESSABLE_CONTENT } from '#contracts/http-status.ts'
+import {
+  HTTP_BAD_REQUEST,
+  HTTP_FORBIDDEN,
+  HTTP_BAD_GATEWAY,
+  HTTP_UNPROCESSABLE_CONTENT,
+} from '#contracts/http-status.ts'
 import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '#contracts/web-limits.ts'
 import { readDataIssuePage, readSprints } from '@/features/issues/data.ts'
 import { dataError, requireDataProject, requireDataWorkspace } from '@/server/data-context.ts'
@@ -33,7 +38,7 @@ export const loadSprintIssues = function loadSprintIssues(
   return Effect.gen(function* () {
     const workspace = scope.workspaces.find((item) => item.slug === workspaceSlug)
     if (!workspace) {
-      return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
     }
     yield* selectedProject(scope, projectId, workspace.id)
     const issues: SprintIssue[] = []
@@ -80,7 +85,7 @@ export const renderSprints = function renderSprints(scope: RequestScope, url: UR
     const { project, workspace } = scope.selection
     yield* selectedProject(scope, project.id, workspace.id)
     const mode = yield* Schema.decodeUnknownEffect(SprintListModeSchema)(url.searchParams.get('status') ?? 'all').pipe(
-      Effect.mapError(() => new ScopeError(400, 'Invalid sprint status view.')),
+      Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid sprint status view.')),
     )
     const [sprints, issues] = yield* Effect.all(
       [readSprints(workspace.id, project.id), loadSprintIssues(project.id, workspace.slug, scope)],
@@ -116,7 +121,7 @@ export const renderMetrics = function renderMetrics(scope: RequestScope, url: UR
       granularity: url.searchParams.get('granularity') ?? fallback.granularity,
       heatmapMode: url.searchParams.get('heatmapMode') ?? 'claims',
       prefix: url.searchParams.get('prefix') ?? '',
-    }).pipe(Effect.mapError(() => new ScopeError(400, 'Invalid metrics date range or chart options.')))
+    }).pipe(Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid metrics date range or chart options.')))
     const range = { since: window.since, until: window.until, granularity: window.granularity }
     const mode = window.heatmapMode
     const prefix = window.prefix

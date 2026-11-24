@@ -39,7 +39,7 @@ export const readAuthorizedWikiPage = function readAuthorizedWikiPage(
         Effect.mapError(dataError),
       )
       if (Array.isArrayEmpty(projects)) {
-        return yield* new ScopeError(404, 'Selected project is not accessible.')
+        return yield* new ScopeError(HTTP_NOT_FOUND, 'Selected project is not accessible.')
       }
     } else {
       yield* Effect.try({

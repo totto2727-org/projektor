@@ -1,5 +1,6 @@
 import { Effect, Schema } from 'effect'
 
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import { RequestServices } from '@/request.ts'
 
 import { ScopeError } from './errors.ts'
@@ -34,7 +35,7 @@ export const resolveFunctionContext = function resolveFunctionContext(
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const input = yield* Schema.decodeUnknownEffect(FunctionSelectorSchema)(selector).pipe(
-      Effect.mapError(() => new ScopeError(400, 'Invalid workspace or project selection.')),
+      Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid workspace or project selection.')),
     )
     const scope = yield* services.scope({
       /*
@@ -47,30 +48,30 @@ export const resolveFunctionContext = function resolveFunctionContext(
       requireProject: options.requireProject,
     })
     if (options.requireProject === true && !input.projectId) {
-      return yield* new ScopeError(400, 'Select a project for this operation.')
+      return yield* new ScopeError(HTTP_BAD_REQUEST, 'Select a project for this operation.')
     }
     if (options.requireWorkspace === true && !input.workspaceSlug && !input.projectId) {
-      return yield* new ScopeError(400, 'Select a workspace for this operation.')
+      return yield* new ScopeError(HTTP_BAD_REQUEST, 'Select a workspace for this operation.')
     }
     const selection = scope.selection
     if (selection.kind === 'selection-required') {
-      return yield* new ScopeError(400, 'Select an accessible workspace or project.')
+      return yield* new ScopeError(HTTP_BAD_REQUEST, 'Select an accessible workspace or project.')
     }
     if (input.projectId && (selection.kind !== 'project' || selection.project.id !== input.projectId)) {
-      return yield* new ScopeError(404, 'Selected project is not accessible.')
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Selected project is not accessible.')
     }
     const workspace = selection.kind === 'project' || selection.kind === 'workspace' ? selection.workspace : undefined
     if (input.workspaceSlug && workspace?.slug !== input.workspaceSlug) {
-      return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
     }
     if (workspace && !scope.workspaces.some((member) => member.id === workspace.id && member.slug === workspace.slug)) {
-      return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
     }
     if (options.requireWorkspace === true && !workspace) {
-      return yield* new ScopeError(403, 'Selected workspace is not accessible.')
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
     }
     if (options.requireProject === true && selection.kind !== 'project') {
-      return yield* new ScopeError(404, 'Selected project is not accessible.')
+      return yield* new ScopeError(HTTP_NOT_FOUND, 'Selected project is not accessible.')
     }
     return {
       scope,

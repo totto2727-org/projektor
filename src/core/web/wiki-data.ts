@@ -5,7 +5,7 @@ import { Iterable, Effect, Schema } from 'effect'
 
 import { readWikiDraftState } from '#commands/wiki-drafts.ts'
 import { ApiError, ScopeError } from '#contracts/errors.ts'
-import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { HTTP_FORBIDDEN, HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 import {
   Attachment,
@@ -44,7 +44,7 @@ export const loadWikiData = function loadWikiData(
   return Effect.gen(function* () {
     const selected = scope.selection
     if (selected.kind !== 'project' && selected.kind !== 'workspace') {
-      return yield* new ScopeError(403, 'Select a workspace before opening the wiki.')
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Select a workspace before opening the wiki.')
     }
     const workspace = yield* Effect.try({
       catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),

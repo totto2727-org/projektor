@@ -1,5 +1,6 @@
 import { Predicate } from 'effect'
 
+import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 import { formatTimestampDate } from '@/features/timestamp.ts'
 
 /*
@@ -17,7 +18,7 @@ export const dateInputToUnix = function dateInputToUnix(value: string): number |
     return null
   }
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
-  return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / 1000)
+  return Number.isNaN(date.getTime()) ? null : Math.floor(date.getTime() / MILLISECONDS_PER_SECOND)
 }
 
 /** Unix seconds → "YYYY-MM-DD" in local time; null → "". */
@@ -25,7 +26,7 @@ export const unixToDateInput = function unixToDateInput(ts: number | null | unde
   if (ts === null || Predicate.isNullish(ts)) {
     return ''
   }
-  const date = new Date(ts * 1000)
+  const date = new Date(ts * MILLISECONDS_PER_SECOND)
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')

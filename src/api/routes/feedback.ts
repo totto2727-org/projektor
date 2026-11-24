@@ -20,6 +20,8 @@ import { apiReply } from '#api/services/reply.ts'
 import { ctxFromHono } from '#api/services/types.ts'
 import { ApiSubmittedFeedback } from '#contracts/api-public.ts'
 import {
+  HTTP_FORBIDDEN,
+  HTTP_NOT_FOUND,
   HTTP_BAD_REQUEST,
   HTTP_CREATED,
   HTTP_NO_CONTENT,
@@ -110,8 +112,8 @@ const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(
     if (e.kind === 'validation') {
       return httpContext.json({ error: e.details }, HTTP_BAD_REQUEST)
     }
-    if (e.status === 403 || e.status === 404) {
-      return httpContext.json({ error: e.message }, e.status === 404 ? 401 : 403)
+    if (e.status === HTTP_FORBIDDEN || e.status === HTTP_NOT_FOUND) {
+      return httpContext.json({ error: e.message }, e.status === HTTP_NOT_FOUND ? 401 : 403)
     }
     return serviceErrToResponse(httpContext, e)
   }

@@ -1,7 +1,7 @@
 import { String, Predicate, Iterable, Effect, Schema } from 'effect'
 import type { ReactElement } from 'react'
 
-import { HTTP_BAD_GATEWAY, HTTP_UNPROCESSABLE_CONTENT } from '#contracts/http-status.ts'
+import { HTTP_BAD_REQUEST, HTTP_BAD_GATEWAY, HTTP_UNPROCESSABLE_CONTENT } from '#contracts/http-status.ts'
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
 import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '#contracts/web-limits.ts'
 import { renderMarkdownDocument } from '@/components/markdown/render.ts'
@@ -157,7 +157,7 @@ export const loadIssues = function loadIssues(
     const { statuses, taskTypes } = yield* lookups(scope, workspace.id)
     const review = url.searchParams.has('review')
       ? yield* Schema.decodeUnknownEffect(ReviewFilterSchema)(url.searchParams.get('review')).pipe(
-          Effect.mapError(() => new ScopeError(400, 'Invalid review filter.')),
+          Effect.mapError(() => new ScopeError(HTTP_BAD_REQUEST, 'Invalid review filter.')),
         )
       : undefined
     const query = filteredIssueQuery(url, projects, taskTypes, project),
@@ -249,7 +249,7 @@ const issueIdentifier = function issueIdentifier(
   }
   const number = Number(params.issueNumber)
   if (!/^\d+$/u.test(params.issueNumber) || !Number.isSafeInteger(number) || number < 1) {
-    throw new ScopeError(400, 'The issue reference is not valid.')
+    throw new ScopeError(HTTP_BAD_REQUEST, 'The issue reference is not valid.')
   }
   return `${project.key}-${number}`
 }

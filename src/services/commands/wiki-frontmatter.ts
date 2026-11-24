@@ -3,6 +3,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
 
 import { WikiFrontmatterSchema } from '#contracts/inputs/wiki.ts'
+import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 
 import { ValidationError } from './errors.ts'
 
@@ -48,7 +49,7 @@ const normalizeVerifiedAt = function normalizeVerifiedAt(value: unknown): number
     return null
   }
   if (value instanceof Date) {
-    return Math.floor(value.getTime() / 1000)
+    return Math.floor(value.getTime() / MILLISECONDS_PER_SECOND)
   }
   if (Predicate.isNumber(value)) {
     return Math.floor(value)
@@ -58,7 +59,7 @@ const normalizeVerifiedAt = function normalizeVerifiedAt(value: unknown): number
     if (Number.isNaN(parsed.getTime())) {
       throw new Error(`verified_at is not a valid date: '${value}'`)
     }
-    return Math.floor(parsed.getTime() / 1000)
+    return Math.floor(parsed.getTime() / MILLISECONDS_PER_SECOND)
   }
   throw new Error('verified_at must be a date or a unix-seconds number')
 }
@@ -225,7 +226,7 @@ export const stampWikiFrontmatterVerification = function stampWikiFrontmatterVer
       raw = { ...(parsedRaw as Record<string, unknown>) }
     }
   }
-  raw.verified_at = new Date(verifiedAtSeconds * 1000).toISOString()
+  raw.verified_at = new Date(verifiedAtSeconds * MILLISECONDS_PER_SECOND).toISOString()
   raw.verified_by = verifiedBy
 
   const yamlText = stringifyYaml(raw).trimEnd()

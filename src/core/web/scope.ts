@@ -1,6 +1,7 @@
 import { String, Predicate, Array, Schema } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND } from '#contracts/http-status.ts'
 import type { AuthInfo } from '#types'
 
 export const WebRequestSchema = Schema.Struct({
@@ -125,7 +126,7 @@ export const RequestScopeSchema = Schema.Struct({
 export const queryHint = function queryHint(url: URL, name: string): string | undefined {
   const values = url.searchParams.getAll(name).filter((value) => value !== '')
   if (new Set(values).size > 1) {
-    throw new ScopeError(400, `Ambiguous ${name} parameter.`)
+    throw new ScopeError(HTTP_BAD_REQUEST, `Ambiguous ${name} parameter.`)
   }
   return values[0]
 }
@@ -153,7 +154,7 @@ export const selectedWorkspace = function selectedWorkspace(
   }
   const matches = workspaces.filter((workspace) => workspace.slug === hint)
   if (matches.length !== 1) {
-    throw new ScopeError(403, 'Selected workspace is not accessible.')
+    throw new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.')
   }
   return matches[0]
 }
@@ -176,7 +177,7 @@ export const resolveScope = function resolveScope(
         ? candidates.filter((project) => matchesProject(project, projectHint))
         : candidates
     if (Predicate.isNotNullish(projectHint) && String.isNonEmpty(projectHint) && Array.isReadonlyArrayEmpty(matches)) {
-      throw new ScopeError(404, 'Selected project is not accessible.')
+      throw new ScopeError(HTTP_NOT_FOUND, 'Selected project is not accessible.')
     }
     if (matches.length === 1) {
       const project = matches[0]
@@ -184,7 +185,7 @@ export const resolveScope = function resolveScope(
         (item) => item.id === project.workspace_id && item.slug === project.workspace_slug,
       )
       if (!membership) {
-        throw new ScopeError(403, 'Selected project is not accessible.')
+        throw new ScopeError(HTTP_FORBIDDEN, 'Selected project is not accessible.')
       }
       selection = { kind: 'project', workspace: membership, project }
     } else {

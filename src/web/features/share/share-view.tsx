@@ -3,6 +3,7 @@
 import { Array } from 'effect'
 import { Fragment } from 'react'
 
+import { MILLISECONDS_PER_SECOND } from '#contracts/time.ts'
 import { MarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
 import type { RenderedMarkdown } from '@/components/markdown/render.ts'
 import { Badge } from '@/components/ui/badge.tsx'
@@ -43,7 +44,7 @@ const PRIORITY_COLORS: Record<string, { bg: string; text: string }> = {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const formatDate = function formatDate(unixSeconds: number): string {
-  const date = new Date(unixSeconds * 1000)
+  const date = new Date(unixSeconds * MILLISECONDS_PER_SECOND)
   return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
 }
 

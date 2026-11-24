@@ -3,7 +3,7 @@ import type { SQL, SQLWrapper } from 'drizzle-orm'
 import { Iterable, Array, Predicate } from 'effect'
 import type { Effect } from 'effect'
 
-import { currentEpochSeconds } from '#contracts/time.ts'
+import { MILLISECONDS_PER_SECOND, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
@@ -62,7 +62,7 @@ type FlowIssueRow = {
 const DAY = 86_400
 
 const dateLabel = function dateLabel(t: number): string {
-  return new Date(t * 1000).toISOString().slice(0, 10)
+  return new Date(t * MILLISECONDS_PER_SECOND).toISOString().slice(0, 10)
 }
 
 const bucketSizeFor = function bucketSizeFor(granularity: 'day' | 'week'): number {
