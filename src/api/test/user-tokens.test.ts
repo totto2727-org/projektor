@@ -1,12 +1,3 @@
-/**
- * PROJ-91 — User-scoped API tokens
- *
- * Coverage:
- *  1. User-scoped token can read+write in a workspace the user IS a member of.
- *  2. User-scoped token is rejected (403) for a workspace the user is NOT a member of.
- *  3. Workspace-scoped token is still confined to its workspace (regression).
- *  4. POST /auth/tokens without workspaceId mints a user-scoped token (NULL in DB).
- */
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -21,6 +12,16 @@ import {
   seedWorkspace,
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+/**
+ * PROJ-91 — User-scoped API tokens
+ *
+ * Coverage:
+ *  1. User-scoped token can read+write in a workspace the user IS a member of.
+ *  2. User-scoped token is rejected (403) for a workspace the user is NOT a member of.
+ *  3. Workspace-scoped token is still confined to its workspace (regression).
+ *  4. POST /auth/tokens without workspaceId mints a user-scoped token (NULL in DB).
+ */
+import { IdResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -72,7 +73,7 @@ describe('covers PROJ-91: user-scoped token — member workspace', () => {
   test('can write (create issue) in a workspace the user is a member of', async () => {
     const res = await postIssue(userToken, slug, projectId, 'user-token write test')
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string }
+    const body = await readNativeJson(res, IdResponse)
     expect(body.id).toBeTruthy()
   })
 
@@ -165,7 +166,7 @@ describe('covers PROJ-91: POST /auth/tokens — user-scoped minting', () => {
       scopes: ['read', 'write'],
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { token: string }
+    const body = await readNativeJson(res, TokenResponse)
     expect(typeof body.token).toBe('string')
 
     const row = await env.DB.prepare('SELECT workspace_id FROM api_tokens WHERE name = ? AND user_id = ?')
@@ -182,7 +183,7 @@ describe('covers PROJ-91: POST /auth/tokens — user-scoped minting', () => {
       scopes: ['*'],
     })
     expect(mintRes.status).toBe(201)
-    const { token: newToken } = (await mintRes.json()) as { token: string }
+    const { token: newToken } = await readNativeJson(mintRes, TokenResponse)
 
     const res = await getIssues(newToken, fixture.workspace.slug)
     expect(res.status).toBe(200)
@@ -198,7 +199,7 @@ describe('covers PROJ-91: POST /auth/tokens — user-scoped minting', () => {
       scopes: ['read'],
     })
     expect(res.status).toBe(201)
-    const { token: minted } = (await res.json()) as { token: string }
+    const { token: minted } = await readNativeJson(res, TokenResponse)
 
     const row = await env.DB.prepare('SELECT workspace_id FROM api_tokens WHERE name = ? AND user_id = ?')
       .bind('ws-scoped', fixture.user.id)

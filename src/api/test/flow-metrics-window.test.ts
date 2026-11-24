@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { getFlowMetrics } from '#commands/flow-metrics.ts'
@@ -20,6 +21,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 describe('covers PROJ-866: flow-metrics window validation', () => {
   let token: string
@@ -41,7 +43,7 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
     const since = now - 400 * 86_400
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=day`)
     expect(res.status).toBe(400)
-    const body = (await res.json()) as { error: unknown }
+    const body = await readNativeJson(res, Schema.Struct({ error: Schema.Unknown }))
     expect(JSON.stringify(body)).toMatch(/366 days/u)
   })
 
@@ -57,7 +59,7 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
     const since = now - (5 * 365 * 86_400 + 86_400)
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=week`)
     expect(res.status).toBe(400)
-    const body = (await res.json()) as { error: unknown }
+    const body = await readNativeJson(res, Schema.Struct({ error: Schema.Unknown }))
     expect(JSON.stringify(body)).toMatch(/5 years/u)
   })
 

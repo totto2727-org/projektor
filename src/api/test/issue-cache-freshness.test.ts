@@ -1,7 +1,3 @@
-/*
- * PROJ-863: GET of an issue never shows stale data about OTHER entities (linked
- * issues, status/type names, project key, sprint) after those change.
- */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { getIssue } from '#commands/issues.ts'
@@ -10,6 +6,11 @@ import type { ServiceCtx } from '#commands/types.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedTaskStatus } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+/*
+ * PROJ-863: GET of an issue never shows stale data about OTHER entities (linked
+ * issues, status/type names, project key, sprint) after those change.
+ */
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 type IssueBody = {
   project_key: string
@@ -97,7 +98,7 @@ describe('covers PROJ-863: no stale embedded data', () => {
 
   test("deleting the issue's sprint", async () => {
     const created = await call('POST', '/api/sprints', { projectId: f.projectId, name: 'S1' })
-    const sprint = (await created.json()) as { id: string }
+    const sprint = await readNativeJson(created, IdResponse)
     expect(created.status, JSON.stringify(sprint)).toBe(201)
     await env.DB.prepare('UPDATE issues SET sprint_id = ? WHERE id = ?').bind(sprint.id, f.issueId).run()
     expect((await get(f.issueId)).sprint_id).toBe(sprint.id)

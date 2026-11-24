@@ -1,9 +1,11 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
+import { IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,
@@ -51,7 +53,7 @@ describe('projects REST', () => {
   test('handles GET /api/projects returns empty list initially', async () => {
     const res = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as unknown[]
+    const body = await readNativeJson(res, JsonListResponse)
     expect(Array.isArray(body)).toBe(true)
     expect(body).toHaveLength(0)
   })
@@ -63,7 +65,10 @@ describe('projects REST', () => {
       body: JSON.stringify({ key: 'ALPHA', name: 'Alpha' }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string; name: string; key: string }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ id: Schema.String, key: Schema.String, name: Schema.String }),
+    )
     expect(body.id).toBeTruthy()
     expect(body.name).toBe('Alpha')
     expect(body.key).toBe('ALPHA')
@@ -76,7 +81,7 @@ describe('projects REST', () => {
       body: JSON.stringify({ key: 'beta', name: 'Beta' }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { key: string }
+    const body = await readNativeJson(res, Schema.Struct({ key: Schema.String }))
     expect(body.key).toBe('BETA')
   })
 
@@ -155,7 +160,10 @@ describe('projects REST', () => {
       body: JSON.stringify({ key: 'NULLD', name: 'NullDesc' }),
     })
     const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
-    const projects = (await listRes.json()) as { key: string; description: string | null }[]
+    const projectsShape = Schema.Array(
+      Schema.Struct({ description: Schema.Union([Schema.String, Schema.Null]), key: Schema.String }),
+    ).pipe(Schema.mutable)
+    const projects = await readNativeJson(listRes, projectsShape)
     const proj = projects.find((project) => project.key === 'NULLD')
     expect(proj).toBeTruthy()
     expect(proj!.description).toBeNull()
@@ -167,11 +175,11 @@ describe('projects REST', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'GETME', name: 'GetMe' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, { headers: ownerHeaders })
     expect(res.status).toBe(200)
-    const proj = (await res.json()) as { name: string; key: string }
+    const proj = await readNativeJson(res, Schema.Struct({ key: Schema.String, name: Schema.String }))
     expect(proj.name).toBe('GetMe')
     expect(proj.key).toBe('GETME')
   })
@@ -189,7 +197,7 @@ describe('projects REST', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'PATCH1', name: 'OldName' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'PATCH',
@@ -205,7 +213,7 @@ describe('projects REST', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'PTGT', name: 'PatchTarget' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'PATCH',
@@ -221,7 +229,7 @@ describe('projects REST', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'ARCH1', name: 'Archivable' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const archiveRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'PATCH',
@@ -237,10 +245,10 @@ describe('projects REST', () => {
     const includeArchivedRes = await fetchNativeApi('http://localhost/api/projects?includeArchived=true', {
       headers: ownerHeaders,
     })
-    const withArchived = (await includeArchivedRes.json()) as {
-      key: string
-      archived_at: number | null
-    }[]
+    const withArchivedShape = Schema.Array(
+      Schema.Struct({ archived_at: Schema.Union([Schema.Number, Schema.Null]), key: Schema.String }),
+    ).pipe(Schema.mutable)
+    const withArchived = await readNativeJson(includeArchivedRes, withArchivedShape)
     const archived = withArchived.find((p) => p.key === 'ARCH1')
     expect(archived).toBeTruthy()
     expect(archived!.archived_at).not.toBeNull()
@@ -267,7 +275,7 @@ describe('projects REST', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'DEL1', name: 'ToDelete' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const delRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       headers: ownerHeaders,
@@ -282,7 +290,7 @@ describe('projects REST', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'NODEL', name: 'NoDelete' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const delRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       headers: memberHeaders,
@@ -397,13 +405,18 @@ describe('projects MCP', () => {
     })
 
     const res = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
-    const projects = (await res.json()) as {
-      key: string
-      workspace_id: string
-      workspace_slug: string
-      workspace_name: string
-      open_issue_count: number
-    }[]
+    const projects = await readNativeJson(
+      res,
+      Schema.Array(
+        Schema.Struct({
+          key: Schema.String,
+          open_issue_count: Schema.Number,
+          workspace_id: Schema.String,
+          workspace_name: Schema.String,
+          workspace_slug: Schema.String,
+        }),
+      ).pipe(Schema.mutable),
+    )
     const proj = projects.find((project) => project.key === 'SHAPE')
     expect(proj).toBeTruthy()
     expect(proj!.workspace_id).toBeTruthy()
@@ -422,7 +435,10 @@ describe('projects MCP', () => {
     })
 
     const restRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
-    const restProjects = (await restRes.json()) as { key: string }[]
+    const restProjects = await readNativeJson(
+      restRes,
+      Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable),
+    )
 
     const mcpRes = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
@@ -543,7 +559,10 @@ describe('handles GET /api/projects cross-workspace', () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
-    const projects = (await res.json()) as { key: string; open_issue_count: number }[]
+    const projects = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ key: Schema.String, open_issue_count: Schema.Number })).pipe(Schema.mutable),
+    )
     const proj = projects.find((selectedProject) => selectedProject.key === 'ICNT')
     expect(proj).toBeTruthy()
     expect(proj!.open_issue_count).toBe(2)

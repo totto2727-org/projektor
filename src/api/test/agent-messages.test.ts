@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -16,6 +17,7 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
+import { RpcTextResponse, readNativeJson } from './response-json.ts'
 
 describe('agent Messages API', () => {
   let token: string
@@ -89,7 +91,10 @@ describe('agent Messages API', () => {
     expect(r2.status).toBe(201)
     const res3 = await postMessage({ scope, body: 'message three' })
     expect(res3.status).toBe(201)
-    const msg3 = (await res3.json()) as { id: string; scope: string; body: string }
+    const msg3 = await readNativeJson(
+      res3,
+      Schema.Struct({ body: Schema.String, id: Schema.String, scope: Schema.String }),
+    )
     expect(msg3.scope).toBe(scope)
     expect(msg3.body).toBe('message three')
 
@@ -99,10 +104,11 @@ describe('agent Messages API', () => {
     // Confirm all 3 messages land in the scope before testing pagination
     const allRes = await listMessages({ scope }, token2, slug)
     expect(allRes.status).toBe(200)
-    const all = (await allRes.json()) as {
-      items: { body: string }[]
-      nextCursor: string | null
-    }
+    const allShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
+      nextCursor: Schema.Union([Schema.String, Schema.Null]),
+    })
+    const all = await readNativeJson(allRes, allShape)
     expect(all.items).toHaveLength(3)
 
     // token3 for page 1 (fresh budget)
@@ -111,10 +117,11 @@ describe('agent Messages API', () => {
     // Page 1: limit=2 — composite cursor is "createdAt:id" for same-second stability
     const page1Res = await listMessages({ scope, limit: '2' }, token3, slug)
     expect(page1Res.status).toBe(200)
-    const page1 = (await page1Res.json()) as {
-      items: { body: string }[]
-      nextCursor: string | null
-    }
+    const page1Shape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
+      nextCursor: Schema.Union([Schema.String, Schema.Null]),
+    })
+    const page1 = await readNativeJson(page1Res, page1Shape)
     expect(page1.items).toHaveLength(2)
     expect(page1.items[0].body).toBe('message one')
     expect(page1.items[1].body).toBe('message two')
@@ -123,10 +130,11 @@ describe('agent Messages API', () => {
     // Page 2: cursor from page 1 (uses token2's remaining budget)
     const page2Res = await listMessages({ scope, limit: '2', cursor: page1.nextCursor! }, token2, slug)
     expect(page2Res.status).toBe(200)
-    const page2 = (await page2Res.json()) as {
-      items: { body: string }[]
-      nextCursor: string | null
-    }
+    const page2Shape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
+      nextCursor: Schema.Union([Schema.String, Schema.Null]),
+    })
+    const page2 = await readNativeJson(page2Res, page2Shape)
     expect(page2.items).toHaveLength(1)
     expect(page2.items[0].body).toBe('message three')
     expect(page2.nextCursor).toBeNull()
@@ -135,7 +143,7 @@ describe('agent Messages API', () => {
     const token4 = await seedToken(workspaceId, userId)
     const mcpRes = await mcpCall('list_messages', { scope }, token4, slug)
     expect(mcpRes.status).toBe(200)
-    const mcpBody = (await mcpRes.json()) as { result: { content: { text: string }[] } }
+    const mcpBody = await readNativeJson(mcpRes, RpcTextResponse)
     const mcpData = JSON.parse(mcpBody.result.content[0].text) as {
       items: { body: string }[]
     }
@@ -147,14 +155,17 @@ describe('agent Messages API', () => {
      */
     const token5 = await seedToken(workspaceId, userId)
     const p1Res = await mcpCall('list_messages', { scope, limit: 2 }, token5, slug)
-    const p1Body = (await p1Res.json()) as { result: { content: { text: string }[] } }
+    const p1Body = await readNativeJson(p1Res, RpcTextResponse)
     const p1 = JSON.parse(p1Body.result.content[0].text) as { nextCursor: string | null }
     expect(typeof p1.nextCursor).toBe('string')
     const p2Res = await mcpCall('list_messages', { scope, limit: 2, cursor: p1.nextCursor }, token5, slug)
-    const p2Body = (await p2Res.json()) as {
-      result?: { content: { text: string }[] }
-      error?: { message: string }
-    }
+    const p2BodyShape = Schema.Struct({
+      error: Schema.optional(Schema.Struct({ message: Schema.String })),
+      result: Schema.optional(
+        Schema.Struct({ content: Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable) }),
+      ),
+    })
+    const p2Body = await readNativeJson(p2Res, p2BodyShape)
     expect(p2Body.error).toBeUndefined()
     const p2 = JSON.parse(p2Body.result?.content[0].text ?? '{}') as {
       items: { body: string }[]
@@ -170,7 +181,7 @@ describe('agent Messages API', () => {
 
     const res = await postMessage({ scope: wsScope, body: 'workspace-wide notice' })
     expect(res.status).toBe(201)
-    const msg = (await res.json()) as { scope: string; body: string }
+    const msg = await readNativeJson(res, Schema.Struct({ body: Schema.String, scope: Schema.String }))
     expect(msg.scope).toBe(wsScope)
 
     const token2 = await seedToken(workspaceId, userId)
@@ -178,13 +189,19 @@ describe('agent Messages API', () => {
     // Should appear in workspace channel
     const wsListRes = await listMessages({ scope: wsScope }, token2, slug)
     expect(wsListRes.status).toBe(200)
-    const wsBody = (await wsListRes.json()) as { items: { body: string; scope: string }[] }
+    const wsBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ body: Schema.String, scope: Schema.String })).pipe(Schema.mutable),
+    })
+    const wsBody = await readNativeJson(wsListRes, wsBodyShape)
     expect(wsBody.items.some((item) => item.body === 'workspace-wide notice')).toBe(true)
 
     // Should NOT appear in issue channel
     const issueListRes = await listMessages({ scope: issueScope }, token2, slug)
     expect(issueListRes.status).toBe(200)
-    const issueBody = (await issueListRes.json()) as { items: { body: string }[] }
+    const issueBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
+    })
+    const issueBody = await readNativeJson(issueListRes, issueBodyShape)
     expect(issueBody.items.some((item) => item.body === 'workspace-wide notice')).toBe(false)
   })
 
@@ -197,12 +214,12 @@ describe('agent Messages API', () => {
     // Phase 1 (token): register agents, claim, conflict, post message
     const agent1Res = await mcpCall('register_agent', { name: 'agent-one' })
     expect(agent1Res.status).toBe(200)
-    const a1Body = (await agent1Res.json()) as { result: { content: { text: string }[] } }
+    const a1Body = await readNativeJson(agent1Res, RpcTextResponse)
     const agent1 = JSON.parse(a1Body.result.content[0].text) as { id: string }
 
     const agent2Res = await mcpCall('register_agent', { name: 'agent-two' })
     expect(agent2Res.status).toBe(200)
-    const a2Body = (await agent2Res.json()) as { result: { content: { text: string }[] } }
+    const a2Body = await readNativeJson(agent2Res, RpcTextResponse)
     const agent2 = JSON.parse(a2Body.result.content[0].text) as { id: string }
 
     // agent1 claims path A
@@ -212,7 +229,7 @@ describe('agent Messages API', () => {
       paths: ['src/coord.ts'],
     })
     expect(claimRes.status).toBe(200)
-    const claimBody = (await claimRes.json()) as { result: { content: { text: string }[] } }
+    const claimBody = await readNativeJson(claimRes, RpcTextResponse)
     expect(JSON.parse(claimBody.result.content[0].text)).toMatchObject({
       created: [{ path: 'src/coord.ts' }],
     })
@@ -225,7 +242,7 @@ describe('agent Messages API', () => {
       force: false,
     })
     expect(conflictRes.status).toBe(200)
-    const conflictBody = (await conflictRes.json()) as { error?: unknown }
+    const conflictBody = await readNativeJson(conflictRes, Schema.Struct({ error: Schema.optional(Schema.Unknown) }))
     expect(conflictBody.error).toBeUndefined()
     expect(toolError(conflictBody)?.code).toBe('conflict')
 
@@ -244,7 +261,7 @@ describe('agent Messages API', () => {
 
     const readRes = await mcpCall('list_messages', { scope }, token2, slug)
     expect(readRes.status).toBe(200)
-    const readBody = (await readRes.json()) as { result: { content: { text: string }[] } }
+    const readBody = await readNativeJson(readRes, RpcTextResponse)
     const readData = JSON.parse(readBody.result.content[0].text) as {
       items: { body: string }[]
     }
@@ -266,9 +283,7 @@ describe('agent Messages API', () => {
       slug,
     )
     expect(reclaimRes.status).toBe(200)
-    const reclaimBody = (await reclaimRes.json()) as {
-      result: { content: { text: string }[] }
-    }
+    const reclaimBody = await readNativeJson(reclaimRes, RpcTextResponse)
     const reclaimData = JSON.parse(reclaimBody.result.content[0].text) as {
       created: { issueId: string }[]
     }
@@ -304,7 +319,7 @@ describe('agent Messages API', () => {
       slug,
     )
     expect(forceRes.status).toBe(200)
-    const forceBody = (await forceRes.json()) as { result: { content: { text: string }[] } }
+    const forceBody = await readNativeJson(forceRes, RpcTextResponse)
     const forceData = JSON.parse(forceBody.result.content[0].text) as {
       overridden: unknown[]
     }
@@ -314,7 +329,7 @@ describe('agent Messages API', () => {
     const noticeScope = `issue:${issue3.id}`
     const noticeRes = await mcpCall('list_messages', { scope: noticeScope }, token3, slug)
     expect(noticeRes.status).toBe(200)
-    const noticeBody = (await noticeRes.json()) as { result: { content: { text: string }[] } }
+    const noticeBody = await readNativeJson(noticeRes, RpcTextResponse)
     const noticeData = JSON.parse(noticeBody.result.content[0].text) as {
       items: { body: string }[]
     }
@@ -351,7 +366,10 @@ describe('agent Messages API', () => {
     // Workspace X cannot see workspace Y messages
     const xListRes = await listMessages({ scope }, token2, slug)
     expect(xListRes.status).toBe(200)
-    const xBody = (await xListRes.json()) as { items: { body: string }[] }
+    const xBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
+    })
+    const xBody = await readNativeJson(xListRes, xBodyShape)
     expect(xBody.items.some((item) => item.body === 'workspace-Y message')).toBe(false)
     expect(xBody.items.some((item) => item.body === 'workspace-X message')).toBe(true)
 
@@ -362,7 +380,10 @@ describe('agent Messages API', () => {
     const token3 = await seedToken(workspaceId, userId)
     const isoRes = await listMessages({ scope }, token3, slug)
     expect(isoRes.status).toBe(200)
-    const isoBody = (await isoRes.json()) as { items: { body: string }[] }
+    const isoBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
+    })
+    const isoBody = await readNativeJson(isoRes, isoBodyShape)
     expect(isoBody.items.some((item) => item.body === 'ws-channel msg')).toBe(false)
   })
 

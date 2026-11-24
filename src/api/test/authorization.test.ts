@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 /**
@@ -35,6 +36,7 @@ import {
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -112,7 +114,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'OP1', name: 'Owner Proj' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'PATCH',
@@ -128,7 +130,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'DP1', name: 'Del Proj' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       headers: viewerHeaders,
@@ -596,7 +598,7 @@ describe('covers PROJ-78: Workspace routes – non-owner blocked, owner allowed'
   test('owner CAN POST /api/workspaces/:slug/tokens', async () => {
     const res = await mint(ownerEmail, 'my-token', ['read', 'write'])
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string; token: string }
+    const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, token: Schema.String }))
     expect(body.token).toBeTruthy()
     expect(body.id).toBeTruthy()
   })

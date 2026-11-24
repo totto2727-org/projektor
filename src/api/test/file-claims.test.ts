@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Schema, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -6,6 +6,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { configureCore, env } from './fixture-api.ts'
 import { authHeaders, hashToken, seedFixture, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { ErrorMessageResponse, IdResponse, ItemsResponse, RpcTextResponse, readNativeJson } from './response-json.ts'
 
 describe('file Claims API', () => {
   let token: string
@@ -80,10 +81,13 @@ describe('file Claims API', () => {
     const paths = ['src/foo.ts', 'src/bar.ts']
     const res = await claimFiles({ issueId, paths })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as {
-      created: { id: string; path: string; releasedAt: null }[]
-      overridden: unknown[]
-    }
+    const bodyShape = Schema.Struct({
+      created: Schema.Array(Schema.Struct({ id: Schema.String, path: Schema.String, releasedAt: Schema.Null })).pipe(
+        Schema.mutable,
+      ),
+      overridden: Schema.Array(Schema.Unknown).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.created).toHaveLength(2)
     expect(body.overridden).toHaveLength(0)
     expect(body.created.every((c) => Predicate.isNullish(c.releasedAt))).toBe(true)
@@ -93,14 +97,17 @@ describe('file Claims API', () => {
 
     const listRes = await listFileClaims({ issueId })
     expect(listRes.status).toBe(200)
-    const listBody = (await listRes.json()) as { items: { path: string }[] }
+    const listBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
+    })
+    const listBody = await readNativeJson(listRes, listBodyShape)
     expect(listBody.items.some((item) => item.path === 'src/foo.ts')).toBe(true)
     expect(listBody.items.some((item) => item.path === 'src/bar.ts')).toBe(true)
 
     // Verify via MCP — workspaceMiddleware requires X-Workspace-Slug
     const mcpRes = await mcpCall('list_file_claims', { issueId })
     expect(mcpRes.status).toBe(200)
-    const mcpBody = (await mcpRes.json()) as { result: { content: { text: string }[] } }
+    const mcpBody = await readNativeJson(mcpRes, RpcTextResponse)
     const mcpData = JSON.parse(mcpBody.result.content[0].text) as {
       items: { path: string }[]
     }
@@ -119,18 +126,21 @@ describe('file Claims API', () => {
     // Try to claim [held, new] — should fail entirely
     const res = await claimFiles({ issueId: issue2.id, paths: ['src/held.ts', 'src/other.ts'] })
     expect(res.status).toBe(409)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toContain(issueId)
 
     // Assert "src/other.ts" was NOT claimed (batch all-or-nothing)
     const listRes = await listFileClaims({ path: 'src/other.ts' })
-    const listBody = (await listRes.json()) as { items: { path: string }[] }
+    const listBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
+    })
+    const listBody = await readNativeJson(listRes, listBodyShape)
     expect(listBody.items).toHaveLength(0)
 
     // Verify via MCP — should also return a conflict tool error with holder info
     const mcpRes = await mcpCall('claim_files', { issueId: issue2.id, paths: ['src/held.ts'] })
     expect(mcpRes.status).toBe(200)
-    const mcpBody = (await mcpRes.json()) as { error?: unknown }
+    const mcpBody = await readNativeJson(mcpRes, Schema.Struct({ error: Schema.optional(Schema.Unknown) }))
     expect(mcpBody.error).toBeUndefined()
     expect(toolError(mcpBody)?.code).toBe('conflict')
     expect(toolError(mcpBody)?.message).toContain(issueId)
@@ -159,7 +169,10 @@ describe('file Claims API', () => {
 
     // Verify new holder via list
     const listRes = await listFileClaims({ path: 'src/steal.ts' })
-    const listBody = (await listRes.json()) as { items: { issueId: string }[] }
+    const listBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ issueId: Schema.String })).pipe(Schema.mutable),
+    })
+    const listBody = await readNativeJson(listRes, listBodyShape)
     expect(listBody.items).toHaveLength(1)
     expect(listBody.items[0].issueId).toBe(issue2.id)
   })
@@ -171,10 +184,11 @@ describe('file Claims API', () => {
 
     const releaseRes = await releaseFiles({ paths: ['src/release-me.ts'], issueId })
     expect(releaseRes.status).toBe(200)
-    const releaseBody = (await releaseRes.json()) as {
-      released: { releasedAt: number }[]
-      count: number
-    }
+    const releaseBodyShape = Schema.Struct({
+      count: Schema.Number,
+      released: Schema.Array(Schema.Struct({ releasedAt: Schema.Number })).pipe(Schema.mutable),
+    })
+    const releaseBody = await readNativeJson(releaseRes, releaseBodyShape)
     expect(releaseBody.count).toBe(1)
     expect(releaseBody.released[0].releasedAt).toBeGreaterThan(0)
 
@@ -193,7 +207,7 @@ describe('file Claims API', () => {
       body: JSON.stringify({ name: 'test-agent-fc' }),
     })
     expect(agentRes.status).toBe(201)
-    const agent = (await agentRes.json()) as { id: string }
+    const agent = await readNativeJson(agentRes, IdResponse)
 
     // Claim a file as that agent
     const agentClaimRes = await claimFiles({
@@ -212,7 +226,7 @@ describe('file Claims API', () => {
 
     // Claim should now be gone
     const listRes = await listFileClaims({ path: 'src/agent-file.ts' })
-    const listBody = (await listRes.json()) as { items: unknown[] }
+    const listBody = await readNativeJson(listRes, ItemsResponse)
     expect(listBody.items).toHaveLength(0)
 
     // Path is re-claimable
@@ -228,7 +242,10 @@ describe('file Claims API', () => {
 
     // List by path — should identify the holder
     const listRes = await listFileClaims({ path: 'src/shared.ts' })
-    const listBody = (await listRes.json()) as { items: { issueId: string; path: string }[] }
+    const listBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ issueId: Schema.String, path: Schema.String })).pipe(Schema.mutable),
+    })
+    const listBody = await readNativeJson(listRes, listBodyShape)
     expect(listBody.items).toHaveLength(1)
     expect(listBody.items[0].issueId).toBe(issueId)
     expect(listBody.items[0].path).toBe('src/shared.ts')
@@ -237,7 +254,10 @@ describe('file Claims API', () => {
     const other = await seedFixture()
     const otherListRes = await listFileClaims({}, other.token, other.workspace.slug)
     expect(otherListRes.status).toBe(200)
-    const otherBody = (await otherListRes.json()) as { items: { issueId: string }[] }
+    const otherBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ issueId: Schema.String })).pipe(Schema.mutable),
+    })
+    const otherBody = await readNativeJson(otherListRes, otherBodyShape)
     expect(otherBody.items.some((item) => item.issueId === issueId)).toBe(false)
   })
 
@@ -327,7 +347,8 @@ describe('file Claims API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    return (await res.json()) as { items: { body: string }[] }
+    const resShape = Schema.Struct({ items: Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable) })
+    return readNativeJson(res, resShape)
   }
 
   /*
@@ -455,10 +476,13 @@ describe('file Claims API', () => {
       const res = await claimFiles({ issueId: issue2.id, paths: ['src/abandoned.ts'] })
       expect(res.status).toBe(201)
 
-      const body = (await res.json()) as {
-        created: { issueId: string }[]
-        reclaimed: { path: string; releaseReason: string }[]
-      }
+      const bodyShape = Schema.Struct({
+        created: Schema.Array(Schema.Struct({ issueId: Schema.String })).pipe(Schema.mutable),
+        reclaimed: Schema.Array(Schema.Struct({ path: Schema.String, releaseReason: Schema.String })).pipe(
+          Schema.mutable,
+        ),
+      })
+      const body = await readNativeJson(res, bodyShape)
       expect(body.created[0].issueId).toBe(issue2.id)
       /*
        * Reported, not silent: an agent that took over an abandoned path should be able to
@@ -590,7 +614,10 @@ describe('file Claims API', () => {
        * includeStale to see both, still flagged via `live`.
        */
       const listRes = await listFileClaims({ includeStale: 'true' })
-      const body = (await listRes.json()) as { items: { path: string; live: boolean }[] }
+      const bodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ live: Schema.Boolean, path: Schema.String })).pipe(Schema.mutable),
+      })
+      const body = await readNativeJson(listRes, bodyShape)
       const byPath = new Map(body.items.map((item) => [item.path, item.live]))
       expect(byPath.get('src/listed-dead.ts')).toBe(false)
       expect(byPath.get('src/listed-live.ts')).toBe(true)
@@ -640,9 +667,12 @@ describe('file Claims API', () => {
         const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Takes over' })
         const res = await claimFiles({ issueId: issue2.id, paths: ['src/ttl-expired.ts'] })
         expect(res.status).toBe(201)
-        const body = (await res.json()) as {
-          reclaimed: { path: string; releaseReason: string }[]
-        }
+        const bodyShape = Schema.Struct({
+          reclaimed: Schema.Array(Schema.Struct({ path: Schema.String, releaseReason: Schema.String })).pipe(
+            Schema.mutable,
+          ),
+        })
+        const body = await readNativeJson(res, bodyShape)
         expect(body.reclaimed.map((r) => r.path)).toEqual(['src/ttl-expired.ts'])
         expect(body.reclaimed[0].releaseReason).toBe('expired')
       })
@@ -686,7 +716,7 @@ describe('file Claims API', () => {
       expect((await patchStatus(issueId, 'done')).status).toBe(200)
 
       const listRes = await listFileClaims({ path: 'src/done-releases.ts' })
-      const listBody = (await listRes.json()) as { items: unknown[] }
+      const listBody = await readNativeJson(listRes, ItemsResponse)
       expect(listBody.items).toHaveLength(0)
 
       const row = await env.DB.prepare(
@@ -703,7 +733,7 @@ describe('file Claims API', () => {
       expect((await patchStatus(issueId, 'cancelled')).status).toBe(200)
 
       const listRes = await listFileClaims({ path: 'src/cancelled-releases.ts' })
-      const listBody = (await listRes.json()) as { items: unknown[] }
+      const listBody = await readNativeJson(listRes, ItemsResponse)
       expect(listBody.items).toHaveLength(0)
     })
 
@@ -723,7 +753,7 @@ describe('file Claims API', () => {
       expect(res.status).toBe(200)
 
       const listRes = await listFileClaims({ path: 'src/after-done.ts' })
-      const listBody = (await listRes.json()) as { items: unknown[] }
+      const listBody = await readNativeJson(listRes, ItemsResponse)
       expect(listBody.items).toHaveLength(1)
     })
   })
@@ -743,7 +773,10 @@ describe('file Claims API', () => {
         .first<{ number: number }>()
 
       const listRes = await listFileClaims({ path: 'src/ref-check.ts' })
-      const body = (await listRes.json()) as { items: { issueRef: string }[] }
+      const bodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ issueRef: Schema.String })).pipe(Schema.mutable),
+      })
+      const body = await readNativeJson(listRes, bodyShape)
       expect(body.items).toHaveLength(1)
       expect(body.items[0].issueRef).toBe(`${projectKey}-${issueRow?.number}`)
     })
@@ -775,7 +808,10 @@ describe('file Claims API', () => {
       await claimFiles({ issueId, paths: ['src/rest-parity.ts'] })
 
       const byKey = await listFileClaims({ projectId: projectKey })
-      const byKeyBody = (await byKey.json()) as { items: { path: string }[] }
+      const byKeyBodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
+      })
+      const byKeyBody = await readNativeJson(byKey, byKeyBodyShape)
       expect(byKeyBody.items.map((item) => item.path)).toContain('src/rest-parity.ts')
 
       const stale = await listFileClaims({ includeStale: 'true' })
@@ -815,7 +851,10 @@ describe('file Claims API', () => {
         path: 'src/stale-agent-932.ts',
         includeStale: 'true',
       })
-      const withBody = (await withFlag.json()) as { items: { live: boolean }[] }
+      const withBodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ live: Schema.Boolean })).pipe(Schema.mutable),
+      })
+      const withBody = await readNativeJson(withFlag, withBodyShape)
       expect(withBody.items).toHaveLength(1)
       expect(withBody.items[0].live).toBe(false)
     })
@@ -837,7 +876,10 @@ describe('file Claims API', () => {
         path: 'src/expired-agentless-932.ts',
         includeStale: 'true',
       })
-      const withBody = (await withFlag.json()) as { items: { live: boolean }[] }
+      const withBodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ live: Schema.Boolean })).pipe(Schema.mutable),
+      })
+      const withBody = await readNativeJson(withFlag, withBodyShape)
       expect(withBody.items).toHaveLength(1)
       expect(withBody.items[0].live).toBe(false)
     })

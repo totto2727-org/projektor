@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import * as cache from '#commands/cache.ts'
@@ -5,6 +6,7 @@ import * as cache from '#commands/cache.ts'
 import { configureCore, env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus, seedTaskType } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { JsonListResponse, RpcTextResponse, readNativeJson } from './response-json.ts'
 
 describe('covers KV caching', () => {
   let token: string
@@ -30,7 +32,7 @@ describe('covers KV caching', () => {
       // First GET — populates cache
       const first = await fetchNativeApi(url, { headers: hdrs })
       expect(first.status).toBe(200)
-      const firstBody = (await first.json()) as { id: string; title: string }
+      const firstBody = await readNativeJson(first, Schema.Struct({ id: Schema.String, title: Schema.String }))
       expect(firstBody.title).toBe('Cached Issue')
 
       // Delete D1 row — simulates D1 being unavailable or stale
@@ -59,7 +61,7 @@ describe('covers KV caching', () => {
       // GET — cache was invalidated so this reads from D1 and returns the new title
       const res = await fetchNativeApi(url, { headers: hdrs })
       expect(res.status).toBe(200)
-      const body = (await res.json()) as { title: string }
+      const body = await readNativeJson(res, Schema.Struct({ title: Schema.String }))
       expect(body.title).toBe('After')
     })
 
@@ -90,7 +92,7 @@ describe('covers KV caching', () => {
       // First GET — populates cache
       const first = await fetchNativeApi(url, { headers: hdrs })
       expect(first.status).toBe(200)
-      const firstBody = (await first.json()) as unknown[]
+      const firstBody = await readNativeJson(first, JsonListResponse)
       expect(firstBody.length).toBeGreaterThan(0)
 
       // Delete all task statuses from D1
@@ -99,7 +101,7 @@ describe('covers KV caching', () => {
       // Second GET — served from KV cache
       const second = await fetchNativeApi(url, { headers: hdrs })
       expect(second.status).toBe(200)
-      const secondBody = (await second.json()) as unknown[]
+      const secondBody = await readNativeJson(second, JsonListResponse)
       expect(secondBody.length).toBeGreaterThan(0)
     })
 
@@ -110,14 +112,14 @@ describe('covers KV caching', () => {
 
       const first = await fetchNativeApi(url, { headers: hdrs })
       expect(first.status).toBe(200)
-      const firstBody = (await first.json()) as unknown[]
+      const firstBody = await readNativeJson(first, JsonListResponse)
       expect(firstBody.length).toBeGreaterThan(0)
 
       await env.DB.prepare('DELETE FROM task_types WHERE workspace_id = ?').bind(workspaceId).run()
 
       const second = await fetchNativeApi(url, { headers: hdrs })
       expect(second.status).toBe(200)
-      const secondBody = (await second.json()) as unknown[]
+      const secondBody = await readNativeJson(second, JsonListResponse)
       expect(secondBody.length).toBeGreaterThan(0)
     })
 
@@ -137,7 +139,7 @@ describe('covers KV caching', () => {
             params: { name: 'list_projects', arguments: {} },
           }),
         })
-        const rpc = (await res.json()) as { result: { content: { text: string }[] } }
+        const rpc = await readNativeJson(res, RpcTextResponse)
         return JSON.parse(rpc.result.content[0].text) as unknown[]
       }
 
@@ -168,7 +170,7 @@ describe('covers KV caching', () => {
             params: { name: 'list_projects', arguments: {} },
           }),
         })
-        const rpc = (await res.json()) as { result: { content: { text: string }[] } }
+        const rpc = await readNativeJson(res, RpcTextResponse)
         return JSON.parse(rpc.result.content[0].text) as { key: string }[]
       }
 
@@ -192,7 +194,7 @@ describe('covers KV caching', () => {
 
       // GET to populate cache with the current (empty-ish) list
       const before = await fetchNativeApi(url, { headers: hdrs })
-      const beforeBody = (await before.json()) as unknown[]
+      const beforeBody = await readNativeJson(before, JsonListResponse)
 
       const created = await fetchNativeApi(url, {
         method: 'POST',
@@ -203,7 +205,10 @@ describe('covers KV caching', () => {
 
       // GET immediately after — must not be served from the pre-create cache entry
       const after = await fetchNativeApi(url, { headers: hdrs })
-      const afterBody = (await after.json()) as { key: string }[]
+      const afterBody = await readNativeJson(
+        after,
+        Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable),
+      )
       expect(afterBody).toHaveLength(beforeBody.length + 1)
       expect(afterBody.some((s) => s.key === 'blocked')).toBe(true)
     })
@@ -215,7 +220,10 @@ describe('covers KV caching', () => {
 
       // GET to populate cache including the seeded type
       const before = await fetchNativeApi(url, { headers: hdrs })
-      const beforeBody = (await before.json()) as { key: string }[]
+      const beforeBody = await readNativeJson(
+        before,
+        Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable),
+      )
       expect(beforeBody.some((t) => t.key === 'chore')).toBe(true)
 
       const del = await fetchNativeApi(`${url}/${taskType.id}`, { headers: hdrs, method: 'DELETE' })
@@ -223,7 +231,10 @@ describe('covers KV caching', () => {
 
       // GET immediately after — must not be served from the pre-delete cache entry
       const after = await fetchNativeApi(url, { headers: hdrs })
-      const afterBody = (await after.json()) as { key: string }[]
+      const afterBody = await readNativeJson(
+        after,
+        Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable),
+      )
       expect(afterBody.some((t) => t.key === 'chore')).toBe(false)
     })
   })
@@ -302,7 +313,11 @@ describe('covers KV caching', () => {
       const result = await getCoreObservations()
       expect(result.cacheDeletes).toContain(`issue:${workspaceId}:${issue.id}`)
       expect(res.status).toBe(200)
-      const rpc = (await res.json()) as { result?: { isError?: boolean }; error?: unknown }
+      const rpcShape = Schema.Struct({
+        error: Schema.optional(Schema.Unknown),
+        result: Schema.optional(Schema.Struct({ isError: Schema.optional(Schema.Boolean) })),
+      })
+      const rpc = await readNativeJson(res, rpcShape)
       expect(rpc.error).toBeUndefined()
       expect(rpc.result).toBeDefined()
       expect(rpc.result?.isError).not.toBe(true)

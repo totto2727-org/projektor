@@ -1,3 +1,9 @@
+import { Schema } from 'effect'
+import { describe, expect, test } from 'vite-plus/test'
+
+import { env } from './fixture-api.ts'
+import { authHeaders, seedFixture, seedUserToken } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 /*
  * PROJ-917: workspace tokens (POST/DELETE /api/workspaces/:slug/tokens) are minted and
  * revoked only from an interactive human session — the same rule PROJ-903 applied to
@@ -8,11 +14,7 @@
  * In tests the human session is the dev bypass: ENVIRONMENT=development +
  * DEV_USER_EMAIL, no Authorization header.
  */
-import { describe, expect, test } from 'vite-plus/test'
-
-import { env } from './fixture-api.ts'
-import { authHeaders, seedFixture, seedUserToken } from './helpers.ts'
-import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 const asHuman = async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
   const prev = env.DEV_USER_EMAIL
@@ -78,7 +80,7 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
       JSON.stringify({ name: 'human-minted', scopes: ['read'] }),
     )
     expect(mint.status).toBe(201)
-    const { id, token } = (await mint.json()) as { id: string; token: string }
+    const { id, token } = await readNativeJson(mint, Schema.Struct({ id: Schema.String, token: Schema.String }))
     expect(token).toMatch(/^pk_/u)
 
     const byToken = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {

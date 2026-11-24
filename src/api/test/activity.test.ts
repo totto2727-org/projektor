@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 describe('activity audit log', () => {
   let token: string
@@ -34,7 +35,7 @@ describe('activity audit log', () => {
       body: JSON.stringify({ priority: 'high', projectId, title: 'Activity test issue' }),
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
 
     const rows = await activityForEntity(id)
     expect(rows).toHaveLength(1)
@@ -50,7 +51,7 @@ describe('activity audit log', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Before update' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
@@ -75,7 +76,7 @@ describe('activity audit log', () => {
       body: JSON.stringify({ content: 'hello', title: 'Activity Wiki Page' }),
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
 
     const rows = await activityForEntity(id)
     expect(rows).toHaveLength(1)
@@ -92,7 +93,7 @@ describe('activity audit log', () => {
       body: JSON.stringify({ key: 'ACTV', name: 'Activity Project' }),
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
 
     const rows = await activityForEntity(id)
     expect(rows).toHaveLength(1)

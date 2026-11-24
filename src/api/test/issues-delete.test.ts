@@ -22,6 +22,7 @@ import {
   seedProject,
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 const tableCount = async function tableCount(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
@@ -148,7 +149,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
       body: form,
     })
     expect(uploadRes.status).toBe(201)
-    const { id: attachmentId } = (await uploadRes.json()) as { id: string }
+    const { id: attachmentId } = await readNativeJson(uploadRes, IdResponse)
     const result = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?')
       .bind(attachmentId)
       .first<{ r2_key: string }>()

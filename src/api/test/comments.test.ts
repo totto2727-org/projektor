@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -14,6 +15,7 @@ import {
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,
@@ -44,7 +46,7 @@ describe('comments REST API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId: fixture.projectId, title: 'Issue with comments' }),
     })
-    const body = (await res.json()) as { id: string }
+    const body = await readNativeJson(res, IdResponse)
     issueId = body.id
   })
 
@@ -53,7 +55,7 @@ describe('comments REST API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const data = (await res.json()) as unknown[]
+    const data = await readNativeJson(res, JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(0)
   })
@@ -65,7 +67,7 @@ describe('comments REST API', () => {
       body: JSON.stringify({ body: 'Hello world' }),
     })
     expect(res.status).toBe(201)
-    const data = (await res.json()) as { id: string }
+    const data = await readNativeJson(res, IdResponse)
     expect(data.id).toBeTruthy()
   })
 
@@ -81,7 +83,7 @@ describe('comments REST API', () => {
       body: JSON.stringify({ authorKind: 'human', body: 'Hello world' }),
     })
     expect(res.status).toBe(201)
-    const data = (await res.json()) as { id: string }
+    const data = await readNativeJson(res, IdResponse)
 
     const row = await env.DB.prepare('SELECT author_kind FROM issue_comments WHERE id = ?')
       .bind(data.id)
@@ -99,7 +101,7 @@ describe('comments REST API', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
-    const data = (await res.json()) as { body: string }[]
+    const data = await readNativeJson(res, Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable))
     expect(data).toHaveLength(1)
     expect(data[0].body).toBe('First comment')
   })
@@ -136,7 +138,7 @@ describe('comments REST API', () => {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: project.id, title: 'Viewer-visible issue' }),
     })
-    const { id: viewerIssueId } = (await issueRes.json()) as { id: string }
+    const { id: viewerIssueId } = await readNativeJson(issueRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${viewerIssueId}/comments`, {
       method: 'POST',
@@ -168,7 +170,10 @@ describe('comments REST API', () => {
     const listRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
-    const data = (await listRes.json()) as { body: string }[]
+    const data = await readNativeJson(
+      listRes,
+      Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
+    )
     expect(data[0].body).toBe('Updated text')
   })
 
@@ -197,7 +202,7 @@ describe('comments REST API', () => {
     const listRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
-    const data = (await listRes.json()) as unknown[]
+    const data = await readNativeJson(listRes, JsonListResponse)
     expect(data).toHaveLength(0)
   })
 })
@@ -214,7 +219,7 @@ describe('comments MCP cross-workspace security', () => {
       headers: authHeaders(wsB.token, wsB.workspace.slug),
       body: JSON.stringify({ projectId: projB.id, title: 'Secret issue' }),
     })
-    const { id: victimIssueId } = (await issueRes.json()) as { id: string }
+    const { id: victimIssueId } = await readNativeJson(issueRes, IdResponse)
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       wsA.workspace.id,
@@ -238,7 +243,7 @@ describe('comments MCP cross-workspace security', () => {
       headers: authHeaders(wsB.token, wsB.workspace.slug),
       body: JSON.stringify({ projectId: projB.id, title: 'Private issue' }),
     })
-    const { id: victimIssueId } = (await issueRes.json()) as { id: string }
+    const { id: victimIssueId } = await readNativeJson(issueRes, IdResponse)
 
     // Add a comment so there's something to leak if scoping breaks
     await fetchNativeApi(`http://localhost/api/issues/${victimIssueId}/comments`, {
@@ -275,10 +280,10 @@ describe('covers PROJ-438 — comments accept an issue ref', () => {
     const detail = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(fixture.token, fixture.slug),
     })
-    const { project_key: key, number } = (await detail.json()) as {
-      project_key: string
-      number: number
-    }
+    const { project_key: key, number } = await readNativeJson(
+      detail,
+      Schema.Struct({ number: Schema.Number, project_key: Schema.String }),
+    )
 
     const byRef = await fetchNativeApi(`http://localhost/api/issues/${key}-${number}/comments`, {
       headers: authHeaders(fixture.token, fixture.slug),

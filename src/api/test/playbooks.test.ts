@@ -1,8 +1,10 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 describe('playbooks', () => {
   let token: string
@@ -21,7 +23,10 @@ describe('playbooks', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { name: string; title: string }[]
+    const body = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ name: Schema.String, title: Schema.String })).pipe(Schema.mutable),
+    )
     expect(body.find((p) => p.name === 'epic-goal')).toBeTruthy()
     expect(body.find((p) => p.name === 'idea-discovery')).toBeTruthy()
   })
@@ -69,7 +74,7 @@ describe('playbooks', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { name: string; content: string }
+    const body = await readNativeJson(res, Schema.Struct({ content: Schema.String, name: Schema.String }))
     expect(body.name).toBe('epic-goal')
     expect(body.content).toContain('bounded variant')
     expect(body.content).toContain('full variant')
@@ -81,7 +86,7 @@ describe('playbooks', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { name: string; content: string }
+    const body = await readNativeJson(res, Schema.Struct({ content: Schema.String, name: Schema.String }))
     expect(body.name).toBe('idea-discovery')
     expect(body.content).toContain('Research frontier')
     expect(body.content).toContain('Gap hypotheses')
@@ -115,7 +120,10 @@ describe('playbooks', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
-    const body = (await res.json()) as { error: string; validNames: string[] }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ error: Schema.String, validNames: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    )
     expect(body.error).toContain('does-not-exist')
     expect(body.validNames).toContain('epic-goal')
   })

@@ -13,6 +13,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedFixture, seedIssueFixture, seedUser, seedWorkspace } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
+import { IdAndSlugResponse, readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-865: counts every real D1 statement execution (.all/.first/.raw/.run, .batch as
@@ -119,7 +120,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Scheduled Purge Page', content: 'content' }),
     })
-    const page = (await pageRes.json()) as { id: string; slug: string }
+    const page = await readNativeJson(pageRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${page.slug}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
@@ -133,7 +134,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ title: 'Scheduled Purge Other Page', content: 'content' }),
     })
-    const otherPage = (await otherPageRes.json()) as { id: string; slug: string }
+    const otherPage = await readNativeJson(otherPageRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${otherPage.slug}`, {
       method: 'DELETE',
       headers: authHeaders(other.token, other.workspace.slug),

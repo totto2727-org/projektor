@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -12,6 +13,7 @@ import {
   seedTaskStatus,
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-254 gate, hardened by PROJ-287/289/292/293: the in_review report requirement is
@@ -71,7 +73,10 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${id}/comments`, {
       headers: authHeaders(token, slug),
     })
-    const comments = (await res.json()) as { body: string }[]
+    const comments = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable),
+    )
     return comments.map((comment) => comment.body)
   }
 
@@ -285,7 +290,10 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
         },
       }),
     })
-    const body = (await res.json()) as { result?: unknown; error?: unknown }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ error: Schema.optional(Schema.Unknown), result: Schema.optional(Schema.Unknown) }),
+    )
     expect(body.error).toBeUndefined()
     expect(body.result).toBeDefined()
     await expect(needsAuditOf(issue.id)).resolves.toBe(true)
@@ -299,7 +307,8 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues?projectId=${projectId}&needsAudit=true`, {
       headers: authHeaders(token, slug),
     })
-    const { items } = (await res.json()) as { items: { id: string }[] }
+    const resShape = Schema.Struct({ items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable) })
+    const { items } = await readNativeJson(res, resShape)
     const ids = items.map((item) => item.id)
     expect(ids).toContain(flagged.id)
     expect(ids).not.toContain(clean.id)
@@ -315,7 +324,8 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues?projectId=${projectId}&needsAudit=false`, {
       headers: authHeaders(token, slug),
     })
-    const { items } = (await res.json()) as { items: { id: string }[] }
+    const resShape = Schema.Struct({ items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable) })
+    const { items } = await readNativeJson(res, resShape)
     const ids = items.map((item) => item.id)
     expect(ids).toContain(clean.id)
     expect(ids).not.toContain(flagged.id)

@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -11,6 +12,7 @@ import {
   seedWorkspaceRoles,
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, ItemsResponse, readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-311: role-guard tests grant the member a member-role and the viewer a
@@ -40,7 +42,7 @@ describe('sprints API', () => {
   test('handles POST /api/sprints creates a sprint', async () => {
     const res = await createSprint({ projectId, name: 'Sprint 1' })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string }
+    const body = await readNativeJson(res, IdResponse)
     expect(body.id).toBeTruthy()
   })
 
@@ -49,7 +51,7 @@ describe('sprints API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { items: unknown[] }
+    const body = await readNativeJson(res, ItemsResponse)
     expect(Array.isArray(body.items)).toBe(true)
     expect(body.items).toHaveLength(0)
   })
@@ -69,13 +71,13 @@ describe('sprints API', () => {
 
   test('handles GET /api/sprints/:id returns the sprint', async () => {
     const createRes = await createSprint({ projectId, name: 'Sprint 2' })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const sprint = (await res.json()) as { name: string; status: string }
+    const sprint = await readNativeJson(res, Schema.Struct({ name: Schema.String, status: Schema.String }))
     expect(sprint.name).toBe('Sprint 2')
     expect(sprint.status).toBe('planned')
   })
@@ -89,7 +91,7 @@ describe('sprints API', () => {
 
   test('handles PATCH /api/sprints/:id updates sprint fields', async () => {
     const createRes = await createSprint({ projectId, name: 'Draft Sprint' })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       method: 'PATCH',
@@ -101,7 +103,10 @@ describe('sprints API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const sprint = (await getRes.json()) as { name: string; status: string; goal: string }
+    const sprint = await readNativeJson(
+      getRes,
+      Schema.Struct({ goal: Schema.String, name: Schema.String, status: Schema.String }),
+    )
     expect(sprint.name).toBe('Sprint 1')
     expect(sprint.status).toBe('active')
     expect(sprint.goal).toBe('Updated goal')
@@ -109,7 +114,7 @@ describe('sprints API', () => {
 
   test('handles POST /api/sprints/:id/complete marks active sprint completed', async () => {
     const createRes = await createSprint({ projectId, name: 'Active Sprint' })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     // First make it active
     await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
@@ -127,13 +132,13 @@ describe('sprints API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const sprint = (await getRes.json()) as { status: string }
+    const sprint = await readNativeJson(getRes, Schema.Struct({ status: Schema.String }))
     expect(sprint.status).toBe('completed')
   })
 
   test('handles POST /api/sprints/:id/complete rejects planned sprint', async () => {
     const createRes = await createSprint({ projectId, name: 'Planned Sprint' })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
       headers: authHeaders(token, slug),
@@ -144,7 +149,7 @@ describe('sprints API', () => {
 
   test('handles DELETE /api/sprints/:id removes the sprint', async () => {
     const createRes = await createSprint({ projectId, name: 'To delete' })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       headers: authHeaders(token, slug),
@@ -160,7 +165,7 @@ describe('sprints API', () => {
 
   test('handles POST /api/sprints/:id/move-issues bulk moves issues to sprint', async () => {
     const sprintRes = await createSprint({ projectId, name: 'Target Sprint' })
-    const { id: sprintId } = (await sprintRes.json()) as { id: string }
+    const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
     const issue1 = await seedIssue(workspaceId, projectId, userId, { title: 'Issue A' })
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Issue B' })
@@ -171,7 +176,7 @@ describe('sprints API', () => {
       body: JSON.stringify({ issueIds: [issue1.id, issue2.id] }),
     })
     expect(moveRes.status).toBe(200)
-    const result = (await moveRes.json()) as { ok: boolean; count: number }
+    const result = await readNativeJson(moveRes, Schema.Struct({ count: Schema.Number, ok: Schema.Boolean }))
     expect(result.ok).toBe(true)
     expect(result.count).toBe(2)
 
@@ -179,7 +184,10 @@ describe('sprints API', () => {
     const listRes = await fetchNativeApi(`http://localhost/api/issues?sprintId=${sprintId}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await listRes.json()) as { items: { title: string }[] }
+    const pageShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable),
+    })
+    const page = await readNativeJson(listRes, pageShape)
     expect(page.items).toHaveLength(2)
     const titles = page.items.map((item) => item.title).sort()
     expect(titles).toEqual(['Issue A', 'Issue B'])
@@ -187,7 +195,7 @@ describe('sprints API', () => {
 
   test('handles DELETE sprint clears sprint_id on issues (ON DELETE SET NULL)', async () => {
     const sprintRes = await createSprint({ projectId, name: 'Sprint to delete' })
-    const { id: sprintId } = (await sprintRes.json()) as { id: string }
+    const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Sprint issue' })
 
@@ -207,13 +215,16 @@ describe('sprints API', () => {
       headers: authHeaders(token, slug),
     })
     expect(issueRes.status).toBe(200)
-    const issueData = (await issueRes.json()) as { sprint_id: string | null }
+    const issueData = await readNativeJson(
+      issueRes,
+      Schema.Struct({ sprint_id: Schema.Union([Schema.String, Schema.Null]) }),
+    )
     expect(issueData.sprint_id).toBeNull()
   })
 
   test('covers PROJ-356: move-issues invalidates the issue KV cache — an immediate GET reflects the new sprint_id', async () => {
     const sprintRes = await createSprint({ projectId, name: 'Cache Target Sprint' })
-    const { id: sprintId } = (await sprintRes.json()) as { id: string }
+    const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Cache issue' })
 
@@ -221,7 +232,10 @@ describe('sprints API', () => {
     const before = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
-    const beforeBody = (await before.json()) as { sprint_id: string | null }
+    const beforeBody = await readNativeJson(
+      before,
+      Schema.Struct({ sprint_id: Schema.Union([Schema.String, Schema.Null]) }),
+    )
     expect(beforeBody.sprint_id).toBeNull()
 
     const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
@@ -235,7 +249,10 @@ describe('sprints API', () => {
     const after = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
-    const afterBody = (await after.json()) as { sprint_id: string | null }
+    const afterBody = await readNativeJson(
+      after,
+      Schema.Struct({ sprint_id: Schema.Union([Schema.String, Schema.Null]) }),
+    )
     expect(afterBody.sprint_id).toBe(sprintId)
   })
 
@@ -268,7 +285,7 @@ describe('sprints API', () => {
 
     test('moving 500 issues succeeds within <=50 KV deletes, and a subsequent GET shows the new sprint', async () => {
       const sprintRes = await createSprint({ projectId, name: 'Bulk Target Sprint' })
-      const { id: sprintId } = (await sprintRes.json()) as { id: string }
+      const { id: sprintId } = await readNativeJson(sprintRes, IdResponse)
 
       const issueIds: string[] = []
       for (let index = 0; index < 500; index++) {
@@ -303,7 +320,7 @@ describe('sprints API', () => {
       vi.restoreAllMocks()
 
       expect(moveRes.status).toBe(200)
-      const result = (await moveRes.json()) as { ok: boolean; count: number }
+      const result = await readNativeJson(moveRes, Schema.Struct({ count: Schema.Number, ok: Schema.Boolean }))
       expect(result.ok).toBe(true)
       expect(result.count).toBe(500)
       expect(kvDeletes).toBeLessThanOrEqual(50)
@@ -317,7 +334,10 @@ describe('sprints API', () => {
         headers: authHeaders(token, slug),
       })
       expect(getRes.status).toBe(200)
-      const body = (await getRes.json()) as { sprint_id: string | null }
+      const body = await readNativeJson(
+        getRes,
+        Schema.Struct({ sprint_id: Schema.Union([Schema.String, Schema.Null]) }),
+      )
       expect(body.sprint_id).toBe(sprintId)
     })
   })
@@ -330,7 +350,10 @@ describe('sprints API', () => {
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
-    const body = (await res.json()) as { items: { name: string }[] }
+    const bodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ name: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.items).toHaveLength(3)
     expect(body.items[0].name).toBe('First Sprint')
     expect(body.items[2].name).toBe('Third Sprint')
@@ -351,7 +374,7 @@ describe('sprints API', () => {
     const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
-    const body = (await res.json()) as { items: unknown[] }
+    const body = await readNativeJson(res, ItemsResponse)
     expect(body.items).toHaveLength(0)
   })
 })
@@ -381,7 +404,7 @@ describe('sprints role guards', () => {
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: project.id, name: sprintName }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     return { roles, id }
   }
@@ -435,7 +458,7 @@ describe('sprints role guards', () => {
       body: JSON.stringify({ projectId: projectA.id, name: 'Sprint A' }),
     })
     expect(createRes.status).toBe(201)
-    const { id: sprintId } = (await createRes.json()) as { id: string }
+    const { id: sprintId } = await readNativeJson(createRes, IdResponse)
 
     const foreignIssue = await seedIssue(roles.workspace.id, projectB.id, roles.owner.user.id, {
       title: 'Project B issue',
@@ -466,7 +489,7 @@ describe('sprints role guards', () => {
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: project.id, name: 'Sprint' }),
     })
-    const { id: sprintId } = (await createRes.json()) as { id: string }
+    const { id: sprintId } = await readNativeJson(createRes, IdResponse)
 
     const issue = await seedIssue(roles.workspace.id, project.id, roles.member.user.id)
 

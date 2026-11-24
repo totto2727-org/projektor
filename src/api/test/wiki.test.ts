@@ -1,4 +1,4 @@
-import { String, Iterable, Predicate } from 'effect'
+import { Schema, String, Iterable, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { computeFreshness } from '#commands/wiki-freshness.ts'
@@ -21,6 +21,16 @@ import {
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
+import {
+  IdAndSlugResponse,
+  IdListResponse,
+  IdResponse,
+  JsonListResponse,
+  SlugListResponse,
+  SlugResponse,
+  TitleListResponse,
+  readNativeJson,
+} from './response-json.ts'
 
 /*
  * PROJ-869: wraps a D1Database so every row a `.all()`/`.first()`/`.raw()` call resolves
@@ -162,7 +172,7 @@ describe('wiki API', () => {
       body: JSON.stringify({ content: '# Welcome', title: 'Getting Started' }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string; slug: string }
+    const body = await readNativeJson(res, IdAndSlugResponse)
     expect(body.slug).toBe('getting-started')
   })
 
@@ -173,13 +183,13 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'index', title: 'Weekly Updates' }),
       })
-      const created = (await createRes.json()) as { url: string }
+      const created = await readNativeJson(createRes, Schema.Struct({ url: Schema.String }))
       expect(created.url).toBe('/wiki/weekly-updates')
 
       const getRes = await fetchNativeApi('http://localhost/api/wiki/weekly-updates', {
         headers: authHeaders(token, slug),
       })
-      const fetched = (await getRes.json()) as { url: string }
+      const fetched = await readNativeJson(getRes, Schema.Struct({ url: Schema.String }))
       expect(fetched.url).toBe('/wiki/weekly-updates')
 
       const updateRes = await fetchNativeApi('http://localhost/api/wiki/weekly-updates', {
@@ -187,19 +197,25 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'index v2' }),
       })
-      const updated = (await updateRes.json()) as { url: string }
+      const updated = await readNativeJson(updateRes, Schema.Struct({ url: Schema.String }))
       expect(updated.url).toBe('/wiki/weekly-updates')
 
       const listRes = await fetchNativeApi('http://localhost/api/wiki', {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as { slug: string; url: string }[]
+      const list = await readNativeJson(
+        listRes,
+        Schema.Array(Schema.Struct({ slug: Schema.String, url: Schema.String })).pipe(Schema.mutable),
+      )
       expect(list.find((p) => p.slug === 'weekly-updates')?.url).toBe('/wiki/weekly-updates')
 
       const treeRes = await fetchNativeApi('http://localhost/api/wiki/tree', {
         headers: authHeaders(token, slug),
       })
-      const tree = (await treeRes.json()) as { slug: string; url: string }[]
+      const tree = await readNativeJson(
+        treeRes,
+        Schema.Array(Schema.Struct({ slug: Schema.String, url: Schema.String })).pipe(Schema.mutable),
+      )
       expect(tree.find((p) => p.slug === 'weekly-updates')?.url).toBe('/wiki/weekly-updates')
     })
 
@@ -211,7 +227,7 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Project Notes', content: 'notes', projectId: project.id }),
       })
-      const created = (await createRes.json()) as { url: string }
+      const created = await readNativeJson(createRes, Schema.Struct({ url: Schema.String }))
       expect(created.url).toBe('/wiki/project-notes')
     })
   })
@@ -238,7 +254,7 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const page = (await res.json()) as { title: string; content: string }
+    const page = await readNativeJson(res, Schema.Struct({ content: Schema.String, title: Schema.String }))
     expect(page.title).toBe('Architecture')
     expect(page.content).toBe('## System design')
   })
@@ -267,13 +283,13 @@ describe('wiki API', () => {
     const pageRes = await fetchNativeApi('http://localhost/api/wiki/versioned', {
       headers: authHeaders(token, slug),
     })
-    const page = (await pageRes.json()) as { content: string }
+    const page = await readNativeJson(pageRes, Schema.Struct({ content: Schema.String }))
     expect(page.content).toBe('v2 content')
 
     const revRes = await fetchNativeApi('http://localhost/api/wiki/versioned/revisions', {
       headers: authHeaders(token, slug),
     })
-    const revisions = (await revRes.json()) as unknown[]
+    const revisions = await readNativeJson(revRes, JsonListResponse)
     expect(revisions).toHaveLength(1)
   })
 
@@ -292,7 +308,7 @@ describe('wiki API', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=wrangler', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Deployment Guide')
   })
@@ -311,7 +327,10 @@ describe('wiki API', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=wrangler', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { freshness: unknown }[]
+    const results = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ freshness: Schema.Unknown })).pipe(Schema.mutable),
+    )
     expect(results.length).toBeGreaterThan(0)
     Iterable.forEach(results, (r) => {
       expect(r.freshness).toBeNull()
@@ -345,7 +364,7 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'Root page', slug: 'home', title: 'Home' }),
     })
-    const body = (await res.json()) as { slug: string }
+    const body = await readNativeJson(res, SlugResponse)
     expect(body.slug).toBe('home')
   })
 
@@ -357,7 +376,7 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'root', title: 'Parent Page' }),
     })
-    const parent = (await parentRes.json()) as { id: string }
+    const parent = await readNativeJson(parentRes, IdResponse)
 
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -374,7 +393,7 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const pages = (await res.json()) as { title: string }[]
+    const pages = await readNativeJson(res, TitleListResponse)
     expect(pages).toHaveLength(1)
     expect(pages[0].title).toBe('Child Page')
   })
@@ -385,7 +404,7 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'root', title: 'Parent Page' }),
     })
-    const parent = (await parentRes.json()) as { id: string; slug: string }
+    const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -396,7 +415,7 @@ describe('wiki API', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       headers: authHeaders(token, slug),
     })
-    const pages = (await res.json()) as unknown[]
+    const pages = await readNativeJson(res, JsonListResponse)
     expect(pages).toHaveLength(2)
   })
 
@@ -430,7 +449,10 @@ describe('wiki API', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=needle-term', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { excerpt: string }[]
+    const results = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ excerpt: Schema.String })).pipe(Schema.mutable),
+    )
     expect(results).toHaveLength(1)
     /*
      * The match is buried deep in a long page; a static first-250-chars excerpt
@@ -464,7 +486,7 @@ describe('wiki API', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=zylophone', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results).toHaveLength(2)
     expect(results[0].title).toBe('Zylophone Guide')
   })
@@ -480,13 +502,13 @@ describe('wiki API', () => {
     const page1 = await fetchNativeApi('http://localhost/api/wiki/search?q=shared-search-term&limit=2', {
       headers: authHeaders(token, slug),
     })
-    const page1Results = (await page1.json()) as { id: string }[]
+    const page1Results = await readNativeJson(page1, IdListResponse)
     expect(page1Results).toHaveLength(2)
 
     const page2 = await fetchNativeApi('http://localhost/api/wiki/search?q=shared-search-term&limit=2&offset=2', {
       headers: authHeaders(token, slug),
     })
-    const page2Results = (await page2.json()) as { id: string }[]
+    const page2Results = await readNativeJson(page2, IdListResponse)
     expect(page2Results).toHaveLength(1)
     expect(page2Results.map((r) => r.id)).not.toContain(page1Results[0].id)
     expect(page2Results.map((r) => r.id)).not.toContain(page1Results[1].id)
@@ -527,7 +549,7 @@ describe('wiki API', () => {
     const page2 = await fetchNativeApi('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2&offset=2', {
       headers: authHeaders(token, slug),
     })
-    const page2Results = (await page2.json()) as { id: string }[]
+    const page2Results = await readNativeJson(page2, IdListResponse)
     const allIds = [...first.map((r) => r.id), ...page2Results.map((r) => r.id)]
     expect(new Set(allIds).size).toBe(allIds.length)
     expect(allIds).toHaveLength(3)
@@ -539,7 +561,7 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'freshness-cutoff-term', title: 'Stale Match Page' }),
     })
-    const created = (await createRes.json()) as { id: string }
+    const created = await readNativeJson(createRes, IdResponse)
     const pageRow = await env.DB.prepare('SELECT updated_at FROM wiki_pages WHERE id = ?')
       .bind(created.id)
       .first<{ updated_at: number }>()
@@ -556,7 +578,7 @@ describe('wiki API', () => {
     const resAll = await fetchNativeApi('http://localhost/api/wiki/search?q=freshness-cutoff-term', {
       headers: authHeaders(token, slug),
     })
-    const allResults = (await resAll.json()) as { id: string }[]
+    const allResults = await readNativeJson(resAll, IdListResponse)
     expect(allResults).toHaveLength(1)
   })
 
@@ -576,7 +598,7 @@ describe('wiki API', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=cross-tenant-term', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('This Workspace Page')
   })
@@ -601,7 +623,7 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'before-update-term', title: 'Sync Update Page' }),
       })
-      const created = (await createRes.json()) as { slug: string }
+      const created = await readNativeJson(createRes, SlugResponse)
 
       await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
         method: 'PUT',
@@ -628,7 +650,7 @@ describe('wiki API', () => {
         headers: authHeaders(owner.token, owner.workspace.slug),
         body: JSON.stringify({ content: 'sync-delete-term', title: 'Sync Delete Page' }),
       })
-      const created = (await createRes.json()) as { slug: string }
+      const created = await readNativeJson(createRes, SlugResponse)
 
       await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
         headers: authHeaders(owner.token, owner.workspace.slug),
@@ -648,7 +670,7 @@ describe('wiki API', () => {
         headers: authHeaders(owner.token, owner.workspace.slug),
         body: JSON.stringify({ content: 'root', title: 'Sync Cascade Parent' }),
       })
-      const parent = (await parentRes.json()) as { id: string; slug: string }
+      const parent = await readNativeJson(parentRes, IdAndSlugResponse)
       await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(owner.token, owner.workspace.slug),
@@ -687,7 +709,7 @@ describe('wiki API', () => {
     const revRes = await fetchNativeApi('http://localhost/api/wiki/original-title/revisions', {
       headers: authHeaders(token, slug),
     })
-    const revisions = (await revRes.json()) as unknown[]
+    const revisions = await readNativeJson(revRes, JsonListResponse)
     expect(revisions).toHaveLength(0)
   })
 
@@ -720,14 +742,14 @@ describe('wiki API', () => {
     const projectRes = await fetchNativeApi(`http://localhost/api/wiki?projectId=${project.id}`, {
       headers: authHeaders(token, slug),
     })
-    const projectPages = (await projectRes.json()) as { title: string }[]
+    const projectPages = await readNativeJson(projectRes, TitleListResponse)
     expect(projectPages).toHaveLength(1)
     expect(projectPages[0].title).toBe('Project Page')
 
     const allRes = await fetchNativeApi('http://localhost/api/wiki', {
       headers: authHeaders(token, slug),
     })
-    const allPages = (await allRes.json()) as unknown[]
+    const allPages = await readNativeJson(allRes, JsonListResponse)
     expect(allPages).toHaveLength(2)
   })
 
@@ -806,13 +828,16 @@ describe('wiki API', () => {
       body: JSON.stringify({ title: 'Scoped Doc', content: 'content', projectId: project.id }),
     })
     expect(createRes.status).toBe(201)
-    const created = (await createRes.json()) as { slug: string; projectId: string | null }
+    const created = await readNativeJson(
+      createRes,
+      Schema.Struct({ projectId: Schema.Union([Schema.String, Schema.Null]), slug: Schema.String }),
+    )
     expect(created.projectId).toBe(project.id)
 
     const getRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await getRes.json()) as { project_id: string | null }
+    const page = await readNativeJson(getRes, Schema.Struct({ project_id: Schema.Union([Schema.String, Schema.Null]) }))
     expect(page.project_id).toBe(project.id)
   })
 
@@ -823,7 +848,7 @@ describe('wiki API', () => {
       body: JSON.stringify({ content: 'parent content', title: 'Parent' }),
     })
     expect(parentRes.status).toBe(201)
-    const parent = (await parentRes.json()) as { id: string; slug: string }
+    const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -831,12 +856,12 @@ describe('wiki API', () => {
       body: JSON.stringify({ title: 'Child', content: 'child content', parentId: parent.id }),
     })
     expect(childRes.status).toBe(201)
-    const child = (await childRes.json()) as { id: string; slug: string }
+    const child = await readNativeJson(childRes, IdAndSlugResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/wiki/${child.slug}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await getRes.json()) as { parent_id: string }
+    const page = await readNativeJson(getRes, Schema.Struct({ parent_id: Schema.String }))
     expect(page.parent_id).toBe(parent.id)
   })
 
@@ -854,7 +879,7 @@ describe('wiki API', () => {
         body: JSON.stringify(body),
       })
       expect(res.status).toBe(201)
-      const created = (await res.json()) as { id: string }
+      const created = await readNativeJson(res, IdResponse)
       parentId = created.id
     }
 
@@ -868,7 +893,10 @@ describe('wiki API', () => {
       body: JSON.stringify({ content: '', parentId, title: 'Too deep' }),
     })
     expect(res.status).toBe(400)
-    const body = (await res.json()) as { error: { formErrors: string[] } }
+    const bodyShape = Schema.Struct({
+      error: Schema.Struct({ formErrors: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.error.formErrors[0]).toMatch(/Maximum wiki nesting depth/u)
   })
 
@@ -887,7 +915,7 @@ describe('wiki API', () => {
         body: JSON.stringify(body),
       })
       expect(res.status).toBe(201)
-      const created = (await res.json()) as { id: string }
+      const created = await readNativeJson(res, IdResponse)
       chainParentId = created.id
       l3Id = created.id
     }
@@ -901,7 +929,7 @@ describe('wiki API', () => {
       body: JSON.stringify({ content: '', title: 'Subtree Root A' }),
     })
     expect(aRes.status).toBe(201)
-    const a = (await aRes.json()) as { id: string; slug: string }
+    const a = await readNativeJson(aRes, IdAndSlugResponse)
 
     await resetRateLimits()
     const a1Res = await fetchNativeApi('http://localhost/api/wiki', {
@@ -910,7 +938,7 @@ describe('wiki API', () => {
       body: JSON.stringify({ title: 'Subtree A1', content: '', parentId: a.id }),
     })
     expect(a1Res.status).toBe(201)
-    const a1 = (await a1Res.json()) as { id: string }
+    const a1 = await readNativeJson(a1Res, IdResponse)
 
     await resetRateLimits()
     const a2Res = await fetchNativeApi('http://localhost/api/wiki', {
@@ -933,7 +961,10 @@ describe('wiki API', () => {
       body: JSON.stringify({ parentId: l3Id }),
     })
     expect(moveRes.status).toBe(400)
-    const moveBody = (await moveRes.json()) as { error: { formErrors: string[] } }
+    const moveBodyShape = Schema.Struct({
+      error: Schema.Struct({ formErrors: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    })
+    const moveBody = await readNativeJson(moveRes, moveBodyShape)
     expect(moveBody.error.formErrors[0]).toMatch(/Maximum wiki nesting depth/u)
   })
 
@@ -953,7 +984,7 @@ describe('wiki API', () => {
       body: JSON.stringify({ content: '', title: 'Cycle X' }),
     })
     expect(xRes.status).toBe(201)
-    const x = (await xRes.json()) as { id: string; slug: string }
+    const x = await readNativeJson(xRes, IdAndSlugResponse)
 
     await resetRateLimits()
     const yRes = await fetchNativeApi('http://localhost/api/wiki', {
@@ -962,7 +993,7 @@ describe('wiki API', () => {
       body: JSON.stringify({ title: 'Cycle Y', content: '', parentId: x.id }),
     })
     expect(yRes.status).toBe(201)
-    const y = (await yRes.json()) as { id: string }
+    const y = await readNativeJson(yRes, IdResponse)
 
     // Seed the cycle: X's parent is now Y (Y's parent is already X).
     await env.DB.prepare('UPDATE wiki_pages SET parent_id = ? WHERE id = ?').bind(y.id, x.id).run()
@@ -974,7 +1005,7 @@ describe('wiki API', () => {
       body: JSON.stringify({ content: '', title: 'Cycle New Parent' }),
     })
     expect(otherRes.status).toBe(201)
-    const other = (await otherRes.json()) as { id: string }
+    const other = await readNativeJson(otherRes, IdResponse)
 
     await resetRateLimits()
     /*
@@ -995,14 +1026,14 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: '', title: 'Root' }),
     })
-    const root = (await rootRes.json()) as { id: string }
+    const root = await readNativeJson(rootRes, IdResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Child', content: '', parentId: root.id }),
     })
-    const child = (await childRes.json()) as { id: string }
+    const child = await readNativeJson(childRes, IdResponse)
 
     const treeRes = await fetchNativeApi('http://localhost/api/wiki/tree', {
       headers: authHeaders(token, slug),
@@ -1025,14 +1056,14 @@ describe('wiki API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'a', title: 'Page A' }),
     })
-    const a = (await aRes.json()) as { id: string; slug: string }
+    const a = await readNativeJson(aRes, IdAndSlugResponse)
 
     const bRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'b', title: 'Page B' }),
     })
-    const b = (await bRes.json()) as { slug: string }
+    const b = await readNativeJson(bRes, SlugResponse)
 
     // Reparent B under A
     const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${b.slug}`, {
@@ -1045,7 +1076,7 @@ describe('wiki API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/wiki/${b.slug}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await getRes.json()) as { parent_id: string }
+    const page = await readNativeJson(getRes, Schema.Struct({ parent_id: Schema.String }))
     expect(page.parent_id).toBe(a.id)
   })
 
@@ -1058,21 +1089,21 @@ describe('wiki API', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'Grandparent' }),
     })
-    const grandparent = (await grandparentRes.json()) as { id: string }
+    const grandparent = await readNativeJson(grandparentRes, IdResponse)
 
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Parent To Delete', content: '', parentId: grandparent.id }),
     })
-    const parent = (await parentRes.json()) as { id: string; slug: string }
+    const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Child', content: '', parentId: parent.id }),
     })
-    const child = (await childRes.json()) as { id: string; slug: string }
+    const child = await readNativeJson(childRes, IdAndSlugResponse)
 
     const delRes = await fetchNativeApi(`http://localhost/api/wiki/${parent.slug}`, {
       headers: ownerHeaders,
@@ -1084,7 +1115,7 @@ describe('wiki API', () => {
     const childPageRes = await fetchNativeApi(`http://localhost/api/wiki/${child.slug}`, {
       headers: ownerHeaders,
     })
-    const childPage = (await childPageRes.json()) as { parent_id: string }
+    const childPage = await readNativeJson(childPageRes, Schema.Struct({ parent_id: Schema.String }))
     expect(childPage.parent_id).toBe(grandparent.id)
   })
 
@@ -1097,21 +1128,21 @@ describe('wiki API', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'Cascade Parent' }),
     })
-    const parent = (await parentRes.json()) as { id: string; slug: string }
+    const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Child', content: '', parentId: parent.id }),
     })
-    const child = (await childRes.json()) as { id: string; slug: string }
+    const child = await readNativeJson(childRes, IdAndSlugResponse)
 
     const grandchildRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Grandchild', content: '', parentId: child.id }),
     })
-    const grandchild = (await grandchildRes.json()) as { slug: string }
+    const grandchild = await readNativeJson(grandchildRes, SlugResponse)
 
     const delRes = await fetchNativeApi(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
       headers: ownerHeaders,
@@ -1143,7 +1174,7 @@ describe('wiki API', () => {
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
     })
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
     const row = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?').bind(id).first<{ r2_key: string }>()
     return { attachmentId: id, r2Key: row!.r2_key }
   }
@@ -1157,7 +1188,7 @@ describe('wiki API', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'Page With File' }),
     })
-    const page = (await pageRes.json()) as { id: string; slug: string }
+    const page = await readNativeJson(pageRes, IdAndSlugResponse)
 
     const { attachmentId, r2Key } = await uploadFileToPage(owner.token, owner.workspace.slug, page.id)
     await expect(env.R2.get(r2Key)).resolves.not.toBeNull()
@@ -1186,14 +1217,14 @@ describe('wiki API', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'Cascade Parent With File' }),
     })
-    const parent = (await parentRes.json()) as { id: string; slug: string }
+    const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Child With File', content: '', parentId: parent.id }),
     })
-    const child = (await childRes.json()) as { id: string; slug: string }
+    const child = await readNativeJson(childRes, IdAndSlugResponse)
 
     const parentFile = await uploadFileToPage(owner.token, owner.workspace.slug, parent.id)
     const childFile = await uploadFileToPage(owner.token, owner.workspace.slug, child.id)
@@ -1252,7 +1283,7 @@ describe('wiki role guards', () => {
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ content: 'original', title: 'Member Page' }),
     })
-    const { slug: pageSlug } = (await createRes.json()) as { slug: string }
+    const { slug: pageSlug } = await readNativeJson(createRes, SlugResponse)
 
     const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
       method: 'PUT',
@@ -1270,7 +1301,7 @@ describe('wiki role guards', () => {
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ content: 'content', title: 'Member Deletable' }),
     })
-    const { slug: pageSlug } = (await createRes.json()) as { slug: string }
+    const { slug: pageSlug } = await readNativeJson(createRes, SlugResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
       headers: authHeaders(roles.member.token, roles.workspace.slug),
@@ -1287,7 +1318,7 @@ describe('wiki role guards', () => {
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ content: 'content', title: 'Admin Target' }),
     })
-    const { slug: pageSlug } = (await createRes.json()) as { slug: string }
+    const { slug: pageSlug } = await readNativeJson(createRes, SlugResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
@@ -1408,13 +1439,13 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       body: JSON.stringify({ content: 'v1', title: '測試' }),
     })
     expect(res.status).toBe(201)
-    const page = (await res.json()) as { slug: string; id: string }
+    const page = await readNativeJson(res, IdAndSlugResponse)
     expect(page.slug).toMatch(/^page-[0-9a-f]{8}$/u)
 
     const getRes = await fetchNativeApi(`http://localhost/api/wiki/${page.slug}`, {
       headers: authHeaders(token, slug),
     })
-    const fetched = (await getRes.json()) as { title: string }
+    const fetched = await readNativeJson(getRes, Schema.Struct({ title: Schema.String }))
     expect(fetched.title).toBe('測試')
   })
 
@@ -1425,7 +1456,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       body: JSON.stringify({ title: 'a'.repeat(300), content: 'v1' }),
     })
     expect(res.status).toBe(201)
-    const page = (await res.json()) as { slug: string }
+    const page = await readNativeJson(res, SlugResponse)
     expect(page.slug).toMatch(/^page-[0-9a-f]{8}$/u)
   })
 
@@ -1540,7 +1571,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v1', title: 'Roadmap' }),
     })
-    const created = (await createRes.json()) as { slug: string }
+    const created = await readNativeJson(createRes, SlugResponse)
     expect(created.slug).toBe('roadmap')
 
     const updateRes = await fetchNativeApi('http://localhost/api/wiki/roadmap', {
@@ -1549,7 +1580,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       body: JSON.stringify({ slug: 'product-roadmap' }),
     })
     expect(updateRes.status).toBe(200)
-    const updated = (await updateRes.json()) as { url: string }
+    const updated = await readNativeJson(updateRes, Schema.Struct({ url: Schema.String }))
     expect(updated.url).toBe('/wiki/product-roadmap')
 
     const newRes = await fetchNativeApi('http://localhost/api/wiki/product-roadmap', {
@@ -1561,7 +1592,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       headers: authHeaders(token, slug),
     })
     expect(oldRes.status).toBe(200)
-    const oldPage = (await oldRes.json()) as { slug: string; title: string }
+    const oldPage = await readNativeJson(oldRes, Schema.Struct({ slug: Schema.String, title: Schema.String }))
     expect(oldPage.slug).toBe('product-roadmap')
     expect(oldPage.title).toBe('Roadmap')
   })
@@ -1641,7 +1672,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const page = (await res.json()) as { title: string }
+    const page = await readNativeJson(res, Schema.Struct({ title: Schema.String }))
     expect(page.title).toBe('Reclaimed')
   })
 
@@ -1661,7 +1692,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
       body: JSON.stringify({ content: 'workspace two', title: 'Shared Name' }),
     })
     expect(second.status).toBe(201)
-    const secondPage = (await second.json()) as { slug: string }
+    const secondPage = await readNativeJson(second, SlugResponse)
     expect(secondPage.slug).toBe('shared-name')
   })
 
@@ -1756,14 +1787,17 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       body: JSON.stringify({ content: RUNBOOK_CONTENT, title: 'Incident Runbook' }),
     })
     expect(res.status).toBe(201)
-    const created = (await res.json()) as {
-      type: string
-      tags: string[]
-      status: string
-      verifiedBy: string
-      owners: string[]
-      verifyInterval: number
-    }
+    const created = await readNativeJson(
+      res,
+      Schema.Struct({
+        owners: Schema.Array(Schema.String).pipe(Schema.mutable),
+        status: Schema.String,
+        tags: Schema.Array(Schema.String).pipe(Schema.mutable),
+        type: Schema.String,
+        verifiedBy: Schema.String,
+        verifyInterval: Schema.Number,
+      }),
+    )
     expect(created.type).toBe('runbook')
     expect(created.tags).toStrictEqual(['ops', 'oncall'])
     expect(created.status).toBe('current')
@@ -1774,11 +1808,12 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     const getRes = await fetchNativeApi('http://localhost/api/wiki/incident-runbook', {
       headers: authHeaders(token, slug),
     })
-    const page = (await getRes.json()) as {
-      type: string
-      tags: string[] | string
-      status: string
-    }
+    const pageShape = Schema.Struct({
+      status: Schema.String,
+      tags: Schema.Union([Schema.Array(Schema.String).pipe(Schema.mutable), Schema.String]),
+      type: Schema.String,
+    })
+    const page = await readNativeJson(getRes, pageShape)
     expect(page.type).toBe('runbook')
     expect(page.status).toBe('current')
     // Tags column comes back through drizzle's JSON mode as a real array on GET.
@@ -1805,11 +1840,14 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'just markdown, no frontmatter', title: 'Plain Page' }),
     })
-    const created = (await res.json()) as {
-      type: string | null
-      tags: string[]
-      status: string | null
-    }
+    const created = await readNativeJson(
+      res,
+      Schema.Struct({
+        status: Schema.Union([Schema.String, Schema.Null]),
+        tags: Schema.Array(Schema.String).pipe(Schema.mutable),
+        type: Schema.Union([Schema.String, Schema.Null]),
+      }),
+    )
     expect(created.type).toBeNull()
     expect(created.tags).toStrictEqual([])
     expect(created.status).toBeNull()
@@ -1829,7 +1867,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       }),
     })
     expect(res.status).toBe(201)
-    const created = (await res.json()) as { type: string | null }
+    const created = await readNativeJson(res, Schema.Struct({ type: Schema.Union([Schema.String, Schema.Null]) }))
     expect(created.type).toBe('whitepaper')
   })
 
@@ -1870,13 +1908,13 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     const listRes = await fetchNativeApi('http://localhost/api/wiki?type=whitepaper', {
       headers: authHeaders(token, slug),
     })
-    const listed = (await listRes.json()) as { title: string }[]
+    const listed = await readNativeJson(listRes, TitleListResponse)
     expect(listed.map((r) => r.title)).toEqual(['Freeform Filter Whitepaper'])
 
     const searchRes = await fetchNativeApi('http://localhost/api/wiki/search?q=latency&type=whitepaper', {
       headers: authHeaders(token, slug),
     })
-    const found = (await searchRes.json()) as { title: string }[]
+    const found = await readNativeJson(searchRes, TitleListResponse)
     expect(found.map((r) => r.title)).toEqual(['Freeform Filter Whitepaper'])
 
     const mcpListed = mcpData<{ title: string }[]>(
@@ -1979,7 +2017,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       }),
     })
     expect(res.status).toBe(201)
-    const created = (await res.json()) as { verifiedAt: number }
+    const created = await readNativeJson(res, Schema.Struct({ verifiedAt: Schema.Number }))
     expect(created.verifiedAt).toBe(1_700_000_000)
   })
 
@@ -2074,13 +2112,13 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     const byType = await fetchNativeApi('http://localhost/api/wiki?type=adr', {
       headers: authHeaders(token, slug),
     })
-    const byTypeResults = (await byType.json()) as { title: string }[]
+    const byTypeResults = await readNativeJson(byType, TitleListResponse)
     expect(byTypeResults.map((r) => r.title)).toEqual(['Filter Adr'])
 
     const byStatus = await fetchNativeApi('http://localhost/api/wiki?status=current', {
       headers: authHeaders(token, slug),
     })
-    const byStatusResults = (await byStatus.json()) as { title: string }[]
+    const byStatusResults = await readNativeJson(byStatus, TitleListResponse)
     expect(byStatusResults.map((r) => r.title)).toEqual(['Filter Runbook'])
   })
 
@@ -2107,7 +2145,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki?tags=ops,frontend', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results.map((result) => result.title).sort()).toEqual(['Tagged Frontend', 'Tagged Ops'])
   })
 
@@ -2156,7 +2194,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       },
     )
     expect(res.status).toBe(200)
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results.map((result) => result.title)).toEqual(['Deploy Runbook'])
   })
 
@@ -2170,14 +2208,26 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=Runbook', {
       headers: authHeaders(token, slug),
     })
-    const [hit] = (await res.json()) as { tags: string[]; owners: string[] }[]
+    const resShape = Schema.Array(
+      Schema.Struct({
+        owners: Schema.Array(Schema.String).pipe(Schema.mutable),
+        tags: Schema.Array(Schema.String).pipe(Schema.mutable),
+      }),
+    ).pipe(Schema.mutable)
+    const [hit] = await readNativeJson(res, resShape)
     expect(hit.tags).toEqual(['ops', 'oncall'])
     expect(hit.owners).toEqual(['alice', 'bob'])
 
     const listRes = await fetchNativeApi('http://localhost/api/wiki?type=runbook', {
       headers: authHeaders(token, slug),
     })
-    const [listed] = (await listRes.json()) as { tags: string[]; owners: string[] }[]
+    const listResShape = Schema.Array(
+      Schema.Struct({
+        owners: Schema.Array(Schema.String).pipe(Schema.mutable),
+        tags: Schema.Array(Schema.String).pipe(Schema.mutable),
+      }),
+    ).pipe(Schema.mutable)
+    const [listed] = await readNativeJson(listRes, listResShape)
     expect(hit.tags).toEqual(listed.tags)
     expect(hit.owners).toEqual(listed.owners)
   })
@@ -2248,7 +2298,10 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
       headers: authHeaders(token, slug),
     })
     expect(revRes.status).toBe(200)
-    const revisions = (await revRes.json()) as { id: string; title: string }[]
+    const revisions = await readNativeJson(
+      revRes,
+      Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String })).pipe(Schema.mutable),
+    )
     expect(revisions).toHaveLength(1)
     expect(revisions[0].title).toBe('Runbook')
   })
@@ -2267,7 +2320,7 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     const revRes = await fetchNativeApi('http://localhost/api/wiki/playbook/revisions', {
       headers: authHeaders(token, slug),
     })
-    const [revision] = (await revRes.json()) as { id: string }[]
+    const [revision] = await readNativeJson(revRes, IdListResponse)
 
     await fetchNativeApi('http://localhost/api/wiki/playbook', {
       method: 'PUT',
@@ -2280,7 +2333,7 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
       headers: authHeaders(token, slug),
     })
     expect(detailRes.status).toBe(200)
-    const detail = (await detailRes.json()) as { id: string; content: string }
+    const detail = await readNativeJson(detailRes, Schema.Struct({ content: Schema.String, id: Schema.String }))
     expect(detail.id).toBe(revision.id)
     expect(detail.content).toBe('v1')
   })
@@ -2340,7 +2393,7 @@ describe('wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
       method: 'DELETE',
     })
     expect(deleteRes.status).toBe(200)
-    const body = (await deleteRes.json()) as { ok: boolean; deletedCount: number }
+    const body = await readNativeJson(deleteRes, Schema.Struct({ deletedCount: Schema.Number, ok: Schema.Boolean }))
     expect(body.ok).toBe(true)
     expect(body.deletedCount).toBe(1)
 
@@ -2378,12 +2431,15 @@ describe('wiki optimistic locking (PROJ-484)', () => {
     const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
       headers: authHeaders(token, slug),
     })
-    return (await res.json()) as {
-      id: string
-      title: string
-      summary: string | null
-      created_at: number
-    }[]
+    const resShape = Schema.Array(
+      Schema.Struct({
+        created_at: Schema.Number,
+        id: Schema.String,
+        summary: Schema.Union([Schema.String, Schema.Null]),
+        title: Schema.String,
+      }),
+    ).pipe(Schema.mutable)
+    return readNativeJson(res, resShape)
   }
 
   test('covers REST: update with no baseRevisionId still succeeds (transitional last-write-wins)', async () => {
@@ -2461,7 +2517,10 @@ describe('wiki optimistic locking (PROJ-484)', () => {
       body: JSON.stringify({ content: 'v4 (stale attempt)', baseRevisionId: staleRevision.id }),
     })
     expect(res.status).toBe(409)
-    const body = (await res.json()) as { error: string; currentRevisionId: string; diff: string }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ currentRevisionId: Schema.String, diff: Schema.String, error: Schema.String }),
+    )
     expect(body.currentRevisionId).toBe(currentLatest.id)
     expect(typeof body.diff).toBe('string')
     // staleRevision snapshots the pre-edit content of the FIRST edit ("v1"), i.e. the
@@ -2593,7 +2652,10 @@ describe('wiki revision diff (PROJ-492)', () => {
     const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
       headers: authHeaders(token, slug),
     })
-    return (await res.json()) as { id: string; created_at: number }[]
+    return readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ created_at: Schema.Number, id: Schema.String })).pipe(Schema.mutable),
+    )
   }
 
   test('covers REST: diff against current defaults when `against` is omitted', async () => {
@@ -2613,7 +2675,10 @@ describe('wiki revision diff (PROJ-492)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { from: string; to: string; diff: string }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ diff: Schema.String, from: Schema.String, to: Schema.String }),
+    )
     expect(body.from).toBe(latest.id)
     expect(body.to).toBe('current')
     expect(body.diff).toContain('-line two')
@@ -2643,7 +2708,7 @@ describe('wiki revision diff (PROJ-492)', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { diff: string }
+    const body = await readNativeJson(res, Schema.Struct({ diff: Schema.String }))
     expect(body.diff).toContain('-v1')
     expect(body.diff).toContain('+v2')
   })
@@ -2733,7 +2798,7 @@ describe('wiki revision diff (PROJ-492)', () => {
     const revRes = await req(`http://localhost/api/wiki/restorable-doc/revisions/${latest.id}`, {
       headers: authHeaders(token, slug),
     })
-    const oldRevision = (await revRes.json()) as { content: string }
+    const oldRevision = await readNativeJson(revRes, Schema.Struct({ content: Schema.String }))
     expect(oldRevision.content).toBe('original content')
 
     const restoreRes = await req('http://localhost/api/wiki/restorable-doc', {
@@ -2794,7 +2859,10 @@ describe('wiki revision diff (PROJ-492)', () => {
       }),
     })
     expect(restoreRes.status).toBe(409)
-    const conflict = (await restoreRes.json()) as { currentRevisionId: string; diff: string }
+    const conflict = await readNativeJson(
+      restoreRes,
+      Schema.Struct({ currentRevisionId: Schema.String, diff: Schema.String }),
+    )
     expect(conflict.currentRevisionId).not.toBe(staleLatest.id)
 
     // The colleague's edit survives untouched and no restore revision was written.
@@ -2830,7 +2898,7 @@ describe('wiki revision diff (PROJ-492)', () => {
     const revRes = await req(`http://localhost/api/wiki/legacy-frontmatter-doc/revisions/${latest.id}`, {
       headers: authHeaders(token, slug),
     })
-    const oldRevision = (await revRes.json()) as { content: string }
+    const oldRevision = await readNativeJson(revRes, Schema.Struct({ content: Schema.String }))
 
     const restoreRes = await req('http://localhost/api/wiki/legacy-frontmatter-doc', {
       method: 'PUT',
@@ -2884,14 +2952,14 @@ describe('wiki patch operations (PROJ-490)', () => {
       body: JSON.stringify({ title, content, slug: pageSlug }),
     })
     expect(res.status).toBe(201)
-    return (await res.json()) as { id: string; slug: string }
+    return readNativeJson(res, IdAndSlugResponse)
   }
 
   const getPage = async function getPage(pageSlug: string): Promise<{ content: string }> {
     const res = await req(`http://localhost/api/wiki/${pageSlug}`, {
       headers: authHeaders(token, slug),
     })
-    return (await res.json()) as { content: string }
+    return readNativeJson(res, Schema.Struct({ content: Schema.String }))
   }
 
   const TWO_SECTIONS = '## Alpha\nAlpha body.\n\n## Beta\nBeta body.\n'
@@ -2985,14 +3053,17 @@ describe('wiki patch operations (PROJ-490)', () => {
     const revRes = await req('http://localhost/api/wiki/patch-revision/revisions', {
       headers: authHeaders(token, slug),
     })
-    const revisions = (await revRes.json()) as { id: string; summary: string | null }[]
+    const revisionsShape = Schema.Array(
+      Schema.Struct({ id: Schema.String, summary: Schema.Union([Schema.String, Schema.Null]) }),
+    ).pipe(Schema.mutable)
+    const revisions = await readNativeJson(revRes, revisionsShape)
     expect(revisions).toHaveLength(1)
     expect(revisions[0].summary).toBe('added alpha detail')
 
     const snapshotRes = await req(`http://localhost/api/wiki/patch-revision/revisions/${revisions[0].id}`, {
       headers: authHeaders(token, slug),
     })
-    const snapshot = (await snapshotRes.json()) as { content: string }
+    const snapshot = await readNativeJson(snapshotRes, Schema.Struct({ content: Schema.String }))
     expect(snapshot.content).toBe(TWO_SECTIONS)
   })
 
@@ -3009,7 +3080,10 @@ describe('wiki patch operations (PROJ-490)', () => {
       }),
     })
     expect(res.status).toBe(404)
-    const body = (await res.json()) as { error: string; currentHeadings: string[] }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ currentHeadings: Schema.Array(Schema.String).pipe(Schema.mutable), error: Schema.String }),
+    )
     expect(body.currentHeadings).toStrictEqual(['Alpha', 'Beta'])
   })
 
@@ -3086,7 +3160,10 @@ describe('wiki patch operations (PROJ-490)', () => {
       }),
     })
     expect(res.status).toBe(409)
-    const body = (await res.json()) as { error: string; currentRevisionId: string; diff: string }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ currentRevisionId: Schema.String, diff: Schema.String, error: Schema.String }),
+    )
     expect(typeof body.currentRevisionId).toBe('string')
     expect(body.diff).toContain('From agent A.')
   })
@@ -3116,7 +3193,10 @@ describe('wiki patch operations (PROJ-490)', () => {
       }),
     })
     expect(res.status).toBe(404)
-    const body = (await res.json()) as { currentHeadings: string[] }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ currentHeadings: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    )
     expect(body.currentHeadings).toStrictEqual(['Alpha'])
   })
 
@@ -3137,7 +3217,10 @@ describe('wiki patch operations (PROJ-490)', () => {
     const getRes = await req('http://localhost/api/wiki/patch-frontmatter', {
       headers: authHeaders(token, slug),
     })
-    const page = (await getRes.json()) as { content: string; type: string; status: string }
+    const page = await readNativeJson(
+      getRes,
+      Schema.Struct({ content: Schema.String, status: Schema.String, type: Schema.String }),
+    )
     expect(page.content).toContain('type: runbook')
     expect(page.type).toBe('runbook')
     expect(page.status).toBe('current')
@@ -3350,7 +3433,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     const searchRes = await req('http://localhost/api/wiki/search?q=uniquedemotekeyword', {
       headers: authHeaders(token, slug),
     })
-    const results = (await searchRes.json()) as { title: string }[]
+    const results = await readNativeJson(searchRes, TitleListResponse)
     expect(results.map((result) => result.title)).toEqual(['Patch Frontmatter Current', 'Patch Frontmatter Demote'])
   })
 
@@ -3525,7 +3608,10 @@ describe('wiki patch operations (PROJ-490)', () => {
       }),
     })
     expect(missing.status).toBe(404)
-    const body = (await missing.json()) as { currentHeadings: string[] }
+    const body = await readNativeJson(
+      missing,
+      Schema.Struct({ currentHeadings: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    )
     expect(body.currentHeadings).toStrictEqual(['Setup', 'Usage'])
 
     const res = await req('http://localhost/api/wiki/patch-fenced', {
@@ -3564,7 +3650,10 @@ describe('wiki patch operations (PROJ-490)', () => {
       }),
     })
     expect(res.status).toBe(404)
-    const body = (await res.json()) as { currentHeadings: string[] }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ currentHeadings: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    )
     expect(body.currentHeadings).toStrictEqual(['Alpha'])
   })
 
@@ -3598,7 +3687,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       const revRes = await req('http://localhost/api/wiki/patch-blanklines/revisions', {
         headers: authHeaders(token, slug),
       })
-      const revisions = (await revRes.json()) as { id: string }[]
+      const revisions = await readNativeJson(revRes, IdListResponse)
       const res = await req('http://localhost/api/wiki/patch-blanklines', {
         method: 'PATCH',
         headers: authHeaders(token, slug),
@@ -3741,7 +3830,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content, title }),
     })
-    return (await res.json()) as { id: string; slug: string }
+    return readNativeJson(res, IdAndSlugResponse)
   }
 
   test('[[Target]] and [[Target|label]] both resolve a backlink to the target page', async () => {
@@ -3753,7 +3842,10 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const backlinks = (await res.json()) as { slug: string; title: string }[]
+    const backlinks = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ slug: Schema.String, title: Schema.String })).pipe(Schema.mutable),
+    )
     expect(backlinks.map((b) => b.slug).sort()).toEqual(['alpha', 'beta'])
   })
 
@@ -3764,7 +3856,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await res.json()) as { slug: string }[]
+    const backlinks = await readNativeJson(res, SlugListResponse)
     expect(backlinks.map((b) => b.slug)).toEqual(['gamma'])
   })
 
@@ -3775,7 +3867,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const res = await fetchNativeApi(`http://localhost/api/wiki/${operations.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await res.json()) as { slug: string }[]
+    const backlinks = await readNativeJson(res, SlugListResponse)
     expect(backlinks).toStrictEqual([])
   })
 
@@ -3789,7 +3881,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await res.json()) as { slug: string }[]
+    const backlinks = await readNativeJson(res, SlugListResponse)
     expect(backlinks).toStrictEqual([])
   })
 
@@ -3808,7 +3900,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const backlinksRes = await fetchNativeApi(`http://localhost/api/wiki/${runbook.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await backlinksRes.json()) as { slug: string }[]
+    const backlinks = await readNativeJson(backlinksRes, SlugListResponse)
     expect(backlinks.map((b) => b.slug)).toEqual(['theta'])
   })
 
@@ -3818,7 +3910,10 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(token, slug),
     })
-    const broken = (await brokenRes.json()) as { sourceSlug: string; targetTitle: string }[]
+    const broken = await readNativeJson(
+      brokenRes,
+      Schema.Array(Schema.Struct({ sourceSlug: Schema.String, targetTitle: Schema.String })).pipe(Schema.mutable),
+    )
     expect(broken).toContainEqual(expect.objectContaining({ sourceSlug: 'delta', targetTitle: 'Nonexistent Page' }))
   })
 
@@ -3876,7 +3971,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/renamed-slug/backlinks', {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await res.json()) as { slug: string }[]
+    const backlinks = await readNativeJson(res, SlugListResponse)
     expect(backlinks.map((b) => b.slug)).toEqual(['linker'])
   })
 
@@ -3914,7 +4009,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await res.json()) as { slug: string }[]
+    const backlinks = await readNativeJson(res, SlugListResponse)
     expect(backlinks.map((b) => b.slug)).toEqual(['title-change-source'])
   })
 
@@ -3936,7 +4031,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       method: 'DELETE',
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { ok: boolean; linkedByCount: number }
+    const body = await readNativeJson(res, Schema.Struct({ linkedByCount: Schema.Number, ok: Schema.Boolean }))
     expect(body.linkedByCount).toBe(1)
 
     const getRes = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}`, {
@@ -3951,7 +4046,10 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
-    const broken = (await brokenRes.json()) as { targetTitle: string }[]
+    const broken = await readNativeJson(
+      brokenRes,
+      Schema.Array(Schema.Struct({ targetTitle: Schema.String })).pipe(Schema.mutable),
+    )
     expect(broken).toContainEqual(expect.objectContaining({ targetTitle: 'Linked Target' }))
   })
 
@@ -3962,7 +4060,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(owner.token, owner.workspace.slug),
       body: JSON.stringify({ content: '[[Nonexistent A]]', title: 'Cascade Parent' }),
     })
-    const parent = (await parentRes.json()) as { id: string; slug: string }
+    const parent = await readNativeJson(parentRes, IdAndSlugResponse)
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(owner.token, owner.workspace.slug),
@@ -3981,7 +4079,10 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
-    const broken = (await brokenRes.json()) as { targetTitle: string }[]
+    const broken = await readNativeJson(
+      brokenRes,
+      Schema.Array(Schema.Struct({ targetTitle: Schema.String })).pipe(Schema.mutable),
+    )
     expect(broken.some((b) => b.targetTitle === 'Nonexistent A')).toBe(false)
     expect(broken.some((b) => b.targetTitle === 'Nonexistent B')).toBe(false)
   })
@@ -4016,7 +4117,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const sharedA = await fetchNativeApi('http://localhost/api/wiki/shared-title', {
       headers: authHeaders(workspaceA.token, workspaceA.workspace.slug),
     })
-    const target = (await sharedA.json()) as { id: string }
+    const target = await readNativeJson(sharedA, IdResponse)
     const backlinksA = await fetchNativeApi(`http://localhost/api/wiki/${target.id}/backlinks`, {
       headers: authHeaders(workspaceA.token, workspaceA.workspace.slug),
     })
@@ -4062,7 +4163,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
     const postBacklinks = await fetchNativeApi('http://localhost/api/wiki/legacy-target/backlinks', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
-    const backlinks = (await postBacklinks.json()) as { slug: string }[]
+    const backlinks = await readNativeJson(postBacklinks, SlugListResponse)
     expect(backlinks.map((b) => b.slug)).toEqual(['legacy-source'])
   })
 
@@ -4123,7 +4224,10 @@ describe('wiki write atomicity (PROJ-511)', () => {
     const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(token, slug),
     })
-    const broken = (await brokenRes.json()) as { targetTitle: string }[]
+    const broken = await readNativeJson(
+      brokenRes,
+      Schema.Array(Schema.Struct({ targetTitle: Schema.String })).pipe(Schema.mutable),
+    )
     expect(broken).toHaveLength(1)
     expect(['Race Target Alpha', 'Race Target Beta']).toContain(broken[0].targetTitle)
   })
@@ -4144,7 +4248,7 @@ describe('wiki write atomicity (PROJ-511)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'see [[Atomic Runbook]]', title: 'Atomic Source' }),
     })
-    const source = (await sourceRes.json()) as { slug: string }
+    const source = await readNativeJson(sourceRes, SlugResponse)
 
     await resetRateLimits()
     const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${source.slug}`, {
@@ -4164,7 +4268,7 @@ describe('wiki write atomicity (PROJ-511)', () => {
     const backlinksRes = await fetchNativeApi('http://localhost/api/wiki/atomic-runbook/backlinks', {
       headers: authHeaders(token, slug),
     })
-    const backlinks = (await backlinksRes.json()) as { slug: string }[]
+    const backlinks = await readNativeJson(backlinksRes, SlugListResponse)
     expect(backlinks.map((b) => b.slug)).toEqual(['atomic-source'])
 
     await resetRateLimits()
@@ -4273,12 +4377,15 @@ describe('wiki freshness model (PROJ-489)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Overdue Runbook', content: overdueContent() }),
     })
-    const created = (await createRes.json()) as { slug: string }
+    const created = await readNativeJson(createRes, SlugResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await res.json()) as { freshness: { state: string; staleSince: number | null } }
+    const pageShape = Schema.Struct({
+      freshness: Schema.Struct({ staleSince: Schema.Union([Schema.Number, Schema.Null]), state: Schema.String }),
+    })
+    const page = await readNativeJson(res, pageShape)
     expect(page.freshness.state).toBe('stale')
     expect(page.freshness.staleSince).not.toBeNull()
   })
@@ -4289,18 +4396,21 @@ describe('wiki freshness model (PROJ-489)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Needs Verification', content: overdueContent() }),
     })
-    const created = (await createRes.json()) as { slug: string }
+    const created = await readNativeJson(createRes, SlugResponse)
 
     const verifyRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/verify`, {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
     expect(verifyRes.status).toBe(200)
-    const verified = (await verifyRes.json()) as {
-      verifiedBy: string
-      verifiedAt: number
-      freshness: { state: string }
-    }
+    const verified = await readNativeJson(
+      verifyRes,
+      Schema.Struct({
+        freshness: Schema.Struct({ state: Schema.String }),
+        verifiedAt: Schema.Number,
+        verifiedBy: Schema.String,
+      }),
+    )
     expect(verified.verifiedBy).toBe(userEmail)
     // The page was overdue (verified_at 2020-01-01); verifying it now resets the clock.
     expect(verified.freshness.state).toBe('fresh')
@@ -4312,7 +4422,7 @@ describe('wiki freshness model (PROJ-489)', () => {
     const pageRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await pageRes.json()) as { verified_by: string; content: string }
+    const page = await readNativeJson(pageRes, Schema.Struct({ content: Schema.String, verified_by: Schema.String }))
     expect(page.verified_by).toBe(userEmail)
     expect(page.content).toContain(`verified_by: ${userEmail}`)
   })
@@ -4323,12 +4433,12 @@ describe('wiki freshness model (PROJ-489)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Revision Check', content: overdueContent() }),
     })
-    const created = (await createRes.json()) as { slug: string }
+    const created = await readNativeJson(createRes, SlugResponse)
 
     const before = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/revisions`, {
       headers: authHeaders(token, slug),
     })
-    const beforeRevisions = (await before.json()) as unknown[]
+    const beforeRevisions = await readNativeJson(before, JsonListResponse)
 
     await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/verify`, {
       headers: authHeaders(token, slug),
@@ -4338,7 +4448,7 @@ describe('wiki freshness model (PROJ-489)', () => {
     const after = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/revisions`, {
       headers: authHeaders(token, slug),
     })
-    const afterRevisions = (await after.json()) as unknown[]
+    const afterRevisions = await readNativeJson(after, JsonListResponse)
     expect(afterRevisions).toHaveLength(beforeRevisions.length + 1)
   })
 
@@ -4352,7 +4462,7 @@ describe('wiki freshness model (PROJ-489)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Edited Then Verified', content: overdueContent() }),
     })
-    const created = (await createRes.json()) as { slug: string }
+    const created = await readNativeJson(createRes, SlugResponse)
 
     await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       method: 'PUT',
@@ -4368,7 +4478,7 @@ describe('wiki freshness model (PROJ-489)', () => {
     const pageRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await pageRes.json()) as { content: string; verified_by: string }
+    const page = await readNativeJson(pageRes, Schema.Struct({ content: Schema.String, verified_by: Schema.String }))
     expect(page.content).toContain('Brand new paragraph.')
     expect(page.verified_by).toBe(userEmail)
   })
@@ -4380,7 +4490,7 @@ describe('wiki freshness model (PROJ-489)', () => {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ title: 'Viewer Guard', content: overdueContent() }),
     })
-    const created = (await createRes.json()) as { slug: string }
+    const created = await readNativeJson(createRes, SlugResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/verify`, {
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
@@ -4427,10 +4537,13 @@ describe('wiki freshness model (PROJ-489)', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=deploy', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as {
-      title: string
-      freshness: { state: string } | null
-    }[]
+    const resultsShape = Schema.Array(
+      Schema.Struct({
+        freshness: Schema.Union([Schema.Struct({ state: Schema.String }), Schema.Null]),
+        title: Schema.String,
+      }),
+    ).pipe(Schema.mutable)
+    const results = await readNativeJson(res, resultsShape)
     expect(results.map((result) => result.title)).toEqual(['Fresh Deploy Guide', 'Stale Deploy Guide'])
     expect(results[0].freshness?.state).toBe('fresh')
     expect(results[1].freshness?.state).toBe('stale')
@@ -4454,7 +4567,7 @@ describe('wiki freshness model (PROJ-489)', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=onboardingkeyword', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results.map((result) => result.title)).toEqual(['Current Onboarding', 'Deprecated Onboarding'])
   })
 
@@ -4491,10 +4604,13 @@ describe('wiki freshness model (PROJ-489)', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=securitypolicykeyword', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as {
-      title: string
-      freshness: { state: string } | null
-    }[]
+    const resultsShape = Schema.Array(
+      Schema.Struct({
+        freshness: Schema.Union([Schema.Struct({ state: Schema.String }), Schema.Null]),
+        title: Schema.String,
+      }),
+    ).pipe(Schema.mutable)
+    const results = await readNativeJson(res, resultsShape)
     expect(results.map((result) => result.title)).toEqual(['Securitypolicykeyword Runbook', 'No Signal Page'])
     expect(results[0].freshness?.state).toBe('unverified')
   })
@@ -4536,7 +4652,7 @@ describe('wiki freshness model (PROJ-489)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     const titles = results.map((result) => result.title).sort()
     expect(titles).toEqual(['Explicitly Stale Page', 'Never Verified Page', 'Overdue Page'])
   })
@@ -4593,7 +4709,7 @@ describe('wiki page templates (PROJ-491)', () => {
       body: JSON.stringify({ content: TEMPLATE_CONTENT, title: 'Runbook Template' }),
     })
     expect(res.status).toBe(201)
-    return (await res.json()) as { id: string; slug: string; isTemplate: boolean }
+    return readNativeJson(res, Schema.Struct({ id: Schema.String, isTemplate: Schema.Boolean, slug: Schema.String }))
   }
 
   test('covers REST: frontmatter template:true denormalizes into isTemplate on create', async () => {
@@ -4603,7 +4719,7 @@ describe('wiki page templates (PROJ-491)', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await getRes.json()) as { is_template: boolean }
+    const page = await readNativeJson(getRes, Schema.Struct({ is_template: Schema.Boolean }))
     expect(page.is_template).toBe(true)
   })
 
@@ -4616,7 +4732,10 @@ describe('wiki page templates (PROJ-491)', () => {
       body: JSON.stringify({ templateSlug: 'runbook-template', title: 'Deploy Runbook' }),
     })
     expect(res.status).toBe(201)
-    const created = (await res.json()) as { slug: string; isTemplate: boolean; type: string }
+    const created = await readNativeJson(
+      res,
+      Schema.Struct({ isTemplate: Schema.Boolean, slug: Schema.String, type: Schema.String }),
+    )
     /*
      * The seeded page keeps the template's other frontmatter (type) but is not itself
      * a template — only the `template` key is stripped.
@@ -4627,7 +4746,7 @@ describe('wiki page templates (PROJ-491)', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
-    const page = (await getRes.json()) as { content: string; is_template: boolean }
+    const page = await readNativeJson(getRes, Schema.Struct({ content: Schema.String, is_template: Schema.Boolean }))
     expect(page.content).toContain('## Steps')
     expect(page.content).not.toContain('template: true')
     expect(page.is_template).toBe(false)
@@ -4698,7 +4817,7 @@ describe('wiki page templates (PROJ-491)', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/search?q=Runbook', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results.map((result) => result.title)).toContain('Runbook For Deploys')
     expect(results.map((result) => result.title)).not.toContain('Runbook Template')
   })
@@ -4719,14 +4838,14 @@ describe('wiki page templates (PROJ-491)', () => {
     const defaultRes = await fetchNativeApi('http://localhost/api/wiki', {
       headers: authHeaders(token, slug),
     })
-    const defaultResults = (await defaultRes.json()) as { title: string }[]
+    const defaultResults = await readNativeJson(defaultRes, TitleListResponse)
     expect(defaultResults.map((r) => r.title)).toContain('Ordinary Runbook')
     expect(defaultResults.map((r) => r.title)).not.toContain('Runbook Template')
 
     const includedRes = await fetchNativeApi('http://localhost/api/wiki?includeTemplates=true', {
       headers: authHeaders(token, slug),
     })
-    const includedResults = (await includedRes.json()) as { title: string }[]
+    const includedResults = await readNativeJson(includedRes, TitleListResponse)
     expect(includedResults.map((r) => r.title)).toContain('Runbook Template')
   })
 
@@ -4748,7 +4867,7 @@ describe('wiki page templates (PROJ-491)', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki/stale-pages', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results.map((result) => result.title)).not.toContain('Overdue Template')
   })
 
@@ -4764,7 +4883,7 @@ describe('wiki page templates (PROJ-491)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results.map((result) => result.title)).toEqual(['Runbook Template'])
   })
 
@@ -4809,7 +4928,10 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
       headers: newHeaders,
     })
     expect(listRes.status).toBe(200)
-    const templates = (await listRes.json()) as { title: string; type: string | null }[]
+    const templatesShape = Schema.Array(
+      Schema.Struct({ title: Schema.String, type: Schema.Union([Schema.String, Schema.Null]) }),
+    ).pipe(Schema.mutable)
+    const templates = await readNativeJson(listRes, templatesShape)
     expect(templates.map((template) => template.title).sort()).toEqual([
       'ADR Template',
       'Runbook Template',
@@ -4817,11 +4939,14 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
     ])
 
     const treeRes = await fetchNativeApi('http://localhost/api/wiki/tree', { headers: newHeaders })
-    const tree = (await treeRes.json()) as {
-      title: string
-      slug: string
-      children: unknown[]
-    }[]
+    const treeShape = Schema.Array(
+      Schema.Struct({
+        children: Schema.Array(Schema.Unknown).pipe(Schema.mutable),
+        slug: Schema.String,
+        title: Schema.String,
+      }),
+    ).pipe(Schema.mutable)
+    const tree = await readNativeJson(treeRes, treeShape)
     const templatesNode = tree.find((n) => n.title === 'Templates')
     expect(templatesNode?.children.length).toBe(3)
 
@@ -4858,7 +4983,7 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
       headers: newHeaders,
     })
     expect(searchRes.status).toBe(200)
-    const results = (await searchRes.json()) as { title: string }[]
+    const results = await readNativeJson(searchRes, TitleListResponse)
     expect(results.map((result) => result.title)).toContain('Templates')
   })
 })
@@ -4900,7 +5025,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       body: JSON.stringify({ title, content, slug: pageSlug }),
     })
     expect(res.status).toBe(201)
-    return (await res.json()) as { id: string; slug: string }
+    return readNativeJson(res, IdAndSlugResponse)
   }
 
   const createChildPage = async function createChildPage(
@@ -4915,7 +5040,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       body: JSON.stringify({ title, content, slug: pageSlug, parentId }),
     })
     expect(res.status).toBe(201)
-    return (await res.json()) as { id: string; slug: string }
+    return readNativeJson(res, IdAndSlugResponse)
   }
 
   const seedWatcher = async function seedWatcher(role = 'member') {
@@ -5188,7 +5313,10 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
     const res = await req(`http://localhost/api/wiki/changes?since=${t0}&watchedOnly=false`, {
       headers: authHeaders(watcher.token, slug),
     })
-    const body = (await res.json()) as { changes: { slug: string | null }[] }
+    const bodyShape = Schema.Struct({
+      changes: Schema.Array(Schema.Struct({ slug: Schema.Union([Schema.String, Schema.Null]) })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.changes.map((change) => change.slug)).toContain('bool-unwatched')
   })
 
@@ -5237,10 +5365,11 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as {
-      changes: { action: string; pageId: string }[]
-      nextSince: number
-    }
+    const bodyShape = Schema.Struct({
+      changes: Schema.Array(Schema.Struct({ action: Schema.String, pageId: Schema.String })).pipe(Schema.mutable),
+      nextSince: Schema.Number,
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.changes.some((change) => change.pageId === page.id && change.action === 'created')).toBe(true)
     expect(body.nextSince).toBeGreaterThanOrEqual(t0)
 
@@ -5473,7 +5602,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       body: JSON.stringify({ title, content, slug: pageSlug }),
     })
     expect(res.status).toBe(201)
-    return (await res.json()) as { id: string; slug: string }
+    return readNativeJson(res, IdAndSlugResponse)
   }
 
   test('covers REST: no draft returns null, saving upserts, discarding clears it', async () => {
@@ -5542,12 +5671,12 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     const pageRes = await req(`http://localhost/api/wiki/${page.slug}`, {
       headers: authHeaders(token, slug),
     })
-    const pageBody = (await pageRes.json()) as { updated_at: number }
+    const pageBody = await readNativeJson(pageRes, Schema.Struct({ updated_at: Schema.Number }))
 
     const revRes = await req(`http://localhost/api/wiki/${page.slug}/revisions`, {
       headers: authHeaders(token, slug),
     })
-    const revisions = (await revRes.json()) as { id: string }[]
+    const revisions = await readNativeJson(revRes, IdListResponse)
     const baseRevisionId = revisions[0]?.id ?? null
 
     await req(`http://localhost/api/wiki/${page.slug}/draft`, {
@@ -5594,7 +5723,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     const revRes = await req(`http://localhost/api/wiki/${page.slug}/revisions`, {
       headers: authHeaders(token, slug),
     })
-    const revisions = (await revRes.json()) as { id: string }[]
+    const revisions = await readNativeJson(revRes, IdListResponse)
     const draftBaseRevisionId = revisions[0]?.id
     expect(draftBaseRevisionId).toBeTruthy()
 
@@ -5761,7 +5890,7 @@ describe('wiki trash (PROJ-496)', () => {
       body: JSON.stringify({ title, content, ...opts }),
     })
     expect(res.status).toBe(201)
-    return (await res.json()) as { id: string; slug: string }
+    return readNativeJson(res, IdAndSlugResponse)
   }
 
   const trashPage = async function trashPage(pageSlug: string, cascade = false): Promise<void> {
@@ -5899,11 +6028,12 @@ describe('wiki trash (PROJ-496)', () => {
 
     const res = await req('http://localhost/api/wiki/trash', { headers: authHeaders(token, slug) })
     expect(res.status).toBe(200)
-    const rows = (await res.json()) as {
-      id: string
-      deleted_at: number
-      purgeAfter: number
-    }[]
+    const rows = await readNativeJson(
+      res,
+      Schema.Array(Schema.Struct({ deleted_at: Schema.Number, id: Schema.String, purgeAfter: Schema.Number })).pipe(
+        Schema.mutable,
+      ),
+    )
     expect(rows.some((selectedRow) => selectedRow.id === live.id)).toBe(false)
     const row = rows.find((selectedRow) => selectedRow.id === trashed.id)
     expect(row).toBeDefined()
@@ -5988,7 +6118,7 @@ describe('wiki trash (PROJ-496)', () => {
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: oldForm,
     })
-    const { id: oldAttachmentId } = (await oldUploadRes.json()) as { id: string }
+    const { id: oldAttachmentId } = await readNativeJson(oldUploadRes, IdResponse)
     const resolvedValue = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?')
       .bind(oldAttachmentId)
       .first<{ r2_key: string }>()
@@ -6024,7 +6154,10 @@ describe('wiki trash (PROJ-496)', () => {
       headers: authHeaders(token, slug),
     })
     expect(purgeRes.status).toBe(200)
-    const purged = (await purgeRes.json()) as { purgedCount: number; purgedIds: string[] }
+    const purged = await readNativeJson(
+      purgeRes,
+      Schema.Struct({ purgedCount: Schema.Number, purgedIds: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    )
     expect(purged.purgedCount).toBe(1)
     expect(purged.purgedIds).toEqual([oldPage.id])
 
@@ -6112,7 +6245,7 @@ describe('wiki trash (PROJ-496)', () => {
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ title: 'Other Workspace Trash Page', content: 'content' }),
     })
-    const otherPage = (await createOtherRes.json()) as { id: string; slug: string }
+    const otherPage = await readNativeJson(createOtherRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${otherPage.slug}`, {
       method: 'DELETE',
       headers: authHeaders(other.token, other.workspace.slug),
@@ -6126,7 +6259,10 @@ describe('wiki trash (PROJ-496)', () => {
       headers: authHeaders(token, slug),
     })
     expect(purgeRes.status).toBe(200)
-    const purged = (await purgeRes.json()) as { purgedIds: string[] }
+    const purged = await readNativeJson(
+      purgeRes,
+      Schema.Struct({ purgedIds: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    )
     expect(purged.purgedIds).not.toContain(otherPage.id)
     await expect(
       env.DB.prepare('SELECT id FROM wiki_pages WHERE id = ?').bind(otherPage.id).first(),
@@ -6140,7 +6276,7 @@ describe('wiki trash (PROJ-496)', () => {
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ title: 'Cross Workspace Trash Page', content: 'content' }),
     })
-    const otherPage = (await createOtherRes.json()) as { id: string; slug: string }
+    const otherPage = await readNativeJson(createOtherRes, IdAndSlugResponse)
     await req(`http://localhost/api/wiki/${otherPage.slug}`, {
       method: 'DELETE',
       headers: authHeaders(other.token, other.workspace.slug),
@@ -6149,7 +6285,7 @@ describe('wiki trash (PROJ-496)', () => {
     const listRes = await req('http://localhost/api/wiki/trash', {
       headers: authHeaders(token, slug),
     })
-    const listed = (await listRes.json()) as { id: string }[]
+    const listed = await readNativeJson(listRes, IdListResponse)
     expect(listed.some((r) => r.id === otherPage.id)).toBe(false)
 
     const undeleteRes = await req(`http://localhost/api/wiki/trash/${otherPage.id}/undelete`, {
@@ -6207,7 +6343,10 @@ describe('wiki trash (PROJ-496)', () => {
       headers: authHeaders(token, slug),
     })
     expect(undeleteRes.status).toBe(409)
-    const body = (await undeleteRes.json()) as { error?: string; message?: string }
+    const body = await readNativeJson(
+      undeleteRes,
+      Schema.Struct({ error: Schema.optional(Schema.String), message: Schema.optional(Schema.String) }),
+    )
     const message = body.error ?? body.message ?? ''
     expect(message).toContain(child.slug)
 
@@ -6302,7 +6441,10 @@ describe('wiki trash (PROJ-496)', () => {
       headers: authHeaders(token, slug),
     })
     expect(purgeRes.status).toBe(200)
-    const purged = (await purgeRes.json()) as { purgedIds: string[] }
+    const purged = await readNativeJson(
+      purgeRes,
+      Schema.Struct({ purgedIds: Schema.Array(Schema.String).pipe(Schema.mutable) }),
+    )
     expect(purged.purgedIds).toEqual(expect.arrayContaining([grandparent.id, parent.id]))
 
     const childRow = await env.DB.prepare('SELECT parent_id FROM wiki_pages WHERE id = ?')
@@ -6376,7 +6518,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
 
   test('rejects renaming a page to an id-shaped slug', async () => {
     const res = await create({ title: 'Rename Me' })
-    const page = (await res.json()) as { id: string }
+    const page = await readNativeJson(res, IdResponse)
     const put = await resetRateLimitAndFetch(`http://localhost/api/wiki/${page.id}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),

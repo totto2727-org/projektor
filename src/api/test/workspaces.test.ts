@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Schema, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -15,6 +15,7 @@ import {
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,
@@ -304,7 +305,7 @@ describe('workspaces MCP', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
       headers: userHeaders,
     })
-    const workspace = (await getRes.json()) as { name: string }
+    const workspace = await readNativeJson(getRes, Schema.Struct({ name: Schema.String }))
     expect(workspace.name).toBe('Renamed via MCP')
   })
 
@@ -347,7 +348,7 @@ describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
       method: 'DELETE',
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { ok: boolean }
+    const body = await readNativeJson(res, Schema.Struct({ ok: Schema.Boolean }))
     expect(body.ok).toBe(true)
   })
 
@@ -449,7 +450,10 @@ describe('handles GET /api/workspaces/:slug (currentUserRole)', () => {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { currentUserRole: string; members: unknown[] }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ currentUserRole: Schema.String, members: Schema.Array(Schema.Unknown).pipe(Schema.mutable) }),
+    )
     expect(body.currentUserRole).toBe('owner')
     expect(Array.isArray(body.members)).toBe(true)
   })
@@ -460,7 +464,7 @@ describe('handles GET /api/workspaces/:slug (currentUserRole)', () => {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { currentUserRole: string }
+    const body = await readNativeJson(res, Schema.Struct({ currentUserRole: Schema.String }))
     expect(body.currentUserRole).toBe('viewer')
   })
 })
@@ -484,12 +488,15 @@ describe('handles GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
       headers: memberHeaders,
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as {
-      mcpUrl: string
-      workspaceId: string
-      workspaceSlug: string
-      mcpAddCommandTemplate: string
-    }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({
+        mcpAddCommandTemplate: Schema.String,
+        mcpUrl: Schema.String,
+        workspaceId: Schema.String,
+        workspaceSlug: Schema.String,
+      }),
+    )
     expect(body.workspaceId).toBe(workspaceId)
     expect(body.workspaceSlug).toBe(slug)
     expect(body.mcpUrl).toMatch(/\/mcp\//u)
@@ -502,7 +509,10 @@ describe('handles GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/mcp-info`, {
       headers: memberHeaders,
     })
-    const body = (await res.json()) as { mcpAddCommandTemplate: string; mcpUrl: string }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ mcpAddCommandTemplate: Schema.String, mcpUrl: Schema.String }),
+    )
 
     expect(body.mcpAddCommandTemplate).toBe(
       `claude mcp add --transport http ` +
@@ -551,14 +561,14 @@ describe('workspace brand (PROJ-761)', () => {
       body: JSON.stringify({ accent: '#ff8800', displayName: 'Acme Tracker' }),
     })
     expect(patchRes.status).toBe(200)
-    const patched = (await patchRes.json()) as { displayName: string; accent: string }
+    const patched = await readNativeJson(patchRes, Schema.Struct({ accent: Schema.String, displayName: Schema.String }))
     expect(patched.displayName).toBe('Acme Tracker')
     expect(patched.accent).toBe('#ff8800')
 
     const getRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
-    const brand = (await getRes.json()) as { displayName: string; accent: string }
+    const brand = await readNativeJson(getRes, Schema.Struct({ accent: Schema.String, displayName: Schema.String }))
     expect(brand.displayName).toBe('Acme Tracker')
     expect(brand.accent).toBe('#ff8800')
   })
@@ -592,7 +602,10 @@ describe('workspace brand (PROJ-761)', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ accent: null }),
     })
-    const body = (await res.json()) as { displayName: string; accent: string | null }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ accent: Schema.Union([Schema.String, Schema.Null]), displayName: Schema.String }),
+    )
     expect(body.displayName).toBe('Acme Tracker')
     expect(body.accent).toBeNull()
   })
@@ -613,7 +626,7 @@ describe('workspace brand (PROJ-761)', () => {
     const brandRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
-    const brand = (await brandRes.json()) as { logoUrl: string }
+    const brand = await readNativeJson(brandRes, Schema.Struct({ logoUrl: Schema.String }))
     expect(brand.logoUrl).toBe(`/api/workspaces/${slug}/brand/logo`)
 
     const logoRes = await fetchNativeApi(`http://localhost${brand.logoUrl}`, {
@@ -733,7 +746,7 @@ describe('workspace brand (PROJ-761)', () => {
       body: JSON.stringify({ fontUrl: 'https://fonts.example.com/font.css' }),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { fontUrl: string }
+    const body = await readNativeJson(res, Schema.Struct({ fontUrl: Schema.String }))
     expect(body.fontUrl).toBe('https://fonts.example.com/font.css')
   })
 
@@ -760,7 +773,10 @@ describe('workspace brand (PROJ-761)', () => {
       body: JSON.stringify({ displayName: 'Header Workspace' }),
     })
     expect(patchRes.status).toBe(200)
-    const patched = (await patchRes.json()) as { displayName: string | null }
+    const patched = await readNativeJson(
+      patchRes,
+      Schema.Struct({ displayName: Schema.Union([Schema.String, Schema.Null]) }),
+    )
     expect(patched.displayName).toBe('Header Workspace')
 
     const headerWsBrand = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {

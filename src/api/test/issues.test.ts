@@ -1,4 +1,4 @@
-import { Iterable } from 'effect'
+import { Schema, Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { issuesTools } from '#api/mcp/issues.ts'
@@ -23,6 +23,7 @@ import {
   toolError,
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, JsonListResponse, TitleListResponse, readNativeJson } from './response-json.ts'
 
 const callMcpTool = async function callMcpTool(
   workspaceId: string,
@@ -94,7 +95,7 @@ describe('issues API', () => {
       body: JSON.stringify({ priority: 'high', projectId, title: 'First issue' }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string }
+    const body = await readNativeJson(res, IdResponse)
     expect(body.id).toBeTruthy()
   })
 
@@ -110,7 +111,7 @@ describe('issues API', () => {
       body: JSON.stringify({ projectId, title: 'Author kind test' }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string }
+    const body = await readNativeJson(res, IdResponse)
 
     const row = await env.DB.prepare('SELECT author_kind FROM issues WHERE id = ?')
       .bind(body.id)
@@ -145,7 +146,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Wiki full-text search' }),
     })
-    const created = (await createRes.json()) as { id: string; number: number }
+    const created = await readNativeJson(createRes, Schema.Struct({ id: Schema.String, number: Schema.Number }))
 
     const { page } = await listIssues()
     expect(page.items[0].url).toBe(`/projects/PROJ/issues/${created.number}/wiki-full-text-search`)
@@ -153,7 +154,7 @@ describe('issues API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${created.id}`, {
       headers: authHeaders(token, slug),
     })
-    const fetched = (await getRes.json()) as { url: string }
+    const fetched = await readNativeJson(getRes, Schema.Struct({ url: Schema.String }))
     expect(fetched.url).toBe(`/projects/PROJ/issues/${created.number}/wiki-full-text-search`)
   })
 
@@ -185,8 +186,8 @@ describe('issues API', () => {
     ])
     expect(res1.status).toBe(201)
     expect(res2.status).toBe(201)
-    const { number: n1 } = (await res1.json()) as { number: number }
-    const { number: n2 } = (await res2.json()) as { number: number }
+    const { number: n1 } = await readNativeJson(res1, Schema.Struct({ number: Schema.Number }))
+    const { number: n2 } = await readNativeJson(res2, Schema.Struct({ number: Schema.Number }))
     expect(n1).not.toBe(n2)
   })
 
@@ -196,7 +197,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'To update' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
@@ -208,7 +209,7 @@ describe('issues API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { status: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ status: Schema.String }))
     expect(issue.status).toBe('in_progress')
   })
 
@@ -218,7 +219,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'To delete' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
@@ -242,7 +243,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'In progress item' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
     await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -277,12 +278,12 @@ describe('issues API', () => {
       }),
     })
     expect(res.status).toBe(201)
-    const { id } = (await res.json()) as { id: string }
+    const { id } = await readNativeJson(res, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { assignee_id: string; labels: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ assignee_id: Schema.String, labels: Schema.String }))
     expect(issue.assignee_id).toBe(assignee.id)
     expect(JSON.parse(issue.labels)).toStrictEqual(['bug', 'urgent'])
   })
@@ -296,7 +297,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Unassigned' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
@@ -308,7 +309,7 @@ describe('issues API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { assignee_id: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ assignee_id: Schema.String }))
     expect(issue.assignee_id).toBe(assignee.id)
   })
 
@@ -318,7 +319,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Label test', labels: ['old'] }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
@@ -329,7 +330,7 @@ describe('issues API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { labels: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ labels: Schema.String }))
     expect(JSON.parse(issue.labels)).toStrictEqual(['new', 'tag'])
   })
 
@@ -470,7 +471,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(200)
-    const issue = (await getRes.json()) as { title: string; project_key: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ project_key: Schema.String, title: Schema.String }))
     expect(issue.title).toBe('Ref issue')
     expect(issue.project_key).toBe('PROJ')
   })
@@ -483,13 +484,13 @@ describe('issues API', () => {
       body: JSON.stringify({ projectId: digitProject.id, title: 'Digit-key ref issue' }),
     })
     expect(createRes.status).toBe(201)
-    const created = (await createRes.json()) as { id: string; number: number }
+    const created = await readNativeJson(createRes, Schema.Struct({ id: Schema.String, number: Schema.Number }))
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/WEB2-${created.number}`, {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(200)
-    const issue = (await getRes.json()) as { title: string; project_key: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ project_key: Schema.String, title: Schema.String }))
     expect(issue.title).toBe('Digit-key ref issue')
     expect(issue.project_key).toBe('WEB2')
 
@@ -518,7 +519,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(200)
-    const issue = (await getRes.json()) as { project_key: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ project_key: Schema.String }))
     expect(issue.project_key).toBe('PROJ')
   })
 
@@ -546,7 +547,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Authentication bug')
   })
@@ -566,7 +567,7 @@ describe('issues API', () => {
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=wrangler', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Some issue')
   })
@@ -593,7 +594,7 @@ describe('issues API', () => {
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=unique-sentinel', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Workspace A issue')
   })
@@ -618,7 +619,7 @@ describe('issues API', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/search?q=shared-term&projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Alpha project issue')
   })
@@ -633,14 +634,19 @@ describe('issues API', () => {
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=Field+check', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as {
-      id: string
-      number: number
-      title: string
-      status: string
-      priority: string
-      project_key: string
-    }[]
+    const results = await readNativeJson(
+      res,
+      Schema.Array(
+        Schema.Struct({
+          id: Schema.String,
+          number: Schema.Number,
+          priority: Schema.String,
+          project_key: Schema.String,
+          status: Schema.String,
+          title: Schema.String,
+        }),
+      ).pipe(Schema.mutable),
+    )
     expect(results).toHaveLength(1)
     expect(results[0].project_key).toBe('PROJ')
     expect(results[0].status).toBeDefined()
@@ -681,7 +687,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results).toHaveLength(2)
     expect(results[0].title).toBe('Authentication bug')
   })
@@ -711,7 +717,7 @@ describe('issues API', () => {
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=fts-sentinel', {
       headers: authHeaders(token, slug),
     })
-    const results = (await res.json()) as { title: string }[]
+    const results = await readNativeJson(res, TitleListResponse)
     expect(results).toHaveLength(1)
     expect(results[0].title).toBe('Primary workspace fts-sentinel')
   })
@@ -726,7 +732,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as unknown[]
+    const results = await readNativeJson(res, JsonListResponse)
     expect(results).toHaveLength(0)
   })
 
@@ -740,7 +746,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const results = (await res.json()) as unknown[]
+    const results = await readNativeJson(res, JsonListResponse)
     expect(results).toHaveLength(0)
   })
 
@@ -752,7 +758,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent issue' }),
     })
-    const { id: parentId } = (await parentRes.json()) as { id: string }
+    const { id: parentId } = await readNativeJson(parentRes, IdResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -760,12 +766,12 @@ describe('issues API', () => {
       body: JSON.stringify({ parentId, projectId, title: 'Child issue' }),
     })
     expect(childRes.status).toBe(201)
-    const { id: childId } = (await childRes.json()) as { id: string }
+    const { id: childId } = await readNativeJson(childRes, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${childId}`, {
       headers: authHeaders(token, slug),
     })
-    const child = (await getRes.json()) as { parent_id: string }
+    const child = await readNativeJson(getRes, Schema.Struct({ parent_id: Schema.String }))
     expect(child.parent_id).toBe(parentId)
   })
 
@@ -775,7 +781,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent for rollup' }),
     })
-    const { id: parentId } = (await parentRes.json()) as { id: string }
+    const { id: parentId } = await readNativeJson(parentRes, IdResponse)
 
     // Create 3 children: 2 backlog, 1 done
     await seedIssue(workspaceId, projectId, userId, { parentId, status: 'backlog' })
@@ -799,7 +805,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Childless issue' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
@@ -817,14 +823,14 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent' }),
     })
-    const { id: parentId } = (await parentRes.json()) as { id: string }
+    const { id: parentId } = await readNativeJson(parentRes, IdResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Child (no parent yet)' }),
     })
-    const { id: childId } = (await childRes.json()) as { id: string }
+    const { id: childId } = await readNativeJson(childRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${childId}`, {
       method: 'PATCH',
@@ -836,7 +842,7 @@ describe('issues API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${childId}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { parent_id: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ parent_id: Schema.String }))
     expect(issue.parent_id).toBe(parentId)
   })
 
@@ -846,14 +852,14 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent to detach from' }),
     })
-    const { id: parentId } = (await parentRes.json()) as { id: string }
+    const { id: parentId } = await readNativeJson(parentRes, IdResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId, projectId, title: 'Child' }),
     })
-    const { id: childId } = (await childRes.json()) as { id: string }
+    const { id: childId } = await readNativeJson(childRes, IdResponse)
 
     await fetchNativeApi(`http://localhost/api/issues/${childId}`, {
       method: 'PATCH',
@@ -864,7 +870,7 @@ describe('issues API', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${childId}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { parent_id: string | null }
+    const issue = await readNativeJson(getRes, Schema.Struct({ parent_id: Schema.Union([Schema.String, Schema.Null]) }))
     expect(issue.parent_id).toBeNull()
   })
 
@@ -875,7 +881,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Self-ref' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
@@ -1047,7 +1053,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent issue' }),
     })
-    const { id: parentId } = (await r1.json()) as { id: string }
+    const { id: parentId } = await readNativeJson(r1, IdResponse)
 
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -1311,7 +1317,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Parent with children' }),
     })
-    const { id: parentId } = (await parentRes.json()) as { id: string }
+    const { id: parentId } = await readNativeJson(parentRes, IdResponse)
     await seedIssue(workspaceId, projectId, userId, { parentId, status: 'backlog' })
     await seedIssue(workspaceId, projectId, userId, { parentId, status: 'backlog' })
     await seedIssue(workspaceId, projectId, userId, { parentId, status: 'done' })
@@ -1346,14 +1352,17 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Cross-project parent' }),
     })
-    const { id: parentId } = (await parentRes.json()) as { id: string }
+    const { id: parentId } = await readNativeJson(parentRes, IdResponse)
     await seedIssue(workspaceId, otherProject.id, userId, { parentId, status: 'done' })
 
     // getIssue's own rollup (unaffected by this change) — the baseline to match.
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${parentId}`, {
       headers: authHeaders(token, slug),
     })
-    const single = (await getRes.json()) as { rollup: { total: number; done: number } }
+    const single = await readNativeJson(
+      getRes,
+      Schema.Struct({ rollup: Schema.Struct({ done: Schema.Number, total: Schema.Number }) }),
+    )
     expect(single.rollup.total).toBe(1)
     expect(single.rollup.done).toBe(1)
 
@@ -1371,7 +1380,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Category-divergent parent' }),
     })
-    const { id: parentId } = (await parentRes.json()) as { id: string }
+    const { id: parentId } = await readNativeJson(parentRes, IdResponse)
     const { id: childId } = await seedIssue(workspaceId, projectId, userId, {
       parentId,
       status: 'backlog',
@@ -1475,7 +1484,7 @@ describe('issues MCP — typeId', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { type_id: string; type_key: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ type_id: Schema.String, type_key: Schema.String }))
     expect(issue.type_id).toBe(typeId)
     expect(issue.type_key).toBe('epic')
   })
@@ -1504,7 +1513,7 @@ describe('issues MCP — typeId', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { type_id: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ type_id: Schema.String }))
     expect(issue.type_id).toBe(hashId)
   })
 
@@ -1523,7 +1532,7 @@ describe('issues MCP — typeId', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { type_id: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ type_id: Schema.String }))
     expect(issue.type_id).toBe(typeId)
   })
 
@@ -1541,7 +1550,7 @@ describe('issues MCP — typeId', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { type_id: string | null }
+    const issue = await readNativeJson(getRes, Schema.Struct({ type_id: Schema.Union([Schema.String, Schema.Null]) }))
     expect(issue.type_id).toBeNull()
   })
 
@@ -1576,7 +1585,7 @@ describe('issues MCP — typeId', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${epicId}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { type_id: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ type_id: Schema.String }))
     expect(issue.type_id).toBe(epicTypeId)
   })
 
@@ -1604,7 +1613,7 @@ describe('issues MCP — typeId', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${parentId}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { type_id: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ type_id: Schema.String }))
     expect(issue.type_id).toBe(bugTypeId)
   })
 
@@ -1627,7 +1636,7 @@ describe('issues MCP — typeId', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${epicId}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { type_id: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ type_id: Schema.String }))
     expect(issue.type_id).toBe(storyTypeId)
   })
 
@@ -1725,7 +1734,7 @@ describe('issues KV cache', () => {
       },
       body: JSON.stringify({ projectId, title: 'Cache me' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     // First GET populates KV cache
     const first = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
@@ -1735,7 +1744,7 @@ describe('issues KV cache', () => {
         'Content-Type': 'application/json',
       },
     })
-    const firstIssue = (await first.json()) as { title: string }
+    const firstIssue = await readNativeJson(first, Schema.Struct({ title: Schema.String }))
     expect(firstIssue.title).toBe('Cache me')
 
     // Change the row AND add a child behind the service's back: the row is re-read
@@ -1758,7 +1767,10 @@ describe('issues KV cache', () => {
         'Content-Type': 'application/json',
       },
     })
-    const secondIssue = (await second.json()) as { title: string; rollup: { total: number } }
+    const secondIssue = await readNativeJson(
+      second,
+      Schema.Struct({ rollup: Schema.Struct({ total: Schema.Number }), title: Schema.String }),
+    )
     expect(secondIssue.title).toBe('D1 was read')
     expect(secondIssue.rollup.total).toBe(0)
   })
@@ -1773,7 +1785,7 @@ describe('issues KV cache', () => {
       },
       body: JSON.stringify({ projectId, title: 'Before update' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     // Warm the cache
     await fetchNativeApi(`http://localhost/api/issues/${id}`, {
@@ -1803,7 +1815,7 @@ describe('issues KV cache', () => {
         'Content-Type': 'application/json',
       },
     })
-    const issue = (await getRes.json()) as { title: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ title: Schema.String }))
     expect(issue.title).toBe('After update')
   })
 
@@ -1822,7 +1834,7 @@ describe('issues KV cache', () => {
       },
       body: JSON.stringify({ projectId, title: 'Cache me by ref' }),
     })
-    const { id, number } = (await createRes.json()) as { id: string; number: number }
+    const { id, number } = await readNativeJson(createRes, Schema.Struct({ id: Schema.String, number: Schema.Number }))
     const ref = `PROJ-${number}`
 
     // First GET by ref populates KV cache
@@ -1833,7 +1845,7 @@ describe('issues KV cache', () => {
         'Content-Type': 'application/json',
       },
     })
-    const firstIssue = (await first.json()) as { title: string }
+    const firstIssue = await readNativeJson(first, Schema.Struct({ title: Schema.String }))
     expect(firstIssue.title).toBe('Cache me by ref')
 
     // Change the row AND add a child behind the service's back: the row is re-read
@@ -1856,7 +1868,10 @@ describe('issues KV cache', () => {
         'Content-Type': 'application/json',
       },
     })
-    const secondIssue = (await second.json()) as { title: string; rollup: { total: number } }
+    const secondIssue = await readNativeJson(
+      second,
+      Schema.Struct({ rollup: Schema.Struct({ total: Schema.Number }), title: Schema.String }),
+    )
     expect(secondIssue.title).toBe('D1 was read')
     expect(secondIssue.rollup.total).toBe(0)
   })
@@ -1887,7 +1902,7 @@ describe('issues role guards', () => {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: project.id, title: 'Issue to patch' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
@@ -1906,7 +1921,7 @@ describe('issues role guards', () => {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: project.id, title: 'Issue to delete' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(roles.member.token, roles.workspace.slug),
@@ -1924,7 +1939,7 @@ describe('issues role guards', () => {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: project.id, title: 'Issue to delete' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
@@ -2504,7 +2519,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'To reassign' }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
@@ -2522,7 +2537,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Will be cleared', assigneeId: assignee.id }),
     })
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
@@ -2534,7 +2549,10 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { assignee_id: string | null }
+    const issue = await readNativeJson(
+      getRes,
+      Schema.Struct({ assignee_id: Schema.Union([Schema.String, Schema.Null]) }),
+    )
     expect(issue.assignee_id).toBeNull()
   })
 
@@ -2594,7 +2612,10 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { assignee_id: string | null }
+    const issue = await readNativeJson(
+      getRes,
+      Schema.Struct({ assignee_id: Schema.Union([Schema.String, Schema.Null]) }),
+    )
     expect(issue.assignee_id).toBeNull()
   })
 })
@@ -2816,7 +2837,10 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const data = (await res.json()) as { items: { title: string }[] }
+    const dataShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable),
+    })
+    const data = await readNativeJson(res, dataShape)
     expect(data.items.map((item) => item.title).sort()).toEqual(['REST Batch A', 'REST Batch B'])
   })
 
@@ -2910,7 +2934,11 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       { headers: authHeaders(token, slug) },
     )
     expect(res.status).toBe(200)
-    const data = (await res.json()) as { items: { id: string }[]; missing: string[] }
+    const dataShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+      missing: Schema.Array(Schema.String).pipe(Schema.mutable),
+    })
+    const data = await readNativeJson(res, dataShape)
     expect(data.items.map((item) => item.id)).toEqual([issue.id])
     expect(data.missing).toEqual([gone])
 
@@ -2953,7 +2981,11 @@ describe('covers PROJ-931 — get_issues project visibility', () => {
       `http://localhost/api/issues/batch?refs=${hiddenRef},${visibleRef}&ids=${hidden.id}`,
       { headers: authHeaders(roles.member.token, roles.workspace.slug) },
     )
-    const restData = (await rest.json()) as { items: { id: string }[]; missing: string[] }
+    const restDataShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+      missing: Schema.Array(Schema.String).pipe(Schema.mutable),
+    })
+    const restData = await readNativeJson(rest, restDataShape)
     expect(restData.items.map((item) => item.id)).toEqual([visible.id])
     expect(restData.missing).toEqual([hiddenRef, hidden.id])
   })

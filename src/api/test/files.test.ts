@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -18,6 +19,7 @@ import {
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
+import { ErrorMessageResponse, IdAndSlugResponse, IdResponse, readNativeJson } from './response-json.ts'
 
 const ENTITY_ID = crypto.randomUUID()
 
@@ -98,13 +100,18 @@ describe('files API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const list = (await res.json()) as {
-      id: string
-      filename: string
-      contentType: string
-      size: number
-      createdAt: number
-    }[]
+    const list = await readNativeJson(
+      res,
+      Schema.Array(
+        Schema.Struct({
+          contentType: Schema.String,
+          createdAt: Schema.Number,
+          filename: Schema.String,
+          id: Schema.String,
+          size: Schema.Number,
+        }),
+      ).pipe(Schema.mutable),
+    )
     expect(list).toHaveLength(2)
     expect(list.map((f) => f.filename).sort()).toEqual(['a.txt', 'b.txt'])
     expect(list[0]).toMatchObject({ contentType: 'text/plain' })
@@ -128,12 +135,10 @@ describe('files API', () => {
   test('handles POST /api/files uploads and returns file metadata', async () => {
     const res = await makeUploadRequest(token, slug)
     expect(res.status).toBe(201)
-    const body = (await res.json()) as {
-      id: string
-      filename: string
-      contentType: string
-      size: number
-    }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ contentType: Schema.String, filename: Schema.String, id: Schema.String, size: Schema.Number }),
+    )
     expect(body.id).toBeTruthy()
     expect(body.filename).toBe('test.txt')
     expect(body.contentType).toBe('text/plain')
@@ -142,7 +147,7 @@ describe('files API', () => {
 
   test('handles GET /api/files/:id returns the uploaded content', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'round-trip content', 'data.txt')
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(token, slug),
@@ -172,7 +177,7 @@ describe('files API', () => {
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
     })
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(token, slug),
@@ -184,13 +189,16 @@ describe('files API', () => {
 
   test('handles GET /api/files/:id/metadata returns the attachment metadata', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'meta content', 'meta.txt')
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/files/${id}/metadata`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { id: string; filename: string; contentType: string }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ contentType: Schema.String, filename: Schema.String, id: Schema.String }),
+    )
     expect(body.id).toBe(id)
     expect(body.filename).toBe('meta.txt')
     expect(body.contentType).toBe('text/plain')
@@ -205,7 +213,7 @@ describe('files API', () => {
 
   test('handles DELETE /api/files/:id removes the file', async () => {
     const uploadRes = await makeUploadRequest(token, slug)
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(token, slug),
@@ -225,7 +233,7 @@ describe('files API', () => {
    */
   test('handles GET /api/files/:id resolves the workspace from a ?workspace= query param when no header is sent', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'query-param content', 'q.txt')
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/files/${id}?workspace=${slug}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -236,7 +244,7 @@ describe('files API', () => {
 
   test('handles GET /api/files/:id via ?workspace= still 404s for a file in a different workspace', async () => {
     const uploadRes = await makeUploadRequest(token, slug, 'content', 'q2.txt')
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const other = await seedFixture()
     const getRes = await fetchNativeApi(`http://localhost/api/files/${id}?workspace=${other.workspace.slug}`, {
@@ -260,7 +268,7 @@ describe('files API', () => {
 
   test('handles GET /api/files/:id returns 404 for a different workspace', async () => {
     const uploadRes = await makeUploadRequest(token, slug)
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     // Second workspace — different member
     const other = await seedFixture()
@@ -273,7 +281,7 @@ describe('files API', () => {
 
   test('handles DELETE /api/files/:id returns 404 when accessed from a different workspace', async () => {
     const uploadRes = await makeUploadRequest(token, slug)
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const other = await seedFixture()
 
@@ -320,7 +328,7 @@ describe('files API', () => {
       body: form,
     })
     expect(res.status).toBe(415)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toBe('File type not allowed')
   })
 
@@ -335,7 +343,7 @@ describe('files API', () => {
       body: form,
     })
     expect(res.status).toBe(415)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toBe('File type not allowed')
   })
 
@@ -351,7 +359,7 @@ describe('files API', () => {
       body: form,
     })
     expect(res.status).toBe(413)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toBe('File too large (max 50 MB)')
   })
 
@@ -367,7 +375,7 @@ describe('files API', () => {
       body: form,
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string; filename: string }
+    const body = await readNativeJson(res, Schema.Struct({ filename: Schema.String, id: Schema.String }))
     expect(body.filename).toBe('wiki.txt')
 
     // Can list the attachment back
@@ -375,7 +383,10 @@ describe('files API', () => {
       headers: authHeaders(token, slug),
     })
     expect(listRes.status).toBe(200)
-    const list = (await listRes.json()) as { filename: string }[]
+    const list = await readNativeJson(
+      listRes,
+      Schema.Array(Schema.Struct({ filename: Schema.String })).pipe(Schema.mutable),
+    )
     expect(list).toHaveLength(1)
     expect(list[0].filename).toBe('wiki.txt')
   })
@@ -414,7 +425,7 @@ describe('files API', () => {
       body: form,
     })
     expect(res.status).toBe(413)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toBe('Workspace storage quota exceeded (1024 MB)')
   })
 
@@ -425,7 +436,7 @@ describe('files API', () => {
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: 'hello', title: 'Linked page' }),
       })
-      const body = (await res.json()) as { id: string }
+      const body = await readNativeJson(res, IdResponse)
       return body.id
     }
 
@@ -449,10 +460,16 @@ describe('files API', () => {
       const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as {
-        kind: string
-        wikiPage: { id: string; title: string; url: string } | null
-      }[]
+      const listShape = Schema.Array(
+        Schema.Struct({
+          kind: Schema.String,
+          wikiPage: Schema.Union([
+            Schema.Struct({ id: Schema.String, title: Schema.String, url: Schema.String }),
+            Schema.Null,
+          ]),
+        }),
+      ).pipe(Schema.mutable)
+      const list = await readNativeJson(listRes, listShape)
       const entry = list.find((l) => l.kind === 'wiki_ref')
       expect(entry?.wikiPage?.title).toBe('Linked page')
       expect(entry?.wikiPage?.id).toBe(wikiPageId)
@@ -490,11 +507,14 @@ describe('files API', () => {
       const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as {
-        kind: string
-        filename: string
-        url: string | null
-      }[]
+      const listShape = Schema.Array(
+        Schema.Struct({
+          filename: Schema.String,
+          kind: Schema.String,
+          url: Schema.Union([Schema.String, Schema.Null]),
+        }),
+      ).pipe(Schema.mutable)
+      const list = await readNativeJson(listRes, listShape)
       const entry = list.find((l) => l.kind === 'url')
       expect(entry?.filename).toBe('Design doc')
       expect(entry?.url).toBe('https://example.com/doc')
@@ -543,7 +563,7 @@ describe('files API', () => {
           url: 'https://example.com',
         }),
       })
-      const { id } = (await createRes.json()) as { id: string }
+      const { id } = await readNativeJson(createRes, IdResponse)
 
       const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
         headers: authHeaders(token, slug),
@@ -572,7 +592,7 @@ describe('files API', () => {
           projectId: project.id,
         }),
       })
-      const { id: restrictedPageId } = (await pageRes.json()) as { id: string }
+      const { id: restrictedPageId } = await readNativeJson(pageRes, IdResponse)
 
       const res = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
@@ -603,7 +623,7 @@ describe('files API', () => {
           projectId: project.id,
         }),
       })
-      const { id: restrictedPageId } = (await pageRes.json()) as { id: string }
+      const { id: restrictedPageId } = await readNativeJson(pageRes, IdResponse)
 
       /*
        * Admin attaches it to an entity — the attachment itself is workspace-visible,
@@ -625,7 +645,10 @@ describe('files API', () => {
       const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: authHeaders(token, slug),
       })
-      const list = (await listRes.json()) as { kind: string; wikiPage: unknown }[]
+      const list = await readNativeJson(
+        listRes,
+        Schema.Array(Schema.Struct({ kind: Schema.String, wikiPage: Schema.Unknown })).pipe(Schema.mutable),
+      )
       const entry = list.find((l) => l.kind === 'wiki_ref')
       expect(entry?.wikiPage).toBeNull()
     })
@@ -645,10 +668,7 @@ describe('files API', () => {
         headers: adminHeaders,
         body: JSON.stringify({ content: 'will be deleted', title: 'Doomed page' }),
       })
-      const { id: wikiPageId, slug: wikiPageSlug } = (await pageRes.json()) as {
-        id: string
-        slug: string
-      }
+      const { id: wikiPageId, slug: wikiPageSlug } = await readNativeJson(pageRes, IdAndSlugResponse)
 
       const entityId = crypto.randomUUID()
       const linkRes = await fetchNativeApi('http://localhost/api/files/links', {
@@ -672,7 +692,12 @@ describe('files API', () => {
       const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: adminHeaders,
       })
-      const list = (await listRes.json()) as { kind: string; id: string; wikiPage: unknown }[]
+      const list = await readNativeJson(
+        listRes,
+        Schema.Array(Schema.Struct({ id: Schema.String, kind: Schema.String, wikiPage: Schema.Unknown })).pipe(
+          Schema.mutable,
+        ),
+      )
       const trashedEntry = list.find((l) => l.kind === 'wiki_ref')
       expect(trashedEntry).toBeDefined()
       /*
@@ -705,7 +730,10 @@ describe('files API', () => {
       const listAfterPurge = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: adminHeaders,
       })
-      const listAfter = (await listAfterPurge.json()) as { kind: string }[]
+      const listAfter = await readNativeJson(
+        listAfterPurge,
+        Schema.Array(Schema.Struct({ kind: Schema.String })).pipe(Schema.mutable),
+      )
       expect(listAfter.find((l) => l.kind === 'wiki_ref')).toBeUndefined()
     })
   })
@@ -754,7 +782,7 @@ describe('files API', () => {
         headers: { Authorization: `Bearer ${owner.token}`, 'X-Workspace-Slug': workspace.slug },
         body: form,
       })
-      const { id } = (await uploadRes.json()) as { id: string }
+      const { id } = await readNativeJson(uploadRes, IdResponse)
 
       const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
         headers: authHeaders(viewer.token, workspace.slug),
@@ -863,7 +891,7 @@ describe('files MCP tools', () => {
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
     })
-    const { id } = (await uploadRes.json()) as { id: string }
+    const { id } = await readNativeJson(uploadRes, IdResponse)
 
     const row = await env.DB.prepare('SELECT r2_key FROM attachments WHERE id = ?').bind(id).first<{ r2_key: string }>()
     await expect(env.R2.get(row?.r2_key ?? '')).resolves.not.toBeNull()

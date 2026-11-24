@@ -8,6 +8,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 interface FlowMetrics {
   leadTime: Distribution
@@ -84,7 +85,7 @@ describe('flow metrics (PROJ-252)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'flow-metrics-test-agent' }),
     })
-    const session = (await res.json()) as { id: string }
+    const session = await readNativeJson(res, IdResponse)
     return session.id
   }
 

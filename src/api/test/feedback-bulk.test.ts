@@ -1,9 +1,10 @@
-import { Iterable } from 'effect'
+import { Schema, Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 const mintSource = async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
@@ -148,7 +149,7 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
       },
     )
     expect(res.status).toBe(201)
-    const created = (await res.json()) as { id: string; convertedCount: number }
+    const created = await readNativeJson(res, Schema.Struct({ convertedCount: Schema.Number, id: Schema.String }))
     expect(created.convertedCount).toBe(2)
 
     const rows = await env.DB.prepare('SELECT linked_issue_id, status FROM feedback WHERE id IN (?, ?)')

@@ -10,6 +10,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 describe('covers PROJ-858: batched slug link resolution on save', () => {
   afterEach(() => vi.restoreAllMocks())
@@ -81,7 +82,7 @@ describe('covers PROJ-858: batched slug link resolution on save', () => {
     const wikiReads = sqls.filter((q) => /^select/i.test(q.trim()) && /from "?wiki_(pages|redirects)"?/i.test(q))
     expect(wikiReads.length).toBeLessThanOrEqual(12)
 
-    const { id: hubId } = (await res.json()) as { id: string }
+    const { id: hubId } = await readNativeJson(res, IdResponse)
     const rows = await env.DB.prepare('SELECT target_page_id, target_title FROM wiki_links WHERE source_page_id = ?')
       .bind(hubId)
       .all<{ target_page_id: string | null; target_title: string }>()

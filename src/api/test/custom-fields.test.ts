@@ -1,4 +1,4 @@
-import { Iterable } from 'effect'
+import { Schema, Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { batchLoadCustomFields } from '#commands/custom-fields.ts'
@@ -19,6 +19,7 @@ import {
   seedUser,
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
 
 // ─── Definition CRUD ──────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ describe('custom Field Definitions API', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const list = (await res.json()) as unknown[]
+    const list = await readNativeJson(res, JsonListResponse)
     expect(Array.isArray(list)).toBe(true)
     expect(list).toHaveLength(0)
   })
@@ -51,7 +52,7 @@ describe('custom Field Definitions API', () => {
       body: JSON.stringify({ key: 'sprint', label: 'Sprint', type: 'text' }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { id: string; key: string }
+    const body = await readNativeJson(res, Schema.Struct({ id: Schema.String, key: Schema.String }))
     expect(body.id).toBeTruthy()
     expect(body.key).toBe('sprint')
   })
@@ -128,7 +129,10 @@ describe('custom Field Definitions API', () => {
     const listRes = await fetchNativeApi('http://localhost/api/custom-fields', {
       headers: authHeaders(token, slug),
     })
-    const list = (await listRes.json()) as { key: string; label: string }[]
+    const list = await readNativeJson(
+      listRes,
+      Schema.Array(Schema.Struct({ key: Schema.String, label: Schema.String })).pipe(Schema.mutable),
+    )
     expect(list.find((f) => f.key === 'sp')?.label).toBe('Points')
   })
 
@@ -168,7 +172,7 @@ describe('custom Field Definitions API', () => {
     const listRes = await fetchNativeApi('http://localhost/api/custom-fields', {
       headers: authHeaders(token, slug),
     })
-    const list = (await listRes.json()) as unknown[]
+    const list = await readNativeJson(listRes, JsonListResponse)
     expect(list).toHaveLength(0)
   })
 
@@ -194,7 +198,7 @@ describe('custom Field Definitions API', () => {
     const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       headers: authHeaders(other.token, other.workspace.slug),
     })
-    const list = (await res.json()) as unknown[]
+    const list = await readNativeJson(res, JsonListResponse)
     expect(list).toHaveLength(0)
   })
 })
@@ -316,12 +320,15 @@ describe('custom Fields — resolved on read', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'With SP', customFields: { sp: '8' } }),
     })
-    const { id: issueId } = (await res.json()) as { id: string }
+    const { id: issueId } = await readNativeJson(res, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { customFields: { key: string; value: string }[] }
+    const issueShape = Schema.Struct({
+      customFields: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })).pipe(Schema.mutable),
+    })
+    const issue = await readNativeJson(getRes, issueShape)
     expect(Array.isArray(issue.customFields)).toBe(true)
     const sp = issue.customFields.find((field) => field.key === 'sp')
     expect(sp?.value).toBe('8')
@@ -360,7 +367,7 @@ describe('custom Fields — resolved on read', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'SP issue', customFields: { sp: '3' } }),
     })
-    const { id: issueId } = (await createRes.json()) as { id: string }
+    const { id: issueId } = await readNativeJson(createRes, IdResponse)
 
     await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
       method: 'PATCH',
@@ -371,7 +378,10 @@ describe('custom Fields — resolved on read', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
       headers: authHeaders(token, slug),
     })
-    const issue = (await getRes.json()) as { customFields: { key: string; value: string }[] }
+    const issueShape = Schema.Struct({
+      customFields: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })).pipe(Schema.mutable),
+    })
+    const issue = await readNativeJson(getRes, issueShape)
     expect(issue.customFields.find((field) => field.key === 'sp')?.value).toBe('13')
   })
 
@@ -382,7 +392,10 @@ describe('custom Fields — resolved on read', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
-    const body = (await res.json()) as { customFields: unknown[] }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ customFields: Schema.Array(Schema.Unknown).pipe(Schema.mutable) }),
+    )
     expect(Array.isArray(body.customFields)).toBe(true)
     expect(body.customFields).toHaveLength(0)
   })
@@ -416,7 +429,10 @@ describe('custom Fields — list_issues filter', () => {
     const res = await fetchNativeApi('http://localhost/api/issues?cfKey=sp&cfOp=eq&cfValue=5', {
       headers: authHeaders(token, slug),
     })
-    const page = (await res.json()) as { items: { title: string }[] }
+    const pageShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable),
+    })
+    const page = await readNativeJson(res, pageShape)
     expect(page.items).toHaveLength(1)
     expect(page.items[0].title).toBe('SP5')
   })
@@ -438,7 +454,10 @@ describe('custom Fields — list_issues filter', () => {
     const res = await fetchNativeApi('http://localhost/api/issues?cfKey=sp&cfOp=gt&cfValue=5', {
       headers: authHeaders(token, slug),
     })
-    const page = (await res.json()) as { items: { title: string }[] }
+    const pageShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable),
+    })
+    const page = await readNativeJson(res, pageShape)
     expect(page.items).toHaveLength(2)
     const titles = page.items.map((item) => item.title).sort()
     expect(titles).toEqual(['SP13', 'SP8'])

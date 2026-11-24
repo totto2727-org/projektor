@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { Hono } from 'hono'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
@@ -12,6 +13,7 @@ import type { AuthInfo, HonoEnv } from '#types'
 import { env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 describe('covers PROJ-889: MCP mutations broadcast like REST', () => {
   test('add_comment over MCP posts a realtime event to the workspace hub', async () => {
@@ -29,7 +31,11 @@ describe('covers PROJ-889: MCP mutations broadcast like REST', () => {
       }),
     })
     expect(res.status).toBe(200)
-    const rpc = (await res.json()) as { error?: unknown; result?: { isError?: boolean } }
+    const rpcShape = Schema.Struct({
+      error: Schema.optional(Schema.Unknown),
+      result: Schema.optional(Schema.Struct({ isError: Schema.optional(Schema.Boolean) })),
+    })
+    const rpc = await readNativeJson(res, rpcShape)
     expect(rpc.error).toBeUndefined()
     expect(rpc.result).toBeDefined()
     expect(rpc.result?.isError).not.toBe(true)

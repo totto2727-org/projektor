@@ -1,4 +1,4 @@
-import { String, Predicate } from 'effect'
+import { Schema, String, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { fetchAgentWipCap } from '#commands/issue-leases.ts'
@@ -9,6 +9,7 @@ import { drizzle, schema } from '#db'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedFixture, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, ItemsResponse, RpcTextResponse, readNativeJson } from './response-json.ts'
 
 describe('issue leases API (PROJ-184)', () => {
   let token: string
@@ -27,7 +28,7 @@ describe('issue leases API (PROJ-184)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name }),
     })
-    const session = (await res.json()) as { id: string }
+    const session = await readNativeJson(res, IdResponse)
     return session.id
   }
 
@@ -61,7 +62,7 @@ describe('issue leases API (PROJ-184)', () => {
 
     const res = await claim(issue.id, agent)
     expect(res.status).toBe(201)
-    const lease = (await res.json()) as { issueId: string; agentSessionId: string }
+    const lease = await readNativeJson(res, Schema.Struct({ agentSessionId: Schema.String, issueId: Schema.String }))
     expect(lease.issueId).toBe(issue.id)
     expect(lease.agentSessionId).toBe(agent)
   })
@@ -89,7 +90,7 @@ describe('issue leases API (PROJ-184)', () => {
 
     const res = await claim(issue.id, a2)
     expect(res.status).toBe(201)
-    const lease = (await res.json()) as { agentSessionId: string }
+    const lease = await readNativeJson(res, Schema.Struct({ agentSessionId: Schema.String }))
     expect(lease.agentSessionId).toBe(a2)
   })
 
@@ -138,7 +139,10 @@ describe('issue leases API (PROJ-184)', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { items: { agentSessionId: string; live: boolean }[] }
+    const bodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ agentSessionId: Schema.String, live: Schema.Boolean })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.items).toHaveLength(1)
     expect(body.items[0].agentSessionId).toBe(a1)
     expect(body.items[0].live).toBe(true)
@@ -152,7 +156,7 @@ describe('issue leases API (PROJ-184)', () => {
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ name: 'intruder' }),
     })
-    const otherAgent = (await otherAgentRes.json()) as { id: string }
+    const otherAgent = await readNativeJson(otherAgentRes, IdResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/claim`, {
       method: 'POST',
@@ -187,9 +191,12 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
         params: { name: 'get_prioritized_issues', arguments: args },
       }),
     })
-    const json = (await res.json()) as {
-      result?: { content: { text: string }[] }
-    }
+    const jsonShape = Schema.Struct({
+      result: Schema.optional(
+        Schema.Struct({ content: Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable) }),
+      ),
+    })
+    const json = await readNativeJson(res, jsonShape)
     const text = json.result?.content?.[0]?.text ?? '{}'
     return JSON.parse(text) as { issues: { id: string }[] }
   }
@@ -203,7 +210,7 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'worker' }),
     })
-    const agent = (await agentRes.json()) as { id: string }
+    const agent = await readNativeJson(agentRes, IdResponse)
     await fetchNativeApi(`http://localhost/api/issues/${issue.id}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -241,7 +248,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name }),
     })
-    const session = (await res.json()) as { id: string }
+    const session = await readNativeJson(res, IdResponse)
     return session.id
   }
 
@@ -283,7 +290,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
     const res = await claim(issues[3].id, agent)
     expect(res.status).toBe(409)
-    const body = (await res.json()) as { error?: string }
+    const body = await readNativeJson(res, Schema.Struct({ error: Schema.optional(Schema.String) }))
     expect(JSON.stringify(body)).toMatch(/WIP limit/i)
   })
 
@@ -310,7 +317,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
 
     const res = await claim(issues[cap].id, agent)
     expect(res.status).toBe(409)
-    const body = (await res.json()) as { error?: string }
+    const body = await readNativeJson(res, Schema.Struct({ error: Schema.optional(Schema.String) }))
     /*
      * Anchored to the phrase, not a bare `toContain(String(cap))`: the message
      * also lists `cap` held issue UUIDs, and a single digit occurs in those by
@@ -412,9 +419,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
       }),
     })
     expect(mcpRes.status).toBe(200)
-    const body = (await mcpRes.json()) as {
-      result: { content: { text: string }[] }
-    }
+    const body = await readNativeJson(mcpRes, RpcTextResponse)
     const created = JSON.parse(body.result.content[0].text) as { id: string }
 
     const agent = await registerAgent('worker2')
@@ -526,7 +531,7 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name }),
     })
-    const session = (await res.json()) as { id: string }
+    const session = await readNativeJson(res, IdResponse)
     return session.id
   }
 
@@ -557,7 +562,12 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
         params: { name: 'list_issue_leases', arguments: args },
       }),
     })
-    const json = (await res.json()) as { result?: { content: { text: string }[] } }
+    const jsonShape = Schema.Struct({
+      result: Schema.optional(
+        Schema.Struct({ content: Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable) }),
+      ),
+    })
+    const json = await readNativeJson(res, jsonShape)
     const text = json.result?.content?.[0]?.text ?? '{}'
     return JSON.parse(text) as {
       items: { id: string; issueId: string; issueRef: string; live: boolean }[]
@@ -633,13 +643,13 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     const defaultRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/leases`, {
       headers: authHeaders(token, slug),
     })
-    const defaultBody = (await defaultRes.json()) as { items: unknown[] }
+    const defaultBody = await readNativeJson(defaultRes, ItemsResponse)
     expect(defaultBody.items).toHaveLength(0)
 
     const staleRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/leases?includeStale=true`, {
       headers: authHeaders(token, slug),
     })
-    const staleBody = (await staleRes.json()) as { items: unknown[] }
+    const staleBody = await readNativeJson(staleRes, ItemsResponse)
     expect(staleBody.items).toHaveLength(1)
   })
 
@@ -660,9 +670,17 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
       headers: authHeaders(token, slug),
     })
     expect(byIssue.status).toBe(200)
-    const byIssueBody = (await byIssue.json()) as {
-      items: { id: string; issueId: string; agentSessionId: string; issueRef: string }[]
-    }
+    const byIssueBodyShape = Schema.Struct({
+      items: Schema.Array(
+        Schema.Struct({
+          agentSessionId: Schema.String,
+          id: Schema.String,
+          issueId: Schema.String,
+          issueRef: Schema.String,
+        }),
+      ).pipe(Schema.mutable),
+    })
+    const byIssueBody = await readNativeJson(byIssue, byIssueBodyShape)
     expect(byIssueBody.items).toHaveLength(1)
     expect(byIssueBody.items[0].issueId).toBe(issue.id)
     expect(byIssueBody.items[0].issueRef).toBe(`${projectKey}-${issue.number}`)
@@ -670,28 +688,38 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
     const byAgent = await fetchNativeApi(`http://localhost/api/issue-leases?agentId=${agent}`, {
       headers: authHeaders(token, slug),
     })
-    const byAgentBody = (await byAgent.json()) as { items: { agentSessionId: string }[] }
+    const byAgentBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ agentSessionId: Schema.String })).pipe(Schema.mutable),
+    })
+    const byAgentBody = await readNativeJson(byAgent, byAgentBodyShape)
     expect(byAgentBody.items.some((item) => item.agentSessionId === agent)).toBe(true)
 
     const byProjectKey = await fetchNativeApi(`http://localhost/api/issue-leases?projectId=${projectKey}`, {
       headers: authHeaders(token, slug),
     })
-    const byProjectKeyBody = (await byProjectKey.json()) as { items: { issueId: string }[] }
+    const byProjectKeyBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ issueId: Schema.String })).pipe(Schema.mutable),
+    })
+    const byProjectKeyBody = await readNativeJson(byProjectKey, byProjectKeyBodyShape)
     expect(byProjectKeyBody.items.some((item) => item.issueId === issue.id)).toBe(true)
 
     await backdateHeartbeat(agent)
     const defaultRes = await fetchNativeApi('http://localhost/api/issue-leases', {
       headers: authHeaders(token, slug),
     })
-    const defaultBody = (await defaultRes.json()) as { items: { issueId: string }[] }
+    const defaultBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ issueId: Schema.String })).pipe(Schema.mutable),
+    })
+    const defaultBody = await readNativeJson(defaultRes, defaultBodyShape)
     expect(defaultBody.items.some((item) => item.issueId === issue.id)).toBe(false)
 
     const staleRes = await fetchNativeApi('http://localhost/api/issue-leases?includeStale=true', {
       headers: authHeaders(token, slug),
     })
-    const staleBody = (await staleRes.json()) as {
-      items: { issueId: string; live: boolean }[]
-    }
+    const staleBodyShape = Schema.Struct({
+      items: Schema.Array(Schema.Struct({ issueId: Schema.String, live: Schema.Boolean })).pipe(Schema.mutable),
+    })
+    const staleBody = await readNativeJson(staleRes, staleBodyShape)
     const staleItem = staleBody.items.find((item) => item.issueId === issue.id)
     expect(staleItem).toBeDefined()
     expect(staleItem?.live).toBe(false)
@@ -717,7 +745,7 @@ describe('covers PROJ-932: list_issue_leases projectId + visibility for a non-ad
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'hidden-holder' }),
     })
-    const agent = (await agentRes.json()) as { id: string }
+    const agent = await readNativeJson(agentRes, IdResponse)
     /*
      * Claiming from an owner-equivalent path isn't needed — seed the lease directly so
      * this test isn't gated on claim_issue's own access rules.
@@ -741,7 +769,12 @@ describe('covers PROJ-932: list_issue_leases projectId + visibility for a non-ad
           params: { name: 'list_issue_leases', arguments: args },
         }),
       })
-      const json = (await res.json()) as { result?: { content: { text: string }[] } }
+      const jsonShape = Schema.Struct({
+        result: Schema.optional(
+          Schema.Struct({ content: Schema.Array(Schema.Struct({ text: Schema.String })).pipe(Schema.mutable) }),
+        ),
+      })
+      const json = await readNativeJson(res, jsonShape)
       const text = json.result?.content?.[0]?.text ?? '{}'
       return JSON.parse(text) as { items: unknown[] }
     }

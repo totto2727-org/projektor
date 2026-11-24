@@ -1,7 +1,4 @@
-/*
- * PROJ-809 / PROJ-810: wiki reads carry their revision pointer, and every content
- * write is guarded so a concurrent write can't be silently reverted.
- */
+import { Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { ConflictError } from '#commands/errors.ts'
@@ -11,6 +8,11 @@ import { createWikiPage, getWikiPage, listWikiRevisions, patchWikiPage, updateWi
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+/*
+ * PROJ-809 / PROJ-810: wiki reads carry their revision pointer, and every content
+ * write is guarded so a concurrent write can't be silently reverted.
+ */
+import { readNativeJson } from './response-json.ts'
 
 const setup = async function setup(): Promise<{ ctx: ServiceCtx; slug: string; token: string; wsSlug: string }> {
   const { workspace, user, token } = await seedFixture({ role: 'owner' })
@@ -77,7 +79,7 @@ describe('covers PROJ-809: get_wiki_page returns the revision it read', () => {
       headers: authHeaders(token, wsSlug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { revisionId: string }
+    const body = await readNativeJson(res, Schema.Struct({ revisionId: Schema.String }))
     expect(res.headers.get('ETag')).toBe(`"${body.revisionId}"`)
   })
 })

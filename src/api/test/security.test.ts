@@ -1,7 +1,9 @@
+import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { seedFixture, seedMember } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { TokenResponse, readNativeJson } from './response-json.ts'
 
 describe('covers PROJ-16: API token workspace scope', () => {
   test('rejects a token for workspace A used against workspace B, even when the user is a member of both', async () => {
@@ -61,11 +63,14 @@ describe('covers PROJ-18: /bootstrap fail-closed', () => {
       headers: { 'X-Bootstrap-Secret': CORRECT_SECRET },
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as {
-      token: string
-      workspace: { slug: string }
-      user: { email: string }
-    }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({
+        token: Schema.String,
+        user: Schema.Struct({ email: Schema.String }),
+        workspace: Schema.Struct({ slug: Schema.String }),
+      }),
+    )
     expect(body.token).toMatch(/^pk_/u)
     expect(body.workspace.slug).toBe('projektor')
   })
@@ -73,7 +78,7 @@ describe('covers PROJ-18: /bootstrap fail-closed', () => {
   test('returns 200 when correct secret is provided via setup_secret query param', async () => {
     const res = await fetchNativeApi(`http://localhost/bootstrap?setup_secret=${CORRECT_SECRET}`)
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { token: string }
+    const body = await readNativeJson(res, TokenResponse)
     expect(body.token).toMatch(/^pk_/u)
   })
 })

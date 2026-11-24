@@ -1,4 +1,4 @@
-import { String, Predicate } from 'effect'
+import { Schema, String, Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 // PROJ-857: issue list pagination + query plans.
@@ -7,6 +7,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 describe('covers PROJ-857: issue list cursor', () => {
   test('pages through 35 issues created in the same second with no gaps or duplicates', async () => {
@@ -47,11 +48,12 @@ describe('covers PROJ-857: issue list cursor', () => {
         headers: authHeaders(testFixture.token, testFixture.slug),
       })
       expect(res.status).toBe(200)
-      const body = (await res.json()) as {
-        items: { id: string }[]
-        nextCursor: string | null
-        total: number | null
-      }
+      const bodyShape = Schema.Struct({
+        items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+        nextCursor: Schema.Union([Schema.String, Schema.Null]),
+        total: Schema.Union([Schema.Number, Schema.Null]),
+      })
+      const body = await readNativeJson(res, bodyShape)
       if (pages === 0) {
         firstTotal = body.total
       } else {

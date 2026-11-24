@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { visibleProjectIds } from '#commands/access.ts'
@@ -5,6 +6,7 @@ import { visibleProjectIds } from '#commands/access.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-311: group-based project access. Authorization lives entirely in projektor:
@@ -26,7 +28,8 @@ const listIssues = async function listIssues(token: string, slug: string): Promi
   const res = await fetchNativeApi('http://localhost/api/issues', {
     headers: authHeaders(token, slug),
   })
-  return (await res.json()) as { items: { id: string }[] }
+  const resShape = Schema.Struct({ items: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable) })
+  return readNativeJson(res, resShape)
 }
 
 describe('covers PROJ-311 group-based project access', () => {
@@ -152,7 +155,7 @@ describe('covers PROJ-311 group-based project access', () => {
       body: JSON.stringify({ projectId: project.id, title: 'Member task' }),
     })
     expect(createRes.status).toBe(201)
-    const { id } = (await createRes.json()) as { id: string }
+    const { id } = await readNativeJson(createRes, IdResponse)
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(roles.member.token, slug),

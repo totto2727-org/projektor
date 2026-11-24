@@ -10,6 +10,7 @@ import type { HonoEnv } from '#types'
 import { env } from './fixture-api.ts'
 import { seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { ErrorMessageResponse, readNativeJson } from './response-json.ts'
 
 describe('subdomainRoutingEnabled', () => {
   test.each(['true', '1', 'yes', 'TRUE', 'Yes', ' true ', '1 '])('accepts %j', (v) => {
@@ -55,7 +56,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
       },
     })
     expect(res.status).toBe(400)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toContain('X-Workspace-Slug')
   })
 

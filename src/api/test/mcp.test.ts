@@ -1,4 +1,4 @@
-import { Iterable } from 'effect'
+import { Schema, Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -15,6 +15,7 @@ import {
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdAndSlugResponse, IdResponse, JsonListResponse, SlugResponse, readNativeJson } from './response-json.ts'
 
 const mcpFetch = async function mcpFetch(
   workspaceId: string,
@@ -301,7 +302,7 @@ describe('covers MCP endpoint', () => {
     expect(created.id).toBeTruthy()
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${created.id}`, { headers })
-    const issue = (await getRes.json()) as { assignee_id: string; labels: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ assignee_id: Schema.String, labels: Schema.String }))
     expect(issue.assignee_id).toBe(assignee.id)
     expect(JSON.parse(issue.labels)).toStrictEqual(['mcp', 'test'])
   })
@@ -329,7 +330,7 @@ describe('covers MCP endpoint', () => {
     )
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, { headers })
-    const issue = (await getRes.json()) as { assignee_id: string; labels: string }
+    const issue = await readNativeJson(getRes, Schema.Struct({ assignee_id: Schema.String, labels: Schema.String }))
     expect(issue.assignee_id).toBe(assignee.id)
     expect(JSON.parse(issue.labels)).toStrictEqual(['updated'])
   })
@@ -438,7 +439,7 @@ describe('covers MCP endpoint', () => {
       headers,
       body: JSON.stringify({ content: 'root', title: 'Parent' }),
     })
-    const parent = (await parentRes.json()) as { id: string }
+    const parent = await readNativeJson(parentRes, IdResponse)
 
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -525,7 +526,7 @@ describe('covers MCP endpoint', () => {
     const revRes = await fetchNativeApi(`http://localhost/api/wiki/rev-test/revisions`, {
       headers,
     })
-    const revisions = (await revRes.json()) as unknown[]
+    const revisions = await readNativeJson(revRes, JsonListResponse)
     expect(revisions).toHaveLength(1)
   })
 
@@ -551,7 +552,7 @@ describe('covers MCP endpoint', () => {
     const revRes = await fetchNativeApi('http://localhost/api/wiki/title-only/revisions', {
       headers,
     })
-    const revisions = (await revRes.json()) as unknown[]
+    const revisions = await readNativeJson(revRes, JsonListResponse)
     expect(revisions).toHaveLength(0)
   })
 
@@ -573,7 +574,7 @@ describe('covers MCP endpoint', () => {
     )
 
     const pageRes = await fetchNativeApi('http://localhost/api/wiki/slug-update', { headers })
-    const page = (await pageRes.json()) as { content: string }
+    const page = await readNativeJson(pageRes, Schema.Struct({ content: Schema.String }))
     expect(page.content).toBe('updated')
   })
 
@@ -597,14 +598,14 @@ describe('covers MCP endpoint', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'MCP Cascade Parent' }),
     })
-    const parent = (await parentRes.json()) as { id: string; slug: string }
+    const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'MCP Cascade Child', content: '', parentId: parent.id }),
     })
-    const child = (await childRes.json()) as { slug: string }
+    const child = await readNativeJson(childRes, SlugResponse)
 
     const delRes = (await mcpCall<{ content: { text: string }[] }>(
       owner.workspace.id,
@@ -633,14 +634,14 @@ describe('covers MCP endpoint', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ content: '', title: 'MCP Promote Parent' }),
     })
-    const parent = (await parentRes.json()) as { id: string; slug: string }
+    const parent = await readNativeJson(parentRes, IdAndSlugResponse)
 
     const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'MCP Promote Child', content: '', parentId: parent.id }),
     })
-    const child = (await childRes.json()) as { slug: string }
+    const child = await readNativeJson(childRes, SlugResponse)
 
     await mcpCall(
       owner.workspace.id,
@@ -653,7 +654,10 @@ describe('covers MCP endpoint', () => {
       headers: ownerHeaders,
     })
     expect(childRes2.status).toBe(200)
-    const childPage = (await childRes2.json()) as { parent_id: string | null }
+    const childPage = await readNativeJson(
+      childRes2,
+      Schema.Struct({ parent_id: Schema.Union([Schema.String, Schema.Null]) }),
+    )
     expect(childPage.parent_id).toBeNull()
   })
 

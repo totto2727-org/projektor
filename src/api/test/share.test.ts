@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
@@ -14,6 +15,7 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
+import { TokenLinkResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
 describe('share tokens', () => {
   let token: string
@@ -34,7 +36,7 @@ describe('share tokens', () => {
       method: 'POST',
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { token: string; url: string }
+    const body = await readNativeJson(res, TokenLinkResponse)
     expect(typeof body.token).toBe('string')
     expect(body.token).toHaveLength(32)
     expect(body.url).toBe(`/share/${body.token}`)
@@ -45,15 +47,18 @@ describe('share tokens', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
+    const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(200)
-    const data = (await res.json()) as {
-      title: string
-      priority: string
-      customFields: unknown[]
-    }
+    const data = await readNativeJson(
+      res,
+      Schema.Struct({
+        customFields: Schema.Array(Schema.Unknown).pipe(Schema.mutable),
+        priority: Schema.String,
+        title: Schema.String,
+      }),
+    )
     expect(data.title).toBe('Shareable issue')
     expect(data.priority).toBeDefined()
     expect(Array.isArray(data.customFields)).toBe(true)
@@ -78,7 +83,7 @@ describe('share tokens', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
+    const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
     const { env } = await import('./fixture-api.ts')
     const row = await env.DB.prepare('SELECT id FROM share_tokens WHERE issue_id = ?')
@@ -116,16 +121,19 @@ describe('share tokens', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
+    const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(200)
-    const data = (await res.json()) as {
-      project_key: string | null
-      project_name: string | null
-      status_name: string | null
-      expires_at: number
-    }
+    const data = await readNativeJson(
+      res,
+      Schema.Struct({
+        expires_at: Schema.Number,
+        project_key: Schema.Union([Schema.String, Schema.Null]),
+        project_name: Schema.Union([Schema.String, Schema.Null]),
+        status_name: Schema.Union([Schema.String, Schema.Null]),
+      }),
+    )
     expect(data.project_key).toBe('PROJ')
     expect(data.project_name).toBeDefined()
     expect('status_name' in data).toBe(true)
@@ -137,7 +145,7 @@ describe('share tokens', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
+    const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
     for (let index = 0; index < 3; index++) {
       const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
@@ -184,13 +192,14 @@ describe('share tokens', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
+    const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(200)
-    const data = (await res.json()) as {
-      customFields: { key: string; value: string }[]
-    }
+    const dataShape = Schema.Struct({
+      customFields: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })).pipe(Schema.mutable),
+    })
+    const data = await readNativeJson(res, dataShape)
     expect(data.customFields.some((field) => field.key === 'secret_notes')).toBe(false)
     expect(data.customFields.some((field) => field.key === 'public_note')).toBe(true)
   })
@@ -200,7 +209,7 @@ describe('share tokens', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
+    const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
     const revokeRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       headers: authHeaders(token, slug),
@@ -225,13 +234,18 @@ describe('share tokens', () => {
       headers: authHeaders(owner.token, owner.slug),
       method: 'POST',
     })
-    const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
+    const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(200)
-    const data = (await res.json()) as {
-      brand: { displayName: string | null; accent: string | null; logoUrl: string | null }
-    }
+    const dataShape = Schema.Struct({
+      brand: Schema.Struct({
+        accent: Schema.Union([Schema.String, Schema.Null]),
+        displayName: Schema.Union([Schema.String, Schema.Null]),
+        logoUrl: Schema.Union([Schema.String, Schema.Null]),
+      }),
+    })
+    const data = await readNativeJson(res, dataShape)
     expect(data.brand.displayName).toBe('Acme Tracker')
     expect(data.brand.accent).toBe('#ff8800')
     expect(data.brand.logoUrl).toBeNull()
@@ -242,13 +256,17 @@ describe('share tokens', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
+    const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(200)
-    const data = (await res.json()) as {
-      brand: { displayName: string | null; accent: string | null }
-    }
+    const dataShape = Schema.Struct({
+      brand: Schema.Struct({
+        accent: Schema.Union([Schema.String, Schema.Null]),
+        displayName: Schema.Union([Schema.String, Schema.Null]),
+      }),
+    })
+    const data = await readNativeJson(res, dataShape)
     expect(data.brand.displayName).toBeNull()
     expect(data.brand.accent).toBeNull()
   })
@@ -270,10 +288,13 @@ describe('share tokens', () => {
       headers: authHeaders(owner.token, owner.slug),
       method: 'POST',
     })
-    const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
+    const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
     const shareRes = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
-    const shareData = (await shareRes.json()) as { brand: { logoUrl: string | null } }
+    const shareDataShape = Schema.Struct({
+      brand: Schema.Struct({ logoUrl: Schema.Union([Schema.String, Schema.Null]) }),
+    })
+    const shareData = await readNativeJson(shareRes, shareDataShape)
     expect(shareData.brand.logoUrl).toBe(`/api/share/${shareToken}/logo`)
 
     const logoRes = await fetchNativeApi(`http://localhost${shareData.brand.logoUrl}`)
@@ -287,7 +308,7 @@ describe('share tokens', () => {
       headers: authHeaders(token, slug),
       method: 'POST',
     })
-    const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
+    const { token: shareToken } = await readNativeJson(createRes, TokenLinkResponse)
 
     const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}/logo`)
     expect(res.status).toBe(404)
@@ -410,7 +431,7 @@ describe('share tokens', () => {
         method: 'POST',
       })
       expect(res.status).toBe(201)
-      const { token: shareToken } = (await res.json()) as { token: string }
+      const { token: shareToken } = await readNativeJson(res, TokenResponse)
       return {
         shareToken,
         workspaceId: workspace.id,

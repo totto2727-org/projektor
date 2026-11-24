@@ -1,14 +1,16 @@
-/*
- * PROJ-818: link titles fold case the same way on both sides (in JS, stored), so
- * accented Latin titles resolve; and link reads never reveal pages in projects the
- * caller can't see.
- */
+import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
+/*
+ * PROJ-818: link titles fold case the same way on both sides (in JS, stored), so
+ * accented Latin titles resolve; and link reads never reveal pages in projects the
+ * caller can't see.
+ */
+import { IdAndSlugResponse, readNativeJson } from './response-json.ts'
 
 const call = async function call(url: string, token: string, slug: string, init?: RequestInit): Promise<Response> {
   await resetRateLimits()
@@ -25,7 +27,7 @@ const createPage = async function createPage(
     body: JSON.stringify({ content: '', ...body }),
   })
   expect(res.status).toBe(201)
-  return (await res.json()) as { id: string; slug: string }
+  return readNativeJson(res, IdAndSlugResponse)
 }
 
 const broken = async function broken(
@@ -34,7 +36,10 @@ const broken = async function broken(
 ): Promise<{ sourceSlug: string; targetTitle: string }[]> {
   const res = await call('http://localhost/api/wiki/broken-links', token, slug)
   expect(res.status).toBe(200)
-  return (await res.json()) as { sourceSlug: string; targetTitle: string }[]
+  return readNativeJson(
+    res,
+    Schema.Array(Schema.Struct({ sourceSlug: Schema.String, targetTitle: Schema.String })).pipe(Schema.mutable),
+  )
 }
 
 const targetOf = async function targetOf(sourceId: string): Promise<null | string> {

@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import m0062 from '#migrations/0062_repair_zero_lead_time.sql?raw'
@@ -5,6 +6,7 @@ import m0062 from '#migrations/0062_repair_zero_lead_time.sql?raw'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-921: lead time (ready -> done) came out as a 0s median because an issue moved
@@ -88,7 +90,10 @@ describe('covers PROJ-921: ready_at and lead time', () => {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
-    const m = (await res.json()) as { leadTime: { count: number }; leadTimeExcluded: number }
+    const m = await readNativeJson(
+      res,
+      Schema.Struct({ leadTime: Schema.Struct({ count: Schema.Number }), leadTimeExcluded: Schema.Number }),
+    )
     expect(m.leadTime.count).toBe(1)
     expect(m.leadTimeExcluded).toBe(1)
   })

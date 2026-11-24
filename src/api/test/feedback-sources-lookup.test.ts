@@ -1,7 +1,9 @@
+import { Schema } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 const createSource = async function createSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
@@ -11,7 +13,7 @@ const createSource = async function createSource(
     headers: authHeaders(f.token, f.slug),
     body: JSON.stringify({ name: 'Onboarding survey' }),
   })
-  const { id } = (await res.json()) as { id: string }
+  const { id } = await readNativeJson(res, IdResponse)
   return id
 }
 
@@ -24,7 +26,10 @@ describe('handles GET /api/feedback-sources/:sourceId (PROJ-724)', () => {
       headers: authHeaders(testFixture.token, testFixture.slug),
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { id: string; projectId: string; name: string }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ id: Schema.String, name: Schema.String, projectId: Schema.String }),
+    )
     expect(body.id).toBe(sourceId)
     expect(body.projectId).toBe(testFixture.projectId)
     expect(body.name).toBe('Onboarding survey')

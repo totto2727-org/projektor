@@ -5,6 +5,7 @@ import m0061 from '#migrations/0061_task_status_review_step.sql?raw'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskStatus } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdResponse, readNativeJson } from './response-json.ts'
 
 // PROJ-749: a status is a review step because the workspace flagged it
 // (task_statuses.is_review_step), not because its key contains "review".
@@ -99,7 +100,7 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
       }),
     })
     expect(created.status).toBe(201)
-    const { id } = (await created.json()) as { id: string }
+    const { id } = await readNativeJson(created, IdResponse)
     const flag = async (): Promise<undefined | number> =>
       (
         await env.DB.prepare('SELECT is_review_step AS f FROM task_statuses WHERE id = ?')

@@ -1,3 +1,4 @@
+import { Schema } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
@@ -35,6 +36,7 @@ import {
   toolError,
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { ErrorMessageResponse, TokenResponse, readNativeJson } from './response-json.ts'
 
 // ---------------------------------------------------------------------------
 // JWT generation utilities (used only by CF Access JWT tests)
@@ -78,7 +80,7 @@ describe('covers PROJ-79: token expiry', () => {
       headers: authHeaders(expiredToken, fixture.workspace.slug),
     })
     expect(res.status).toBe(401)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toMatch(/expired/i)
   })
 
@@ -434,7 +436,10 @@ describe('covers PROJ-354: CF Access auth caches are isolate-local', () => {
       headers: { 'Cf-Access-Jwt-Assertion': jwt },
     })
     expect(first.status).toBe(200)
-    const firstBody = (await first.json()) as { user: { id: string; email: string } }
+    const firstBody = await readNativeJson(
+      first,
+      Schema.Struct({ user: Schema.Struct({ email: Schema.String, id: Schema.String }) }),
+    )
     expect(firstBody.user.email).toBe(email)
 
     /*
@@ -451,7 +456,10 @@ describe('covers PROJ-354: CF Access auth caches are isolate-local', () => {
       headers: { 'Cf-Access-Jwt-Assertion': jwt },
     })
     expect(second.status).toBe(200)
-    const secondBody = (await second.json()) as { user: { id: string; email: string } }
+    const secondBody = await readNativeJson(
+      second,
+      Schema.Struct({ user: Schema.Struct({ email: Schema.String, id: Schema.String }) }),
+    )
     expect(secondBody.user.email).toBe(email)
     expect(secondBody.user.id).toBe(firstBody.user.id)
     const result = await getCoreObservations()
@@ -817,7 +825,7 @@ describe('covers PROJ-274: read-scoped token is denied write on every request', 
       body: JSON.stringify({ key: 'BLK', name: 'Blocked' }),
     })
     expect(res.status).toBe(403)
-    const body = (await res.json()) as { error: string }
+    const body = await readNativeJson(res, ErrorMessageResponse)
     expect(body.error).toMatch(/scope/i)
   })
 
@@ -837,7 +845,10 @@ describe('covers PROJ-274: read-scoped token is denied write on every request', 
         params: { name: 'create_project', arguments: { name: 'Blocked', key: 'BLK' } },
       }),
     })
-    const body = (await res.json()) as { error?: { code: number; message: string } }
+    const bodyShape = Schema.Struct({
+      error: Schema.optional(Schema.Struct({ code: Schema.Number, message: Schema.String })),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.error).toBeDefined()
     expect(body.error?.code).toBe(-32_003)
     expect(body.error?.message).toMatch(/scope/i)
@@ -906,7 +917,7 @@ describe('covers PROJ-660: dev bypass and /mcp/', () => {
 
     const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { user: { email: string } }
+    const body = await readNativeJson(res, Schema.Struct({ user: Schema.Struct({ email: Schema.String }) }))
     expect(body.user.email).toBe('dev@projektor.dev')
   })
 })
@@ -940,10 +951,11 @@ describe('covers PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
 
     const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(200)
-    const body = (await res.json()) as {
-      user: { email: string }
-      workspaces: { slug: string; role: string }[]
-    }
+    const bodyShape = Schema.Struct({
+      user: Schema.Struct({ email: Schema.String }),
+      workspaces: Schema.Array(Schema.Struct({ role: Schema.String, slug: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.user.email).toBe('public-viewer@projektor.local')
     const membership = body.workspaces.find((workspace) => workspace.slug === slug)
     expect(membership?.role).toBe('viewer')
@@ -984,7 +996,7 @@ describe('covers PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
       headers: { 'Cf-Access-Jwt-Assertion': jwt },
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { user: { email: string } }
+    const body = await readNativeJson(res, Schema.Struct({ user: Schema.Struct({ email: Schema.String }) }))
     expect(body.user.email).toBe(email)
   })
 
@@ -1026,10 +1038,11 @@ describe('covers PROJ-79: GET /auth/me', () => {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as {
-      user: { id: string; email: string }
-      workspaces: { id: string; role: string }[]
-    }
+    const bodyShape = Schema.Struct({
+      user: Schema.Struct({ email: Schema.String, id: Schema.String }),
+      workspaces: Schema.Array(Schema.Struct({ id: Schema.String, role: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     expect(body.user.id).toBe(fixture.user.id)
     expect(body.user.email).toBe(fixture.user.email)
     expect(Array.isArray(body.workspaces)).toBe(true)
@@ -1046,7 +1059,10 @@ describe('covers PROJ-79: GET /auth/me', () => {
     const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     })
-    const body = (await res.json()) as { workspaces: { id: string }[] }
+    const bodyShape = Schema.Struct({
+      workspaces: Schema.Array(Schema.Struct({ id: Schema.String })).pipe(Schema.mutable),
+    })
+    const body = await readNativeJson(res, bodyShape)
     const ids = body.workspaces.map((workspace) => workspace.id)
     expect(ids).toContain(fixture.workspace.id)
     expect(ids).toContain(ws2.id)
@@ -1080,7 +1096,7 @@ describe('covers PROJ-79: POST /auth/tokens', () => {
       }),
     })
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { token: string }
+    const body = await readNativeJson(res, TokenResponse)
     expect(typeof body.token).toBe('string')
     expect(body.token.length).toBeGreaterThan(0)
   })
@@ -1148,7 +1164,7 @@ describe('covers PROJ-79: DELETE /auth/tokens/:id', () => {
       method: 'DELETE',
     })
     expect(deleteRes.status).toBe(200)
-    const body = (await deleteRes.json()) as { ok: boolean }
+    const body = await readNativeJson(deleteRes, Schema.Struct({ ok: Schema.Boolean }))
     expect(body.ok).toBe(true)
   })
 
@@ -1285,7 +1301,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
       }),
     })
     expect(res.status).toBe(400)
-    const body = (await res.json()) as { error: { code: number } }
+    const body = await readNativeJson(res, Schema.Struct({ error: Schema.Struct({ code: Schema.Number }) }))
     expect(body.error.code).toBe(-32_600)
   })
 
@@ -1295,7 +1311,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
       headers: ownerHeaders,
       body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'foo/bar', params: {} }),
     })
-    const body = (await res.json()) as { error: { code: number } }
+    const body = await readNativeJson(res, Schema.Struct({ error: Schema.Struct({ code: Schema.Number }) }))
     expect(body.error.code).toBe(-32_601)
   })
 
@@ -1310,7 +1326,10 @@ describe('covers PROJ-79: MCP protocol validation', () => {
         params: { name: 'no_such_tool', arguments: {} },
       }),
     })
-    const body = (await res.json()) as { error: { code: number; message: string } }
+    const body = await readNativeJson(
+      res,
+      Schema.Struct({ error: Schema.Struct({ code: Schema.Number, message: Schema.String }) }),
+    )
     expect(body.error.code).toBe(-32_601)
     expect(body.error.message).toContain('no_such_tool')
   })
@@ -1354,7 +1373,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
     })
     // Server must respond with a valid JSON-RPC structure and not crash
     expect(res.status).not.toBe(500)
-    const body = (await res.json()) as { jsonrpc: string }
+    const body = await readNativeJson(res, Schema.Struct({ jsonrpc: Schema.String }))
     expect(body.jsonrpc).toBe('2.0')
   })
 })
