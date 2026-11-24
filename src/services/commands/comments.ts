@@ -78,7 +78,7 @@ export const addComment = async function addComment(ctx: ServiceCtx, input: unkn
   const now = currentEpochSeconds()
   const orm = drizzle(ctx.db, { schema })
 
-  await buildAddCommentInsertStatement(ctx, orm, { id, issueId, body, now }).run()
+  await buildAddCommentInsertStatement(ctx, orm, { body, id, issueId, now }).run()
 
   await broadcastWorkspaceEvent(ctx, {
     type: 'comment.created',

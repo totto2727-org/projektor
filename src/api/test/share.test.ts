@@ -217,7 +217,7 @@ describe('share tokens', () => {
     const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${owner.slug}/brand`, {
       method: 'PATCH',
       headers: authHeaders(owner.token, owner.slug),
-      body: JSON.stringify({ displayName: 'Acme Tracker', accent: '#ff8800' }),
+      body: JSON.stringify({ accent: '#ff8800', displayName: 'Acme Tracker' }),
     })
     expect(patchRes.status).toBe(200)
 

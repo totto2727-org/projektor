@@ -51,7 +51,7 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
       if (!Predicate.isString(entityId) || !entityId) {
         throw coreFailure(HTTP_BAD_REQUEST, 'entityId is required')
       }
-      return Response.json(await uploadStoredAttachment(ctx, { file, entityType, entityId }, storageQuotaBytes(env)), {
+      return Response.json(await uploadStoredAttachment(ctx, { entityId, entityType, file }, storageQuotaBytes(env)), {
         status: 201,
       })
     }

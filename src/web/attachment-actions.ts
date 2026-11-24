@@ -41,8 +41,8 @@ const uploadToCore = function uploadToCore(input: UploadAttachmentInput, workspa
       })
     }
     return yield* transferCoreBinary(`/files?workspaceId=${encodeURIComponent(workspaceId)}`, {
-      method: 'POST',
       body: form,
+      method: 'POST',
     })
   }).pipe(
     Effect.flatMap((response) => Effect.tryPromise(() => response.json())),

@@ -83,7 +83,7 @@ describe('covers KV caching', () => {
 
   describe('workspace metadata cache (TTL 60s, write-through invalidation)', () => {
     test('task statuses list is cached — second GET returns data even after D1 is cleared', async () => {
-      await seedTaskStatus(workspaceId, { key: 'todo', name: 'Todo', category: 'todo' })
+      await seedTaskStatus(workspaceId, { category: 'todo', key: 'todo', name: 'Todo' })
       const url = 'http://localhost/api/task-statuses'
       const hdrs = authHeaders(token, slug)
 
@@ -177,7 +177,7 @@ describe('covers KV caching', () => {
       const created = await fetchNativeApi('http://localhost/api/projects', {
         method: 'POST',
         headers: hdrs,
-        body: JSON.stringify({ name: 'New Project', key: 'NEWP' }),
+        body: JSON.stringify({ key: 'NEWP', name: 'New Project' }),
       })
       expect(created.status).toBe(201)
 

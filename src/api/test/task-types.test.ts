@@ -38,7 +38,7 @@ describe('task Types API', () => {
 
   test('handles GET /api/task-types returns seeded types ordered by position', async () => {
     await seedTaskType(workspaceId, { key: 'bug', name: 'Bug', position: 2 })
-    await seedTaskType(workspaceId, { key: 'task', name: 'Task', position: 1, isDefault: true })
+    await seedTaskType(workspaceId, { isDefault: true, key: 'task', name: 'Task', position: 1 })
 
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
@@ -83,7 +83,7 @@ describe('task Types API', () => {
   })
 
   test('handles POST /api/task-types clears other defaults when isDefault=true', async () => {
-    await seedTaskType(workspaceId, { key: 'task', name: 'Task', isDefault: true })
+    await seedTaskType(workspaceId, { isDefault: true, key: 'task', name: 'Task' })
 
     await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
@@ -143,9 +143,9 @@ describe('task Types API', () => {
 
   test('handles PATCH /api/task-types/:id with isDefault=true clears others', async () => {
     const { id: taskId } = await seedTaskType(workspaceId, {
+      isDefault: true,
       key: 'task',
       name: 'Task',
-      isDefault: true,
     })
     const { id: bugId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
@@ -228,7 +228,7 @@ describe('task Types — issue integration', () => {
   })
 
   test('handles POST /api/issues uses workspace default type when no typeId given', async () => {
-    await seedTaskType(workspaceId, { key: 'task', name: 'Task', isDefault: true })
+    await seedTaskType(workspaceId, { isDefault: true, key: 'task', name: 'Task' })
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',

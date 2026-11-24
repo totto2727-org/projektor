@@ -124,10 +124,10 @@ export const createGroup = async function createGroup(ctx: ServiceCtx, input: un
   })
 
   await recordActivity(ctx, {
-    entityType: 'group',
-    entityId: id,
     action: 'created',
     diff: { name },
+    entityId: id,
+    entityType: 'group',
   })
   return { id, name, description: description ?? null }
 }
@@ -174,10 +174,10 @@ export const updateGroup = async function updateGroup(
     .where(and(eq(schema.userGroups.id, groupId), eq(schema.userGroups.workspaceId, ctx.workspaceId)))
 
   await recordActivity(ctx, {
-    entityType: 'group',
-    entityId: groupId,
     action: 'updated',
     diff: setObj,
+    entityId: groupId,
+    entityType: 'group',
   })
   return { ok: true }
 }
@@ -195,7 +195,7 @@ export const deleteGroup = async function deleteGroup(ctx: ServiceCtx, groupId: 
     ctx.db.prepare('DELETE FROM user_groups WHERE id = ? AND workspace_id = ?').bind(groupId, ctx.workspaceId),
   ])
 
-  await recordActivity(ctx, { entityType: 'group', entityId: groupId, action: 'deleted' })
+  await recordActivity(ctx, { action: 'deleted', entityId: groupId, entityType: 'group' })
   return { ok: true }
 }
 
@@ -231,10 +231,10 @@ export const addGroupMember = async function addGroupMember(
     .onConflictDoNothing()
 
   await recordActivity(ctx, {
-    entityType: 'group',
-    entityId: groupId,
     action: 'updated',
     diff: { addedMember: userId },
+    entityId: groupId,
+    entityType: 'group',
   })
   return { ok: true }
 }
@@ -251,10 +251,10 @@ export const removeGroupMember = async function removeGroupMember(
     .where(and(eq(schema.userGroupMembers.groupId, groupId), eq(schema.userGroupMembers.userId, userId)))
 
   await recordActivity(ctx, {
-    entityType: 'group',
-    entityId: groupId,
     action: 'updated',
     diff: { removedMember: userId },
+    entityId: groupId,
+    entityType: 'group',
   })
   return { ok: true }
 }
@@ -293,10 +293,10 @@ export const setGroupGrant = async function setGroupGrant(
     })
 
   await recordActivity(ctx, {
-    entityType: 'group',
-    entityId: groupId,
     action: 'updated',
     diff: { grant: { projectId, role } },
+    entityId: groupId,
+    entityType: 'group',
   })
   return { ok: true }
 }
@@ -315,10 +315,10 @@ export const removeGroupGrant = async function removeGroupGrant(
     .where(and(eq(schema.groupProjectGrants.groupId, groupId), eq(schema.groupProjectGrants.projectId, projectId)))
 
   await recordActivity(ctx, {
-    entityType: 'group',
-    entityId: groupId,
     action: 'updated',
     diff: { removedGrant: projectId },
+    entityId: groupId,
+    entityType: 'group',
   })
   return { ok: true }
 }

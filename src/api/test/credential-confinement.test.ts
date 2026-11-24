@@ -49,7 +49,7 @@ describe('credential confinement for user-level operations', () => {
     const response = await fetchNativeApi('http://localhost/api/workspaces', {
       method: 'POST',
       headers: authHeaders(fixture.token, fixture.workspace.slug),
-      body: JSON.stringify({ slug, name: 'Not authorized' }),
+      body: JSON.stringify({ name: 'Not authorized', slug }),
     })
     expect(response.status).toBe(403)
     await expect(env.DB.prepare('SELECT id FROM workspaces WHERE slug = ?').bind(slug).first()).resolves.toBeNull()

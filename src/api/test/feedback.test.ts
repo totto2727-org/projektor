@@ -91,7 +91,7 @@ describe('feedback sources REST', () => {
     const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback-sources/${id}`, {
       method: 'PATCH',
       headers: authHeaders(testFixture.token, testFixture.slug),
-      body: JSON.stringify({ name: 'New', isActive: false }),
+      body: JSON.stringify({ isActive: false, name: 'New' }),
     })
     expect(res.status).toBe(200)
     const row = await env.DB.prepare('SELECT name, is_active FROM feedback_sources WHERE id = ?')
@@ -351,8 +351,8 @@ describe('feedback triage read/patch', () => {
     const src = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
       .bind(testFixture.projectId)
       .first<{ id: string }>()
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { status: 'new', body: 'a' })
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { status: 'reviewed', body: 'b' })
+    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { body: 'a', status: 'new' })
+    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, { body: 'b', status: 'reviewed' })
 
     const all = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback`, {
       headers: authHeaders(testFixture.token, testFixture.slug),
@@ -766,9 +766,9 @@ describe('covers PROJ-390: path params win over body-supplied ids', () => {
       method: 'PATCH',
       headers: authHeaders(testFixture.token, testFixture.slug),
       body: JSON.stringify({
-        status: 'reviewed',
-        projectId: '00000000-0000-0000-0000-000000000000',
         feedbackId: '00000000-0000-0000-0000-000000000000',
+        projectId: '00000000-0000-0000-0000-000000000000',
+        status: 'reviewed',
       }),
     })
     expect(res.status).toBe(200)

@@ -823,10 +823,10 @@ const readFlowMetrics = async function readFlowMetrics(
      * window" the tile row is scoped to.
      */
     fetchWindowCounts(orm, workspaceId, projectId, {
+      createdUntil,
+      doneBefore,
       since: throughputSince,
       until: throughputUntil,
-      doneBefore,
-      createdUntil,
     }),
   ])
   const { doneBeforeWindow, ...factoryHealth } = windowCounts

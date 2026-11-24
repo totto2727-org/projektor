@@ -78,7 +78,7 @@ describe('comments REST API', () => {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ body: 'Hello world', authorKind: 'human' }),
+      body: JSON.stringify({ authorKind: 'human', body: 'Hello world' }),
     })
     expect(res.status).toBe(201)
     const data = (await res.json()) as { id: string }

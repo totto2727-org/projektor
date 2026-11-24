@@ -94,7 +94,7 @@ export class RequestServices extends Context.Service<
 export const makeRequestServices = (request: Request, env: Env) =>
   Effect.gen(function* () {
     const url = new URL(request.url)
-    const scopes = yield* Cache.makeWith((options: ScopeOptions) => loadRequestScope(url, options, { request, env }), {
+    const scopes = yield* Cache.makeWith((options: ScopeOptions) => loadRequestScope(url, options, { env, request }), {
       capacity: 32,
       timeToLive: (exit) => (Exit.isSuccess(exit) ? Infinity : 0),
     })

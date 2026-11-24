@@ -6,8 +6,8 @@ import { fetchNativeApi } from '#api/test/native-fetch.ts'
 
 const fixture = async function fixture() {
   const owner = await seedProjectFixture({ role: 'owner' })
-  const status = await seedTaskStatus(owner.workspaceId, { key: 'custom_review', category: 'in_progress' })
-  const otherStatus = await seedTaskStatus(owner.workspaceId, { key: 'unrelated', category: 'todo', isDefault: true })
+  const status = await seedTaskStatus(owner.workspaceId, { category: 'in_progress', key: 'custom_review' })
+  const otherStatus = await seedTaskStatus(owner.workspaceId, { category: 'todo', isDefault: true, key: 'unrelated' })
   const issue = await seedIssue(owner.workspaceId, owner.projectId, owner.userId, { statusId: status.id })
   const unrelated = await seedIssue(owner.workspaceId, owner.projectId, owner.userId, { statusId: otherStatus.id })
   const foreign = await seedProjectFixture({ role: 'owner' })

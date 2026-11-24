@@ -256,10 +256,10 @@ describe('review gating (PROJ-254/287/289/292/293/375)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Custom review' })
     await seedAgentLease(workspaceId, issue.id)
     const custom = await seedTaskStatus(workspaceId, {
-      key: 'code-review',
-      name: 'Code Review',
       category: 'in_progress',
       isReviewStep: true,
+      key: 'code-review',
+      name: 'Code Review',
     })
 
     expect((await patch(issue.id, { statusId: custom.id })).status).toBe(400)

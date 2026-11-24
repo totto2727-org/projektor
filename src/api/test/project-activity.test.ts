@@ -244,8 +244,8 @@ describe('list_project_activity MCP tool', () => {
     const now = currentEpochSeconds()
     await seedSprint(workspaceId, projectId, {
       name: 'Sprint Alpha',
-      status: 'active',
       startDate: now,
+      status: 'active',
     })
 
     const res = (await mcpCall<McpContent>(
@@ -331,7 +331,7 @@ describe('list_project_activity MCP tool', () => {
 
   test('returns events ordered most-recent first', async () => {
     const base = currentEpochSeconds() - 100
-    await seedIssue(workspaceId, projectId, userId, { title: 'Older', createdAt: base })
+    await seedIssue(workspaceId, projectId, userId, { createdAt: base, title: 'Older' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Newer', createdAt: base + 50 })
 
     const res = (await mcpCall<McpContent>(

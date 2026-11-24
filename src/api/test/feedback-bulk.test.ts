@@ -129,9 +129,9 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
     await mintSource(testFixture)
     const src = await firstSourceId(testFixture.projectId)
     const id1 = await seedFeedbackRow(src, testFixture.workspaceId, testFixture.projectId, {
+      body: 'Love it',
       rating: 1,
       ratingScale: 'thumbs',
-      body: 'Love it',
       submitterLabel: 'a@b.com',
     })
     const id2 = await seedFeedbackRow(src, testFixture.workspaceId, testFixture.projectId, {

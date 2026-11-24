@@ -91,7 +91,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Proj', key: 'PRJ' }),
+      body: JSON.stringify({ key: 'PRJ', name: 'Proj' }),
     })
     expect(res.status).toBe(403)
   })
@@ -100,7 +100,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Proj', key: 'PRJ' }),
+      body: JSON.stringify({ key: 'PRJ', name: 'Proj' }),
     })
     expect(res.status).toBe(201)
   })
@@ -110,7 +110,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Owner Proj', key: 'OP1' }),
+      body: JSON.stringify({ key: 'OP1', name: 'Owner Proj' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -126,7 +126,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Del Proj', key: 'DP1' }),
+      body: JSON.stringify({ key: 'DP1', name: 'Del Proj' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -262,7 +262,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ title: 'Protected Page', content: 'content' }),
+      body: JSON.stringify({ content: 'content', title: 'Protected Page' }),
     })
     const res = await fetchNativeApi('http://localhost/api/wiki/protected-page', {
       headers: viewerHeaders,
@@ -275,7 +275,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ title: 'Member Page', content: 'content' }),
+      body: JSON.stringify({ content: 'content', title: 'Member Page' }),
     })
     // Fetch member token from the same fixture
     const roles = await seedWorkspaceRoles() // Second workspace — need same slug

@@ -819,9 +819,9 @@ const finalizeWikiPageCreate = async function finalizeWikiPageCreate(
   }>,
 ): Promise<void> {
   const { id, parentId, slug, title, meta } = fields
-  await recordActivity(ctx, { entityType: 'wiki_page', entityId: id, action: 'created' })
+  await recordActivity(ctx, { action: 'created', entityId: id, entityType: 'wiki_page' })
   if (!meta.isTemplate) {
-    await notifyWikiWatchers(ctx, { pageId: id, parentId, slug, title, action: 'created' })
+    await notifyWikiWatchers(ctx, { action: 'created', pageId: id, parentId, slug, title })
   }
 }
 
@@ -859,14 +859,14 @@ export const createWikiPage = async function createWikiPage(ctx: ServiceCtx, inp
   const meta = parseWikiFrontmatter(content)
 
   const insertStatement = buildCreateWikiPageInsertStatement(ctx, orm, {
+    content,
     id,
+    meta,
+    now,
+    parentId,
     projectId: resolvedProjectId,
     slug,
     title,
-    content,
-    parentId,
-    now,
-    meta,
   })
   /*
    * PROJ-485: parse [[Target]]/URL links out of the new page's content into wiki_links.
@@ -880,7 +880,7 @@ export const createWikiPage = async function createWikiPage(ctx: ServiceCtx, inp
    * are still unresolved (created before this page existed) become resolved to it now,
    * without those pages needing to be re-saved.
    */
-  const incomingLinkStatement = buildResolveIncomingLinksStatement(ctx, { id, title, slug })
+  const incomingLinkStatement = buildResolveIncomingLinksStatement(ctx, { id, slug, title })
 
   await writeCreateWikiPageBatch(
     ctx,
@@ -892,7 +892,7 @@ export const createWikiPage = async function createWikiPage(ctx: ServiceCtx, inp
     ],
     slug,
   )
-  await finalizeWikiPageCreate(ctx, { id, parentId, slug, title, meta })
+  await finalizeWikiPageCreate(ctx, { id, meta, parentId, slug, title })
   return { id, slug, projectId: resolvedProjectId, url: wikiPagePath(slug), ...meta }
 }
 
@@ -1224,7 +1224,7 @@ const buildUpdateWikiPageStatements = function buildUpdateWikiPageStatements(
     )
   }
 
-  const setData = buildWikiPageUpdateSet(now, ctx.userId, { title, content, parentId, slug, meta })
+  const setData = buildWikiPageUpdateSet(now, ctx.userId, { content, meta, parentId, slug, title })
   statements.push(
     toD1Statement(ctx, orm.update(schema.wikiPages).set(setData).where(eq(schema.wikiPages.id, page.id)).toSQL()),
   )
@@ -1445,10 +1445,10 @@ export const updateWikiPage = async function updateWikiPage(
     ctx,
     orm,
     page,
-    { now, isRename, meta },
-    { title, content, parentId, slug, summary },
+    { isRename, meta, now },
+    { content, parentId, slug, summary, title },
   )
-  statements.push(...(await buildUpdateWikiPageReindexStatements(ctx, orm, page, { title, content, meta })))
+  statements.push(...(await buildUpdateWikiPageReindexStatements(ctx, orm, page, { content, meta, title })))
 
   /*
    * PROJ-814: a title and/or slug change can make this page newly match (or stop
@@ -1471,7 +1471,7 @@ export const updateWikiPage = async function updateWikiPage(
   }
 
   await writeUpdateWikiPageBatch(ctx, page, statements, isRename, slug)
-  await finalizeWikiPageUpdate(ctx, page, { title, content, parentId, slug, meta })
+  await finalizeWikiPageUpdate(ctx, page, { content, meta, parentId, slug, title })
 
   return { ok: true, url: wikiPagePath(slug ?? page.slug) }
 }

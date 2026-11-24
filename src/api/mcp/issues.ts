@@ -212,7 +212,7 @@ export const issuesTools: MCPTool[] = [
         return shaped
       }
       // PROJ-892: a long body is windowed; \`next\` continues it.
-      const w = windowText(shaped.body, { max: ISSUE_BODY_MAX_CHARS, cursor })
+      const w = windowText(shaped.body, { cursor, max: ISSUE_BODY_MAX_CHARS })
       if (!w.next && Predicate.isNullish(cursor)) {
         return shaped
       }

@@ -116,7 +116,7 @@ describe('covers PROJ-870: issue write batching', () => {
 
   test('createIssue with parent chain, status, type and custom fields uses ≤8 D1 round trips', async () => {
     const chain = await seedChain(f, 4) // Parent has 3 ancestors → the ancestor walk runs
-    const status = await seedTaskStatus(f.workspaceId, { key: 'doing', category: 'in_progress' })
+    const status = await seedTaskStatus(f.workspaceId, { category: 'in_progress', key: 'doing' })
     const type = await seedTaskType(f.workspaceId, { key: 'task' })
     await seedCustomFieldDef(f.workspaceId, { key: 'points', type: 'number' })
     await seedCustomFieldDef(f.workspaceId, { key: 'team' })
@@ -172,7 +172,7 @@ describe('covers PROJ-870: issue write batching', () => {
   test('updateIssue changing title, body, status, parent and custom fields uses ≤7 D1 round trips', async () => {
     const chain = await seedChain(f, 4)
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Before' })
-    const done = await seedTaskStatus(f.workspaceId, { key: 'shipped', category: 'done' })
+    const done = await seedTaskStatus(f.workspaceId, { category: 'done', key: 'shipped' })
     await seedCustomFieldDef(f.workspaceId, { key: 'points', type: 'number' })
 
     const tracker = trackD1RoundTrips()
@@ -220,8 +220,8 @@ describe('covers PROJ-870: issue write batching', () => {
 
   test('entering review with a completion report batches the comment; review→in_progress batches the gate rejection', async () => {
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, {
-      title: 'Agent work',
       status: 'in_progress',
+      title: 'Agent work',
     })
     await seedAgentLease(f.workspaceId, issue.id)
 
@@ -254,8 +254,8 @@ describe('covers PROJ-870 review: completion report comment limit', () => {
   test('400s a completion report whose formatted comment exceeds the comment limit, writing nothing', async () => {
     const testFixture = await seedProjectFixture({ role: 'owner' })
     const issue = await seedIssue(testFixture.workspaceId, testFixture.projectId, testFixture.userId, {
-      title: 'Long report',
       status: 'in_progress',
+      title: 'Long report',
     })
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {

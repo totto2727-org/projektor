@@ -62,36 +62,36 @@ describe('handles GET /api/projects/:id/feedback/summary', () => {
 
     // v1.0.0: 2 thumbs up, 1 thumbs down, 1 with a comment
     await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
-      rating: 1,
-      ratingScale: 'thumbs',
       appVersion: 'v1.0.0',
       createdAt: 100,
-    })
-    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
       rating: 1,
       ratingScale: 'thumbs',
+    })
+    await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
       appVersion: 'v1.0.0',
       body: 'Love it',
       createdAt: 101,
+      rating: 1,
+      ratingScale: 'thumbs',
     })
     await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
-      rating: -1,
-      ratingScale: 'thumbs',
       appVersion: 'v1.0.0',
       createdAt: 102,
+      rating: -1,
+      ratingScale: 'thumbs',
     })
     // v1.1.0 (more recent): 5-star avg of 4.5
     await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
-      rating: 4,
-      ratingScale: 'five_star',
       appVersion: 'v1.1.0',
       createdAt: 200,
+      rating: 4,
+      ratingScale: 'five_star',
     })
     await seedFeedbackRow(src!.id, testFixture.workspaceId, testFixture.projectId, {
-      rating: 5,
-      ratingScale: 'five_star',
       appVersion: 'v1.1.0',
       createdAt: 201,
+      rating: 5,
+      ratingScale: 'five_star',
     })
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${testFixture.projectId}/feedback/summary`, {

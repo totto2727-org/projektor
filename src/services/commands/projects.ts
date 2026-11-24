@@ -222,7 +222,7 @@ export const createProject = async function createProject(ctx: ServiceCtx, input
     updatedAt: now,
   })
 
-  await recordActivity(ctx, { entityType: 'project', entityId: id, action: 'created' })
+  await recordActivity(ctx, { action: 'created', entityId: id, entityType: 'project' })
   await invalidateProjectsCache(ctx)
   return { id, name, key, slug }
 }
@@ -283,7 +283,7 @@ export const updateProject = async function updateProject(
 
   const diff: Record<string, unknown> = { ...setObj }
   delete diff.updatedAt
-  await recordActivity(ctx, { entityType: 'project', entityId: id, action: 'updated', diff })
+  await recordActivity(ctx, { action: 'updated', diff, entityId: id, entityType: 'project' })
   await invalidateProjectsCache(ctx)
 
   return { ok: true }
@@ -403,7 +403,7 @@ export const deleteProject = async function deleteProject(ctx: ServiceCtx, id: s
     }
   }
 
-  await recordActivity(ctx, { entityType: 'project', entityId: id, action: 'deleted' })
+  await recordActivity(ctx, { action: 'deleted', entityId: id, entityType: 'project' })
   await invalidateProjectsCache(ctx)
   return { ok: true }
 }

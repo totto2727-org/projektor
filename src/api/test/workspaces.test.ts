@@ -548,7 +548,7 @@ describe('workspace brand (PROJ-761)', () => {
     const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
-      body: JSON.stringify({ displayName: 'Acme Tracker', accent: '#ff8800' }),
+      body: JSON.stringify({ accent: '#ff8800', displayName: 'Acme Tracker' }),
     })
     expect(patchRes.status).toBe(200)
     const patched = (await patchRes.json()) as { displayName: string; accent: string }
@@ -585,7 +585,7 @@ describe('workspace brand (PROJ-761)', () => {
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
-      body: JSON.stringify({ displayName: 'Acme Tracker', accent: '#ff8800' }),
+      body: JSON.stringify({ accent: '#ff8800', displayName: 'Acme Tracker' }),
     })
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',

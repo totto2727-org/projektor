@@ -41,9 +41,9 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Contract' })
     await seedAgentLease(workspaceId, issue.id)
     const contract = await seedTaskStatus(workspaceId, {
+      category: 'in_progress',
       key: 'contract_review',
       name: 'Contract Review',
-      category: 'in_progress',
     })
 
     // No completion report needed: it isn't a review step.
@@ -64,10 +64,10 @@ describe('covers PROJ-749: review steps are explicit, not inferred from the stat
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Peer' })
     await seedAgentLease(workspaceId, issue.id)
     const peer = await seedTaskStatus(workspaceId, {
-      key: 'peer_review',
-      name: 'Peer Review',
       category: 'in_progress',
       isReviewStep: true,
+      key: 'peer_review',
+      name: 'Peer Review',
     })
 
     expect((await patch(issue.id, { statusId: peer.id })).status).toBe(400)

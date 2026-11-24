@@ -59,8 +59,8 @@ export const updateDescription = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, {
-          requireWorkspace: true,
           requireProject: true,
+          requireWorkspace: true,
         })
         return yield* runCommand(context, (ctx) =>
           projectCommands.updateProject(ctx, context.projectId ?? input.projectId, {
@@ -97,8 +97,8 @@ export const archiveProject = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const context = yield* resolveFunctionContext(input, {
-          requireWorkspace: true,
           requireProject: true,
+          requireWorkspace: true,
         })
         return yield* runCommand(context, (ctx) =>
           projectCommands.updateProject(ctx, context.projectId ?? input.projectId, { archived: input.archived }),

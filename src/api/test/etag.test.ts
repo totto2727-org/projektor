@@ -83,7 +83,7 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
   // ---- a mutation must never leave a stale 304 behind ----
 
   test('handles PATCH to an issue makes the next conditional GET a 200 with the new content', async () => {
-    const testFixture = await seedIssueFixture({ role: 'owner', issueTitle: 'Before' })
+    const testFixture = await seedIssueFixture({ issueTitle: 'Before', role: 'owner' })
     const etag = (await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug)).headers.get(
       'ETag',
     )

@@ -398,8 +398,8 @@ describe('flow metrics (PROJ-252)', () => {
      * though the issue is otherwise done.
      */
     const legacyIssue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Legacy done issue',
       status: 'done',
+      title: 'Legacy done issue',
     })
 
     const modernIssue = await seedIssue(workspaceId, projectId, userId, { title: 'Modern issue' })

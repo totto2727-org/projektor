@@ -94,7 +94,7 @@ describe('sprints API', () => {
     const patchRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ name: 'Sprint 1', status: 'active', goal: 'Updated goal' }),
+      body: JSON.stringify({ goal: 'Updated goal', name: 'Sprint 1', status: 'active' }),
     })
     expect(patchRes.status).toBe(200)
 

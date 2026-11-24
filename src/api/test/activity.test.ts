@@ -31,7 +31,7 @@ describe('activity audit log', () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Activity test issue', priority: 'high' }),
+      body: JSON.stringify({ priority: 'high', projectId, title: 'Activity test issue' }),
     })
     expect(res.status).toBe(201)
     const { id } = (await res.json()) as { id: string }
@@ -55,7 +55,7 @@ describe('activity audit log', () => {
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ status: 'in_progress', priority: 'high' }),
+      body: JSON.stringify({ priority: 'high', status: 'in_progress' }),
     })
     expect(patchRes.status).toBe(200)
 
@@ -72,7 +72,7 @@ describe('activity audit log', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Activity Wiki Page', content: 'hello' }),
+      body: JSON.stringify({ content: 'hello', title: 'Activity Wiki Page' }),
     })
     expect(res.status).toBe(201)
     const { id } = (await res.json()) as { id: string }
@@ -89,7 +89,7 @@ describe('activity audit log', () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: authHeaders(ownerFixture.token, ownerFixture.workspace.slug),
-      body: JSON.stringify({ name: 'Activity Project', key: 'ACTV' }),
+      body: JSON.stringify({ key: 'ACTV', name: 'Activity Project' }),
     })
     expect(res.status).toBe(201)
     const { id } = (await res.json()) as { id: string }

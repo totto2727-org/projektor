@@ -42,7 +42,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Search', content: 'body' }),
+      body: JSON.stringify({ content: 'body', title: 'Search' }),
     })
     expect(res.status).toBe(201)
     const page = (await res.json()) as { slug: string }
@@ -58,7 +58,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     const created = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Bin', slug: 'trash' }),
+      body: JSON.stringify({ slug: 'trash', title: 'Bin' }),
     })
     expect(created.status).toBe(400)
 

@@ -187,7 +187,7 @@ export const wikiTools: MCPTool[] = [
         if (Predicate.isNullish(body)) {
           return { ...rest, outline, section, sectionFound: false }
         }
-        const w = windowText(body, { max, cursor })
+        const w = windowText(body, { cursor, max })
         return {
           ...rest,
           outline,
@@ -198,7 +198,7 @@ export const wikiTools: MCPTool[] = [
           ...(w.next ? { next: w.next } : {}),
         }
       }
-      const w = windowText(full, { max, cursor })
+      const w = windowText(full, { cursor, max })
       return {
         ...rest,
         outline,

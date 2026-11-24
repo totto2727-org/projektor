@@ -814,7 +814,7 @@ describe('covers PROJ-274: read-scoped token is denied write on every request', 
         ...authHeaders(readOnlyToken, fixture.workspace.slug),
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name: 'Blocked', key: 'BLK' }),
+      body: JSON.stringify({ key: 'BLK', name: 'Blocked' }),
     })
     expect(res.status).toBe(403)
     const body = (await res.json()) as { error: string }
@@ -997,7 +997,7 @@ describe('covers PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: { 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Blocked', key: 'BLK' }),
+      body: JSON.stringify({ key: 'BLK', name: 'Blocked' }),
     })
     expect(res.status).toBe(403)
   })

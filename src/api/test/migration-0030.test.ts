@@ -43,8 +43,8 @@ describe('0030 backfill in_review_at', () => {
   test('backfills in_review_at from claimed_at for an issue currently in a review status', async () => {
     const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'In review',
       status: 'in_review',
+      title: 'In review',
     })
     await env.DB.prepare('UPDATE issues SET claimed_at = ? WHERE id = ?')
       .bind(now - 100, issue.id)
@@ -61,8 +61,8 @@ describe('0030 backfill in_review_at', () => {
   test('does not backfill a done issue that never carried a review status (no signal to guess from)', async () => {
     const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Closed without review',
       status: 'done',
+      title: 'Closed without review',
     })
     await env.DB.prepare('UPDATE issues SET claimed_at = ?, done_at = ? WHERE id = ?')
       .bind(now - 200, now, issue.id)
@@ -79,8 +79,8 @@ describe('0030 backfill in_review_at', () => {
   test('does not overwrite an already-stamped in_review_at', async () => {
     const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Already stamped',
       status: 'in_review',
+      title: 'Already stamped',
     })
     await env.DB.prepare('UPDATE issues SET claimed_at = ?, in_review_at = ? WHERE id = ?')
       .bind(now - 300, now - 50, issue.id)
@@ -97,8 +97,8 @@ describe('0030 backfill in_review_at', () => {
   test('is idempotent — re-running changes nothing', async () => {
     const now = currentEpochSeconds()
     const issue = await seedIssue(workspaceId, projectId, userId, {
-      title: 'In review',
       status: 'in_review',
+      title: 'In review',
     })
     await env.DB.prepare('UPDATE issues SET claimed_at = ? WHERE id = ?')
       .bind(now - 100, issue.id)

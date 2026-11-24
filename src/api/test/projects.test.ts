@@ -60,7 +60,7 @@ describe('projects REST', () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Alpha', key: 'ALPHA' }),
+      body: JSON.stringify({ key: 'ALPHA', name: 'Alpha' }),
     })
     expect(res.status).toBe(201)
     const body = (await res.json()) as { id: string; name: string; key: string }
@@ -73,7 +73,7 @@ describe('projects REST', () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Beta', key: 'beta' }),
+      body: JSON.stringify({ key: 'beta', name: 'Beta' }),
     })
     expect(res.status).toBe(201)
     const body = (await res.json()) as { key: string }
@@ -84,7 +84,7 @@ describe('projects REST', () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: memberHeaders,
-      body: JSON.stringify({ name: 'Gamma', key: 'GAMMA' }),
+      body: JSON.stringify({ key: 'GAMMA', name: 'Gamma' }),
     })
     expect(res.status).toBe(403)
   })
@@ -93,7 +93,7 @@ describe('projects REST', () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: viewerHeaders,
-      body: JSON.stringify({ name: 'Delta', key: 'DELTA' }),
+      body: JSON.stringify({ key: 'DELTA', name: 'Delta' }),
     })
     expect(res.status).toBe(403)
   })
@@ -102,12 +102,12 @@ describe('projects REST', () => {
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'First', key: 'DUPL' }),
+      body: JSON.stringify({ key: 'DUPL', name: 'First' }),
     })
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Second', key: 'DUPL' }),
+      body: JSON.stringify({ key: 'DUPL', name: 'Second' }),
     })
     expect(res.status).toBe(409)
   })
@@ -116,7 +116,7 @@ describe('projects REST', () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Bad', key: 'BAD KEY!' }),
+      body: JSON.stringify({ key: 'BAD KEY!', name: 'Bad' }),
     })
     expect(res.status).toBe(400)
   })
@@ -125,7 +125,7 @@ describe('projects REST', () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Leading digit', key: '2FA' }),
+      body: JSON.stringify({ key: '2FA', name: 'Leading digit' }),
     })
     expect(res.status).toBe(400)
   })
@@ -134,7 +134,7 @@ describe('projects REST', () => {
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Digit key', key: 'WEB2' }),
+      body: JSON.stringify({ key: 'WEB2', name: 'Digit key' }),
     })
     expect(res.status).toBe(201)
   })
@@ -152,7 +152,7 @@ describe('projects REST', () => {
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'NullDesc', key: 'NULLD' }),
+      body: JSON.stringify({ key: 'NULLD', name: 'NullDesc' }),
     })
     const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     const projects = (await listRes.json()) as { key: string; description: string | null }[]
@@ -165,7 +165,7 @@ describe('projects REST', () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'GetMe', key: 'GETME' }),
+      body: JSON.stringify({ key: 'GETME', name: 'GetMe' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -187,7 +187,7 @@ describe('projects REST', () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'OldName', key: 'PATCH1' }),
+      body: JSON.stringify({ key: 'PATCH1', name: 'OldName' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -203,7 +203,7 @@ describe('projects REST', () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'PatchTarget', key: 'PTGT' }),
+      body: JSON.stringify({ key: 'PTGT', name: 'PatchTarget' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -219,7 +219,7 @@ describe('projects REST', () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Archivable', key: 'ARCH1' }),
+      body: JSON.stringify({ key: 'ARCH1', name: 'Archivable' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -265,7 +265,7 @@ describe('projects REST', () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'ToDelete', key: 'DEL1' }),
+      body: JSON.stringify({ key: 'DEL1', name: 'ToDelete' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -280,7 +280,7 @@ describe('projects REST', () => {
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'NoDelete', key: 'NODEL' }),
+      body: JSON.stringify({ key: 'NODEL', name: 'NoDelete' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
@@ -393,7 +393,7 @@ describe('projects MCP', () => {
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Shape Check', key: 'SHAPE' }),
+      body: JSON.stringify({ key: 'SHAPE', name: 'Shape Check' }),
     })
 
     const res = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
@@ -418,7 +418,7 @@ describe('projects MCP', () => {
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ name: 'Parity Test', key: 'PARITY' }),
+      body: JSON.stringify({ key: 'PARITY', name: 'Parity Test' }),
     })
 
     const restRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
@@ -475,7 +475,7 @@ describe('projects MCP', () => {
     const restRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: memberHeaders,
-      body: JSON.stringify({ name: 'ByMember', key: 'MEMBR' }),
+      body: JSON.stringify({ key: 'MEMBR', name: 'ByMember' }),
     })
     const mcpRes = await mcpCall(workspaceId, 'create_project', { name: 'ByMember', key: 'MEMBR' }, memberHeaders)
 

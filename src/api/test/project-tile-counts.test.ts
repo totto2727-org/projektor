@@ -55,8 +55,8 @@ describe('update_task_status re-syncs issues.status_category (PROJ-849)', () => 
     const project = await seedProject(ws.id, 'SYNC')
     const token = await seedToken(ws.id, user.id)
     const status = await seedTaskStatus(ws.id, {
-      key: 'custom_review',
       category: 'in_progress',
+      key: 'custom_review',
     })
     const issue = await seedIssue(ws.id, project.id, user.id, {
       status: status.key,
@@ -97,7 +97,7 @@ describe('migration 0066: repairs drifted status_category (PROJ-849)', () => {
     await seedMember(ws.id, user.id, 'owner')
     const project = await seedProject(ws.id, 'REPAIR')
 
-    const status = await seedTaskStatus(ws.id, { key: 'custom_done', category: 'done' })
+    const status = await seedTaskStatus(ws.id, { category: 'done', key: 'custom_done' })
     const issue = await seedIssue(ws.id, project.id, user.id, {
       status: status.key,
       statusId: status.id,
@@ -114,8 +114,8 @@ describe('migration 0066: repairs drifted status_category (PROJ-849)', () => {
      * would match it.
      */
     const crossWsStatus = await seedTaskStatus(otherWs.id, {
-      key: 'unrelated',
       category: 'cancelled',
+      key: 'unrelated',
     })
 
     const repairSql = m0066

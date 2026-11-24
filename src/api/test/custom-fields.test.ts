@@ -135,8 +135,8 @@ describe('custom Field Definitions API', () => {
   test('handles PATCH /api/custom-fields/:id updates options for select field', async () => {
     const { id } = await seedCustomFieldDef(workspaceId, {
       key: 'size',
-      type: 'select',
       options: ['S', 'M'],
+      type: 'select',
     })
 
     const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
@@ -245,8 +245,8 @@ describe('custom Field Values — validation', () => {
     await seedCustomFieldDef(workspaceId, {
       key: 'size',
       label: 'Size',
-      type: 'select',
       options: ['S', 'M', 'L'],
+      type: 'select',
     })
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -260,8 +260,8 @@ describe('custom Field Values — validation', () => {
     await seedCustomFieldDef(workspaceId, {
       key: 'size',
       label: 'Size',
-      type: 'select',
       options: ['S', 'M', 'L'],
+      type: 'select',
     })
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',

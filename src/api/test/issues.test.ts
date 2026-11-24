@@ -91,7 +91,7 @@ describe('issues API', () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'First issue', priority: 'high' }),
+      body: JSON.stringify({ priority: 'high', projectId, title: 'First issue' }),
     })
     expect(res.status).toBe(201)
     const body = (await res.json()) as { id: string }
@@ -122,7 +122,7 @@ describe('issues API', () => {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Author kind test', authorKind: 'human' }),
+      body: JSON.stringify({ authorKind: 'human', projectId, title: 'Author kind test' }),
     })
     expect(res.status).toBe(400)
   })
@@ -527,18 +527,18 @@ describe('issues API', () => {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
+        body: 'Login fails on Safari',
         projectId,
         title: 'Authentication bug',
-        body: 'Login fails on Safari',
       }),
     })
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
+        body: 'Slow query on dashboard',
         projectId,
         title: 'Performance regression',
-        body: 'Slow query on dashboard',
       }),
     })
 
@@ -555,12 +555,12 @@ describe('issues API', () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Some issue', body: 'Contains wrangler reference' }),
+      body: JSON.stringify({ body: 'Contains wrangler reference', projectId, title: 'Some issue' }),
     })
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Other issue', body: 'Unrelated content' }),
+      body: JSON.stringify({ body: 'Unrelated content', projectId, title: 'Other issue' }),
     })
 
     const res = await fetchNativeApi('http://localhost/api/issues/search?q=wrangler', {
@@ -575,7 +575,7 @@ describe('issues API', () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Workspace A issue', body: 'unique-sentinel' }),
+      body: JSON.stringify({ body: 'unique-sentinel', projectId, title: 'Workspace A issue' }),
     })
 
     const other = await seedFixture()
@@ -603,7 +603,7 @@ describe('issues API', () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Alpha project issue', body: 'shared-term' }),
+      body: JSON.stringify({ body: 'shared-term', projectId, title: 'Alpha project issue' }),
     })
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -661,9 +661,9 @@ describe('issues API', () => {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
+        body: 'authentication flow is broken',
         projectId,
         title: 'Authentication bug',
-        body: 'authentication flow is broken',
       }),
     })
     // Issue with the term only in body — lower bm25 score
@@ -671,9 +671,9 @@ describe('issues API', () => {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
+        body: 'unrelated to authentication',
         projectId,
         title: 'Performance regression',
-        body: 'unrelated to authentication',
       }),
     })
 
@@ -691,7 +691,7 @@ describe('issues API', () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Primary workspace fts-sentinel', body: '' }),
+      body: JSON.stringify({ body: '', projectId, title: 'Primary workspace fts-sentinel' }),
     })
 
     // Seed the same term in a completely separate workspace
@@ -757,7 +757,7 @@ describe('issues API', () => {
     const childRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Child issue', parentId }),
+      body: JSON.stringify({ parentId, projectId, title: 'Child issue' }),
     })
     expect(childRes.status).toBe(201)
     const { id: childId } = (await childRes.json()) as { id: string }
@@ -851,7 +851,7 @@ describe('issues API', () => {
     const childRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Child', parentId }),
+      body: JSON.stringify({ parentId, projectId, title: 'Child' }),
     })
     const { id: childId } = (await childRes.json()) as { id: string }
 
@@ -972,12 +972,12 @@ describe('issues API', () => {
   })
 
   test('filters by multiple statusIds (OR)', async () => {
-    const s1 = await seedTaskStatus(workspaceId, { key: 'todo', name: 'Todo', category: 'todo' })
-    const s2 = await seedTaskStatus(workspaceId, { key: 'done', name: 'Done', category: 'done' })
+    const s1 = await seedTaskStatus(workspaceId, { category: 'todo', key: 'todo', name: 'Todo' })
+    const s2 = await seedTaskStatus(workspaceId, { category: 'done', key: 'done', name: 'Done' })
     const s3 = await seedTaskStatus(workspaceId, {
+      category: 'in_progress',
       key: 'in_progress',
       name: 'In Progress',
-      category: 'in_progress',
     })
 
     await seedIssue(workspaceId, projectId, userId, {
@@ -1003,17 +1003,17 @@ describe('issues API', () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Urgent issue', priority: 'urgent' }),
+      body: JSON.stringify({ priority: 'urgent', projectId, title: 'Urgent issue' }),
     })
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'High issue', priority: 'high' }),
+      body: JSON.stringify({ priority: 'high', projectId, title: 'High issue' }),
     })
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Low issue', priority: 'low' }),
+      body: JSON.stringify({ priority: 'low', projectId, title: 'Low issue' }),
     })
 
     const { page } = await listIssues('http://localhost/api/issues?priorities=urgent,high')
@@ -1052,7 +1052,7 @@ describe('issues API', () => {
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Child issue', parentId }),
+      body: JSON.stringify({ parentId, projectId, title: 'Child issue' }),
     })
 
     const { page } = await listIssues('http://localhost/api/issues?noParent=true')
@@ -1403,7 +1403,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Has a body', body: 'Some body text' }),
+      body: JSON.stringify({ body: 'Some body text', projectId, title: 'Has a body' }),
     })
 
     const { page: defaultPage } = await listIssues('http://localhost/api/issues')
@@ -1420,7 +1420,7 @@ describe('issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ projectId, title: 'Assigned to me', assigneeId: userId }),
+      body: JSON.stringify({ assigneeId: userId, projectId, title: 'Assigned to me' }),
     })
     await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
@@ -1971,8 +1971,8 @@ describe('get_prioritized_issues MCP tool', () => {
   })
 
   test('returns non-empty array with _score fields when open issues exist', async () => {
-    await seedIssue(workspaceId, projectId, userId, { title: 'High prio', priority: 'high' })
-    await seedIssue(workspaceId, projectId, userId, { title: 'Low prio', priority: 'low' })
+    await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'High prio' })
+    await seedIssue(workspaceId, projectId, userId, { priority: 'low', title: 'Low prio' })
 
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
@@ -2011,8 +2011,8 @@ describe('get_prioritized_issues MCP tool', () => {
 
   test('excludes done and cancelled issues', async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Open' })
-    await seedIssue(workspaceId, projectId, userId, { title: 'Done', status: 'done' })
-    await seedIssue(workspaceId, projectId, userId, { title: 'Cancelled', status: 'cancelled' })
+    await seedIssue(workspaceId, projectId, userId, { status: 'done', title: 'Done' })
+    await seedIssue(workspaceId, projectId, userId, { status: 'cancelled', title: 'Cancelled' })
 
     const body = await callPrioritized({ includeNotReady: true })
     expect(body.error).toBeUndefined()
@@ -2030,12 +2030,12 @@ describe('get_prioritized_issues MCP tool', () => {
       type: 'number',
     })
     const small = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Small',
       priority: 'none',
+      title: 'Small',
     })
     const large = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Large',
       priority: 'none',
+      title: 'Large',
     })
     await seedCustomFieldValue(small.id, field.id, '1')
     await seedCustomFieldValue(large.id, field.id, '8')
@@ -2171,8 +2171,8 @@ describe('handles GET /api/issues/prioritized', () => {
   }
 
   test('ranks higher-priority issues first', async () => {
-    await seedIssue(workspaceId, projectId, userId, { title: 'Low prio', priority: 'low' })
-    await seedIssue(workspaceId, projectId, userId, { title: 'High prio', priority: 'high' })
+    await seedIssue(workspaceId, projectId, userId, { priority: 'low', title: 'Low prio' })
+    await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'High prio' })
 
     const { res, body } = await getPrioritized({ includeNotReady: 'true' })
     expect(res.status).toBe(200)
@@ -2432,8 +2432,8 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
 
   test('get_prioritized_issues with a visible project key returns results', async () => {
     await seedIssue(workspaceId, projectId, userId, {
-      title: 'Prioritizable',
       priority: 'urgent',
+      title: 'Prioritizable',
     })
 
     const res = await mcpCall({
@@ -2711,8 +2711,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
   test('fields:[...] returns only the named fields', async () => {
     const { id } = await seedIssue(workspaceId, projectId, userId, {
-      title: 'Fields test',
       priority: 'high',
+      title: 'Fields test',
     })
     const res = await mcpCall({
       name: 'get_issue',
@@ -2826,8 +2826,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
      * children/parent, no links — exactly the empty/default fields PROJ-931 targets.
      */
     const { id } = await seedIssue(workspaceId, projectId, userId, {
-      title: 'A typical seeded issue for byte measurement',
       priority: 'high',
+      title: 'A typical seeded issue for byte measurement',
     })
 
     /*

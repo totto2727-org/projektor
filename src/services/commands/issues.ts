@@ -1370,10 +1370,10 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown):
 
   statements.push(
     buildActivityInsertStatement(ctx, orm, {
-      entityType: 'issue',
-      entityId: id,
       action: 'updated',
       diff,
+      entityId: id,
+      entityType: 'issue',
     }),
   )
 
@@ -1592,7 +1592,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
     }
   }
 
-  await recordActivity(ctx, { entityType: 'issue', entityId: id, action: 'deleted' })
+  await recordActivity(ctx, { action: 'deleted', entityId: id, entityType: 'issue' })
   const toInvalidate = new Set([id, ...affected.results.map((result) => result.id)])
   if (existing.parentId) {
     toInvalidate.add(existing.parentId)

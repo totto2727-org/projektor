@@ -48,11 +48,11 @@ describe('compose_playbook', () => {
   }
 
   test('composes with defaults (bounded, opus, cadence 2), well-formed blockquote, and embeds live data', async () => {
-    await seedIssue(workspaceId, projectId, userId, { title: 'Child 1', parentId: epicId })
+    await seedIssue(workspaceId, projectId, userId, { parentId: epicId, title: 'Child 1' })
     await seedIssue(workspaceId, projectId, userId, {
-      title: 'Child 2 (done)',
-      status: 'done',
       parentId: epicId,
+      status: 'done',
+      title: 'Child 2 (done)',
     })
     /*
      * Non-default WIP limit so the assertion below can't pass on the fallback

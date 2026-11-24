@@ -197,7 +197,7 @@ describe('covers MCP endpoint', () => {
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ title: 'MCP Docs', content: 'How to use the MCP endpoint' }),
+      body: JSON.stringify({ content: 'How to use the MCP endpoint', title: 'MCP Docs' }),
     })
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
@@ -215,7 +215,7 @@ describe('covers MCP endpoint', () => {
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ title: 'Runbook', content: '## Steps' }),
+      body: JSON.stringify({ content: '## Steps', title: 'Runbook' }),
     })
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
@@ -436,7 +436,7 @@ describe('covers MCP endpoint', () => {
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ title: 'Parent', content: 'root' }),
+      body: JSON.stringify({ content: 'root', title: 'Parent' }),
     })
     const parent = (await parentRes.json()) as { id: string }
 
@@ -460,7 +460,7 @@ describe('covers MCP endpoint', () => {
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ title: 'Some Page', content: 'content' }),
+      body: JSON.stringify({ content: 'content', title: 'Some Page' }),
     })
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
@@ -478,7 +478,7 @@ describe('covers MCP endpoint', () => {
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ title: 'Verbose Page', content: longContent }),
+      body: JSON.stringify({ content: longContent, title: 'Verbose Page' }),
     })
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
@@ -559,7 +559,7 @@ describe('covers MCP endpoint', () => {
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ title: 'Slug Update', content: 'original' }),
+      body: JSON.stringify({ content: 'original', title: 'Slug Update' }),
     })
 
     await mcpCall(
@@ -595,7 +595,7 @@ describe('covers MCP endpoint', () => {
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ title: 'MCP Cascade Parent', content: '' }),
+      body: JSON.stringify({ content: '', title: 'MCP Cascade Parent' }),
     })
     const parent = (await parentRes.json()) as { id: string; slug: string }
 
@@ -631,7 +631,7 @@ describe('covers MCP endpoint', () => {
     const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
-      body: JSON.stringify({ title: 'MCP Promote Parent', content: '' }),
+      body: JSON.stringify({ content: '', title: 'MCP Promote Parent' }),
     })
     const parent = (await parentRes.json()) as { id: string; slug: string }
 
@@ -673,8 +673,8 @@ describe('covers MCP endpoint', () => {
 
   test('get_prioritized_issues returns issues with _score and _score_breakdown', async () => {
     const { user } = await seedFixture()
-    await seedIssue(workspaceId, projectId, user.id, { title: 'Issue A', priority: 'high' })
-    await seedIssue(workspaceId, projectId, user.id, { title: 'Issue B', priority: 'low' })
+    await seedIssue(workspaceId, projectId, user.id, { priority: 'high', title: 'Issue A' })
+    await seedIssue(workspaceId, projectId, user.id, { priority: 'low', title: 'Issue B' })
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
@@ -700,8 +700,8 @@ describe('covers MCP endpoint', () => {
 
   test('get_prioritized_issues ranks high-priority issues above low-priority', async () => {
     const { user } = await seedFixture()
-    await seedIssue(workspaceId, projectId, user.id, { title: 'Urgent', priority: 'urgent' })
-    await seedIssue(workspaceId, projectId, user.id, { title: 'None', priority: 'none' })
+    await seedIssue(workspaceId, projectId, user.id, { priority: 'urgent', title: 'Urgent' })
+    await seedIssue(workspaceId, projectId, user.id, { priority: 'none', title: 'None' })
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
@@ -718,16 +718,16 @@ describe('covers MCP endpoint', () => {
 
   test('get_prioritized_issues excludes done and cancelled issues', async () => {
     const { user } = await seedFixture()
-    await seedIssue(workspaceId, projectId, user.id, { title: 'Open', priority: 'high' })
+    await seedIssue(workspaceId, projectId, user.id, { priority: 'high', title: 'Open' })
     await seedIssue(workspaceId, projectId, user.id, {
-      title: 'Done',
       priority: 'urgent',
       status: 'done',
+      title: 'Done',
     })
     await seedIssue(workspaceId, projectId, user.id, {
-      title: 'Cancelled',
       priority: 'urgent',
       status: 'cancelled',
+      title: 'Cancelled',
     })
 
     const res = (await mcpCall<{ content: { text: string }[] }>(
@@ -762,12 +762,12 @@ describe('covers MCP endpoint', () => {
   test('get_prioritized_issues boosts issues with higher in-degree', async () => {
     const { user } = await seedFixture()
     const target = await seedIssue(workspaceId, projectId, user.id, {
-      title: 'Target',
       priority: 'none',
+      title: 'Target',
     })
     const blocker = await seedIssue(workspaceId, projectId, user.id, {
-      title: 'Blocker',
       priority: 'none',
+      title: 'Blocker',
     })
 
     // Target is blocked by blocker → target gets in-degree 1
@@ -800,12 +800,12 @@ describe('covers MCP endpoint', () => {
       type: 'number',
     })
     const small = await seedIssue(workspaceId, projectId, user.id, {
-      title: 'Small (1pt)',
       priority: 'none',
+      title: 'Small (1pt)',
     })
     const large = await seedIssue(workspaceId, projectId, user.id, {
-      title: 'Large (8pt)',
       priority: 'none',
+      title: 'Large (8pt)',
     })
     await seedCustomFieldValue(small.id, fieldDef.id, '1')
     await seedCustomFieldValue(large.id, fieldDef.id, '8')

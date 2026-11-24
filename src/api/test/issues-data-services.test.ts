@@ -175,8 +175,8 @@ describe('shared issue queries over the API D1 pool', () => {
     await seedTaskType(fixture.workspaceId)
     await seedCustomFieldDef(fixture.workspaceId, {
       key: 'choice',
-      type: 'select',
       options: ['A', 'B'],
+      type: 'select',
     })
     await expect(api('task-statuses')).resolves.toEqual(
       await runTestEffect(listTaskStatuses(env.DB, fixture.workspaceId)),

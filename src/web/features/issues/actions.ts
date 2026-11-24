@@ -89,8 +89,8 @@ export const createIssue = EFFRONT.ServerFn.make({
       return yield* Effect.gen(function* () {
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, {
-          requireWorkspace: true,
           requireProject: true,
+          requireWorkspace: true,
         })
         const body = {
           projectId: ctx.projectId ?? input.projectId,

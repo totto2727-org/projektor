@@ -195,8 +195,8 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
   }
 
   test('excludes live-leased issues only when excludeClaimed is true', async () => {
-    const issue = await seedIssue(workspaceId, projectId, userId, { title: 'A', priority: 'high' })
-    const b = await seedIssue(workspaceId, projectId, userId, { title: 'B', priority: 'high' })
+    const issue = await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'A' })
+    const b = await seedIssue(workspaceId, projectId, userId, { priority: 'high', title: 'B' })
 
     const agentRes = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',

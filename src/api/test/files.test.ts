@@ -423,7 +423,7 @@ describe('files API', () => {
       const res = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Linked page', content: 'hello' }),
+        body: JSON.stringify({ content: 'hello', title: 'Linked page' }),
       })
       const body = (await res.json()) as { id: string }
       return body.id
@@ -643,7 +643,7 @@ describe('files API', () => {
       const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: adminHeaders,
-        body: JSON.stringify({ title: 'Doomed page', content: 'will be deleted' }),
+        body: JSON.stringify({ content: 'will be deleted', title: 'Doomed page' }),
       })
       const { id: wikiPageId, slug: wikiPageSlug } = (await pageRes.json()) as {
         id: string
