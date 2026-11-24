@@ -448,7 +448,7 @@ describe('projects MCP', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpProjects = JSON.parse(mcpRes.result.content[0].text) as { key: string }[]
 
-    expect(restProjects.map((p) => p.key)).toEqual(mcpProjects.map((p) => p.key))
+    expect(restProjects.map((p) => p.key)).toStrictEqual(mcpProjects.map((p) => p.key))
   })
 
   test('update_project archives a project and list_projects excludes it by default', async () => {

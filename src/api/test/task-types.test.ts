@@ -1,6 +1,8 @@
 import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
+
 import {
   authHeaders,
   seedFixture,
@@ -315,7 +317,7 @@ describe('task Types — issue integration', () => {
     await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ typeId: null }),
+      body: JSON.stringify({ typeId: JSON_NULL }),
     })
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {

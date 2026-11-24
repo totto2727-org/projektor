@@ -47,7 +47,7 @@ describe('actual native API and Core topology', () => {
       const decoded = await runTestEffect(
         decodeCoreReply(RateLimitResult, makeCoreClient(binding).apiCheckRateLimit({})),
       )
-      expect(decoded).toBe(null)
+      expect(decoded).toBeNull()
     }
   })
 
@@ -69,9 +69,9 @@ describe('actual native API and Core topology', () => {
       runTestEffect(
         decodeCoreReply(RateLimitResult, makeCoreClient(binding).apiCheckRateLimit({ ip: '203.0.113.254' })),
       )
-    await expect(check(restricted)).resolves.toBe(null)
+    await expect(check(restricted)).resolves.toBeNull()
     await expect(check(restricted)).resolves.toMatchObject({ retryAfter: expect.any(Number) })
-    await expect(check(ordinary)).resolves.toBe(null)
+    await expect(check(ordinary)).resolves.toBeNull()
   })
 
   test('creates independently configured native Core sessions without shared policy state', async () => {

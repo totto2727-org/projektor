@@ -113,7 +113,7 @@ describe('files API', () => {
       ).pipe(Schema.mutable),
     )
     expect(list).toHaveLength(2)
-    expect(list.map((f) => f.filename).sort()).toEqual(['a.txt', 'b.txt'])
+    expect(list.map((f) => f.filename).sort()).toStrictEqual(['a.txt', 'b.txt'])
     expect(list[0]).toMatchObject({ contentType: 'text/plain' })
   })
 
@@ -1130,7 +1130,7 @@ describe('attachment project visibility', () => {
     const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${orphanId}`, {
       headers: asMember(),
     })
-    expect(((await res.json()) as { filename: string }[]).map((a) => a.filename)).toEqual(['orphan.txt'])
+    expect(((await res.json()) as { filename: string }[]).map((a) => a.filename)).toStrictEqual(['orphan.txt'])
   })
 
   test('rejects uploading onto an issue in an invisible project without orphaning the R2 object', async () => {

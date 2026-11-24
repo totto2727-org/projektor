@@ -204,12 +204,12 @@ describe('groups REST', () => {
     const memberList = (await (
       await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, { headers: memberHeaders })
     ).json()) as { name: string }[]
-    expect(memberList.map((g) => g.name)).toEqual(['Mine'])
+    expect(memberList.map((g) => g.name)).toStrictEqual(['Mine'])
 
     const ownerList = (await (
       await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, { headers: ownerHeaders })
     ).json()) as { name: string }[]
-    expect(ownerList.map((g) => g.name).sort()).toEqual(['Mine', 'Theirs'])
+    expect(ownerList.map((g) => g.name).sort()).toStrictEqual(['Mine', 'Theirs'])
   })
 
   test('member-groups lists every member with a pending (empty) entry', async () => {

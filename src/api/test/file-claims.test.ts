@@ -488,7 +488,7 @@ describe('file Claims API', () => {
        * Reported, not silent: an agent that took over an abandoned path should be able to
        * tell that from an uncontested first claim.
        */
-      expect(body.reclaimed.map((r) => r.path)).toEqual(['src/abandoned.ts'])
+      expect(body.reclaimed.map((r) => r.path)).toStrictEqual(['src/abandoned.ts'])
       expect(body.reclaimed[0].releaseReason).toBe('expired')
     })
 
@@ -673,7 +673,7 @@ describe('file Claims API', () => {
           ),
         })
         const body = await readNativeJson(res, bodyShape)
-        expect(body.reclaimed.map((r) => r.path)).toEqual(['src/ttl-expired.ts'])
+        expect(body.reclaimed.map((r) => r.path)).toStrictEqual(['src/ttl-expired.ts'])
         expect(body.reclaimed[0].releaseReason).toBe('expired')
       })
 

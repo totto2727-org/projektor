@@ -1,6 +1,8 @@
 import { Schema, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
+
 import { env } from './fixture-api.ts'
 import {
   authHeaders,
@@ -545,12 +547,12 @@ describe('workspace brand (PROJ-761)', () => {
     })
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toStrictEqual({
-      accent: null,
-      displayName: null,
-      fontFamily: null,
-      fontUrl: null,
-      logoUrl: null,
-      onAccent: null,
+      accent: JSON_NULL,
+      displayName: JSON_NULL,
+      fontFamily: JSON_NULL,
+      fontUrl: JSON_NULL,
+      logoUrl: JSON_NULL,
+      onAccent: JSON_NULL,
     })
   })
 
@@ -600,7 +602,7 @@ describe('workspace brand (PROJ-761)', () => {
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
-      body: JSON.stringify({ accent: null }),
+      body: JSON.stringify({ accent: JSON_NULL }),
     })
     const body = await readNativeJson(
       res,

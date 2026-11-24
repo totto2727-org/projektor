@@ -800,12 +800,12 @@ describe('covers MCP surface parity (PROJ-623)', () => {
   describe('service functions vs both surfaces', () => {
     test('exposes every MCP-wired operation over REST too', () => {
       const gaps = serviceFns.filter((s) => s.onMcp && !s.onRest && !(s.key in MCP_ONLY)).map((s) => s.key)
-      expect(gaps).toEqual([])
+      expect(gaps).toStrictEqual([])
     })
 
     test('exposes every REST-wired operation as an MCP tool too', () => {
       const gaps = serviceFns.filter((s) => s.onRest && !s.onMcp && !(s.key in REST_ONLY)).map((s) => s.key)
-      expect(gaps).toEqual([])
+      expect(gaps).toStrictEqual([])
     })
 
     test("names every MCP-wired operation's tool after its service function", () => {
@@ -816,7 +816,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
           return !catalogToolNames.includes(expected) || !toolOperations.get(expected)?.has(s.key)
         })
         .map((s) => `${s.key} -> ${TOOL_NAME_ALIASES[s.key] ?? snakeCase(s.fn)}`)
-      expect(mismatched).toEqual([])
+      expect(mismatched).toStrictEqual([])
     })
   })
 
@@ -850,7 +850,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
       const redundant = Object.entries(TOOL_NAME_ALIASES)
         .filter(([key, alias]) => snakeCase(key.split(':')[1]) === alias)
         .map(([k]) => k)
-      expect(redundant).toEqual([])
+      expect(redundant).toStrictEqual([])
     })
   })
 })

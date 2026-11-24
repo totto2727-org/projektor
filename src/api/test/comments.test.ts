@@ -327,7 +327,7 @@ describe('covers PROJ-438 — comments accept an issue ref', () => {
 
     expect(res.status).toBe(200)
     const bodies = ((await res.json()) as { body: string }[]).map((c) => c.body)
-    expect(bodies).toEqual(['mine'])
+    expect(bodies).toStrictEqual(['mine'])
   })
 
   test('a ref that exists only in another workspace is 404', async () => {

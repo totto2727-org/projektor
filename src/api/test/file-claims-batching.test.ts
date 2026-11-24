@@ -338,7 +338,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       created: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable),
     })
     const body = await readNativeJson(res, bodyShape)
-    expect(body.created.map((c) => c.path)).toEqual(['src/b.ts', 'src/a.ts'])
+    expect(body.created.map((c) => c.path)).toStrictEqual(['src/b.ts', 'src/a.ts'])
   })
 
   test('force-claim notifications stay within the 5,000-char message cap', async () => {

@@ -170,7 +170,7 @@ describe('agent Messages API', () => {
     const p2 = JSON.parse(p2Body.result?.content[0].text ?? '{}') as {
       items: { body: string }[]
     }
-    expect(p2.items.map((item) => item.body)).toEqual(['message three'])
+    expect(p2.items.map((item) => item.body)).toStrictEqual(['message three'])
   })
 
   // C2: workspace scope; messages visible via workspace scope; not returned under issue scope

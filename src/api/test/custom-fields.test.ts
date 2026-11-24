@@ -465,7 +465,7 @@ describe('custom Fields — list_issues filter', () => {
     const page = await readNativeJson(res, pageShape)
     expect(page.items).toHaveLength(2)
     const titles = page.items.map((item) => item.title).sort()
-    expect(titles).toEqual(['SP13', 'SP8'])
+    expect(titles).toStrictEqual(['SP13', 'SP8'])
   })
 
   test('handles GET /api/issues with unknown cfKey returns 400', async () => {
@@ -664,12 +664,12 @@ describe('covers PROJ-837: custom field definitions respect project access', () 
     })
     expect(all.status).toBe(200)
     const keys = ((await all.json()) as { key: string }[]).map((d) => d.key).sort()
-    expect(keys).toEqual(['open_field', 'ws_field'])
+    expect(keys).toStrictEqual(['open_field', 'ws_field'])
 
     const scoped = await fetchNativeApi(`http://localhost/api/custom-fields?projectId=${restricted.id}`, {
       headers: authHeaders(token, workspace.slug),
     })
     const scopedKeys = ((await scoped.json()) as { key: string }[]).map((d) => d.key)
-    expect(scopedKeys).toEqual(['ws_field'])
+    expect(scopedKeys).toStrictEqual(['ws_field'])
   })
 })

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 import { issuesTools } from '#api/mcp/issues.ts'
 import { ListIssuesSchema } from '#contracts/inputs/issues.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -865,7 +866,7 @@ describe('issues API', () => {
     await fetchNativeApi(`http://localhost/api/issues/${childId}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ parentId: null }),
+      body: JSON.stringify({ parentId: JSON_NULL }),
     })
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${childId}`, {
@@ -2559,7 +2560,7 @@ describe('issues — assignee workspace membership (PROJ-785)', () => {
     const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ assigneeId: null }),
+      body: JSON.stringify({ assigneeId: JSON_NULL }),
     })
     expect(patchRes.status).toBe(200)
 
@@ -2772,7 +2773,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     expect(res.error).toBeUndefined()
     const data = JSON.parse(res.result!.content[0].text) as { items: { title: string }[] }
     const titles = data.items.map((item) => item.title).sort()
-    expect(titles).toEqual(['Batch A', 'Batch B'])
+    expect(titles).toStrictEqual(['Batch A', 'Batch B'])
   })
 
   test('fields:[...] always returns every named key: real value, or null when unset', async () => {
@@ -2858,7 +2859,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       items: Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable),
     })
     const data = await readNativeJson(res, dataShape)
-    expect(data.items.map((item) => item.title).sort()).toEqual(['REST Batch A', 'REST Batch B'])
+    expect(data.items.map((item) => item.title).sort()).toStrictEqual(['REST Batch A', 'REST Batch B'])
   })
 
   test('covers PROJ-931: get_issue MCP bytes drop by at least 40% vs the full pretty shape', async () => {

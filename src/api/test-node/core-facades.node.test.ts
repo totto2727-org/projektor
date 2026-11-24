@@ -10,6 +10,7 @@ import { makeApiDomainHandlers } from '#core/api/domain-operations.ts'
 import { coreFailure, coreReply } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
@@ -273,7 +274,7 @@ describe('covers API facade reply boundary', () => {
           slug: 'root',
           title: 'Root',
           url: '/wiki/root',
-          type: null,
+          type: JSON_NULL,
           children: [{ privateDiagnostic: 'not a page' }],
         },
       ],

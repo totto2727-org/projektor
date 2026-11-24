@@ -193,7 +193,7 @@ describe('sprints API', () => {
     const page = await readNativeJson(listRes, pageShape)
     expect(page.items).toHaveLength(2)
     const titles = page.items.map((item) => item.title).sort()
-    expect(titles).toEqual(['Issue A', 'Issue B'])
+    expect(titles).toStrictEqual(['Issue A', 'Issue B'])
   })
 
   test('handles DELETE sprint clears sprint_id on issues (ON DELETE SET NULL)', async () => {

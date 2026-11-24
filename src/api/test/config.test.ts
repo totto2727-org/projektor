@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
 import { deriveBrandMark } from '#api/routes/config.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 
 import { fetchNativeApi } from './native-fetch.ts'
 
@@ -10,10 +11,10 @@ describe('handles GET /api/config/brand', () => {
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toStrictEqual({
       accent: '#123456',
-      logoUrl: null,
+      logoUrl: JSON_NULL,
       mark: 'T',
       name: 'Test Brand',
-      onAccent: null,
+      onAccent: JSON_NULL,
     })
   })
 })

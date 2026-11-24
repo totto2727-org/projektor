@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 import { computeFreshness } from '#commands/wiki-freshness.ts'
 import { listWikiChanges } from '#commands/wiki-watchers.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { JSON_NULL } from '#tests/json-null.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -779,7 +780,7 @@ describe('wiki API', () => {
     const strictRes = await fetchNativeApi(`http://localhost/api/wiki?projectId=${project.id}`, {
       headers: authHeaders(token, slug),
     })
-    expect(((await strictRes.json()) as { title: string }[]).map((p) => p.title)).toEqual(['Scoped Page'])
+    expect(((await strictRes.json()) as { title: string }[]).map((p) => p.title)).toStrictEqual(['Scoped Page'])
 
     const widenedRes = await fetchNativeApi(
       `http://localhost/api/wiki?projectId=${project.id}&includeWorkspacePages=1`,
@@ -787,7 +788,7 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
       },
     )
-    expect(((await widenedRes.json()) as { title: string }[]).map((p) => p.title).sort()).toEqual([
+    expect(((await widenedRes.json()) as { title: string }[]).map((p) => p.title).sort()).toStrictEqual([
       'Scoped Page',
       'Shared Page',
     ])
@@ -798,7 +799,7 @@ describe('wiki API', () => {
         headers: authHeaders(token, slug),
       },
     )
-    expect(((await treeRes.json()) as { title: string }[]).map((p) => p.title).sort()).toEqual([
+    expect(((await treeRes.json()) as { title: string }[]).map((p) => p.title).sort()).toStrictEqual([
       'Scoped Page',
       'Shared Page',
     ])
@@ -813,7 +814,7 @@ describe('wiki API', () => {
     const res = await fetchNativeApi(`http://localhost/api/wiki?projectId=${ungranted.id}&includeWorkspacePages=1`, {
       headers: authHeaders(token, slug),
     })
-    expect(((await res.json()) as { title: string }[]).map((p) => p.title)).toEqual(['Shared Page'])
+    expect(((await res.json()) as { title: string }[]).map((p) => p.title)).toStrictEqual(['Shared Page'])
   })
 
   test('handles POST /api/wiki stores projectId and GET returns it', async () => {
@@ -1911,13 +1912,13 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       headers: authHeaders(token, slug),
     })
     const listed = await readNativeJson(listRes, TitleListResponse)
-    expect(listed.map((r) => r.title)).toEqual(['Freeform Filter Whitepaper'])
+    expect(listed.map((r) => r.title)).toStrictEqual(['Freeform Filter Whitepaper'])
 
     const searchRes = await fetchNativeApi('http://localhost/api/wiki/search?q=latency&type=whitepaper', {
       headers: authHeaders(token, slug),
     })
     const found = await readNativeJson(searchRes, TitleListResponse)
-    expect(found.map((r) => r.title)).toEqual(['Freeform Filter Whitepaper'])
+    expect(found.map((r) => r.title)).toStrictEqual(['Freeform Filter Whitepaper'])
 
     const mcpListed = mcpData<{ title: string }[]>(
       await mcpCall(workspaceId, 'list_wiki_pages', { type: 'whitepaper' }, authHeaders(token, slug)),
@@ -2115,13 +2116,13 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       headers: authHeaders(token, slug),
     })
     const byTypeResults = await readNativeJson(byType, TitleListResponse)
-    expect(byTypeResults.map((r) => r.title)).toEqual(['Filter Adr'])
+    expect(byTypeResults.map((r) => r.title)).toStrictEqual(['Filter Adr'])
 
     const byStatus = await fetchNativeApi('http://localhost/api/wiki?status=current', {
       headers: authHeaders(token, slug),
     })
     const byStatusResults = await readNativeJson(byStatus, TitleListResponse)
-    expect(byStatusResults.map((r) => r.title)).toEqual(['Filter Runbook'])
+    expect(byStatusResults.map((r) => r.title)).toStrictEqual(['Filter Runbook'])
   })
 
   test('covers REST GET /api/wiki?tags= filters by any-of tag match', async () => {
@@ -2148,7 +2149,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       headers: authHeaders(token, slug),
     })
     const results = await readNativeJson(res, TitleListResponse)
-    expect(results.map((result) => result.title).sort()).toEqual(['Tagged Frontend', 'Tagged Ops'])
+    expect(results.map((result) => result.title).sort()).toStrictEqual(['Tagged Frontend', 'Tagged Ops'])
   })
 
   test('covers MCP list_wiki_pages filters by tags (any-of), parity with REST', async () => {
@@ -2197,7 +2198,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     )
     expect(res.status).toBe(200)
     const results = await readNativeJson(res, TitleListResponse)
-    expect(results.map((result) => result.title)).toEqual(['Deploy Runbook'])
+    expect(results.map((result) => result.title)).toStrictEqual(['Deploy Runbook'])
   })
 
   test('search results return tags/owners as arrays, same shape as list and get', async () => {
@@ -2975,7 +2976,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Alpha',
         text: 'Extra alpha line.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(200)
@@ -2993,7 +2994,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'replace_section',
         heading: 'Alpha',
         text: 'Replaced alpha body.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(200)
@@ -3012,7 +3013,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'insert_after_heading',
         heading: 'Alpha',
         text: 'Inserted line.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(200)
@@ -3031,7 +3032,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       body: JSON.stringify({
         op: 'append_to_page',
         text: '## Gamma\nGamma body.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(200)
@@ -3048,7 +3049,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Alpha',
         text: 'More alpha.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
         summary: 'added alpha detail',
       }),
     })
@@ -3078,7 +3079,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Gamma',
         text: 'x',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(404)
@@ -3105,7 +3106,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Alpha',
         text: 'From agent A.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(resA.status).toBe(200)
@@ -3122,7 +3123,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Beta',
         text: 'From agent B.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(resB.status).toBe(200)
@@ -3143,7 +3144,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Alpha',
         text: 'From agent A.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
 
@@ -3158,7 +3159,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Alpha',
         text: 'From agent B.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(409)
@@ -3191,7 +3192,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Beta',
         text: 'x',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(404)
@@ -3212,7 +3213,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Alpha',
         text: 'More.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(200)
@@ -3243,7 +3244,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       method: 'PATCH',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
       body: JSON.stringify({
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
         heading: 'Alpha',
         op: 'append_to_section',
         text: 'x',
@@ -3296,7 +3297,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Alpha',
         text: 'First edit.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(firstRes.status).toBe(200)
@@ -3328,7 +3329,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       body: JSON.stringify({
         op: 'set_frontmatter',
         values: { status: 'current' },
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(200)
@@ -3354,7 +3355,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       body: JSON.stringify({
         op: 'set_frontmatter',
         values: { status: 'deprecated' },
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(200)
@@ -3379,8 +3380,8 @@ describe('wiki patch operations (PROJ-490)', () => {
       headers: authHeaders(token, slug),
       body: JSON.stringify({
         op: 'set_frontmatter',
-        values: { type: null },
-        baseRevisionId: null,
+        values: { type: JSON_NULL },
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(200)
@@ -3401,7 +3402,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       body: JSON.stringify({
         op: 'set_frontmatter',
         values: { status: 'not-a-real-status' },
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(400)
@@ -3419,7 +3420,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     const res = await req('http://localhost/api/wiki/patch-frontmatter-empty', {
       method: 'PATCH',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ op: 'set_frontmatter', values: {}, baseRevisionId: null }),
+      body: JSON.stringify({ op: 'set_frontmatter', values: {}, baseRevisionId: JSON_NULL }),
     })
     expect(res.status).toBe(400)
   })
@@ -3432,7 +3433,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       body: JSON.stringify({
         op: 'set_frontmatter',
         values: { status: 'deprecated' },
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     await createPage('patch-frontmatter-current', 'Patch Frontmatter Current', 'uniquedemotekeyword')
@@ -3441,7 +3442,10 @@ describe('wiki patch operations (PROJ-490)', () => {
       headers: authHeaders(token, slug),
     })
     const results = await readNativeJson(searchRes, TitleListResponse)
-    expect(results.map((result) => result.title)).toEqual(['Patch Frontmatter Current', 'Patch Frontmatter Demote'])
+    expect(results.map((result) => result.title)).toStrictEqual([
+      'Patch Frontmatter Current',
+      'Patch Frontmatter Demote',
+    ])
   })
 
   test('covers REST: set_frontmatter accepts a stale baseRevisionId belonging to the page', async () => {
@@ -3453,7 +3457,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Alpha',
         text: 'First edit.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     const revisions = (await (
@@ -3611,7 +3615,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'install deps',
         text: 'x',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(missing.status).toBe(404)
@@ -3628,7 +3632,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'replace_section',
         heading: 'Setup',
         text: 'Replaced.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(200)
@@ -3653,7 +3657,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'a yaml comment',
         text: 'x',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(404)
@@ -3674,7 +3678,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'replace_section',
         heading: 'Notes',
         text: 'Replaced.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(400)
@@ -3726,7 +3730,7 @@ describe('wiki patch operations (PROJ-490)', () => {
         op: 'append_to_section',
         heading: 'Alpha',
         text: 'More.',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     expect(res.status).toBe(200)
@@ -3857,7 +3861,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       res,
       Schema.Array(Schema.Struct({ slug: Schema.String, title: Schema.String })).pipe(Schema.mutable),
     )
-    expect(backlinks.map((b) => b.slug).sort()).toEqual(['alpha', 'beta'])
+    expect(backlinks.map((b) => b.slug).sort()).toStrictEqual(['alpha', 'beta'])
   })
 
   test('a same-workspace wiki URL link resolves a backlink', async () => {
@@ -3868,7 +3872,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = await readNativeJson(res, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toEqual(['gamma'])
+    expect(backlinks.map((b) => b.slug)).toStrictEqual(['gamma'])
   })
 
   test("covers PROJ-517/512: a multi-segment /wiki/ URL is never indexed against the first segment's page", async () => {
@@ -3912,7 +3916,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = await readNativeJson(backlinksRes, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toEqual(['theta'])
+    expect(backlinks.map((b) => b.slug)).toStrictEqual(['theta'])
   })
 
   test('an unresolved [[Target]] is stored as a broken link, not a backlink', async () => {
@@ -3983,7 +3987,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = await readNativeJson(res, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toEqual(['linker'])
+    expect(backlinks.map((b) => b.slug)).toStrictEqual(['linker'])
   })
 
   test('editing content to remove a link removes the backlink; a new link adds one', async () => {
@@ -4021,7 +4025,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = await readNativeJson(res, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toEqual(['title-change-source'])
+    expect(backlinks.map((b) => b.slug)).toStrictEqual(['title-change-source'])
   })
 
   test('handles DELETE surfaces linkedByCount as a non-blocking warning and still deletes the page', async () => {
@@ -4175,7 +4179,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
     const backlinks = await readNativeJson(postBacklinks, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toEqual(['legacy-source'])
+    expect(backlinks.map((b) => b.slug)).toStrictEqual(['legacy-source'])
   })
 
   test('backfill_wiki_links is rejected for a non-admin member', async () => {
@@ -4280,7 +4284,7 @@ describe('wiki write atomicity (PROJ-511)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = await readNativeJson(backlinksRes, SlugListResponse)
-    expect(backlinks.map((b) => b.slug)).toEqual(['atomic-source'])
+    expect(backlinks.map((b) => b.slug)).toStrictEqual(['atomic-source'])
 
     await resetRateLimits()
     const searchRes = await fetchNativeApi('http://localhost/api/wiki/search?q=links+anywhere', {
@@ -4555,7 +4559,7 @@ describe('wiki freshness model (PROJ-489)', () => {
       }),
     ).pipe(Schema.mutable)
     const results = await readNativeJson(res, resultsShape)
-    expect(results.map((result) => result.title)).toEqual(['Fresh Deploy Guide', 'Stale Deploy Guide'])
+    expect(results.map((result) => result.title)).toStrictEqual(['Fresh Deploy Guide', 'Stale Deploy Guide'])
     expect(results[0].freshness?.state).toBe('fresh')
     expect(results[1].freshness?.state).toBe('stale')
   })
@@ -4579,7 +4583,7 @@ describe('wiki freshness model (PROJ-489)', () => {
       headers: authHeaders(token, slug),
     })
     const results = await readNativeJson(res, TitleListResponse)
-    expect(results.map((result) => result.title)).toEqual(['Current Onboarding', 'Deprecated Onboarding'])
+    expect(results.map((result) => result.title)).toStrictEqual(['Current Onboarding', 'Deprecated Onboarding'])
   })
 
   /*
@@ -4622,7 +4626,7 @@ describe('wiki freshness model (PROJ-489)', () => {
       }),
     ).pipe(Schema.mutable)
     const results = await readNativeJson(res, resultsShape)
-    expect(results.map((result) => result.title)).toEqual(['Securitypolicykeyword Runbook', 'No Signal Page'])
+    expect(results.map((result) => result.title)).toStrictEqual(['Securitypolicykeyword Runbook', 'No Signal Page'])
     expect(results[0].freshness?.state).toBe('unverified')
   })
 
@@ -4665,7 +4669,7 @@ describe('wiki freshness model (PROJ-489)', () => {
     expect(res.status).toBe(200)
     const results = await readNativeJson(res, TitleListResponse)
     const titles = results.map((result) => result.title).sort()
-    expect(titles).toEqual(['Explicitly Stale Page', 'Never Verified Page', 'Overdue Page'])
+    expect(titles).toStrictEqual(['Explicitly Stale Page', 'Never Verified Page', 'Overdue Page'])
   })
 
   test('covers MCP list_stale_pages returns the same result shape as REST', async () => {
@@ -4894,7 +4898,7 @@ describe('wiki page templates (PROJ-491)', () => {
     })
     expect(res.status).toBe(200)
     const results = await readNativeJson(res, TitleListResponse)
-    expect(results.map((result) => result.title)).toEqual(['Runbook Template'])
+    expect(results.map((result) => result.title)).toStrictEqual(['Runbook Template'])
   })
 
   test("rejects a page slugged 'templates' — it would be shadowed by GET /api/wiki/templates", async () => {
@@ -4942,7 +4946,7 @@ describe('wiki built-in template seeding on workspace creation (PROJ-491)', () =
       Schema.Struct({ title: Schema.String, type: Schema.Union([Schema.String, Schema.Null]) }),
     ).pipe(Schema.mutable)
     const templates = await readNativeJson(listRes, templatesShape)
-    expect(templates.map((template) => template.title).sort()).toEqual([
+    expect(templates.map((template) => template.title).sort()).toStrictEqual([
       'ADR Template',
       'Runbook Template',
       'Spec Template',
@@ -5627,7 +5631,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     const saveRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Draft Page', content: 'draft v1', baseRevisionId: null }),
+      body: JSON.stringify({ title: 'Draft Page', content: 'draft v1', baseRevisionId: JSON_NULL }),
     })
     expect(saveRes.status).toBe(200)
 
@@ -5640,7 +5644,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Draft Page', content: 'draft v2', baseRevisionId: null }),
+      body: JSON.stringify({ title: 'Draft Page', content: 'draft v2', baseRevisionId: JSON_NULL }),
     })
     getRes = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       headers: authHeaders(token, slug),
@@ -5667,7 +5671,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
     await req(`http://localhost/api/wiki/${page.slug}/draft`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Draft Per User', content: 'mine', baseRevisionId: null }),
+      body: JSON.stringify({ title: 'Draft Per User', content: 'mine', baseRevisionId: JSON_NULL }),
     })
 
     const otherGet = await req(`http://localhost/api/wiki/${page.slug}/draft`, {
@@ -5790,13 +5794,13 @@ describe('wiki server-side drafts (PROJ-495)', () => {
       body: JSON.stringify({
         title: 'Draft Delete Parent',
         content: 'draft',
-        baseRevisionId: null,
+        baseRevisionId: JSON_NULL,
       }),
     })
     await req(`http://localhost/api/wiki/${child.slug}/draft`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: 'Draft Delete Child', content: 'draft', baseRevisionId: null }),
+      body: JSON.stringify({ title: 'Draft Delete Child', content: 'draft', baseRevisionId: JSON_NULL }),
     })
 
     const rows = await env.DB.prepare('SELECT page_id FROM wiki_drafts WHERE workspace_id = ?').bind(workspaceId).all()
@@ -6141,7 +6145,7 @@ describe('wiki trash (PROJ-496)', () => {
     await req(`http://localhost/api/wiki/${oldPage.slug}/draft`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
-      body: JSON.stringify({ title: oldPage.slug, content: 'draft', baseRevisionId: null }),
+      body: JSON.stringify({ title: oldPage.slug, content: 'draft', baseRevisionId: JSON_NULL }),
     })
     await req(`http://localhost/api/wiki/${oldPage.slug}`, {
       method: 'PUT',
