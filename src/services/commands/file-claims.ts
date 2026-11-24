@@ -1,4 +1,5 @@
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
+import { flattenError } from 'zod'
 
 import { drizzle, schema } from '#db'
 
@@ -270,7 +271,7 @@ const buildClaimInsertStatements = function buildClaimInsertStatements(
 export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
   const result = ClaimFilesSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { issueId, agentId, force } = result.data
   /*
@@ -450,7 +451,7 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
 export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
   const result = ReleaseFilesSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { paths, issueId } = result.data
   if (issueId) {
@@ -562,7 +563,7 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
 export async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
   const result = ListFileClaimsSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { issueId, path, includeStale } = result.data
   const projectId = result.data.projectId ? await resolveVisibleProjectIdParam(ctx, result.data.projectId) : undefined

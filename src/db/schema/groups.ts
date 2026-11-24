@@ -15,9 +15,7 @@ export const userGroups = sqliteTable(
     description: text('description'),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => ({
-    wsNameIdx: uniqueIndex('user_groups_workspace_name_idx').on(t.workspaceId, t.name),
-  }),
+  (t) => [uniqueIndex('user_groups_workspace_name_idx').on(t.workspaceId, t.name)],
 )
 
 export const userGroupMembers = sqliteTable(
@@ -34,10 +32,7 @@ export const userGroupMembers = sqliteTable(
       .references(() => users.id),
     addedAt: integer('added_at').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.groupId, t.userId] }),
-    userIdx: index('user_group_members_user_idx').on(t.userId),
-  }),
+  (t) => [primaryKey({ columns: [t.groupId, t.userId] }), index('user_group_members_user_idx').on(t.userId)],
 )
 
 export const groupProjectGrants = sqliteTable(
@@ -51,8 +46,5 @@ export const groupProjectGrants = sqliteTable(
       .references(() => projects.id, { onDelete: 'cascade' }),
     role: text('role', { enum: ['viewer', 'member', 'admin'] }).notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.groupId, t.projectId] }),
-    projectIdx: index('group_project_grants_project_idx').on(t.projectId),
-  }),
+  (t) => [primaryKey({ columns: [t.groupId, t.projectId] }), index('group_project_grants_project_idx').on(t.projectId)],
 )

@@ -11,7 +11,7 @@ export const CreateIssueSchema = z
     status: StatusEnum.optional(),
     statusId: TaxonomyIdSchema.nullable().optional(),
     priority: PriorityEnum.optional(),
-    assigneeId: z.string().uuid().optional(),
+    assigneeId: z.uuid().optional(),
     labels: z.array(z.string().max(50)).max(20).optional(),
     parentId: z.string().nullable().optional(),
     typeId: TaxonomyIdSchema.nullable().optional(),
@@ -29,7 +29,7 @@ export const CompletionReportSchema = z.object({
   verification: z.string().min(1),
   prLink: z
     .string()
-    .transform((val) => (z.string().url().safeParse(val).success ? val : undefined))
+    .transform((val) => (z.url().safeParse(val).success ? val : undefined))
     .optional(),
 })
 
@@ -40,12 +40,12 @@ export const UpdateIssueSchema = z
     status: StatusEnum.optional(),
     statusId: TaxonomyIdSchema.nullable().optional(),
     priority: PriorityEnum.optional(),
-    assigneeId: z.string().uuid().nullable().optional(),
+    assigneeId: z.uuid().nullable().optional(),
     labels: z.array(z.string().max(50)).max(20).optional(),
     parentId: z.string().nullable().optional(),
     typeId: TaxonomyIdSchema.nullable().optional(),
     customFields: z.record(z.string(), z.unknown()).optional(),
-    agentSessionId: z.string().uuid().optional(),
+    agentSessionId: z.uuid().optional(),
     completionReport: CompletionReportSchema.optional(),
   })
   .strict()
@@ -79,7 +79,7 @@ export const ListIssuesSchema = z
     noParent: BooleanQueryParam.optional(),
     typeId: TaxonomyIdSchema.optional(),
     excludeTypeIds: z.string().optional(),
-    sprintId: z.string().uuid().optional(),
+    sprintId: z.uuid().optional(),
     ...CustomFieldFilterSchema.shape,
     // Date-range filters (PROJ-212), epoch seconds; inclusive bounds.
     completedAfter: z.coerce.number().optional(),
@@ -161,7 +161,7 @@ export const CreateIssueLinkSchema = z
 
 export const DeleteIssueLinkSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.uuid(),
   })
   .strict()
 

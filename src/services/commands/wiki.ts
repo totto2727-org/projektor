@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
+import { flattenError } from 'zod'
 
 import { drizzle, schema } from '#db'
 import * as wikiData from '#services/wiki.ts'
@@ -510,7 +511,7 @@ const wikiReadVisibility = function wikiReadVisibility(ctx: ServiceCtx) {
 export async function listWikiPages(ctx: ServiceCtx, input: unknown) {
   const parsed = ListPagesInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const rows = await Effect.runPromise(
     wikiData.listWikiPages(ctx.db, ctx.workspaceId, {
@@ -524,7 +525,7 @@ export async function listWikiPages(ctx: ServiceCtx, input: unknown) {
 export async function searchWiki(ctx: ServiceCtx, input: unknown) {
   const parsed = SearchWikiInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { query, projectId, includeWorkspacePages } = parsed.data
   const ftsQuery = sanitizeFtsQuery(query)
@@ -812,7 +813,7 @@ const finalizeWikiPageCreate = async function finalizeWikiPageCreate(
 export async function createWikiPage(ctx: ServiceCtx, input: unknown) {
   const parsed = CreatePageSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { title, projectId, slug: customSlug, templateSlug } = parsed.data
   const parentId = parsed.data.parentId ?? null
@@ -1373,7 +1374,7 @@ const finalizeWikiPageUpdate = async function finalizeWikiPageUpdate(
 export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = UpdatePageSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { title, content, parentId, slug, baseRevisionId, summary } = parsed.data
   const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
@@ -1530,7 +1531,7 @@ export async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
 export async function listStaleWikiPages(ctx: ServiceCtx, input: unknown) {
   const parsed = ListStaleWikiPagesInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId, includeWorkspacePages } = parsed.data
 
@@ -1817,7 +1818,7 @@ const PATCH_RETRIES = 3
 export async function patchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = PatchWikiPageInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const data = parsed.data
   const retryable = data.op === 'append_to_page' || data.op === 'set_frontmatter'
@@ -1935,7 +1936,7 @@ async function patchWikiPageOnce(
 export async function listWikiTemplates(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiTemplatesInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId } = parsed.data
 
@@ -2278,11 +2279,11 @@ const requireWikiDelete = async function requireWikiDelete(ctx: ServiceCtx, proj
 export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?: unknown) {
   const idCheck = IdSchema.safeParse(idOrSlug)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+    throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
   }
   const parsedOptions = DeleteWikiPageOptionsSchema.safeParse(options ?? {})
   if (!parsedOptions.success) {
-    throw new ValidationError(parsedOptions.error.flatten())
+    throw new ValidationError(flattenError(parsedOptions.error))
   }
   const { cascade } = parsedOptions.data
 
@@ -2450,7 +2451,7 @@ export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?
 export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+    throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
   }
 
   const orm = drizzle(ctx.db, { schema })
@@ -2594,7 +2595,7 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
 export async function listWikiTrash(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiTrashInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId } = parsed.data
 
@@ -2757,7 +2758,7 @@ export async function purgeExpiredWikiPages(
 export async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise<TreeNode[]> {
   const parsed = WikiTreeInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const rows = await Effect.runPromise(
     wikiData.listWikiTreeRows(ctx.db, ctx.workspaceId, {
@@ -2827,7 +2828,7 @@ export async function getWikiRevision(ctx: ServiceCtx, idOrSlug: string, revisio
 export async function getWikiRevisionDiff(ctx: ServiceCtx, idOrSlug: string, revisionId: string, input: unknown) {
   const parsed = WikiRevisionDiffInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { against } = parsed.data
 

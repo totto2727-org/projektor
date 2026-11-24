@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
+import { flattenError } from 'zod'
 
 import { drizzle, schema } from '#db'
 import * as groupData from '#services/groups.ts'
@@ -95,7 +96,7 @@ export async function createGroup(ctx: ServiceCtx, input: unknown) {
   requireAdmin(ctx)
   const parsed = CreateGroupSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { name, description } = parsed.data
 
@@ -132,7 +133,7 @@ export async function updateGroup(ctx: ServiceCtx, groupId: string, input: unkno
   requireAdmin(ctx)
   const parsed = UpdateGroupSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
 
   const setObj: Record<string, unknown> = {}
@@ -195,7 +196,7 @@ export async function addGroupMember(ctx: ServiceCtx, groupId: string, input: un
   requireAdmin(ctx)
   const parsed = AddGroupMemberSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { userId } = parsed.data
 
@@ -247,7 +248,7 @@ export async function setGroupGrant(ctx: ServiceCtx, groupId: string, input: unk
   requireAdmin(ctx)
   const parsed = SetGroupGrantSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId, role } = parsed.data
 

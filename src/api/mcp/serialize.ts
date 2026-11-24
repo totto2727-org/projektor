@@ -105,7 +105,7 @@ export function splitShapeOpts(input: unknown): { rest: Record<string, unknown> 
   const { view, verbose, fields, ...rest } = (input ?? {}) as Record<string, unknown>
   const result = ShapeOptsSchema.safeParse({ view, verbose, fields })
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   return { rest, ...result.data }
 }

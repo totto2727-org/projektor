@@ -17,7 +17,7 @@ export const UpdateWorkspaceSchema = z.object({
 })
 
 export const InviteMemberSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   role: RoleEnum.default('member'),
 })
 

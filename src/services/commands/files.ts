@@ -1,4 +1,5 @@
 import { Effect } from 'effect'
+import { flattenError } from 'zod'
 
 import * as attachmentData from '#services/files.ts'
 
@@ -152,7 +153,7 @@ const toDto = function toDto(r: attachmentData.AttachmentMetadata): AttachmentDt
 export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto[]> {
   const parsed = ListAttachmentsSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { entityType, entityId } = parsed.data
 
@@ -180,7 +181,7 @@ export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<
 export async function setAttachmentReviewStatus(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = SetAttachmentReviewStatusSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { issueId, attachmentId, status } = parsed.data
   await assertIssueAccess(ctx, issueId, 'edit')
@@ -207,7 +208,7 @@ export async function createLinkAttachment(
 ): Promise<{ id: string; kind: 'wiki_ref' | 'url' }> {
   const parsed = CreateLinkAttachmentSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const data = parsed.data
 
@@ -349,7 +350,7 @@ export async function recordUpload(
 ): Promise<{ id: string }> {
   const parsed = RecordFileUploadSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { entityType, entityId, filename, contentType, size, r2Key } = parsed.data
 
@@ -416,7 +417,7 @@ export async function getAttachmentForDownload(
 export async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto> {
   const parsed = GetAttachmentSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
 
   const visible = visibleProjectSqlFragment(ctx, 'w.project_id')
@@ -438,7 +439,7 @@ export async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<At
 export async function deleteAttachment(ctx: ServiceCtx, input: unknown): Promise<{ r2Key: string }> {
   const parsed = DeleteAttachmentSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
 
   const owner = ownerVisibleFilter(ctx)

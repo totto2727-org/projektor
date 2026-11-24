@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
+import { flattenError } from 'zod'
 
 import { drizzle, schema } from '#db'
 import { getFlowMetrics as queryFlowMetrics } from '#services/flow-metrics.ts'
@@ -30,7 +31,7 @@ const assertProjectExists = async function assertProjectExists(ctx: ServiceCtx, 
 export async function getFlowMetrics(ctx: ServiceCtx, raw: unknown) {
   const result = GetFlowMetricsSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   await assertProjectExists(ctx, result.data.projectId)
   return Effect.runPromise(queryFlowMetrics(ctx.db, ctx.workspaceId, result.data))

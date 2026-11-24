@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
-import type { z } from 'zod'
+import { z } from 'zod'
 
 import { drizzle, schema } from '#db'
 import { listTaskStatuses as queryStatuses } from '#services/task-statuses.ts'
@@ -49,7 +49,7 @@ export async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
   }
   const result = CreateTaskStatusSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const { key, name, category, color, position, isDefault, isReviewStep } = result.data
 
@@ -118,7 +118,7 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
   }
   const result = UpdateTaskStatusSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const data = result.data
 
@@ -176,7 +176,7 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
 export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
   }
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()

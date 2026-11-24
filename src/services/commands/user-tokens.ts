@@ -1,3 +1,5 @@
+import { flattenError } from 'zod'
+
 import { CreateUserTokenSchema } from '../../contracts/inputs/user-tokens.ts'
 import { ForbiddenError, ValidationError } from './errors.ts'
 
@@ -33,7 +35,7 @@ export async function getUserWorkspaces(ctx: UserCtx) {
 export async function createUserToken(ctx: UserCtx, raw: unknown) {
   const result = CreateUserTokenSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
 
   const { name, workspaceId, scopes, expiresAt } = result.data

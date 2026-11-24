@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { Zip, ZipDeflate } from 'fflate'
 import { stringify as stringifyYaml } from 'yaml'
+import { flattenError } from 'zod'
 
 import { drizzle, schema } from '#db'
 
@@ -356,7 +357,7 @@ export async function exportWiki(
 ): Promise<{ filename: string; stream: ReadableStream<Uint8Array> }> {
   const parsed = ExportWikiInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const data = parsed.data
 

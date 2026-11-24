@@ -1,4 +1,5 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
+import { flattenError } from 'zod'
 
 import { WikiFrontmatterSchema } from '../../contracts/inputs/wiki.ts'
 import { ValidationError } from './errors.ts'
@@ -143,7 +144,7 @@ export function parseWikiFrontmatter(content: string): WikiFrontmatterMeta {
   const normalized = normalizeFrontmatterRecord(raw)
   const parsed = WikiFrontmatterSchema.safeParse(normalized)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
 
   return toFrontmatterMeta(parsed.data)

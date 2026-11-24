@@ -6,7 +6,7 @@ const scopeSchema = z.string().refine((v) => v === 'workspace' || /^issue:[0-9a-
 
 export const PostMessageSchema = z.object({
   scope: scopeSchema,
-  agentId: z.string().uuid().optional(),
+  agentId: z.uuid().optional(),
   body: z.string().min(1).max(5000),
 })
 

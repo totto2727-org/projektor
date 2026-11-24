@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
+import { flattenError } from 'zod'
 
 import type { WorkspaceBrand } from '#db'
 import { drizzle, schema } from '#db'
@@ -44,7 +45,7 @@ export async function listWorkspaces(db: D1Database, userId: string) {
 export async function createWorkspace(db: D1Database, userId: string, input: unknown) {
   const parsed = CreateWorkspaceSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { name, slug } = parsed.data
 
@@ -89,7 +90,7 @@ export async function updateWorkspace(ctx: ServiceCtx, input: unknown) {
   }
   const parsed = UpdateWorkspaceSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const orm = drizzle(ctx.db, { schema })
   await orm.update(schema.workspaces).set({ name: parsed.data.name }).where(eq(schema.workspaces.id, ctx.workspaceId))
@@ -102,7 +103,7 @@ export async function inviteMember(ctx: ServiceCtx, input: unknown) {
   }
   const parsed = InviteMemberSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { email, role: newRole } = parsed.data
   const now = Math.floor(Date.now() / 1000)
@@ -145,7 +146,7 @@ export async function inviteMember(ctx: ServiceCtx, input: unknown) {
 export async function removeMember(ctx: ServiceCtx, targetUserId: string) {
   const idCheck = IdSchema.safeParse(targetUserId)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+    throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
   }
   if (ctx.role !== 'owner') {
     throw new ForbiddenError()
@@ -184,7 +185,7 @@ export async function updateMemberRole(ctx: ServiceCtx, targetUserId: string, in
   }
   const parsed = UpdateRoleSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const orm = drizzle(ctx.db, { schema })
   await orm
@@ -202,7 +203,7 @@ export async function createToken(ctx: ServiceCtx, input: unknown) {
   }
   const parsed = CreateTokenSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { name, scopes, expiresInDays } = parsed.data
 
@@ -458,7 +459,7 @@ export async function updateWorkspaceBrand(
   requireBrandWrite(ctx)
   const parsed = UpdateWorkspaceBrandSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
 
   const current = await readBrand(ctx)

@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { flattenError } from 'zod'
 
 import type { HonoEnv } from '#types'
 
@@ -40,7 +41,7 @@ router.patch('/:id/review-status', async (c) => {
   try {
     const parsed = ReviewStatusBodySchema.safeParse(await jsonBody(c))
     if (!parsed.success) {
-      throw new ValidationError(parsed.error.flatten())
+      throw new ValidationError(flattenError(parsed.error))
     }
     return c.json(
       await filesService.setAttachmentReviewStatus(ctxFromHono(c), {

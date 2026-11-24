@@ -17,8 +17,8 @@ export const CreatePageSchema = z
   .object({
     title: z.string().min(1).max(300),
     content: z.string().max(500_000).optional(),
-    parentId: z.string().uuid().optional(),
-    projectId: z.string().uuid().optional(),
+    parentId: z.uuid().optional(),
+    projectId: z.uuid().optional(),
     slug: SlugSchema.optional(),
     /*
      * PROJ-491 (R9): seeds this page's initial content from an existing template page
@@ -38,7 +38,7 @@ export const UpdatePageSchema = z
   .object({
     title: z.string().min(1).max(300).optional(),
     content: z.string().max(500_000).optional(),
-    parentId: z.string().uuid().nullable().optional(),
+    parentId: z.uuid().nullable().optional(),
     /*
      * PROJ-483: renaming a page's slug leaves a wiki_redirects entry for the old
      * slug so existing links/bookmarks keep resolving (services/wiki.ts).
@@ -128,7 +128,7 @@ const IncludeWorkspacePagesSchema = BooleanQueryParam.optional().default(false)
 
 export const ListPagesInputSchema = z.object({
   parentId: z.string().optional(),
-  projectId: z.string().uuid().optional(),
+  projectId: z.uuid().optional(),
   // PROJ-488: any-of match — a page matches if it carries at least one of the given tags.
   tags: TagsFilterSchema,
   type: WikiTypeFilterSchema,
@@ -144,7 +144,7 @@ export const ListPagesInputSchema = z.object({
 })
 
 export const WikiTreeInputSchema = z.object({
-  projectId: z.string().uuid().optional(),
+  projectId: z.uuid().optional(),
   includeWorkspacePages: IncludeWorkspacePagesSchema,
 })
 
@@ -152,7 +152,7 @@ export const SearchWikiInputSchema = z.object({
   query: z.string(),
   limit: z.coerce.number().int().min(1).max(50).optional().default(10),
   offset: z.coerce.number().int().min(0).optional().default(0),
-  projectId: z.string().uuid().optional(),
+  projectId: z.uuid().optional(),
   // Unix seconds — only pages updated at/after this time are returned.
   updatedSince: z.coerce.number().int().nonnegative().optional(),
   /*
@@ -181,7 +181,7 @@ export const DeleteWikiPageOptionsSchema = z.object({
 
 // PROJ-485: broken-link reporting, optionally scoped to a project.
 export const ListBrokenWikiLinksInputSchema = z.object({
-  projectId: z.string().uuid().optional(),
+  projectId: z.uuid().optional(),
 })
 
 /*
@@ -211,7 +211,7 @@ export const BackfillWikiLinksInputSchema = z.object({
  * deprecated pages (services/wiki.ts#listStaleWikiPages).
  */
 export const ListStaleWikiPagesInputSchema = z.object({
-  projectId: z.string().uuid().optional(),
+  projectId: z.uuid().optional(),
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
   includeWorkspacePages: IncludeWorkspacePagesSchema,
@@ -286,7 +286,7 @@ export type PatchWikiPageInput = z.infer<typeof PatchWikiPageInputSchema>
  * one project's templates rather than restricting the picker to workspace-only pages.
  */
 export const ListWikiTemplatesInputSchema = z.object({
-  projectId: z.string().uuid().optional(),
+  projectId: z.uuid().optional(),
 })
 
 // PROJ-493 (R11): watch a page, or its whole current+future subtree.
@@ -322,7 +322,7 @@ export const MarkWikiNotificationsReadInputSchema = z
 export const ListWikiChangesInputSchema = z.object({
   since: z.coerce.number().int().nonnegative(),
   limit: z.coerce.number().int().min(1).max(500).optional().default(100),
-  projectId: z.string().uuid().optional(),
+  projectId: z.uuid().optional(),
   watchedOnly: BooleanQueryParam.optional().default(false),
 })
 
@@ -333,7 +333,7 @@ export const ListWikiChangesInputSchema = z.object({
  * chain. `pageId` accepts a slug or id, matching every other single-page endpoint.
  */
 export const ExportWikiInputSchema = z.discriminatedUnion('scope', [
-  z.object({ scope: z.literal('space'), projectId: z.string().uuid().optional() }),
+  z.object({ scope: z.literal('space'), projectId: z.uuid().optional() }),
   z.object({ scope: z.literal('subtree'), pageId: z.string().min(1).max(200) }),
 ])
 
@@ -352,16 +352,16 @@ export const SaveWikiDraftInputSchema = z.object({
   title: z.string().min(1).max(300),
   content: z.string().max(500_000),
   baseRevisionId: z.string().nullable().optional(),
-  expectedDraftRevision: z.string().uuid().nullable().optional(),
+  expectedDraftRevision: z.uuid().nullable().optional(),
 })
 
-export const WikiDraftRevisionInputSchema = z.object({ expectedDraftRevision: z.string().uuid().nullable() })
+export const WikiDraftRevisionInputSchema = z.object({ expectedDraftRevision: z.uuid().nullable() })
 export const VersionedWikiDraftInputSchema = SaveWikiDraftInputSchema.required({ expectedDraftRevision: true })
 
 // PROJ-496 (R14): trash listing (services/wiki.ts#listWikiTrash) — same shape/limits as
 // ListStaleWikiPagesInputSchema.
 export const ListWikiTrashInputSchema = z.object({
-  projectId: z.string().uuid().optional(),
+  projectId: z.uuid().optional(),
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
 })

@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
+import { flattenError } from 'zod'
 
 import { drizzle, schema } from '#db'
 import { listComments as queryComments } from '#services/comments.ts'
@@ -55,7 +56,7 @@ const assertIssueVisible = async function assertIssueVisible(
 export async function listComments(ctx: ServiceCtx, input: unknown): Promise<CommentRow[]> {
   const parsed = ListCommentsSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { issueId } = parsed.data
 
@@ -66,7 +67,7 @@ export async function listComments(ctx: ServiceCtx, input: unknown): Promise<Com
 export async function addComment(ctx: ServiceCtx, input: unknown): Promise<{ id: string }> {
   const parsed = AddCommentSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { issueId, body } = parsed.data
 
@@ -121,7 +122,7 @@ export function buildAddCommentInsertStatement(
 export async function updateComment(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = UpdateCommentSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { issueId, commentId, body } = parsed.data
 
@@ -158,7 +159,7 @@ export async function updateComment(ctx: ServiceCtx, input: unknown): Promise<{ 
 export async function deleteComment(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = DeleteCommentSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { issueId, commentId } = parsed.data
 

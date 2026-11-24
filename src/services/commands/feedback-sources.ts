@@ -1,4 +1,5 @@
 import { Effect } from 'effect'
+import { flattenError } from 'zod'
 
 import * as feedbackQueries from '#services/feedback.ts'
 
@@ -86,7 +87,7 @@ const requireSource = async function requireSource(
 export async function createFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<{ id: string; token: string }> {
   const parsed = CreateFeedbackSourceSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId, name, description, allowedOrigins } = parsed.data
 
@@ -126,7 +127,7 @@ export async function createFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
 export async function listFeedbackSources(ctx: ServiceCtx, input: unknown): Promise<FeedbackSourceView[]> {
   const parsed = ListFeedbackSourcesSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId } = parsed.data
 
@@ -152,7 +153,7 @@ export async function listFeedbackSources(ctx: ServiceCtx, input: unknown): Prom
 export async function getFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<FeedbackSourceDetailView> {
   const parsed = GetFeedbackSourceSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
 
   const row = await Effect.runPromise(
@@ -184,7 +185,7 @@ export async function getFeedbackSource(ctx: ServiceCtx, input: unknown): Promis
 export async function updateFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = UpdateFeedbackSourceSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { sourceId, projectId, name, description, isActive } = parsed.data
 
@@ -223,7 +224,7 @@ export async function updateFeedbackSource(ctx: ServiceCtx, input: unknown): Pro
 export async function rotateFeedbackSourceToken(ctx: ServiceCtx, input: unknown): Promise<{ token: string }> {
   const parsed = RotateFeedbackSourceSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { sourceId, projectId } = parsed.data
 
@@ -248,7 +249,7 @@ export async function rotateFeedbackSourceToken(ctx: ServiceCtx, input: unknown)
 export async function revokeFeedbackSource(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = RevokeFeedbackSourceSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { sourceId, projectId } = parsed.data
 

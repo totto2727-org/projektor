@@ -25,9 +25,7 @@ export const issueFileClaims = sqliteTable(
      */
     releaseReason: text('release_reason'),
   },
-  (t) => ({
-    issueIdx: index('idx_file_claims_issue').on(t.workspaceId, t.issueId),
-  }),
+  (t) => [index('idx_file_claims_issue').on(t.workspaceId, t.issueId)],
 )
 
 /*
@@ -60,8 +58,8 @@ export const claimConflicts = sqliteTable(
     forced: integer('forced').notNull().default(0),
     occurredAt: integer('occurred_at').notNull(),
   },
-  (t) => ({
-    wsOccurredIdx: index('idx_claim_conflicts_workspace_occurred').on(t.workspaceId, t.occurredAt),
-    pathIdx: index('idx_claim_conflicts_path').on(t.workspaceId, t.path),
-  }),
+  (t) => [
+    index('idx_claim_conflicts_workspace_occurred').on(t.workspaceId, t.occurredAt),
+    index('idx_claim_conflicts_path').on(t.workspaceId, t.path),
+  ],
 )

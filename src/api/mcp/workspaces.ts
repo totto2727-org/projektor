@@ -1,3 +1,5 @@
+import { flattenError } from 'zod'
+
 import { ApiWorkspace } from '../../contracts/api-auth.ts'
 import { ApiResults } from '../../contracts/api-results.ts'
 import { ValidationError } from '../../contracts/errors.ts'
@@ -73,7 +75,7 @@ export const workspacesTools: MCPTool[] = [
     async handler(input, ctx) {
       const parsed = DeleteWorkspaceInput.safeParse(input)
       if (!parsed.success) {
-        throw new ValidationError(parsed.error.flatten())
+        throw new ValidationError(flattenError(parsed.error))
       }
       const { workspaceSlug } = parsed.data
 

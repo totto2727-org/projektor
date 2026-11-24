@@ -15,7 +15,5 @@ export const agentMessages = sqliteTable(
     body: text('body').notNull(),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => ({
-    scopeIdx: index('idx_agent_messages_scope').on(t.workspaceId, t.scope, t.createdAt),
-  }),
+  (t) => [index('idx_agent_messages_scope').on(t.workspaceId, t.scope, t.createdAt)],
 )

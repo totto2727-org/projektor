@@ -1,4 +1,5 @@
 import { and, asc, eq, gt, sql } from 'drizzle-orm'
+import { flattenError } from 'zod'
 
 import { drizzle, schema } from '#db'
 
@@ -92,7 +93,7 @@ export function buildPostMessageStatements(
 export async function postMessage(ctx: ServiceCtx, raw: unknown) {
   const result = PostMessageSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { scope, agentId, body } = result.data
 
@@ -137,7 +138,7 @@ export async function postMessage(ctx: ServiceCtx, raw: unknown) {
 export async function listMessages(ctx: ServiceCtx, raw: unknown) {
   const result = ListMessagesSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { scope, cursor, limit } = result.data
   if (scope.startsWith('issue:')) {

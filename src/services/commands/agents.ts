@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
+import { flattenError } from 'zod'
 
 import { drizzle, schema } from '#db'
 
@@ -48,7 +49,7 @@ const isApiTokenMethod = function isApiTokenMethod(method: string): boolean {
 export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
   const result = RegisterAgentSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { issueId, name } = result.data
 
@@ -114,7 +115,7 @@ export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
 export async function startWork(ctx: ServiceCtx, raw: unknown) {
   const result = StartWorkSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { issue: issueId, paths, name } = result.data
 
@@ -149,7 +150,7 @@ export async function startWork(ctx: ServiceCtx, raw: unknown) {
 export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
   const result = HeartbeatAgentSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   /*
    * PROJ-894: heartbeat resolves against still-active sessions (not only live ones) —
@@ -192,7 +193,7 @@ export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
 export async function endAgent(ctx: ServiceCtx, raw: unknown) {
   const result = EndAgentSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const id = await resolveAgentSessionId(ctx, result.data.id, {
     includeStale: true,
@@ -238,7 +239,7 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
 export async function finishWork(ctx: ServiceCtx, raw: unknown) {
   const result = FinishWorkSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { sessionId, issue: issueId, completionReport, status } = result.data
   await assertIssueAccess(ctx, issueId, 'edit')
@@ -273,7 +274,7 @@ export async function finishWork(ctx: ServiceCtx, raw: unknown) {
 export async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
   const result = ListActiveAgentsSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { issueId, includeStale } = result.data
   const projectId = result.data.projectId ? await resolveVisibleProjectIdParam(ctx, result.data.projectId) : undefined

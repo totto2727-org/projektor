@@ -1,4 +1,5 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { flattenError } from 'zod'
 
 /*
  * PROJ-495 (R13): server-side per-user drafts, replacing the PROJ-227 localStorage
@@ -194,7 +195,7 @@ const requireAdvanced = function requireAdvanced(result: D1Result, revision: str
 export async function saveWikiDraft(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = SaveWikiDraftInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const page = await resolveDraftTarget(ctx, idOrSlug)
   const revision = crypto.randomUUID()
@@ -249,7 +250,7 @@ export async function discardWikiDraft(ctx: ServiceCtx, idOrSlug: string, input?
   if (input !== undefined) {
     const parsed = WikiDraftRevisionInputSchema.safeParse(input)
     if (!parsed.success) {
-      throw new ValidationError(parsed.error.flatten())
+      throw new ValidationError(flattenError(parsed.error))
     }
     expected = parsed.data.expectedDraftRevision
   }
@@ -264,7 +265,7 @@ export async function discardWikiDraft(ctx: ServiceCtx, idOrSlug: string, input?
 export async function beginWikiDraftPublish(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = VersionedWikiDraftInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const page = await resolveDraftTarget(ctx, idOrSlug)
   const revision = crypto.randomUUID()

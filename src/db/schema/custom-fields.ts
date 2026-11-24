@@ -18,10 +18,10 @@ export const customFieldDefinitions = sqliteTable(
     createdAt: integer('created_at').notNull(),
     isInternal: integer('is_internal', { mode: 'boolean' }).notNull().default(true),
   },
-  (t) => ({
-    wsIdx: index('cfd_workspace_idx').on(t.workspaceId),
-    wsProjKeyIdx: index('cfd_ws_proj_key_idx').on(t.workspaceId, t.projectId, t.key),
-  }),
+  (t) => [
+    index('cfd_workspace_idx').on(t.workspaceId),
+    index('cfd_ws_proj_key_idx').on(t.workspaceId, t.projectId, t.key),
+  ],
 )
 
 export const customFieldValues = sqliteTable(
@@ -35,8 +35,5 @@ export const customFieldValues = sqliteTable(
       .references(() => customFieldDefinitions.id, { onDelete: 'cascade' }),
     value: text('value').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.issueId, t.fieldId] }),
-    fieldIdx: index('cfv_field_idx').on(t.fieldId),
-  }),
+  (t) => [primaryKey({ columns: [t.issueId, t.fieldId] }), index('cfv_field_idx').on(t.fieldId)],
 )

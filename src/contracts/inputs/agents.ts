@@ -4,7 +4,7 @@ import { BooleanQueryParam, StatusEnum } from './common.ts'
 import { CompletionReportSchema } from './issues.ts'
 
 export const RegisterAgentSchema = z.object({
-  issueId: z.string().uuid().optional(),
+  issueId: z.uuid().optional(),
   name: z.string().min(1).max(200),
   /*
    * PROJ-336: deprecated — accepted for MCP client compatibility but ignored by
@@ -19,11 +19,11 @@ export const RegisterAgentSchema = z.object({
  * session — see services/agent-identity.ts. Fleets sharing a credential must pass it.
  */
 export const HeartbeatAgentSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
 })
 
 export const EndAgentSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
 })
 
 /*
@@ -32,7 +32,7 @@ export const EndAgentSchema = z.object({
  * every session in the workspace, including ended/stale ones.
  */
 export const ListActiveAgentsSchema = z.object({
-  issueId: z.string().uuid().optional(),
+  issueId: z.uuid().optional(),
   projectId: z.string().optional(),
   includeStale: BooleanQueryParam.optional(),
 })
@@ -41,7 +41,7 @@ export const ListActiveAgentsSchema = z.object({
 // `issue` (not `issueId`) and `name` match the AC's literal parameter names.
 export const StartWorkSchema = z
   .object({
-    issue: z.string().uuid(),
+    issue: z.uuid(),
     paths: z.array(z.string().min(1).max(400)).max(100).optional(),
     name: z.string().min(1).max(200),
   })
@@ -54,8 +54,8 @@ export const StartWorkSchema = z
  */
 export const FinishWorkSchema = z
   .object({
-    sessionId: z.string().uuid(),
-    issue: z.string().uuid(),
+    sessionId: z.uuid(),
+    issue: z.uuid(),
     completionReport: CompletionReportSchema.optional(),
     status: StatusEnum.optional(),
   })

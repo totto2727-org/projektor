@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
+import { flattenError } from 'zod'
 
 /*
  * PROJ-485: server-side wiki link graph. Parses [[Target]] / [[Target|label]] wikilinks
@@ -538,7 +539,7 @@ export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promi
   }
   const parsed = BackfillWikiLinksInputSchema.safeParse(input ?? {})
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { cursor, pageBudget, updatedSince } = parsed.data
   // PROJ-818: drain unhealed folds (bounded) so this backfill resolves against them.
@@ -895,7 +896,7 @@ export interface BrokenWikiLink {
 export async function listBrokenWikiLinks(ctx: ServiceCtx, input: unknown): Promise<BrokenWikiLink[]> {
   const parsed = ListBrokenWikiLinksInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId } = parsed.data
 

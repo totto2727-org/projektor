@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
+import { flattenError } from 'zod'
 
 /*
  * PROJ-493 (R11): watch/unwatch per page or subtree, a per-user notification list, and
@@ -110,7 +111,7 @@ const resolveWatchTarget = async function resolveWatchTarget(
 export async function watchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = WatchWikiPageInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const page = await resolveWatchTarget(ctx, idOrSlug)
 
@@ -427,7 +428,7 @@ export async function deleteWikiWatchersForPages(ctx: ServiceCtx, pageIds: strin
 export async function listWikiNotifications(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiNotificationsInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { unreadOnly, limit, offset } = parsed.data
 
@@ -464,7 +465,7 @@ export async function listWikiNotifications(ctx: ServiceCtx, input: unknown) {
 export async function markWikiNotificationsRead(ctx: ServiceCtx, input: unknown) {
   const parsed = MarkWikiNotificationsReadInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { ids, all } = parsed.data
 
@@ -788,7 +789,7 @@ export async function listWikiChanges(
 }> {
   const parsed = ListWikiChangesInputSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { since, limit, projectId, watchedOnly } = parsed.data
 

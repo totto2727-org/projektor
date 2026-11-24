@@ -1,4 +1,5 @@
 import { and, eq, gt, isNull } from 'drizzle-orm'
+import { flattenError } from 'zod'
 
 import { drizzle, schema } from '#db'
 
@@ -205,7 +206,7 @@ const reclaimStaleLeaseOrThrow = async function reclaimStaleLeaseOrThrow(
 export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ClaimIssueSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { issueId } = result.data
   const projectId = await assertIssueAccess(ctx, issueId, 'edit')
@@ -290,7 +291,7 @@ export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
 export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ReleaseIssueSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { issueId, agentId } = result.data
   const projectId = await assertIssueAccess(ctx, issueId, 'edit')
@@ -485,7 +486,7 @@ export async function isLiveAgentSessionId(ctx: ServiceCtx, agentSessionId: stri
 export async function listIssueLeases(ctx: ServiceCtx, raw: unknown) {
   const result = ListIssueLeasesSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { issueId, agentId, includeStale } = result.data
   const projectId = result.data.projectId ? await resolveVisibleProjectIdParam(ctx, result.data.projectId) : undefined

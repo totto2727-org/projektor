@@ -1,5 +1,6 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { Effect } from 'effect'
+import { flattenError } from 'zod'
 
 import { drizzle, schema } from '#db'
 import * as fieldQueries from '#services/custom-fields.ts'
@@ -96,7 +97,7 @@ export async function createCustomFieldDef(ctx: ServiceCtx, raw: unknown) {
   }
   const result = CreateCustomFieldDefSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { key, label, type, options, projectId } = result.data
 
@@ -170,7 +171,7 @@ export async function updateCustomFieldDef(ctx: ServiceCtx, id: string, raw: unk
   }
   const result = UpdateCustomFieldDefSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const data = result.data
 
@@ -191,7 +192,7 @@ export async function updateCustomFieldDef(ctx: ServiceCtx, id: string, raw: unk
 export async function deleteCustomFieldDef(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+    throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
   }
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()

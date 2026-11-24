@@ -74,29 +74,29 @@ export const wikiPages = sqliteTable(
      */
     trashBatchId: text('trash_batch_id'),
   },
-  (t) => ({
-    wsSlugIdx: index('wiki_pages_workspace_slug_idx').on(t.workspaceId, t.slug),
+  (t) => [
+    index('wiki_pages_workspace_slug_idx').on(t.workspaceId, t.slug),
     /*
      * PROJ-483: enforces slug uniqueness per workspace (0041_wiki_slug_unique.sql).
      * PROJ-496: PARTIAL — only among live pages — so trashing a page immediately frees
      * its slug for reuse rather than reserving it for the whole 30-day retention window.
      */
-    wsSlugUniqueIdx: uniqueIndex('wiki_pages_workspace_slug_unique_idx')
+    uniqueIndex('wiki_pages_workspace_slug_unique_idx')
       .on(t.workspaceId, t.slug)
       .where(sql`${t.deletedAt} IS NULL`),
-    parentIdx: index('wiki_pages_parent_idx').on(t.parentId),
-    projectIdx: index('wiki_pages_project_id_idx').on(t.projectId),
+    index('wiki_pages_parent_idx').on(t.parentId),
+    index('wiki_pages_project_id_idx').on(t.projectId),
     // PROJ-488: type/status filtering (listWikiPages/searchWiki).
-    workspaceTypeIdx: index('wiki_pages_workspace_type_idx').on(t.workspaceId, t.type),
-    workspaceStatusIdx: index('wiki_pages_workspace_status_idx').on(t.workspaceId, t.status),
+    index('wiki_pages_workspace_type_idx').on(t.workspaceId, t.type),
+    index('wiki_pages_workspace_status_idx').on(t.workspaceId, t.status),
     // PROJ-491: template picker / search+staleness exclusion filter on this flag.
-    workspaceTemplateIdx: index('wiki_pages_workspace_template_idx').on(t.workspaceId, t.isTemplate),
+    index('wiki_pages_workspace_template_idx').on(t.workspaceId, t.isTemplate),
     // PROJ-496: trash listing / purge job scan (services/wiki.ts#listWikiTrash,
     // #purgeExpiredWikiPages).
-    workspaceDeletedAtIdx: index('wiki_pages_workspace_deleted_at_idx').on(t.workspaceId, t.deletedAt),
+    index('wiki_pages_workspace_deleted_at_idx').on(t.workspaceId, t.deletedAt),
     // PROJ-496 follow-up: collectCascadeTrashedDescendantIds walks this per batch id.
-    trashBatchIdIdx: index('wiki_pages_trash_batch_id_idx').on(t.workspaceId, t.trashBatchId),
-  }),
+    index('wiki_pages_trash_batch_id_idx').on(t.workspaceId, t.trashBatchId),
+  ],
 )
 
 export const wikiRevisions = sqliteTable(
@@ -116,9 +116,7 @@ export const wikiRevisions = sqliteTable(
       .references(() => users.id),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => ({
-    pageIdx: index('wiki_revisions_page_idx').on(t.pageId),
-  }),
+  (t) => [index('wiki_revisions_page_idx').on(t.pageId)],
 )
 
 /*
@@ -139,10 +137,10 @@ export const wikiRedirects = sqliteTable(
       .references(() => wikiPages.id, { onDelete: 'cascade' }),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => ({
-    workspaceOldSlugIdx: uniqueIndex('wiki_redirects_workspace_old_slug_idx').on(t.workspaceId, t.oldSlug),
-    pageIdIdx: index('wiki_redirects_page_id_idx').on(t.pageId),
-  }),
+  (t) => [
+    uniqueIndex('wiki_redirects_workspace_old_slug_idx').on(t.workspaceId, t.oldSlug),
+    index('wiki_redirects_page_id_idx').on(t.pageId),
+  ],
 )
 
 /*
@@ -172,10 +170,10 @@ export const wikiLinks = sqliteTable(
     targetKind: text('target_kind'),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => ({
-    sourcePageIdx: index('wiki_links_source_page_idx').on(t.sourcePageId),
-    workspaceTargetIdx: index('wiki_links_workspace_target_idx').on(t.workspaceId, t.targetPageId),
-  }),
+  (t) => [
+    index('wiki_links_source_page_idx').on(t.sourcePageId),
+    index('wiki_links_workspace_target_idx').on(t.workspaceId, t.targetPageId),
+  ],
 )
 
 /*
@@ -201,10 +199,10 @@ export const wikiWatchers = sqliteTable(
     subtree: integer('subtree', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => ({
-    userPageUniqueIdx: uniqueIndex('wiki_watchers_user_page_idx').on(t.workspaceId, t.userId, t.pageId),
-    pageIdx: index('wiki_watchers_page_idx').on(t.workspaceId, t.pageId),
-  }),
+  (t) => [
+    uniqueIndex('wiki_watchers_user_page_idx').on(t.workspaceId, t.userId, t.pageId),
+    index('wiki_watchers_page_idx').on(t.workspaceId, t.pageId),
+  ],
 )
 
 /*
@@ -232,9 +230,7 @@ export const wikiNotifications = sqliteTable(
     createdAt: integer('created_at').notNull(),
     readAt: integer('read_at'),
   },
-  (t) => ({
-    userIdx: index('wiki_notifications_user_idx').on(t.workspaceId, t.userId, t.createdAt),
-  }),
+  (t) => [index('wiki_notifications_user_idx').on(t.workspaceId, t.userId, t.createdAt)],
 )
 
 // Heads outlive scratch rows so CAS remains meaningful after discard/publication.
@@ -281,7 +277,5 @@ export const wikiDrafts = sqliteTable(
     baseRevisionId: text('base_revision_id'),
     updatedAt: integer('updated_at').notNull(),
   },
-  (t) => ({
-    userPageUniqueIdx: uniqueIndex('wiki_drafts_user_page_idx').on(t.workspaceId, t.userId, t.pageId),
-  }),
+  (t) => [uniqueIndex('wiki_drafts_user_page_idx').on(t.workspaceId, t.userId, t.pageId)],
 )

@@ -5,7 +5,7 @@ import { NotFoundError, ValidationError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
 
 const ListProjectActivitySchema = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.uuid(),
   since: z.number().int().optional(),
   limit: z.number().int().min(1).max(200).default(50),
 })
@@ -140,7 +140,7 @@ const fetchActivityRows = async function fetchActivityRows(
 export async function listProjectActivity(ctx: ServiceCtx, input: unknown): Promise<ActivityEvent[]> {
   const parsed = ListProjectActivitySchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(z.flattenError(parsed.error))
   }
   const { projectId, since, limit } = parsed.data
 

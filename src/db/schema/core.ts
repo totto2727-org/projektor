@@ -42,9 +42,7 @@ export const workspaceMembers = sqliteTable(
       .default('member'),
     joinedAt: integer('joined_at').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.workspaceId, t.userId] }),
-  }),
+  (t) => [primaryKey({ columns: [t.workspaceId, t.userId] })],
 )
 
 /*
@@ -63,9 +61,7 @@ export const provisioningRemovals = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     removedAt: integer('removed_at').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.workspaceId, t.userId] }),
-  }),
+  (t) => [primaryKey({ columns: [t.workspaceId, t.userId] })],
 )
 
 export const apiTokens = sqliteTable('api_tokens', {
@@ -94,7 +90,5 @@ export const enabledPlugins = sqliteTable(
       .$defaultFn(() => ({})),
     enabledAt: integer('enabled_at').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({ columns: [t.workspaceId, t.pluginId] }),
-  }),
+  (t) => [primaryKey({ columns: [t.workspaceId, t.pluginId] })],
 )

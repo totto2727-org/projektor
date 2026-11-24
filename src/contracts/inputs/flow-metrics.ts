@@ -52,7 +52,7 @@ export const GetFlowMetricsSchema = z
       effUntil = data.until ?? now
       if (effUntil < effSince) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: 'until must be >= since',
           path: ['until'],
         })
@@ -71,7 +71,7 @@ export const GetFlowMetricsSchema = z
     const maxRange = data.granularity === 'day' ? MAX_DAY_WINDOW_SECONDS : MAX_WEEK_WINDOW_SECONDS
     if (effUntil - effSince > maxRange) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message:
           data.granularity === 'day'
             ? 'Window too large for granularity "day": max 366 days'

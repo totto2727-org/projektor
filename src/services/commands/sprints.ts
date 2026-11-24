@@ -1,6 +1,6 @@
 import { and, eq, inArray, ne } from 'drizzle-orm'
 import { Effect } from 'effect'
-import type { z } from 'zod'
+import { z } from 'zod'
 
 import { drizzle, schema } from '#db'
 import * as sprintQueries from '#services/sprints.ts'
@@ -52,7 +52,7 @@ const requireSprintProjectWrite = async function requireSprintProjectWrite(
 export async function listSprints(ctx: ServiceCtx, raw: unknown) {
   const result = ListSprintsSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const { projectId } = result.data
 
@@ -79,7 +79,7 @@ export async function getSprint(ctx: ServiceCtx, id: string) {
 export async function createSprint(ctx: ServiceCtx, raw: unknown) {
   const result = CreateSprintSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const { projectId, name, goal, startDate, endDate } = result.data
 
@@ -147,7 +147,7 @@ const buildSprintSetData = function buildSprintSetData(data: SprintUpdateData, n
 export async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
   const result = UpdateSprintSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const data = result.data
 
@@ -176,7 +176,7 @@ export async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
 export async function completeSprint(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
   }
   const orm = drizzle(ctx.db, { schema })
   const sprint = await orm
@@ -208,7 +208,7 @@ export async function completeSprint(ctx: ServiceCtx, id: string) {
 export async function deleteSprint(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
   }
   const orm = drizzle(ctx.db, { schema })
   const existing = await orm
@@ -240,7 +240,7 @@ export async function deleteSprint(ctx: ServiceCtx, id: string) {
 export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
   const result = MoveIssuesToSprintSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const { issueIds, sprintId } = result.data
 

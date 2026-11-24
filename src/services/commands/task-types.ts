@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { Effect } from 'effect'
-import type { z } from 'zod'
+import { z } from 'zod'
 
 import { drizzle, schema } from '#db'
 import { listTaskTypes as queryTypes } from '#services/task-types.ts'
@@ -70,7 +70,7 @@ export async function createTaskType(ctx: ServiceCtx, raw: unknown) {
   }
   const result = CreateTaskTypeSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const { key, name, color, icon, position, isDefault } = result.data
 
@@ -110,7 +110,7 @@ export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) 
   }
   const result = UpdateTaskTypeSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const data = result.data
   const setObj = buildTaskTypeUpdateSet(data)
@@ -146,7 +146,7 @@ export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) 
 export async function deleteTaskType(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
   }
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()

@@ -31,9 +31,9 @@ export const agentSessions = sqliteTable(
     lastHeartbeatAt: integer('last_heartbeat_at').notNull(),
     endedAt: integer('ended_at'),
   },
-  (t) => ({
-    wsStatusIdx: index('idx_agent_sessions_ws_status').on(t.workspaceId, t.status),
-    issueIdx: index('idx_agent_sessions_issue').on(t.issueId),
-    credentialIdx: index('idx_agent_sessions_credential').on(t.workspaceId, t.credentialId, t.status),
-  }),
+  (t) => [
+    index('idx_agent_sessions_ws_status').on(t.workspaceId, t.status),
+    index('idx_agent_sessions_issue').on(t.issueId),
+    index('idx_agent_sessions_credential').on(t.workspaceId, t.credentialId, t.status),
+  ],
 )

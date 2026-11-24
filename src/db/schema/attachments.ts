@@ -36,7 +36,5 @@ export const attachments = sqliteTable(
       .references(() => users.id),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => ({
-    wsEntityIdx: index('attachments_workspace_entity_idx').on(t.workspaceId, t.entityType, t.entityId),
-  }),
+  (t) => [index('attachments_workspace_entity_idx').on(t.workspaceId, t.entityType, t.entityId)],
 )

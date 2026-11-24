@@ -29,7 +29,7 @@ const ListProjectsOptionsSchema = z.object({ includeArchived: BooleanQueryParam.
 export async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
   const parsed = ListProjectsOptionsSchema.safeParse(opts)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(z.flattenError(parsed.error))
   }
   // PROJ-311: owner/admin share the cached workspace list; others get an uncached per-user set.
   const visible = visibleProjectPredicate(ctx, schema.projects.id)
@@ -183,7 +183,7 @@ export async function createProject(ctx: ServiceCtx, input: unknown) {
 
   const parsed = CreateProjectSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(z.flattenError(parsed.error))
   }
 
   const { name, key, description, agentWipLimit } = parsed.data
@@ -226,7 +226,7 @@ export async function updateProject(ctx: ServiceCtx, id: string, input: unknown)
 
   const parsed = UpdateProjectSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(z.flattenError(parsed.error))
   }
 
   const now = Math.floor(Date.now() / 1000)
@@ -341,7 +341,7 @@ const PROJECT_CLEANUP_SQL: readonly string[] = [
 export async function deleteProject(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
   }
   if (ctx.role !== 'owner') {
     throw new ForbiddenError()

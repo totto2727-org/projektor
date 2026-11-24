@@ -1,4 +1,5 @@
 import { Effect } from 'effect'
+import { flattenError } from 'zod'
 
 import * as feedbackQueries from '#services/feedback.ts'
 
@@ -69,7 +70,7 @@ const resolveFeedbackSource = async function resolveFeedbackSource(
 const parseSubmitFeedbackBody = function parseSubmitFeedbackBody(rawBody: unknown) {
   const parsed = SubmitFeedbackSchema.safeParse(rawBody)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   return parsed.data
 }
@@ -145,7 +146,7 @@ export interface FeedbackView {
 export async function listFeedback(ctx: ServiceCtx, input: unknown): Promise<FeedbackView[]> {
   const parsed = ListFeedbackSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId, status, sourceId } = parsed.data
 
@@ -202,7 +203,7 @@ const requireFeedbackScope = async function requireFeedbackScope(
 export async function updateFeedbackStatus(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = UpdateFeedbackSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId, feedbackId, status } = parsed.data
 
@@ -242,7 +243,7 @@ export async function convertFeedbackToIssue(
 ): Promise<{ id: string; number?: number }> {
   const parsed = ConvertFeedbackSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId, feedbackId } = parsed.data
 
@@ -287,7 +288,7 @@ export async function convertFeedbackToIssue(
 export async function bulkMarkReviewed(ctx: ServiceCtx, input: unknown): Promise<{ updated: number }> {
   const parsed = BulkFeedbackIdsSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId, feedbackIds } = parsed.data
 
@@ -325,7 +326,7 @@ export async function bulkConvertToIssue(
 ): Promise<{ id: string; number?: number; convertedCount: number }> {
   const parsed = BulkFeedbackIdsSchema.safeParse(input)
   if (!parsed.success) {
-    throw new ValidationError(parsed.error.flatten())
+    throw new ValidationError(flattenError(parsed.error))
   }
   const { projectId, feedbackIds } = parsed.data
 

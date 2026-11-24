@@ -1,3 +1,5 @@
+import { flattenError } from 'zod'
+
 import { drizzle, schema } from '#db'
 
 import { ComposePlaybookSchema } from '../../contracts/inputs/playbooks.ts'
@@ -55,7 +57,7 @@ const fillEpicGoalDirective = function fillEpicGoalDirective(params: {
 export async function composePlaybook(ctx: ServiceCtx, raw: unknown) {
   const result = ComposePlaybookSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(flattenError(result.error))
   }
   const { name, params } = result.data
 

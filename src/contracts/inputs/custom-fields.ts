@@ -14,7 +14,7 @@ export const CreateCustomFieldDefSchema = z.object({
   label: z.string().min(1).max(100),
   type: CustomFieldTypeEnum,
   options: z.array(z.string().min(1).max(100)).max(100).optional(),
-  projectId: z.string().uuid().nullable().optional(),
+  projectId: z.uuid().nullable().optional(),
 })
 
 export const UpdateCustomFieldDefSchema = z

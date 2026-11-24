@@ -1,6 +1,6 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import { Effect } from 'effect'
-import type { z } from 'zod'
+import { z } from 'zod'
 
 import { drizzle, schema } from '#db'
 import { listLinksForIssue as queryLinks } from '#services/issue-links.ts'
@@ -60,7 +60,7 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
   }
   const result = CreateIssueLinkSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const { type } = result.data
   const sourceIssueId = await resolveIssueIdParam(ctx, result.data.sourceIssueId, 'Source issue not found')
@@ -137,7 +137,7 @@ export async function deleteLink(ctx: ServiceCtx, raw: unknown) {
   }
   const result = DeleteIssueLinkSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const { id } = result.data
 
@@ -183,7 +183,7 @@ export async function deleteLink(ctx: ServiceCtx, raw: unknown) {
 export async function listLinksForIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ListIssueLinksSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const issueId = await resolveIssueIdParam(ctx, result.data.issueId)
 

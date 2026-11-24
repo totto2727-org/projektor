@@ -1,6 +1,6 @@
 import { and, eq, or } from 'drizzle-orm'
 import { Effect } from 'effect'
-import type { z } from 'zod'
+import { z } from 'zod'
 
 import { drizzle, schema } from '#db'
 import * as issueQueries from '#services/issues.ts'
@@ -135,7 +135,7 @@ const validateParent = async function validateParent(
 export async function listIssues(ctx: ServiceCtx, raw: unknown) {
   const result = ListIssuesSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const filters = {
     ...result.data,
@@ -260,7 +260,7 @@ const loadIssueExtras = async function loadIssueExtras(ctx: ServiceCtx, issueId:
 export async function getIssue(ctx: ServiceCtx, raw: unknown) {
   const result = GetIssueSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const { id, ref } = result.data
 
@@ -305,7 +305,7 @@ export async function getIssue(ctx: ServiceCtx, raw: unknown) {
 export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
   const result = GetIssuesBatchSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   for (const ref of result.data.refs ?? []) {
     if (!ISSUE_REF_PATTERN.test(ref))
@@ -547,7 +547,7 @@ export async function createIssueFromFeedback(
 async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: readonly string[]) {
   const result = CreateIssueSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const projectId = await resolveProjectIdParam(ctx, result.data.projectId)
   const parentId = result.data.parentId ? await resolveIssueIdParam(ctx, result.data.parentId) : result.data.parentId
@@ -1229,7 +1229,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
   const id = await resolveIssueIdParam(ctx, rawId)
   const result = UpdateIssueSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const data =
     'parentId' in result.data && result.data.parentId
@@ -1423,7 +1423,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
   const id = await resolveIssueIdParam(ctx, rawId)
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
-    throw new ValidationError({ formErrors: idCheck.error.flatten().formErrors, fieldErrors: {} })
+    throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
   }
   const orm = drizzle(ctx.db, { schema })
 
@@ -1849,7 +1849,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
 export async function searchIssues(ctx: ServiceCtx, raw: unknown) {
   const result = SearchIssuesInputSchema.safeParse(raw)
   if (!result.success) {
-    throw new ValidationError(result.error.flatten())
+    throw new ValidationError(z.flattenError(result.error))
   }
   const { query, limit } = result.data
   const projectId = result.data.projectId

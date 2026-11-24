@@ -26,9 +26,7 @@ export const issueLeases = sqliteTable(
     releasedAt: integer('released_at'),
     releaseReason: text('release_reason'),
   },
-  (t) => ({
-    agentIdx: index('idx_issue_leases_agent').on(t.workspaceId, t.agentSessionId),
-  }),
+  (t) => [index('idx_issue_leases_agent').on(t.workspaceId, t.agentSessionId)],
 )
 
 /*
@@ -54,8 +52,8 @@ export const wipCapDenials = sqliteTable(
     }),
     occurredAt: integer('occurred_at').notNull(),
   },
-  (t) => ({
-    wsOccurredIdx: index('idx_wip_cap_denials_workspace_occurred').on(t.workspaceId, t.occurredAt),
-    projectIdx: index('idx_wip_cap_denials_project').on(t.workspaceId, t.projectId),
-  }),
+  (t) => [
+    index('idx_wip_cap_denials_workspace_occurred').on(t.workspaceId, t.occurredAt),
+    index('idx_wip_cap_denials_project').on(t.workspaceId, t.projectId),
+  ],
 )
