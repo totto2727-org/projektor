@@ -81,9 +81,9 @@ test('keeps a description edited while the submitted description is saving', asy
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() =>
     expect(updateIssue).toHaveBeenCalledWith({
-      workspaceSlug: 'workspace',
       issueId: 'issue',
       patch: { body: 'Submitted body' },
+      workspaceSlug: 'workspace',
     }),
   )
   fireEvent.change(screen.getByLabelText('Markdown draft'), { target: { value: 'Newer body' } })
@@ -154,9 +154,9 @@ test('keeps the next comment typed while a previous comment is posting', async (
   fireEvent.click(screen.getByRole('button', { name: 'Comment' }))
   await waitFor(() =>
     expect(addComment).toHaveBeenCalledWith({
-      workspaceSlug: 'workspace',
-      issueId: 'issue',
       body: 'Submitted comment',
+      issueId: 'issue',
+      workspaceSlug: 'workspace',
     }),
   )
   fireEvent.input(screen.getByPlaceholderText('Add a comment…'), { target: { value: 'Next comment' } })
@@ -190,10 +190,10 @@ test('keeps a newer comment edit visible after the submitted edit saves', async 
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() =>
     expect(editComment).toHaveBeenCalledWith({
-      workspaceSlug: undefined,
-      issueId: 'issue',
-      commentId: 'comment',
       body: 'Submitted edit',
+      commentId: 'comment',
+      issueId: 'issue',
+      workspaceSlug: undefined,
     }),
   )
   fireEvent.input(screen.getAllByRole('textbox')[0], { target: { value: 'Newer edit' } })

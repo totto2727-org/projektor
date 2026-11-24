@@ -364,7 +364,7 @@ describe('realtime WebSockets (Opt-In)', () => {
     expect(created.id).toBeTruthy()
     expect(fetchMock).toHaveBeenCalledWith(
       'http://do/broadcast',
-      expect.objectContaining({ method: 'POST', body: expect.stringContaining('"type":"issue.created"') }),
+      expect.objectContaining({ body: expect.stringContaining('"type":"issue.created"'), method: 'POST' }),
     )
   })
 })

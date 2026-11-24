@@ -3,6 +3,8 @@ import './test/browser.ts'
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
+
 import { createIssue, readIssuePage, searchIssues, updateIssue } from './actions.ts'
 import { IssueBulkProvider, IssueSelectionControl } from './components/issue-list/bulk-actions.tsx'
 import { useSavedViews } from './components/issue-list/use-saved-views.ts'
@@ -31,7 +33,7 @@ function listData(): IssuesInitialData {
   return {
     currentUserId: scope.user.id,
     view: 'list',
-    page: { items: [issue()], nextCursor: null, total: 1 },
+    page: { items: [issue()], nextCursor: JSON_NULL, total: 1 },
     statuses,
     taskTypes,
     project: null,
@@ -76,7 +78,7 @@ describe('canonical issues SSR refresh', () => {
           ...data,
           page: {
             items: [issue({ id: 'issue-b', title: 'Canonical replacement' })],
-            nextCursor: null,
+            nextCursor: JSON_NULL,
             total: 1,
           },
           statuses: [...statuses, { id: 'review', key: 'review', name: 'Review', category: 'started', color: null }],
@@ -141,7 +143,7 @@ describe('canonical issues SSR refresh', () => {
     const initialData: EpicsInitialData = {
       page: {
         items: [issue({ type_key: 'epic', type_id: 'epic-type' })],
-        nextCursor: null,
+        nextCursor: JSON_NULL,
         total: 1,
       },
       statuses,
@@ -178,7 +180,7 @@ describe('canonical issues SSR refresh', () => {
               issue({ id: 'epic-first', title: 'First refreshed epic', type_key: 'epic' }),
               issue({ id: 'epic-last', title: 'Last refreshed epic', type_key: 'epic' }),
             ],
-            nextCursor: null,
+            nextCursor: JSON_NULL,
             total: 2,
           },
         }}

@@ -201,8 +201,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.click(screen.getByRole('button', { name: 'Create group' }))
     await waitFor(() =>
       expect(request).toHaveBeenCalledWith('createGroup', {
-        workspaceSlug: 'alpha',
         name: 'New team',
+        workspaceSlug: 'alpha',
       }),
     )
     await waitFor(() => expect((screen.getByLabelText('New group name') as HTMLInputElement).value).toBe(''))
@@ -269,10 +269,10 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.click(screen.getByRole('button', { name: 'Create token' }))
     await waitFor(() => expect(screen.getByText('pk_test_secret')).toBeTruthy())
     expect(request).toHaveBeenLastCalledWith('createToken', {
-      workspaceSlug: 'alpha',
+      expiry: '90',
       name: 'Unsaved agent',
       scope: 'read',
-      expiry: '90',
+      workspaceSlug: 'alpha',
     })
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('pk_test_secret'))
@@ -317,8 +317,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
     await waitFor(() =>
       expect(request).toHaveBeenLastCalledWith('revokeToken', {
-        workspaceSlug: 'alpha',
         tokenId: 't1',
+        workspaceSlug: 'alpha',
       }),
     )
   })
@@ -336,8 +336,8 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.click(screen.getAllByRole('button', { name: 'Yes' })[0])
     await waitFor(() =>
       expect(request).toHaveBeenLastCalledWith('disconnect', {
-        workspaceSlug: 'alpha',
         connectorId: 'c1',
+        workspaceSlug: 'alpha',
       }),
     )
   })

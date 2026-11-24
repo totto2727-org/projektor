@@ -4,6 +4,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { Iterable } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
+
 import { dateInputToUnix, getStoryPoints, unixToDateInput } from './helpers.ts'
 import { calendarOffset, calendarTimestamp } from './input-schemas.ts'
 import { SprintManager } from './sprint-manager.tsx'
@@ -38,8 +40,8 @@ const sprint = (id = 'sprint-a', status: Sprint['status'] = 'active', name = 'Sp
   name,
   projectId: 'project-a',
   goal: 'Ship safely',
-  startDate: null,
-  endDate: null,
+  startDate: JSON_NULL,
+  endDate: JSON_NULL,
   createdAt: 1,
 })
 const issue = (id: string, category: string, points: string): SprintIssue => ({

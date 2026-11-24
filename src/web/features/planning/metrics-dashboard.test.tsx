@@ -4,6 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { Iterable } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
+
 import { CodeHeatmap } from './code-heatmap.tsx'
 import { MetricsDashboard } from './metrics-dashboard.tsx'
 import type { FlowMetrics } from './types.ts'
@@ -35,7 +37,7 @@ const metrics = (): FlowMetrics => ({
   throughputOverTime: [{ bucketStart: '2026-10-01', count: 4 }],
   bugShareOverTime: [
     { bucketStart: '2026-10-01', total: 4, bugCount: 1, bugSharePercent: 0.25 },
-    { bucketStart: '2026-10-02', total: 0, bugCount: 0, bugSharePercent: null },
+    { bucketStart: '2026-10-02', total: 0, bugCount: 0, bugSharePercent: JSON_NULL },
   ],
   bugTypeTracked: true,
   reviewLatencyOverTime: [{ bucketStart: '2026-10-01', p50: 1800 }],

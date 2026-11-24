@@ -3,6 +3,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
+
 vi.mock('../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
 
 vi.mock('./actions', () => ({
@@ -48,7 +50,7 @@ const project = (description: string): Project => ({
   key: 'PROJ',
   slug: 'project',
   description,
-  archivedAt: null,
+  archivedAt: JSON_NULL,
   workspaceId: 'workspace-1',
   createdAt: 1,
   updatedAt: 1,

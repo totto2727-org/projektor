@@ -247,9 +247,9 @@ describe('wiki delayed draft lifecycle', () => {
     await debounce()
     expect(saveWikiDraft).toHaveBeenLastCalledWith(
       expect.objectContaining({
+        baseRevisionId: 'published-page',
         content: 'Newer B',
         expectedDraftRevision: 'published-head',
-        baseRevisionId: 'published-page',
       }),
     )
   })
@@ -572,12 +572,12 @@ describe('wiki server prop adoption', () => {
     })
     expect(saveWikiDraft).toHaveBeenCalledOnce()
     expect(saveWikiDraft).toHaveBeenCalledWith({
-      workspaceSlug: 'team',
+      baseRevisionId: 'rev',
+      content: 'Unsaved body',
+      expectedDraftRevision: null,
       slug: 'guide',
       title: 'Guide',
-      content: 'Unsaved body',
-      baseRevisionId: 'rev',
-      expectedDraftRevision: null,
+      workspaceSlug: 'team',
     })
     view.rerender(<WikiPageClient initial={{ ...initial, page: { ...initial.page } }} />)
     await act(async () => {

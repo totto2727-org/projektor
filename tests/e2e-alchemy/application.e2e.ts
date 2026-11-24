@@ -88,7 +88,7 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
     }
   })
   if (new URL(page.url()).pathname === '/settings/groups') {
-    await expect(page.getByRole('heading', { name: 'Groups', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'Groups' })).toBeVisible()
     await expect(page.getByText(/Groups grant members access to projects/u)).toBeVisible()
   }
   const dimensions = await page.evaluate(() => ({
@@ -178,9 +178,9 @@ test('API and Web share private Core persistence without adapter DB bindings', a
   expect(new URL((await link.getAttribute('href')) ?? '', page.url()).searchParams.get('projectId')).toBe(project.id)
   await checkpoint(page, testInfo, 'api-write-core-web-read')
   await link.click()
-  await expect(page.getByRole('heading', { name, exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, level: 1, name })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name, exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, level: 1, name })).toBeVisible()
   await checkpoint(page, testInfo, 'shared-db-project-reload')
 })
 
@@ -233,7 +233,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   await new Promise((resolve) => setTimeout(resolve, 1100))
   await create({ title: 'Progress high new', status: 'in_progress', priority: 'high', project: 0 })
   await page.goto('/my-issues?workspace=projektor')
-  await expect(page.getByRole('heading', { name: 'My Issues', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, name: 'My Issues' })).toBeVisible()
   await expect(page.locator('table')).toHaveCount(1)
   await expect(page.locator('table th')).toHaveText(['#', 'Title', 'Priority', 'Status'])
   for (const project of projects) {
@@ -241,7 +241,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   }
   await expect(page.getByText('Include done', { exact: true })).toHaveCount(0)
   for (const title of ['Completed hidden', 'Cancelled hidden', 'Unassigned hidden']) {
-    await expect(page.getByRole('link', { name: `${title} ${suffix}`, exact: true })).toHaveCount(0)
+    await expect(page.getByRole('link', { exact: true, name: `${title} ${suffix}` })).toHaveCount(0)
   }
   const expected = [
     'Review first',
@@ -266,10 +266,10 @@ const assertShell = async function assertShell(page: Page): Promise<void> {
   await expect(page.locator('main#main-content')).toBeVisible()
   await expect(page.getByRole('link', { name: /skip to (main )?content/i })).toBeAttached()
   await expect(page.getByRole('button', { name: /^Account(?::|$)/u })).toBeVisible()
-  const menu = page.locator('header.projektor-topbar').getByRole('button', { name: 'Toggle Sidebar', exact: true })
+  const menu = page.locator('header.projektor-topbar').getByRole('button', { exact: true, name: 'Toggle Sidebar' })
   if (await menu.isVisible()) {
     await menu.click()
-    await expect(page.getByRole('list', { name: 'Primary navigation', exact: true })).toBeVisible()
+    await expect(page.getByRole('list', { exact: true, name: 'Primary navigation' })).toBeVisible()
     const modal = await page.locator('[data-slot="sidebar"][data-mobile="true"]').evaluate((element) => ({
       top: element.getBoundingClientRect().top,
       height: element.getBoundingClientRect().height,
@@ -280,7 +280,7 @@ const assertShell = async function assertShell(page: Page): Promise<void> {
     await page.keyboard.press('Escape')
     await expect(menu).toBeFocused()
   } else {
-    await expect(page.getByRole('list', { name: 'Primary navigation', exact: true })).toBeVisible()
+    await expect(page.getByRole('list', { exact: true, name: 'Primary navigation' })).toBeVisible()
   }
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
@@ -349,16 +349,16 @@ test('issue review targets persist optional selection and four statuses across f
   await page.getByRole('button', { name: /Add URL/u }).click()
   const urlInput = page.getByPlaceholder('https://example.com/…', { exact: true })
   await urlInput.fill('https://[broken')
-  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await page.getByRole('button', { exact: true, name: 'Add' }).click()
   await expect(page.getByRole('alert')).toHaveText('Enter a valid URL.')
   const browserUrl = `http://example.com/${suffix}/browser`
   const browserLabel = `Browser reference ${suffix}`
   await urlInput.fill(browserUrl)
   await page.getByPlaceholder('Label (optional)', { exact: true }).fill(browserLabel)
-  await page.getByRole('button', { name: 'Add', exact: true }).click()
-  await expect(page.getByRole('link', { name: browserLabel, exact: true })).toHaveAttribute('href', browserUrl)
+  await page.getByRole('button', { exact: true, name: 'Add' }).click()
+  await expect(page.getByRole('link', { exact: true, name: browserLabel })).toHaveAttribute('href', browserUrl)
   await page.reload()
-  await expect(page.getByRole('link', { name: browserLabel, exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { exact: true, name: browserLabel })).toBeVisible()
   const browserAttachments = await request.get(
     `http://127.0.0.1:4392/api/files?entityType=issue&entityId=${emptyIssue.id}`,
     { headers },
@@ -367,11 +367,11 @@ test('issue review targets persist optional selection and four statuses across f
   expect(await browserAttachments.json()).toMatchObject([{ url: browserUrl, reviewStatus: null }])
   await checkpoint(page, testInfo, 'review-targets-browser-url-standard-validation')
   await page.goto(`/issues/view?id=${issue.id}&${scope}`)
-  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, name: title })).toBeVisible()
   const issueUrl = page.url()
-  const targets = page.getByRole('region', { name: 'レビュー対象', exact: true })
-  const selected = (name: string) => targets.getByRole('checkbox', { name: `${name}をレビュー対象にする`, exact: true })
-  const status = (name: string) => targets.getByRole('combobox', { name: `${name}のレビューステータス`, exact: true })
+  const targets = page.getByRole('region', { exact: true, name: 'レビュー対象' })
+  const selected = (name: string) => targets.getByRole('checkbox', { exact: true, name: `${name}をレビュー対象にする` })
+  const status = (name: string) => targets.getByRole('combobox', { exact: true, name: `${name}のレビューステータス` })
   for (const name of [filename, urlLabel, ordinaryLabel]) {
     await expect(selected(name)).not.toBeChecked()
     await expect(status(name)).toHaveCount(0)
@@ -389,7 +389,7 @@ test('issue review targets persist optional selection and four statuses across f
   await expect(status(filename)).toHaveValue('fixing')
   await page.goto(`/issues?${scope}&view=list`)
   await expect(
-    page.getByRole('link', { name: `Review targets: ${filename} (修正中)`, exact: true }).filter({ visible: true }),
+    page.getByRole('link', { exact: true, name: `Review targets: ${filename} (修正中)` }).filter({ visible: true }),
   ).toContainText('レビュー不要')
   await page.goto(issueUrl)
   for (const [value, label] of [
@@ -402,7 +402,7 @@ test('issue review targets persist optional selection and four statuses across f
     await expect(
       targets
         .getByRole('listitem')
-        .filter({ has: page.getByRole('checkbox', { name: `${filename}をレビュー対象にする`, exact: true }) })
+        .filter({ has: page.getByRole('checkbox', { exact: true, name: `${filename}をレビュー対象にする` }) })
         .locator('span')
         .filter({ hasText: new RegExp(`^${label}$`) }),
     ).toBeVisible()
@@ -415,8 +415,8 @@ test('issue review targets persist optional selection and four statuses across f
   await page.reload()
   await expect(selected(filename)).not.toBeChecked()
   const attachments = page.locator('section').filter({ has: page.getByText('Attachments (3)', { exact: true }) })
-  await expect(attachments.getByRole('link', { name: filename, exact: true })).toBeVisible()
-  await expect(attachments.getByRole('link', { name: ordinaryLabel, exact: true })).toBeVisible()
+  await expect(attachments.getByRole('link', { exact: true, name: filename })).toBeVisible()
+  await expect(attachments.getByRole('link', { exact: true, name: ordinaryLabel })).toBeVisible()
 
   await selected(filename).click()
   await expect(status(filename)).toBeEnabled()
@@ -451,12 +451,12 @@ test('issue review targets persist optional selection and four statuses across f
       }
     }
     await page.goto(route.path)
-    const summary = page.getByRole('link', { name: prioritySummary, exact: true }).filter({ visible: true })
+    const summary = page.getByRole('link', { exact: true, name: prioritySummary }).filter({ visible: true })
     await expect(summary).toHaveCount(1)
     await expect(summary).toContainText('+1')
     await expect(summary).not.toContainText('レビュー不要')
     await expect(
-      page.getByRole('link', { name: 'Review targets: 対象なし', exact: true }).filter({ visible: true }).first(),
+      page.getByRole('link', { exact: true, name: 'Review targets: 対象なし' }).filter({ visible: true }).first(),
     ).toBeVisible()
     await checkpoint(page, testInfo, `review-targets-summary-${route.name}`)
     // Both the priority target and +N share a native focused-view link.
@@ -464,7 +464,7 @@ test('issue review targets persist optional selection and four statuses across f
     await expect(page).toHaveURL(
       (url) => url.searchParams.get('tab') === 'review-targets' && url.searchParams.get('workspace') === 'projektor',
     )
-    await expect(targets.getByRole('heading', { name: 'レビュー対象 (2)', exact: true })).toBeVisible()
+    await expect(targets.getByRole('heading', { exact: true, name: 'レビュー対象 (2)' })).toBeVisible()
     await expect(status(urlLabel)).toHaveValue('in_review')
   }
   await status(filename).selectOption('in_review')
@@ -478,11 +478,11 @@ test('issue review targets persist optional selection and four statuses across f
     const cold = await coldContext.newPage()
     observeBrowser(cold, testInfo)
     expect((await cold.goto(focusedUrl))?.status()).toBe(200)
-    const coldTargets = cold.getByRole('region', { name: 'レビュー対象', exact: true })
-    await expect(coldTargets.getByRole('heading', { name: 'レビュー対象 (2)', exact: true })).toBeVisible()
+    const coldTargets = cold.getByRole('region', { exact: true, name: 'レビュー対象' })
+    await expect(coldTargets.getByRole('heading', { exact: true, name: 'レビュー対象 (2)' })).toBeVisible()
     await expect(coldTargets.getByText('レビュー待ち: 2件', { exact: true })).toBeVisible()
-    await expect(coldTargets.getByRole('link', { name: filename, exact: true })).toBeVisible()
-    await expect(coldTargets.getByRole('link', { name: urlLabel, exact: true })).toBeVisible()
+    await expect(coldTargets.getByRole('link', { exact: true, name: filename })).toBeVisible()
+    await expect(coldTargets.getByRole('link', { exact: true, name: urlLabel })).toBeVisible()
     await expect(
       coldTargets.getByText('対象とステータスの変更にはJavaScriptが必要です。リンクから対象を開けます。', {
         exact: true,
@@ -500,10 +500,10 @@ test('issue review targets persist optional selection and four statuses across f
   }
   await page.goto(`/issues?${scope}&view=list`)
   const completedSummary = page
-    .getByRole('link', { name: title, exact: true })
+    .getByRole('link', { exact: true, name: title })
     .filter({ visible: true })
     .locator('..')
-    .getByRole('link', { name: 'Review targets: 対象なし', exact: true })
+    .getByRole('link', { exact: true, name: 'Review targets: 対象なし' })
   await expect(completedSummary).toBeVisible()
   await expect(completedSummary).not.toContainText('+1')
   await page.goto(issueUrl)
@@ -513,7 +513,7 @@ test('issue review targets persist optional selection and four statuses across f
   await expect(selected(urlLabel)).toHaveCount(0)
   await expect(targets.getByText('表示するレビュー対象はありません。', { exact: true })).toBeVisible()
   await expect(selected(ordinaryLabel)).not.toBeChecked()
-  await expect(attachments.getByRole('link', { name: ordinaryLabel, exact: true })).toBeVisible()
+  await expect(attachments.getByRole('link', { exact: true, name: ordinaryLabel })).toBeVisible()
   await checkpoint(page, testInfo, 'review-targets-complete-normal-attachments-preserved')
 
   /*
@@ -551,7 +551,7 @@ test('issue review targets persist optional selection and four statuses across f
         filename: attachment.filename,
         reviewStatus: terminal === 'done' && attachment.filename !== ordinaryLabel ? 'done' : null,
       })
-      await expect(attachments.getByRole('link', { name: attachment.filename, exact: true })).toBeVisible()
+      await expect(attachments.getByRole('link', { exact: true, name: attachment.filename })).toBeVisible()
       await expect(status(attachment.filename)).toHaveCount(0)
       if (terminal === 'cancelled' || attachment.filename === ordinaryLabel) {
         await expect(selected(attachment.filename)).not.toBeChecked()
@@ -644,7 +644,7 @@ test('workspace review spans projects and unassigned issues with native filtered
     )
     await expect(visibleTitles()).toHaveCount(expected.length)
     for (const issue of issues) {
-      const link = page.getByRole('link', { name: issue.title, exact: true }).filter({ visible: true })
+      const link = page.getByRole('link', { exact: true, name: issue.title }).filter({ visible: true })
       if (expected.includes(issue)) {
         await expect(link).toBeVisible()
       } else {
@@ -654,7 +654,7 @@ test('workspace review spans projects and unassigned issues with native filtered
   }
   await page.goto(`/issues?workspace=${workspaceSlug}&projectId=${projects[0].id}`)
   await expect(page.getByText(`表示範囲: ${projects[0].key} · ${projects[0].name}`, { exact: true })).toBeVisible()
-  await page.getByRole('link', { name: '全プロジェクトのレビュー', exact: true }).click()
+  await page.getByRole('link', { exact: true, name: '全プロジェクトのレビュー' }).click()
   await expect(page).toHaveURL(
     (url) =>
       url.searchParams.get('workspace') === workspaceSlug &&
@@ -670,7 +670,7 @@ test('workspace review spans projects and unassigned issues with native filtered
       page.getByText(`${issue.project.key}-${issue.number}`, { exact: true }).filter({ visible: true }),
     ).toBeVisible()
     const summary = page
-      .getByRole('link', { name: `Review targets: ${issue.targetLabel} (レビュー中)`, exact: true })
+      .getByRole('link', { exact: true, name: `Review targets: ${issue.targetLabel} (レビュー中)` })
       .filter({ visible: true })
     await summary.click()
     await expect(page).toHaveURL(
@@ -679,7 +679,7 @@ test('workspace review spans projects and unassigned issues with native filtered
         url.searchParams.get('tab') === 'review-targets' &&
         url.pathname.startsWith(`/projects/${issue.project.key}/issues/${issue.number}/`),
     )
-    await expect(page.getByRole('heading', { name: issue.title, exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { exact: true, name: issue.title })).toBeVisible()
     await expect(page.getByText(issue.project.name, { exact: true }).filter({ visible: true })).toBeVisible()
     await page.goto(reviewUrl)
   }
@@ -690,8 +690,8 @@ test('workspace review spans projects and unassigned issues with native filtered
   await page.goto(paged.href)
   await expect(visibleTitles()).toHaveCount(1)
   const firstTitle = await visibleTitles().innerText()
-  const pagination = page.getByRole('navigation', { name: 'Issue pagination', exact: true })
-  await pagination.getByRole('button', { name: 'Next page', exact: true }).click()
+  const pagination = page.getByRole('navigation', { exact: true, name: 'Issue pagination' })
+  await pagination.getByRole('button', { exact: true, name: 'Next page' }).click()
   await expect(page).toHaveURL(
     (url) =>
       url.searchParams.has('cursor') &&
@@ -700,11 +700,11 @@ test('workspace review spans projects and unassigned issues with native filtered
   )
   await expect(visibleTitles()).toHaveCount(1)
   await expect(visibleTitles()).not.toHaveText(firstTitle)
-  await expect(pagination.getByRole('link', { name: 'First page', exact: true })).toBeVisible()
+  await expect(pagination.getByRole('link', { exact: true, name: 'First page' })).toBeVisible()
   await checkpoint(page, testInfo, 'cross-project-review-native-next-page')
 
-  const tabs = page.getByRole('navigation', { name: 'レビューステータスで課題を絞り込む', exact: true })
-  await tabs.getByRole('link', { name: '修正中', exact: true }).click()
+  const tabs = page.getByRole('navigation', { exact: true, name: 'レビューステータスで課題を絞り込む' })
+  await tabs.getByRole('link', { exact: true, name: '修正中' }).click()
   await expect(page).toHaveURL((url) => url.searchParams.get('review') === 'fixing' && !url.searchParams.has('cursor'))
   await assertReviewResults('fixing')
   const fullPage = new URL(page.url())
@@ -716,11 +716,11 @@ test('workspace review spans projects and unassigned issues with native filtered
     ['changes_requested', '要修正'],
     ['active', '未完了の対象'],
   ]) {
-    await tabs.getByRole('link', { name: label, exact: true }).click()
+    await tabs.getByRole('link', { exact: true, name: label }).click()
     await expect(page).toHaveURL((url) => url.searchParams.get('review') === review && !url.searchParams.has('cursor'))
-    await expect(tabs.getByRole('link', { name: label, exact: true })).toHaveAttribute('aria-current', 'page')
+    await expect(tabs.getByRole('link', { exact: true, name: label })).toHaveAttribute('aria-current', 'page')
     await assertReviewResults(review)
-    await page.getByRole('searchbox', { name: 'Search issues', exact: true }).fill(suffix)
+    await page.getByRole('searchbox', { exact: true, name: 'Search issues' }).fill(suffix)
     await expect(page).toHaveURL(
       (url) => url.searchParams.get('q') === suffix && url.searchParams.get('review') === review,
     )
@@ -735,7 +735,7 @@ test('workspace review spans projects and unassigned issues with native filtered
     observeBrowser(cold, testInfo)
     expect((await cold.goto(page.url()))?.status()).toBe(200)
     for (const issue of issues) {
-      const link = cold.getByRole('link', { name: issue.title, exact: true }).filter({ visible: true })
+      const link = cold.getByRole('link', { exact: true, name: issue.title }).filter({ visible: true })
       if (Predicate.isNotNullish(issue.review) && issue.review !== 'done') {
         await expect(link).toBeVisible()
       } else {
@@ -743,15 +743,15 @@ test('workspace review spans projects and unassigned issues with native filtered
       }
     }
     await cold
-      .getByRole('navigation', { name: 'レビューステータスで課題を絞り込む', exact: true })
-      .getByRole('link', { name: '要修正', exact: true })
+      .getByRole('navigation', { exact: true, name: 'レビューステータスで課題を絞り込む' })
+      .getByRole('link', { exact: true, name: '要修正' })
       .click()
     await expect(cold).toHaveURL(
       (url) => url.searchParams.get('review') === 'changes_requested' && url.searchParams.get('q') === suffix,
     )
     await expect(
       cold
-        .getByRole('link', { name: `Cross review ${suffix} Changes requested`, exact: true })
+        .getByRole('link', { exact: true, name: `Cross review ${suffix} Changes requested` })
         .filter({ visible: true }),
     ).toBeVisible()
     await checkpoint(cold, testInfo, 'cross-project-review-cold-no-js-native-tab')
@@ -851,7 +851,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   expect(wikiResponse.status(), await wikiResponse.text()).toBe(201)
   expect((await page.goto(`/wiki/view?${query}&slug=drawer-${suffix.toLowerCase()}`))?.status()).toBe(200)
   if (testInfo.project.name === 'mobile') {
-    const trigger = page.getByRole('button', { name: 'Pages', exact: true })
+    const trigger = page.getByRole('button', { exact: true, name: 'Pages' })
     const drawer = page.locator('.wiki-sidebar.wiki-sidebar-open')
     const backdrop = page.locator('.wiki-drawer-overlay-open')
     await trigger.click()
@@ -912,10 +912,10 @@ test('cold protected initial HTML is usable without JavaScript', async ({ browse
     expect(response?.status()).toBe(200)
     expect(response?.headers()['cache-control']).toMatch(/private/u)
     await expect(page.getByRole('main')).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { exact: true, name: 'Projects' })).toBeVisible()
     await expect(page.getByRole('button', { name: /^Account(?::|$)/u })).toBeVisible()
     if (testInfo.project.name === 'mobile') {
-      const menu = page.getByRole('button', { name: 'Toggle Sidebar', exact: true })
+      const menu = page.getByRole('button', { exact: true, name: 'Toggle Sidebar' })
       await expect(menu).toBeVisible()
       await expect(menu).toBeDisabled()
     }
@@ -943,20 +943,20 @@ test('native create project and issue refresh canonical reads and navigation', a
   await checkpoint(page, testInfo, 'initial-shell')
   // Native <details> remains operable without depending on CSS/component internals.
   await page.getByText('+ New project', { exact: true }).click()
-  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(projectName)
-  await page.getByRole('textbox', { name: 'Key', exact: true }).fill(projectKey)
+  await page.getByRole('textbox', { exact: true, name: 'Name' }).fill(projectName)
+  await page.getByRole('textbox', { exact: true, name: 'Key' }).fill(projectKey)
   await checkpoint(page, testInfo, 'native-project-form')
-  await page.getByRole('button', { name: 'Create project', exact: true }).click()
+  await page.getByRole('button', { exact: true, name: 'Create project' }).click()
   const projectLink = page.getByRole('link').filter({ hasText: projectName })
   await expect(projectLink).toHaveCount(1)
   await checkpoint(page, testInfo, 'project-created-canonical-list')
   await projectLink.click()
-  await expect(page.getByRole('heading', { name: projectName, exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, level: 1, name: projectName })).toBeVisible()
   await checkpoint(page, testInfo, 'project-created-detail')
   await expect(page).toHaveURL((url) => url.pathname.startsWith('/projects/view/'))
   const projectUrl = page.url()
   const sections = page.getByRole('navigation', { name: 'Project sections' })
-  await sections.getByRole('link', { name: 'Issues', exact: true }).click()
+  await sections.getByRole('link', { exact: true, name: 'Issues' }).click()
   await expect(page).toHaveURL((url) => url.pathname === '/issues')
   const issuesUrl = page.url()
   expect(new URL(issuesUrl).searchParams.get('workspace')).toBe('projektor')
@@ -967,24 +967,24 @@ test('native create project and issue refresh canonical reads and navigation', a
   await expect(dialog).toBeVisible()
   await dialog.getByPlaceholder('Issue title').fill(issueTitle)
   await checkpoint(page, testInfo, 'native-issue-form')
-  await dialog.getByRole('button', { name: 'Create issue', exact: true }).click()
+  await dialog.getByRole('button', { exact: true, name: 'Create issue' }).click()
   await expect(dialog).not.toBeVisible()
-  const issueLink = page.getByRole('link', { name: issueTitle, exact: true })
+  const issueLink = page.getByRole('link', { exact: true, name: issueTitle })
   await expect(issueLink).toBeVisible()
   await checkpoint(page, testInfo, 'issue-created-canonical-list')
   const canonicalIssueUrl = new URL((await issueLink.getAttribute('href')) ?? '', page.url()).href
   await issueLink.click()
-  await expect(page.getByRole('heading', { name: issueTitle, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, name: issueTitle })).toBeVisible()
   await checkpoint(page, testInfo, 'issue-created-detail')
   await expect(page).toHaveURL(canonicalIssueUrl)
   const issueUrl = page.url()
   await page.reload()
-  await expect(page.getByRole('heading', { name: issueTitle, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, name: issueTitle })).toBeVisible()
   await checkpoint(page, testInfo, 'issue')
   const issueBody = `Native Core-backed update ${suffix}`
   await page.getByTitle('Edit description', { exact: true }).click()
-  await page.getByRole('textbox', { name: 'Markdown editor', exact: true }).fill(issueBody)
-  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByRole('textbox', { exact: true, name: 'Markdown editor' }).fill(issueBody)
+  await page.getByRole('button', { exact: true, name: 'Save' }).click()
   await expect(page.getByText(issueBody, { exact: true })).toBeVisible()
   await expect(page.locator('.markdown-content').getByText(issueBody, { exact: true })).toBeVisible()
   await checkpoint(page, testInfo, 'issue-updated-canonical-body')
@@ -1001,7 +1001,7 @@ test('native create project and issue refresh canonical reads and navigation', a
     buffer: bytes,
   })
   await checkpoint(page, testInfo, 'native-attachment-form')
-  await page.getByRole('button', { name: 'Upload', exact: true }).click()
+  await page.getByRole('button', { exact: true, name: 'Upload' }).click()
   const attachment = page.locator('a[href^="/api/files/"]').filter({ hasText: filename })
   await expect(attachment).toBeVisible()
   const filePath = new URL((await attachment.getAttribute('href')) ?? '', page.url()).pathname
@@ -1028,7 +1028,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   }
   expect(Buffer.concat(chunks)).toEqual(bytes)
   await checkpoint(page, testInfo, 'native-attachment-download')
-  await page.getByRole('button', { name: `Remove ${filename}`, exact: true }).click()
+  await page.getByRole('button', { exact: true, name: `Remove ${filename}` }).click()
   await expect(attachment).toHaveCount(0)
   await page.reload()
   await expect(attachment).toHaveCount(0)
@@ -1039,44 +1039,44 @@ test('native create project and issue refresh canonical reads and navigation', a
   await checkpoint(page, testInfo, 'native-attachment-deleted-reload')
   await page.goBack()
   await expect(page).toHaveURL(issuesUrl)
-  await expect(page.getByRole('link', { name: issueTitle, exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { exact: true, name: issueTitle })).toBeVisible()
   await checkpoint(page, testInfo, 'issue-back-scoped-list')
   await page.goForward()
   await expect(page).toHaveURL(issueUrl)
-  await expect(page.getByRole('heading', { name: issueTitle, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, name: issueTitle })).toBeVisible()
   await checkpoint(page, testInfo, 'issue-forward-detail')
   await assertShell(page)
   await page.goto(projectUrl)
   await checkpoint(page, testInfo, 'project')
   await page
     .getByRole('navigation', { name: 'Project sections' })
-    .getByRole('link', { name: 'Wiki', exact: true })
+    .getByRole('link', { exact: true, name: 'Wiki' })
     .click()
   await expect(page).toHaveURL((url) => url.pathname === '/wiki')
   const wikiScope = new URL(page.url())
   expect(wikiScope.searchParams.get('workspace')).toBe('projektor')
   expect(wikiScope.searchParams.get('projectId')).toBe(new URL(projectUrl).searchParams.get('projectId'))
   await checkpoint(page, testInfo, 'project-scoped-wiki')
-  const pages = page.getByRole('button', { name: 'Pages', exact: true })
+  const pages = page.getByRole('button', { exact: true, name: 'Pages' })
   if (await pages.isVisible()) {
     await pages.click()
   }
-  await page.getByRole('button', { name: '+ New page', exact: true }).click()
+  await page.getByRole('button', { exact: true, name: '+ New page' }).click()
   const wikiTitle = `Native wiki ${suffix}`
   await page.getByPlaceholder('Page title', { exact: true }).fill(wikiTitle)
-  const editor = page.getByRole('textbox', { name: 'Markdown editor', exact: true })
+  const editor = page.getByRole('textbox', { exact: true, name: 'Markdown editor' })
   await expect(editor).toBeVisible()
   await editor.fill(
     `## Comark acceptance ${suffix}\n\nA **strong** native paragraph.\n\n- One\n- Two\n\n| Surface | Status |\n| --- | --- |\n| Web | Ready |\n\n\`\`\`ts\nconst ready = true\n\`\`\`\n\n[Scoped project](${projectUrl})\n\n<script>window.__acceptanceInjected = true</script>`,
   )
   await checkpoint(page, testInfo, 'native-wiki-form')
-  await page.getByRole('button', { name: 'Create page', exact: true }).click()
-  await expect(page.getByRole('heading', { name: wikiTitle, exact: true, level: 1 })).toBeVisible()
-  await expect(page.getByRole('heading', { name: `Comark acceptance ${suffix}`, exact: true, level: 2 })).toBeVisible()
+  await page.getByRole('button', { exact: true, name: 'Create page' }).click()
+  await expect(page.getByRole('heading', { exact: true, level: 1, name: wikiTitle })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, level: 2, name: `Comark acceptance ${suffix}` })).toBeVisible()
   await expect(page.locator('.markdown-content table')).toBeVisible()
   await expect(page.locator('.markdown-content pre.shiki')).toBeVisible()
   await expect(page.locator('strong').filter({ hasText: /^strong$/u })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Scoped project', exact: true })).toHaveAttribute('href', projectUrl)
+  await expect(page.getByRole('link', { exact: true, name: 'Scoped project' })).toHaveAttribute('href', projectUrl)
   expect(await page.evaluate(() => '__acceptanceInjected' in window)).toBe(false)
   await checkpoint(page, testInfo, 'wiki-created-comark-render')
   await expect(page).toHaveURL((url) => url.pathname.startsWith('/wiki/'))
@@ -1084,8 +1084,8 @@ test('native create project and issue refresh canonical reads and navigation', a
   expect(new URL(wikiUrl).searchParams.get('workspace')).toBe('projektor')
   expect(new URL(wikiUrl).searchParams.get('projectId')).toBe(new URL(projectUrl).searchParams.get('projectId'))
   await page.reload()
-  await expect(page.getByRole('heading', { name: wikiTitle, exact: true, level: 1 })).toBeVisible()
-  await expect(page.getByRole('heading', { name: `Comark acceptance ${suffix}`, exact: true, level: 2 })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, level: 1, name: wikiTitle })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, level: 2, name: `Comark acceptance ${suffix}` })).toBeVisible()
   expect(await page.evaluate(() => '__acceptanceInjected' in window)).toBe(false)
   await checkpoint(page, testInfo, 'wiki-reload-comark-render')
   const timeOrigin = await page.evaluate(() => performance.timeOrigin)
@@ -1096,11 +1096,11 @@ test('native create project and issue refresh canonical reads and navigation', a
     predicate: (frame) => frame === page.mainFrame(),
   })
   await page.getByRole('button', { name: /^Account(?::|$)/u }).click()
-  await page.getByRole('menuitem', { name: 'Refresh session', exact: true }).click()
+  await page.getByRole('menuitem', { exact: true, name: 'Refresh session' }).click()
   expect((await refreshPost).status()).toBe(303)
   await refreshedDocument
   await expect(page).toHaveURL(wikiUrl)
-  await expect(page.getByRole('heading', { name: wikiTitle, exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, level: 1, name: wikiTitle })).toBeVisible()
   expect(await page.evaluate(() => performance.timeOrigin)).not.toBe(timeOrigin)
   await checkpoint(page, testInfo, 'native-session-document-refresh')
   /*
@@ -1116,7 +1116,7 @@ test('native create project and issue refresh canonical reads and navigation', a
     const cold = await noJs.newPage()
     observeBrowser(cold, testInfo)
     expect((await cold.goto(issueUrl))?.status()).toBe(200)
-    await expect(cold.getByRole('heading', { name: issueTitle, exact: true })).toBeVisible()
+    await expect(cold.getByRole('heading', { exact: true, name: issueTitle })).toBeVisible()
     await checkpoint(cold, testInfo, 'cold-persisted-issue-no-js')
   } finally {
     await noJs.close()
@@ -1377,7 +1377,7 @@ test('all final page routes and aliases render real populated HTML with and with
         const response = await reader.goto(route.path)
         expect(response?.status(), route.id).toBe(200)
         if (route.heading) {
-          await expect(reader.getByRole('heading', { name: route.heading, exact: true, level: 1 })).toBeVisible()
+          await expect(reader.getByRole('heading', { exact: true, level: 1, name: route.heading })).toBeVisible()
         }
         if (route.text) {
           await expect(reader.getByText(route.text, { exact: true })).toBeVisible()
@@ -1406,30 +1406,30 @@ test('large dataset tabs use scoped native URLs and survive reload and history',
     ['History', 'completed'],
     ['All', 'all'],
   ]) {
-    await page.getByRole('link', { name, exact: true }).click()
+    await page.getByRole('link', { exact: true, name }).click()
     await expect(page).toHaveURL(
       (url) =>
         url.searchParams.get('status') === value &&
         url.searchParams.get('projectId') === project.id &&
         url.searchParams.get('workspace') === 'projektor',
     )
-    await expect(page.getByRole('link', { name, exact: true })).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('link', { exact: true, name })).toHaveAttribute('aria-current', 'page')
     for (const sprint of sprints.filter((sprint) => value === 'all' || sprint.status === value)) {
       await expect(page.locator('body')).toContainText(sprint.name)
     }
     await checkpoint(page, testInfo, `sprint-tab-${value}`)
   }
   await page.goto('/settings/groups?workspace=projektor')
-  await page.getByRole('tab', { name: 'Members', exact: true }).click()
+  await page.getByRole('tab', { exact: true, name: 'Members' }).click()
   await expect(page).toHaveURL(
     (url) => url.searchParams.get('view') === 'members' && url.searchParams.get('workspace') === 'projektor',
   )
-  await expect(page.getByRole('tab', { name: 'Members', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { exact: true, name: 'Members' })).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('tabpanel')).toContainText(user.email)
   await checkpoint(page, testInfo, 'groups-members-tab')
   await page.reload()
-  await expect(page.getByRole('tab', { name: 'Members', exact: true })).toHaveAttribute('aria-selected', 'true')
-  await page.getByRole('tab', { name: 'Groups', exact: true }).click()
+  await expect(page.getByRole('tab', { exact: true, name: 'Members' })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('tab', { exact: true, name: 'Groups' }).click()
   await expect(page).toHaveURL((url) => url.searchParams.get('view') === 'groups')
   await expect(page.getByRole('tabpanel')).toContainText(group.name)
   await checkpoint(page, testInfo, 'groups-groups-tab')
@@ -1439,23 +1439,23 @@ test('large dataset tabs use scoped native URLs and survive reload and history',
     ['Settings', 'settings'],
     ['Items', 'items'],
   ]) {
-    await page.getByRole('tab', { name, exact: true }).click()
+    await page.getByRole('tab', { exact: true, name }).click()
     await expect(page).toHaveURL(
       (url) => url.searchParams.get('tab') === value && url.searchParams.get('workspace') === 'projektor',
     )
-    await expect(page.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('tab', { exact: true, name })).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByRole('tabpanel')).toContainText(
       value === 'items' ? feedbackBody : value === 'summary' ? 'acceptance-v1' : 'Created',
     )
     await checkpoint(page, testInfo, `feedback-tab-${value}`)
   }
   await page.goBack()
-  await expect(page.getByRole('tab', { name: 'Settings', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { exact: true, name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
   await checkpoint(page, testInfo, 'feedback-history-settings')
   await page.goForward()
-  await expect(page.getByRole('tab', { name: 'Items', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { exact: true, name: 'Items' })).toHaveAttribute('aria-selected', 'true')
   await page.reload()
-  await expect(page.getByRole('tab', { name: 'Items', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { exact: true, name: 'Items' })).toHaveAttribute('aria-selected', 'true')
   await checkpoint(page, testInfo, 'feedback-reloaded-items')
 })
 
@@ -1480,39 +1480,39 @@ test('two real memberships require native selection and preserve workspace acros
     projects.push(await created.json())
   }
   await page.goto(`/issues?project=${key}`)
-  await expect(page.getByRole('heading', { name: 'Select a project', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, name: 'Select a project' })).toBeVisible()
   await checkpoint(page, testInfo, 'ambiguous-project-key-no-default-tenant')
   await page.getByLabel('Project', { exact: true }).selectOption(projects[1].id)
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { exact: true, name: 'Continue' }).click()
   await expect(page).toHaveURL((url) => url.searchParams.get('projectId') === projects[1].id)
-  await expect(page.getByRole('heading', { name: 'Issues', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, name: 'Issues' })).toBeVisible()
   await checkpoint(page, testInfo, 'native-collision-project-selection')
   await page.goto('/')
   await page.getByText('+ New project', { exact: true }).click()
-  await expect(page.getByRole('combobox', { name: 'Workspace', exact: true })).toHaveValue('')
+  await expect(page.getByRole('combobox', { exact: true, name: 'Workspace' })).toHaveValue('')
   const projectName = `Second native ${suffix}`
-  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(projectName)
-  await page.getByRole('textbox', { name: 'Key', exact: true }).fill(`N${suffix.toUpperCase()}`)
-  await expect(page.getByRole('button', { name: 'Create project', exact: true })).toBeDisabled()
-  await page.getByRole('combobox', { name: 'Workspace', exact: true }).selectOption(slug)
+  await page.getByRole('textbox', { exact: true, name: 'Name' }).fill(projectName)
+  await page.getByRole('textbox', { exact: true, name: 'Key' }).fill(`N${suffix.toUpperCase()}`)
+  await expect(page.getByRole('button', { exact: true, name: 'Create project' })).toBeDisabled()
+  await page.getByRole('combobox', { exact: true, name: 'Workspace' }).selectOption(slug)
   await checkpoint(page, testInfo, 'explicit-second-workspace-native-form')
-  await page.getByRole('button', { name: 'Create project', exact: true }).click()
+  await page.getByRole('button', { exact: true, name: 'Create project' }).click()
   const link = page.getByRole('link').filter({ has: page.getByText(projectName, { exact: true }) })
   await expect(link).toHaveCount(1)
   expect(new URL((await link.getAttribute('href')) ?? '', page.url()).searchParams.get('workspace')).toBe(slug)
   await link.click()
-  await expect(page.getByRole('heading', { name: projectName, exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, level: 1, name: projectName })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name: projectName, exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, level: 1, name: projectName })).toBeVisible()
   await checkpoint(page, testInfo, 'second-workspace-native-create-reload')
   await page
     .getByRole('navigation', { name: 'Project sections' })
-    .getByRole('link', { name: 'Issues', exact: true })
+    .getByRole('link', { exact: true, name: 'Issues' })
     .click()
   await expect(page).toHaveURL((url) => url.pathname === '/issues' && url.searchParams.get('workspace') === slug)
   await checkpoint(page, testInfo, 'second-workspace-native-issues-link')
   await page.goBack()
-  await expect(page.getByRole('heading', { name: projectName, exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { exact: true, level: 1, name: projectName })).toBeVisible()
   await checkpoint(page, testInfo, 'second-workspace-history-overview')
   const mismatch = await request.get(`/issues?workspace=projektor&projectId=${projects[1].id}`)
   expect([403, 404]).toContain(mismatch.status())

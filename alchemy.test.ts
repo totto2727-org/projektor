@@ -159,7 +159,7 @@ describe('source-owned private Core deployment', () => {
     expect(bindings(stack, 'Core').some((binding) => binding.type === 'd1')).toBe(false)
     if (ids.includes('Frontend')) {
       expectNoStorage(stack, 'Frontend')
-      expect(bindings(stack, 'Frontend')).toContainEqual(expect.objectContaining({ type: 'service', name: 'CORE' }))
+      expect(bindings(stack, 'Frontend')).toContainEqual(expect.objectContaining({ name: 'CORE', type: 'service' }))
       Iterable.forEach(['API', 'API_BASE', 'JWT_SECRET'], (name) => {
         expect(stack.resources.Frontend.Props.env).not.toHaveProperty(name)
       })

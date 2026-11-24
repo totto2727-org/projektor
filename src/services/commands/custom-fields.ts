@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
-import { Iterable, String, Array, Predicate, Effect } from 'effect'
+import { Iterable, Array, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -60,7 +60,7 @@ const assertCustomFieldKeyAvailable = async function assertCustomFieldKeyAvailab
   key: string,
 ): Promise<void> {
   const projCondition =
-    Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)
+    Predicate.isNotNullish(projectId) && projectId !== ''
       ? eq(schema.customFieldDefinitions.projectId, projectId)
       : isNull(schema.customFieldDefinitions.projectId)
 
@@ -320,12 +320,12 @@ export const validateCustomFields = async function validateCustomFields(
       })
     }
 
-    if (rawValue === null || Predicate.isNullish(rawValue) || rawValue === '') {
+    if (Predicate.isNullish(rawValue) || rawValue === '') {
       return
     }
 
     // oxlint-disable-next-line @typescript-eslint/no-base-to-string -- Preserve existing custom-field coercion before validation, including object values.
-    const value = globalThis.String(rawValue)
+    const value = String(rawValue)
     assertValidCustomFieldValue(key, value, def)
 
     writes.push({ fieldId: def.id, value })

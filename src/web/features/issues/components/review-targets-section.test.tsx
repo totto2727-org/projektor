@@ -168,10 +168,10 @@ test.each([
     await act(async () => {})
     expect(setAttachmentReviewStatus).toHaveBeenCalledTimes(2)
     expect(setAttachmentReviewStatus).toHaveBeenLastCalledWith({
-      workspaceSlug: 'workspace',
-      issueId: 'issue',
       attachmentId: 'first',
+      issueId: 'issue',
       status: 'in_review',
+      workspaceSlug: 'workspace',
     })
   },
 )
