@@ -40,7 +40,7 @@ describe('covers SearchResultsSection — mobile viewport', () => {
 
   test('shows the loading state regardless of viewport', () => {
     setViewportWidth(MOBILE_WIDTH)
-    render(<SearchResultsSection searchLoading={true} searchResults={null} searchQuery='fix' />)
+    render(<SearchResultsSection searchLoading searchResults={null} searchQuery='fix' />)
 
     expect(screen.getByText('Searching…')).toBeTruthy()
   })

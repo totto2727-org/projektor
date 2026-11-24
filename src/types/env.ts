@@ -20,7 +20,7 @@ export interface CoreEnv {
   BOOTSTRAP_SECRET?: string
   // Login provisioning (see services/provisioning.ts). Runs on every Cloudflare Access
   // (browser) login. Cloudflare Access is the gate; these decide what a user gets inside.
-  ADMIN_EMAILS?: string // comma-separated; these emails become workspace owners
+  ADMIN_EMAILS?: string // Comma-separated; these emails become workspace owners
   DEFAULT_WORKSPACE_SLUG?: string // Default 'projektor' (matches the workers.dev subdomain)
   DEFAULT_WORKSPACE_NAME?: string // Default 'Projektor'
   AUTO_JOIN_ROLE?: string // Role for non-admins CF admits: viewer|member|admin|owner|none (default none = invite-only)
@@ -29,18 +29,18 @@ export interface CoreEnv {
   WORKSPACE_DOMAIN_MAP?: string
   // Rate-limit tunables — override in wrangler.toml [vars] or as secrets.
   // Defaults: 10 req/window for IP-keyed (no bearer token), 120 for token-keyed.
-  RATE_LIMIT_AUTH_MAX?: string // max requests per IP per window when no bearer token is present
-  RATE_LIMIT_API_MAX?: string // max requests per token per window when a bearer token is present
-  RATE_LIMIT_WINDOW_SECS?: string // window size in seconds (default 60)
-  RATE_LIMIT_AUTH_FAIL_MAX?: string // max failed bearer-token auths per IP per window before 429 (default 50)
+  RATE_LIMIT_AUTH_MAX?: string // Max requests per IP per window when no bearer token is present
+  RATE_LIMIT_API_MAX?: string // Max requests per token per window when a bearer token is present
+  RATE_LIMIT_WINDOW_SECS?: string // Window size in seconds (default 60)
+  RATE_LIMIT_AUTH_FAIL_MAX?: string // Max failed bearer-token auths per IP per window before 429 (default 50)
   /*
    * PROJ-378: public feedback-submit rate limiting. Dedicated from RATE_LIMIT_API_MAX/
    * RATE_LIMIT_AUTH_MAX (which govern authenticated API/auth traffic) because the
    * submit route runs outside the global rateLimitMiddleware chain entirely and
    * anonymous feedback-spam must not share a budget with authenticated callers.
    */
-  RATE_LIMIT_FEEDBACK_MAX?: string // max submissions per source token per window (default 30)
-  RATE_LIMIT_FEEDBACK_IP_MAX?: string // max submissions per IP per window (default 100)
+  RATE_LIMIT_FEEDBACK_MAX?: string // Max submissions per source token per window (default 30)
+  RATE_LIMIT_FEEDBACK_IP_MAX?: string // Max submissions per IP per window (default 100)
   /*
    * Per-workspace attachment storage quota in bytes (default 1 GiB). Override in
    * wrangler.toml [vars]; invalid or non-positive values fall back to the default.
@@ -147,7 +147,10 @@ export interface Variables {
   allowQueryWorkspaceFallback: boolean | undefined
 }
 
-export type HonoEnv = { Bindings: ApiEnv; Variables: Variables }
+export interface HonoEnv {
+  Bindings: ApiEnv
+  Variables: Variables
+}
 
 /** RPC surface of the RateLimiter Durable Object (src/api/lib/rate-limiter-do.ts). */
 export interface RateLimiterRpc extends Rpc.DurableObjectBranded {

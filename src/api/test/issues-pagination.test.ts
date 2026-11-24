@@ -58,7 +58,7 @@ describe('covers PROJ-857: issue list cursor', () => {
         firstTotal = body.total
       } else {
         expect(body.total).toBeNull()
-      } // count only on the first page
+      } // Count only on the first page
       seen.push(...body.items.map((item) => item.id))
       cursor = body.nextCursor
       pages++
@@ -106,7 +106,7 @@ describe('covers PROJ-857: hot queries use an index (no table scan, no temp sort
       ['w', 'PROJ', 1],
     ],
   ])('%s', async (_name, q, binds) => {
-    const detail = await plan(q as string, ...(binds as unknown[]))
+    const detail = await plan(q, ...(binds as unknown[]))
     expect(detail).not.toMatch(/TEMP B-TREE/u)
     expect(detail).not.toMatch(/SCAN (i|issues|p|projects)\b/)
   })

@@ -25,7 +25,7 @@ import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 import { idFirst, idOrSlugMatch } from './wiki-lookup.ts'
 
-type ResolvedDraftTarget = {
+interface ResolvedDraftTarget {
   id: string
   slug: string
 }

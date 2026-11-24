@@ -76,7 +76,7 @@ const rpc = async function rpc(
 describe('covers PROJ-920: MCP tool arguments are type-checked before the handler runs', () => {
   const prevMax = env.RATE_LIMIT_API_MAX
   beforeAll(() => {
-    env.RATE_LIMIT_API_MAX = '10000' // one call per tool below
+    env.RATE_LIMIT_API_MAX = '10000' // One call per tool below
   })
   afterAll(() => {
     env.RATE_LIMIT_API_MAX = prevMax

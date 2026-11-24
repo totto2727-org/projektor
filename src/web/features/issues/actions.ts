@@ -38,7 +38,7 @@ const authorizedIssue = function authorizedIssue(context: FunctionContext, issue
   })
 }
 
-function dataWorkspaceId(context: FunctionContext): Effect.Effect<string, ScopeError, never> {
+function dataWorkspaceId(context: FunctionContext): Effect.Effect<string, ScopeError> {
   return Effect.try({
     catch: () => new ScopeError(HTTP_FORBIDDEN, 'Selected workspace is not accessible.'),
     try: () =>

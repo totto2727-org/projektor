@@ -11,7 +11,7 @@ import { env } from './fixture-api.ts'
 import { hashToken, seedIssue, seedProjectFixture, seedToken } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-type RpcBody = {
+interface RpcBody {
   result?: { content?: { text: string }[]; isError?: boolean }
   error?: { code: number; message: string; data?: unknown }
 }

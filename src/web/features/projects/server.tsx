@@ -74,6 +74,6 @@ export const renderOverview = function renderOverview(
   })
 }
 
-export const renderHelp = function renderHelp(_env: Env, _scope: null, _url: URL): Effect.Effect<ReactNode, never> {
+export const renderHelp = function renderHelp(_env: Env, _scope: null, _url: URL): Effect.Effect<ReactNode> {
   return Effect.succeed(<HelpPage />)
 }

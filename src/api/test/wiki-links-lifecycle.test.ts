@@ -31,7 +31,7 @@ const createPage = async function createPage(
     body: JSON.stringify({ title, content }),
   })
   expect(res.status).toBe(201)
-  return res.json() as Promise<{ id: string; slug: string }>
+  return res.json()
 }
 
 const updatePage = async function updatePage(
@@ -73,7 +73,7 @@ const brokenLinks = async function brokenLinks(
     headers: authHeaders(token, wsSlug),
   })
   expect(res.status).toBe(200)
-  return res.json() as Promise<{ sourcePageId: string; targetTitle: string }[]>
+  return res.json()
 }
 
 const backlinks = async function backlinks(
@@ -85,7 +85,7 @@ const backlinks = async function backlinks(
     headers: authHeaders(token, wsSlug),
   })
   expect(res.status).toBe(200)
-  return res.json() as Promise<{ pageId: string; slug: string }[]>
+  return res.json()
 }
 
 describe("covers PROJ-814: lifecycle events re-resolve other pages' wiki links", () => {

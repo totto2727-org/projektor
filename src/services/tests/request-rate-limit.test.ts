@@ -71,7 +71,7 @@ const fixture = function fixture() {
   }
   return { ...database, env, apiEnv, handlers, increment, idFromName }
 }
-const request = (headers: HeadersInit = {}): Request<unknown, CfProperties<unknown>> =>
+const request = (headers: HeadersInit = {}): Request<unknown, CfProperties> =>
   new Request('https://example.test/api/issues', { headers })
 
 const consume = async function consume(count: number, req: Request, env: RequestRateLimitEnv): Promise<void> {

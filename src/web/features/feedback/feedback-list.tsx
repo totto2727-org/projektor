@@ -232,7 +232,7 @@ const FeedbackTable = function FeedbackTable({
             <th className={TH}>Feedback</th>
             <th className={TH}>Status</th>
             <th className={TH}>Received</th>
-            <th className={TH}></th>
+            <th className={TH} />
           </tr>
         </thead>
         <tbody>

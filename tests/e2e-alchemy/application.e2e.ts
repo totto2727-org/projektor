@@ -9,7 +9,7 @@ import { Iterable, Predicate } from 'effect'
 import { HTTP_CREATED, HTTP_NOT_FOUND, HTTP_NO_CONTENT, HTTP_OK } from '#contracts/http-status.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
-type BrowserAudit = {
+interface BrowserAudit {
   pageErrors: string[]
   consoleErrors: string[]
   directApiRequests: { url: string; method: string; resourceType: string }[]

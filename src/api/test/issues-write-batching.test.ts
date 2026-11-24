@@ -192,7 +192,7 @@ describe('covers PROJ-870: issue write batching', () => {
       'SELECT title, status, status_category, parent_id, completed_at, done_at FROM issues WHERE id = ?',
     )
       .bind(issue.id)
-      .first<Record<string, unknown>>()
+      .first()
     expect(row).toMatchObject({
       title: 'After',
       status: 'shipped',

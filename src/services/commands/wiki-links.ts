@@ -287,7 +287,7 @@ const resolveSlugTargets = async function resolveSlugTargets(
   return bySlug
 }
 
-type ResolvedLink = {
+interface ResolvedLink {
   targetPageId: string | null
   targetTitle: string
   targetText: string

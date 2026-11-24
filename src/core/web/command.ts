@@ -18,7 +18,7 @@ export const browserCommand = function browserCommand<A>(
   env: CoreEnvironment,
   input: BrowserCommand,
   operation: (ctx: ServiceCtx) => Promise<A>,
-): Effect.Effect<A, unknown, never> {
+): Effect.Effect<A, unknown> {
   return Effect.gen(function* () {
     const proof = yield* Schema.decodeUnknownEffect(BrowserCommandSchema)(input).pipe(
       Effect.mapError(() => coreFailure(HTTP_BAD_REQUEST, 'Invalid browser command.')),

@@ -40,7 +40,7 @@ describe('covers MCP prompts', () => {
       prompts: {
         name: string
         description: string
-        arguments: Array<{ name: string; required: boolean }>
+        arguments: { name: string; required: boolean }[]
       }[]
     }>
     const prompt = json.result.prompts.find((p) => p.name === 'epic-goal')

@@ -13,7 +13,7 @@ import { renderWiki } from './features/wiki/server.tsx'
 import { pageRenderer } from './page.tsx'
 import { RequestServices, RequestServicesLive } from './request.ts'
 
-// safe-ls: only cosmetic preferences, synchronously applied before the stylesheet can paint.
+// Safe-ls: only cosmetic preferences, synchronously applied before the stylesheet can paint.
 // No tenant or identity data is kept in localStorage and no router lifecycle is installed.
 const cosmeticPrefs = `(function(){try{var p=JSON.parse(localStorage.getItem('prefs')||'null')||{},t=p.theme||localStorage.getItem('theme'),r=document.documentElement;if(t==='light'||t==='dark')r.dataset.theme=t;else r.removeAttribute('data-theme');r.dataset.density=p.density==='compact'?'compact':'comfortable';r.dataset.sidebar=p.sidebar==='collapsed'?'collapsed':'expanded'}catch(e){}})();`
 

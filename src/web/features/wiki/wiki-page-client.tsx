@@ -2794,7 +2794,12 @@ function useServerDraftAutosave(options: UseServerDraftAutosaveOptions) {
   const revisionRef = useRef(seed.draftRevision ?? null)
   const lastPersistedRef = useRef<string | null>(null)
   const tailRef = useRef<Promise<unknown>>(Promise.resolve())
-  type Snapshot = { page: WikiPageData; title: string; content: string; base: string | null | undefined }
+  interface Snapshot {
+    page: WikiPageData
+    title: string
+    content: string
+    base: string | null | undefined
+  }
   const pendingRef = useRef<Snapshot | null>(null)
   const drainingRef = useRef(false)
   const blockedRef = useRef(false)

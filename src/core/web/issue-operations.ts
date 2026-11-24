@@ -36,7 +36,7 @@ export const webRead = function webRead<A, E>(
   workspaceId: string,
   operation: (scope: RequestScope) => Effect.Effect<A, E, CoreReadServices>,
   projectId?: string,
-): Effect.Effect<A, unknown, never> {
+): Effect.Effect<A, unknown> {
   return Effect.gen(function* () {
     const base = yield* loadBrowserScope(env, request, { workspaceHint: '', projectHint: projectId ?? '' })
     const workspace = yield* Effect.try({ catch: publicWebFailure, try: () => requireDataWorkspace(base, workspaceId) })

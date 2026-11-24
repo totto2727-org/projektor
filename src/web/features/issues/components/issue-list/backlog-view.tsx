@@ -99,7 +99,7 @@ const BacklogRow = function BacklogRow({
     <tr
       key={issue.id}
       className='border-b border-border group'
-      draggable={true}
+      draggable
       onDragStart={(selectedEvent: import('react').DragEvent<HTMLElement>) => {
         onDragStart(selectedEvent, issue.id)
       }}

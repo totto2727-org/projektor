@@ -265,7 +265,7 @@ export const scheduled = async function scheduled(
  * Only provider-shaped OAuth credentials enter the provider. Browser Access,
  * opaque tokens, development identity, and public viewer retain their precedence.
  */
-const oauthProvider = createOAuthProvider(app as unknown as ExportedHandler<ApiEnv>)
+const oauthProvider = createOAuthProvider(app)
 // oxlint-disable-next-line import/no-default-export -- Cloudflare Workers loads the API fetch and scheduled handlers from the default export.
 export default {
   async fetch(request: Request, env: ApiEnv, ctx: ExecutionContext): Promise<Response> {

@@ -23,7 +23,11 @@ import type { DateField } from './issue-list/filters-popover.tsx'
 import FiltersPopover from './issue-list/filters-popover.tsx'
 import { useIssueFilters } from './issue-list/use-issue-filters.ts'
 
-type EpicRollup = { done: number; remaining: number; total: number }
+interface EpicRollup {
+  done: number
+  remaining: number
+  total: number
+}
 
 /*
  * PROJ-441: rollup is attached server-side per item when includeRollups=1 is passed —

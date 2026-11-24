@@ -8,7 +8,9 @@ import { authHeaders, seedComment, seedIssue, seedProject, seedProjectFixture, t
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-type McpContent = { content: { text: string }[] }
+interface McpContent {
+  content: { text: string }[]
+}
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,

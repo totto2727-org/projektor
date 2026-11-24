@@ -42,7 +42,7 @@ const mcpCall = async function mcpCall<T>(
   return res.json()
 }
 
-type IssuePage = {
+interface IssuePage {
   items: Record<string, unknown>[]
   next?: string
   nextCursor?: number | null

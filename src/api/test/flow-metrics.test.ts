@@ -612,7 +612,7 @@ describe('flow metrics (PROJ-252)', () => {
     const metrics = await getFlowMetrics()
 
     expect(metrics.timeInProgress.count).toBe(1)
-    expect(metrics.timeInProgress.avg).toBeCloseTo(300, 0) // claimed -400 -> in_review -100
+    expect(metrics.timeInProgress.avg).toBeCloseTo(300, 0) // Claimed -400 -> in_review -100
   })
 
   // PROJ-330: arrival vs completion, flow efficiency, aging-WIP scatter.

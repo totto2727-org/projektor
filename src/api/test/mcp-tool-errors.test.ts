@@ -11,7 +11,7 @@ import { seedIssueFixture, seedProjectFixture, seedToken, toolError } from './he
 import type { ToolErrorBody } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-type Rpc = {
+interface Rpc {
   error?: { code: number; message: string }
   result?: { isError?: boolean; content?: { text: string }[] }
 }

@@ -391,7 +391,7 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
   const role = resolveAutoJoinRole(env.AUTO_JOIN_ROLE)
   if (!role) {
     return true
-  } // auto-join disabled — settled by config, nothing to retry
+  } // Auto-join disabled — settled by config, nothing to retry
 
   const ws = await orm
     .select({ id: schema.workspaces.id })

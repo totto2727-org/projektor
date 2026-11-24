@@ -80,7 +80,7 @@ router.get('/:id', async (httpContext) => {
   try {
     filename = decodeURIComponent(response.headers.get('x-projektor-filename') ?? filename)
   } catch {
-    /* safe fallback */
+    /* Safe fallback */
   }
   const inline = INLINE_TYPES.has(contentType)
   return new Response(response.body, {

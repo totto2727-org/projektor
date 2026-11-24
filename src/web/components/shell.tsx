@@ -83,7 +83,7 @@ const readPrefs = function readPrefs(): Prefs {
   }
 }
 
-/** safe-ls: cosmetic theme, density and navigation preferences never reach an API request. */
+/** Safe-ls: cosmetic theme, density and navigation preferences never reach an API request. */
 const applyPrefs = function applyPrefs(prefs: Prefs): void {
   const root = document.documentElement
   if (prefs.theme === 'system') {
@@ -96,7 +96,7 @@ const applyPrefs = function applyPrefs(prefs: Prefs): void {
 }
 const savePrefs = function savePrefs(prefs: Prefs): void {
   try {
-    // safe-ls: cosmetic preferences only, with a graceful default when storage is unavailable.
+    // Safe-ls: cosmetic preferences only, with a graceful default when storage is unavailable.
     localStorage.setItem('prefs', JSON.stringify(prefs))
     localStorage.removeItem('theme')
   } catch {

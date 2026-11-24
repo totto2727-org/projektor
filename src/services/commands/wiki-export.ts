@@ -12,7 +12,7 @@ import { NotFoundError, ValidationError } from './errors.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 
-type ExportedPage = {
+interface ExportedPage {
   id: string
   slug: string
   title: string

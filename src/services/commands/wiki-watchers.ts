@@ -29,7 +29,7 @@ import { idFirst, idOrSlugMatch, WIKI_MAX_NESTING_DEPTH } from './wiki-lookup.ts
 
 type Orm = ReturnType<typeof drizzle<typeof schema>>
 
-type ResolvedWatchTarget = {
+interface ResolvedWatchTarget {
   id: string
   slug: string
   title: string
@@ -300,7 +300,7 @@ const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
   Iterable.forEach(entries, (e) => {
     if (!projectOf.has(e.pageId)) {
       return
-    } // page not in this workspace — never deliver
+    } // Page not in this workspace — never deliver
     const projectId = projectOf.get(e.pageId) ?? null
     const users = usersByProject.get(projectId) ?? new Set<string>()
     users.add(e.userId)
@@ -593,7 +593,7 @@ function parseJsonObject(raw: string | null): Record<string, unknown> | null {
   }
 }
 
-type WikiActivityRow = {
+interface WikiActivityRow {
   id: string
   action: string
   entityId: string

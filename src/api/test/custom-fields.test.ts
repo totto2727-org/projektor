@@ -646,7 +646,7 @@ describe('covers PROJ-197: batchLoadCustomFields is workspace-scoped', () => {
       expect(loaded[issueIds[index]]).toHaveLength(1)
       expect(loaded[issueIds[index]][0].value).toBe(String(index))
     }
-  }, 15_000) // seeds 95 issues sequentially; coverage instrumentation pushes this past the 5s default
+  }, 15_000) // Seeds 95 issues sequentially; coverage instrumentation pushes this past the 5s default
 })
 
 describe('covers PROJ-837: custom field definitions respect project access', () => {

@@ -572,7 +572,7 @@ const GroupDetailEditor = function GroupDetailEditor({
               disabled={busy}
               onBlur={field.handleBlur}
               onChange={(event) => {
-                field.handleChange(event.currentTarget.value as GrantRole)
+                field.handleChange(event.currentTarget.value)
               }}
             >
               {ROLES.map((role) => (

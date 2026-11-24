@@ -96,7 +96,7 @@ describe('covers PROJ-581: viewers see projects only through grants, consistentl
       .run()
     const e = { ...env, DEFAULT_WORKSPACE_SLUG: slug } as Env
     await provisionPublicViewer(e, pub)
-    await env.KV.delete(`provisioned:${pub.id}:public-v2`) // force a second real run
+    await env.KV.delete(`provisioned:${pub.id}:public-v2`) // Force a second real run
     await provisionPublicViewer(e, pub)
     const rows = await env.DB.prepare(
       'SELECT g.id FROM user_groups g JOIN user_group_members m ON m.group_id = g.id WHERE g.workspace_id = ? AND m.user_id = ?',

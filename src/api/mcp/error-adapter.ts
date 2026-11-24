@@ -171,7 +171,7 @@ export const toMcpError = function toMcpError(
 
 export type ToolErrorCode = 'not_found' | 'forbidden' | 'conflict' | 'validation' | 'payload_too_large' | 'rate_limited'
 
-export type ToolErrorBody = {
+export interface ToolErrorBody {
   code: ToolErrorCode
   message: string
   /** Per-field problems, for `validation`. */
@@ -182,12 +182,12 @@ export type ToolErrorBody = {
   details?: Record<string, unknown>
 }
 
-export type ToolErrorResult = {
+export interface ToolErrorResult {
   content: { type: 'text'; text: string }[]
   isError: true
 }
 
-export type ToolErrorContext = {
+export interface ToolErrorContext {
   /** The tool that was called — hints name the tool that would have found the thing. */
   toolName?: string
   /** The caller's effective role, so a `forbidden` hint can say what is missing. */

@@ -44,7 +44,7 @@ const BoardCard = function BoardCard({
       <a
         href={issueUrl(issue.project_key, issue.number, issue.title, issue.id, issue.workspaceSlug)}
         className='block no-underline'
-        draggable={true}
+        draggable
         onDragStart={(event: import('react').DragEvent<HTMLElement>) => {
           if (window.innerWidth < 640) {
             event.preventDefault()

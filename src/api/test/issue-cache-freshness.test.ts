@@ -12,7 +12,7 @@ import { fetchNativeApi } from './native-fetch.ts'
  */
 import { IdResponse, readNativeJson } from './response-json.ts'
 
-type IssueBody = {
+interface IssueBody {
   project_key: string
   status_name: string | null
   sprint_id: string | null
@@ -53,7 +53,7 @@ beforeEach(async () => {
     type: 'blocks',
   })
   expect(link.status).toBeLessThan(300)
-  await get(f.issueId) // warm the cache
+  await get(f.issueId) // Warm the cache
 })
 afterEach(() => vi.restoreAllMocks())
 

@@ -4,8 +4,12 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { env } from './fixture-api.ts'
 
-export type JsonRpcResult<T = unknown> = { jsonrpc: '2.0'; id: unknown; result: T }
-export type JsonRpcError = {
+export interface JsonRpcResult<T = unknown> {
+  jsonrpc: '2.0'
+  id: unknown
+  result: T
+}
+export interface JsonRpcError {
   jsonrpc: '2.0'
   id: unknown
   error: { code: number; message: string; data?: unknown }
@@ -431,7 +435,7 @@ export const seedWorkspaceRoles = async function seedWorkspaceRoles() {
  * `error`. JSON-RPC errors remain only for protocol faults (parse error, invalid request,
  * method not found, unknown tool) and unexpected internal failures.
  */
-export type ToolErrorBody = {
+export interface ToolErrorBody {
   code: 'not_found' | 'forbidden' | 'conflict' | 'validation' | 'payload_too_large' | 'rate_limited'
   message: string
   fields?: Record<string, string[]>

@@ -198,7 +198,7 @@ export function BugShareChart({
   bugTypeTracked: boolean
 }): JSX.Element {
   if (!bugTypeTracked) {
-    return <EmptyChartState message={'Not tracked: no task type keyed "bug" exists in this workspace'} />
+    return <EmptyChartState message='Not tracked: no task type keyed "bug" exists in this workspace' />
   }
   if (!data.length || data.every((point) => Predicate.isNullish(point.bugSharePercent))) {
     return <EmptyChartState message='No completed issues yet' />

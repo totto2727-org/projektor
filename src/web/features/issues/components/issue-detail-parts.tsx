@@ -166,7 +166,7 @@ export const ShareButton = function ShareButton({
       const data = unwrapResult(await shareIssue({ workspaceSlug, issueId }))
       setShareUrl(`${window.location.origin}${data.url}`)
     } catch {
-      // non-fatal
+      // Non-fatal
     }
     setSharingLoading(false)
   }
@@ -810,7 +810,7 @@ export const RelationsSection = function RelationsSection({
     try {
       unwrapResult(await deleteIssueLink({ workspaceSlug, issueId, linkId }))
     } catch {
-      // non-fatal
+      // Non-fatal
     }
   }
 
@@ -1602,7 +1602,7 @@ const useCommentEditing = function useCommentEditing(issueId: string, workspaceS
     try {
       unwrapResult(await deleteComment({ workspaceSlug, issueId, commentId }))
     } catch {
-      // non-fatal
+      // Non-fatal
     }
   }
 
@@ -1743,7 +1743,7 @@ export const CommentsSection = function CommentsSection({
           }}
           placeholder='Add a comment…'
           rows={4}
-          // text-base (16px) on phones: below 16px iOS Safari zooms the viewport
+          // Text-base (16px) on phones: below 16px iOS Safari zooms the viewport
           // when the field takes focus. sm:text-sm keeps desktop as it was.
           className={
             'w-full px-3 py-2 border border-border rounded text-base sm:text-sm ' +

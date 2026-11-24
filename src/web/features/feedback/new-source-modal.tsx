@@ -148,7 +148,7 @@ export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCr
 
   return (
     <Dialog
-      open={true}
+      open
       onClose={() => {
         if (Predicate.isNullish(newToken) || String.isEmpty(newToken)) {
           onClose()

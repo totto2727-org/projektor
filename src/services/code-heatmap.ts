@@ -63,7 +63,11 @@ const resolveNextSegment = function resolveNextSegment(
   return { path, isLeaf }
 }
 
-type SegmentGroup = { ids: Set<string>; count: number; isLeaf: boolean }
+interface SegmentGroup {
+  ids: Set<string>
+  count: number
+  isLeaf: boolean
+}
 
 /*
  * PROJ-332/338: group items (claims or conflicts) one path segment below `prefix` — the

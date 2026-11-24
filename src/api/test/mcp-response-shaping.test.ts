@@ -13,7 +13,9 @@ import { seedIssue, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { readNativeJson } from './response-json.ts'
 
-type Rpc = { result?: { content?: { text: string }[]; isError?: boolean } }
+interface Rpc {
+  result?: { content?: { text: string }[]; isError?: boolean }
+}
 
 describe('covers PROJ-891: serializer (unit)', () => {
   const raw = {
@@ -255,7 +257,7 @@ describe('covers PROJ-891: MCP tools', () => {
     expect(got).not.toHaveProperty('workspace_id')
     expect(got).not.toHaveProperty('project_id')
     expect(got).not.toHaveProperty('created_by_id')
-    expect(got).not.toHaveProperty('labels') // none set → dropped
+    expect(got).not.toHaveProperty('labels') // None set → dropped
   })
 
   test('list_issues: a page over the cap is cut with truncated:true and resumes via next', async () => {
@@ -305,7 +307,7 @@ describe('covers PROJ-891: MCP tools', () => {
       cursor = page.next
     }
     expect(truncatedPages).toBeGreaterThan(0)
-    expect(seen.size).toBe(60) // nothing skipped, nothing repeated
+    expect(seen.size).toBe(60) // Nothing skipped, nothing repeated
   })
 
   test('list_comments and list_project_activity return {items}', async () => {

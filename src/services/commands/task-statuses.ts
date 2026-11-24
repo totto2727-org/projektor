@@ -305,7 +305,12 @@ export const resolveStatus = async function resolveStatus(
     category: schema.taskStatuses.category,
     isReviewStep: schema.taskStatuses.isReviewStep,
   }
-  type Row = { id: string; key: string; category: string | null; isReviewStep: number }
+  interface Row {
+    id: string
+    key: string
+    category: string | null
+    isReviewStep: number
+  }
   const fromRow = (r: Row): { isReviewStep: boolean; id: string; key: string; category: string | null } => ({
     ...r,
     isReviewStep: r.isReviewStep === 1,

@@ -463,7 +463,7 @@ describe('agents API', () => {
       const issueRow = await env.DB.prepare('SELECT status FROM issues WHERE id = ?')
         .bind(issue.id)
         .first<{ status: string }>()
-      expect(issueRow?.status).toBe('backlog') // unchanged
+      expect(issueRow?.status).toBe('backlog') // Unchanged
 
       const session = await env.DB.prepare('SELECT status FROM agent_sessions WHERE id = ?')
         .bind(sessionId)
@@ -535,7 +535,7 @@ describe('agents API', () => {
    * carries issueRef.
    */
   describe('covers PROJ-932: live-only default, includeStale, projectId, issueRef, live flag', () => {
-    const projectKey = 'PROJ' // seedProject's default key
+    const projectKey = 'PROJ' // SeedProject's default key
 
     const backdateHeartbeat = function backdateHeartbeat(
       agentId: string,

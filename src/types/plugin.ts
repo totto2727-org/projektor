@@ -44,7 +44,7 @@ export type AuthMethod = 'oauth' | 'pk' | 'pat' | 'access' | 'dev' | 'public'
 export interface AuthInfo {
   kind: 'human' | 'agent'
   method: AuthMethod
-  /** api_tokens.id for pk/pat, the grant id for oauth; absent for sessions. */
+  /** Api_tokens.id for pk/pat, the grant id for oauth; absent for sessions. */
   credentialId?: string
   /** OAuth client id (grants created after PROJ-889 only). */
   clientId?: string

@@ -25,7 +25,7 @@ import {
   verifyWikiPage,
 } from './actions.ts'
 
-type Definition = {
+interface Definition {
   input: Schema.Decoder<unknown>
   handler: (input: never) => Effect.Effect<unknown, unknown, RequestServices>
 }

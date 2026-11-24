@@ -384,7 +384,7 @@ describe('feedback triage read/patch', () => {
   test('handles GET 404s for a caller with no project access', async () => {
     const owner = await seedProjectFixture({ role: 'owner' })
     await mintSource(owner)
-    const stranger = await seedProjectFixture({ role: 'owner' }) // different workspace
+    const stranger = await seedProjectFixture({ role: 'owner' }) // Different workspace
     const res = await fetchNativeApi(`http://localhost/api/projects/${owner.projectId}/feedback`, {
       headers: authHeaders(stranger.token, stranger.slug),
     })
@@ -440,7 +440,7 @@ describe('feedback triage read/patch', () => {
     const sources = await env.DB.prepare('SELECT id, name FROM feedback_sources WHERE project_id = ? ORDER BY name')
       .bind(testFixture.projectId)
       .all<{ id: string; name: string }>()
-    const [srcA, srcB] = sources.results!
+    const [srcA, srcB] = sources.results
     await seedFeedbackRow(srcA.id, testFixture.workspaceId, testFixture.projectId, { body: 'from a' })
     await seedFeedbackRow(srcB.id, testFixture.workspaceId, testFixture.projectId, { body: 'from b' })
 

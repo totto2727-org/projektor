@@ -27,7 +27,7 @@ export function makeCoreClient(binding?: unknown): CoreRpcShape | LazyCoreClient
 const decodeFailure = function decodeFailure(
   stage: 'transport' | 'reply',
   cause: Cause.Cause<unknown>,
-): Effect.Effect<never, CorePublicError, never> {
+): Effect.Effect<never, CorePublicError> {
   if (Cause.hasInterruptsOnly(cause)) {
     return Effect.failCause(Cause.fromReasons<never>(cause.reasons.filter(Cause.isInterruptReason)))
   }

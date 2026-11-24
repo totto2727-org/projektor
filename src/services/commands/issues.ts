@@ -242,7 +242,10 @@ function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
  * deleting those can never leave a stale copy behind. Entries written in the old
  * full-payload shape still carry these two keys, so they stay readable.
  */
-type CachedIssueExtras = { rollup: ReturnType<typeof computeChildRollup>; customFields: unknown[] }
+interface CachedIssueExtras {
+  rollup: ReturnType<typeof computeChildRollup>
+  customFields: unknown[]
+}
 
 const loadIssueExtras = async function loadIssueExtras(ctx: ServiceCtx, issueId: string): Promise<CachedIssueExtras> {
   const key = `issue:${ctx.workspaceId}:${issueId}`
@@ -665,7 +668,7 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
 }
 
 type UpdateIssueData = z.infer<typeof UpdateIssueSchema>
-type ExistingIssue = {
+interface ExistingIssue {
   id: string
   parentId: string | null
   typeId: string | null
@@ -1608,7 +1611,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string): Promise<{ ok:
   return { ok: true }
 }
 
-type PrioritizedFilters = {
+interface PrioritizedFilters {
   limit: number
   includeBacklog: boolean
   excludeClaimed: boolean

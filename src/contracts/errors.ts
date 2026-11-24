@@ -2,7 +2,7 @@ import { Predicate, Data, Redacted } from 'effect'
 
 import { HTTP_BAD_GATEWAY } from '#contracts/http-status.ts'
 
-export type ZodFlattenOutput = {
+export interface ZodFlattenOutput {
   formErrors: string[]
   fieldErrors: Record<string, string[] | undefined>
 }

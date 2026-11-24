@@ -59,7 +59,7 @@ import type { WikiBacklink } from './wiki-links.ts'
 import { idFirst, idOrSlugMatch, isIdShapedSlug, WIKI_MAX_NESTING_DEPTH } from './wiki-lookup.ts'
 import { deleteWikiWatchersForPages, notifyCascadeDescendantWatchers, notifyWikiWatchers } from './wiki-watchers.ts'
 
-type TreeNode = {
+interface TreeNode {
   id: string
   slug: string
   title: string
@@ -1601,7 +1601,12 @@ const ATX_HEADING_RE = /^(#{1,6})\s+(.+?)\s*#*\s*$/
 const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/u
 const FRONTMATTER_DELIM_RE = /^---\s*$/u
 
-type HeadingSection = { heading: string; level: number; startLine: number; endLine: number }
+interface HeadingSection {
+  heading: string
+  level: number
+  startLine: number
+  endLine: number
+}
 
 const parseHeadingSections = function parseHeadingSections(content: string): HeadingSection[] {
   const lines = content.split('\n')

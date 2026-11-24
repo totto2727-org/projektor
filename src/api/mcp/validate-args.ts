@@ -144,7 +144,7 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
     }
     if (Predicate.isNullish(v) && !required.has(key)) {
       return
-    } // optional field cleared
+    } // Optional field cleared
     validate(v, sub, `${prefix}${key}`, issues)
   })
 }

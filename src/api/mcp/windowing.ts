@@ -25,7 +25,11 @@ const safeEnd = function safeEnd(text: string, end: number): number {
   return end
 }
 
-export type TextWindow = { text: string; totalChars: number; next?: string }
+export interface TextWindow {
+  text: string
+  totalChars: number
+  next?: string
+}
 
 /**
  * A window of `text` from `cursor` (a previous `next`, default 0) of at most `max` chars.
@@ -51,7 +55,11 @@ export const windowText = function windowText(text: string, opts: { max: number;
   }
 }
 
-type Heading = { level: number; text: string; start: number }
+interface Heading {
+  level: number
+  text: string
+  start: number
+}
 
 /** ATX headings outside fenced code blocks and outside a leading frontmatter block. */
 const headings = function headings(content: string): Heading[] {

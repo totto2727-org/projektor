@@ -13,7 +13,7 @@ import { ValidationError } from '#contracts/errors.ts'
 import { PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool } from './types.ts'
 
-/** claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both. */
+/** Claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both. */
 const withIdAlias = function withIdAlias(input: unknown): unknown {
   const { agentId, ...rest } = (input ?? {}) as { agentId?: unknown; id?: unknown }
   if (agentId === undefined || Predicate.isNullish(agentId)) {

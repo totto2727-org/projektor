@@ -10,7 +10,9 @@ interface Continuation {
   phase: Phase
   cursor?: string
 }
-type OAuthEnvironment = { OAUTH_KV: KVNamespace }
+interface OAuthEnvironment {
+  OAUTH_KV: KVNamespace
+}
 type PurgeProvider = Pick<OAuthProvider<OAuthEnvironment>, 'purgeExpiredData'>
 
 const continuation = function continuation(value: unknown): Continuation {
@@ -36,7 +38,7 @@ export const purgeOAuthPage = async function purgeOAuthPage(
   env: OAuthEnvironment & { KV: KVNamespace },
   provider: PurgeProvider,
 ) {
-  const previous = continuation(await env.KV.get<unknown>(OAUTH_PURGE_STATE_KEY, 'json'))
+  const previous = continuation(await env.KV.get(OAUTH_PURGE_STATE_KEY, 'json'))
   const prefix = previous.phase === 'grants' ? 'grant:' : 'token:'
   let scanned: { complete: boolean; cursor?: string } | undefined
   let calls = 0

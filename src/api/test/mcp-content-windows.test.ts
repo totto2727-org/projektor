@@ -11,7 +11,9 @@ import { env } from './fixture-api.ts'
 import { seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-type Rpc = { result?: { content?: { text: string }[]; isError?: boolean } }
+interface Rpc {
+  result?: { content?: { text: string }[]; isError?: boolean }
+}
 
 describe('covers PROJ-892: windowing (unit)', () => {
   test('never splits a surrogate pair at the window edge, and the cursor continues losslessly', () => {
@@ -144,7 +146,7 @@ describe('covers PROJ-892: MCP tools', () => {
       title: 'Small',
       body: 'hello',
     })
-    const got = await tool<Record<string, unknown>>('get_issue', { id: created.id })
+    const got = await tool('get_issue', { id: created.id })
     expect(got.body).toBe('hello')
     expect(got).not.toHaveProperty('next')
     expect(got).not.toHaveProperty('bodyTotalChars')
@@ -191,7 +193,7 @@ describe('covers PROJ-892: MCP tools', () => {
       maxChars: 50,
     })
     expect(part.contentTruncated).toBe(true)
-    const whole = await tool<Record<string, unknown>>('get_wiki_page', { slug })
+    const whole = await tool('get_wiki_page', { slug })
     expect(whole).not.toHaveProperty('contentTruncated')
   })
 

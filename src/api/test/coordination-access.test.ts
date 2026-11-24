@@ -14,7 +14,9 @@ import { RpcTextResponse, readNativeJson } from './response-json.ts'
  * issue IDs, file paths, or agent activity. Owner/admin bypass groups.
  */
 
-type ListResult = { items: Record<string, unknown>[] }
+interface ListResult {
+  items: Record<string, unknown>[]
+}
 
 const lexicalCompare = function lexicalCompare(a: unknown, b: unknown): number {
   const left = String(a)
@@ -124,7 +126,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
   })
 
   test("a member with no grants at all sees none of another project's coordination data", async () => {
-    const t = ws.viewer.token // viewer has no group grant
+    const t = ws.viewer.token // Viewer has no group grant
     const leases = await mcpList('list_issue_leases', t, slug, ws.workspace.id)
     expect(leases.items).toHaveLength(0)
     const claims = await mcpList('list_file_claims', t, slug, ws.workspace.id)

@@ -37,7 +37,7 @@ describe('covers MCP workspace resolution without X-Workspace-Slug (PROJ-348)', 
   test('rejects a token scoped to a different workspace than the path UUID (no slug header)', async () => {
     const owner = await seedFixture()
     const other = await seedFixture()
-    // owner's token is a member of `other` too, so the membership check would pass —
+    // Owner's token is a member of `other` too, so the membership check would pass —
     // only the token-workspace-scope check should reject the cross-workspace use.
     await seedMember(other.workspace.id, owner.user.id, 'member')
 

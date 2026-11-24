@@ -21,7 +21,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 
 const CONSENT_TTL_SECS = 600
 
-export type ConsentPayload = {
+export interface ConsentPayload {
   /** The user the token was issued to. A different session cannot spend it. */
   userId: string
   workspaceId: string

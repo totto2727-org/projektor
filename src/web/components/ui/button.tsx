@@ -2,7 +2,7 @@ import type { JSX, AnchorHTMLAttributes, ButtonHTMLAttributes, CSSProperties, Re
 
 import { Button as PrimitiveButton, buttonVariants } from '@/components/generated/button.tsx'
 
-type CommonProps = {
+interface CommonProps {
   variant?: 'primary' | 'outline' | 'danger'
   size?: 'sm'
   class?: string

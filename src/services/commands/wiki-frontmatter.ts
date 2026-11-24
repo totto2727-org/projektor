@@ -14,7 +14,7 @@ import { ValidationError } from './errors.ts'
  */
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
 
-export type WikiFrontmatterMeta = {
+export interface WikiFrontmatterMeta {
   type: string | null
   tags: string[]
   status: string | null

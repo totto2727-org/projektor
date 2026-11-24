@@ -163,7 +163,7 @@ describe('issue leases API (PROJ-184)', () => {
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ agentId: otherAgent.id }),
     })
-    expect(res.status).toBe(404) // issue not found in the intruder's workspace
+    expect(res.status).toBe(404) // Issue not found in the intruder's workspace
   })
 })
 
@@ -518,7 +518,7 @@ describe('covers PROJ-932: list_issue_leases live-only default', () => {
   let slug: string
   let workspaceId: string
   let projectId: string
-  const projectKey = 'PROJ' // seedProject's default key
+  const projectKey = 'PROJ' // SeedProject's default key
   let userId: string
 
   beforeEach(async () => {

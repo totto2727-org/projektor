@@ -16,7 +16,7 @@ import { createProject } from './actions.ts'
 import { CreateProjectInputSchema } from './schemas.ts'
 import type { ProjectSummary } from './schemas.ts'
 
-type Membership = {
+interface Membership {
   id: string
   name: string
   slug: string
