@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { CodeHeatmapEntry, ContentionHeatmapEntry } from '#commands/code-heatmap.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
@@ -61,7 +62,7 @@ describe('code heatmap (PROJ-332)', () => {
       'INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, ' +
         'released_at) VALUES (?, ?, ?, NULL, ?, ?, ?)',
     )
-      .bind(crypto.randomUUID(), workspaceId, issueId, path, claimedAt, releasedAt ?? null)
+      .bind(crypto.randomUUID(), workspaceId, issueId, path, claimedAt, releasedAt ?? SQL_NULL)
       .run()
   }
 

@@ -3,6 +3,7 @@ import { flattenError } from 'zod'
 
 import { CreateUserTokenSchema } from '#contracts/inputs/user-tokens.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { ForbiddenError, ValidationError } from './errors.ts'
 
@@ -68,12 +69,12 @@ export const createUserToken = async function createUserToken(ctx: UserCtx, raw:
     )
     .bind(
       crypto.randomUUID(),
-      workspaceId ?? null,
+      workspaceId ?? SQL_NULL,
       ctx.userId,
       name,
       hash,
       JSON.stringify(scopes),
-      expiresAt ?? null,
+      expiresAt ?? SQL_NULL,
       currentEpochSeconds(),
     )
     .run()

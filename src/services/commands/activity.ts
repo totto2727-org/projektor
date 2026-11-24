@@ -1,5 +1,6 @@
 import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import type { ServiceCtx } from './types.ts'
 
@@ -20,7 +21,7 @@ export const recordActivity = async function recordActivity(
     entityId: opts.entityId,
     actorId: ctx.userId,
     action: opts.action,
-    diff: opts.diff ?? null,
+    diff: opts.diff ?? SQL_NULL,
     createdAt: currentEpochSeconds(),
   })
 }

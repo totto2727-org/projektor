@@ -1,6 +1,7 @@
 import { Predicate } from 'effect'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 
@@ -70,7 +71,7 @@ export const seedToken = async function seedToken(
       'test-token',
       hash,
       JSON.stringify(opts?.scopes ?? ['*']),
-      opts?.expiresAt ?? null,
+      opts?.expiresAt ?? SQL_NULL,
       now,
     )
     .run()
@@ -97,12 +98,12 @@ export const seedUserToken = async function seedUserToken(
   )
     .bind(
       crypto.randomUUID(),
-      null,
+      SQL_NULL,
       userId,
       'test-user-token',
       hash,
       JSON.stringify(opts?.scopes ?? ['*']),
-      opts?.expiresAt ?? null,
+      opts?.expiresAt ?? SQL_NULL,
       now,
     )
     .run()
@@ -183,7 +184,7 @@ export const seedComment = async function seedComment(
     'INSERT INTO issue_comments (id, issue_id, author_id, body, created_at, updated_at, ' +
       'author_kind) VALUES (?, ?, ?, ?, ?, ?, ?)',
   )
-    .bind(id, issueId, authorId, body, now, now, authorKind ?? null)
+    .bind(id, issueId, authorId, body, now, now, authorKind ?? SQL_NULL)
     .run()
   return { id, body }
 }
@@ -269,11 +270,11 @@ export const seedIssue = async function seedIssue(
       projectId,
       opts?.title ?? 'Seeded issue',
       opts?.status ?? 'backlog',
-      opts?.statusId ?? null,
+      opts?.statusId ?? SQL_NULL,
       opts?.priority ?? 'none',
-      opts?.assigneeId ?? null,
-      opts?.parentId ?? null,
-      opts?.typeId ?? null,
+      opts?.assigneeId ?? SQL_NULL,
+      opts?.parentId ?? SQL_NULL,
+      opts?.typeId ?? SQL_NULL,
       createdById,
       now,
       now,
@@ -283,7 +284,7 @@ export const seedIssue = async function seedIssue(
   await env.DB.prepare(
     `UPDATE issues SET status_category = COALESCE((SELECT category FROM task_statuses WHERE id = ?), '') WHERE id = ?`,
   )
-    .bind(opts?.statusId ?? null, id)
+    .bind(opts?.statusId ?? SQL_NULL, id)
     .run()
   const row = await env.DB.prepare('SELECT number FROM issues WHERE id = ?').bind(id).first<{ number: number }>()
   return { id, number: row!.number, createdAt: now }
@@ -308,11 +309,11 @@ export const seedCustomFieldDef = async function seedCustomFieldDef(
     .bind(
       id,
       workspaceId,
-      opts.projectId ?? null,
+      opts.projectId ?? SQL_NULL,
       opts.key,
       opts.label ?? opts.key,
       opts.type ?? 'text',
-      opts.options ? JSON.stringify(opts.options) : null,
+      opts.options ? JSON.stringify(opts.options) : SQL_NULL,
       now,
     )
     .run()
@@ -365,7 +366,7 @@ export const seedAgentLease = async function seedAgentLease(
       live ? 'active' : 'ended',
       now,
       live ? now : now - 1000,
-      live ? null : now,
+      live ? SQL_NULL : now,
     )
     .run()
   const leaseId = crypto.randomUUID()
@@ -373,7 +374,7 @@ export const seedAgentLease = async function seedAgentLease(
     `INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(leaseId, workspaceId, issueId, agentSessionId, now, live ? null : now, live ? null : 'agent_ended')
+    .bind(leaseId, workspaceId, issueId, agentSessionId, now, live ? SQL_NULL : now, live ? SQL_NULL : 'agent_ended')
     .run()
   return { agentSessionId, leaseId }
 }

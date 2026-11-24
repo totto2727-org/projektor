@@ -1,6 +1,8 @@
 import { Schema, Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { SQL_NULL } from '#db/sql-null.ts'
+
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi, requestOptionsWithBody } from './native-fetch.ts'
@@ -41,12 +43,12 @@ const seedFeedbackRow = async function seedFeedbackRow(
       sourceId,
       workspaceId,
       projectId,
-      opts.rating ?? null,
-      opts.ratingScale ?? null,
-      opts.body ?? null,
-      opts.submitterLabel ?? null,
+      opts.rating ?? SQL_NULL,
+      opts.ratingScale ?? SQL_NULL,
+      opts.body ?? SQL_NULL,
+      opts.submitterLabel ?? SQL_NULL,
       opts.status ?? 'new',
-      opts.linkedIssueId ?? null,
+      opts.linkedIssueId ?? SQL_NULL,
       100,
     )
     .run()

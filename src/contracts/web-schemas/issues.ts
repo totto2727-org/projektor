@@ -1,5 +1,6 @@
 import { Schema } from 'effect'
 
+import { JSON_NULL } from '#contracts/json-null.ts'
 import { ReviewStatusSchema, ReviewTargetSchema } from '#contracts/review-targets.ts'
 import type { Issue as ListIssue, TaskStatus } from '@/features/issues/components/board-utils.ts'
 import type {
@@ -69,10 +70,10 @@ export const IssueSchema = Schema.Struct({
 export const normalizeIssue = function normalizeIssue(dto: typeof IssueSchema.Type): Issue {
   return {
     ...dto,
-    body: dto.body ?? null,
-    assignee_name: dto.assignee_name ?? null,
-    type_id: dto.type_id ?? null,
-    sprint_id: dto.sprint_id ?? null,
+    body: dto.body ?? JSON_NULL,
+    assignee_name: dto.assignee_name ?? JSON_NULL,
+    type_id: dto.type_id ?? JSON_NULL,
+    sprint_id: dto.sprint_id ?? JSON_NULL,
     customFields: dto.customFields?.map((entry) => ({ ...entry })) ?? [],
     reviewTargets: dto.reviewTargets.map((entry) => ({ ...entry })),
     rollup: dto.rollup ? { ...dto.rollup, byStatus: { ...dto.rollup.byStatus } } : undefined,
@@ -95,7 +96,7 @@ export const StatusSchema = Schema.Struct({
 })
 export const StatusesSchema = Schema.Array(StatusSchema)
 export const normalizeStatuses = function normalizeStatuses(dto: typeof StatusesSchema.Type): TaskStatus[] {
-  return dto.map((entry) => ({ ...entry, color: entry.color ?? null }))
+  return dto.map((entry) => ({ ...entry, color: entry.color ?? JSON_NULL }))
 }
 export const TaskTypeSchema = Schema.Struct({
   id: Schema.String,
@@ -160,8 +161,8 @@ export const normalizeAttachments = function normalizeAttachments(dto: typeof At
   return dto.map((entry) => ({
     ...entry,
     kind: entry.kind ?? 'file',
-    url: entry.url ?? null,
-    wikiPage: entry.wikiPage ? { ...entry.wikiPage } : null,
+    url: entry.url ?? JSON_NULL,
+    wikiPage: entry.wikiPage ? { ...entry.wikiPage } : JSON_NULL,
   }))
 }
 export const MemberSchema = Schema.Struct({

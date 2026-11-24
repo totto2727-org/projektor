@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url'
 import { String, Predicate, Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { SQL_NULL } from '#db/sql-null.ts'
+
 import { loadMigrations, migratedDb } from './helpers.ts'
 
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../migrations')
@@ -37,7 +39,9 @@ describe('schema constraints', () => {
   test('rejects a NULL in a NOT NULL column', () => {
     const db = migratedDb()
     expect(() =>
-      db.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)').run('w1', null, 'acme', 0),
+      db
+        .prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
+        .run('w1', SQL_NULL, 'acme', 0),
     ).toThrow()
   })
 

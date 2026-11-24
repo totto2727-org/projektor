@@ -10,6 +10,7 @@ import {
   UpdateFeedbackSourceSchema,
 } from '#contracts/inputs/feedback.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 import * as feedbackQueries from '#services/feedback.ts'
 
 import { assertProjectAccess, isWorkspaceAdmin, requireProjectInWorkspace } from './access.ts'
@@ -118,8 +119,8 @@ export const createFeedbackSource = async function createFeedbackSource(
       ctx.workspaceId,
       projectId,
       name,
-      description ?? null,
-      allowedOrigins ? JSON.stringify(allowedOrigins) : null,
+      description ?? SQL_NULL,
+      allowedOrigins ? JSON.stringify(allowedOrigins) : SQL_NULL,
       ctx.userId,
       now,
     )

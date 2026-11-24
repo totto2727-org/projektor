@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
@@ -41,10 +42,10 @@ const seedFeedbackRow = async function seedFeedbackRow(
       sourceId,
       workspaceId,
       projectId,
-      opts.rating ?? null,
-      opts.ratingScale ?? null,
-      opts.body ?? null,
-      opts.appVersion ?? null,
+      opts.rating ?? SQL_NULL,
+      opts.ratingScale ?? SQL_NULL,
+      opts.body ?? SQL_NULL,
+      opts.appVersion ?? SQL_NULL,
       now,
     )
     .run()

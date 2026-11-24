@@ -2,6 +2,7 @@ import { Iterable, Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProject, seedProjectFixture, toolError } from './helpers.ts'
@@ -60,8 +61,8 @@ const seedSprint = async function seedSprint(
       projectId,
       opts.name ?? 'Sprint 1',
       opts.status ?? 'planned',
-      opts.startDate ?? null,
-      opts.endDate ?? null,
+      opts.startDate ?? SQL_NULL,
+      opts.endDate ?? SQL_NULL,
       now,
       now,
     )
@@ -94,7 +95,7 @@ const seedWikiPage = async function seedWikiPage(
       authorId,
       now,
       updatedAt,
-      opts.deletedAt ?? null,
+      opts.deletedAt ?? SQL_NULL,
     )
     .run()
   return { id, slug }

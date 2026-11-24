@@ -17,6 +17,7 @@ import type { ServiceCtx } from '#commands/types.ts'
  *   the window instead of the whole project.
  */
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
@@ -149,10 +150,10 @@ describe('covers PROJ-866: bucket-rewrite fidelity (snapshot on a representative
           userId,
           stamps.createdAt,
           stamps.createdAt,
-          stamps.readyAt ?? null,
-          stamps.claimedAt ?? null,
-          stamps.inReviewAt ?? null,
-          stamps.doneAt ?? null,
+          stamps.readyAt ?? SQL_NULL,
+          stamps.claimedAt ?? SQL_NULL,
+          stamps.inReviewAt ?? SQL_NULL,
+          stamps.doneAt ?? SQL_NULL,
           projectId,
         )
         .run()

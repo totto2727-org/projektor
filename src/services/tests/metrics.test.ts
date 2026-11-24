@@ -3,6 +3,7 @@ import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 import { Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
+import { SQL_NULL } from '#db/sql-null.ts'
 import { migratedDb } from '#db/test/helpers.ts'
 import { getCodeHeatmap } from '#services/code-heatmap.ts'
 import { DataQueryError } from '#services/errors.ts'
@@ -65,9 +66,23 @@ describe('shared metrics migrated SQLite reads', () => {
 			(id,workspace_id,project_id,number,title,status,created_by_id,created_at,updated_at,ready_at,claimed_at,in_review_at,done_at,review_bounce_count,type_id)
 			VALUES (?,?,?,?, 'Issue',?, 'u',?,?, ?,?,?,?, ?,?)`)
     insert.run('done', 'wa', 'pa', 1, 'done', DAY + 10, DAY + 70, DAY + 20, DAY + 30, DAY + 50, DAY + 70, 2, 'bug')
-    insert.run('old', 'wa', 'pa', 2, 'done', 1, DAY - 1, null, null, null, DAY - 1, 0, null)
-    insert.run('future-open', 'wa', 'pa', 3, 'in_progress', now, now, null, now, null, null, 0, null)
-    insert.run('foreign', 'wb', 'pb', 1, 'done', DAY + 10, DAY + 70, DAY + 20, DAY + 30, DAY + 50, DAY + 70, 10, null)
+    insert.run('old', 'wa', 'pa', 2, 'done', 1, DAY - 1, SQL_NULL, SQL_NULL, SQL_NULL, DAY - 1, 0, SQL_NULL)
+    insert.run('future-open', 'wa', 'pa', 3, 'in_progress', now, now, SQL_NULL, now, SQL_NULL, SQL_NULL, 0, SQL_NULL)
+    insert.run(
+      'foreign',
+      'wb',
+      'pb',
+      1,
+      'done',
+      DAY + 10,
+      DAY + 70,
+      DAY + 20,
+      DAY + 30,
+      DAY + 50,
+      DAY + 70,
+      10,
+      SQL_NULL,
+    )
     insert.run(
       'other-project',
       'wa',
@@ -81,7 +96,7 @@ describe('shared metrics migrated SQLite reads', () => {
       DAY + 50,
       DAY + 70,
       10,
-      null,
+      SQL_NULL,
     )
     sqlite.exec(`
 			INSERT INTO issue_comments (id,issue_id,author_id,body,created_at,updated_at,author_kind) VALUES
@@ -182,8 +197,8 @@ describe('shared metrics migrated SQLite reads', () => {
     insert.run('docs', 'wa', 'future-open', 'docs/a.md', DAY + 2, DAY + 3)
     insert.run('end', 'wa', 'done', 'z.ts', now, now + 1)
     insert.run('before', 'wa', 'done', 'outside.ts', DAY - 1, DAY)
-    insert.run('foreign-claim', 'wb', 'foreign', 'foreign.ts', DAY, null)
-    insert.run('other-claim', 'wa', 'other-project', 'other.ts', DAY, null)
+    insert.run('foreign-claim', 'wb', 'foreign', 'foreign.ts', DAY, SQL_NULL)
+    insert.run('other-claim', 'wa', 'other-project', 'other.ts', DAY, SQL_NULL)
     const result = await runTestEffect(getCodeHeatmap(db, 'wa', { projectId: 'pa', since: DAY, until: now }, now))
     expect(result).toStrictEqual({
       entries: [

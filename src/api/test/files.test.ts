@@ -2,6 +2,7 @@ import { Schema } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import {
@@ -1109,7 +1110,7 @@ describe('attachment project visibility', () => {
         .bind(
           id,
           workspaceId,
-          name === 'scoped' ? hiddenProject?.id : null,
+          name === 'scoped' ? hiddenProject?.id : SQL_NULL,
           `page-${name}-${id.slice(0, 8)}`,
           name,
           memberId,

@@ -2,6 +2,7 @@ import { Effect } from 'effect'
 import { vi } from 'vite-plus/test'
 
 import { resetProvisioningCacheForTests } from '#commands/provisioning.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 import { resetAuthCachesForTests } from '#services/authentication.ts'
 import { makeRequestServices, RequestServices } from '@/request.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
@@ -62,13 +63,13 @@ export const issueDataFixture = function issueDataFixture() {
         title,
         body,
         values.priority ?? 'medium',
-        values.assigneeId ?? null,
-        values.parentId ?? null,
-        values.typeId ?? null,
-        workspaceId === workspace.id ? (values.statusId ?? 'todo') : null,
+        values.assigneeId ?? SQL_NULL,
+        values.parentId ?? SQL_NULL,
+        values.typeId ?? SQL_NULL,
+        workspaceId === workspace.id ? (values.statusId ?? 'todo') : SQL_NULL,
         values.createdAt ?? 1,
         values.updatedAt ?? 1,
-        values.completedAt ?? null,
+        values.completedAt ?? SQL_NULL,
       )
     sqlite
       .prepare('INSERT INTO issues_fts (issue_id,workspace_id,title,body) VALUES (?,?,?,?)')

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { Distribution } from '#commands/flow-metrics.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers.ts'
@@ -66,7 +67,7 @@ describe('flow metrics (PROJ-252)', () => {
     { readyAt, claimedAt, doneAt }: { readyAt?: number; claimedAt?: number; doneAt?: number },
   ): Promise<void> {
     await env.DB.prepare('UPDATE issues SET ready_at = ?, claimed_at = ?, done_at = ? WHERE id = ?')
-      .bind(readyAt ?? null, claimedAt ?? null, doneAt ?? null, id)
+      .bind(readyAt ?? SQL_NULL, claimedAt ?? SQL_NULL, doneAt ?? SQL_NULL, id)
       .run()
   }
 
@@ -75,7 +76,7 @@ describe('flow metrics (PROJ-252)', () => {
     { inReviewAt, reviewBounceCount }: { inReviewAt?: number; reviewBounceCount?: number },
   ): Promise<void> {
     await env.DB.prepare('UPDATE issues SET in_review_at = ?, review_bounce_count = ? WHERE id = ?')
-      .bind(inReviewAt ?? null, reviewBounceCount ?? 0, id)
+      .bind(inReviewAt ?? SQL_NULL, reviewBounceCount ?? 0, id)
       .run()
   }
 
@@ -437,7 +438,7 @@ describe('flow metrics (PROJ-252)', () => {
       `INSERT INTO issue_leases (id, workspace_id, issue_id, agent_session_id, claimed_at, released_at, release_reason)
 			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-      .bind(crypto.randomUUID(), workspaceId, issueId, id, claimedAt, releasedAt, releasedAt ? 'released' : null)
+      .bind(crypto.randomUUID(), workspaceId, issueId, id, claimedAt, releasedAt, releasedAt ? 'released' : SQL_NULL)
       .run()
   }
 

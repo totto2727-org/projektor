@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
  * incremental/resumable via a cursor + page budget, with an updatedSince scope filter.
  */
 import { currentEpochSeconds } from '#contracts/time.ts'
+import { SQL_NULL } from '#db/sql-null.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
@@ -39,7 +40,7 @@ const insertPage = async function insertPage(
       userId,
       now,
       fields.updatedAt ?? now,
-      fields.deletedAt ?? null,
+      fields.deletedAt ?? SQL_NULL,
     )
     .run()
   return id
