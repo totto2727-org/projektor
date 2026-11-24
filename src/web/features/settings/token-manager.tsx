@@ -4,7 +4,7 @@ import { useForm } from '@tanstack/react-form'
 import { Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
 
-import { currentEpochMilliseconds } from '#contracts/time.ts'
+import { MILLISECONDS_PER_SECOND, currentEpochMilliseconds } from '#contracts/time.ts'
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { EmptyState } from '@/components/ui/empty-state.tsx'
@@ -171,7 +171,7 @@ const TokenTable = function TokenTable({ tokens, state }: { tokens: Token[]; sta
                 <TableCell muted>{formatTokenScopes(token.scopes)}</TableCell>
                 <TableCell muted>{formatDate(token.createdAt)}</TableCell>
                 <TableCell
-                  className={`font-mono text-[0.8rem] ${Predicate.isNotNullish(token.expiresAt) && token.expiresAt < currentEpochMilliseconds() / 1000 ? 'text-danger-text' : 'text-text-muted'}`}
+                  className={`font-mono text-[0.8rem] ${Predicate.isNotNullish(token.expiresAt) && token.expiresAt < currentEpochMilliseconds() / MILLISECONDS_PER_SECOND ? 'text-danger-text' : 'text-text-muted'}`}
                 >
                   {Predicate.isNullish(token.expiresAt) ? 'No expiry' : formatDate(token.expiresAt)}
                 </TableCell>
@@ -195,7 +195,7 @@ const TokenTable = function TokenTable({ tokens, state }: { tokens: Token[]; sta
               <dd className='m-0'>{formatDate(token.createdAt)}</dd>
               <dt className='font-semibold'>Expires</dt>
               <dd
-                className={`m-0 ${Predicate.isNotNullish(token.expiresAt) && token.expiresAt < currentEpochMilliseconds() / 1000 ? 'text-danger-text' : ''}`}
+                className={`m-0 ${Predicate.isNotNullish(token.expiresAt) && token.expiresAt < currentEpochMilliseconds() / MILLISECONDS_PER_SECOND ? 'text-danger-text' : ''}`}
               >
                 {Predicate.isNullish(token.expiresAt) ? 'No expiry' : formatDate(token.expiresAt)}
               </dd>

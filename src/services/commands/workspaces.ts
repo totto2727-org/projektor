@@ -11,7 +11,7 @@ import {
   UpdateWorkspaceBrandSchema,
   UpdateWorkspaceSchema,
 } from '#contracts/inputs/workspaces.ts'
-import { currentEpochSeconds } from '#contracts/time.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import type { WorkspaceBrand } from '#db'
 import { drizzle, schema } from '#db'
 import * as data from '#services'
@@ -231,7 +231,7 @@ export const createToken = async function createToken(ctx: ServiceCtx, input: un
 
   const id = crypto.randomUUID()
   const now = currentEpochSeconds()
-  const expiresAt = expiresInDays ? now + expiresInDays * 86_400 : null
+  const expiresAt = expiresInDays ? now + expiresInDays * SECONDS_PER_DAY : null
 
   const orm = drizzle(ctx.db, { schema })
   await orm.insert(schema.apiTokens).values({

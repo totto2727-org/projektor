@@ -57,7 +57,6 @@ const uploadToCore = function uploadToCore(input: UploadAttachmentInput, workspa
 
 /** Native form action. Effront owns decoding, request limits and page refresh. */
 export const uploadAttachment = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(UploadAttachmentInputSchema)] as const,
   handler: (_previous: unknown, input: UploadAttachmentInput) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -94,11 +93,11 @@ export const uploadAttachment = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(UploadAttachmentInputSchema)] as const,
 })
 
 /** Inline editor insertion needs the returned ID without discarding its draft/cursor. */
 export const uploadInlineImage = EFFRONT.ServerFn.make({
-  input: UploadAttachmentInputSchema,
   handler: (input: UploadAttachmentInput) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -135,4 +134,5 @@ export const uploadInlineImage = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: UploadAttachmentInputSchema,
 })

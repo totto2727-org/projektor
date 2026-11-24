@@ -3,7 +3,7 @@ import { Array, Predicate, Effect } from 'effect'
 
 import { ApiError, ScopeError } from '#contracts/errors.ts'
 import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
-import { currentEpochSeconds } from '#contracts/time.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { listProjects } from '#services/projects.ts'
 import * as wikiData from '#services/wiki.ts'
@@ -57,7 +57,7 @@ export const pageFreshness = function pageFreshness(
 ) {
   const due =
     Predicate.isNotNullish(page.verified_at) && Predicate.isNotNullish(page.verify_interval)
-      ? page.verified_at + page.verify_interval * 86_400
+      ? page.verified_at + page.verify_interval * SECONDS_PER_DAY
       : null
   if (Predicate.isNullish(page.status) && Predicate.isNullish(page.verify_interval)) {
     return null

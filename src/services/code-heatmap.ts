@@ -2,7 +2,7 @@ import { and, eq, gte, lte } from 'drizzle-orm'
 import { Iterable } from 'effect'
 import type { Effect } from 'effect'
 
-import { currentEpochSeconds } from '#contracts/time.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
@@ -162,7 +162,7 @@ const readCodeHeatmap = async function readCodeHeatmap(
    * preceding 5 weeks) so the heatmap agrees with the rest of the dashboard when no
    * explicit range is passed.
    */
-  const windowSince = since ?? now - 42 * 86_400
+  const windowSince = since ?? now - DEFAULT_HEATMAP_WINDOW_SECONDS
   const windowUntil = until ?? now
 
   const resolvedMode = mode ?? 'claims'
@@ -235,6 +235,9 @@ const readCodeHeatmap = async function readCodeHeatmap(
 export type CodeHeatmap = Awaited<ReturnType<typeof readCodeHeatmap>>
 
 /** The caller validates input and authorizes project access before running this Effect. */
+const DEFAULT_HEATMAP_WINDOW_DAYS = 42
+const DEFAULT_HEATMAP_WINDOW_SECONDS = DEFAULT_HEATMAP_WINDOW_DAYS * SECONDS_PER_DAY
+
 export const getCodeHeatmap = function getCodeHeatmap(
   db: D1Database,
   workspaceId: string,

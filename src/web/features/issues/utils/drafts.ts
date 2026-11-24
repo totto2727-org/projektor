@@ -7,9 +7,10 @@
 
 import { Iterable, Predicate } from 'effect'
 
-import { currentEpochMilliseconds } from '#contracts/time.ts'
+import { MILLISECONDS_PER_DAY, currentEpochMilliseconds } from '#contracts/time.ts'
 const PREFIX = 'projektor:draft:'
-const TTL_MS = 7 * 24 * 60 * 60 * 1000
+const RETENTION_DAYS = 7
+const TTL_MS = RETENTION_DAYS * MILLISECONDS_PER_DAY
 
 interface StoredDraft {
   value: string

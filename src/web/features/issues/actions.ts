@@ -50,12 +50,6 @@ function dataWorkspaceId(context: FunctionContext): Effect.Effect<string, ScopeE
 }
 
 export const setAttachmentReviewStatus = EFFRONT.ServerFn.make({
-  input: Schema.Struct({
-    ...SelectorFields,
-    issueId: Schema.String.check(Schema.isMinLength(1)),
-    attachmentId: Schema.String.check(Schema.isMinLength(1)),
-    status: Schema.NullOr(ReviewStatusSchema),
-  }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -79,10 +73,15 @@ export const setAttachmentReviewStatus = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({
+    ...SelectorFields,
+    issueId: Schema.String.check(Schema.isMinLength(1)),
+    attachmentId: Schema.String.check(Schema.isMinLength(1)),
+    status: Schema.NullOr(ReviewStatusSchema),
+  }),
 })
 
 export const createIssue = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(CreateIssueSchema)],
   handler: (_previous, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -117,9 +116,9 @@ export const createIssue = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(CreateIssueSchema)],
 })
 export const updateIssue = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...IssueIdentitySchema.fields, patch: IssuePatchSchema }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -145,9 +144,9 @@ export const updateIssue = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...IssueIdentitySchema.fields, patch: IssuePatchSchema }),
 })
 export const readIssue = EFFRONT.ServerFn.make({
-  input: IssueIdentitySchema,
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -164,9 +163,9 @@ export const readIssue = EFFRONT.ServerFn.make({
         ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
       }),
     ),
+  input: IssueIdentitySchema,
 })
 export const readIssuePage = EFFRONT.ServerFn.make({
-  input: IssuePageInputSchema,
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -207,9 +206,9 @@ export const readIssuePage = EFFRONT.ServerFn.make({
         ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
       }),
     ),
+  input: IssuePageInputSchema,
 })
 export const searchIssues = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...SelectorFields, query: Schema.String }),
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -226,9 +225,9 @@ export const searchIssues = EFFRONT.ServerFn.make({
         ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
       }),
     ),
+  input: Schema.Struct({ ...SelectorFields, query: Schema.String }),
 })
 export const readComments = EFFRONT.ServerFn.make({
-  input: IssueIdentitySchema,
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -240,12 +239,9 @@ export const readComments = EFFRONT.ServerFn.make({
         ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
       }),
     ),
+  input: IssueIdentitySchema,
 })
 export const addComment = EFFRONT.ServerFn.make({
-  input: Schema.Struct({
-    ...IssueIdentitySchema.fields,
-    body: Schema.String.check(Schema.isMinLength(1)),
-  }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -265,13 +261,12 @@ export const addComment = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
-})
-export const editComment = EFFRONT.ServerFn.make({
   input: Schema.Struct({
     ...IssueIdentitySchema.fields,
-    commentId: Schema.String,
     body: Schema.String.check(Schema.isMinLength(1)),
   }),
+})
+export const editComment = EFFRONT.ServerFn.make({
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -291,9 +286,13 @@ export const editComment = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({
+    ...IssueIdentitySchema.fields,
+    commentId: Schema.String,
+    body: Schema.String.check(Schema.isMinLength(1)),
+  }),
 })
 export const deleteComment = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...IssueIdentitySchema.fields, commentId: Schema.String }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -313,9 +312,9 @@ export const deleteComment = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...IssueIdentitySchema.fields, commentId: Schema.String }),
 })
 export const readLinks = EFFRONT.ServerFn.make({
-  input: IssueIdentitySchema,
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -327,13 +326,9 @@ export const readLinks = EFFRONT.ServerFn.make({
         ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
       }),
     ),
+  input: IssueIdentitySchema,
 })
 export const addIssueLink = EFFRONT.ServerFn.make({
-  input: Schema.Struct({
-    ...IssueIdentitySchema.fields,
-    targetIssueId: Schema.String,
-    type: Schema.Literals(['blocks', 'blocked_by', 'relates_to', 'duplicates']),
-  }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -358,9 +353,13 @@ export const addIssueLink = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({
+    ...IssueIdentitySchema.fields,
+    targetIssueId: Schema.String,
+    type: Schema.Literals(['blocks', 'blocked_by', 'relates_to', 'duplicates']),
+  }),
 })
 export const deleteIssueLink = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...IssueIdentitySchema.fields, linkId: Schema.String }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -387,9 +386,9 @@ export const deleteIssueLink = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...IssueIdentitySchema.fields, linkId: Schema.String }),
 })
 export const shareIssue = EFFRONT.ServerFn.make({
-  input: IssueIdentitySchema,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -407,9 +406,9 @@ export const shareIssue = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: IssueIdentitySchema,
 })
 export const readAttachments = EFFRONT.ServerFn.make({
-  input: IssueIdentitySchema,
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -421,19 +420,9 @@ export const readAttachments = EFFRONT.ServerFn.make({
         ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
       }),
     ),
+  input: IssueIdentitySchema,
 })
 export const addAttachmentLink = EFFRONT.ServerFn.make({
-  input: Schema.Struct({
-    ...IssueIdentitySchema.fields,
-    link: Schema.Union([
-      Schema.Struct({ kind: Schema.Literal('wiki_ref'), wikiPageId: Schema.String }),
-      Schema.Struct({
-        kind: Schema.Literal('url'),
-        url: Schema.URLFromString,
-        label: Schema.optional(Schema.String.check(Schema.isMaxLength(200))),
-      }),
-    ]),
-  }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -458,9 +447,19 @@ export const addAttachmentLink = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({
+    ...IssueIdentitySchema.fields,
+    link: Schema.Union([
+      Schema.Struct({ kind: Schema.Literal('wiki_ref'), wikiPageId: Schema.String }),
+      Schema.Struct({
+        kind: Schema.Literal('url'),
+        url: Schema.URLFromString,
+        label: Schema.optional(Schema.String.check(Schema.isMaxLength(200))),
+      }),
+    ]),
+  }),
 })
 export const deleteAttachment = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...IssueIdentitySchema.fields, attachmentId: Schema.String }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -487,9 +486,9 @@ export const deleteAttachment = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...IssueIdentitySchema.fields, attachmentId: Schema.String }),
 })
 export const searchWikiAttachments = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...SelectorFields, query: Schema.String }),
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -501,19 +500,9 @@ export const searchWikiAttachments = EFFRONT.ServerFn.make({
         ScopeError: (error) => Effect.succeed({ ok: false as const, status: error.status, message: error.message }),
       }),
     ),
+  input: Schema.Struct({ ...SelectorFields, query: Schema.String }),
 })
 export const updateSprint = EFFRONT.ServerFn.make({
-  input: Schema.Struct({
-    ...SelectorFields,
-    sprintId: Schema.String,
-    patch: Schema.Struct({
-      name: Schema.String.check(Schema.isMinLength(1)),
-      goal: Schema.NullOr(Schema.String),
-      status: Schema.Literals(['planned', 'active', 'completed']),
-      startDate: Schema.NullOr(Schema.Number),
-      endDate: Schema.NullOr(Schema.Number),
-    }),
-  }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -535,4 +524,15 @@ export const updateSprint = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({
+    ...SelectorFields,
+    sprintId: Schema.String,
+    patch: Schema.Struct({
+      name: Schema.String.check(Schema.isMinLength(1)),
+      goal: Schema.NullOr(Schema.String),
+      status: Schema.Literals(['planned', 'active', 'completed']),
+      startDate: Schema.NullOr(Schema.Number),
+      endDate: Schema.NullOr(Schema.Number),
+    }),
+  }),
 })

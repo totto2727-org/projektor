@@ -1,6 +1,13 @@
 import { String, Predicate } from 'effect'
 
-import { LAST_SECOND_OF_DAY, MILLISECONDS_PER_SECOND, utcMidnightMilliseconds } from '#contracts/time.ts'
+import {
+  SECONDS_PER_DAY,
+  SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
+  LAST_SECOND_OF_DAY,
+  MILLISECONDS_PER_SECOND,
+  utcMidnightMilliseconds,
+} from '#contracts/time.ts'
 import { formatTimestampDate } from '@/features/timestamp.ts'
 
 import type { RangeState, SprintIssue } from './types.ts'
@@ -82,16 +89,16 @@ export const formatDuration = function formatDuration(seconds: number | null): s
     return '\u2013'
   }
   const abs = Math.abs(seconds)
-  if (abs < 60) {
+  if (abs < SECONDS_PER_MINUTE) {
     return `${Math.round(seconds)}s`
   }
-  if (abs < 3600) {
-    return `${(seconds / 60).toFixed(1)}m`
+  if (abs < SECONDS_PER_HOUR) {
+    return `${(seconds / SECONDS_PER_MINUTE).toFixed(1)}m`
   }
-  if (abs < 86_400) {
-    return `${(seconds / 3600).toFixed(1)}h`
+  if (abs < SECONDS_PER_DAY) {
+    return `${(seconds / SECONDS_PER_HOUR).toFixed(1)}h`
   }
-  return `${(seconds / 86_400).toFixed(1)}d`
+  return `${(seconds / SECONDS_PER_DAY).toFixed(1)}d`
 }
 export const formatPercent = (value: number | null): string =>
   Predicate.isNullish(value) ? '\u2013' : `${Math.round(value * 100)}%`

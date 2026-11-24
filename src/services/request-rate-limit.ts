@@ -1,5 +1,5 @@
 import { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
-import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
+import { MILLISECONDS_PER_SECOND, currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import type { Env } from '#types'
 
 export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
@@ -30,7 +30,7 @@ export const checkRateLimit = async function checkRateLimit(
   const testNow =
     env.ENVIRONMENT !== 'production' && env.RATE_LIMIT_TEST_NOW_MS ? Number(env.RATE_LIMIT_TEST_NOW_MS) : NaN
   const nowMs = Number.isFinite(testNow) ? testNow : currentEpochMilliseconds()
-  const now = Math.floor(nowMs / 1000)
+  const now = Math.floor(nowMs / MILLISECONDS_PER_SECOND)
 
   const authHeader = request.headers.get('Authorization')
   let key: string

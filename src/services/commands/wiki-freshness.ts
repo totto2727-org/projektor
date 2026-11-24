@@ -11,7 +11,7 @@
 
 import { Predicate } from 'effect'
 
-import { currentEpochSeconds } from '#contracts/time.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 export type WikiFreshnessState = 'fresh' | 'stale' | 'unverified'
 
 export interface WikiFreshness {
@@ -31,8 +31,6 @@ export interface ComputeFreshnessInput {
   // Unix seconds; defaults to the real current time. Overridable for tests.
   now?: number
 }
-
-const SECONDS_PER_DAY = 86_400
 
 /*
  * PROJ-489: null means the page carries neither frontmatter signal (no verify_interval,

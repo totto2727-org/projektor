@@ -25,7 +25,6 @@ import {
 } from './input-schemas.ts'
 
 export const createGroup = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(CreateGroupInputSchema)] as const,
   handler: (_previous, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -47,9 +46,9 @@ export const createGroup = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(CreateGroupInputSchema)] as const,
 })
 export const renameGroup = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(RenameGroupInputSchema)] as const,
   handler: (_previous, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -71,9 +70,9 @@ export const renameGroup = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(RenameGroupInputSchema)] as const,
 })
 export const describeGroup = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(GroupDescriptionInputSchema)] as const,
   handler: (_previous, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -95,9 +94,9 @@ export const describeGroup = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(GroupDescriptionInputSchema)] as const,
 })
 export const deleteGroup = EFFRONT.ServerFn.make({
-  input: GroupIdentitySchema,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -117,9 +116,9 @@ export const deleteGroup = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: GroupIdentitySchema,
 })
 export const addGroupMember = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(GroupMemberInputSchema)] as const,
   handler: (_previous, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -141,9 +140,9 @@ export const addGroupMember = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(GroupMemberInputSchema)] as const,
 })
 export const removeGroupMember = EFFRONT.ServerFn.make({
-  input: GroupMemberInputSchema,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -165,9 +164,9 @@ export const removeGroupMember = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: GroupMemberInputSchema,
 })
 export const setGroupGrant = EFFRONT.ServerFn.make({
-  input: GroupGrantInputSchema,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -192,10 +191,10 @@ export const setGroupGrant = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: GroupGrantInputSchema,
 })
 /** Native add-grant form. Inline role changes still use the rich setGroupGrant control. */
 export const createGroupGrant = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(GroupGrantInputSchema)] as const,
   handler: (_previous, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -220,9 +219,9 @@ export const createGroupGrant = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(GroupGrantInputSchema)] as const,
 })
 export const removeGroupGrant = EFFRONT.ServerFn.make({
-  input: GroupProjectIdentitySchema,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -247,9 +246,9 @@ export const removeGroupGrant = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: GroupProjectIdentitySchema,
 })
 export const createToken = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(CreateTokenInputSchema)] as const,
   handler: (_previous, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -275,9 +274,9 @@ export const createToken = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(CreateTokenInputSchema)] as const,
 })
 export const revokeToken = EFFRONT.ServerFn.make({
-  input: TokenIdentitySchema,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -297,9 +296,9 @@ export const revokeToken = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: TokenIdentitySchema,
 })
 export const disconnectConnector = EFFRONT.ServerFn.make({
-  input: ConnectorIdentitySchema,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -319,4 +318,5 @@ export const disconnectConnector = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: ConnectorIdentitySchema,
 })

@@ -6,6 +6,7 @@ import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page, TestInfo } from '@playwright/test'
 import { Iterable, Predicate } from 'effect'
 
+import { HTTP_CREATED, HTTP_NOT_FOUND, HTTP_NO_CONTENT, HTTP_OK } from '#contracts/http-status.ts'
 import { currentEpochSeconds } from '#contracts/time.ts'
 
 type BrowserAudit = {
@@ -157,11 +158,11 @@ test('API and Web share private Core persistence without adapter DB bindings', a
     headers: { 'X-Workspace-Slug': 'projektor' },
     data: { name, key: `D${suffix}` },
   })
-  expect(write.status(), await write.text()).toBe(201)
+  expect(write.status(), await write.text()).toBe(HTTP_CREATED)
   const project = await write.json()
   expect(project.id).toBeTruthy()
   const response = await page.goto('/?workspace=projektor')
-  expect(response?.status()).toBe(200)
+  expect(response?.status()).toBe(HTTP_OK)
   // Both actual adapters reach the same private Core through native service bindings.
   // Reapplying the Core-owned fixture ledger must not replay historical DDL or lose data.
   const migrationNames = (await readdir(new URL('../../migrations/', import.meta.url))).filter((name) =>
@@ -170,7 +171,7 @@ test('API and Web share private Core persistence without adapter DB bindings', a
   expect(migrationNames.length).toBeGreaterThan(0)
   for (let attempt = 0; attempt < 2; attempt++) {
     const initialized = await request.post('http://127.0.0.1:4392/_fixture/reinitialize')
-    expect(initialized.status(), await initialized.text()).toBe(200)
+    expect(initialized.status(), await initialized.text()).toBe(HTTP_OK)
     expect(await initialized.json()).toEqual({ migrations: migrationNames.length })
   }
   const link = page.getByRole('link').filter({ has: page.getByText(name, { exact: true }) })
@@ -191,7 +192,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const session = await request.get('http://127.0.0.1:4392/auth/me')
-  expect(session.status()).toBe(200)
+  expect(session.status()).toBe(HTTP_OK)
   const { user } = await session.json()
   const projects: { id: string; key: string; name: string }[] = []
   for (const prefix of ['A', 'B']) {
@@ -199,7 +200,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
       headers,
       data: { name: `Focus ${prefix} ${suffix}`, key: `${prefix}${suffix}` },
     })
-    expect(created.status(), await created.text()).toBe(201)
+    expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     projects.push(await created.json())
   }
   const fixtures = [
@@ -223,7 +224,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
         ...(assigned ? { assigneeId: user.id } : {}),
       },
     })
-    expect(created.status(), await created.text()).toBe(201)
+    expect(created.status(), await created.text()).toBe(HTTP_CREATED)
   }
   for (const fixture of fixtures) {
     await create(fixture)
@@ -295,20 +296,20 @@ test('issue review targets persist optional selection and four statuses across f
   const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const session = await request.get('http://127.0.0.1:4392/auth/me')
-  expect(session.status()).toBe(200)
+  expect(session.status()).toBe(HTTP_OK)
   const { user } = await session.json()
   const createdProject = await request.post('http://127.0.0.1:4392/api/projects', {
     headers,
     data: { name: `Review acceptance ${suffix}`, key: `V${suffix}` },
   })
-  expect(createdProject.status(), await createdProject.text()).toBe(201)
+  expect(createdProject.status(), await createdProject.text()).toBe(HTTP_CREATED)
   const project = await createdProject.json()
   const createIssue = async (title: string) => {
     const response = await request.post('http://127.0.0.1:4392/api/issues', {
       headers,
       data: { projectId: project.id, title, status: 'backlog', assigneeId: user.id },
     })
-    expect(response.status(), await response.text()).toBe(201)
+    expect(response.status(), await response.text()).toBe(HTTP_CREATED)
     return response.json()
   }
   const title = `Review target primary ${suffix}`
@@ -325,7 +326,7 @@ test('issue review targets persist optional selection and four statuses across f
       entityId: issue.id,
     },
   })
-  expect(uploaded.status(), await uploaded.text()).toBe(201)
+  expect(uploaded.status(), await uploaded.text()).toBe(HTTP_CREATED)
   const uploadedAttachment = await uploaded.json()
   const attachmentFixtures: { id: string; filename: string }[] = [{ id: uploadedAttachment.id, filename }]
   for (const label of [urlLabel, ordinaryLabel]) {
@@ -339,7 +340,7 @@ test('issue review targets persist optional selection and four statuses across f
         label,
       },
     })
-    expect(linked.status(), await linked.text()).toBe(201)
+    expect(linked.status(), await linked.text()).toBe(HTTP_CREATED)
     const linkedAttachment = await linked.json()
     attachmentFixtures.push({ id: linkedAttachment.id, filename: label })
   }
@@ -363,7 +364,7 @@ test('issue review targets persist optional selection and four statuses across f
     `http://127.0.0.1:4392/api/files?entityType=issue&entityId=${emptyIssue.id}`,
     { headers },
   )
-  expect(browserAttachments.status(), await browserAttachments.text()).toBe(200)
+  expect(browserAttachments.status(), await browserAttachments.text()).toBe(HTTP_OK)
   expect(await browserAttachments.json()).toMatchObject([{ url: browserUrl, reviewStatus: null }])
   await checkpoint(page, testInfo, 'review-targets-browser-url-standard-validation')
   await page.goto(`/issues/view?id=${issue.id}&${scope}`)
@@ -447,7 +448,7 @@ test('issue review targets persist optional selection and four statuses across f
           headers,
           data: { status: route.name === 'board' ? 'todo' : 'backlog' },
         })
-        expect(moved.status(), await moved.text()).toBe(200)
+        expect(moved.status(), await moved.text()).toBe(HTTP_OK)
       }
     }
     await page.goto(route.path)
@@ -477,7 +478,7 @@ test('issue review targets persist optional selection and four statuses across f
   try {
     const cold = await coldContext.newPage()
     observeBrowser(cold, testInfo)
-    expect((await cold.goto(focusedUrl))?.status()).toBe(200)
+    expect((await cold.goto(focusedUrl))?.status()).toBe(HTTP_OK)
     const coldTargets = cold.getByRole('region', { exact: true, name: 'レビュー対象' })
     await expect(coldTargets.getByRole('heading', { exact: true, name: 'レビュー対象 (2)' })).toBeVisible()
     await expect(coldTargets.getByText('レビュー待ち: 2件', { exact: true })).toBeVisible()
@@ -489,7 +490,7 @@ test('issue review targets persist optional selection and four statuses across f
       }),
     ).toBeVisible()
     await checkpoint(cold, testInfo, 'review-targets-cold-focused-no-js')
-    expect((await cold.goto(emptyIssueUrl))?.status()).toBe(200)
+    expect((await cold.goto(emptyIssueUrl))?.status()).toBe(HTTP_OK)
     await expect(cold.getByRole('button', { name: /Add URL/u })).toBeDisabled()
   } finally {
     await coldContext.close()
@@ -525,13 +526,13 @@ test('issue review targets persist optional selection and four statuses across f
       headers,
       data: { status: 'backlog' },
     })
-    expect(reopened.status(), await reopened.text()).toBe(200)
+    expect(reopened.status(), await reopened.text()).toBe(HTTP_OK)
     for (const attachment of attachmentFixtures.filter((entry) => entry.filename !== ordinaryLabel)) {
       const review = await request.patch(`http://127.0.0.1:4392/api/files/${attachment.id}/review-status`, {
         headers,
         data: { issueId: issue.id, status: 'in_review' },
       })
-      expect(review.status(), await review.text()).toBe(200)
+      expect(review.status(), await review.text()).toBe(HTTP_OK)
     }
     await page.reload()
     await expect(status(filename)).toHaveValue('in_review')
@@ -540,12 +541,12 @@ test('issue review targets persist optional selection and four statuses across f
       headers,
       data: { status: terminal },
     })
-    expect(closed.status(), await closed.text()).toBe(200)
+    expect(closed.status(), await closed.text()).toBe(HTTP_OK)
     await page.reload()
     await expect(targets.getByText('表示するレビュー対象はありません。', { exact: true })).toBeVisible()
     for (const attachment of attachmentFixtures) {
       const metadata = await request.get(`http://127.0.0.1:4392/api/files/${attachment.id}/metadata`, { headers })
-      expect(metadata.status(), await metadata.text()).toBe(200)
+      expect(metadata.status(), await metadata.text()).toBe(HTTP_OK)
       expect(await metadata.json()).toMatchObject({
         id: attachment.id,
         filename: attachment.filename,
@@ -575,10 +576,10 @@ test('workspace review spans projects and unassigned issues with native filtered
   const createdWorkspace = await request.post('http://127.0.0.1:4392/api/workspaces', {
     data: { name: `Cross review workspace ${suffix}`, slug: workspaceSlug },
   })
-  expect(createdWorkspace.status(), await createdWorkspace.text()).toBe(201)
+  expect(createdWorkspace.status(), await createdWorkspace.text()).toBe(HTTP_CREATED)
   const headers = { 'X-Workspace-Slug': workspaceSlug }
   const session = await request.get('http://127.0.0.1:4392/auth/me')
-  expect(session.status()).toBe(200)
+  expect(session.status()).toBe(HTTP_OK)
   const { user } = await session.json()
   const projects: { id: string; key: string; name: string }[] = []
   for (const prefix of ['A', 'B']) {
@@ -586,7 +587,7 @@ test('workspace review spans projects and unassigned issues with native filtered
       headers,
       data: { name: `Cross project ${prefix} ${suffix}`, key: `${prefix}${suffix}` },
     })
-    expect(created.status(), await created.text()).toBe(201)
+    expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     projects.push(await created.json())
   }
   const cases = [
@@ -612,7 +613,7 @@ test('workspace review spans projects and unassigned issues with native filtered
       headers,
       data: { projectId: project.id, title, status: 'backlog', ...(fixture.assigned ? { assigneeId: user.id } : {}) },
     })
-    expect(created.status(), await created.text()).toBe(201)
+    expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     const issue = await created.json()
     const targetLabel = `${fixture.tag} target ${suffix}`
     if (Predicate.isNotNullish(fixture.review)) {
@@ -626,13 +627,13 @@ test('workspace review spans projects and unassigned issues with native filtered
           label: targetLabel,
         },
       })
-      expect(linked.status(), await linked.text()).toBe(201)
+      expect(linked.status(), await linked.text()).toBe(HTTP_CREATED)
       const attachment = await linked.json()
       const selected = await request.patch(`http://127.0.0.1:4392/api/files/${attachment.id}/review-status`, {
         headers,
         data: { issueId: issue.id, status: fixture.review },
       })
-      expect(selected.status(), await selected.text()).toBe(200)
+      expect(selected.status(), await selected.text()).toBe(HTTP_OK)
     }
     issues.push({ id: issue.id, number: issue.number, title, targetLabel, review: fixture.review, project })
   }
@@ -733,7 +734,7 @@ test('workspace review spans projects and unassigned issues with native filtered
   try {
     const cold = await coldContext.newPage()
     observeBrowser(cold, testInfo)
-    expect((await cold.goto(page.url()))?.status()).toBe(200)
+    expect((await cold.goto(page.url()))?.status()).toBe(HTTP_OK)
     for (const issue of issues) {
       const link = cold.getByRole('link', { exact: true, name: issue.title }).filter({ visible: true })
       if (Predicate.isNotNullish(issue.review) && issue.review !== 'done') {
@@ -770,10 +771,10 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
     headers,
     data: { name: `Chart acceptance ${suffix}`, key: `C${suffix}` },
   })
-  expect(created.status(), await created.text()).toBe(201)
+  expect(created.status(), await created.text()).toBe(HTTP_CREATED)
   const project = await created.json()
   const query = new URLSearchParams({ projectId: project.id, workspace: 'projektor' })
-  expect((await page.goto(`/projects/view?${query}`))?.status()).toBe(200)
+  expect((await page.goto(`/projects/view?${query}`))?.status()).toBe(HTTP_OK)
   await expect(page.getByText('No issues in this window yet', { exact: true })).toBeVisible()
   await expect(page.getByTestId('flow-chart-cfd')).toHaveCount(0)
   await checkpoint(page, testInfo, 'charts-empty-no-zero-band')
@@ -785,20 +786,20 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
       headers,
       data: { projectId: project.id, title: `Chart issue ${index} ${suffix}` },
     })
-    expect(issueResponse.status(), await issueResponse.text()).toBe(201)
+    expect(issueResponse.status(), await issueResponse.text()).toBe(HTTP_CREATED)
     const issue = await issueResponse.json()
     if (status !== 'backlog') {
       const updated = await request.patch(`http://127.0.0.1:4392/api/issues/${issue.id}`, {
         headers,
         data: { status },
       })
-      expect(updated.status(), await updated.text()).toBe(200)
+      expect(updated.status(), await updated.text()).toBe(HTTP_OK)
     }
   }
   const metricsResponse = await request.get(`http://127.0.0.1:4392/api/projects/${project.id}/flow-metrics`, {
     headers,
   })
-  expect(metricsResponse.status(), await metricsResponse.text()).toBe(200)
+  expect(metricsResponse.status(), await metricsResponse.text()).toBe(HTTP_OK)
   const metrics = await metricsResponse.json()
   expect(metrics.cfdOverTime.at(-1)).toMatchObject({ backlogTodo: 1, inProgress: 2, inReview: 1, done: 1 })
   await testInfo.attach('chart-api-data', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' })
@@ -832,7 +833,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   await expect.poll(() => areas.last().evaluate((element) => getComputedStyle(element).fill)).not.toBe(lightFill)
   await checkpoint(page, testInfo, 'charts-system-dark-theme')
   await page.emulateMedia({ colorScheme: 'light' })
-  expect((await page.goto(`/metrics?${query}`))?.status()).toBe(200)
+  expect((await page.goto(`/metrics?${query}`))?.status()).toBe(HTTP_OK)
   await expect(page.getByTestId('flow-chart-cfd').locator('.recharts-area-area')).toHaveCount(4)
   await checkpoint(page, testInfo, 'charts-metrics-shared-cfd')
 
@@ -848,8 +849,8 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
       ).join('\n\n'),
     },
   })
-  expect(wikiResponse.status(), await wikiResponse.text()).toBe(201)
-  expect((await page.goto(`/wiki/view?${query}&slug=drawer-${suffix.toLowerCase()}`))?.status()).toBe(200)
+  expect(wikiResponse.status(), await wikiResponse.text()).toBe(HTTP_CREATED)
+  expect((await page.goto(`/wiki/view?${query}&slug=drawer-${suffix.toLowerCase()}`))?.status()).toBe(HTTP_OK)
   if (testInfo.project.name === 'mobile') {
     const trigger = page.getByRole('button', { exact: true, name: 'Pages' })
     const drawer = page.locator('.wiki-sidebar.wiki-sidebar-open')
@@ -909,7 +910,7 @@ test('cold protected initial HTML is usable without JavaScript', async ({ browse
     const page = await context.newPage()
     observeBrowser(page, testInfo)
     const response = await page.goto('/?workspace=projektor')
-    expect(response?.status()).toBe(200)
+    expect(response?.status()).toBe(HTTP_OK)
     expect(response?.headers()['cache-control']).toMatch(/private/u)
     await expect(page.getByRole('main')).toBeVisible()
     await expect(page.getByRole('heading', { exact: true, name: 'Projects' })).toBeVisible()
@@ -1008,7 +1009,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   const apiFile = await request.get(`http://127.0.0.1:4392${filePath}`, {
     headers: { 'X-Workspace-Slug': 'projektor' },
   })
-  expect(apiFile.status()).toBe(200)
+  expect(apiFile.status()).toBe(HTTP_OK)
   expect(await apiFile.body()).toEqual(bytes)
   expect(apiFile.headers()['content-type']).toBe('application/octet-stream')
   expect(apiFile.headers()['x-content-type-options']).toBe('nosniff')
@@ -1035,7 +1036,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   const removedFile = await request.get(`http://127.0.0.1:4392${filePath}`, {
     headers: { 'X-Workspace-Slug': 'projektor' },
   })
-  expect(removedFile.status()).toBe(404)
+  expect(removedFile.status()).toBe(HTTP_NOT_FOUND)
   await checkpoint(page, testInfo, 'native-attachment-deleted-reload')
   await page.goBack()
   await expect(page).toHaveURL(issuesUrl)
@@ -1115,7 +1116,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   try {
     const cold = await noJs.newPage()
     observeBrowser(cold, testInfo)
-    expect((await cold.goto(issueUrl))?.status()).toBe(200)
+    expect((await cold.goto(issueUrl))?.status()).toBe(HTTP_OK)
     await expect(cold.getByRole('heading', { exact: true, name: issueTitle })).toBeVisible()
     await checkpoint(cold, testInfo, 'cold-persisted-issue-no-js')
   } finally {
@@ -1129,13 +1130,13 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
   const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toLowerCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const sessionResponse = await request.get('http://127.0.0.1:4392/auth/me')
-  expect(sessionResponse.status()).toBe(200)
+  expect(sessionResponse.status()).toBe(HTTP_OK)
   const { user } = await sessionResponse.json()
   const createdProject = await request.post('http://127.0.0.1:4392/api/projects', {
     headers,
     data: { name: `Reader project ${suffix}`, key: `R${suffix.toUpperCase()}` },
   })
-  expect(createdProject.status(), await createdProject.text()).toBe(201)
+  expect(createdProject.status(), await createdProject.text()).toBe(HTTP_CREATED)
   const project = await createdProject.json()
   const createdIssue = await request.post('http://127.0.0.1:4392/api/issues', {
     headers,
@@ -1146,7 +1147,7 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
       assigneeId: user.id,
     },
   })
-  expect(createdIssue.status(), await createdIssue.text()).toBe(201)
+  expect(createdIssue.status(), await createdIssue.text()).toBe(HTTP_CREATED)
   const issue = { ...(await createdIssue.json()), title: `Reader issue ${suffix}` }
   // Reciprocal file parity: both real adapters delegate to private Core.
   // This fixture does not replace the separate browser-native upload/delete flow.
@@ -1159,18 +1160,18 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
       entityId: issue.id,
     },
   })
-  expect(uploadedFile.status(), await uploadedFile.text()).toBe(201)
+  expect(uploadedFile.status(), await uploadedFile.text()).toBe(HTTP_CREATED)
   const uploaded = await uploadedFile.json()
   expect(uploaded).toMatchObject({ filename: `api-file-${suffix}.txt`, contentType: 'text/plain', size: 65_536 })
   const nativeFileUrl = `http://127.0.0.1:4393/api/files/${uploaded.id}?workspace=projektor`
   const nativeFile = await request.get(nativeFileUrl)
-  expect(nativeFile.status()).toBe(200)
+  expect(nativeFile.status()).toBe(HTTP_OK)
   expect(await nativeFile.body()).toEqual(fileBytes)
   expect(nativeFile.headers()['content-type']).toBe('application/octet-stream')
   expect(nativeFile.headers()['cache-control']).toBe('private, no-store')
   const deletedFile = await request.delete(`http://127.0.0.1:4392/api/files/${uploaded.id}`, { headers })
-  expect(deletedFile.status()).toBe(204)
-  expect((await request.get(nativeFileUrl)).status()).toBe(404)
+  expect(deletedFile.status()).toBe(HTTP_NO_CONTENT)
+  expect((await request.get(nativeFileUrl)).status()).toBe(HTTP_NOT_FOUND)
   const createdWiki = await request.post('http://127.0.0.1:4392/api/wiki', {
     headers,
     data: {
@@ -1180,14 +1181,14 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
       content: 'Persisted Wiki reader body.',
     },
   })
-  expect(createdWiki.status(), await createdWiki.text()).toBe(201)
+  expect(createdWiki.status(), await createdWiki.text()).toBe(HTTP_CREATED)
   const wiki = await createdWiki.json()
   const sourceName = `Reader source ${suffix}`
   const createdSource = await request.post(`http://127.0.0.1:4392/api/projects/${project.id}/feedback-sources`, {
     headers,
     data: { name: sourceName },
   })
-  expect(createdSource.status()).toBe(201)
+  expect(createdSource.status()).toBe(HTTP_CREATED)
   const { id: sourceId, token: sourceToken } = await createdSource.json()
   const feedbackBody = `Persisted feedback ${suffix}`
   // This API is the real external-submission interface, not a browser mutation substitute.
@@ -1195,10 +1196,10 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
     headers: { Authorization: `Bearer ${sourceToken}` },
     data: { body: feedbackBody, rating: 5, ratingScale: 'five_star', appVersion: 'acceptance-v1' },
   })
-  expect(submittedFeedback.status()).toBe(201)
+  expect(submittedFeedback.status()).toBe(HTTP_CREATED)
   // The new local-only feedback credential is never returned, logged or stored.
   const typesResponse = await request.get('http://127.0.0.1:4392/api/task-types', { headers })
-  expect(typesResponse.status()).toBe(200)
+  expect(typesResponse.status()).toBe(HTTP_OK)
   const types = await typesResponse.json()
   const epicType = types.find((type: { name: string }) => type.name === 'Epic')
   expect(epicType).toBeDefined()
@@ -1206,13 +1207,13 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
     headers,
     data: { projectId: project.id, title: `Reader epic ${suffix}`, typeId: epicType.id },
   })
-  expect(createdEpic.status()).toBe(201)
+  expect(createdEpic.status()).toBe(HTTP_CREATED)
   const epic = { ...(await createdEpic.json()), title: `Reader epic ${suffix}` }
   const createdGroup = await request.post('http://127.0.0.1:4392/api/workspaces/projektor/groups', {
     headers,
     data: { name: `Reader group ${suffix}` },
   })
-  expect(createdGroup.status(), await createdGroup.text()).toBe(201)
+  expect(createdGroup.status(), await createdGroup.text()).toBe(HTTP_CREATED)
   const group = await createdGroup.json()
   const now = currentEpochSeconds()
   const sprints: { status: string; name: string }[] = []
@@ -1222,21 +1223,21 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
       headers,
       data: { projectId: project.id, name, startDate: now, endDate: now + 604_800 },
     })
-    expect(created.status()).toBe(201)
+    expect(created.status()).toBe(HTTP_CREATED)
     const sprint = await created.json()
     if (status !== 'planned') {
       const started = await request.patch(`http://127.0.0.1:4392/api/sprints/${sprint.id}`, {
         headers,
         data: { status: 'active' },
       })
-      expect(started.status()).toBe(200)
+      expect(started.status()).toBe(HTTP_OK)
     }
     if (status === 'completed') {
       const completed = await request.post(`http://127.0.0.1:4392/api/sprints/${sprint.id}/complete`, {
         headers,
         data: {},
       })
-      expect(completed.status()).toBe(200)
+      expect(completed.status()).toBe(HTTP_OK)
     }
     sprints.push({ status, name })
   }
@@ -1244,7 +1245,7 @@ const createReaderFixtures = async function createReaderFixtures(request: APIReq
     headers,
     data: {},
   })
-  expect(createdShare.status()).toBe(201)
+  expect(createdShare.status()).toBe(HTTP_CREATED)
   const { token: shareToken } = await createdShare.json()
   return {
     project,
@@ -1375,7 +1376,7 @@ test('all final page routes and aliases render real populated HTML with and with
       observeBrowser(reader, testInfo)
       for (const route of cases) {
         const response = await reader.goto(route.path)
-        expect(response?.status(), route.id).toBe(200)
+        expect(response?.status(), route.id).toBe(HTTP_OK)
         if (route.heading) {
           await expect(reader.getByRole('heading', { exact: true, level: 1, name: route.heading })).toBeVisible()
         }
@@ -1468,7 +1469,7 @@ test('two real memberships require native selection and preserve workspace acros
   const createdWorkspace = await request.post('http://127.0.0.1:4392/api/workspaces', {
     data: { name: `Second workspace ${suffix}`, slug },
   })
-  expect(createdWorkspace.status(), await createdWorkspace.text()).toBe(201)
+  expect(createdWorkspace.status(), await createdWorkspace.text()).toBe(HTTP_CREATED)
   const key = `C${suffix.toUpperCase()}`
   const projects: { id: string; name: string }[] = []
   for (const workspace of ['projektor', slug]) {
@@ -1476,7 +1477,7 @@ test('two real memberships require native selection and preserve workspace acros
       headers: { 'X-Workspace-Slug': workspace },
       data: { name: `Collision ${workspace}`, key },
     })
-    expect(created.status(), await created.text()).toBe(201)
+    expect(created.status(), await created.text()).toBe(HTTP_CREATED)
     projects.push(await created.json())
   }
   await page.goto(`/issues?project=${key}`)

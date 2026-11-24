@@ -1,6 +1,12 @@
 'use client'
 import type { ReviewStatus } from '#contracts/review-targets.ts'
-import { MILLISECONDS_PER_SECOND, currentEpochMilliseconds } from '#contracts/time.ts'
+import {
+  SECONDS_PER_DAY,
+  SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
+  MILLISECONDS_PER_SECOND,
+  currentEpochMilliseconds,
+} from '#contracts/time.ts'
 import type { RenderedMarkdown } from '@/components/markdown/render.ts'
 
 import type { CustomFieldValue, TaskStatus } from './board-utils.ts'
@@ -101,6 +107,7 @@ export const LINK_TYPE_OPTIONS = [
   { value: 'duplicates', label: 'Duplicates' },
 ]
 
+const RELATIVE_DATE_WINDOW_DAYS = 7
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export const formatDate = function formatDate(unixSeconds: number): string {
@@ -109,18 +116,18 @@ export const formatDate = function formatDate(unixSeconds: number): string {
 }
 
 export const relativeTime = function relativeTime(unixSeconds: number): string {
-  const diff = currentEpochMilliseconds() / 1000 - unixSeconds
-  if (diff < 60) {
+  const diff = currentEpochMilliseconds() / MILLISECONDS_PER_SECOND - unixSeconds
+  if (diff < SECONDS_PER_MINUTE) {
     return 'just now'
   }
-  if (diff < 3600) {
-    return `${Math.floor(diff / 60)}m ago`
+  if (diff < SECONDS_PER_HOUR) {
+    return `${Math.floor(diff / SECONDS_PER_MINUTE)}m ago`
   }
-  if (diff < 86_400) {
-    return `${Math.floor(diff / 3600)}h ago`
+  if (diff < SECONDS_PER_DAY) {
+    return `${Math.floor(diff / SECONDS_PER_HOUR)}h ago`
   }
-  if (diff < 7 * 86_400) {
-    return `${Math.floor(diff / 86400)}d ago`
+  if (diff < RELATIVE_DATE_WINDOW_DAYS * SECONDS_PER_DAY) {
+    return `${Math.floor(diff / SECONDS_PER_DAY)}d ago`
   }
   return formatDate(unixSeconds)
 }

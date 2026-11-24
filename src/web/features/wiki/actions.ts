@@ -50,7 +50,6 @@ const Create = Schema.Struct({
 )
 
 export const getWikiPage = EFFRONT.ServerFn.make({
-  input: Reference,
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -68,10 +67,10 @@ export const getWikiPage = EFFRONT.ServerFn.make({
         ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
       }),
     ),
+  input: Reference,
 })
 
 export const getWikiRevisionDiff = EFFRONT.ServerFn.make({
-  input: RevisionReference,
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -89,10 +88,10 @@ export const getWikiRevisionDiff = EFFRONT.ServerFn.make({
         ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
       }),
     ),
+  input: RevisionReference,
 })
 
 export const getWikiDraft = EFFRONT.ServerFn.make({
-  input: Reference,
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -110,10 +109,10 @@ export const getWikiDraft = EFFRONT.ServerFn.make({
         ScopeError: (e) => Effect.succeed({ ok: false, status: e.status, message: e.message } as const),
       }),
     ),
+  input: Reference,
 })
 
 export const getWikiDraftState = EFFRONT.ServerFn.make({
-  input: Reference,
   handler: (input) =>
     Effect.gen(function* () {
       const ctx = yield* resolveFunctionContext(input, { requireWorkspace: true })
@@ -125,10 +124,10 @@ export const getWikiDraftState = EFFRONT.ServerFn.make({
         ScopeError: (error) => Effect.succeed({ ok: false, status: error.status, message: error.message } as const),
       }),
     ),
+  input: Reference,
 })
 
 export const createWikiPage = EFFRONT.ServerFn.make({
-  input: Create,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -159,10 +158,10 @@ export const createWikiPage = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Create,
 })
 
 export const duplicateWikiPage = EFFRONT.ServerFn.make({
-  input: Reference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -194,10 +193,10 @@ export const duplicateWikiPage = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Reference,
 })
 
 export const saveWikiPage = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...Reference.fields, ...EditFields.fields, ...DraftPrecondition.fields }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -227,10 +226,10 @@ export const saveWikiPage = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...Reference.fields, ...EditFields.fields, ...DraftPrecondition.fields }),
 })
 
 export const saveWikiDraft = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...Reference.fields, ...EditFields.fields, ...DraftPrecondition.fields }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -262,10 +261,10 @@ export const saveWikiDraft = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...Reference.fields, ...EditFields.fields, ...DraftPrecondition.fields }),
 })
 
 export const discardWikiDraft = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...Reference.fields, ...DraftPrecondition.fields }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -294,10 +293,10 @@ export const discardWikiDraft = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...Reference.fields, ...DraftPrecondition.fields }),
 })
 
 export const moveWikiPage = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...Reference.fields, parentId: Schema.NullOr(Schema.String) }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -322,10 +321,10 @@ export const moveWikiPage = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...Reference.fields, parentId: Schema.NullOr(Schema.String) }),
 })
 
 export const verifyWikiPage = EFFRONT.ServerFn.make({
-  input: Reference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -350,10 +349,10 @@ export const verifyWikiPage = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Reference,
 })
 
 export const trashWikiPage = EFFRONT.ServerFn.make({
-  input: Reference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -378,10 +377,10 @@ export const trashWikiPage = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Reference,
 })
 
 export const restoreTrashedWikiPage = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...FunctionSelectorSchema.fields, pageId: identifier }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -406,13 +405,10 @@ export const restoreTrashedWikiPage = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...FunctionSelectorSchema.fields, pageId: identifier }),
 })
 
 export const restoreWikiRevision = EFFRONT.ServerFn.make({
-  input: Schema.Struct({
-    ...RevisionReference.fields,
-    baseRevisionId: Schema.NullOr(Schema.String),
-  }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -437,10 +433,13 @@ export const restoreWikiRevision = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({
+    ...RevisionReference.fields,
+    baseRevisionId: Schema.NullOr(Schema.String),
+  }),
 })
 
 export const deleteWikiAttachment = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...FunctionSelectorSchema.fields, attachmentId: identifier }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -465,4 +464,5 @@ export const deleteWikiAttachment = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...FunctionSelectorSchema.fields, attachmentId: identifier }),
 })

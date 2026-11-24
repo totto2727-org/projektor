@@ -2,6 +2,7 @@ import { Effect, Schema } from 'effect'
 
 import * as sprints from '#commands/sprints.ts'
 import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { SECONDS_PER_DAY } from '#contracts/time.ts'
 import { requireDataProject } from '#contracts/web-data.ts'
 import { MAX_METRICS_DAYS } from '#contracts/web-limits.ts'
 import { HeatmapSchema, MetricsSchema } from '#contracts/web-schemas/planning.ts'
@@ -25,7 +26,9 @@ export const MetricsQuerySchema = Schema.Struct({
   mode: Schema.Literals(['claims', 'contention']),
   prefix: Schema.String.check(Schema.isMaxLength(2000)),
 }).check(
-  Schema.makeFilter((query) => query.since <= query.until && query.until - query.since < MAX_METRICS_DAYS * 86_400),
+  Schema.makeFilter(
+    (query) => query.since <= query.until && query.until - query.since < MAX_METRICS_DAYS * SECONDS_PER_DAY,
+  ),
 )
 export type MetricsQuery = typeof MetricsQuerySchema.Type
 

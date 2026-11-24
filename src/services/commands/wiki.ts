@@ -18,7 +18,7 @@ import {
   WikiTreeInputSchema,
 } from '#contracts/inputs/wiki.ts'
 import type { PatchWikiPageInput } from '#contracts/inputs/wiki.ts'
-import { currentEpochSeconds } from '#contracts/time.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
 import { drizzle, schema } from '#db'
 import * as wikiData from '#services/wiki.ts'
@@ -149,7 +149,8 @@ export const RESERVED_WIKI_SLUGS: ReadonlySet<string> = new Set([
  * PROJ-865: exported so worker.ts's cron can find which workspaces have expired trash
  * with the same cutoff, without duplicating the constant.
  */
-export const WIKI_TRASH_RETENTION_SECONDS = 30 * 24 * 60 * 60
+const WIKI_TRASH_RETENTION_DAYS = 30
+export const WIKI_TRASH_RETENTION_SECONDS = WIKI_TRASH_RETENTION_DAYS * SECONDS_PER_DAY
 
 /*
  * PROJ-526: caps the deletedPageIds list written into a cascade delete's activity row —

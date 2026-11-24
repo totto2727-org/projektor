@@ -2,7 +2,7 @@ import { String, Array, Predicate } from 'effect'
 
 import type { ServiceCtx } from '#commands/types.ts'
 import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki.ts'
-import { currentEpochSeconds } from '#contracts/time.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
 import { purgeOAuthPage } from './oauth-purge.ts'
@@ -43,7 +43,7 @@ export async function runFtsDedupeOnce(env: CoreEnvironment): Promise<void> {
 
 const retentionCutoff = function retentionCutoff(raw: string | undefined, defaultDays: number): number {
   const days = Predicate.isString(raw) && raw.trim() !== '' ? Number(raw) : Number.NaN
-  return currentEpochSeconds() - (Number.isFinite(days) && days > 0 ? days : defaultDays) * 86_400
+  return currentEpochSeconds() - (Number.isFinite(days) && days > 0 ? days : defaultDays) * SECONDS_PER_DAY
 }
 
 const deleteExpiredInChunks = async function deleteExpiredInChunks(

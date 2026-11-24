@@ -29,17 +29,6 @@ const Bulk = Schema.Struct({
 })
 
 export const createFeedbackSource = EFFRONT.ServerFn.make({
-  // Previous React action state is transport protocol, not domain data.
-  input: [
-    Schema.Unknown,
-    Schema.fromFormData(
-      Schema.Struct({
-        ...FunctionSelectorSchema.fields,
-        projectId: identifier,
-        ...SourceFields.fields,
-      }),
-    ),
-  ] as const,
   handler: (_previousState, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -67,10 +56,20 @@ export const createFeedbackSource = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  // Previous React action state is transport protocol, not domain data.
+  input: [
+    Schema.Unknown,
+    Schema.fromFormData(
+      Schema.Struct({
+        ...FunctionSelectorSchema.fields,
+        projectId: identifier,
+        ...SourceFields.fields,
+      }),
+    ),
+  ] as const,
 })
 
 export const setFeedbackSourceActive = EFFRONT.ServerFn.make({
-  input: Schema.Struct({ ...SourceReference.fields, active: Schema.Boolean }),
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -93,10 +92,10 @@ export const setFeedbackSourceActive = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Schema.Struct({ ...SourceReference.fields, active: Schema.Boolean }),
 })
 
 export const rotateFeedbackSourceToken = EFFRONT.ServerFn.make({
-  input: SourceReference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -115,10 +114,10 @@ export const rotateFeedbackSourceToken = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: SourceReference,
 })
 
 export const revokeFeedbackSource = EFFRONT.ServerFn.make({
-  input: SourceReference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -137,10 +136,10 @@ export const revokeFeedbackSource = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: SourceReference,
 })
 
 export const markFeedbackReviewed = EFFRONT.ServerFn.make({
-  input: FeedbackReference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -163,10 +162,10 @@ export const markFeedbackReviewed = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: FeedbackReference,
 })
 
 export const convertFeedbackToIssue = EFFRONT.ServerFn.make({
-  input: FeedbackReference,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -185,10 +184,10 @@ export const convertFeedbackToIssue = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: FeedbackReference,
 })
 
 export const markSelectedFeedbackReviewed = EFFRONT.ServerFn.make({
-  input: Bulk,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -207,10 +206,10 @@ export const markSelectedFeedbackReviewed = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Bulk,
 })
 
 export const convertSelectedFeedbackToIssue = EFFRONT.ServerFn.make({
-  input: Bulk,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -229,4 +228,5 @@ export const convertSelectedFeedbackToIssue = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: Bulk,
 })

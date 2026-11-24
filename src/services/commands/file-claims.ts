@@ -4,7 +4,7 @@ import { flattenError } from 'zod'
 
 import { PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
 import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '#contracts/inputs/file-claims.ts'
-import { currentEpochSeconds } from '#contracts/time.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { assertIssueAccess, assertProjectAccess, visibleProjectPredicate } from './access.ts'
@@ -71,7 +71,7 @@ const liveCutoff = (): number => currentEpochSeconds() - SESSION_TTL_SECONDS
  * binding. This function is exported so ctxFromHono can reuse the same parsing/default
  * without duplicating it.
  */
-export const DEFAULT_FILE_CLAIM_TTL_SECONDS = 24 * 60 * 60
+export const DEFAULT_FILE_CLAIM_TTL_SECONDS = SECONDS_PER_DAY
 
 export const parseFileClaimTtlSeconds = function parseFileClaimTtlSeconds(raw: string | undefined): number {
   const n = Number(raw)

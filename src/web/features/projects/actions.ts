@@ -15,7 +15,6 @@ import type { ArchiveProjectInput, CreatedProject, CreateProjectInput, UpdateDes
 
 /** Creates a project for an explicitly selected, server-authorized workspace. */
 export const createProject = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(CreateProjectInputSchema)] as const,
   handler: (_previous: unknown, input: CreateProjectInput) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -48,11 +47,11 @@ export const createProject = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(CreateProjectInputSchema)] as const,
 })
 
 /** Updates the description for an explicitly selected, server-authorized project. */
 export const updateDescription = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(UpdateDescriptionInputSchema)] as const,
   handler: (_previous: unknown, input: UpdateDescriptionInput) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -86,11 +85,11 @@ export const updateDescription = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(UpdateDescriptionInputSchema)] as const,
 })
 
 /** Archives or restores an explicitly selected, server-authorized project. */
 export const archiveProject = EFFRONT.ServerFn.make({
-  input: ArchiveProjectInputSchema,
   handler: (input: ArchiveProjectInput) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -122,6 +121,7 @@ export const archiveProject = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: ArchiveProjectInputSchema,
 })
 
 export type { CreatedProject }

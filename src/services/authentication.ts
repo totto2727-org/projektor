@@ -3,7 +3,13 @@ import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } fr
 import { z } from 'zod'
 
 import { ensureUserProvisioned } from '#commands/provisioning.ts'
-import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
+import {
+  MILLISECONDS_PER_SECOND,
+  SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
+  currentEpochMilliseconds,
+  currentEpochSeconds,
+} from '#contracts/time.ts'
 import type { AuthInfo, Env } from '#types'
 
 /** Only browser verification/provisioning capabilities, never OAuth signing secrets. */
@@ -174,8 +180,8 @@ const JwksSchema = Schema.Struct({
 })
 let inMemoryCertsCache: { keys: JsonWebKey[]; expiresAt: number } | null = null
 let lastForcedRefreshAt = 0
-const CERTS_LOCAL_TTL_MS = 3600 * 1000
-const FORCE_REFRESH_COOLDOWN_MS = 60 * 1000
+const CERTS_LOCAL_TTL_MS = SECONDS_PER_HOUR * MILLISECONDS_PER_SECOND
+const FORCE_REFRESH_COOLDOWN_MS = SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
 const fetchAndCacheCfAccessKeys = async function fetchAndCacheCfAccessKeys(
   env: BrowserAuthEnvironment,
 ): Promise<JsonWebKey[]> {
@@ -236,7 +242,7 @@ async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefres
   return fetchAndCacheCfAccessKeys(env)
 }
 const inMemoryUserCache = new Map<string, { user: AuthUser; expiresAt: number }>()
-const USER_LOCAL_TTL_MS = 300 * 1000
+const USER_LOCAL_TTL_MS = 300_000
 export const resetAuthCachesForTests = function resetAuthCachesForTests(): void {
   inMemoryCertsCache = null
   inMemoryUserCache.clear()

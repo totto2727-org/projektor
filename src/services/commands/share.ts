@@ -1,6 +1,6 @@
 import { String, Predicate } from 'effect'
 
-import { currentEpochSeconds } from '#contracts/time.ts'
+import { SECONDS_PER_DAY, currentEpochSeconds } from '#contracts/time.ts'
 
 import { assertProjectAccess, usersWithProjectReadAccess } from './access.ts'
 import { NotFoundError } from './errors.ts'
@@ -34,6 +34,8 @@ const assertIssueShareable = async function assertIssueShareable(ctx: ServiceCtx
   })
 }
 
+const SHARE_LINK_LIFETIME_DAYS = 3
+
 export const createShareToken = async function createShareToken(
   ctx: ServiceCtx,
   issueId: string,
@@ -44,7 +46,7 @@ export const createShareToken = async function createShareToken(
 
   const bytes = crypto.getRandomValues(new Uint8Array(16))
   const token = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-  const expiresAt = now + 3 * 86_400
+  const expiresAt = now + SHARE_LINK_LIFETIME_DAYS * SECONDS_PER_DAY
 
   // share_tokens.id stores sha256(token), never the raw token — see PROJ-239
   const id = await hashToken(token)

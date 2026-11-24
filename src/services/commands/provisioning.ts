@@ -235,7 +235,7 @@ const provisionAdmin = async function provisionAdmin(
  * shape middleware/auth.ts already uses for Access keys and users (PROJ-354).
  */
 const inMemoryProvisionedCache = new Map<string, number>()
-const PROVISIONED_LOCAL_TTL_MS = 300 * 1000
+const PROVISIONED_LOCAL_TTL_MS = 300_000
 const PROVISIONED_KV_TTL_SECS = 300
 
 const provisionedKey = function provisionedKey(userId: string): string {

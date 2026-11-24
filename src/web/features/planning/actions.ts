@@ -45,7 +45,6 @@ const sprintInProject = function sprintInProject(
 }
 
 export const createSprint = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(Schema.toCodecStringTree(CreateSprintInputSchema))] as const,
   handler: (_previous, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -76,9 +75,9 @@ export const createSprint = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(Schema.toCodecStringTree(CreateSprintInputSchema))] as const,
 })
 export const editSprint = EFFRONT.ServerFn.make({
-  input: [Schema.Unknown, Schema.fromFormData(Schema.toCodecStringTree(EditSprintInputSchema))] as const,
   handler: (_previous, input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -107,9 +106,9 @@ export const editSprint = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: [Schema.Unknown, Schema.fromFormData(Schema.toCodecStringTree(EditSprintInputSchema))] as const,
 })
 export const setSprintStatus = EFFRONT.ServerFn.make({
-  input: SprintStatusInputSchema,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -133,9 +132,9 @@ export const setSprintStatus = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: SprintStatusInputSchema,
 })
 export const archiveSprint = EFFRONT.ServerFn.make({
-  input: SprintIdentitySchema,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -159,9 +158,9 @@ export const archiveSprint = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: SprintIdentitySchema,
 })
 export const moveSprintIssues = EFFRONT.ServerFn.make({
-  input: MoveSprintIssuesSchema,
   handler: (input) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
@@ -201,4 +200,5 @@ export const moveSprintIssues = EFFRONT.ServerFn.make({
         Effect.ensuring(services.invalidate),
       )
     }),
+  input: MoveSprintIssuesSchema,
 })
