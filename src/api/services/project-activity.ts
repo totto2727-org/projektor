@@ -7,7 +7,7 @@ import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 export const listProjectActivity = function listProjectActivity(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListProjectActivity']>
-) {
+): Promise<typeof ApiResults.apiListProjectActivity.Type> {
   return apiReply(
     ApiResults.apiListProjectActivity,
     ctx.core.apiListProjectActivity(ctx.actor, ctx.workspaceId, ...args),

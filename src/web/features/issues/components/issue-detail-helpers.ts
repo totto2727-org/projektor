@@ -9,9 +9,11 @@ import {
 } from '#contracts/time.ts'
 import type { RenderedMarkdown } from '@/components/markdown/render.ts'
 
-import type { CustomFieldValue, TaskStatus } from './board-utils.ts'
+export { formatBytes } from '@/lib/file-size.ts'
 
-export type { CustomFieldValue, TaskStatus }
+import type { CustomFieldValue } from './board-utils.ts'
+
+export type { CustomFieldValue, TaskStatus } from './board-utils.ts'
 
 export interface IssueLink {
   id: string
@@ -130,14 +132,4 @@ export const relativeTime = function relativeTime(unixSeconds: number): string {
     return `${Math.floor(diff / SECONDS_PER_DAY)}d ago`
   }
   return formatDate(unixSeconds)
-}
-
-export const formatBytes = function formatBytes(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }

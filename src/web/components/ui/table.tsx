@@ -56,4 +56,4 @@ export const TableCell = function TableCell({
     />
   )
 }
-export { TableHeaderCell as TableHeader }
+export const TableHeader = TableHeaderCell

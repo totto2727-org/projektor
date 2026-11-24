@@ -7,18 +7,18 @@ import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 export const claimFiles = function claimFiles(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiClaimFiles']>
-) {
+): Promise<typeof ApiResults.apiClaimFiles.Type> {
   return apiReply(ApiResults.apiClaimFiles, ctx.core.apiClaimFiles(ctx.actor, ctx.workspaceId, ...args))
 }
 export const releaseFiles = function releaseFiles(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiReleaseFiles']>
-) {
+): Promise<typeof ApiResults.apiReleaseFiles.Type> {
   return apiReply(ApiResults.apiReleaseFiles, ctx.core.apiReleaseFiles(ctx.actor, ctx.workspaceId, ...args))
 }
 export const listFileClaims = function listFileClaims(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListFileClaims']>
-) {
+): Promise<typeof ApiResults.apiListFileClaims.Type> {
   return apiReply(ApiResults.apiListFileClaims, ctx.core.apiListFileClaims(ctx.actor, ctx.workspaceId, ...args))
 }

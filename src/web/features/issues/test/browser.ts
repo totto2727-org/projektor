@@ -1,6 +1,8 @@
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, vi } from 'vite-plus/test'
 
+import { ISSUE_BOARD_WIDE_MIN_WIDTH } from '../components/board-utils.ts'
+
 vi.mock('../../../attachment-actions', () => ({
   uploadAttachment: vi.fn(),
   uploadInlineImage: vi.fn(),
@@ -37,7 +39,9 @@ beforeEach(() => {
     configurable: true,
     writable: true,
     value: (query: string) => ({
-      matches: query.includes('max-width') ? window.innerWidth < 640 : window.innerWidth >= 640,
+      matches: query.includes('max-width')
+        ? window.innerWidth < ISSUE_BOARD_WIDE_MIN_WIDTH
+        : window.innerWidth >= ISSUE_BOARD_WIDE_MIN_WIDTH,
       media: query,
       onchange: null,
       addListener: vi.fn(),

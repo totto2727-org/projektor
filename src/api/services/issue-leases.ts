@@ -7,18 +7,18 @@ import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 export const claimIssue = function claimIssue(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiClaimIssue']>
-) {
+): Promise<typeof ApiResults.apiClaimIssue.Type> {
   return apiReply(ApiResults.apiClaimIssue, ctx.core.apiClaimIssue(ctx.actor, ctx.workspaceId, ...args))
 }
 export const releaseIssue = function releaseIssue(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiReleaseIssue']>
-) {
+): Promise<typeof ApiResults.apiReleaseIssue.Type> {
   return apiReply(ApiResults.apiReleaseIssue, ctx.core.apiReleaseIssue(ctx.actor, ctx.workspaceId, ...args))
 }
 export const listIssueLeases = function listIssueLeases(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListIssueLeases']>
-) {
+): Promise<typeof ApiResults.apiListIssueLeases.Type> {
   return apiReply(ApiResults.apiListIssueLeases, ctx.core.apiListIssueLeases(ctx.actor, ctx.workspaceId, ...args))
 }

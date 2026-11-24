@@ -7,7 +7,7 @@ import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 export const createShareToken = function createShareToken(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiCreateShareToken']>
-) {
+): Promise<typeof ApiResults.apiCreateShareToken.Type> {
   return apiReply(ApiResults.apiCreateShareToken, ctx.core.apiCreateShareToken(ctx.actor, ctx.workspaceId, ...args))
 }
 export const revokeShareToken = function revokeShareToken(

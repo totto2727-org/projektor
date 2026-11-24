@@ -11,7 +11,13 @@ import type {
   TaskType,
 } from '@/features/issues/components/issue-detail-helpers.ts'
 export type Issue = IssueData & ListIssue
-export type { Attachment, Comment, IssueLink, Member, TaskType }
+export type {
+  Attachment,
+  Comment,
+  IssueLink,
+  Member,
+  TaskType,
+} from '@/features/issues/components/issue-detail-helpers.ts'
 export type { TaskStatus as Status } from '@/features/issues/components/board-utils.ts'
 export interface IssuePage {
   items: Issue[]

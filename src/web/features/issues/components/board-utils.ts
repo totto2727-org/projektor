@@ -2,6 +2,8 @@ import { String, Array, Predicate } from 'effect'
 
 import type { ReviewTarget } from '#contracts/review-targets.ts'
 
+export const ISSUE_BOARD_WIDE_MIN_WIDTH = 640
+
 export interface TaskStatus {
   id: string
   key: string

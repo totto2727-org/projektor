@@ -6,6 +6,6 @@ import { decodeCoreReply } from 'projektor/core-client'
 export const apiReply = function apiReply<S extends Schema.Top & { readonly DecodingServices: never }, E>(
   schema: S,
   invocation: Effect.Effect<string, E>,
-) {
+): Promise<S['Type']> {
   return Effect.runPromise(decodeCoreReply(schema, invocation))
 }

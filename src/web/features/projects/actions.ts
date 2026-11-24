@@ -124,4 +124,4 @@ export const archiveProject = EFFRONT.ServerFn.make({
   input: ArchiveProjectInputSchema,
 })
 
-export type { CreatedProject }
+export type { CreatedProject } from './schemas.ts'

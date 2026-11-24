@@ -7,24 +7,24 @@ import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 export const listTaskStatuses = function listTaskStatuses(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListTaskStatuses']>
-) {
+): Promise<typeof ApiResults.apiListTaskStatuses.Type> {
   return apiReply(ApiResults.apiListTaskStatuses, ctx.core.apiListTaskStatuses(ctx.actor, ctx.workspaceId, ...args))
 }
 export const createTaskStatus = function createTaskStatus(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiCreateTaskStatus']>
-) {
+): Promise<typeof ApiResults.apiCreateTaskStatus.Type> {
   return apiReply(ApiResults.apiCreateTaskStatus, ctx.core.apiCreateTaskStatus(ctx.actor, ctx.workspaceId, ...args))
 }
 export const updateTaskStatus = function updateTaskStatus(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiUpdateTaskStatus']>
-) {
+): Promise<typeof ApiResults.apiUpdateTaskStatus.Type> {
   return apiReply(ApiResults.apiUpdateTaskStatus, ctx.core.apiUpdateTaskStatus(ctx.actor, ctx.workspaceId, ...args))
 }
 export const deleteTaskStatus = function deleteTaskStatus(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiDeleteTaskStatus']>
-) {
+): Promise<typeof ApiResults.apiDeleteTaskStatus.Type> {
   return apiReply(ApiResults.apiDeleteTaskStatus, ctx.core.apiDeleteTaskStatus(ctx.actor, ctx.workspaceId, ...args))
 }

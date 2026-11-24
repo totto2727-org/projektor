@@ -14,9 +14,9 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { HTTP_CREATED } from '#contracts/http-status.ts'
 import type { HonoEnv } from '#types'
 
-const router = new Hono<HonoEnv>()
+export const feedbackSourcesRouter = new Hono<HonoEnv>()
 
-router.post('/:id/feedback-sources', async (httpContext) => {
+feedbackSourcesRouter.post('/:id/feedback-sources', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   const raw = await jsonBody(httpContext)
@@ -27,7 +27,7 @@ router.post('/:id/feedback-sources', async (httpContext) => {
   }
 })
 
-router.get('/:id/feedback-sources', async (httpContext) => {
+feedbackSourcesRouter.get('/:id/feedback-sources', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   try {
@@ -37,7 +37,7 @@ router.get('/:id/feedback-sources', async (httpContext) => {
   }
 })
 
-router.patch('/:id/feedback-sources/:sourceId', async (httpContext) => {
+feedbackSourcesRouter.patch('/:id/feedback-sources/:sourceId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   const sourceId = httpContext.req.param('sourceId')
@@ -49,7 +49,7 @@ router.patch('/:id/feedback-sources/:sourceId', async (httpContext) => {
   }
 })
 
-router.post('/:id/feedback-sources/:sourceId/rotate', async (httpContext) => {
+feedbackSourcesRouter.post('/:id/feedback-sources/:sourceId/rotate', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   const sourceId = httpContext.req.param('sourceId')
@@ -60,7 +60,7 @@ router.post('/:id/feedback-sources/:sourceId/rotate', async (httpContext) => {
   }
 })
 
-router.delete('/:id/feedback-sources/:sourceId', async (httpContext) => {
+feedbackSourcesRouter.delete('/:id/feedback-sources/:sourceId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const projectId = httpContext.req.param('id')
   const sourceId = httpContext.req.param('sourceId')
@@ -71,9 +71,9 @@ router.delete('/:id/feedback-sources/:sourceId', async (httpContext) => {
   }
 })
 
-const lookupRouter = new Hono<HonoEnv>()
+export const feedbackSourceLookupRouter = new Hono<HonoEnv>()
 
-lookupRouter.get('/:sourceId', async (httpContext) => {
+feedbackSourceLookupRouter.get('/:sourceId', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   const sourceId = httpContext.req.param('sourceId')
   try {
@@ -82,5 +82,3 @@ lookupRouter.get('/:sourceId', async (httpContext) => {
     return serviceErrToResponse(httpContext, caughtError)
   }
 })
-
-export { lookupRouter as feedbackSourceLookupRouter, router as feedbackSourcesRouter }

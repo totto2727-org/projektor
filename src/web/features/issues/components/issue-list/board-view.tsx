@@ -9,6 +9,7 @@ import {
   categoryColor,
   getBoardColumnIssues,
   getFirstStatusForCategory,
+  ISSUE_BOARD_WIDE_MIN_WIDTH,
 } from '@/features/issues/components/board-utils.ts'
 import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
 import { ReviewTargetsSummary } from '@/features/issues/components/review-targets-summary.tsx'
@@ -46,7 +47,7 @@ const BoardCard = function BoardCard({
         className='block no-underline'
         draggable
         onDragStart={(event: import('react').DragEvent<HTMLElement>) => {
-          if (window.innerWidth < 640) {
+          if (window.innerWidth < ISSUE_BOARD_WIDE_MIN_WIDTH) {
             event.preventDefault()
             return
           }
@@ -138,7 +139,7 @@ export default function BoardView({
                 issueId &&
                 Predicate.isNotNullish(dropStatusId) &&
                 String.isNonEmpty(dropStatusId) &&
-                window.innerWidth >= 640
+                window.innerWidth >= ISSUE_BOARD_WIDE_MIN_WIDTH
               ) {
                 changeStatus(issueId, dropStatusId)
               }

@@ -7,7 +7,7 @@ import type { JSX } from 'react'
 import type { RequestScope } from '@/server/request-context.ts'
 import { scopedHref } from '@/urls.ts'
 
-export { scopedHref }
+export { scopedHref } from '@/urls.ts'
 
 export interface ProjectNavProps {
   scope: RequestScope

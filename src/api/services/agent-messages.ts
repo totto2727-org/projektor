@@ -7,12 +7,12 @@ import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 export const postMessage = function postMessage(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiPostMessage']>
-) {
+): Promise<typeof ApiResults.apiPostMessage.Type> {
   return apiReply(ApiResults.apiPostMessage, ctx.core.apiPostMessage(ctx.actor, ctx.workspaceId, ...args))
 }
 export const listMessages = function listMessages(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListMessages']>
-) {
+): Promise<typeof ApiResults.apiListMessages.Type> {
   return apiReply(ApiResults.apiListMessages, ctx.core.apiListMessages(ctx.actor, ctx.workspaceId, ...args))
 }

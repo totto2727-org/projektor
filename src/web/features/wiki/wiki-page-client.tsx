@@ -29,6 +29,7 @@ import { Popover } from '@/components/ui/popover.tsx'
 import Select from '@/components/ui/select.tsx'
 import type { SelectOption } from '@/components/ui/select.tsx'
 import { formatTimestamp, formatTimestampDate } from '@/features/timestamp.ts'
+import { formatBytes } from '@/lib/file-size.ts'
 
 import {
   createWikiPage,
@@ -531,16 +532,6 @@ export interface ServerDraft {
   updatedAt: number
   // PROJ-797 (client-only): the page was saved by someone since this draft started.
   pageChangedSince?: boolean
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 /*
