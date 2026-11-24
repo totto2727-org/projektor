@@ -19,7 +19,7 @@ export type BrandConfig = Schema.Schema.Type<typeof DeploymentBrand>
 export const defaultBrand: BrandConfig = { name: 'Projektor', mark: 'P', accent: null, onAccent: null, logoUrl: null }
 type BrandEnvironment = Pick<Env, 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>
 
-export function deploymentBrand(env: BrandEnvironment): BrandConfig {
+export const deploymentBrand = function deploymentBrand(env: BrandEnvironment): BrandConfig {
   const name = env.BRAND_NAME?.trim() || defaultBrand.name
   return {
     name,
@@ -33,7 +33,11 @@ export function deploymentBrand(env: BrandEnvironment): BrandConfig {
 }
 
 /** Cosmetic failures do not turn otherwise valid project data into an error page. */
-export function loadBrand(env: Env, scope: RequestScope | null, request?: Request): Effect.Effect<BrandConfig> {
+export const loadBrand = function loadBrand(
+  env: Env,
+  scope: RequestScope | null,
+  request?: Request,
+): Effect.Effect<BrandConfig> {
   const brand = deploymentBrand(env)
   if (scope?.selection.kind !== 'workspace' && scope?.selection.kind !== 'project') {
     return Effect.succeed(brand)
@@ -64,7 +68,7 @@ export function loadBrand(env: Env, scope: RequestScope | null, request?: Reques
 }
 
 /** Emit preferences before paint without a client-side, cross-workspace brand cache. */
-export function brandStyles(brand: BrandConfig): CSSProperties {
+export const brandStyles = function brandStyles(brand: BrandConfig): CSSProperties {
   const styles: CSSProperties & Record<string, string> = {}
   if (brand.accent) {
     styles['--light-accent'] = brand.accent

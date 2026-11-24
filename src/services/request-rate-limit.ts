@@ -21,7 +21,7 @@ export type RequestRateLimitEnv = Pick<
  * supply the same RATE_LIMITER namespace, not a worker-specific counter namespace.
  * Defaults: 300 IP-keyed requests, 600 bearer-keyed requests, per 60-second window.
  */
-export async function checkRateLimit(
+export const checkRateLimit = async function checkRateLimit(
   request: Request,
   env: RequestRateLimitEnv,
 ): Promise<{ retryAfter: number } | undefined> {
@@ -50,8 +50,8 @@ export async function checkRateLimit(
   let slot: number
   try {
     ;({ count, slot } = await incrementCounter(env, key, windowSecs, now))
-  } catch (err) {
-    console.error('rate-limit counter unavailable, failing open', { key, err: String(err) })
+  } catch (error) {
+    console.error('rate-limit counter unavailable, failing open', { key, err: String(error) })
     return undefined
   }
 
@@ -75,7 +75,11 @@ function oauthGrantKey(token: string): string | null {
 }
 
 /** Auth-failure throttling reuses the same counter backend and window math. */
-export async function bumpRateCounter(env: RequestRateLimitEnv, key: string, windowSecs: number): Promise<number> {
+export const bumpRateCounter = async function bumpRateCounter(
+  env: RequestRateLimitEnv,
+  key: string,
+  windowSecs: number,
+): Promise<number> {
   const { count } = await incrementCounter(env, key, windowSecs, Math.floor(Date.now() / 1000))
   return count
 }

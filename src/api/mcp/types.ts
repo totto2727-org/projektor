@@ -6,4 +6,4 @@ export interface MCPTool extends Omit<DomainMcpTool, 'handler'> {
   handler: (input: unknown, ctx: ApiServiceCtx) => Promise<unknown>
 }
 
-export type PluginContext = ApiServiceCtx
+export type { ApiServiceCtx as PluginContext } from '#api/services/types.ts'

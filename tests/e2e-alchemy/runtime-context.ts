@@ -1,6 +1,6 @@
 import * as RuntimeServices from '@alchemy.run/cloudflare-runtime/core/RuntimeServices'
 import * as Credentials from '@distilled.cloud/cloudflare/Credentials'
-import * as NodeServices from '@effect/platform-node/NodeServices'
+import { NodeServices } from '@effect/platform-node'
 import { Effect, Exit, Layer, Scope } from 'effect'
 import { FetchHttpClient, HttpClient } from 'effect/http'
 import type { Plugin } from 'vite-plus'
@@ -8,7 +8,7 @@ import type { Plugin } from 'vite-plus'
 import { makeInlineApiLayer } from './inline-api.ts'
 
 /** Only preview allocates runtime services. A build must remain offline and exit. */
-export async function makePreviewContext(isPreview: boolean | undefined) {
+export const makePreviewContext = async function makePreviewContext(isPreview: boolean | undefined) {
   if (!isPreview) {
     return undefined
   }

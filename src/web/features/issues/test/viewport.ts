@@ -11,7 +11,7 @@ import { afterEach } from 'vite-plus/test'
 export const MOBILE_WIDTH = 375
 export const DESKTOP_WIDTH = 1024
 
-export function setViewportWidth(width: number): void {
+export const setViewportWidth = function setViewportWidth(width: number): void {
   Object.defineProperty(window, 'innerWidth', {
     writable: true,
     configurable: true,

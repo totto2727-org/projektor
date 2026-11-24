@@ -1,5 +1,5 @@
 'use server'
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 
 import { ReviewStatusSchema } from '#contracts/review-targets.ts'
 import { EFFRONT } from '@/effront.ts'
@@ -169,24 +169,27 @@ export const readIssuePage = EFFRONT.ServerFn.make({
       if (ctx.projectId) {
         params.set('project', ctx.projectId)
       }
-      for (const name of [
-        'statusIds',
-        'priorities',
-        'typeId',
-        'parentId',
-        'noParent',
-        'excludeTypeIds',
-        'sprintId',
-        'completedAfter',
-        'completedBefore',
-        'updatedAfter',
-        'updatedBefore',
-        'cursor',
-      ] as const) {
-        if (input[name]) {
-          params.set(name, input[name])
-        }
-      }
+      Iterable.forEach(
+        [
+          'statusIds',
+          'priorities',
+          'typeId',
+          'parentId',
+          'noParent',
+          'excludeTypeIds',
+          'sprintId',
+          'completedAfter',
+          'completedBefore',
+          'updatedAfter',
+          'updatedBefore',
+          'cursor',
+        ] as const,
+        (name) => {
+          if (input[name]) {
+            params.set(name, input[name])
+          }
+        },
+      )
       params.set('limit', String(input.limit ?? 30))
       if (input.includeRollups) {
         params.set('includeRollups', '1')

@@ -4,19 +4,19 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@te
 import { describe, expect, test, vi } from 'vite-plus/test'
 
 import { createIssue, readIssuePage, searchIssues, updateIssue } from './actions.ts'
-import { IssueBulkProvider, IssueSelectionControl } from './components/issue-list/BulkActions.tsx'
-import { useSavedViews } from './components/issue-list/useSavedViews.ts'
+import { IssueBulkProvider, IssueSelectionControl } from './components/issue-list/bulk-actions.tsx'
+import { useSavedViews } from './components/issue-list/use-saved-views.ts'
 import type { SavedViewFilters } from './components/saved-views.ts'
 import { comment, issue, project, scope, secondProject, statuses, taskTypes, workspace } from './test/fixtures.ts'
 import { useUnsavedUnloadGuard } from './utils/use-unsaved-unload-guard.ts'
-import { EpicsPage } from './views/EpicsPage.tsx'
-import type { EpicsInitialData } from './views/EpicsPage.tsx'
-import { IssueDetailPage } from './views/IssueDetailPage.tsx'
-import type { IssueDetailInitialData } from './views/IssueDetailPage.tsx'
-import { IssuesPage } from './views/IssuesPage.tsx'
-import type { IssuesInitialData } from './views/IssuesPage.tsx'
+import { EpicsPage } from './views/epics-page.tsx'
+import type { EpicsInitialData } from './views/epics-page.tsx'
+import { IssueDetailPage } from './views/issue-detail-page.tsx'
+import type { IssueDetailInitialData } from './views/issue-detail-page.tsx'
+import { IssuesPage } from './views/issues-page.tsx'
+import type { IssuesInitialData } from './views/issues-page.tsx'
 
-vi.mock('./components/LazyMarkdownEditor', () => ({
+vi.mock('./components/lazy-markdown-editor.tsx', () => ({
   default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
     <textarea aria-label='Markdown editor' value={value} onChange={(event) => onChange(event.currentTarget.value)} />
   ),

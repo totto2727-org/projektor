@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 
@@ -87,7 +87,7 @@ const scopeConditions = function scopeConditions(workspaceId: string, opts: Wiki
   return conditions
 }
 
-export function listWikiPages(db: D1Database, workspaceId: string, opts: WikiListOptions = {}) {
+export const listWikiPages = function listWikiPages(db: D1Database, workspaceId: string, opts: WikiListOptions = {}) {
   return queryEffect('listWikiPages', () => {
     const conditions = scopeConditions(workspaceId, opts)
     if (opts.parentId) {
@@ -118,7 +118,11 @@ export function listWikiPages(db: D1Database, workspaceId: string, opts: WikiLis
   })
 }
 
-export function listWikiTreeRows(db: D1Database, workspaceId: string, opts: WikiScopeOptions = {}) {
+export const listWikiTreeRows = function listWikiTreeRows(
+  db: D1Database,
+  workspaceId: string,
+  opts: WikiScopeOptions = {},
+) {
   return queryEffect('listWikiTreeRows', () =>
     drizzle(db, { schema })
       .select({
@@ -136,7 +140,7 @@ export function listWikiTreeRows(db: D1Database, workspaceId: string, opts: Wiki
 }
 
 /** Live id wins over a colliding slug, then single-hop historical-slug fallback. */
-export function findWikiPage(db: D1Database, workspaceId: string, idOrSlug: string) {
+export const findWikiPage = function findWikiPage(db: D1Database, workspaceId: string, idOrSlug: string) {
   return queryEffect('findWikiPage', async () => {
     const orm = drizzle(db, { schema })
     const direct = await orm
@@ -177,7 +181,11 @@ export function findWikiPage(db: D1Database, workspaceId: string, idOrSlug: stri
   })
 }
 
-export function listWikiTemplates(db: D1Database, workspaceId: string, opts: WikiScopeOptions = {}) {
+export const listWikiTemplates = function listWikiTemplates(
+  db: D1Database,
+  workspaceId: string,
+  opts: WikiScopeOptions = {},
+) {
   return queryEffect('listWikiTemplates', () =>
     drizzle(db, { schema })
       .select({
@@ -193,7 +201,7 @@ export function listWikiTemplates(db: D1Database, workspaceId: string, opts: Wik
   )
 }
 
-export function listWikiTrash(db: D1Database, workspaceId: string, opts: WikiPageOptions) {
+export const listWikiTrash = function listWikiTrash(db: D1Database, workspaceId: string, opts: WikiPageOptions) {
   return queryEffect('listWikiTrash', () =>
     drizzle(db, { schema })
       .select({
@@ -212,7 +220,11 @@ export function listWikiTrash(db: D1Database, workspaceId: string, opts: WikiPag
   )
 }
 
-export function listStaleWikiPages(db: D1Database, workspaceId: string, opts: WikiPageOptions & { now: number }) {
+export const listStaleWikiPages = function listStaleWikiPages(
+  db: D1Database,
+  workspaceId: string,
+  opts: WikiPageOptions & { now: number },
+) {
   return queryEffect('listStaleWikiPages', () =>
     drizzle(db, { schema })
       .select({
@@ -255,7 +267,7 @@ const revisionScope = function revisionScope(workspaceId: string, pageId: string
     sql`EXISTS (SELECT 1 FROM wiki_pages WHERE wiki_pages.id = ${schema.wikiRevisions.pageId} AND wiki_pages.workspace_id = ${workspaceId})`,
   )
 }
-export function listWikiRevisions(db: D1Database, workspaceId: string, pageId: string) {
+export const listWikiRevisions = function listWikiRevisions(db: D1Database, workspaceId: string, pageId: string) {
   return queryEffect('listWikiRevisions', () =>
     drizzle(db, { schema })
       .select({ ...revisionColumns, author_name: schema.users.name })
@@ -265,7 +277,12 @@ export function listWikiRevisions(db: D1Database, workspaceId: string, pageId: s
       .orderBy(desc(schema.wikiRevisions.createdAt), desc(sql`wiki_revisions.rowid`)),
   )
 }
-export function getWikiRevision(db: D1Database, workspaceId: string, pageId: string, revisionId: string) {
+export const getWikiRevision = function getWikiRevision(
+  db: D1Database,
+  workspaceId: string,
+  pageId: string,
+  revisionId: string,
+) {
   return queryEffect('getWikiRevision', () =>
     drizzle(db, { schema })
       .select({ ...revisionColumns, content: schema.wikiRevisions.content })
@@ -274,7 +291,11 @@ export function getWikiRevision(db: D1Database, workspaceId: string, pageId: str
       .get(),
   )
 }
-export function getLatestWikiRevisionId(db: D1Database, workspaceId: string, pageId: string) {
+export const getLatestWikiRevisionId = function getLatestWikiRevisionId(
+  db: D1Database,
+  workspaceId: string,
+  pageId: string,
+) {
   return queryEffect('getLatestWikiRevisionId', async () => {
     const row = await drizzle(db, { schema })
       .select({ id: schema.wikiRevisions.id })
@@ -301,7 +322,12 @@ const decodeJsonArrayColumn = function decodeJsonArrayColumn(value: unknown): st
   }
 }
 /** FTS sanitization and permission decisions belong to the app. */
-export function searchWiki(db: D1Database, workspaceId: string, ftsQuery: string, opts: WikiSearchOptions) {
+export const searchWiki = function searchWiki(
+  db: D1Database,
+  workspaceId: string,
+  ftsQuery: string,
+  opts: WikiSearchOptions,
+) {
   return queryEffect('searchWiki', async () => {
     if (!ftsQuery) {
       return []
@@ -349,7 +375,7 @@ export function searchWiki(db: D1Database, workspaceId: string, ftsQuery: string
   })
 }
 
-export function getWikiDraft(db: D1Database, workspaceId: string, pageId: string, userId: string) {
+export const getWikiDraft = function getWikiDraft(db: D1Database, workspaceId: string, pageId: string, userId: string) {
   return queryEffect('getWikiDraft', async () => {
     const row = await drizzle(db, { schema })
       .select({
@@ -432,7 +458,7 @@ const computeLineDiff = function computeLineDiff(oldLines: Readonly<string[]>, n
   return traceLcsDiffOps(oldLines, newLines, buildLcsTable(oldLines, newLines))
 }
 
-export function buildUnifiedDiff(baseContent: string, currentContent: string): string {
+export const buildUnifiedDiff = function buildUnifiedDiff(baseContent: string, currentContent: string): string {
   if (baseContent === currentContent) {
     return ''
   }
@@ -450,7 +476,7 @@ export function buildUnifiedDiff(baseContent: string, currentContent: string): s
   const groups: [number, number][] = []
   let groupStart = changeIdxs[0]
   let groupEnd = changeIdxs[0]
-  for (const idx of changeIdxs.slice(1)) {
+  Iterable.forEach(changeIdxs.slice(1), (idx) => {
     if (idx - groupEnd <= CONTEXT * 2) {
       groupEnd = idx
     } else {
@@ -458,10 +484,10 @@ export function buildUnifiedDiff(baseContent: string, currentContent: string): s
       groupStart = idx
       groupEnd = idx
     }
-  }
+  })
   groups.push([groupStart, groupEnd])
   const hunks: string[] = []
-  for (const [gStart, gEnd] of groups) {
+  Iterable.forEach(groups, ([gStart, gEnd]) => {
     const sliceStart = Math.max(0, gStart - CONTEXT)
     const sliceEnd = Math.min(ops.length - 1, gEnd + CONTEXT)
     const slice = ops.slice(sliceStart, sliceEnd + 1)
@@ -479,6 +505,6 @@ export function buildUnifiedDiff(baseContent: string, currentContent: string): s
     const newCount = slice.filter((op) => op.type !== 'remove').length
     const lines = slice.map((op) => `${op.type === 'add' ? '+' : op.type === 'remove' ? '-' : ' '}${op.line}`)
     hunks.push(`@@ -${oldStart},${oldCount} +${newStart},${newCount} @@\n${lines.join('\n')}`)
-  }
+  })
   return `--- base\n+++ current\n${hunks.join('\n')}`
 }

@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { ApiUserBootstrap } from '#contracts/api-auth.ts'
@@ -16,9 +16,9 @@ import { makeApiPublicHandlers } from './public-operations.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
   resetAuthCachesForTests()
 })
 

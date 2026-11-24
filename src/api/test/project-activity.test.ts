@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -391,11 +391,11 @@ describe('list_project_activity MCP tool', () => {
     )) as JsonRpcResult<McpContent>
     const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Record<string, unknown>[]
 
-    for (const event of events) {
-      for (const val of Object.values(event)) {
+    Iterable.forEach(events, (event) => {
+      Iterable.forEach(Object.values(event), (val) => {
         expect(typeof val === 'object' && Predicate.isNotNullish(val) && !Array.isArray(val)).toBe(false)
-      }
-    }
+      })
+    })
   })
 })
 

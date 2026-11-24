@@ -18,7 +18,7 @@ export {
   requireDataWorkspace,
 } from '#contracts/web-data.ts'
 
-export function projectSummaryVisibility(userId: string): ProjectSummaryVisibility {
+export const projectSummaryVisibility = function projectSummaryVisibility(userId: string): ProjectSummaryVisibility {
   return {
     sql: `wm.role IN ('owner','admin') OR EXISTS (
       SELECT 1 FROM user_group_members ugm
@@ -28,14 +28,14 @@ export function projectSummaryVisibility(userId: string): ProjectSummaryVisibili
   }
 }
 
-export function requireDataDatabase(db: D1Database): D1Database {
+export const requireDataDatabase = function requireDataDatabase(db: D1Database): D1Database {
   if (!db || !Predicate.isFunction(db.prepare)) {
     throw new ApiError('configuration', 500, 'The application database is not configured.')
   }
   return db
 }
 
-export function visibleProjectPredicate(
+export const visibleProjectPredicate = function visibleProjectPredicate(
   scope: RequestScope,
   workspaceId: string,
   projectColumn: Column | SQL,
@@ -51,7 +51,11 @@ export function visibleProjectPredicate(
   )`
 }
 
-export function makeDataContext(services: { readonly db: D1Database }, scope: RequestScope, workspaceId?: string) {
+export const makeDataContext = function makeDataContext(
+  services: { readonly db: D1Database },
+  scope: RequestScope,
+  workspaceId?: string,
+) {
   const workspace = requireDataWorkspace(scope, workspaceId)
   return {
     db: requireDataDatabase(services.db),

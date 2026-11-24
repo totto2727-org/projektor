@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -87,9 +88,9 @@ describe('compose_playbook', () => {
      * Every quoted line starts with "> " and there's no run-on "clause>clause"
      * artifact from a malformed line-join
      */
-    for (const line of body.directive.split('\n')) {
+    Iterable.forEach(body.directive.split('\n'), (line) => {
       expect(line === '>' || line.startsWith('> ')).toBe(true)
-    }
+    })
     expect(body.directive).not.toMatch(/[^\n]>\s*$/m)
   })
 

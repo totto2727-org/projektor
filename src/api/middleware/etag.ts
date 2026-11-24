@@ -24,7 +24,7 @@ import type { HonoEnv } from '#types'
  */
 const CACHE_CONTROL = 'private, no-cache'
 
-export async function etagMiddleware(httpContext: Context<HonoEnv>, next: Next): Promise<void> {
+export const etagMiddleware = async function etagMiddleware(httpContext: Context<HonoEnv>, next: Next): Promise<void> {
   await next()
 
   /*

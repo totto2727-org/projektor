@@ -27,7 +27,7 @@ export interface FunctionOptions {
 }
 
 /** Resolve only authentication and selection, including independently callable queries. */
-export function resolveFunctionContext(
+export const resolveFunctionContext = function resolveFunctionContext(
   selector: FunctionSelector,
   options: FunctionOptions = {},
 ): Effect.Effect<FunctionContext, ApiError | ScopeError, RequestServices> {

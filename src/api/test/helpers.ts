@@ -9,14 +9,14 @@ export type JsonRpcError = {
   error: { code: number; message: string; data?: unknown }
 }
 
-export async function hashToken(token: string): Promise<string> {
+export const hashToken = async function hashToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
   return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
 }
 
-export async function seedWorkspace(slug = `test-ws-${crypto.randomUUID().slice(0, 8)}`) {
+export const seedWorkspace = async function seedWorkspace(slug = `test-ws-${crypto.randomUUID().slice(0, 8)}`) {
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
   await env.DB.prepare('INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)')
@@ -25,7 +25,7 @@ export async function seedWorkspace(slug = `test-ws-${crypto.randomUUID().slice(
   return { id, slug }
 }
 
-export async function seedUser(email = 'user@example.com') {
+export const seedUser = async function seedUser(email = 'user@example.com') {
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
   await env.DB.prepare('INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)')
@@ -34,14 +34,18 @@ export async function seedUser(email = 'user@example.com') {
   return { id, email }
 }
 
-export async function seedMember(workspaceId: string, userId: string, role = 'member'): Promise<void> {
+export const seedMember = async function seedMember(
+  workspaceId: string,
+  userId: string,
+  role = 'member',
+): Promise<void> {
   const now = Math.floor(Date.now() / 1000)
   await env.DB.prepare('INSERT INTO workspace_members (workspace_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)')
     .bind(workspaceId, userId, role, now)
     .run()
 }
 
-export async function seedToken(
+export const seedToken = async function seedToken(
   workspaceId: string,
   userId: string,
   opts?: Readonly<{ scopes?: string[]; expiresAt?: number }>,
@@ -68,7 +72,7 @@ export async function seedToken(
 }
 
 /** Seed a user-scoped token (NULL workspace_id — valid across all the user's workspaces). */
-export async function seedUserToken(
+export const seedUserToken = async function seedUserToken(
   userId: string,
   opts?: Readonly<{ scopes?: string[]; expiresAt?: number }>,
 ): Promise<string> {
@@ -93,7 +97,7 @@ export async function seedUserToken(
   return raw
 }
 
-export async function seedProject(workspaceId: string, key = 'PROJ') {
+export const seedProject = async function seedProject(workspaceId: string, key = 'PROJ') {
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
   await env.DB.prepare(
@@ -109,7 +113,7 @@ export async function seedProject(workspaceId: string, key = 'PROJ') {
  * holds a (project, role) grant. Mirrors what an admin does through the groups UI;
  * used to give non-admin fixtures visibility now that access is default-deny.
  */
-export async function seedGroupGrant(
+export const seedGroupGrant = async function seedGroupGrant(
   workspaceId: string,
   userId: string,
   projectId: string,
@@ -132,7 +136,7 @@ export async function seedGroupGrant(
 }
 
 /** Returns headers needed for every authenticated request */
-export function authHeaders(token: string, slug: string) {
+export const authHeaders = function authHeaders(token: string, slug: string) {
   return {
     Authorization: `Bearer ${token}`,
     'X-Workspace-Slug': slug,
@@ -140,7 +144,7 @@ export function authHeaders(token: string, slug: string) {
   }
 }
 
-export async function seedComment(
+export const seedComment = async function seedComment(
   issueId: string,
   authorId: string,
   body = 'Test comment',
@@ -157,7 +161,7 @@ export async function seedComment(
   return { id, body }
 }
 
-export async function seedTaskType(
+export const seedTaskType = async function seedTaskType(
   workspaceId: string,
   opts?: Readonly<{
     id?: string
@@ -178,7 +182,7 @@ export async function seedTaskType(
   return { id, key, name: opts?.name ?? key }
 }
 
-export async function seedTaskStatus(
+export const seedTaskStatus = async function seedTaskStatus(
   workspaceId: string,
   opts?: Readonly<{
     key?: string
@@ -209,7 +213,7 @@ export async function seedTaskStatus(
   return { id, key, name: opts?.name ?? key }
 }
 
-export async function seedIssue(
+export const seedIssue = async function seedIssue(
   workspaceId: string,
   projectId: string,
   createdById: string,
@@ -258,7 +262,7 @@ export async function seedIssue(
   return { id, number: row!.number, createdAt: now }
 }
 
-export async function seedCustomFieldDef(
+export const seedCustomFieldDef = async function seedCustomFieldDef(
   workspaceId: string,
   opts: Readonly<{
     key: string
@@ -288,7 +292,11 @@ export async function seedCustomFieldDef(
   return { id, key: opts.key }
 }
 
-export async function seedCustomFieldValue(issueId: string, fieldId: string, value: string): Promise<void> {
+export const seedCustomFieldValue = async function seedCustomFieldValue(
+  issueId: string,
+  fieldId: string,
+  value: string,
+): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO custom_field_values (issue_id, field_id, value) VALUES (?, ?, ?)
      ON CONFLICT(issue_id, field_id) DO UPDATE SET value = excluded.value`,
@@ -303,7 +311,7 @@ export async function seedCustomFieldValue(issueId: string, fieldId: string, val
  * TTL (a live lease); `live: false` means an ended session with a stale heartbeat (the
  * issue was agent-worked but no lease is currently live).
  */
-export async function seedAgentLease(
+export const seedAgentLease = async function seedAgentLease(
   workspaceId: string,
   issueId: string,
   opts?: Readonly<{ kind?: 'agent' | 'human'; live?: boolean; name?: string }>,
@@ -339,7 +347,9 @@ export async function seedAgentLease(
 }
 
 /** Seed a complete workspace + user + member + token in one call */
-export async function seedFixture(opts?: Readonly<{ slug?: string; email?: string; role?: string }>) {
+export const seedFixture = async function seedFixture(
+  opts?: Readonly<{ slug?: string; email?: string; role?: string }>,
+) {
   const workspace = await seedWorkspace(opts?.slug ?? `ws-${crypto.randomUUID().slice(0, 8)}`)
   const user = await seedUser(opts?.email ?? `u-${crypto.randomUUID().slice(0, 8)}@example.com`)
   await seedMember(workspace.id, user.id, opts?.role ?? 'member')
@@ -348,7 +358,7 @@ export async function seedFixture(opts?: Readonly<{ slug?: string; email?: strin
 }
 
 /** Seed a workspace fixture plus a project in it — the common `beforeEach` shape across API tests. */
-export async function seedProjectFixture(opts?: Readonly<{ role?: string }>) {
+export const seedProjectFixture = async function seedProjectFixture(opts?: Readonly<{ role?: string }>) {
   const fixture = await seedFixture({ role: opts?.role })
   const project = await seedProject(fixture.workspace.id)
   /*
@@ -370,7 +380,9 @@ export async function seedProjectFixture(opts?: Readonly<{ role?: string }>) {
 }
 
 /** Seed a project fixture plus an issue in it. */
-export async function seedIssueFixture(opts?: Readonly<{ role?: string; issueTitle?: string }>) {
+export const seedIssueFixture = async function seedIssueFixture(
+  opts?: Readonly<{ role?: string; issueTitle?: string }>,
+) {
   const base = await seedProjectFixture({ role: opts?.role })
   const issue = await seedIssue(base.workspaceId, base.projectId, base.userId, {
     title: opts?.issueTitle ?? 'Test Issue',
@@ -385,7 +397,7 @@ export async function seedIssueFixture(opts?: Readonly<{ role?: string; issueTit
  * Scaffolding note: when scopes are enforced at the middleware level, extend each seedToken call
  * here (or in individual tests) with the opts.scopes parameter to exercise restricted-scope paths.
  */
-export async function seedWorkspaceRoles() {
+export const seedWorkspaceRoles = async function seedWorkspaceRoles() {
   const workspace = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
 
   const ownerUser = await seedUser(`owner-${crypto.randomUUID().slice(0, 8)}@example.com`)
@@ -427,7 +439,7 @@ export type ToolErrorBody = {
  * `undefined` when the call succeeded or failed as a JSON-RPC protocol error (check
  * `.error` on the response for that).
  */
-export function toolError(response: unknown): ToolErrorBody | undefined {
+export const toolError = function toolError(response: unknown): ToolErrorBody | undefined {
   const result = (response as { result?: { isError?: boolean; content?: { type: string; text: string }[] } })?.result
   if (!result?.isError) {
     return undefined

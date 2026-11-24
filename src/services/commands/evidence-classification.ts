@@ -9,6 +9,6 @@
 const RESOLVABLE_URL_PATTERN = /https?:\/\/\S*\/(pull|pulls|actions\/runs|commit|compare)\/\S+/i
 const COMMIT_SHA_PATTERN = /\b[0-9a-f]{7,40}\b/i
 
-export function isExternallyVerifiableEvidence(verification: string): boolean {
+export const isExternallyVerifiableEvidence = function isExternallyVerifiableEvidence(verification: string): boolean {
   return RESOLVABLE_URL_PATTERN.test(verification) || COMMIT_SHA_PATTERN.test(verification)
 }

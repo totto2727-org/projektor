@@ -497,7 +497,10 @@ const serviceOperationsUsedIn = function serviceOperationsUsedIn(...paths: strin
   for (const path of paths.flatMap(expandToFiles).filter((path) => !path.endsWith('.test.ts'))) {
     const module = sourceModule(path)
     for (const statement of module.ast.statements) {
-      if (ts.isImportDeclaration(statement) || ts.isFunctionDeclaration(statement)) {
+      if (
+        ts.isImportDeclaration(statement) ||
+        (isFunctionStatement(statement) && declaredFunctions(statement).length > 0)
+      ) {
         continue
       }
       for (const key of domainOperations(module, statement)) {
@@ -506,6 +509,22 @@ const serviceOperationsUsedIn = function serviceOperationsUsedIn(...paths: strin
     }
   }
   return keys
+}
+
+const isFunctionStatement = (statement: ts.Statement): statement is ts.FunctionDeclaration | ts.VariableStatement =>
+  ts.isFunctionDeclaration(statement) || ts.isVariableStatement(statement)
+
+const declaredFunctions = function declaredFunctions(
+  statement: ts.FunctionDeclaration | ts.VariableStatement,
+): { name: string; body: ts.Node }[] {
+  if (ts.isFunctionDeclaration(statement)) {
+    return statement.name && statement.body ? [{ body: statement.body, name: statement.name.text }] : []
+  }
+  return statement.declarationList.declarations.flatMap(({ name, initializer }) =>
+    ts.isIdentifier(name) && initializer && ts.isFunctionExpression(initializer) && initializer.name?.text === name.text
+      ? [{ body: initializer.body, name: name.text }]
+      : [],
+  )
 }
 
 interface ServiceFn {
@@ -517,9 +536,9 @@ interface ServiceFn {
 }
 
 /*
- * Index.ts is part of the REST surface, not just app wiring: it registers eight endpoints
- * directly, three of which call service functions (GET/POST /api/workspaces, GET
- * /api/projects). Scanning only routes/ made those read as unwired, which is how two
+ * The API Worker registers eight REST endpoints directly.
+ * Three call service functions for GET and POST /api/workspaces and GET /api/projects.
+ * Scanning only routes/ made those read as unwired, which is how two
  * MCP_ONLY entries came to claim a REST equivalent was missing when one existed, and how
  * listAllProjects got swallowed by the internal-by-construction rule. PROJ-638.
  */
@@ -534,10 +553,8 @@ const FILE_IO_WRAPPERS = ['uploadStoredAttachment', 'getStoredAttachment', 'dele
 const fileIoCalls = function fileIoCalls(source: string): Map<string, Set<string>> {
   const ast = parseSource(join(COMMANDS, 'files.ts'), source)
   const calls = new Map<string, Set<string>>()
-  for (const node of ast.statements) {
-    if (!ts.isFunctionDeclaration(node) || !node.name || !node.body) {
-      continue
-    }
+  const functions = ast.statements.filter(isFunctionStatement).flatMap(declaredFunctions)
+  for (const fn of functions) {
     const names = new Set<string>()
     const visit = function visit(child: ts.Node): void {
       if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) {
@@ -545,8 +562,8 @@ const fileIoCalls = function fileIoCalls(source: string): Map<string, Set<string
       }
       child.forEachChild(visit)
     }
-    visit(node.body)
-    calls.set(node.name.text, names)
+    visit(fn.body)
+    calls.set(fn.name, names)
   }
   return calls
 }
@@ -586,9 +603,11 @@ const mcpIdentifiers = new Set([...mcpOperations].map((key) => key.split(':')[1]
 const serviceFns: ServiceFn[] = []
 for (const path of expandToFiles(COMMANDS)) {
   const file = basename(path)
-  const src = readFileSync(path, 'utf8')
-  for (const m of src.matchAll(/^export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/gm)) {
-    const fn = m[1]
+  const exportedFunctions = sourceModule(path)
+    .ast.statements.filter(isFunctionStatement)
+    .filter((statement) => statement.modifiers?.some(({ kind }) => kind === ts.SyntaxKind.ExportKeyword))
+    .flatMap(declaredFunctions)
+  for (const { name: fn } of exportedFunctions) {
     serviceFns.push({
       key: `${file}:${fn}`,
       fn,
@@ -666,8 +685,7 @@ describe('covers MCP surface parity (PROJ-623)', () => {
 
   test('finds the source it is meant to be checking', () => {
     /*
-     * Guards against the scanners silently matching nothing — a regex that stops
-     * matching would otherwise turn every assertion below into a vacuous pass.
+     * Guard against the scanners silently matching nothing.
      */
     expect(serviceFns.length).toBeGreaterThan(150)
     expect(restIdentifiers.size).toBeGreaterThan(50)

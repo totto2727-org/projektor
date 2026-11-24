@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -109,7 +109,7 @@ const resolveWatchTarget = async function resolveWatchTarget(
   return page
 }
 
-export async function watchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
+export const watchWikiPage = async function watchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = WatchWikiPageInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -136,7 +136,7 @@ export async function watchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: un
   return { ok: true, pageId: page.id, subtree: parsed.data.subtree, url: wikiPagePath(page.slug) }
 }
 
-export async function unwatchWikiPage(ctx: ServiceCtx, idOrSlug: string) {
+export const unwatchWikiPage = async function unwatchWikiPage(ctx: ServiceCtx, idOrSlug: string) {
   const page = await resolveWatchTarget(ctx, idOrSlug)
   const orm = drizzle(ctx.db, { schema })
   await orm
@@ -151,7 +151,7 @@ export async function unwatchWikiPage(ctx: ServiceCtx, idOrSlug: string) {
   return { ok: true }
 }
 
-export async function listWikiWatches(ctx: ServiceCtx) {
+export const listWikiWatches = async function listWikiWatches(ctx: ServiceCtx) {
   const orm = drizzle(ctx.db, { schema })
   const rows = await orm
     .select({
@@ -228,7 +228,7 @@ const ACTION_LABEL: Record<'created' | 'updated' | 'deleted', string> = {
  * PROPER ancestor of X and the watch has subtree=true. The actor is never notified of
  * their own change.
  */
-export async function notifyWikiWatchers(
+export const notifyWikiWatchers = async function notifyWikiWatchers(
   ctx: ServiceCtx,
   opts: Readonly<{
     pageId: string
@@ -368,7 +368,7 @@ async function insertNotifications(
  * "updated") so a descendant watcher hears about the restore too, mirroring the delete
  * side — otherwise they'd get a "deleted" event with no matching "restored" one.
  */
-export async function notifyCascadeDescendantWatchers(
+export const notifyCascadeDescendantWatchers = async function notifyCascadeDescendantWatchers(
   ctx: ServiceCtx,
   descendants: Readonly<{ id: string; slug: string; title: string; isTemplate: boolean }[]>,
   action: 'created' | 'updated' | 'deleted' = 'deleted',
@@ -415,7 +415,10 @@ export async function notifyCascadeDescendantWatchers(
  * guarantee FK enforcement on every connection, so leaning on the FK alone would leave
  * watch rows pointing at pages that no longer exist.
  */
-export async function deleteWikiWatchersForPages(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
+export const deleteWikiWatchersForPages = async function deleteWikiWatchersForPages(
+  ctx: ServiceCtx,
+  pageIds: string[],
+): Promise<void> {
   if (pageIds.length === 0) {
     return
   }
@@ -428,7 +431,7 @@ export async function deleteWikiWatchersForPages(ctx: ServiceCtx, pageIds: strin
   })
 }
 
-export async function listWikiNotifications(ctx: ServiceCtx, input: unknown) {
+export const listWikiNotifications = async function listWikiNotifications(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiNotificationsInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -465,7 +468,7 @@ export async function listWikiNotifications(ctx: ServiceCtx, input: unknown) {
   return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }))
 }
 
-export async function markWikiNotificationsRead(ctx: ServiceCtx, input: unknown) {
+export const markWikiNotificationsRead = async function markWikiNotificationsRead(ctx: ServiceCtx, input: unknown) {
   const parsed = MarkWikiNotificationsReadInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -708,7 +711,7 @@ const matchSubtreeWatches = async function matchSubtreeWatches(
         .where(and(inArray(schema.wikiPages.id, chunk), eq(schema.wikiPages.workspaceId, ctx.workspaceId))),
     )
     const parentOf = new Map(rows.map((r) => [r.id, r.parentId]))
-    for (const [candidate, cur] of pending) {
+    Iterable.forEach(pending, ([candidate, cur]) => {
       const parent = parentOf.get(cur) ?? null
       if (Predicate.isNullish(parent)) {
         pending.delete(candidate)
@@ -718,7 +721,7 @@ const matchSubtreeWatches = async function matchSubtreeWatches(
       } else {
         pending.set(candidate, parent)
       }
-    }
+    })
   }
 }
 
@@ -783,7 +786,7 @@ const trimTrailingPartialSecond = function trimTrailingPartialSecond<T extends {
  * pages — it's a ground-truth delta feed, not a notification stream, and callers that
  * care can filter client-side on the page's `type`/`is_template` themselves.
  */
-export async function listWikiChanges(
+export const listWikiChanges = async function listWikiChanges(
   ctx: ServiceCtx,
   input: unknown,
 ): Promise<{

@@ -6,7 +6,7 @@ import * as Plugin from '@alchemy.run/cloudflare-runtime/core/Plugin'
 import * as PluginContext from '@alchemy.run/cloudflare-runtime/core/PluginContext'
 import type * as RuntimeServices from '@alchemy.run/cloudflare-runtime/core/RuntimeServices'
 import type * as WorkerdConfig from '@alchemy.run/cloudflare-runtime/core/workerd/Config'
-import { Predicate, Effect, Layer } from 'effect'
+import { Iterable, Predicate, Effect, Layer } from 'effect'
 
 import { deployment } from '#worker-graph'
 
@@ -62,7 +62,7 @@ const readWorkerModules = async function readWorkerModules(
   return [entry, ...modules]
 }
 
-export async function makeInlineApiLayer(directory: string) {
+export const makeInlineApiLayer = async function makeInlineApiLayer(directory: string) {
   const [apiModules, coreModules] = await Promise.all([
     readWorkerModules(fileURLToPath(new URL('./dist/ssr/', import.meta.url)), 'api.worker.js'),
     readWorkerModules(fileURLToPath(new URL('./core-dist/ssr/', import.meta.url)), 'core.worker.js'),
@@ -90,11 +90,11 @@ export async function makeInlineApiLayer(directory: string) {
               },
             }),
           )
-          for (const binding of apiBindings) {
+          Iterable.forEach(apiBindings, (binding) => {
             if (Predicate.isNotNullish(binding.name) && ['DB', 'KV', 'R2'].includes(binding.name)) {
               throw new Error(`Public API fixture unexpectedly received storage: ${binding.name}`)
             }
-          }
+          })
           return yield* coreServiceBinding
         }),
       },

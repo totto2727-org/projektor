@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit } from 'effect'
+import { Iterable, Cause, Effect, Exit } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetAuthCachesForTests } from '#services/authentication.ts'
@@ -37,9 +37,9 @@ const project: ProjectSummary = {
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
   resetAuthCachesForTests()
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 const fixture = function fixture(
@@ -53,17 +53,17 @@ const fixture = function fixture(
   database.sqlite
     .prepare('INSERT INTO users(id,email,name,created_at) VALUES(?,?,?,1)')
     .run(auth.user.id, auth.user.email, auth.user.name)
-  for (const workspace of session.workspaces) {
+  Iterable.forEach(session.workspaces, (workspace) => {
     database.sqlite
       .prepare('INSERT INTO workspaces(id,name,slug,created_at) VALUES(?,?,?,1)')
       .run(workspace.id, workspace.name, workspace.slug)
-  }
-  for (const workspace of auth.workspaces) {
+  })
+  Iterable.forEach(auth.workspaces, (workspace) => {
     database.sqlite
       .prepare('INSERT INTO workspace_members(workspace_id,user_id,role,joined_at) VALUES(?,?,?,1)')
       .run(workspace.id, auth.user.id, workspace.role)
-  }
-  for (const item of catalog) {
+  })
+  Iterable.forEach(catalog, (item) => {
     database.sqlite
       .prepare(
         'INSERT INTO projects(id,workspace_id,name,key,slug,description,created_at,updated_at,archived_at) VALUES(?,?,?,?,?,?,?,?,?)',
@@ -88,7 +88,7 @@ const fixture = function fixture(
     database.sqlite
       .prepare("INSERT INTO group_project_grants(group_id,project_id,role) VALUES(?,?, 'viewer')")
       .run(`group-${item.id}`, item.id)
-  }
+  })
   const invalidated = vi.fn()
   const env = testEnvironment(database.db, auth.user.email)
   const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {

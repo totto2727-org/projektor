@@ -1,5 +1,6 @@
 import { EditorView, ViewPlugin } from '@codemirror/view'
 import type { ViewUpdate } from '@codemirror/view'
+import { Iterable } from 'effect'
 
 interface UploadAnchor {
   position: number
@@ -13,15 +14,15 @@ class ImageUploads {
     if (!update.docChanged) {
       return
     }
-    for (const anchor of this.anchors) {
+    Iterable.forEach(this.anchors, (anchor) => {
       anchor.position = update.changes.mapPos(anchor.position, 1)
-    }
+    })
   }
 
   cancel(): void {
-    for (const anchor of this.anchors) {
+    Iterable.forEach(this.anchors, (anchor) => {
       anchor.active = false
-    }
+    })
     this.anchors.clear()
   }
 
@@ -32,7 +33,7 @@ class ImageUploads {
 
 export const imageUploads = ViewPlugin.fromClass(ImageUploads)
 
-export async function insertUploadedImages(
+export const insertUploadedImages = async function insertUploadedImages(
   view: EditorView,
   files: Readonly<File[]>,
   position: number,

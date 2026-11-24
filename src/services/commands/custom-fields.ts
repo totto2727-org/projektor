@@ -29,7 +29,7 @@ export interface CustomFieldValue {
   value: string
 }
 
-export async function listCustomFieldDefs(ctx: ServiceCtx, projectId?: string | null) {
+export const listCustomFieldDefs = async function listCustomFieldDefs(ctx: ServiceCtx, projectId?: string | null) {
   return Effect.runPromise(
     fieldQueries.listCustomFieldDefs(
       ctx.db,
@@ -94,7 +94,7 @@ const assertCustomFieldDefLimitNotReached = async function assertCustomFieldDefL
   }
 }
 
-export async function createCustomFieldDef(ctx: ServiceCtx, raw: unknown) {
+export const createCustomFieldDef = async function createCustomFieldDef(ctx: ServiceCtx, raw: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -168,7 +168,7 @@ const buildCustomFieldUpdateSet = function buildCustomFieldUpdateSet(
   return setObj
 }
 
-export async function updateCustomFieldDef(ctx: ServiceCtx, id: string, raw: unknown) {
+export const updateCustomFieldDef = async function updateCustomFieldDef(ctx: ServiceCtx, id: string, raw: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -192,7 +192,7 @@ export async function updateCustomFieldDef(ctx: ServiceCtx, id: string, raw: unk
   return { ok: true }
 }
 
-export async function deleteCustomFieldDef(ctx: ServiceCtx, id: string) {
+export const deleteCustomFieldDef = async function deleteCustomFieldDef(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -231,7 +231,10 @@ export async function deleteCustomFieldDef(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export function buildDefaultCustomFieldStatements(db: D1Database, workspaceId: string): D1PreparedStatement[] {
+export const buildDefaultCustomFieldStatements = function buildDefaultCustomFieldStatements(
+  db: D1Database,
+  workspaceId: string,
+): D1PreparedStatement[] {
   return [
     db
       .prepare(`INSERT INTO custom_field_definitions
@@ -243,7 +246,10 @@ export function buildDefaultCustomFieldStatements(db: D1Database, workspaceId: s
   ]
 }
 
-export async function seedDefaultCustomFields(db: D1Database, workspaceId: string): Promise<void> {
+export const seedDefaultCustomFields = async function seedDefaultCustomFields(
+  db: D1Database,
+  workspaceId: string,
+): Promise<void> {
   await db.batch(buildDefaultCustomFieldStatements(db, workspaceId))
 }
 
@@ -278,7 +284,7 @@ const assertValidCustomFieldValue = function assertValidCustomFieldValue(
   }
 }
 
-export async function validateCustomFields(
+export const validateCustomFields = async function validateCustomFields(
   db: D1Database,
   workspaceId: string,
   customFields: Record<string, unknown>,
@@ -327,7 +333,7 @@ export async function validateCustomFields(
  */
 const CUSTOM_FIELD_UPSERT_CHUNK_SIZE = 30 // 3 cols/row
 
-export function buildCustomFieldUpsertStatements(
+export const buildCustomFieldUpsertStatements = function buildCustomFieldUpsertStatements(
   db: D1Database,
   issueId: string,
   writes: Readonly<{ fieldId: string; value: string }[]>,
@@ -354,7 +360,7 @@ export function buildCustomFieldUpsertStatements(
   return statements
 }
 
-export async function batchLoadCustomFields(
+export const batchLoadCustomFields = async function batchLoadCustomFields(
   db: D1Database,
   workspaceId: string,
   issueIds: string[],

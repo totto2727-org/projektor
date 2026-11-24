@@ -15,7 +15,9 @@ export class OAuthRequestError extends Error {
   }
 }
 
-export function workspaceIdFromResource(resource: string | string[] | undefined): string {
+export const workspaceIdFromResource = function workspaceIdFromResource(
+  resource: string | string[] | undefined,
+): string {
   if (Predicate.isNullish(resource)) {
     throw new OAuthRequestError('invalid_target', 'A `resource` parameter naming the target workspace is required')
   }
@@ -39,7 +41,7 @@ export function workspaceIdFromResource(resource: string | string[] | undefined)
 }
 
 /** An omitted scope requests all supported scopes. Unsupported extras are discarded. */
-export function grantedScopes(requested: Readonly<string[]>): string[] {
+export const grantedScopes = function grantedScopes(requested: Readonly<string[]>): string[] {
   if (requested.length === 0) {
     return [...OAUTH_SCOPES_SUPPORTED]
   }
@@ -52,7 +54,7 @@ export function grantedScopes(requested: Readonly<string[]>): string[] {
   }
   return [...granted]
 }
-export function describeScope(scope: string): string {
+export const describeScope = function describeScope(scope: string): string {
   if (scope === OAUTH_SCOPE_READ) {
     return 'Read issues, wiki pages, projects and comments'
   }
@@ -62,14 +64,14 @@ export function describeScope(scope: string): string {
   return scope
 }
 /** The host, not the self-declared application name, is the relying party identity. */
-export function relyingPartyHost(clientId: string): string {
+export const relyingPartyHost = function relyingPartyHost(clientId: string): string {
   try {
     return new URL(clientId).host
   } catch {
     return clientId
   }
 }
-export function isLoopbackOnlyClient(redirectUris: Readonly<string[]>): boolean {
+export const isLoopbackOnlyClient = function isLoopbackOnlyClient(redirectUris: Readonly<string[]>): boolean {
   if (redirectUris.length === 0) {
     return false
   }
@@ -83,7 +85,7 @@ export function isLoopbackOnlyClient(redirectUris: Readonly<string[]>): boolean 
   })
 }
 export type ConsentRequest = Readonly<{ authRequest: AuthRequest; workspaceId: string; scopes: string[] }>
-export function parseConsentRequest(authRequest: AuthRequest): ConsentRequest {
+export const parseConsentRequest = function parseConsentRequest(authRequest: AuthRequest): ConsentRequest {
   return {
     authRequest,
     workspaceId: workspaceIdFromResource(authRequest.resource),

@@ -2,7 +2,7 @@
  * Builds GET /api/issues query strings. This endpoint calls the project filter
  * `project`, unlike the search and next endpoints which have their own wire DTOs.
  */
-export function issueListQuery(url: URL, extra: Readonly<Record<string, string>> = {}): string {
+export const issueListQuery = function issueListQuery(url: URL, extra: Readonly<Record<string, string>> = {}): string {
   const allowed = [
     'status',
     'priority',

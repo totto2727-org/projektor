@@ -1,4 +1,4 @@
-import { Predicate, Effect } from 'effect'
+import { Iterable, Predicate, Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import type { ReviewFilter, ReviewStatus } from '#contracts/review-targets.ts'
@@ -11,9 +11,9 @@ import { CoreReadServices } from './read-services.ts'
 
 const databases: ReturnType<typeof issueDataFixture>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 const fixture = function fixture() {

@@ -34,7 +34,10 @@ export interface CorePrincipal {
   tokenScopes: string[] | undefined
 }
 
-export function requireCoreCapability(principal: CorePrincipal, requiredCapability: Capability): void {
+export const requireCoreCapability = function requireCoreCapability(
+  principal: CorePrincipal,
+  requiredCapability: Capability,
+): void {
   if (Predicate.isNotNullish(principal.tokenScopes) && !tokenAllows(principal.tokenScopes, requiredCapability)) {
     throw coreFailure(403, `Token lacks '${requiredCapability}' scope`)
   }
@@ -48,7 +51,10 @@ const RoleSchema = Schema.Literals(['owner', 'admin', 'member', 'viewer'])
 const decodeActor = Schema.decodeUnknownSync(CoreActor)
 
 /** Re-run on every operation. A returned principal is data, not a reusable capability. */
-export async function resolveCorePrincipal(input: CoreActor, env: CoreEnvironment): Promise<CorePrincipal> {
+export const resolveCorePrincipal = async function resolveCorePrincipal(
+  input: CoreActor,
+  env: CoreEnvironment,
+): Promise<CorePrincipal> {
   let actor: CoreActor
   let url: URL
   try {
@@ -172,7 +178,7 @@ async function authenticateOpaqueToken(token: string, env: CoreEnvironment): Pro
 }
 
 /** Build local capabilities only after current credential confinement and membership checks. */
-export async function resolveCoreServiceCtx(
+export const resolveCoreServiceCtx = async function resolveCoreServiceCtx(
   actor: CoreActor,
   workspaceId: string,
   requiredCapability: Capability,

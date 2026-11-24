@@ -1,7 +1,7 @@
 import { isNull, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 
 import { readWikiDraftState } from '#commands/wiki-drafts.ts'
 import { ApiError, ScopeError } from '#contracts/errors.ts'
@@ -20,7 +20,7 @@ import type { CoreEnvironment } from '#core/environment.ts'
 import { schema } from '#db'
 import { listAttachments } from '#services/files.ts'
 import * as wikiData from '#services/wiki.ts'
-import type { WikiSeed } from '@/features/wiki/WikiPageClient.tsx'
+import type { WikiSeed } from '@/features/wiki/wiki-page-client.tsx'
 
 import {
   dataError,
@@ -33,7 +33,7 @@ import type { RequestScope } from './scope.ts'
 import { pageFreshness as freshness, readAuthorizedWikiPage } from './wiki-policy.ts'
 
 /** The request owns authorization, presentation and rendering. Shared queries own only SQL. */
-export function loadWikiData(
+export const loadWikiData = function loadWikiData(
   env: CoreEnvironment,
   scope: RequestScope,
   url: URL,
@@ -108,7 +108,7 @@ export function loadWikiData(
       : null
     const treeRows = yield* wikiData.listWikiTreeRows(db, workspace.id, options).pipe(Effect.mapError(dataError))
     const nodes = new Map<string, WikiSeed['tree'][number]>()
-    for (const item of treeRows) {
+    Iterable.forEach(treeRows, (item) => {
       nodes.set(item.id, {
         id: item.id,
         slug: item.slug,
@@ -116,9 +116,9 @@ export function loadWikiData(
         type: item.type,
         children: [],
       })
-    }
+    })
     const roots: WikiSeed['tree'] = []
-    for (const item of treeRows) {
+    Iterable.forEach(treeRows, (item) => {
       const node = nodes.get(item.id)!
       const parent = item.parentId ? nodes.get(item.parentId) : undefined
       if (parent) {
@@ -126,7 +126,7 @@ export function loadWikiData(
       } else {
         roots.push(node)
       }
-    }
+    })
     const ftsQuery = searchQuery
       .trim()
       .split(/\s+/)

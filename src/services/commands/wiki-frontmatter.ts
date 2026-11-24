@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
 
@@ -132,7 +132,7 @@ const toFrontmatterMeta = function toFrontmatterMeta(
   }
 }
 
-export function parseWikiFrontmatter(content: string): WikiFrontmatterMeta {
+export const parseWikiFrontmatter = function parseWikiFrontmatter(content: string): WikiFrontmatterMeta {
   const match = FRONTMATTER_RE.exec(content)
   if (!match) {
     return EMPTY_WIKI_FRONTMATTER
@@ -159,7 +159,7 @@ export function parseWikiFrontmatter(content: string): WikiFrontmatterMeta {
  * tags, status, ...) carries over untouched. If stripping leaves no frontmatter keys at
  * all, the block is dropped entirely rather than left as an empty `---\n---\n` shell.
  */
-export function stripTemplateFlag(content: string): string {
+export const stripTemplateFlag = function stripTemplateFlag(content: string): string {
   const match = FRONTMATTER_RE.exec(content)
   if (!match) {
     return content
@@ -179,7 +179,10 @@ export function stripTemplateFlag(content: string): string {
   return `---\n${yamlText}\n---\n${rest}`
 }
 
-export function setWikiFrontmatterFields(content: string, values: Record<string, unknown>): string {
+export const setWikiFrontmatterFields = function setWikiFrontmatterFields(
+  content: string,
+  values: Record<string, unknown>,
+): string {
   const match = FRONTMATTER_RE.exec(content)
   const rest = match ? content.slice(match[0].length) : content
 
@@ -191,13 +194,13 @@ export function setWikiFrontmatterFields(content: string, values: Record<string,
     }
   }
 
-  for (const [key, value] of Object.entries(values)) {
+  Iterable.forEach(Object.entries(values), ([key, value]) => {
     if (value === null) {
       delete raw[key]
     } else {
       raw[key] = value
     }
-  }
+  })
 
   if (Object.keys(raw).length === 0) {
     return rest
@@ -207,7 +210,7 @@ export function setWikiFrontmatterFields(content: string, values: Record<string,
   return `---\n${yamlText}\n---\n${rest}`
 }
 
-export function stampWikiFrontmatterVerification(
+export const stampWikiFrontmatterVerification = function stampWikiFrontmatterVerification(
   content: string,
   verifiedAtSeconds: number,
   verifiedBy: string,

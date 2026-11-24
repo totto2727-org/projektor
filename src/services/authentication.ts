@@ -40,7 +40,10 @@ export class BrowserAuthenticationError extends Error {
 }
 
 /** A present but invalid Access credential never falls back to a development identity. */
-export async function authenticateBrowser(request: Request, env: BrowserAuthEnvironment): Promise<BrowserPrincipal> {
+export const authenticateBrowser = async function authenticateBrowser(
+  request: Request,
+  env: BrowserAuthEnvironment,
+): Promise<BrowserPrincipal> {
   const jwt =
     request.headers.get('Cf-Access-Jwt-Assertion') ??
     parseCookie(request.headers.get('cookie') ?? '', 'CF_Authorization')
@@ -194,8 +197,8 @@ const fetchAndCacheCfAccessKeys = async function fetchAndCacheCfAccessKeys(
   }))
   try {
     await env.KV.put('cf-access-certs', JSON.stringify(keys), { expirationTtl: 3600 })
-  } catch (err) {
-    console.error('[auth] failed to cache cf-access-certs in KV, continuing without it:', err)
+  } catch (error) {
+    console.error('[auth] failed to cache cf-access-certs in KV, continuing without it:', error)
   }
   inMemoryCertsCache = { keys, expiresAt: Date.now() + CERTS_LOCAL_TTL_MS }
   return keys
@@ -221,8 +224,8 @@ async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefres
   let cached: unknown
   try {
     cached = await env.KV.get('cf-access-certs', 'json')
-  } catch (err) {
-    console.error('[auth] failed to read cf-access-certs from KV, fetching fresh:', err)
+  } catch (error) {
+    console.error('[auth] failed to read cf-access-certs from KV, fetching fresh:', error)
   }
   if (cached) {
     const keys = cached as JsonWebKey[]
@@ -233,7 +236,7 @@ async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefres
 }
 const inMemoryUserCache = new Map<string, { user: AuthUser; expiresAt: number }>()
 const USER_LOCAL_TTL_MS = 300 * 1000
-export function resetAuthCachesForTests(): void {
+export const resetAuthCachesForTests = function resetAuthCachesForTests(): void {
   inMemoryCertsCache = null
   inMemoryUserCache.clear()
 }
@@ -247,8 +250,8 @@ export async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNa
     let cached: unknown
     try {
       cached = await kv.get(`user-by-email:${email}`, 'json')
-    } catch (err) {
-      console.error(`[auth] failed to read user-by-email:${email} from KV, continuing:`, err)
+    } catch (error) {
+      console.error(`[auth] failed to read user-by-email:${email} from KV, continuing:`, error)
     }
     if (cached) {
       const user = cached as AuthUser
@@ -268,8 +271,8 @@ export async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNa
   if (kv) {
     try {
       await kv.put(`user-by-email:${email}`, JSON.stringify(user), { expirationTtl: 300 })
-    } catch (err) {
-      console.error(`[auth] failed to cache user-by-email:${email} in KV, continuing without it:`, err)
+    } catch (error) {
+      console.error(`[auth] failed to cache user-by-email:${email} in KV, continuing without it:`, error)
     }
   }
   inMemoryUserCache.set(email, { user, expiresAt: Date.now() + USER_LOCAL_TTL_MS })

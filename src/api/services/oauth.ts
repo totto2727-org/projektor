@@ -4,7 +4,7 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export function listConnectorGrants(
+export const listConnectorGrants = function listConnectorGrants(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListConnectorGrants']>
 ) {
@@ -14,7 +14,7 @@ export function listConnectorGrants(
   )
 }
 
-export function revokeConnectorGrant(
+export const revokeConnectorGrant = function revokeConnectorGrant(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiRevokeConnectorGrant']>
 ) {

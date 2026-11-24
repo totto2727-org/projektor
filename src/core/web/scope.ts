@@ -122,7 +122,7 @@ export const RequestScopeSchema = Schema.Struct({
   ]),
 })
 
-export function queryHint(url: URL, name: string): string | undefined {
+export const queryHint = function queryHint(url: URL, name: string): string | undefined {
   const values = url.searchParams.getAll(name).filter((value) => value !== '')
   if (new Set(values).size > 1) {
     throw new ScopeError(400, `Ambiguous ${name} parameter.`)
@@ -130,7 +130,7 @@ export function queryHint(url: URL, name: string): string | undefined {
   return values[0]
 }
 
-export function readProjectHint(url: URL): string | undefined {
+export const readProjectHint = function readProjectHint(url: URL): string | undefined {
   const query = queryHint(url, 'projectId') ?? queryHint(url, 'project')
   if (query) {
     return query
@@ -140,11 +140,11 @@ export function readProjectHint(url: URL): string | undefined {
   return url.pathname.replace(/\/$/, '') === '/projects/view' ? queryHint(url, 'id') : undefined
 }
 
-export function matchesProject(project: ProjectSummary, hint: string): boolean {
+export const matchesProject = function matchesProject(project: ProjectSummary, hint: string): boolean {
   return project.id === hint || project.key === hint || project.slug === hint
 }
 
-export function selectedWorkspace(
+export const selectedWorkspace = function selectedWorkspace(
   workspaces: Readonly<WorkspaceMembership[]>,
   hint: string | undefined,
 ): WorkspaceMembership | undefined {
@@ -159,7 +159,7 @@ export function selectedWorkspace(
 }
 
 /** Pure selection policy, independent of browser state and framework lifecycle. */
-export function resolveScope(
+export const resolveScope = function resolveScope(
   session: AuthSession,
   projects: Readonly<ProjectSummary[]>,
   url: URL,

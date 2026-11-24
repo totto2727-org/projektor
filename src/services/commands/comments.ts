@@ -53,7 +53,7 @@ const assertIssueVisible = async function assertIssueVisible(
   return issue.projectId
 }
 
-export async function listComments(ctx: ServiceCtx, input: unknown): Promise<CommentRow[]> {
+export const listComments = async function listComments(ctx: ServiceCtx, input: unknown): Promise<CommentRow[]> {
   const parsed = ListCommentsSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -64,7 +64,7 @@ export async function listComments(ctx: ServiceCtx, input: unknown): Promise<Com
   return Effect.runPromise(queryComments(ctx.db, ctx.workspaceId, issueId))
 }
 
-export async function addComment(ctx: ServiceCtx, input: unknown): Promise<{ id: string }> {
+export const addComment = async function addComment(ctx: ServiceCtx, input: unknown): Promise<{ id: string }> {
   const parsed = AddCommentSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -119,7 +119,7 @@ export function buildAddCommentInsertStatement(
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
-export async function updateComment(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
+export const updateComment = async function updateComment(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = UpdateCommentSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -156,7 +156,7 @@ export async function updateComment(ctx: ServiceCtx, input: unknown): Promise<{ 
   return { ok: true }
 }
 
-export async function deleteComment(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
+export const deleteComment = async function deleteComment(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
   const parsed = DeleteCommentSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))

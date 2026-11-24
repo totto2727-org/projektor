@@ -11,8 +11,8 @@ import type { RequestScope } from '@/server/request-context.ts'
 
 import { stripFrontmatter } from './render-markdown.ts'
 import { WikiSeedDataSchema } from './schemas.ts'
-import { WikiPageClient } from './WikiPageClient.tsx'
-import type { WikiSeed } from './WikiPageClient.tsx'
+import { WikiPageClient } from './wiki-page-client.tsx'
+import type { WikiSeed } from './wiki-page-client.tsx'
 
 /** Native Effront SSR keeps presentation and markdown rendering, never storage. */
 export function renderWiki(

@@ -28,7 +28,7 @@ export const scope: RequestScope = {
   projects: [project, secondProject],
   selection: { kind: 'workspace', workspace },
 }
-export function issue(overrides: Partial<Issue> = {}): Issue {
+export const issue = function issue(overrides: Partial<Issue> = {}): Issue {
   return {
     id: 'issue-a',
     number: 1,

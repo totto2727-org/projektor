@@ -47,7 +47,7 @@ const isApiTokenMethod = function isApiTokenMethod(method: string): boolean {
   return method === 'pk' || method === 'pat'
 }
 
-export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
+export const registerAgent = async function registerAgent(ctx: ServiceCtx, raw: unknown) {
   const result = RegisterAgentSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -113,7 +113,7 @@ export async function registerAgent(ctx: ServiceCtx, raw: unknown) {
  * made are still reclaimable by the next caller once the session's heartbeat goes
  * stale after ACTIVE_TTL (120s) — see claim_issue/claim_files's stale-holder reclaim.
  */
-export async function startWork(ctx: ServiceCtx, raw: unknown) {
+export const startWork = async function startWork(ctx: ServiceCtx, raw: unknown) {
   const result = StartWorkSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -138,17 +138,17 @@ export async function startWork(ctx: ServiceCtx, raw: unknown) {
       lease,
       claimedFiles: claimed?.created ?? [],
     }
-  } catch (err) {
+  } catch (error) {
     try {
       await endAgent(ctx, { id: session.id })
-    } catch (cleanupErr) {
-      console.error('startWork: compensating endAgent failed', cleanupErr)
+    } catch (error) {
+      console.error('startWork: compensating endAgent failed', error)
     }
-    throw err
+    throw error
   }
 }
 
-export async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
+export const heartbeatAgent = async function heartbeatAgent(ctx: ServiceCtx, raw: unknown) {
   const result = HeartbeatAgentSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -237,7 +237,7 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
  * lease it holds (see endAgent). Replaces release_issue + release_files + end_agent
  * (+ an update_issue call, if the issue is being closed) with one call.
  */
-export async function finishWork(ctx: ServiceCtx, raw: unknown) {
+export const finishWork = async function finishWork(ctx: ServiceCtx, raw: unknown) {
   const result = FinishWorkSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -272,7 +272,7 @@ export async function finishWork(ctx: ServiceCtx, raw: unknown) {
  * (true when its heartbeat is inside the TTL) and, when linked to an issue, that
  * issue's display ref (issueRef, e.g. "PROJ-857").
  */
-export async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
+export const listActiveAgents = async function listActiveAgents(ctx: ServiceCtx, raw: unknown) {
   const result = ListActiveAgentsSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

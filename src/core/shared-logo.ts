@@ -5,7 +5,10 @@ import { publicDomainFailure } from './domain-errors.ts'
 import type { CoreEnvironment } from './environment.ts'
 
 /** Public share tokens are authorized by the domain operation, never by browser claims. */
-export async function handleSharedLogoRequest(request: Request, env: CoreEnvironment): Promise<Response | undefined> {
+export const handleSharedLogoRequest = async function handleSharedLogoRequest(
+  request: Request,
+  env: CoreEnvironment,
+): Promise<Response | undefined> {
   const match = /^\/share-logo\/([^/]+)$/.exec(new URL(request.url).pathname)
   if (!match) {
     return undefined
@@ -34,11 +37,11 @@ export async function handleSharedLogoRequest(request: Request, env: CoreEnviron
         'x-content-type-options': 'nosniff',
       },
     })
-  } catch (cause) {
-    const selected = publicDomainFailure(cause)
+  } catch (error) {
+    const selected = publicDomainFailure(error)
     const problem = selected instanceof CorePublicError ? selected : coreFailure(500, 'An unexpected error occurred.')
     if (!(selected instanceof CorePublicError)) {
-      console.error('[core]', { operation: 'shareLogo', occurrenceId: problem.occurrenceId, cause })
+      console.error('[core]', { operation: 'shareLogo', occurrenceId: problem.occurrenceId, cause: error })
     }
     return Response.json(
       { error: problem.message, occurrenceId: problem.occurrenceId },

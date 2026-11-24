@@ -36,7 +36,7 @@ import { bumpRateCounter } from '#api/middleware/rate-limit.ts'
  * 401 every request that arrives without a bearer, silently breaking anonymous
  * read-only instances (the live demo) and local dev.
  */
-export function isOAuthAccessToken(request: Request): boolean {
+export const isOAuthAccessToken = function isOAuthAccessToken(request: Request): boolean {
   const header = request.headers.get('Authorization')
   if (!header?.startsWith('Bearer ')) {
     return false
@@ -49,7 +49,7 @@ export function isOAuthAccessToken(request: Request): boolean {
  * The provider serves registration and token requests and injects its helpers
  * before passing authorization requests to Projektor's consent route.
  */
-export function isOAuthProviderPath(pathname: string): boolean {
+export const isOAuthProviderPath = function isOAuthProviderPath(pathname: string): boolean {
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
   return pathname === TOKEN_ENDPOINT || pathname === AUTHORIZE_ENDPOINT || pathname === REGISTRATION_ENDPOINT
 }
@@ -59,13 +59,16 @@ export function isOAuthProviderPath(pathname: string): boolean {
  * revocation on the one token endpoint, which is why the discovery document
  * advertises `revocation_endpoint` as the same path rather than a separate /oauth/revoke.
  */
-export function createOAuthProvider(app: ExportedHandler<ApiEnv>) {
+export const createOAuthProvider = function createOAuthProvider(app: ExportedHandler<ApiEnv>) {
   return new OAuthProvider<ApiEnv>(providerOptions(app))
 }
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 /** The provider serves these endpoints before Hono's rate limiter. */
-export async function oauthProviderRateLimited(request: Request, env: ApiEnv): Promise<Response | null> {
+export const oauthProviderRateLimited = async function oauthProviderRateLimited(
+  request: Request,
+  env: ApiEnv,
+): Promise<Response | null> {
   const { pathname } = new URL(request.url)
   const isRegistration = pathname === REGISTRATION_ENDPOINT && request.method === 'POST'
   if (pathname !== TOKEN_ENDPOINT && !isRegistration) {
@@ -82,9 +85,9 @@ export async function oauthProviderRateLimited(request: Request, env: ApiEnv): P
   try {
     // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
     count = await bumpRateCounter(env, `${endpoint}:${ip}`, windowSecs)
-  } catch (err) {
+  } catch (error) {
     // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-    console.error('OAuth rate-limit counter unavailable', { endpoint, err: String(err) })
+    console.error('OAuth rate-limit counter unavailable', { endpoint, err: String(error) })
     // A registration creates a new KV record for an anonymous caller.
     if (isRegistration) {
       return Response.json({ error: 'temporarily_unavailable' }, { status: 503 })

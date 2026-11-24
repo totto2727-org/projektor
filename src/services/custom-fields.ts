@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 
@@ -14,7 +14,10 @@ export interface CustomFieldValue {
 }
 
 /** Leave room for workspace and other fixed predicates beneath D1's 100 bind cap. */
-export async function inChunks<I, O>(items: Readonly<I[]>, op: (chunk: I[]) => Promise<O[]>): Promise<O[]> {
+export const inChunks = async function inChunks<I, O>(
+  items: Readonly<I[]>,
+  op: (chunk: I[]) => Promise<O[]>,
+): Promise<O[]> {
   const rows: O[] = []
   for (let index = 0; index < items.length; index += 90) {
     rows.push(...(await op(items.slice(index, index + 90))))
@@ -22,7 +25,12 @@ export async function inChunks<I, O>(items: Readonly<I[]>, op: (chunk: I[]) => P
   return rows
 }
 
-export function listCustomFieldDefs(db: D1Database, workspaceId: string, projectId?: string | null, visibility?: SQL) {
+export const listCustomFieldDefs = function listCustomFieldDefs(
+  db: D1Database,
+  workspaceId: string,
+  projectId?: string | null,
+  visibility?: SQL,
+) {
   return queryEffect('listCustomFieldDefs', async () => {
     const orm = drizzle(db, { schema })
     const conditions = [eq(schema.customFieldDefinitions.workspaceId, workspaceId)]
@@ -51,7 +59,11 @@ export function listCustomFieldDefs(db: D1Database, workspaceId: string, project
   })
 }
 
-export function batchLoadCustomFields(db: D1Database, workspaceId: string, issueIds: Readonly<string[]>) {
+export const batchLoadCustomFields = function batchLoadCustomFields(
+  db: D1Database,
+  workspaceId: string,
+  issueIds: Readonly<string[]>,
+) {
   return queryEffect('batchLoadCustomFields', async () => {
     const orm = drizzle(db, { schema })
     const rows = await inChunks(issueIds, (chunk) =>
@@ -76,14 +88,14 @@ export function batchLoadCustomFields(db: D1Database, workspaceId: string, issue
         ),
     )
     const byIssue: Record<string, CustomFieldValue[]> = {}
-    for (const r of rows) {
+    Iterable.forEach(rows, (r) => {
       ;(byIssue[r.issueId] ??= []).push({
         key: r.key,
         label: r.label,
         type: r.type,
         value: r.value,
       })
-    }
+    })
     return byIssue
   })
 }

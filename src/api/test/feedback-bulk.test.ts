@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -142,10 +143,10 @@ describe('handles POST /api/projects/:id/feedback/bulk-convert-to-issue', () => 
       .bind(id1, id2)
       .all<{ linked_issue_id: string; status: string }>()
     expect(rows.results).toHaveLength(2)
-    for (const row of rows.results) {
+    Iterable.forEach(rows.results, (row) => {
       expect(row.linked_issue_id).toBe(created.id)
       expect(row.status).toBe('actioned')
-    }
+    })
 
     const issue = await env.DB.prepare('SELECT title, body FROM issues WHERE id = ?')
       .bind(created.id)

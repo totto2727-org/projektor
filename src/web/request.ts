@@ -28,7 +28,7 @@ export interface Env extends Pick<
   readonly CORE: { readonly fetch: (request: Request) => Promise<Response> }
 }
 
-export function isWebEnvironment(value: unknown): value is Env {
+export const isWebEnvironment = function isWebEnvironment(value: unknown): value is Env {
   if (typeof value !== 'object' || Predicate.isNullish(value)) {
     return false
   }

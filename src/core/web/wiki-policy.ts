@@ -10,7 +10,11 @@ import { authorizeDataEntity, dataError, requireDataWorkspace, visibleProjectPre
 import type { RequestScope } from './scope.ts'
 
 /** An existing archived page follows the same workspace/grant policy in SSR and ServerFns. */
-export function readAuthorizedWikiPage(db: CoreEnvironment['DB'], scope: RequestScope, ref: string) {
+export const readAuthorizedWikiPage = function readAuthorizedWikiPage(
+  db: CoreEnvironment['DB'],
+  scope: RequestScope,
+  ref: string,
+) {
   return Effect.gen(function* () {
     const workspace = yield* Effect.try({
       catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
@@ -45,7 +49,7 @@ export function readAuthorizedWikiPage(db: CoreEnvironment['DB'], scope: Request
   })
 }
 
-export function pageFreshness(
+export const pageFreshness = function pageFreshness(
   page: { verified_at: number | null; verify_interval: number | null; status: string | null },
   now = Math.floor(Date.now() / 1000),
 ) {

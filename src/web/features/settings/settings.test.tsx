@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { Iterable } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { ConnectAgentGuide } from './ConnectAgentGuide.tsx'
-import { ConnectorManager } from './ConnectorManager.tsx'
-import { GroupManager } from './GroupManager.tsx'
-import { TokenManager } from './TokenManager.tsx'
+import { ConnectAgentGuide } from './connect-agent-guide.tsx'
+import { ConnectorManager } from './connector-manager.tsx'
+import { GroupManager } from './group-manager.tsx'
+import { TokenManager } from './token-manager.tsx'
 import type { ConnectorGrant, GroupData, Token } from './types.ts'
 
 const request = vi.hoisted(() => vi.fn())
@@ -189,9 +190,9 @@ describe('original settings controls with TanStack schemas and semantic ServerFn
     fireEvent.change(screen.getByLabelText('New grant role'), { target: { value: 'admin' } })
     fireEvent.click(screen.getByRole('button', { name: 'Grant' }))
     await submitted('setGrant', { projectId: 'p2', role: 'admin' })
-    for (const operation of ['renameGroup', 'describeGroup', 'addMember', 'createGrant']) {
+    Iterable.forEach(['renameGroup', 'describeGroup', 'addMember', 'createGrant'], (operation) => {
       expect(nativeSubmitted).toHaveBeenCalledWith(operation, null, expect.any(FormData))
-    }
+    })
   })
 
   test('creates groups without fake aggregate DTOs and requires deletion confirmation', async () => {

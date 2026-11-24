@@ -20,11 +20,11 @@ import {
 } from './scope.ts'
 import type { WebRequest, ScopeOptions } from './scope.ts'
 
-export function nativeRequest(input: WebRequest) {
+export const nativeRequest = function nativeRequest(input: WebRequest) {
   return new Request(input.url, { method: input.method, headers: input.headers.map(([name, value]) => [name, value]) })
 }
 
-export function publicWebFailure(error: unknown) {
+export const publicWebFailure = function publicWebFailure(error: unknown) {
   if (error instanceof ApiError || error instanceof ScopeError) {
     return coreFailure(error.status, error.message)
   }
@@ -34,7 +34,11 @@ export function publicWebFailure(error: unknown) {
   return error
 }
 
-export function loadBrowserScope(env: CoreEnvironment, input: WebRequest, options: ScopeOptions = {}) {
+export const loadBrowserScope = function loadBrowserScope(
+  env: CoreEnvironment,
+  input: WebRequest,
+  options: ScopeOptions = {},
+) {
   return Effect.gen(function* () {
     const decoded = yield* Schema.decodeUnknownEffect(WebRequestSchema)(input).pipe(
       Effect.mapError(() => coreFailure(400, 'Invalid browser request.')),

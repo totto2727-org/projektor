@@ -27,7 +27,7 @@ export interface FeedbackPayload {
  * meant to be embedded in client-side code, the same trust category as a
  * Sentry DSN or a Stripe publishable key.
  */
-export async function submitFeedback(
+export const submitFeedback = async function submitFeedback(
   endpoint: string,
   token: string,
   feedback: FeedbackPayload,

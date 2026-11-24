@@ -150,7 +150,10 @@ const toDto = function toDto(r: attachmentData.AttachmentMetadata): AttachmentDt
   }
 }
 
-export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto[]> {
+export const listAttachments = async function listAttachments(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<AttachmentDto[]> {
   const parsed = ListAttachmentsSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -178,7 +181,10 @@ export async function listAttachments(ctx: ServiceCtx, input: unknown): Promise<
 }
 
 /** Review selection requires a real writable issue in an active project, unlike legacy free-floating attachments. */
-export async function setAttachmentReviewStatus(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
+export const setAttachmentReviewStatus = async function setAttachmentReviewStatus(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ ok: true }> {
   const parsed = SetAttachmentReviewStatusSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -202,7 +208,7 @@ export async function setAttachmentReviewStatus(ctx: ServiceCtx, input: unknown)
   return { ok: true }
 }
 
-export async function createLinkAttachment(
+export const createLinkAttachment = async function createLinkAttachment(
   ctx: ServiceCtx,
   input: unknown,
 ): Promise<{ id: string; kind: 'wiki_ref' | 'url' }> {
@@ -255,7 +261,7 @@ export async function createLinkAttachment(
  */
 const DEFAULT_STORAGE_QUOTA_BYTES = 1024 * 1024 * 1024 // 1 GiB per workspace
 
-export function storageQuotaBytes(env: Readonly<{ STORAGE_QUOTA_BYTES?: string }>): number {
+export const storageQuotaBytes = function storageQuotaBytes(env: Readonly<{ STORAGE_QUOTA_BYTES?: string }>): number {
   const n = Number(env.STORAGE_QUOTA_BYTES)
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_STORAGE_QUOTA_BYTES
 }
@@ -269,7 +275,7 @@ const workspaceStorageUsageBytes = async function workspaceStorageUsageBytes(ctx
 }
 
 /** Validates size/type/quota for a would-be upload; throws the matching typed error. */
-export async function assertUploadAllowed(
+export const assertUploadAllowed = async function assertUploadAllowed(
   ctx: ServiceCtx,
   params: Readonly<{ size: number; contentType: string; quotaBytes?: number }>,
 ): Promise<void> {
@@ -289,7 +295,7 @@ export async function assertUploadAllowed(
 }
 
 /** The shared command owns R2 bytes and compensates if metadata recording fails. */
-export async function uploadStoredAttachment(
+export const uploadStoredAttachment = async function uploadStoredAttachment(
   ctx: ServiceCtx,
   input: Readonly<{ file: File; entityType: 'issue' | 'wiki_page'; entityId: string }>,
   quotaBytes?: number,
@@ -325,7 +331,7 @@ export async function uploadStoredAttachment(
 }
 
 /** Fully consume the object so callers do not retain an R2 handle across response delivery. */
-export async function getStoredAttachment(
+export const getStoredAttachment = async function getStoredAttachment(
   ctx: ServiceCtx,
   id: string,
 ): Promise<{ body: ArrayBuffer; filename: string; contentType: string } | null> {
@@ -338,7 +344,10 @@ export async function getStoredAttachment(
 }
 
 /** The shared deletion owns both storage and metadata cleanup. */
-export async function deleteStoredAttachment(ctx: ServiceCtx, id: string): Promise<void> {
+export const deleteStoredAttachment = async function deleteStoredAttachment(
+  ctx: ServiceCtx,
+  id: string,
+): Promise<void> {
   await deleteAttachment(ctx, { id })
 }
 
@@ -414,7 +423,7 @@ export async function getAttachmentForDownload(
 }
 
 /** Attachment metadata in the same shape `listAttachments` returns, for the MCP get_attachment tool. */
-export async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto> {
+export const getAttachment = async function getAttachment(ctx: ServiceCtx, input: unknown): Promise<AttachmentDto> {
   const parsed = GetAttachmentSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))

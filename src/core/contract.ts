@@ -32,7 +32,7 @@ export type CoreProblem = typeof CoreProblem.Type
 /** Only explicitly selected public data may cross the native binding. */
 export class CorePublicError extends Data.TaggedError('CorePublicError')<CoreProblem> {}
 
-export function coreFailure(
+export const coreFailure = function coreFailure(
   status: number,
   message: string,
   metadata: Pick<CoreProblem, 'kind' | 'details' | 'retryAfter'> = {},
@@ -44,7 +44,7 @@ export const coreReplyCodec = <S extends Schema.Top>(success: S) =>
   Schema.fromJsonString(Schema.toCodecJson(Schema.Result(success, CoreProblem)))
 
 /** Encode at the origin. Neither checked exceptions nor defects leave this Worker. */
-export function coreReply<E, R, S extends Schema.Top>(
+export const coreReply = function coreReply<E, R, S extends Schema.Top>(
   operation: string,
   success: S,
   effect: Effect.Effect<unknown, E, R>,

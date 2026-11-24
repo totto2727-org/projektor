@@ -1,5 +1,5 @@
 /** Stable identities for immutable query inputs, including repeated name/value pairs. */
-export function queryFields(search: string, omitted: Readonly<string[]> = []) {
+export const queryFields = function queryFields(search: string, omitted: Readonly<string[]> = []) {
   const occurrences = new Map<string, number>()
   return [...new URLSearchParams(search)]
     .filter(([name]) => !omitted.includes(name))

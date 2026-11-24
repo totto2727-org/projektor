@@ -32,7 +32,7 @@ import { CoreReadServices as RequestServices } from './read-services.ts'
 import type { RequestScope } from './scope.ts'
 
 /** Keep application policy failures, and redact storage failures before reaching a client. */
-export function checked<A>(read: () => A) {
+export const checked = function checked<A>(read: () => A) {
   return Effect.try({
     catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     try: read,
@@ -107,7 +107,12 @@ const listOptions = function listOptions(params: URLSearchParams, scope: Request
   )
 }
 
-export function readDataIssue(scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataIssue = function readDataIssue(
+  scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+) {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
@@ -130,7 +135,11 @@ export function readDataIssue(scope: RequestScope, workspaceId: string, identifi
     return normalizeIssue({ ...row, ...extras, reviewTargets: targets.get(row.id) ?? [] })
   })
 }
-export function readDataIssuePage(scope: RequestScope, workspaceId: string, params: URLSearchParams) {
+export const readDataIssuePage = function readDataIssuePage(
+  scope: RequestScope,
+  workspaceId: string,
+  params: URLSearchParams,
+) {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
@@ -167,7 +176,7 @@ export function readDataIssuePage(scope: RequestScope, workspaceId: string, para
     })
   })
 }
-export function searchDataIssues(
+export const searchDataIssues = function searchDataIssues(
   scope: RequestScope,
   workspaceId: string,
   query: string,
@@ -199,21 +208,36 @@ export function searchDataIssues(
     return rows.map((entry) => ({ ...entry, reviewTargets: targets.get(entry.id) ?? [] }))
   })
 }
-export function readDataComments(scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataComments = function readDataComments(
+  scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+) {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     const issue = yield* readDataIssue(scope, workspaceId, identifier, projectId)
     return normalizeComments(yield* listComments(db, workspaceId, issue.id).pipe(Effect.mapError(dataError)))
   })
 }
-export function readDataLinks(scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataLinks = function readDataLinks(
+  scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+) {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     const issue = yield* readDataIssue(scope, workspaceId, identifier, projectId)
     return normalizeLinks(yield* listLinksForIssue(db, workspaceId, issue.id).pipe(Effect.mapError(dataError)))
   })
 }
-export function readDataAttachments(scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataAttachments = function readDataAttachments(
+  scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+) {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     const issue = yield* readDataIssue(scope, workspaceId, identifier, projectId)
@@ -239,7 +263,11 @@ export function readDataAttachments(scope: RequestScope, workspaceId: string, id
   })
 }
 
-export function searchDataWikiAttachments(scope: RequestScope, workspaceId: string, query: string) {
+export const searchDataWikiAttachments = function searchDataWikiAttachments(
+  scope: RequestScope,
+  workspaceId: string,
+  query: string,
+) {
   return Effect.gen(function* () {
     const { db } = yield* RequestServices
     yield* checked(() => requireDataWorkspace(scope, workspaceId))

@@ -1,6 +1,6 @@
 import { makeWorkerBridge } from 'alchemy/Cloudflare/Bridge'
 import { WorkerEntrypoint } from 'cloudflare:workers'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import migrations from 'virtual:fixture-migrations'
 import entrypoint from 'virtual:production-core-entrypoint'
 
@@ -42,11 +42,11 @@ export default class FixtureCore extends NativeCore {
       .all<{ name: string; hash: string }>()
     const history = new Map(applied.results.map((row) => [row.name, row.hash]))
     const known = new Set(migrations.map((migration) => migration.name))
-    for (const name of history.keys()) {
+    Iterable.forEach(history.keys(), (name) => {
       if (!known.has(name)) {
         throw new Error(`Unknown fixture migration history: ${name}`)
       }
-    }
+    })
     for (const migration of migrations) {
       const previous = history.get(migration.name)
       if (Predicate.isNotNullish(previous)) {

@@ -15,7 +15,7 @@ export interface BrowserCommandClient {
 }
 
 /** Local composition only. Neither a callback nor a capability crosses the native binding. */
-export function runBrowserCommand<A, E, R>(
+export const runBrowserCommand = function runBrowserCommand<A, E, R>(
   context: FunctionContext,
   operation: (client: BrowserCommandClient) => Effect.Effect<A, E, R>,
 ) {

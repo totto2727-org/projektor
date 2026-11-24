@@ -28,7 +28,7 @@ const assertProjectExists = async function assertProjectExists(ctx: ServiceCtx, 
   }
 }
 
-export async function getCodeHeatmap(ctx: ServiceCtx, raw: unknown) {
+export const getCodeHeatmap = async function getCodeHeatmap(ctx: ServiceCtx, raw: unknown) {
   const result = GetCodeHeatmapSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

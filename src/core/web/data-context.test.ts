@@ -1,4 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types'
+import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { ApiError } from '#contracts/errors.ts'
@@ -47,19 +48,22 @@ describe('frontend application data authorization', () => {
 
   test('hides inaccessible project existence and enforces matching workspace catalog membership', () => {
     expect(requireDataProject(scope, 'pa', 'wa')).toBe(project)
-    for (const [current, id, workspaceId] of [
-      [scope, 'hidden', 'wa'],
-      [scope, 'pa', 'other'],
-      [{ ...scope, workspaces: [] }, 'pa', 'wa'],
-      [{ ...scope, workspaces: [{ ...workspace, slug: 'renamed' }] }, 'pa', 'wa'],
-    ] as const) {
-      try {
-        requireDataProject(current, id, workspaceId)
-        throw new Error('Expected denial')
-      } catch (error) {
-        expect(error).toMatchObject({ _tag: 'ScopeError', status: 404 })
-      }
-    }
+    Iterable.forEach(
+      [
+        [scope, 'hidden', 'wa'],
+        [scope, 'pa', 'other'],
+        [{ ...scope, workspaces: [] }, 'pa', 'wa'],
+        [{ ...scope, workspaces: [{ ...workspace, slug: 'renamed' }] }, 'pa', 'wa'],
+      ] as const,
+      ([current, id, workspaceId]) => {
+        try {
+          requireDataProject(current, id, workspaceId)
+          throw new Error('Expected denial')
+        } catch (error) {
+          expect(error).toMatchObject({ _tag: 'ScopeError', status: 404 })
+        }
+      },
+    )
   })
 
   test('authorizes workspace wiki rows with null project and project entities against the visible catalog', () => {
@@ -77,11 +81,11 @@ describe('frontend application data authorization', () => {
 
   test('keeps role/grant predicate policy in the web app with owner/admin bypass only', () => {
     expect(visibleProjectPredicate(scope, 'wa', schema.issues.projectId)).toBeDefined()
-    for (const role of ['owner', 'admin'] as const) {
+    Iterable.forEach(['owner', 'admin'] as const, (role) => {
       expect(
         visibleProjectPredicate({ ...scope, workspaces: [{ ...workspace, role }] }, 'wa', schema.issues.projectId),
       ).toBeUndefined()
-    }
+    })
     expect(() => visibleProjectPredicate(scope, 'other', schema.issues.projectId)).toThrow(
       'Selected workspace is not accessible.',
     )

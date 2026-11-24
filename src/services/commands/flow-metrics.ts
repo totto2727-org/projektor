@@ -28,7 +28,7 @@ const assertProjectExists = async function assertProjectExists(ctx: ServiceCtx, 
   }
 }
 
-export async function getFlowMetrics(ctx: ServiceCtx, raw: unknown) {
+export const getFlowMetrics = async function getFlowMetrics(ctx: ServiceCtx, raw: unknown) {
   const result = GetFlowMetricsSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

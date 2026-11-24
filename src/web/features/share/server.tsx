@@ -10,7 +10,7 @@ import { ApiError } from '@/server/errors.ts'
 
 import { layerBrand } from './brand.ts'
 import { SharedIssue } from './schemas.ts'
-import ShareView, { ErrorState } from './ShareView.tsx'
+import ShareView, { ErrorState } from './share-view.tsx'
 const SHARE_STYLES = `
 @font-face { font-family: 'Projektor Mono'; src: url('/fonts/MonaspaceNeon-Variable.woff2') format('woff2-variations'); font-weight: 400 700; font-style: normal; font-display: swap; unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+20AC, U+2000-206F, U+2190-21FF, U+2200-22FF, U+2500-257F, U+2580-259F, U+25A0-25FF, U+2713, U+2715, U+2717; }
 .share-page, .share-page *, .share-page *::before, .share-page *::after { box-sizing: border-box; }

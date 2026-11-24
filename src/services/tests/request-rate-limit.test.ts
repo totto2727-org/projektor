@@ -1,4 +1,4 @@
-import { Predicate, Effect, Schema } from 'effect'
+import { Iterable, Predicate, Effect, Schema } from 'effect'
 import { Hono } from 'hono'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -26,9 +26,9 @@ const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 const fixture = function fixture() {

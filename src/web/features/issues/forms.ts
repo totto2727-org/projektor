@@ -16,7 +16,7 @@ export const PointsText = Schema.String.check(Schema.isPattern(/^(?:[+-]?(?:\d+\
 export const UrlText = Schema.URLFromString
 
 /** TanStack owns editable values and Effect owns validation. Canonical DTO refreshes never reset unsaved input. */
-export function useIssueForm<Values extends Record<string, unknown>>(
+export const useIssueForm = function useIssueForm<Values extends Record<string, unknown>>(
   defaultValues: Values,
   schema: Schema.Codec<unknown, NoInfer<Values>>,
 ) {

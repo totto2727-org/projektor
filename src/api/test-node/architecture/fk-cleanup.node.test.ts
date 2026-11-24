@@ -14,7 +14,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { FK_CLEANUP_ALLOWLIST } from './fk-cleanup-allowlist.ts'
@@ -35,9 +35,9 @@ const declaredFkActions = function declaredFkActions(): Set<string> {
       }
       const fk =
         /[`"]?\w+[`"]?\s+\w[^,]*?REFERENCES\s+[`"]?(\w+)[`"]?\s*\([^)]*\)[^,]*?ON DELETE\s+(CASCADE|SET NULL)/gi
-      for (const m of stmt.matchAll(fk)) {
+      Iterable.forEach(stmt.matchAll(fk), (m) => {
         keys.add(`${table[1]} -> ${m[1]} (${m[2].toUpperCase()})`)
-      }
+      })
     }
   }
   return keys
@@ -96,11 +96,11 @@ describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () =
       }
       const child = key.split(' -> ')[0]
       const sources = entry.cleanedBy.map((ref) => ({ ref, src: declarationSource(ref) }))
-      for (const { ref, src } of sources) {
+      Iterable.forEach(sources, ({ ref, src }) => {
         if (Predicate.isNullish(src)) {
           problems.push(`${key}: ${ref} not found`)
         }
-      }
+      })
       const mentions = sources.every(
         ({ src }) =>
           Predicate.isNotNullish(src) && (src.includes(child) || new RegExp(`\\b${camel(child)}\\b`).test(src)),

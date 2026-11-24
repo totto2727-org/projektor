@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { issuesTools } from '#api/mcp/issues.ts'
@@ -1674,9 +1675,9 @@ describe('issues MCP — list_issues filter parity (PROJ-243)', () => {
     const listIssuesTool = body.result.tools.find((t) => t.name === 'list_issues')
     expect(listIssuesTool).toBeDefined()
     const advertised = Object.keys(listIssuesTool!.inputSchema.properties)
-    for (const key of Object.keys(ListIssuesSchema.shape)) {
+    Iterable.forEach(Object.keys(ListIssuesSchema.shape), (key) => {
       expect(advertised).toContain(key)
-    }
+    })
   })
 
   test('respects the noParent filter', async () => {
@@ -1979,12 +1980,12 @@ describe('get_prioritized_issues MCP tool', () => {
     }
     expect(data.issues.length).toBeGreaterThan(0)
     expect(data.issues.some((i) => i.title === 'High prio')).toBe(true)
-    for (const issue of data.issues) {
+    Iterable.forEach(data.issues, (issue) => {
       expect(typeof issue._score).toBe('number')
       expect(issue._score_breakdown).toHaveProperty('centrality')
       expect(issue._score_breakdown).toHaveProperty('priority')
       expect(issue._score_breakdown).toHaveProperty('story_points')
-    }
+    })
   })
 
   test('handles more open issues than a single D1 query can bind (chunked enrichment)', async () => {
@@ -2775,10 +2776,10 @@ describe('covers PROJ-931 — compact MCP responses', () => {
   })
 
   test("every compacting tool's description states the omission contract", () => {
-    for (const name of ['get_issue', 'list_issues', 'get_issues']) {
+    Iterable.forEach(['get_issue', 'list_issues', 'get_issues'], (name) => {
       const tool = issuesTools.find((t) => t.name === name)
       expect(tool?.description).toContain('Omitted keys are null/empty/false; pass verbose:true for the raw shape.')
-    }
+    })
   })
 
   test('verbose/fields wrong types are rejected with a validation tool error before reaching the service', async () => {

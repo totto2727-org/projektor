@@ -79,7 +79,7 @@ describe('tools/list response carries annotations (PROJ-887)', () => {
       method: 'POST',
       headers,
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
-    }).then((r) => r.json())) as JsonRpcResult<{
+    }).then((response) => response.json())) as JsonRpcResult<{
       tools: { name: string; annotations?: Record<string, unknown> }[]
     }>
 

@@ -24,7 +24,7 @@ export const READ: MCPToolAnnotations = { readOnlyHint: true, openWorldHint: fal
  * - `idempotent`: pass only where obviously true (update_*, set_* or claim_*-by-id) or
  *   obviously false (create_*); omit for tools where it is not clear-cut (e.g. patch_*).
  */
-export function WRITE(opts: { destructive: boolean; idempotent?: boolean }): MCPToolAnnotations {
+export const WRITE = function WRITE(opts: { destructive: boolean; idempotent?: boolean }): MCPToolAnnotations {
   return {
     readOnlyHint: false,
     openWorldHint: false,

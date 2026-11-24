@@ -26,7 +26,7 @@ export const DEFAULT_BRAND: DeploymentBrandDto = {
   logoUrl: null,
 }
 
-export function layerBrand(base: DeploymentBrandDto, workspace: WorkspaceBrandDto) {
+export const layerBrand = function layerBrand(base: DeploymentBrandDto, workspace: WorkspaceBrandDto) {
   return {
     name: workspace.displayName ?? base.name,
     mark: workspace.displayName ? (Array.from(workspace.displayName.trim())[0]?.toUpperCase() ?? base.mark) : base.mark,

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from '@testing-library/react'
+import { Iterable } from 'effect'
 import { isValidElement } from 'react'
 import type { ComponentProps, ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
@@ -216,17 +217,20 @@ describe('flow chart public data and primitive semantics', () => {
         <AgingWipScatter data={[]} p50={null} p90={null} />
       </>,
     )
-    for (const message of [
-      'No completed issues yet',
-      'No issues in this window yet',
-      'Not tracked: no task type keyed "bug" exists in this workspace',
-      'No review-latency data yet',
-      'No WIP data yet',
-      'No arrivals or completions yet',
-      'No issues currently in progress or review',
-    ]) {
-      expect(screen.getByText(message)).toBeTruthy()
-    }
+    Iterable.forEach(
+      [
+        'No completed issues yet',
+        'No issues in this window yet',
+        'Not tracked: no task type keyed "bug" exists in this workspace',
+        'No review-latency data yet',
+        'No WIP data yet',
+        'No arrivals or completions yet',
+        'No issues currently in progress or review',
+      ],
+      (message) => {
+        expect(screen.getByText(message)).toBeTruthy()
+      },
+    )
     expect(calls.size).toBe(0)
   })
 })

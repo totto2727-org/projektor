@@ -1,12 +1,16 @@
 import { and, asc, eq } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
 
 /** The app decides whether to pass a membership filter or request all workspace groups. */
-export function listGroups(db: D1Database, workspaceId: string, options: { memberUserId?: string } = {}) {
+export const listGroups = function listGroups(
+  db: D1Database,
+  workspaceId: string,
+  options: { memberUserId?: string } = {},
+) {
   return queryEffect('listGroups', async () => {
     const orm = drizzle(db, { schema })
     const columns = {
@@ -34,7 +38,7 @@ export function listGroups(db: D1Database, workspaceId: string, options: { membe
       .orderBy(asc(schema.userGroups.name))
   })
 }
-export function findGroup(db: D1Database, workspaceId: string, groupId: string) {
+export const findGroup = function findGroup(db: D1Database, workspaceId: string, groupId: string) {
   return queryEffect('findGroup', async () =>
     drizzle(db, { schema })
       .select()
@@ -43,7 +47,7 @@ export function findGroup(db: D1Database, workspaceId: string, groupId: string) 
       .get(),
   )
 }
-export function listGroupMembers(db: D1Database, workspaceId: string, groupId: string) {
+export const listGroupMembers = function listGroupMembers(db: D1Database, workspaceId: string, groupId: string) {
   return queryEffect('listGroupMembers', async () =>
     drizzle(db, { schema })
       .select({
@@ -60,7 +64,7 @@ export function listGroupMembers(db: D1Database, workspaceId: string, groupId: s
       .orderBy(asc(schema.userGroupMembers.addedAt)),
   )
 }
-export function listGroupGrants(db: D1Database, workspaceId: string, groupId: string) {
+export const listGroupGrants = function listGroupGrants(db: D1Database, workspaceId: string, groupId: string) {
   return queryEffect('listGroupGrants', async () =>
     drizzle(db, { schema })
       .select({
@@ -82,7 +86,7 @@ export function listGroupGrants(db: D1Database, workspaceId: string, groupId: st
       .orderBy(asc(schema.projects.name)),
   )
 }
-export function listMemberGroups(db: D1Database, workspaceId: string) {
+export const listMemberGroups = function listMemberGroups(db: D1Database, workspaceId: string) {
   return queryEffect('listMemberGroups', async () => {
     const rows = await drizzle(db, { schema })
       .select({
@@ -98,14 +102,14 @@ export function listMemberGroups(db: D1Database, workspaceId: string) {
       )
       .where(eq(schema.workspaceMembers.workspaceId, workspaceId))
     const byUser = new Map<string, { id: string; name: string }[]>()
-    for (const row of rows) {
+    Iterable.forEach(rows, (row) => {
       if (!byUser.has(row.userId)) {
         byUser.set(row.userId, [])
       }
       if (row.groupId && row.groupName) {
         byUser.get(row.userId)?.push({ id: row.groupId, name: row.groupName })
       }
-    }
+    })
     return Array.from(byUser, ([userId, groups]) => ({ userId, groups }))
   })
 }

@@ -25,7 +25,7 @@ const prepareCoreArtifact = function prepareCoreArtifact(): Promise<void> {
 }
 
 /** Compile the same official native Core bridge used by production and browser acceptance. */
-export async function nativeCoreWorker(runnerName: string) {
+export const nativeCoreWorker = async function nativeCoreWorker(runnerName: string) {
   if (!runnerName) {
     throw new Error('The native API runner must be initialized before its Core service.')
   }

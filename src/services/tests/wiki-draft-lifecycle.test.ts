@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { SQLInputValue } from 'node:sqlite'
 
+import { Iterable } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { ConflictError, NotFoundError } from '#commands/errors.ts'
@@ -19,9 +20,9 @@ import { migratedDb } from '#db/test/helpers.ts'
 
 const databases: ReturnType<typeof migratedDb>[] = []
 afterEach(() => {
-  for (const db of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (db) => {
     db.close()
-  }
+  })
 })
 const fixture = function fixture() {
   const sqlite = migratedDb()

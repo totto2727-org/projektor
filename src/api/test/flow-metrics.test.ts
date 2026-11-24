@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { Distribution } from '#commands/flow-metrics.ts'
@@ -244,9 +245,9 @@ describe('flow metrics (PROJ-252)', () => {
     const totalCounted = metrics.throughputOverTime.reduce((sum, b) => sum + b.count, 0)
     expect(totalCounted).toBe(2)
     expect(metrics.throughputOverTime.length).toBeGreaterThan(0)
-    for (const bucket of metrics.throughputOverTime) {
+    Iterable.forEach(metrics.throughputOverTime, (bucket) => {
       expect(bucket.bucketStart).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    }
+    })
   })
 
   test('excludes an issue completed just before `since` even though it falls in the aligned first bucket', async () => {
@@ -292,10 +293,10 @@ describe('flow metrics (PROJ-252)', () => {
     expect(res.status).toBe(200)
     const metrics = (await res.json()) as FlowMetrics
 
-    for (const bucket of metrics.throughputOverTime) {
+    Iterable.forEach(metrics.throughputOverTime, (bucket) => {
       const weekday = new Date(`${bucket.bucketStart}T00:00:00Z`).getUTCDay()
       expect(weekday).toBe(1) // 1 === Monday
-    }
+    })
   })
 
   test('daily buckets sum to the same total as weekly buckets for the same window', async () => {
@@ -380,12 +381,12 @@ describe('flow metrics (PROJ-252)', () => {
   test('returns null (not NaN/throw) percentiles for a project with zero issues (PROJ-301)', async () => {
     const metrics = await getFlowMetrics()
 
-    for (const dist of [metrics.leadTime, metrics.cycleTime, metrics.reviewLatency]) {
+    Iterable.forEach([metrics.leadTime, metrics.cycleTime, metrics.reviewLatency], (dist) => {
       expect(dist.count).toBe(0)
       expect(dist.avg).toBeNull()
       expect(dist.p50).toBeNull()
       expect(dist.p90).toBeNull()
-    }
+    })
   })
 
   test('excludes a NULL-timestamp legacy issue from lead/cycle time without crashing (PROJ-301)', async () => {
@@ -542,12 +543,12 @@ describe('flow metrics (PROJ-252)', () => {
 
     expect(metrics.cfdOverTime.length).toBeGreaterThan(0)
 
-    for (const bucket of metrics.cfdOverTime) {
+    Iterable.forEach(metrics.cfdOverTime, (bucket) => {
       expect(bucket.backlogTodo).toBeGreaterThanOrEqual(0)
       expect(bucket.inProgress).toBeGreaterThanOrEqual(0)
       expect(bucket.inReview).toBeGreaterThanOrEqual(0)
       expect(bucket.done).toBeGreaterThanOrEqual(0)
-    }
+    })
 
     // Done is cumulative — never decreases bucket over bucket.
     for (let index = 1; index < metrics.cfdOverTime.length; index++) {
@@ -644,9 +645,9 @@ describe('flow metrics (PROJ-252)', () => {
     const totalCompleted = metrics.arrivalVsCompletionOverTime.reduce((sum, b) => sum + b.completed, 0)
     expect(totalCreated).toBe(1)
     expect(totalCompleted).toBe(1)
-    for (const bucket of metrics.arrivalVsCompletionOverTime) {
+    Iterable.forEach(metrics.arrivalVsCompletionOverTime, (bucket) => {
       expect(bucket.net).toBe(bucket.created - bucket.completed)
-    }
+    })
   })
 
   test('computes flow efficiency as lease-held time over lead time, distinct from autonomy ratio', async () => {
@@ -739,11 +740,11 @@ describe('flow metrics (PROJ-252)', () => {
     expect(Array.isArray(metrics.bugShareOverTime)).toBe(true)
     const nonEmptyBuckets = metrics.bugShareOverTime.filter((b) => b.total > 0)
     expect(nonEmptyBuckets).toHaveLength(2)
-    for (const bucket of nonEmptyBuckets) {
+    Iterable.forEach(nonEmptyBuckets, (bucket) => {
       expect(bucket.total).toBe(2)
       expect(bucket.bugCount).toBe(1)
       expect(bucket.bugSharePercent).toBeCloseTo(0.5, 5)
-    }
+    })
 
     const emptyBucket = metrics.bugShareOverTime.find((b) => b.total === 0)
     if (emptyBucket) {

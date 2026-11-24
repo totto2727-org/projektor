@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Column, SQL } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 import type { Role } from '#types'
@@ -23,7 +23,7 @@ import type { ServiceCtx } from './types.ts'
  * membership change takes effect on the user's very next request.
  */
 
-export function isWorkspaceAdmin(role: Role | undefined): boolean {
+export const isWorkspaceAdmin = function isWorkspaceAdmin(role: Role | undefined): boolean {
   return role === 'owner' || role === 'admin'
 }
 
@@ -53,7 +53,10 @@ const strongestGrant = function strongestGrant(
  * workspace (grants only ever reference in-workspace projects, so a project id
  * match is sufficient here).
  */
-export async function effectiveProjectRole(ctx: ServiceCtx, projectId: string): Promise<Role | null> {
+export const effectiveProjectRole = async function effectiveProjectRole(
+  ctx: ServiceCtx,
+  projectId: string,
+): Promise<Role | null> {
   if (isWorkspaceAdmin(ctx.role)) {
     return ctx.role ?? null
   }
@@ -84,7 +87,10 @@ export async function effectiveProjectRole(ctx: ServiceCtx, projectId: string): 
  * no access. Invisible projects 404 rather than 403 so their existence never
  * leaks to a member who was never granted them.
  */
-export async function requireProjectAccess(ctx: ServiceCtx, projectId: string): Promise<Role> {
+export const requireProjectAccess = async function requireProjectAccess(
+  ctx: ServiceCtx,
+  projectId: string,
+): Promise<Role> {
   const role = await effectiveProjectRole(ctx, projectId)
   if (Predicate.isNullish(role)) {
     throw new NotFoundError('Project not found')
@@ -93,7 +99,7 @@ export async function requireProjectAccess(ctx: ServiceCtx, projectId: string): 
 }
 
 /** True when the effective project role permits mutations (member/admin/owner, not viewer). */
-export function canWriteProject(role: Role): boolean {
+export const canWriteProject = function canWriteProject(role: Role): boolean {
   return role !== 'viewer'
 }
 
@@ -107,7 +113,10 @@ export function canWriteProject(role: Role): boolean {
  * entirely, so nothing else confirms the caller-supplied `projectId` actually
  * belongs to their workspace before it gets stamped onto a new row.
  */
-export async function requireProjectInWorkspace(ctx: ServiceCtx, projectId: string): Promise<void> {
+export const requireProjectInWorkspace = async function requireProjectInWorkspace(
+  ctx: ServiceCtx,
+  projectId: string,
+): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
   const project = await orm
     .select({ id: schema.projects.id })
@@ -140,7 +149,11 @@ export async function requireProjectInWorkspace(ctx: ServiceCtx, projectId: stri
 
 export type AccessMode = 'read' | 'edit'
 
-export async function assertIssueAccess(ctx: ServiceCtx, issueId: string, mode: AccessMode): Promise<string> {
+export const assertIssueAccess = async function assertIssueAccess(
+  ctx: ServiceCtx,
+  issueId: string,
+  mode: AccessMode,
+): Promise<string> {
   const issue = await drizzle(ctx.db, { schema })
     .select({ projectId: schema.issues.projectId })
     .from(schema.issues)
@@ -200,7 +213,7 @@ export async function assertProjectAccess(
  * Soft variant of `assertProjectAccess` for read paths where "no access" means
  * "return nothing" rather than an error (search/list scoped to a project).
  */
-export async function hasProjectAccess(
+export const hasProjectAccess = async function hasProjectAccess(
   ctx: ServiceCtx,
   projectId: string,
   mode: AccessMode = 'read',
@@ -220,7 +233,7 @@ export async function hasProjectAccess(
  * `undefined` for owner/admin (no filter). Alias of `visibleProjectPredicate`
  * under the PROJ-837 name; defaults to filtering `projects.id`.
  */
-export function visibleProjectFilter(
+export const visibleProjectFilter = function visibleProjectFilter(
   ctx: ServiceCtx,
   projectColumn: Column | SQL = schema.projects.id,
 ): SQL | undefined {
@@ -258,7 +271,7 @@ export function visibleProjectPredicate(ctx: ServiceCtx, projectColumn: Column |
  */
 const COLUMN_EXPR = /^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?$/
 
-export function visibleProjectSqlFragment(
+export const visibleProjectSqlFragment = function visibleProjectSqlFragment(
   ctx: ServiceCtx,
   projectColExpr: string,
 ): { sql: string; params: unknown[] } | null {
@@ -284,7 +297,7 @@ export function visibleProjectSqlFragment(
  * - everyone else: the union of project grants held by the caller's groups
  *   (default-deny; scoped by workspace_id through both user_groups and projects).
  */
-export async function visibleProjectIds(ctx: ServiceCtx): Promise<string[]> {
+export const visibleProjectIds = async function visibleProjectIds(ctx: ServiceCtx): Promise<string[]> {
   const orm = drizzle(ctx.db, { schema })
 
   if (isWorkspaceAdmin(ctx.role)) {
@@ -320,7 +333,7 @@ export async function visibleProjectIds(ctx: ServiceCtx): Promise<string[]> {
  * wrong-workspace user reference. `field` names the offending input field in the
  * thrown error so REST/MCP callers can surface it against the right form field.
  */
-export async function requireWorkspaceMember(
+export const requireWorkspaceMember = async function requireWorkspaceMember(
   ctx: Pick<ServiceCtx, 'db' | 'workspaceId'>,
   userId: string,
   field = 'assigneeId',
@@ -348,7 +361,7 @@ export async function requireWorkspaceMember(
  * - Workspace owner/admin → included (admin bypass, as for the caller).
  * - Anyone else, project-scoped → included only with a group grant on that project.
  */
-export async function usersWithProjectReadAccess(
+export const usersWithProjectReadAccess = async function usersWithProjectReadAccess(
   // Only db + workspaceId are read, so unauthenticated paths (public share links,
   // PROJ-794) can call this without a caller identity.
   ctx: Pick<ServiceCtx, 'db' | 'workspaceId'>,
@@ -380,8 +393,8 @@ export async function usersWithProjectReadAccess(
       .innerJoin(schema.userGroupMembers, eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId))
       .where(and(eq(schema.groupProjectGrants.projectId, projectId), inArray(schema.userGroupMembers.userId, chunk))),
   )
-  for (const g of granted) {
+  Iterable.forEach(granted, (g) => {
     allowed.add(g.userId)
-  }
+  })
   return allowed
 }

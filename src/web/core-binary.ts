@@ -8,7 +8,7 @@ import { ApiError } from './server/errors.ts'
 const BinaryFailure = Schema.Struct({ error: Schema.String })
 
 /** Same-binding binary transport, with request-local proof and no buffering of file bytes. */
-export function transferCoreBinary(
+export const transferCoreBinary = function transferCoreBinary(
   path: string,
   options: { readonly method?: string; readonly body?: BodyInit; readonly headers?: HeadersInit } = {},
 ) {

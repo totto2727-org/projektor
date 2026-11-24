@@ -8,7 +8,10 @@ import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
 /** Binary branding and wiki exports use fetch. JSON operations remain named RPC. */
-export async function handleApiBinaryRequest(request: Request, env: CoreEnvironment): Promise<Response | undefined> {
+export const handleApiBinaryRequest = async function handleApiBinaryRequest(
+  request: Request,
+  env: CoreEnvironment,
+): Promise<Response | undefined> {
   const url = new URL(request.url)
   if (url.pathname !== '/workspace-logo' && url.pathname !== '/wiki-export') {
     return undefined

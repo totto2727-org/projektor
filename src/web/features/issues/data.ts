@@ -27,11 +27,16 @@ import {
   normalizeTaskTypes,
 } from './types.ts'
 
-export function checked<A>(read: () => A) {
+export const checked = function checked<A>(read: () => A) {
   return Effect.try({ catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)), try: read })
 }
 
-export function readDataIssue(_scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataIssue = function readDataIssue(
+  _scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -40,7 +45,11 @@ export function readDataIssue(_scope: RequestScope, workspaceId: string, identif
     ).pipe(Effect.map(normalizeIssue))
   })
 }
-export function readDataIssuePage(_scope: RequestScope, workspaceId: string, params: URLSearchParams) {
+export const readDataIssuePage = function readDataIssuePage(
+  _scope: RequestScope,
+  workspaceId: string,
+  params: URLSearchParams,
+) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -49,7 +58,7 @@ export function readDataIssuePage(_scope: RequestScope, workspaceId: string, par
     ).pipe(Effect.map(normalizeIssuePage))
   })
 }
-export function searchDataIssues(
+export const searchDataIssues = function searchDataIssues(
   _scope: RequestScope,
   workspaceId: string,
   query: string,
@@ -64,7 +73,12 @@ export function searchDataIssues(
     ).pipe(Effect.map((rows) => rows.map((row) => ({ ...row }))))
   })
 }
-export function readDataComments(_scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataComments = function readDataComments(
+  _scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -73,7 +87,12 @@ export function readDataComments(_scope: RequestScope, workspaceId: string, iden
     ).pipe(Effect.map(normalizeComments))
   })
 }
-export function readDataLinks(_scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataLinks = function readDataLinks(
+  _scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -82,7 +101,12 @@ export function readDataLinks(_scope: RequestScope, workspaceId: string, identif
     ).pipe(Effect.map(normalizeLinks))
   })
 }
-export function readDataAttachments(_scope: RequestScope, workspaceId: string, identifier: string, projectId?: string) {
+export const readDataAttachments = function readDataAttachments(
+  _scope: RequestScope,
+  workspaceId: string,
+  identifier: string,
+  projectId?: string,
+) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -91,7 +115,11 @@ export function readDataAttachments(_scope: RequestScope, workspaceId: string, i
     ).pipe(Effect.map(normalizeAttachments))
   })
 }
-export function searchDataWikiAttachments(_scope: RequestScope, workspaceId: string, query: string) {
+export const searchDataWikiAttachments = function searchDataWikiAttachments(
+  _scope: RequestScope,
+  workspaceId: string,
+  query: string,
+) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -100,7 +128,7 @@ export function searchDataWikiAttachments(_scope: RequestScope, workspaceId: str
     ).pipe(Effect.map((rows) => rows.map((row) => ({ ...row }))))
   })
 }
-export function readIssueLookups(workspaceId: string) {
+export const readIssueLookups = function readIssueLookups(workspaceId: string) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -114,7 +142,7 @@ export function readIssueLookups(workspaceId: string) {
     )
   })
 }
-export function readIssueMembers(workspaceId: string) {
+export const readIssueMembers = function readIssueMembers(workspaceId: string) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -123,7 +151,7 @@ export function readIssueMembers(workspaceId: string) {
     )
   })
 }
-export function readSprints(workspaceId: string, projectId: string) {
+export const readSprints = function readSprints(workspaceId: string, projectId: string) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -132,7 +160,7 @@ export function readSprints(workspaceId: string, projectId: string) {
     )
   })
 }
-export function readSprint(workspaceId: string, sprintId: string) {
+export const readSprint = function readSprint(workspaceId: string, sprintId: string) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(

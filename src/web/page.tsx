@@ -3,7 +3,7 @@ import { HttpServerResponse } from 'effect/http'
 import type { ReactNode } from 'react'
 
 import { RuntimeProvider } from './client/runtime.tsx'
-import { ProjectNav } from './components/ProjectNav.tsx'
+import { ProjectNav } from './components/project-nav.tsx'
 import { EFFRONT } from './effront.ts'
 import { getRouteParams, RequestServices } from './request.ts'
 import type { Env, PageFailure, PreparedView, RouteParams } from './request.ts'

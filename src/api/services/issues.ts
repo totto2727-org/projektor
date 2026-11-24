@@ -4,10 +4,13 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export function listIssues(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiListIssues']>) {
+export const listIssues = function listIssues(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiListIssues']>
+) {
   return apiReply(ApiResults.apiListIssues, ctx.core.apiListIssues(ctx.actor, ctx.workspaceId, ...args))
 }
-export function resolveIssueIdParam(
+export const resolveIssueIdParam = function resolveIssueIdParam(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiResolveIssueIdParam']>
 ): Promise<string> {
@@ -16,22 +19,34 @@ export function resolveIssueIdParam(
     ctx.core.apiResolveIssueIdParam(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function getIssue(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiGetIssue']>) {
+export const getIssue = function getIssue(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiGetIssue']>) {
   return apiReply(ApiResults.apiGetIssue, ctx.core.apiGetIssue(ctx.actor, ctx.workspaceId, ...args))
 }
-export function getIssuesBatch(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiGetIssuesBatch']>) {
+export const getIssuesBatch = function getIssuesBatch(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiGetIssuesBatch']>
+) {
   return apiReply(ApiResults.apiGetIssuesBatch, ctx.core.apiGetIssuesBatch(ctx.actor, ctx.workspaceId, ...args))
 }
-export function createIssue(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiCreateIssue']>) {
+export const createIssue = function createIssue(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiCreateIssue']>
+) {
   return apiReply(ApiResults.apiCreateIssue, ctx.core.apiCreateIssue(ctx.actor, ctx.workspaceId, ...args))
 }
-export function updateIssue(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiUpdateIssue']>) {
+export const updateIssue = function updateIssue(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiUpdateIssue']>
+) {
   return apiReply(ApiResults.apiUpdateIssue, ctx.core.apiUpdateIssue(ctx.actor, ctx.workspaceId, ...args))
 }
-export function deleteIssue(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiDeleteIssue']>) {
+export const deleteIssue = function deleteIssue(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiDeleteIssue']>
+) {
   return apiReply(ApiResults.apiDeleteIssue, ctx.core.apiDeleteIssue(ctx.actor, ctx.workspaceId, ...args))
 }
-export function getPrioritizedIssues(
+export const getPrioritizedIssues = function getPrioritizedIssues(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiGetPrioritizedIssues']>
 ) {
@@ -40,6 +55,9 @@ export function getPrioritizedIssues(
     ctx.core.apiGetPrioritizedIssues(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function searchIssues(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiSearchIssues']>) {
+export const searchIssues = function searchIssues(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiSearchIssues']>
+) {
   return apiReply(ApiResults.apiSearchIssues, ctx.core.apiSearchIssues(ctx.actor, ctx.workspaceId, ...args))
 }

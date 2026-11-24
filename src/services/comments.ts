@@ -15,7 +15,7 @@ export interface CommentRow {
 }
 
 /** Caller authorizes the issue, while this query independently enforces tenant scope. */
-export function listComments(db: D1Database, workspaceId: string, issueId: string) {
+export const listComments = function listComments(db: D1Database, workspaceId: string, issueId: string) {
   return queryEffect('listComments', async (): Promise<CommentRow[]> => {
     const orm = drizzle(db, { schema })
     return orm

@@ -29,7 +29,7 @@ import * as data from './issue-data.ts'
 import { CoreReadServices } from './read-services.ts'
 import type { RequestScope, WebRequest } from './scope.ts'
 
-export function webRead<A, E>(
+export const webRead = function webRead<A, E>(
   env: CoreEnvironment,
   request: WebRequest,
   workspaceId: string,

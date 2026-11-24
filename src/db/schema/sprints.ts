@@ -23,5 +23,5 @@ export const sprints = sqliteTable(
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
-  (t) => [index('sprints_workspace_project_idx').on(t.workspaceId, t.projectId)],
+  (table) => [index('sprints_workspace_project_idx').on(table.workspaceId, table.projectId)],
 )

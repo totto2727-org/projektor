@@ -4,10 +4,13 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export function listFeedback(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiListFeedback']>) {
+export const listFeedback = function listFeedback(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiListFeedback']>
+) {
   return apiReply(ApiResults.apiListFeedback, ctx.core.apiListFeedback(ctx.actor, ctx.workspaceId, ...args))
 }
-export function updateFeedbackStatus(
+export const updateFeedbackStatus = function updateFeedbackStatus(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiUpdateFeedbackStatus']>
 ) {
@@ -16,7 +19,7 @@ export function updateFeedbackStatus(
     ctx.core.apiUpdateFeedbackStatus(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function convertFeedbackToIssue(
+export const convertFeedbackToIssue = function convertFeedbackToIssue(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiConvertFeedbackToIssue']>
 ) {
@@ -25,16 +28,19 @@ export function convertFeedbackToIssue(
     ctx.core.apiConvertFeedbackToIssue(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function bulkMarkReviewed(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiBulkMarkReviewed']>) {
+export const bulkMarkReviewed = function bulkMarkReviewed(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiBulkMarkReviewed']>
+) {
   return apiReply(ApiResults.apiBulkMarkReviewed, ctx.core.apiBulkMarkReviewed(ctx.actor, ctx.workspaceId, ...args))
 }
-export function bulkConvertToIssue(
+export const bulkConvertToIssue = function bulkConvertToIssue(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiBulkConvertToIssue']>
 ) {
   return apiReply(ApiResults.apiBulkConvertToIssue, ctx.core.apiBulkConvertToIssue(ctx.actor, ctx.workspaceId, ...args))
 }
-export function getFeedbackSummary(
+export const getFeedbackSummary = function getFeedbackSummary(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiGetFeedbackSummary']>
 ) {

@@ -1,5 +1,5 @@
 import { env as nativeEnv } from 'cloudflare:workers'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 import type NativeFixtureCore from '#tests/native-workers/core.worker.ts'
 import type { Env } from '#types'
@@ -34,11 +34,11 @@ let settingsSnapshot: Record<string, string | null> = {}
 
 const synchronizeConfiguration = function synchronizeConfiguration(): void {
   const configuration: Record<string, string | null> = {}
-  for (const [key, value] of Object.entries(nativeEnv)) {
+  Iterable.forEach(Object.entries(nativeEnv), ([key, value]) => {
     if (key !== 'CORE_FIXTURE_CONFIGURATION' && (Predicate.isString(value) || value === undefined)) {
       configuration[key] = value ?? null
     }
-  }
+  })
   settingsSnapshot = {
     ...configuration,
     FIXTURE_LIMITER_MODE: nativeEnv.RATE_LIMITER ? 'native' : 'absent',
@@ -54,7 +54,9 @@ const synchronizeConfiguration = function synchronizeConfiguration(): void {
 }
 
 /** Explicit failure modes survive subsequent ordinary scalar fixture mutations. */
-export async function configureCore(settings: Readonly<Record<string, string | null>> = {}): Promise<void> {
+export const configureCore = async function configureCore(
+  settings: Readonly<Record<string, string | null>> = {},
+): Promise<void> {
   explicitSettings = { ...settings }
   synchronizeConfiguration()
   await originalCore.fixtureSession(settingsSnapshot)
@@ -83,23 +85,25 @@ const directCore = new Proxy(
   },
 )
 
-export async function resetCoreAuthCaches(): Promise<void> {
+export const resetCoreAuthCaches = async function resetCoreAuthCaches(): Promise<void> {
   await originalCore.fixtureResetAuthCaches()
 }
 
-export async function resetCoreObservations(): Promise<void> {
+export const resetCoreObservations = async function resetCoreObservations(): Promise<void> {
   await originalCore.fixtureResetObservations(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')
 }
 
-export async function createCoreFixtureSession(settings: Readonly<Record<string, string | null>>) {
+export const createCoreFixtureSession = async function createCoreFixtureSession(
+  settings: Readonly<Record<string, string | null>>,
+) {
   return originalCore.fixtureSession({ ...settingsSnapshot, ...settings })
 }
 
-export async function getCoreObservations(epoch = nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '') {
+export const getCoreObservations = async function getCoreObservations(epoch = nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '') {
   return originalCore.fixtureObservations(epoch)
 }
 
-export async function getCoreLimiterCalls(): Promise<number> {
+export const getCoreLimiterCalls = async function getCoreLimiterCalls(): Promise<number> {
   return originalCore.fixtureLimiterCalls(nativeEnv.RATE_LIMIT_TEST_EPOCH ?? '')
 }
 
@@ -177,11 +181,11 @@ const r2Object = function r2Object(value: unknown): unknown {
         cacheControl: 'cache-control',
         cacheExpiry: 'expires',
       }
-      for (const [key, entry] of Object.entries(metadata ?? {})) {
+      Iterable.forEach(Object.entries(metadata ?? {}), ([key, entry]) => {
         if (entry !== undefined) {
           headers.set(names[key] ?? key, entry instanceof Date ? entry.toUTCString() : String(entry))
         }
-      }
+      })
     },
   }
   const body: unknown = Reflect.get(value, 'body')

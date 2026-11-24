@@ -30,7 +30,10 @@ const assertIssueShareable = async function assertIssueShareable(ctx: ServiceCtx
   })
 }
 
-export async function createShareToken(ctx: ServiceCtx, issueId: string): Promise<{ token: string; url: string }> {
+export const createShareToken = async function createShareToken(
+  ctx: ServiceCtx,
+  issueId: string,
+): Promise<{ token: string; url: string }> {
   await assertIssueShareable(ctx, issueId)
 
   const now = Math.floor(Date.now() / 1000)
@@ -105,7 +108,7 @@ interface SharedIssueRow {
   workspace_slug: string
 }
 
-export async function getSharedIssue(
+export const getSharedIssue = async function getSharedIssue(
   db: D1Database,
   token: string,
 ): Promise<
@@ -162,7 +165,11 @@ export async function getSharedIssue(
   return { ...rest, customFields: cfRows.results ?? [], brand }
 }
 
-export async function getSharedLogo(db: D1Database, r2: R2Bucket, token: string): Promise<R2ObjectBody | null> {
+export const getSharedLogo = async function getSharedLogo(
+  db: D1Database,
+  r2: R2Bucket,
+  token: string,
+): Promise<R2ObjectBody | null> {
   const live = await resolveLiveShareToken(db, await hashToken(token))
   if (!live) {
     return null
@@ -176,7 +183,7 @@ export async function getSharedLogo(db: D1Database, r2: R2Bucket, token: string)
   return r2.get(r2Key)
 }
 
-export async function revokeShareToken(ctx: ServiceCtx, issueId: string): Promise<void> {
+export const revokeShareToken = async function revokeShareToken(ctx: ServiceCtx, issueId: string): Promise<void> {
   await assertIssueShareable(ctx, issueId)
 
   await ctx.db

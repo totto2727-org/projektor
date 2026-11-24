@@ -1,6 +1,7 @@
-// @vitest-environment jsdom
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
+// @vitest-environment jsdom
+import { Iterable } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { imageUploads, insertUploadedImages } from './image-uploads.ts'
@@ -19,9 +20,9 @@ const deferred = function deferred() {
   return { promise, resolve }
 }
 afterEach(() => {
-  for (const view of views.splice(0)) {
+  Iterable.forEach(views.splice(0), (view) => {
     view.destroy()
-  }
+  })
 })
 
 describe('deferred image uploads', () => {

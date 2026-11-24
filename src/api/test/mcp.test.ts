@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -689,12 +690,12 @@ describe('covers MCP endpoint', () => {
       }[]
     }
     expect(data.issues.length).toBeGreaterThan(0)
-    for (const issue of data.issues) {
+    Iterable.forEach(data.issues, (issue) => {
       expect(typeof issue._score).toBe('number')
       expect(issue._score_breakdown).toHaveProperty('centrality')
       expect(issue._score_breakdown).toHaveProperty('priority')
       expect(issue._score_breakdown).toHaveProperty('story_points')
-    }
+    })
   })
 
   test('get_prioritized_issues ranks high-priority issues above low-priority', async () => {

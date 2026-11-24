@@ -1,6 +1,7 @@
 import { readdirSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 
+import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { loadMigrations } from './helpers.ts'
@@ -26,9 +27,9 @@ const seedWiki = function seedWiki(db: DatabaseSync, slugs: Readonly<string[]>):
   const insert = db.prepare(`INSERT INTO wiki_pages
     (id,workspace_id,slug,title,content,created_by_id,updated_by_id,created_at,updated_at)
     VALUES (?,?,?,?,'searchneedle','u','u',?,?)`)
-  for (const [index, slug] of slugs.entries()) {
+  Iterable.forEach(slugs.entries(), ([index, slug]) => {
     insert.run(index === 0 ? pageId : `other-${index}`, 'w', slug, `Page ${index}`, index, index)
-  }
+  })
   db.exec(`INSERT INTO wiki_revisions(id,page_id,content,author_id,created_at)
     VALUES ('revision','${pageId}','original content','u',0)`)
   if (db.prepare("SELECT name FROM sqlite_master WHERE name='wiki_fts'").get()) {
@@ -148,9 +149,9 @@ describe('offline populated historical upgrades with approved fixture mappings',
         db.exec('PRAGMA foreign_keys=ON')
         const position = filenames.findIndex((file) => file.startsWith(`${String(prefix).padStart(4, '0')}_`))
         expect(position).toBeGreaterThanOrEqual(0)
-        for (const sql of migrations.slice(0, position)) {
+        Iterable.forEach(migrations.slice(0, position), (sql) => {
           db.exec(sql)
-        }
+        })
         seedWorkspace(db)
         seed(db)
         const originalPages = db.prepare('SELECT id,workspace_id FROM wiki_pages ORDER BY id').all()
@@ -159,9 +160,9 @@ describe('offline populated historical upgrades with approved fixture mappings',
           .prepare('SELECT id,page_id,content,author_id,created_at FROM wiki_revisions ORDER BY id')
           .all()
         repair(db)
-        for (const sql of migrations.slice(position)) {
+        Iterable.forEach(migrations.slice(position), (sql) => {
           db.exec(sql)
-        }
+        })
         expect(db.prepare('SELECT id,workspace_id FROM wiki_pages ORDER BY id').all()).toEqual(originalPages)
         expect(db.prepare('SELECT id,workspace_id FROM projects ORDER BY id').all()).toEqual(originalProjects)
         expect(
@@ -199,9 +200,9 @@ describe('offline populated historical upgrades with approved fixture mappings',
         INSERT INTO issues(id,workspace_id,project_id,number,title,body,created_by_id,created_at,updated_at)
         VALUES ('issue','w','project',1,'Issueneedle','Body','u',0,0)`)
       seedWiki(db, ['wiki-page'])
-      for (const sql of migrations.slice(1)) {
+      Iterable.forEach(migrations.slice(1), (sql) => {
         db.exec(sql)
-      }
+      })
       expect(
         db.prepare("SELECT issue_id,workspace_id FROM issues_fts WHERE issues_fts MATCH 'issueneedle'").all(),
       ).toEqual([{ issue_id: 'issue', workspace_id: 'w' }])

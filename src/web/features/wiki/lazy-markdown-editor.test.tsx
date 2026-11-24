@@ -3,12 +3,12 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
-import type { Props } from './MarkdownEditor.tsx'
+import type { Props } from './markdown-editor.tsx'
 
 const chunk = vi.hoisted(() => Promise.withResolvers<{ default: (props: Props) => React.ReactNode }>())
-vi.mock('./MarkdownEditor', () => chunk.promise)
+vi.mock('./markdown-editor.tsx', () => chunk.promise)
 
-import LazyMarkdownEditor from './LazyMarkdownEditor.tsx'
+import LazyMarkdownEditor from './lazy-markdown-editor.tsx'
 
 afterEach(cleanup)
 

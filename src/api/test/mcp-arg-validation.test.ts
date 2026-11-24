@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import { validateToolArgs } from '#api/mcp/validate-args.ts'
@@ -94,9 +94,9 @@ describe('covers PROJ-920: MCP tool arguments are type-checked before the handle
         continue
       }
       const args: Record<string, unknown> = {}
-      for (const k of required) {
+      Iterable.forEach(required, (k) => {
         args[k] = validValue(props[k])
-      }
+      })
       args[target] = wrongValue(props[target])
 
       const res = await rpc(f.workspace.id, headers, 'tools/call', {

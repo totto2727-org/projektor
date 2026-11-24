@@ -37,7 +37,10 @@ const decodeFailure = function decodeFailure(stage: 'transport' | 'reply', cause
 }
 
 /** Sanitize the native transport before decoding the application's validated envelope. */
-export function decodeCoreReply<S extends Schema.Top, E, R>(schema: S, invocation: Effect.Effect<string, E, R>) {
+export const decodeCoreReply = function decodeCoreReply<S extends Schema.Top, E, R>(
+  schema: S,
+  invocation: Effect.Effect<string, E, R>,
+) {
   return invocation.pipe(
     Effect.catchCause((cause) => decodeFailure('transport', cause)),
     Effect.flatMap((wire) =>

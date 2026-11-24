@@ -38,7 +38,9 @@ import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
 /** Closed, named native methods. No caller-supplied operation or capability is accepted. */
-export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
+export const makeApiDomainHandlers = function makeApiDomainHandlers<R>(
+  envSource: Effect.Effect<CoreEnvironment, never, R>,
+) {
   const operation = function operation<Args extends unknown[], A>(
     name: keyof typeof ApiResults,
     capability: 'read' | 'write',

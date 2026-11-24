@@ -11,7 +11,10 @@ import { deployment } from '#worker-graph'
 import { coreWorkerOptions } from './api-host.ts'
 
 /** Compile official-parser migration records into the acceptance-only Core artifact. */
-export async function makeCoreFixtureConfig(main: string, outDir: string): Promise<UserConfig> {
+export const makeCoreFixtureConfig = async function makeCoreFixtureConfig(
+  main: string,
+  outDir: string,
+): Promise<UserConfig> {
   const migrations = (await readD1Migrations(fileURLToPath(new URL('../../migrations/', import.meta.url)))).map(
     (migration) => ({
       ...migration,

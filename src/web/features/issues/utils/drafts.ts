@@ -5,7 +5,7 @@
  * isn't (see the ticket's caching recommendation).
  */
 
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 const PREFIX = 'projektor:draft:'
 const TTL_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -18,12 +18,12 @@ interface StoredDraft {
  * Build a storage key for one editable field. Scoped by workspace so a draft can never
  * surface under a different tenant.
  */
-export function draftKey(workspaceSlug: string | undefined, scope: string, field: string): string {
+export const draftKey = function draftKey(workspaceSlug: string | undefined, scope: string, field: string): string {
   return `${PREFIX}${workspaceSlug ?? '-'}:${scope}:${field}`
 }
 
 /** Returns the stored draft, or null if absent, expired or unreadable. */
-export function loadDraft(key: string): string | null {
+export const loadDraft = function loadDraft(key: string): string | null {
   try {
     const raw = sessionStorage.getItem(key)
     if (Predicate.isNullish(raw)) {
@@ -46,7 +46,7 @@ export function loadDraft(key: string): string | null {
 }
 
 /** Persists a draft. Empty/whitespace-only values clear the entry rather than storing it. */
-export function saveDraft(key: string, value: string): void {
+export const saveDraft = function saveDraft(key: string, value: string): void {
   try {
     if (!value.trim()) {
       sessionStorage.removeItem(key)
@@ -61,7 +61,7 @@ export function saveDraft(key: string, value: string): void {
   }
 }
 
-export function clearDraft(key: string): void {
+export const clearDraft = function clearDraft(key: string): void {
   try {
     sessionStorage.removeItem(key)
   } catch {}
@@ -71,12 +71,12 @@ export function clearDraft(key: string): void {
  * Drop every stored draft. Intended for logout, so one user's unsent text isn't left
  * behind for the next person on a shared device.
  */
-export function clearAllDrafts(): void {
+export const clearAllDrafts = function clearAllDrafts(): void {
   try {
-    for (const k of Object.keys(sessionStorage)) {
+    Iterable.forEach(Object.keys(sessionStorage), (k) => {
       if (k.startsWith(PREFIX)) {
         sessionStorage.removeItem(k)
       }
-    }
+    })
   } catch {}
 }

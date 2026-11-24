@@ -255,24 +255,24 @@ oauthRouter.get('/authorize', async (httpContext) => {
   let authRequest: AuthRequest
   try {
     authRequest = await helpers(httpContext).parseAuthRequest(httpContext.req.raw)
-  } catch (err) {
-    if (err instanceof AuthorizationError) {
-      return authorizationFailure(httpContext, err)
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return authorizationFailure(httpContext, error)
     }
-    return errorPage(httpContext, 400, 'Unknown application', `The application could not be verified: ${String(err)}`)
+    return errorPage(httpContext, 400, 'Unknown application', `The application could not be verified: ${String(error)}`)
   }
 
   let consent: ReturnType<typeof parseConsentRequest>
   try {
     consent = parseConsentRequest(authRequest)
-  } catch (err) {
-    if (!(err instanceof OAuthRequestError)) {
-      throw err
+  } catch (error) {
+    if (!(error instanceof OAuthRequestError)) {
+      throw error
     }
     return authorizationFailure(
       httpContext,
-      new AuthorizationError(err.code, {
-        description: err.reason,
+      new AuthorizationError(error.code, {
+        description: error.reason,
         redirectUri: authRequest.redirectUri,
         state: authRequest.state,
         issuer: authRequest.issuer,

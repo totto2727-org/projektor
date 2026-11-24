@@ -5,11 +5,14 @@ import type { WebRequest } from '#core/web/scope.ts'
 
 import { ApiError, ScopeError } from './server/errors.ts'
 
-export function browserRequest(request: Request): WebRequest {
+export const browserRequest = function browserRequest(request: Request): WebRequest {
   return { url: request.url, method: request.method, headers: [...request.headers] }
 }
 
-export function coreResult<S extends Schema.Top, E, R>(schema: S, invocation: Effect.Effect<string, E, R>) {
+export const coreResult = function coreResult<S extends Schema.Top, E, R>(
+  schema: S,
+  invocation: Effect.Effect<string, E, R>,
+) {
   return decodeCoreReply(schema, invocation).pipe(
     Effect.mapError((error) =>
       error.status === 400 || error.status === 403 || error.status === 404

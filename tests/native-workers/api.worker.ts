@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 import api from '#api/worker.ts'
 
@@ -20,12 +20,12 @@ const configuration = function configuration(value: string | undefined): Fixture
     throw new Error('Invalid native API fixture policy')
   }
   const settings: Record<string, string | null> = {}
-  for (const [key, item] of Object.entries(parsed)) {
+  Iterable.forEach(Object.entries(parsed), ([key, item]) => {
     if (item !== null && !Predicate.isString(item)) {
       throw new Error(`Invalid fixture policy: ${key}`)
     }
     settings[key] = item
-  }
+  })
   return settings
 }
 

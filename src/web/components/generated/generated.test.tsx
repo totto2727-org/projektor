@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 
+import { Iterable } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, test } from 'vite-plus/test'
 
@@ -52,9 +53,9 @@ describe('official Base UI component integration', () => {
         </CardContent>
       </Card>,
     )
-    for (const slot of ['card', 'card-header', 'card-title', 'card-content', 'badge']) {
+    Iterable.forEach(['card', 'card-header', 'card-title', 'card-content', 'badge'], (slot) => {
       expect(html).toContain(`data-slot="${slot}"`)
-    }
+    })
   })
 
   test('keeps official Base UI generation aliases and Tailwind v4 theme integration', () => {

@@ -1,10 +1,10 @@
 import type { MCPTool, Migration, Plugin, PluginContext } from '#types'
 
-export function definePlugin(plugin: Plugin): Plugin {
+export const definePlugin = function definePlugin(plugin: Plugin): Plugin {
   return plugin
 }
 
-export function defineMCPTool(tool: MCPTool): MCPTool {
+export const defineMCPTool = function defineMCPTool(tool: MCPTool): MCPTool {
   return tool
 }
 

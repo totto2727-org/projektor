@@ -43,11 +43,11 @@ const PROMPTS: MCPPromptDescriptor[] = [
   },
 ]
 
-export function listPrompts(): MCPPromptDescriptor[] {
+export const listPrompts = function listPrompts(): MCPPromptDescriptor[] {
   return PROMPTS
 }
 
-export async function getPrompt(ctx: PluginContext, name: string, args: Record<string, string>) {
+export const getPrompt = async function getPrompt(ctx: PluginContext, name: string, args: Record<string, string>) {
   const prompt = PROMPTS.find((p) => p.name === name)
   if (!prompt) {
     throw new NotFoundError(`Unknown prompt "${name}"`, { validNames: PROMPTS.map((p) => p.name) })

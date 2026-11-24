@@ -8,7 +8,7 @@ import type { ApiEnv, HonoEnv } from '#types'
 export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
 
 /** Auth failures share the same Core-owned counter backend as normal requests. */
-export function bumpRateCounter(env: ApiEnv, key: string, windowSecs: number): Promise<number> {
+export const bumpRateCounter = function bumpRateCounter(env: ApiEnv, key: string, windowSecs: number): Promise<number> {
   return Effect.runPromise(
     decodeCoreReply(
       Schema.Number,
@@ -22,7 +22,10 @@ export function bumpRateCounter(env: ApiEnv, key: string, windowSecs: number): P
 }
 
 /** HTTP response shaping stays at the API boundary, policy and storage do not. */
-export async function rateLimitMiddleware(httpContext: Context<HonoEnv>, next: Next): Promise<Response | undefined> {
+export const rateLimitMiddleware = async function rateLimitMiddleware(
+  httpContext: Context<HonoEnv>,
+  next: Next,
+): Promise<Response | undefined> {
   let limited: typeof RateLimitResult.Type = null
   try {
     limited = await Effect.runPromise(

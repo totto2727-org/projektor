@@ -8,7 +8,9 @@ export interface Heading {
 }
 
 /** Original Wiki heading-id allocation, including authored-id reservation. */
-export function assignHeadingIds(headings: Readonly<{ text: string; id?: string | null }[]>): string[] {
+export const assignHeadingIds = function assignHeadingIds(
+  headings: Readonly<{ text: string; id?: string | null }[]>,
+): string[] {
   const used = new Set<string>()
   const result: (string | null)[] = headings.map((heading) => {
     const authored = heading.id?.trim()
@@ -52,7 +54,7 @@ const textOf = function textOf(html: string): string {
 }
 
 /** Add the same stable IDs before SSR so hash links and ToC work without JavaScript. */
-export function decorateHeadings(html: string): { html: string; toc: Heading[] } {
+export const decorateHeadings = function decorateHeadings(html: string): { html: string; toc: Heading[] } {
   const matches = [...html.matchAll(/<h([1-3])([^>]*)>([\s\S]*?)<\/h[1-3]>/g)]
   const headings = matches.map((match) => ({
     level: Number(match[1]),

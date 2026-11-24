@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { Zip, ZipDeflate } from 'fflate'
 import { stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
@@ -214,9 +214,9 @@ const collectAttachments = async function collectAttachments(
   }
   const orm = drizzle(ctx.db, { schema })
   const bySlug = new Map<string, string>()
-  for (const p of pages) {
+  Iterable.forEach(pages, (p) => {
     bySlug.set(p.id, p.slug)
-  }
+  })
   const pageIds = pages.map((p) => p.id)
 
   const rows = await inChunks(pageIds, (chunk) =>
@@ -318,13 +318,13 @@ const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[])
       try {
         const usedNames = new Set<string>()
 
-        for (const page of pages) {
+        Iterable.forEach(pages, (page) => {
           const base = safeZipPathSegment(page.slug || page.id)
           const name = reserveUniqueName(usedNames, `pages/${base}.md`, (n) => `pages/${base}-${n}.md`)
           const entry = new ZipDeflate(name)
           zip.add(entry)
           entry.push(new TextEncoder().encode(ensureFrontmatter(page)), true)
-        }
+        })
 
         for (const att of attachments) {
           const obj = await ctx.r2.get(att.r2Key)
@@ -345,14 +345,14 @@ const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[])
         }
 
         zip.end()
-      } catch (err) {
-        failStream(err)
+      } catch (error) {
+        failStream(error)
       }
     },
   })
 }
 
-export async function exportWiki(
+export const exportWiki = async function exportWiki(
   ctx: ServiceCtx,
   input: unknown,
 ): Promise<{ filename: string; stream: ReadableStream<Uint8Array> }> {

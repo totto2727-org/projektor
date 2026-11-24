@@ -7,7 +7,7 @@ const DAY = 86_400
  * Unix epoch day 0 (1970-01-01) was a Thursday; align to the preceding Monday so
  * week boundaries read as conventional (ISO) weeks rather than landing on Thursdays.
  */
-export function mondayAtOrBefore(t: number): number {
+export const mondayAtOrBefore = function mondayAtOrBefore(t: number): number {
   const dayIndex = Math.floor(t / DAY)
   const daysSinceMonday = ((dayIndex % 7) + 7 - 4) % 7 // day 0 (Thu) is 4 days after Monday
   return (dayIndex - daysSinceMonday) * DAY
@@ -19,7 +19,10 @@ export function mondayAtOrBefore(t: number): number {
  * not a guess at it: bucket series default to the current ISO week plus the preceding
  * 5 weeks, and wipOverTime (always day-sampled) to the last 30 days.
  */
-export function flowMetricsDefaultStarts(now: number): { bucketSince: number; wipSince: number } {
+export const flowMetricsDefaultStarts = function flowMetricsDefaultStarts(now: number): {
+  bucketSince: number
+  wipSince: number
+} {
   return { bucketSince: mondayAtOrBefore(now) - 5 * 7 * DAY, wipSince: now - 30 * DAY }
 }
 

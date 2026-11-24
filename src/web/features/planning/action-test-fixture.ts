@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 import { afterEach, vi } from 'vite-plus/test'
 
@@ -33,13 +33,13 @@ vi.mock('@effront/core/workers', async () => {
 })
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 /** Shared page/action fixtures execute every read against the fully migrated real schema. */
-export function featureDatabase() {
+export const featureDatabase = function featureDatabase() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`
@@ -64,7 +64,7 @@ export const planningIds = {
   target: '00000000-0000-4000-8000-000000000003',
 }
 
-export function actionFixture(
+export const actionFixture = function actionFixture(
   resolve: (url: URL, options?: RequestInit) => unknown = () => {
     throw new Error('Web actions must not use an API transport.')
   },
@@ -123,10 +123,10 @@ export function actionFixture(
 }
 
 /** Native action test boundary uses the browser's actual submitted fields. */
-export function formData(values: Record<string, string | number>) {
+export const formData = function formData(values: Record<string, string | number>) {
   const data = new FormData()
-  for (const [name, value] of Object.entries(values)) {
+  Iterable.forEach(Object.entries(values), ([name, value]) => {
     data.set(name, String(value))
-  }
+  })
   return data
 }

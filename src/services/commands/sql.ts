@@ -1,4 +1,7 @@
-export function prepareQuery(db: D1Database, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
+export const prepareQuery = function prepareQuery(
+  db: D1Database,
+  query: Readonly<{ sql: string; params: unknown[] }>,
+): D1PreparedStatement {
   return db.prepare(query.sql).bind(...query.params)
 }
 
@@ -21,7 +24,7 @@ const D1_BOUND_PARAM_LIMIT = 100
  * etc). Wrap each whitespace-separated token in double quotes so raw user text is always
  * treated as a literal phrase search, never interpreted as FTS query syntax.
  */
-export function sanitizeFtsQuery(q: string): string {
+export const sanitizeFtsQuery = function sanitizeFtsQuery(q: string): string {
   return q
     .trim()
     .split(/\s+/)
@@ -42,7 +45,10 @@ const CHUNK_SIZE = D1_BOUND_PARAM_LIMIT - 10
  * bound-parameter cap, concatenating the rows each chunk returns. For mutations that
  * return nothing, have `op` return an empty array.
  */
-export async function inChunks<I, O>(items: Readonly<I[]>, op: (chunk: I[]) => Promise<O[]>): Promise<O[]> {
+export const inChunks = async function inChunks<I, O>(
+  items: Readonly<I[]>,
+  op: (chunk: I[]) => Promise<O[]>,
+): Promise<O[]> {
   if (items.length === 0) {
     return []
   }

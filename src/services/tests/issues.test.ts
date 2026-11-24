@@ -3,7 +3,7 @@ import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 
 import { eq } from 'drizzle-orm'
-import { Effect } from 'effect'
+import { Iterable, Effect } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { schema } from '#db'
@@ -259,10 +259,10 @@ describe('issue and related pure data queries', () => {
     const linkInsert = sqlite.prepare(
       "INSERT INTO issue_links(id,workspace_id,source_issue_id,target_issue_id,type,created_by_id,created_at) VALUES (?, 'wa', 'i1', ?, 'relates_to', 'u', 1)",
     )
-    for (const [index, id] of ids.entries()) {
+    Iterable.forEach(ids.entries(), ([index, id]) => {
       issueInsert.run(id, index + 100)
       linkInsert.run(`link-${index}`, id)
-    }
+    })
     const links = await runTestEffect(listLinksForIssue(db, 'wa', 'i1'))
     expect(links).toHaveLength(196)
     expect(links.filter((link) => link.linkedIssueTitle === 'Linked')).toHaveLength(195)

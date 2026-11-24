@@ -7,6 +7,7 @@
  *  - MCP per-tool enforcement (read token blocked from write tools),
  *  - scope validation + membership check at token creation (/auth/tokens).
  */
+import { Iterable } from 'effect'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -305,8 +306,8 @@ describe('covers OAuth wire scope names (PROJ-655)', () => {
      * Notably the bare internal names: they are NOT valid on the wire, so a
      * client that guesses them gets nothing rather than accidental read access.
      */
-    for (const scope of ['read', 'write', '*', 'offline_access', 'projektor:admin', '']) {
+    Iterable.forEach(['read', 'write', '*', 'offline_access', 'projektor:admin', ''], (scope) => {
       expect(capabilityForOAuthScope(scope)).toBeNull()
-    }
+    })
   })
 })

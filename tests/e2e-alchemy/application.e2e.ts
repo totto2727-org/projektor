@@ -4,7 +4,7 @@ import { readdir, writeFile } from 'node:fs/promises'
 
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page, TestInfo } from '@playwright/test'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 type BrowserAudit = {
   pageErrors: string[]
@@ -72,11 +72,11 @@ test.afterEach(async ({ page }, testInfo) => {
   await writeFile(path, JSON.stringify({ project: testInfo.project.name, audits }, null, 2))
   await testInfo.attach('browser-audit', { path, contentType: 'application/json' })
   testAudits.delete(testInfo.testId)
-  for (const audit of audits) {
+  Iterable.forEach(audits, (audit) => {
     expect(audit.pageErrors, 'Browser pageerror including hydration').toEqual([])
     expect(audit.consoleErrors, 'Browser console.error including hydration').toEqual([])
     expect(audit.directApiRequests, 'Browser must not use direct /api fetch or XHR').toEqual([])
-  }
+  })
 })
 
 const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, name: string): Promise<void> {
@@ -128,13 +128,13 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
   if (Predicate.isNotNullish(layout.sidebarBorder)) {
     expect(layout.sidebarBorder, `${name}: sidebar divider must use the theme border color`).toBe(layout.themeBorder)
   }
-  for (const table of layout.tables) {
+  Iterable.forEach(layout.tables, (table) => {
     expect(table.display, `${name}: Markdown must preserve native table layout`).toBe('table')
     expect(table.wrap, `${name}: wide table cells must not collapse into single-letter columns`).toBe('normal')
     if (Predicate.isNotNullish(table.rowWidth)) {
       expect(table.rowWidth, `${name}: Markdown rows must fill the table`).toBeCloseTo(table.width, 0)
     }
-  }
+  })
   observeBrowser(page, testInfo).checkpoints.push({
     name,
     url: page.url(),

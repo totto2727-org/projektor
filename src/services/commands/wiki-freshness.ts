@@ -58,7 +58,7 @@ const computeTimeBasedFreshness = function computeTimeBasedFreshness(dueAt: numb
   return { state: 'fresh', staleSince: null }
 }
 
-export function computeFreshness(input: ComputeFreshnessInput): WikiFreshness | null {
+export const computeFreshness = function computeFreshness(input: ComputeFreshnessInput): WikiFreshness | null {
   const { verifiedAt, verifyInterval, status } = input
   const hasSignal = Predicate.isNotNullish(status) || Predicate.isNotNullish(verifyInterval)
   if (!hasSignal) {

@@ -18,7 +18,7 @@
  * doesn't match the declared type is rejected.
  */
 
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 type Schema = Record<string, unknown>
 
 export interface ArgIssue {
@@ -130,11 +130,11 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
     schema.properties && typeof schema.properties === 'object' ? (schema.properties as Record<string, Schema>) : {}
   const prefix = path ? `${path}.` : ''
   if (Array.isArray(schema.required)) {
-    for (const key of schema.required) {
+    Iterable.forEach(schema.required, (key) => {
       if (Predicate.isString(key) && obj[key] === undefined) {
         issues.push({ path: `${prefix}${key}`, message: 'is required' })
       }
-    }
+    })
   }
   const required = new Set(Array.isArray(schema.required) ? schema.required : [])
   for (const [key, sub] of Object.entries(props)) {
@@ -150,7 +150,10 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
 }
 
 /** Validate a tool call's `arguments` object against the tool's inputSchema. */
-export function validateToolArgs(inputSchema: Schema, args: Record<string, unknown>): ArgIssue[] {
+export const validateToolArgs = function validateToolArgs(
+  inputSchema: Schema,
+  args: Record<string, unknown>,
+): ArgIssue[] {
   const issues: ArgIssue[] = []
   validateObject(args, inputSchema, '', issues)
   return issues

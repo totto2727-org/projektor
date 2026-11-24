@@ -9,7 +9,7 @@ import type { ApiError, ScopeError } from './errors.ts'
 
 export * from '#core/web/scope.ts'
 
-export function loadRequestScope(
+export const loadRequestScope = function loadRequestScope(
   _url: URL,
   options: ScopeOptions,
   services: { readonly request: Request; readonly env: { readonly CORE: unknown } },

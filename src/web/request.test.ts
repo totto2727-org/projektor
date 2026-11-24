@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Iterable, Effect } from 'effect'
 import { HttpRouter, HttpServerResponse } from 'effect/http'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
@@ -14,9 +14,9 @@ import { createTestDatabase } from './test/database.ts'
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
   resetAuthCachesForTests()
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 const fixture = function fixture() {
   resetAuthCachesForTests()

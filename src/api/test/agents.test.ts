@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { startWork as startWorkDirect } from '#commands/agents.ts'
@@ -286,9 +287,9 @@ describe('agents API', () => {
        * The session was registered internally, then compensated — either absent, or
        * present but already ended, never left active.
        */
-      for (const s of sessions.results) {
+      Iterable.forEach(sessions.results, (s) => {
         expect(s.status).toBe('ended')
-      }
+      })
 
       const claim = await env.DB.prepare('SELECT id FROM issue_file_claims WHERE path = ?')
         .bind('src/never-claimed.ts')

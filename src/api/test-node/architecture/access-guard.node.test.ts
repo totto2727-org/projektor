@@ -28,6 +28,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { Iterable } from 'effect'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
@@ -103,7 +104,7 @@ const collect = function collect(): Map<string, FnInfo> {
       throw new Error(`Could not load architecture sources: ${configFile}`)
     }
 
-    for (const fileName of files) {
+    Iterable.forEach(files, (fileName) => {
       const file = fileName.replace(/\.ts$/, '')
       const src = project.program.getSourceFile(join(SERVICES, fileName))
       if (!src) {
@@ -114,7 +115,7 @@ const collect = function collect(): Map<string, FnInfo> {
       const imports = new Map<string, string>()
       const locals: { name: string; node: ts.Node; exported: boolean; params: string[] }[] = []
 
-      for (const stmt of src.statements) {
+      Iterable.forEach(src.statements, (stmt) => {
         if (
           ts.isImportDeclaration(stmt) &&
           ts.isStringLiteral(stmt.moduleSpecifier) &&
@@ -123,10 +124,10 @@ const collect = function collect(): Map<string, FnInfo> {
           const from = stmt.moduleSpecifier.text.slice(2).replace(/\.ts$/, '')
           const named = stmt.importClause?.namedBindings
           if (named && ts.isNamedImports(named)) {
-            for (const el of named.elements) {
+            Iterable.forEach(named.elements, (el) => {
               const orig = (el.propertyName ?? el.name).text
               imports.set(el.name.text, from === 'access' && GUARDS.has(orig) ? `guard:${orig}` : `${from}:${orig}`)
-            }
+            })
           }
         }
         const exported =
@@ -140,7 +141,7 @@ const collect = function collect(): Map<string, FnInfo> {
             params: stmt.parameters.map(paramName),
           })
         } else if (ts.isVariableStatement(stmt)) {
-          for (const d of stmt.declarationList.declarations) {
+          Iterable.forEach(stmt.declarationList.declarations, (d) => {
             if (
               ts.isIdentifier(d.name) &&
               d.initializer &&
@@ -153,12 +154,12 @@ const collect = function collect(): Map<string, FnInfo> {
                 params: d.initializer.parameters.map(paramName),
               })
             }
-          }
+          })
         }
-      }
+      })
 
       const localNames = new Set(locals.map((l) => l.name))
-      for (const l of locals) {
+      Iterable.forEach(locals, (l) => {
         const calls: string[] = []
         const visit = (n: ts.Node): void => {
           // Any reference counts (call, or passed as a callback / predicate).
@@ -182,8 +183,8 @@ const collect = function collect(): Map<string, FnInfo> {
           params: l.params,
           calls,
         })
-      }
-    }
+      })
+    })
     return fns
   } finally {
     api.close()
@@ -192,9 +193,9 @@ const collect = function collect(): Map<string, FnInfo> {
 
 const guardedSet = function guardedSet(fns: Map<string, FnInfo>): Set<string> {
   const guarded = new Set<string>()
-  for (const g of GUARDS) {
+  Iterable.forEach(GUARDS, (g) => {
     guarded.add(`access:${g}`)
-  }
+  })
   let changed = true
   while (changed) {
     changed = false

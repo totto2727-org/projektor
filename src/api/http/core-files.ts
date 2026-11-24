@@ -5,7 +5,7 @@ import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 import type { HonoEnv } from '#types'
 
 /** Native binding fetch is reserved for streaming file endpoints. */
-export function coreFileRequest(
+export const coreFileRequest = function coreFileRequest(
   httpContext: Context<HonoEnv>,
   pathname: string,
   body?: BodyInit | null,

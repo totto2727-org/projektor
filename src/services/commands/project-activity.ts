@@ -138,7 +138,10 @@ const fetchActivityRows = async function fetchActivityRows(
   return [...issues.results, ...comments.results, ...statusChanges.results, ...wikiPages.results, ...sprints.results]
 }
 
-export async function listProjectActivity(ctx: ServiceCtx, input: unknown): Promise<ActivityEvent[]> {
+export const listProjectActivity = async function listProjectActivity(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<ActivityEvent[]> {
   const parsed = ListProjectActivitySchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(z.flattenError(parsed.error))

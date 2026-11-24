@@ -6,11 +6,11 @@ import { CorePublicError } from 'projektor/core-client'
 import { ApiWorkspace } from '#contracts/api-auth.ts'
 import type { HonoEnv } from '#types'
 
-export function subdomainRoutingEnabled(value: string | undefined): boolean {
+export const subdomainRoutingEnabled = function subdomainRoutingEnabled(value: string | undefined): boolean {
   return ['true', '1', 'yes'].includes(value?.trim().toLowerCase() ?? '')
 }
 
-export function mcpWorkspaceIdFromPath(path: string): string | undefined {
+export const mcpWorkspaceIdFromPath = function mcpWorkspaceIdFromPath(path: string): string | undefined {
   return /^\/mcp\/([^/]+)$/.exec(path)?.[1]
 }
 
@@ -48,7 +48,7 @@ const warnIfIgnoredSubdomain = async function warnIfIgnoredSubdomain(
 }
 
 /** Routing chooses a target only. Core resolves membership and scope for every operation. */
-export async function workspaceMiddleware(httpContext: Context<HonoEnv>, next: Next) {
+export const workspaceMiddleware = async function workspaceMiddleware(httpContext: Context<HonoEnv>, next: Next) {
   const routingEnabled = subdomainRoutingEnabled(httpContext.env.WORKSPACE_SUBDOMAIN_ROUTING)
   const slug =
     httpContext.req.header('X-Workspace-Slug') ??

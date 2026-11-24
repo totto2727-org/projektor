@@ -22,7 +22,10 @@ export type {
 } from './types.ts'
 export type { WorkspaceBrand } from '#db'
 
-export function listWorkspaces(db: D1Database, userId: string): Effect.Effect<WorkspaceMembership[], DataQueryError> {
+export const listWorkspaces = function listWorkspaces(
+  db: D1Database,
+  userId: string,
+): Effect.Effect<WorkspaceMembership[], DataQueryError> {
   return queryEffect('listWorkspaces', () =>
     drizzle(db, { schema })
       .select({
@@ -39,7 +42,7 @@ export function listWorkspaces(db: D1Database, userId: string): Effect.Effect<Wo
   )
 }
 
-export function findWorkspaceBySlug(
+export const findWorkspaceBySlug = function findWorkspaceBySlug(
   db: D1Database,
   slug: string,
 ): Effect.Effect<Workspace | undefined, DataQueryError> {
@@ -49,7 +52,7 @@ export function findWorkspaceBySlug(
 }
 
 /** Return the membership relation. The app decides what its role permits. */
-export function findWorkspaceMembership(
+export const findWorkspaceMembership = function findWorkspaceMembership(
   db: D1Database,
   workspaceId: string,
   userId: string,
@@ -63,7 +66,7 @@ export function findWorkspaceMembership(
   )
 }
 
-export function listWorkspaceMembers(
+export const listWorkspaceMembers = function listWorkspaceMembers(
   db: D1Database,
   workspaceId: string,
 ): Effect.Effect<WorkspaceMember[], DataQueryError> {
@@ -84,7 +87,10 @@ export function listWorkspaceMembers(
   )
 }
 
-export function readWorkspaceBrand(db: D1Database, workspaceId: string): Effect.Effect<WorkspaceBrand, DataQueryError> {
+export const readWorkspaceBrand = function readWorkspaceBrand(
+  db: D1Database,
+  workspaceId: string,
+): Effect.Effect<WorkspaceBrand, DataQueryError> {
   return queryEffect('readWorkspaceBrand', async () => {
     const row = await drizzle(db, { schema })
       .select({ brand: schema.workspaces.brand })
@@ -96,7 +102,7 @@ export function readWorkspaceBrand(db: D1Database, workspaceId: string): Effect.
 }
 
 /** Secret token hashes/values are deliberately absent from this projection. */
-export function listWorkspaceTokenMetadata(
+export const listWorkspaceTokenMetadata = function listWorkspaceTokenMetadata(
   db: D1Database,
   workspaceId: string,
 ): Effect.Effect<WorkspaceTokenMetadata[], DataQueryError> {

@@ -1,4 +1,5 @@
 import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
+import { Iterable } from 'effect'
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -126,10 +127,10 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
       expect(warnSpy).toHaveBeenCalledWith(
         'An authorized workspace subdomain was ignored because WORKSPACE_SUBDOMAIN_ROUTING is off; rejecting request',
       )
-      for (const [warning] of warnSpy.mock.calls) {
+      Iterable.forEach(warnSpy.mock.calls, ([warning]) => {
         expect(String(warning)).not.toContain(fixture.token)
         expect(String(warning)).not.toContain(fixture.workspace.slug)
-      }
+      })
     } finally {
       warnSpy.mockRestore()
     }

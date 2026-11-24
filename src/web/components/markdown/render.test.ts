@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { runTestEffect } from '#tests/run-effect.ts'
@@ -26,9 +27,9 @@ describe('untrusted runtime Comark', () => {
   test('takes heading ids and ToC from the same compiled document', async () => {
     const rendered = await renderMarkdownDocument('## **Overview**\n\n## Overview\n\n### 日本語\n\n## Last')
     expect(rendered.toc.map(({ text }) => text)).toEqual(['Overview', 'Overview', '日本語', 'Last'])
-    for (const heading of rendered.toc) {
+    Iterable.forEach(rendered.toc, (heading) => {
       expect(rendered.html).toContain(`id="${heading.id}"`)
-    }
+    })
     expect(new Set(rendered.toc.map(({ id }) => id)).size).toBe(4)
   })
 

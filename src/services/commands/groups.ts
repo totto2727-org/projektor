@@ -47,7 +47,7 @@ const requireAdminGroup = async function requireAdminGroup(ctx: ServiceCtx, grou
  * List groups. Owner/admin see every group in the workspace; a plain member sees
  * only the groups they belong to (ticket: "members see only their own groups").
  */
-export async function listGroups(ctx: ServiceCtx) {
+export const listGroups = async function listGroups(ctx: ServiceCtx) {
   return Effect.runPromise(
     groupData.listGroups(ctx.db, ctx.workspaceId, isWorkspaceAdmin(ctx.role) ? {} : { memberUserId: ctx.userId }),
   )
@@ -57,7 +57,7 @@ export async function listGroups(ctx: ServiceCtx) {
  * Full group detail: members and project grants. Owner/admin may view any group;
  * a plain member may view only groups they belong to.
  */
-export async function getGroup(ctx: ServiceCtx, groupId: string) {
+export const getGroup = async function getGroup(ctx: ServiceCtx, groupId: string) {
   const orm = drizzle(ctx.db, { schema })
   await loadGroup(orm, ctx, groupId)
 
@@ -87,12 +87,12 @@ export async function getGroup(ctx: ServiceCtx, groupId: string) {
  * screen (group chips + the "no groups / pending" badge). Owner/admin only.
  * Includes members with zero groups so the pending state is visible.
  */
-export async function listMemberGroups(ctx: ServiceCtx) {
+export const listMemberGroups = async function listMemberGroups(ctx: ServiceCtx) {
   requireAdmin(ctx)
   return Effect.runPromise(groupData.listMemberGroups(ctx.db, ctx.workspaceId))
 }
 
-export async function createGroup(ctx: ServiceCtx, input: unknown) {
+export const createGroup = async function createGroup(ctx: ServiceCtx, input: unknown) {
   requireAdmin(ctx)
   const parsed = CreateGroupSchema.safeParse(input)
   if (!parsed.success) {
@@ -129,7 +129,7 @@ export async function createGroup(ctx: ServiceCtx, input: unknown) {
   return { id, name, description: description ?? null }
 }
 
-export async function updateGroup(ctx: ServiceCtx, groupId: string, input: unknown) {
+export const updateGroup = async function updateGroup(ctx: ServiceCtx, groupId: string, input: unknown) {
   requireAdmin(ctx)
   const parsed = UpdateGroupSchema.safeParse(input)
   if (!parsed.success) {
@@ -175,7 +175,7 @@ export async function updateGroup(ctx: ServiceCtx, groupId: string, input: unkno
   return { ok: true }
 }
 
-export async function deleteGroup(ctx: ServiceCtx, groupId: string) {
+export const deleteGroup = async function deleteGroup(ctx: ServiceCtx, groupId: string) {
   await requireAdminGroup(ctx, groupId)
 
   /*
@@ -192,7 +192,7 @@ export async function deleteGroup(ctx: ServiceCtx, groupId: string) {
   return { ok: true }
 }
 
-export async function addGroupMember(ctx: ServiceCtx, groupId: string, input: unknown) {
+export const addGroupMember = async function addGroupMember(ctx: ServiceCtx, groupId: string, input: unknown) {
   requireAdmin(ctx)
   const parsed = AddGroupMemberSchema.safeParse(input)
   if (!parsed.success) {
@@ -228,7 +228,7 @@ export async function addGroupMember(ctx: ServiceCtx, groupId: string, input: un
   return { ok: true }
 }
 
-export async function removeGroupMember(ctx: ServiceCtx, groupId: string, userId: string) {
+export const removeGroupMember = async function removeGroupMember(ctx: ServiceCtx, groupId: string, userId: string) {
   const { orm } = await requireAdminGroup(ctx, groupId)
 
   await orm
@@ -244,7 +244,7 @@ export async function removeGroupMember(ctx: ServiceCtx, groupId: string, userId
   return { ok: true }
 }
 
-export async function setGroupGrant(ctx: ServiceCtx, groupId: string, input: unknown) {
+export const setGroupGrant = async function setGroupGrant(ctx: ServiceCtx, groupId: string, input: unknown) {
   requireAdmin(ctx)
   const parsed = SetGroupGrantSchema.safeParse(input)
   if (!parsed.success) {
@@ -282,7 +282,7 @@ export async function setGroupGrant(ctx: ServiceCtx, groupId: string, input: unk
   return { ok: true }
 }
 
-export async function removeGroupGrant(ctx: ServiceCtx, groupId: string, projectId: string) {
+export const removeGroupGrant = async function removeGroupGrant(ctx: ServiceCtx, groupId: string, projectId: string) {
   requireAdmin(ctx)
   const orm = drizzle(ctx.db, { schema })
   await loadGroup(orm, ctx, groupId)

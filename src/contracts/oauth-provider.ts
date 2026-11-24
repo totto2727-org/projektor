@@ -37,7 +37,9 @@ const validateNativeClient = function validateNativeClient({ clientMetadata }: C
 }
 
 /** Shared provider protocol configuration contains no application storage or authority. */
-export function providerOptions<E extends OAuthEnvironment>(app: ExportedHandler<E>): OAuthProviderOptions<E> {
+export const providerOptions = function providerOptions<E extends OAuthEnvironment>(
+  app: ExportedHandler<E>,
+): OAuthProviderOptions<E> {
   return {
     apiRoute: '/mcp/',
     apiHandler: app as OAuthProviderOptions<E>['apiHandler'],
@@ -55,6 +57,6 @@ export function providerOptions<E extends OAuthEnvironment>(app: ExportedHandler
 const UNUSED_HANDLER: ExportedHandler<OAuthEnvironment> = { fetch: () => new Response('Not found', { status: 404 }) }
 
 /** Credential lifecycle is delegated to the official provider and its dedicated KV. */
-export function oauthApi(env: OAuthEnvironment): OAuthHelpers {
+export const oauthApi = function oauthApi(env: OAuthEnvironment): OAuthHelpers {
   return getOAuthApi(providerOptions(UNUSED_HANDLER), env)
 }

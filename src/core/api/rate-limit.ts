@@ -25,7 +25,9 @@ const policyEnvironment = function policyEnvironment(
 }
 
 /** All request counter storage and budget decisions execute only in Core. */
-export function makeApiRateLimitHandlers<R>(envSource: Effect.Effect<RequestRateLimitEnv, never, R>) {
+export const makeApiRateLimitHandlers = function makeApiRateLimitHandlers<R>(
+  envSource: Effect.Effect<RequestRateLimitEnv, never, R>,
+) {
   return {
     apiCheckRateLimit: (input: typeof RateLimitRequest.Type) =>
       coreReply(

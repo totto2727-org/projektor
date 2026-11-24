@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { seedDefaultCustomFields } from '#commands/custom-fields.ts'
@@ -6,9 +7,9 @@ import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 const fixture = function fixture() {
@@ -71,17 +72,20 @@ describe('atomic workspace provisioning', () => {
     await expect(createWorkspace(f.db, 'u', { name: 'Workspace', slug: 'workspace' })).rejects.toThrow(
       'template failure',
     )
-    for (const table of [
-      'workspaces',
-      'workspace_members',
-      'task_types',
-      'task_statuses',
-      'custom_field_definitions',
-      'wiki_pages',
-      'wiki_fts',
-    ]) {
-      expect(f.count(table), table).toBe(0)
-    }
+    Iterable.forEach(
+      [
+        'workspaces',
+        'workspace_members',
+        'task_types',
+        'task_statuses',
+        'custom_field_definitions',
+        'wiki_pages',
+        'wiki_fts',
+      ],
+      (table) => {
+        expect(f.count(table), table).toBe(0)
+      },
+    )
     f.sqlite.exec('DROP TRIGGER fail_template')
     await expect(createWorkspace(f.db, 'u', { name: 'Workspace', slug: 'workspace' })).resolves.toMatchObject({
       slug: 'workspace',

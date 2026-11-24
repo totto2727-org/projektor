@@ -25,9 +25,9 @@ export const projects = sqliteTable(
     slug: text('slug'),
     archivedAt: integer('archived_at'),
   },
-  (t) => [
-    index('projects_workspace_idx').on(t.workspaceId),
-    index('projects_workspace_slug_idx').on(t.workspaceId, t.slug),
+  (table) => [
+    index('projects_workspace_idx').on(table.workspaceId),
+    index('projects_workspace_slug_idx').on(table.workspaceId, table.slug),
   ],
 )
 
@@ -45,9 +45,9 @@ export const taskTypes = sqliteTable(
     position: integer('position').notNull().default(0),
     isDefault: integer('is_default').notNull().default(0),
   },
-  (t) => [
-    uniqueIndex('task_types_workspace_key_idx').on(t.workspaceId, t.key),
-    index('task_types_workspace_idx').on(t.workspaceId),
+  (table) => [
+    uniqueIndex('task_types_workspace_key_idx').on(table.workspaceId, table.key),
+    index('task_types_workspace_idx').on(table.workspaceId),
   ],
 )
 
@@ -67,9 +67,9 @@ export const taskStatuses = sqliteTable(
     // PROJ-749: explicit review-step flag (review gate + review flow metrics).
     isReviewStep: integer('is_review_step').notNull().default(0),
   },
-  (t) => [
-    uniqueIndex('task_statuses_workspace_key_idx').on(t.workspaceId, t.key),
-    index('task_statuses_workspace_idx').on(t.workspaceId),
+  (table) => [
+    uniqueIndex('task_statuses_workspace_key_idx').on(table.workspaceId, table.key),
+    index('task_statuses_workspace_idx').on(table.workspaceId),
   ],
 )
 
@@ -150,20 +150,20 @@ export const issues = sqliteTable(
     dorReady: integer('dor_ready'),
     dorMissing: text('dor_missing'),
   },
-  (t) => [
-    index('issues_project_idx').on(t.projectId),
-    index('issues_status_idx').on(t.status),
-    index('issues_status_id_idx').on(t.statusId),
-    index('issues_parent_idx').on(t.parentId),
-    index('issues_assignee_idx').on(t.assigneeId),
-    index('issues_workspace_status_idx').on(t.workspaceId, t.status),
-    index('issues_workspace_category_created_idx').on(t.workspaceId, t.statusCategory, t.createdAt),
-    index('idx_issues_workspace_completed').on(t.workspaceId, t.completedAt),
-    index('idx_issues_workspace_ready_at').on(t.workspaceId, t.readyAt),
-    index('idx_issues_workspace_claimed_at').on(t.workspaceId, t.claimedAt),
-    index('idx_issues_workspace_done_at').on(t.workspaceId, t.doneAt),
-    index('idx_issues_workspace_in_review_at').on(t.workspaceId, t.inReviewAt),
-    index('idx_issues_workspace_needs_audit').on(t.workspaceId, t.needsAudit),
+  (table) => [
+    index('issues_project_idx').on(table.projectId),
+    index('issues_status_idx').on(table.status),
+    index('issues_status_id_idx').on(table.statusId),
+    index('issues_parent_idx').on(table.parentId),
+    index('issues_assignee_idx').on(table.assigneeId),
+    index('issues_workspace_status_idx').on(table.workspaceId, table.status),
+    index('issues_workspace_category_created_idx').on(table.workspaceId, table.statusCategory, table.createdAt),
+    index('idx_issues_workspace_completed').on(table.workspaceId, table.completedAt),
+    index('idx_issues_workspace_ready_at').on(table.workspaceId, table.readyAt),
+    index('idx_issues_workspace_claimed_at').on(table.workspaceId, table.claimedAt),
+    index('idx_issues_workspace_done_at').on(table.workspaceId, table.doneAt),
+    index('idx_issues_workspace_in_review_at').on(table.workspaceId, table.inReviewAt),
+    index('idx_issues_workspace_needs_audit').on(table.workspaceId, table.needsAudit),
   ],
 )
 
@@ -187,7 +187,7 @@ export const issueComments = sqliteTable(
      */
     authorKind: text('author_kind', { enum: ['human', 'agent'] }),
   },
-  (t) => [index('issue_comments_issue_idx').on(t.issueId)],
+  (table) => [index('issue_comments_issue_idx').on(table.issueId)],
 )
 
 export const issueLinks = sqliteTable(
@@ -209,7 +209,10 @@ export const issueLinks = sqliteTable(
       .references(() => users.id),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => [index('issue_links_source_idx').on(t.sourceIssueId), index('issue_links_target_idx').on(t.targetIssueId)],
+  (table) => [
+    index('issue_links_source_idx').on(table.sourceIssueId),
+    index('issue_links_target_idx').on(table.targetIssueId),
+  ],
 )
 
 export const activity = sqliteTable(
@@ -226,15 +229,15 @@ export const activity = sqliteTable(
     diff: text('diff', { mode: 'json' }).$type<Record<string, unknown>>(),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => [
-    index('activity_workspace_idx').on(t.workspaceId),
-    index('activity_entity_idx').on(t.entityType, t.entityId),
+  (table) => [
+    index('activity_workspace_idx').on(table.workspaceId),
+    index('activity_entity_idx').on(table.entityType, table.entityId),
     /*
      * PROJ-493 (R11): list_wiki_changes filters entity_type='wiki_page' AND
      * created_at >= since within a workspace — an indexed range scan instead of a
      * full scan of the workspace's activity rows.
      */
-    index('activity_workspace_entity_created_idx').on(t.workspaceId, t.entityType, t.createdAt),
+    index('activity_workspace_entity_created_idx').on(table.workspaceId, table.entityType, table.createdAt),
   ],
 )
 
@@ -256,5 +259,5 @@ export const issueGateRejections = sqliteTable(
       .references(() => issues.id, { onDelete: 'cascade' }),
     occurredAt: integer('occurred_at').notNull(),
   },
-  (t) => [index('idx_issue_gate_rejections_workspace_occurred').on(t.workspaceId, t.occurredAt)],
+  (table) => [index('idx_issue_gate_rejections_workspace_occurred').on(table.workspaceId, table.occurredAt)],
 )

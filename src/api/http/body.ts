@@ -12,7 +12,7 @@ import type { HonoEnv } from '#types'
 // Same `any` as c.req.json() so call sites that spread the body keep compiling; every
 // consumer validates it with the service's Zod schema.
 // biome-ignore lint/suspicious/noExplicitAny: mirrors c.req.json(); validated downstream
-export async function jsonBody(httpContext: Context<HonoEnv>): Promise<any> {
+export const jsonBody = async function jsonBody(httpContext: Context<HonoEnv>): Promise<any> {
   try {
     return await httpContext.req.json()
   } catch {

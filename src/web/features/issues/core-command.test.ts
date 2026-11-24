@@ -1,4 +1,4 @@
-import { Effect, Exit } from 'effect'
+import { Iterable, Effect, Exit } from 'effect'
 import { decodeCoreReply } from 'projektor/core-client'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
@@ -12,9 +12,9 @@ import { issueDataFixture } from './test/data-fixture.ts'
 
 const databases: ReturnType<typeof issueDataFixture>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 const fixture = function fixture() {

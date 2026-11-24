@@ -102,7 +102,7 @@ const resolveDraftTarget = async function resolveDraftTarget(
  * PROJ-495: returns null (not 404) when the caller has no draft for this page — "no
  * draft yet" is the expected common case, not an error.
  */
-export async function getWikiDraft(ctx: ServiceCtx, idOrSlug: string) {
+export const getWikiDraft = async function getWikiDraft(ctx: ServiceCtx, idOrSlug: string) {
   const page = await resolveDraftTarget(ctx, idOrSlug)
   const orm = drizzle(ctx.db, { schema })
   const row = await orm
@@ -128,7 +128,12 @@ export async function getWikiDraft(ctx: ServiceCtx, idOrSlug: string) {
  * The head and scratch snapshot are read together, including after a discard removed
  * the scratch row. Only Core calls this after authorizing the page and current user.
  */
-export async function readWikiDraftState(db: D1Database, workspaceId: string, pageId: string, userId: string) {
+export const readWikiDraftState = async function readWikiDraftState(
+  db: D1Database,
+  workspaceId: string,
+  pageId: string,
+  userId: string,
+) {
   const row = await db
     .prepare(`
     SELECT h.revision, d.title, d.content, d.base_revision_id AS baseRevisionId, d.updated_at AS updatedAt
@@ -196,7 +201,7 @@ const requireAdvanced = function requireAdvanced(result: D1Result, revision: str
   }
 }
 
-export async function saveWikiDraft(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
+export const saveWikiDraft = async function saveWikiDraft(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = SaveWikiDraftInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -249,7 +254,7 @@ const discardResolvedDraft = async function discardResolvedDraft(
   return { ok: true as const, revision }
 }
 
-export async function discardWikiDraft(ctx: ServiceCtx, idOrSlug: string, input?: unknown) {
+export const discardWikiDraft = async function discardWikiDraft(ctx: ServiceCtx, idOrSlug: string, input?: unknown) {
   let expected: string | null | undefined
   if (input !== undefined) {
     const parsed = WikiDraftRevisionInputSchema.safeParse(input)
@@ -266,7 +271,11 @@ export async function discardWikiDraft(ctx: ServiceCtx, idOrSlug: string, input?
  * Publication invalidates older writers first, without deleting recoverable text
  * if the page update fails. A newly accepted draft must survive its later cleanup.
  */
-export async function beginWikiDraftPublish(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
+export const beginWikiDraftPublish = async function beginWikiDraftPublish(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+  input: unknown,
+) {
   const parsed = VersionedWikiDraftInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -278,7 +287,11 @@ export async function beginWikiDraftPublish(ctx: ServiceCtx, idOrSlug: string, i
   return { pageId: page.id, revision, input: parsed.data }
 }
 
-export async function finishWikiDraftPublish(ctx: ServiceCtx, pageId: string, reservedRevision: string) {
+export const finishWikiDraftPublish = async function finishWikiDraftPublish(
+  ctx: ServiceCtx,
+  pageId: string,
+  reservedRevision: string,
+) {
   const page = await resolveDraftTarget(ctx, pageId)
   try {
     const result = await discardResolvedDraft(ctx, page.id, reservedRevision)
@@ -302,7 +315,10 @@ export async function finishWikiDraftPublish(ctx: ServiceCtx, pageId: string, re
  * wiki-watchers.ts#deleteWikiWatchersForPages (PROJ-407: D1 doesn't guarantee FK
  * enforcement on every connection).
  */
-export async function deleteWikiDraftsForPages(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
+export const deleteWikiDraftsForPages = async function deleteWikiDraftsForPages(
+  ctx: ServiceCtx,
+  pageIds: string[],
+): Promise<void> {
   if (pageIds.length === 0) {
     return
   }

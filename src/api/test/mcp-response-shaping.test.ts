@@ -2,6 +2,7 @@
  * PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
  * one `{items, next}` pagination shape, and a hard per-result size cap.
  */
+import { Iterable } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { capPage, shapeIssue, splitShapeOpts, toPage } from '#api/mcp/serialize.ts'
@@ -50,28 +51,31 @@ describe('covers PROJ-891: serializer (unit)', () => {
     expect(out.ref).toBe('PROJ-7')
     expect(out.type).toBe('bug')
     expect(out.labels).toEqual(['a', 'b'])
-    for (const k of [
-      'workspace_id',
-      'project_id',
-      'type_id',
-      'status_id',
-      'created_by_id',
-      'project_key',
-      'project_name',
-      'type_key',
-      'type_name',
-      'status_key',
-      'status_name',
-      'parent_id',
-      'assignee_id',
-      'needs_audit',
-      'links',
-      'customFields',
-      'sprint_id',
-      'completed_at',
-    ]) {
-      expect(out, k).not.toHaveProperty(k)
-    }
+    Iterable.forEach(
+      [
+        'workspace_id',
+        'project_id',
+        'type_id',
+        'status_id',
+        'created_by_id',
+        'project_key',
+        'project_name',
+        'type_key',
+        'type_name',
+        'status_key',
+        'status_name',
+        'parent_id',
+        'assignee_id',
+        'needs_audit',
+        'links',
+        'customFields',
+        'sprint_id',
+        'completed_at',
+      ],
+      (k) => {
+        expect(out, k).not.toHaveProperty(k)
+      },
+    )
     expect(out.status).toBe('todo')
     expect(out.priority).toBe('high')
   })
@@ -276,9 +280,9 @@ describe('covers PROJ-891: MCP tools', () => {
       if (page.truncated) {
         truncatedPages++
       }
-      for (const i of page.items) {
+      Iterable.forEach(page.items, (i) => {
         seen.add(i.ref)
-      }
+      })
       if (!page.next) {
         break
       }

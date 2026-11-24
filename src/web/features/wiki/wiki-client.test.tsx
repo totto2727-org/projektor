@@ -7,8 +7,8 @@ import { uploadInlineImage } from '@/attachment-actions.ts'
 
 import { discardWikiDraft, getWikiDraft, getWikiPage, saveWikiDraft, saveWikiPage } from './actions.ts'
 import { navigateFeature } from './navigation.ts'
-import { WikiPageClient } from './WikiPageClient.tsx'
-import type { WikiSeed } from './WikiPageClient.tsx'
+import { WikiPageClient } from './wiki-page-client.tsx'
+import type { WikiSeed } from './wiki-page-client.tsx'
 
 vi.mock('../../attachment-actions', () => ({
   uploadAttachment: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock('@effront/core/query', () => ({
   query: (operation: (input: unknown) => Promise<unknown>) => (input: unknown) =>
     Effect.promise(() => operation(input)),
 }))
-vi.mock('./LazyMarkdownEditor', () => ({
+vi.mock('./lazy-markdown-editor.tsx', () => ({
   default: ({
     value,
     onChange,

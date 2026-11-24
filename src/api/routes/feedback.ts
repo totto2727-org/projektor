@@ -71,8 +71,8 @@ const checkFeedbackRateLimit = async function checkFeedbackRateLimit(
       bumpRateCounter(httpContext.env, `feedback:${tokenHash}`, windowSecs),
       bumpRateCounter(httpContext.env, `feedback-ip:${ip}`, windowSecs),
     ])
-  } catch (err) {
-    console.error('feedback rate-limit counter unavailable, failing open', { err: String(err) })
+  } catch (error) {
+    console.error('feedback rate-limit counter unavailable, failing open', { err: String(error) })
     return null
   }
   if (tokenCount > tokenLimit || ipCount > ipLimit) {

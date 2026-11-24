@@ -17,7 +17,7 @@ const VERSION_HASH_LENGTH = 12
 
 /** Exported for unit testing — the hash must differ for different content and be stable
  * for the same content. */
-export async function hashWorkflowContent(content: string): Promise<string> {
+export const hashWorkflowContent = async function hashWorkflowContent(content: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content))
   const hex = Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -50,7 +50,7 @@ const getWorkflowVersion = function getWorkflowVersion(): Promise<string> {
   return cachedVersion
 }
 
-export async function getWorkflow(raw: unknown = {}) {
+export const getWorkflow = async function getWorkflow(raw: unknown = {}) {
   const result = GetWorkflowSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

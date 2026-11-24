@@ -19,7 +19,7 @@ export {
 } from '#contracts/oauth-consent.ts'
 
 /** Missing workspaces and missing membership are indistinguishable to the consent screen. */
-export async function lookupConsentWorkspace(
+export const lookupConsentWorkspace = async function lookupConsentWorkspace(
   db: D1Database,
   userId: string,
   workspaceId: string,
@@ -47,7 +47,7 @@ const GRANT_PAGE_SIZE = 100
 const GRANT_MAX_PAGES = 5
 
 /** Grants are personal credentials, scoped to their consenting user and workspace. Bound the KV page walk. */
-export async function listConnectorGrants(
+export const listConnectorGrants = async function listConnectorGrants(
   api: OAuthHelpers,
   userId: string,
   workspaceId: string,
@@ -82,7 +82,7 @@ export async function listConnectorGrants(
 }
 
 /** The provider enforces user ownership. This lookup additionally prevents cross-workspace revocation. */
-export async function revokeConnectorGrant(
+export const revokeConnectorGrant = async function revokeConnectorGrant(
   api: OAuthHelpers,
   userId: string,
   workspaceId: string,

@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Iterable, Schema } from 'effect'
 import type { Effect } from 'effect'
 
 import { ReviewTargetSchema } from '#contracts/review-targets.ts'
@@ -92,7 +92,7 @@ const metadataQuery = function metadataQuery(
     .bind(...(linked?.params ?? []), workspaceId, ...values, ...(owner?.params ?? []))
 }
 /** The caller supplies policy predicates. The query always retains tenant and entity scope. */
-export function listAttachments(
+export const listAttachments = function listAttachments(
   db: D1Database,
   workspaceId: string,
   options: AttachmentListOptions,
@@ -108,7 +108,7 @@ export function listAttachments(
     return (rows.results ?? []).map(toMetadata)
   })
 }
-export function findAttachment(
+export const findAttachment = function findAttachment(
   db: D1Database,
   workspaceId: string,
   id: string,
@@ -121,7 +121,7 @@ export function findAttachment(
 }
 
 /** Callers authorize the issue set first. Every query independently retains workspace and owner scope. */
-export function listIssueReviewTargets(
+export const listIssueReviewTargets = function listIssueReviewTargets(
   db: D1Database,
   workspaceId: string,
   issueIds: Readonly<string[]>,
@@ -140,12 +140,12 @@ export function listIssueReviewTargets(
       ORDER BY CASE WHEN a.review_status = 'in_review' THEN 0 ELSE 1 END, a.created_at ASC, a.id ASC`)
         .bind(workspaceId, ...batch)
         .all<{ entity_id: string } & ReviewTarget>()
-      for (const row of rows.results ?? []) {
+      Iterable.forEach(rows.results ?? [], (row) => {
         const target = Schema.decodeUnknownSync(ReviewTargetSchema)(row)
         const issueTargets = targets.get(row.entity_id) ?? []
         issueTargets.push(target)
         targets.set(row.entity_id, issueTargets)
-      }
+      })
     }
     return targets
   })

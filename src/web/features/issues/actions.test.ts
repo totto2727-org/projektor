@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { runTestEffect } from '#tests/run-effect.ts'
@@ -30,9 +30,9 @@ import { issueDataFixture } from './test/data-fixture.ts'
 import { project, scope, workspace } from './test/fixtures.ts'
 const databases: ReturnType<typeof issueDataFixture>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 /*

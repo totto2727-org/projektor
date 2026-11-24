@@ -862,7 +862,7 @@ const readFlowMetrics = async function readFlowMetrics(
 export type FlowMetrics = Awaited<ReturnType<typeof readFlowMetrics>>
 
 /** Pure reads and domain calculations, executed only when the caller runs the Effect. */
-export function getFlowMetrics(
+export const getFlowMetrics = function getFlowMetrics(
   db: D1Database,
   workspaceId: string,
   range: FlowMetricsRange,

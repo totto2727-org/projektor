@@ -1,4 +1,4 @@
-export function parseStoryPoints(value: string): number | null {
+export const parseStoryPoints = function parseStoryPoints(value: string): number | null {
   if (value === '') {
     return null
   }

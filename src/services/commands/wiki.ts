@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
-import { Predicate, Effect } from 'effect'
+import { Iterable, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -508,7 +508,7 @@ const wikiReadVisibility = function wikiReadVisibility(ctx: ServiceCtx) {
   return visible ? or(isNull(schema.wikiPages.projectId), visible) : undefined
 }
 
-export async function listWikiPages(ctx: ServiceCtx, input: unknown) {
+export const listWikiPages = async function listWikiPages(ctx: ServiceCtx, input: unknown) {
   const parsed = ListPagesInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -522,7 +522,7 @@ export async function listWikiPages(ctx: ServiceCtx, input: unknown) {
   return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }))
 }
 
-export async function searchWiki(ctx: ServiceCtx, input: unknown) {
+export const searchWiki = async function searchWiki(ctx: ServiceCtx, input: unknown) {
   const parsed = SearchWikiInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -611,7 +611,7 @@ async function resolveWikiPageByRedirect(
     .get()
 }
 
-export async function getWikiPage(ctx: ServiceCtx, slugOrId: string) {
+export const getWikiPage = async function getWikiPage(ctx: ServiceCtx, slugOrId: string) {
   const page = await Effect.runPromise(wikiData.findWikiPage(ctx.db, ctx.workspaceId, slugOrId))
   if (!page) {
     throw new NotFoundError('Wiki page not found')
@@ -640,7 +640,10 @@ export async function getWikiPage(ctx: ServiceCtx, slugOrId: string) {
  * row. Resolves the target the same way getWikiPage does (live slug/id, then redirect
  * fallback) and enforces the same visibility check before exposing anything.
  */
-export async function getWikiBacklinks(ctx: ServiceCtx, slugOrId: string): Promise<WikiBacklink[]> {
+export const getWikiBacklinks = async function getWikiBacklinks(
+  ctx: ServiceCtx,
+  slugOrId: string,
+): Promise<WikiBacklink[]> {
   const orm = drizzle(ctx.db, { schema })
   const direct = await orm
     .select({ id: schema.wikiPages.id, project_id: schema.wikiPages.projectId })
@@ -810,7 +813,7 @@ const finalizeWikiPageCreate = async function finalizeWikiPageCreate(
   }
 }
 
-export async function createWikiPage(ctx: ServiceCtx, input: unknown) {
+export const createWikiPage = async function createWikiPage(ctx: ServiceCtx, input: unknown) {
   const parsed = CreatePageSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -1371,7 +1374,7 @@ const finalizeWikiPageUpdate = async function finalizeWikiPageUpdate(
   }
 }
 
-export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
+export const updateWikiPage = async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = UpdatePageSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -1473,7 +1476,7 @@ export async function updateWikiPage(ctx: ServiceCtx, idOrSlug: string, input: u
  * the moment someone next makes an unrelated content-only edit (parseWikiFrontmatter
  * would re-parse the page's still-stale frontmatter and silently wipe the stamp).
  */
-export async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
+export const verifyWikiPage = async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
   const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
   await requireWikiWrite(ctx, page.projectId)
 
@@ -1528,7 +1531,7 @@ export async function verifyWikiPage(ctx: ServiceCtx, idOrSlug: string) {
  * (staleWikiPageCondition above), so "what search demotes" and "what this queue lists"
  * never disagree.
  */
-export async function listStaleWikiPages(ctx: ServiceCtx, input: unknown) {
+export const listStaleWikiPages = async function listStaleWikiPages(ctx: ServiceCtx, input: unknown) {
   const parsed = ListStaleWikiPagesInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -1815,7 +1818,7 @@ const resolveSectionPatchContent = async function resolveSectionPatchContent(
  */
 const PATCH_RETRIES = 3
 
-export async function patchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
+export const patchWikiPage = async function patchWikiPage(ctx: ServiceCtx, idOrSlug: string, input: unknown) {
   const parsed = PatchWikiPageInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -1933,7 +1936,7 @@ async function patchWikiPageOnce(
  * visible to the caller. Deliberately not filtered by the search/staleness exclusion
  * above (this IS the discovery path templates are meant to be found through).
  */
-export async function listWikiTemplates(ctx: ServiceCtx, input: unknown) {
+export const listWikiTemplates = async function listWikiTemplates(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiTemplatesInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -2034,7 +2037,7 @@ const DEFAULT_WIKI_TEMPLATES: { slug: string; title: string; type: string; body:
  * for pre-existing workspaces (kept in sync by hand, same as seedDefaultTaskTypes/0016 for
  * task types). Authored as the workspace's creator (the only user guaranteed to exist yet).
  */
-export function buildDefaultWikiTemplateStatements(
+export const buildDefaultWikiTemplateStatements = function buildDefaultWikiTemplateStatements(
   db: D1Database,
   workspaceId: string,
   userId: string,
@@ -2081,7 +2084,7 @@ export function buildDefaultWikiTemplateStatements(
       .bind(parentId, parentId, workspaceId, 'Templates', '', ''),
   )
 
-  for (const t of DEFAULT_WIKI_TEMPLATES) {
+  Iterable.forEach(DEFAULT_WIKI_TEMPLATES, (t) => {
     const content = `---\ntype: ${t.type}\nstatus: draft\ntemplate: true\n---\n${t.body}`
     statements.push(
       prepareQuery(
@@ -2109,11 +2112,15 @@ export function buildDefaultWikiTemplateStatements(
           .toSQL(),
       ),
     )
-  }
+  })
   return statements
 }
 
-export async function seedDefaultWikiTemplates(db: D1Database, workspaceId: string, userId: string): Promise<void> {
+export const seedDefaultWikiTemplates = async function seedDefaultWikiTemplates(
+  db: D1Database,
+  workspaceId: string,
+  userId: string,
+): Promise<void> {
   await db.batch(buildDefaultWikiTemplateStatements(db, workspaceId, userId))
 }
 
@@ -2276,7 +2283,7 @@ const requireWikiDelete = async function requireWikiDelete(ctx: ServiceCtx, proj
  * a delete-by-old-slug-after-rename request resolves to the same page rather than
  * 404ing, for consistency across every other page-reference entry point.
  */
-export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?: unknown) {
+export const deleteWikiPage = async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?: unknown) {
   const idCheck = IdSchema.safeParse(idOrSlug)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -2448,7 +2455,7 @@ export async function deleteWikiPage(ctx: ServiceCtx, idOrSlug: string, options?
  *     until it's live again) to resolve the collision. No partial restore happens: the
  *     whole batch is checked before any row is updated.
  */
-export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
+export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -2592,7 +2599,7 @@ export async function undeleteWikiPage(ctx: ServiceCtx, id: string) {
  * trashed page is only listed for callers who could see that project (workspace admins
  * see everything).
  */
-export async function listWikiTrash(ctx: ServiceCtx, input: unknown) {
+export const listWikiTrash = async function listWikiTrash(ctx: ServiceCtx, input: unknown) {
   const parsed = ListWikiTrashInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -2637,7 +2644,7 @@ export async function listWikiTrash(ctx: ServiceCtx, input: unknown) {
  */
 export const WIKI_TRASH_PURGE_DEFAULT_PAGE_LIMIT = 200
 
-export async function purgeExpiredWikiPages(
+export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
   ctx: ServiceCtx,
   options: { limit?: number } = {},
 ): Promise<{ purgedCount: number; purgedIds: string[]; moreExpired: boolean }> {
@@ -2699,7 +2706,7 @@ export async function purgeExpiredWikiPages(
    * `inChunks` still caps each statement's bound `parent_id IN (...)` list at D1's limit.
    */
   const idsByTarget = new Map<string | null, string[]>()
-  for (const id of ids) {
+  Iterable.forEach(ids, (id) => {
     const target = resolveReparentTarget(id)
     const group = idsByTarget.get(target)
     if (group) {
@@ -2707,7 +2714,7 @@ export async function purgeExpiredWikiPages(
     } else {
       idsByTarget.set(target, [id])
     }
-  }
+  })
   for (const [target, purgedIds] of idsByTarget) {
     await inChunks(purgedIds, async (chunk) => {
       await orm
@@ -2755,7 +2762,7 @@ export async function purgeExpiredWikiPages(
   return { purgedCount: ids.length, purgedIds: ids, moreExpired }
 }
 
-export async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise<TreeNode[]> {
+export const getWikiTree = async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise<TreeNode[]> {
   const parsed = WikiTreeInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -2767,7 +2774,7 @@ export async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise
     }),
   )
   const map = new Map<string, TreeNode>()
-  for (const p of rows) {
+  Iterable.forEach(rows, (p) => {
     map.set(p.id, {
       id: p.id,
       slug: p.slug,
@@ -2776,10 +2783,10 @@ export async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise
       type: p.type,
       children: [],
     })
-  }
+  })
 
   const roots: TreeNode[] = []
-  for (const p of rows) {
+  Iterable.forEach(rows, (p) => {
     // biome-ignore lint/style/noNonNullAssertion: every row was inserted into map on the previous loop
     const node = map.get(p.id)!
     if (p.parentId && map.has(p.parentId)) {
@@ -2787,7 +2794,7 @@ export async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise
     } else {
       roots.push(node)
     }
-  }
+  })
 
   return roots
 }
@@ -2798,14 +2805,14 @@ export async function getWikiTree(ctx: ServiceCtx, input: unknown = {}): Promise
  * getWikiBacklinks instead of 404ing on the exact reference PROJ-484's optimistic-
  * locking workflow tells agents to fetch.
  */
-export async function listWikiRevisions(ctx: ServiceCtx, idOrSlug: string) {
+export const listWikiRevisions = async function listWikiRevisions(ctx: ServiceCtx, idOrSlug: string) {
   const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
   await assertWikiPageVisible(ctx, page.projectId)
   return Effect.runPromise(wikiData.listWikiRevisions(ctx.db, ctx.workspaceId, page.id))
 }
 
 // PROJ-509: same id-or-slug + redirect resolution as listWikiRevisions above.
-export async function getWikiRevision(ctx: ServiceCtx, idOrSlug: string, revisionId: string) {
+export const getWikiRevision = async function getWikiRevision(ctx: ServiceCtx, idOrSlug: string, revisionId: string) {
   const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
   await assertWikiPageVisible(ctx, page.projectId)
   const revision = await Effect.runPromise(wikiData.getWikiRevision(ctx.db, ctx.workspaceId, page.id, revisionId))
@@ -2825,7 +2832,12 @@ export async function getWikiRevision(ctx: ServiceCtx, idOrSlug: string, revisio
  * resolveBaseContent's off-by-one lookahead, which exists only to answer "what did the
  * caller actually have"), so both sides are read directly with no shifting.
  */
-export async function getWikiRevisionDiff(ctx: ServiceCtx, idOrSlug: string, revisionId: string, input: unknown) {
+export const getWikiRevisionDiff = async function getWikiRevisionDiff(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+  revisionId: string,
+  input: unknown,
+) {
   const parsed = WikiRevisionDiffInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))

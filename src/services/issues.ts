@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { Predicate, Effect } from 'effect'
+import { Iterable, Predicate, Effect } from 'effect'
 
 import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { drizzle, schema } from '#db'
@@ -42,13 +42,15 @@ export interface ChildRollup {
   done: number
   remaining: number
 }
-export function computeChildRollup(rows: Readonly<{ status: string; count: number }[]>): ChildRollup {
+export const computeChildRollup = function computeChildRollup(
+  rows: Readonly<{ status: string; count: number }[]>,
+): ChildRollup {
   const byStatus: Record<string, number> = {}
   let total = 0
-  for (const row of rows) {
+  Iterable.forEach(rows, (row) => {
     byStatus[row.status] = row.count
     total += row.count
-  }
+  })
   const done = (byStatus.done ?? 0) + (byStatus.cancelled ?? 0)
   return { total, byStatus, done, remaining: total - done }
 }
@@ -103,7 +105,7 @@ export interface IssuePage {
 }
 
 /** Reference syntax is validated by the application before calling. No authorization occurs here. */
-export function getIssue(db: D1Database, workspaceId: string, options: { id?: string; ref?: string }) {
+export const getIssue = function getIssue(db: D1Database, workspaceId: string, options: { id?: string; ref?: string }) {
   return queryEffect('getIssue', async () => {
     const match = options.ref?.match(ISSUE_REF_PATTERN)
     if (!options.id && !match) {
@@ -119,7 +121,7 @@ export function getIssue(db: D1Database, workspaceId: string, options: { id?: st
     )
   })
 }
-export function findIssueIdByRef(db: D1Database, workspaceId: string, ref: string) {
+export const findIssueIdByRef = function findIssueIdByRef(db: D1Database, workspaceId: string, ref: string) {
   return queryEffect('findIssueIdByRef', async () => {
     const match = ref.match(ISSUE_REF_PATTERN)
     if (!match) {
@@ -140,7 +142,7 @@ export function findIssueIdByRef(db: D1Database, workspaceId: string, ref: strin
     return row?.id ?? null
   })
 }
-export function findIssueCustomField(db: D1Database, workspaceId: string, key: string) {
+export const findIssueCustomField = function findIssueCustomField(db: D1Database, workspaceId: string, key: string) {
   return queryEffect(
     'findIssueCustomField',
     async () =>
@@ -259,7 +261,11 @@ const listConditions = function listConditions(
   }
   return conditions
 }
-export function getChildRollups(db: D1Database, workspaceId: string, parentIds: Readonly<string[]>) {
+export const getChildRollups = function getChildRollups(
+  db: D1Database,
+  workspaceId: string,
+  parentIds: Readonly<string[]>,
+) {
   return queryEffect('getChildRollups', async () => {
     const orm = drizzle(db, { schema })
     const rows = await inChunks(parentIds, (chunk) =>
@@ -274,15 +280,15 @@ export function getChildRollups(db: D1Database, workspaceId: string, parentIds: 
         .groupBy(schema.issues.parentId, schema.issues.status),
     )
     const grouped: Record<string, { status: string; count: number }[]> = {}
-    for (const row of rows) {
+    Iterable.forEach(rows, (row) => {
       if (row.parent_id) {
         ;(grouped[row.parent_id] ??= []).push(row)
       }
-    }
+    })
     return Object.fromEntries(parentIds.map((id) => [id, computeChildRollup(grouped[id] ?? [])]))
   })
 }
-export function getIssueExtras(db: D1Database, workspaceId: string, issueId: string) {
+export const getIssueExtras = function getIssueExtras(db: D1Database, workspaceId: string, issueId: string) {
   return Effect.gen(function* () {
     const rollups = yield* getChildRollups(db, workspaceId, [issueId])
     const fields = yield* batchLoadCustomFields(db, workspaceId, [issueId])
@@ -292,7 +298,12 @@ export function getIssueExtras(db: D1Database, workspaceId: string, issueId: str
     }
   })
 }
-export function listIssues(db: D1Database, workspaceId: string, options: IssueListOptions, visibility?: SQL) {
+export const listIssues = function listIssues(
+  db: D1Database,
+  workspaceId: string,
+  options: IssueListOptions,
+  visibility?: SQL,
+) {
   return Effect.gen(function* () {
     const page = yield* queryEffect('listIssues', async () => {
       const orm = drizzle(db, { schema })
@@ -339,18 +350,23 @@ export interface IssueBatchOptions {
   ids?: Readonly<string[]>
   includeBody?: boolean
 }
-export function getIssuesBatch(db: D1Database, workspaceId: string, options: IssueBatchOptions, visibility?: SQL) {
+export const getIssuesBatch = function getIssuesBatch(
+  db: D1Database,
+  workspaceId: string,
+  options: IssueBatchOptions,
+  visibility?: SQL,
+) {
   return Effect.gen(function* () {
     const selection = yield* queryEffect('getIssuesBatch', async () => {
       const refs = options.refs ?? []
       const orm = drizzle(db, { schema })
       const numbersByKey = new Map<string, number[]>()
-      for (const ref of refs) {
+      Iterable.forEach(refs, (ref) => {
         const match = ref.match(ISSUE_REF_PATTERN)!
         const numbers = numbersByKey.get(match[1]) ?? []
         numbers.push(Number(match[2]))
         numbersByKey.set(match[1], numbers)
-      }
+      })
       const refToId = new Map<string, string>()
       for (const [key, numbers] of numbersByKey) {
         const rows = await inChunks(numbers, (chunk) =>
@@ -366,17 +382,17 @@ export function getIssuesBatch(db: D1Database, workspaceId: string, options: Iss
               ),
             ),
         )
-        for (const row of rows) {
+        Iterable.forEach(rows, (row) => {
           refToId.set(`${key}-${row.number}`, row.id)
-        }
+        })
       }
       const order = refs.map((ref) => {
         const m = ref.match(ISSUE_REF_PATTERN)!
         return { requested: ref, id: refToId.get(`${m[1]}-${Number(m[2])}`) }
       })
-      for (const id of options.ids ?? []) {
+      Iterable.forEach(options.ids ?? [], (id) => {
         order.push({ requested: id, id })
-      }
+      })
       const ids = [...new Set(order.map((o) => o.id).filter((id): id is string => !!id))]
       const rows = await inChunks(ids, (chunk) =>
         issueSelect(db).where(
@@ -440,7 +456,7 @@ export interface IssueSearchVisibility {
   sql: string
   params: unknown[]
 }
-export function searchIssues(
+export const searchIssues = function searchIssues(
   db: D1Database,
   workspaceId: string,
   options: IssueSearchOptions,

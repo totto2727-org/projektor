@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { batchLoadCustomFields } from '#commands/custom-fields.ts'
@@ -344,11 +345,11 @@ describe('custom Fields — resolved on read', () => {
       items: { customFields: Array<{ key: string; value: string }> }[]
     }
     expect(page.items).toHaveLength(3)
-    for (const item of page.items) {
+    Iterable.forEach(page.items, (item) => {
       expect(Array.isArray(item.customFields)).toBe(true)
       const sp = item.customFields.find((f) => f.key === 'sp')
       expect(sp).toBeTruthy()
-    }
+    })
   })
 
   test('handles PATCH /api/issues/:id updates a custom field value', async () => {

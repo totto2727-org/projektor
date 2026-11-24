@@ -2,7 +2,7 @@ import { drizzle, schema } from '#db'
 
 import type { ServiceCtx } from './types.ts'
 
-export async function recordActivity(
+export const recordActivity = async function recordActivity(
   ctx: ServiceCtx,
   opts: Readonly<{
     entityType: 'issue' | 'wiki_page' | 'project' | 'group'

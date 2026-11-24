@@ -1,7 +1,7 @@
 import { Effect, Schema } from 'effect'
 
 import { brandStyles, loadBrand } from './brand.ts'
-import { Shell } from './components/Shell.tsx'
+import { Shell } from './components/shell.tsx'
 import { EFFRONT } from './effront.ts'
 import { renderFeedback, renderFeedbackDetail } from './features/feedback/server.tsx'
 import { renderEpics, renderIssue, renderIssues, renderMyIssues } from './features/issues/server.tsx'

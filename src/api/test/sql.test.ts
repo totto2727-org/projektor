@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { inChunks, sanitizeFtsQuery } from '#commands/sql.ts'
@@ -55,9 +56,9 @@ describe('inChunks', () => {
     })
 
     expect(chunkSizes).toHaveLength(3)
-    for (const size of chunkSizes) {
+    Iterable.forEach(chunkSizes, (size) => {
       expect(size).toBeLessThanOrEqual(100)
-    }
+    })
     expect(chunkSizes.reduce((a, b) => a + b, 0)).toBe(250)
     // Concatenation preserves order and every item exactly once
     expect(result).toEqual(items)
@@ -71,9 +72,9 @@ describe('inChunks', () => {
       return []
     })
     expect(chunkSizes.length).toBeGreaterThan(1)
-    for (const size of chunkSizes) {
+    Iterable.forEach(chunkSizes, (size) => {
       expect(size).toBeLessThanOrEqual(100)
-    }
+    })
   })
 
   test('supports mutation-style callbacks that return no rows', async () => {

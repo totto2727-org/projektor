@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 
 import * as sources from '#commands/feedback-sources.ts'
 import * as commands from '#commands/feedback.ts'
@@ -58,7 +58,7 @@ const summaryDtos = function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
       }[]
     }
   >()
-  for (const row of rows) {
+  Iterable.forEach(rows, (row) => {
     let source = map.get(row.source_id)
     if (!source) {
       source = { sourceId: row.source_id, sourceName: row.source_name, totalCount: 0, versions: [] }
@@ -73,7 +73,7 @@ const summaryDtos = function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
       avgFiveStar: row.five_star_total > 0 ? row.five_star_avg : null,
       lastSeenAt: row.last_seen_at,
     })
-  }
+  })
   return [...map.values()]
 }
 const loadSources = function loadSources(env: CoreEnvironment, workspaceId: string, projectId: string) {

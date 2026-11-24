@@ -4,20 +4,20 @@ import type { AuthSession, ProjectSummary, RequestScope, WorkspaceMembership } f
 
 import { ApiError, ScopeError } from './errors.ts'
 
-export function requireBrowserDataRequest(request: Request): void {
+export const requireBrowserDataRequest = function requireBrowserDataRequest(request: Request): void {
   if (request.headers.has('authorization')) {
     throw new ScopeError(403, 'An interactive browser session is required.')
   }
 }
 
-export function requireAuthenticatedDataSession(session: AuthSession): void {
+export const requireAuthenticatedDataSession = function requireAuthenticatedDataSession(session: AuthSession): void {
   if (session.user.email === 'public-viewer@projektor.local') {
     throw new ScopeError(403, 'An interactive browser session is required.')
   }
 }
 
 /** Never expose driver SQL, bindings or authentication diagnostics to page clients. */
-export function dataError(cause: unknown): ApiError {
+export const dataError = function dataError(cause: unknown): ApiError {
   if (cause instanceof ApiError) {
     return cause
   }
@@ -25,7 +25,10 @@ export function dataError(cause: unknown): ApiError {
 }
 
 /** Presentation selection is not authority. Core revalidates membership before storage access. */
-export function requireDataWorkspace(scope: RequestScope, workspaceId?: string): WorkspaceMembership {
+export const requireDataWorkspace = function requireDataWorkspace(
+  scope: RequestScope,
+  workspaceId?: string,
+): WorkspaceMembership {
   requireAuthenticatedDataSession(scope)
   const selected = scope.selection
   const id =
@@ -37,7 +40,11 @@ export function requireDataWorkspace(scope: RequestScope, workspaceId?: string):
   return membership
 }
 
-export function requireDataProject(scope: RequestScope, projectId: string, workspaceId?: string): ProjectSummary {
+export const requireDataProject = function requireDataProject(
+  scope: RequestScope,
+  projectId: string,
+  workspaceId?: string,
+): ProjectSummary {
   requireAuthenticatedDataSession(scope)
   const project = scope.projects.find(
     (candidate) =>
@@ -54,7 +61,7 @@ export function requireDataProject(scope: RequestScope, projectId: string, works
   return project
 }
 
-export function authorizeDataEntity<T extends { readonly projectId: string | null }>(
+export const authorizeDataEntity = function authorizeDataEntity<T extends { readonly projectId: string | null }>(
   scope: RequestScope,
   workspaceId: string,
   entity: T | undefined,

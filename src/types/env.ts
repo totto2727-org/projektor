@@ -107,9 +107,6 @@ export interface CoreEnv {
   FILE_CLAIM_TTL_SECONDS?: string
 }
 
-/** Persistent application capabilities belong exclusively to Core. */
-export type Env = CoreEnv
-
 /** Public API has protocol configuration and native bindings, never D1 or R2. */
 export type ApiEnv = Omit<CoreEnv, 'DB' | 'KV' | 'R2'> & { CORE: Fetcher }
 

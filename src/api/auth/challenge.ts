@@ -40,13 +40,16 @@ const bearerChallenge = function bearerChallenge(params: Readonly<Record<string,
  * Derived from the request rather than a configured origin so it stays correct on
  * every hostname an instance is reachable at.
  */
-export function protectedResourceMetadataUrl(requestUrl: string, workspaceId: string): string {
+export const protectedResourceMetadataUrl = function protectedResourceMetadataUrl(
+  requestUrl: string,
+  workspaceId: string,
+): string {
   const { origin } = new URL(requestUrl)
   return `${origin}/.well-known/oauth-protected-resource/mcp/${encodeURIComponent(workspaceId)}`
 }
 
 /** `WWW-Authenticate` for an unauthenticated MCP request (401). */
-export function unauthorizedChallenge(requestUrl: string, workspaceId: string): string {
+export const unauthorizedChallenge = function unauthorizedChallenge(requestUrl: string, workspaceId: string): string {
   return bearerChallenge({
     resource_metadata: protectedResourceMetadataUrl(requestUrl, workspaceId),
     scope: OAUTH_SCOPES_SUPPORTED.join(' '),
@@ -63,7 +66,10 @@ export function unauthorizedChallenge(requestUrl: string, workspaceId: string): 
  * meaningful over-ask: `projektor:write` already implies read internally, so the
  * complete set is what any grant that can satisfy this request looks like anyway.
  */
-export function insufficientScopeChallenge(requestUrl: string, workspaceId: string): string {
+export const insufficientScopeChallenge = function insufficientScopeChallenge(
+  requestUrl: string,
+  workspaceId: string,
+): string {
   return bearerChallenge({
     error: 'insufficient_scope',
     resource_metadata: protectedResourceMetadataUrl(requestUrl, workspaceId),

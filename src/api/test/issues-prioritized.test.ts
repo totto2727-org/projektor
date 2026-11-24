@@ -3,6 +3,7 @@
  * algorithm (reimplemented below as the reference) and a bounded query count.
  */
 
+import { Iterable } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { checkDefinitionOfReady } from '#commands/definition-of-ready.ts'
@@ -113,17 +114,17 @@ const reference = async function reference(ctx: ServiceCtx, includeBacklog: bool
 
   const openIds = new Set(open.map((o) => o.id))
   const inDegree: Record<string, number> = {}
-  for (const l of links) {
+  Iterable.forEach(links, (l) => {
     if (openIds.has(l.target_issue_id)) {
       inDegree[l.target_issue_id] = (inDegree[l.target_issue_id] ?? 0) + 1
     }
-  }
+  })
   const storyPoints: Record<string, number> = {}
-  for (const s of sps) {
+  Iterable.forEach(sps, (s) => {
     if (s.sp > 0) {
       storyPoints[s.issue_id] = s.sp
     }
-  }
+  })
   const maxIn = Math.max(...open.map((o) => inDegree[o.id] ?? 0), 1)
 
   return open

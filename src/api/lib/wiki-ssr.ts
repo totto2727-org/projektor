@@ -65,7 +65,10 @@ export interface WikiSsrPage {
  * serving the plain static shell rather than erroring the page load, and must never let
  * this leak page existence/content to an unauthenticated caller.
  */
-export async function resolveWikiPageForSsr(c: Context<HonoEnv>, slugOrId: string): Promise<WikiSsrPage | null> {
+export const resolveWikiPageForSsr = async function resolveWikiPageForSsr(
+  c: Context<HonoEnv>,
+  slugOrId: string,
+): Promise<WikiSsrPage | null> {
   let authenticated = false
   const authResponse = await authMiddleware(c, async () => {
     authenticated = true
@@ -132,7 +135,11 @@ class TextSetter {
  * with real values for a resolved page. Never throws — a rewrite failure just means the
  * caller serves the unmodified shell.
  */
-export function injectWikiMetadata(response: Response, page: WikiSsrPage, pageUrl: string): Response {
+export const injectWikiMetadata = function injectWikiMetadata(
+  response: Response,
+  page: WikiSsrPage,
+  pageUrl: string,
+): Response {
   const description = plainTextExcerpt(page.content)
   return new HTMLRewriter()
     .on('title', new TextSetter(`${page.title} — Projektor Wiki`))

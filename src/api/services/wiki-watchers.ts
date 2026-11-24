@@ -4,16 +4,25 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export function watchWikiPage(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiWatchWikiPage']>) {
+export const watchWikiPage = function watchWikiPage(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiWatchWikiPage']>
+) {
   return apiReply(ApiResults.apiWatchWikiPage, ctx.core.apiWatchWikiPage(ctx.actor, ctx.workspaceId, ...args))
 }
-export function unwatchWikiPage(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiUnwatchWikiPage']>) {
+export const unwatchWikiPage = function unwatchWikiPage(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiUnwatchWikiPage']>
+) {
   return apiReply(ApiResults.apiUnwatchWikiPage, ctx.core.apiUnwatchWikiPage(ctx.actor, ctx.workspaceId, ...args))
 }
-export function listWikiWatches(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiListWikiWatches']>) {
+export const listWikiWatches = function listWikiWatches(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiListWikiWatches']>
+) {
   return apiReply(ApiResults.apiListWikiWatches, ctx.core.apiListWikiWatches(ctx.actor, ctx.workspaceId, ...args))
 }
-export function listWikiNotifications(
+export const listWikiNotifications = function listWikiNotifications(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListWikiNotifications']>
 ) {
@@ -22,7 +31,7 @@ export function listWikiNotifications(
     ctx.core.apiListWikiNotifications(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function markWikiNotificationsRead(
+export const markWikiNotificationsRead = function markWikiNotificationsRead(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiMarkWikiNotificationsRead']>
 ) {
@@ -31,6 +40,9 @@ export function markWikiNotificationsRead(
     ctx.core.apiMarkWikiNotificationsRead(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function listWikiChanges(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiListWikiChanges']>) {
+export const listWikiChanges = function listWikiChanges(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiListWikiChanges']>
+) {
   return apiReply(ApiResults.apiListWikiChanges, ctx.core.apiListWikiChanges(ctx.actor, ctx.workspaceId, ...args))
 }

@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
-vi.mock('../../../components/AttachmentUpload', () => ({ AttachmentUpload: () => null }))
+vi.mock('../../../components/attachment-upload.tsx', () => ({ AttachmentUpload: () => null }))
 vi.mock('../../../effront', () => ({ EFFRONT: { ServerFn: { make: vi.fn(() => vi.fn()) } } }))
 vi.mock('../actions', () => ({
   updateIssue: vi.fn(),
@@ -17,12 +17,12 @@ vi.mock('../actions', () => ({
   searchWikiAttachments: vi.fn(),
   shareIssue: vi.fn(),
 }))
-vi.mock('./LazyMarkdownEditor', () => ({
+vi.mock('./lazy-markdown-editor.tsx', () => ({
   default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
     <textarea aria-label='Markdown draft' value={value} onChange={(event) => onChange(event.currentTarget.value)} />
   ),
 }))
-vi.mock('../../../components/markdown/MarkdownPreview', () => ({
+vi.mock('../../../components/markdown/markdown-preview.tsx', () => ({
   MarkdownPreview: ({ content }: { content: string }) => <p>{content}</p>,
 }))
 
@@ -30,7 +30,7 @@ import { addComment, editComment, updateIssue } from '@/features/issues/actions.
 import { draftKey, loadDraft } from '@/features/issues/utils/drafts.ts'
 
 import type { IssueData } from './issue-detail-helpers.ts'
-import { BodySection, CommentsSection } from './IssueDetailParts.tsx'
+import { BodySection, CommentsSection } from './issue-detail-parts.tsx'
 
 const issue: IssueData = {
   id: 'issue',

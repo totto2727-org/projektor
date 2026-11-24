@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { TOOL_COUNT, TOOL_DOMAIN_SLUGS } from '#api/mcp/catalog.ts'
@@ -120,9 +121,9 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
     expect(res.status).toBe(400)
     const body = (await res.json()) as JsonRpcError
     expect(body.error.message).toContain('not-a-domain')
-    for (const slug of TOOL_DOMAIN_SLUGS) {
+    Iterable.forEach(TOOL_DOMAIN_SLUGS, (slug) => {
       expect(body.error.message).toContain(slug)
-    }
+    })
   })
 
   test('one unknown slug among valid ones still 400s (fail closed)', async () => {

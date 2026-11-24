@@ -20,7 +20,7 @@ const jsonDetails = function jsonDetails(input: unknown): Schema.JsonObject | un
 }
 
 /** Explicitly documented domain data, never arbitrary Error properties or diagnostics. */
-export function publicDomainFailure(error: unknown): unknown {
+export const publicDomainFailure = function publicDomainFailure(error: unknown): unknown {
   if (error instanceof ValidationError) {
     return coreFailure(400, error.message, { kind: error.kind, details: jsonDetails(error.issues) })
   }

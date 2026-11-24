@@ -12,7 +12,7 @@ import type {
 } from '@/features/issues/components/issue-detail-helpers.ts'
 export type Issue = IssueData & ListIssue
 export type { Attachment, Comment, IssueLink, Member, TaskType }
-export type Status = TaskStatus
+export type { TaskStatus as Status } from '@/features/issues/components/board-utils.ts'
 export interface IssuePage {
   items: Issue[]
   nextCursor?: string | number | null
@@ -60,7 +60,7 @@ export const IssueSchema = Schema.Struct({
   ),
 })
 /** DTO normalization is pure. Each native loader validates its concrete schema. */
-export function normalizeIssue(dto: typeof IssueSchema.Type): Issue {
+export const normalizeIssue = function normalizeIssue(dto: typeof IssueSchema.Type): Issue {
   return {
     ...dto,
     body: dto.body ?? null,
@@ -77,7 +77,7 @@ export const IssuePageSchema = Schema.Struct({
   nextCursor: Schema.optional(Schema.NullOr(Schema.Union([Schema.String, Schema.Number]))),
   total: Schema.optional(Schema.NullOr(Schema.Number)),
 })
-export function normalizeIssuePage(dto: typeof IssuePageSchema.Type): IssuePage {
+export const normalizeIssuePage = function normalizeIssuePage(dto: typeof IssuePageSchema.Type): IssuePage {
   return { ...dto, items: dto.items.map(normalizeIssue) }
 }
 export const StatusSchema = Schema.Struct({
@@ -88,7 +88,7 @@ export const StatusSchema = Schema.Struct({
   color: Schema.optional(nullable),
 })
 export const StatusesSchema = Schema.Array(StatusSchema)
-export function normalizeStatuses(dto: typeof StatusesSchema.Type): Status[] {
+export const normalizeStatuses = function normalizeStatuses(dto: typeof StatusesSchema.Type): TaskStatus[] {
   return dto.map((entry) => ({ ...entry, color: entry.color ?? null }))
 }
 export const TaskTypeSchema = Schema.Struct({
@@ -97,7 +97,7 @@ export const TaskTypeSchema = Schema.Struct({
   name: Schema.String,
 })
 export const TaskTypesSchema = Schema.Array(TaskTypeSchema)
-export function normalizeTaskTypes(dto: typeof TaskTypesSchema.Type): TaskType[] {
+export const normalizeTaskTypes = function normalizeTaskTypes(dto: typeof TaskTypesSchema.Type): TaskType[] {
   return dto.map((entry) => ({ ...entry }))
 }
 export const CommentSchema = Schema.Struct({
@@ -109,7 +109,7 @@ export const CommentSchema = Schema.Struct({
   created_at: Schema.Number,
 })
 export const CommentsSchema = Schema.Array(CommentSchema)
-export function normalizeComments(dto: typeof CommentsSchema.Type): Comment[] {
+export const normalizeComments = function normalizeComments(dto: typeof CommentsSchema.Type): Comment[] {
   return dto.map((entry) => ({
     ...entry,
     author_id: entry.author_id ?? '',
@@ -129,7 +129,7 @@ export const IssueLinkSchema = Schema.Struct({
   createdAt: Schema.optional(Schema.Number),
 })
 export const LinksSchema = Schema.Array(IssueLinkSchema)
-export function normalizeLinks(dto: typeof LinksSchema.Type): IssueLink[] {
+export const normalizeLinks = function normalizeLinks(dto: typeof LinksSchema.Type): IssueLink[] {
   return dto.map((entry) => ({
     ...entry,
     createdById: entry.createdById ?? '',
@@ -150,7 +150,7 @@ export const AttachmentSchema = Schema.Struct({
   ),
 })
 export const AttachmentsSchema = Schema.Array(AttachmentSchema)
-export function normalizeAttachments(dto: typeof AttachmentsSchema.Type): Attachment[] {
+export const normalizeAttachments = function normalizeAttachments(dto: typeof AttachmentsSchema.Type): Attachment[] {
   return dto.map((entry) => ({
     ...entry,
     kind: entry.kind ?? 'file',
@@ -164,6 +164,6 @@ export const MemberSchema = Schema.Struct({
   email: Schema.String,
 })
 export const MembersSchema = Schema.Struct({ members: Schema.Array(MemberSchema) })
-export function normalizeMembers(dto: typeof MembersSchema.Type): { members: Member[] } {
+export const normalizeMembers = function normalizeMembers(dto: typeof MembersSchema.Type): { members: Member[] } {
   return { members: dto.members.map((entry) => ({ ...entry })) }
 }

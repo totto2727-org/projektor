@@ -1,5 +1,5 @@
 import { and, eq, or } from 'drizzle-orm'
-import { Predicate, Effect } from 'effect'
+import { Iterable, Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { AddCommentSchema } from '#contracts/inputs/comments.ts'
@@ -114,7 +114,7 @@ const validateParent = async function validateParent(
    * If the parent already has 5 ancestors, the child would be at depth 6 — exceeds the cap.
    */
   let ancestorCount = 0
-  for (const { id: ancestorId } of chain.slice(1)) {
+  Iterable.forEach(chain.slice(1), ({ id: ancestorId }) => {
     if (issueId && ancestorId === issueId) {
       throw new ValidationError({
         formErrors: ['Setting this parent would create a cycle'],
@@ -129,7 +129,7 @@ const validateParent = async function validateParent(
         fieldErrors: {},
       })
     }
-  }
+  })
 }
 
 export async function listIssues(ctx: ServiceCtx, raw: unknown) {
@@ -307,14 +307,14 @@ export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
   }
-  for (const ref of result.data.refs ?? []) {
+  Iterable.forEach(result.data.refs ?? [], (ref) => {
     if (!ISSUE_REF_PATTERN.test(ref)) {
       throw new ValidationError({
         formErrors: [`Invalid ref: ${ref} (expected KEY-NUMBER)`],
         fieldErrors: {},
       })
     }
-  }
+  })
   const page = await Effect.runPromise(
     issueQueries.getIssuesBatch(
       ctx.db,
@@ -1577,11 +1577,11 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
     const keys = r2Keys.slice(offset, offset + 1000)
     try {
       await ctx.r2.delete(keys)
-    } catch (err) {
+    } catch (error) {
       console.error('deleteIssue: R2 cleanup failed', {
         id,
         r2Keys: keys,
-        err: String(err),
+        err: String(error),
       })
     }
   }

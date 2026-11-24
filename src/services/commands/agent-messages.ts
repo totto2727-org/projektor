@@ -66,7 +66,7 @@ const MESSAGE_INSERT_CHUNK_SIZE = 10
  * the caller already resolved and validated for its own use (the issueId(s) the scopes
  * name), so there's nothing untrusted to check and nothing DB-generated to read back.
  */
-export function buildPostMessageStatements(
+export const buildPostMessageStatements = function buildPostMessageStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
   messages: Readonly<Readonly<{ scope: string; agentId?: string; body: string }>[]>,
@@ -91,7 +91,7 @@ export function buildPostMessageStatements(
   return statements
 }
 
-export async function postMessage(ctx: ServiceCtx, raw: unknown) {
+export const postMessage = async function postMessage(ctx: ServiceCtx, raw: unknown) {
   const result = PostMessageSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -136,7 +136,7 @@ export async function postMessage(ctx: ServiceCtx, raw: unknown) {
   return row!
 }
 
-export async function listMessages(ctx: ServiceCtx, raw: unknown) {
+export const listMessages = async function listMessages(ctx: ServiceCtx, raw: unknown) {
   const result = ListMessagesSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

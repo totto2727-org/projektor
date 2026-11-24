@@ -18,7 +18,7 @@ const WS_META_LOCAL_TTL_MS = 5000
 const TASK_STATUSES_CACHE_KEY = (workspaceId: string): string => `ws-meta:${workspaceId}:task-statuses`
 const localCache = cache.createLocalCache<unknown[]>(WS_META_LOCAL_TTL_MS)
 
-export async function listTaskStatuses(ctx: ServiceCtx) {
+export const listTaskStatuses = async function listTaskStatuses(ctx: ServiceCtx) {
   const cacheKey = TASK_STATUSES_CACHE_KEY(ctx.workspaceId)
   const local = localCache.get(cacheKey)
   if (local) {
@@ -43,7 +43,7 @@ const invalidateTaskStatusesCache = async function invalidateTaskStatusesCache(c
   localCache.invalidate(cacheKey)
 }
 
-export async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
+export const createTaskStatus = async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -112,7 +112,7 @@ const buildTaskStatusSetObj = function buildTaskStatusSetObj(data: TaskStatusUpd
   return setObj
 }
 
-export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown) {
+export const updateTaskStatus = async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -173,7 +173,7 @@ export async function updateTaskStatus(ctx: ServiceCtx, id: string, raw: unknown
   return { ok: true }
 }
 
-export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
+export const deleteTaskStatus = async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -212,7 +212,10 @@ export async function deleteTaskStatus(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export function buildDefaultTaskStatusStatements(db: D1Database, workspaceId: string): D1PreparedStatement[] {
+export const buildDefaultTaskStatusStatements = function buildDefaultTaskStatusStatements(
+  db: D1Database,
+  workspaceId: string,
+): D1PreparedStatement[] {
   const defaults = [
     {
       key: 'backlog',
@@ -272,7 +275,10 @@ export function buildDefaultTaskStatusStatements(db: D1Database, workspaceId: st
   )
 }
 
-export async function seedDefaultTaskStatuses(db: D1Database, workspaceId: string): Promise<void> {
+export const seedDefaultTaskStatuses = async function seedDefaultTaskStatuses(
+  db: D1Database,
+  workspaceId: string,
+): Promise<void> {
   await db.batch(buildDefaultTaskStatusStatements(db, workspaceId))
 }
 
@@ -283,7 +289,7 @@ export async function seedDefaultTaskStatuses(db: D1Database, workspaceId: strin
  * PROJ-749: isReviewStep is the status's explicit review-step flag (only the built-in
  * "in_review" key counts when there is no backing row).
  */
-export async function resolveStatus(
+export const resolveStatus = async function resolveStatus(
   ctx: ServiceCtx,
   statusId: string | null | undefined,
   legacyStatus?: string,

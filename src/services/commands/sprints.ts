@@ -49,7 +49,7 @@ const requireSprintProjectWrite = async function requireSprintProjectWrite(
   }
 }
 
-export async function listSprints(ctx: ServiceCtx, raw: unknown) {
+export const listSprints = async function listSprints(ctx: ServiceCtx, raw: unknown) {
   const result = ListSprintsSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
@@ -66,7 +66,7 @@ export async function listSprints(ctx: ServiceCtx, raw: unknown) {
   return { items }
 }
 
-export async function getSprint(ctx: ServiceCtx, id: string) {
+export const getSprint = async function getSprint(ctx: ServiceCtx, id: string) {
   const sprint = await Effect.runPromise(sprintQueries.findSprintById(ctx.db, ctx.workspaceId, id))
 
   if (!sprint) {
@@ -76,7 +76,7 @@ export async function getSprint(ctx: ServiceCtx, id: string) {
   return sprint
 }
 
-export async function createSprint(ctx: ServiceCtx, raw: unknown) {
+export const createSprint = async function createSprint(ctx: ServiceCtx, raw: unknown) {
   const result = CreateSprintSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
@@ -144,7 +144,7 @@ const buildSprintSetData = function buildSprintSetData(data: SprintUpdateData, n
   return setData
 }
 
-export async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
+export const updateSprint = async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
   const result = UpdateSprintSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))
@@ -173,7 +173,7 @@ export async function updateSprint(ctx: ServiceCtx, id: string, raw: unknown) {
   return { ok: true }
 }
 
-export async function completeSprint(ctx: ServiceCtx, id: string) {
+export const completeSprint = async function completeSprint(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -205,7 +205,7 @@ export async function completeSprint(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export async function deleteSprint(ctx: ServiceCtx, id: string) {
+export const deleteSprint = async function deleteSprint(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -237,7 +237,7 @@ export async function deleteSprint(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
+export const moveIssuesToSprint = async function moveIssuesToSprint(ctx: ServiceCtx, raw: unknown) {
   const result = MoveIssuesToSprintSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(z.flattenError(result.error))

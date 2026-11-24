@@ -34,7 +34,7 @@ export interface SavedView {
   filters: SavedViewFilters
 }
 
-export function viewsStorageKey(project: string): string {
+export const viewsStorageKey = function viewsStorageKey(project: string): string {
   return `issue-views-${project || 'all'}`
 }
 
@@ -65,12 +65,12 @@ const normalizeFilters = function normalizeFilters(
   }
 }
 
-export function captureView(name: string, filters: SavedViewFilters): SavedView {
+export const captureView = function captureView(name: string, filters: SavedViewFilters): SavedView {
   return { name, filters: normalizeFilters(filters) }
 }
 
 /** Parse the sessionStorage payload, dropping anything malformed or unnamed. */
-export function parseSavedViews(raw: string | null): SavedView[] {
+export const parseSavedViews = function parseSavedViews(raw: string | null): SavedView[] {
   if (!raw) {
     return []
   }
@@ -101,11 +101,11 @@ export function parseSavedViews(raw: string | null): SavedView[] {
 }
 
 /** Insert or replace a view by name (names are unique within a bucket). */
-export function upsertView(views: Readonly<SavedView[]>, view: SavedView): SavedView[] {
+export const upsertView = function upsertView(views: Readonly<SavedView[]>, view: SavedView): SavedView[] {
   return [...views.filter((v) => v.name !== view.name), view]
 }
 
-export function removeView(views: Readonly<SavedView[]>, name: string): SavedView[] {
+export const removeView = function removeView(views: Readonly<SavedView[]>, name: string): SavedView[] {
   return views.filter((v) => v.name !== name)
 }
 
@@ -115,7 +115,7 @@ const sameSet = function sameSet(a: Readonly<string[]>, b: Readonly<string[]>): 
 }
 
 /** True when two filter sets are equivalent (drives the active-view indicator). */
-export function filtersMatch(a: SavedViewFilters, b: SavedViewFilters): boolean {
+export const filtersMatch = function filtersMatch(a: SavedViewFilters, b: SavedViewFilters): boolean {
   return (
     sameSet(a.statuses, b.statuses) &&
     sameSet(a.priorities, b.priorities) &&

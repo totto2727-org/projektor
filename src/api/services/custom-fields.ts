@@ -4,7 +4,7 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export function listCustomFieldDefs(
+export const listCustomFieldDefs = function listCustomFieldDefs(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListCustomFieldDefs']>
 ) {
@@ -13,7 +13,7 @@ export function listCustomFieldDefs(
     ctx.core.apiListCustomFieldDefs(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function createCustomFieldDef(
+export const createCustomFieldDef = function createCustomFieldDef(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiCreateCustomFieldDef']>
 ) {
@@ -22,7 +22,7 @@ export function createCustomFieldDef(
     ctx.core.apiCreateCustomFieldDef(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function updateCustomFieldDef(
+export const updateCustomFieldDef = function updateCustomFieldDef(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiUpdateCustomFieldDef']>
 ) {
@@ -31,7 +31,7 @@ export function updateCustomFieldDef(
     ctx.core.apiUpdateCustomFieldDef(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function deleteCustomFieldDef(
+export const deleteCustomFieldDef = function deleteCustomFieldDef(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiDeleteCustomFieldDef']>
 ) {

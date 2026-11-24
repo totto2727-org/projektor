@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -70,9 +70,9 @@ const connector = {
 const url = new URL('https://front.example/settings?workspace=alpha')
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 async function fixture(currentScope = scope) {
   resetAuthCachesForTests()

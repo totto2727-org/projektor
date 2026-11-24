@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import type { CoreActor } from '#core/authorization.ts'
@@ -9,9 +10,9 @@ import { handleApiBinaryRequest } from './files.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 const fixture = function fixture() {
   const database = createTestDatabase()

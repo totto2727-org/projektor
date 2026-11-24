@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, normalize, relative, resolve } from 'node:path'
 
+import { Iterable } from 'effect'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
@@ -52,7 +53,7 @@ const analyze = function analyze(sources: Readonly<Record<string, string>>): Map
       throw new Error('Could not parse the Core boundary source graph.')
     }
     const graph = new Map<string, ModuleInfo>()
-    for (const path of Object.keys(sources)) {
+    Iterable.forEach(Object.keys(sources), (path) => {
       const source = project.program.getSourceFile(path)
       if (!source) {
         throw new Error(`Could not parse ${path}`)
@@ -114,7 +115,7 @@ const analyze = function analyze(sources: Readonly<Record<string, string>>): Map
       }
       visit(source)
       graph.set(normalize(path), { imports, capabilities })
-    }
+    })
     return graph
   } finally {
     api.close()
@@ -195,9 +196,9 @@ const violations = function violations(
       failures.push(`${next.join(' -> ')}: Core implementation reached from a public adapter`)
       return
     }
-    for (const capability of info.capabilities) {
+    Iterable.forEach(info.capabilities, (capability) => {
       failures.push(`${next.join(' -> ')}: ${capability}`)
-    }
+    })
     for (const specifier of info.imports) {
       if (/^(drizzle-orm(?:\/|$)|node:sqlite$)/.test(specifier)) {
         failures.push(`${next.join(' -> ')} -> ${specifier}: database runtime imported by a public adapter`)
@@ -209,9 +210,9 @@ const violations = function violations(
       }
     }
   }
-  for (const entrypoint of entrypoints) {
+  Iterable.forEach(entrypoints, (entrypoint) => {
     walk(resolve(ROOT, entrypoint), [])
-  }
+  })
   return failures
 }
 
@@ -222,14 +223,14 @@ const reverseViolations = function reverseViolations(graph: ReadonlyMap<string, 
     if (!/^src\/(core|contracts|services|db|plugins|plugin-sdk)\//.test(localPath)) {
       continue
     }
-    for (const specifier of info.imports) {
+    Iterable.forEach(info.imports, (specifier) => {
       const dependency = resolveModule(path, specifier, graph)
       if (dependency && /^src\/(api|web)\//.test(relative(ROOT, dependency))) {
         failures.push(
           `${localPath} -> ${relative(ROOT, dependency)}: shared implementation depends on a public adapter`,
         )
       }
-    }
+    })
   }
   return failures
 }

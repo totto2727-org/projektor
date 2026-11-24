@@ -13,7 +13,7 @@ export class FunctionError extends Error {
 }
 
 /** Decode a domain outcome after directly calling the relevant ServerFn. */
-export function unwrapResult<T>(result: ActionResult<T>): T {
+export const unwrapResult = function unwrapResult<T>(result: ActionResult<T>): T {
   if (!result.ok) {
     throw new FunctionError(result.status, result.message)
   }

@@ -4,7 +4,7 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export function listProjects(
+export const listProjects = function listProjects(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListProjectsInWorkspace']>
 ) {
@@ -13,7 +13,7 @@ export function listProjects(
     ctx.core.apiListProjectsInWorkspace(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function resolveProjectIdParam(
+export const resolveProjectIdParam = function resolveProjectIdParam(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiResolveProjectIdParam']>
 ): Promise<string> {
@@ -22,7 +22,7 @@ export function resolveProjectIdParam(
     ctx.core.apiResolveProjectIdParam(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function resolveVisibleProjectIdParam(
+export const resolveVisibleProjectIdParam = function resolveVisibleProjectIdParam(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiResolveVisibleProjectIdParam']>
 ): Promise<string> {
@@ -32,21 +32,39 @@ export function resolveVisibleProjectIdParam(
   )
 }
 
-export function listProjectsAcrossWorkspaces(ctx: ApiServiceCtx, includeArchived = false) {
+export const listProjectsAcrossWorkspaces = function listProjectsAcrossWorkspaces(
+  ctx: ApiServiceCtx,
+  includeArchived = false,
+) {
   return apiReply(ApiResults.apiListProjects, ctx.core.apiListProjects(ctx.actor, includeArchived))
 }
-export function getProject(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiGetProject']>) {
+export const getProject = function getProject(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiGetProject']>
+) {
   return apiReply(ApiResults.apiGetProject, ctx.core.apiGetProject(ctx.actor, ctx.workspaceId, ...args))
 }
-export function getProjectBySlug(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiGetProjectBySlug']>) {
+export const getProjectBySlug = function getProjectBySlug(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiGetProjectBySlug']>
+) {
   return apiReply(ApiResults.apiGetProjectBySlug, ctx.core.apiGetProjectBySlug(ctx.actor, ctx.workspaceId, ...args))
 }
-export function createProject(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiCreateProject']>) {
+export const createProject = function createProject(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiCreateProject']>
+) {
   return apiReply(ApiResults.apiCreateProject, ctx.core.apiCreateProject(ctx.actor, ctx.workspaceId, ...args))
 }
-export function updateProject(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiUpdateProject']>) {
+export const updateProject = function updateProject(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiUpdateProject']>
+) {
   return apiReply(ApiResults.apiUpdateProject, ctx.core.apiUpdateProject(ctx.actor, ctx.workspaceId, ...args))
 }
-export function deleteProject(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiDeleteProject']>) {
+export const deleteProject = function deleteProject(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiDeleteProject']>
+) {
   return apiReply(ApiResults.apiDeleteProject, ctx.core.apiDeleteProject(ctx.actor, ctx.workspaceId, ...args))
 }

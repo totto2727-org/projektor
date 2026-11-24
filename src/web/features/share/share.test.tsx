@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -20,9 +21,9 @@ const workspaceBrand = {
 const body = '## Details\n\nComplete **SSR body**.\n\n<script>evil()</script>\n\n```mermaid\ngraph TD; A-->B\n```'
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 async function fixture() {
   const database = createTestDatabase()

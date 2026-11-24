@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -54,9 +54,9 @@ function fixture() {
   return data
 }
 afterEach(() => {
-  for (const data of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (data) => {
     data.close()
-  }
+  })
 })
 const selected: RequestScope = { ...scope, selection: { kind: 'project', workspace, project } }
 const listUrl = new URL('https://front.test/issues?workspace=workspace')
@@ -75,14 +75,14 @@ describe('complete direct D1 issues SSR loaders', () => {
       reviewStatus: null,
       wikiPage: null,
     }
-    for (const reviewStatus of [null, 'fixing', 'in_review', 'changes_requested', 'done']) {
+    Iterable.forEach([null, 'fixing', 'in_review', 'changes_requested', 'done'], (reviewStatus) => {
       const value = { ...attachment, reviewStatus }
       expect(Schema.is(AttachmentSchema)(value)).toBe(true)
       expect(Schema.is(ApiResults.apiGetAttachment)(value)).toBe(true)
       expect(normalizeAttachments([Schema.decodeUnknownSync(AttachmentSchema)(value)])[0]?.reviewStatus).toBe(
         reviewStatus,
       )
-    }
+    })
     const { reviewStatus: _status, ...omitted } = attachment
     expect(Schema.is(AttachmentSchema)(omitted)).toBe(false)
     expect(Schema.is(ApiResults.apiGetAttachment)(omitted)).toBe(false)
@@ -95,10 +95,10 @@ describe('complete direct D1 issues SSR loaders', () => {
     const result = { ...value, status: 'todo' }
     expect(Schema.is(IssueSchema)(value)).toBe(true)
     expect(Schema.is(SearchResultsSchema)([result])).toBe(true)
-    for (const reviewTargets of [undefined, null]) {
+    Iterable.forEach([undefined, null], (reviewTargets) => {
       expect(Schema.is(IssueSchema)({ ...value, reviewTargets })).toBe(false)
       expect(Schema.is(SearchResultsSchema)([{ ...result, reviewTargets }])).toBe(false)
-    }
+    })
   })
 
   test('returns empty review target arrays from detail, list and search when no attachments are selected', async () => {

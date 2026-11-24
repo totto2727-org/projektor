@@ -109,7 +109,7 @@ const hasFilePathToken = function hasFilePathToken(body: string): boolean {
   })
 }
 
-export function checkDefinitionOfReady(body: string): ReadinessCheck {
+export const checkDefinitionOfReady = function checkDefinitionOfReady(body: string): ReadinessCheck {
   const missing: string[] = []
 
   if (!sectionHasContent(body, /acceptance criteria|\bAC\b/i)) {
@@ -125,7 +125,7 @@ export function checkDefinitionOfReady(body: string): ReadinessCheck {
 }
 
 /** PROJ-859: the stored-column form of checkDefinitionOfReady — [dor_ready, dor_missing]. */
-export function dorColumns(body: string | null | undefined): [number, string] {
+export const dorColumns = function dorColumns(body: string | null | undefined): [number, string] {
   const { ready, missing } = checkDefinitionOfReady(body ?? '')
   return [ready ? 1 : 0, JSON.stringify(missing)]
 }

@@ -7,7 +7,7 @@
  * Query budgets cover shared domain work, not private Core authentication overhead.
  * Conflict/force/stale semantics remain asserted at 100-path scale.
  */
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
@@ -352,10 +352,10 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
       .bind(`issue:${issueId}`, `issue:${holder.id}`)
       .all<{ scope: string; body: string }>()
     expect(messages.results).toHaveLength(2)
-    for (const m of messages.results) {
+    Iterable.forEach(messages.results, (m) => {
       expect(m.body.length).toBeLessThanOrEqual(5000)
       expect(m.body).toContain(`"${paths[0]}"`)
       expect(m.body).toMatch(/…and \d+ more/)
-    }
+    })
   })
 })

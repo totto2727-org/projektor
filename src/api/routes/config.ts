@@ -8,7 +8,7 @@ const firstChar = function firstChar(value: string): string {
   return Array.from(value)[0] ?? ''
 }
 
-export function deriveBrandMark(name: string): string {
+export const deriveBrandMark = function deriveBrandMark(name: string): string {
   const trimmed = name.trim()
   return trimmed ? firstChar(trimmed).toUpperCase() : 'P'
 }

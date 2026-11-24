@@ -4,7 +4,11 @@ export interface McpAddCommandParts {
   token: string
 }
 
-export function buildMcpAddCommand({ workspaceSlug, mcpUrl, token }: McpAddCommandParts): string {
+export const buildMcpAddCommand = function buildMcpAddCommand({
+  workspaceSlug,
+  mcpUrl,
+  token,
+}: McpAddCommandParts): string {
   return (
     `claude mcp add --transport http ` +
     `--header "Authorization: Bearer ${token}" ` +
@@ -13,7 +17,11 @@ export function buildMcpAddCommand({ workspaceSlug, mcpUrl, token }: McpAddComma
   )
 }
 
-export function buildMcpAddCommandMultiline({ workspaceSlug, mcpUrl, token }: McpAddCommandParts): string {
+export const buildMcpAddCommandMultiline = function buildMcpAddCommandMultiline({
+  workspaceSlug,
+  mcpUrl,
+  token,
+}: McpAddCommandParts): string {
   return [
     `claude mcp add --transport http \\`,
     `  --header "Authorization: Bearer ${token}" \\`,

@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { CorePublicError } from 'projektor/core-client'
 import { z } from 'zod'
 
@@ -106,7 +106,10 @@ const toMcpServiceErrorWithDetails = function toMcpServiceErrorWithDetails(
   return { code: -32_000, message: `${message} (${summarizeDetails(details)})`, data: details }
 }
 
-export function toMcpError(err: unknown, requestId: string): { code: number; message: string; data?: unknown } {
+export const toMcpError = function toMcpError(
+  err: unknown,
+  requestId: string,
+): { code: number; message: string; data?: unknown } {
   if (err instanceof CorePublicError && err.status < 500) {
     if (err.kind === 'validation') {
       const parsed = ValidationIssues.safeParse(err.details)
@@ -189,7 +192,7 @@ export type ToolErrorContext = {
   role?: string
 }
 
-export function toolErrorResult(error: ToolErrorBody): ToolErrorResult {
+export const toolErrorResult = function toolErrorResult(error: ToolErrorBody): ToolErrorResult {
   return { content: [{ type: 'text', text: JSON.stringify({ error }) }], isError: true }
 }
 
@@ -197,11 +200,11 @@ const definedFields = function definedFields(
   fieldErrors: ZodFlattenOutput['fieldErrors'],
 ): Record<string, string[]> | undefined {
   const out: Record<string, string[]> = {}
-  for (const [field, messages] of Object.entries(fieldErrors)) {
+  Iterable.forEach(Object.entries(fieldErrors), ([field, messages]) => {
     if (messages && messages.length > 0) {
       out[field] = messages
     }
-  }
+  })
   return Object.keys(out).length > 0 ? out : undefined
 }
 
@@ -249,7 +252,7 @@ const conflictHint = function conflictHint(message: string, details: Record<stri
  * model can act on (an unexpected internal error — the caller keeps the JSON-RPC
  * "Internal error (request: …)" for those, which never leaks internals).
  */
-export function toToolError(err: unknown, ctx: ToolErrorContext = {}): ToolErrorResult | null {
+export const toToolError = function toToolError(err: unknown, ctx: ToolErrorContext = {}): ToolErrorResult | null {
   if (err instanceof CorePublicError) {
     if (err.status >= 500) {
       return null

@@ -13,7 +13,7 @@ import { BrowserCommandSchema } from './command-contract.ts'
 import type { BrowserCommand } from './command-contract.ts'
 
 /** Proof and selectors cross the binding. Storage capabilities are constructed only in Core. */
-export function browserCommand<A>(
+export const browserCommand = function browserCommand<A>(
   env: CoreEnvironment,
   input: BrowserCommand,
   operation: (ctx: ServiceCtx) => Promise<A>,

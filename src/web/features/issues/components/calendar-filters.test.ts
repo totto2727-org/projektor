@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vite-plus/test'
 import { MetricsQuerySchema } from '#core/web/planning.ts'
 import { runTestEffect } from '#tests/run-effect.ts'
 
-import { applyDateRangeParams } from './IssueList-helpers.ts'
+import { applyDateRangeParams } from './issue-list-helpers.ts'
 
 // Both initial SSR and client pagination use this exact calendar conversion.
 describe('covers UTC calendar issue filters', () => {

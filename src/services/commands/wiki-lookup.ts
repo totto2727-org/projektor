@@ -11,7 +11,7 @@ import { schema } from '#db'
  */
 const ID_SHAPED = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/
 
-export function isIdShapedSlug(slug: string): boolean {
+export const isIdShapedSlug = function isIdShapedSlug(slug: string): boolean {
   return ID_SHAPED.test(slug)
 }
 
@@ -30,10 +30,10 @@ export const WIKI_MAX_NESTING_DEPTH = 5
  * Slugs shaped like ids are rejected on write, but pages created before PROJ-812 may
  * still carry one, so the ordering is what guarantees a single, unambiguous result.
  */
-export function idOrSlugMatch(value: string): SQL {
+export const idOrSlugMatch = function idOrSlugMatch(value: string): SQL {
   return or(eq(schema.wikiPages.id, value), eq(schema.wikiPages.slug, value)) as SQL
 }
 
-export function idFirst(value: string): SQL {
+export const idFirst = function idFirst(value: string): SQL {
   return sql`CASE WHEN ${schema.wikiPages.id} = ${value} THEN 0 ELSE 1 END`
 }

@@ -14,7 +14,7 @@ const WIKI_TRASH_SUBREQUEST_BUDGET = 100
 const WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE = 45
 
 /** Existing maintenance budgets and continuation policy, now executed inside Core. */
-export async function runMaintenance(env: CoreEnvironment): Promise<void> {
+export const runMaintenance = async function runMaintenance(env: CoreEnvironment): Promise<void> {
   await Promise.all([
     purgeAllWorkspacesExpiredWikiPages(env),
     purgeExpiredOAuthData(env),

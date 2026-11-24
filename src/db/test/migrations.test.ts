@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 
+import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { loadMigrations, migratedDb } from './helpers.ts'
@@ -153,9 +154,9 @@ describe('schema constraints', () => {
 
     const slugSql = readFileSync(join(MIGRATIONS_DIR, slugFile), 'utf8')
     expect(() => {
-      for (const stmt of splitStatements(slugSql)) {
+      Iterable.forEach(splitStatements(slugSql), (stmt) => {
         db.exec(stmt)
-      }
+      })
     }).not.toThrow()
 
     const rows = db.prepare('SELECT id, slug FROM projects ORDER BY id').all() as {

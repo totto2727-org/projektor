@@ -1,6 +1,6 @@
 import type { ServiceCtx } from './types.ts'
 
-export function buildCloseIssueReviewTargetsStatement(
+export const buildCloseIssueReviewTargetsStatement = function buildCloseIssueReviewTargetsStatement(
   ctx: ServiceCtx,
   selector: { issueId: string } | { statusId: string },
 ): D1PreparedStatement {

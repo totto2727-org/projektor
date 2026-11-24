@@ -12,8 +12,8 @@ import type { ApiError, ScopeError } from '@/server/errors.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 import { testEnvironment } from '@/server/test/resources.ts'
 
-import type { ProjectLanding } from './ProjectLanding.tsx'
-import type { ProjectList } from './ProjectList.tsx'
+import type { ProjectLanding } from './project-landing.tsx'
+import type { ProjectList } from './project-list.tsx'
 import { renderOverview, renderProjects } from './server.tsx'
 
 vi.mock('./actions', () => ({

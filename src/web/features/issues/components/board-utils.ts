@@ -82,11 +82,11 @@ export const BOARD_COLUMNS: { category: string; label: string }[] = [
   { category: 'done', label: 'Done' },
 ]
 
-export function categoryColor(category: string | null): string {
+export const categoryColor = function categoryColor(category: string | null): string {
   return category ? (CATEGORY_COLORS[category] ?? 'var(--text-muted)') : 'var(--text-muted)'
 }
 
-export function assigneeInitials(name: string): string {
+export const assigneeInitials = function assigneeInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length >= 2) {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
@@ -99,7 +99,10 @@ export function assigneeInitials(name: string): string {
  * For 'todo': prefers the first non-backlog status; falls back to any todo status.
  * For other categories: returns the first status in that category.
  */
-export function getFirstStatusForCategory(statuses: Readonly<TaskStatus[]>, category: string): TaskStatus | undefined {
+export const getFirstStatusForCategory = function getFirstStatusForCategory(
+  statuses: Readonly<TaskStatus[]>,
+  category: string,
+): TaskStatus | undefined {
   if (category === 'todo') {
     return (
       statuses.find((s) => s.category === 'todo' && s.key !== 'backlog') ?? statuses.find((s) => s.category === 'todo')
@@ -112,17 +115,20 @@ export function getFirstStatusForCategory(statuses: Readonly<TaskStatus[]>, cate
  * Returns issues to display in a board column.
  * Todo column excludes backlog issues (those belong to the Backlog view).
  */
-export function getBoardColumnIssues(issues: Readonly<Issue[]>, category: string): Issue[] {
+export const getBoardColumnIssues = function getBoardColumnIssues(
+  issues: Readonly<Issue[]>,
+  category: string,
+): Issue[] {
   return issues.filter((i) => i.status_category === category && (category !== 'todo' || i.status_key !== 'backlog'))
 }
 
 /** Returns issues for the Backlog view: todo category with backlog key. */
-export function getBacklogIssues(issues: Readonly<Issue[]>): Issue[] {
+export const getBacklogIssues = function getBacklogIssues(issues: Readonly<Issue[]>): Issue[] {
   return issues.filter((i) => i.status_category === 'todo' && i.status_key === 'backlog')
 }
 
 /** Applies multi-predicate filtering to an issue list (all predicates are AND-ed). */
-export function filterIssues(
+export const filterIssues = function filterIssues(
   issues: Readonly<Issue[]>,
   filterStatuses: Readonly<string[]>,
   filterPriorities: Readonly<string[]>,
@@ -158,7 +164,11 @@ const SORT_COMPARATORS: Record<SortKey, (a: Issue, b: Issue) => number> = {
 }
 
 /** Sorts a copy of an issue list by the given SortKey. */
-export function sortIssues(issues: Readonly<Issue[]>, sortBy: SortKey, sortDir: 'asc' | 'desc'): Issue[] {
+export const sortIssues = function sortIssues(
+  issues: Readonly<Issue[]>,
+  sortBy: SortKey,
+  sortDir: 'asc' | 'desc',
+): Issue[] {
   const compare = SORT_COMPARATORS[sortBy]
   return [...issues].sort((left, right) => {
     const diff = compare ? compare(left, right) : 0

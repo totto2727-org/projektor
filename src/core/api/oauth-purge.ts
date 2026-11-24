@@ -32,7 +32,10 @@ const continuation = function continuation(value: unknown): Continuation {
  * The SDK sees a finite page view, while the real namespace cursor is committed only
  * after every item succeeds. Nested grant-token revocation keeps its real pagination.
  */
-export async function purgeOAuthPage(env: OAuthEnvironment & { KV: KVNamespace }, provider: PurgeProvider) {
+export const purgeOAuthPage = async function purgeOAuthPage(
+  env: OAuthEnvironment & { KV: KVNamespace },
+  provider: PurgeProvider,
+) {
   const previous = continuation(await env.KV.get<unknown>(OAUTH_PURGE_STATE_KEY, 'json'))
   const prefix = previous.phase === 'grants' ? 'grant:' : 'token:'
   let scanned: { complete: boolean; cursor?: string } | undefined

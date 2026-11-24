@@ -102,12 +102,12 @@ export const LINK_TYPE_OPTIONS = [
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-export function formatDate(unixSeconds: number): string {
+export const formatDate = function formatDate(unixSeconds: number): string {
   const d = new Date(unixSeconds * 1000)
   return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
 }
 
-export function relativeTime(unixSeconds: number): string {
+export const relativeTime = function relativeTime(unixSeconds: number): string {
   const diff = Date.now() / 1000 - unixSeconds
   if (diff < 60) {
     return 'just now'
@@ -124,7 +124,7 @@ export function relativeTime(unixSeconds: number): string {
   return formatDate(unixSeconds)
 }
 
-export function formatBytes(bytes: number): string {
+export const formatBytes = function formatBytes(bytes: number): string {
   if (bytes < 1024) {
     return `${bytes} B`
   }

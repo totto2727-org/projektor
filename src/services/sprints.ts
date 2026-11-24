@@ -12,7 +12,7 @@ export interface ListSprintsOptions {
 }
 
 /** Caller validates options and authorizes project access before executing. */
-export function listSprints(
+export const listSprints = function listSprints(
   db: D1Database,
   workspaceId: string,
   opts: ListSprintsOptions,
@@ -27,7 +27,7 @@ export function listSprints(
 }
 
 /** Missing rows carry no application-level not-found semantics. */
-export function findSprintById(
+export const findSprintById = function findSprintById(
   db: D1Database,
   workspaceId: string,
   id: string,

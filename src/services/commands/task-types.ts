@@ -45,7 +45,7 @@ const buildTaskTypeUpdateSet = function buildTaskTypeUpdateSet(
   return setObj
 }
 
-export async function listTaskTypes(ctx: ServiceCtx) {
+export const listTaskTypes = async function listTaskTypes(ctx: ServiceCtx) {
   const cacheKey = TASK_TYPES_CACHE_KEY(ctx.workspaceId)
   const local = localCache.get(cacheKey)
   if (local) {
@@ -64,7 +64,7 @@ export async function listTaskTypes(ctx: ServiceCtx) {
   return result
 }
 
-export async function createTaskType(ctx: ServiceCtx, raw: unknown) {
+export const createTaskType = async function createTaskType(ctx: ServiceCtx, raw: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -104,7 +104,7 @@ export async function createTaskType(ctx: ServiceCtx, raw: unknown) {
   return { id, key, name }
 }
 
-export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) {
+export const updateTaskType = async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -143,7 +143,7 @@ export async function updateTaskType(ctx: ServiceCtx, id: string, raw: unknown) 
   return { ok: true }
 }
 
-export async function deleteTaskType(ctx: ServiceCtx, id: string) {
+export const deleteTaskType = async function deleteTaskType(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -179,7 +179,10 @@ export async function deleteTaskType(ctx: ServiceCtx, id: string) {
   return { ok: true }
 }
 
-export function buildDefaultTaskTypeStatements(db: D1Database, workspaceId: string): D1PreparedStatement[] {
+export const buildDefaultTaskTypeStatements = function buildDefaultTaskTypeStatements(
+  db: D1Database,
+  workspaceId: string,
+): D1PreparedStatement[] {
   const defaults = [
     { key: 'epic', name: 'Epic', position: 1, isDefault: 0 },
     { key: 'story', name: 'Story', position: 2, isDefault: 0 },
@@ -208,6 +211,9 @@ export function buildDefaultTaskTypeStatements(db: D1Database, workspaceId: stri
   )
 }
 
-export async function seedDefaultTaskTypes(db: D1Database, workspaceId: string): Promise<void> {
+export const seedDefaultTaskTypes = async function seedDefaultTaskTypes(
+  db: D1Database,
+  workspaceId: string,
+): Promise<void> {
   await db.batch(buildDefaultTaskTypeStatements(db, workspaceId))
 }

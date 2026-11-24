@@ -4,7 +4,10 @@ import type { Issue, TaskStatus } from '@/features/issues/components/board-utils
 import type { ProjectMeta } from './types.ts'
 
 /** Description of the active project filter, for the banner under the toolbar. */
-export function deriveProjectDescription(projects: Readonly<ProjectMeta[]>, filterProject: string): string | null {
+export const deriveProjectDescription = function deriveProjectDescription(
+  projects: Readonly<ProjectMeta[]>,
+  filterProject: string,
+): string | null {
   if (!filterProject) {
     return null
   }
@@ -12,7 +15,7 @@ export function deriveProjectDescription(projects: Readonly<ProjectMeta[]>, filt
 }
 
 /** Status filter options: prefer the statuses endpoint, else derive from loaded issues. */
-export function deriveStatusOptions(
+export const deriveStatusOptions = function deriveStatusOptions(
   issues: Readonly<Issue[]>,
   statuses: Readonly<TaskStatus[]>,
 ): Readonly<TaskStatus[]> {
@@ -39,7 +42,9 @@ export function deriveStatusOptions(
   ]
 }
 
-export function deriveProjectOptions(issues: Readonly<Issue[]>): { key: string; name: string }[] {
+export const deriveProjectOptions = function deriveProjectOptions(
+  issues: Readonly<Issue[]>,
+): { key: string; name: string }[] {
   return [
     ...new Map(
       issues
@@ -54,7 +59,7 @@ export function deriveProjectOptions(issues: Readonly<Issue[]>): { key: string; 
   ]
 }
 
-export function deriveTypeOptions(issues: Readonly<Issue[]>): [string, string][] {
+export const deriveTypeOptions = function deriveTypeOptions(issues: Readonly<Issue[]>): [string, string][] {
   return [
     ...new Map(
       issues

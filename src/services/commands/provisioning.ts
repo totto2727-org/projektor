@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 import type { Env } from '#types'
@@ -105,13 +105,13 @@ const parseDomainMap = function parseDomainMap(raw?: string): Map<string, { slug
   if (!obj || typeof obj !== 'object') {
     return map
   }
-  for (const [domain, v] of Object.entries(obj as Record<string, unknown>)) {
+  Iterable.forEach(Object.entries(obj as Record<string, unknown>), ([domain, v]) => {
     const entry = parseDomainMapValue(v)
     const d = domain.trim().toLowerCase()
     if (entry && d) {
       map.set(d, entry)
     }
-  }
+  })
   return map
 }
 
@@ -253,8 +253,8 @@ const alreadyProvisioned = async function alreadyProvisioned(
   let marker: string | null
   try {
     marker = await env.KV.get(provisionedKey(userId))
-  } catch (err) {
-    console.error(`[provisioning] failed to read provisioned marker for ${userId} from KV:`, err)
+  } catch (error) {
+    console.error(`[provisioning] failed to read provisioned marker for ${userId} from KV:`, error)
     return false
   }
   if (!marker) {
@@ -268,8 +268,11 @@ const markProvisioned = async function markProvisioned(env: ProvisioningEnvironm
   inMemoryProvisionedCache.set(userId, Date.now() + PROVISIONED_LOCAL_TTL_MS)
   try {
     await env.KV.put(provisionedKey(userId), '1', { expirationTtl: PROVISIONED_KV_TTL_SECS })
-  } catch (err) {
-    console.error(`[provisioning] failed to cache provisioned marker for ${userId} in KV, continuing without it:`, err)
+  } catch (error) {
+    console.error(
+      `[provisioning] failed to cache provisioned marker for ${userId} in KV, continuing without it:`,
+      error,
+    )
   }
 }
 
@@ -278,7 +281,7 @@ const markProvisioned = async function markProvisioned(env: ProvisioningEnvironm
  * without this a test that provisions the same user twice would silently skip the second
  * run and assert against the first one's writes.
  */
-export function resetProvisioningCacheForTests(): void {
+export const resetProvisioningCacheForTests = function resetProvisioningCacheForTests(): void {
   inMemoryProvisionedCache.clear()
 }
 
@@ -286,7 +289,10 @@ export function resetProvisioningCacheForTests(): void {
  * Test-only: forget a specific user in *both* layers, so the next call really re-provisions.
  * Clearing the isolate-local map alone isn't enough — the KV marker would still short-circuit.
  */
-export async function forgetProvisionedForTests(env: ProvisioningEnvironment, userId: string): Promise<void> {
+export const forgetProvisionedForTests = async function forgetProvisionedForTests(
+  env: ProvisioningEnvironment,
+  userId: string,
+): Promise<void> {
   inMemoryProvisionedCache.delete(userId)
   await env.KV.delete(provisionedKey(userId))
 }
@@ -320,7 +326,7 @@ export async function forgetProvisionedForTests(env: ProvisioningEnvironment, us
  * it before re-adding — so a config match (ADMIN_EMAILS, AUTO_JOIN_ROLE, WORKSPACE_DOMAIN_MAP)
  * no longer undoes an explicit removal. inviteMember clears the tombstone.
  */
-export async function ensureUserProvisioned(
+export const ensureUserProvisioned = async function ensureUserProvisioned(
   env: ProvisioningEnvironment,
   user: { id: string; email: string },
 ): Promise<void> {
@@ -432,7 +438,7 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
 export const PUBLIC_VIEWERS_GROUP_NAME = 'Public viewers'
 const PUBLIC_VIEWER_MARKER_SUFFIX = ':public-v2'
 
-export async function provisionPublicViewer(
+export const provisionPublicViewer = async function provisionPublicViewer(
   env: ProvisioningEnvironment,
   user: Readonly<{ id: string }>,
 ): Promise<void> {

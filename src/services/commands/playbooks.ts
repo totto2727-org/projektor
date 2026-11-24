@@ -1,7 +1,7 @@
 import { NotFoundError } from './errors.ts'
 import { PLAYBOOKS } from './playbook-content.ts'
 
-export function listPlaybooks() {
+export const listPlaybooks = function listPlaybooks() {
   return PLAYBOOKS.map(({ name, title, description, whenToUse }) => ({
     name,
     title,
@@ -10,7 +10,7 @@ export function listPlaybooks() {
   }))
 }
 
-export function getPlaybook(name: string) {
+export const getPlaybook = function getPlaybook(name: string) {
   const playbook = PLAYBOOKS.find((p) => p.name === name)
   if (!playbook) {
     throw new NotFoundError(`Unknown playbook "${name}"`, {

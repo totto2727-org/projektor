@@ -6,8 +6,8 @@ import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { formatTimestamp, formatTimestampDate } from './timestamp.ts'
-import { WikiPageClient } from './wiki/WikiPageClient.tsx'
-import type { WikiSeed } from './wiki/WikiPageClient.tsx'
+import { WikiPageClient } from './wiki/wiki-page-client.tsx'
+import type { WikiSeed } from './wiki/wiki-page-client.tsx'
 
 vi.mock('./wiki/actions', () => ({}))
 vi.mock('../attachment-actions', () => ({
@@ -15,7 +15,7 @@ vi.mock('../attachment-actions', () => ({
   uploadInlineImage: vi.fn(),
 }))
 vi.mock('@effront/core/query', () => ({ query: vi.fn() }))
-vi.mock('./wiki/LazyMarkdownEditor', () => ({ default: () => null }))
+vi.mock('./wiki/lazy-markdown-editor.tsx', () => ({ default: () => null }))
 
 const timestamp = Date.parse('2026-10-04T08:48:46Z') / 1000
 function seed(): WikiSeed {

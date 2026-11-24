@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { resetAuthCachesForTests } from '#services/authentication.ts'
@@ -9,9 +10,9 @@ import type { CoreEnvironment } from './environment.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
   resetAuthCachesForTests()
 })
 

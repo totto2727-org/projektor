@@ -4,10 +4,13 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export function listAttachments(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiListAttachments']>) {
+export const listAttachments = function listAttachments(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiListAttachments']>
+) {
   return apiReply(ApiResults.apiListAttachments, ctx.core.apiListAttachments(ctx.actor, ctx.workspaceId, ...args))
 }
-export function createLinkAttachment(
+export const createLinkAttachment = function createLinkAttachment(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiCreateLinkAttachment']>
 ) {
@@ -16,13 +19,19 @@ export function createLinkAttachment(
     ctx.core.apiCreateLinkAttachment(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function getAttachment(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiGetAttachment']>) {
+export const getAttachment = function getAttachment(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiGetAttachment']>
+) {
   return apiReply(ApiResults.apiGetAttachment, ctx.core.apiGetAttachment(ctx.actor, ctx.workspaceId, ...args))
 }
-export function deleteAttachment(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiDeleteAttachment']>) {
+export const deleteAttachment = function deleteAttachment(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiDeleteAttachment']>
+) {
   return apiReply(ApiResults.apiDeleteAttachment, ctx.core.apiDeleteAttachment(ctx.actor, ctx.workspaceId, ...args))
 }
-export function setAttachmentReviewStatus(
+export const setAttachmentReviewStatus = function setAttachmentReviewStatus(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiSetAttachmentReviewStatus']>
 ) {

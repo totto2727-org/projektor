@@ -1,4 +1,5 @@
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider'
+import { Iterable } from 'effect'
 
 /*
  * PROJ-656: the value that carries an authorization request across the consent screen.
@@ -29,9 +30,9 @@ export type ConsentPayload = {
 
 const b64urlEncode = function b64urlEncode(bytes: Uint8Array): string {
   let binary = ''
-  for (const byte of bytes) {
+  Iterable.forEach(bytes, (byte) => {
     binary += String.fromCharCode(byte)
-  }
+  })
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
@@ -47,7 +48,10 @@ const hmacKey = async function hmacKey(secret: string): Promise<CryptoKey> {
   ])
 }
 
-export async function signConsentToken(payload: Omit<ConsentPayload, 'exp'>, secret: string): Promise<string> {
+export const signConsentToken = async function signConsentToken(
+  payload: Omit<ConsentPayload, 'exp'>,
+  secret: string,
+): Promise<string> {
   const full: ConsentPayload = {
     ...payload,
     exp: Math.floor(Date.now() / 1000) + CONSENT_TTL_SECS,
@@ -58,7 +62,7 @@ export async function signConsentToken(payload: Omit<ConsentPayload, 'exp'>, sec
 }
 
 /** Returns the payload, or null for anything that is not a live, intact, own-session token. */
-export async function verifyConsentToken(
+export const verifyConsentToken = async function verifyConsentToken(
   token: string,
   userId: string,
   secret: string,

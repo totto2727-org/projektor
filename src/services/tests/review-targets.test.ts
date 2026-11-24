@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { ForbiddenError, NotFoundError, ValidationError } from '#commands/errors.ts'
@@ -10,9 +11,9 @@ import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 const fixture = function fixture() {

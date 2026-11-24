@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { computeFreshness } from '#commands/wiki-freshness.ts'
@@ -312,9 +312,9 @@ describe('wiki API', () => {
     })
     const results = (await res.json()) as { freshness: unknown }[]
     expect(results.length).toBeGreaterThan(0)
-    for (const r of results) {
+    Iterable.forEach(results, (r) => {
       expect(r.freshness).toBeNull()
-    }
+    })
   })
 
   /*
@@ -515,7 +515,7 @@ describe('wiki API', () => {
     const fetchAll = () =>
       fetchNativeApi('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2', {
         headers: authHeaders(token, slug),
-      }).then((r) => r.json() as Promise<{ id: string }[]>)
+      }).then((response) => response.json() as Promise<{ id: string }[]>)
 
     const first = await fetchAll()
     await resetRateLimits()
@@ -3816,7 +3816,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       method: 'POST',
       headers: authHeaders(fixture.token, fixture.workspace.slug),
       body: JSON.stringify({ title: 'MCP Target', content: 'x' }),
-    }).then((r) => r.json() as Promise<{ slug: string }>)
+    }).then((response) => response.json() as Promise<{ slug: string }>)
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(fixture.token, fixture.workspace.slug),
@@ -3912,7 +3912,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       method: 'POST',
       headers: authHeaders(owner.token, owner.workspace.slug),
       body: JSON.stringify({ title: 'Linked Target', content: 'x' }),
-    }).then((r) => r.json() as Promise<{ slug: string }>)
+    }).then((response) => response.json() as Promise<{ slug: string }>)
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(owner.token, owner.workspace.slug),
@@ -5615,7 +5615,7 @@ describe('wiki server-side drafts (PROJ-495)', () => {
         slug: 'draft-delete-child',
         parentId: parent.id,
       }),
-    }).then((r) => r.json())) as { id: string; slug: string }
+    }).then((response) => response.json())) as { id: string; slug: string }
 
     await req(`http://localhost/api/wiki/${parent.slug}/draft`, {
       method: 'PUT',

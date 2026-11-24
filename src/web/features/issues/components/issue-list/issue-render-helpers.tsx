@@ -1,5 +1,5 @@
 'use client'
-import Select from '@/components/ui/Select.tsx'
+import Select from '@/components/ui/select.tsx'
 import { categoryColor } from '@/features/issues/components/board-utils.ts'
 import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
 import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'

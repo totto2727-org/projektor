@@ -5,8 +5,8 @@ import { renderMarkdownDocument } from '@/components/markdown/render.ts'
 
 import { decorateHeadings } from './headings.ts'
 import { renderMd, renderMdWithWikilinks } from './render-markdown.ts'
-import { WikiPageClient } from './WikiPageClient.tsx'
-import type { WikiSeed } from './WikiPageClient.tsx'
+import { WikiPageClient } from './wiki-page-client.tsx'
+import type { WikiSeed } from './wiki-page-client.tsx'
 
 vi.mock('./actions', () => ({}))
 vi.mock('../../attachment-actions', () => ({

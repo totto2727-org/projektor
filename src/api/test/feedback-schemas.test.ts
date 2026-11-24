@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -38,9 +39,9 @@ describe('covers SubmitFeedbackSchema', () => {
   })
 
   test('accepts five_star ratings 1 through 5', () => {
-    for (const rating of [1, 2, 3, 4, 5]) {
+    Iterable.forEach([1, 2, 3, 4, 5], (rating) => {
       expect(SubmitFeedbackSchema.safeParse({ rating, ratingScale: 'five_star' }).success).toBe(true)
-    }
+    })
   })
 
   test('rejects an out-of-range five_star rating', () => {

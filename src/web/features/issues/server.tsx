@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 import type { ReactElement } from 'react'
 
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
@@ -9,7 +9,7 @@ import { requireDataProject, requireDataWorkspace } from '@/server/data-context.
 import { ApiError, ScopeError } from '@/server/errors.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 
-import { buildFilterQueryParams } from './components/IssueList-helpers.ts'
+import { buildFilterQueryParams } from './components/issue-list-helpers.ts'
 import {
   checked,
   readDataAttachments,
@@ -25,14 +25,14 @@ import {
 } from './data.ts'
 import { issueListQuery } from './query.ts'
 import type { IssuePage } from './types.ts'
-import { EpicsPage } from './views/EpicsPage.tsx'
-import type { EpicsInitialData } from './views/EpicsPage.tsx'
-import { IssueDetailPage } from './views/IssueDetailPage.tsx'
-import type { IssueDetailInitialData } from './views/IssueDetailPage.tsx'
-import { IssuesPage } from './views/IssuesPage.tsx'
-import type { IssuesInitialData } from './views/IssuesPage.tsx'
-import { MyIssuesPage } from './views/MyIssuesPage.tsx'
-import type { MyIssuesInitialData, ScopedIssue } from './views/MyIssuesPage.tsx'
+import { EpicsPage } from './views/epics-page.tsx'
+import type { EpicsInitialData } from './views/epics-page.tsx'
+import { IssueDetailPage } from './views/issue-detail-page.tsx'
+import type { IssueDetailInitialData } from './views/issue-detail-page.tsx'
+import { IssuesPage } from './views/issues-page.tsx'
+import type { IssuesInitialData } from './views/issues-page.tsx'
+import { MyIssuesPage } from './views/my-issues-page.tsx'
+import type { MyIssuesInitialData, ScopedIssue } from './views/my-issues-page.tsx'
 
 export interface IssuesLoaderData {
   readonly workspaceSlug: string
@@ -81,11 +81,11 @@ export function filteredIssueQuery(
     projects,
     [...taskTypes],
   )
-  for (const key of ['cursor', 'limit', 'assignee', 'parentId', 'noParent', 'typeId', 'review']) {
+  Iterable.forEach(['cursor', 'limit', 'assignee', 'parentId', 'noParent', 'typeId', 'review'], (key) => {
     if (p.has(key)) {
       query.set(key, p.get(key) ?? '')
     }
-  }
+  })
   if (!query.has('limit')) {
     query.set('limit', '30')
   }

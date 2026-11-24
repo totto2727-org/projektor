@@ -19,7 +19,12 @@ export interface IssueLinkRow {
 }
 
 /** The application supplies current linked-project visibility alongside parent authorization. */
-export function listLinksForIssue(db: D1Database, workspaceId: string, issueId: string, visibility?: SQL) {
+export const listLinksForIssue = function listLinksForIssue(
+  db: D1Database,
+  workspaceId: string,
+  issueId: string,
+  visibility?: SQL,
+) {
   return queryEffect('listLinksForIssue', async (): Promise<IssueLinkRow[]> => {
     const orm = drizzle(db, { schema })
     const rows = await orm

@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { actionFixture, formData, planningIds } from './action-test-fixture.ts'
@@ -34,9 +35,9 @@ const seedIssues = function seedIssues(
   const insert = test.sqlite.prepare(
     "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at,sprint_id) VALUES (?, 'w1', ?, ?, 'Task', 'u1', 1, 1, ?)",
   )
-  for (const [index, id] of ids.entries()) {
+  Iterable.forEach(ids.entries(), ([index, id]) => {
     insert.run(id, projectId, index + 1, sprintId)
-  }
+  })
   return ids
 }
 

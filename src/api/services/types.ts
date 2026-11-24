@@ -19,7 +19,7 @@ export interface ApiServiceCtx {
 
 const RoleSchema = Schema.UndefinedOr(Schema.Literals(['owner', 'admin', 'member', 'viewer']))
 
-export function ctxFromHono(c: Context<HonoEnv>): ApiServiceCtx {
+export const ctxFromHono = function ctxFromHono(c: Context<HonoEnv>): ApiServiceCtx {
   return {
     core: makeCoreClient(c.env.CORE),
     actor: c.get('coreActor'),
@@ -30,8 +30,6 @@ export function ctxFromHono(c: Context<HonoEnv>): ApiServiceCtx {
     auth: c.get('auth'),
   }
 }
-
-export type ServiceCtx = ApiServiceCtx
 
 /** Keep arguments tied to the named native operation without importing its implementation. */
 export type ApiOperationArgs<T> = T extends (actor: CoreActor, workspaceId: string, ...args: infer Args) => unknown

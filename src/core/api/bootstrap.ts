@@ -6,7 +6,11 @@ import type { CoreEnvironment } from '#core/environment.ts'
 import { buildMcpAddCommand } from '#types'
 
 /** Development provisioning stays private and rechecks its secret in Core. */
-export async function bootstrapDevelopment(env: CoreEnvironment, provided: string | undefined, requestUrl: string) {
+export const bootstrapDevelopment = async function bootstrapDevelopment(
+  env: CoreEnvironment,
+  provided: string | undefined,
+  requestUrl: string,
+) {
   if (env.ENVIRONMENT !== 'development') {
     throw coreFailure(403, 'Not available in production')
   }

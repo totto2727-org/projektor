@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { createShareToken } from '#commands/share.ts'
@@ -8,9 +9,9 @@ import { handleSharedLogoRequest } from './shared-logo.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 const fixture = async function fixture() {

@@ -31,7 +31,7 @@ export type TextWindow = { text: string; totalChars: number; next?: string }
  * A window of `text` from `cursor` (a previous `next`, default 0) of at most `max` chars.
  * `next` is present iff more text follows.
  */
-export function windowText(text: string, opts: { max: number; cursor?: string }): TextWindow {
+export const windowText = function windowText(text: string, opts: { max: number; cursor?: string }): TextWindow {
   let start = 0
   if (Predicate.isNotNullish(opts.cursor)) {
     start = Number(opts.cursor)
@@ -97,7 +97,7 @@ const headings = function headings(content: string): Heading[] {
 }
 
 /** The page outline as `## Heading` strings, in document order. */
-export function outlineOf(content: string): string[] {
+export const outlineOf = function outlineOf(content: string): string[] {
   return headings(content).map((h) => `${'#'.repeat(h.level)} ${h.text}`)
 }
 
@@ -114,7 +114,7 @@ const slugify = function slugify(s: string): string {
  * with or without leading #s): the heading through to the next heading of the same or a
  * higher level. Undefined on a miss.
  */
-export function sectionOf(content: string, name: string): string | undefined {
+export const sectionOf = function sectionOf(content: string, name: string): string | undefined {
   const wanted = name
     .replace(/^#+\s*/, '')
     .trim()
@@ -129,7 +129,7 @@ export function sectionOf(content: string, name: string): string | undefined {
 }
 
 /** `bodyChars` on lists: a prefix of the body, flagged when it was cut. */
-export function bodyPreview(body: unknown, chars: number): { body: string; bodyTruncated?: true } {
+export const bodyPreview = function bodyPreview(body: unknown, chars: number): { body: string; bodyTruncated?: true } {
   const text = Predicate.isString(body) ? body : ''
   if (text.length <= chars) {
     return { body: text }

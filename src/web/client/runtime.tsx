@@ -3,7 +3,7 @@
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 
-import { ViewErrorBoundary } from '@/components/ViewErrorBoundary.tsx'
+import { ViewErrorBoundary } from '@/components/view-error-boundary.tsx'
 import type { RequestScope } from '@/server/request-context.ts'
 
 export { scopedHref } from '@/urls.ts'

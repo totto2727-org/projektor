@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Iterable, Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { loadMigrations } from '#db/test/helpers.ts'
@@ -47,9 +47,9 @@ vi.mock('../../effront', () => ({
 }))
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 const fixture = async function fixture(
   options: {
@@ -66,13 +66,13 @@ const fixture = async function fixture(
   databases.push(database)
   // The shared relational fixture skips FTS-dependent migrations for portability.
   // Wiki commands exercise real FTS5 here using those exact maintained statements.
-  for (const migration of loadMigrations()) {
-    for (const statement of migration.replace(/--[^\n]*/g, '').split(';')) {
+  Iterable.forEach(loadMigrations(), (migration) => {
+    Iterable.forEach(migration.replace(/--[^\n]*/g, '').split(';'), (statement) => {
       if (/\bwiki_fts(?:_new)?\b/i.test(statement)) {
         database.sqlite.exec(statement)
       }
-    }
-  }
+    })
+  })
   database.sqlite.exec(`
     INSERT INTO workspaces (id,name,slug,created_at) VALUES ('workspace','Team','team',1),('foreign-workspace','Foreign','foreign',1);
     INSERT INTO users (id,email,name,created_at) VALUES ('user','alice@example.test','Alice',1),('other-user','other@example.test','Other',1);

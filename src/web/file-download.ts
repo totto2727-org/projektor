@@ -9,7 +9,7 @@ import { ScopeError } from './server/errors.ts'
 const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
 /** Same-origin delivery keeps browser policy here and persistent authorization in Core. */
-export function downloadFile(
+export const downloadFile = function downloadFile(
   request: Request,
 ): Effect.Effect<HttpServerResponse.HttpServerResponse, PageFailure, RequestServices> {
   return Effect.gen(function* () {

@@ -54,7 +54,7 @@ const fillEpicGoalDirective = function fillEpicGoalDirective(params: {
   return [...clauses, liveData].map((c) => `> ${c}`).join('\n>\n')
 }
 
-export async function composePlaybook(ctx: ServiceCtx, raw: unknown) {
+export const composePlaybook = async function composePlaybook(ctx: ServiceCtx, raw: unknown) {
   const result = ComposePlaybookSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

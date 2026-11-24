@@ -100,7 +100,7 @@ export const TOOL_COUNT = TOOL_DOMAINS.reduce((n, d) => n + d.tools.length, 0)
 export const TOOL_DOMAIN_SLUGS: string[] = TOOL_DOMAINS.map((d) => d.domain)
 
 /** Tool names belonging to the given domain slugs. Unknown slugs are silently ignored — callers validate against `TOOL_DOMAIN_SLUGS` first. */
-export function toolNamesForDomains(slugs: Iterable<string>): Set<string> {
+export const toolNamesForDomains = function toolNamesForDomains(slugs: Iterable<string>): Set<string> {
   const wanted = new Set(slugs)
   const names = new Set<string>()
   for (const d of TOOL_DOMAINS) {

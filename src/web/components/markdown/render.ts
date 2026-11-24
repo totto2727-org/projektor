@@ -7,6 +7,7 @@ import toc from '@comark/html/plugins/toc'
 import type { TocLink } from '@comark/html/plugins/toc'
 import { createMarkdownParser } from 'comark'
 import type { ComarkPlugin } from 'comark'
+import { Iterable } from 'effect'
 import sanitizeHtml from 'sanitize-html'
 import githubDark from 'shiki/themes/github-dark.mjs'
 import githubLight from 'shiki/themes/github-light.mjs'
@@ -27,7 +28,7 @@ export interface MarkdownOptions {
 }
 
 /** Final allowlist applies equally to authored HTML and plugin-generated HTML/SVG. */
-export function sanitizeMarkdownHtml(html: string): string {
+export const sanitizeMarkdownHtml = function sanitizeMarkdownHtml(html: string): string {
   return sanitizeHtml(html, {
     allowedTags: [
       ...sanitizeHtml.defaults.allowedTags,
@@ -118,17 +119,17 @@ export function sanitizeMarkdownHtml(html: string): string {
     },
     transformTags: {
       '*': (tagName, attribs) => {
-        for (const key of ['fill', 'stroke']) {
+        Iterable.forEach(['fill', 'stroke'], (key) => {
           const paint = attribs[key]
           if (paint && !/^(?:[a-z]+|#[\da-f]{3,8}|var\(--[\w-]+\)|url\(#[\w-]+\))$/i.test(paint)) {
             delete attribs[key]
           }
-        }
-        for (const key of ['marker-end', 'marker-start']) {
+        })
+        Iterable.forEach(['marker-end', 'marker-start'], (key) => {
           if (attribs[key] && !/^(?:none|url\(#[\w-]+\))$/.test(attribs[key])) {
             delete attribs[key]
           }
-        }
+        })
         if (tagName === 'input') {
           attribs.type = 'checkbox'
           attribs.disabled = ''
@@ -203,7 +204,7 @@ const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
 }
 
 /** Runtime rendering, not an Effront build-time Markdown resource. Parser defaults stay enabled. */
-export async function renderMarkdownDocument(
+export const renderMarkdownDocument = async function renderMarkdownDocument(
   markdown: string,
   options: MarkdownOptions = {},
 ): Promise<RenderedMarkdown> {

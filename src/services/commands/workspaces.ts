@@ -38,11 +38,11 @@ const sha256hex = async function sha256hex(s: string): Promise<string> {
     .join('')
 }
 
-export async function listWorkspaces(db: D1Database, userId: string) {
+export const listWorkspaces = async function listWorkspaces(db: D1Database, userId: string) {
   return Effect.runPromise(data.listWorkspaces(db, userId))
 }
 
-export async function createWorkspace(db: D1Database, userId: string, input: unknown) {
+export const createWorkspace = async function createWorkspace(db: D1Database, userId: string, input: unknown) {
   const parsed = CreateWorkspaceSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -76,7 +76,7 @@ export async function createWorkspace(db: D1Database, userId: string, input: unk
   return { id, name, slug }
 }
 
-export async function getWorkspaceWithMembers(
+export const getWorkspaceWithMembers = async function getWorkspaceWithMembers(
   ctx: ServiceCtx,
   workspace: Readonly<{ id: string; name: string; slug: string }>,
 ) {
@@ -84,7 +84,7 @@ export async function getWorkspaceWithMembers(
   return { ...workspace, members, currentUserRole: ctx.role }
 }
 
-export async function updateWorkspace(ctx: ServiceCtx, input: unknown) {
+export const updateWorkspace = async function updateWorkspace(ctx: ServiceCtx, input: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -97,7 +97,7 @@ export async function updateWorkspace(ctx: ServiceCtx, input: unknown) {
   return { ok: true }
 }
 
-export async function inviteMember(ctx: ServiceCtx, input: unknown) {
+export const inviteMember = async function inviteMember(ctx: ServiceCtx, input: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -143,7 +143,7 @@ export async function inviteMember(ctx: ServiceCtx, input: unknown) {
   return { ok: true }
 }
 
-export async function removeMember(ctx: ServiceCtx, targetUserId: string) {
+export const removeMember = async function removeMember(ctx: ServiceCtx, targetUserId: string) {
   const idCheck = IdSchema.safeParse(targetUserId)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -179,7 +179,7 @@ export async function removeMember(ctx: ServiceCtx, targetUserId: string) {
   return { ok: true }
 }
 
-export async function updateMemberRole(ctx: ServiceCtx, targetUserId: string, input: unknown) {
+export const updateMemberRole = async function updateMemberRole(ctx: ServiceCtx, targetUserId: string, input: unknown) {
   if (ctx.role !== 'owner') {
     throw new ForbiddenError()
   }
@@ -197,7 +197,7 @@ export async function updateMemberRole(ctx: ServiceCtx, targetUserId: string, in
   return { ok: true }
 }
 
-export async function createToken(ctx: ServiceCtx, input: unknown) {
+export const createToken = async function createToken(ctx: ServiceCtx, input: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -234,14 +234,14 @@ export async function createToken(ctx: ServiceCtx, input: unknown) {
   return { id, token, name, scopes, expiresAt }
 }
 
-export async function listTokens(ctx: ServiceCtx) {
+export const listTokens = async function listTokens(ctx: ServiceCtx) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
   return Effect.runPromise(data.listWorkspaceTokenMetadata(ctx.db, ctx.workspaceId))
 }
 
-export async function revokeToken(ctx: ServiceCtx, tokenId: string) {
+export const revokeToken = async function revokeToken(ctx: ServiceCtx, tokenId: string) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -303,7 +303,7 @@ const WORKSPACE_CLEANUP_SQL: Readonly<string[]> = [
   'DELETE FROM workspaces WHERE id = ?1',
 ]
 
-export async function deleteWorkspace(
+export const deleteWorkspace = async function deleteWorkspace(
   ctx: ServiceCtx,
   pathSlug: string,
   defaultWorkspaceSlug: string,
@@ -362,8 +362,8 @@ export async function deleteWorkspace(
   for (let index = 0; index < r2Keys.length; index += 1000) {
     try {
       await ctx.r2.delete(r2Keys.slice(index, index + 1000))
-    } catch (err) {
-      console.error('deleteWorkspace: R2 cleanup failed', { err: String(err) })
+    } catch (error) {
+      console.error('deleteWorkspace: R2 cleanup failed', { err: String(error) })
     }
   }
   if (brand.logoR2Key) {
@@ -374,7 +374,7 @@ export async function deleteWorkspace(
   return { ok: true }
 }
 
-export async function getWorkspaceMcpInfo(
+export const getWorkspaceMcpInfo = async function getWorkspaceMcpInfo(
   _ctx: ServiceCtx,
   workspace: Readonly<{ id: string; slug: string }>,
   origin: string,
@@ -433,11 +433,14 @@ const toBrandDto = function toBrandDto(brand: WorkspaceBrand, workspaceSlug: str
   }
 }
 
-export async function getWorkspaceBrand(ctx: ServiceCtx, workspaceSlug: string): Promise<WorkspaceBrandDto> {
+export const getWorkspaceBrand = async function getWorkspaceBrand(
+  ctx: ServiceCtx,
+  workspaceSlug: string,
+): Promise<WorkspaceBrandDto> {
   return toBrandDto(await readBrand(ctx), workspaceSlug)
 }
 
-export async function getWorkspaceBrandForShare(
+export const getWorkspaceBrandForShare = async function getWorkspaceBrandForShare(
   db: D1Database,
   workspaceId: string,
   workspaceSlug: string,
@@ -445,13 +448,16 @@ export async function getWorkspaceBrandForShare(
   return toBrandDto(await Effect.runPromise(data.readWorkspaceBrand(db, workspaceId)), workspaceSlug)
 }
 
-export async function getWorkspaceBrandLogoR2Key(db: D1Database, workspaceId: string): Promise<string | null> {
+export const getWorkspaceBrandLogoR2Key = async function getWorkspaceBrandLogoR2Key(
+  db: D1Database,
+  workspaceId: string,
+): Promise<string | null> {
   return (await Effect.runPromise(data.readWorkspaceBrand(db, workspaceId))).logoR2Key ?? null
 }
 
 const BRAND_FIELDS = ['displayName', 'accent', 'onAccent', 'fontFamily', 'fontUrl'] as const
 
-export async function updateWorkspaceBrand(
+export const updateWorkspaceBrand = async function updateWorkspaceBrand(
   ctx: ServiceCtx,
   workspaceSlug: string,
   input: unknown,
@@ -483,7 +489,7 @@ export async function updateWorkspaceBrand(
 const MAX_LOGO_SIZE = 2 * 1024 * 1024
 const ALLOWED_LOGO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
-export async function uploadWorkspaceLogo(
+export const uploadWorkspaceLogo = async function uploadWorkspaceLogo(
   ctx: ServiceCtx,
   file: Readonly<{ size: number; type: string; arrayBuffer: () => Promise<ArrayBuffer> }>,
 ): Promise<{ ok: true }> {
@@ -515,7 +521,7 @@ export async function uploadWorkspaceLogo(
   return { ok: true }
 }
 
-export async function deleteWorkspaceLogo(ctx: ServiceCtx): Promise<{ ok: true }> {
+export const deleteWorkspaceLogo = async function deleteWorkspaceLogo(ctx: ServiceCtx): Promise<{ ok: true }> {
   requireBrandWrite(ctx)
   const current = await readBrand(ctx)
   if (current.logoR2Key) {
@@ -531,7 +537,9 @@ const ownsLogoKey = function ownsLogoKey(workspaceId: string, r2Key: string): bo
   return r2Key.startsWith(`${workspaceId}/brand-logo/`)
 }
 
-export async function getWorkspaceLogoObject(ctx: ServiceCtx): Promise<R2ObjectBody | null> {
+export const getWorkspaceLogoObject = async function getWorkspaceLogoObject(
+  ctx: ServiceCtx,
+): Promise<R2ObjectBody | null> {
   const current = await readBrand(ctx)
   if (!current.logoR2Key || !ownsLogoKey(ctx.workspaceId, current.logoR2Key)) {
     return null

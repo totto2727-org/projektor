@@ -10,7 +10,10 @@ export type EventInput = Omit<RealtimeEvent, 'workspaceId' | 'timestamp'>
  * If WORKSPACE_HUB is not configured (e.g. 1-click or free-tier deployments),
  * this function is a no-op and completes immediately.
  */
-export async function broadcastWorkspaceEvent(ctx: ServiceCtx, event: EventInput): Promise<void> {
+export const broadcastWorkspaceEvent = async function broadcastWorkspaceEvent(
+  ctx: ServiceCtx,
+  event: EventInput,
+): Promise<void> {
   if (!ctx.workspaceHub) {
     return
   }

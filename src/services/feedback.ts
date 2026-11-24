@@ -51,7 +51,7 @@ export interface FeedbackSourceRow extends FeedbackSourceListRow {
 }
 
 /** Validated filters only. Authorization and response shaping belong to callers. */
-export function listFeedback(
+export const listFeedback = function listFeedback(
   db: D1Database,
   workspaceId: string,
   opts: ListFeedbackOptions,
@@ -81,7 +81,7 @@ export function listFeedback(
 }
 
 /** Raw aggregate rows retain database semantics, including null averages. */
-export function readFeedbackSummary(
+export const readFeedbackSummary = function readFeedbackSummary(
   db: D1Database,
   workspaceId: string,
   opts: FeedbackProjectOptions,
@@ -108,7 +108,7 @@ export function readFeedbackSummary(
   })
 }
 
-export function listFeedbackSources(
+export const listFeedbackSources = function listFeedbackSources(
   db: D1Database,
   workspaceId: string,
   opts: FeedbackProjectOptions,
@@ -124,7 +124,7 @@ export function listFeedbackSources(
 }
 
 /** Token hashes are database model fields, never a browser response contract. */
-export function findFeedbackSourceById(
+export const findFeedbackSourceById = function findFeedbackSourceById(
   db: D1Database,
   workspaceId: string,
   sourceId: string,

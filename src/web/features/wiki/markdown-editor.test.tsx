@@ -3,11 +3,11 @@ import { EditorView } from '@codemirror/view'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
-vi.mock('../../components/markdown/MarkdownPreview', () => ({
+vi.mock('../../components/markdown/markdown-preview.tsx', () => ({
   useMarkdownPreview: () => ({ html: '' }),
 }))
 
-import MarkdownEditor from './MarkdownEditor.tsx'
+import MarkdownEditor from './markdown-editor.tsx'
 
 afterEach(cleanup)
 

@@ -18,7 +18,7 @@ const splitStatements = function splitStatements(sql: string): string[] {
     .filter((s) => s.length > 0)
 }
 
-export function loadMigrations(): string[] {
+export const loadMigrations = function loadMigrations(): string[] {
   return readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith('.sql'))
     .sort()
@@ -26,7 +26,7 @@ export function loadMigrations(): string[] {
 }
 
 /** A fresh in-memory SQLite DB with every migration applied in order, FK enforcement on. */
-export function migratedDb(): DatabaseSync {
+export const migratedDb = function migratedDb(): DatabaseSync {
   const db = new DatabaseSync(':memory:')
   db.exec('PRAGMA foreign_keys = ON;')
   for (const sql of loadMigrations()) {

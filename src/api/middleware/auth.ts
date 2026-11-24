@@ -15,11 +15,14 @@ import { mcpWorkspaceIdFromPath } from './workspace.ts'
 
 export type AuthUser = typeof ApiUser.Type
 
-export function isPublicViewer(user: Readonly<{ email: string }>): boolean {
+export const isPublicViewer = function isPublicViewer(user: Readonly<{ email: string }>): boolean {
   return user.email === 'public-viewer@projektor.local'
 }
 
-export function requireInteractiveHuman(httpContext: Context<HonoEnv>, message: string): Response | null {
+export const requireInteractiveHuman = function requireInteractiveHuman(
+  httpContext: Context<HonoEnv>,
+  message: string,
+): Response | null {
   const auth = httpContext.get('auth')
   if (auth?.kind !== 'human' || (auth.method !== 'access' && auth.method !== 'dev')) {
     return httpContext.json({ error: message }, 403)
@@ -65,7 +68,7 @@ const authFailureLimited = async function authFailureLimited(httpContext: Contex
   }
 }
 
-export async function authMiddleware(httpContext: Context<HonoEnv>, next: Next) {
+export const authMiddleware = async function authMiddleware(httpContext: Context<HonoEnv>, next: Next) {
   const actor = requestActor(httpContext)
   try {
     const principal = await Effect.runPromise(

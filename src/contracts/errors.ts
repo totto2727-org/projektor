@@ -94,7 +94,7 @@ export class ScopeError extends Data.TaggedError('ScopeError')<{
 }
 
 /** Map diagnostics only. Response decoding stays at each operation's concrete schema. */
-export function responseError(cause: unknown): ApiError {
+export const responseError = function responseError(cause: unknown): ApiError {
   if (cause instanceof ApiError) {
     return cause
   }

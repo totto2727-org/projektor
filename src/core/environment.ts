@@ -20,7 +20,7 @@ const hasMethods = function hasMethods(value: unknown, methods: Readonly<string[
 }
 
 /** Validate native binding capabilities at the sole untyped runtime boundary. */
-export function isCoreEnvironment(value: unknown): value is CoreEnvironment {
+export const isCoreEnvironment = function isCoreEnvironment(value: unknown): value is CoreEnvironment {
   if (typeof value !== 'object' || Predicate.isNullish(value)) {
     return false
   }

@@ -233,7 +233,7 @@ const readCodeHeatmap = async function readCodeHeatmap(
 export type CodeHeatmap = Awaited<ReturnType<typeof readCodeHeatmap>>
 
 /** The caller validates input and authorizes project access before running this Effect. */
-export function getCodeHeatmap(
+export const getCodeHeatmap = function getCodeHeatmap(
   db: D1Database,
   workspaceId: string,
   range: CodeHeatmapRange,

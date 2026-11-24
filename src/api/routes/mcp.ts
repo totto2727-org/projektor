@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 
@@ -235,9 +235,9 @@ router.post('/:workspaceId', async (httpContext) => {
       const argIssues = validateToolArgs(tool.inputSchema, args)
       if (argIssues.length > 0) {
         const fieldErrors: Record<string, string[]> = {}
-        for (const i of argIssues) {
+        Iterable.forEach(argIssues, (i) => {
           fieldErrors[i.path] = [...(fieldErrors[i.path] ?? []), i.message]
-        }
+        })
         const missing = argIssues.filter((i) => i.message === 'is required').map((i) => i.path)
         const toolError = toToolError(
           new ValidationError({
@@ -274,17 +274,17 @@ router.post('/:workspaceId', async (httpContext) => {
             content: [{ type: 'text', text: JSON.stringify(result) }],
           }),
         )
-      } catch (err) {
+      } catch (error) {
         /*
          * PROJ-893: service errors (validation, not_found, forbidden, conflict, …) are
          * tool results the model can act on. Only an unexpected internal failure stays a
          * JSON-RPC error, carrying just a request id.
          */
-        const toolError = toToolError(err, { toolName: name, role: ctx.role })
+        const toolError = toToolError(error, { toolName: name, role: ctx.role })
         if (toolError) {
           return httpContext.json(jsonRpcResult(body.id, toolError))
         }
-        const { code, message, data } = toMcpError(err, crypto.randomUUID())
+        const { code, message, data } = toMcpError(error, crypto.randomUUID())
         return httpContext.json(jsonRpcError(body.id, code, message, data))
       }
     }
@@ -313,8 +313,8 @@ router.post('/:workspaceId', async (httpContext) => {
       try {
         const result = await getPrompt(ctx, name, promptArgs ?? {})
         return httpContext.json(jsonRpcResult(body.id, result))
-      } catch (err) {
-        const { code, message, data } = toMcpError(err, crypto.randomUUID())
+      } catch (error) {
+        const { code, message, data } = toMcpError(error, crypto.randomUUID())
         return httpContext.json(jsonRpcError(body.id, code, message, data))
       }
     }

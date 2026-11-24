@@ -8,7 +8,10 @@ import { publicDomainFailure } from './domain-errors.ts'
 import type { CoreEnvironment } from './environment.ts'
 
 /** Only file bytes use native fetch. No external request is forwarded to a Hono router. */
-export async function handleCoreFileRequest(request: Request, env: CoreEnvironment): Promise<Response> {
+export const handleCoreFileRequest = async function handleCoreFileRequest(
+  request: Request,
+  env: CoreEnvironment,
+): Promise<Response> {
   try {
     const url = new URL(request.url)
     const download = /^\/files\/([^/]+)$/.exec(url.pathname)
@@ -73,11 +76,11 @@ export async function handleCoreFileRequest(request: Request, env: CoreEnvironme
     }
     // The native binding transports the R2 stream with cancellation and backpressure intact.
     return new Response(object.body, { headers })
-  } catch (cause) {
-    const selected = publicDomainFailure(cause)
+  } catch (error) {
+    const selected = publicDomainFailure(error)
     const problem = selected instanceof CorePublicError ? selected : coreFailure(500, 'An unexpected error occurred.')
     if (!(selected instanceof CorePublicError)) {
-      console.error('[core]', { operation: 'fileTransfer', occurrenceId: problem.occurrenceId, cause })
+      console.error('[core]', { operation: 'fileTransfer', occurrenceId: problem.occurrenceId, cause: error })
     }
     return Response.json(
       { error: problem.message, occurrenceId: problem.occurrenceId },

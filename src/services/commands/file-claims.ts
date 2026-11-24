@@ -1,5 +1,5 @@
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
@@ -72,7 +72,7 @@ const liveCutoff = (): number => Math.floor(Date.now() / 1000) - SESSION_TTL_SEC
  */
 export const DEFAULT_FILE_CLAIM_TTL_SECONDS = 24 * 60 * 60
 
-export function parseFileClaimTtlSeconds(raw: string | undefined): number {
+export const parseFileClaimTtlSeconds = function parseFileClaimTtlSeconds(raw: string | undefined): number {
   const n = Number(raw)
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_FILE_CLAIM_TTL_SECONDS
 }
@@ -268,7 +268,7 @@ const buildClaimInsertStatements = function buildClaimInsertStatements(
   )
 }
 
-export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
+export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknown) {
   const result = ClaimFilesSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -314,12 +314,12 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
    * below instead of an immediate per-claim UPDATE.
    */
   const stale: ActiveClaim[] = []
-  for (const [path, claim] of claimsByPath) {
+  Iterable.forEach(claimsByPath, ([path, claim]) => {
     if (!claim.live) {
       stale.push(claim)
       claimsByPath.delete(path)
     }
-  }
+  })
   const reclaimed = stale.map((c) => ({ ...c, releasedAt: now, releaseReason: 'expired' }))
 
   const statements: D1PreparedStatement[] = buildReleaseByIdsStatements(
@@ -374,12 +374,12 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
   const overridden: ActiveClaim[] = []
   if (force && contended.length > 0) {
     const displacedPaths = new Map<string, string[]>()
-    for (const { path, existing } of contended) {
+    Iterable.forEach(contended, ({ path, existing }) => {
       overridden.push({ ...existing, releasedAt: now, releaseReason: 'overridden' })
       const list = displacedPaths.get(existing.issueId) ?? []
       list.push(path)
       displacedPaths.set(existing.issueId, list)
-    }
+    })
     statements.push(
       ...buildReleaseByIdsStatements(
         ctx,
@@ -405,7 +405,7 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
       ),
     )
     const messages: { scope: string; agentId?: string; body: string }[] = []
-    for (const [displacedIssueId, displacedIssuePaths] of displacedPaths) {
+    Iterable.forEach(displacedPaths, ([displacedIssueId, displacedIssuePaths]) => {
       const toHolder = (list: string): string => `force-claimed ${list}, overriding issue ${displacedIssueId}`
       const toDisplaced = (list: string): string => `issue ${issueId} force-claimed ${list}, which this issue held`
       messages.push({
@@ -418,7 +418,7 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
         agentId: agentId ?? undefined,
         body: toDisplaced(formatPathList(displacedIssuePaths, toDisplaced('').length)),
       })
-    }
+    })
     statements.push(...buildPostMessageStatements(ctx, orm, messages))
   }
 
@@ -448,7 +448,7 @@ export async function claimFiles(ctx: ServiceCtx, raw: unknown) {
   return { created, overridden, reclaimed }
 }
 
-export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
+export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
   const result = ReleaseFilesSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -536,11 +536,11 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
     })
   } else {
     const grouped = new Map<string, string[]>()
-    for (const row of releasedRows) {
+    Iterable.forEach(releasedRows, (row) => {
       const list = grouped.get(row.projectId) ?? []
       list.push(row.path)
       grouped.set(row.projectId, list)
-    }
+    })
     for (const [projectId, projectPaths] of grouped) {
       await broadcastWorkspaceEvent(ctx, {
         type: 'claims.released',
@@ -560,7 +560,7 @@ export async function releaseFiles(ctx: ServiceCtx, raw: unknown) {
  * restoring the pre-PROJ-932 behaviour of returning every unreleased claim regardless
  * of holder health.
  */
-export async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
+export const listFileClaims = async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
   const result = ListFileClaimsSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -654,7 +654,10 @@ export async function listFileClaims(ctx: ServiceCtx, raw: unknown) {
  * claim immediately rather than leaving it to the next claimant — and it is the one that
  * records `agent_ended` for the health tile, which distinguishes a clean exit from a crash.
  */
-export async function releaseClaimsForAgent(ctx: ServiceCtx, agentId: string): Promise<void> {
+export const releaseClaimsForAgent = async function releaseClaimsForAgent(
+  ctx: ServiceCtx,
+  agentId: string,
+): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
   const now = Math.floor(Date.now() / 1000)
 
@@ -677,7 +680,10 @@ export async function releaseClaimsForAgent(ctx: ServiceCtx, agentId: string): P
  * against it. Distinct release_reason from releaseFiles' "released". Returned as a
  * statement so the caller (updateIssue) folds it into its single ctx.db.batch().
  */
-export function buildReleaseClaimsForClosedIssueStatement(ctx: ServiceCtx, issueId: string): D1PreparedStatement {
+export const buildReleaseClaimsForClosedIssueStatement = function buildReleaseClaimsForClosedIssueStatement(
+  ctx: ServiceCtx,
+  issueId: string,
+): D1PreparedStatement {
   const orm = drizzle(ctx.db, { schema })
   const now = Math.floor(Date.now() / 1000)
   return toD1Statement(

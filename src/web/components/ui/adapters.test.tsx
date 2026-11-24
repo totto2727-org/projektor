@@ -3,16 +3,16 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { createRef } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
-import { Badge } from './Badge.tsx'
-import { Button } from './Button.tsx'
-import { Card } from './Card.tsx'
-import { Dialog } from './Dialog.tsx'
-import { EmptyState } from './EmptyState.tsx'
-import { Field } from './Field.tsx'
-import { Input, Textarea } from './Input.tsx'
-import { Popover, Portal } from './Popover.tsx'
-import Select from './Select.tsx'
-import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from './Table.tsx'
+import { Badge } from './badge.tsx'
+import { Button } from './button.tsx'
+import { Card } from './card.tsx'
+import { Dialog } from './dialog.tsx'
+import { EmptyState } from './empty-state.tsx'
+import { Field } from './field.tsx'
+import { Input, Textarea } from './input.tsx'
+import { Popover, Portal } from './popover.tsx'
+import Select from './select.tsx'
+import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from './table.tsx'
 
 afterEach(cleanup)
 

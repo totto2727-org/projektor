@@ -18,7 +18,7 @@ export const sprintCommands = {
   moveIssuesToSprint: ({ core, proof }: BrowserCommandClient, input: unknown) =>
     coreResult(Schema.Struct({ ok: Schema.Boolean, count: Schema.Number }), core.webMoveSprintIssues(proof, input)),
 }
-export function readFlowMetrics(workspaceId: string, query: MetricsQuery) {
+export const readFlowMetrics = function readFlowMetrics(workspaceId: string, query: MetricsQuery) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(
@@ -27,7 +27,7 @@ export function readFlowMetrics(workspaceId: string, query: MetricsQuery) {
     )
   })
 }
-export function readCodeHeatmap(workspaceId: string, query: MetricsQuery) {
+export const readCodeHeatmap = function readCodeHeatmap(workspaceId: string, query: MetricsQuery) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     return yield* coreResult(

@@ -11,7 +11,7 @@ import { env } from './fixture-api.ts'
  * in a brand-new object with a zero count. The D1 table is still cleared for the
  * deprecated no-binding fallback path (PROJ-924).
  */
-export async function resetRateLimits(): Promise<void> {
+export const resetRateLimits = async function resetRateLimits(): Promise<void> {
   env.RATE_LIMIT_TEST_EPOCH = crypto.randomUUID()
   await env.DB.prepare('DELETE FROM rate_limit').run()
 }
@@ -24,7 +24,11 @@ export async function resetRateLimits(): Promise<void> {
  * PROJ-637: the window is fixed, so seeding in the last moments of one window and sending
  * the request in the next silently clears the cap. Wait out the tail of the window first.
  */
-export async function seedRateLimitCounter(key: string, count: number, windowSecs = 60): Promise<void> {
+export const seedRateLimitCounter = async function seedRateLimitCounter(
+  key: string,
+  count: number,
+  windowSecs = 60,
+): Promise<void> {
   const windowMs = windowSecs * 1000
   const intoWindow = Date.now() % windowMs
   const HEADROOM_MS = 5000

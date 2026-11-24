@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Iterable, Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import { CommandOkSchema } from '#core/web/command-contract.ts'
@@ -13,9 +13,9 @@ import { testEnvironment } from './test/resources.ts'
 
 const databases: ReturnType<typeof issueDataFixture>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 const fixture = function fixture() {
   const database = issueDataFixture()

@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { visibleProjectSqlFragment } from '#commands/access.ts'
@@ -26,15 +27,11 @@ describe('visibleProjectSqlFragment column-expression guard', () => {
   })
 
   test('throws on anything that is not a column identifier', () => {
-    for (const bad of [
-      'i.project_id; DROP TABLE issues',
-      '(SELECT 1)',
-      'i.project_id OR 1=1',
-      'i.project_id, name',
-      '',
-      '1',
-    ]) {
-      expect(() => visibleProjectSqlFragment(memberCtx, bad)).toThrow(/column identifier/)
-    }
+    Iterable.forEach(
+      ['i.project_id; DROP TABLE issues', '(SELECT 1)', 'i.project_id OR 1=1', 'i.project_id, name', '', '1'],
+      (bad) => {
+        expect(() => visibleProjectSqlFragment(memberCtx, bad)).toThrow(/column identifier/)
+      },
+    )
   })
 })

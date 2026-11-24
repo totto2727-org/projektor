@@ -17,7 +17,9 @@ import { publicDomainFailure } from '#core/domain-errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
 /** Public credentials are resolved here, never treated as preauthenticated adapter IDs. */
-export function makeApiPublicHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
+export const makeApiPublicHandlers = function makeApiPublicHandlers<R>(
+  envSource: Effect.Effect<CoreEnvironment, never, R>,
+) {
   const attempt = function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>) {
     return Effect.flatMap(envSource, (env) =>
       Effect.tryPromise({ catch: publicDomainFailure, try: () => operation(env) }),

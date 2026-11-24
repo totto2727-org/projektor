@@ -14,7 +14,7 @@ import type { ServiceCtx } from './types.ts'
  */
 const LIVE_TTL_SECONDS = 120
 
-export function agentSessionCredential(ctx: ServiceCtx): string | undefined {
+export const agentSessionCredential = function agentSessionCredential(ctx: ServiceCtx): string | undefined {
   if (ctx.auth?.credentialId) {
     return ctx.auth.credentialId
   }
@@ -28,7 +28,7 @@ export function agentSessionCredential(ctx: ServiceCtx): string | undefined {
  * Legacy sessions without an ownership key are manageable only by workspace administrators.
  * New browser sessions use a namespaced user key, not a fabricated API-token foreign key.
  */
-export async function assertAgentSessionAccess(
+export const assertAgentSessionAccess = async function assertAgentSessionAccess(
   ctx: ServiceCtx,
   id: string,
   options: { allowAdministrativeOverride?: boolean } = {},
@@ -74,7 +74,7 @@ export async function assertAgentSessionAccess(
  * stale (that call is what revives it), but only when the credential has no live session;
  * the claim path requires a live one, since a dead session can't hold a lease.
  */
-export async function resolveAgentSessionId(
+export const resolveAgentSessionId = async function resolveAgentSessionId(
   ctx: ServiceCtx,
   provided: string | undefined,
   opts: { includeStale?: boolean; allowAdministrativeOverride?: boolean } = {},

@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { bulkConvertToIssue, convertFeedbackToIssue } from '#commands/feedback.ts'
@@ -7,9 +8,9 @@ import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 const fixture = function fixture(concurrentBatches = 1) {
@@ -108,9 +109,9 @@ describe('feedback conversion transaction', () => {
     ])
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
     expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { kind: 'conflict' } })
-    for (const table of ['issues', 'issues_fts', 'activity']) {
+    Iterable.forEach(['issues', 'issues_fts', 'activity'], (table) => {
       expect(f.count(table), table).toBe(1)
-    }
+    })
     expect(f.fetch).toHaveBeenCalledOnce()
     const issue = f.sqlite.prepare('SELECT id,number FROM issues').get()
     expect(issue?.number).toBe(1)
@@ -122,9 +123,9 @@ describe('feedback conversion transaction', () => {
 
   test('does not partially convert an overlapping bulk selection when another conversion wins', async () => {
     const f = fixture(2)
-    for (const id of ['a', 'b', 'c']) {
+    Iterable.forEach(['a', 'b', 'c'], (id) => {
       f.seed(id)
-    }
+    })
     const results = await Promise.allSettled([
       bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ['a', 'b'] }),
       bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ['b', 'c'] }),
@@ -143,9 +144,9 @@ describe('feedback conversion transaction', () => {
     f.sqlite.exec(`CREATE TRIGGER fail_link BEFORE UPDATE OF linked_issue_id ON feedback
       BEGIN SELECT RAISE(ABORT,'link failure'); END;`)
     await expect(convertFeedbackToIssue(f.ctx, { feedbackId: 'f' })).rejects.toThrow('link failure')
-    for (const table of ['issues', 'issues_fts', 'activity']) {
+    Iterable.forEach(['issues', 'issues_fts', 'activity'], (table) => {
       expect(f.count(table), table).toBe(0)
-    }
+    })
     expect(f.fetch).not.toHaveBeenCalled()
     expect(f.sqlite.prepare('SELECT linked_issue_id,status FROM feedback').get()).toMatchObject({
       linked_issue_id: null,
@@ -158,9 +159,9 @@ describe('feedback conversion transaction', () => {
   test('converts the 500-ID maximum without crossing the D1 bind cap', async () => {
     const f = fixture()
     const ids = Array.from({ length: 500 }, (_, i) => `f${i}`)
-    for (const id of ids) {
+    Iterable.forEach(ids, (id) => {
       f.seed(id)
-    }
+    })
     await expect(bulkConvertToIssue(f.ctx, { projectId: 'p', feedbackIds: ids })).resolves.toMatchObject({
       convertedCount: 500,
       number: 1,

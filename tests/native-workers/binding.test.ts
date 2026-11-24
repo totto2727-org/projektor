@@ -1,5 +1,5 @@
 import { env as nativeApiEnv } from 'cloudflare:workers'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { describe, expect, test } from 'vite-plus/test'
 
@@ -29,9 +29,9 @@ const core = fixtureBinding(Reflect.get(nativeApiEnv, 'CORE'))
 
 describe('actual native API and Core topology', () => {
   test('does not give the public API database, cache or file capabilities', () => {
-    for (const name of ['DB', 'KV', 'R2']) {
+    Iterable.forEach(['DB', 'KV', 'R2'], (name) => {
       expect(name in nativeApiEnv).toBe(false)
-    }
+    })
   })
 
   test('keeps real native storage in the private Core isolate', async () => {

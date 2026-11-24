@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { z } from 'zod'
 
 import { ValidationError } from '#contracts/errors.ts'
@@ -102,7 +102,7 @@ export type ShapeOpts = z.infer<typeof ShapeOptsSchema>
  * Pulls the MCP-only view/verbose/fields options out of the raw tool input before it
  * reaches the (`.strict()`) service schema, validating them first.
  */
-export function splitShapeOpts(input: unknown): { rest: Record<string, unknown> } & ShapeOpts {
+export const splitShapeOpts = function splitShapeOpts(input: unknown): { rest: Record<string, unknown> } & ShapeOpts {
   const { view, verbose, fields, ...rest } = (input ?? {}) as Record<string, unknown>
   const result = ShapeOptsSchema.safeParse({ view, verbose, fields })
   if (!result.success) {
@@ -201,7 +201,10 @@ const summarize = function summarize(issue: Record<string, unknown>): Record<str
  * - otherwise (`full`, the default): drops null/empty/false defaults and internal ids,
  *   parses `labels` to an array, and adds `ref` and `type`.
  */
-export function shapeIssue(issue: Record<string, unknown>, opts: ShapeOpts = {}): Record<string, unknown> {
+export const shapeIssue = function shapeIssue(
+  issue: Record<string, unknown>,
+  opts: ShapeOpts = {},
+): Record<string, unknown> {
   const ref = refOf(issue)
   if (opts.fields && opts.fields.length > 0) {
     const source: Record<string, unknown> = {
@@ -211,9 +214,9 @@ export function shapeIssue(issue: Record<string, unknown>, opts: ShapeOpts = {})
       updated: issue.updated_at,
     }
     const picked: Record<string, unknown> = {}
-    for (const f of opts.fields) {
+    Iterable.forEach(opts.fields, (f) => {
       picked[f] = Object.hasOwn(source, f) ? (source[f] ?? null) : null
-    }
+    })
     return picked
   }
   if (opts.verbose) {
@@ -252,17 +255,17 @@ export function shapeIssue(issue: Record<string, unknown>, opts: ShapeOpts = {})
   if (out.needs_audit === false || out.needs_audit === 0) {
     delete out.needs_audit
   }
-  for (const key of NULLABLE_DEFAULT_KEYS) {
+  Iterable.forEach(NULLABLE_DEFAULT_KEYS, (key) => {
     if (out[key] == null || out[key] === '') {
       delete out[key]
     }
-  }
-  for (const key of INTERNAL_ID_KEYS) {
+  })
+  Iterable.forEach(INTERNAL_ID_KEYS, (key) => {
     delete out[key]
-  }
-  for (const key of DUPLICATE_KEYS) {
+  })
+  Iterable.forEach(DUPLICATE_KEYS, (key) => {
     delete out[key]
-  }
+  })
   /*
    * `status` is the legacy enum; a custom workflow status (e.g. "qa" within in_progress)
    * is only distinguishable by its key, so keep it whenever it adds information.
@@ -274,7 +277,7 @@ export function shapeIssue(issue: Record<string, unknown>, opts: ShapeOpts = {})
 }
 
 /** `{items, next?}` — the one list shape. `next` is omitted when there is no further page. */
-export function toPage<T>(
+export const toPage = function toPage<T>(
   items: T[],
   next?: string | number | null,
   extra: Record<string, unknown> = {},
@@ -290,7 +293,7 @@ export function toPage<T>(
  * cursor the result carries a `hint` to lower `limit` or narrow the filters instead, and
  * any pre-existing `next` is dropped (it would skip the items that were cut).
  */
-export function capPage<P extends { items: unknown[]; next?: string }>(
+export const capPage = function capPage<P extends { items: unknown[]; next?: string }>(
   page: P,
   opts: {
     max?: number

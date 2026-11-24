@@ -116,13 +116,13 @@ export const MetricsWindowSchema = Schema.Struct({
 )
 
 /** Calendar input offset is semantic data, preserving original local-midnight timestamps. */
-export function calendarOffset(value: string): number {
+export const calendarOffset = function calendarOffset(value: string): number {
   if (!value) {
     return 0
   }
   const [year, month, day] = value.split('-').map(Number)
   return new Date(year, month - 1, day).getTimezoneOffset()
 }
-export function calendarTimestamp(value: string, offset: number): number | null {
+export const calendarTimestamp = function calendarTimestamp(value: string, offset: number): number | null {
   return value ? Date.parse(`${value}T00:00:00Z`) / 1000 + offset * 60 : null
 }

@@ -6,6 +6,7 @@ import { BooleanQueryParam, IdSchema } from '#contracts/inputs/common.ts'
 import { CreateProjectSchema, UpdateProjectSchema } from '#contracts/inputs/projects.ts'
 import { drizzle, schema } from '#db'
 import * as data from '#services'
+import type { ProjectSummary } from '#services/projects.ts'
 
 import { effectiveProjectRole, isWorkspaceAdmin, visibleProjectPredicate } from './access.ts'
 import { recordActivity } from './activity.ts'
@@ -26,7 +27,7 @@ const invalidateProjectsCache = async function invalidateProjectsCache(ctx: Serv
 
 const ListProjectsOptionsSchema = z.object({ includeArchived: BooleanQueryParam.optional() })
 
-export async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
+export const listProjects = async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
   const parsed = ListProjectsOptionsSchema.safeParse(opts)
   if (!parsed.success) {
     throw new ValidationError(z.flattenError(parsed.error))
@@ -62,9 +63,9 @@ export async function listProjects(ctx: ServiceCtx, opts: unknown = {}) {
   )
 }
 
-export type ProjectSummary = data.ProjectSummary
+export type { ProjectSummary } from '#services/projects.ts'
 
-export async function listProjectsAcrossWorkspaces(
+export const listProjectsAcrossWorkspaces = async function listProjectsAcrossWorkspaces(
   userId: string,
   db: D1Database,
   includeArchived = false,
@@ -86,7 +87,10 @@ export async function listProjectsAcrossWorkspaces(
 
 const PROJECT_KEY_PATTERN = /^[A-Z][A-Z0-9]*$/
 
-export async function resolveProjectIdParam(ctx: ServiceCtx, param: string): Promise<string> {
+export const resolveProjectIdParam = async function resolveProjectIdParam(
+  ctx: ServiceCtx,
+  param: string,
+): Promise<string> {
   if (!PROJECT_KEY_PATTERN.test(param)) {
     return param
   }
@@ -98,7 +102,10 @@ export async function resolveProjectIdParam(ctx: ServiceCtx, param: string): Pro
   return row.id
 }
 
-export async function resolveVisibleProjectIdParam(ctx: ServiceCtx, param: string): Promise<string> {
+export const resolveVisibleProjectIdParam = async function resolveVisibleProjectIdParam(
+  ctx: ServiceCtx,
+  param: string,
+): Promise<string> {
   if (!PROJECT_KEY_PATTERN.test(param)) {
     return param
   }
@@ -113,7 +120,7 @@ export async function resolveVisibleProjectIdParam(ctx: ServiceCtx, param: strin
   return row.id
 }
 
-export async function getProject(ctx: ServiceCtx, id: string) {
+export const getProject = async function getProject(ctx: ServiceCtx, id: string) {
   const project = await Effect.runPromise(data.findProjectById(ctx.db, ctx.workspaceId, id))
   if (!project) {
     throw new NotFoundError('Project not found')
@@ -130,7 +137,7 @@ export async function getProject(ctx: ServiceCtx, id: string) {
  * PROJ-376: pretty project URLs (/projects/view/<slug>) resolve here instead of
  * the UUID route. Same visibility rules as getProject.
  */
-export async function getProjectBySlug(ctx: ServiceCtx, slug: string) {
+export const getProjectBySlug = async function getProjectBySlug(ctx: ServiceCtx, slug: string) {
   const project = await Effect.runPromise(data.findProjectBySlug(ctx.db, ctx.workspaceId, slug))
   if (!project) {
     throw new NotFoundError('Project not found')
@@ -176,7 +183,7 @@ const generateUniqueSlug = async function generateUniqueSlug(
   }
 }
 
-export async function createProject(ctx: ServiceCtx, input: unknown) {
+export const createProject = async function createProject(ctx: ServiceCtx, input: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -219,7 +226,7 @@ export async function createProject(ctx: ServiceCtx, input: unknown) {
   return { id, name, key, slug }
 }
 
-export async function updateProject(ctx: ServiceCtx, id: string, input: unknown) {
+export const updateProject = async function updateProject(ctx: ServiceCtx, id: string, input: unknown) {
   if (ctx.role === 'member' || ctx.role === 'viewer') {
     throw new ForbiddenError()
   }
@@ -338,7 +345,7 @@ const PROJECT_CLEANUP_SQL: Readonly<string[]> = [
   'DELETE FROM projects WHERE id = ?1 AND workspace_id = ?2',
 ]
 
-export async function deleteProject(ctx: ServiceCtx, id: string) {
+export const deleteProject = async function deleteProject(ctx: ServiceCtx, id: string) {
   const idCheck = IdSchema.safeParse(id)
   if (!idCheck.success) {
     throw new ValidationError({ formErrors: z.flattenError(idCheck.error).formErrors, fieldErrors: {} })
@@ -386,8 +393,8 @@ export async function deleteProject(ctx: ServiceCtx, id: string) {
   for (let index = 0; index < r2Keys.length; index += 1000) {
     try {
       await ctx.r2.delete(r2Keys.slice(index, index + 1000))
-    } catch (err) {
-      console.error('deleteProject: R2 cleanup failed', { id, err: String(err) })
+    } catch (error) {
+      console.error('deleteProject: R2 cleanup failed', { id, err: String(error) })
     }
   }
 

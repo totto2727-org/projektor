@@ -19,7 +19,7 @@ export type Capability = 'read' | 'write'
  * - "write" implies "read" (you can read what you can write).
  * - Unknown/legacy scope strings grant nothing (fail-closed).
  */
-export function tokenAllows(scopes: Readonly<string[]>, required: Capability): boolean {
+export const tokenAllows = function tokenAllows(scopes: Readonly<string[]>, required: Capability): boolean {
   if (scopes.includes('*')) {
     return true
   }
@@ -33,7 +33,7 @@ export function tokenAllows(scopes: Readonly<string[]>, required: Capability): b
  * REST capability implied by an HTTP method: safe methods read, everything
  * else writes. (Searches are GET, so they classify as reads.)
  */
-export function capabilityForMethod(method: string): Capability {
+export const capabilityForMethod = function capabilityForMethod(method: string): Capability {
   const m = method.toUpperCase()
   return m === 'GET' || m === 'HEAD' || m === 'OPTIONS' ? 'read' : 'write'
 }
@@ -43,7 +43,7 @@ export function capabilityForMethod(method: string): Capability {
  * list_/get_/search_ family (plus wiki_tree); everything else is treated as a
  * write. Fail-closed: a new tool without a read prefix needs the write scope.
  */
-export function capabilityForMcpTool(name: string): Capability {
+export const capabilityForMcpTool = function capabilityForMcpTool(name: string): Capability {
   if (name.startsWith('list_') || name.startsWith('get_') || name.startsWith('search_') || name === 'wiki_tree') {
     return 'read'
   }
@@ -56,7 +56,7 @@ export function capabilityForMcpTool(name: string): Capability {
  * not valid JSON). Both are accepted so legacy tokens keep working. Anything
  * else fails closed to [] (which tokenAllows() then treats as "grants nothing").
  */
-export function parseScopes(raw: string | null | undefined): string[] {
+export const parseScopes = function parseScopes(raw: string | null | undefined): string[] {
   if (!raw) {
     return []
   }
@@ -106,7 +106,7 @@ export const OAUTH_SCOPES_SUPPORTED = [OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE] as c
  * we issue. Fail-closed, same as tokenAllows(): an unrecognized scope grants
  * nothing rather than being silently treated as read.
  */
-export function capabilityForOAuthScope(scope: string): Capability | null {
+export const capabilityForOAuthScope = function capabilityForOAuthScope(scope: string): Capability | null {
   if (scope === OAUTH_SCOPE_READ) {
     return 'read'
   }

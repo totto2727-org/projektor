@@ -1,4 +1,4 @@
-import { Predicate, Effect } from 'effect'
+import { Iterable, Predicate, Effect } from 'effect'
 
 import { handleApiBinaryRequest } from '#core/api/files.ts'
 import { makeApiRateLimitHandlers } from '#core/api/rate-limit.ts'
@@ -18,7 +18,7 @@ export type TestEnvironment = CoreEnvironment &
   }
 
 /** Unit-test storage doubles only. Worker acceptance uses actual native KV/R2 bindings. */
-export function inMemoryKV(): KVNamespace {
+export const inMemoryKV = function inMemoryKV(): KVNamespace {
   const values = new Map<string, string>()
   return {
     get: async (key: string, options?: string | { type?: string }) => {
@@ -54,7 +54,7 @@ export function inMemoryKV(): KVNamespace {
   } as KVNamespace
 }
 
-export function inMemoryR2(): R2Bucket {
+export const inMemoryR2 = function inMemoryR2(): R2Bucket {
   const values = new Map<string, { bytes: Uint8Array<ArrayBuffer>; httpMetadata: R2HTTPMetadata }>()
   const object = (key: string, value: { bytes: Uint8Array<ArrayBuffer>; httpMetadata: R2HTTPMetadata }) => ({
     key,
@@ -110,9 +110,9 @@ export function inMemoryR2(): R2Bucket {
       return value ? object(key, value) : null
     },
     delete: async (keys: string | string[]) => {
-      for (const key of Predicate.isString(keys) ? [keys] : keys) {
+      Iterable.forEach(Predicate.isString(keys) ? [keys] : keys, (key) => {
         values.delete(key)
-      }
+      })
     },
     list: async (options?: { prefix?: string }) => ({
       objects: [...values.entries()]
@@ -124,14 +124,14 @@ export function inMemoryR2(): R2Bucket {
   } as R2Bucket
 }
 
-export function createTestResources() {
+export const createTestResources = function createTestResources() {
   const kv = inMemoryKV()
   const oauthKv = inMemoryKV()
   const r2 = inMemoryR2()
   return { kv, oauthKv, r2, KV: kv, OAUTH_KV: oauthKv, R2: r2 }
 }
 
-export function testEnvironment(
+export const testEnvironment = function testEnvironment(
   db: D1Database,
   email = 'owner@example.test',
   overrides: Partial<TestEnvironment> = {},

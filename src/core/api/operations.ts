@@ -11,7 +11,9 @@ import { makeApiPublicHandlers } from './public-operations.ts'
 import { makeApiRateLimitHandlers } from './rate-limit.ts'
 
 /** Compose concrete named families without an operation dispatcher or protocol proxy. */
-export function makeApiCoreHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
+export const makeApiCoreHandlers = function makeApiCoreHandlers<R>(
+  envSource: Effect.Effect<CoreEnvironment, never, R>,
+) {
   return {
     ...makeApiIdentityHandlers(envSource),
     ...makeApiDomainHandlers(envSource),

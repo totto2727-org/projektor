@@ -1,4 +1,4 @@
-import { Predicate, Effect } from 'effect'
+import { Iterable, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -27,7 +27,7 @@ const requireProjectWriteAccess = async function requireProjectWriteAccess(
   }
 }
 
-export async function hashFeedbackToken(token: string): Promise<string> {
+export const hashFeedbackToken = async function hashFeedbackToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
   return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -114,7 +114,7 @@ const resolveCorsAllowOrigin = function resolveCorsAllowOrigin(
   return allowed && requestOrigin && allowed.includes(requestOrigin) ? requestOrigin : null
 }
 
-export async function submitFeedback(
+export const submitFeedback = async function submitFeedback(
   db: D1Database,
   token: string,
   rawBody: unknown,
@@ -143,7 +143,7 @@ export interface FeedbackView {
   createdAt: number
 }
 
-export async function listFeedback(ctx: ServiceCtx, input: unknown): Promise<FeedbackView[]> {
+export const listFeedback = async function listFeedback(ctx: ServiceCtx, input: unknown): Promise<FeedbackView[]> {
   const parsed = ListFeedbackSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -200,7 +200,10 @@ const requireFeedbackScope = async function requireFeedbackScope(
   return row.project_id
 }
 
-export async function updateFeedbackStatus(ctx: ServiceCtx, input: unknown): Promise<{ ok: true }> {
+export const updateFeedbackStatus = async function updateFeedbackStatus(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ ok: true }> {
   const parsed = UpdateFeedbackSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -237,7 +240,7 @@ interface ConvertFeedbackRow {
   linked_issue_id: string | null
 }
 
-export async function convertFeedbackToIssue(
+export const convertFeedbackToIssue = async function convertFeedbackToIssue(
   ctx: ServiceCtx,
   input: unknown,
 ): Promise<{ id: string; number?: number }> {
@@ -285,7 +288,10 @@ export async function convertFeedbackToIssue(
   )
 }
 
-export async function bulkMarkReviewed(ctx: ServiceCtx, input: unknown): Promise<{ updated: number }> {
+export const bulkMarkReviewed = async function bulkMarkReviewed(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<{ updated: number }> {
   const parsed = BulkFeedbackIdsSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))
@@ -320,7 +326,7 @@ interface BulkConvertFeedbackRow {
   linked_issue_id: string | null
 }
 
-export async function bulkConvertToIssue(
+export const bulkConvertToIssue = async function bulkConvertToIssue(
   ctx: ServiceCtx,
   input: unknown,
 ): Promise<{ id: string; number?: number; convertedCount: number }> {
@@ -397,7 +403,7 @@ export interface FeedbackSourceSummary {
   versions: FeedbackVersionSummary[]
 }
 
-export async function getFeedbackSummary(
+export const getFeedbackSummary = async function getFeedbackSummary(
   ctx: ServiceCtx,
   input: Readonly<{ projectId: string }>,
 ): Promise<FeedbackSourceSummary[]> {
@@ -409,7 +415,7 @@ export async function getFeedbackSummary(
   const results = await Effect.runPromise(feedbackQueries.readFeedbackSummary(ctx.db, ctx.workspaceId, { projectId }))
 
   const bySource = new Map<string, FeedbackSourceSummary>()
-  for (const r of results ?? []) {
+  Iterable.forEach(results ?? [], (r) => {
     let src = bySource.get(r.source_id)
     if (!src) {
       src = { sourceId: r.source_id, sourceName: r.source_name, totalCount: 0, versions: [] }
@@ -424,6 +430,6 @@ export async function getFeedbackSummary(
       avgFiveStar: r.five_star_total > 0 ? r.five_star_avg : null,
       lastSeenAt: r.last_seen_at,
     })
-  }
+  })
   return Array.from(bySource.values())
 }

@@ -2,7 +2,7 @@ import { Effect } from 'effect'
 import type { ReactNode } from 'react'
 
 import { browserRequest, coreResult } from '@/core.ts'
-import { HelpPage } from '@/features/help/HelpPage.tsx'
+import { HelpPage } from '@/features/help/help-page.tsx'
 import { RequestServices } from '@/request.ts'
 import type { Env } from '@/request.ts'
 import {
@@ -15,8 +15,8 @@ import { ScopeError } from '@/server/errors.ts'
 import type { ApiError } from '@/server/errors.ts'
 import type { RequestScope } from '@/server/server-context.ts'
 
-import { ProjectLanding } from './ProjectLanding.tsx'
-import { ProjectList } from './ProjectList.tsx'
+import { ProjectLanding } from './project-landing.tsx'
+import { ProjectList } from './project-list.tsx'
 import { ProjectOverviewSchema, ProjectSummariesSchema } from './schemas.ts'
 
 export function renderProjects(

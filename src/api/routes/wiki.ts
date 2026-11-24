@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { Hono } from 'hono'
 
 import { jsonBody } from '#api/http/body.ts'
@@ -228,12 +228,12 @@ router.get('/changes', async (httpContext) => {
  */
 router.get('/export', (httpContext) => {
   const query = new URLSearchParams()
-  for (const name of ['scope', 'projectId', 'pageId']) {
+  Iterable.forEach(['scope', 'projectId', 'pageId'], (name) => {
     const value = httpContext.req.query(name)
     if (Predicate.isNotNullish(value)) {
       query.set(name, value)
     }
-  }
+  })
   return coreFileRequest(httpContext, `/wiki-export?${query}`)
 })
 

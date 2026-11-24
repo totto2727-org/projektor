@@ -22,7 +22,7 @@ export const RateCounterRequest = Schema.Struct({
 export const LIMITER_TIMEOUT_MS = 500
 
 /** Test names are shared with the native counter fixture, never enabled in production. */
-export function rateLimiterObjectName(
+export const rateLimiterObjectName = function rateLimiterObjectName(
   env: { ENVIRONMENT?: string; RATE_LIMIT_TEST_EPOCH?: string },
   key: string,
 ): string {
@@ -30,7 +30,7 @@ export function rateLimiterObjectName(
   return epoch ? `${epoch}|${key}` : key
 }
 
-export function rateLimitTestPolicy(env: {
+export const rateLimitTestPolicy = function rateLimitTestPolicy(env: {
   ENVIRONMENT?: string
   RATE_LIMIT_TEST_EPOCH?: string
   RATE_LIMIT_TEST_NOW_MS?: string

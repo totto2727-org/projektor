@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { seedFixture, seedToken } from './helpers.ts'
@@ -30,9 +31,9 @@ const parseChallenge = function parseChallenge(header: string | null): Record<st
   const bearer = header as string
   expect(bearer.startsWith('Bearer ')).toBe(true)
   const out: Record<string, string> = {}
-  for (const [, key, value] of bearer.slice(7).matchAll(/([a-z_]+)="((?:[^"\\]|\\.)*)"/g)) {
+  Iterable.forEach(bearer.slice(7).matchAll(/([a-z_]+)="((?:[^"\\]|\\.)*)"/g), ([, key, value]) => {
     out[key] = value.replace(/\\(.)/g, '$1')
-  }
+  })
   return out
 }
 

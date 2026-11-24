@@ -4,12 +4,21 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export function claimFiles(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiClaimFiles']>) {
+export const claimFiles = function claimFiles(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiClaimFiles']>
+) {
   return apiReply(ApiResults.apiClaimFiles, ctx.core.apiClaimFiles(ctx.actor, ctx.workspaceId, ...args))
 }
-export function releaseFiles(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiReleaseFiles']>) {
+export const releaseFiles = function releaseFiles(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiReleaseFiles']>
+) {
   return apiReply(ApiResults.apiReleaseFiles, ctx.core.apiReleaseFiles(ctx.actor, ctx.workspaceId, ...args))
 }
-export function listFileClaims(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiListFileClaims']>) {
+export const listFileClaims = function listFileClaims(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiListFileClaims']>
+) {
   return apiReply(ApiResults.apiListFileClaims, ctx.core.apiListFileClaims(ctx.actor, ctx.workspaceId, ...args))
 }

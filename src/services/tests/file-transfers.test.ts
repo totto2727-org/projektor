@@ -1,3 +1,4 @@
+import { Iterable } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import {
@@ -13,9 +14,9 @@ import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 const fixture = function fixture() {
@@ -251,9 +252,9 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
   })
 
   test('uses finite positive configured quota or the unchanged default', () => {
-    for (const value of [undefined, '', '0', '-1', 'invalid', 'Infinity']) {
+    Iterable.forEach([undefined, '', '0', '-1', 'invalid', 'Infinity'], (value) => {
       expect(storageQuotaBytes({ STORAGE_QUOTA_BYTES: value })).toBe(1024 * 1024 * 1024)
-    }
+    })
     expect(storageQuotaBytes({ STORAGE_QUOTA_BYTES: '4' })).toBe(4)
   })
 })

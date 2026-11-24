@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '#contracts/inputs/wiki.ts'
@@ -71,20 +71,20 @@ const extractWikiSlugFromUrl = function extractWikiSlugFromUrl(url: string): str
   return safeDecodeURIComponent(raw)
 }
 
-export function parseWikiLinkTargets(content: string): ParsedLinkTarget[] {
+export const parseWikiLinkTargets = function parseWikiLinkTargets(content: string): ParsedLinkTarget[] {
   const targets: ParsedLinkTarget[] = []
-  for (const m of content.matchAll(WIKILINK_RE)) {
+  Iterable.forEach(content.matchAll(WIKILINK_RE), (m) => {
     const title = m[1].trim()
     if (title) {
       targets.push({ kind: 'title', title })
     }
-  }
-  for (const m of content.matchAll(MD_LINK_RE)) {
+  })
+  Iterable.forEach(content.matchAll(MD_LINK_RE), (m) => {
     const slug = extractWikiSlugFromUrl(m[1].trim())
     if (slug) {
       targets.push({ kind: 'slug', slug })
     }
-  }
+  })
   return targets
 }
 
@@ -99,7 +99,7 @@ export function parseWikiLinkTargets(content: string): ParsedLinkTarget[] {
  * titles are compared through the stored folds (wiki_pages.title_fold,
  * wiki_links.target_fold), which are always computed here — never with SQL lower().
  */
-export function foldWikiTitle(value: string): string {
+export const foldWikiTitle = function foldWikiTitle(value: string): string {
   return value.normalize('NFC').toLowerCase()
 }
 
@@ -111,7 +111,7 @@ const HEAL_BATCH = 200
  * once a workspace is healed (partial indexes on `fold IS NULL` keep the check cheap).
  * Called before title resolution and by backfill_wiki_links.
  */
-export async function healTitleFolds(ctx: ServiceCtx): Promise<number> {
+export const healTitleFolds = async function healTitleFolds(ctx: ServiceCtx): Promise<number> {
   const [pages, links] = await Promise.all([
     ctx.db
       .prepare('SELECT id, title AS t FROM wiki_pages WHERE workspace_id = ? AND title_fold IS NULL LIMIT ?')
@@ -198,12 +198,12 @@ const resolveTitleTargets = async function resolveTitleTargets(
    * Duplicate titles: the oldest page wins (created_at, then id) — the same order the
    * set-based lifecycle statements use, so both paths agree.
    */
-  for (const row of candidates) {
+  Iterable.forEach(candidates, (row) => {
     const key = foldWikiTitle(row.title)
     if (!byLower.has(key)) {
       byLower.set(key, row.id)
     }
-  }
+  })
   return byLower
 }
 
@@ -239,9 +239,9 @@ const resolveSlugTargets = async function resolveSlugTargets(
         ),
       ),
   )
-  for (const row of direct) {
+  Iterable.forEach(direct, (row) => {
     bySlug.set(row.slug, { id: row.id, title: row.title })
-  }
+  })
 
   // PROJ-483 redirects: an old slug still resolves to its page.
   const missing = unique.filter((slug) => !bySlug.has(slug))
@@ -277,12 +277,12 @@ const resolveSlugTargets = async function resolveSlugTargets(
       ),
   )
   const pageById = new Map(targets.map((t) => [t.id, t]))
-  for (const r of redirects) {
+  Iterable.forEach(redirects, (r) => {
     const page = pageById.get(r.pageId)
     if (page && !bySlug.has(r.oldSlug)) {
       bySlug.set(r.oldSlug, page)
     }
-  }
+  })
   return bySlug
 }
 
@@ -317,7 +317,7 @@ const resolveTargetsFromMaps = function resolveTargetsFromMaps(
    * same target multiple times only gets one wiki_links row.
    */
   const resolved = new Map<string, ResolvedLink>()
-  for (const t of targets) {
+  Iterable.forEach(targets, (t) => {
     if (isTitleTarget(t)) {
       const targetPageId = titleMatches.get(foldWikiTitle(t.title)) ?? null
       const key = targetPageId ?? `title:${foldWikiTitle(t.title)}`
@@ -341,7 +341,7 @@ const resolveTargetsFromMaps = function resolveTargetsFromMaps(
         })
       }
     }
-  }
+  })
   return [...resolved.values()]
 }
 
@@ -391,9 +391,9 @@ const resolveLinkTargetsForPages = async function resolveLinkTargetsForPages(
     ),
   ])
   const byPage = new Map<string, ResolvedLink[]>()
-  for (const p of pages) {
+  Iterable.forEach(pages, (p) => {
     byPage.set(p.id, resolveTargetsFromMaps(p.targets, titleMatches, slugMatches))
-  }
+  })
   return byPage
 }
 
@@ -414,7 +414,7 @@ const LINK_INSERT_CHUNK_SIZE = 11 // 9 columns × 11 = 99 bound params (D1 cap: 
  * by the time these statements exist there is nothing left to throw between them and the
  * delete — the whole write becomes one atomic D1 batch when passed to ctx.db.batch().
  */
-export async function buildWikiLinksReindexStatements(
+export const buildWikiLinksReindexStatements = async function buildWikiLinksReindexStatements(
   ctx: ServiceCtx,
   orm: Orm,
   sourcePageId: string,
@@ -492,7 +492,7 @@ function buildLinkWriteStatements(
  * patchWikiPage call buildWikiLinksReindexStatements directly instead, to include these
  * statements in the same batch as the content write/revision/FTS reindex (PROJ-511).
  */
-export async function reindexWikiLinks(
+export const reindexWikiLinks = async function reindexWikiLinks(
   ctx: ServiceCtx,
   orm: Orm,
   sourcePageId: string,
@@ -534,7 +534,10 @@ export interface BackfillWikiLinksResult {
  *    resumable: callers loop, passing back `nextCursor`, until it comes back null.
  *  - `updatedSince` limits the scope to pages touched at/after that time.
  */
-export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promise<BackfillWikiLinksResult> {
+export const backfillWikiLinks = async function backfillWikiLinks(
+  ctx: ServiceCtx,
+  input?: unknown,
+): Promise<BackfillWikiLinksResult> {
   if (!isWorkspaceAdmin(ctx.role)) {
     throw new ForbiddenError('Insufficient permissions')
   }
@@ -588,9 +591,9 @@ export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promi
   const resolvedByPage = await resolveLinkTargetsForPages(orm, ctx.workspaceId, parsedPages)
 
   const statements: D1PreparedStatement[] = []
-  for (const p of parsedPages) {
+  Iterable.forEach(parsedPages, (p) => {
     statements.push(...buildLinkWriteStatements(ctx, p.id, resolvedByPage.get(p.id) ?? []))
-  }
+  })
   /*
    * One batch for the whole chunk — each individual statement already respects D1's
    * per-statement bound-param cap (buildLinkWriteStatements/LINK_INSERT_CHUNK_SIZE), and
@@ -612,7 +615,10 @@ export async function backfillWikiLinks(ctx: ServiceCtx, input?: unknown): Promi
  * level for D1 connections that enforce FKs, but PROJ-407 established that isn't
  * guaranteed for every connection — mirrors deleteWikiPageAttachments's rationale).
  */
-export async function deleteWikiLinksForPages(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
+export const deleteWikiLinksForPages = async function deleteWikiLinksForPages(
+  ctx: ServiceCtx,
+  pageIds: string[],
+): Promise<void> {
   await inChunks(pageIds, async (chunk) => {
     const placeholders = chunk.map(() => '?').join(',')
     await ctx.db
@@ -633,7 +639,10 @@ export async function deleteWikiLinksForPages(ctx: ServiceCtx, pageIds: string[]
  * target_page_id IS NULL). Only nulls target_page_id — target_title is left untouched
  * so the link still shows up as broken with its original display text.
  */
-export async function clearIncomingLinkTargets(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
+export const clearIncomingLinkTargets = async function clearIncomingLinkTargets(
+  ctx: ServiceCtx,
+  pageIds: string[],
+): Promise<void> {
   await inChunks(pageIds, async (chunk) => {
     const placeholders = chunk.map(() => '?').join(',')
     await ctx.db
@@ -656,7 +665,7 @@ export async function clearIncomingLinkTargets(ctx: ServiceCtx, pageIds: string[
  * isn't otherwise batched. Title matching is case-folded via foldWikiTitle (the ONE place
  * PROJ-818 will change); slug matching is exact, mirroring resolveSlugTargets.
  */
-export function buildResolveIncomingLinksStatement(
+export const buildResolveIncomingLinksStatement = function buildResolveIncomingLinksStatement(
   ctx: ServiceCtx,
   page: Readonly<{ id: string; title: string; slug: string }>,
 ): D1PreparedStatement {
@@ -690,7 +699,7 @@ export function buildResolveIncomingLinksStatement(
  * this one only touches target_page_id = page.id), so the two can run in either order in
  * the same batch.
  */
-export function buildUnresolveStaleIncomingLinksStatement(
+export const buildUnresolveStaleIncomingLinksStatement = function buildUnresolveStaleIncomingLinksStatement(
   ctx: ServiceCtx,
   page: Readonly<{ id: string; title: string; slug: string }>,
   old: Readonly<{ title: string; slug: string }>,
@@ -731,7 +740,10 @@ function repointSubquery(workspaceParam: string): string {
  * live page they still match (duplicate title, same slug re-used), else unresolved.
  * Run BEFORE the pages are deleted (their FK SET NULL would clear target_page_id first).
  */
-export async function repointIncomingLinks(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
+export const repointIncomingLinks = async function repointIncomingLinks(
+  ctx: ServiceCtx,
+  pageIds: string[],
+): Promise<void> {
   await inChunks(pageIds, async (chunk) => {
     const placeholders = chunk.map((_, i) => `?${i + 2}`).join(',')
     await ctx.db
@@ -750,7 +762,10 @@ export async function repointIncomingLinks(ctx: ServiceCtx, pageIds: string[]): 
  * warnings ("N pages link here"). Must be read BEFORE the delete runs — target_page_id
  * is ON DELETE SET NULL, so the count would read as 0 afterwards.
  */
-export async function countBacklinkSources(ctx: ServiceCtx, pageIds: string[]): Promise<number> {
+export const countBacklinkSources = async function countBacklinkSources(
+  ctx: ServiceCtx,
+  pageIds: string[],
+): Promise<number> {
   if (pageIds.length === 0) {
     return 0
   }
@@ -817,7 +832,7 @@ export interface WikiBacklink {
  * services/wiki.ts#getWikiBacklinks after it resolves idOrSlug and checks the caller
  * can see the target page itself.
  */
-export async function backlinksForResolvedPage(
+export const backlinksForResolvedPage = async function backlinksForResolvedPage(
   ctx: ServiceCtx,
   page: Readonly<{ id: string }>,
 ): Promise<WikiBacklink[]> {
@@ -898,7 +913,10 @@ export interface BrokenWikiLink {
 }
 
 /** All unresolved (target_page_id null) wiki_links in the workspace, optionally scoped to a project. */
-export async function listBrokenWikiLinks(ctx: ServiceCtx, input: unknown): Promise<BrokenWikiLink[]> {
+export const listBrokenWikiLinks = async function listBrokenWikiLinks(
+  ctx: ServiceCtx,
+  input: unknown,
+): Promise<BrokenWikiLink[]> {
   const parsed = ListBrokenWikiLinksInputSchema.safeParse(input)
   if (!parsed.success) {
     throw new ValidationError(flattenError(parsed.error))

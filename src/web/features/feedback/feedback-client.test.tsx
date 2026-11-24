@@ -10,12 +10,12 @@ import {
   revokeFeedbackSource,
   rotateFeedbackSourceToken,
 } from './actions.ts'
-import FeedbackList from './FeedbackList.tsx'
-import type { Feedback } from './FeedbackList.tsx'
-import FeedbackSourceDetail from './FeedbackSourceDetail.tsx'
-import FeedbackSourceSettings from './FeedbackSourceSettings.tsx'
-import type { FeedbackSource } from './FeedbackSourceSettings.tsx'
-import NewSourceModal from './NewSourceModal.tsx'
+import FeedbackList from './feedback-list.tsx'
+import type { Feedback } from './feedback-list.tsx'
+import FeedbackSourceDetail from './feedback-source-detail.tsx'
+import FeedbackSourceSettings from './feedback-source-settings.tsx'
+import type { FeedbackSource } from './feedback-source-settings.tsx'
+import NewSourceModal from './new-source-modal.tsx'
 
 vi.mock('../wiki/navigation', () => ({ navigateFeature: vi.fn() }))
 

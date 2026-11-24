@@ -27,7 +27,7 @@ const liveCutoff = (): number => Math.floor(Date.now() / 1000) - SESSION_TTL_SEC
 const DEFAULT_AGENT_WIP_LIMIT = 3
 
 // The project's agent WIP cap (its own agent_wip_limit, else the default).
-export async function fetchAgentWipCap(
+export const fetchAgentWipCap = async function fetchAgentWipCap(
   orm: ReturnType<typeof drizzle>,
   ctx: ServiceCtx,
   projectId: string,
@@ -130,7 +130,10 @@ const touchAgentHeartbeat = async function touchAgentHeartbeat(
  * file-claims.ts: the caller here has NOT already confirmed liveness the way
  * claimIssue's touchAgentHeartbeat call site has, so the guard must be explicit.
  */
-export function buildTouchAgentHeartbeatIfLiveStatement(ctx: ServiceCtx, agentSessionId: string): D1PreparedStatement {
+export const buildTouchAgentHeartbeatIfLiveStatement = function buildTouchAgentHeartbeatIfLiveStatement(
+  ctx: ServiceCtx,
+  agentSessionId: string,
+): D1PreparedStatement {
   const orm = drizzle(ctx.db, { schema })
   const query = orm
     .update(schema.agentSessions)
@@ -203,7 +206,7 @@ const reclaimStaleLeaseOrThrow = async function reclaimStaleLeaseOrThrow(
  *      and the count can't be undercounted.
  * A lease whose owning session has gone stale is reclaimed transparently first.
  */
-export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
+export const claimIssue = async function claimIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ClaimIssueSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -288,7 +291,7 @@ export async function claimIssue(ctx: ServiceCtx, raw: unknown) {
 }
 
 /** Release the active lease on an issue, optionally only if held by `agentId`. */
-export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
+export const releaseIssue = async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
   const result = ReleaseIssueSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))
@@ -341,7 +344,10 @@ export async function releaseIssue(ctx: ServiceCtx, raw: unknown) {
  * convention) so the caller (updateIssue) folds it into its single ctx.db.batch() instead
  * of spending an extra D1 round trip.
  */
-export function buildReleaseLeaseForClosedIssueStatement(ctx: ServiceCtx, issueId: string): D1PreparedStatement {
+export const buildReleaseLeaseForClosedIssueStatement = function buildReleaseLeaseForClosedIssueStatement(
+  ctx: ServiceCtx,
+  issueId: string,
+): D1PreparedStatement {
   const orm = drizzle(ctx.db, { schema })
   const now = Math.floor(Date.now() / 1000)
   const query = orm
@@ -359,7 +365,10 @@ export function buildReleaseLeaseForClosedIssueStatement(ctx: ServiceCtx, issueI
 }
 
 /** Release every active lease held by an agent session (called when it ends). */
-export async function releaseLeasesForAgent(ctx: ServiceCtx, agentSessionId: string): Promise<void> {
+export const releaseLeasesForAgent = async function releaseLeasesForAgent(
+  ctx: ServiceCtx,
+  agentSessionId: string,
+): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
   const now = Math.floor(Date.now() / 1000)
 
@@ -379,7 +388,7 @@ export async function releaseLeasesForAgent(ctx: ServiceCtx, agentSessionId: str
  * The set of issue ids currently held by a LIVE lease (active row + live
  * session). Used by get_prioritized_issues' excludeClaimed filter.
  */
-export async function liveLeasedIssueIds(ctx: ServiceCtx): Promise<Set<string>> {
+export const liveLeasedIssueIds = async function liveLeasedIssueIds(ctx: ServiceCtx): Promise<Set<string>> {
   const orm = drizzle(ctx.db, { schema })
   const rows = await orm
     .select({ issueId: schema.issueLeases.issueId })
@@ -406,7 +415,10 @@ export async function liveLeasedIssueIds(ctx: ServiceCtx): Promise<Set<string>> 
  * claim the issue, and mark it done directly if the gate trusted that label.
  * Holding a lease at all is what triggers the gate, not the declared kind.
  */
-export async function issueHasLiveAgentLease(ctx: ServiceCtx, issueId: string): Promise<boolean> {
+export const issueHasLiveAgentLease = async function issueHasLiveAgentLease(
+  ctx: ServiceCtx,
+  issueId: string,
+): Promise<boolean> {
   const orm = drizzle(ctx.db, { schema })
   const row = await orm
     .select({ id: schema.issueLeases.id })
@@ -432,7 +444,10 @@ export async function issueHasLiveAgentLease(ctx: ServiceCtx, issueId: string): 
  * agent-worked issues (PROJ-289) so closing ordinary human/duplicate/won't-fix
  * issues isn't blocked for a report no agent was ever going to write.
  */
-export async function issueEverHadAgentLease(ctx: ServiceCtx, issueId: string): Promise<boolean> {
+export const issueEverHadAgentLease = async function issueEverHadAgentLease(
+  ctx: ServiceCtx,
+  issueId: string,
+): Promise<boolean> {
   const orm = drizzle(ctx.db, { schema })
   const row = await orm
     .select({ id: schema.issueLeases.id })
@@ -455,7 +470,10 @@ export async function issueEverHadAgentLease(ctx: ServiceCtx, issueId: string): 
  * agentSessionId entirely, same limitation the ticket accepts (PROJ-375: no
  * trusted CI/webhook verification here, audit-after-the-fact only).
  */
-export async function isLiveAgentSessionId(ctx: ServiceCtx, agentSessionId: string): Promise<boolean> {
+export const isLiveAgentSessionId = async function isLiveAgentSessionId(
+  ctx: ServiceCtx,
+  agentSessionId: string,
+): Promise<boolean> {
   const orm = drizzle(ctx.db, { schema })
   const row = await orm
     .select({ id: schema.agentSessions.id })
@@ -483,7 +501,7 @@ export async function isLiveAgentSessionId(ctx: ServiceCtx, agentSessionId: stri
  * `includeStale` is set, restoring the pre-PROJ-932 behaviour of returning
  * every unreleased lease regardless of session health.
  */
-export async function listIssueLeases(ctx: ServiceCtx, raw: unknown) {
+export const listIssueLeases = async function listIssueLeases(ctx: ServiceCtx, raw: unknown) {
   const result = ListIssueLeasesSchema.safeParse(raw)
   if (!result.success) {
     throw new ValidationError(flattenError(result.error))

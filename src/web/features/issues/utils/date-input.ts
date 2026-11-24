@@ -11,7 +11,7 @@ import { formatTimestampDate } from '@/features/timestamp.ts'
  */
 
 /** "YYYY-MM-DD" → unix seconds at local midnight; empty/invalid → null. */
-export function dateInputToUnix(value: string): number | null {
+export const dateInputToUnix = function dateInputToUnix(value: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
   if (!m) {
     return null
@@ -21,7 +21,7 @@ export function dateInputToUnix(value: string): number | null {
 }
 
 /** unix seconds → "YYYY-MM-DD" in local time; null → "". */
-export function unixToDateInput(ts: number | null | undefined): string {
+export const unixToDateInput = function unixToDateInput(ts: number | null | undefined): string {
   if (ts === null || Predicate.isNullish(ts)) {
     return ''
   }
@@ -33,7 +33,7 @@ export function unixToDateInput(ts: number | null | undefined): string {
 }
 
 /** unix seconds → a UTC date for display; null → "—". */
-export function formatUnixDate(ts: number | null | undefined): string {
+export const formatUnixDate = function formatUnixDate(ts: number | null | undefined): string {
   if (ts === null || Predicate.isNullish(ts)) {
     return '—'
   }

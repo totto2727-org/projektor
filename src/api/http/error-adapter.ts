@@ -13,7 +13,7 @@ import {
 } from '#contracts/errors.ts'
 import type { HonoEnv } from '#types'
 
-export function serviceErrToResponse(httpContext: Context<HonoEnv>, err: unknown) {
+export const serviceErrToResponse = function serviceErrToResponse(httpContext: Context<HonoEnv>, err: unknown) {
   if (err instanceof CorePublicError) {
     if (Predicate.isNotNullish(err.retryAfter)) {
       httpContext.header('Retry-After', String(err.retryAfter))

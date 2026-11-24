@@ -4,7 +4,7 @@ import type { CoreRpcShape } from '#core/contract.ts'
 import { apiReply } from './reply.ts'
 import type { ApiOperationArgs, ApiServiceCtx } from './types.ts'
 
-export function createFeedbackSource(
+export const createFeedbackSource = function createFeedbackSource(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiCreateFeedbackSource']>
 ) {
@@ -13,7 +13,7 @@ export function createFeedbackSource(
     ctx.core.apiCreateFeedbackSource(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function listFeedbackSources(
+export const listFeedbackSources = function listFeedbackSources(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiListFeedbackSources']>
 ) {
@@ -22,10 +22,13 @@ export function listFeedbackSources(
     ctx.core.apiListFeedbackSources(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function getFeedbackSource(ctx: ApiServiceCtx, ...args: ApiOperationArgs<CoreRpcShape['apiGetFeedbackSource']>) {
+export const getFeedbackSource = function getFeedbackSource(
+  ctx: ApiServiceCtx,
+  ...args: ApiOperationArgs<CoreRpcShape['apiGetFeedbackSource']>
+) {
   return apiReply(ApiResults.apiGetFeedbackSource, ctx.core.apiGetFeedbackSource(ctx.actor, ctx.workspaceId, ...args))
 }
-export function updateFeedbackSource(
+export const updateFeedbackSource = function updateFeedbackSource(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiUpdateFeedbackSource']>
 ) {
@@ -34,7 +37,7 @@ export function updateFeedbackSource(
     ctx.core.apiUpdateFeedbackSource(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function rotateFeedbackSourceToken(
+export const rotateFeedbackSourceToken = function rotateFeedbackSourceToken(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiRotateFeedbackSourceToken']>
 ) {
@@ -43,7 +46,7 @@ export function rotateFeedbackSourceToken(
     ctx.core.apiRotateFeedbackSourceToken(ctx.actor, ctx.workspaceId, ...args),
   )
 }
-export function revokeFeedbackSource(
+export const revokeFeedbackSource = function revokeFeedbackSource(
   ctx: ApiServiceCtx,
   ...args: ApiOperationArgs<CoreRpcShape['apiRevokeFeedbackSource']>
 ) {

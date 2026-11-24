@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Iterable, Effect } from 'effect'
 import { isValidElement } from 'react'
 import type { ComponentProps, ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -15,7 +15,7 @@ import { testEnvironment } from '@/server/test/resources.ts'
 import { createTestDatabase } from '@/test/database.ts'
 
 import { renderWiki } from './server.tsx'
-import { WikiPageClient } from './WikiPageClient.tsx'
+import { WikiPageClient } from './wiki-page-client.tsx'
 
 vi.mock('./actions', () => ({}))
 vi.mock('../../attachment-actions', () => ({
@@ -60,9 +60,9 @@ function initialData(rendered: ReactElement) {
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 async function fixture(currentScope: RequestScope = scope) {
   resetAuthCachesForTests()

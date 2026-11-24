@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Iterable, Predicate } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { addComment, deleteComment, updateComment } from '#commands/comments.ts'
@@ -14,9 +14,9 @@ import { createTestDatabase } from '@/test/database.ts'
 
 const databases: ReturnType<typeof createTestDatabase>[] = []
 afterEach(() => {
-  for (const database of databases.splice(0)) {
+  Iterable.forEach(databases.splice(0), (database) => {
     database.close()
-  }
+  })
 })
 
 const fixture = function fixture() {
@@ -166,9 +166,9 @@ describe('bounded and atomic shared mutations', () => {
       (id,workspace_id,user_id,page_id,page_slug,page_title,action,summary,created_at)
       VALUES (?, ?, ?, 'page','page','Page','updated','Changed',1)`)
     const ids = Array.from({ length: count }, (_, i) => `n${i}`)
-    for (const id of ids) {
+    Iterable.forEach(ids, (id) => {
       insert.run(id, 'w', 'u')
-    }
+    })
     insert.run('foreign-user', 'w', 'other')
     insert.run('foreign-tenant', 'other', 'u')
     await markWikiNotificationsRead(f.ctx, { ids })

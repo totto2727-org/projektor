@@ -5,8 +5,8 @@ import { RequestServices } from '@/request.ts'
 import { ScopeError } from '@/server/errors.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 
-import { FeedbackDetailClient } from './FeedbackDetailClient.tsx'
-import { FeedbackGridClient } from './FeedbackGridClient.tsx'
+import { FeedbackDetailClient } from './feedback-detail-client.tsx'
+import { FeedbackGridClient } from './feedback-grid-client.tsx'
 import { FeedbackIndexSchema, FeedbackDetailSchema } from './schemas.ts'
 
 function NeedProject() {

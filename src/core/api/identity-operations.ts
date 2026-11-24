@@ -18,7 +18,9 @@ const Workspace = Schema.Struct({ id: Schema.String, name: Schema.String, slug: 
 const Workspaces = Schema.Array(Workspace)
 
 /** These named methods never accept caller-supplied user IDs or roles. */
-export function makeApiIdentityHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
+export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
+  envSource: Effect.Effect<CoreEnvironment, never, R>,
+) {
   const attempt = function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>) {
     return Effect.flatMap(envSource, (env) =>
       Effect.tryPromise({ catch: publicDomainFailure, try: () => operation(env) }),

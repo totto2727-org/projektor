@@ -251,7 +251,11 @@ app.get('*', async (httpContext) => {
 })
 
 /** The physical cron remains API-owned, with persistent maintenance inside Core. */
-export async function scheduled(_controller: ScheduledController, env: ApiEnv, ctx: ExecutionContext): Promise<void> {
+export const scheduled = async function scheduled(
+  _controller: ScheduledController,
+  env: ApiEnv,
+  ctx: ExecutionContext,
+): Promise<void> {
   ctx.waitUntil(Effect.runPromise(decodeCoreReply(Schema.Null, makeCoreClient(env.CORE).apiMaintenance())))
 }
 

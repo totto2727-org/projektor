@@ -4,7 +4,7 @@ import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
 
-export function listTaskStatuses(db: D1Database, workspaceId: string) {
+export const listTaskStatuses = function listTaskStatuses(db: D1Database, workspaceId: string) {
   return queryEffect('listTaskStatuses', async () => {
     const rows = await drizzle(db, { schema })
       .select()
