@@ -13,7 +13,7 @@ import {
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import { capPage, OMISSION_NOTE, shapeIssue, splitShapeOpts, toPage, VIEW_FIELDS_PROPS } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 import { bodyPreview, ISSUE_BODY_MAX_CHARS, LIST_BODY_MAX_CHARS, windowText } from './windowing.ts'
@@ -67,87 +67,56 @@ export const issuesTools: MCPTool[] = [
       '(a zero rollup is omitted unless verbose:true). ' +
       OMISSION_NOTE,
     inputSchema: objectInputSchema({
-      projectId: {
-        type: 'string',
-        description: 'UUID of the project, or a project key like PROJ',
-      },
+      projectId: describedInputProperty('string', 'UUID of the project, or a project key like PROJ'),
       status: {
         type: 'string',
         enum: ['backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled'],
       },
-      statusId: { type: 'string', description: 'Filter by task status ID' },
-      statusIds: {
-        type: 'string',
-        description: 'Comma-separated task status IDs (OR-matched)',
-      },
+      statusId: describedInputProperty('string', 'Filter by task status ID'),
+      statusIds: describedInputProperty('string', 'Comma-separated task status IDs (OR-matched)'),
       category: {
         type: 'string',
         enum: ['todo', 'in_progress', 'done', 'cancelled'],
         description: 'Filter by status category',
       },
       priority: { type: 'string', enum: ['urgent', 'high', 'medium', 'low', 'none'] },
-      priorities: {
-        type: 'string',
-        description: 'Comma-separated priorities (OR-matched), e.g. urgent,high',
-      },
-      assignee: {
-        type: 'string',
-        description: 'Filter by assignee user ID, or "me" for the calling user',
-      },
-      parentId: {
-        type: 'string',
-        description: 'Filter by parent issue ID, or a ref like PROJ-42 (returns direct children only)',
-      },
-      noParent: {
-        type: 'boolean',
-        description: 'Only return issues with no parent (top-level issues)',
-      },
-      typeId: { type: 'string', description: 'Filter by task type ID' },
-      excludeTypeIds: {
-        type: 'string',
-        description: 'Comma-separated task type IDs to exclude (e.g. the epic type)',
-      },
-      sprintId: { type: 'string', description: 'Filter by sprint ID' },
-      cfKey: { type: 'string', description: 'Custom field key to filter by' },
+      priorities: describedInputProperty('string', 'Comma-separated priorities (OR-matched), e.g. urgent,high'),
+      assignee: describedInputProperty('string', 'Filter by assignee user ID, or "me" for the calling user'),
+      parentId: describedInputProperty(
+        'string',
+        'Filter by parent issue ID, or a ref like PROJ-42 (returns direct children only)',
+      ),
+      noParent: describedInputProperty('boolean', 'Only return issues with no parent (top-level issues)'),
+      typeId: describedInputProperty('string', 'Filter by task type ID'),
+      excludeTypeIds: describedInputProperty('string', 'Comma-separated task type IDs to exclude (e.g. the epic type)'),
+      sprintId: describedInputProperty('string', 'Filter by sprint ID'),
+      cfKey: describedInputProperty('string', 'Custom field key to filter by'),
       cfOp: {
         type: 'string',
         enum: ['eq', 'gt', 'gte', 'lt', 'lte'],
         description: 'Comparison operator for the custom field filter (requires cfKey)',
       },
-      cfValue: {
-        type: 'string',
-        description: 'Value to compare the custom field against (requires cfKey)',
-      },
-      completedAfter: {
-        type: 'number',
-        description: 'Only issues marked completed at or after this epoch-seconds time',
-      },
-      completedBefore: {
-        type: 'number',
-        description: 'Only issues marked completed at or before this epoch-seconds time',
-      },
-      updatedAfter: {
-        type: 'number',
-        description: 'Only issues last edited at or after this epoch-seconds time',
-      },
-      updatedBefore: {
-        type: 'number',
-        description: 'Only issues last edited at or before this epoch-seconds time',
-      },
-      needsAudit: {
-        type: 'boolean',
-        description:
-          'Filter to agent-initiated done-closures flagged for human audit — true for ' +
+      cfValue: describedInputProperty('string', 'Value to compare the custom field against (requires cfKey)'),
+      completedAfter: describedInputProperty(
+        'number',
+        'Only issues marked completed at or after this epoch-seconds time',
+      ),
+      completedBefore: describedInputProperty(
+        'number',
+        'Only issues marked completed at or before this epoch-seconds time',
+      ),
+      updatedAfter: describedInputProperty('number', 'Only issues last edited at or after this epoch-seconds time'),
+      updatedBefore: describedInputProperty('number', 'Only issues last edited at or before this epoch-seconds time'),
+      needsAudit: describedInputProperty(
+        'boolean',
+        'Filter to agent-initiated done-closures flagged for human audit — true for ' +
           'unverifiable evidence, false for externally-checkable evidence',
-      },
-      includeRollups: {
-        type: 'boolean',
-        description: 'Attach a `rollup` of child status counts (total/byStatus/done/remaining) to each returned item',
-      },
-      includeBody: {
-        type: 'boolean',
-        description: 'Include the `body` field on each item (omitted by default)',
-      },
+      ),
+      includeRollups: describedInputProperty(
+        'boolean',
+        'Attach a `rollup` of child status counts (total/byStatus/done/remaining) to each returned item',
+      ),
+      includeBody: describedInputProperty('boolean', 'Include the `body` field on each item (omitted by default)'),
       cursor: {
         type: ['string', 'integer'],
         description: "Pagination cursor: pass the previous page's `next` unchanged",
@@ -189,11 +158,8 @@ export const issuesTools: MCPTool[] = [
       `\`bodyTotalChars\` and \`next\` — pass \`next\` back as \`cursor\` for the rest. ${OMISSION_NOTE}`,
     inputSchema: objectInputSchema({
       id: { type: 'string' },
-      ref: { type: 'string', description: 'Project key and number, e.g. PROJ-42' },
-      cursor: {
-        type: 'string',
-        description: "Continue a long body: pass the previous result's `next` unchanged",
-      },
+      ref: describedInputProperty('string', 'Project key and number, e.g. PROJ-42'),
+      cursor: describedInputProperty('string', "Continue a long body: pass the previous result's `next` unchanged"),
       ...VIEW_FIELDS_PROPS,
     }),
     annotations: READ,
@@ -238,10 +204,7 @@ export const issuesTools: MCPTool[] = [
         items: { type: 'string' },
         description: 'Issue UUIDs (max 50 combined with refs)',
       },
-      includeBody: {
-        type: 'boolean',
-        description: "Include each issue's `body` (omitted by default)",
-      },
+      includeBody: describedInputProperty('boolean', "Include each issue's `body` (omitted by default)"),
       ...BODY_CHARS_PROP,
       ...VIEW_FIELDS_PROPS,
     }),
@@ -271,10 +234,7 @@ export const issuesTools: MCPTool[] = [
       return createIssue(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['projectId', 'title'], {
-      projectId: {
-        type: 'string',
-        description: 'UUID of the project, or a project key like PROJ',
-      },
+      projectId: describedInputProperty('string', 'UUID of the project, or a project key like PROJ'),
       title: { type: 'string' },
       body: { type: 'string' },
       priority: { type: 'string', enum: ['urgent', 'high', 'medium', 'low', 'none'] },
@@ -282,14 +242,14 @@ export const issuesTools: MCPTool[] = [
         type: 'string',
         enum: ['backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled'],
       },
-      statusId: { type: 'string', description: 'UUID of the task status to assign' },
-      assigneeId: { type: 'string', description: 'UUID of the user to assign' },
+      statusId: describedInputProperty('string', 'UUID of the task status to assign'),
+      assigneeId: describedInputProperty('string', 'UUID of the user to assign'),
       labels: { type: 'array', items: { type: 'string' } },
-      parentId: {
-        type: 'string',
-        description: 'UUID of the parent issue, or a ref like PROJ-42 (optional; max depth 5)',
-      },
-      typeId: { type: 'string', description: 'UUID of the task type to assign' },
+      parentId: describedInputProperty(
+        'string',
+        'UUID of the parent issue, or a ref like PROJ-42 (optional; max depth 5)',
+      ),
+      typeId: describedInputProperty('string', 'UUID of the task type to assign'),
     }),
     name: 'create_issue',
   },
@@ -309,7 +269,7 @@ export const issuesTools: MCPTool[] = [
       return updateIssue(ctx, id, fields)
     },
     inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'UUID of the issue, or a ref like PROJ-42' },
+      id: describedInputProperty('string', 'UUID of the issue, or a ref like PROJ-42'),
       title: { type: 'string' },
       body: { type: 'string' },
       status: {
@@ -330,10 +290,10 @@ export const issuesTools: MCPTool[] = [
         description: 'Set or clear the parent issue — UUID or ref like PROJ-42 (null to remove)',
       },
       typeId: { type: 'string', nullable: true },
-      agentSessionId: {
-        type: 'string',
-        description: 'Your agent session id (from register_agent) — identifies this update as agent-initiated',
-      },
+      agentSessionId: describedInputProperty(
+        'string',
+        'Your agent session id (from register_agent) — identifies this update as agent-initiated',
+      ),
       completionReport: {
         type: 'object',
         description: 'Required when an agent moves an issue into in_review; also gates the done transition',
@@ -354,10 +314,10 @@ export const issuesTools: MCPTool[] = [
     },
     inputSchema: requiredObjectInputSchema(['query'], {
       query: { type: 'string', minLength: 1 },
-      projectId: {
-        type: 'string',
-        description: 'Restrict search to a specific project — UUID or project key like PROJ',
-      },
+      projectId: describedInputProperty(
+        'string',
+        'Restrict search to a specific project — UUID or project key like PROJ',
+      ),
       limit: { type: 'number', default: 20, description: 'Max 50' },
     }),
     name: 'search_issues',
@@ -373,7 +333,7 @@ export const issuesTools: MCPTool[] = [
       return deleteIssue(ctx, id)
     },
     inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'UUID of the issue, or a ref like PROJ-42' },
+      id: describedInputProperty('string', 'UUID of the issue, or a ref like PROJ-42'),
     }),
     name: 'delete_issue',
   },
@@ -412,10 +372,10 @@ export const issuesTools: MCPTool[] = [
           'Include issues that fail the definition-of-ready check, annotated with ' +
           'needsGrooming and missingCriteria (default false)',
       },
-      projectId: {
-        type: 'string',
-        description: "Scope ranking to a single project's issues (default: workspace-wide, all visible projects)",
-      },
+      projectId: describedInputProperty(
+        'string',
+        "Scope ranking to a single project's issues (default: workspace-wide, all visible projects)",
+      ),
     }),
     name: 'get_prioritized_issues',
   },

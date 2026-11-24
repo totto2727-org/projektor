@@ -4,7 +4,7 @@ import * as wikiService from '#api/services/wiki.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import { capPage, toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 import { TYPE_FILTER_DESCRIPTION, INCLUDE_WORKSPACE_PAGES_PROPERTY } from './wiki-tool-fields.ts'
@@ -20,12 +20,9 @@ export const wikiReadTools: MCPTool[] = [
       return wikiService.listWikiPages(ctx, input)
     },
     inputSchema: objectInputSchema({
-      parentId: { type: 'string', description: 'Filter to children of this page ID' },
-      projectId: { type: 'string', description: 'Filter to pages belonging to this project ID' },
-      type: {
-        type: 'string',
-        description: TYPE_FILTER_DESCRIPTION,
-      },
+      parentId: describedInputProperty('string', 'Filter to children of this page ID'),
+      projectId: describedInputProperty('string', 'Filter to pages belonging to this project ID'),
+      type: describedInputProperty('string', TYPE_FILTER_DESCRIPTION),
       status: {
         type: 'string',
         enum: ['draft', 'current', 'stale', 'deprecated'],
@@ -80,19 +77,10 @@ export const wikiReadTools: MCPTool[] = [
       query: { type: 'string' },
       limit: { type: 'number', default: 10 },
       offset: { type: 'number', default: 0 },
-      cursor: {
-        type: 'string',
-        description: "Pass the previous page's `next` unchanged (replaces offset)",
-      },
-      projectId: { type: 'string', description: 'Restrict search to this project ID' },
-      updatedSince: {
-        type: 'number',
-        description: 'Unix seconds — only return pages updated at or after this time',
-      },
-      type: {
-        type: 'string',
-        description: TYPE_FILTER_DESCRIPTION,
-      },
+      cursor: describedInputProperty('string', "Pass the previous page's `next` unchanged (replaces offset)"),
+      projectId: describedInputProperty('string', 'Restrict search to this project ID'),
+      updatedSince: describedInputProperty('number', 'Unix seconds — only return pages updated at or after this time'),
+      type: describedInputProperty('string', TYPE_FILTER_DESCRIPTION),
       tags: {
         type: ['array', 'string'],
         items: { type: 'string' },
@@ -170,11 +158,8 @@ export const wikiReadTools: MCPTool[] = [
         default: WIKI_DEFAULT_MAX_CHARS,
         description: `Max characters of content per call (1-${WIKI_MAX_CHARS})`,
       },
-      cursor: { type: 'string', description: "Pass the previous window's `next` unchanged" },
-      section: {
-        type: 'string',
-        description: "Return only this section (a heading's text or slug, from `outline`)",
-      },
+      cursor: describedInputProperty('string', "Pass the previous window's `next` unchanged"),
+      section: describedInputProperty('string', "Return only this section (a heading's text or slug, from `outline`)"),
     }),
     name: 'get_wiki_page',
   },

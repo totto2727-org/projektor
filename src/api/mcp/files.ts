@@ -8,7 +8,7 @@ import {
 import { REVIEW_STATUSES } from '#contracts/review-targets.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
-import { requiredObjectInputSchema } from './input-schema.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 /*
@@ -65,9 +65,9 @@ export const filesTools: MCPTool[] = [
       kind: { type: 'string', enum: ['wiki_ref', 'url'] },
       entityType: { type: 'string', enum: ['issue', 'wiki_page'] },
       entityId: { type: 'string' },
-      wikiPageId: { type: 'string', description: "Required when kind is 'wiki_ref'" },
-      url: { type: 'string', description: "Required when kind is 'url'" },
-      label: { type: 'string', description: "Optional display label when kind is 'url'" },
+      wikiPageId: describedInputProperty('string', "Required when kind is 'wiki_ref'"),
+      url: describedInputProperty('string', "Required when kind is 'url'"),
+      label: describedInputProperty('string', "Optional display label when kind is 'url'"),
     }),
     name: 'create_link_attachment',
   },

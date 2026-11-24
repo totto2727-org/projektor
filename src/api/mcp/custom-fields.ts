@@ -9,7 +9,7 @@ import {
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const customFieldsTools: MCPTool[] = [
@@ -21,10 +21,10 @@ export const customFieldsTools: MCPTool[] = [
       return listCustomFieldDefs(ctx, projectId)
     },
     inputSchema: objectInputSchema({
-      projectId: {
-        type: 'string',
-        description: 'Optional project ID to include project-scoped fields alongside workspace-wide fields',
-      },
+      projectId: describedInputProperty(
+        'string',
+        'Optional project ID to include project-scoped fields alongside workspace-wide fields',
+      ),
     }),
     name: 'list_custom_field_defs',
   },
@@ -35,8 +35,8 @@ export const customFieldsTools: MCPTool[] = [
       return createCustomFieldDef(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['key', 'label', 'type'], {
-      key: { type: 'string', description: 'Unique key (lowercase letters, digits, underscores)' },
-      label: { type: 'string', description: 'Human-readable label' },
+      key: describedInputProperty('string', 'Unique key (lowercase letters, digits, underscores)'),
+      label: describedInputProperty('string', 'Human-readable label'),
       type: {
         type: 'string',
         enum: ['text', 'number', 'select', 'date', 'user'],

@@ -1,7 +1,7 @@
 import { createProject, deleteProject, getProject, listProjects, updateProject } from '#api/services/projects.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const projectsTools: MCPTool[] = [
@@ -13,10 +13,7 @@ export const projectsTools: MCPTool[] = [
       return listProjects(ctx, { includeArchived })
     },
     inputSchema: objectInputSchema({
-      includeArchived: {
-        type: 'boolean',
-        description: 'Include archived projects in the results (default false)',
-      },
+      includeArchived: describedInputProperty('boolean', 'Include archived projects in the results (default false)'),
     }),
     name: 'list_projects',
   },
@@ -27,12 +24,9 @@ export const projectsTools: MCPTool[] = [
       return await createProject(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['name', 'key'], {
-      name: { type: 'string', description: 'Project name, max 100 characters' },
-      key: {
-        type: 'string',
-        description: 'Short uppercase identifier, e.g. PROJ (max 10 chars, A-Z0-9)',
-      },
-      description: { type: 'string', description: 'Optional description, max 500 characters' },
+      name: describedInputProperty('string', 'Project name, max 100 characters'),
+      key: describedInputProperty('string', 'Short uppercase identifier, e.g. PROJ (max 10 chars, A-Z0-9)'),
+      description: describedInputProperty('string', 'Optional description, max 500 characters'),
     }),
     name: 'create_project',
   },
@@ -43,7 +37,7 @@ export const projectsTools: MCPTool[] = [
       const { id } = input as { id: string }
       return getProject(ctx, id)
     },
-    inputSchema: requiredObjectInputSchema(['id'], { id: { type: 'string', description: 'Project ID' } }),
+    inputSchema: requiredObjectInputSchema(['id'], { id: describedInputProperty('string', 'Project ID') }),
     name: 'get_project',
   },
   {
@@ -55,10 +49,10 @@ export const projectsTools: MCPTool[] = [
       return updateProject(ctx, id, fields)
     },
     inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'Project ID' },
-      name: { type: 'string', description: 'New project name' },
-      description: { type: 'string', description: 'New description' },
-      archived: { type: 'boolean', description: 'Archive (true) or unarchive (false)' },
+      id: describedInputProperty('string', 'Project ID'),
+      name: describedInputProperty('string', 'New project name'),
+      description: describedInputProperty('string', 'New description'),
+      archived: describedInputProperty('boolean', 'Archive (true) or unarchive (false)'),
     }),
     name: 'update_project',
   },
@@ -69,7 +63,7 @@ export const projectsTools: MCPTool[] = [
       const { id } = input as { id: string }
       return deleteProject(ctx, id)
     },
-    inputSchema: requiredObjectInputSchema(['id'], { id: { type: 'string', description: 'Project ID' } }),
+    inputSchema: requiredObjectInputSchema(['id'], { id: describedInputProperty('string', 'Project ID') }),
     name: 'delete_project',
   },
 ]

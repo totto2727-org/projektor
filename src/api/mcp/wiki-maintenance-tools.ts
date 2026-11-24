@@ -1,7 +1,7 @@
 import * as wikiService from '#api/services/wiki.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import { toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 import { INCLUDE_WORKSPACE_PAGES_PROPERTY } from './wiki-tool-fields.ts'
@@ -16,7 +16,7 @@ export const wikiMaintenanceTools: MCPTool[] = [
       return toPage(await wikiService.getWikiTree(ctx, input))
     },
     inputSchema: objectInputSchema({
-      projectId: { type: 'string', description: 'Filter to pages belonging to this project ID' },
+      projectId: describedInputProperty('string', 'Filter to pages belonging to this project ID'),
       includeWorkspacePages: INCLUDE_WORKSPACE_PAGES_PROPERTY,
     }),
     name: 'wiki_tree',
@@ -32,7 +32,7 @@ export const wikiMaintenanceTools: MCPTool[] = [
       return wikiService.getWikiBacklinks(ctx, slug)
     },
     inputSchema: requiredObjectInputSchema(['slug'], {
-      slug: { type: 'string', description: 'Page ID or slug to find backlinks for' },
+      slug: describedInputProperty('string', 'Page ID or slug to find backlinks for'),
     }),
     name: 'get_backlinks',
   },
@@ -48,7 +48,7 @@ export const wikiMaintenanceTools: MCPTool[] = [
       return wikiService.listBrokenWikiLinks(ctx, input)
     },
     inputSchema: objectInputSchema({
-      projectId: { type: 'string', description: 'Restrict to links from pages in this project' },
+      projectId: describedInputProperty('string', 'Restrict to links from pages in this project'),
     }),
     name: 'list_broken_wiki_links',
   },
@@ -73,14 +73,8 @@ export const wikiMaintenanceTools: MCPTool[] = [
           id: { type: 'string' },
         },
       },
-      pageBudget: {
-        type: 'number',
-        description: 'Max pages to process in this call (1-500, default 200)',
-      },
-      updatedSince: {
-        type: 'number',
-        description: 'Only process pages updated at/after this unix-seconds timestamp',
-      },
+      pageBudget: describedInputProperty('number', 'Max pages to process in this call (1-500, default 200)'),
+      updatedSince: describedInputProperty('number', 'Only process pages updated at/after this unix-seconds timestamp'),
     }),
     name: 'backfill_wiki_links',
   },
@@ -126,10 +120,7 @@ export const wikiMaintenanceTools: MCPTool[] = [
     inputSchema: requiredObjectInputSchema(['slug', 'revisionId'], {
       slug: { type: 'string' },
       revisionId: { type: 'string' },
-      against: {
-        type: 'string',
-        description: 'Another revision id, or "current" (default)',
-      },
+      against: describedInputProperty('string', 'Another revision id, or "current" (default)'),
     }),
     name: 'get_wiki_revision_diff',
   },
@@ -146,7 +137,7 @@ export const wikiMaintenanceTools: MCPTool[] = [
       return wikiService.verifyWikiPage(ctx, slug)
     },
     inputSchema: requiredObjectInputSchema(['slug'], {
-      slug: { type: 'string', description: 'Page ID or slug' },
+      slug: describedInputProperty('string', 'Page ID or slug'),
     }),
     name: 'verify_wiki_page',
   },
@@ -161,10 +152,7 @@ export const wikiMaintenanceTools: MCPTool[] = [
       return wikiService.listStaleWikiPages(ctx, input)
     },
     inputSchema: objectInputSchema({
-      projectId: {
-        type: 'string',
-        description: 'Restrict to pages belonging to this project ID',
-      },
+      projectId: describedInputProperty('string', 'Restrict to pages belonging to this project ID'),
       limit: { type: 'number', default: 50 },
       offset: { type: 'number', default: 0 },
       includeWorkspacePages: INCLUDE_WORKSPACE_PAGES_PROPERTY,
@@ -183,10 +171,7 @@ export const wikiMaintenanceTools: MCPTool[] = [
       return wikiService.listWikiTemplates(ctx, input)
     },
     inputSchema: objectInputSchema({
-      projectId: {
-        type: 'string',
-        description: 'Restrict to templates belonging to this project ID',
-      },
+      projectId: describedInputProperty('string', 'Restrict to templates belonging to this project ID'),
     }),
     name: 'list_wiki_templates',
   },

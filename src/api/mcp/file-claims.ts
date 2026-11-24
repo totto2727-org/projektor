@@ -1,7 +1,7 @@
 import { claimFiles, listFileClaims, releaseFiles } from '#api/services/file-claims.ts'
 
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const fileClaimsTools: MCPTool[] = [
@@ -12,20 +12,14 @@ export const fileClaimsTools: MCPTool[] = [
       return claimFiles(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['issueId', 'paths'], {
-      issueId: { type: 'string', description: 'Issue UUID to associate the claims with' },
-      agentId: {
-        type: 'string',
-        description: 'Agent session UUID claiming the files (optional)',
-      },
+      issueId: describedInputProperty('string', 'Issue UUID to associate the claims with'),
+      agentId: describedInputProperty('string', 'Agent session UUID claiming the files (optional)'),
       paths: {
         type: 'array',
         items: { type: 'string' },
         description: 'File paths to claim (1–100 paths, each max 400 chars)',
       },
-      force: {
-        type: 'boolean',
-        description: 'When true, steal claims held by other issues/agents (default: false)',
-      },
+      force: describedInputProperty('boolean', 'When true, steal claims held by other issues/agents (default: false)'),
     }),
     name: 'claim_files',
   },
@@ -41,10 +35,7 @@ export const fileClaimsTools: MCPTool[] = [
         items: { type: 'string' },
         description: 'File paths to release',
       },
-      issueId: {
-        type: 'string',
-        description: 'Restrict release to claims held by this issue (optional)',
-      },
+      issueId: describedInputProperty('string', 'Restrict release to claims held by this issue (optional)'),
     }),
     name: 'release_files',
   },
@@ -60,20 +51,19 @@ export const fileClaimsTools: MCPTool[] = [
       return listFileClaims(ctx, input)
     },
     inputSchema: objectInputSchema({
-      issueId: { type: 'string', description: 'Filter by issue UUID (optional)' },
-      path: {
-        type: 'string',
-        description: 'Filter by exact file path — shows who holds this file across issues (optional)',
-      },
-      projectId: {
-        type: 'string',
-        description: 'Filter to claims on issues in this project — UUID or project key (optional)',
-      },
-      includeStale: {
-        type: 'boolean',
-        description:
-          'Include claims whose holder has ended, gone stale, or (agentless) passed its TTL (default: false — live entries only)',
-      },
+      issueId: describedInputProperty('string', 'Filter by issue UUID (optional)'),
+      path: describedInputProperty(
+        'string',
+        'Filter by exact file path — shows who holds this file across issues (optional)',
+      ),
+      projectId: describedInputProperty(
+        'string',
+        'Filter to claims on issues in this project — UUID or project key (optional)',
+      ),
+      includeStale: describedInputProperty(
+        'boolean',
+        'Include claims whose holder has ended, gone stale, or (agentless) passed its TTL (default: false — live entries only)',
+      ),
     }),
     name: 'list_file_claims',
   },

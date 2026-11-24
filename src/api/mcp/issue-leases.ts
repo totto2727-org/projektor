@@ -1,7 +1,7 @@
 import { claimIssue, listIssueLeases, releaseIssue } from '#api/services/issue-leases.ts'
 
 import { DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const issueLeasesTools: MCPTool[] = [
@@ -14,12 +14,11 @@ export const issueLeasesTools: MCPTool[] = [
       return claimIssue(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['issueId'], {
-      issueId: { type: 'string', description: 'Issue UUID to lease' },
-      agentId: {
-        type: 'string',
-        description:
-          'Agent session UUID acquiring the lease (must be live). Optional when this credential has exactly one live session; fleets sharing a credential must pass it',
-      },
+      issueId: describedInputProperty('string', 'Issue UUID to lease'),
+      agentId: describedInputProperty(
+        'string',
+        'Agent session UUID acquiring the lease (must be live). Optional when this credential has exactly one live session; fleets sharing a credential must pass it',
+      ),
     }),
     name: 'claim_issue',
   },
@@ -30,11 +29,8 @@ export const issueLeasesTools: MCPTool[] = [
       return releaseIssue(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['issueId'], {
-      issueId: { type: 'string', description: 'Issue UUID to release' },
-      agentId: {
-        type: 'string',
-        description: 'Only release if the lease is held by this agent session (optional)',
-      },
+      issueId: describedInputProperty('string', 'Issue UUID to release'),
+      agentId: describedInputProperty('string', 'Only release if the lease is held by this agent session (optional)'),
     }),
     name: 'release_issue',
   },
@@ -50,16 +46,16 @@ export const issueLeasesTools: MCPTool[] = [
       return listIssueLeases(ctx, input)
     },
     inputSchema: objectInputSchema({
-      issueId: { type: 'string', description: 'Filter to leases on this issue (optional)' },
-      agentId: { type: 'string', description: 'Filter to leases held by this agent (optional)' },
-      projectId: {
-        type: 'string',
-        description: 'Filter to leases on issues in this project — UUID or project key (optional)',
-      },
-      includeStale: {
-        type: 'boolean',
-        description: 'Include leases whose agent session has ended or gone stale (default: false — live entries only)',
-      },
+      issueId: describedInputProperty('string', 'Filter to leases on this issue (optional)'),
+      agentId: describedInputProperty('string', 'Filter to leases held by this agent (optional)'),
+      projectId: describedInputProperty(
+        'string',
+        'Filter to leases on issues in this project — UUID or project key (optional)',
+      ),
+      includeStale: describedInputProperty(
+        'boolean',
+        'Include leases whose agent session has ended or gone stale (default: false — live entries only)',
+      ),
     }),
     name: 'list_issue_leases',
   },

@@ -12,7 +12,7 @@ import {
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
-import { requiredObjectInputSchema } from './input-schema.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const sprintsTools: MCPTool[] = [
@@ -23,7 +23,7 @@ export const sprintsTools: MCPTool[] = [
       return listSprints(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['projectId'], {
-      projectId: { type: 'string', description: 'Project UUID' },
+      projectId: describedInputProperty('string', 'Project UUID'),
     }),
     name: 'list_sprints',
   },
@@ -38,7 +38,7 @@ export const sprintsTools: MCPTool[] = [
       return getSprint(ctx, id)
     },
     inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'Sprint UUID' },
+      id: describedInputProperty('string', 'Sprint UUID'),
     }),
     name: 'get_sprint',
   },
@@ -51,9 +51,9 @@ export const sprintsTools: MCPTool[] = [
     inputSchema: requiredObjectInputSchema(['projectId', 'name'], {
       projectId: { type: 'string' },
       name: { type: 'string' },
-      goal: { type: 'string', description: 'Sprint goal description' },
-      startDate: { type: 'number', description: 'Unix timestamp for sprint start' },
-      endDate: { type: 'number', description: 'Unix timestamp for sprint end' },
+      goal: describedInputProperty('string', 'Sprint goal description'),
+      startDate: describedInputProperty('number', 'Unix timestamp for sprint start'),
+      endDate: describedInputProperty('number', 'Unix timestamp for sprint end'),
     }),
     name: 'create_sprint',
   },
@@ -88,7 +88,7 @@ export const sprintsTools: MCPTool[] = [
       return completeSprint(ctx, id)
     },
     inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'Sprint UUID' },
+      id: describedInputProperty('string', 'Sprint UUID'),
     }),
     name: 'complete_sprint',
   },
@@ -103,7 +103,7 @@ export const sprintsTools: MCPTool[] = [
       return deleteSprint(ctx, id)
     },
     inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'Sprint UUID' },
+      id: describedInputProperty('string', 'Sprint UUID'),
     }),
     name: 'delete_sprint',
   },
@@ -114,7 +114,7 @@ export const sprintsTools: MCPTool[] = [
       return moveIssuesToSprint(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['sprintId', 'issueIds'], {
-      sprintId: { type: 'string', description: 'Target sprint UUID' },
+      sprintId: describedInputProperty('string', 'Target sprint UUID'),
       issueIds: {
         type: 'array',
         items: { type: 'string' },

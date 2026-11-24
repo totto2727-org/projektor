@@ -5,7 +5,7 @@ import { getPlaybook, listPlaybooks } from '#api/services/playbooks.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
-import { objectInputSchema } from './input-schema.ts'
+import { objectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const playbooksTools: MCPTool[] = [
@@ -33,7 +33,7 @@ export const playbooksTools: MCPTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Playbook name, e.g. "epic-goal"' },
+        name: describedInputProperty('string', 'Playbook name, e.g. "epic-goal"'),
       },
       required: ['name'],
     },
@@ -52,11 +52,11 @@ export const playbooksTools: MCPTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Playbook name, e.g. "epic-goal"' },
+        name: describedInputProperty('string', 'Playbook name, e.g. "epic-goal"'),
         params: {
           type: 'object',
           properties: {
-            epicRef: { type: 'string', description: 'Epic ref, e.g. "PROJ-596"' },
+            epicRef: describedInputProperty('string', 'Epic ref, e.g. "PROJ-596"'),
             variant: { type: 'string', enum: ['bounded', 'full'] },
             reviewModel: { type: 'string' },
             cadence: { type: 'integer', minimum: 1 },

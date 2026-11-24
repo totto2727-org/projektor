@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
 import { addComment, editComment, updateIssue } from '@/features/issues/actions.ts'
 import { draftKey, loadDraft } from '@/features/issues/utils/drafts.ts'
 
@@ -44,18 +45,18 @@ const issue: IssueData = {
   title: 'Issue',
   body: 'Original body',
   priority: 'medium',
-  assignee_id: null,
-  assignee_name: null,
-  parent_id: null,
+  assignee_id: JSON_NULL,
+  assignee_name: JSON_NULL,
+  parent_id: JSON_NULL,
   project_key: 'PROJ',
   project_name: 'Project',
-  type_id: null,
-  type_key: null,
-  type_name: null,
-  status_id: null,
-  status_key: null,
-  status_name: null,
-  status_category: null,
+  type_id: JSON_NULL,
+  type_key: JSON_NULL,
+  type_name: JSON_NULL,
+  status_id: JSON_NULL,
+  status_key: JSON_NULL,
+  status_name: JSON_NULL,
+  status_category: JSON_NULL,
   created_at: 1,
   updated_at: 1,
   customFields: [],

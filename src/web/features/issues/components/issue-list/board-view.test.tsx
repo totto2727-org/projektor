@@ -11,6 +11,7 @@ import '@/features/issues/test/browser.ts'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, test, vi } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
 import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
 import { MOBILE_WIDTH, setViewportWidth } from '@/features/issues/test/viewport.ts'
 
@@ -21,31 +22,31 @@ const TODO_ISSUE: Issue = {
   number: 1,
   title: 'Move me',
   priority: 'high',
-  assignee_id: null,
-  assignee_name: null,
-  parent_id: null,
+  assignee_id: JSON_NULL,
+  assignee_name: JSON_NULL,
+  parent_id: JSON_NULL,
   project_key: 'PROJ',
   project_name: 'Projektor',
-  type_key: null,
-  type_name: null,
+  type_key: JSON_NULL,
+  type_name: JSON_NULL,
   status_id: 'st-todo',
   status_key: 'todo',
   status_name: 'Todo',
   status_category: 'todo',
-  sprint_id: null,
+  sprint_id: JSON_NULL,
   updated_at: 1000,
   created_at: 1000,
   reviewTargets: [],
 }
 
 const STATUSES: TaskStatus[] = [
-  { id: 'st-todo', key: 'todo', name: 'Todo', category: 'todo', color: null },
+  { id: 'st-todo', key: 'todo', name: 'Todo', category: 'todo', color: JSON_NULL },
   {
     id: 'st-in-progress',
     key: 'in_progress',
     name: 'In Progress',
     category: 'in_progress',
-    color: null,
+    color: JSON_NULL,
   },
 ]
 

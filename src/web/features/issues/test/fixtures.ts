@@ -1,3 +1,4 @@
+import { JSON_NULL } from '#tests/json-null.ts'
 import type { Issue } from '@/features/issues/types.ts'
 import type { RequestScope } from '@/server/request-context.ts'
 export const workspace = {
@@ -42,13 +43,13 @@ export const issue = function issue(overrides: Partial<Issue> = {}): Issue {
     status_key: 'todo',
     status_name: 'Todo',
     status_category: 'todo',
-    type_id: null,
-    type_key: null,
-    type_name: null,
-    parent_id: null,
-    assignee_id: null,
-    assignee_name: null,
-    sprint_id: null,
+    type_id: JSON_NULL,
+    type_key: JSON_NULL,
+    type_name: JSON_NULL,
+    parent_id: JSON_NULL,
+    assignee_id: JSON_NULL,
+    assignee_name: JSON_NULL,
+    sprint_id: JSON_NULL,
     created_at: 1,
     updated_at: 1,
     reviewTargets: [],

@@ -12,7 +12,7 @@ import {
 } from '#api/services/groups.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const groupsTools: MCPTool[] = [
@@ -33,7 +33,7 @@ export const groupsTools: MCPTool[] = [
       const { id } = input as { id: string }
       return getGroup(ctx, id)
     },
-    inputSchema: requiredObjectInputSchema(['id'], { id: { type: 'string', description: 'Group ID' } }),
+    inputSchema: requiredObjectInputSchema(['id'], { id: describedInputProperty('string', 'Group ID') }),
     name: 'get_group',
   },
   {
@@ -54,8 +54,8 @@ export const groupsTools: MCPTool[] = [
       return await createGroup(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['name'], {
-      name: { type: 'string', description: 'Group name, unique per workspace (max 100)' },
-      description: { type: 'string', description: 'Optional description (max 500)' },
+      name: describedInputProperty('string', 'Group name, unique per workspace (max 100)'),
+      description: describedInputProperty('string', 'Optional description (max 500)'),
     }),
     name: 'create_group',
   },
@@ -67,9 +67,9 @@ export const groupsTools: MCPTool[] = [
       return updateGroup(ctx, id, fields)
     },
     inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'Group ID' },
-      name: { type: 'string', description: 'New group name' },
-      description: { type: 'string', description: 'New description' },
+      id: describedInputProperty('string', 'Group ID'),
+      name: describedInputProperty('string', 'New group name'),
+      description: describedInputProperty('string', 'New description'),
     }),
     name: 'update_group',
   },
@@ -80,7 +80,7 @@ export const groupsTools: MCPTool[] = [
       const { id } = input as { id: string }
       return deleteGroup(ctx, id)
     },
-    inputSchema: requiredObjectInputSchema(['id'], { id: { type: 'string', description: 'Group ID' } }),
+    inputSchema: requiredObjectInputSchema(['id'], { id: describedInputProperty('string', 'Group ID') }),
     name: 'delete_group',
   },
   {
@@ -91,8 +91,8 @@ export const groupsTools: MCPTool[] = [
       return addGroupMember(ctx, groupId, fields)
     },
     inputSchema: requiredObjectInputSchema(['groupId', 'userId'], {
-      groupId: { type: 'string', description: 'Group ID' },
-      userId: { type: 'string', description: 'User ID (must be a workspace member)' },
+      groupId: describedInputProperty('string', 'Group ID'),
+      userId: describedInputProperty('string', 'User ID (must be a workspace member)'),
     }),
     name: 'add_group_member',
   },
@@ -104,8 +104,8 @@ export const groupsTools: MCPTool[] = [
       return removeGroupMember(ctx, groupId, userId)
     },
     inputSchema: requiredObjectInputSchema(['groupId', 'userId'], {
-      groupId: { type: 'string', description: 'Group ID' },
-      userId: { type: 'string', description: 'User ID' },
+      groupId: describedInputProperty('string', 'Group ID'),
+      userId: describedInputProperty('string', 'User ID'),
     }),
     name: 'remove_group_member',
   },
@@ -118,8 +118,8 @@ export const groupsTools: MCPTool[] = [
       return setGroupGrant(ctx, groupId, fields)
     },
     inputSchema: requiredObjectInputSchema(['groupId', 'projectId', 'role'], {
-      groupId: { type: 'string', description: 'Group ID' },
-      projectId: { type: 'string', description: 'Project ID' },
+      groupId: describedInputProperty('string', 'Group ID'),
+      projectId: describedInputProperty('string', 'Project ID'),
       role: {
         type: 'string',
         enum: ['viewer', 'member', 'admin'],
@@ -136,8 +136,8 @@ export const groupsTools: MCPTool[] = [
       return removeGroupGrant(ctx, groupId, projectId)
     },
     inputSchema: requiredObjectInputSchema(['groupId', 'projectId'], {
-      groupId: { type: 'string', description: 'Group ID' },
-      projectId: { type: 'string', description: 'Project ID' },
+      groupId: describedInputProperty('string', 'Group ID'),
+      projectId: describedInputProperty('string', 'Project ID'),
     }),
     name: 'remove_group_grant',
   },

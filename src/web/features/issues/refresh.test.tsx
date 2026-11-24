@@ -81,7 +81,10 @@ describe('canonical issues SSR refresh', () => {
             nextCursor: JSON_NULL,
             total: 1,
           },
-          statuses: [...statuses, { id: 'review', key: 'review', name: 'Review', category: 'started', color: null }],
+          statuses: [
+            ...statuses,
+            { id: 'review', key: 'review', name: 'Review', category: 'started', color: JSON_NULL },
+          ],
         }}
       />,
     )

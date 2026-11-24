@@ -9,7 +9,7 @@ import {
 import { convertFeedbackToIssue, listFeedback, updateFeedbackStatus } from '#api/services/feedback.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
-import { requiredObjectInputSchema } from './input-schema.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const feedbackTools: MCPTool[] = [
@@ -28,7 +28,7 @@ export const feedbackTools: MCPTool[] = [
       return createFeedbackSource(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['projectId', 'name'], {
-      projectId: { type: 'string', description: 'UUID of the project this source belongs to' },
+      projectId: describedInputProperty('string', 'UUID of the project this source belongs to'),
       name: { type: 'string', minLength: 1, maxLength: 100 },
       description: { type: 'string', maxLength: 500 },
       allowedOrigins: {

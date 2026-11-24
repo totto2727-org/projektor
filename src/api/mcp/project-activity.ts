@@ -1,7 +1,7 @@
 import { listProjectActivity } from '#api/services/project-activity.ts'
 
 import { READ } from './annotations.ts'
-import { requiredObjectInputSchema } from './input-schema.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import { capPage, toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 
@@ -16,11 +16,8 @@ export const projectActivityTools: MCPTool[] = [
       return capPage(toPage(await listProjectActivity(ctx, input)))
     },
     inputSchema: requiredObjectInputSchema(['projectId'], {
-      projectId: { type: 'string', description: 'The project UUID to fetch activity for' },
-      since: {
-        type: 'number',
-        description: 'Unix timestamp - only return events created at or after this time',
-      },
+      projectId: describedInputProperty('string', 'The project UUID to fetch activity for'),
+      since: describedInputProperty('number', 'Unix timestamp - only return events created at or after this time'),
       limit: {
         type: 'number',
         default: 50,

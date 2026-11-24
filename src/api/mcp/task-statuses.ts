@@ -4,7 +4,7 @@ import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus 
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const taskStatusesTools: MCPTool[] = [
@@ -24,21 +24,20 @@ export const taskStatusesTools: MCPTool[] = [
       return createTaskStatus(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['key', 'name', 'category'], {
-      key: { type: 'string', description: 'Unique key (lowercase letters, digits, underscores)' },
-      name: { type: 'string', description: 'Display name' },
+      key: describedInputProperty('string', 'Unique key (lowercase letters, digits, underscores)'),
+      name: describedInputProperty('string', 'Display name'),
       category: {
         type: 'string',
         enum: ['todo', 'in_progress', 'done', 'cancelled'],
         description: 'Workflow bucket',
       },
-      color: { type: 'string', description: 'Optional color (hex or named)' },
-      position: { type: 'number', description: 'Sort order position' },
-      isDefault: { type: 'boolean', description: 'Set as the default status for new issues' },
-      isReviewStep: {
-        type: 'boolean',
-        description:
-          'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
-      },
+      color: describedInputProperty('string', 'Optional color (hex or named)'),
+      position: describedInputProperty('number', 'Sort order position'),
+      isDefault: describedInputProperty('boolean', 'Set as the default status for new issues'),
+      isReviewStep: describedInputProperty(
+        'boolean',
+        'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
+      ),
     }),
     name: 'create_task_status',
   },
@@ -58,12 +57,11 @@ export const taskStatusesTools: MCPTool[] = [
       category: { type: 'string', enum: ['todo', 'in_progress', 'done', 'cancelled'] },
       color: { type: 'string', nullable: true },
       position: { type: 'number' },
-      isDefault: { type: 'boolean', description: 'Set as the default status for new issues' },
-      isReviewStep: {
-        type: 'boolean',
-        description:
-          'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
-      },
+      isDefault: describedInputProperty('boolean', 'Set as the default status for new issues'),
+      isReviewStep: describedInputProperty(
+        'boolean',
+        'Mark this status as a review step (completion-report gate, review flow metrics). Not inferred from the key.',
+      ),
     }),
     name: 'update_task_status',
   },

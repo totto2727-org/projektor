@@ -17,7 +17,7 @@ import { ValidationError } from '#contracts/errors.ts'
 import { DeleteWorkspaceInput } from '#contracts/inputs/workspaces.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool, PluginContext } from './types.ts'
 
 const currentWorkspace = async function currentWorkspace(ctx: PluginContext) {
@@ -47,11 +47,8 @@ export const workspacesTools: MCPTool[] = [
       return apiReply(ApiResults.apiCreateWorkspace, ctx.core.apiCreateWorkspace(ctx.actor, input))
     },
     inputSchema: requiredObjectInputSchema(['slug', 'name'], {
-      slug: {
-        type: 'string',
-        description: 'URL-safe identifier for the workspace (e.g. "my-team")',
-      },
-      name: { type: 'string', description: 'Human-readable display name for the workspace' },
+      slug: describedInputProperty('string', 'URL-safe identifier for the workspace (e.g. "my-team")'),
+      name: describedInputProperty('string', 'Human-readable display name for the workspace'),
     }),
     name: 'create_workspace',
   },
@@ -76,10 +73,7 @@ export const workspacesTools: MCPTool[] = [
       return await deleteWorkspace(ctx, workspaceSlug, 'projektor')
     },
     inputSchema: requiredObjectInputSchema(['workspaceSlug'], {
-      workspaceSlug: {
-        type: 'string',
-        description: 'Slug of the workspace to delete',
-      },
+      workspaceSlug: describedInputProperty('string', 'Slug of the workspace to delete'),
     }),
     name: 'delete_workspace',
   },
@@ -90,7 +84,7 @@ export const workspacesTools: MCPTool[] = [
       return await updateWorkspace(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['name'], {
-      name: { type: 'string', description: 'New display name for the workspace' },
+      name: describedInputProperty('string', 'New display name for the workspace'),
     }),
     name: 'update_workspace',
   },
@@ -113,7 +107,7 @@ export const workspacesTools: MCPTool[] = [
       return inviteMember(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['email', 'role'], {
-      email: { type: 'string', description: 'Email address of the user to invite' },
+      email: describedInputProperty('string', 'Email address of the user to invite'),
       role: {
         type: 'string',
         enum: ['owner', 'admin', 'member', 'viewer'],
@@ -130,7 +124,7 @@ export const workspacesTools: MCPTool[] = [
       return removeMember(ctx, userId)
     },
     inputSchema: requiredObjectInputSchema(['userId'], {
-      userId: { type: 'string', description: 'ID of the user to remove' },
+      userId: describedInputProperty('string', 'ID of the user to remove'),
     }),
     name: 'remove_member',
   },
@@ -142,7 +136,7 @@ export const workspacesTools: MCPTool[] = [
       return updateMemberRole(ctx, userId, { role })
     },
     inputSchema: requiredObjectInputSchema(['userId', 'role'], {
-      userId: { type: 'string', description: 'ID of the user whose role to change' },
+      userId: describedInputProperty('string', 'ID of the user whose role to change'),
       role: {
         type: 'string',
         enum: ['owner', 'admin', 'member', 'viewer'],

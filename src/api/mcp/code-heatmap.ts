@@ -1,7 +1,7 @@
 import { getCodeHeatmap } from '#api/services/code-heatmap.ts'
 
 import { READ } from './annotations.ts'
-import { requiredObjectInputSchema } from './input-schema.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const codeHeatmapTools: MCPTool[] = [
@@ -21,19 +21,10 @@ export const codeHeatmapTools: MCPTool[] = [
       return getCodeHeatmap(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['projectId'], {
-      projectId: { type: 'string', description: 'Project UUID' },
-      since: {
-        type: 'number',
-        description: 'Only claims claimed at/after this epoch-seconds time',
-      },
-      until: {
-        type: 'number',
-        description: 'Only claims claimed at/before this epoch-seconds time',
-      },
-      prefix: {
-        type: 'string',
-        description: 'Directory path to drill into; omit for the top-level segments',
-      },
+      projectId: describedInputProperty('string', 'Project UUID'),
+      since: describedInputProperty('number', 'Only claims claimed at/after this epoch-seconds time'),
+      until: describedInputProperty('number', 'Only claims claimed at/before this epoch-seconds time'),
+      prefix: describedInputProperty('string', 'Directory path to drill into; omit for the top-level segments'),
       mode: {
         type: 'string',
         enum: ['claims', 'contention'],

@@ -80,3 +80,19 @@ export const resolveFunctionContext = function resolveFunctionContext(
     }
   })
 }
+
+const SelectedWorkspace = Schema.Struct({ workspaceSlug: NonEmptyString })
+const hasWorkspaceSlug = Schema.is(SelectedWorkspace)
+type WorkspaceFunctionContext = FunctionContext & typeof SelectedWorkspace.Type
+
+export const resolveWorkspaceFunctionContext = function resolveWorkspaceFunctionContext(
+  selector: FunctionSelector,
+): Effect.Effect<WorkspaceFunctionContext, ApiError | ScopeError, RequestServices> {
+  return Effect.gen(function* () {
+    const context = yield* resolveFunctionContext(selector, { requireWorkspace: true })
+    if (!hasWorkspaceSlug(context)) {
+      return yield* new ScopeError(HTTP_FORBIDDEN, 'Select an accessible workspace.')
+    }
+    return context
+  })
+}

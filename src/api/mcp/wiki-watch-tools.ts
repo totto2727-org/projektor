@@ -4,7 +4,7 @@ import * as wikiWatchersService from '#api/services/wiki-watchers.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import { capPage, toPage } from './serialize.ts'
 import type { MCPTool } from './types.ts'
 
@@ -25,7 +25,7 @@ export const wikiWatchTools: MCPTool[] = [
       return wikiWatchersService.watchWikiPage(ctx, slug, rest)
     },
     inputSchema: requiredObjectInputSchema(['slug'], {
-      slug: { type: 'string', description: 'Page ID or slug' },
+      slug: describedInputProperty('string', 'Page ID or slug'),
       subtree: {
         type: 'boolean',
         default: false,
@@ -41,7 +41,7 @@ export const wikiWatchTools: MCPTool[] = [
       const { slug } = input as { slug: string }
       return wikiWatchersService.unwatchWikiPage(ctx, slug)
     },
-    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string', description: 'Page ID or slug' } }),
+    inputSchema: requiredObjectInputSchema(['slug'], { slug: describedInputProperty('string', 'Page ID or slug') }),
     name: 'unwatch_wiki_page',
   },
   {
@@ -127,16 +127,10 @@ export const wikiWatchTools: MCPTool[] = [
       })
     },
     inputSchema: objectInputSchema({
-      since: {
-        type: 'number',
-        description: 'Unix seconds; only changes strictly after this are returned',
-      },
-      cursor: {
-        type: 'string',
-        description: "Pass the previous page's `next` unchanged (replaces `since`)",
-      },
+      since: describedInputProperty('number', 'Unix seconds; only changes strictly after this are returned'),
+      cursor: describedInputProperty('string', "Pass the previous page's `next` unchanged (replaces `since`)"),
       limit: { type: 'number', default: 100 },
-      projectId: { type: 'string', description: 'Restrict to changes on pages in this project' },
+      projectId: describedInputProperty('string', 'Restrict to changes on pages in this project'),
       watchedOnly: {
         type: 'boolean',
         default: false,

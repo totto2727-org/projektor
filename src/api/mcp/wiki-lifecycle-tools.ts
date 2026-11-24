@@ -2,7 +2,7 @@ import * as wikiDraftsService from '#api/services/wiki-drafts.ts'
 import * as wikiService from '#api/services/wiki.ts'
 
 import { DESTRUCTIVE, PLAIN_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const wikiLifecycleTools: MCPTool[] = [
@@ -20,7 +20,7 @@ export const wikiLifecycleTools: MCPTool[] = [
       const { slug } = input as { slug: string }
       return wikiDraftsService.getWikiDraft(ctx, slug)
     },
-    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string', description: 'Page ID or slug' } }),
+    inputSchema: requiredObjectInputSchema(['slug'], { slug: describedInputProperty('string', 'Page ID or slug') }),
     name: 'get_wiki_draft',
   },
   {
@@ -36,7 +36,7 @@ export const wikiLifecycleTools: MCPTool[] = [
       return wikiDraftsService.saveWikiDraft(ctx, slug, rest)
     },
     inputSchema: requiredObjectInputSchema(['slug', 'title', 'content'], {
-      slug: { type: 'string', description: 'Page ID or slug' },
+      slug: describedInputProperty('string', 'Page ID or slug'),
       title: { type: 'string' },
       content: { type: 'string' },
       baseRevisionId: {
@@ -58,7 +58,7 @@ export const wikiLifecycleTools: MCPTool[] = [
       const { slug } = input as { slug: string }
       return wikiDraftsService.discardWikiDraft(ctx, slug)
     },
-    inputSchema: requiredObjectInputSchema(['slug'], { slug: { type: 'string', description: 'Page ID or slug' } }),
+    inputSchema: requiredObjectInputSchema(['slug'], { slug: describedInputProperty('string', 'Page ID or slug') }),
     name: 'discard_wiki_draft',
   },
   {
@@ -73,10 +73,7 @@ export const wikiLifecycleTools: MCPTool[] = [
       return wikiService.listWikiTrash(ctx, input)
     },
     inputSchema: objectInputSchema({
-      projectId: {
-        type: 'string',
-        description: 'Restrict to trashed pages belonging to this project ID',
-      },
+      projectId: describedInputProperty('string', 'Restrict to trashed pages belonging to this project ID'),
       limit: { type: 'number', default: 50 },
       offset: { type: 'number', default: 0 },
     }),
@@ -99,7 +96,7 @@ export const wikiLifecycleTools: MCPTool[] = [
       const { id } = input as { id: string }
       return wikiService.undeleteWikiPage(ctx, id)
     },
-    inputSchema: requiredObjectInputSchema(['id'], { id: { type: 'string', description: 'Trashed page ID' } }),
+    inputSchema: requiredObjectInputSchema(['id'], { id: describedInputProperty('string', 'Trashed page ID') }),
     name: 'undelete_wiki_page',
   },
   {

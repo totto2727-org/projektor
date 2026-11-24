@@ -4,7 +4,7 @@ import { createTaskType, deleteTaskType, listTaskTypes, updateTaskType } from '#
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const taskTypesTools: MCPTool[] = [
@@ -24,12 +24,12 @@ export const taskTypesTools: MCPTool[] = [
       return createTaskType(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['key', 'name'], {
-      key: { type: 'string', description: 'Unique key (lowercase letters, digits, underscores)' },
-      name: { type: 'string', description: 'Display name' },
-      color: { type: 'string', description: 'Optional color (hex or named)' },
-      icon: { type: 'string', description: 'Optional icon identifier' },
-      position: { type: 'number', description: 'Sort order position' },
-      isDefault: { type: 'boolean', description: 'Set as the default type for new issues' },
+      key: describedInputProperty('string', 'Unique key (lowercase letters, digits, underscores)'),
+      name: describedInputProperty('string', 'Display name'),
+      color: describedInputProperty('string', 'Optional color (hex or named)'),
+      icon: describedInputProperty('string', 'Optional icon identifier'),
+      position: describedInputProperty('number', 'Sort order position'),
+      isDefault: describedInputProperty('boolean', 'Set as the default type for new issues'),
     }),
     name: 'create_task_type',
   },
@@ -49,7 +49,7 @@ export const taskTypesTools: MCPTool[] = [
       color: { type: 'string', nullable: true },
       icon: { type: 'string', nullable: true },
       position: { type: 'number' },
-      isDefault: { type: 'boolean', description: 'Set as the default type for new issues' },
+      isDefault: describedInputProperty('boolean', 'Set as the default type for new issues'),
     }),
     name: 'update_task_type',
   },

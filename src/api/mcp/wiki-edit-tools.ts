@@ -4,7 +4,7 @@ import * as wikiService from '#api/services/wiki.ts'
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, PLAIN_WRITE } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 import { WELL_KNOWN_TYPES } from './wiki-tool-fields.ts'
 
@@ -25,24 +25,19 @@ export const wikiEditTools: MCPTool[] = [
       "`templateSlug` that doesn't resolve to a page flagged template:true is rejected.",
     inputSchema: requiredObjectInputSchema(['title'], {
       title: { type: 'string' },
-      slug: {
-        type: 'string',
-        description: 'URL-safe identifier; auto-generated from title if omitted',
-      },
-      content: {
-        type: 'string',
-        description:
-          'Markdown content, optionally starting with a YAML frontmatter block. ' +
+      slug: describedInputProperty('string', 'URL-safe identifier; auto-generated from title if omitted'),
+      content: describedInputProperty(
+        'string',
+        'Markdown content, optionally starting with a YAML frontmatter block. ' +
           'Mutually exclusive with templateSlug.',
-      },
-      templateSlug: {
-        type: 'string',
-        description:
-          "Seed this page's content from the template page at this slug/id (see " +
+      ),
+      templateSlug: describedInputProperty(
+        'string',
+        "Seed this page's content from the template page at this slug/id (see " +
           'list_wiki_templates). Mutually exclusive with content.',
-      },
-      parentId: { type: 'string', description: 'Parent page ID for nested pages' },
-      projectId: { type: 'string', description: 'Project ID to scope this page to' },
+      ),
+      parentId: describedInputProperty('string', 'Parent page ID for nested pages'),
+      projectId: describedInputProperty('string', 'Project ID to scope this page to'),
     }),
     annotations: CREATE,
     async handler(input, ctx) {
@@ -84,32 +79,29 @@ export const wikiEditTools: MCPTool[] = [
       return await wikiService.updateWikiPage(ctx, idOrSlug, payload)
     },
     inputSchema: objectInputSchema({
-      id: { type: 'string', description: 'Page ID' },
-      slug: { type: 'string', description: 'Page slug (alternative to id)' },
+      id: describedInputProperty('string', 'Page ID'),
+      slug: describedInputProperty('string', 'Page slug (alternative to id)'),
       title: { type: 'string' },
-      content: {
-        type: 'string',
-        description: 'Markdown content, optionally starting with a YAML frontmatter block',
-      },
+      content: describedInputProperty('string', 'Markdown content, optionally starting with a YAML frontmatter block'),
       parentId: {
         type: 'string',
         nullable: true,
         description: 'Parent page ID (null to unset parent, omit to leave unchanged)',
       },
-      newSlug: {
-        type: 'string',
-        description: "Rename the page's slug; the old slug becomes a redirect so existing links keep resolving",
-      },
+      newSlug: describedInputProperty(
+        'string',
+        "Rename the page's slug; the old slug becomes a redirect so existing links keep resolving",
+      ),
       baseRevisionId: {
         type: ['string', 'null'],
         description:
           'Deprecated if omitted (see tool description). The revision id this edit is ' +
           'based on — null if the page has never been revised.',
       },
-      summary: {
-        type: 'string',
-        description: 'Optional edit message/changelog note, recorded on the created revision',
-      },
+      summary: describedInputProperty(
+        'string',
+        'Optional edit message/changelog note, recorded on the created revision',
+      ),
     }),
     name: 'update_wiki_page',
   },
@@ -148,36 +140,31 @@ export const wikiEditTools: MCPTool[] = [
       return await wikiService.patchWikiPage(ctx, idOrSlug, rest)
     },
     inputSchema: requiredObjectInputSchema(['op', 'baseRevisionId'], {
-      id: { type: 'string', description: 'Page ID' },
-      slug: { type: 'string', description: 'Page slug (alternative to id)' },
+      id: describedInputProperty('string', 'Page ID'),
+      slug: describedInputProperty('string', 'Page slug (alternative to id)'),
       op: {
         type: 'string',
         enum: ['append_to_section', 'replace_section', 'insert_after_heading', 'append_to_page', 'set_frontmatter'],
       },
-      heading: {
-        type: 'string',
-        description:
-          "Target section's heading text (required for append_to_section, " + 'replace_section, insert_after_heading)',
-      },
-      text: {
-        type: 'string',
-        description: 'Text to add/replace (required for every op except set_frontmatter)',
-      },
-      values: {
-        type: 'object',
-        description:
-          'set_frontmatter only: frontmatter keys to set (type, tags, status, ' +
+      heading: describedInputProperty(
+        'string',
+        "Target section's heading text (required for append_to_section, " + 'replace_section, insert_after_heading)',
+      ),
+      text: describedInputProperty('string', 'Text to add/replace (required for every op except set_frontmatter)'),
+      values: describedInputProperty(
+        'object',
+        'set_frontmatter only: frontmatter keys to set (type, tags, status, ' +
           'verified_at, verified_by, owners, verify_interval, template). A key set ' +
           "to null is removed from the page's frontmatter.",
-      },
+      ),
       baseRevisionId: {
         type: ['string', 'null'],
         description: 'The revision id this patch is based on — null if the page has never been revised.',
       },
-      summary: {
-        type: 'string',
-        description: 'Optional edit message/changelog note, recorded on the created revision',
-      },
+      summary: describedInputProperty(
+        'string',
+        'Optional edit message/changelog note, recorded on the created revision',
+      ),
     }),
     name: 'patch_wiki_page',
   },

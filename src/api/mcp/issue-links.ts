@@ -4,7 +4,7 @@ import { createLink, deleteLink, listLinksForIssue } from '#api/services/issue-l
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { CREATE, DESTRUCTIVE, READ } from './annotations.ts'
-import { requiredObjectInputSchema } from './input-schema.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const issueLinksTools: MCPTool[] = [
@@ -15,14 +15,8 @@ export const issueLinksTools: MCPTool[] = [
       return createLink(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['sourceIssueId', 'targetIssueId', 'type'], {
-      sourceIssueId: {
-        type: 'string',
-        description: 'UUID of the source issue, or a ref like PROJ-42',
-      },
-      targetIssueId: {
-        type: 'string',
-        description: 'UUID of the target issue, or a ref like PROJ-42',
-      },
+      sourceIssueId: describedInputProperty('string', 'UUID of the source issue, or a ref like PROJ-42'),
+      targetIssueId: describedInputProperty('string', 'UUID of the target issue, or a ref like PROJ-42'),
       type: {
         type: 'string',
         enum: ['blocks', 'blocked_by', 'relates_to', 'duplicates'],
@@ -42,7 +36,7 @@ export const issueLinksTools: MCPTool[] = [
       return deleteLink(ctx, { id })
     },
     inputSchema: requiredObjectInputSchema(['id'], {
-      id: { type: 'string', description: 'UUID of the link to delete' },
+      id: describedInputProperty('string', 'UUID of the link to delete'),
     }),
     name: 'delete_issue_link',
   },
@@ -53,7 +47,7 @@ export const issueLinksTools: MCPTool[] = [
       return listLinksForIssue(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['issueId'], {
-      issueId: { type: 'string', description: 'UUID of the issue, or a ref like PROJ-42' },
+      issueId: describedInputProperty('string', 'UUID of the issue, or a ref like PROJ-42'),
     }),
     name: 'list_issue_links',
   },

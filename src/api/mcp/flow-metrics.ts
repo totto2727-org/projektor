@@ -1,7 +1,7 @@
 import { getFlowMetrics } from '#api/services/flow-metrics.ts'
 
 import { READ } from './annotations.ts'
-import { requiredObjectInputSchema } from './input-schema.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const flowMetricsTools: MCPTool[] = [
@@ -23,15 +23,9 @@ export const flowMetricsTools: MCPTool[] = [
       return getFlowMetrics(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['projectId'], {
-      projectId: { type: 'string', description: 'Project UUID' },
-      since: {
-        type: 'number',
-        description: 'Only issues completed/active at/after this epoch-seconds time',
-      },
-      until: {
-        type: 'number',
-        description: 'Only issues completed/active at/before this epoch-seconds time',
-      },
+      projectId: describedInputProperty('string', 'Project UUID'),
+      since: describedInputProperty('number', 'Only issues completed/active at/after this epoch-seconds time'),
+      until: describedInputProperty('number', 'Only issues completed/active at/before this epoch-seconds time'),
       granularity: {
         type: 'string',
         enum: ['day', 'week'],

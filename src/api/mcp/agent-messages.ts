@@ -1,7 +1,7 @@
 import { listMessages, postMessage } from '#api/services/agent-messages.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
-import { requiredObjectInputSchema } from './input-schema.ts'
+import { requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 export const agentMessagesTools: MCPTool[] = [
@@ -12,16 +12,12 @@ export const agentMessagesTools: MCPTool[] = [
       return postMessage(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['scope', 'body'], {
-      scope: {
-        type: 'string',
-        description:
-          'Channel scope: "workspace" for the workspace-wide channel, or "issue:<uuid>" for an issue channel',
-      },
-      agentId: {
-        type: 'string',
-        description: 'Agent session UUID posting the message (optional)',
-      },
-      body: { type: 'string', description: 'Message body (1–5000 characters)' },
+      scope: describedInputProperty(
+        'string',
+        'Channel scope: "workspace" for the workspace-wide channel, or "issue:<uuid>" for an issue channel',
+      ),
+      agentId: describedInputProperty('string', 'Agent session UUID posting the message (optional)'),
+      body: describedInputProperty('string', 'Message body (1–5000 characters)'),
     }),
     name: 'post_message',
   },
@@ -32,15 +28,9 @@ export const agentMessagesTools: MCPTool[] = [
       return listMessages(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['scope'], {
-      scope: {
-        type: 'string',
-        description: 'Channel scope: "workspace" or "issue:<uuid>"',
-      },
-      cursor: {
-        type: 'string',
-        description: "Pagination cursor: pass the previous page's `nextCursor` unchanged",
-      },
-      limit: { type: 'number', description: 'Max messages to return (1–100, default 50)' },
+      scope: describedInputProperty('string', 'Channel scope: "workspace" or "issue:<uuid>"'),
+      cursor: describedInputProperty('string', "Pagination cursor: pass the previous page's `nextCursor` unchanged"),
+      limit: describedInputProperty('number', 'Max messages to return (1–100, default 50)'),
     }),
     name: 'list_messages',
   },

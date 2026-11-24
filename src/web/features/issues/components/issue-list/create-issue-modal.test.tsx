@@ -12,6 +12,7 @@ import { Iterable } from 'effect'
 import type { JSX } from 'react'
 import { describe, expect, test } from 'vite-plus/test'
 
+import { JSON_NULL } from '#tests/json-null.ts'
 import type { TaskStatus } from '@/features/issues/components/board-utils.ts'
 
 import { CreateIssueModal } from './create-issue-modal.tsx'
@@ -53,7 +54,7 @@ const TWO_PROJECTS = [
   { id: 'p2', key: 'OTHER', name: 'Other', description: null, workspace_slug: 'test-workspace' },
 ]
 const TASK_TYPES = [{ id: 't1', key: 'BUG', name: 'Bug' }]
-const STATUSES: TaskStatus[] = [{ id: 's1', key: 'todo', name: 'To do', category: 'todo', color: null }]
+const STATUSES: TaskStatus[] = [{ id: 's1', key: 'todo', name: 'To do', category: 'todo', color: JSON_NULL }]
 
 function FieldsHarness(): JSX.Element {
   const modal = useCreateIssueModal({

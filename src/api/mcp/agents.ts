@@ -11,7 +11,7 @@ import {
 import { ValidationError, validationIssues } from '#contracts/errors.ts'
 
 import { PLAIN_WRITE, READ } from './annotations.ts'
-import { objectInputSchema, requiredObjectInputSchema } from './input-schema.ts'
+import { objectInputSchema, requiredObjectInputSchema, describedInputProperty } from './input-schema.ts'
 import type { MCPTool } from './types.ts'
 
 /** Claim_issue names the session `agentId`; heartbeat/end call it `id`. Accept both. */
@@ -42,13 +42,13 @@ export const agentsTools: MCPTool[] = [
       return startWork(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['issue', 'name'], {
-      issue: { type: 'string', description: 'Issue UUID to claim' },
+      issue: describedInputProperty('string', 'Issue UUID to claim'),
       paths: {
         type: 'array',
         items: { type: 'string' },
         description: 'File paths to claim alongside the issue (optional)',
       },
-      name: { type: 'string', description: 'Display name for the agent session (max 200)' },
+      name: describedInputProperty('string', 'Display name for the agent session (max 200)'),
     }),
     name: 'start_work',
   },
@@ -62,9 +62,9 @@ export const agentsTools: MCPTool[] = [
       return finishWork(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['sessionId', 'issue'], {
-      sessionId: { type: 'string', description: 'Agent session UUID to end' },
-      issue: { type: 'string', description: 'Issue UUID to optionally transition' },
-      status: { type: 'string', description: 'New status for the issue (optional)' },
+      sessionId: describedInputProperty('string', 'Agent session UUID to end'),
+      issue: describedInputProperty('string', 'Issue UUID to optionally transition'),
+      status: describedInputProperty('string', 'New status for the issue (optional)'),
       completionReport: {
         type: 'object',
         description:
@@ -85,8 +85,8 @@ export const agentsTools: MCPTool[] = [
       return registerAgent(ctx, input)
     },
     inputSchema: requiredObjectInputSchema(['name'], {
-      name: { type: 'string', description: 'Display name for the agent session (max 200)' },
-      issueId: { type: 'string', description: 'Issue UUID to link this session to (optional)' },
+      name: describedInputProperty('string', 'Display name for the agent session (max 200)'),
+      issueId: describedInputProperty('string', 'Issue UUID to link this session to (optional)'),
       kind: {
         type: 'string',
         enum: ['agent', 'human'],
@@ -103,12 +103,11 @@ export const agentsTools: MCPTool[] = [
       return heartbeatAgent(ctx, withIdAlias(input))
     },
     inputSchema: objectInputSchema({
-      id: {
-        type: 'string',
-        description:
-          'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
-      },
-      agentId: { type: 'string', description: 'Alias for `id` (the name claim_issue uses)' },
+      id: describedInputProperty(
+        'string',
+        'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
+      ),
+      agentId: describedInputProperty('string', 'Alias for `id` (the name claim_issue uses)'),
     }),
     name: 'heartbeat_agent',
   },
@@ -119,12 +118,11 @@ export const agentsTools: MCPTool[] = [
       return endAgent(ctx, withIdAlias(input))
     },
     inputSchema: objectInputSchema({
-      id: {
-        type: 'string',
-        description:
-          'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
-      },
-      agentId: { type: 'string', description: 'Alias for `id` (the name claim_issue uses)' },
+      id: describedInputProperty(
+        'string',
+        'Agent session UUID. Optional when this credential has exactly one agent session; fleets sharing a credential must pass it',
+      ),
+      agentId: describedInputProperty('string', 'Alias for `id` (the name claim_issue uses)'),
     }),
     name: 'end_agent',
   },
@@ -140,18 +138,16 @@ export const agentsTools: MCPTool[] = [
       return listActiveAgents(ctx, input)
     },
     inputSchema: objectInputSchema({
-      issueId: { type: 'string', description: 'Filter by issue UUID (optional)' },
-      projectId: {
-        type: 'string',
-        description:
-          'Filter to sessions linked to an issue in this project — UUID or project key. ' +
+      issueId: describedInputProperty('string', 'Filter by issue UUID (optional)'),
+      projectId: describedInputProperty(
+        'string',
+        'Filter to sessions linked to an issue in this project — UUID or project key. ' +
           'A session with no issue link is excluded when this is given (optional)',
-      },
-      includeStale: {
-        type: 'boolean',
-        description:
-          'Include active sessions that have stopped heartbeating (default: false — live entries only). Never includes ended sessions.',
-      },
+      ),
+      includeStale: describedInputProperty(
+        'boolean',
+        'Include active sessions that have stopped heartbeating (default: false — live entries only). Never includes ended sessions.',
+      ),
     }),
     name: 'list_active_agents',
   },
