@@ -1,4 +1,4 @@
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate } from 'effect'
 import { CorePublicError } from 'projektor/core-client'
 import { z } from 'zod'
 
@@ -27,7 +27,7 @@ const truncate = function truncate(s: string, max: number): string {
 const summarizeDetails = function summarizeDetails(details: Record<string, unknown>): string {
   const summary = Object.entries(details)
     .map(([key, value]) => {
-      const rendered = Array.isArray(value)
+      const rendered = globalThis.Array.isArray(value)
         ? value.join(', ')
         : Predicate.isString(value)
           ? value
@@ -41,7 +41,7 @@ const summarizeDetails = function summarizeDetails(details: Record<string, unkno
 const hasDetails = function hasDetails(
   details: Record<string, unknown> | undefined,
 ): details is Record<string, unknown> {
-  return Predicate.isNotNullish(details) && EffectArray.isArrayNonEmpty(Object.keys(details))
+  return Predicate.isNotNullish(details) && Array.isArrayNonEmpty(Object.keys(details))
 }
 
 /*
@@ -51,11 +51,11 @@ const hasDetails = function hasDetails(
  */
 const summarizeIssues = function summarizeIssues(issues: ZodFlattenOutput): string {
   const parts: string[] = [
-    ...(EffectArray.isArrayNonEmpty(issues.formErrors)
+    ...(Array.isArrayNonEmpty(issues.formErrors)
       ? [truncate(issues.formErrors.join(', '), MAX_DETAIL_VALUE_CHARS)]
       : []),
     ...Object.entries(issues.fieldErrors)
-      .filter(([, messages]) => messages && EffectArray.isArrayNonEmpty(messages))
+      .filter(([, messages]) => messages && Array.isArrayNonEmpty(messages))
       .map(([field, messages]) => `${field}: ${truncate(messages?.join(', ') ?? '', MAX_DETAIL_VALUE_CHARS)}`),
   ]
   return truncate(parts.join('; '), MAX_DETAIL_SUMMARY_CHARS)
@@ -63,8 +63,8 @@ const summarizeIssues = function summarizeIssues(issues: ZodFlattenOutput): stri
 
 const hasIssues = function hasIssues(issues: ZodFlattenOutput): boolean {
   return (
-    EffectArray.isArrayNonEmpty(issues.formErrors) ||
-    Object.values(issues.fieldErrors).some((messages) => messages && EffectArray.isArrayNonEmpty(messages))
+    Array.isArrayNonEmpty(issues.formErrors) ||
+    Object.values(issues.fieldErrors).some((messages) => messages && Array.isArrayNonEmpty(messages))
   )
 }
 
@@ -203,18 +203,18 @@ const definedFields = function definedFields(
 ): Record<string, string[]> | undefined {
   const out: Record<string, string[]> = {}
   Iterable.forEach(Object.entries(fieldErrors), ([field, messages]) => {
-    if (messages && EffectArray.isArrayNonEmpty(messages)) {
+    if (messages && Array.isArrayNonEmpty(messages)) {
       out[field] = messages
     }
   })
-  return EffectArray.isArrayNonEmpty(Object.keys(out)) ? out : undefined
+  return Array.isArrayNonEmpty(Object.keys(out)) ? out : undefined
 }
 
 const notFoundHint = function notFoundHint(message: string, toolName: string | undefined): string {
   // The message says what was missing; the tool name is only a fallback (claim_issue's
   // "Agent session not found" must not be read as an issue miss).
   const fromMessage = pickNotFoundHint(message.toLowerCase())
-  if (fromMessage) {
+  if (Predicate.isNotNullish(fromMessage) && String.isNonEmpty(fromMessage)) {
     return fromMessage
   }
   return (
@@ -307,7 +307,7 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
   }
   if (err instanceof ValidationError) {
     const fields = definedFields(err.issues.fieldErrors)
-    const message = EffectArray.isArrayNonEmpty(err.issues.formErrors)
+    const message = Array.isArrayNonEmpty(err.issues.formErrors)
       ? err.issues.formErrors.join('; ')
       : 'Invalid arguments'
     return toolErrorResult({

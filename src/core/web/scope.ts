@@ -1,4 +1,4 @@
-import { Array as EffectArray, Schema } from 'effect'
+import { String, Predicate, Array, Schema } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
 import type { AuthInfo } from '#types'
@@ -132,7 +132,7 @@ export const queryHint = function queryHint(url: URL, name: string): string | un
 
 export const readProjectHint = function readProjectHint(url: URL): string | undefined {
   const query = queryHint(url, 'projectId') ?? queryHint(url, 'project')
-  if (query) {
+  if (Predicate.isNotNullish(query) && String.isNonEmpty(query)) {
     return query
   }
   // Path parameters come from Effront's matched route through RequestServices.
@@ -148,7 +148,7 @@ export const selectedWorkspace = function selectedWorkspace(
   workspaces: Readonly<WorkspaceMembership[]>,
   hint: string | undefined,
 ): WorkspaceMembership | undefined {
-  if (!hint) {
+  if (Predicate.isNullish(hint) || String.isEmpty(hint)) {
     return undefined
   }
   const matches = workspaces.filter((workspace) => workspace.slug === hint)
@@ -170,9 +170,12 @@ export const resolveScope = function resolveScope(
   const workspace = selectedWorkspace(session.workspaces, workspaceHint)
   const candidates = workspace ? projects.filter((project) => project.workspace_id === workspace.id) : projects
   let selection: ScopeSelection
-  if (projectHint || options.requireProject) {
-    const matches = projectHint ? candidates.filter((project) => matchesProject(project, projectHint)) : candidates
-    if (projectHint && EffectArray.isReadonlyArrayEmpty(matches)) {
+  if ((Predicate.isNotNullish(projectHint) && String.isNonEmpty(projectHint)) || options.requireProject === true) {
+    const matches =
+      Predicate.isNotNullish(projectHint) && String.isNonEmpty(projectHint)
+        ? candidates.filter((project) => matchesProject(project, projectHint))
+        : candidates
+    if (Predicate.isNotNullish(projectHint) && String.isNonEmpty(projectHint) && Array.isReadonlyArrayEmpty(matches)) {
       throw new ScopeError(404, 'Selected project is not accessible.')
     }
     if (matches.length === 1) {
@@ -188,19 +191,19 @@ export const resolveScope = function resolveScope(
       selection = {
         kind: 'selection-required',
         target: 'project',
-        reason: EffectArray.isReadonlyArrayEmpty(matches) ? 'empty' : 'ambiguous',
+        reason: Array.isReadonlyArrayEmpty(matches) ? 'empty' : 'ambiguous',
       }
     }
   } else if (workspace) {
     selection = { kind: 'workspace', workspace }
-  } else if (options.requireWorkspace) {
+  } else if (options.requireWorkspace === true) {
     selection =
       session.workspaces.length === 1
         ? { kind: 'workspace', workspace: session.workspaces[0] }
         : {
             kind: 'selection-required',
             target: 'workspace',
-            reason: EffectArray.isReadonlyArrayEmpty(session.workspaces) ? 'empty' : 'ambiguous',
+            reason: Array.isReadonlyArrayEmpty(session.workspaces) ? 'empty' : 'ambiguous',
           }
   } else {
     selection = { kind: 'global' }

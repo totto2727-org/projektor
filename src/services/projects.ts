@@ -19,7 +19,7 @@ export const listProjects = function listProjects(
     if (opts.visibility) {
       conditions.push(opts.visibility)
     }
-    if (!opts.includeArchived) {
+    if (opts.includeArchived !== true) {
       conditions.push(isNull(schema.projects.archivedAt))
     }
     return orm

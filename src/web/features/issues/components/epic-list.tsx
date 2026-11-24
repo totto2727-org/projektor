@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray, Iterable, Predicate, Schema } from 'effect'
+import { String, Array, Iterable, Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
@@ -45,7 +45,7 @@ const CELL_CLASS =
 const MODAL_CLASS = 'bg-bg border border-border rounded-lg p-6 w-full sm:max-w-[480px] overscroll-contain'
 
 function defaultCreateProjectId(projectId: string | null, projects: Readonly<ProjectMeta[]>): string {
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     return projects.find((p) => p.id === projectId)?.id ?? projects[0]?.id ?? ''
   }
   return projects[0]?.id ?? ''
@@ -136,7 +136,7 @@ function useCreateEpicForm(projectId: string | null, projects: Readonly<ProjectM
   const createError =
     result && result !== openedResult && !result.ok ? `Failed to create epic: ${result.message}` : null
   useEffect(() => {
-    if (result?.ok) {
+    if (result?.ok === true) {
       setShowCreate(false)
     }
   }, [result])
@@ -280,10 +280,10 @@ interface EpicsTableProps {
 }
 
 function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: EpicsTableProps) {
-  if (EffectArray.isArrayEmpty(epics)) {
+  if (Array.isArrayEmpty(epics)) {
     return <EmptyState title='No epics found. Use the button above to create one.' />
   }
-  if (EffectArray.isArrayEmpty(filteredEpics)) {
+  if (Array.isArrayEmpty(filteredEpics)) {
     return <EmptyState title='No epics match the active filters.' />
   }
   // sortIssues' signature is Issue[] => Issue[]; the sort is a pure reorder, so the

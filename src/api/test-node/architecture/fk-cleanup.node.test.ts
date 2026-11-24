@@ -109,6 +109,6 @@ describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () =
         problems.push(`${key}: not every one of ${entry.cleanedBy.join(', ')} mentions ${child}`)
       }
     }
-    expect(problems).toEqual([])
+    expect(problems).toStrictEqual([])
   })
 })

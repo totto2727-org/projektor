@@ -1,4 +1,4 @@
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate } from 'effect'
 export interface FilterQueryFilters {
   filterStatuses: string[]
   filterPriorities: string[]
@@ -48,7 +48,7 @@ const applyEpicParams = function applyEpicParams(
    * is correct across pagination rather than only on the loaded page.
    */
   const epicTypeId = taskTypes.find((t) => t.key === 'epic')?.id
-  if (epicTypeId && (hideEpics || filterEpicId === 'none')) {
+  if (Predicate.isNotNullish(epicTypeId) && String.isNonEmpty(epicTypeId) && (hideEpics || filterEpicId === 'none')) {
     qs.set('excludeTypeIds', epicTypeId)
   }
 }
@@ -69,10 +69,10 @@ export const applyDateRangeParams = function applyDateRangeParams(
   const afterKey = filterDateField === 'completed' ? 'completedAfter' : 'updatedAfter'
   const beforeKey = filterDateField === 'completed' ? 'completedBefore' : 'updatedBefore'
   if (filterDateFrom) {
-    qs.set(afterKey, String(dateInputToTs(filterDateFrom, false)))
+    qs.set(afterKey, globalThis.String(dateInputToTs(filterDateFrom, false)))
   }
   if (filterDateTo) {
-    qs.set(beforeKey, String(dateInputToTs(filterDateTo, true)))
+    qs.set(beforeKey, globalThis.String(dateInputToTs(filterDateTo, true)))
   }
 }
 
@@ -103,11 +103,11 @@ export const buildFilterQueryParams = function buildFilterQueryParams(
     qs.set('priorities', filterPriorities.join(','))
   }
   const projectId = filterProject ? projects.find((p) => p.key === filterProject)?.id : undefined
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     qs.set('project', projectId)
   }
   const typeId = filterType ? taskTypes.find((t) => t.key === filterType)?.id : undefined
-  if (typeId) {
+  if (Predicate.isNotNullish(typeId) && String.isNonEmpty(typeId)) {
     qs.set('typeId', typeId)
   }
   if (filterSprintId) {
@@ -131,13 +131,10 @@ export type UrlSyncFilters = Pick<
 >
 
 const URL_SYNC_KEYS = [
-  [
-    'status',
-    (f: UrlSyncFilters) => (EffectArray.isArrayNonEmpty(f.filterStatuses) ? f.filterStatuses.join(',') : null),
-  ],
+  ['status', (f: UrlSyncFilters) => (Array.isArrayNonEmpty(f.filterStatuses) ? f.filterStatuses.join(',') : null)],
   [
     'priority',
-    (f: UrlSyncFilters) => (EffectArray.isArrayNonEmpty(f.filterPriorities) ? f.filterPriorities.join(',') : null),
+    (f: UrlSyncFilters) => (Array.isArrayNonEmpty(f.filterPriorities) ? f.filterPriorities.join(',') : null),
   ],
   ['epic', (f: UrlSyncFilters) => f.filterEpicId || null],
   ['sprintId', (f: UrlSyncFilters) => f.filterSprintId || null],

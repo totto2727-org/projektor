@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 import type { Dispatch, SetStateAction } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
@@ -101,7 +101,7 @@ function CreateIssueModalFields({
         />
       </div>
 
-      {EffectArray.isArrayNonEmpty(taskTypes) && (
+      {Array.isArrayNonEmpty(taskTypes) && (
         <div>
           {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
           <label className={FIELD_CAPTION_CLASS}>Type</label>
@@ -114,7 +114,7 @@ function CreateIssueModalFields({
         </div>
       )}
 
-      {EffectArray.isArrayNonEmpty(statuses) && (
+      {Array.isArrayNonEmpty(statuses) && (
         <div>
           {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
           <label className={FIELD_CAPTION_CLASS}>Status</label>

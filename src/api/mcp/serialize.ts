@@ -1,4 +1,4 @@
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate } from 'effect'
 import { z } from 'zod'
 
 import { ValidationError } from '#contracts/errors.ts'
@@ -112,11 +112,11 @@ export const splitShapeOpts = function splitShapeOpts(input: unknown): { rest: R
 }
 
 const isEmptyArray = function isEmptyArray(v: unknown): boolean {
-  return Array.isArray(v) && EffectArray.isArrayEmpty(v)
+  return globalThis.Array.isArray(v) && Array.isArrayEmpty(v)
 }
 
 const parseLabels = function parseLabels(v: unknown): string[] | undefined {
-  if (Array.isArray(v)) {
+  if (globalThis.Array.isArray(v)) {
     return v.filter((x): x is string => Predicate.isString(x))
   }
   if (!Predicate.isString(v)) {
@@ -124,7 +124,7 @@ const parseLabels = function parseLabels(v: unknown): string[] | undefined {
   }
   try {
     const parsed = JSON.parse(v)
-    return Array.isArray(parsed) ? parsed.filter((x): x is string => Predicate.isString(x)) : undefined
+    return globalThis.Array.isArray(parsed) ? parsed.filter((x): x is string => Predicate.isString(x)) : undefined
   } catch {
     return undefined
   }
@@ -161,7 +161,7 @@ const refOf = function refOf(issue: Record<string, unknown>): string | undefined
 const summarize = function summarize(issue: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   const ref = refOf(issue)
-  if (ref) {
+  if (Predicate.isNotNullish(ref) && String.isNonEmpty(ref)) {
     out.ref = ref
   } else if (issue.id != null) {
     out.id = issue.id
@@ -206,7 +206,7 @@ export const shapeIssue = function shapeIssue(
   opts: ShapeOpts = {},
 ): Record<string, unknown> {
   const ref = refOf(issue)
-  if (opts.fields && EffectArray.isArrayNonEmpty(opts.fields)) {
+  if (opts.fields && Array.isArrayNonEmpty(opts.fields)) {
     const source: Record<string, unknown> = {
       ...issue,
       ref,
@@ -219,7 +219,7 @@ export const shapeIssue = function shapeIssue(
     })
     return picked
   }
-  if (opts.verbose) {
+  if (opts.verbose === true) {
     return issue
   }
   if (opts.view === 'summary') {
@@ -227,14 +227,14 @@ export const shapeIssue = function shapeIssue(
   }
 
   const out: Record<string, unknown> = { ...issue }
-  if (ref) {
+  if (Predicate.isNotNullish(ref) && String.isNonEmpty(ref)) {
     out.ref = ref
   }
   if (issue.type_key != null) {
     out.type = issue.type_key
   }
   const labels = parseLabels(out.labels)
-  if (labels && EffectArray.isArrayNonEmpty(labels)) {
+  if (labels && Array.isArrayNonEmpty(labels)) {
     out.labels = labels
   } else {
     delete out.labels
@@ -282,7 +282,7 @@ export const toPage = function toPage<T>(
   next?: string | number | null,
   extra: Record<string, unknown> = {},
 ): { items: T[]; next?: string } & Record<string, unknown> {
-  return { items, ...(next == null ? {} : { next: String(next) }), ...extra }
+  return { items, ...(next == null ? {} : { next: globalThis.String(next) }), ...extra }
 }
 
 /**
@@ -303,7 +303,7 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
   } = {},
 ): P & { truncated?: true; hint?: string } {
   const max = opts.max ?? MAX_RESULT_CHARS
-  if (EffectArray.isArrayEmpty(page.items) || JSON.stringify(page).length <= max) {
+  if (Array.isArrayEmpty(page.items) || JSON.stringify(page).length <= max) {
     return page
   }
 
@@ -314,7 +314,7 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
       ...rest,
       items: page.items.slice(0, k),
       truncated: true as const,
-      ...(cursor ? { next: cursor } : {}),
+      ...(Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? { next: cursor } : {}),
       ...(opts.cursorOf ? {} : { hint: `Result capped at ${max} chars; lower limit or narrow the filters.` }),
     } as P & { truncated: true; hint?: string }
   }

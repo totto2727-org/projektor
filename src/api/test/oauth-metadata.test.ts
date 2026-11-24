@@ -40,7 +40,7 @@ describe('covers RFC 9728 protected resource metadata', () => {
 
     const body = await res.json<{ resource: string; authorization_servers: string[] }>()
     expect(body.resource).toBe(`${other}/mcp/abc`)
-    expect(body.authorization_servers).toEqual([other])
+    expect(body.authorization_servers).toStrictEqual([other])
   })
 
   test('does not advertise offline_access (the MCP spec says a resource SHOULD NOT)', async () => {
@@ -130,14 +130,14 @@ describe('covers RFC 8414 authorization server metadata', () => {
      * fallback and report success for a revocation that never happened.
      */
     expect(body.revocation_endpoint).toBe(`${HOST}/oauth/token`)
-    expect(body.response_types_supported).toEqual(['code'])
-    expect(body.grant_types_supported).toEqual(['authorization_code', 'refresh_token'])
+    expect(body.response_types_supported).toStrictEqual(['code'])
+    expect(body.grant_types_supported).toStrictEqual(['authorization_code', 'refresh_token'])
   })
 
   test('mandates PKCE S256 and never offers plain', async () => {
     const res = await fetchNativeApi(AS_URL)
     const body = await res.json<{ code_challenge_methods_supported: string[] }>()
-    expect(body.code_challenge_methods_supported).toEqual(['S256'])
+    expect(body.code_challenge_methods_supported).toStrictEqual(['S256'])
   })
 
   // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.

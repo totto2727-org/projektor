@@ -1,6 +1,6 @@
 'use client'
 
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 import { Fragment } from 'react'
 
 import { MarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
@@ -96,7 +96,7 @@ function IssueHeader({ issue }: { issue: SharedIssue }) {
 }
 
 function CustomFieldsSection({ fields }: { fields: SharedIssue['customFields'] }) {
-  if (EffectArray.isReadonlyArrayEmpty(fields)) {
+  if (Array.isReadonlyArrayEmpty(fields)) {
     return null
   }
   return (

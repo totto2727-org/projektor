@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
-import { Array as EffectArray, Predicate } from 'effect'
+import { Array, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -319,7 +319,7 @@ export const deleteWikiDraftsForPages = async function deleteWikiDraftsForPages(
   ctx: ServiceCtx,
   pageIds: string[],
 ): Promise<void> {
-  if (EffectArray.isArrayEmpty(pageIds)) {
+  if (Array.isArrayEmpty(pageIds)) {
     return
   }
   const orm = drizzle(ctx.db, { schema })

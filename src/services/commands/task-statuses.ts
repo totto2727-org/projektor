@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Predicate, Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -63,7 +63,7 @@ export const createTaskStatus = async function createTaskStatus(ctx: ServiceCtx,
     throw new ConflictError(`Task status key '${key}' already exists`)
   }
 
-  if (isDefault) {
+  if (isDefault === true) {
     await orm
       .update(schema.taskStatuses)
       .set({ isDefault: 0 })
@@ -79,8 +79,8 @@ export const createTaskStatus = async function createTaskStatus(ctx: ServiceCtx,
     category,
     color: color ?? null,
     position: position ?? 0,
-    isDefault: isDefault ? 1 : 0,
-    isReviewStep: isReviewStep ? 1 : 0,
+    isDefault: isDefault === true ? 1 : 0,
+    isReviewStep: isReviewStep === true ? 1 : 0,
   })
 
   await invalidateTaskStatusesCache(ctx)
@@ -157,13 +157,13 @@ export const updateTaskStatus = async function updateTaskStatus(ctx: ServiceCtx,
       .set({ statusCategory: setObj.category as string })
       .where(and(eq(schema.issues.statusId, id), eq(schema.issues.workspaceId, ctx.workspaceId)))
     const statements = [
-      ...(data.isDefault ? [prepareQuery(ctx.db, clearDefaults.toSQL())] : []),
+      ...(data.isDefault === true ? [prepareQuery(ctx.db, clearDefaults.toSQL())] : []),
       prepareQuery(ctx.db, statusUpdate.toSQL()),
       prepareQuery(ctx.db, issuesResync.toSQL()),
       buildCloseIssueReviewTargetsStatement(ctx, { statusId: id }),
     ]
     await ctx.db.batch(statements)
-  } else if (data.isDefault) {
+  } else if (data.isDefault === true) {
     await orm.batch([clearDefaults, statusUpdate])
   } else {
     await statusUpdate
@@ -314,7 +314,7 @@ export const resolveStatus = async function resolveStatus(
   if (statusId === null) {
     return fromKey(legacyStatus || 'backlog')
   }
-  if (statusId) {
+  if (Predicate.isNotNullish(statusId) && String.isNonEmpty(statusId)) {
     const found = await orm
       .select(cols)
       .from(schema.taskStatuses)
@@ -328,7 +328,7 @@ export const resolveStatus = async function resolveStatus(
     }
     return fromRow(found)
   }
-  if (legacyStatus) {
+  if (Predicate.isNotNullish(legacyStatus) && String.isNonEmpty(legacyStatus)) {
     const found = await orm
       .select(cols)
       .from(schema.taskStatuses)

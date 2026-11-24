@@ -1,5 +1,5 @@
 import { and, eq, inArray, ne } from 'drizzle-orm'
-import { Array as EffectArray, Predicate, Effect } from 'effect'
+import { Array, Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -274,7 +274,7 @@ export const moveIssuesToSprint = async function moveIssuesToSprint(ctx: Service
         ),
       ),
   )
-  if (EffectArray.isArrayNonEmpty(foreignIssues)) {
+  if (Array.isArrayNonEmpty(foreignIssues)) {
     throw new NotFoundError(`Issue not found: ${foreignIssues[0].id}`)
   }
 

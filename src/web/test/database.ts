@@ -1,6 +1,7 @@
 import type { SQLInputValue } from 'node:sqlite'
 
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types'
+import { String, Predicate } from 'effect'
 
 import { migratedDb } from '#db/test/helpers.ts'
 
@@ -18,7 +19,7 @@ export const createTestDatabase = function createTestDatabase() {
       },
       first: async (column?: string) => {
         const row = sqlite.prepare(query).get(...values)
-        return column ? (row?.[column] ?? null) : (row ?? null)
+        return Predicate.isNotNullish(column) && String.isNonEmpty(column) ? (row?.[column] ?? null) : (row ?? null)
       },
       run: async () => {
         const result = sqlite.prepare(query).run(...values)

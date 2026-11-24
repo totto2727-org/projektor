@@ -96,9 +96,9 @@ describe('frontend application data authorization', () => {
     expect(makeDataContext({ db }, scope, 'wa')).toMatchObject({
       db,
       scope,
+      userId: 'u',
       workspace,
       workspaceId: 'wa',
-      userId: 'u',
     })
     expect(() => makeDataContext({ db: undefined as unknown as D1Database }, scope, 'wa')).toThrow(
       'The application database is not configured.',

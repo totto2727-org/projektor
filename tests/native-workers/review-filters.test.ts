@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
@@ -76,7 +76,7 @@ beforeEach(async () => {
     const ownerWorkspace = index === 61 ? foreignWorkspaceId : workspaceId
     const projectId =
       index === 60 ? hiddenProject : index === 61 ? foreignProject : index % 2 === 0 ? firstProject : secondProject
-    const id = `filter-issue-${suffix}-${String(index).padStart(2, '0')}`
+    const id = `filter-issue-${suffix}-${globalThis.String(index).padStart(2, '0')}`
     const status = active
       ? (states[index % 3] ?? 'fixing')
       : index >= 60
@@ -139,15 +139,15 @@ describe('cross-project review filters through actual named Core bindings', () =
     let cursor: string | null | undefined
     do {
       const query = new URLSearchParams({ review: 'active', limit: '7' })
-      if (cursor) {
+      if (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)) {
         query.set('cursor', cursor)
       }
       const result = await page(query.toString())
-      expect(result.total).toBe(cursor ? null : 35)
+      expect(result.total).toBe(Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? null : 35)
       expect(result.items).toHaveLength(7)
       seen.push(...result.items.map((row) => row.id))
       cursor = Predicate.isString(result.nextCursor) ? result.nextCursor : null
-    } while (cursor)
+    } while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor))
     expect(seen).toEqual(selected.map((row) => row.id).reverse())
   })
 

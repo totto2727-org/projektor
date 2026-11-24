@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray, Predicate } from 'effect'
+import { Array, Predicate } from 'effect'
 
 import { ReviewTargetsSummary } from '@/features/issues/components/review-targets-summary.tsx'
 import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
@@ -111,7 +111,7 @@ export default function SearchResultsSection({
   if (Predicate.isNullish(searchResults)) {
     return null
   }
-  if (EffectArray.isArrayEmpty(searchResults)) {
+  if (Array.isArrayEmpty(searchResults)) {
     return <p className='text-text-muted'>No results for «{searchQuery.trim()}»</p>
   }
   return (

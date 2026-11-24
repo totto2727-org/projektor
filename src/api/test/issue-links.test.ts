@@ -279,7 +279,7 @@ describe('covers PROJ-438 — links accept an issue ref', () => {
     })
 
     expect(byRef.status).toBe(200)
-    await expect(byRef.json()).resolves.toEqual(await byUuid.json())
+    await expect(byRef.json()).resolves.toStrictEqual(await byUuid.json())
   })
 
   /*
@@ -367,6 +367,6 @@ describe('createLink target-visibility existence oracle', () => {
 
     expect(missingRes.status).toBe(404)
     expect(unwritableRes.status).toBe(404)
-    await expect(missingRes.json()).resolves.toEqual(await unwritableRes.json())
+    await expect(missingRes.json()).resolves.toStrictEqual(await unwritableRes.json())
   })
 })

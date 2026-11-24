@@ -1,4 +1,4 @@
-import { Predicate, Effect, Schema } from 'effect'
+import { String, Predicate, Effect, Schema } from 'effect'
 import type { Context, Next } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { CorePublicError } from 'projektor/core-client'
@@ -103,7 +103,7 @@ export const authMiddleware = async function authMiddleware(httpContext: Context
     }
     const response = Response.json({ error: message }, { status })
     const workspaceId = mcpWorkspaceIdFromPath(httpContext.req.path)
-    if (status === 401 && workspaceId) {
+    if (status === 401 && Predicate.isNotNullish(workspaceId) && String.isNonEmpty(workspaceId)) {
       response.headers.set('WWW-Authenticate', unauthorizedChallenge(httpContext.req.url, workspaceId))
     }
     return response

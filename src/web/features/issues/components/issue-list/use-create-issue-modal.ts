@@ -46,7 +46,7 @@ export const useCreateIssueModal = function useCreateIssueModal({ workspaceSlug,
   const createError =
     result && result !== openedResult && !result.ok ? `Failed to create issue: ${result.message}` : null
   useEffect(() => {
-    if (result?.ok) {
+    if (result?.ok === true) {
       setShowCreateModal(false)
     }
   }, [result])

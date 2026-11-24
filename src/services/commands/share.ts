@@ -1,3 +1,5 @@
+import { String, Predicate } from 'effect'
+
 import { assertProjectAccess, usersWithProjectReadAccess } from './access.ts'
 import { NotFoundError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
@@ -176,7 +178,7 @@ export const getSharedLogo = async function getSharedLogo(
   }
 
   const r2Key = await getWorkspaceBrandLogoR2Key(db, live.workspaceId)
-  if (!r2Key) {
+  if (Predicate.isNullish(r2Key) || String.isEmpty(r2Key)) {
     return null
   }
 

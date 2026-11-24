@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 import { useState } from 'react'
 
 import { getBacklogIssues } from '@/features/issues/components/board-utils.ts'
@@ -19,7 +19,7 @@ import {
 } from './issue-render-helpers.tsx'
 
 function applyBacklogOrder(issues: Readonly<Issue[]>, backlogOrder: string[]): Readonly<Issue[]> {
-  if (EffectArray.isArrayEmpty(backlogOrder)) {
+  if (Array.isArrayEmpty(backlogOrder)) {
     return issues
   }
   const inOrder = backlogOrder.flatMap((id) => {
@@ -232,7 +232,7 @@ export default function BacklogView({
   const [backlogDragOverId, setBacklogDragOverId] = useState<string | null>(null)
 
   const backlogIssues = getBacklogIssues(issues)
-  if (EffectArray.isArrayEmpty(backlogIssues)) {
+  if (Array.isArrayEmpty(backlogIssues)) {
     return <p className='text-text-base'>No backlog issues match the current filters.</p>
   }
   const orderedIssues = applyBacklogOrder(backlogIssues, backlogOrder)

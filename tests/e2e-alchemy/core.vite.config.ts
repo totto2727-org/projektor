@@ -51,7 +51,7 @@ export const makeCoreFixtureConfig = async function makeCoreFixtureConfig(
 
 // oxlint-disable-next-line import/no-default-export -- Vite loads the Core build configuration from the default export.
 export default defineConfig(async (environment) => {
-  if (environment.isPreview) {
+  if (environment.isPreview === true) {
     throw new Error('Core runs only inside the single three-Worker acceptance preview.')
   }
   return makeCoreFixtureConfig('./core.worker.ts', 'core-dist')

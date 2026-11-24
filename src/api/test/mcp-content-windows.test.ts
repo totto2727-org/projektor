@@ -2,6 +2,7 @@
  * PROJ-892: windowed reads — bodyChars previews on lists, get_wiki_page maxChars/cursor/
  * section/outline, and get_issue's long-body cursor.
  */
+import { String, Predicate } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { outlineOf, sectionOf, windowText } from '#api/mcp/windowing.ts'
@@ -20,7 +21,7 @@ describe('covers PROJ-892: windowing (unit)', () => {
     expect(first.next).toBe('2')
     let out = first.text
     let cursor = first.next
-    while (cursor) {
+    while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)) {
       const w = windowText(text, { max: 3, cursor })
       out += w.text
       cursor = w.next
@@ -101,7 +102,7 @@ describe('covers PROJ-892: MCP tools', () => {
     })
     const long = page.items.find((i) => i.title === 'Long')
     const short = page.items.find((i) => i.title === 'Short')
-    expect(String(long?.body)).toHaveLength(100)
+    expect(globalThis.String(long?.body)).toHaveLength(100)
     expect(long?.bodyTruncated).toBe(true)
     expect(short?.body).toBe('tiny')
     expect(short).not.toHaveProperty('bodyTruncated')
@@ -171,7 +172,7 @@ describe('covers PROJ-892: MCP tools', () => {
 
     let text = first.content
     let next = first.next
-    while (next) {
+    while (Predicate.isNotNullish(next) && String.isNonEmpty(next)) {
       const w = await tool<{ content: string; next?: string }>('get_wiki_page', {
         slug,
         maxChars: 40,

@@ -89,8 +89,8 @@ describe('core persistent authorization', () => {
     const testFixture = await fixture()
     testFixture.sqlite.exec('UPDATE api_tokens SET expires_at = 1')
     await expect(resolveCorePrincipal(testFixture.actor, testFixture.env)).rejects.toMatchObject({
-      status: 401,
       message: 'Token expired',
+      status: 401,
     })
   })
 

@@ -2,7 +2,7 @@
  * PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
  * one `{items, next}` pagination shape, and a hard per-result size cap.
  */
-import { Iterable } from 'effect'
+import { String, Predicate, Iterable } from 'effect'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { capPage, shapeIssue, splitShapeOpts, toPage } from '#api/mcp/serialize.ts'
@@ -145,14 +145,14 @@ describe('covers PROJ-891 review fixes (unit)', () => {
     const items = ts.map((t) => ({ t, pad: 'x'.repeat(100) }))
     const out = capPage(toPage(items, 'orig'), {
       max: 600,
-      cursorOf: (i) => String(items[i].t),
+      cursorOf: (i) => globalThis.String(items[i].t),
       canCutAt: (kept) => items[kept - 1].t !== items[kept]?.t,
     })
     expect(out.truncated).toBe(true)
     const last = out.items[out.items.length - 1].t
     // Nothing sharing the cursor's second was left behind
     expect(items.slice(out.items.length).every((i) => i.t > last)).toBe(true)
-    expect(out.next).toBe(String(last))
+    expect(out.next).toBe(globalThis.String(last))
   })
 
   test('capPage returns the whole page rather than skip items when no safe cut exists', () => {
@@ -267,7 +267,13 @@ describe('covers PROJ-891: MCP tools', () => {
           jsonrpc: '2.0',
           id: 1,
           method: 'tools/call',
-          params: { name: 'list_issues', arguments: { limit: 60, ...(cursor ? { cursor } : {}) } },
+          params: {
+            name: 'list_issues',
+            arguments: {
+              limit: 60,
+              ...(Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? { cursor } : {}),
+            },
+          },
         }),
       })
       const text = ((await res.json()) as Rpc).result?.content?.[0].text ?? ''
@@ -277,7 +283,7 @@ describe('covers PROJ-891: MCP tools', () => {
         next?: string
         truncated?: boolean
       }
-      if (page.truncated) {
+      if (page.truncated === true) {
         truncatedPages++
       }
       Iterable.forEach(page.items, (i) => {

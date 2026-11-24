@@ -178,8 +178,8 @@ describe('covers API facade reply boundary', () => {
       apiGetIssue: async (actualActor: unknown, workspaceId: unknown, input: unknown) => {
         expect({ actor: actualActor, workspaceId, input }).toEqual({
           actor,
-          workspaceId: 'workspace',
           input: { id: 'issue' },
+          workspaceId: 'workspace',
         })
         return runTestEffect(coreReply('getIssue', ApiResults.apiGetIssue, Effect.succeed(publicIssue)))
       },
@@ -280,8 +280,8 @@ describe('covers API facade reply boundary', () => {
     })
     await expect(apiReply(ApiResults.apiGetWikiTree, Effect.succeed(wire))).rejects.toMatchObject({
       _tag: 'CorePublicError',
-      status: 502,
       message: 'The Core service returned an invalid response.',
+      status: 502,
     })
   })
 
@@ -300,8 +300,8 @@ describe('covers API facade reply boundary', () => {
     )
     await expect(apiReply(PublicIssue, client.load())).rejects.toMatchObject({
       _tag: 'CorePublicError',
-      status: 502,
       message: 'The Core service returned an invalid response.',
+      status: 502,
     })
   })
 
@@ -330,8 +330,8 @@ describe('covers API facade reply boundary', () => {
     })
     await expect(apiReply(PublicIssue, client.load())).rejects.toMatchObject({
       _tag: 'CorePublicError',
-      status: 502,
       message: 'The Core service is temporarily unavailable.',
+      status: 502,
     })
     await expect(apiReply(PublicIssue, client.load())).rejects.not.toHaveProperty('originalError')
   })

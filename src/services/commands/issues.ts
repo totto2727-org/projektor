@@ -1,5 +1,5 @@
 import { and, eq, or } from 'drizzle-orm'
-import { Array as EffectArray, Iterable, Predicate, Effect } from 'effect'
+import { String, Array, Iterable, Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { AddCommentSchema } from '#contracts/inputs/comments.ts'
@@ -70,7 +70,7 @@ const validateParent = async function validateParent(
   parentId: string,
   issueId: string | null,
 ): Promise<void> {
-  if (issueId && parentId === issueId) {
+  if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId) && parentId === issueId) {
     throw new ValidationError({
       formErrors: ['An issue cannot be its own parent'],
       fieldErrors: {},
@@ -115,7 +115,7 @@ const validateParent = async function validateParent(
    */
   let ancestorCount = 0
   Iterable.forEach(chain.slice(1), ({ id: ancestorId }) => {
-    if (issueId && ancestorId === issueId) {
+    if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId) && ancestorId === issueId) {
       throw new ValidationError({
         formErrors: ['Setting this parent would create a cycle'],
         fieldErrors: {},
@@ -201,7 +201,7 @@ export async function resolveIssueIdParam(
   }
 
   const id = await Effect.runPromise(issueQueries.findIssueIdByRef(ctx.db, ctx.workspaceId, param))
-  if (!id) {
+  if (Predicate.isNullish(id) || String.isEmpty(id)) {
     throw new NotFoundError(notFoundMessage)
   }
   return id
@@ -264,7 +264,12 @@ export async function getIssue(ctx: ServiceCtx, raw: unknown) {
   }
   const { id, ref } = result.data
 
-  if (!id && ref && !ISSUE_REF_PATTERN.test(ref)) {
+  if (
+    (Predicate.isNullish(id) || String.isEmpty(id)) &&
+    Predicate.isNotNullish(ref) &&
+    String.isNonEmpty(ref) &&
+    !ISSUE_REF_PATTERN.test(ref)
+  ) {
     throw new ValidationError({
       formErrors: ['ref must be in format KEY-NUMBER'],
       fieldErrors: {},
@@ -334,7 +339,7 @@ const resolveTypeId = async function resolveTypeId(
     return null
   }
   const orm = drizzle(ctx.db, { schema })
-  if (typeId) {
+  if (Predicate.isNotNullish(typeId) && String.isNonEmpty(typeId)) {
     const found = await orm
       .select({ id: schema.taskTypes.id })
       .from(schema.taskTypes)
@@ -479,7 +484,7 @@ const buildActivityInsertStatement = function buildActivityInsertStatement(
     requireExistingIssue?: boolean
   }>,
 ): D1PreparedStatement {
-  if (opts.requireExistingIssue) {
+  if (opts.requireExistingIssue === true) {
     return ctx.db
       .prepare(`INSERT INTO activity (id,workspace_id,entity_type,entity_id,actor_id,action,diff,created_at)
       SELECT ?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM issues WHERE id=? AND workspace_id=?)`)
@@ -579,7 +584,7 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
    * PROJ-785: an assignee must be a member of this workspace — otherwise we'd
    * persist a dangling or wrong-workspace user reference.
    */
-  if (assigneeId) {
+  if (Predicate.isNotNullish(assigneeId) && String.isNonEmpty(assigneeId)) {
     await requireWorkspaceMember(ctx, assigneeId)
   }
 
@@ -645,7 +650,7 @@ async function createIssueInternal(ctx: ServiceCtx, raw: unknown, feedbackIds?: 
     throw new ConflictError('Feedback already converted or no longer available')
   }
 
-  if (parentId) {
+  if (Predicate.isNotNullish(parentId) && String.isNonEmpty(parentId)) {
     await cache.invalidate(ctx.kv, `issue:${ctx.workspaceId}:${parentId}`)
   }
 
@@ -1316,7 +1321,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
    * looping one round trip per field.
    */
   const cfWrites =
-    data.customFields && EffectArray.isArrayNonEmpty(Object.keys(data.customFields))
+    data.customFields && Array.isArrayNonEmpty(Object.keys(data.customFields))
       ? await validateCustomFields(ctx.db, ctx.workspaceId, data.customFields)
       : []
 
@@ -1581,7 +1586,7 @@ export async function deleteIssue(ctx: ServiceCtx, rawId: string) {
       console.error('deleteIssue: R2 cleanup failed', {
         id,
         r2Keys: keys,
-        err: String(error),
+        err: globalThis.String(error),
       })
     }
   }
@@ -1653,7 +1658,7 @@ const healDefinitionOfReady = async function healDefinitionOfReady(ctx: ServiceC
       .bind(ctx.workspaceId, DOR_HEAL_BATCH)
       .all<{ id: string; body: string | null }>()
     const rows = results ?? []
-    if (EffectArray.isArrayEmpty(rows)) {
+    if (Array.isArrayEmpty(rows)) {
       return
     }
     await ctx.db.batch(
@@ -1817,7 +1822,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
    */
   if (includeNotReady) {
     const rows = await queryPrioritized(ctx, { ...base, readyOnly: false })
-    if (EffectArray.isArrayEmpty(rows)) {
+    if (Array.isArrayEmpty(rows)) {
       return { issues: [] }
     }
     return { issues: rows.map(toPrioritizedIssue), droppedNotReady: 0 }
@@ -1828,7 +1833,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
    * PROJ-291: don't SILENTLY drop not-ready issues — surface the count so a caller
    * seeing few results knows to groom (or re-query with includeNotReady).
    */
-  if (EffectArray.isArrayNonEmpty(ready)) {
+  if (Array.isArrayNonEmpty(ready)) {
     return { issues: ready.map(toPrioritizedIssue), droppedNotReady: ready[0].not_ready_count }
   }
 
@@ -1837,7 +1842,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
    * array that reads as "no open work".
    */
   const all = await queryPrioritized(ctx, { ...base, readyOnly: false })
-  if (EffectArray.isArrayEmpty(all)) {
+  if (Array.isArrayEmpty(all)) {
     return { issues: [] }
   }
   return {

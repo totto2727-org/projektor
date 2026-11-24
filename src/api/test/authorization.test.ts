@@ -623,7 +623,7 @@ describe('covers PROJ-78: seedToken scopes parameter', () => {
     const row = await env.DB.prepare('SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?')
       .bind(fixture.workspace.id, fixture.user.id)
       .first<{ scopes: string }>()
-    expect(JSON.parse(row!.scopes)).toEqual(['*'])
+    expect(JSON.parse(row!.scopes)).toStrictEqual(['*'])
   })
 
   test('seedToken persists explicit scopes for future scope-enforcement tests', async () => {
@@ -637,7 +637,7 @@ describe('covers PROJ-78: seedToken scopes parameter', () => {
     const row = await env.DB.prepare('SELECT scopes FROM api_tokens WHERE workspace_id = ? AND user_id = ?')
       .bind(ws.id, user.id)
       .first<{ scopes: string }>()
-    expect(JSON.parse(row!.scopes)).toEqual(['read'])
+    expect(JSON.parse(row!.scopes)).toStrictEqual(['read'])
   })
 
   test('seedToken persists expiresAt when provided', async () => {

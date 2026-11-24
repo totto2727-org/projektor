@@ -1,3 +1,4 @@
+import { String, Predicate } from 'effect'
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
@@ -41,7 +42,7 @@ publicRouter.options('/submit', (httpContext) => {
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     'Access-Control-Max-Age': '86400',
   }
-  if (origin) {
+  if (Predicate.isNotNullish(origin) && String.isNonEmpty(origin)) {
     headers['Access-Control-Allow-Origin'] = origin
   }
   return httpContext.body(null, 204, headers)
@@ -72,7 +73,7 @@ const checkFeedbackRateLimit = async function checkFeedbackRateLimit(
       bumpRateCounter(httpContext.env, `feedback-ip:${ip}`, windowSecs),
     ])
   } catch (error) {
-    console.error('feedback rate-limit counter unavailable, failing open', { err: String(error) })
+    console.error('feedback rate-limit counter unavailable, failing open', { err: globalThis.String(error) })
     return null
   }
   if (tokenCount > tokenLimit || ipCount > ipLimit) {
@@ -130,7 +131,7 @@ publicRouter.post('/submit', async (httpContext) => {
       ApiSubmittedFeedback,
       makeCoreClient(httpContext.env.CORE).apiSubmitFeedback(token, rawBody, origin),
     )
-    if (corsAllowOrigin) {
+    if (Predicate.isNotNullish(corsAllowOrigin) && String.isNonEmpty(corsAllowOrigin)) {
       httpContext.header('Access-Control-Allow-Origin', corsAllowOrigin)
     }
     return httpContext.json({ id }, 201)

@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 
 import {
   createIssue,
@@ -357,7 +357,7 @@ export const issuesTools: MCPTool[] = [
     annotations: IDEMPOTENT_WRITE,
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
-      if (!id || !Predicate.isString(id)) {
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return updateIssue(ctx, id, fields)
@@ -396,7 +396,7 @@ export const issuesTools: MCPTool[] = [
     annotations: DESTRUCTIVE,
     handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || !Predicate.isString(id)) {
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return deleteIssue(ctx, id)

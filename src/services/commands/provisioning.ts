@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Iterable, Predicate } from 'effect'
+import { String, Iterable, Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 import type { Env } from '#types'
@@ -98,7 +98,7 @@ const parseDomainMapJson = function parseDomainMapJson(raw: string): unknown {
 
 const parseDomainMap = function parseDomainMap(raw?: string): Map<string, { slug: string; role: Role }> {
   const map = new Map<string, { slug: string; role: Role }>()
-  if (!raw) {
+  if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
     return map
   }
   const obj = parseDomainMapJson(raw)
@@ -257,7 +257,7 @@ const alreadyProvisioned = async function alreadyProvisioned(
     console.error(`[provisioning] failed to read provisioned marker for ${userId} from KV:`, error)
     return false
   }
-  if (!marker) {
+  if (Predicate.isNullish(marker) || String.isEmpty(marker)) {
     return false
   }
   inMemoryProvisionedCache.set(userId, Date.now() + PROVISIONED_LOCAL_TTL_MS)

@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 import type React from 'react'
 
@@ -44,7 +44,7 @@ export function renderShare(
 ): Effect.Effect<React.ReactElement, PageFailure> {
   return Effect.gen(function* () {
     const shareToken = params.token ?? url.searchParams.get('token')
-    if (!shareToken) {
+    if (Predicate.isNullish(shareToken) || String.isEmpty(shareToken)) {
       return <ErrorState error='not_found' />
     }
     const issue = yield* coreResult(SharedIssue, makeCoreClient(env.CORE).webSharedIssue(shareToken)).pipe(

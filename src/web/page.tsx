@@ -54,7 +54,7 @@ export function pageRenderer(
   const view: PreparedView = Effect.gen(function* () {
     const services = yield* RequestServices
     const params = yield* getRouteParams
-    const scope = options.public ? null : yield* services.scope(options)
+    const scope = options.public === true ? null : yield* services.scope(options)
     let content: ReactNode
     if (Predicate.isNullish(scope)) {
       content = yield* (render as PublicRenderer)(services.env, null, services.url, params)

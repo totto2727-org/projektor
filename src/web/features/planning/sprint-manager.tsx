@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Array as EffectArray, Predicate, Schema } from 'effect'
+import { String, Array, Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useEffectEvent, useState } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
@@ -92,7 +92,7 @@ export function SprintManager({
       setCompleteId(null)
       setSummary({ sprint, issues: completedIssues })
     } catch (error) {
-      setCompleteError(String(error))
+      setCompleteError(globalThis.String(error))
     }
     setCompleting(false)
   }
@@ -128,7 +128,7 @@ export function SprintManager({
           }}
         />
       )}
-      {EffectArray.isArrayNonEmpty(active) && !showCreate && (
+      {Array.isArrayNonEmpty(active) && !showCreate && (
         <div
           role='status'
           className='mb-4 px-[0.875rem] py-[0.625rem] bg-sprint-notice-bg border border-sprint-notice-border rounded-md text-sm text-status-in-progress'
@@ -155,7 +155,7 @@ export function SprintManager({
       {showCreate && (
         <div className='mb-6 px-5 py-4 bg-surface border border-border rounded-lg'>
           <h3 className='m-0 mb-4 text-base font-semibold text-text-base'>New sprint</h3>
-          {EffectArray.isArrayNonEmpty(active) && (
+          {Array.isArrayNonEmpty(active) && (
             <div
               role='alert'
               className='mb-[0.875rem] px-3 py-2 bg-danger-bg border border-danger-border rounded text-[0.8rem] text-danger-text'
@@ -191,7 +191,7 @@ export function SprintManager({
           </Button>
         ))}
       </nav>
-      {EffectArray.isArrayEmpty(sprints) ? (
+      {Array.isArrayEmpty(sprints) ? (
         <div className='p-8 text-center text-text-muted bg-surface rounded-lg border border-border'>
           <p className='m-0 mb-2'>{mode === 'all' ? 'No sprints yet.' : `No ${mode} sprints.`}</p>
           <p className='m-0 text-sm'>Create a sprint to organise issues into time-boxed iterations.</p>
@@ -219,7 +219,7 @@ export function SprintManager({
           />
         ))
       )}
-      {EffectArray.isArrayNonEmpty(completed) && <VelocityChart sprints={completed.slice(-6)} issues={issues} />}
+      {Array.isArrayNonEmpty(completed) && <VelocityChart sprints={completed.slice(-6)} issues={issues} />}
     </div>
   )
 }
@@ -241,12 +241,12 @@ function SprintForm({
 }) {
   const [defaults] = useState(() => initialValues)
   const [result, formAction, busy] = useActionState<ActionResult<{ id: string } | { ok: true }> | null, FormData>(
-    sprintId ? editSprint : createSprint,
+    Predicate.isNotNullish(sprintId) && String.isNonEmpty(sprintId) ? editSprint : createSprint,
     null,
   )
   const success = useEffectEvent(onSuccess)
   useEffect(() => {
-    if (result?.ok) {
+    if (result?.ok === true) {
       success()
     }
   }, [result])
@@ -419,7 +419,7 @@ function SprintRow({
     try {
       unwrapResult(await setSprintStatus({ workspaceSlug, projectId, sprintId: sprint.id, status }))
     } catch (cause) {
-      setError(String(cause))
+      setError(globalThis.String(cause))
     }
     setBusy(false)
   }
@@ -433,7 +433,7 @@ function SprintRow({
       unwrapResult(await archiveSprint({ workspaceSlug, projectId, sprintId: sprint.id }))
       setArchive(false)
     } catch (cause) {
-      setError(String(cause))
+      setError(globalThis.String(cause))
     }
     setBusy(false)
   }
@@ -626,7 +626,7 @@ function MoveIssuesForm({
         unwrapResult(await moveSprintIssues(value))
         onClose()
       } catch (cause) {
-        setError(String(cause))
+        setError(globalThis.String(cause))
       }
     },
   })
@@ -677,7 +677,7 @@ function MoveIssuesForm({
                   </>
                 )}
               </form.Field>
-              {EffectArray.isArrayEmpty(issues) && <p className='text-text-muted text-sm'>No issues in this sprint.</p>}
+              {Array.isArrayEmpty(issues) && <p className='text-text-muted text-sm'>No issues in this sprint.</p>}
             </div>
             <label className='text-sm' htmlFor={`move-target-${sprint.id}`}>
               Destination{' '}
@@ -770,7 +770,7 @@ function CompletionSummaryPanel({
           </div>
         )}
       </div>
-      {EffectArray.isArrayNonEmpty(done) && (
+      {Array.isArrayNonEmpty(done) && (
         <div>
           <p className='m-0 mb-2 text-[0.78rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
             Completed issues

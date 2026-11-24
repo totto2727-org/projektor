@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { String, Predicate, Effect, Schema } from 'effect'
 import type { Context, Next } from 'hono'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
@@ -216,7 +216,7 @@ app.get('/wiki', async (httpContext) => {
   }
   const slug = httpContext.req.query('slug')
   const shell = (): Promise<Response> => assets.fetch(new Request(new URL('/wiki/index.html', httpContext.req.url)))
-  if (!slug) {
+  if (Predicate.isNullish(slug) || String.isEmpty(slug)) {
     return shell()
   }
   const page = await resolveWikiPageForSsr(httpContext, slug)
@@ -242,7 +242,8 @@ app.get('*', async (httpContext) => {
   const response = await httpContext.env.ASSETS.fetch(new Request(new URL(fallbackPath, httpContext.req.url)))
   if (wikiSlugMatch) {
     const slug = safeDecodeURIComponent(wikiSlugMatch[1])
-    const page = slug ? await resolveWikiPageForSsr(httpContext, slug) : null
+    const page =
+      Predicate.isNotNullish(slug) && String.isNonEmpty(slug) ? await resolveWikiPageForSsr(httpContext, slug) : null
     if (page) {
       return injectWikiMetadata(response, page, new URL(pathname, httpContext.req.url).toString())
     }

@@ -1,4 +1,5 @@
 import { and, eq, gt, isNull } from 'drizzle-orm'
+import { String, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '#contracts/inputs/issue-leases.ts'
@@ -189,7 +190,7 @@ const reclaimStaleLeaseOrThrow = async function reclaimStaleLeaseOrThrow(
   // Stale lease: the holder stopped heartbeating. Reclaim it.
   await orm
     .update(schema.issueLeases)
-    .set({ releasedAt: now, releaseReason: 'expired' })
+    .set({ releaseReason: 'expired', releasedAt: now })
     .where(eq(schema.issueLeases.id, existing.id))
 }
 
@@ -307,7 +308,7 @@ export const releaseIssue = async function releaseIssue(ctx: ServiceCtx, raw: un
     eq(schema.issueLeases.issueId, issueId),
     isNull(schema.issueLeases.releasedAt),
   ]
-  if (agentId) {
+  if (Predicate.isNotNullish(agentId) && String.isNonEmpty(agentId)) {
     conditions.push(eq(schema.issueLeases.agentSessionId, agentId))
   }
 
@@ -323,7 +324,7 @@ export const releaseIssue = async function releaseIssue(ctx: ServiceCtx, raw: un
 
   await orm
     .update(schema.issueLeases)
-    .set({ releasedAt: now, releaseReason: 'released' })
+    .set({ releaseReason: 'released', releasedAt: now })
     .where(eq(schema.issueLeases.id, active.id))
 
   await broadcastWorkspaceEvent(ctx, {
@@ -352,7 +353,7 @@ export const buildReleaseLeaseForClosedIssueStatement = function buildReleaseLea
   const now = Math.floor(Date.now() / 1000)
   const query = orm
     .update(schema.issueLeases)
-    .set({ releasedAt: now, releaseReason: 'issue_closed' })
+    .set({ releaseReason: 'issue_closed', releasedAt: now })
     .where(
       and(
         eq(schema.issueLeases.workspaceId, ctx.workspaceId),
@@ -374,7 +375,7 @@ export const releaseLeasesForAgent = async function releaseLeasesForAgent(
 
   await orm
     .update(schema.issueLeases)
-    .set({ releasedAt: now, releaseReason: 'agent_ended' })
+    .set({ releaseReason: 'agent_ended', releasedAt: now })
     .where(
       and(
         eq(schema.issueLeases.workspaceId, ctx.workspaceId),
@@ -513,16 +514,16 @@ export const listIssueLeases = async function listIssueLeases(ctx: ServiceCtx, r
   const cutoff = liveCutoff()
 
   const conditions = [eq(schema.issueLeases.workspaceId, ctx.workspaceId), isNull(schema.issueLeases.releasedAt)]
-  if (issueId) {
+  if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId)) {
     conditions.push(eq(schema.issueLeases.issueId, issueId))
   }
-  if (agentId) {
+  if (Predicate.isNotNullish(agentId) && String.isNonEmpty(agentId)) {
     conditions.push(eq(schema.issueLeases.agentSessionId, agentId))
   }
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     conditions.push(eq(schema.issues.projectId, projectId))
   }
-  if (!includeStale) {
+  if (includeStale !== true) {
     conditions.push(eq(schema.agentSessions.status, 'active'))
     conditions.push(gt(schema.agentSessions.lastHeartbeatAt, cutoff))
   }

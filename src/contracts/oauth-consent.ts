@@ -1,5 +1,5 @@
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider'
-import { Array as EffectArray, Predicate } from 'effect'
+import { String, Array, Predicate } from 'effect'
 
 import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from './auth-scopes.ts'
 
@@ -21,7 +21,7 @@ export const workspaceIdFromResource = function workspaceIdFromResource(
   if (Predicate.isNullish(resource)) {
     throw new OAuthRequestError('invalid_target', 'A `resource` parameter naming the target workspace is required')
   }
-  if (Array.isArray(resource)) {
+  if (globalThis.Array.isArray(resource)) {
     if (resource.length !== 1) {
       throw new OAuthRequestError('invalid_target', 'Exactly one `resource` may be requested')
     }
@@ -34,7 +34,7 @@ export const workspaceIdFromResource = function workspaceIdFromResource(
     throw new OAuthRequestError('invalid_target', '`resource` is not a valid URL')
   }
   const workspaceId = /^\/mcp\/([^/]+)$/.exec(url.pathname)?.[1]
-  if (!workspaceId) {
+  if (Predicate.isNullish(workspaceId) || String.isEmpty(workspaceId)) {
     throw new OAuthRequestError('invalid_target', '`resource` must name an MCP endpoint, e.g. https://host/mcp/<id>')
   }
   return decodeURIComponent(workspaceId)
@@ -42,11 +42,11 @@ export const workspaceIdFromResource = function workspaceIdFromResource(
 
 /** An omitted scope requests all supported scopes. Unsupported extras are discarded. */
 export const grantedScopes = function grantedScopes(requested: Readonly<string[]>): string[] {
-  if (EffectArray.isReadonlyArrayEmpty(requested)) {
+  if (Array.isReadonlyArrayEmpty(requested)) {
     return [...OAUTH_SCOPES_SUPPORTED]
   }
   const granted = OAUTH_SCOPES_SUPPORTED.filter((scope) => requested.includes(scope))
-  if (EffectArray.isArrayEmpty(granted)) {
+  if (Array.isArrayEmpty(granted)) {
     throw new OAuthRequestError(
       'invalid_scope',
       `No supported scopes requested. Supported: ${OAUTH_SCOPES_SUPPORTED.join(', ')}`,
@@ -72,7 +72,7 @@ export const relyingPartyHost = function relyingPartyHost(clientId: string): str
   }
 }
 export const isLoopbackOnlyClient = function isLoopbackOnlyClient(redirectUris: Readonly<string[]>): boolean {
-  if (EffectArray.isReadonlyArrayEmpty(redirectUris)) {
+  if (Array.isReadonlyArrayEmpty(redirectUris)) {
     return false
   }
   return redirectUris.every((uri) => {

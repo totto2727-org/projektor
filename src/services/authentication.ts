@@ -1,4 +1,4 @@
-import { Predicate, Effect, Schema } from 'effect'
+import { String, Predicate, Effect, Schema } from 'effect'
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { z } from 'zod'
 
@@ -47,7 +47,7 @@ export const authenticateBrowser = async function authenticateBrowser(
   const jwt =
     request.headers.get('Cf-Access-Jwt-Assertion') ??
     parseCookie(request.headers.get('cookie') ?? '', 'CF_Authorization')
-  if (jwt) {
+  if (Predicate.isNotNullish(jwt) && String.isNonEmpty(jwt)) {
     return authenticateAccessJwt(jwt, env)
   }
   const principal = await authenticateDevelopment(env)
@@ -214,7 +214,7 @@ async function getCfAccessKeysOrUnavailable(
   }
 }
 async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefresh?: boolean }): Promise<JsonWebKey[]> {
-  if (opts?.forceRefresh && Date.now() - lastForcedRefreshAt >= FORCE_REFRESH_COOLDOWN_MS) {
+  if (opts?.forceRefresh === true && Date.now() - lastForcedRefreshAt >= FORCE_REFRESH_COOLDOWN_MS) {
     lastForcedRefreshAt = Date.now()
     return fetchAndCacheCfAccessKeys(env)
   }

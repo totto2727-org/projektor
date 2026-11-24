@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
-import { Array as EffectArray, Predicate, Effect } from 'effect'
+import { String, Array, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -44,7 +44,7 @@ const assertOptionsAllowedForType = function assertOptionsAllowedForType(
   type: string,
   options: string[] | undefined,
 ): void {
-  if (type !== 'select' && options && EffectArray.isArrayNonEmpty(options)) {
+  if (type !== 'select' && options && Array.isArrayNonEmpty(options)) {
     throw new ValidationError({
       formErrors: ['options can only be set for select fields'],
       fieldErrors: {},
@@ -58,9 +58,10 @@ const assertCustomFieldKeyAvailable = async function assertCustomFieldKeyAvailab
   projectId: string | null | undefined,
   key: string,
 ): Promise<void> {
-  const projCondition = projectId
-    ? eq(schema.customFieldDefinitions.projectId, projectId)
-    : isNull(schema.customFieldDefinitions.projectId)
+  const projCondition =
+    Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)
+      ? eq(schema.customFieldDefinitions.projectId, projectId)
+      : isNull(schema.customFieldDefinitions.projectId)
 
   const existing = await orm
     .select({ id: schema.customFieldDefinitions.id })
@@ -119,7 +120,7 @@ export const createCustomFieldDef = async function createCustomFieldDef(ctx: Ser
     key,
     label,
     type,
-    options: options && EffectArray.isArrayNonEmpty(options) ? JSON.stringify(options) : null,
+    options: options && Array.isArrayNonEmpty(options) ? JSON.stringify(options) : null,
     createdAt: now,
   })
 
@@ -158,10 +159,10 @@ const buildCustomFieldUpdateSet = function buildCustomFieldUpdateSet(
     setObj.label = data.label
   }
   if ('options' in data) {
-    setObj.options = data.options && EffectArray.isArrayNonEmpty(data.options) ? JSON.stringify(data.options) : null
+    setObj.options = data.options && Array.isArrayNonEmpty(data.options) ? JSON.stringify(data.options) : null
   }
 
-  if (EffectArray.isArrayEmpty(Object.keys(setObj))) {
+  if (Array.isArrayEmpty(Object.keys(setObj))) {
     throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
   }
 
@@ -289,7 +290,7 @@ export const validateCustomFields = async function validateCustomFields(
   workspaceId: string,
   customFields: Record<string, unknown>,
 ): Promise<{ fieldId: string; value: string }[]> {
-  if (EffectArray.isArrayEmpty(Object.keys(customFields))) {
+  if (Array.isArrayEmpty(Object.keys(customFields))) {
     return []
   }
 
@@ -316,7 +317,7 @@ export const validateCustomFields = async function validateCustomFields(
     }
 
     // oxlint-disable-next-line @typescript-eslint/no-base-to-string -- Preserve existing custom-field coercion before validation, including object values.
-    const value = String(rawValue)
+    const value = globalThis.String(rawValue)
     assertValidCustomFieldValue(key, value, def)
 
     writes.push({ fieldId: def.id, value })
@@ -338,7 +339,7 @@ export const buildCustomFieldUpsertStatements = function buildCustomFieldUpsertS
   issueId: string,
   writes: Readonly<{ fieldId: string; value: string }[]>,
 ): D1PreparedStatement[] {
-  if (EffectArray.isReadonlyArrayEmpty(writes)) {
+  if (Array.isReadonlyArrayEmpty(writes)) {
     return []
   }
   const orm = drizzle(db, { schema })

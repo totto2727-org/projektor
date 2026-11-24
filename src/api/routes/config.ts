@@ -1,3 +1,4 @@
+import { String, Predicate } from 'effect'
 import { Hono } from 'hono'
 
 import type { HonoEnv } from '#types'
@@ -19,7 +20,10 @@ router.get('/brand', (httpContext) => {
   return httpContext.json(
     {
       name,
-      mark: markOverride ? firstChar(markOverride) : deriveBrandMark(name),
+      mark:
+        Predicate.isNotNullish(markOverride) && String.isNonEmpty(markOverride)
+          ? firstChar(markOverride)
+          : deriveBrandMark(name),
       accent: httpContext.env.BRAND_ACCENT?.trim() || null,
       onAccent: httpContext.env.BRAND_ON_ACCENT?.trim() || null,
       logoUrl: httpContext.env.BRAND_LOGO_URL?.trim() || null,

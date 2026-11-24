@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core'
-import { Predicate, Effect, Schema } from 'effect'
+import { String, Predicate, Effect, Schema } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
@@ -91,7 +91,10 @@ const listOptions = function listOptions(params: URLSearchParams, scope: Request
           options: {
             ...fields,
             limit: fields.limit ?? 30,
-            cursor: cursor ? { createdAt: Number(createdAt), id } : undefined,
+            cursor:
+              Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)
+                ? { createdAt: Number(createdAt), id }
+                : undefined,
             noParent: boolean(noParent),
             includeRollups: boolean(includeRollups),
             includeBody: boolean(includeBody),
@@ -127,7 +130,7 @@ export const readDataIssue = function readDataIssue(
       return yield* new ScopeError(404, 'Issue not found.')
     }
     yield* checked(() => authorizeDataEntity(scope, workspaceId, { projectId: row.project_id }))
-    if (projectId && row.project_id !== projectId) {
+    if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) && row.project_id !== projectId) {
       return yield* new ScopeError(404, 'Issue not found in the selected project.')
     }
     const extras = yield* issueQueries.getIssueExtras(db, workspaceId, row.id).pipe(Effect.mapError(dataError))
@@ -146,7 +149,7 @@ export const readDataIssuePage = function readDataIssuePage(
     const decoded = yield* listOptions(params, scope)
     const options: issueQueries.IssueListOptions = decoded.options
     const projectValue = params.get('project')
-    if (projectValue) {
+    if (Predicate.isNotNullish(projectValue) && String.isNonEmpty(projectValue)) {
       const project = scope.projects.find(
         (entry) => entry.workspace_id === workspaceId && (entry.id === projectValue || entry.key === projectValue),
       )
@@ -156,7 +159,7 @@ export const readDataIssuePage = function readDataIssuePage(
       options.parentId = (yield* readDataIssue(scope, workspaceId, options.parentId)).id
     }
     const { cfKey, cfOp, cfValue } = decoded
-    if (cfKey) {
+    if (Predicate.isNotNullish(cfKey) && String.isNonEmpty(cfKey)) {
       const field = yield* issueQueries.findIssueCustomField(db, workspaceId, cfKey).pipe(Effect.mapError(dataError))
       if (!field) {
         return yield* new ScopeError(400, 'Unknown custom field key.')
@@ -189,7 +192,7 @@ export const searchDataIssues = function searchDataIssues(
     const reviewFilter = yield* Schema.decodeUnknownEffect(Schema.optional(ReviewFilterSchema))(review).pipe(
       Effect.mapError(() => new ScopeError(400, 'Invalid review filter.')),
     )
-    if (projectId) {
+    if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
       yield* checked(() => requireDataProject(scope, projectId, workspaceId))
     }
     if (!query.length) {

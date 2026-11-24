@@ -1,4 +1,4 @@
-import { Array as EffectArray, Predicate } from 'effect'
+import { String, Array, Predicate } from 'effect'
 
 import type { ServiceCtx } from '#commands/types.ts'
 import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki.ts'
@@ -213,12 +213,17 @@ const wrapCallsWithBudget = function wrapCallsWithBudget<T extends object>(targe
 
 const loadCursor = async function loadCursor(kv: KVNamespace): Promise<string[] | null> {
   const raw = await kv.get(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
-  if (!raw) {
+  if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
     return null
   }
   try {
     const parsed: unknown = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object' || !('workspaceIds' in parsed) || !Array.isArray(parsed.workspaceIds)) {
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !('workspaceIds' in parsed) ||
+      !globalThis.Array.isArray(parsed.workspaceIds)
+    ) {
       return null
     }
     return parsed.workspaceIds.filter((id): id is string => Predicate.isString(id))
@@ -239,7 +244,7 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
   let purged = 0
   let failed = 0
   const failedThisRun = new Set<string>()
-  while (EffectArray.isArrayNonEmpty(remaining) && budget.remaining() >= WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE) {
+  while (Array.isArrayNonEmpty(remaining) && budget.remaining() >= WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE) {
     const id = remaining[0]
     if (failedThisRun.has(id)) {
       if (remaining.every((workspace) => failedThisRun.has(workspace))) {
@@ -275,7 +280,7 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
       break
     }
   }
-  if (EffectArray.isArrayEmpty(remaining)) {
+  if (Array.isArrayEmpty(remaining)) {
     await kv.delete(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
   } else {
     await kv.put(WIKI_TRASH_PURGE_CURSOR_KV_KEY, JSON.stringify({ workspaceIds: remaining }))

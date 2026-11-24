@@ -1,6 +1,6 @@
 'use client'
 
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 
 import { SectionHeading } from './metric-help.tsx'
 import type { CodeHeatmapEntry, CodeHeatmapResponse, HeatmapMode } from './types.ts'
@@ -114,7 +114,7 @@ export function CodeHeatmap({
             <nav className='flex flex-wrap items-center gap-1 mb-3 text-[0.78rem]' aria-label='Heatmap breadcrumb'>
               <a
                 href={heatmapHref(initialUrl, mode, '')}
-                className={`px-1.5 py-0.5 rounded no-underline hover:bg-border ${EffectArray.isArrayEmpty(segments) ? 'font-semibold text-text-base' : 'text-accent'}`}
+                className={`px-1.5 py-0.5 rounded no-underline hover:bg-border ${Array.isArrayEmpty(segments) ? 'font-semibold text-text-base' : 'text-accent'}`}
               >
                 All files
               </a>
@@ -133,7 +133,7 @@ export function CodeHeatmap({
                 )
               })}
             </nav>
-            {EffectArray.isArrayEmpty(data.entries) ? (
+            {Array.isArrayEmpty(data.entries) ? (
               <div className='py-8 text-center'>
                 <p className='m-0 text-sm text-text-base'>
                   {mode === 'contention' ? 'No claim conflicts in this window' : 'No file claims in this window yet'}

@@ -1,5 +1,5 @@
 'use client'
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 import { useRef } from 'react'
 
 import Select from '@/components/ui/select.tsx'
@@ -177,7 +177,7 @@ export default function FeedbackSourceDetail({
   const tabRefs = useRef<Partial<Record<TabId, HTMLAnchorElement | null>>>({})
   function hrefForTab(id: TabId): string {
     const params = new URLSearchParams({ projectId, workspace: workspaceSlug, tab: id })
-    if (initialStatus) {
+    if (Predicate.isNotNullish(initialStatus) && String.isNonEmpty(initialStatus)) {
       params.set('status', initialStatus)
     }
     return `/feedback/${encodeURIComponent(sourceId)}?${params}`

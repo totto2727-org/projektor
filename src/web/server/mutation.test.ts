@@ -32,8 +32,8 @@ describe('native browser mutation origin policy', () => {
     await expect(runTestEffect(checkSameOriginMutation(request))).rejects.toMatchObject({
       _tag: 'ApiError',
       kind: 'request',
-      status: 403,
       message: 'A same-origin mutation request is required.',
+      status: 403,
     })
   })
 })

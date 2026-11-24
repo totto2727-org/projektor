@@ -238,7 +238,7 @@ describe('complete direct D1 issues SSR loaders', () => {
         detailUrl,
       ),
     )
-    expect(result?.scope.selection).toEqual({ kind: 'project', workspace, project })
+    expect(result?.scope.selection).toEqual({ kind: 'project', project, workspace })
     expect(result?.initialData.currentUserId).toBe(scope.user.id)
     expect(result?.initialData.comments[0].author_id).toBe(scope.user.id)
     expect(result?.initialData.attachments[0].kind).toBe('url')

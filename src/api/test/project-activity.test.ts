@@ -418,7 +418,7 @@ describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
     })
     expect(res.status).toBe(200)
     const events = (await res.json()) as unknown[]
-    expect(events).toEqual([])
+    expect(events).toStrictEqual([])
   })
 
   test("returns issue_created events, matching the MCP tool's behavior", async () => {

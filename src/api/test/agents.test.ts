@@ -264,7 +264,7 @@ describe('agents API', () => {
       const res = await startWork({ issue: issue.id, name: 'worker-1' })
       expect(res.status).toBe(201)
       const body = (await res.json()) as { claimedFiles: unknown[] }
-      expect(body.claimedFiles).toEqual([])
+      expect(body.claimedFiles).toStrictEqual([])
     })
 
     test('is all-or-nothing: a lease conflict leaves no session, lease, or claim behind', async () => {

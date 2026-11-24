@@ -11,7 +11,7 @@ import { apiWorkerOptions } from './api-host.ts'
 // the single frontend runtime, whose public extension adds the API service.
 // oxlint-disable-next-line import/no-default-export -- Vite loads the API build configuration from the default export.
 export default defineConfig((environment) => {
-  if (environment.isPreview) {
+  if (environment.isPreview === true) {
     throw new Error('The API artifact must run inside the single E2E frontend preview, not a second SQLite host.')
   }
   return {

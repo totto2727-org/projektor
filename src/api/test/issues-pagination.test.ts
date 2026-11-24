@@ -1,4 +1,5 @@
 // PROJ-857: issue list pagination + query plans.
+import { String, Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -37,7 +38,7 @@ describe('covers PROJ-857: issue list cursor', () => {
     let firstTotal: number | null = null
     do {
       const qs = new URLSearchParams({ projectId: testFixture.projectId, limit: '10' })
-      if (cursor) {
+      if (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)) {
         qs.set('cursor', cursor)
       }
       const res = await fetchNativeApi(`http://localhost/api/issues?${qs}`, {
@@ -57,7 +58,7 @@ describe('covers PROJ-857: issue list cursor', () => {
       seen.push(...body.items.map((i) => i.id))
       cursor = body.nextCursor
       pages++
-    } while (cursor && pages < 10)
+    } while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) && pages < 10)
 
     expect(firstTotal).toBe(35)
     expect(seen).toHaveLength(35)

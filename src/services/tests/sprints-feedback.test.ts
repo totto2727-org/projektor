@@ -180,6 +180,6 @@ describe('sprint and feedback database read models', () => {
     const result = await runTestEffect(Effect.flip(effect))
     expect(calls).toBe(1)
     expect(result).toBeInstanceOf(DataQueryError)
-    expect(result).toMatchObject({ _tag: 'DataQueryError', operation: 'listFeedback', cause })
+    expect(result).toMatchObject({ _tag: 'DataQueryError', cause, operation: 'listFeedback' })
   })
 })

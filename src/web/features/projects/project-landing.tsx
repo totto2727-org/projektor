@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Array as EffectArray, Schema } from 'effect'
+import { Array, Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
@@ -64,7 +64,7 @@ export function ProjectLanding({
   })
 
   useEffect(() => {
-    if (result?.ok) {
+    if (result?.ok === true) {
       setEditing(false)
     }
   }, [result])
@@ -209,7 +209,7 @@ export function ProjectLanding({
         <h2 id='recent-issues-heading' className={heading}>
           Recent Issues
         </h2>
-        {EffectArray.isReadonlyArrayEmpty(initialIssues) ? (
+        {Array.isReadonlyArrayEmpty(initialIssues) ? (
           <p className='text-text-muted text-sm py-2'>No issues yet.</p>
         ) : (
           <div>
@@ -240,7 +240,7 @@ export function ProjectLanding({
         <h2 id='recent-wiki-heading' className={heading}>
           Recent Wiki Pages
         </h2>
-        {EffectArray.isReadonlyArrayEmpty(initialWiki) ? (
+        {Array.isReadonlyArrayEmpty(initialWiki) ? (
           <p className='text-text-muted text-sm py-2'>No wiki pages yet.</p>
         ) : (
           <div>

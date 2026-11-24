@@ -1,4 +1,4 @@
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 import { z } from 'zod'
 
 const SprintStatusEnum = z.enum(['planned', 'active', 'completed'])
@@ -23,7 +23,7 @@ export const UpdateSprintSchema = z
     startDate: z.number().int().nullable().optional(),
     endDate: z.number().int().nullable().optional(),
   })
-  .refine((obj) => EffectArray.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })
+  .refine((obj) => Array.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })
 
 export const MoveIssuesToSprintSchema = z.object({
   issueIds: z.array(z.uuid()).min(1).max(500),

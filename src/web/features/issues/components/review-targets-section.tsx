@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray, Predicate } from 'effect'
+import { String, Array, Predicate } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 
 import type { ReviewStatus } from '#contracts/review-targets.ts'
@@ -35,7 +35,7 @@ function ReviewTargetRow({
       : attachment.url
 
   useEffect(() => {
-    if (pending?.saved && pending.attachment !== attachment) {
+    if (pending?.saved === true && pending.attachment !== attachment) {
       setPending(null)
       busy.current = false
     }
@@ -86,7 +86,7 @@ function ReviewTargetRow({
           />
           <span className='text-sm'>対象</span>
         </label>
-        {href && Predicate.isNotNullish(status) ? (
+        {Predicate.isNotNullish(href) && String.isNonEmpty(href) && Predicate.isNotNullish(status) ? (
           <a
             href={href}
             target='_blank'
@@ -196,7 +196,7 @@ export function ReviewTargetsSection({
       ) : (
         <p className='text-sm text-text-muted mb-3'>表示するレビュー対象はありません。</p>
       )}
-      {EffectArray.isArrayNonEmpty(available) && (
+      {Array.isArrayNonEmpty(available) && (
         <details className='mt-4' open={!focused}>
           <summary className='cursor-pointer min-h-[44px] text-sm font-medium'>
             レビュー対象を選択 ({available.length})
@@ -204,7 +204,7 @@ export function ReviewTargetsSection({
           {rows(available, '選択できる添付ファイルとURL')}
         </details>
       )}
-      {EffectArray.isArrayEmpty(eligible) && (
+      {Array.isArrayEmpty(eligible) && (
         <p className='text-sm text-text-muted'>対象にできる添付ファイルまたはURLがありません。</p>
       )}
       <noscript>

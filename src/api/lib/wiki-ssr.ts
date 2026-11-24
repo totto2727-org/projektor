@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
 import type { Context } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 
@@ -28,7 +28,7 @@ const resolveWikiWorkspaceContext = async function resolveWikiWorkspaceContext(
   const routingEnabled = subdomainRoutingEnabled(httpContext.env.WORKSPACE_SUBDOMAIN_ROUTING)
   const subdomainSlug = routingEnabled ? httpContext.req.header('host')?.split('.')[0] : undefined
   const slug = headerSlug ?? subdomainSlug ?? httpContext.env.DEFAULT_WORKSPACE_SLUG
-  if (!slug) {
+  if (Predicate.isNullish(slug) || String.isEmpty(slug)) {
     return null
   }
 

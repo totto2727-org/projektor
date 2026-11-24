@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 import sanitizeHtml from 'sanitize-html'
 
 export interface Heading {
@@ -14,7 +14,7 @@ export const assignHeadingIds = function assignHeadingIds(
   const used = new Set<string>()
   const result: (string | null)[] = headings.map((heading) => {
     const authored = heading.id?.trim()
-    if (!authored || used.has(authored)) {
+    if (Predicate.isNullish(authored) || String.isEmpty(authored) || used.has(authored)) {
       return null
     }
     used.add(authored)
@@ -41,7 +41,7 @@ export const assignHeadingIds = function assignHeadingIds(
 const textOf = function textOf(html: string): string {
   return sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} })
     .replace(/&#(x[0-9a-f]+|\d+);/gi, (_, entity: string) =>
-      String.fromCodePoint(
+      globalThis.String.fromCodePoint(
         Math.min(0x10_ff_ff, entity[0].toLowerCase() === 'x' ? parseInt(entity.slice(1), 16) : parseInt(entity, 10)),
       ),
     )

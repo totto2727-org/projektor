@@ -1,5 +1,5 @@
 import type { OAuthProvider } from '@cloudflare/workers-oauth-provider'
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 
 export const OAUTH_PURGE_STATE_KEY = 'cron:oauth-purge:continuation:v1'
 const PAGE_SIZE = 200
@@ -25,7 +25,7 @@ const continuation = function continuation(value: unknown): Continuation {
   if ((phase !== 'grants' && phase !== 'tokens') || (cursor !== undefined && !Predicate.isString(cursor))) {
     throw new Error('Invalid OAuth purge continuation')
   }
-  return cursor ? { phase, cursor } : { phase }
+  return Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? { phase, cursor } : { phase }
 }
 
 /** Sweep one public KV page with the official provider's expiration and revocation logic.

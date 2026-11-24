@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
 
 import { browserRequest, coreResult } from '@/core.ts'
 import { RequestServices } from '@/request.ts'
@@ -56,7 +56,7 @@ export function renderFeedbackDetail(
 ) {
   return Effect.gen(function* () {
     const sourceId = params.sourceId ?? url.searchParams.get('sourceId') ?? url.searchParams.get('id')
-    if (!sourceId) {
+    if (Predicate.isNullish(sourceId) || String.isEmpty(sourceId)) {
       return <NotFound />
     }
     const services = yield* RequestServices

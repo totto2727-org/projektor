@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '#contracts/inputs/wiki.ts'
@@ -59,7 +59,7 @@ const extractWikiSlugFromUrl = function extractWikiSlugFromUrl(url: string): str
   const pathMatch = url.match(/^\/wiki\/([a-z0-9-]+)\/?$/i)
   const queryMatch = pathMatch ? null : url.match(/[?&]slug=([^&]+)/)
   const raw = pathMatch?.[1] ?? queryMatch?.[1]
-  if (!raw) {
+  if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
     return null
   }
   /*
@@ -81,7 +81,7 @@ export const parseWikiLinkTargets = function parseWikiLinkTargets(content: strin
   })
   Iterable.forEach(content.matchAll(MD_LINK_RE), (m) => {
     const slug = extractWikiSlugFromUrl(m[1].trim())
-    if (slug) {
+    if (Predicate.isNotNullish(slug) && String.isNonEmpty(slug)) {
       targets.push({ kind: 'slug', slug })
     }
   })
@@ -134,7 +134,7 @@ export const healTitleFolds = async function healTitleFolds(ctx: ServiceCtx): Pr
         .bind(foldWikiTitle(r.t), r.id, ctx.workspaceId),
     ),
   ]
-  if (EffectArray.isArrayNonEmpty(statements)) {
+  if (Array.isArrayNonEmpty(statements)) {
     await ctx.db.batch(statements)
   }
   return statements.length
@@ -154,7 +154,7 @@ const resolveTitleTargets = async function resolveTitleTargets(
   titles: Readonly<string[]>,
 ): Promise<Map<string, string>> {
   const byLower = new Map<string, string>()
-  if (EffectArray.isReadonlyArrayEmpty(titles)) {
+  if (Array.isReadonlyArrayEmpty(titles)) {
     return byLower
   }
   const lowered = [...new Set(titles.map((t) => foldWikiTitle(t)))]
@@ -219,7 +219,7 @@ const resolveSlugTargets = async function resolveSlugTargets(
 ): Promise<Map<string, { id: string; title: string }>> {
   const bySlug = new Map<string, { id: string; title: string }>()
   const unique = [...new Set(slugs)]
-  if (EffectArray.isArrayEmpty(unique)) {
+  if (Array.isArrayEmpty(unique)) {
     return bySlug
   }
 
@@ -245,7 +245,7 @@ const resolveSlugTargets = async function resolveSlugTargets(
 
   // PROJ-483 redirects: an old slug still resolves to its page.
   const missing = unique.filter((slug) => !bySlug.has(slug))
-  if (EffectArray.isArrayEmpty(missing)) {
+  if (Array.isArrayEmpty(missing)) {
     return bySlug
   }
   const redirects = await inChunks(missing, (chunk) =>
@@ -254,7 +254,7 @@ const resolveSlugTargets = async function resolveSlugTargets(
       .from(schema.wikiRedirects)
       .where(and(eq(schema.wikiRedirects.workspaceId, workspaceId), inArray(schema.wikiRedirects.oldSlug, chunk))),
   )
-  if (EffectArray.isArrayEmpty(redirects)) {
+  if (Array.isArrayEmpty(redirects)) {
     return bySlug
   }
 
@@ -423,7 +423,7 @@ export const buildWikiLinksReindexStatements = async function buildWikiLinksRein
   const targets = parseWikiLinkTargets(content)
   // PROJ-818: title matching reads the stored folds — heal any NULLs first.
   await healTitleFolds(ctx)
-  const resolved = EffectArray.isArrayNonEmpty(targets) ? await resolveLinkTargets(orm, ctx.workspaceId, targets) : []
+  const resolved = Array.isArrayNonEmpty(targets) ? await resolveLinkTargets(orm, ctx.workspaceId, targets) : []
   return buildLinkWriteStatements(ctx, sourcePageId, resolved)
 }
 
@@ -583,7 +583,7 @@ export const backfillWikiLinks = async function backfillWikiLinks(
     .orderBy(asc(schema.wikiPages.updatedAt), asc(schema.wikiPages.id))
     .limit(pageBudget)
 
-  if (EffectArray.isArrayEmpty(pages)) {
+  if (Array.isArrayEmpty(pages)) {
     return { processed: 0, nextCursor: null, pagesProcessed: 0 }
   }
 
@@ -599,7 +599,7 @@ export const backfillWikiLinks = async function backfillWikiLinks(
    * per-statement bound-param cap (buildLinkWriteStatements/LINK_INSERT_CHUNK_SIZE), and
    * db.batch() itself has no such cap, only a single round trip.
    */
-  if (EffectArray.isArrayNonEmpty(statements)) {
+  if (Array.isArrayNonEmpty(statements)) {
     await ctx.db.batch(statements)
   }
 
@@ -766,7 +766,7 @@ export const countBacklinkSources = async function countBacklinkSources(
   ctx: ServiceCtx,
   pageIds: string[],
 ): Promise<number> {
-  if (EffectArray.isArrayEmpty(pageIds)) {
+  if (Array.isArrayEmpty(pageIds)) {
     return 0
   }
   const orm = drizzle(ctx.db, { schema })
@@ -887,7 +887,7 @@ async function visibleSourcePageIds(
   ctx: ServiceCtx,
   rows: Readonly<{ pageId: string; projectId: string | null }[]>,
 ): Promise<string[]> {
-  if (EffectArray.isReadonlyArrayEmpty(rows)) {
+  if (Array.isReadonlyArrayEmpty(rows)) {
     return []
   }
   const uniqueProjectIds = [
@@ -957,7 +957,7 @@ export const listBrokenWikiLinks = async function listBrokenWikiLinks(
      */
     isNull(schema.wikiPages.deletedAt),
   ]
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     conditions.push(eq(schema.wikiPages.projectId, projectId))
   }
 

@@ -164,8 +164,8 @@ describe('independent ServerFn authentication and semantic selection', () => {
       })
       await expect(run(resolveFunctionContext({}, options))).rejects.toMatchObject({
         _tag: 'ScopeError',
-        status: 400,
         message,
+        status: 400,
       })
     },
   )

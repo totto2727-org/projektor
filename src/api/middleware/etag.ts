@@ -1,3 +1,4 @@
+import { String, Predicate } from 'effect'
 import type { Context, Next } from 'hono'
 
 import type { HonoEnv } from '#types'
@@ -52,7 +53,7 @@ export const etagMiddleware = async function etagMiddleware(httpContext: Context
 }
 
 function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {
-  if (!header) {
+  if (Predicate.isNullish(header) || String.isEmpty(header)) {
     return false
   }
   if (header.trim() === '*') {

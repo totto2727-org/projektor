@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 
 import * as wikiDraftsService from '#api/services/wiki-drafts.ts'
 import * as wikiWatchersService from '#api/services/wiki-watchers.ts'
@@ -131,7 +131,7 @@ export const wikiTools: MCPTool[] = [
       const offset = Predicate.isNumber(rest.offset) ? rest.offset : 0
       const page = toPage(items, items.length >= limit ? offset + limit : null)
       // A cut page resumes at the first dropped result.
-      return capPage(page, { cursorOf: (i) => String(offset + i + 1) })
+      return capPage(page, { cursorOf: (i) => globalThis.String(offset + i + 1) })
     },
   },
   {
@@ -313,7 +313,7 @@ export const wikiTools: MCPTool[] = [
         summary?: string
       }
       const idOrSlug = id ?? slug
-      if (!idOrSlug) {
+      if (Predicate.isNullish(idOrSlug) || String.isEmpty(idOrSlug)) {
         throw new ValidationError({
           formErrors: ['Either id or slug must be provided'],
           fieldErrors: {},
@@ -390,7 +390,7 @@ export const wikiTools: MCPTool[] = [
     async handler(input, ctx) {
       const { id, slug, ...rest } = input as { id?: string; slug?: string }
       const idOrSlug = id ?? slug
-      if (!idOrSlug) {
+      if (Predicate.isNullish(idOrSlug) || String.isEmpty(idOrSlug)) {
         throw new ValidationError({
           formErrors: ['Either id or slug must be provided'],
           fieldErrors: {},
@@ -789,7 +789,7 @@ export const wikiTools: MCPTool[] = [
       const page = toPage(events, result.nextSince > (rest.since as number) ? result.nextSince : null)
       // `since` is exclusive, so a cut must not split events sharing one second.
       return capPage(page, {
-        cursorOf: (i) => String(events[i].createdAt),
+        cursorOf: (i) => globalThis.String(events[i].createdAt),
         canCutAt: (kept) => events[kept - 1].createdAt !== events[kept]?.createdAt,
       })
     },

@@ -288,7 +288,7 @@ describe('covers PROJ-438 — comments accept an issue ref', () => {
     })
 
     expect(byRef.status).toBe(200)
-    await expect(byRef.json()).resolves.toEqual(await byUuid.json())
+    await expect(byRef.json()).resolves.toStrictEqual(await byUuid.json())
   })
 
   /*

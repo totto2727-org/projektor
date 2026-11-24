@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { String, Predicate, Schema } from 'effect'
 
 export const RateLimitTestPolicy = Schema.Struct({
   epoch: Schema.optional(Schema.String),
@@ -27,7 +27,7 @@ export const rateLimiterObjectName = function rateLimiterObjectName(
   key: string,
 ): string {
   const epoch = env.ENVIRONMENT !== 'production' ? env.RATE_LIMIT_TEST_EPOCH : undefined
-  return epoch ? `${epoch}|${key}` : key
+  return Predicate.isNotNullish(epoch) && String.isNonEmpty(epoch) ? `${epoch}|${key}` : key
 }
 
 export const rateLimitTestPolicy = function rateLimitTestPolicy(env: {

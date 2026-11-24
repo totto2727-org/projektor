@@ -77,7 +77,7 @@ test.each(['all Workers update', 'Core is unchanged', 'migration fails'] as cons
           (compiled) =>
             Effect.gen(function* () {
               const plan = yield* Plan.make(compiled)
-              expect(events).toEqual([])
+              expect(events).toStrictEqual([])
               yield* apply(plan)
             }),
           { stage: 'fixture' },
@@ -93,16 +93,16 @@ test.each(['all Workers update', 'Core is unchanged', 'migration fails'] as cons
     }
 
     await deploy(1)
-    expect(events.slice(0, 2)).toEqual(['database:start', 'database:complete'])
-    expect(events.slice(2).sort()).toEqual(workers)
+    expect(events.slice(0, 2)).toStrictEqual(['database:start', 'database:complete'])
+    expect(events.slice(2).sort()).toStrictEqual(workers)
     events.length = 0
 
     if (scenario === 'migration fails') {
       await expect(deploy(2)).rejects.toThrow(/Fixture migration failed/u)
-      expect(events).toEqual(['database:start'])
+      expect(events).toStrictEqual(['database:start'])
     } else {
       await deploy(2)
-      expect(events.slice(0, 2)).toEqual(['database:start', 'database:complete'])
+      expect(events.slice(0, 2)).toStrictEqual(['database:start', 'database:complete'])
       expect(events.slice(2).sort()).toEqual(scenario === 'Core is unchanged' ? ['Api', 'Frontend'] : workers)
     }
   },

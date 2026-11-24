@@ -18,7 +18,7 @@
  * doesn't match the declared type is rejected.
  */
 
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { Array, Iterable, Predicate } from 'effect'
 type Schema = Record<string, unknown>
 
 export interface ArgIssue {
@@ -30,7 +30,7 @@ const typeOf = function typeOf(v: unknown): string {
   if (v === null) {
     return 'null'
   }
-  if (Array.isArray(v)) {
+  if (globalThis.Array.isArray(v)) {
     return 'array'
   }
   return typeof v
@@ -68,17 +68,17 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
   }
 
   const declared = schema.type
-  const types = Array.isArray(declared)
+  const types = globalThis.Array.isArray(declared)
     ? declared.filter((t): t is string => Predicate.isString(t))
     : Predicate.isString(declared)
       ? [declared]
       : []
-  if (EffectArray.isArrayNonEmpty(types) && !types.some((t) => matchesType(value, t))) {
+  if (Array.isArrayNonEmpty(types) && !types.some((t) => matchesType(value, t))) {
     issues.push({ path, message: `must be ${types.join(' or ')}, got ${typeOf(value)}` })
     return
   }
 
-  if (Array.isArray(schema.enum) && !schema.enum.some((e) => e === value)) {
+  if (globalThis.Array.isArray(schema.enum) && !schema.enum.some((e) => e === value)) {
     issues.push({
       path,
       message: `must be one of ${schema.enum.map((e) => JSON.stringify(e)).join(', ')}`,
@@ -105,7 +105,7 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
     }
   }
 
-  if (Array.isArray(value)) {
+  if (globalThis.Array.isArray(value)) {
     if (Predicate.isNumber(schema.minItems) && value.length < schema.minItems) {
       issues.push({ path, message: `must have at least ${schema.minItems} items` })
     }
@@ -113,7 +113,7 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
       issues.push({ path, message: `must have at most ${schema.maxItems} items` })
     }
     const items = schema.items
-    if (items && typeof items === 'object' && !Array.isArray(items)) {
+    if (items && typeof items === 'object' && !globalThis.Array.isArray(items)) {
       value.forEach((item, i) => {
         validate(item, items as Schema, `${path}[${i}]`, issues)
       })
@@ -129,14 +129,14 @@ function validateObject(obj: Record<string, unknown>, schema: Schema, path: stri
   const props =
     schema.properties && typeof schema.properties === 'object' ? (schema.properties as Record<string, Schema>) : {}
   const prefix = path ? `${path}.` : ''
-  if (Array.isArray(schema.required)) {
+  if (globalThis.Array.isArray(schema.required)) {
     Iterable.forEach(schema.required, (key) => {
       if (Predicate.isString(key) && obj[key] === undefined) {
         issues.push({ path: `${prefix}${key}`, message: 'is required' })
       }
     })
   }
-  const required = new Set(Array.isArray(schema.required) ? schema.required : [])
+  const required = new Set(globalThis.Array.isArray(schema.required) ? schema.required : [])
   for (const [key, sub] of Object.entries(props)) {
     const v = obj[key]
     if (v === undefined || !sub || typeof sub !== 'object') {

@@ -1,6 +1,6 @@
 import type { AuthRequest, OAuthHelpers } from '@cloudflare/workers-oauth-provider'
 import { AuthorizationError } from '@cloudflare/workers-oauth-provider'
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { makeCoreClient } from 'projektor/core-client'
@@ -117,7 +117,7 @@ const page = function page(title: string, body: string): string {
  */
 const consentCsp = function consentCsp(redirectUri?: string): string {
   let formAction = "'self'"
-  if (redirectUri) {
+  if (Predicate.isNotNullish(redirectUri) && String.isNonEmpty(redirectUri)) {
     try {
       formAction += ` ${new URL(redirectUri).origin}`
     } catch {
@@ -244,7 +244,7 @@ oauthRouter.get('/authorize', async (httpContext) => {
   }
 
   const signingKey = consentSigningKey(httpContext)
-  if (!signingKey) {
+  if (Predicate.isNullish(signingKey) || String.isEmpty(signingKey)) {
     return errorPage(httpContext, 500, 'Not configured', NO_SIGNING_KEY)
   }
 
@@ -259,7 +259,12 @@ oauthRouter.get('/authorize', async (httpContext) => {
     if (error instanceof AuthorizationError) {
       return authorizationFailure(httpContext, error)
     }
-    return errorPage(httpContext, 400, 'Unknown application', `The application could not be verified: ${String(error)}`)
+    return errorPage(
+      httpContext,
+      400,
+      'Unknown application',
+      `The application could not be verified: ${globalThis.String(error)}`,
+    )
   }
 
   let consent: ReturnType<typeof parseConsentRequest>
@@ -357,7 +362,7 @@ oauthRouter.post('/authorize', async (httpContext) => {
   }
 
   const signingKey = consentSigningKey(httpContext)
-  if (!signingKey) {
+  if (Predicate.isNullish(signingKey) || String.isEmpty(signingKey)) {
     return errorPage(httpContext, 500, 'Not configured', NO_SIGNING_KEY)
   }
 

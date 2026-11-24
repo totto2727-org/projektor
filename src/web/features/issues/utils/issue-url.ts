@@ -1,3 +1,5 @@
+import { String, Predicate } from 'effect'
+
 import { slugify } from '@/features/issues/lib/slugify.ts'
 /** Issue identity crosses route boundaries with explicit authorized workspace scope. */
 export const issueUrl = function issueUrl(
@@ -7,19 +9,26 @@ export const issueUrl = function issueUrl(
   fallbackId?: string,
   workspaceSlug?: string,
 ): string {
-  if (!projectSlug && !fallbackId) {
+  if (
+    (Predicate.isNullish(projectSlug) || String.isEmpty(projectSlug)) &&
+    (Predicate.isNullish(fallbackId) || String.isEmpty(fallbackId))
+  ) {
     return '#'
   }
   const url = new URL(
-    projectSlug
+    Predicate.isNotNullish(projectSlug) && String.isNonEmpty(projectSlug)
       ? `/projects/${encodeURIComponent(projectSlug)}/issues/${issueNumber}/${slugify(title)}`
       : '/issues/view',
     'https://frontend.invalid',
   )
-  if (!projectSlug && fallbackId) {
+  if (
+    (Predicate.isNullish(projectSlug) || String.isEmpty(projectSlug)) &&
+    Predicate.isNotNullish(fallbackId) &&
+    String.isNonEmpty(fallbackId)
+  ) {
     url.searchParams.set('id', fallbackId)
   }
-  if (workspaceSlug) {
+  if (Predicate.isNotNullish(workspaceSlug) && String.isNonEmpty(workspaceSlug)) {
     url.searchParams.set('workspace', workspaceSlug)
   }
   return `${url.pathname}${url.search}${url.hash}`

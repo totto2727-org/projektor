@@ -1,3 +1,4 @@
+import { String, Predicate } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -27,7 +28,9 @@ const get = async function get(
   return fetchNativeApi(`http://localhost${path}`, {
     headers: {
       ...authHeaders(token, slug),
-      ...(ifNoneMatch ? { 'If-None-Match': ifNoneMatch } : {}),
+      ...(Predicate.isNotNullish(ifNoneMatch) && String.isNonEmpty(ifNoneMatch)
+        ? { 'If-None-Match': ifNoneMatch }
+        : {}),
     },
   })
 }

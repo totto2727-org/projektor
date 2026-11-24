@@ -11,7 +11,7 @@
  * "active view" indicator. The IssueList island wires these to component state.
  */
 
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 export interface SavedViewFilters {
   statuses: string[]
   priorities: string[]
@@ -71,7 +71,7 @@ export const captureView = function captureView(name: string, filters: SavedView
 
 /** Parse the sessionStorage payload, dropping anything malformed or unnamed. */
 export const parseSavedViews = function parseSavedViews(raw: string | null): SavedView[] {
-  if (!raw) {
+  if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
     return []
   }
   let data: unknown

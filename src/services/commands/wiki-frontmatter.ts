@@ -1,4 +1,4 @@
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { Array, Iterable, Predicate } from 'effect'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
 
@@ -108,7 +108,7 @@ const requireFrontmatterMapping = function requireFrontmatterMapping(raw: unknow
   if (raw === null || Predicate.isNullish(raw)) {
     return null
   }
-  if (typeof raw !== 'object' || Array.isArray(raw)) {
+  if (typeof raw !== 'object' || globalThis.Array.isArray(raw)) {
     throw new ValidationError({
       formErrors: ['Frontmatter must be a YAML mapping (key: value pairs), not a list or scalar'],
       fieldErrors: {},
@@ -167,11 +167,11 @@ export const stripTemplateFlag = function stripTemplateFlag(content: string): st
   const rest = content.slice(match[0].length)
 
   const raw = parseYaml(match[1])
-  if (raw === null || raw === undefined || typeof raw !== 'object' || Array.isArray(raw)) {
+  if (raw === null || raw === undefined || typeof raw !== 'object' || globalThis.Array.isArray(raw)) {
     return content
   }
   const { template: _template, ...remaining } = raw as Record<string, unknown>
-  if (EffectArray.isArrayEmpty(Object.keys(remaining))) {
+  if (Array.isArrayEmpty(Object.keys(remaining))) {
     return rest
   }
 
@@ -189,7 +189,7 @@ export const setWikiFrontmatterFields = function setWikiFrontmatterFields(
   let raw: Record<string, unknown> = {}
   if (match) {
     const parsedRaw = parseYaml(match[1])
-    if (parsedRaw && typeof parsedRaw === 'object' && !Array.isArray(parsedRaw)) {
+    if (parsedRaw && typeof parsedRaw === 'object' && !globalThis.Array.isArray(parsedRaw)) {
       raw = { ...(parsedRaw as Record<string, unknown>) }
     }
   }
@@ -202,7 +202,7 @@ export const setWikiFrontmatterFields = function setWikiFrontmatterFields(
     }
   })
 
-  if (EffectArray.isArrayEmpty(Object.keys(raw))) {
+  if (Array.isArrayEmpty(Object.keys(raw))) {
     return rest
   }
 
@@ -221,7 +221,7 @@ export const stampWikiFrontmatterVerification = function stampWikiFrontmatterVer
   let raw: Record<string, unknown> = {}
   if (match) {
     const parsedRaw = parseYaml(match[1])
-    if (parsedRaw && typeof parsedRaw === 'object' && !Array.isArray(parsedRaw)) {
+    if (parsedRaw && typeof parsedRaw === 'object' && !globalThis.Array.isArray(parsedRaw)) {
       raw = { ...(parsedRaw as Record<string, unknown>) }
     }
   }

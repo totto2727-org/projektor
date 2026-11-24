@@ -1,3 +1,4 @@
+import { String, Predicate } from 'effect'
 import { Hono } from 'hono'
 
 import { serviceErrToResponse } from '#api/http/error-adapter.ts'
@@ -16,8 +17,8 @@ router.get('/:id/flow-metrics', async (httpContext) => {
     return httpContext.json(
       await getFlowMetrics(ctx, {
         projectId: httpContext.req.param('id'),
-        since: since ? Number(since) : undefined,
-        until: until ? Number(until) : undefined,
+        since: Predicate.isNotNullish(since) && String.isNonEmpty(since) ? Number(since) : undefined,
+        until: Predicate.isNotNullish(until) && String.isNonEmpty(until) ? Number(until) : undefined,
         granularity,
       }),
     )

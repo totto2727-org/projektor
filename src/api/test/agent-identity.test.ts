@@ -57,7 +57,7 @@ describe('covers PROJ-894: stateless agent identity', () => {
       return { ok: false, value: {}, message: body.error.message ?? JSON.stringify(body) }
     }
     const text = body.result?.content?.[0]?.text ?? ''
-    if (body.result?.isError) {
+    if (body.result?.isError === true) {
       return { ok: false, value: {}, message: text }
     }
     return { ok: true, value: JSON.parse(text) as Record<string, unknown>, message: '' }

@@ -221,8 +221,8 @@ describe('planning SSR named shared queries on real migrated D1', () => {
     database.sqlite.exec('DROP TABLE task_types')
     await expect(runWithDatabase(database, url, (scope) => renderMetrics(scope, url)).result).rejects.toMatchObject({
       _tag: 'ApiError',
-      status: 500,
       message: 'An unexpected error occurred.',
+      status: 500,
     })
   })
 

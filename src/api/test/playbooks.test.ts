@@ -61,7 +61,7 @@ describe('playbooks', () => {
     const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
 
-    expect(mcpBody).toEqual(restBody)
+    expect(mcpBody).toStrictEqual(restBody)
   })
 
   test('handles GET /api/playbooks/:name returns the full playbook', async () => {
@@ -107,7 +107,7 @@ describe('playbooks', () => {
     const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
 
-    expect(mcpBody).toEqual(restBody)
+    expect(mcpBody).toStrictEqual(restBody)
   })
 
   test('handles GET /api/playbooks/:name 404s on an unknown name', async () => {

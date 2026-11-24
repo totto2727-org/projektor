@@ -46,10 +46,10 @@ export const resolveFunctionContext = function resolveFunctionContext(
       requireWorkspace: options.requireWorkspace,
       requireProject: options.requireProject,
     })
-    if (options.requireProject && !input.projectId) {
+    if (options.requireProject === true && !input.projectId) {
       return yield* new ScopeError(400, 'Select a project for this operation.')
     }
-    if (options.requireWorkspace && !input.workspaceSlug && !input.projectId) {
+    if (options.requireWorkspace === true && !input.workspaceSlug && !input.projectId) {
       return yield* new ScopeError(400, 'Select a workspace for this operation.')
     }
     const selection = scope.selection
@@ -66,10 +66,10 @@ export const resolveFunctionContext = function resolveFunctionContext(
     if (workspace && !scope.workspaces.some((member) => member.id === workspace.id && member.slug === workspace.slug)) {
       return yield* new ScopeError(403, 'Selected workspace is not accessible.')
     }
-    if (options.requireWorkspace && !workspace) {
+    if (options.requireWorkspace === true && !workspace) {
       return yield* new ScopeError(403, 'Selected workspace is not accessible.')
     }
-    if (options.requireProject && selection.kind !== 'project') {
+    if (options.requireProject === true && selection.kind !== 'project') {
       return yield* new ScopeError(404, 'Selected project is not accessible.')
     }
     return {

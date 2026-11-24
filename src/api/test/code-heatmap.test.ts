@@ -163,7 +163,7 @@ describe('code heatmap (PROJ-332)', () => {
     const res = await getHeatmap({ since: String(now - 3600), until: String(now) })
     expect(res.status).toBe(200)
     const body = (await res.json()) as CodeHeatmapResponse
-    expect(body.entries).toEqual([])
+    expect(body.entries).toStrictEqual([])
     expect(body.totalDistinctIssues).toBe(0)
   })
 
@@ -196,7 +196,7 @@ describe('code heatmap (PROJ-332)', () => {
     }
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
 
-    expect(mcpBody).toEqual(restBody)
+    expect(mcpBody).toStrictEqual(restBody)
   })
 
   describe('contention mode (PROJ-338)', () => {
@@ -267,7 +267,7 @@ describe('code heatmap (PROJ-332)', () => {
       })
       expect(res.status).toBe(200)
       const body = (await res.json()) as ContentionHeatmapResponse
-      expect(body.entries).toEqual([])
+      expect(body.entries).toStrictEqual([])
       expect(body.totalDistinctIssues).toBe(0)
     })
   })

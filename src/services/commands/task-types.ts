@@ -84,7 +84,7 @@ export const createTaskType = async function createTaskType(ctx: ServiceCtx, raw
     throw new ConflictError(`Task type key '${key}' already exists`)
   }
 
-  if (isDefault) {
+  if (isDefault === true) {
     await orm.update(schema.taskTypes).set({ isDefault: 0 }).where(eq(schema.taskTypes.workspaceId, ctx.workspaceId))
   }
 
@@ -97,7 +97,7 @@ export const createTaskType = async function createTaskType(ctx: ServiceCtx, raw
     color: color ?? null,
     icon: icon ?? null,
     position: position ?? 0,
-    isDefault: isDefault ? 1 : 0,
+    isDefault: isDefault === true ? 1 : 0,
   })
 
   await invalidateTaskTypesCache(ctx)
@@ -130,7 +130,7 @@ export const updateTaskType = async function updateTaskType(ctx: ServiceCtx, id:
     .update(schema.taskTypes)
     .set(setObj)
     .where(and(eq(schema.taskTypes.id, id), eq(schema.taskTypes.workspaceId, ctx.workspaceId)))
-  if (data.isDefault) {
+  if (data.isDefault === true) {
     await orm.batch([
       orm.update(schema.taskTypes).set({ isDefault: 0 }).where(eq(schema.taskTypes.workspaceId, ctx.workspaceId)),
       update,

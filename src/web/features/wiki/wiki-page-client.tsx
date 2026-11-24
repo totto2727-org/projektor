@@ -2,7 +2,7 @@
 
 import { query } from '@effront/core/query'
 import { useForm, useStore } from '@tanstack/react-form'
-import { Array as EffectArray, Iterable, Predicate, Effect, Schema } from 'effect'
+import { String, Array, Iterable, Predicate, Effect, Schema } from 'effect'
 import {
   createContext,
   Fragment,
@@ -244,7 +244,7 @@ const WIKI_WELL_KNOWN_TYPES = new Set(WIKI_TYPE_FILTER_OPTIONS.map((o) => o.valu
  * lowercase `runbook`.
  */
 function buildTypeFilterOptions(discoveredTypes: Readonly<string[]>): SelectOption[] {
-  const seen = new Set(Array.from(WIKI_WELL_KNOWN_TYPES).map((t) => t.toLowerCase()))
+  const seen = new Set(globalThis.Array.from(WIKI_WELL_KNOWN_TYPES).map((t) => t.toLowerCase()))
   const extras: string[] = []
   for (const t of discoveredTypes) {
     if (!t) {
@@ -325,7 +325,7 @@ const WIKI_TAG_CHIP_CLASS =
   'bg-bg border border-border text-text-base'
 
 function TagChips({ tags }: { tags: string[] | undefined | null }) {
-  if (!Array.isArray(tags) || EffectArray.isArrayEmpty(tags)) {
+  if (!globalThis.Array.isArray(tags) || Array.isArrayEmpty(tags)) {
     return null
   }
   return (
@@ -364,7 +364,7 @@ function WikiMetadataBadges({ page }: { page: WikiPageData }) {
       {page.status && <WikiStatusPill status={page.status} />}
       {page.freshness && page.freshness.state !== 'fresh' && <WikiFreshnessBadge state={page.freshness.state} />}
       <TagChips tags={page.tags} />
-      {EffectArray.isArrayNonEmpty(page.owners) && <span>Owners: {page.owners.join(', ')}</span>}
+      {Array.isArrayNonEmpty(page.owners) && <span>Owners: {page.owners.join(', ')}</span>}
       {page.verified_at && (
         <span>
           Verified {formatTimestampDate(page.verified_at)}
@@ -420,8 +420,8 @@ function WikiMetadataCard({
   const hasMetadata =
     Boolean(page.type) ||
     Boolean(page.status) ||
-    EffectArray.isArrayNonEmpty(page.tags) ||
-    EffectArray.isArrayNonEmpty(page.owners) ||
+    Array.isArrayNonEmpty(page.tags) ||
+    Array.isArrayNonEmpty(page.owners) ||
     Boolean(page.verified_at)
   const hasVerificationSignal = Boolean(page.verify_interval) || Boolean(page.status)
   if (!hasMetadata && !hasVerificationSignal) {
@@ -613,7 +613,7 @@ function TreeNodeItem({
         {depth > 0 && <span className='text-text-muted mr-1'>{'›'}</span>}
         {node.title}
       </button>
-      {EffectArray.isArrayNonEmpty(node.children) && (
+      {Array.isArrayNonEmpty(node.children) && (
         <ul className='list-none m-0 p-0'>
           {node.children.map((child) => (
             <TreeNodeItem
@@ -702,7 +702,7 @@ function SearchResultsList({
   if (loading) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Searching…</p>
   }
-  if (EffectArray.isArrayEmpty(results)) {
+  if (Array.isArrayEmpty(results)) {
     return <p className='text-[0.8rem] text-text-muted m-0'>No results</p>
   }
   return (
@@ -733,7 +733,7 @@ function StalePagesList({
   if (loading) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
   }
-  if (EffectArray.isArrayEmpty(results)) {
+  if (Array.isArrayEmpty(results)) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Nothing needs verification</p>
   }
   return (
@@ -778,7 +778,7 @@ function FilteredPagesList({
   if (loading) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
   }
-  if (EffectArray.isArrayEmpty(results)) {
+  if (Array.isArrayEmpty(results)) {
     return <p className='text-[0.8rem] text-text-muted m-0'>No matching pages</p>
   }
   return (
@@ -825,7 +825,7 @@ function PageTreeList({
       {tree.map((node) => (
         <TreeNodeItem key={node.id} node={node} currentSlug={slug} depth={0} onNavigate={onNavigate} />
       ))}
-      {EffectArray.isArrayEmpty(tree) && <li className='text-[0.8rem] text-text-muted'>No pages yet</li>}
+      {Array.isArrayEmpty(tree) && <li className='text-[0.8rem] text-text-muted'>No pages yet</li>}
     </ul>
   )
 }
@@ -1107,7 +1107,9 @@ function CreatePageForm({
   return (
     <div>
       <h2 className='mb-6 text-2xl font-bold text-text-base'>
-        {parentTitle ? `New child page under "${parentTitle}"` : 'New page'}
+        {Predicate.isNotNullish(parentTitle) && String.isNonEmpty(parentTitle)
+          ? `New child page under "${parentTitle}"`
+          : 'New page'}
       </h2>
       {error && (
         <p role='alert' className='text-danger-text mb-3'>
@@ -1144,7 +1146,7 @@ function CreatePageForm({
           className='w-full px-3 py-2 border border-border rounded text-sm bg-bg text-text-base box-border font-mono'
         />
       </div>
-      {EffectArray.isArrayNonEmpty(templates) && (
+      {Array.isArrayNonEmpty(templates) && (
         <div className='mb-4'>
           <p className='m-0 mb-1 font-medium text-sm text-text-base'>Template</p>
           <Select
@@ -1319,7 +1321,7 @@ function useDuplicateWikiPage() {
       const copy = unwrapResult(await duplicateWikiPage({ workspaceSlug: seed.workspaceSlug, slug: seed.page.slug }))
       navigateFeature(wikiHref(seed, `/wiki/${encodeURIComponent(copy.slug)}`))
     } catch (error) {
-      window.alert(`Could not duplicate page: ${String(error)}`)
+      window.alert(`Could not duplicate page: ${globalThis.String(error)}`)
     }
     setDuplicating(false)
   }
@@ -1358,7 +1360,7 @@ function PageActionOverflowMenu({
   }
 
   const menuItems = useCallback((): HTMLElement[] => {
-    return Array.from(popoverRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
+    return globalThis.Array.from(popoverRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
   }, [])
 
   const closeToTrigger = useCallback(() => {
@@ -1396,7 +1398,7 @@ function PageActionOverflowMenu({
         return
       }
       const items = menuItems()
-      if (EffectArray.isArrayEmpty(items)) {
+      if (Array.isArrayEmpty(items)) {
         return
       }
       event.preventDefault()
@@ -1712,7 +1714,7 @@ function RevisionRow({
       )
       setDiff(result.diff)
     } catch (caughtError) {
-      setDiffError(String(caughtError))
+      setDiffError(globalThis.String(caughtError))
     }
     setDiffLoading(false)
   }
@@ -1743,7 +1745,7 @@ function RevisionRow({
       {diffOpen &&
         (diffLoading ? (
           <p className='mt-2 mb-1 text-[0.75rem]'>Loading diff…</p>
-        ) : diffError ? (
+        ) : Predicate.isNotNullish(diffError) && String.isNonEmpty(diffError) ? (
           <p role='alert' className='mt-2 mb-1 text-[0.75rem] text-danger-text'>
             {diffError}
           </p>
@@ -1773,7 +1775,7 @@ function RevisionsHistory({
   restoringId: string | null
   editing: boolean
 }) {
-  if (EffectArray.isArrayEmpty(revisions)) {
+  if (Array.isArrayEmpty(revisions)) {
     return null
   }
   return (
@@ -1827,7 +1829,8 @@ function AttachmentEntry({
   onDelete: (attachmentId: string) => void
   isPublicViewer: boolean
 }) {
-  const qs = workspaceSlug ? `?workspace=${workspaceSlug}` : ''
+  const qs =
+    Predicate.isNotNullish(workspaceSlug) && String.isNonEmpty(workspaceSlug) ? `?workspace=${workspaceSlug}` : ''
   return (
     <div className='flex items-center gap-3 px-3 py-2 border border-border rounded-md bg-surface'>
       <a
@@ -1955,10 +1958,10 @@ function AttachmentsPanel({
   return (
     <div className='mt-8'>
       <h3 className='text-xs uppercase tracking-[0.05em] text-text-muted font-semibold mb-3 pb-2 border-b border-border'>
-        {`Attachments${EffectArray.isArrayNonEmpty(attachments) ? ` (${attachments.length})` : ''}`}
+        {`Attachments${Array.isArrayNonEmpty(attachments) ? ` (${attachments.length})` : ''}`}
       </h3>
 
-      {EffectArray.isArrayNonEmpty(attachments) && (
+      {Array.isArrayNonEmpty(attachments) && (
         <div className='mb-4 flex flex-col gap-2'>
           {attachments.map((a) => (
             <AttachmentEntry
@@ -2626,7 +2629,7 @@ function useHashScroll(
   }, [contentRef, pageSlug])
 
   useEffect(() => {
-    if (EffectArray.isReadonlyArrayNonEmpty(toc)) {
+    if (Array.isReadonlyArrayNonEmpty(toc)) {
       scrollToHash()
     }
   }, [toc, scrollToHash])
@@ -2668,11 +2671,11 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
       setInlineAttachments((files) => files.filter((file) => file.id !== attachmentId))
     } catch (error) {
       setUploadFormOpen(true)
-      setUploadError(`Couldn't delete attachment: ${String(error)}`)
+      setUploadError(`Couldn't delete attachment: ${globalThis.String(error)}`)
     }
   }
   async function uploadInlineImage(file: File): Promise<string | null> {
-    if (!page || !workspaceSlug) {
+    if (!page || Predicate.isNullish(workspaceSlug) || String.isEmpty(workspaceSlug)) {
       return null
     }
     try {
@@ -2688,7 +2691,7 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
       setInlineAttachments((files) => [...files, { ...uploaded, createdAt: Math.floor(Date.now() / 1000) }])
       return `/api/files/${encodeURIComponent(uploaded.id)}?workspace=${encodeURIComponent(workspaceSlug)}`
     } catch (error) {
-      setUploadError(String(error))
+      setUploadError(globalThis.String(error))
       return null
     }
   }
@@ -3066,7 +3069,7 @@ async function saveWikiPageEdit(
  * A typed ServerFn conflict is distinct from a protocol/network failure.
  */
 function isWikiSaveConflict(e: unknown): boolean {
-  return e instanceof FunctionError ? e.status === 409 : String(e).endsWith('failed: 409')
+  return e instanceof FunctionError ? e.status === 409 : globalThis.String(e).endsWith('failed: 409')
 }
 
 function wikiSaveErrorMessage(e: unknown): string {
@@ -3076,7 +3079,7 @@ function wikiSaveErrorMessage(e: unknown): string {
       'your version, or copy your text and reload to merge by hand.'
     )
   }
-  return `Save failed: ${String(e)}`
+  return `Save failed: ${globalThis.String(e)}`
 }
 
 function useWikiEditing(
@@ -3470,7 +3473,7 @@ function useWikiRestore(
       if (isWikiSaveConflict(caughtError)) {
         alert('This page was changed by someone else since you loaded it. Reload the page before restoring.')
       } else {
-        alert(`Restore failed: ${String(caughtError)}`)
+        alert(`Restore failed: ${globalThis.String(caughtError)}`)
       }
     }
     setRestoringId(null)
@@ -3518,7 +3521,7 @@ function useMovePage(workspaceSlug: string | undefined, page: WikiPageData | nul
       unwrapResult(await moveWikiPage({ workspaceSlug, slug: page.slug, parentId: moveTargetId || null }))
       setMoving(false)
     } catch (caughtError) {
-      setMoveError(`Move failed: ${String(caughtError)}`)
+      setMoveError(`Move failed: ${globalThis.String(caughtError)}`)
     }
     setMoveSaving(false)
   }
@@ -3553,7 +3556,7 @@ function useWikiVerify(workspaceSlug: string | undefined, page: WikiPageData | n
     try {
       unwrapResult(await verifyWikiPage({ workspaceSlug, slug: page.slug }))
     } catch (caughtError) {
-      setVerifyError(`Verify failed: ${String(caughtError)}`)
+      setVerifyError(`Verify failed: ${globalThis.String(caughtError)}`)
     }
     setVerifying(false)
   }
@@ -3655,14 +3658,16 @@ function useCreatePageForm(workspaceSlug: string | undefined, projectId: string)
           title: createTitle.trim(),
           slug: finalSlug,
           ...(createTemplateSlug ? { templateSlug: createTemplateSlug } : { content: createContent }),
-          ...(createParentId ? { parentId: createParentId } : {}),
+          ...(Predicate.isNotNullish(createParentId) && String.isNonEmpty(createParentId)
+            ? { parentId: createParentId }
+            : {}),
         }),
       )
       setCreating(false)
       setCreateSaving(false)
       return created.slug
     } catch (caughtError) {
-      setCreateError(`Create failed: ${String(caughtError)}`)
+      setCreateError(`Create failed: ${globalThis.String(caughtError)}`)
     }
     setCreateSaving(false)
     return undefined
@@ -3722,7 +3727,7 @@ function createWikiActions(
 
   async function submitCreate(): Promise<void> {
     const createdSlug = await args.rawSubmitCreate()
-    if (createdSlug) {
+    if (Predicate.isNotNullish(createdSlug) && String.isNonEmpty(createdSlug)) {
       navigateTo(createdSlug)
     }
   }
@@ -3761,7 +3766,7 @@ function createWikiActions(
         },
       })
     } catch (caughtError) {
-      alert(`Delete failed: ${String(caughtError)}`)
+      alert(`Delete failed: ${globalThis.String(caughtError)}`)
     }
   }
 
@@ -3985,10 +3990,10 @@ function useWikiSidebarDrawer() {
       if (!container) {
         return
       }
-      const focusables = Array.from(
+      const focusables = globalThis.Array.from(
         container.querySelectorAll<HTMLElement>('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])'),
       ).filter((el) => !el.hasAttribute('disabled'))
-      if (EffectArray.isArrayEmpty(focusables)) {
+      if (Array.isArrayEmpty(focusables)) {
         return
       }
       const first = focusables[0]
@@ -4520,7 +4525,7 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
     try {
       result = await current.undo()
     } catch (caughtError) {
-      setUndoError(`Undo failed: ${String(caughtError)}`)
+      setUndoError(`Undo failed: ${globalThis.String(caughtError)}`)
       setUndoing(false)
       return
     }
@@ -4556,7 +4561,7 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
       }}
     >
       <span>{undoError ?? current.message}</span>
-      {!undoError && (
+      {(Predicate.isNullish(undoError) || String.isEmpty(undoError)) && (
         <Button variant='outline' size='sm' onClick={handleUndo} disabled={undoing}>
           {undoing ? 'Undoing…' : 'Undo'}
         </Button>

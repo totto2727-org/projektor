@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
-import { Array as EffectArray, Iterable, Predicate, Effect } from 'effect'
+import { String, Array, Iterable, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -318,7 +318,7 @@ const validateParentDepth = async function validateParentDepth(
   workspaceId: string,
   forbidPageId?: string,
 ): Promise<void> {
-  if (forbidPageId && parentId === forbidPageId) {
+  if (Predicate.isNotNullish(forbidPageId) && String.isNonEmpty(forbidPageId) && parentId === forbidPageId) {
     throw new ValidationError({ formErrors: ['A page cannot be its own parent'], fieldErrors: {} })
   }
   let parentDepth = 0
@@ -337,7 +337,7 @@ const validateParentDepth = async function validateParentDepth(
       break
     }
     seen.add(pid)
-    if (forbidPageId && pid === forbidPageId) {
+    if (Predicate.isNotNullish(forbidPageId) && String.isNonEmpty(forbidPageId) && pid === forbidPageId) {
       throw new ValidationError({
         formErrors: ['Setting this parent would create a cycle in the page hierarchy'],
         fieldErrors: {},
@@ -354,7 +354,10 @@ const validateParentDepth = async function validateParentDepth(
   }
   // forbidPageId is only passed when moving an existing page (validateUpdatedPageParent) —
   // a brand-new page (validateNewPageParent) has no subtree yet, so height is 0.
-  const subtreeHeight = forbidPageId ? await getSubtreeHeight(db, forbidPageId, workspaceId) : 0
+  const subtreeHeight =
+    Predicate.isNotNullish(forbidPageId) && String.isNonEmpty(forbidPageId)
+      ? await getSubtreeHeight(db, forbidPageId, workspaceId)
+      : 0
   if (parentDepth + 1 + subtreeHeight > WIKI_MAX_NESTING_DEPTH - 1) {
     throw new ValidationError({
       formErrors: [`Maximum wiki nesting depth (${WIKI_MAX_NESTING_DEPTH}) exceeded`],
@@ -532,11 +535,19 @@ export const searchWiki = async function searchWiki(ctx: ServiceCtx, input: unkn
   if (!ftsQuery) {
     return []
   }
-  if (projectId && !includeWorkspacePages && !(await hasProjectAccess(ctx, projectId))) {
+  if (
+    Predicate.isNotNullish(projectId) &&
+    String.isNonEmpty(projectId) &&
+    !includeWorkspacePages &&
+    !(await hasProjectAccess(ctx, projectId))
+  ) {
     return []
   }
   const now = Math.floor(Date.now() / 1000)
-  const visible = !projectId || includeWorkspacePages ? visibleProjectSqlFragment(ctx, 'p.project_id') : undefined
+  const visible =
+    Predicate.isNullish(projectId) || String.isEmpty(projectId) || includeWorkspacePages
+      ? visibleProjectSqlFragment(ctx, 'p.project_id')
+      : undefined
   const rows = await Effect.runPromise(
     wikiData.searchWiki(ctx.db, ctx.workspaceId, ftsQuery, {
       ...parsed.data,
@@ -823,11 +834,14 @@ export const createWikiPage = async function createWikiPage(ctx: ServiceCtx, inp
   const resolvedProjectId = projectId ?? null
 
   await requireWikiWrite(ctx, resolvedProjectId)
-  if (parentId) {
+  if (Predicate.isNotNullish(parentId) && String.isNonEmpty(parentId)) {
     await validateNewPageParent(ctx.db, parentId, ctx.workspaceId, projectId)
   }
 
-  const content = templateSlug ? await resolveTemplateContent(ctx, templateSlug) : (parsed.data.content ?? '')
+  const content =
+    Predicate.isNotNullish(templateSlug) && String.isNonEmpty(templateSlug)
+      ? await resolveTemplateContent(ctx, templateSlug)
+      : (parsed.data.content ?? '')
 
   const orm = drizzle(ctx.db, { schema })
   if (Predicate.isNotNullish(customSlug)) {
@@ -1530,7 +1544,7 @@ export const listStaleWikiPages = async function listStaleWikiPages(ctx: Service
   }
   const { projectId, includeWorkspacePages } = parsed.data
 
-  if (projectId && !includeWorkspacePages) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) && !includeWorkspacePages) {
     // PROJ-311: same as searchWiki — querying a project the caller can't see returns nothing.
     if (!(await hasProjectAccess(ctx, projectId))) {
       return []
@@ -1542,7 +1556,10 @@ export const listStaleWikiPages = async function listStaleWikiPages(ctx: Service
     wikiData.listStaleWikiPages(ctx.db, ctx.workspaceId, {
       ...parsed.data,
       now,
-      visibility: !projectId || includeWorkspacePages ? wikiReadVisibility(ctx) : undefined,
+      visibility:
+        Predicate.isNullish(projectId) || String.isEmpty(projectId) || includeWorkspacePages
+          ? wikiReadVisibility(ctx)
+          : undefined,
     }),
   )
   return rows.map((r) => ({
@@ -1585,7 +1602,7 @@ const parseHeadingSections = function parseHeadingSections(content: string): Hea
   const headings: { level: number; heading: string; startLine: number }[] = []
   let fence: string | null = null
   // A frontmatter block only counts when `---` is the very first line.
-  let inFrontmatter = EffectArray.isArrayNonEmpty(lines) && FRONTMATTER_DELIM_RE.test(lines[0])
+  let inFrontmatter = Array.isArrayNonEmpty(lines) && FRONTMATTER_DELIM_RE.test(lines[0])
   lines.forEach((line, idx) => {
     if (inFrontmatter) {
       if (idx > 0 && FRONTMATTER_DELIM_RE.test(line)) {
@@ -1629,7 +1646,7 @@ const extractSectionText = function extractSectionText(content: string, section:
 
 const trimTrailingBlankLines = function trimTrailingBlankLines(lines: Readonly<string[]>): string[] {
   const out = [...lines]
-  while (EffectArray.isArrayNonEmpty(out) && out[out.length - 1].trim() === '') {
+  while (Array.isArrayNonEmpty(out) && out[out.length - 1].trim() === '') {
     out.pop()
   }
   return out
@@ -1637,7 +1654,7 @@ const trimTrailingBlankLines = function trimTrailingBlankLines(lines: Readonly<s
 
 const trimLeadingBlankLines = function trimLeadingBlankLines(lines: Readonly<string[]>): string[] {
   const out = [...lines]
-  while (EffectArray.isArrayNonEmpty(out) && out[0].trim() === '') {
+  while (Array.isArrayNonEmpty(out) && out[0].trim() === '') {
     out.shift()
   }
   return out
@@ -1677,20 +1694,20 @@ const applySectionOp = function applySectionOp(
   let newBodyLines: string[]
   if (op.op === 'append_to_section') {
     const trimmedBody = trimTrailingBlankLines(bodyLines)
-    newBodyLines = EffectArray.isArrayNonEmpty(trimmedBody)
+    newBodyLines = Array.isArrayNonEmpty(trimmedBody)
       ? [...trimmedBody, '', ...op.text.split('\n')]
       : op.text.split('\n')
   } else if (op.op === 'replace_section') {
     newBodyLines = op.text.trim() === '' ? [] : op.text.split('\n')
   } else {
     const trimmedBody = trimTrailingBlankLines(trimLeadingBlankLines(bodyLines))
-    newBodyLines = EffectArray.isArrayNonEmpty(trimmedBody)
+    newBodyLines = Array.isArrayNonEmpty(trimmedBody)
       ? [...op.text.split('\n'), '', ...trimmedBody]
       : op.text.split('\n')
   }
 
   const newSectionLines = [headingLine, ...newBodyLines]
-  const separator = EffectArray.isArrayNonEmpty(afterLines) ? [''] : []
+  const separator = Array.isArrayNonEmpty(afterLines) ? [''] : []
   return [...before, ...newSectionLines, ...separator, ...afterLines].join('\n')
 }
 
@@ -1737,7 +1754,7 @@ const findUniqueSectionOrThrow = function findUniqueSectionOrThrow(
   heading: string,
 ): HeadingSection {
   const currentMatches = findSections(currentSections, heading)
-  if (EffectArray.isArrayEmpty(currentMatches)) {
+  if (Array.isArrayEmpty(currentMatches)) {
     throw new NotFoundError(`Heading '${heading}' not found`, {
       currentHeadings: currentSections.map((s) => s.heading),
     })
@@ -1934,7 +1951,7 @@ export const listWikiTemplates = async function listWikiTemplates(ctx: ServiceCt
   }
   const { projectId } = parsed.data
 
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     /*
      * PROJ-311: same as searchWiki/listStaleWikiPages — a project the caller can't
      * see returns nothing.
@@ -1947,7 +1964,8 @@ export const listWikiTemplates = async function listWikiTemplates(ctx: ServiceCt
   const rows = await Effect.runPromise(
     wikiData.listWikiTemplates(ctx.db, ctx.workspaceId, {
       ...parsed.data,
-      visibility: projectId ? undefined : wikiReadVisibility(ctx),
+      visibility:
+        Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) ? undefined : wikiReadVisibility(ctx),
     }),
   )
   return rows.map((r) => ({ ...r, url: wikiPagePath(r.slug) }))
@@ -2131,7 +2149,7 @@ const collectDescendantIds = async function collectDescendantIds(
   const orm = drizzle(db, { schema })
   const descendants: string[] = []
   let frontier = [rootId]
-  while (EffectArray.isArrayNonEmpty(frontier)) {
+  while (Array.isArrayNonEmpty(frontier)) {
     const children = await inChunks(frontier, (chunk) =>
       orm
         .select({ id: schema.wikiPages.id })
@@ -2172,7 +2190,7 @@ const collectCascadeTrashedDescendantIds = async function collectCascadeTrashedD
   const orm = drizzle(db, { schema })
   const descendants: string[] = []
   let frontier = [rootId]
-  while (EffectArray.isArrayNonEmpty(frontier)) {
+  while (Array.isArrayNonEmpty(frontier)) {
     const children = await inChunks(frontier, (chunk) =>
       orm
         .select({ id: schema.wikiPages.id })
@@ -2339,7 +2357,7 @@ export const deleteWikiPage = async function deleteWikiPage(ctx: ServiceCtx, idO
      * notification above, but someone watching one of the DESCENDANTS directly would
      * otherwise hear nothing at all about their page being trashed.
      */
-    if (EffectArray.isArrayNonEmpty(descendantIds)) {
+    if (Array.isArrayNonEmpty(descendantIds)) {
       const descendants = await inChunks(descendantIds, (chunk) =>
         orm
           .select({
@@ -2486,7 +2504,7 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
   const descendantIds = await collectCascadeTrashedDescendantIds(ctx.db, page.id, ctx.workspaceId, page.trashBatchId)
   const allIds = [page.id, ...descendantIds]
 
-  const descendantRows = EffectArray.isArrayNonEmpty(descendantIds)
+  const descendantRows = Array.isArrayNonEmpty(descendantIds)
     ? await inChunks(descendantIds, (chunk) =>
         orm
           .select({
@@ -2571,7 +2589,7 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
    * watchers on trash — without this, someone watching a descendant directly hears
    * about the delete but never a matching "restored" event on cascade undelete.
    */
-  if (EffectArray.isArrayNonEmpty(descendantRows)) {
+  if (Array.isArrayNonEmpty(descendantRows)) {
     await notifyCascadeDescendantWatchers(ctx, descendantRows, 'updated')
   }
 
@@ -2596,7 +2614,7 @@ export const listWikiTrash = async function listWikiTrash(ctx: ServiceCtx, input
   }
   const { projectId } = parsed.data
 
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     if (!(await hasProjectAccess(ctx, projectId))) {
       return []
     }
@@ -2605,7 +2623,8 @@ export const listWikiTrash = async function listWikiTrash(ctx: ServiceCtx, input
   const rows = await Effect.runPromise(
     wikiData.listWikiTrash(ctx.db, ctx.workspaceId, {
       ...parsed.data,
-      visibility: projectId ? undefined : wikiReadVisibility(ctx),
+      visibility:
+        Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) ? undefined : wikiReadVisibility(ctx),
     }),
   )
   return rows.map((r) => ({
@@ -2666,7 +2685,7 @@ export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
   const moreExpired = expiredPlusOne.length > limit
   const expired = moreExpired ? expiredPlusOne.slice(0, limit) : expiredPlusOne
   const ids = expired.map((p) => p.id)
-  if (EffectArray.isArrayEmpty(ids)) {
+  if (Array.isArrayEmpty(ids)) {
     return { purgedCount: 0, purgedIds: [], moreExpired: false }
   }
 

@@ -1,4 +1,4 @@
-import { Iterable, Predicate } from 'effect'
+import { String, Iterable, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { computeFreshness } from '#commands/wiki-freshness.ts'
@@ -844,7 +844,7 @@ describe('wiki API', () => {
     // Create 5 levels deep (root → L1 → L2 → L3 → L4 → L5)
     for (let index = 0; index < 5; index++) {
       const body: Record<string, unknown> = { title: `Level ${index}`, content: '' }
-      if (parentId) {
+      if (Predicate.isNotNullish(parentId) && String.isNonEmpty(parentId)) {
         body.parentId = parentId
       }
       const res = await fetchNativeApi('http://localhost/api/wiki', {
@@ -877,7 +877,7 @@ describe('wiki API', () => {
     let l3Id = ''
     for (let index = 0; index < 4; index++) {
       const body: Record<string, unknown> = { title: `Chain ${index}`, content: '' }
-      if (chainParentId) {
+      if (Predicate.isNotNullish(chainParentId) && String.isNonEmpty(chainParentId)) {
         body.parentId = chainParentId
       }
       const res = await fetchNativeApi('http://localhost/api/wiki', {
@@ -1760,10 +1760,10 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       verifyInterval: number
     }
     expect(created.type).toBe('runbook')
-    expect(created.tags).toEqual(['ops', 'oncall'])
+    expect(created.tags).toStrictEqual(['ops', 'oncall'])
     expect(created.status).toBe('current')
     expect(created.verifiedBy).toBe('alice@example.com')
-    expect(created.owners).toEqual(['alice', 'bob'])
+    expect(created.owners).toStrictEqual(['alice', 'bob'])
     expect(created.verifyInterval).toBe(90)
 
     const getRes = await fetchNativeApi('http://localhost/api/wiki/incident-runbook', {
@@ -1777,7 +1777,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
     expect(page.type).toBe('runbook')
     expect(page.status).toBe('current')
     // Tags column comes back through drizzle's JSON mode as a real array on GET.
-    expect(page.tags).toEqual(['ops', 'oncall'])
+    expect(page.tags).toStrictEqual(['ops', 'oncall'])
   })
 
   test('covers MCP create_wiki_page parses valid frontmatter into denormalized fields (parity with REST)', async () => {
@@ -1806,7 +1806,7 @@ describe('wiki frontmatter metadata (PROJ-488)', () => {
       status: string | null
     }
     expect(created.type).toBeNull()
-    expect(created.tags).toEqual([])
+    expect(created.tags).toStrictEqual([])
     expect(created.status).toBeNull()
   })
 
@@ -2999,7 +2999,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     })
     expect(res.status).toBe(404)
     const body = (await res.json()) as { error: string; currentHeadings: string[] }
-    expect(body.currentHeadings).toEqual(['Alpha', 'Beta'])
+    expect(body.currentHeadings).toStrictEqual(['Alpha', 'Beta'])
   })
 
   test('covers REST: disjoint-section writes never conflict — two patches vs. a stale baseRevisionId both succeed', async () => {
@@ -3106,7 +3106,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     })
     expect(res.status).toBe(404)
     const body = (await res.json()) as { currentHeadings: string[] }
-    expect(body.currentHeadings).toEqual(['Alpha'])
+    expect(body.currentHeadings).toStrictEqual(['Alpha'])
   })
 
   test('covers REST: patch preserves existing YAML frontmatter untouched', async () => {
@@ -3269,7 +3269,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     ).json()) as { type: string; tags: string[]; status: string }
     expect(page.status).toBe('deprecated')
     expect(page.type).toBe('runbook')
-    expect(page.tags).toEqual(['ops'])
+    expect(page.tags).toStrictEqual(['ops'])
   })
 
   test('covers REST: set_frontmatter with a null value removes that key', async () => {
@@ -3515,7 +3515,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     })
     expect(missing.status).toBe(404)
     const body = (await missing.json()) as { currentHeadings: string[] }
-    expect(body.currentHeadings).toEqual(['Setup', 'Usage'])
+    expect(body.currentHeadings).toStrictEqual(['Setup', 'Usage'])
 
     const res = await req('http://localhost/api/wiki/patch-fenced', {
       method: 'PATCH',
@@ -3554,7 +3554,7 @@ describe('wiki patch operations (PROJ-490)', () => {
     })
     expect(res.status).toBe(404)
     const body = (await res.json()) as { currentHeadings: string[] }
-    expect(body.currentHeadings).toEqual(['Alpha'])
+    expect(body.currentHeadings).toStrictEqual(['Alpha'])
   })
 
   test('covers REST: a heading appearing twice is rejected as ambiguous rather than silently patching the first', async () => {
@@ -3575,7 +3575,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       error: { formErrors: string[]; fieldErrors: Record<string, string[]> }
     }
     expect(body.error.formErrors.join(' ')).toContain('ambiguous')
-    expect(body.error.fieldErrors.heading).toEqual(['h1', 'h2'])
+    expect(body.error.fieldErrors.heading).toStrictEqual(['h1', 'h2'])
     // Nothing was written.
     const result = await getPage('patch-ambiguous')
     expect(result.content).toBe(content)
@@ -3765,7 +3765,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = (await res.json()) as { slug: string }[]
-    expect(backlinks).toEqual([])
+    expect(backlinks).toStrictEqual([])
   })
 
   test('an absolute cross-host URL is never indexed as a same-workspace link', async () => {
@@ -3779,7 +3779,7 @@ describe('wiki link graph and backlinks (PROJ-485)', () => {
       headers: authHeaders(token, slug),
     })
     const backlinks = (await res.json()) as { slug: string }[]
-    expect(backlinks).toEqual([])
+    expect(backlinks).toStrictEqual([])
   })
 
   test("covers PROJ-510: a malformed %-escape in a link URL doesn't crash the write; other links still index", async () => {
@@ -4101,7 +4101,11 @@ describe('wiki write atomicity (PROJ-511)', () => {
       }),
     ])
     const statuses = [resA.status, resB.status].toSorted((left, right) =>
-      String(left) < String(right) ? -1 : String(left) > String(right) ? 1 : 0,
+      globalThis.String(left) < globalThis.String(right)
+        ? -1
+        : globalThis.String(left) > globalThis.String(right)
+          ? 1
+          : 0,
     )
     expect(statuses).toEqual([201, 409])
 
@@ -4187,8 +4191,8 @@ describe('computeFreshness (PROJ-489)', () => {
     const verifiedAt = now - 40 * 86_400 // 40 days ago
     const dueAt = verifiedAt + 30 * 86_400
     expect(computeFreshness({ verifiedAt, verifyInterval: 30, status: null, now })).toEqual({
-      state: 'stale',
       staleSince: dueAt,
+      state: 'stale',
     })
   })
 
@@ -5226,7 +5230,7 @@ describe('wiki watchers + list_wiki_changes (PROJ-493)', () => {
         headers: authHeaders(token, slug),
       })
     ).json()) as { changes: unknown[] }
-    expect(empty.changes).toEqual([])
+    expect(empty.changes).toStrictEqual([])
   })
 
   /*
@@ -5999,7 +6003,7 @@ describe('wiki trash (PROJ-496)', () => {
     await expect(
       env.DB.prepare('SELECT id FROM attachments WHERE id = ?').bind(oldAttachmentId).first(),
     ).resolves.toBeNull()
-    if (oldR2Key) {
+    if (Predicate.isNotNullish(oldR2Key) && String.isNonEmpty(oldR2Key)) {
       await expect(env.R2.get(oldR2Key)).resolves.toBeNull()
     }
     await expect(

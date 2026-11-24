@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 
 import type { Issue, TaskStatus } from '@/features/issues/components/board-utils.ts'
 
@@ -21,7 +21,7 @@ export const deriveStatusOptions = function deriveStatusOptions(
   issues: Readonly<Issue[]>,
   statuses: Readonly<TaskStatus[]>,
 ): Readonly<TaskStatus[]> {
-  if (EffectArray.isReadonlyArrayNonEmpty(statuses)) {
+  if (Array.isReadonlyArrayNonEmpty(statuses)) {
     return statuses
   }
   return [

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { uploadInlineImage } from '@/attachment-actions.ts'
@@ -62,7 +62,7 @@ vi.mock('./lazy-markdown-editor.tsx', () => ({
         type='button'
         onClick={async () => {
           const url = await onImageFile?.(new File(['image'], 'inline.png', { type: 'image/png' }))
-          if (url) {
+          if (Predicate.isNotNullish(url) && String.isNonEmpty(url)) {
             onChange(`${value}\n![inline](${url})`)
           }
         }}

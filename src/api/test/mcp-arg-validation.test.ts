@@ -1,4 +1,4 @@
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate } from 'effect'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import { validateToolArgs } from '#api/mcp/validate-args.ts'
@@ -16,11 +16,11 @@ import { fetchNativeApi } from './native-fetch.ts'
 type Schema = Record<string, unknown>
 
 const schemaType = function schemaType(s: Schema): string | undefined {
-  return Array.isArray(s.type) ? (s.type[0] as string) : (s.type as string | undefined)
+  return globalThis.Array.isArray(s.type) ? (s.type[0] as string) : (s.type as string | undefined)
 }
 
 const validValue = function validValue(s: Schema): unknown {
-  if (Array.isArray(s.enum) && EffectArray.isArrayNonEmpty(s.enum)) {
+  if (globalThis.Array.isArray(s.enum) && Array.isArrayNonEmpty(s.enum)) {
     return s.enum[0]
   }
   switch (schemaType(s)) {
@@ -90,7 +90,7 @@ describe('covers PROJ-920: MCP tool arguments are type-checked before the handle
       const props = (tool.inputSchema.properties ?? {}) as Record<string, Schema>
       const required = ((tool.inputSchema.required ?? []) as string[]).filter((k) => props[k])
       const target = required.find((k) => wrongValue(props[k]) !== undefined)
-      if (!target) {
+      if (Predicate.isNullish(target) || String.isEmpty(target)) {
         continue
       }
       const args: Record<string, unknown> = {}
@@ -110,7 +110,7 @@ describe('covers PROJ-920: MCP tool arguments are type-checked before the handle
       }
     }
     expect(checked).toBeGreaterThan(50)
-    expect(failures).toEqual([])
+    expect(failures).toStrictEqual([])
   })
 
   test('puts the failing field in fields like a service ValidationError', async () => {

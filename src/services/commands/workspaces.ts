@@ -62,10 +62,10 @@ export const createWorkspace = async function createWorkspace(db: D1Database, us
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
   await db.batch([
-    prepareQuery(db, orm.insert(schema.workspaces).values({ id, name, slug, createdAt: now }).toSQL()),
+    prepareQuery(db, orm.insert(schema.workspaces).values({ createdAt: now, id, name, slug }).toSQL()),
     prepareQuery(
       db,
-      orm.insert(schema.workspaceMembers).values({ workspaceId: id, userId, role: 'owner', joinedAt: now }).toSQL(),
+      orm.insert(schema.workspaceMembers).values({ joinedAt: now, role: 'owner', userId, workspaceId: id }).toSQL(),
     ),
     ...buildDefaultTaskTypeStatements(db, id),
     ...buildDefaultTaskStatusStatements(db, id),

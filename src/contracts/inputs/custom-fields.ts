@@ -1,4 +1,4 @@
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 import { z } from 'zod'
 
 const CustomFieldTypeEnum = z.enum(['text', 'number', 'select', 'date', 'user'])
@@ -23,7 +23,7 @@ export const UpdateCustomFieldDefSchema = z
     label: z.string().min(1).max(100).optional(),
     options: z.array(z.string().min(1).max(100)).max(100).nullable().optional(),
   })
-  .refine((obj) => EffectArray.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })
+  .refine((obj) => Array.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })
 
 export const CustomFieldFilterSchema = z.object({
   cfKey: z.string().optional(),

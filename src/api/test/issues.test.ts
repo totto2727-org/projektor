@@ -283,7 +283,7 @@ describe('issues API', () => {
     })
     const issue = (await getRes.json()) as { assignee_id: string; labels: string }
     expect(issue.assignee_id).toBe(assignee.id)
-    expect(JSON.parse(issue.labels)).toEqual(['bug', 'urgent'])
+    expect(JSON.parse(issue.labels)).toStrictEqual(['bug', 'urgent'])
   })
 
   test('handles PATCH with assigneeId (camelCase) updates the assignee', async () => {
@@ -329,7 +329,7 @@ describe('issues API', () => {
       headers: authHeaders(token, slug),
     })
     const issue = (await getRes.json()) as { labels: string }
-    expect(JSON.parse(issue.labels)).toEqual(['new', 'tag'])
+    expect(JSON.parse(issue.labels)).toStrictEqual(['new', 'tag'])
   })
 
   test('filters issues by assignee', async () => {
@@ -807,7 +807,7 @@ describe('issues API', () => {
       rollup: { total: number; byStatus: Record<string, number> }
     }
     expect(issue.rollup.total).toBe(0)
-    expect(issue.rollup.byStatus).toEqual({})
+    expect(issue.rollup.byStatus).toStrictEqual({})
   })
 
   test('handles PATCH sets parentId on an existing issue', async () => {
@@ -2405,8 +2405,8 @@ describe('covers PROJ-713 — write tools resolve refs/keys server-side', () => 
       items: unknown[]
     }
     const invisiblePage = JSON.parse(invisibleRes.result!.content[0].text) as { items: unknown[] }
-    expect(nonexistentPage.items).toEqual([])
-    expect(invisiblePage.items).toEqual([])
+    expect(nonexistentPage.items).toStrictEqual([])
+    expect(invisiblePage.items).toStrictEqual([])
   })
 
   test('search_issues with a visible project key returns matching results', async () => {
@@ -2624,8 +2624,8 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     })
     const issue = (await res.json()) as Record<string, unknown>
     // REST keeps the full shape: empty/null fields are still present.
-    expect(issue.links).toEqual([])
-    expect(issue.customFields).toEqual([])
+    expect(issue.links).toStrictEqual([])
+    expect(issue.customFields).toStrictEqual([])
     expect(issue).toHaveProperty('sprint_id', null)
     expect(issue).toHaveProperty('assignee_id', null)
     expect(issue).toHaveProperty('parent_id', null)
@@ -2679,7 +2679,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
 
     const parentRes = await mcpCall({ name: 'get_issue', arguments: { id: parent.id } })
     const parentIssue = JSON.parse(parentRes.result!.content[0].text) as Record<string, unknown>
-    expect(parentIssue.rollup).toEqual({
+    expect(parentIssue.rollup).toStrictEqual({
       byStatus: { backlog: 2 },
       done: 0,
       remaining: 2,
@@ -2691,7 +2691,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     expect(child.assignee_id).toBe(assignee.id)
     expect(child.parent_id).toBe(parent.id)
     expect(child.customFields).toEqual([expect.objectContaining({ key: 'proj931_cf', value: 'hello' })])
-    expect(child.labels).toEqual(['bug'])
+    expect(child.labels).toStrictEqual(['bug'])
   })
 
   test('list_issues items are compacted the same way as get_issue', async () => {
@@ -2744,7 +2744,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
     expect(issue.assignee_id).toBeNull()
     expect(issue.sprint_id).toBeNull()
     // Requested fields keep their real value — empty/zero is not the same as absent.
-    expect(issue.links).toEqual([])
+    expect(issue.links).toStrictEqual([])
     expect(issue.rollup).toMatchObject({ total: 0 })
     expect(issue.id).toBe(id)
   })
@@ -2860,7 +2860,7 @@ describe('covers PROJ-931 — compact MCP responses', () => {
       missing: string[]
     }
     expect(data.items.map((i) => i.id)).toEqual([a.id])
-    expect(data.missing).toEqual([])
+    expect(data.missing).toStrictEqual([])
   })
 
   test('get_issues lists a repeated missing ref once', async () => {
@@ -2970,7 +2970,7 @@ describe('covers PROJ-931 — get_issues project visibility', () => {
       items: unknown[]
       missing: string[]
     }
-    expect(data.items).toEqual([])
+    expect(data.items).toStrictEqual([])
     expect(data.missing).toEqual([ref, theirIssue.id])
   })
 })

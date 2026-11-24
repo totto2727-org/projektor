@@ -1,5 +1,5 @@
 'use client'
-import { Schema } from 'effect'
+import { String, Predicate, Schema } from 'effect'
 import { useEffect, useState } from 'react'
 
 import {
@@ -36,7 +36,7 @@ export const useSavedViews = function useSavedViews(
     setActiveViewName(null)
   }, [storageKey])
   useEffect(() => {
-    if (!activeViewName) {
+    if (Predicate.isNullish(activeViewName) || String.isEmpty(activeViewName)) {
       return
     }
     const active = savedViews.find((view) => view.name === activeViewName)

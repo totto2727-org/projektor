@@ -303,7 +303,7 @@ describe('covers MCP endpoint', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${created.id}`, { headers })
     const issue = (await getRes.json()) as { assignee_id: string; labels: string }
     expect(issue.assignee_id).toBe(assignee.id)
-    expect(JSON.parse(issue.labels)).toEqual(['mcp', 'test'])
+    expect(JSON.parse(issue.labels)).toStrictEqual(['mcp', 'test'])
   })
 
   test('covers MCP update_issue with assigneeId and labels updates them', async () => {
@@ -331,7 +331,7 @@ describe('covers MCP endpoint', () => {
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, { headers })
     const issue = (await getRes.json()) as { assignee_id: string; labels: string }
     expect(issue.assignee_id).toBe(assignee.id)
-    expect(JSON.parse(issue.labels)).toEqual(['updated'])
+    expect(JSON.parse(issue.labels)).toStrictEqual(['updated'])
   })
 
   test('covers MCP list_issues with assignee filter returns same subset as REST', async () => {
@@ -470,7 +470,7 @@ describe('covers MCP endpoint', () => {
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const results = JSON.parse(res.result.content[0].text) as { items: unknown[] }
-    expect(results).toEqual({ items: [] })
+    expect(results).toStrictEqual({ items: [] })
   })
 
   test('covers MCP search_wiki excerpt is at most 250 chars', async () => {
@@ -612,7 +612,7 @@ describe('covers MCP endpoint', () => {
       { name: 'delete_wiki_page', arguments: { slug: parent.slug, cascade: true } },
       ownerHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    expect(JSON.parse(delRes.result.content[0].text)).toEqual({
+    expect(JSON.parse(delRes.result.content[0].text)).toStrictEqual({
       deletedCount: 2,
       linkedByCount: 0,
       ok: true,

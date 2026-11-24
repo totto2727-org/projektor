@@ -78,7 +78,7 @@ describe('covers PROJ-889: auth middleware records method + credential', () => {
       .run()
 
     const auth = await whoami({ Authorization: `Bearer ${raw}` })
-    expect(auth).toMatchObject({ kind: 'agent', method: 'pk', credentialId: id })
+    expect(auth).toMatchObject({ credentialId: id, kind: 'agent', method: 'pk' })
     expect(auth.scopes).toContain('read')
   })
 

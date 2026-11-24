@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray } from 'effect'
+import { String, Predicate, Array } from 'effect'
 import { useState } from 'react'
 
 import {
@@ -133,7 +133,12 @@ export default function BoardView({
             onDrop={(event: import('react').DragEvent<HTMLElement>) => {
               event.preventDefault()
               const issueId = event.dataTransfer?.getData('text/plain')
-              if (issueId && dropStatusId && window.innerWidth >= 640) {
+              if (
+                issueId &&
+                Predicate.isNotNullish(dropStatusId) &&
+                String.isNonEmpty(dropStatusId) &&
+                window.innerWidth >= 640
+              ) {
                 changeStatus(issueId, dropStatusId)
               }
               setDragOverColumn(null)
@@ -163,7 +168,7 @@ export default function BoardView({
                 background: isOver ? 'var(--dropzone-bg)' : 'var(--bg)',
               }}
             >
-              {EffectArray.isArrayEmpty(colIssues) ? (
+              {Array.isArrayEmpty(colIssues) ? (
                 <p className='text-[0.8rem] text-text-muted text-center py-4 m-0'>No issues</p>
               ) : (
                 colIssues.map((issue) => (

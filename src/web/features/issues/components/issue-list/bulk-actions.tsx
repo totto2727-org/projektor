@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 import { createContext, useContext, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -78,7 +78,7 @@ export function IssueBulkProvider({
           onClick={() => {
             setSelected(new Set(issues.map((issue) => issue.id)))
           }}
-          disabled={busy || EffectArray.isReadonlyArrayEmpty(issues)}
+          disabled={busy || Array.isReadonlyArrayEmpty(issues)}
         >
           Select all loaded
         </Button>

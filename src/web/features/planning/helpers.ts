@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 
 import { formatTimestampDate } from '@/features/timestamp.ts'
 
@@ -18,7 +18,7 @@ export const unixToDateInput = function unixToDateInput(ts: number | null): stri
     return ''
   }
   const date = new Date(ts * 1000)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return `${date.getFullYear()}-${globalThis.String(date.getMonth() + 1).padStart(2, '0')}-${globalThis.String(date.getDate()).padStart(2, '0')}`
 }
 export const formatUnixDate = function formatUnixDate(ts: number | null): string {
   return Predicate.isNullish(ts) ? '\u2013' : formatTimestampDate(ts)
@@ -61,7 +61,12 @@ export const rangeFromUrl = function rangeFromUrl(url: URL, now = new Date()): R
   const fallback = defaultRange(now)
   const date = (key: 'since' | 'until'): string => {
     const value = url.searchParams.get(key)
-    return value && /^\d{4}-\d{2}-\d{2}$/u.test(value) && Number.isFinite(dateEpochStart(value)) ? value : fallback[key]
+    return Predicate.isNotNullish(value) &&
+      String.isNonEmpty(value) &&
+      /^\d{4}-\d{2}-\d{2}$/u.test(value) &&
+      Number.isFinite(dateEpochStart(value))
+      ? value
+      : fallback[key]
   }
   const since = date('since')
   const until = date('until')

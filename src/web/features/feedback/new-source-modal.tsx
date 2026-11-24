@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm, useStore } from '@tanstack/react-form'
-import { Schema } from 'effect'
+import { String, Predicate, Schema } from 'effect'
 import { useActionState, useEffect } from 'react'
 
 import { FormErrors } from '@/components/form-errors.tsx'
@@ -120,7 +120,7 @@ function NewSourceForm({
 
 export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCreated }: Props) {
   const [result, action, creating] = useActionState(createFeedbackSource, null)
-  const newToken = result?.ok ? result.value.token : null
+  const newToken = result?.ok === true ? result.value.token : null
   const error = result && !result.ok ? result.message : null
   const form = useForm({
     defaultValues: { name: '', description: '', origins: '' },
@@ -140,7 +140,7 @@ export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCr
   const setDescription = (value: string): void => form.setFieldValue('description', value)
   const setOrigins = (value: string): void => form.setFieldValue('origins', value)
   useEffect(() => {
-    if (newToken) {
+    if (Predicate.isNotNullish(newToken) && String.isNonEmpty(newToken)) {
       onCreated?.()
     }
   }, [newToken, onCreated])
@@ -149,7 +149,7 @@ export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCr
     <Dialog
       open={true}
       onClose={() => {
-        if (!newToken) {
+        if (Predicate.isNullish(newToken) || String.isEmpty(newToken)) {
           onClose()
         }
       }}
@@ -157,7 +157,7 @@ export default function NewSourceModal({ projectId, workspaceSlug, onClose, onCr
     >
       <h2 className='mb-5 text-lg font-bold text-text-base'>New feedback source</h2>
 
-      {newToken ? (
+      {Predicate.isNotNullish(newToken) && String.isNonEmpty(newToken) ? (
         <div className='bg-surface border border-border rounded-md p-4'>
           <p className='text-danger-text text-[0.8rem] my-1'>
             ⚠ Copy this token now — you won't be able to see it again.

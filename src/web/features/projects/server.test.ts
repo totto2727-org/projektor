@@ -148,8 +148,8 @@ describe('project pages read named shared queries against migrated D1', () => {
       }).result,
     ).rejects.toMatchObject({
       _tag: 'ApiError',
-      status: 500,
       message: 'An unexpected error occurred.',
+      status: 500,
     })
   })
 })

@@ -1,4 +1,4 @@
-import { Iterable, Effect, Schema } from 'effect'
+import { String, Predicate, Iterable, Effect, Schema } from 'effect'
 
 import * as sources from '#commands/feedback-sources.ts'
 import * as commands from '#commands/feedback.ts'
@@ -133,9 +133,10 @@ export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
             const filter = yield* Schema.decodeUnknownEffect(StatusFields)({ status }).pipe(
               Effect.mapError(() => coreFailure(400, 'Invalid feedback status.')),
             )
-            const candidates = workspaceId
-              ? scope.workspaces.filter((workspace) => workspace.id === workspaceId)
-              : scope.workspaces
+            const candidates =
+              Predicate.isNotNullish(workspaceId) && String.isNonEmpty(workspaceId)
+                ? scope.workspaces.filter((workspace) => workspace.id === workspaceId)
+                : scope.workspaces
             for (const workspace of candidates) {
               const row = yield* queries.findFeedbackSourceById(env.DB, workspace.id, sourceId)
               if (!row) {

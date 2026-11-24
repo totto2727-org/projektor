@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, normalize, relative, resolve } from 'node:path'
 
-import { Iterable } from 'effect'
+import { String, Predicate, Iterable } from 'effect'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
@@ -161,7 +161,7 @@ const resolveModule = function resolveModule(
       }
     }
   }
-  if (!target) {
+  if (Predicate.isNullish(target) || String.isEmpty(target)) {
     return undefined
   }
   if (/\.(css|json|svg|png|webp|woff2)$/u.test(target) && existsSync(target)) {
@@ -169,7 +169,7 @@ const resolveModule = function resolveModule(
   }
   const candidates = [target, `${target}.ts`, `${target}.tsx`, join(target, 'index.ts'), join(target, 'index.tsx')]
   const found = candidates.find((candidate) => graph.has(candidate))
-  if (!found) {
+  if (Predicate.isNullish(found) || String.isEmpty(found)) {
     throw new Error(`Unresolved application import ${specifier} from ${relative(ROOT, from)}`)
   }
   return found
@@ -205,7 +205,7 @@ const violations = function violations(
         continue
       }
       const dependency = resolveModule(path, specifier, graph)
-      if (dependency) {
+      if (Predicate.isNotNullish(dependency) && String.isNonEmpty(dependency)) {
         walk(dependency, next)
       }
     }
@@ -225,7 +225,11 @@ const reverseViolations = function reverseViolations(graph: ReadonlyMap<string, 
     }
     Iterable.forEach(info.imports, (specifier) => {
       const dependency = resolveModule(path, specifier, graph)
-      if (dependency && /^src\/(api|web)\//u.test(relative(ROOT, dependency))) {
+      if (
+        Predicate.isNotNullish(dependency) &&
+        String.isNonEmpty(dependency) &&
+        /^src\/(api|web)\//u.test(relative(ROOT, dependency))
+      ) {
         failures.push(
           `${localPath} -> ${relative(ROOT, dependency)}: shared implementation depends on a public adapter`,
         )

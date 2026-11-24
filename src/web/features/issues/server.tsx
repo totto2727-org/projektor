@@ -1,4 +1,4 @@
-import { Iterable, Effect, Schema } from 'effect'
+import { String, Predicate, Iterable, Effect, Schema } from 'effect'
 import type { ReactElement } from 'react'
 
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
@@ -99,7 +99,7 @@ function allPages(
 ): Effect.Effect<IssuePage, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
     query = new URLSearchParams(query)
-    query.set('limit', String(AGGREGATE_PAGE_SIZE))
+    query.set('limit', globalThis.String(AGGREGATE_PAGE_SIZE))
     const page = yield* readDataIssuePage(scope, workspaceId, query)
     const items = [...page.items]
     let cursor = page.nextCursor
@@ -112,12 +112,12 @@ function allPages(
           `This view supports at most ${MAX_AGGREGATE_ISSUES} issues. Narrow the filters or use the paginated list.`,
         )
       }
-      if (seen.has(String(cursor))) {
+      if (seen.has(globalThis.String(cursor))) {
         return yield* new ApiError('schema', 502, 'The data query returned a repeated issue cursor.')
       }
-      seen.add(String(cursor))
+      seen.add(globalThis.String(cursor))
       const qs = new URLSearchParams(query)
-      qs.set('cursor', String(cursor))
+      qs.set('cursor', globalThis.String(cursor))
       const next = yield* readDataIssuePage(scope, workspaceId, qs)
       items.push(...next.items)
       cursor = next.nextCursor
@@ -182,7 +182,10 @@ export function loadIssues(
         page: view === 'list' ? readDataIssuePage(scope, workspace.id, query) : allPages(scope, workspace.id, query),
         epics: epicType ? allPages(scope, workspace.id, epicQuery) : Effect.succeed({ items: [] }),
         sprints: project ? readSprints(workspace.id, project.id) : Effect.succeed([]),
-        sprintDetail: sprintId ? readSprint(workspace.id, sprintId) : Effect.succeed(null),
+        sprintDetail:
+          Predicate.isNotNullish(sprintId) && String.isNonEmpty(sprintId)
+            ? readSprint(workspace.id, sprintId)
+            : Effect.succeed(null),
         search: q ? searchDataIssues(scope, workspace.id, q, project?.id, review) : Effect.succeed(null),
       },
       { concurrency: CONCURRENCY },
@@ -223,7 +226,7 @@ export function renderIssues(scope: RequestScope, url: URL): Effect.Effect<React
 type IssueRouteParams = Readonly<Record<string, string | undefined>>
 function issueIdentifier(url: URL, scope: RequestScope, params: IssueRouteParams): string | null {
   const id = url.searchParams.get('id')
-  if (id) {
+  if (Predicate.isNotNullish(id) && String.isNonEmpty(id)) {
     return id
   }
   if (!params.issueNumber || !params.projectSlug) {
@@ -249,13 +252,14 @@ export function loadIssue(
 ): Effect.Effect<IssueLoaderData | null, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
     const identifier = yield* checked(() => issueIdentifier(url, scope, params))
-    if (!identifier) {
+    if (Predicate.isNullish(identifier) || String.isEmpty(identifier)) {
       return null
     }
     const hint = url.searchParams.get('workspace')
-    const workspace = hint
-      ? scope.workspaces.find((entry) => entry.slug === hint)
-      : (workspaceSelection(scope) ?? (scope.workspaces.length === 1 ? scope.workspaces[0] : null))
+    const workspace =
+      Predicate.isNotNullish(hint) && String.isNonEmpty(hint)
+        ? scope.workspaces.find((entry) => entry.slug === hint)
+        : (workspaceSelection(scope) ?? (scope.workspaces.length === 1 ? scope.workspaces[0] : null))
     if (!workspace) {
       return null
     }

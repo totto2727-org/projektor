@@ -220,8 +220,8 @@ describe('issue attachment review target storage and authorization', () => {
     })
     const ids = ['i', ...Array.from({ length: 205 }, (_, index) => `missing-${index}`), 'i']
     expect((await runTestEffect(listIssueReviewTargets(bounded, 'w', ids))).get('i')).toHaveLength(1)
-    expect(bindings).toEqual([100, 100, 9])
+    expect(bindings).toStrictEqual([100, 100, 9])
     await expect(runTestEffect(listIssueReviewTargets(bounded, 'w', []))).resolves.toEqual(new Map())
-    expect(bindings).toEqual([100, 100, 9])
+    expect(bindings).toStrictEqual([100, 100, 9])
   })
 })

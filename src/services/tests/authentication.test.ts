@@ -213,8 +213,8 @@ describe('shared browser authentication without API transport or signing secrets
   ])('rejects invalid or expired signed claims %j without DB or JWKS IO', async (claims) => {
     const prepare = vi.spyOn(database.db, 'prepare')
     await expect(authenticateBrowser(browser(await token(claims)), env)).rejects.toMatchObject({
-      status: 401,
       message: 'Invalid Access token',
+      status: 401,
     })
     expect(prepare).not.toHaveBeenCalled()
     expect(externalFetch).not.toHaveBeenCalled()
@@ -231,8 +231,8 @@ describe('shared browser authentication without API transport or signing secrets
     const prepare = vi.spyOn(database.db, 'prepare')
     await expect(authenticateBrowser(browser('not-a-jwt'), env)).rejects.toMatchObject({ status: 401 })
     await expect(authenticateBrowser(browser(await token({}, otherPair)), env)).rejects.toMatchObject({
-      status: 401,
       message: 'Invalid Access token',
+      status: 401,
     })
     expect(prepare).not.toHaveBeenCalled()
   })
@@ -250,7 +250,7 @@ describe('shared browser authentication without API transport or signing secrets
         }),
         env,
       ),
-    ).rejects.toMatchObject({ status: 401, message: 'Invalid Access token' })
+    ).rejects.toMatchObject({ message: 'Invalid Access token', status: 401 })
     expect(database.sqlite.prepare('SELECT COUNT(*) AS count FROM users').get()).toEqual({ count: 0 })
   })
 
@@ -267,8 +267,8 @@ describe('shared browser authentication without API transport or signing secrets
         externalFetch.mockResolvedValue(Response.json({ malformed: true }))
       }
       await expect(authenticateBrowser(browser(await token()), env)).rejects.toMatchObject({
-        status: 503,
         message: 'Authentication temporarily unavailable',
+        status: 503,
       })
       expect(prepare).not.toHaveBeenCalled()
       const input = externalFetch.mock.calls[0]?.[0]

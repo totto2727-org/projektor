@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
-import { Array as EffectArray, Predicate } from 'effect'
+import { String, Array, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -56,7 +56,7 @@ export const registerAgent = async function registerAgent(ctx: ServiceCtx, raw: 
 
   const orm = drizzle(ctx.db, { schema })
 
-  if (issueId) {
+  if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId)) {
     await assertIssueAccess(ctx, issueId, 'edit')
   }
 
@@ -126,9 +126,7 @@ export const startWork = async function startWork(ctx: ServiceCtx, raw: unknown)
     const lease = await claimIssue(ctx, { issueId, agentId: session.id })
 
     const claimed =
-      paths && EffectArray.isArrayNonEmpty(paths)
-        ? await claimFiles(ctx, { issueId, agentId: session.id, paths })
-        : null
+      paths && Array.isArrayNonEmpty(paths) ? await claimFiles(ctx, { issueId, agentId: session.id, paths }) : null
 
     await postMessage(ctx, {
       scope: `issue:${issueId}`,
@@ -217,7 +215,7 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
   const now = Math.floor(Date.now() / 1000)
   await orm
     .update(schema.agentSessions)
-    .set({ status: 'ended', endedAt: now })
+    .set({ endedAt: now, status: 'ended' })
     .where(and(eq(schema.agentSessions.id, id), eq(schema.agentSessions.workspaceId, ctx.workspaceId)))
 
   await releaseClaimsForAgent(ctx, id)
@@ -291,18 +289,18 @@ export const listActiveAgents = async function listActiveAgents(ctx: ServiceCtx,
    * not includeStale is set. includeStale only lifts the heartbeat-freshness check below.
    */
   const conditions = [eq(schema.agentSessions.workspaceId, ctx.workspaceId), eq(schema.agentSessions.status, 'active')]
-  if (!includeStale) {
+  if (includeStale !== true) {
     conditions.push(gt(schema.agentSessions.lastHeartbeatAt, cutoff))
   }
 
-  if (issueId) {
+  if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId)) {
     conditions.push(eq(schema.agentSessions.issueId, issueId))
   }
   /*
    * PROJ-932: a session with no issue link has no project to check, so it's excluded
    * once a projectId filter is given (see the list_active_agents tool description).
    */
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     conditions.push(eq(schema.issues.projectId, projectId))
   }
 
@@ -335,7 +333,10 @@ export const listActiveAgents = async function listActiveAgents(ctx: ServiceCtx,
 
   const items = rows.map(({ projectKey, issueNumber, ...session }) => ({
     ...session,
-    issueRef: session.issueId && projectKey ? `${projectKey}-${issueNumber}` : null,
+    issueRef:
+      session.issueId && Predicate.isNotNullish(projectKey) && String.isNonEmpty(projectKey)
+        ? `${projectKey}-${issueNumber}`
+        : null,
     live: session.lastHeartbeatAt > cutoff,
   }))
 

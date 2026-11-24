@@ -1,6 +1,6 @@
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { Array as EffectArray } from 'effect'
+import { String, Predicate, Array } from 'effect'
 
 import { drizzle, schema } from '#db'
 
@@ -46,9 +46,13 @@ export const assertAgentSessionAccess = async function assertAgentSessionAccess(
   if (!session) {
     throw new NotFoundError('Agent session not found')
   }
-  if (!(options.allowAdministrativeOverride && isWorkspaceAdmin(ctx.role))) {
+  if (!(options.allowAdministrativeOverride === true && isWorkspaceAdmin(ctx.role))) {
     const credential = agentSessionCredential(ctx)
-    if (!credential || credential !== (session.credentialId ?? session.tokenId)) {
+    if (
+      Predicate.isNullish(credential) ||
+      String.isEmpty(credential) ||
+      credential !== (session.credentialId ?? session.tokenId)
+    ) {
       throw new ForbiddenError('Agent session belongs to another credential')
     }
   }
@@ -80,13 +84,13 @@ export const resolveAgentSessionId = async function resolveAgentSessionId(
   provided: string | undefined,
   opts: { includeStale?: boolean; allowAdministrativeOverride?: boolean } = {},
 ): Promise<string> {
-  if (provided) {
+  if (Predicate.isNotNullish(provided) && String.isNonEmpty(provided)) {
     await assertAgentSessionAccess(ctx, provided, opts)
     return provided
   }
 
   const credentialId = agentSessionCredential(ctx)
-  if (!credentialId) {
+  if (Predicate.isNullish(credentialId) || String.isEmpty(credentialId)) {
     throw new ValidationError({
       formErrors: [],
       fieldErrors: {
@@ -118,7 +122,7 @@ export const resolveAgentSessionId = async function resolveAgentSessionId(
   // heartbeat/end must be able to reach a session that has just gone stale (that call
   // revives it) — but only when no live session exists, so an abandoned session left
   // behind by a crash can't make a lone agent's id-less heartbeat ambiguous.
-  if (EffectArray.isArrayEmpty(rows) && opts.includeStale) {
+  if (Array.isArrayEmpty(rows) && opts.includeStale === true) {
     rows = await find([])
   }
 
@@ -131,9 +135,9 @@ export const resolveAgentSessionId = async function resolveAgentSessionId(
     formErrors: [],
     fieldErrors: {
       agentId: [
-        EffectArray.isArrayEmpty(rows)
+        Array.isArrayEmpty(rows)
           ? 'no live session on this credential — pass agentId from register_agent'
-          : `several ${opts.includeStale ? 'active' : 'live'} sessions on this credential — pass agentId from register_agent`,
+          : `several ${opts.includeStale === true ? 'active' : 'live'} sessions on this credential — pass agentId from register_agent`,
       ],
     },
   })

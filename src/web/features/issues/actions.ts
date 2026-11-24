@@ -191,7 +191,7 @@ export const readIssuePage = EFFRONT.ServerFn.make({
         },
       )
       params.set('limit', String(input.limit ?? 30))
-      if (input.includeRollups) {
+      if (input.includeRollups === true) {
         params.set('includeRollups', '1')
       }
       const value = yield* readDataIssuePage(ctx.scope, yield* dataWorkspaceId(ctx), params)

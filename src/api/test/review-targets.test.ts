@@ -70,7 +70,7 @@ describe('review target MCP tool through the real API and Core Workers', () => {
       }
       expect(reply.result.isError).not.toBe(true)
       expect(reply.result.content).toHaveLength(1)
-      expect(JSON.parse(reply.result.content[0].text)).toEqual({ ok: true })
+      expect(JSON.parse(reply.result.content[0].text)).toStrictEqual({ ok: true })
       await expect(readMetadata()).resolves.toMatchObject({ reviewStatus: status })
     }
   })

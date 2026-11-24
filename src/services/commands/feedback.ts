@@ -1,4 +1,4 @@
-import { Iterable, Predicate, Effect } from 'effect'
+import { String, Iterable, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -111,7 +111,12 @@ const resolveCorsAllowOrigin = function resolveCorsAllowOrigin(
   requestOrigin: string | null,
 ): string | null {
   const allowed = source.allowed_origins ? (JSON.parse(source.allowed_origins) as string[]) : null
-  return allowed && requestOrigin && allowed.includes(requestOrigin) ? requestOrigin : null
+  return allowed &&
+    Predicate.isNotNullish(requestOrigin) &&
+    String.isNonEmpty(requestOrigin) &&
+    allowed.includes(requestOrigin)
+    ? requestOrigin
+    : null
 }
 
 export const submitFeedback = async function submitFeedback(
@@ -186,7 +191,7 @@ const requireFeedbackScope = async function requireFeedbackScope(
 ): Promise<string> {
   const clauses = ['id = ?', 'workspace_id = ?']
   const binds: unknown[] = [feedbackId, ctx.workspaceId]
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     clauses.push('project_id = ?')
     binds.push(projectId)
   }

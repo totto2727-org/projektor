@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
 import type { Context, Next } from 'hono'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { CorePublicError } from 'projektor/core-client'
@@ -22,7 +22,12 @@ const warnIfIgnoredSubdomain = async function warnIfIgnoredSubdomain(
     return
   }
   const hostname = httpContext.req.header('host')?.split(':')[0]
-  if (!hostname || hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/u.test(hostname)) {
+  if (
+    Predicate.isNullish(hostname) ||
+    String.isEmpty(hostname) ||
+    hostname === 'localhost' ||
+    /^\d{1,3}(\.\d{1,3}){3}$/u.test(hostname)
+  ) {
     return
   }
   const labels = hostname.split('.')
@@ -54,8 +59,12 @@ export const workspaceMiddleware = async function workspaceMiddleware(httpContex
     httpContext.req.header('X-Workspace-Slug') ??
     (routingEnabled ? httpContext.req.header('host')?.split('.')[0] : undefined) ??
     (httpContext.get('allowQueryWorkspaceFallback') ? httpContext.req.query('workspace') : undefined)
-  const workspaceId = slug ? undefined : mcpWorkspaceIdFromPath(httpContext.req.path)
-  if (!slug && !workspaceId) {
+  const workspaceId =
+    Predicate.isNotNullish(slug) && String.isNonEmpty(slug) ? undefined : mcpWorkspaceIdFromPath(httpContext.req.path)
+  if (
+    (Predicate.isNullish(slug) || String.isEmpty(slug)) &&
+    (Predicate.isNullish(workspaceId) || String.isEmpty(workspaceId))
+  ) {
     await warnIfIgnoredSubdomain(httpContext, routingEnabled)
     return httpContext.json(
       {
@@ -64,7 +73,10 @@ export const workspaceMiddleware = async function workspaceMiddleware(httpContex
       400,
     )
   }
-  const target = slug ? { kind: 'slug' as const, value: slug } : { kind: 'id' as const, value: workspaceId ?? '' }
+  const target =
+    Predicate.isNotNullish(slug) && String.isNonEmpty(slug)
+      ? { kind: 'slug' as const, value: slug }
+      : { kind: 'id' as const, value: workspaceId ?? '' }
   try {
     const workspace = await Effect.runPromise(
       decodeCoreReply(

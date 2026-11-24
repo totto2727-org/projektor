@@ -1,6 +1,6 @@
 import { EditorView, ViewPlugin } from '@codemirror/view'
 import type { ViewUpdate } from '@codemirror/view'
-import { Iterable } from 'effect'
+import { String, Predicate, Iterable } from 'effect'
 
 interface UploadAnchor {
   position: number
@@ -59,7 +59,7 @@ export const insertUploadedImages = async function insertUploadedImages(
       if (!anchor.active) {
         return
       }
-      if (!url) {
+      if (Predicate.isNullish(url) || String.isEmpty(url)) {
         continue
       }
       const label = file.name.replace(/[\\[\]]/gu, '\\$&')

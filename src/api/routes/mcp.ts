@@ -1,4 +1,4 @@
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate } from 'effect'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 
@@ -77,9 +77,10 @@ const TOOLS_LIST_CACHE_SCOPE = 'private'
  * A null version (hash failed) drops the hint rather than failing the handshake.
  */
 const buildServerInstructions = function buildServerInstructions(workflowVersion: string | null): string {
-  const versionHint = workflowVersion
-    ? `Its current version is "${workflowVersion}" — pass that as get_workflow's \`ifVersion\` to skip re-reading an unchanged spec. `
-    : ''
+  const versionHint =
+    Predicate.isNotNullish(workflowVersion) && String.isNonEmpty(workflowVersion)
+      ? `Its current version is "${workflowVersion}" — pass that as get_workflow's \`ifVersion\` to skip re-reading an unchanged spec. `
+      : ''
   return (
     'Projektor is an MCP-native issue tracker + wiki. Every project-management action a browser user can do ' +
     'is available here as a tool. Handy entry points: get_issue accepts a ref like "PROJ-42"; ' +
@@ -95,7 +96,7 @@ const buildServerInstructions = function buildServerInstructions(workflowVersion
 const router = new Hono<HonoEnv>()
 
 const isPlainObject = function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && Predicate.isNotNullish(v) && !Array.isArray(v)
+  return typeof v === 'object' && Predicate.isNotNullish(v) && !globalThis.Array.isArray(v)
 }
 
 /*
@@ -173,9 +174,9 @@ router.post('/:workspaceId', async (httpContext) => {
             .map((s) => s.trim())
             .filter(Boolean),
         )
-        if (EffectArray.isArrayNonEmpty(requested)) {
+        if (Array.isArrayNonEmpty(requested)) {
           const invalid = requested.filter((slug) => !TOOL_DOMAIN_SLUGS.includes(slug))
-          if (EffectArray.isArrayNonEmpty(invalid)) {
+          if (Array.isArrayNonEmpty(invalid)) {
             return httpContext.json(
               jsonRpcError(
                 body.id,
@@ -233,7 +234,7 @@ router.post('/:workspaceId', async (httpContext) => {
        * (the model can fix and retry), not as a JSON-RPC protocol error.
        */
       const argIssues = validateToolArgs(tool.inputSchema, args)
-      if (EffectArray.isArrayNonEmpty(argIssues)) {
+      if (Array.isArrayNonEmpty(argIssues)) {
         const fieldErrors: Record<string, string[]> = {}
         Iterable.forEach(argIssues, (i) => {
           fieldErrors[i.path] = [...(fieldErrors[i.path] ?? []), i.message]

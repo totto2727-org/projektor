@@ -1,4 +1,4 @@
-import { Predicate, Effect, Schema } from 'effect'
+import { String, Predicate, Effect, Schema } from 'effect'
 
 import { getUserWorkspaces } from '#commands/user-tokens.ts'
 import { ApiError, ScopeError } from '#contracts/errors.ts'
@@ -97,7 +97,7 @@ export const loadBrowserScope = function loadBrowserScope(
         matchesProject(project, hint) &&
         (!workspace || workspace.id === project.workspace_id),
     )
-    const visible = hint && !active ? yield* catalog(true) : projects
+    const visible = Predicate.isNotNullish(hint) && String.isNonEmpty(hint) && !active ? yield* catalog(true) : projects
     const scope = yield* Effect.try({
       catch: publicWebFailure,
       try: () => resolveScope(session, visible, url, selected),

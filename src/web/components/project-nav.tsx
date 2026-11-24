@@ -1,6 +1,6 @@
 'use client'
 
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import type { RequestScope } from '@/server/request-context.ts'
@@ -158,7 +158,7 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
          * through native scrolling without widening the document. The measured
          * More menu keeps visible overflow so its popup is not clipped.
          */
-        className={`flex flex-nowrap items-center gap-0.5 px-5 max-sm:px-3 ${EffectArray.isArrayEmpty(overflow) ? 'overflow-x-auto' : ''}`}
+        className={`flex flex-nowrap items-center gap-0.5 px-5 max-sm:px-3 ${Array.isArrayEmpty(overflow) ? 'overflow-x-auto' : ''}`}
         aria-label='Project sections'
       >
         {visible.map((tab, index) => {
@@ -177,7 +177,7 @@ export function ProjectNav({ scope, url }: ProjectNavProps) {
             </a>
           )
         })}
-        {EffectArray.isArrayNonEmpty(overflow) && (
+        {Array.isArrayNonEmpty(overflow) && (
           <div ref={moreRef} className='relative inline-flex items-center shrink-0'>
             <button
               ref={moreTrigger}

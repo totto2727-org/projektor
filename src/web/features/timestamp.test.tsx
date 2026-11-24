@@ -116,7 +116,7 @@ describe('covers SSR timestamp hydration', () => {
           onRecoverableError: (error) => errors.push(error),
         })
       })
-      expect(errors).toEqual([])
+      expect(errors).toStrictEqual([])
       expect(container.textContent).toBe(serverText)
       expect(container.querySelector('footer')?.textContent).toBe('Last updated: 2026-10-04 08:48:46 UTC')
       expect(container.textContent).toContain('Verified 2026-10-04 UTC')

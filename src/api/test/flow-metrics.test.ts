@@ -151,7 +151,7 @@ describe('flow metrics (PROJ-252)', () => {
     const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
 
-    expect(mcpBody).toEqual(restBody)
+    expect(mcpBody).toStrictEqual(restBody)
   })
 
   test('404s for a project in another workspace', async () => {
@@ -886,7 +886,7 @@ describe('factory health tiles (PROJ-334)', () => {
     expect(res.status).toBe(200)
     const metrics = (await res.json()) as FlowMetrics
 
-    expect(metrics.factoryHealth).toEqual({
+    expect(metrics.factoryHealth).toStrictEqual({
       abandonedClaims: 1,
       gateRejections: 1,
       leaseExpiries: 1,
@@ -932,7 +932,7 @@ describe('factory health tiles (PROJ-334)', () => {
       { headers: authHeaders(token, slug) },
     )
     const metrics = (await res.json()) as FlowMetrics
-    expect(metrics.factoryHealth).toEqual({
+    expect(metrics.factoryHealth).toStrictEqual({
       abandonedClaims: 0,
       gateRejections: 0,
       leaseExpiries: 0,

@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
@@ -48,7 +48,7 @@ function FilterSelects({
 }: FilterSelectsProps) {
   return (
     <>
-      {EffectArray.isArrayNonEmpty(uniqueProjects) && (
+      {Array.isArrayNonEmpty(uniqueProjects) && (
         <Select
           ariaLabel='Filter by project'
           value={filterProject}
@@ -63,7 +63,7 @@ function FilterSelects({
         />
       )}
 
-      {EffectArray.isArrayNonEmpty(sprints) && (
+      {Array.isArrayNonEmpty(sprints) && (
         <Select
           ariaLabel='Filter by sprint'
           value={filterSprintId}
@@ -78,7 +78,7 @@ function FilterSelects({
         />
       )}
 
-      {EffectArray.isArrayNonEmpty(uniqueTypes) && (
+      {Array.isArrayNonEmpty(uniqueTypes) && (
         <Select
           ariaLabel='Filter by type'
           value={filterType}
@@ -90,7 +90,7 @@ function FilterSelects({
         />
       )}
 
-      {EffectArray.isArrayNonEmpty(epics) && (
+      {Array.isArrayNonEmpty(epics) && (
         <Select
           ariaLabel='Filter by epic'
           value={filterEpicId}
@@ -106,7 +106,7 @@ function FilterSelects({
         />
       )}
 
-      {EffectArray.isArrayNonEmpty(epics) && (
+      {Array.isArrayNonEmpty(epics) && (
         <label className='flex items-center gap-1.5 text-[0.8rem] text-text-muted whitespace-nowrap cursor-pointer select-none'>
           <input
             type='checkbox'

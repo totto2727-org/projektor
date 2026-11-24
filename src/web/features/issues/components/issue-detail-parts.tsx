@@ -1,6 +1,6 @@
 'use client'
 import { query as serverQuery } from '@effront/core/query'
-import { Array as EffectArray, Predicate, Effect, Schema } from 'effect'
+import { String, Array, Predicate, Effect, Schema } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -151,7 +151,7 @@ export function ShareButton({ issueId, workspaceSlug }: { issueId: string; works
   const [copiedShare, setCopiedShare] = useState(false)
 
   async function createShareLink(): Promise<void> {
-    if (shareUrl) {
+    if (Predicate.isNotNullish(shareUrl) && String.isNonEmpty(shareUrl)) {
       setShareUrl(null)
       return
     }
@@ -166,7 +166,7 @@ export function ShareButton({ issueId, workspaceSlug }: { issueId: string; works
   }
 
   function copyShareUrl(): void {
-    if (!shareUrl) {
+    if (Predicate.isNullish(shareUrl) || String.isEmpty(shareUrl)) {
       return
     }
     navigator.clipboard.writeText(shareUrl).catch(() => {})
@@ -275,7 +275,7 @@ export function TitleSection({
       unwrapResult(await updateIssue({ workspaceSlug, issueId, patch: { title: editTitle.trim() } }))
       setEditingTitle(false)
     } catch (caughtError) {
-      setSaveTitleError(`Save failed: ${String(caughtError)}`)
+      setSaveTitleError(`Save failed: ${globalThis.String(caughtError)}`)
     }
     setSavingTitle(false)
   }
@@ -430,7 +430,7 @@ function useBodyEditor(
       }
       setAwaitingBody({ body: submittedBody, revision })
     } catch (caughtError) {
-      setSaveBodyError(`Save failed: ${String(caughtError)}`)
+      setSaveBodyError(`Save failed: ${globalThis.String(caughtError)}`)
       setSavingBody(false)
     }
   }
@@ -570,7 +570,7 @@ export function ChildIssuesSection({ issue, childIssues }: { issue: IssueData; c
     <section className='mb-8'>
       <div className='flex items-center gap-3 mb-4'>
         <span className='text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted whitespace-nowrap'>
-          Child issues{EffectArray.isArrayNonEmpty(childIssues) && ` (${childIssues.length})`}
+          Child issues{Array.isArrayNonEmpty(childIssues) && ` (${childIssues.length})`}
         </span>
         {issue.rollup && issue.rollup.total > 0 && (
           <span className='text-xs text-text-muted whitespace-nowrap'>
@@ -579,7 +579,7 @@ export function ChildIssuesSection({ issue, childIssues }: { issue: IssueData; c
         )}
         <div className='flex-1 h-px bg-border' />
       </div>
-      {EffectArray.isArrayEmpty(childIssues) ? (
+      {Array.isArrayEmpty(childIssues) ? (
         <p className='text-text-muted italic'>No child issues yet.</p>
       ) : (
         <div className='flex flex-col gap-2'>
@@ -760,7 +760,7 @@ export function RelationsSection({
       label: LINK_TYPE_LABELS[type],
       items: links.filter((l) => l.type === type),
     }))
-    .filter((g) => EffectArray.isArrayNonEmpty(g.items))
+    .filter((g) => Array.isArrayNonEmpty(g.items))
 
   async function addLink(): Promise<void> {
     const ref = normalizeIssueRef(linkFormRef)
@@ -789,7 +789,7 @@ export function RelationsSection({
       setLinkFormRef('')
       setLinkFormOpen(false)
     } catch (caughtError) {
-      setLinkFormError(String(caughtError))
+      setLinkFormError(globalThis.String(caughtError))
     }
     setAddingLink(false)
   }
@@ -804,9 +804,9 @@ export function RelationsSection({
 
   return (
     <section className='mb-8'>
-      <SectionDivider title={`Relations${EffectArray.isArrayNonEmpty(links) ? ` (${links.length})` : ''}`} />
+      <SectionDivider title={`Relations${Array.isArrayNonEmpty(links) ? ` (${links.length})` : ''}`} />
 
-      {EffectArray.isArrayNonEmpty(linksByType) && (
+      {Array.isArrayNonEmpty(linksByType) && (
         <div className='mb-4'>
           {linksByType.map((group) => (
             <div key={group.type} className='mb-3'>
@@ -971,13 +971,14 @@ function AttachmentRow({
   workspaceSlug?: string
   onDelete: () => void
 }) {
-  const qs = workspaceSlug ? `?workspace=${workspaceSlug}` : ''
+  const qs =
+    Predicate.isNotNullish(workspaceSlug) && String.isNonEmpty(workspaceSlug) ? `?workspace=${workspaceSlug}` : ''
   const { icon, href, label, meta, external } = resolveAttachmentDisplay(attachment, qs)
 
   return (
     <div className='flex items-center gap-3 px-3 py-2 border border-border rounded-md bg-surface min-h-[44px]'>
       <span className='text-text-muted'>{icon}</span>
-      {href ? (
+      {Predicate.isNotNullish(href) && String.isNonEmpty(href) ? (
         <a
           href={href}
           {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
@@ -1089,7 +1090,7 @@ function WikiPageLinkForm({
           await Effect.runPromise(serverQuery(searchWikiAttachments)({ query: query.trim(), workspaceSlug })),
         )
         if (!cancelled) {
-          setResults(Array.isArray(data) ? data : [])
+          setResults(globalThis.Array.isArray(data) ? data : [])
         }
       } catch {
         if (!cancelled) {
@@ -1127,7 +1128,7 @@ function WikiPageLinkForm({
         className='px-[0.625rem] py-[0.5rem] border border-border rounded text-sm bg-bg text-text-base min-h-[44px]'
       />
       {searching && <p className='text-xs text-text-muted m-0'>Searching…</p>}
-      {EffectArray.isArrayNonEmpty(results) && (
+      {Array.isArrayNonEmpty(results) && (
         <ul className='list-none m-0 p-0 flex flex-col gap-1 max-h-56 overflow-y-auto'>
           {results.map((r) => (
             <li key={r.id}>
@@ -1275,7 +1276,7 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
       reset()
       onDone()
     } catch (caughtError) {
-      setLinkError(String(caughtError))
+      setLinkError(globalThis.String(caughtError))
     }
     setLinking(false)
   }
@@ -1298,7 +1299,7 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
       reset()
       onDone()
     } catch (caughtError) {
-      setLinkError(String(caughtError))
+      setLinkError(globalThis.String(caughtError))
     }
     setLinking(false)
   }
@@ -1336,7 +1337,7 @@ function useAttachmentForms(issueId: string, workspaceSlug: string | undefined) 
     try {
       unwrapResult(await deleteIssueAttachment({ workspaceSlug, issueId, attachmentId }))
     } catch (caughtError) {
-      setDeleteError(`Couldn't delete attachment: ${String(caughtError)}`)
+      setDeleteError(`Couldn't delete attachment: ${globalThis.String(caughtError)}`)
       return
     }
   }
@@ -1361,16 +1362,14 @@ export function AttachmentsSection({
 
   return (
     <section className='mb-8'>
-      <SectionDivider
-        title={`Attachments${EffectArray.isArrayNonEmpty(attachments) ? ` (${attachments.length})` : ''}`}
-      />
+      <SectionDivider title={`Attachments${Array.isArrayNonEmpty(attachments) ? ` (${attachments.length})` : ''}`} />
 
       {deleteError && (
         <p role='alert' className='mb-2 text-[0.8rem] text-danger-text'>
           {deleteError}
         </p>
       )}
-      {EffectArray.isArrayNonEmpty(attachments) && (
+      {Array.isArrayNonEmpty(attachments) && (
         <div className='mb-4 flex flex-col gap-2'>
           {attachments.map((a) => (
             <AttachmentRow
@@ -1575,7 +1574,7 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
         setEditingCommentId(null)
       }
     } catch (caughtError) {
-      setEditCommentError(`Save failed: ${String(caughtError)}`)
+      setEditCommentError(`Save failed: ${globalThis.String(caughtError)}`)
     }
     setSavingComment(false)
   }
@@ -1644,7 +1643,7 @@ function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, c
         setNewComment('')
       }
     } catch (caughtError) {
-      setCommentError(`Failed to post comment: ${String(caughtError)}`)
+      setCommentError(`Failed to post comment: ${globalThis.String(caughtError)}`)
     }
     setPostingComment(false)
   }
@@ -1683,9 +1682,9 @@ export function CommentsSection({
 
   return (
     <section>
-      <SectionDivider title={`Comments${EffectArray.isArrayNonEmpty(comments) ? ` (${comments.length})` : ''}`} />
+      <SectionDivider title={`Comments${Array.isArrayNonEmpty(comments) ? ` (${comments.length})` : ''}`} />
 
-      {EffectArray.isArrayEmpty(comments) ? (
+      {Array.isArrayEmpty(comments) ? (
         <p className='text-text-muted mb-4'>No comments yet.</p>
       ) : (
         <div className='mb-6'>
@@ -1697,7 +1696,9 @@ export function CommentsSection({
               editBody={editCommentBody}
               editError={editCommentError}
               saving={savingComment}
-              canModify={!!currentUserId && c.author_id === currentUserId}
+              canModify={
+                !(Predicate.isNullish(currentUserId) || String.isEmpty(currentUserId)) && c.author_id === currentUserId
+              }
               onStartEdit={() => startEditComment(c)}
               onCancelEdit={cancelEditComment}
               onChangeBody={setEditCommentBody}
@@ -1752,7 +1753,7 @@ function StatusField({
   updatingStatus: boolean
   changeStatus: (statusId: string) => void
 }) {
-  if (EffectArray.isArrayNonEmpty(statuses)) {
+  if (Array.isArrayNonEmpty(statuses)) {
     return (
       <Select
         ariaLabel='Change status'
@@ -1787,7 +1788,7 @@ function TypeField({
   typeChangeError: string | null
   changeType: (typeId: string) => void
 }) {
-  if (EffectArray.isArrayNonEmpty(taskTypes)) {
+  if (Array.isArrayNonEmpty(taskTypes)) {
     return (
       <>
         <Select
@@ -1846,7 +1847,7 @@ function PointsField({
         await updateIssue({
           workspaceSlug,
           issueId,
-          patch: { customFields: { story_points: Predicate.isNullish(parsed) ? null : String(parsed) } },
+          patch: { customFields: { story_points: Predicate.isNullish(parsed) ? null : globalThis.String(parsed) } },
         }),
       )
     } catch {
@@ -1972,7 +1973,7 @@ export function SidebarPanel({
         </SidebarField>
 
         <SidebarField label='Assignee'>
-          {EffectArray.isArrayNonEmpty(members) ? (
+          {Array.isArrayNonEmpty(members) ? (
             <Select
               ariaLabel='Change assignee'
               value={issue.assignee_id ?? ''}

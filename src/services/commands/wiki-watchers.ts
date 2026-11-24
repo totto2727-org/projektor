@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -198,7 +198,7 @@ const resolveAncestorChain = async function resolveAncestorChain(
   const chain = [pageId]
   let cur = parentId
   let depth = 0
-  while (cur && depth < WIKI_MAX_NESTING_DEPTH + 1) {
+  while (Predicate.isNotNullish(cur) && String.isNonEmpty(cur) && depth < WIKI_MAX_NESTING_DEPTH + 1) {
     chain.push(cur)
     const row = await db
       .prepare('SELECT parent_id FROM wiki_pages WHERE id = ? AND workspace_id = ?')
@@ -252,7 +252,7 @@ export const notifyWikiWatchers = async function notifyWikiWatchers(
     )
 
   const userIds = [...new Set(rows.map((r) => r.userId))].filter((id) => id !== ctx.userId)
-  if (EffectArray.isArrayEmpty(userIds)) {
+  if (Array.isArrayEmpty(userIds)) {
     return
   }
 
@@ -324,11 +324,11 @@ async function insertNotifications(
     }[]
   >,
 ): Promise<void> {
-  if (EffectArray.isReadonlyArrayEmpty(entries)) {
+  if (Array.isReadonlyArrayEmpty(entries)) {
     return
   }
   const deliverable = await filterRecipientsWithAccess(ctx, orm, entries)
-  if (EffectArray.isArrayEmpty(deliverable)) {
+  if (Array.isArrayEmpty(deliverable)) {
     return
   }
   const now = Math.floor(Date.now() / 1000)
@@ -374,7 +374,7 @@ export const notifyCascadeDescendantWatchers = async function notifyCascadeDesce
   action: 'created' | 'updated' | 'deleted' = 'deleted',
 ): Promise<void> {
   const pages = descendants.filter((p) => !p.isTemplate)
-  if (EffectArray.isArrayEmpty(pages)) {
+  if (Array.isArrayEmpty(pages)) {
     return
   }
 
@@ -419,7 +419,7 @@ export const deleteWikiWatchersForPages = async function deleteWikiWatchersForPa
   ctx: ServiceCtx,
   pageIds: string[],
 ): Promise<void> {
-  if (EffectArray.isArrayEmpty(pageIds)) {
+  if (Array.isArrayEmpty(pageIds)) {
     return
   }
   const orm = drizzle(ctx.db, { schema })
@@ -563,7 +563,7 @@ const extractDeletedPageInfo = function extractDeletedPageInfo(rawDiff: string |
      * PROJ-526: only present on a cascade root's diff (services/wiki.ts#deleteWikiPage);
      * includes the root's own id — see WikiChangeEvent's doc for the full contract.
      */
-    deletedPageIds: Array.isArray(diff.deletedPageIds)
+    deletedPageIds: globalThis.Array.isArray(diff.deletedPageIds)
       ? diff.deletedPageIds.filter((id): id is string => Predicate.isString(id))
       : null,
     deletedPageIdsTruncated: diff.deletedPageIdsTruncated === true,
@@ -571,7 +571,7 @@ const extractDeletedPageInfo = function extractDeletedPageInfo(rawDiff: string |
 }
 
 function parseJsonObject(raw: string | null): Record<string, unknown> | null {
-  if (!raw) {
+  if (Predicate.isNullish(raw) || String.isEmpty(raw)) {
     return null
   }
   try {
@@ -626,7 +626,7 @@ const isEventVisible = async function isEventVisible(
   eventProjectId: string | null,
   canSeeProject: (id: string) => Promise<boolean>,
 ): Promise<boolean> {
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     return eventProjectId === projectId
   }
   if (Predicate.isNullish(eventProjectId)) {
@@ -763,7 +763,7 @@ const trimTrailingPartialSecond = function trimTrailingPartialSecond<T extends {
   rows: Readonly<T[]>,
   limit: number,
 ): Readonly<T[]> {
-  if (rows.length !== limit || EffectArray.isReadonlyArrayEmpty(rows)) {
+  if (rows.length !== limit || Array.isReadonlyArrayEmpty(rows)) {
     return rows
   }
   const maxTs = rows[rows.length - 1].createdAt
@@ -799,7 +799,7 @@ export const listWikiChanges = async function listWikiChanges(
   }
   const { since, limit, projectId, watchedOnly } = parsed.data
 
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     if (!(await hasProjectAccess(ctx, projectId))) {
       return { changes: [], nextSince: since }
     }

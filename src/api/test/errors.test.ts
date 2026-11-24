@@ -116,8 +116,8 @@ describe('mcp/error-adapter: toMcpError', () => {
     const result = toMcpError(new ValidationError(issues), 'req-1')
     expect(result).toEqual({
       code: -32_602,
-      message: 'Invalid params (ambiguous heading)',
       data: issues,
+      message: 'Invalid params (ambiguous heading)',
     })
   })
 

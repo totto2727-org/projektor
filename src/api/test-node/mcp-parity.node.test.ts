@@ -20,7 +20,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { Array as EffectArray, Predicate } from 'effect'
+import { String, Array, Predicate } from 'effect'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
@@ -202,7 +202,7 @@ const sourceModule = function sourceModule(path: string, sourceOverride?: string
       : specifier.startsWith('.')
         ? join(path, '..', `${specifier.replace(/\.ts$/u, '')}.ts`)
         : undefined
-    if (!target) {
+    if (Predicate.isNullish(target) || String.isEmpty(target)) {
       continue
     }
     const bindings = ts.isImportDeclaration(declaration)
@@ -448,7 +448,7 @@ const domainOperations = function domainOperations(
       const imported = importedSymbol(module, expression)
       if (imported?.name === 'coreFileRequest') {
         const pathname = pathLiteral(child.arguments[1])
-        if (!pathname) {
+        if (Predicate.isNullish(pathname) || String.isEmpty(pathname)) {
           throw new Error(`Unresolved Core file path in ${module.path}`)
         }
         binaryRequest(pathname, method)
@@ -462,7 +462,7 @@ const domainOperations = function domainOperations(
       ) {
         const request = child.arguments[0]
         const pathname = request && ts.isNewExpression(request) ? pathLiteral(request.arguments?.[0]) : undefined
-        if (!pathname) {
+        if (Predicate.isNullish(pathname) || String.isEmpty(pathname)) {
           throw new Error(`Unresolved native fetch address in ${module.path}`)
         }
         binaryRequest(new URL(pathname).pathname, method)
@@ -499,7 +499,7 @@ const serviceOperationsUsedIn = function serviceOperationsUsedIn(...paths: strin
     for (const statement of module.ast.statements) {
       if (
         ts.isImportDeclaration(statement) ||
-        (isFunctionStatement(statement) && EffectArray.isArrayNonEmpty(declaredFunctions(statement)))
+        (isFunctionStatement(statement) && Array.isArrayNonEmpty(declaredFunctions(statement)))
       ) {
         continue
       }

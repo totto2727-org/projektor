@@ -1,4 +1,4 @@
-import { Array as EffectArray, Predicate } from 'effect'
+import { String, Array, Predicate } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 
 import { apiReply } from '#api/services/reply.ts'
@@ -65,7 +65,12 @@ export class WorkspaceHub {
     try {
       const serialized = request.headers.get(CORE_ACTOR_HEADER)
       const workspaceId = request.headers.get(INTERNAL_WORKSPACE_ID_HEADER)
-      if (!serialized || !workspaceId) {
+      if (
+        Predicate.isNullish(serialized) ||
+        String.isEmpty(serialized) ||
+        Predicate.isNullish(workspaceId) ||
+        String.isEmpty(workspaceId)
+      ) {
         return new Response('Unauthorized', { status: 401 })
       }
       actor = JSON.parse(serialized) as CoreActor
@@ -138,7 +143,7 @@ export class WorkspaceHub {
 
       if (data.action === 'subscribe') {
         const allowedProjects = new Set(attachment.visibleProjectIds)
-        const requestedProjects = Array.isArray(data.projects)
+        const requestedProjects = globalThis.Array.isArray(data.projects)
           ? data.projects.filter((id): id is string => Predicate.isString(id))
           : undefined
 
@@ -156,7 +161,7 @@ export class WorkspaceHub {
 
         const filters: SubscriptionFilters = {
           projects: effectiveProjects,
-          eventTypes: Array.isArray(data.eventTypes)
+          eventTypes: globalThis.Array.isArray(data.eventTypes)
             ? data.eventTypes.filter((t): t is string => Predicate.isString(t))
             : undefined,
         }
@@ -225,13 +230,13 @@ export class WorkspaceHub {
          * Apply the client-requested project filter (already intersected with
          * visibility at subscribe time, but re-checking is cheap and robust).
          */
-        if (filters?.projects && EffectArray.isArrayNonEmpty(filters.projects) && event.projectId) {
+        if (filters?.projects && Array.isArrayNonEmpty(filters.projects) && event.projectId) {
           if (!filters.projects.includes(event.projectId)) {
             continue
           }
         }
 
-        if (filters?.eventTypes && EffectArray.isArrayNonEmpty(filters.eventTypes)) {
+        if (filters?.eventTypes && Array.isArrayNonEmpty(filters.eventTypes)) {
           const matched = filters.eventTypes.some((pattern) => {
             if (pattern.endsWith('.*')) {
               const prefix = pattern.slice(0, -2)

@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, sql } from 'drizzle-orm'
-import { Array as EffectArray, Predicate } from 'effect'
+import { String, Array, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { ListMessagesSchema, PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
@@ -71,7 +71,7 @@ export const buildPostMessageStatements = function buildPostMessageStatements(
   orm: ReturnType<typeof drizzle>,
   messages: Readonly<Readonly<{ scope: string; agentId?: string; body: string }>[]>,
 ): D1PreparedStatement[] {
-  if (EffectArray.isReadonlyArrayEmpty(messages)) {
+  if (Array.isReadonlyArrayEmpty(messages)) {
     return []
   }
   const now = Date.now()
@@ -107,7 +107,7 @@ export const postMessage = async function postMessage(ctx: ServiceCtx, raw: unkn
   }
 
   // If agentId given, verify the agent session belongs to this workspace
-  if (agentId) {
+  if (Predicate.isNotNullish(agentId) && String.isNonEmpty(agentId)) {
     await assertAgentSessionAccess(ctx, agentId)
 
     // PROJ-929: refresh the poster's heartbeat, live sessions only.

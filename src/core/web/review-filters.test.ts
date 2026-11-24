@@ -1,4 +1,4 @@
-import { Iterable, Predicate, Effect } from 'effect'
+import { String, Iterable, Predicate, Effect } from 'effect'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
 import type { ReviewFilter, ReviewStatus } from '#contracts/review-targets.ts'
@@ -28,7 +28,7 @@ const fixture = function fixture() {
     VALUES (?,?,'url','','Design','',0,'https://example.test',?,'issue',?,'user-a',1)`)
       .run(`attachment-${id}`, workspaceId, status, id)
   for (let index = 0; index < 35; index++) {
-    const id = `active-${String(index).padStart(2, '0')}`
+    const id = `active-${globalThis.String(index).padStart(2, '0')}`
     const projectId = index % 2 === 0 ? 'project-a' : 'project-b'
     const status = states[index % states.length] ?? 'fixing'
     database.insertIssue({ id, projectId, number: 100 + index, title: 'Needle review target', createdAt: index + 100 })
@@ -74,15 +74,15 @@ describe('cross-project review filters at the Core data boundary', () => {
     let cursor: string | null | undefined
     do {
       const params = new URLSearchParams({ review: 'active', limit: '7' })
-      if (cursor) {
+      if (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)) {
         params.set('cursor', cursor)
       }
       const page = await testFixture.page(params.toString())
-      expect(page.total).toBe(cursor ? null : 35)
+      expect(page.total).toBe(Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor) ? null : 35)
       expect(page.items).toHaveLength(7)
       seen.push(...page.items.map((row) => row.id))
       cursor = Predicate.isString(page.nextCursor) ? page.nextCursor : null
-    } while (cursor)
+    } while (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor))
     expect(seen).toEqual(testFixture.selected.map((entry) => entry.id).reverse())
     expect(new Set(seen).size).toBe(35)
   })

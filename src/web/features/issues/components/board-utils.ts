@@ -1,4 +1,4 @@
-import { Array as EffectArray, Predicate } from 'effect'
+import { String, Array, Predicate } from 'effect'
 
 import type { ReviewTarget } from '#contracts/review-targets.ts'
 
@@ -83,7 +83,9 @@ export const BOARD_COLUMNS: { category: string; label: string }[] = [
 ]
 
 export const categoryColor = function categoryColor(category: string | null): string {
-  return category ? (CATEGORY_COLORS[category] ?? 'var(--text-muted)') : 'var(--text-muted)'
+  return Predicate.isNotNullish(category) && String.isNonEmpty(category)
+    ? (CATEGORY_COLORS[category] ?? 'var(--text-muted)')
+    : 'var(--text-muted)'
 }
 
 export const assigneeInitials = function assigneeInitials(name: string): string {
@@ -140,10 +142,10 @@ export const filterIssues = function filterIssues(
   return issues
     .filter(
       (issue) =>
-        EffectArray.isReadonlyArrayEmpty(filterStatuses) ||
+        Array.isReadonlyArrayEmpty(filterStatuses) ||
         (Predicate.isNotNullish(issue.status_id) && filterStatuses.includes(issue.status_id)),
     )
-    .filter((issue) => EffectArray.isReadonlyArrayEmpty(filterPriorities) || filterPriorities.includes(issue.priority))
+    .filter((issue) => Array.isReadonlyArrayEmpty(filterPriorities) || filterPriorities.includes(issue.priority))
     .filter((issue) => !filterProject || issue.project_key === filterProject)
     .filter((issue) => !filterType || issue.type_key === filterType)
 }

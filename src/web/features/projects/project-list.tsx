@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Array as EffectArray, Schema } from 'effect'
+import { Array, Schema } from 'effect'
 import { useActionState, useEffect, useRef } from 'react'
 
 import { useRuntime } from '@/client/runtime.tsx'
@@ -94,7 +94,7 @@ export function ProjectList({
     },
   })
   useEffect(() => {
-    if (result?.ok && disclosure.current) {
+    if (result?.ok === true && disclosure.current) {
       disclosure.current.open = false
     }
   }, [result])
@@ -142,12 +142,12 @@ export function ProjectList({
         {isPublicViewer ? (
           <p className='text-xs text-text-muted m-0'>Read-only demo — projects can't be created here.</p>
         ) : (
-          EffectArray.isArrayEmpty(writable) && (
+          Array.isArrayEmpty(writable) && (
             <p className='text-xs text-text-muted m-0'>You need an owner or admin workspace role to create projects.</p>
           )
         )}
       </div>
-      {EffectArray.isArrayNonEmpty(writable) && (
+      {Array.isArrayNonEmpty(writable) && (
         <details ref={disclosure} className='mb-5'>
           <summary className='btn btn-primary text-xs w-fit ml-auto cursor-pointer'>+ New project</summary>
           <form
@@ -210,7 +210,7 @@ export function ProjectList({
                       onChange={(event) => {
                         const value = event.currentTarget.value
                         field.handleChange(value)
-                        if (!form.getFieldMeta('key')?.isTouched) {
+                        if (form.getFieldMeta('key')?.isTouched !== true) {
                           form.setFieldValue('key', deriveKey(value))
                         }
                       }}
@@ -281,7 +281,7 @@ export function ProjectList({
           </form>
         </details>
       )}
-      {EffectArray.isReadonlyArrayEmpty(initialProjects) ? (
+      {Array.isReadonlyArrayEmpty(initialProjects) ? (
         <EmptyState title='No projects yet.' />
       ) : (
         <div className='grid gap-4 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]'>

@@ -158,10 +158,10 @@ test('reconciles an existing private R2 bucket with matching settings without wr
         bindings: [],
       })
       expect(reconciled).toMatchObject({
-        bucketName: name,
         accountId,
-        storageClass: 'Standard',
+        bucketName: name,
         jurisdiction: 'default',
+        storageClass: 'Standard',
       })
       expect(reconciled.publicDomain).toBeUndefined()
     }).pipe(Effect.provide(R2.ProviderLive())),

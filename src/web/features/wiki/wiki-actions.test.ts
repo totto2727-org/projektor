@@ -87,13 +87,13 @@ const fixture = async function fixture(
       .prepare("UPDATE wiki_pages SET project_id = ? WHERE id = '00000000-0000-4000-8000-000000000001'")
       .run(options.pageProject)
   }
-  if (options.archived) {
+  if (options.archived === true) {
     database.sqlite.exec("UPDATE projects SET archived_at = 2 WHERE id = '00000000-0000-4000-8000-000000000002'")
   }
   if (options.role) {
     database.sqlite.prepare("UPDATE workspace_members SET role = ? WHERE user_id = 'user'").run(options.role)
   }
-  if (options.granted || (options.pageProject && !options.archived && !options.inaccessible)) {
+  if (options.granted === true || (options.pageProject && options.archived !== true && options.inaccessible !== true)) {
     database.sqlite.exec(`
       INSERT INTO user_groups (id,workspace_id,name,created_at) VALUES ('group','workspace','Readers',1);
       INSERT INTO user_group_members (group_id,user_id,added_by,added_at) VALUES ('group','user','user',1);

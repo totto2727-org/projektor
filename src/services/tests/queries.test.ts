@@ -226,6 +226,6 @@ describe('project/workspace pure queries', () => {
     )
     expect(calls).toBe(1)
     expect(failure).toBeInstanceOf(DataQueryError)
-    expect(failure).toMatchObject({ _tag: 'DataQueryError', operation: 'listProjects', cause })
+    expect(failure).toMatchObject({ _tag: 'DataQueryError', cause, operation: 'listProjects' })
   })
 })

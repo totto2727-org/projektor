@@ -314,7 +314,7 @@ export default class NativeFixtureCore extends FixtureCore {
       case 'first':
         return Predicate.isNullish(query.column) ? statement.first() : statement.first(query.column)
       case 'raw':
-        return query.options?.columnNames ? statement.raw({ columnNames: true }) : statement.raw()
+        return query.options?.columnNames === true ? statement.raw({ columnNames: true }) : statement.raw()
     }
   }
 

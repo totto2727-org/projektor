@@ -271,7 +271,7 @@ describe('server scope loading', () => {
   test('fails closed on invalid Access credentials without falling back to development', async () => {
     await expect(
       load(new Request(page('/'), { headers: { cookie: 'CF_Authorization=invalid-token' } })),
-    ).rejects.toMatchObject({ _tag: 'ApiError', status: 401, message: 'Invalid Access token' })
+    ).rejects.toMatchObject({ _tag: 'ApiError', message: 'Invalid Access token', status: 401 })
     expect(prepare).not.toHaveBeenCalled()
     expect(externalFetch).not.toHaveBeenCalled()
   })

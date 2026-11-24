@@ -1,3 +1,4 @@
+import { String, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { fetchAgentWipCap } from '#commands/issue-leases.ts'
@@ -41,7 +42,7 @@ describe('issue leases API (PROJ-184)', () => {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/release`, {
       method: 'POST',
       headers: authHeaders(token, slug),
-      body: JSON.stringify(agentId ? { agentId } : {}),
+      body: JSON.stringify(Predicate.isNotNullish(agentId) && String.isNonEmpty(agentId) ? { agentId } : {}),
     })
   }
 

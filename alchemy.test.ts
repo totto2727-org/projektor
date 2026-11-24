@@ -150,7 +150,7 @@ describe('source-owned private Core deployment', () => {
       ),
     )
     expect(Object.keys(stack.resources).toSorted()).toEqual(ids)
-    expect(stack.actions).toEqual({})
+    expect(stack.actions).toStrictEqual({})
     expect(new Set(reads)).toEqual(new Set(['ALCHEMY_PHASE']))
     expect(stack.resources.Core.Props.env).not.toHaveProperty('DB')
     expect(bindings(stack, 'Core').some((binding) => binding.type === 'd1')).toBe(false)

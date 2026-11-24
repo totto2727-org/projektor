@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Array as EffectArray, Schema } from 'effect'
+import { Array, Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 
@@ -76,7 +76,7 @@ function MemberGroupsCell({ member, groups }: { member: WorkspaceMember; groups:
   if (adminRole(member.role)) {
     return <span className='text-[0.78rem] text-text-muted'>All projects (bypasses groups)</span>
   }
-  if (EffectArray.isArrayEmpty(groups)) {
+  if (Array.isArrayEmpty(groups)) {
     return <Badge>Pending: no access</Badge>
   }
   return (
@@ -283,12 +283,12 @@ function GroupDetailEditor({
     validators: { onMount: grantValidator, onChange: grantValidator, onSubmit: grantValidator },
   })
   useEffect(() => {
-    if (memberResult?.ok) {
+    if (memberResult?.ok === true) {
       memberForm.reset()
     }
   }, [memberResult, memberForm])
   useEffect(() => {
-    if (grantResult?.ok) {
+    if (grantResult?.ok === true) {
       grantForm.reset()
     }
   }, [grantResult, grantForm])
@@ -427,7 +427,7 @@ function GroupDetailEditor({
       )}
       <h3 className='text-[0.85rem] font-semibold text-text-base mb-2'>Members</h3>
       <div className='mb-2'>
-        {EffectArray.isArrayEmpty(detail.members) && (
+        {Array.isArrayEmpty(detail.members) && (
           <div className='text-[0.8rem] text-text-muted mb-2'>No members yet.</div>
         )}
         {detail.members.map((member) => (
@@ -496,7 +496,7 @@ function GroupDetailEditor({
       </form>
       <h3 className='text-[0.85rem] font-semibold text-text-base mb-2'>Project grants</h3>
       <div className='mb-2'>
-        {EffectArray.isArrayEmpty(detail.grants) && (
+        {Array.isArrayEmpty(detail.grants) && (
           <div className='text-[0.8rem] text-text-muted mb-2'>No grants. This group opens no projects.</div>
         )}
         {detail.grants.map((grant) => (
@@ -694,7 +694,7 @@ export function GroupManager({
     validators: { onMount: standard, onChange: standard, onSubmit: standard },
   })
   useEffect(() => {
-    if (createResult?.ok) {
+    if (createResult?.ok === true) {
       form.reset()
     }
   }, [createResult, form])
@@ -767,7 +767,7 @@ export function GroupManager({
             {createResult.message}
           </div>
         )}
-        {EffectArray.isArrayEmpty(data.groups) ? (
+        {Array.isArrayEmpty(data.groups) ? (
           <EmptyState
             title={
               admin ? 'No groups yet.' : "You don't belong to any groups yet. An owner or admin can add you to one."

@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
 
 import { WikiSeedDataSchema } from '#contracts/web-schemas/wiki.ts'
 import { coreReply } from '#core/contract.ts'
@@ -19,9 +19,10 @@ export const makeWikiHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, ne
           request,
           workspaceId,
           (scope) => {
-            const project = projectId
-              ? scope.projects.find((item) => item.id === projectId && item.workspace_id === workspaceId)
-              : undefined
+            const project =
+              Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)
+                ? scope.projects.find((item) => item.id === projectId && item.workspace_id === workspaceId)
+                : undefined
             const workspace = scope.workspaces.find((item) => item.id === workspaceId)!
             return loadWikiData(
               env,

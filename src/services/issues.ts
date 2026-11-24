@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { Iterable, Predicate, Effect } from 'effect'
+import { String, Iterable, Predicate, Effect } from 'effect'
 
 import type { ReviewFilter } from '#contracts/review-targets.ts'
 import { drizzle, schema } from '#db'
@@ -217,7 +217,7 @@ const listConditions = function listConditions(
   if (options.parentId) {
     conditions.push(eq(schema.issues.parentId, options.parentId))
   }
-  if (options.noParent) {
+  if (options.noParent === true) {
     conditions.push(isNull(schema.issues.parentId))
   }
   if (options.typeId) {
@@ -335,10 +335,10 @@ export const listIssues = function listIssues(
     })
     const ids = page.items.map((r) => r.id)
     const fields = yield* batchLoadCustomFields(db, workspaceId, ids)
-    const rollups = options.includeRollups ? yield* getChildRollups(db, workspaceId, ids) : null
+    const rollups = options.includeRollups === true ? yield* getChildRollups(db, workspaceId, ids) : null
     const items: IssueListRow[] = page.items.map(({ body, ...row }) => ({
       ...row,
-      ...(options.includeBody ? { body } : {}),
+      ...(options.includeBody === true ? { body } : {}),
       customFields: fields[row.id] ?? [],
       ...(rollups ? { rollup: rollups[row.id] ?? computeChildRollup([]) } : {}),
     }))
@@ -393,7 +393,11 @@ export const getIssuesBatch = function getIssuesBatch(
       Iterable.forEach(options.ids ?? [], (id) => {
         order.push({ requested: id, id })
       })
-      const ids = [...new Set(order.map((o) => o.id).filter((id): id is string => !!id))]
+      const ids = [
+        ...new Set(
+          order.map((o) => o.id).filter((id): id is string => !(Predicate.isNullish(id) || String.isEmpty(id))),
+        ),
+      ]
       const rows = await inChunks(ids, (chunk) =>
         issueSelect(db).where(
           and(eq(schema.issues.workspaceId, workspaceId), inArray(schema.issues.id, chunk), visibility),
@@ -409,7 +413,7 @@ export const getIssuesBatch = function getIssuesBatch(
     const rowsById = new Map(
       selection.rows.map(({ body, ...row }) => [
         row.id,
-        { ...row, ...(options.includeBody ? { body } : {}), customFields: fields[row.id] ?? [] },
+        { ...row, ...(options.includeBody === true ? { body } : {}), customFields: fields[row.id] ?? [] },
       ]),
     )
     const items: (Omit<NonNullable<IssueRow>, 'body'> & {

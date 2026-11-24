@@ -1,4 +1,4 @@
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 
 import type { RequestScope } from './server/server-context.ts'
 
@@ -18,20 +18,20 @@ export function ScopeSelection({ scope, url }: { scope: RequestScope; url: URL }
     : scope.workspaces.map((item) => ({ value: item.slug, label: item.name }))
   const name = project ? 'projectId' : 'workspace'
   const preservedParams = new Map(
-    Array.from(url.searchParams)
+    globalThis.Array.from(url.searchParams)
       .filter(([key]) => key !== name && key !== 'project')
       .map(([key, value]) => [JSON.stringify([key, value]), { key, value }]),
   )
   return (
     <section className='card p-6' aria-labelledby='scope-heading'>
       <h1 id='scope-heading'>Select a {project ? 'project' : 'workspace'}</h1>
-      {EffectArray.isArrayEmpty(options) ? (
+      {Array.isArrayEmpty(options) ? (
         <p>
           No accessible {project ? 'projects' : 'workspaces'}. <a href='/'>View projects</a>
         </p>
       ) : (
         <form action={url.pathname} method='get'>
-          {Array.from(preservedParams, ([identity, { key, value }]) => (
+          {globalThis.Array.from(preservedParams, ([identity, { key, value }]) => (
             <input key={identity} type='hidden' name={key} value={value} />
           ))}
           <label className='field-label' htmlFor='scope-choice'>

@@ -77,7 +77,7 @@ describe('workflow spec', () => {
     const mcpJson = (await mcpRes.json()) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpBody = JSON.parse(mcpJson.result.content[0].text)
 
-    expect(mcpBody).toEqual(restBody)
+    expect(mcpBody).toStrictEqual(restBody)
   })
 
   /*

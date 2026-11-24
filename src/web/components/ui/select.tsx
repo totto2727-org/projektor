@@ -59,7 +59,7 @@ export function Select({
         <SelectTrigger
           aria-label={ariaLabel}
           className={buttonClass}
-          style={{ textTransform: capitalize ? 'capitalize' : undefined, ...buttonStyle }}
+          style={{ textTransform: capitalize === true ? 'capitalize' : undefined, ...buttonStyle }}
         >
           <SelectValue>{label}</SelectValue>
         </SelectTrigger>
@@ -69,7 +69,7 @@ export function Select({
               key={option.value}
               value={option.value}
               label={option.label}
-              style={{ textTransform: capitalize ? 'capitalize' : undefined }}
+              style={{ textTransform: capitalize === true ? 'capitalize' : undefined }}
             >
               {option.label}
             </SelectItem>

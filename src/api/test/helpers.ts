@@ -177,7 +177,7 @@ export const seedTaskType = async function seedTaskType(
     `INSERT INTO task_types (id, workspace_id, key, name, color, icon, position, is_default)
      VALUES (?, ?, ?, ?, NULL, NULL, ?, ?)`,
   )
-    .bind(id, workspaceId, key, opts?.name ?? key, opts?.position ?? 0, opts?.isDefault ? 1 : 0)
+    .bind(id, workspaceId, key, opts?.name ?? key, opts?.position ?? 0, opts?.isDefault === true ? 1 : 0)
     .run()
   return { id, key, name: opts?.name ?? key }
 }
@@ -206,8 +206,8 @@ export const seedTaskStatus = async function seedTaskStatus(
       opts?.name ?? key,
       opts?.category ?? 'todo',
       opts?.position ?? 0,
-      opts?.isDefault ? 1 : 0,
-      opts?.isReviewStep ? 1 : 0,
+      opts?.isDefault === true ? 1 : 0,
+      opts?.isReviewStep === true ? 1 : 0,
     )
     .run()
   return { id, key, name: opts?.name ?? key }
@@ -441,7 +441,7 @@ export type ToolErrorBody = {
  */
 export const toolError = function toolError(response: unknown): ToolErrorBody | undefined {
   const result = (response as { result?: { isError?: boolean; content?: { type: string; text: string }[] } })?.result
-  if (!result?.isError) {
+  if (result?.isError !== true) {
     return undefined
   }
   const text = result.content?.[0]?.text

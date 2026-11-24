@@ -122,7 +122,7 @@ describe('public Share SSR', () => {
     })
     await expect(
       renderShare(test.env, null, new URL('https://app.test/share/token?token=ignored'), { token: test.token }),
-    ).rejects.toMatchObject({ kind: 'request', status: 500, message: 'An unexpected error occurred.' })
+    ).rejects.toMatchObject({ kind: 'request', message: 'An unexpected error occurred.', status: 500 })
   })
 
   test('layers null workspace fields over native deployment defaults', async () => {
@@ -160,6 +160,6 @@ describe('public Share SSR', () => {
     test.sqlite.exec("UPDATE issues SET created_at = 'not-a-number' WHERE id = 'issue'")
     await expect(
       renderShare(test.env, null, new URL('https://app.test/share/token'), { token: test.token }),
-    ).rejects.toMatchObject({ kind: 'request', status: 500, message: 'An unexpected error occurred.' })
+    ).rejects.toMatchObject({ kind: 'request', message: 'An unexpected error occurred.', status: 500 })
   })
 })

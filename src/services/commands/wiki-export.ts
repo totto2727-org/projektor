@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { Array, Iterable, Predicate } from 'effect'
 import { Zip, ZipDeflate } from 'fflate'
 import { stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
@@ -140,7 +140,7 @@ const collectDescendantIds = async function collectDescendantIds(
   const orm = drizzle(ctx.db, { schema })
   const descendants: string[] = []
   let frontier = [rootId]
-  while (EffectArray.isArrayNonEmpty(frontier)) {
+  while (Array.isArrayNonEmpty(frontier)) {
     const children = await inChunks(frontier, (chunk) =>
       orm
         .select({ id: schema.wikiPages.id, projectId: schema.wikiPages.projectId })
@@ -209,7 +209,7 @@ const collectAttachments = async function collectAttachments(
   ctx: ServiceCtx,
   pages: Readonly<ExportedPage[]>,
 ): Promise<{ pageSlug: string; filename: string; r2Key: string; size: number }[]> {
-  if (EffectArray.isReadonlyArrayEmpty(pages)) {
+  if (Array.isReadonlyArrayEmpty(pages)) {
     return []
   }
   const orm = drizzle(ctx.db, { schema })

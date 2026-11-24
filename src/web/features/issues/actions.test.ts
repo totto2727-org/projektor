@@ -1,4 +1,4 @@
-import { Iterable, Effect, Schema } from 'effect'
+import { String, Predicate, Iterable, Effect, Schema } from 'effect'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { runTestEffect } from '#tests/run-effect.ts'
@@ -171,7 +171,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     const identity = { workspaceSlug: workspace.slug, issueId: 'issue-a' }
     await expect(invoke(addComment, { ...identity, body: 'Added directly' })).resolves.toMatchObject({
       ok: true,
-      value: { id: expect.any(String) },
+      value: { id: expect.any(globalThis.String) },
     })
     const comment = database.sqlite
       .prepare("SELECT id,author_id,body FROM issue_comments WHERE body = 'Added directly'")
@@ -233,7 +233,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
       invoke(addIssueLink, { ...identity, targetIssueId: 'issue-b', type: 'blocked_by' }),
     ).resolves.toMatchObject({
       ok: true,
-      value: { id: expect.any(String) },
+      value: { id: expect.any(globalThis.String) },
     })
     const link = database.sqlite.prepare('SELECT id,source_issue_id,target_issue_id,type FROM issue_links').get() as {
       id: string
@@ -258,7 +258,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
     const result = (await invoke(shareIssue, identity)) as { ok: true; value: { token: string; url: string } }
     expect(result).toMatchObject({
       ok: true,
-      value: { token: expect.any(String), url: `/share/${result.value.token}` },
+      value: { token: expect.any(globalThis.String), url: `/share/${result.value.token}` },
     })
     const token = database.sqlite.prepare('SELECT id,issue_id,created_by FROM share_tokens').get()
     expect(token).toMatchObject({ issue_id: 'issue-a', created_by: scope.user.id })
@@ -268,7 +268,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
         ...identity,
         link: { kind: 'url', url: 'https://example.test/direct', label: 'Direct' },
       }),
-    ).resolves.toMatchObject({ ok: true, value: { id: expect.any(String), kind: 'url' } })
+    ).resolves.toMatchObject({ ok: true, value: { id: expect.any(globalThis.String), kind: 'url' } })
     expect(
       database.sqlite
         .prepare("SELECT entity_type,entity_id,url FROM attachments WHERE url = 'https://example.test/direct'")
@@ -287,7 +287,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
           issueId: 'issue-a',
           link: { kind: 'url', url },
         }),
-      ).resolves.toMatchObject({ ok: true, value: { id: expect.any(String), kind: 'url' } })
+      ).resolves.toMatchObject({ ok: true, value: { id: expect.any(globalThis.String), kind: 'url' } })
       expect(database.sqlite.prepare('SELECT url FROM attachments WHERE url = ?').get(url)).toEqual({ url })
     },
   )
@@ -392,9 +392,12 @@ describe('individual issue ServerFn authorization and contracts', () => {
     await expect(
       invoke(updateIssue, {
         workspaceSlug: workspace.slug,
-        ...(projectId ? { projectId } : {}),
+        ...(Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) ? { projectId } : {}),
         issueId,
-        patch: { title: 'Changed', ...(parentId ? { parentId } : {}) },
+        patch: {
+          title: 'Changed',
+          ...(Predicate.isNotNullish(parentId) && String.isNonEmpty(parentId) ? { parentId } : {}),
+        },
       }),
     ).resolves.toMatchObject({ ok: false, status: 404 })
     expect(
@@ -571,7 +574,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
       await expect(
         invoke(deleteAttachment, {
           workspaceSlug: workspace.slug,
-          ...(projectId ? { projectId } : {}),
+          ...(Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId) ? { projectId } : {}),
           issueId,
           attachmentId: 'file-a',
         }),

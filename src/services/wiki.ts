@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { Array, Iterable, Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 
@@ -74,9 +74,10 @@ const scopeConditions = function scopeConditions(workspaceId: string, opts: Wiki
     trash ? isNotNull(schema.wikiPages.deletedAt) : isNull(schema.wikiPages.deletedAt),
   ]
   if (opts.projectId) {
-    const scope = opts.includeWorkspacePages
-      ? or(eq(schema.wikiPages.projectId, opts.projectId), isNull(schema.wikiPages.projectId))
-      : eq(schema.wikiPages.projectId, opts.projectId)
+    const scope =
+      opts.includeWorkspacePages === true
+        ? or(eq(schema.wikiPages.projectId, opts.projectId), isNull(schema.wikiPages.projectId))
+        : eq(schema.wikiPages.projectId, opts.projectId)
     if (scope) {
       conditions.push(scope)
     }
@@ -107,7 +108,7 @@ export const listWikiPages = function listWikiPages(db: D1Database, workspaceId:
         )}))`,
       )
     }
-    if (!opts.includeTemplates) {
+    if (opts.includeTemplates !== true) {
       conditions.push(eq(schema.wikiPages.isTemplate, false))
     }
     return drizzle(db, { schema })
@@ -308,7 +309,7 @@ export const getLatestWikiRevisionId = function getLatestWikiRevisionId(
 }
 
 const decodeJsonArrayColumn = function decodeJsonArrayColumn(value: unknown): string[] {
-  if (Array.isArray(value)) {
+  if (globalThis.Array.isArray(value)) {
     return value as string[]
   }
   if (!Predicate.isString(value)) {
@@ -316,7 +317,7 @@ const decodeJsonArrayColumn = function decodeJsonArrayColumn(value: unknown): st
   }
   try {
     const parsed: unknown = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed : []
+    return globalThis.Array.isArray(parsed) ? parsed : []
   } catch {
     return []
   }
@@ -338,7 +339,10 @@ export const searchWiki = function searchWiki(
 		 WHERE wiki_fts MATCH ? AND wiki_fts.workspace_id = ? AND p.workspace_id = ? AND p.is_template = 0 AND p.deleted_at IS NULL`
     const params: unknown[] = [ftsQuery, workspaceId, workspaceId]
     if (opts.projectId) {
-      q += opts.includeWorkspacePages ? ' AND (p.project_id = ? OR p.project_id IS NULL)' : ' AND p.project_id = ?'
+      q +=
+        opts.includeWorkspacePages === true
+          ? ' AND (p.project_id = ? OR p.project_id IS NULL)'
+          : ' AND p.project_id = ?'
       params.push(opts.projectId)
     }
     if (opts.visibilitySql) {
@@ -404,7 +408,9 @@ type DiffOp = { type: 'equal' | 'add' | 'remove'; line: string }
 const buildLcsTable = function buildLcsTable(oldLines: Readonly<string[]>, newLines: Readonly<string[]>): number[][] {
   const n = oldLines.length
   const m = newLines.length
-  const dp: number[][] = Array.from({ length: n + 1 }, () => Array.from({ length: m + 1 }, () => 0))
+  const dp: number[][] = globalThis.Array.from({ length: n + 1 }, () =>
+    globalThis.Array.from({ length: m + 1 }, () => 0),
+  )
   for (let index = n - 1; index >= 0; index--) {
     for (let j = m - 1; j >= 0; j--) {
       dp[index][j] =
@@ -470,7 +476,7 @@ export const buildUnifiedDiff = function buildUnifiedDiff(baseContent: string, c
     }
     return acc
   }, [])
-  if (EffectArray.isArrayEmpty(changeIdxs)) {
+  if (Array.isArrayEmpty(changeIdxs)) {
     return ''
   }
   const groups: [number, number][] = []

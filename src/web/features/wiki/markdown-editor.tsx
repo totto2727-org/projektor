@@ -4,7 +4,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { EditorSelection, EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { Array as EffectArray, Iterable } from 'effect'
+import { Array, Iterable } from 'effect'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { useMarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
@@ -44,7 +44,7 @@ function imageFilesFromClipboard(data: DataTransfer | null): File[] {
     return []
   }
   const files: File[] = []
-  Iterable.forEach(Array.from(data.items), (item) => {
+  Iterable.forEach(globalThis.Array.from(data.items), (item) => {
     if (item.kind === 'file' && PASTE_IMAGE_TYPES.has(item.type)) {
       const file = item.getAsFile()
       if (file) {
@@ -59,7 +59,7 @@ function imageFilesFromDrop(data: DataTransfer | null): File[] {
   if (!data) {
     return []
   }
-  return Array.from(data.files).filter((f) => PASTE_IMAGE_TYPES.has(f.type))
+  return globalThis.Array.from(data.files).filter((f) => PASTE_IMAGE_TYPES.has(f.type))
 }
 
 /*
@@ -96,7 +96,7 @@ function prefixLines(view: EditorView, prefix: string): boolean {
     const fromLine = state.doc.lineAt(range.from)
     const toLine = state.doc.lineAt(range.to)
     const lineCount = toLine.number - fromLine.number + 1
-    const changes = Array.from({ length: lineCount }, (_, i) => ({
+    const changes = globalThis.Array.from({ length: lineCount }, (_, i) => ({
       from: state.doc.line(fromLine.number + i).from,
       insert: prefix,
     }))
@@ -333,7 +333,7 @@ function useMarkdownEditorView(
           paste(event, view) {
             const handler = onImageFileRef.current
             const files = imageFilesFromClipboard(event.clipboardData)
-            if (!handler || EffectArray.isArrayEmpty(files)) {
+            if (!handler || Array.isArrayEmpty(files)) {
               return false
             }
             event.preventDefault()
@@ -343,7 +343,7 @@ function useMarkdownEditorView(
           drop(event, view) {
             const handler = onImageFileRef.current
             const files = imageFilesFromDrop(event.dataTransfer)
-            if (!handler || EffectArray.isArrayEmpty(files)) {
+            if (!handler || Array.isArrayEmpty(files)) {
               return false
             }
             event.preventDefault()

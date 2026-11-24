@@ -1,4 +1,5 @@
 'use client'
+import { String, Predicate } from 'effect'
 import type { Dispatch, SetStateAction } from 'react'
 import { useEffect, useRef } from 'react'
 
@@ -8,7 +9,7 @@ import { navigateIssues } from '@/features/issues/utils/navigation.ts'
 import type { DateField } from './filters-popover.tsx'
 
 export const parseListParam = function parseListParam(v: string | null): string[] {
-  return v ? v.split(',').filter(Boolean) : []
+  return Predicate.isNotNullish(v) && String.isNonEmpty(v) ? v.split(',').filter(Boolean) : []
 }
 
 export const parseDateField = function parseDateField(v: string | null): DateField {

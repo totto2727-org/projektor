@@ -1,5 +1,6 @@
 'use client'
 
+import { String, Predicate } from 'effect'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
@@ -9,7 +10,7 @@ const URL_CODE =
 export function ConnectAgentGuide({ workspaceSlug, mcpUrl }: { workspaceSlug: string; mcpUrl: string | null }) {
   const [message, setMessage] = useState<string | null>(null)
   async function copy(): Promise<void> {
-    if (!mcpUrl) {
+    if (Predicate.isNullish(mcpUrl) || String.isEmpty(mcpUrl)) {
       return
     }
     try {
@@ -24,10 +25,14 @@ export function ConnectAgentGuide({ workspaceSlug, mcpUrl }: { workspaceSlug: st
       <h3 className='m-0 mb-3 text-base font-semibold text-text-base'>Connect Claude Code</h3>
       <ol className='m-0 mb-3 pl-5 text-sm text-text-base [&>li]:mb-1.5'>
         <li>In Claude, go to Settings → Connectors and click "Add custom connector."</li>
-        <li>Paste this server URL{mcpUrl ? '' : ' (unavailable)'}, leave request headers empty, and click Add.</li>
+        <li>
+          Paste this server URL
+          {Predicate.isNotNullish(mcpUrl) && String.isNonEmpty(mcpUrl) ? '' : ' (unavailable)'}, leave request headers
+          empty, and click Add.
+        </li>
         <li>Sign in when prompted, then approve the consent screen.</li>
       </ol>
-      {mcpUrl ? (
+      {Predicate.isNotNullish(mcpUrl) && String.isNonEmpty(mcpUrl) ? (
         <div className='flex items-center gap-2'>
           <code className={URL_CODE}>{mcpUrl}</code>
           <Button variant='outline' size='sm' onClick={copy}>

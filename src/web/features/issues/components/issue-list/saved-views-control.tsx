@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 
 import { Button } from '@/components/generated/button.tsx'
 import {
@@ -20,7 +20,7 @@ type Saved = ReturnType<typeof useSavedViews>
  */
 function ViewsMenu({ saved }: { saved: Saved }) {
   const { savedViews, activeViewName, applyView, deleteView } = saved
-  if (EffectArray.isArrayEmpty(savedViews)) {
+  if (Array.isArrayEmpty(savedViews)) {
     return null
   }
 

@@ -1,6 +1,6 @@
 import { makeApplicationHttpEffect } from '@effront/alchemy/cloudflare/application'
 import { Request as WorkerRequest } from 'alchemy/Cloudflare/Workers'
-import { Effect } from 'effect'
+import { String, Predicate, Effect } from 'effect'
 import { HttpServerResponse } from 'effect/http'
 
 import { transferCoreBinary } from './core-binary.ts'
@@ -17,7 +17,7 @@ const logoResponse = function logoResponse(request: Request) {
     const publicLogo = /^\/api\/share\/([^/]+)\/logo$/.exec(pathname)
     const workspaceLogo = /^\/api\/workspaces\/([^/]+)\/brand\/logo$/.exec(pathname)
     const value = publicLogo?.[1] ?? workspaceLogo?.[1]
-    if (!value) {
+    if (Predicate.isNullish(value) || String.isEmpty(value)) {
       return yield* new ScopeError(404, 'Not found')
     }
     const selector = yield* Effect.try({

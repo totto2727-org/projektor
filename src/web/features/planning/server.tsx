@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { String, Predicate, Effect, Schema } from 'effect'
 
 import { AGGREGATE_PAGE_SIZE, MAX_AGGREGATE_ISSUES } from '#contracts/web-limits.ts'
 import { readDataIssuePage, readSprints } from '@/features/issues/data.ts'
@@ -36,8 +36,8 @@ export function loadSprintIssues(projectId: string, workspaceSlug: string, scope
     let cursor: string | undefined
     let nextCursor: string | null
     do {
-      const query = new URLSearchParams({ project: projectId, limit: String(AGGREGATE_PAGE_SIZE) })
-      if (cursor) {
+      const query = new URLSearchParams({ project: projectId, limit: globalThis.String(AGGREGATE_PAGE_SIZE) })
+      if (Predicate.isNotNullish(cursor) && String.isNonEmpty(cursor)) {
         query.set('cursor', cursor)
       }
       const page = yield* readDataIssuePage(scope, workspace.id, query).pipe(
@@ -46,21 +46,24 @@ export function loadSprintIssues(projectId: string, workspaceSlug: string, scope
       )
       issues.push(...page.items)
       nextCursor = page.nextCursor
-      if (issues.length > MAX_AGGREGATE_ISSUES || (issues.length === MAX_AGGREGATE_ISSUES && nextCursor)) {
+      if (
+        issues.length > MAX_AGGREGATE_ISSUES ||
+        (issues.length === MAX_AGGREGATE_ISSUES && Predicate.isNotNullish(nextCursor) && String.isNonEmpty(nextCursor))
+      ) {
         return yield* new ApiError(
           'request',
           422,
           `Sprint overview supports at most ${MAX_AGGREGATE_ISSUES} issues. Use the paginated issue list for larger projects.`,
         )
       }
-      if (nextCursor && cursors.has(nextCursor)) {
+      if (Predicate.isNotNullish(nextCursor) && String.isNonEmpty(nextCursor) && cursors.has(nextCursor)) {
         return yield* new ApiError('schema', 502, 'Repeated issue pagination cursor')
       }
-      if (nextCursor) {
+      if (Predicate.isNotNullish(nextCursor) && String.isNonEmpty(nextCursor)) {
         cursors.add(nextCursor)
         cursor = nextCursor
       }
-    } while (nextCursor)
+    } while (Predicate.isNotNullish(nextCursor) && String.isNonEmpty(nextCursor))
     return issues
   })
 }

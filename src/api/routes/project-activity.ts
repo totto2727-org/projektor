@@ -1,3 +1,4 @@
+import { String, Predicate } from 'effect'
 import { Hono } from 'hono'
 
 import { serviceErrToResponse } from '#api/http/error-adapter.ts'
@@ -15,8 +16,8 @@ router.get('/:id/activity', async (httpContext) => {
     return httpContext.json(
       await listProjectActivity(ctx, {
         projectId: httpContext.req.param('id'),
-        since: since ? Number(since) : undefined,
-        limit: limit ? Number(limit) : undefined,
+        since: Predicate.isNotNullish(since) && String.isNonEmpty(since) ? Number(since) : undefined,
+        limit: Predicate.isNotNullish(limit) && String.isNonEmpty(limit) ? Number(limit) : undefined,
       }),
     )
   } catch (caughtError) {

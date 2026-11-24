@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 
 import Select from '@/components/ui/select.tsx'
 import { categoryColor } from '@/features/issues/components/board-utils.ts'
@@ -87,7 +87,7 @@ export function StatusSelect({
   busy: boolean
   onChange: (value: string) => void
 }) {
-  if (EffectArray.isArrayEmpty(statuses)) {
+  if (Array.isArrayEmpty(statuses)) {
     return statusBadge(issue)
   }
   return (

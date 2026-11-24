@@ -1,4 +1,4 @@
-import { Array as EffectArray, Predicate } from 'effect'
+import { Array, Predicate } from 'effect'
 import { z } from 'zod'
 
 import { BooleanQueryParam, PriorityEnum, StatusEnum, TaxonomyIdSchema } from './common.ts'
@@ -50,7 +50,7 @@ export const UpdateIssueSchema = z
     completionReport: CompletionReportSchema.optional(),
   })
   .strict()
-  .refine((obj) => EffectArray.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })
+  .refine((obj) => Array.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })
 
 export const IssueListCursorSchema = z
   .union([z.number().int().nonnegative(), z.string().regex(/^\d+(?::[A-Za-z0-9-]+)?$/)])
@@ -125,7 +125,7 @@ export const GetIssueSchema = z
 // (REST query param), same convention as the existing statusIds/excludeTypeIds filters.
 const CommaOrArraySchema = z
   .union([z.string(), z.array(z.string())])
-  .transform((v) => (Array.isArray(v) ? v : v.split(',')).map((s) => s.trim()).filter(Boolean))
+  .transform((v) => (globalThis.Array.isArray(v) ? v : v.split(',')).map((s) => s.trim()).filter(Boolean))
 
 export const GetIssuesBatchSchema = z
   .object({

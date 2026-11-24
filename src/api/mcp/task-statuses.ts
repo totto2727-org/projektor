@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 
 import { createTaskStatus, deleteTaskStatus, listTaskStatuses, updateTaskStatus } from '#api/services/task-statuses.ts'
 import { ValidationError } from '#contracts/errors.ts'
@@ -71,7 +71,7 @@ export const taskStatusesTools: MCPTool[] = [
     annotations: IDEMPOTENT_WRITE,
     handler(input, ctx) {
       const { id, ...fields } = input as { id?: string; [k: string]: unknown }
-      if (!id || !Predicate.isString(id)) {
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return updateTaskStatus(ctx, id, fields)
@@ -90,7 +90,7 @@ export const taskStatusesTools: MCPTool[] = [
     annotations: DESTRUCTIVE,
     handler(input, ctx) {
       const { id } = input as { id?: string }
-      if (!id || !Predicate.isString(id)) {
+      if (!Predicate.isString(id) || String.isEmpty(id)) {
         throw new ValidationError({ formErrors: ['id is required'], fieldErrors: {} })
       }
       return deleteTaskStatus(ctx, id)

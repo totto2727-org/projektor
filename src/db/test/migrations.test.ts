@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 
-import { Iterable } from 'effect'
+import { String, Predicate, Iterable } from 'effect'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { loadMigrations, migratedDb } from './helpers.ts'
@@ -121,7 +121,7 @@ describe('schema constraints', () => {
       .sort()
     const preSlugFiles = migrationFiles.filter((f) => f < '0035')
     const slugFile = migrationFiles.find((f) => f.startsWith('0035'))
-    if (!slugFile) {
+    if (Predicate.isNullish(slugFile) || String.isEmpty(slugFile)) {
       throw new Error('expected a 0035 migration file')
     }
 

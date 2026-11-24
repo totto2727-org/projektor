@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm, useStore } from '@tanstack/react-form'
-import { Array as EffectArray, Predicate, Schema } from 'effect'
+import { String, Array, Predicate, Schema } from 'effect'
 import { useOptimistic, useState, useTransition } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
@@ -66,7 +66,7 @@ function formatDate(ts: number): string {
 }
 
 function parseContext(sourceUrl: string | null): { url: string; params: [string, string][] } | null {
-  if (!sourceUrl) {
+  if (Predicate.isNullish(sourceUrl) || String.isEmpty(sourceUrl)) {
     return null
   }
   try {
@@ -74,7 +74,7 @@ function parseContext(sourceUrl: string | null): { url: string; params: [string,
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       return null
     }
-    return { url: sourceUrl, params: Array.from(parsed.searchParams.entries()) }
+    return { url: sourceUrl, params: globalThis.Array.from(parsed.searchParams.entries()) }
   } catch {
     return null
   }
@@ -214,7 +214,7 @@ function FeedbackTable({
               <input
                 type='checkbox'
                 aria-label='select all'
-                checked={EffectArray.isArrayNonEmpty(rows) && selected.size === rows.length}
+                checked={Array.isArrayNonEmpty(rows) && selected.size === rows.length}
                 onChange={onToggleSelectAll}
               />
             </th>
@@ -271,7 +271,7 @@ function useFeedbackActions(
       try {
         unwrapResult(await convertFeedbackToIssue({ workspaceSlug, projectId, feedbackId: id }))
       } catch (error) {
-        setError(String(error))
+        setError(globalThis.String(error))
       }
     })
   }
@@ -281,7 +281,7 @@ function useFeedbackActions(
       try {
         unwrapResult(await markFeedbackReviewed({ workspaceSlug, projectId, feedbackId: id }))
       } catch (error) {
-        setError(String(error))
+        setError(globalThis.String(error))
       }
     })
   }
@@ -293,7 +293,7 @@ function useFeedbackActions(
         unwrapResult(await markSelectedFeedbackReviewed({ workspaceSlug, projectId, feedbackIds }))
         setSelected(new Set())
       } catch (error) {
-        setError(String(error))
+        setError(globalThis.String(error))
       }
     })
   }
@@ -305,7 +305,7 @@ function useFeedbackActions(
         unwrapResult(await convertSelectedFeedbackToIssue({ workspaceSlug, projectId, feedbackIds }))
         setSelected(new Set())
       } catch (error) {
-        setError(String(error))
+        setError(globalThis.String(error))
       }
     })
   }
@@ -397,7 +397,7 @@ export default function FeedbackList({ workspaceSlug, projectId, sourceId, initi
             onChange={(value) => {
               setSelected(new Set())
               const params = new URLSearchParams({ projectId, tab: 'items' })
-              if (workspaceSlug) {
+              if (Predicate.isNotNullish(workspaceSlug) && String.isNonEmpty(workspaceSlug)) {
                 params.set('workspace', workspaceSlug)
               }
               if (value) {
@@ -427,7 +427,7 @@ export default function FeedbackList({ workspaceSlug, projectId, sourceId, initi
         </div>
       )}
       {pending && <p aria-live='polite'>Updating feedback…</p>}
-      {EffectArray.isArrayEmpty(rows) ? (
+      {Array.isArrayEmpty(rows) ? (
         <div className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>
           No feedback yet.
         </div>

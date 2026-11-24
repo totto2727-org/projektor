@@ -7,7 +7,7 @@ import toc from '@comark/html/plugins/toc'
 import type { TocLink } from '@comark/html/plugins/toc'
 import { createMarkdownParser } from 'comark'
 import type { ComarkPlugin } from 'comark'
-import { Iterable } from 'effect'
+import { String, Predicate, Iterable } from 'effect'
 import sanitizeHtml from 'sanitize-html'
 import githubDark from 'shiki/themes/github-dark.mjs'
 import githubLight from 'shiki/themes/github-light.mjs'
@@ -178,7 +178,7 @@ const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
             const title = match[1].trim()
             const label = match[2]?.trim() ?? title
             const slug = pages.get(fold(title))
-            if (!slug) {
+            if (Predicate.isNullish(slug) || String.isEmpty(slug)) {
               state.push('mdc_inline_span', 'span', 1)
               state.push('text', '', 0).content = `${label} `
             }
@@ -186,11 +186,15 @@ const wikiLinks = function wikiLinks(options: MarkdownOptions): ComarkPlugin {
               .push('link_open', 'a', 1)
               .attrSet(
                 'href',
-                scoped(slug ? `/wiki/${encodeURIComponent(slug)}` : `/wiki?createTitle=${encodeURIComponent(title)}`),
+                scoped(
+                  Predicate.isNotNullish(slug) && String.isNonEmpty(slug)
+                    ? `/wiki/${encodeURIComponent(slug)}`
+                    : `/wiki?createTitle=${encodeURIComponent(title)}`,
+                ),
               )
-            state.push('text', '', 0).content = slug ? label : '+'
+            state.push('text', '', 0).content = Predicate.isNotNullish(slug) && String.isNonEmpty(slug) ? label : '+'
             state.push('link_close', 'a', -1)
-            if (!slug) {
+            if (Predicate.isNullish(slug) || String.isEmpty(slug)) {
               state.push('mdc_inline_span', 'span', -1)
               state.push('mdc_inline_props', '', 0).attrSet('class', 'wiki-link-broken')
             }

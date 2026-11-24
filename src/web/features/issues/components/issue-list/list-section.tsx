@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray } from 'effect'
+import { Array } from 'effect'
 
 import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
 import { ReviewTargetsSummary } from '@/features/issues/components/review-targets-summary.tsx'
@@ -172,13 +172,13 @@ export default function ListSection({
   // PROJ-862: render ONE layout (Tailwind's max-sm breakpoint), not both hidden by CSS.
   const isMobile = useMediaQuery('(max-width: 639.98px)')
 
-  if (EffectArray.isArrayEmpty(issues)) {
+  if (Array.isArrayEmpty(issues)) {
     return <p className='text-text-base'>No issues match the current filters.</p>
   }
 
   return (
     <>
-      {!isMobile && (
+      {isMobile !== true && (
         <DesktopTable
           issues={issues}
           statuses={statuses}

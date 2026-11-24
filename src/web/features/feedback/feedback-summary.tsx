@@ -1,5 +1,5 @@
 'use client'
-import { Array as EffectArray, Predicate } from 'effect'
+import { Array, Predicate } from 'effect'
 
 import type { SourceSummary } from './feedback-source-grid.tsx'
 import type { FeedbackVersionSummary } from './feedback-source-settings.tsx'
@@ -19,11 +19,11 @@ function versionMetric(v: FeedbackVersionSummary): string {
   if (Predicate.isNotNullish(v.avgFiveStar)) {
     parts.push(`${v.avgFiveStar.toFixed(1)}★ avg`)
   }
-  return EffectArray.isArrayEmpty(parts) ? 'No ratings' : parts.join(' · ')
+  return Array.isArrayEmpty(parts) ? 'No ratings' : parts.join(' · ')
 }
 
 export default function FeedbackSummary({ initialSummary: summary }: Props) {
-  if (!summary || EffectArray.isArrayEmpty(summary.versions)) {
+  if (!summary || Array.isArrayEmpty(summary.versions)) {
     return (
       <div className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>No feedback yet.</div>
     )

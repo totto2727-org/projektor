@@ -1,5 +1,5 @@
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { String, Array, Iterable, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
@@ -204,7 +204,7 @@ const buildReleaseByIdsStatements = function buildReleaseByIdsStatements(
       ctx,
       orm
         .update(schema.issueFileClaims)
-        .set({ releasedAt: now, releaseReason: reason })
+        .set({ releaseReason: reason, releasedAt: now })
         .where(
           and(
             eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),
@@ -284,7 +284,7 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
   const orm = drizzle(ctx.db, { schema })
 
   const projectId = await assertIssueAccess(ctx, issueId, 'edit')
-  if (agentId) {
+  if (Predicate.isNotNullish(agentId) && String.isNonEmpty(agentId)) {
     await assertAgentSessionAccess(ctx, agentId)
     /*
      * PROJ-929: refresh the acting session's heartbeat if it's already live (see
@@ -304,7 +304,7 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
   )
 
   for (const issue of new Set([...claimsByPath.values()].map((claim) => claim.issueId))) {
-    await assertIssueAccess(ctx, issue, force ? 'edit' : 'read')
+    await assertIssueAccess(ctx, issue, force === true ? 'edit' : 'read')
   }
 
   /*
@@ -335,7 +335,7 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
     .map((path) => ({ path, existing: claimsByPath.get(path) }))
     .filter((p): p is { path: string; existing: ActiveClaim } => Boolean(p.existing))
 
-  if (!force && EffectArray.isArrayNonEmpty(contended)) {
+  if (force !== true && Array.isArrayNonEmpty(contended)) {
     /*
      * Record every contended path (rejection is all-or-nothing, but each simultaneously
      * held path is its own contention signal for the heat map). The reclaim above and
@@ -372,7 +372,7 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
    * as everything else (no conflict is possible when force is false and contended is empty).
    */
   const overridden: ActiveClaim[] = []
-  if (force && EffectArray.isArrayNonEmpty(contended)) {
+  if (force === true && Array.isArrayNonEmpty(contended)) {
     const displacedPaths = new Map<string, string[]>()
     Iterable.forEach(contended, ({ path, existing }) => {
       overridden.push({ ...existing, releasedAt: now, releaseReason: 'overridden' })
@@ -454,7 +454,7 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
     throw new ValidationError(flattenError(result.error))
   }
   const { paths, issueId } = result.data
-  if (issueId) {
+  if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId)) {
     await assertIssueAccess(ctx, issueId, 'edit')
   }
 
@@ -470,7 +470,7 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
       inArray(schema.issueFileClaims.path, pathChunk),
       isNull(schema.issueFileClaims.releasedAt),
     ]
-    if (issueId) {
+    if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId)) {
       conditions.push(eq(schema.issueFileClaims.issueId, issueId))
     }
     return orm
@@ -490,7 +490,7 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
       .where(and(...conditions))
   })
 
-  if (EffectArray.isArrayEmpty(toRelease)) {
+  if (Array.isArrayEmpty(toRelease)) {
     return { released: [], count: 0 }
   }
 
@@ -499,7 +499,7 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
   }
 
   for (const agentId of new Set(toRelease.map((claim) => claim.agentId))) {
-    if (agentId) {
+    if (Predicate.isNotNullish(agentId) && String.isNonEmpty(agentId)) {
       await assertAgentSessionAccess(ctx, agentId, { allowAdministrativeOverride: true })
     }
   }
@@ -515,7 +515,7 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
    * between the read and the batch is someone else's release.
    */
   const releasedRows = toRelease.filter((r) => releasedIds.has(r.id))
-  if (EffectArray.isArrayEmpty(releasedRows)) {
+  if (Array.isArrayEmpty(releasedRows)) {
     return { released: [], count: 0 }
   }
   const released = releasedRows.map(({ projectId: _projectId, ...r }) => ({
@@ -528,7 +528,7 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
    * Stamp projectId on the broadcast. When issueId is provided there is exactly one
    * project; otherwise released rows may span projects, so fan out one event per project.
    */
-  if (issueId) {
+  if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId)) {
     await broadcastWorkspaceEvent(ctx, {
       type: 'claims.released',
       projectId: releasedRows[0].projectId,
@@ -587,16 +587,16 @@ export const listFileClaims = async function listFileClaims(ctx: ServiceCtx, raw
     isNull(schema.issueFileClaims.releasedAt),
   ]
 
-  if (issueId) {
+  if (Predicate.isNotNullish(issueId) && String.isNonEmpty(issueId)) {
     conditions.push(eq(schema.issueFileClaims.issueId, issueId))
   }
-  if (path) {
+  if (Predicate.isNotNullish(path) && String.isNonEmpty(path)) {
     conditions.push(eq(schema.issueFileClaims.path, path))
   }
-  if (projectId) {
+  if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     conditions.push(eq(schema.issues.projectId, projectId))
   }
-  if (!includeStale) {
+  if (includeStale !== true) {
     conditions.push(eq(liveExpr, 1))
   }
 
@@ -663,7 +663,7 @@ export const releaseClaimsForAgent = async function releaseClaimsForAgent(
 
   await orm
     .update(schema.issueFileClaims)
-    .set({ releasedAt: now, releaseReason: 'agent_ended' })
+    .set({ releaseReason: 'agent_ended', releasedAt: now })
     .where(
       and(
         eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),
@@ -690,7 +690,7 @@ export const buildReleaseClaimsForClosedIssueStatement = function buildReleaseCl
     ctx,
     orm
       .update(schema.issueFileClaims)
-      .set({ releasedAt: now, releaseReason: 'issue_closed' })
+      .set({ releaseReason: 'issue_closed', releasedAt: now })
       .where(
         and(
           eq(schema.issueFileClaims.workspaceId, ctx.workspaceId),

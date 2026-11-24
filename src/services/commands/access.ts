@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Column, SQL } from 'drizzle-orm'
-import { Array as EffectArray, Iterable, Predicate } from 'effect'
+import { Array, Iterable, Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 import type { Role } from '#types'
@@ -68,7 +68,7 @@ export const effectiveProjectRole = async function effectiveProjectRole(
     .innerJoin(schema.userGroupMembers, eq(schema.userGroupMembers.groupId, schema.groupProjectGrants.groupId))
     .where(and(eq(schema.userGroupMembers.userId, ctx.userId), eq(schema.groupProjectGrants.projectId, projectId)))
 
-  if (EffectArray.isArrayEmpty(rows)) {
+  if (Array.isArrayEmpty(rows)) {
     return null
   }
   /*
@@ -192,7 +192,7 @@ export async function assertProjectAccess(
   opts: AssertProjectAccessOptions = {},
 ): Promise<Role> {
   const notFound = opts.notFoundMessage ?? 'Not found'
-  if (!opts.projectLoadedFromWorkspaceRow) {
+  if (opts.projectLoadedFromWorkspaceRow !== true) {
     try {
       await requireProjectInWorkspace(ctx, projectId)
     } catch {
@@ -368,7 +368,7 @@ export const usersWithProjectReadAccess = async function usersWithProjectReadAcc
   projectId: string | null,
   userIds: Readonly<string[]>,
 ): Promise<Set<string>> {
-  if (EffectArray.isReadonlyArrayEmpty(userIds)) {
+  if (Array.isReadonlyArrayEmpty(userIds)) {
     return new Set()
   }
   const orm = drizzle(ctx.db, { schema })

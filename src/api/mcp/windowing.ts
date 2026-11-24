@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 
 import { ValidationError } from '#contracts/errors.ts'
 
@@ -47,7 +47,7 @@ export const windowText = function windowText(text: string, opts: { max: number;
   return {
     text: text.slice(start, end),
     totalChars: text.length,
-    ...(end < text.length ? { next: String(end) } : {}),
+    ...(end < text.length ? { next: globalThis.String(end) } : {}),
   }
 }
 
@@ -85,7 +85,7 @@ const headings = function headings(content: string): Heading[] {
       }
       continue
     }
-    if (fence) {
+    if (Predicate.isNotNullish(fence) && String.isNonEmpty(fence)) {
       continue
     }
     const m = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line)

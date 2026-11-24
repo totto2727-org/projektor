@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { String, Predicate } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -315,7 +315,7 @@ describe('scheduled wiki trash purge scaling (PROJ-865)', () => {
     for (let index = 0; index < 100; index++) {
       const pageId = pageIds[index * 3] // spread across ~1/3 of the pages
       const workspaceId = workspaceIdByPageId.get(pageId)
-      if (!workspaceId) {
+      if (Predicate.isNullish(workspaceId) || String.isEmpty(workspaceId)) {
         throw new Error(`no workspace recorded for page ${pageId}`)
       }
       await env.DB.prepare(

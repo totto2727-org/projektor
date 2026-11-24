@@ -1,4 +1,4 @@
-import { Array as EffectArray, Predicate } from 'effect'
+import { Array, Predicate } from 'effect'
 import { z } from 'zod'
 
 import { BooleanQueryParam } from './common.ts'
@@ -248,7 +248,7 @@ export const WikiFrontmatterPatchValuesSchema = z
     template: z.boolean().nullable().optional(),
   })
   .strict()
-  .refine((v) => EffectArray.isArrayNonEmpty(Object.keys(v)), {
+  .refine((v) => Array.isArrayNonEmpty(Object.keys(v)), {
     message: 'values must include at least one frontmatter key',
   })
 
@@ -313,7 +313,7 @@ export const MarkWikiNotificationsReadInputSchema = z
     ids: z.array(z.string()).max(200).optional(),
     all: z.boolean().optional().default(false),
   })
-  .refine((d) => d.all || (Predicate.isNotNullish(d.ids) && EffectArray.isArrayNonEmpty(d.ids)), {
+  .refine((d) => d.all || (Predicate.isNotNullish(d.ids) && Array.isArrayNonEmpty(d.ids)), {
     message: 'Either `all: true` or a non-empty `ids` array must be provided',
   })
 

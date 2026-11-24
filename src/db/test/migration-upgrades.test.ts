@@ -81,9 +81,9 @@ const cases = [
     },
     verify(this: void, db: DatabaseSync) {
       expect(pages(db)).toEqual([
-        { id: pageId, workspace_id: 'w', slug: 'operations', version: 0 },
-        { id: 'other-1', workspace_id: 'w', slug: 'operations-legacy-copy', version: 0 },
-        { id: 'other-2', workspace_id: 'w', slug: 'operations-other-1', version: 0 },
+        { id: pageId, slug: 'operations', version: 0, workspace_id: 'w' },
+        { id: 'other-1', slug: 'operations-legacy-copy', version: 0, workspace_id: 'w' },
+        { id: 'other-2', slug: 'operations-other-1', version: 0, workspace_id: 'w' },
       ])
     },
   },
@@ -109,12 +109,12 @@ const cases = [
     },
     verify(this: void, db: DatabaseSync) {
       expect(pages(db)).toEqual([
-        { id: pageId, workspace_id: 'w', slug: 'a-b-legacy-copy', version: 0 },
-        { id: 'other-1', workspace_id: 'w', slug: 'a-b', version: 0 },
-        { id: 'other-2', workspace_id: 'w', slug: 'a-b-abcdef12', version: 0 },
+        { id: pageId, slug: 'a-b-legacy-copy', version: 0, workspace_id: 'w' },
+        { id: 'other-1', slug: 'a-b', version: 0, workspace_id: 'w' },
+        { id: 'other-2', slug: 'a-b-abcdef12', version: 0, workspace_id: 'w' },
       ])
       expect(db.prepare('SELECT * FROM wiki_redirects').all()).toEqual([
-        { id: 'prior', workspace_id: 'w', old_slug: 'a/b', page_id: pageId, created_at: 0 },
+        { created_at: 0, id: 'prior', old_slug: 'a/b', page_id: pageId, workspace_id: 'w' },
       ])
     },
   },
@@ -132,9 +132,9 @@ const cases = [
     },
     verify(this: void, db: DatabaseSync) {
       expect(pages(db)).toEqual([
-        { id: pageId, workspace_id: 'w', slug: 'view-legacy-copy', version: 1 },
-        { id: 'other-1', workspace_id: 'w', slug: 'view-page', version: 0 },
-        { id: 'other-2', workspace_id: 'w', slug: 'view-page-abcdef12', version: 0 },
+        { id: pageId, slug: 'view-legacy-copy', version: 1, workspace_id: 'w' },
+        { id: 'other-1', slug: 'view-page', version: 0, workspace_id: 'w' },
+        { id: 'other-2', slug: 'view-page-abcdef12', version: 0, workspace_id: 'w' },
       ])
     },
   },
