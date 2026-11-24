@@ -6,7 +6,7 @@ import { hashWorkflowContent } from '#commands/workflow.ts'
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { readNativeJson } from './response-json.ts'
+import { parseNativeMcpText, readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,
@@ -108,7 +108,7 @@ describe('workflow spec', () => {
       { name: 'get_workflow', arguments: {} },
       authHeaders(token, slug),
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const mcpBody = JSON.parse(mcpJson.result.content[0].text) as { version: string }
+    const mcpBody = parseNativeMcpText(mcpJson.result.content[0].text, Schema.Struct({ version: Schema.String }))
     expect(mcpBody.version).toBe(body1.version)
   })
 
@@ -119,7 +119,7 @@ describe('workflow spec', () => {
       { name: 'get_workflow', arguments: {} },
       authHeaders(token, slug),
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const { version } = JSON.parse(first.result.content[0].text) as { version: string }
+    const { version } = parseNativeMcpText(first.result.content[0].text, Schema.Struct({ version: Schema.String }))
 
     const second = (await mcpCall(
       workspaceId,

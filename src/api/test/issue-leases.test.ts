@@ -9,7 +9,7 @@ import { drizzle, schema } from '#db'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedFixture, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { IdResponse, ItemsResponse, RpcTextResponse, readNativeJson } from './response-json.ts'
+import { parseNativeMcpText, IdResponse, ItemsResponse, RpcTextResponse, readNativeJson } from './response-json.ts'
 
 describe('issue leases API (PROJ-184)', () => {
   let token: string
@@ -422,7 +422,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     })
     expect(mcpRes.status).toBe(200)
     const body = await readNativeJson(mcpRes, RpcTextResponse)
-    const created = JSON.parse(body.result.content[0].text) as { id: string }
+    const created = parseNativeMcpText(body.result.content[0].text, IdResponse)
 
     const agent = await registerAgent('worker2')
     const [first, second] = await Promise.all([

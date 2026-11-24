@@ -6,7 +6,13 @@ import * as cache from '#commands/cache.ts'
 import { configureCore, env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus, seedTaskType } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { JsonListResponse, RpcTextResponse, readNativeJson } from './response-json.ts'
+import {
+  KeyListResponse,
+  parseNativeMcpText,
+  JsonListResponse,
+  RpcTextResponse,
+  readNativeJson,
+} from './response-json.ts'
 
 describe('covers KV caching', () => {
   let token: string
@@ -140,7 +146,7 @@ describe('covers KV caching', () => {
           }),
         })
         const rpc = await readNativeJson(res, RpcTextResponse)
-        return JSON.parse(rpc.result.content[0].text) as unknown[]
+        return parseNativeMcpText(rpc.result.content[0].text, JsonListResponse)
       }
 
       // First call — populates cache
@@ -171,7 +177,7 @@ describe('covers KV caching', () => {
           }),
         })
         const rpc = await readNativeJson(res, RpcTextResponse)
-        return JSON.parse(rpc.result.content[0].text) as { key: string }[]
+        return parseNativeMcpText(rpc.result.content[0].text, KeyListResponse)
       }
 
       const before = await mcpListProjects()

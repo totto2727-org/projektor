@@ -17,7 +17,13 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
-import { RpcTextResponse, readNativeJson } from './response-json.ts'
+import {
+  MessageBodiesResponse,
+  IdResponse,
+  parseNativeMcpText,
+  RpcTextResponse,
+  readNativeJson,
+} from './response-json.ts'
 
 describe('agent Messages API', () => {
   let token: string
@@ -144,9 +150,7 @@ describe('agent Messages API', () => {
     const mcpRes = await mcpCall('list_messages', { scope }, token4, slug)
     expect(mcpRes.status).toBe(200)
     const mcpBody = await readNativeJson(mcpRes, RpcTextResponse)
-    const mcpData = JSON.parse(mcpBody.result.content[0].text) as {
-      items: { body: string }[]
-    }
+    const mcpData = parseNativeMcpText(mcpBody.result.content[0].text, MessageBodiesResponse)
     expect(mcpData.items).toHaveLength(3)
 
     /*
@@ -156,7 +160,10 @@ describe('agent Messages API', () => {
     const token5 = await seedToken(workspaceId, userId)
     const p1Res = await mcpCall('list_messages', { scope, limit: 2 }, token5, slug)
     const p1Body = await readNativeJson(p1Res, RpcTextResponse)
-    const p1 = JSON.parse(p1Body.result.content[0].text) as { nextCursor: string | null }
+    const p1 = parseNativeMcpText(
+      p1Body.result.content[0].text,
+      Schema.Struct({ nextCursor: Schema.Union([Schema.String, Schema.Null]) }),
+    )
     expect(typeof p1.nextCursor).toBe('string')
     const p2Res = await mcpCall('list_messages', { scope, limit: 2, cursor: p1.nextCursor }, token5, slug)
     const p2BodyShape = Schema.Struct({
@@ -167,9 +174,7 @@ describe('agent Messages API', () => {
     })
     const p2Body = await readNativeJson(p2Res, p2BodyShape)
     expect(p2Body.error).toBeUndefined()
-    const p2 = JSON.parse(p2Body.result?.content[0].text ?? '{}') as {
-      items: { body: string }[]
-    }
+    const p2 = parseNativeMcpText(p2Body.result?.content[0].text ?? '{}', MessageBodiesResponse)
     expect(p2.items.map((item) => item.body)).toStrictEqual(['message three'])
   })
 
@@ -215,12 +220,12 @@ describe('agent Messages API', () => {
     const agent1Res = await mcpCall('register_agent', { name: 'agent-one' })
     expect(agent1Res.status).toBe(200)
     const a1Body = await readNativeJson(agent1Res, RpcTextResponse)
-    const agent1 = JSON.parse(a1Body.result.content[0].text) as { id: string }
+    const agent1 = parseNativeMcpText(a1Body.result.content[0].text, IdResponse)
 
     const agent2Res = await mcpCall('register_agent', { name: 'agent-two' })
     expect(agent2Res.status).toBe(200)
     const a2Body = await readNativeJson(agent2Res, RpcTextResponse)
-    const agent2 = JSON.parse(a2Body.result.content[0].text) as { id: string }
+    const agent2 = parseNativeMcpText(a2Body.result.content[0].text, IdResponse)
 
     // agent1 claims path A
     const claimRes = await mcpCall('claim_files', {
@@ -262,9 +267,7 @@ describe('agent Messages API', () => {
     const readRes = await mcpCall('list_messages', { scope }, token2, slug)
     expect(readRes.status).toBe(200)
     const readBody = await readNativeJson(readRes, RpcTextResponse)
-    const readData = JSON.parse(readBody.result.content[0].text) as {
-      items: { body: string }[]
-    }
+    const readData = parseNativeMcpText(readBody.result.content[0].text, MessageBodiesResponse)
     expect(readData.items.some((item) => item.body.includes('can you release?'))).toBe(true)
 
     // agent1 releases path A
@@ -284,9 +287,10 @@ describe('agent Messages API', () => {
     )
     expect(reclaimRes.status).toBe(200)
     const reclaimBody = await readNativeJson(reclaimRes, RpcTextResponse)
-    const reclaimData = JSON.parse(reclaimBody.result.content[0].text) as {
-      created: { issueId: string }[]
-    }
+    const reclaimData = parseNativeMcpText(
+      reclaimBody.result.content[0].text,
+      Schema.Struct({ created: Schema.Array(Schema.Struct({ issueId: Schema.String })).pipe(Schema.mutable) }),
+    )
     expect(reclaimData.created[0].issueId).toBe(issue2.id)
 
     // agent1 claims path B so agent2 can force-steal it
@@ -320,9 +324,10 @@ describe('agent Messages API', () => {
     )
     expect(forceRes.status).toBe(200)
     const forceBody = await readNativeJson(forceRes, RpcTextResponse)
-    const forceData = JSON.parse(forceBody.result.content[0].text) as {
-      overridden: unknown[]
-    }
+    const forceData = parseNativeMcpText(
+      forceBody.result.content[0].text,
+      Schema.Struct({ overridden: Schema.Array(Schema.Unknown).pipe(Schema.mutable) }),
+    )
     expect(forceData.overridden).toHaveLength(1)
 
     // The force-override notice should appear in the issue3 scope channel (Epic B wiring)
@@ -330,9 +335,7 @@ describe('agent Messages API', () => {
     const noticeRes = await mcpCall('list_messages', { scope: noticeScope }, token3, slug)
     expect(noticeRes.status).toBe(200)
     const noticeBody = await readNativeJson(noticeRes, RpcTextResponse)
-    const noticeData = JSON.parse(noticeBody.result.content[0].text) as {
-      items: { body: string }[]
-    }
+    const noticeData = parseNativeMcpText(noticeBody.result.content[0].text, MessageBodiesResponse)
     expect(
       noticeData.items.some((item) => item.body.includes('force-claimed') && item.body.includes('src/forced.ts')),
     ).toBe(true)

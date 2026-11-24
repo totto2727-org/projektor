@@ -17,9 +17,18 @@ export const SlugListResponse = Schema.Array(SlugResponse).pipe(Schema.mutable)
 export const TitleListResponse = Schema.Array(Schema.Struct({ title: Schema.String })).pipe(Schema.mutable)
 export const TokenLinkResponse = Schema.Struct({ token: Schema.String, url: Schema.String })
 export const TokenResponse = Schema.Struct({ token: Schema.String })
+export const UnknownItemsResponse = Schema.Struct({ items: Schema.Unknown })
+export const KeyListResponse = Schema.Array(Schema.Struct({ key: Schema.String })).pipe(Schema.mutable)
+export const JsonRecordResponse = Schema.Record(Schema.String, Schema.Unknown)
+export const TitleItemsResponse = Schema.Struct({ items: TitleListResponse })
+export const IssueTitlesResponse = Schema.Struct({ issues: TitleListResponse })
+export const OkResponse = Schema.Struct({ ok: Schema.Boolean })
+const MessageBodyList = Schema.Array(Schema.Struct({ body: Schema.String })).pipe(Schema.mutable)
+export const MessageBodiesResponse = Schema.Struct({ items: MessageBodyList })
+export const RecordItemsResponse = Schema.Struct({ items: Schema.Array(JsonRecordResponse).pipe(Schema.mutable) })
 
 class NativeJsonShapeError extends Data.TaggedError('NativeJsonShapeError')<
-  Readonly<{ message: string; status: number }>
+  Readonly<{ message: string; status?: number }>
 > {}
 
 export const readNativeJson = async function readNativeJson<S extends Schema.Constraint>(
@@ -32,6 +41,17 @@ export const readNativeJson = async function readNativeJson<S extends Schema.Con
       message: `Native API response does not match the expected JSON shape (HTTP ${String(response.status)}).`,
       status: response.status,
     })
+  }
+  return body
+}
+
+export const parseNativeMcpText = function parseNativeMcpText<S extends Schema.Constraint>(
+  text: string,
+  schema: S,
+): S['Type'] {
+  const body: unknown = JSON.parse(text)
+  if (!Schema.is(schema)(body)) {
+    throw new NativeJsonShapeError({ message: 'MCP response text does not match the expected JSON shape.' })
   }
   return body
 }

@@ -19,7 +19,14 @@ import {
   seedUser,
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
+import {
+  KeyListResponse,
+  OkResponse,
+  parseNativeMcpText,
+  IdResponse,
+  JsonListResponse,
+  readNativeJson,
+} from './response-json.ts'
 
 // ─── Definition CRUD ──────────────────────────────────────────────────────────
 
@@ -552,7 +559,7 @@ describe('custom Fields — MCP parity', () => {
   test('list_custom_field_defs returns empty list', async () => {
     const resp = await mcpCall('tools/call', { name: 'list_custom_field_defs', arguments: {} })
     expect(resp.error).toBeUndefined()
-    const data = JSON.parse(resp.result!.content[0].text) as unknown[]
+    const data = parseNativeMcpText(resp.result!.content[0].text, JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(0)
   })
@@ -563,7 +570,7 @@ describe('custom Fields — MCP parity', () => {
       arguments: { key: 'effort', label: 'Effort', type: 'number' },
     })
     const resp = await mcpCall('tools/call', { name: 'list_custom_field_defs', arguments: {} })
-    const data = JSON.parse(resp.result!.content[0].text) as { key: string }[]
+    const data = parseNativeMcpText(resp.result!.content[0].text, KeyListResponse)
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('effort')
   })
@@ -573,13 +580,13 @@ describe('custom Fields — MCP parity', () => {
       name: 'create_custom_field_def',
       arguments: { key: 'tmp', label: 'Tmp', type: 'text' },
     })
-    const created = JSON.parse(createResp.result!.content[0].text) as { id: string }
+    const created = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
 
     const deleteResp = await mcpCall('tools/call', {
       name: 'delete_custom_field_def',
       arguments: { id: created.id },
     })
-    const deleted = JSON.parse(deleteResp.result!.content[0].text) as { ok: boolean }
+    const deleted = parseNativeMcpText(deleteResp.result!.content[0].text, OkResponse)
     expect(deleted.ok).toBe(true)
   })
 

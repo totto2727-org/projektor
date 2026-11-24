@@ -12,7 +12,14 @@ import {
   seedUser,
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
+import {
+  KeyListResponse,
+  OkResponse,
+  parseNativeMcpText,
+  IdResponse,
+  JsonListResponse,
+  readNativeJson,
+} from './response-json.ts'
 
 describe('task Statuses API', () => {
   let token: string
@@ -555,7 +562,7 @@ describe('task Statuses — MCP parity', () => {
   test('list_task_statuses returns empty list', async () => {
     const resp = await mcpCall('tools/call', { name: 'list_task_statuses', arguments: {} })
     expect(resp.error).toBeUndefined()
-    const data = JSON.parse(resp.result!.content[0].text) as unknown[]
+    const data = parseNativeMcpText(resp.result!.content[0].text, JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(0)
   })
@@ -566,7 +573,7 @@ describe('task Statuses — MCP parity', () => {
       arguments: { key: 'done', name: 'Done', category: 'done', position: 1 },
     })
     const resp = await mcpCall('tools/call', { name: 'list_task_statuses', arguments: {} })
-    const data = JSON.parse(resp.result!.content[0].text) as { key: string }[]
+    const data = parseNativeMcpText(resp.result!.content[0].text, KeyListResponse)
     expect(data).toHaveLength(1)
     expect(data[0].key).toBe('done')
   })
@@ -576,13 +583,13 @@ describe('task Statuses — MCP parity', () => {
       name: 'create_task_status',
       arguments: { key: 'tmp', name: 'Tmp', category: 'cancelled' },
     })
-    const created = JSON.parse(createResp.result!.content[0].text) as { id: string }
+    const created = parseNativeMcpText(createResp.result!.content[0].text, IdResponse)
 
     const deleteResp = await mcpCall('tools/call', {
       name: 'delete_task_status',
       arguments: { id: created.id },
     })
-    const deleted = JSON.parse(deleteResp.result!.content[0].text) as { ok: boolean }
+    const deleted = parseNativeMcpText(deleteResp.result!.content[0].text, OkResponse)
     expect(deleted.ok).toBe(true)
   })
 })

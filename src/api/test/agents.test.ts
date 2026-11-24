@@ -8,7 +8,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { IdResponse, readNativeJson } from './response-json.ts'
+import { parseNativeMcpText, IdResponse, readNativeJson } from './response-json.ts'
 
 describe('agents API', () => {
   let token: string
@@ -489,9 +489,10 @@ describe('agents API', () => {
 
       const started = await mcpCall('start_work', { issue: issue.id, name: 'mcp-worker' })
       expect(started.status).toBe(200)
-      const startedResult = JSON.parse(started.body.result?.content[0].text ?? '{}') as {
-        sessionId: string
-      }
+      const startedResult = parseNativeMcpText(
+        started.body.result?.content[0].text ?? '{}',
+        Schema.Struct({ sessionId: Schema.String }),
+      )
       expect(startedResult.sessionId).toBeTruthy()
 
       const finished = await mcpCall('finish_work', {

@@ -5,7 +5,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { readNativeJson } from './response-json.ts'
+import { parseNativeMcpText, readNativeJson } from './response-json.ts'
 
 describe('compose_playbook', () => {
   let token: string
@@ -64,11 +64,10 @@ describe('compose_playbook', () => {
 
     const res = await compose({ epicRef: `PROJ-${epicNumber}` })
     const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const body = JSON.parse(json.result.content[0].text) as {
-      name: string
-      variant: string
-      directive: string
-    }
+    const body = parseNativeMcpText(
+      json.result.content[0].text,
+      Schema.Struct({ directive: Schema.String, name: Schema.String, variant: Schema.String }),
+    )
 
     expect(body.name).toBe('epic-goal')
     expect(body.variant).toBe('bounded')
@@ -103,7 +102,10 @@ describe('compose_playbook', () => {
       cadence: 5,
     })
     const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const body = JSON.parse(json.result.content[0].text) as { variant: string; directive: string }
+    const body = parseNativeMcpText(
+      json.result.content[0].text,
+      Schema.Struct({ directive: Schema.String, variant: Schema.String }),
+    )
 
     expect(body.variant).toBe('full')
     expect(body.directive).toContain('Self-feed (full)')
@@ -115,7 +117,7 @@ describe('compose_playbook', () => {
   test('honors a custom checkpointInterval', async () => {
     const res = await compose({ epicRef: `PROJ-${epicNumber}`, checkpointInterval: 3 })
     const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const body = JSON.parse(json.result.content[0].text) as { directive: string }
+    const body = parseNativeMcpText(json.result.content[0].text, Schema.Struct({ directive: Schema.String }))
 
     expect(body.directive).toContain('every 3 completed tickets')
   })
@@ -123,7 +125,7 @@ describe('compose_playbook', () => {
   test('notes when the epic has no open child tickets yet', async () => {
     const res = await compose({ epicRef: `PROJ-${epicNumber}` })
     const json = (await res.json()) as JsonRpcResult<{ content: { text: string }[] }>
-    const body = JSON.parse(json.result.content[0].text) as { directive: string }
+    const body = parseNativeMcpText(json.result.content[0].text, Schema.Struct({ directive: Schema.String }))
 
     expect(body.directive).toContain('no open child tickets yet')
   })

@@ -5,7 +5,7 @@ import { authHeaders, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
-import { IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
+import { KeyListResponse, parseNativeMcpText, IdResponse, JsonListResponse, readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,
@@ -327,7 +327,7 @@ describe('projects MCP', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
     expect(isMcpError(res)).toBe(false)
     expect(toolError(res)).toBeUndefined()
-    const data = JSON.parse(res.result.content[0].text) as unknown[]
+    const data = parseNativeMcpText(res.result.content[0].text, JsonListResponse)
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(0)
   })
@@ -337,7 +337,10 @@ describe('projects MCP', () => {
     expect(isMcpError(res)).toBe(false)
     expect(toolError(res)).toBeUndefined()
     const result = res as JsonRpcResult<{ content: { text: string }[] }>
-    const data = JSON.parse(result.result.content[0].text) as { id: string; key: string }
+    const data = parseNativeMcpText(
+      result.result.content[0].text,
+      Schema.Struct({ id: Schema.String, key: Schema.String }),
+    )
     expect(data.id).toBeTruthy()
     expect(data.key).toBe('MCP')
   })
@@ -349,7 +352,7 @@ describe('projects MCP', () => {
       { name: 'Lower', key: 'lower' },
       ownerHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const data = JSON.parse(res.result.content[0].text) as { key: string }
+    const data = parseNativeMcpText(res.result.content[0].text, Schema.Struct({ key: Schema.String }))
     expect(data.key).toBe('LOWER')
   })
 
@@ -388,10 +391,12 @@ describe('projects MCP', () => {
       {},
       ownerHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const projects = JSON.parse(listRes.result.content[0].text) as {
-      key: string
-      description: string | null
-    }[]
+    const projects = parseNativeMcpText(
+      listRes.result.content[0].text,
+      Schema.Array(Schema.Struct({ description: Schema.Union([Schema.String, Schema.Null]), key: Schema.String })).pipe(
+        Schema.mutable,
+      ),
+    )
     const proj = projects.find((project) => project.key === 'MCPND')
     expect(proj).toBeTruthy()
     expect(proj!.description).toBeNull()
@@ -446,7 +451,7 @@ describe('projects MCP', () => {
       {},
       ownerHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const mcpProjects = JSON.parse(mcpRes.result.content[0].text) as { key: string }[]
+    const mcpProjects = parseNativeMcpText(mcpRes.result.content[0].text, KeyListResponse)
 
     expect(restProjects.map((p) => p.key)).toStrictEqual(mcpProjects.map((p) => p.key))
   })
@@ -458,9 +463,10 @@ describe('projects MCP', () => {
       { name: 'MCP Archivable', key: 'MARCH' },
       ownerHeaders,
     )
-    const { id } = JSON.parse((createRes as JsonRpcResult<{ content: { text: string }[] }>).result.content[0].text) as {
-      id: string
-    }
+    const { id } = parseNativeMcpText(
+      (createRes as JsonRpcResult<{ content: { text: string }[] }>).result.content[0].text,
+      IdResponse,
+    )
 
     const updateRes = await mcpCall(workspaceId, 'update_project', { id, archived: true }, ownerHeaders)
     expect(isMcpError(updateRes)).toBe(false)
@@ -472,7 +478,7 @@ describe('projects MCP', () => {
       {},
       ownerHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const keys = (JSON.parse(listRes.result.content[0].text) as { key: string }[]).map((p) => p.key)
+    const keys = parseNativeMcpText(listRes.result.content[0].text, KeyListResponse).map((p) => p.key)
     expect(keys).not.toContain('MARCH')
 
     const includeArchivedRes = (await mcpCall<{ content: { text: string }[] }>(
@@ -481,7 +487,7 @@ describe('projects MCP', () => {
       { includeArchived: true },
       ownerHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const includeArchivedKeys = (JSON.parse(includeArchivedRes.result.content[0].text) as { key: string }[]).map(
+    const includeArchivedKeys = parseNativeMcpText(includeArchivedRes.result.content[0].text, KeyListResponse).map(
       (p) => p.key,
     )
     expect(includeArchivedKeys).toContain('MARCH')

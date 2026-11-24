@@ -15,7 +15,18 @@ import {
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { IdAndSlugResponse, IdResponse, JsonListResponse, SlugResponse, readNativeJson } from './response-json.ts'
+import {
+  IssueTitlesResponse,
+  RecordItemsResponse,
+  TitleItemsResponse,
+  ItemsResponse,
+  parseNativeMcpText,
+  IdAndSlugResponse,
+  IdResponse,
+  JsonListResponse,
+  SlugResponse,
+  readNativeJson,
+} from './response-json.ts'
 
 const mcpFetch = async function mcpFetch(
   workspaceId: string,
@@ -42,11 +53,12 @@ const mcpCall = async function mcpCall<T>(
   return res.json()
 }
 
-interface IssuePage {
-  items: Record<string, unknown>[]
-  next?: string
-  nextCursor?: number | null
-}
+const IssuePageCursor = Schema.Union([Schema.Number, Schema.Null])
+const IssuePageResponse = Schema.Struct({
+  ...RecordItemsResponse.fields,
+  next: Schema.optional(Schema.String),
+  nextCursor: Schema.optional(IssuePageCursor),
+})
 
 describe('covers MCP endpoint', () => {
   let token: string
@@ -165,7 +177,7 @@ describe('covers MCP endpoint', () => {
       { name: 'list_issues', arguments: {} },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const data = JSON.parse(res.result.content[0].text) as IssuePage
+    const data = parseNativeMcpText(res.result.content[0].text, IssuePageResponse)
     expect(Array.isArray(data.items)).toBe(true)
     expect(data.items).toHaveLength(0)
     expect(data.next).toBeUndefined()
@@ -188,7 +200,7 @@ describe('covers MCP endpoint', () => {
       { name: 'list_issues', arguments: {} },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const data = JSON.parse(listRes.result.content[0].text) as IssuePage
+    const data = parseNativeMcpText(listRes.result.content[0].text, IssuePageResponse)
     expect(data.items).toHaveLength(1)
     expect((data.items[0] as { title: string }).title).toBe('MCP-created issue')
     expect((data.items[0] as { priority: string }).priority).toBe('high')
@@ -207,7 +219,7 @@ describe('covers MCP endpoint', () => {
       { name: 'search_wiki', arguments: { query: 'MCP endpoint' } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const results = (JSON.parse(res.result.content[0].text) as { items: { title: string }[] }).items
+    const results = parseNativeMcpText(res.result.content[0].text, TitleItemsResponse).items
     expect(results.length).toBeGreaterThan(0)
     expect(results[0].title).toBe('MCP Docs')
   })
@@ -225,7 +237,10 @@ describe('covers MCP endpoint', () => {
       { name: 'get_wiki_page', arguments: { slug: 'runbook' } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const page = JSON.parse(res.result.content[0].text) as { title: string; content: string }
+    const page = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Struct({ content: Schema.String, title: Schema.String }),
+    )
     expect(page.title).toBe('Runbook')
     expect(page.content).toBe('## Steps')
   })
@@ -298,7 +313,7 @@ describe('covers MCP endpoint', () => {
       },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const created = JSON.parse(createRes.result.content[0].text) as { id: string }
+    const created = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
     expect(created.id).toBeTruthy()
 
     const getRes = await fetchNativeApi(`http://localhost/api/issues/${created.id}`, { headers })
@@ -317,7 +332,7 @@ describe('covers MCP endpoint', () => {
       { name: 'create_issue', arguments: { projectId, title: 'Before update' } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const { id } = JSON.parse(createRes.result.content[0].text) as { id: string }
+    const { id } = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
 
     await mcpCall(
       workspaceId,
@@ -366,7 +381,7 @@ describe('covers MCP endpoint', () => {
       { name: 'list_issues', arguments: { assignee: assignee.id } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const mcpData = JSON.parse(mcpRes.result.content[0].text) as IssuePage
+    const mcpData = parseNativeMcpText(mcpRes.result.content[0].text, IssuePageResponse)
     expect(mcpData.items).toHaveLength(1)
     expect((mcpData.items[0] as { title: string }).title).toBe('Assigned')
 
@@ -374,12 +389,7 @@ describe('covers MCP endpoint', () => {
     const restRes = await fetchNativeApi(`http://localhost/api/issues?assignee=${assignee.id}`, {
       headers,
     })
-    const restDataShape = Schema.Struct({
-      items: Schema.Array(Schema.Record(Schema.String, Schema.Unknown)).pipe(Schema.mutable),
-      next: Schema.optional(Schema.String),
-      nextCursor: Schema.optional(Schema.Union([Schema.Number, Schema.Null])),
-    })
-    const restData = await readNativeJson(restRes, restDataShape)
+    const restData = await readNativeJson(restRes, IssuePageResponse)
     expect(restData.items).toHaveLength(1)
     expect((restData.items[0] as { title: string }).title).toBe('Assigned')
   })
@@ -391,15 +401,10 @@ describe('covers MCP endpoint', () => {
       { name: 'list_issues', arguments: {} },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const mcpData = JSON.parse(mcpRes.result.content[0].text) as IssuePage
+    const mcpData = parseNativeMcpText(mcpRes.result.content[0].text, IssuePageResponse)
 
     const restRes = await fetchNativeApi('http://localhost/api/issues', { headers })
-    const restDataShape = Schema.Struct({
-      items: Schema.Array(Schema.Record(Schema.String, Schema.Unknown)).pipe(Schema.mutable),
-      next: Schema.optional(Schema.String),
-      nextCursor: Schema.optional(Schema.Union([Schema.Number, Schema.Null])),
-    })
-    const restData = await readNativeJson(restRes, restDataShape)
+    const restData = await readNativeJson(restRes, IssuePageResponse)
 
     expect(Array.isArray(mcpData.items)).toBe(true)
     expect('nextCursor' in mcpData).toBe(false)
@@ -425,7 +430,7 @@ describe('covers MCP endpoint', () => {
       { name: 'get_issue', arguments: { ref: 'PROJ-1' } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const issue = JSON.parse(res.result.content[0].text) as { title: string }
+    const issue = parseNativeMcpText(res.result.content[0].text, Schema.Struct({ title: Schema.String }))
     expect(issue.title).toBe('Ref via MCP')
   })
 
@@ -463,7 +468,7 @@ describe('covers MCP endpoint', () => {
       { name: 'list_wiki_pages', arguments: {} },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const pages = JSON.parse(res.result.content[0].text) as unknown[]
+    const pages = parseNativeMcpText(res.result.content[0].text, JsonListResponse)
     expect(pages).toHaveLength(2)
   })
 
@@ -480,7 +485,7 @@ describe('covers MCP endpoint', () => {
       { name: 'search_wiki', arguments: { query: '' } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const results = JSON.parse(res.result.content[0].text) as { items: unknown[] }
+    const results = parseNativeMcpText(res.result.content[0].text, ItemsResponse)
     expect(results).toStrictEqual({ items: [] })
   })
 
@@ -498,7 +503,10 @@ describe('covers MCP endpoint', () => {
       { name: 'search_wiki', arguments: { query: 'Verbose' } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const results = (JSON.parse(res.result.content[0].text) as { items: { excerpt: string }[] }).items
+    const results = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Struct({ items: Schema.Array(Schema.Struct({ excerpt: Schema.String })).pipe(Schema.mutable) }),
+    ).items
     expect(results).toHaveLength(1)
     expect(results[0].excerpt.length).toBeLessThanOrEqual(250)
   })
@@ -510,7 +518,7 @@ describe('covers MCP endpoint', () => {
       { name: 'create_wiki_page', arguments: { title: 'Auto Slug Page', content: 'hi' } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const created = JSON.parse(res.result.content[0].text) as { slug: string }
+    const created = parseNativeMcpText(res.result.content[0].text, SlugResponse)
     expect(created.slug).toBe('auto-slug-page')
   })
 
@@ -521,7 +529,7 @@ describe('covers MCP endpoint', () => {
       { name: 'create_wiki_page', arguments: { title: 'Rev Test', content: 'v1' } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const { id } = JSON.parse(createRes.result.content[0].text) as { id: string }
+    const { id } = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
 
     await mcpCall(
       workspaceId,
@@ -547,7 +555,7 @@ describe('covers MCP endpoint', () => {
       { name: 'create_wiki_page', arguments: { title: 'Title Only', content: 'body' } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const { id } = JSON.parse(createRes.result.content[0].text) as { id: string }
+    const { id } = parseNativeMcpText(createRes.result.content[0].text, IdResponse)
 
     await mcpCall(
       workspaceId,
@@ -680,7 +688,10 @@ describe('covers MCP endpoint', () => {
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const data = JSON.parse(res.result.content[0].text) as { issues: unknown[] }
+    const data = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Struct({ issues: Schema.Array(Schema.Unknown).pipe(Schema.mutable) }),
+    )
     expect(Array.isArray(data.issues)).toBe(true)
     expect(data.issues).toHaveLength(0)
   })
@@ -723,9 +734,12 @@ describe('covers MCP endpoint', () => {
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const data = JSON.parse(res.result.content[0].text) as {
-      issues: { title: string; _score: number }[]
-    }
+    const data = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Struct({
+        issues: Schema.Array(Schema.Struct({ _score: Schema.Number, title: Schema.String })).pipe(Schema.mutable),
+      }),
+    )
     const titles = data.issues.map((issue) => issue.title)
     expect(titles.indexOf('Urgent')).toBeLessThan(titles.indexOf('None'))
   })
@@ -750,7 +764,7 @@ describe('covers MCP endpoint', () => {
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const data = JSON.parse(res.result.content[0].text) as { issues: { title: string }[] }
+    const data = parseNativeMcpText(res.result.content[0].text, IssueTitlesResponse)
     const titles = data.issues.map((issue) => issue.title)
     expect(titles).toContain('Open')
     expect(titles).not.toContain('Done')
@@ -769,7 +783,10 @@ describe('covers MCP endpoint', () => {
       { name: 'get_prioritized_issues', arguments: { limit: 2, includeNotReady: true } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const data = JSON.parse(res.result.content[0].text) as { issues: unknown[] }
+    const data = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Struct({ issues: Schema.Array(Schema.Unknown).pipe(Schema.mutable) }),
+    )
     expect(data.issues).toHaveLength(2)
   })
 
@@ -797,9 +814,14 @@ describe('covers MCP endpoint', () => {
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const data = JSON.parse(res.result.content[0].text) as {
-      issues: { title: string; _score_breakdown: { centrality: number } }[]
-    }
+    const data = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Struct({
+        issues: Schema.Array(
+          Schema.Struct({ _score_breakdown: Schema.Struct({ centrality: Schema.Number }), title: Schema.String }),
+        ).pipe(Schema.mutable),
+      }),
+    )
     const targetRow = data.issues.find((issue) => issue.title === 'Target')
     const blockerRow = data.issues.find((issue) => issue.title === 'Blocker')
     expect(targetRow?._score_breakdown.centrality).toBe(1)
@@ -830,9 +852,12 @@ describe('covers MCP endpoint', () => {
       { name: 'get_prioritized_issues', arguments: { includeNotReady: true } },
       headers,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const data = JSON.parse(res.result.content[0].text) as {
-      issues: { title: string; _score: number }[]
-    }
+    const data = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Struct({
+        issues: Schema.Array(Schema.Struct({ _score: Schema.Number, title: Schema.String })).pipe(Schema.mutable),
+      }),
+    )
     const smallRow = data.issues.find((issue) => issue.title === 'Small (1pt)')
     const largeRow = data.issues.find((issue) => issue.title === 'Large (8pt)')
     // Smaller story points → higher score (1/sp is larger for small sp)

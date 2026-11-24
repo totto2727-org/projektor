@@ -17,7 +17,7 @@ import {
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { readNativeJson } from './response-json.ts'
+import { OkResponse, IdListResponse, IdResponse, parseNativeMcpText, readNativeJson } from './response-json.ts'
 
 const mcpCall = async function mcpCall<T>(
   workspaceId: string,
@@ -67,7 +67,10 @@ describe('workspaces MCP', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const data = JSON.parse(res.result.content[0].text) as { id: string; role: string }[]
+    const data = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Array(Schema.Struct({ id: Schema.String, role: Schema.String })).pipe(Schema.mutable),
+    )
     expect(Array.isArray(data)).toBe(true)
     expect(data).toHaveLength(1)
     expect(data[0].id).toBe(workspaceId)
@@ -89,7 +92,7 @@ describe('workspaces MCP', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const data = JSON.parse(res.result.content[0].text) as { id: string }[]
+    const data = parseNativeMcpText(res.result.content[0].text, IdListResponse)
     expect(data).toHaveLength(2)
     const ids = data.map((w) => w.id)
     expect(ids).toContain(workspaceId)
@@ -110,7 +113,7 @@ describe('workspaces MCP', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const data = JSON.parse(res.result.content[0].text) as { id: string }[]
+    const data = parseNativeMcpText(res.result.content[0].text, IdListResponse)
     const ids = data.map((w) => w.id)
     expect(ids).not.toContain(other.workspace.id)
   })
@@ -124,7 +127,10 @@ describe('workspaces MCP', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const data = JSON.parse(res.result.content[0].text) as Record<string, unknown>[]
+    const data = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Array(Schema.Record(Schema.String, Schema.Unknown)).pipe(Schema.mutable),
+    )
     expect(data[0]).toHaveProperty('id')
     expect(data[0]).toHaveProperty('name')
     expect(data[0]).toHaveProperty('slug')
@@ -140,11 +146,10 @@ describe('workspaces MCP', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const created = JSON.parse(res.result.content[0].text) as {
-      id: string
-      name: string
-      slug: string
-    }
+    const created = parseNativeMcpText(
+      res.result.content[0].text,
+      Schema.Struct({ id: Schema.String, name: Schema.String, slug: Schema.String }),
+    )
     expect(created.id).toBeTruthy()
     expect(created.name).toBe('New Workspace')
     expect(created.slug).toBe('new-ws')
@@ -159,7 +164,7 @@ describe('workspaces MCP', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const created = JSON.parse(res.result.content[0].text) as { id: string }
+    const created = parseNativeMcpText(res.result.content[0].text, IdResponse)
 
     // Caller should be able to list it via list_workspaces
     const listRes = (await mcpCall<{ content: { text: string }[] }>(
@@ -168,10 +173,10 @@ describe('workspaces MCP', () => {
       {},
       userHeaders,
     )) as JsonRpcResult<{ content: { text: string }[] }>
-    const workspaces = JSON.parse(listRes.result.content[0].text) as {
-      id: string
-      role: string
-    }[]
+    const workspaces = parseNativeMcpText(
+      listRes.result.content[0].text,
+      Schema.Array(Schema.Struct({ id: Schema.String, role: Schema.String })).pipe(Schema.mutable),
+    )
     const newWs = workspaces.find((workspace) => workspace.id === created.id)
     expect(newWs).toBeDefined()
     expect(newWs?.role).toBe('owner')
@@ -201,7 +206,7 @@ describe('workspaces MCP', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const data = JSON.parse(res.result.content[0].text) as { ok: boolean }
+    const data = parseNativeMcpText(res.result.content[0].text, OkResponse)
     expect(data.ok).toBe(true)
   })
 
@@ -301,7 +306,7 @@ describe('workspaces MCP', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
 
     expect(isMcpError(res)).toBe(false)
-    const data = JSON.parse(res.result.content[0].text) as { ok: boolean }
+    const data = parseNativeMcpText(res.result.content[0].text, OkResponse)
     expect(data.ok).toBe(true)
 
     const getRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {

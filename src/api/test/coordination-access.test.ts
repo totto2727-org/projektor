@@ -5,7 +5,7 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { RpcTextResponse, readNativeJson } from './response-json.ts'
+import { RecordItemsResponse, parseNativeMcpText, RpcTextResponse, readNativeJson } from './response-json.ts'
 
 /*
  * PROJ-316: the fleet-coordination list surfaces (issue-leases, file-claims,
@@ -41,7 +41,7 @@ const mcpList = async function mcpList(
     method: 'POST',
   })
   const body = await readNativeJson(res, RpcTextResponse)
-  return JSON.parse(body.result.content[0].text) as ListResult
+  return parseNativeMcpText(body.result.content[0].text, RecordItemsResponse)
 }
 
 const seedFileClaim = async function seedFileClaim(workspaceId: string, issueId: string, path: string): Promise<void> {

@@ -10,6 +10,7 @@ import { env } from './fixture-api.ts'
 import { seedIssueFixture, seedProjectFixture, seedToken, toolError } from './helpers.ts'
 import type { ToolErrorBody } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { IdListResponse, SlugResponse, parseNativeMcpText } from './response-json.ts'
 
 interface Rpc {
   error?: { code: number; message: string }
@@ -116,13 +117,15 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
   })
 
   test('conflict on a stale wiki save: re-read, then patch_wiki_page — and the current revision is in details', async () => {
-    const created = JSON.parse(
+    const created = parseNativeMcpText(
       (await call('create_wiki_page', { title: 'Locked Doc', content: 'v1' })).result?.content?.[0].text ?? '{}',
-    ) as { slug: string }
+      SlugResponse,
+    )
     await call('update_wiki_page', { slug: created.slug, content: 'v2' })
-    const revisions = JSON.parse(
+    const revisions = parseNativeMcpText(
       (await call('list_wiki_revisions', { slug: created.slug })).result?.content?.[0].text ?? '[]',
-    ) as { id: string }[]
+      IdListResponse,
+    )
     const stale = revisions[0].id
     await call('update_wiki_page', { slug: created.slug, content: 'v3', baseRevisionId: stale })
 

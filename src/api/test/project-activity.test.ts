@@ -7,6 +7,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProject, seedProjectFixture, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
+import { UnknownItemsResponse, ItemsResponse, parseNativeMcpText } from './response-json.ts'
 
 interface McpContent {
   content: { text: string }[]
@@ -36,7 +37,7 @@ const parseEvents = function parseEvents(res: JsonRpcResult<McpContent> | JsonRp
     throw new Error(`MCP error: ${res.error.message}`)
   }
   const r = res as JsonRpcResult<McpContent>
-  return (JSON.parse(r.result.content[0].text) as { items: unknown[] }).items
+  return parseNativeMcpText(r.result.content[0].text, ItemsResponse).items
 }
 
 const seedSprint = async function seedSprint(
@@ -125,7 +126,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       type: string
       summary: string
       entity_type: string
@@ -151,7 +152,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       type: string
       actor: string | null
     }[]
@@ -170,7 +171,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       type: string
       entity_type: string
       summary: string
@@ -196,7 +197,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       type: string
     }[]
 
@@ -213,7 +214,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       type: string
     }[]
 
@@ -234,7 +235,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       type: string
     }[]
 
@@ -256,7 +257,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       type: string
       summary: string
       entity_type: string
@@ -283,7 +284,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       type: string
       summary: string
     }[]
@@ -307,7 +308,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId, limit: 2 },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as unknown[]
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as unknown[]
     expect(events).toHaveLength(2)
   })
 
@@ -322,7 +323,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId, since: past },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       summary: string
     }[]
 
@@ -342,7 +343,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       summary: string
       created_at: number
     }[]
@@ -365,7 +366,7 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as {
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as {
       summary: string
     }[]
 
@@ -395,7 +396,10 @@ describe('list_project_activity MCP tool', () => {
       { projectId },
       headers,
     )) as JsonRpcResult<McpContent>
-    const events = (JSON.parse(res.result.content[0].text) as { items: unknown }).items as Record<string, unknown>[]
+    const events = parseNativeMcpText(res.result.content[0].text, UnknownItemsResponse).items as Record<
+      string,
+      unknown
+    >[]
 
     Iterable.forEach(events, (event) => {
       Iterable.forEach(Object.values(event), (val) => {

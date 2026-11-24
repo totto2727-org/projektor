@@ -6,7 +6,14 @@ import { currentEpochSeconds } from '#contracts/time.ts'
 import { configureCore, env } from './fixture-api.ts'
 import { authHeaders, hashToken, seedFixture, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
-import { ErrorMessageResponse, IdResponse, ItemsResponse, RpcTextResponse, readNativeJson } from './response-json.ts'
+import {
+  parseNativeMcpText,
+  ErrorMessageResponse,
+  IdResponse,
+  ItemsResponse,
+  RpcTextResponse,
+  readNativeJson,
+} from './response-json.ts'
 
 describe('file Claims API', () => {
   let token: string
@@ -108,9 +115,10 @@ describe('file Claims API', () => {
     const mcpRes = await mcpCall('list_file_claims', { issueId })
     expect(mcpRes.status).toBe(200)
     const mcpBody = await readNativeJson(mcpRes, RpcTextResponse)
-    const mcpData = JSON.parse(mcpBody.result.content[0].text) as {
-      items: { path: string }[]
-    }
+    const mcpData = parseNativeMcpText(
+      mcpBody.result.content[0].text,
+      Schema.Struct({ items: Schema.Array(Schema.Struct({ path: Schema.String })).pipe(Schema.mutable) }),
+    )
     expect(mcpData.items.some((item) => item.path === 'src/foo.ts')).toBe(true)
   })
 
