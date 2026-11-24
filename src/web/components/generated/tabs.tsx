@@ -7,7 +7,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Tabs({ className, orientation = 'horizontal', ...props }: TabsPrimitive.Root.Props) {
+export const Tabs = function Tabs({ className, orientation = 'horizontal', ...props }: TabsPrimitive.Root.Props) {
   return (
     <TabsPrimitive.Root
       data-slot='tabs'
@@ -18,7 +18,7 @@ function Tabs({ className, orientation = 'horizontal', ...props }: TabsPrimitive
   )
 }
 
-const tabsListVariants = cva(
+export const tabsListVariants = cva(
   'group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none',
   {
     variants: {
@@ -33,7 +33,7 @@ const tabsListVariants = cva(
   },
 )
 
-function TabsList({
+export const TabsList = function TabsList({
   className,
   variant = 'default',
   ...props
@@ -48,7 +48,7 @@ function TabsList({
   )
 }
 
-function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
+export const TabsTrigger = function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   return (
     <TabsPrimitive.Tab
       data-slot='tabs-trigger'
@@ -64,10 +64,8 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   )
 }
 
-function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+export const TabsContent = function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   return (
     <TabsPrimitive.Panel data-slot='tabs-content' className={cn('flex-1 text-sm outline-none', className)} {...props} />
   )
 }
-
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }

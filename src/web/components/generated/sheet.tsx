@@ -9,23 +9,23 @@ import { Button } from '@/components/generated/button'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Sheet({ ...props }: SheetPrimitive.Root.Props) {
+export const Sheet = function Sheet({ ...props }: SheetPrimitive.Root.Props): React.JSX.Element {
   return <SheetPrimitive.Root data-slot='sheet' {...props} />
 }
 
-function SheetTrigger({ ...props }: SheetPrimitive.Trigger.Props) {
+export const SheetTrigger = function SheetTrigger({ ...props }: SheetPrimitive.Trigger.Props): React.JSX.Element {
   return <SheetPrimitive.Trigger data-slot='sheet-trigger' {...props} />
 }
 
-function SheetClose({ ...props }: SheetPrimitive.Close.Props) {
+export const SheetClose = function SheetClose({ ...props }: SheetPrimitive.Close.Props): React.JSX.Element {
   return <SheetPrimitive.Close data-slot='sheet-close' {...props} />
 }
 
-function SheetPortal({ ...props }: SheetPrimitive.Portal.Props) {
+const SheetPortal = function SheetPortal({ ...props }: SheetPrimitive.Portal.Props): React.JSX.Element {
   return <SheetPrimitive.Portal data-slot='sheet-portal' {...props} />
 }
 
-function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
+const SheetOverlay = function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props): React.JSX.Element {
   return (
     <SheetPrimitive.Backdrop
       data-slot='sheet-overlay'
@@ -38,7 +38,7 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
   )
 }
 
-function SheetContent({
+export const SheetContent = function SheetContent({
   className,
   children,
   side = 'right',
@@ -47,7 +47,7 @@ function SheetContent({
 }: SheetPrimitive.Popup.Props & {
   side?: 'top' | 'right' | 'bottom' | 'left'
   showCloseButton?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -75,15 +75,21 @@ function SheetContent({
   )
 }
 
-function SheetHeader({ className, ...props }: React.ComponentProps<'div'>) {
+export const SheetHeader = function SheetHeader({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return <div data-slot='sheet-header' className={cn('flex flex-col gap-0.5 p-4', className)} {...props} />
 }
 
-function SheetFooter({ className, ...props }: React.ComponentProps<'div'>) {
+export const SheetFooter = function SheetFooter({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return <div data-slot='sheet-footer' className={cn('mt-auto flex flex-col gap-2 p-4', className)} {...props} />
 }
 
-function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
+export const SheetTitle = function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props): React.JSX.Element {
   return (
     <SheetPrimitive.Title
       data-slot='sheet-title'
@@ -93,7 +99,10 @@ function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
   )
 }
 
-function SheetDescription({ className, ...props }: SheetPrimitive.Description.Props) {
+export const SheetDescription = function SheetDescription({
+  className,
+  ...props
+}: SheetPrimitive.Description.Props): React.JSX.Element {
   return (
     <SheetPrimitive.Description
       data-slot='sheet-description'
@@ -102,5 +111,3 @@ function SheetDescription({ className, ...props }: SheetPrimitive.Description.Pr
     />
   )
 }
-
-export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription }

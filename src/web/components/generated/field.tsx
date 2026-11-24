@@ -9,7 +9,7 @@ import { Separator } from '@/components/generated/separator'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function FieldSet({ className, ...props }: React.ComponentProps<'fieldset'>) {
+export const FieldSet = function FieldSet({ className, ...props }: React.ComponentProps<'fieldset'>) {
   return (
     <fieldset
       data-slot='field-set'
@@ -22,7 +22,7 @@ function FieldSet({ className, ...props }: React.ComponentProps<'fieldset'>) {
   )
 }
 
-function FieldLegend({
+export const FieldLegend = function FieldLegend({
   className,
   variant = 'legend',
   ...props
@@ -37,7 +37,7 @@ function FieldLegend({
   )
 }
 
-function FieldGroup({ className, ...props }: React.ComponentProps<'div'>) {
+export const FieldGroup = function FieldGroup({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot='field-group'
@@ -65,7 +65,7 @@ const fieldVariants = cva('group/field flex w-full gap-2 data-[invalid=true]:tex
   },
 })
 
-function Field({
+export const Field = function Field({
   className,
   orientation = 'vertical',
   ...props
@@ -81,7 +81,7 @@ function Field({
   )
 }
 
-function FieldContent({ className, ...props }: React.ComponentProps<'div'>) {
+export const FieldContent = function FieldContent({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot='field-content'
@@ -91,7 +91,7 @@ function FieldContent({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-function FieldLabel({ className, ...props }: React.ComponentProps<typeof Label>) {
+export const FieldLabel = function FieldLabel({ className, ...props }: React.ComponentProps<typeof Label>) {
   return (
     <Label
       data-slot='field-label'
@@ -105,7 +105,7 @@ function FieldLabel({ className, ...props }: React.ComponentProps<typeof Label>)
   )
 }
 
-function FieldTitle({ className, ...props }: React.ComponentProps<'div'>) {
+export const FieldTitle = function FieldTitle({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot='field-label'
@@ -118,7 +118,7 @@ function FieldTitle({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-function FieldDescription({ className, ...props }: React.ComponentProps<'p'>) {
+export const FieldDescription = function FieldDescription({ className, ...props }: React.ComponentProps<'p'>) {
   return (
     <p
       data-slot='field-description'
@@ -133,7 +133,7 @@ function FieldDescription({ className, ...props }: React.ComponentProps<'p'>) {
   )
 }
 
-function FieldSeparator({
+export const FieldSeparator = function FieldSeparator({
   children,
   className,
   ...props
@@ -160,7 +160,7 @@ function FieldSeparator({
   )
 }
 
-function FieldError({
+export const FieldError = function FieldError({
   className,
   children,
   errors,
@@ -204,17 +204,4 @@ function FieldError({
       {content}
     </div>
   )
-}
-
-export {
-  Field,
-  FieldLabel,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLegend,
-  FieldSeparator,
-  FieldSet,
-  FieldContent,
-  FieldTitle,
 }

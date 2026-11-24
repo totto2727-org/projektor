@@ -7,13 +7,13 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Avatar({
+export const Avatar = function Avatar({
   className,
   size = 'default',
   ...props
 }: AvatarPrimitive.Root.Props & {
   size?: 'default' | 'sm' | 'lg'
-}) {
+}): React.JSX.Element {
   return (
     <AvatarPrimitive.Root
       data-slot='avatar'
@@ -27,7 +27,10 @@ function Avatar({
   )
 }
 
-function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
+export const AvatarImage = function AvatarImage({
+  className,
+  ...props
+}: AvatarPrimitive.Image.Props): React.JSX.Element {
   return (
     <AvatarPrimitive.Image
       data-slot='avatar-image'
@@ -37,7 +40,10 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
   )
 }
 
-function AvatarFallback({ className, ...props }: AvatarPrimitive.Fallback.Props) {
+export const AvatarFallback = function AvatarFallback({
+  className,
+  ...props
+}: AvatarPrimitive.Fallback.Props): React.JSX.Element {
   return (
     <AvatarPrimitive.Fallback
       data-slot='avatar-fallback'
@@ -50,7 +56,10 @@ function AvatarFallback({ className, ...props }: AvatarPrimitive.Fallback.Props)
   )
 }
 
-function AvatarBadge({ className, ...props }: React.ComponentProps<'span'>) {
+export const AvatarBadge = function AvatarBadge({
+  className,
+  ...props
+}: React.ComponentProps<'span'>): React.JSX.Element {
   return (
     <span
       data-slot='avatar-badge'
@@ -66,7 +75,10 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<'span'>) {
   )
 }
 
-function AvatarGroup({ className, ...props }: React.ComponentProps<'div'>) {
+export const AvatarGroup = function AvatarGroup({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='avatar-group'
@@ -79,7 +91,10 @@ function AvatarGroup({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-function AvatarGroupCount({ className, ...props }: React.ComponentProps<'div'>) {
+export const AvatarGroupCount = function AvatarGroupCount({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='avatar-group-count'
@@ -91,5 +106,3 @@ function AvatarGroupCount({ className, ...props }: React.ComponentProps<'div'>) 
     />
   )
 }
-
-export { Avatar, AvatarImage, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarBadge }

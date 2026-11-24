@@ -25,7 +25,7 @@ type ChartContextProps = {
 
 const ChartContext = React.createContext<ChartContextProps | null>(null)
 
-function useChart() {
+const useChart = function useChart(): ChartContextProps {
   const context = React.useContext(ChartContext)
 
   if (!context) {
@@ -35,7 +35,7 @@ function useChart() {
   return context
 }
 
-function ChartContainer({
+export const ChartContainer = function ChartContainer({
   id,
   className,
   children,
@@ -49,7 +49,7 @@ function ChartContainer({
     width: number
     height: number
   }
-}) {
+}): React.JSX.Element {
   const uniqueId = React.useId()
   const chartId = `chart-${id ?? uniqueId.replace(/:/g, '')}`
 
@@ -73,7 +73,7 @@ function ChartContainer({
   )
 }
 
-const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+export const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }): React.JSX.Element | null => {
   const colorConfig = Object.entries(config).filter(([, config]) => config.theme ?? config.color)
 
   if (!colorConfig.length) {
@@ -102,9 +102,9 @@ ${colorConfig
   )
 }
 
-const ChartTooltip = RechartsPrimitive.Tooltip
+export const ChartTooltip = RechartsPrimitive.Tooltip
 
-function ChartTooltipContent({
+export function ChartTooltipContent({
   active,
   payload,
   className,
@@ -125,7 +125,10 @@ function ChartTooltipContent({
     indicator?: 'line' | 'dot' | 'dashed'
     nameKey?: string
     labelKey?: string
-  } & Omit<RechartsPrimitive.DefaultTooltipContentProps<TooltipValueType, TooltipNameType>, 'accessibilityLayer'>) {
+  } & Omit<
+    RechartsPrimitive.DefaultTooltipContentProps<TooltipValueType, TooltipNameType>,
+    'accessibilityLayer'
+  >): React.JSX.Element | null {
   const { config } = useChart()
 
   const tooltipLabel = React.useMemo(() => {
@@ -229,9 +232,9 @@ function ChartTooltipContent({
   )
 }
 
-const ChartLegend = RechartsPrimitive.Legend
+export const ChartLegend = RechartsPrimitive.Legend
 
-function ChartLegendContent({
+export function ChartLegendContent({
   className,
   hideIcon = false,
   payload,
@@ -240,7 +243,7 @@ function ChartLegendContent({
 }: React.ComponentProps<'div'> & {
   hideIcon?: boolean
   nameKey?: string
-} & RechartsPrimitive.DefaultLegendContentProps) {
+} & RechartsPrimitive.DefaultLegendContentProps): React.JSX.Element | null {
   const { config } = useChart()
 
   if (!payload?.length) {
@@ -302,5 +305,3 @@ function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key:
 
   return configLabelKey in config ? config[configLabelKey] : config[key]
 }
-
-export { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, ChartStyle }

@@ -7,7 +7,7 @@ import { CheckIcon } from 'lucide-react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
+export const Checkbox = function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
   return (
     <CheckboxPrimitive.Root
       data-slot='checkbox'
@@ -26,5 +26,3 @@ function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
     </CheckboxPrimitive.Root>
   )
 }
-
-export { Checkbox }

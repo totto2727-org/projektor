@@ -6,7 +6,7 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Label({ className, ...props }: React.ComponentProps<'label'>) {
+export const Label = function Label({ className, ...props }: React.ComponentProps<'label'>): React.JSX.Element {
   return (
     <label
       data-slot='label'
@@ -18,5 +18,3 @@ function Label({ className, ...props }: React.ComponentProps<'label'>) {
     />
   )
 }
-
-export { Label }

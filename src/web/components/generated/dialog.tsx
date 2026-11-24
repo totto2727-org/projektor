@@ -9,23 +9,26 @@ import { Button } from '@/components/generated/button'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
+export const Dialog = function Dialog({ ...props }: DialogPrimitive.Root.Props): React.JSX.Element {
   return <DialogPrimitive.Root data-slot='dialog' {...props} />
 }
 
-function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
+export const DialogTrigger = function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props): React.JSX.Element {
   return <DialogPrimitive.Trigger data-slot='dialog-trigger' {...props} />
 }
 
-function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
+export const DialogPortal = function DialogPortal({ ...props }: DialogPrimitive.Portal.Props): React.JSX.Element {
   return <DialogPrimitive.Portal data-slot='dialog-portal' {...props} />
 }
 
-function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
+export const DialogClose = function DialogClose({ ...props }: DialogPrimitive.Close.Props): React.JSX.Element {
   return <DialogPrimitive.Close data-slot='dialog-close' {...props} />
 }
 
-function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) {
+export const DialogOverlay = function DialogOverlay({
+  className,
+  ...props
+}: DialogPrimitive.Backdrop.Props): React.JSX.Element {
   return (
     <DialogPrimitive.Backdrop
       data-slot='dialog-overlay'
@@ -38,14 +41,14 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
   )
 }
 
-function DialogContent({
+export const DialogContent = function DialogContent({
   className,
   children,
   showCloseButton = true,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -72,18 +75,21 @@ function DialogContent({
   )
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
+export const DialogHeader = function DialogHeader({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return <div data-slot='dialog-header' className={cn('flex flex-col gap-2', className)} {...props} />
 }
 
-function DialogFooter({
+export const DialogFooter = function DialogFooter({
   className,
   showCloseButton = false,
   children,
   ...props
 }: React.ComponentProps<'div'> & {
   showCloseButton?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <div
       data-slot='dialog-footer'
@@ -99,7 +105,10 @@ function DialogFooter({
   )
 }
 
-function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
+export const DialogTitle = function DialogTitle({
+  className,
+  ...props
+}: DialogPrimitive.Title.Props): React.JSX.Element {
   return (
     <DialogPrimitive.Title
       data-slot='dialog-title'
@@ -109,7 +118,10 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   )
 }
 
-function DialogDescription({ className, ...props }: DialogPrimitive.Description.Props) {
+export const DialogDescription = function DialogDescription({
+  className,
+  ...props
+}: DialogPrimitive.Description.Props): React.JSX.Element {
   return (
     <DialogPrimitive.Description
       data-slot='dialog-description'
@@ -120,17 +132,4 @@ function DialogDescription({ className, ...props }: DialogPrimitive.Description.
       {...props}
     />
   )
-}
-
-export {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-  DialogTrigger,
 }

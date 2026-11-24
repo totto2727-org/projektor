@@ -4,7 +4,10 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Textarea({ className, ...props }: React.ComponentProps<'textarea'>) {
+export const Textarea = function Textarea({
+  className,
+  ...props
+}: React.ComponentProps<'textarea'>): React.JSX.Element {
   return (
     <textarea
       data-slot='textarea'
@@ -16,5 +19,3 @@ function Textarea({ className, ...props }: React.ComponentProps<'textarea'>) {
     />
   )
 }
-
-export { Textarea }

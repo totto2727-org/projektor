@@ -4,7 +4,11 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Card({ className, size = 'default', ...props }: React.ComponentProps<'div'> & { size?: 'default' | 'sm' }) {
+export const Card = function Card({
+  className,
+  size = 'default',
+  ...props
+}: React.ComponentProps<'div'> & { size?: 'default' | 'sm' }): React.JSX.Element {
   return (
     <div
       data-slot='card'
@@ -18,7 +22,7 @@ function Card({ className, size = 'default', ...props }: React.ComponentProps<'d
   )
 }
 
-function CardHeader({ className, ...props }: React.ComponentProps<'div'>) {
+export const CardHeader = function CardHeader({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='card-header'
@@ -31,7 +35,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<'div'>) {
+export const CardTitle = function CardTitle({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='card-title'
@@ -41,11 +45,14 @@ function CardTitle({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-function CardDescription({ className, ...props }: React.ComponentProps<'div'>) {
+export const CardDescription = function CardDescription({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return <div data-slot='card-description' className={cn('text-sm text-muted-foreground', className)} {...props} />
 }
 
-function CardAction({ className, ...props }: React.ComponentProps<'div'>) {
+export const CardAction = function CardAction({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='card-action'
@@ -55,11 +62,14 @@ function CardAction({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-function CardContent({ className, ...props }: React.ComponentProps<'div'>) {
+export const CardContent = function CardContent({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return <div data-slot='card-content' className={cn('px-(--card-spacing)', className)} {...props} />
 }
 
-function CardFooter({ className, ...props }: React.ComponentProps<'div'>) {
+export const CardFooter = function CardFooter({ className, ...props }: React.ComponentProps<'div'>): React.JSX.Element {
   return (
     <div
       data-slot='card-footer'
@@ -68,5 +78,3 @@ function CardFooter({ className, ...props }: React.ComponentProps<'div'>) {
     />
   )
 }
-
-export { Card, CardHeader, CardFooter, CardTitle, CardAction, CardDescription, CardContent }

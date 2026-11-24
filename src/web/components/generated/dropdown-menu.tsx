@@ -8,26 +8,31 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
+export const DropdownMenu = function DropdownMenu({ ...props }: MenuPrimitive.Root.Props): React.JSX.Element {
   return <MenuPrimitive.Root data-slot='dropdown-menu' {...props} />
 }
 
-function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
+export const DropdownMenuPortal = function DropdownMenuPortal({
+  ...props
+}: MenuPrimitive.Portal.Props): React.JSX.Element {
   return <MenuPrimitive.Portal data-slot='dropdown-menu-portal' {...props} />
 }
 
-function DropdownMenuTrigger({ ...props }: MenuPrimitive.Trigger.Props) {
+export const DropdownMenuTrigger = function DropdownMenuTrigger({
+  ...props
+}: MenuPrimitive.Trigger.Props): React.JSX.Element {
   return <MenuPrimitive.Trigger data-slot='dropdown-menu-trigger' {...props} />
 }
 
-function DropdownMenuContent({
+export const DropdownMenuContent = function DropdownMenuContent({
   align = 'start',
   alignOffset = 0,
   side = 'bottom',
   sideOffset = 4,
   className,
   ...props
-}: MenuPrimitive.Popup.Props & Pick<MenuPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset'>) {
+}: MenuPrimitive.Popup.Props &
+  Pick<MenuPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset'>): React.JSX.Element {
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
@@ -50,17 +55,19 @@ function DropdownMenuContent({
   )
 }
 
-function DropdownMenuGroup({ ...props }: MenuPrimitive.Group.Props) {
+export const DropdownMenuGroup = function DropdownMenuGroup({
+  ...props
+}: MenuPrimitive.Group.Props): React.JSX.Element {
   return <MenuPrimitive.Group data-slot='dropdown-menu-group' {...props} />
 }
 
-function DropdownMenuLabel({
+export const DropdownMenuLabel = function DropdownMenuLabel({
   className,
   inset,
   ...props
 }: MenuPrimitive.GroupLabel.Props & {
   inset?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <MenuPrimitive.GroupLabel
       data-slot='dropdown-menu-label'
@@ -71,7 +78,7 @@ function DropdownMenuLabel({
   )
 }
 
-function DropdownMenuItem({
+export const DropdownMenuItem = function DropdownMenuItem({
   className,
   inset,
   variant = 'default',
@@ -79,7 +86,7 @@ function DropdownMenuItem({
 }: MenuPrimitive.Item.Props & {
   inset?: boolean
   variant?: 'default' | 'destructive'
-}) {
+}): React.JSX.Element {
   return (
     <MenuPrimitive.Item
       data-slot='dropdown-menu-item'
@@ -94,18 +101,20 @@ function DropdownMenuItem({
   )
 }
 
-function DropdownMenuSub({ ...props }: MenuPrimitive.SubmenuRoot.Props) {
+export const DropdownMenuSub = function DropdownMenuSub({
+  ...props
+}: MenuPrimitive.SubmenuRoot.Props): React.JSX.Element {
   return <MenuPrimitive.SubmenuRoot data-slot='dropdown-menu-sub' {...props} />
 }
 
-function DropdownMenuSubTrigger({
+export const DropdownMenuSubTrigger = function DropdownMenuSubTrigger({
   className,
   inset,
   children,
   ...props
 }: MenuPrimitive.SubmenuTrigger.Props & {
   inset?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <MenuPrimitive.SubmenuTrigger
       data-slot='dropdown-menu-sub-trigger'
@@ -122,14 +131,14 @@ function DropdownMenuSubTrigger({
   )
 }
 
-function DropdownMenuSubContent({
+export const DropdownMenuSubContent = function DropdownMenuSubContent({
   align = 'start',
   alignOffset = -3,
   side = 'right',
   sideOffset = 0,
   className,
   ...props
-}: React.ComponentProps<typeof DropdownMenuContent>) {
+}: React.ComponentProps<typeof DropdownMenuContent>): React.JSX.Element {
   return (
     <DropdownMenuContent
       data-slot='dropdown-menu-sub-content'
@@ -146,7 +155,7 @@ function DropdownMenuSubContent({
   )
 }
 
-function DropdownMenuCheckboxItem({
+export const DropdownMenuCheckboxItem = function DropdownMenuCheckboxItem({
   className,
   children,
   checked,
@@ -154,7 +163,7 @@ function DropdownMenuCheckboxItem({
   ...props
 }: MenuPrimitive.CheckboxItem.Props & {
   inset?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <MenuPrimitive.CheckboxItem
       data-slot='dropdown-menu-checkbox-item'
@@ -179,18 +188,20 @@ function DropdownMenuCheckboxItem({
   )
 }
 
-function DropdownMenuRadioGroup({ ...props }: MenuPrimitive.RadioGroup.Props) {
+export const DropdownMenuRadioGroup = function DropdownMenuRadioGroup({
+  ...props
+}: MenuPrimitive.RadioGroup.Props): React.JSX.Element {
   return <MenuPrimitive.RadioGroup data-slot='dropdown-menu-radio-group' {...props} />
 }
 
-function DropdownMenuRadioItem({
+export const DropdownMenuRadioItem = function DropdownMenuRadioItem({
   className,
   children,
   inset,
   ...props
 }: MenuPrimitive.RadioItem.Props & {
   inset?: boolean
-}) {
+}): React.JSX.Element {
   return (
     <MenuPrimitive.RadioItem
       data-slot='dropdown-menu-radio-item'
@@ -214,7 +225,10 @@ function DropdownMenuRadioItem({
   )
 }
 
-function DropdownMenuSeparator({ className, ...props }: MenuPrimitive.Separator.Props) {
+export const DropdownMenuSeparator = function DropdownMenuSeparator({
+  className,
+  ...props
+}: MenuPrimitive.Separator.Props): React.JSX.Element {
   return (
     <MenuPrimitive.Separator
       data-slot='dropdown-menu-separator'
@@ -224,7 +238,10 @@ function DropdownMenuSeparator({ className, ...props }: MenuPrimitive.Separator.
   )
 }
 
-function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<'span'>) {
+export const DropdownMenuShortcut = function DropdownMenuShortcut({
+  className,
+  ...props
+}: React.ComponentProps<'span'>): React.JSX.Element {
   return (
     <span
       data-slot='dropdown-menu-shortcut'
@@ -235,22 +252,4 @@ function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<'spa
       {...props}
     />
   )
-}
-
-export {
-  DropdownMenu,
-  DropdownMenuPortal,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuItem,
-  DropdownMenuCheckboxItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
 }

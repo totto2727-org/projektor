@@ -6,7 +6,11 @@ import { Separator as SeparatorPrimitive } from '@base-ui/react/separator'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Separator({ className, orientation = 'horizontal', ...props }: SeparatorPrimitive.Props) {
+export const Separator = function Separator({
+  className,
+  orientation = 'horizontal',
+  ...props
+}: SeparatorPrimitive.Props) {
   return (
     <SeparatorPrimitive
       data-slot='separator'
@@ -19,5 +23,3 @@ function Separator({ className, orientation = 'horizontal', ...props }: Separato
     />
   )
 }
-
-export { Separator }

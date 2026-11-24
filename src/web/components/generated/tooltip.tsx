@@ -6,19 +6,19 @@ import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function TooltipProvider({ delay = 0, ...props }: TooltipPrimitive.Provider.Props) {
+export const TooltipProvider = function TooltipProvider({ delay = 0, ...props }: TooltipPrimitive.Provider.Props) {
   return <TooltipPrimitive.Provider data-slot='tooltip-provider' delay={delay} {...props} />
 }
 
-function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
+export const Tooltip = function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
   return <TooltipPrimitive.Root data-slot='tooltip' {...props} />
 }
 
-function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
+export const TooltipTrigger = function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
   return <TooltipPrimitive.Trigger data-slot='tooltip-trigger' {...props} />
 }
 
-function TooltipContent({
+export const TooltipContent = function TooltipContent({
   className,
   side = 'top',
   sideOffset = 4,
@@ -52,5 +52,3 @@ function TooltipContent({
     </TooltipPrimitive.Portal>
   )
 }
-
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }

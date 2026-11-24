@@ -7,15 +7,15 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Popover({ ...props }: PopoverPrimitive.Root.Props) {
+export const Popover = function Popover({ ...props }: PopoverPrimitive.Root.Props): React.JSX.Element {
   return <PopoverPrimitive.Root data-slot='popover' {...props} />
 }
 
-function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
+export const PopoverTrigger = function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props): React.JSX.Element {
   return <PopoverPrimitive.Trigger data-slot='popover-trigger' {...props} />
 }
 
-function PopoverContent({
+export const PopoverContent = function PopoverContent({
   className,
   align = 'center',
   alignOffset = 0,
@@ -23,7 +23,7 @@ function PopoverContent({
   sideOffset = 4,
   ...props
 }: PopoverPrimitive.Popup.Props &
-  Pick<PopoverPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset'>) {
+  Pick<PopoverPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset'>): React.JSX.Element {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
@@ -46,15 +46,24 @@ function PopoverContent({
   )
 }
 
-function PopoverHeader({ className, ...props }: React.ComponentProps<'div'>) {
+export const PopoverHeader = function PopoverHeader({
+  className,
+  ...props
+}: React.ComponentProps<'div'>): React.JSX.Element {
   return <div data-slot='popover-header' className={cn('flex flex-col gap-0.5 text-sm', className)} {...props} />
 }
 
-function PopoverTitle({ className, ...props }: PopoverPrimitive.Title.Props) {
+export const PopoverTitle = function PopoverTitle({
+  className,
+  ...props
+}: PopoverPrimitive.Title.Props): React.JSX.Element {
   return <PopoverPrimitive.Title data-slot='popover-title' className={cn('font-medium', className)} {...props} />
 }
 
-function PopoverDescription({ className, ...props }: PopoverPrimitive.Description.Props) {
+export const PopoverDescription = function PopoverDescription({
+  className,
+  ...props
+}: PopoverPrimitive.Description.Props): React.JSX.Element {
   return (
     <PopoverPrimitive.Description
       data-slot='popover-description'
@@ -63,5 +72,3 @@ function PopoverDescription({ className, ...props }: PopoverPrimitive.Descriptio
     />
   )
 }
-
-export { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger }

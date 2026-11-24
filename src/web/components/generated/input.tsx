@@ -5,7 +5,7 @@ import * as React from 'react'
 // Generated shadcn 4.21.1 base-nova behavior and styling are otherwise unchanged.
 import { cn } from '@/lib/utils'
 
-function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
+export const Input = function Input({ className, type, ...props }: React.ComponentProps<'input'>): React.JSX.Element {
   return (
     <InputPrimitive
       type={type}
@@ -18,5 +18,3 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
     />
   )
 }
-
-export { Input }
