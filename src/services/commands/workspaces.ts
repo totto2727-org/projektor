@@ -30,7 +30,7 @@ import { buildDefaultTaskTypeStatements } from './task-types.ts'
 import type { ServiceCtx } from './types.ts'
 import { buildDefaultWikiTemplateStatements } from './wiki.ts'
 
-async function sha256hex(s: string): Promise<string> {
+const sha256hex = async function sha256hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
   return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -406,7 +406,7 @@ export interface WorkspaceBrandDto {
   logoUrl: string | null
 }
 
-function requireBrandWrite(ctx: ServiceCtx): void {
+const requireBrandWrite = function requireBrandWrite(ctx: ServiceCtx): void {
   if (ctx.role !== 'owner' && ctx.role !== 'admin') {
     throw new ForbiddenError()
   }
@@ -416,12 +416,12 @@ async function readBrand(ctx: ServiceCtx): Promise<WorkspaceBrand> {
   return Effect.runPromise(data.readWorkspaceBrand(ctx.db, ctx.workspaceId))
 }
 
-async function writeBrand(ctx: ServiceCtx, brand: WorkspaceBrand): Promise<void> {
+const writeBrand = async function writeBrand(ctx: ServiceCtx, brand: WorkspaceBrand): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
   await orm.update(schema.workspaces).set({ brand }).where(eq(schema.workspaces.id, ctx.workspaceId))
 }
 
-function toBrandDto(brand: WorkspaceBrand, workspaceSlug: string): WorkspaceBrandDto {
+const toBrandDto = function toBrandDto(brand: WorkspaceBrand, workspaceSlug: string): WorkspaceBrandDto {
   return {
     displayName: brand.displayName ?? null,
     accent: brand.accent ?? null,
@@ -526,7 +526,7 @@ export async function deleteWorkspaceLogo(ctx: ServiceCtx): Promise<{ ok: true }
   return { ok: true }
 }
 
-function ownsLogoKey(workspaceId: string, r2Key: string): boolean {
+const ownsLogoKey = function ownsLogoKey(workspaceId: string, r2Key: string): boolean {
   return r2Key.startsWith(`${workspaceId}/brand-logo/`)
 }
 

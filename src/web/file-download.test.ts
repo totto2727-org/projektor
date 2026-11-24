@@ -7,7 +7,7 @@ import { downloadFile } from './file-download.ts'
 import { makeRequestServices, RequestServices } from './request.ts'
 import { testEnvironment } from './server/test/resources.ts'
 
-function fixture(contentType = 'image/png', filename = 'diagram.png') {
+const fixture = function fixture(contentType = 'image/png', filename = 'diagram.png') {
   const database = featureDatabase()
   database.sqlite.exec(`
     UPDATE projects SET archived_at = 2 WHERE id = 'p1';
@@ -35,7 +35,7 @@ function fixture(contentType = 'image/png', filename = 'diagram.png') {
     DEFAULT_WORKSPACE_SLUG: 'alpha',
     AUTO_JOIN_ROLE: 'none',
   })
-  function execute(path = '/api/files/a1?workspace=alpha', method = 'GET', headers?: HeadersInit) {
+  const execute = function execute(path = '/api/files/a1?workspace=alpha', method = 'GET', headers?: HeadersInit) {
     const request = new Request(`https://front.example${path}`, { method, headers })
     return Effect.runPromise(
       Effect.gen(function* () {

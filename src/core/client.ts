@@ -22,7 +22,7 @@ export function makeCoreClient(binding?: unknown): CoreRpcShape | LazyCoreClient
   return makeRpcStub<CoreRpcShape>(binding ?? WorkerEnvironment.pipe(Effect.map((env) => env.CORE)))
 }
 
-function decodeFailure(stage: 'transport' | 'reply', cause: Cause.Cause<unknown>) {
+const decodeFailure = function decodeFailure(stage: 'transport' | 'reply', cause: Cause.Cause<unknown>) {
   if (Cause.hasInterruptsOnly(cause)) {
     return Effect.failCause(Cause.fromReasons<never>(cause.reasons.filter(Cause.isInterruptReason)))
   }

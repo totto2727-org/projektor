@@ -92,7 +92,10 @@ async function sha256Prefix(input: string): Promise<string> {
 const PRUNE_PROBABILITY = 0.01
 const PRUNE_RETENTION_WINDOWS = 10
 
-function pruneStaleRateLimitRows(db: D1Database, windowSecs: number): D1PreparedStatement {
+const pruneStaleRateLimitRows = function pruneStaleRateLimitRows(
+  db: D1Database,
+  windowSecs: number,
+): D1PreparedStatement {
   const cutoff = Math.floor(Date.now() / 1000) - windowSecs * PRUNE_RETENTION_WINDOWS
   return db.prepare('DELETE FROM rate_limit WHERE window_start < ?').bind(cutoff)
 }

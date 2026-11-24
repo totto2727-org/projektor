@@ -6,12 +6,12 @@ import { afterEach, describe, expect, test } from 'vite-plus/test'
 import { imageUploads, insertUploadedImages } from './image-uploads.ts'
 
 const views: EditorView[] = []
-function editor(doc = 'before after') {
+const editor = function editor(doc = 'before after') {
   const view = new EditorView({ state: EditorState.create({ doc, extensions: [imageUploads] }) })
   views.push(view)
   return view
 }
-function deferred() {
+const deferred = function deferred() {
   let resolve!: (url: string | null) => void
   const promise = new Promise<string | null>((done) => {
     resolve = done

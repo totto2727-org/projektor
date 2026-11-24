@@ -20,7 +20,7 @@ const scope: RequestScope = {
   projects: [],
   selection: { kind: 'workspace', workspace },
 }
-function fixture() {
+const fixture = function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite

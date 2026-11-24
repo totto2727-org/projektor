@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vite-plus/test'
 import type { Issue } from '../board-utils.ts'
 import { getStoryPoints } from './issue-render-helpers.tsx'
 
-function makeIssue(overrides: Partial<Issue> = {}): Issue {
+const makeIssue = function makeIssue(overrides: Partial<Issue> = {}): Issue {
   return {
     id: 'issue-1',
     number: 1,

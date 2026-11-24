@@ -4,7 +4,7 @@ import { authHeaders, seedProject, seedUser, seedWorkspaceRoles, toolError } fro
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function mcpCall<T>(
+const mcpCall = async function mcpCall<T>(
   workspaceId: string,
   name: string,
   args: unknown,
@@ -23,11 +23,11 @@ async function mcpCall<T>(
   return res.json()
 }
 
-function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
+const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
   return 'error' in r
 }
 
-function mcpData<T>(r: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcError): T {
+const mcpData = function mcpData<T>(r: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcError): T {
   if (isMcpError(r)) {
     throw new Error(`MCP error: ${r.error.message}`)
   }
@@ -51,7 +51,7 @@ describe('Groups REST', () => {
     memberHeaders = authHeaders(roles.member.token, slug)
   })
 
-  async function createGroup(name: string, headers = ownerHeaders): Promise<string> {
+  const createGroup = async function createGroup(name: string, headers = ownerHeaders): Promise<string> {
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       method: 'POST',
       headers,

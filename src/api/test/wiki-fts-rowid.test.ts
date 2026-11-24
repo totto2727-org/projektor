@@ -12,7 +12,7 @@ import { createWikiPage, updateWikiPage } from '#commands/wiki.ts'
 import { env } from './fixture-api.ts'
 import { seedFixture } from './helpers.ts'
 
-async function ctxFor(): Promise<ServiceCtx> {
+const ctxFor = async function ctxFor(): Promise<ServiceCtx> {
   const { workspace, user } = await seedFixture({ role: 'owner' })
   return {
     db: env.DB,
@@ -24,7 +24,7 @@ async function ctxFor(): Promise<ServiceCtx> {
   }
 }
 
-async function plan(sql: string, ...params: unknown[]): Promise<string> {
+const plan = async function plan(sql: string, ...params: unknown[]): Promise<string> {
   const rows = await env.DB.prepare(`EXPLAIN QUERY PLAN ${sql}`)
     .bind(...params)
     .all<{ detail: string }>()

@@ -21,7 +21,7 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function tableCount(sql: string, ...params: unknown[]): Promise<number> {
+const tableCount = async function tableCount(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
     .bind(...params)
     .first<{ n: number }>()

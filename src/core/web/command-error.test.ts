@@ -14,7 +14,7 @@ import { coreReply, coreReplyCodec } from '../contract.ts'
 import { publicDomainFailure } from '../domain-errors.ts'
 
 const success = Schema.Struct({ ok: Schema.Literal(true) })
-async function failure(cause: unknown) {
+const failure = async function failure(cause: unknown) {
   const encoded = await Effect.runPromise(
     coreReply('testBrowserCommand', success, Effect.fail(publicDomainFailure(cause))),
   )

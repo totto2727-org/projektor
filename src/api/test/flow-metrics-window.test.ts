@@ -29,7 +29,7 @@ describe('PROJ-866: flow-metrics window validation', () => {
     ;({ token, slug, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  async function getFlowMetrics(qs: string) {
+  const getFlowMetrics = async function getFlowMetrics(qs: string) {
     return fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics?${qs}`, {
       headers: authHeaders(token, slug),
     })
@@ -120,7 +120,7 @@ describe('PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixtur
     const since = windowEnd - 3 * WEEK + 3600
     const until = windowEnd
 
-    async function seedIssueWithStamps(
+    const seedIssueWithStamps = async function seedIssueWithStamps(
       title: string,
       stamps: Readonly<{
         createdAt: number
@@ -323,7 +323,7 @@ describe('PROJ-866 review: window defaults and aging WIP', () => {
     ;({ token, slug, workspaceId, projectId, userId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  async function fetchMetrics(qs: string) {
+  const fetchMetrics = async function fetchMetrics(qs: string) {
     return fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics?${qs}`, {
       headers: authHeaders(token, slug),
     })

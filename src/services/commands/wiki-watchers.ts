@@ -39,7 +39,10 @@ type ResolvedWatchTarget = {
  * resolvePageByIdOrSlug, plus the same project-visibility check as assertWikiPageVisible —
  * duplicated (not imported) to avoid a circular import, see module comment above.
  */
-async function resolveWatchTarget(ctx: ServiceCtx, idOrSlug: string): Promise<ResolvedWatchTarget> {
+const resolveWatchTarget = async function resolveWatchTarget(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+): Promise<ResolvedWatchTarget> {
   const orm = drizzle(ctx.db, { schema })
   const direct = await orm
     .select({
@@ -184,7 +187,7 @@ export async function listWikiWatches(ctx: ServiceCtx) {
  * created (parentId known, pageId's row doesn't exist yet) or one that's mid-delete
  * (parentId captured before the row is removed).
  */
-async function resolveAncestorChain(
+const resolveAncestorChain = async function resolveAncestorChain(
   db: D1Database,
   pageId: string,
   parentId: string | null,
@@ -270,11 +273,9 @@ export async function notifyWikiWatchers(
  * (which carry the page title). Access is checked per recipient at send time; watch
  * rows themselves are left alone, so restoring access restores notifications.
  */
-async function filterRecipientsWithAccess<E extends { userId: string; pageId: string }>(
-  ctx: ServiceCtx,
-  orm: Orm,
-  entries: readonly E[],
-): Promise<E[]> {
+const filterRecipientsWithAccess = async function filterRecipientsWithAccess<
+  E extends { userId: string; pageId: string },
+>(ctx: ServiceCtx, orm: Orm, entries: readonly E[]): Promise<E[]> {
   const pageIds = [...new Set(entries.map((e) => e.pageId))]
   // Trashed pages are included on purpose: "deleted" notifications are sent for them.
   const pages = await inChunks(pageIds, (chunk) =>
@@ -530,7 +531,7 @@ export interface WikiChangeEvent {
  * expression, which only selects it for 'deleted' rows) rather than pre-parsed, since a
  * raw sql fragment loses the wiki_pages.diff column's mode:"json" auto-decoding.
  */
-function extractDeletedPageInfo(rawDiff: string | null): {
+const extractDeletedPageInfo = function extractDeletedPageInfo(rawDiff: string | null): {
   slug: string | null
   title: string | null
   projectId: string | null
@@ -595,7 +596,7 @@ type WikiActivityRow = {
  * same trash action is NOT dropped: it's the one event that's supposed to report the page
  * went away.
  */
-function eventFieldsFor(
+const eventFieldsFor = function eventFieldsFor(
   action: 'created' | 'updated' | 'deleted',
   r: WikiActivityRow,
 ): {
@@ -613,7 +614,7 @@ function eventFieldsFor(
   }
 }
 
-async function isEventVisible(
+const isEventVisible = async function isEventVisible(
   projectId: string | undefined,
   eventProjectId: string | null,
   canSeeProject: (id: string) => Promise<boolean>,
@@ -631,7 +632,7 @@ async function isEventVisible(
  * Resolves one activity row to an event, or null if it should be dropped (stale
  * trash-shadowed row, wrong project, or not visible to the caller).
  */
-async function toWikiChangeEvent(
+const toWikiChangeEvent = async function toWikiChangeEvent(
   r: WikiActivityRow,
   projectId: string | undefined,
   canSeeProject: (id: string) => Promise<boolean>,
@@ -667,7 +668,7 @@ async function toWikiChangeEvent(
  * of a watched subtree since the change occurred is (deliberately) not flagged watched,
  * same class of "current tree, not historical" approximation as the rest of this file.
  */
-async function loadWikiWatchSets(
+const loadWikiWatchSets = async function loadWikiWatchSets(
   ctx: ServiceCtx,
   orm: Orm,
 ): Promise<{ directWatchIds: Set<string>; subtreeRootIds: Set<string> }> {
@@ -687,7 +688,7 @@ async function loadWikiWatchSets(
  * which would be O(candidates x depth) round-trips for a `limit` of up to 500. Mutates
  * `matched` in place.
  */
-async function matchSubtreeWatches(
+const matchSubtreeWatches = async function matchSubtreeWatches(
   ctx: ServiceCtx,
   orm: Orm,
   pending: Map<string, string>,
@@ -717,7 +718,11 @@ async function matchSubtreeWatches(
   }
 }
 
-async function watchedPageIds(ctx: ServiceCtx, orm: Orm, candidatePageIds: string[]): Promise<Set<string>> {
+const watchedPageIds = async function watchedPageIds(
+  ctx: ServiceCtx,
+  orm: Orm,
+  candidatePageIds: string[],
+): Promise<Set<string>> {
   const { directWatchIds, subtreeRootIds } = await loadWikiWatchSets(ctx, orm)
   if (directWatchIds.size === 0 && subtreeRootIds.size === 0) {
     return new Set()
@@ -747,7 +752,10 @@ async function watchedPageIds(ctx: ServiceCtx, orm: Orm, candidatePageIds: strin
  * up whole. (If the WHOLE batch is one second there's nothing to trim — that needs `limit`
  * changes inside a single second, and the alternative is a poll that can never advance.)
  */
-function trimTrailingPartialSecond<T extends { createdAt: number }>(rows: readonly T[], limit: number): readonly T[] {
+const trimTrailingPartialSecond = function trimTrailingPartialSecond<T extends { createdAt: number }>(
+  rows: readonly T[],
+  limit: number,
+): readonly T[] {
   if (rows.length !== limit || rows.length === 0) {
     return rows
   }

@@ -39,18 +39,21 @@ import { fetchNativeApi } from './native-fetch.ts'
 // JWT generation utilities (used only by CF Access JWT tests)
 // ---------------------------------------------------------------------------
 
-function b64urlEncode(bytes: Uint8Array): string {
+const b64urlEncode = function b64urlEncode(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=/g, '')
 }
 
-function encodeJwtPart(obj: unknown): string {
+const encodeJwtPart = function encodeJwtPart(obj: unknown): string {
   return b64urlEncode(new TextEncoder().encode(JSON.stringify(obj)))
 }
 
-async function signTestJwt(privateKey: CryptoKey, payload: Record<string, unknown>): Promise<string> {
+const signTestJwt = async function signTestJwt(
+  privateKey: CryptoKey,
+  payload: Record<string, unknown>,
+): Promise<string> {
   const header = encodeJwtPart({ alg: 'RS256', typ: 'JWT' })
   const body = encodeJwtPart(payload)
   const input = new TextEncoder().encode(`${header}.${body}`)
@@ -1049,7 +1052,7 @@ describe('PROJ-79: GET /auth/me', () => {
 
 // PROJ-903: PATs are minted/revoked from a human session only. The dev bypass
 // (ENVIRONMENT=development + DEV_USER_EMAIL, no Authorization header) is that session here.
-async function humanFetch(email: string, url: string, init: RequestInit): Promise<Response> {
+const humanFetch = async function humanFetch(email: string, url: string, init: RequestInit): Promise<Response> {
   const prev = env.DEV_USER_EMAIL
   env.DEV_USER_EMAIL = email
   try {
@@ -1197,7 +1200,7 @@ describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () =
     ownerHeaders = authHeaders(await seedUserToken(fixture.user.id), slug)
   })
 
-  async function mcp(name: string, args: unknown, headers = ownerHeaders, wsId = workspaceId) {
+  const mcp = async function mcp(name: string, args: unknown, headers = ownerHeaders, wsId = workspaceId) {
     const res = await fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
       headers,
@@ -1217,7 +1220,7 @@ describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () =
   }
 
   // A service failure is a successful JSON-RPC response whose result is a tool error.
-  function expectToolError(resp: Awaited<ReturnType<typeof mcp>>, code: string) {
+  const expectToolError = function expectToolError(resp: Awaited<ReturnType<typeof mcp>>, code: string) {
     expect('error' in resp).toBe(false)
     expect(resp.result?.isError).toBe(true)
     const err = toolError(resp)

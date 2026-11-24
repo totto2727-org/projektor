@@ -12,7 +12,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function setup() {
+const setup = async function setup() {
   const { workspace, user, token } = await seedFixture({ role: 'owner' })
   const ctx: ServiceCtx = {
     db: env.DB,
@@ -32,7 +32,7 @@ async function setup() {
  * Run `concurrent` just before the next db.batch — i.e. after the service has read the
  * page but before its write lands, which is exactly the race window.
  */
-function interleaveBeforeNextBatch(times: number, concurrent: () => Promise<void>) {
+const interleaveBeforeNextBatch = function interleaveBeforeNextBatch(times: number, concurrent: () => Promise<void>) {
   const orig = env.DB.batch.bind(env.DB)
   let remaining = times
   vi.spyOn(env.DB, 'batch').mockImplementation(async (stmts) => {
@@ -44,7 +44,7 @@ function interleaveBeforeNextBatch(times: number, concurrent: () => Promise<void
   })
 }
 
-async function contentOf(ctx: ServiceCtx, slug: string): Promise<string> {
+const contentOf = async function contentOf(ctx: ServiceCtx, slug: string): Promise<string> {
   return ((await getWikiPage(ctx, slug)) as { content: string }).content
 }
 

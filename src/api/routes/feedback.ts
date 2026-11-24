@@ -48,7 +48,10 @@ publicRouter.options('/submit', (c) => {
   return c.body(null, 204, headers)
 })
 
-async function checkFeedbackRateLimit(c: Context<HonoEnv>, token: string): Promise<Response | null> {
+const checkFeedbackRateLimit = async function checkFeedbackRateLimit(
+  c: Context<HonoEnv>,
+  token: string,
+): Promise<Response | null> {
   /*
    * Dual-keyed rate limit (token hash + IP) — reject if either trips its bucket.
    * Dedicated PROJ-378 env vars, not RATE_LIMIT_API_MAX/RATE_LIMIT_AUTH_MAX: this
@@ -79,7 +82,7 @@ async function checkFeedbackRateLimit(c: Context<HonoEnv>, token: string): Promi
   return null
 }
 
-async function parseFeedbackBody(c: Context<HonoEnv>): Promise<unknown> {
+const parseFeedbackBody = async function parseFeedbackBody(c: Context<HonoEnv>): Promise<unknown> {
   try {
     return await jsonBody(c)
   } catch {
@@ -87,7 +90,7 @@ async function parseFeedbackBody(c: Context<HonoEnv>): Promise<unknown> {
   }
 }
 
-function submitFeedbackErrorResponse(c: Context<HonoEnv>, e: unknown): Response {
+const submitFeedbackErrorResponse = function submitFeedbackErrorResponse(c: Context<HonoEnv>, e: unknown): Response {
   /*
    * Endpoint-specific mapping: an unknown/revoked source is an invalid
    * credential (401), an inactive source is a paused resource (403), a bad

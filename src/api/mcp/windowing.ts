@@ -11,12 +11,12 @@ export const WIKI_MAX_CHARS = 20_000
 export const ISSUE_BODY_MAX_CHARS = 16_000
 export const LIST_BODY_MAX_CHARS = 1000
 
-function isHighSurrogate(code: number): boolean {
+const isHighSurrogate = function isHighSurrogate(code: number): boolean {
   return code >= 0xd8_00 && code <= 0xdb_ff
 }
 
 /** Pull `end` back so it doesn't fall between the halves of a surrogate pair. */
-function safeEnd(text: string, end: number): number {
+const safeEnd = function safeEnd(text: string, end: number): number {
   if (end > 0 && end < text.length && isHighSurrogate(text.charCodeAt(end - 1))) {
     return end - 1
   }
@@ -52,7 +52,7 @@ export function windowText(text: string, opts: { max: number; cursor?: string })
 type Heading = { level: number; text: string; start: number }
 
 /** ATX headings outside fenced code blocks and outside a leading frontmatter block. */
-function headings(content: string): Heading[] {
+const headings = function headings(content: string): Heading[] {
   const out: Heading[] = []
   let pos = 0
   let fence: string | null = null
@@ -99,7 +99,7 @@ export function outlineOf(content: string): string[] {
   return headings(content).map((h) => `${'#'.repeat(h.level)} ${h.text}`)
 }
 
-function slugify(s: string): string {
+const slugify = function slugify(s: string): string {
   return s
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s-]/gu, '')

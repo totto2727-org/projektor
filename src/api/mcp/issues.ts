@@ -26,7 +26,7 @@ const BODY_CHARS_PROP = {
 } as const
 
 /** Splits MCP-only `bodyChars` off the input; asks the service for bodies when it's set. */
-function splitBodyChars(rest: Record<string, unknown>): {
+const splitBodyChars = function splitBodyChars(rest: Record<string, unknown>): {
   rest: Record<string, unknown>
   bodyChars: number
 } {
@@ -44,7 +44,10 @@ function splitBodyChars(rest: Record<string, unknown>): {
   return { rest: n > 0 ? { ...others, includeBody: true } : others, bodyChars: n }
 }
 
-function withBodyPreview(item: Record<string, unknown>, bodyChars: number): Record<string, unknown> {
+const withBodyPreview = function withBodyPreview(
+  item: Record<string, unknown>,
+  bodyChars: number,
+): Record<string, unknown> {
   if (bodyChars <= 0) {
     return item
   }

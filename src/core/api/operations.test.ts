@@ -21,7 +21,7 @@ afterEach(() => {
   resetAuthCachesForTests()
 })
 
-async function fixture() {
+const fixture = async function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`
@@ -50,7 +50,7 @@ async function fixture() {
   const handlers = { ...makeApiIdentityHandlers(source), ...makeApiPublicHandlers(source) }
   return { ...database, actor, env, handlers }
 }
-function reply<S extends Schema.Top & { readonly DecodingServices: never }>(
+const reply = function reply<S extends Schema.Top & { readonly DecodingServices: never }>(
   schema: S,
   invocation: Effect.Effect<string>,
 ) {

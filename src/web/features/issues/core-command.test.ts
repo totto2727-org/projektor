@@ -16,7 +16,7 @@ afterEach(() => {
   }
 })
 
-function fixture() {
+const fixture = function fixture() {
   const database = issueDataFixture()
   databases.push(database)
   const env = testEnvironment(database.db, 'user@example.test')
@@ -35,7 +35,7 @@ function fixture() {
   return { database, env, proof, invoke }
 }
 
-async function signedAccess(email: string) {
+const signedAccess = async function signedAccess(email: string) {
   const keys = await crypto.subtle.generateKey(
     { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
     true,

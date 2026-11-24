@@ -20,7 +20,7 @@ export interface ActivityEvent {
   created_at: number
 }
 
-async function fetchActivityRows(
+const fetchActivityRows = async function fetchActivityRows(
   ctx: ServiceCtx,
   projectId: string,
   since: number | undefined,

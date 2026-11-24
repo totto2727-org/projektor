@@ -26,7 +26,7 @@ const PublicIssue = Schema.Struct({
 })
 
 // These substitute bindings test adapter execution, not workerd/native binding acceptance.
-function clientFor(wire: () => Promise<string>) {
+const clientFor = function clientFor(wire: () => Promise<string>) {
   return makeRpcStub<{ load(): Effect.Effect<string> }>({ load: wire })
 }
 

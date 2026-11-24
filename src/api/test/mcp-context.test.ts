@@ -51,7 +51,7 @@ describe('PROJ-889: auth middleware records method + credential', () => {
   app.use('*', authMiddleware)
   app.get('/whoami', (c) => c.json(c.get('auth')))
 
-  async function whoami(headers: Record<string, string> = {}): Promise<AuthInfo> {
+  const whoami = async function whoami(headers: Record<string, string> = {}): Promise<AuthInfo> {
     const res = await app.request('/whoami', { headers }, env, {
       waitUntil: () => {},
       passThroughOnException: () => {},

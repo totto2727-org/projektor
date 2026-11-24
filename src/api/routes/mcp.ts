@@ -75,7 +75,7 @@ const TOOLS_LIST_CACHE_SCOPE = 'private'
  * back as `get_workflow`'s `ifVersion` to skip re-reading an unchanged spec.
  * A null version (hash failed) drops the hint rather than failing the handshake.
  */
-function buildServerInstructions(workflowVersion: string | null): string {
+const buildServerInstructions = function buildServerInstructions(workflowVersion: string | null): string {
   const versionHint = workflowVersion
     ? `Its current version is "${workflowVersion}" — pass that as get_workflow's \`ifVersion\` to skip re-reading an unchanged spec. `
     : ''
@@ -93,7 +93,7 @@ function buildServerInstructions(workflowVersion: string | null): string {
 
 const router = new Hono<HonoEnv>()
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
+const isPlainObject = function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 

@@ -31,7 +31,7 @@ export function issueDataFixture() {
 		CREATE VIRTUAL TABLE issues_fts USING fts5(issue_id UNINDEXED, workspace_id UNINDEXED, title, body);
 		CREATE VIRTUAL TABLE wiki_fts USING fts5(page_id UNINDEXED, workspace_id UNINDEXED, title, content, tags);
 	`)
-  function insertIssue(values: {
+  const insertIssue = function insertIssue(values: {
     id: string
     number?: number
     projectId?: string
@@ -108,7 +108,7 @@ export function issueDataFixture() {
   const request = new Request('https://front.test/issues?workspace=workspace')
   const invalidated = vi.fn()
   const env = testEnvironment(db, 'user@example.test')
-  function services() {
+  const services = function services() {
     return makeRequestServices(request, env).pipe(
       Effect.map((native) => ({
         ...native,
@@ -116,7 +116,7 @@ export function issueDataFixture() {
       })),
     )
   }
-  function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {
+  const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {
     return Effect.runPromise(
       Effect.gen(function* () {
         const native = yield* services()

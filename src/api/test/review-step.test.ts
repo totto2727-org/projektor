@@ -18,7 +18,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  function patch(id: string, body: Record<string, unknown>) {
+  const patch = function patch(id: string, body: Record<string, unknown>) {
     return fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -26,7 +26,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
     })
   }
 
-  async function reviewState(id: string) {
+  const reviewState = async function reviewState(id: string) {
     const row = await env.DB.prepare('SELECT in_review_at, review_bounce_count FROM issues WHERE id = ?')
       .bind(id)
       .first<{ in_review_at: number | null; review_bounce_count: number }>()

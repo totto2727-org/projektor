@@ -21,11 +21,11 @@ beforeEach(resetProvisioningCacheForTests)
 // ensureUserProvisioned reads its config from the Env it's handed, so each test builds an
 // Env by spreading the test bindings and overriding the provisioning vars. Unique slugs +
 // emails per test keep the shared D1 from leaking state across cases.
-function envWith(overrides: Partial<Env>): Env {
+const envWith = function envWith(overrides: Partial<Env>): Env {
   return { ...(env as unknown as Env), ...overrides }
 }
 
-async function memberRole(workspaceId: string, userId: string) {
+const memberRole = async function memberRole(workspaceId: string, userId: string) {
   const row = await env.DB.prepare('SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
     .bind(workspaceId, userId)
     .first<{ role: string }>()
@@ -33,7 +33,7 @@ async function memberRole(workspaceId: string, userId: string) {
 }
 
 // Simulates a prior removeMember call without going through the HTTP route.
-async function tombstoneRemoval(workspaceId: string, userId: string) {
+const tombstoneRemoval = async function tombstoneRemoval(workspaceId: string, userId: string) {
   await env.DB.prepare('INSERT INTO provisioning_removals (workspace_id, user_id, removed_at) VALUES (?, ?, ?)')
     .bind(workspaceId, userId, Math.floor(Date.now() / 1000))
     .run()
@@ -294,7 +294,7 @@ describe('PROJ-436: removal tombstone', () => {
  * again, and see whether it comes back.
  */
 describe('PROJ-433: provisioning runs once per user, not per request', () => {
-  async function dropMembership(workspaceId: string, userId: string) {
+  const dropMembership = async function dropMembership(workspaceId: string, userId: string) {
     await env.DB.prepare('DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?')
       .bind(workspaceId, userId)
       .run()
@@ -397,7 +397,7 @@ describe('PROJ-433: provisioning runs once per user, not per request', () => {
 
 // PROJ-432/433: the point of this work was round trips, so count them. A Proxy over the
 // D1 binding records every statement the code under test issues.
-function countingDb(db: D1Database) {
+const countingDb = function countingDb(db: D1Database) {
   const counts = { prepare: 0, batch: 0 }
   const proxy = new Proxy(db, {
     get(target, prop, receiver) {

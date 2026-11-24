@@ -11,7 +11,7 @@ export type CoreEnvironment = Omit<CoreEnv, 'JWT_SECRET' | 'ASSETS'> & {
 
 export type CoreEnvironmentSource = Effect.Effect<CoreEnvironment, never, WorkerEnvironment | WorkerExecutionContext>
 
-function hasMethods(value: unknown, methods: readonly string[]): boolean {
+const hasMethods = function hasMethods(value: unknown, methods: readonly string[]): boolean {
   return (
     typeof value === 'object' &&
     value !== null &&

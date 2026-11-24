@@ -17,14 +17,14 @@ import { deleteWorkspace, revokeToken } from '#commands/workspaces.ts'
 import { env } from './fixture-api.ts'
 import { seedFixture, seedGroupGrant, seedProject, seedTaskStatus } from './helpers.ts'
 
-async function count(sql: string, ...params: unknown[]): Promise<number> {
+const count = async function count(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
     .bind(...params)
     .first<{ n: number }>()
   return row?.n ?? 0
 }
 
-async function ownerCtx() {
+const ownerCtx = async function ownerCtx() {
   const f = await seedFixture({ role: 'owner' })
   const ctx: ServiceCtx = {
     db: env.DB,

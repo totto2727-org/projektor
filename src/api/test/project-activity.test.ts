@@ -7,7 +7,7 @@ import { fetchNativeApi } from './native-fetch.ts'
 
 type McpContent = { content: { text: string }[] }
 
-async function mcpCall<T>(
+const mcpCall = async function mcpCall<T>(
   workspaceId: string,
   toolName: string,
   args: unknown,
@@ -26,7 +26,7 @@ async function mcpCall<T>(
   return res.json()
 }
 
-function parseEvents(res: JsonRpcResult<McpContent> | JsonRpcError): unknown[] {
+const parseEvents = function parseEvents(res: JsonRpcResult<McpContent> | JsonRpcError): unknown[] {
   if ('error' in res && res.error) {
     throw new Error(`MCP error: ${res.error.message}`)
   }
@@ -34,7 +34,7 @@ function parseEvents(res: JsonRpcResult<McpContent> | JsonRpcError): unknown[] {
   return (JSON.parse(r.result.content[0].text) as { items: unknown[] }).items
 }
 
-async function seedSprint(
+const seedSprint = async function seedSprint(
   workspaceId: string,
   projectId: string,
   opts: Readonly<{ name?: string; status?: string; startDate?: number; endDate?: number }> = {},
@@ -60,7 +60,7 @@ async function seedSprint(
   return { id, name: opts.name ?? 'Sprint 1' }
 }
 
-async function seedWikiPage(
+const seedWikiPage = async function seedWikiPage(
   workspaceId: string,
   projectId: string,
   authorId: string,

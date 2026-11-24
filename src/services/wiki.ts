@@ -67,7 +67,7 @@ const summaryColumns = {
 }
 const detailColumns = { ...summaryColumns, content: schema.wikiPages.content }
 
-function scopeConditions(workspaceId: string, opts: WikiScopeOptions, trash = false) {
+const scopeConditions = function scopeConditions(workspaceId: string, opts: WikiScopeOptions, trash = false) {
   const conditions = [
     eq(schema.wikiPages.workspaceId, workspaceId),
     trash ? isNotNull(schema.wikiPages.deletedAt) : isNull(schema.wikiPages.deletedAt),
@@ -248,7 +248,7 @@ const revisionColumns = {
   author_id: schema.wikiRevisions.authorId,
   created_at: schema.wikiRevisions.createdAt,
 }
-function revisionScope(workspaceId: string, pageId: string) {
+const revisionScope = function revisionScope(workspaceId: string, pageId: string) {
   return and(
     eq(schema.wikiRevisions.pageId, pageId),
     sql`EXISTS (SELECT 1 FROM wiki_pages WHERE wiki_pages.id = ${schema.wikiRevisions.pageId} AND wiki_pages.workspace_id = ${workspaceId})`,
@@ -285,7 +285,7 @@ export function getLatestWikiRevisionId(db: D1Database, workspaceId: string, pag
   })
 }
 
-function decodeJsonArrayColumn(value: unknown): string[] {
+const decodeJsonArrayColumn = function decodeJsonArrayColumn(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value as string[]
   }
@@ -374,7 +374,7 @@ export function getWikiDraft(db: D1Database, workspaceId: string, pageId: string
 const MAX_DIFF_CELLS = 1_000_000
 type DiffOp = { type: 'equal' | 'add' | 'remove'; line: string }
 
-function buildLcsTable(oldLines: readonly string[], newLines: readonly string[]): number[][] {
+const buildLcsTable = function buildLcsTable(oldLines: readonly string[], newLines: readonly string[]): number[][] {
   const n = oldLines.length
   const m = newLines.length
   const dp: number[][] = Array.from({ length: n + 1 }, () => Array.from({ length: m + 1 }, () => 0))
@@ -386,7 +386,11 @@ function buildLcsTable(oldLines: readonly string[], newLines: readonly string[])
   return dp
 }
 
-function traceLcsDiffOps(oldLines: readonly string[], newLines: readonly string[], dp: readonly number[][]): DiffOp[] {
+const traceLcsDiffOps = function traceLcsDiffOps(
+  oldLines: readonly string[],
+  newLines: readonly string[],
+  dp: readonly number[][],
+): DiffOp[] {
   const n = oldLines.length
   const m = newLines.length
   const ops: DiffOp[] = []
@@ -416,7 +420,7 @@ function traceLcsDiffOps(oldLines: readonly string[], newLines: readonly string[
   return ops
 }
 
-function computeLineDiff(oldLines: readonly string[], newLines: readonly string[]): DiffOp[] {
+const computeLineDiff = function computeLineDiff(oldLines: readonly string[], newLines: readonly string[]): DiffOp[] {
   if (oldLines.length * newLines.length > MAX_DIFF_CELLS) {
     return [
       ...oldLines.map((line): DiffOp => ({ type: 'remove', line })),

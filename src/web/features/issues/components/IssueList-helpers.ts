@@ -17,7 +17,7 @@ interface KeyedById {
 }
 
 // Date filters use UTC calendar days consistently during SSR and in the browser.
-function dateInputToTs(dateStr: string, endOfDay: boolean): number {
+const dateInputToTs = function dateInputToTs(dateStr: string, endOfDay: boolean): number {
   const timestamp = Date.parse(`${dateStr}T00:00:00Z`)
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ||
@@ -29,7 +29,7 @@ function dateInputToTs(dateStr: string, endOfDay: boolean): number {
   return timestamp / 1000 + (endOfDay ? 86_399 : 0)
 }
 
-function applyEpicParams(
+const applyEpicParams = function applyEpicParams(
   qs: URLSearchParams,
   filterEpicId: string,
   hideEpics: boolean,

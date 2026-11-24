@@ -23,7 +23,7 @@ const SESSION_TTL_SECONDS = 120
  * touchAgentHeartbeatIfLive in file-claims.ts for why an unconditional touch would
  * defeat PROJ-636 stale-holder reclaim.
  */
-async function touchAgentHeartbeatIfLive(
+const touchAgentHeartbeatIfLive = async function touchAgentHeartbeatIfLive(
   orm: ReturnType<typeof drizzle>,
   ctx: ServiceCtx,
   agentId: string,
@@ -42,7 +42,10 @@ async function touchAgentHeartbeatIfLive(
     )
 }
 
-function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
+const toD1Statement = function toD1Statement(
+  ctx: ServiceCtx,
+  query: Readonly<{ sql: string; params: unknown[] }>,
+): D1PreparedStatement {
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 

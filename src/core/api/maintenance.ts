@@ -38,12 +38,17 @@ export async function runFtsDedupeOnce(env: CoreEnvironment): Promise<void> {
   }
 }
 
-function retentionCutoff(raw: string | undefined, defaultDays: number): number {
+const retentionCutoff = function retentionCutoff(raw: string | undefined, defaultDays: number): number {
   const days = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : Number.NaN
   return Math.floor(Date.now() / 1000) - (Number.isFinite(days) && days > 0 ? days : defaultDays) * 86_400
 }
 
-async function deleteExpiredInChunks(db: D1Database, table: string, whereSql: string, params: readonly unknown[]) {
+const deleteExpiredInChunks = async function deleteExpiredInChunks(
+  db: D1Database,
+  table: string,
+  whereSql: string,
+  params: readonly unknown[],
+) {
   let totalDeleted = 0
   for (let index = 0; index < RETENTION_MAX_CHUNKS_PER_CATEGORY; index++) {
     const result = await db
@@ -132,7 +137,7 @@ export async function purgeExpiredOAuthData(env: CoreEnvironment): Promise<void>
   }
 }
 
-function createSubrequestBudget(limit: number) {
+const createSubrequestBudget = function createSubrequestBudget(limit: number) {
   let used = 0
   return {
     spend: (count = 1) => {
@@ -145,7 +150,7 @@ function createSubrequestBudget(limit: number) {
 type SubrequestBudget = ReturnType<typeof createSubrequestBudget>
 
 /** Count real D1 calls without altering native prepare/bind/batch behavior. */
-function wrapD1WithBudget(db: D1Database, budget: SubrequestBudget): D1Database {
+const wrapD1WithBudget = function wrapD1WithBudget(db: D1Database, budget: SubrequestBudget): D1Database {
   const reads = new Set(['all', 'first', 'raw', 'run'])
   return new Proxy(db, {
     get(target, property, receiver) {
@@ -187,7 +192,7 @@ function wrapD1WithBudget(db: D1Database, budget: SubrequestBudget): D1Database 
   })
 }
 
-function wrapCallsWithBudget<T extends object>(target: T, budget: SubrequestBudget): T {
+const wrapCallsWithBudget = function wrapCallsWithBudget<T extends object>(target: T, budget: SubrequestBudget): T {
   return new Proxy(target, {
     get(object, property, receiver) {
       const original = Reflect.get(object, property, receiver)
@@ -202,7 +207,7 @@ function wrapCallsWithBudget<T extends object>(target: T, budget: SubrequestBudg
   })
 }
 
-async function loadCursor(kv: KVNamespace): Promise<string[] | null> {
+const loadCursor = async function loadCursor(kv: KVNamespace): Promise<string[] | null> {
   const raw = await kv.get(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
   if (!raw) {
     return null

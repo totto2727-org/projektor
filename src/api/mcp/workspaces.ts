@@ -16,11 +16,11 @@ import {
 import { CREATE, DESTRUCTIVE, IDEMPOTENT_WRITE, PLAIN_WRITE, READ } from './annotations.ts'
 import type { MCPTool, PluginContext } from './types.ts'
 
-async function currentWorkspace(ctx: PluginContext) {
+const currentWorkspace = async function currentWorkspace(ctx: PluginContext) {
   return apiReply(ApiWorkspace, ctx.core.apiResolveWorkspace(ctx.actor, { kind: 'id', value: ctx.workspaceId }))
 }
 
-async function currentWorkspaceSlug(ctx: PluginContext): Promise<string> {
+const currentWorkspaceSlug = async function currentWorkspaceSlug(ctx: PluginContext): Promise<string> {
   return (await currentWorkspace(ctx)).slug
 }
 

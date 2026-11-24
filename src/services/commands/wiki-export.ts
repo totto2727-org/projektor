@@ -28,7 +28,7 @@ type ExportedPage = {
 const MAX_EXPORT_PAGES = 500
 const MAX_EXPORT_ATTACHMENT_BYTES = 100 * 1024 * 1024 // 100 MB total per export
 
-function assertPageCountAllowed(pageCount: number): void {
+const assertPageCountAllowed = function assertPageCountAllowed(pageCount: number): void {
   if (pageCount > MAX_EXPORT_PAGES) {
     throw new ValidationError({
       formErrors: [`Export exceeds the ${MAX_EXPORT_PAGES}-page limit (${pageCount} pages)`],
@@ -37,7 +37,10 @@ function assertPageCountAllowed(pageCount: number): void {
   }
 }
 
-function assertExportSizeAllowed(pageCount: number, totalAttachmentBytes: number): void {
+const assertExportSizeAllowed = function assertExportSizeAllowed(
+  pageCount: number,
+  totalAttachmentBytes: number,
+): void {
   assertPageCountAllowed(pageCount)
   if (totalAttachmentBytes > MAX_EXPORT_ATTACHMENT_BYTES) {
     throw new ValidationError({
@@ -54,7 +57,10 @@ function assertExportSizeAllowed(pageCount: number, totalAttachmentBytes: number
  * page (projectId null) is visible to every member; a project-scoped page needs an
  * admin bypass or a group grant on that project.
  */
-async function requireSpaceVisible(ctx: ServiceCtx, projectId: string | null): Promise<void> {
+const requireSpaceVisible = async function requireSpaceVisible(
+  ctx: ServiceCtx,
+  projectId: string | null,
+): Promise<void> {
   if (projectId === null) {
     return
   }
@@ -65,7 +71,7 @@ async function requireSpaceVisible(ctx: ServiceCtx, projectId: string | null): P
  * Mirrors wiki.ts's resolvePageByIdOrSlug direct-match branch (no redirect chasing —
  * this is an export utility, not a citation path that needs stale-link tolerance).
  */
-async function resolveExportRoot(
+const resolveExportRoot = async function resolveExportRoot(
   ctx: ServiceCtx,
   idOrSlug: string,
 ): Promise<{ id: string; slug: string; title: string; content: string; projectId: string | null }> {
@@ -124,7 +130,11 @@ async function resolveExportRoot(
  * blindly: any row whose projectId doesn't match the root's is dropped rather than
  * exported, so a future regression of that invariant fails closed, not open.
  */
-async function collectDescendantIds(ctx: ServiceCtx, rootId: string, rootProjectId: string | null): Promise<string[]> {
+const collectDescendantIds = async function collectDescendantIds(
+  ctx: ServiceCtx,
+  rootId: string,
+  rootProjectId: string | null,
+): Promise<string[]> {
   const orm = drizzle(ctx.db, { schema })
   const descendants: string[] = []
   let frontier = [rootId]
@@ -154,7 +164,7 @@ async function collectDescendantIds(ctx: ServiceCtx, rootId: string, rootProject
   return descendants
 }
 
-async function pagesByIds(ctx: ServiceCtx, ids: string[]): Promise<ExportedPage[]> {
+const pagesByIds = async function pagesByIds(ctx: ServiceCtx, ids: string[]): Promise<ExportedPage[]> {
   const orm = drizzle(ctx.db, { schema })
   return inChunks(ids, (chunk) =>
     orm
@@ -181,7 +191,7 @@ async function pagesByIds(ctx: ServiceCtx, ids: string[]): Promise<ExportedPage[
  * A page with no leading `---` block gets a minimal one synthesized here (title only)
  * so every exported file carries frontmatter, per the R15 spec.
  */
-function ensureFrontmatter(page: ExportedPage): string {
+const ensureFrontmatter = function ensureFrontmatter(page: ExportedPage): string {
   if (/^---\r?\n/.test(page.content)) {
     return page.content
   }
@@ -193,7 +203,7 @@ function ensureFrontmatter(page: ExportedPage): string {
  * PROJ-426-style: only `kind: "file"` attachments carry a real R2 object (wiki_ref
  * pointer attachments have an empty r2_key and nothing to zip).
  */
-async function collectAttachments(
+const collectAttachments = async function collectAttachments(
   ctx: ServiceCtx,
   pages: readonly ExportedPage[],
 ): Promise<{ pageSlug: string; filename: string; r2Key: string; size: number }[]> {
@@ -236,7 +246,7 @@ async function collectAttachments(
     }))
 }
 
-function safeZipPathSegment(value: string): string {
+const safeZipPathSegment = function safeZipPathSegment(value: string): string {
   // oxlint-disable-next-line no-control-regex -- Intentionally strip control characters from ZIP entry names.
   const stripped = value.replace(/[\\/]/g, '_').replace(/[\x00-\x1f]/g, '')
   return /^\.+$/.test(stripped) ? '_' : stripped
@@ -248,7 +258,11 @@ function safeZipPathSegment(value: string): string {
  * second collision (e.g. two "notes.txt" plus a real "1-notes.txt") that silently
  * clobbers a file, since the zip entries are looked up by name.
  */
-function reserveUniqueName(usedNames: Set<string>, candidate: string, altFor: (n: number) => string): string {
+const reserveUniqueName = function reserveUniqueName(
+  usedNames: Set<string>,
+  candidate: string,
+  altFor: (n: number) => string,
+): string {
   if (!usedNames.has(candidate)) {
     usedNames.add(candidate)
     return candidate
@@ -270,7 +284,7 @@ function reserveUniqueName(usedNames: Set<string>, candidate: string, altFor: (n
  * one attachment's bytes are held at a time, and the total attachment budget is checked
  * up front (assertExportSizeAllowed) before any R2 fetch happens.
  */
-async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<ReadableStream<Uint8Array>> {
+const buildZip = async function buildZip(ctx: ServiceCtx, pages: ExportedPage[]): Promise<ReadableStream<Uint8Array>> {
   const attachments = await collectAttachments(ctx, pages)
   const totalAttachmentBytes = attachments.reduce((sum, a) => sum + a.size, 0)
   assertExportSizeAllowed(pages.length, totalAttachmentBytes)

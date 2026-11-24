@@ -126,7 +126,7 @@ describe('KV caching', () => {
       const hdrs = authHeaders(token, slug)
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
-      async function mcpListProjects() {
+      const mcpListProjects = async function mcpListProjects() {
         const res = await fetchNativeApi(mcpUrl, {
           method: 'POST',
           headers: hdrs,
@@ -157,7 +157,7 @@ describe('KV caching', () => {
       const hdrs = authHeaders(token, slug)
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
-      async function mcpListProjects() {
+      const mcpListProjects = async function mcpListProjects() {
         const res = await fetchNativeApi(mcpUrl, {
           method: 'POST',
           headers: hdrs,
@@ -229,7 +229,7 @@ describe('KV caching', () => {
   })
 
   describe('KV operation failures (PROJ-730)', () => {
-    function throwingKv(err: unknown): KVNamespace {
+    const throwingKv = function throwingKv(err: unknown): KVNamespace {
       return {
         get: () => Promise.reject(err),
         put: () => Promise.reject(err),

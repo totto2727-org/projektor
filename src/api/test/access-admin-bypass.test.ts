@@ -10,7 +10,7 @@ import { fetchNativeApi } from './native-fetch.ts'
  * default-deny until granted.
  */
 
-async function search(token: string, slug: string, q: string) {
+const search = async function search(token: string, slug: string, q: string) {
   const res = await fetchNativeApi(`http://localhost/api/issues/search?q=${encodeURIComponent(q)}`, {
     headers: authHeaders(token, slug),
   })
@@ -20,7 +20,7 @@ async function search(token: string, slug: string, q: string) {
 // seedIssue() inserts directly into `issues`, bypassing the FTS index (which is
 // populated by the create-issue service, not a DB trigger); go through the REST
 // route so search can actually find these issues.
-async function createIssue(token: string, slug: string, projectId: string, title: string) {
+const createIssue = async function createIssue(token: string, slug: string, projectId: string, title: string) {
   const res = await fetchNativeApi('http://localhost/api/issues', {
     method: 'POST',
     headers: authHeaders(token, slug),

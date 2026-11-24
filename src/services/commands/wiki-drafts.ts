@@ -32,7 +32,10 @@ type ResolvedDraftTarget = {
  * resolvePageByIdOrSlug, plus the same project-visibility check — duplicated (not
  * imported) to avoid a circular import, see module comment above.
  */
-async function resolveDraftTarget(ctx: ServiceCtx, idOrSlug: string): Promise<ResolvedDraftTarget> {
+const resolveDraftTarget = async function resolveDraftTarget(
+  ctx: ServiceCtx,
+  idOrSlug: string,
+): Promise<ResolvedDraftTarget> {
   const orm = drizzle(ctx.db, { schema })
   const direct = await orm
     .select({
@@ -149,7 +152,12 @@ export async function readWikiDraftState(db: D1Database, workspaceId: string, pa
   }
 }
 
-function advanceHead(ctx: ServiceCtx, pageId: string, expected: string | null | undefined, revision: string) {
+const advanceHead = function advanceHead(
+  ctx: ServiceCtx,
+  pageId: string,
+  expected: string | null | undefined,
+  revision: string,
+) {
   const key = [ctx.workspaceId, ctx.userId, pageId]
   if (expected === undefined) {
     /*
@@ -173,7 +181,7 @@ function advanceHead(ctx: ServiceCtx, pageId: string, expected: string | null | 
     .bind(revision, ...key, expected)
 }
 
-function requireAdvanced(result: D1Result, revision: string) {
+const requireAdvanced = function requireAdvanced(result: D1Result, revision: string) {
   if (
     !result.results.some(
       (row) => typeof row === 'object' && row !== null && 'revision' in row && row.revision === revision,
@@ -218,7 +226,11 @@ export async function saveWikiDraft(ctx: ServiceCtx, idOrSlug: string, input: un
   return { ok: true as const, pageId: page.id, updatedAt: now, revision }
 }
 
-async function discardResolvedDraft(ctx: ServiceCtx, pageId: string, expected: string | null | undefined) {
+const discardResolvedDraft = async function discardResolvedDraft(
+  ctx: ServiceCtx,
+  pageId: string,
+  expected: string | null | undefined,
+) {
   const revision = crypto.randomUUID()
   const results = await ctx.db.batch([
     advanceHead(ctx, pageId, expected, revision),

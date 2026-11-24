@@ -13,7 +13,7 @@ afterEach(() => {
   }
 })
 
-function fixture() {
+const fixture = function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`

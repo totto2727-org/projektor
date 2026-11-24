@@ -43,7 +43,7 @@ export async function fetchAgentWipCap(
  * The issue ids currently held by a live lease in this project — only used to build
  * a helpful error when a claim is rejected for hitting the cap.
  */
-async function liveLeaseHoldersForProject(
+const liveLeaseHoldersForProject = async function liveLeaseHoldersForProject(
   orm: ReturnType<typeof drizzle>,
   ctx: ServiceCtx,
   projectId: string,
@@ -67,7 +67,7 @@ async function liveLeaseHoldersForProject(
 }
 
 // The claiming session must itself be live — a dead agent can't hold a lease.
-async function assertAgentSessionLive(
+const assertAgentSessionLive = async function assertAgentSessionLive(
   orm: ReturnType<typeof drizzle>,
   ctx: ServiceCtx,
   agentId: string,
@@ -103,7 +103,11 @@ async function assertAgentSessionLive(
  * SESSION_TTL_SECONDS is duplicated below: agents.ts already imports from this file
  * (releaseLeasesForAgent), so importing back would cycle.
  */
-async function touchAgentHeartbeat(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, agentId: string): Promise<void> {
+const touchAgentHeartbeat = async function touchAgentHeartbeat(
+  orm: ReturnType<typeof drizzle>,
+  ctx: ServiceCtx,
+  agentId: string,
+): Promise<void> {
   await orm
     .update(schema.agentSessions)
     .set({ lastHeartbeatAt: Math.floor(Date.now() / 1000) })
@@ -146,7 +150,7 @@ export function buildTouchAgentHeartbeatIfLiveStatement(ctx: ServiceCtx, agentSe
  * Is there already an active lease on this issue? Join the session to decide
  * whether it's a live conflict or a stale lease we can reclaim.
  */
-async function reclaimStaleLeaseOrThrow(
+const reclaimStaleLeaseOrThrow = async function reclaimStaleLeaseOrThrow(
   orm: ReturnType<typeof drizzle>,
   ctx: ServiceCtx,
   issueId: string,

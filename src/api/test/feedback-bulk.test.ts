@@ -4,7 +4,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function mintSource(
+const mintSource = async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
   body: Record<string, unknown> = { name: 'Widget' },
 ): Promise<void> {
@@ -15,7 +15,7 @@ async function mintSource(
   })
 }
 
-async function seedFeedbackRow(
+const seedFeedbackRow = async function seedFeedbackRow(
   sourceId: string,
   workspaceId: string,
   projectId: string,
@@ -52,7 +52,7 @@ async function seedFeedbackRow(
   return id
 }
 
-async function firstSourceId(projectId: string): Promise<string> {
+const firstSourceId = async function firstSourceId(projectId: string): Promise<string> {
   const row = await env.DB.prepare('SELECT id FROM feedback_sources WHERE project_id = ?')
     .bind(projectId)
     .first<{ id: string }>()

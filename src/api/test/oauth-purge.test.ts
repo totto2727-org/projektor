@@ -5,7 +5,7 @@ import { providerOptions } from '../../contracts/oauth-provider.ts'
 import { OAUTH_PURGE_STATE_KEY, purgeOAuthPage } from '../../core/api/oauth-purge.ts'
 import { env } from './fixture-api.ts'
 
-function memoryNamespace() {
+const memoryNamespace = function memoryNamespace() {
   const values = new Map<string, string>()
   const scans: { prefix: string; cursor?: string }[] = []
   let failGet: string | undefined
@@ -60,7 +60,7 @@ function memoryNamespace() {
   }
 }
 
-function fixture() {
+const fixture = function fixture() {
   const storage = memoryNamespace()
   const checkpoints = memoryNamespace()
   const provider = new OAuthProvider(

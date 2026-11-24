@@ -17,7 +17,11 @@ import type { ServiceCtx } from './types.ts'
  * PROJ-311: linking touches two issues; a non-admin must be able to write to the
  * project each issue belongs to (a missing grant reads as "issue not found").
  */
-async function requireIssueProjectWrite(ctx: ServiceCtx, projectId: string, notFoundLabel: string): Promise<void> {
+const requireIssueProjectWrite = async function requireIssueProjectWrite(
+  ctx: ServiceCtx,
+  projectId: string,
+  notFoundLabel: string,
+): Promise<void> {
   if (isWorkspaceAdmin(ctx.role)) {
     return
   }
@@ -34,7 +38,7 @@ type StoredLinkType = z.infer<typeof LinkTypeStoredEnum>
 // Normalise the (source, target, type) triple to its canonical stored form.
 // 'blocked_by' (A blocked_by B) becomes 'blocks' (B blocks A).
 // 'relates_to' and 'duplicates' are symmetric: canonicalise by lexicographic order.
-function canonicalize(
+const canonicalize = function canonicalize(
   source: string,
   target: string,
   inputType: string,

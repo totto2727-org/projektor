@@ -16,16 +16,16 @@ import { fetchNativeApi } from './native-fetch.ts'
  */
 const HOST = 'https://projektor.example.com'
 
-function mcpUrl(workspaceId: string): string {
+const mcpUrl = function mcpUrl(workspaceId: string): string {
   return `${HOST}/mcp/${workspaceId}`
 }
 
-function rpc(method: string, params?: unknown) {
+const rpc = function rpc(method: string, params?: unknown) {
   return JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
 }
 
 /** Parse `Bearer k="v", k2="v2"` into a map, so tests assert on values not substrings. */
-function parseChallenge(header: string | null): Record<string, string> {
+const parseChallenge = function parseChallenge(header: string | null): Record<string, string> {
   expect(header).toBeTruthy()
   const bearer = header as string
   expect(bearer.startsWith('Bearer ')).toBe(true)
@@ -116,7 +116,7 @@ describe('insufficient scope is a 403 challenge, not a 200 with a JSON-RPC error
     readToken = await seedToken(fixture.workspace.id, fixture.user.id, { scopes: ['read'] })
   })
 
-  async function callAsReadToken(method: string, params: unknown) {
+  const callAsReadToken = async function callAsReadToken(method: string, params: unknown) {
     return fetchNativeApi(mcpUrl(workspaceId), {
       method: 'POST',
       headers: { Authorization: `Bearer ${readToken}`, 'Content-Type': 'application/json' },

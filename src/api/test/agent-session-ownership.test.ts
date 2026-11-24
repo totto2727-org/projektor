@@ -5,7 +5,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture, seedToken, toolError } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function ownershipFixture(role: 'owner' | 'admin') {
+const ownershipFixture = async function ownershipFixture(role: 'owner' | 'admin') {
   const f = await seedIssueFixture({ role })
   const foreignToken = await seedToken(f.workspaceId, f.userId)
   const send = (path: string, body: unknown, token = f.token, method = 'POST') =>
@@ -27,7 +27,7 @@ async function ownershipFixture(role: 'owner' | 'admin') {
 type OwnershipFixture = Awaited<ReturnType<typeof ownershipFixture>>
 type ActAs = 'heartbeat' | 'message' | 'issue claim' | 'file claim' | 'issue attribution' | 'finish work'
 
-function actAs(f: OwnershipFixture, action: ActAs) {
+const actAs = function actAs(f: OwnershipFixture, action: ActAs) {
   const token = f.foreignToken
   switch (action) {
     case 'heartbeat':
@@ -49,7 +49,7 @@ function actAs(f: OwnershipFixture, action: ActAs) {
   }
 }
 
-async function coordinationState(f: OwnershipFixture) {
+const coordinationState = async function coordinationState(f: OwnershipFixture) {
   return {
     session: await env.DB.prepare('SELECT * FROM agent_sessions WHERE id = ?').bind(f.sessionId).first(),
     lease: await env.DB.prepare('SELECT * FROM issue_leases WHERE issue_id = ?').bind(f.issueId).first(),

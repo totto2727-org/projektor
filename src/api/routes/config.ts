@@ -4,7 +4,7 @@ import type { HonoEnv } from '#types'
 
 const router = new Hono<HonoEnv>()
 
-function firstChar(value: string): string {
+const firstChar = function firstChar(value: string): string {
   return Array.from(value)[0] ?? ''
 }
 

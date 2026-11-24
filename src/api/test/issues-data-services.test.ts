@@ -29,7 +29,7 @@ describe('Shared issue queries over the API D1 pool', () => {
   beforeEach(async () => {
     fixture = await seedProjectFixture({ role: 'owner' })
   })
-  async function api(path: string) {
+  const api = async function api(path: string) {
     const response = await fetchNativeApi(`http://localhost/api/${path}`, {
       headers: authHeaders(fixture.token, fixture.slug),
     })

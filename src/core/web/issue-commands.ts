@@ -21,7 +21,7 @@ import type { BrowserCommand } from './command-contract.ts'
 import { browserCommand } from './command.ts'
 
 export const makeIssueCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
-  function reply<S extends Schema.Top, A>(
+  const reply = function reply<S extends Schema.Top, A>(
     name: string,
     schema: S,
     proof: BrowserCommand,

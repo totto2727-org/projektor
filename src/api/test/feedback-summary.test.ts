@@ -4,7 +4,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function mintSource(
+const mintSource = async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
   body: Record<string, unknown> = { name: 'Widget' },
 ): Promise<string> {
@@ -16,7 +16,7 @@ async function mintSource(
   return ((await res.json()) as { token: string }).token
 }
 
-async function seedFeedbackRow(
+const seedFeedbackRow = async function seedFeedbackRow(
   sourceId: string,
   workspaceId: string,
   projectId: string,

@@ -50,13 +50,13 @@ interface Definition {
   readonly input: Schema.Decoder<unknown> | readonly Schema.Decoder<unknown>[]
   readonly handler: (...input: readonly unknown[]) => Effect.Effect<unknown, unknown, RequestServices>
 }
-function fixture(options: { origin?: string } = {}) {
+const fixture = function fixture(options: { origin?: string } = {}) {
   const database = issueDataFixture()
   databases.push(database)
   const invalidated = vi.fn()
   const kv = inMemoryKV()
   const r2 = inMemoryR2()
-  async function invoke(action: unknown, input: unknown) {
+  const invoke = async function invoke(action: unknown, input: unknown) {
     const definition = (action as { definition: Definition }).definition
     const multiple = Array.isArray(definition.input)
     const inputSchema = multiple

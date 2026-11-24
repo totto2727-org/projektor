@@ -5,7 +5,7 @@ import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
-async function mcpCall<T>(
+const mcpCall = async function mcpCall<T>(
   workspaceId: string,
   name: string,
   args: unknown,
@@ -24,7 +24,7 @@ async function mcpCall<T>(
   return res.json()
 }
 
-function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
+const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
   return 'error' in r
 }
 

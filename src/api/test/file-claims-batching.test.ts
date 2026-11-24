@@ -22,7 +22,7 @@ import { fetchNativeApi } from './native-fetch.ts'
  * counts once regardless of how many statements it carries — mirroring the fact that D1's
  * batch API sends every statement in the array over the wire in a single request.
  */
-function trackD1RoundTrips() {
+const trackD1RoundTrips = function trackD1RoundTrips() {
   let count = 0
   const origPrepare = env.DB.prepare.bind(env.DB)
   const origBatch = env.DB.batch.bind(env.DB)
@@ -64,7 +64,7 @@ function trackD1RoundTrips() {
 describe('PROJ-864: claim_files/release_files write batching', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  async function seedStaleClaim(workspaceId: string, issueId: string, path: string) {
+  const seedStaleClaim = async function seedStaleClaim(workspaceId: string, issueId: string, path: string) {
     const agentId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
@@ -83,7 +83,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       .run()
   }
 
-  async function seedLiveClaim(workspaceId: string, issueId: string, path: string) {
+  const seedLiveClaim = async function seedLiveClaim(workspaceId: string, issueId: string, path: string) {
     const now = Math.floor(Date.now() / 1000)
     // agentId NULL: an agentless claim is live until its claim TTL expires.
     await env.DB.prepare(

@@ -17,7 +17,7 @@ const MAX_EXPORT_PAGES = 500
  * page-count-cap test stays fast — content bodies are kept empty since the cap must
  * reject the export before any page content is ever fetched.
  */
-async function seedManyPages(
+const seedManyPages = async function seedManyPages(
   workspaceId: string,
   userId: string,
   count: number,
@@ -34,7 +34,7 @@ async function seedManyPages(
   await env.DB.batch(statements)
 }
 
-async function createPage(
+const createPage = async function createPage(
   token: string,
   slug: string,
   body: Record<string, unknown>,
@@ -48,7 +48,7 @@ async function createPage(
   return res.json()
 }
 
-async function uploadAttachment(
+const uploadAttachment = async function uploadAttachment(
   token: string,
   slug: string,
   pageId: string,
@@ -67,7 +67,7 @@ async function uploadAttachment(
   expect(res.status).toBe(201)
 }
 
-async function exportZip(
+const exportZip = async function exportZip(
   token: string,
   slug: string,
   query: string,
@@ -83,7 +83,7 @@ async function exportZip(
   return { status: res.status, entries: unzipSync(buf) }
 }
 
-function entryText(entries: Record<string, Uint8Array>, path: string): string {
+const entryText = function entryText(entries: Record<string, Uint8Array>, path: string): string {
   return new TextDecoder().decode(entries[path])
 }
 
@@ -324,7 +324,7 @@ describe('Wiki export (PROJ-497)', () => {
       ;(env as unknown as Record<string, unknown>).RATE_LIMIT_API_MAX = originalMax
     })
 
-    async function trash(pageId: string): Promise<void> {
+    const trash = async function trash(pageId: string): Promise<void> {
       const res = await fetchNativeApi(`http://localhost/api/wiki/${pageId}`, {
         method: 'DELETE',
         headers: authHeaders(token, slug),

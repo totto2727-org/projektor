@@ -15,7 +15,7 @@ afterEach(() => {
     database.close()
   }
 })
-function fixture() {
+const fixture = function fixture() {
   const database = issueDataFixture()
   databases.push(database)
   const env = testEnvironment(database.db, 'user@example.test')

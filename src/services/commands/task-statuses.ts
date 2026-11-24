@@ -37,7 +37,7 @@ export async function listTaskStatuses(ctx: ServiceCtx) {
   return result
 }
 
-async function invalidateTaskStatusesCache(ctx: ServiceCtx) {
+const invalidateTaskStatusesCache = async function invalidateTaskStatusesCache(ctx: ServiceCtx) {
   const cacheKey = TASK_STATUSES_CACHE_KEY(ctx.workspaceId)
   await cache.invalidate(ctx.kv, cacheKey)
   localCache.invalidate(cacheKey)
@@ -89,7 +89,7 @@ export async function createTaskStatus(ctx: ServiceCtx, raw: unknown) {
 
 type TaskStatusUpdateData = z.infer<typeof UpdateTaskStatusSchema>
 
-function buildTaskStatusSetObj(data: TaskStatusUpdateData) {
+const buildTaskStatusSetObj = function buildTaskStatusSetObj(data: TaskStatusUpdateData) {
   const setObj: Record<string, unknown> = {}
   if (data.name !== undefined) {
     setObj.name = data.name

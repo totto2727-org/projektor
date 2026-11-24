@@ -13,11 +13,11 @@ import { fetchNativeApi } from './native-fetch.ts'
 
 type Schema = Record<string, unknown>
 
-function schemaType(s: Schema): string | undefined {
+const schemaType = function schemaType(s: Schema): string | undefined {
   return Array.isArray(s.type) ? (s.type[0] as string) : (s.type as string | undefined)
 }
 
-function validValue(s: Schema): unknown {
+const validValue = function validValue(s: Schema): unknown {
   if (Array.isArray(s.enum) && s.enum.length > 0) {
     return s.enum[0]
   }
@@ -38,7 +38,7 @@ function validValue(s: Schema): unknown {
   }
 }
 
-function wrongValue(s: Schema): unknown {
+const wrongValue = function wrongValue(s: Schema): unknown {
   switch (schemaType(s)) {
     case 'string':
       return 42
@@ -55,7 +55,7 @@ function wrongValue(s: Schema): unknown {
   }
 }
 
-async function rpc(workspaceId: string, headers: Record<string, string>, method: string, params: unknown) {
+const rpc = async function rpc(workspaceId: string, headers: Record<string, string>, method: string, params: unknown) {
   const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,

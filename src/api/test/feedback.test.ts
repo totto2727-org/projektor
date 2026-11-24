@@ -128,7 +128,7 @@ describe('Feedback sources REST', () => {
   })
 })
 
-async function mintSource(
+const mintSource = async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
   body: Record<string, unknown> = { name: 'Widget' },
 ): Promise<string> {
@@ -326,7 +326,7 @@ async function seedRateLimitAtCap(key: string): Promise<void> {
   await seedRateLimitCounter(key, 5)
 }
 
-async function seedFeedbackRow(
+const seedFeedbackRow = async function seedFeedbackRow(
   sourceId: string,
   workspaceId: string,
   projectId: string,
@@ -456,7 +456,7 @@ describe('Feedback triage read/patch', () => {
   })
 })
 
-async function mcpCall<T>(
+const mcpCall = async function mcpCall<T>(
   workspaceId: string,
   name: string,
   args: unknown,
@@ -475,7 +475,7 @@ async function mcpCall<T>(
   return res.json()
 }
 
-function mcpText<T>(r: JsonRpcResult<{ content: { text: string }[] }>): T {
+const mcpText = function mcpText<T>(r: JsonRpcResult<{ content: { text: string }[] }>): T {
   return JSON.parse(r.result.content[0].text) as T
 }
 
@@ -804,7 +804,7 @@ describe('PROJ-390: path params win over body-supplied ids', () => {
 })
 
 describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
-  async function seedTwoProjectsSameWorkspace() {
+  const seedTwoProjectsSameWorkspace = async function seedTwoProjectsSameWorkspace() {
     const roles = await seedWorkspaceRoles()
     const projA = await seedProject(roles.workspace.id, 'PA')
     const projB = await seedProject(roles.workspace.id, 'PB')
@@ -847,7 +847,9 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
 })
 
 describe('PROJ-390: mutating a revoked feedback source', () => {
-  async function seedRevokedSource(f: Readonly<{ projectId: string; token: string; slug: string }>) {
+  const seedRevokedSource = async function seedRevokedSource(
+    f: Readonly<{ projectId: string; token: string; slug: string }>,
+  ) {
     const created = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),

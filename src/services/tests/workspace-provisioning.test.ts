@@ -12,7 +12,7 @@ afterEach(() => {
   }
 })
 
-function fixture() {
+const fixture = function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   // The node fixture omits FTS5. This mirror checks provisioning writes, not search behavior.

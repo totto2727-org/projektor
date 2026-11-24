@@ -20,7 +20,7 @@ describe('PROJ-921: ready_at and lead time', () => {
     ;({ token, slug, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  async function create(status: string): Promise<string> {
+  const create = async function create(status: string): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -30,7 +30,7 @@ describe('PROJ-921: ready_at and lead time', () => {
     return ((await res.json()) as { id: string }).id
   }
 
-  async function patch(id: string, status: string) {
+  const patch = async function patch(id: string, status: string) {
     const res = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -39,7 +39,7 @@ describe('PROJ-921: ready_at and lead time', () => {
     expect(res.status).toBe(200)
   }
 
-  async function stamps(id: string) {
+  const stamps = async function stamps(id: string) {
     return env.DB.prepare('SELECT ready_at, done_at FROM issues WHERE id = ?')
       .bind(id)
       .first<{ ready_at: number | null; done_at: number | null }>()

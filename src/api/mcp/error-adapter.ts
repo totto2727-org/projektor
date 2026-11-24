@@ -12,7 +12,7 @@ const ValidationIssues = z.object({
 const MAX_DETAIL_VALUE_CHARS = 80
 const MAX_DETAIL_SUMMARY_CHARS = 300
 
-function truncate(s: string, max: number): string {
+const truncate = function truncate(s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max)}…` : s
 }
 
@@ -23,7 +23,7 @@ function truncate(s: string, max: number): string {
  * `message` too so an agent without `data` access isn't left blind to *why* a
  * structured error (conflict diff, ambiguous headings, ...) happened.
  */
-function summarizeDetails(details: Record<string, unknown>): string {
+const summarizeDetails = function summarizeDetails(details: Record<string, unknown>): string {
   const summary = Object.entries(details)
     .map(([key, value]) => {
       const rendered = Array.isArray(value)
@@ -37,7 +37,9 @@ function summarizeDetails(details: Record<string, unknown>): string {
   return truncate(summary, MAX_DETAIL_SUMMARY_CHARS)
 }
 
-function hasDetails(details: Record<string, unknown> | undefined): details is Record<string, unknown> {
+const hasDetails = function hasDetails(
+  details: Record<string, unknown> | undefined,
+): details is Record<string, unknown> {
   return details !== undefined && Object.keys(details).length > 0
 }
 
@@ -46,7 +48,7 @@ function hasDetails(details: Record<string, unknown> | undefined): details is Re
  * ValidationError's Zod-flattened `issues` shape (formErrors + fieldErrors) instead of
  * a flat details object.
  */
-function summarizeIssues(issues: ZodFlattenOutput): string {
+const summarizeIssues = function summarizeIssues(issues: ZodFlattenOutput): string {
   const parts: string[] = [
     ...(issues.formErrors.length > 0 ? [truncate(issues.formErrors.join(', '), MAX_DETAIL_VALUE_CHARS)] : []),
     ...Object.entries(issues.fieldErrors)
@@ -56,7 +58,7 @@ function summarizeIssues(issues: ZodFlattenOutput): string {
   return truncate(parts.join('; '), MAX_DETAIL_SUMMARY_CHARS)
 }
 
-function hasIssues(issues: ZodFlattenOutput): boolean {
+const hasIssues = function hasIssues(issues: ZodFlattenOutput): boolean {
   return (
     issues.formErrors.length > 0 ||
     Object.values(issues.fieldErrors).some((messages) => messages && messages.length > 0)
@@ -72,7 +74,7 @@ function hasIssues(issues: ZodFlattenOutput): boolean {
  * folded into `message` — same fallback as NotFoundError/ConflictError below — for MCP
  * hosts that don't surface `data`.
  */
-function toMcpValidationError(err: { issues: ZodFlattenOutput }): {
+const toMcpValidationError = function toMcpValidationError(err: { issues: ZodFlattenOutput }): {
   code: number
   message: string
   data?: unknown
@@ -93,7 +95,7 @@ function toMcpValidationError(err: { issues: ZodFlattenOutput }): {
  * JSON-RPC 2.0 channel — rather than JSON-encoded into `message`. A bounded summary is
  * also folded into `message` as a fallback for MCP hosts that don't surface `data`.
  */
-function toMcpServiceErrorWithDetails(
+const toMcpServiceErrorWithDetails = function toMcpServiceErrorWithDetails(
   message: string,
   details: Record<string, unknown> | undefined,
 ): { code: number; message: string; data?: unknown } {
@@ -190,7 +192,9 @@ export function toolErrorResult(error: ToolErrorBody): ToolErrorResult {
   return { content: [{ type: 'text', text: JSON.stringify({ error }) }], isError: true }
 }
 
-function definedFields(fieldErrors: ZodFlattenOutput['fieldErrors']): Record<string, string[]> | undefined {
+const definedFields = function definedFields(
+  fieldErrors: ZodFlattenOutput['fieldErrors'],
+): Record<string, string[]> | undefined {
   const out: Record<string, string[]> = {}
   for (const [field, messages] of Object.entries(fieldErrors)) {
     if (messages && messages.length > 0) {
@@ -200,7 +204,7 @@ function definedFields(fieldErrors: ZodFlattenOutput['fieldErrors']): Record<str
   return Object.keys(out).length > 0 ? out : undefined
 }
 
-function notFoundHint(message: string, toolName: string | undefined): string {
+const notFoundHint = function notFoundHint(message: string, toolName: string | undefined): string {
   // The message says what was missing; the tool name is only a fallback (claim_issue's
   // "Agent session not found" must not be read as an issue miss).
   const fromMessage = pickNotFoundHint(message.toLowerCase())
@@ -229,7 +233,7 @@ function pickNotFoundHint(subject: string): string | undefined {
   return undefined
 }
 
-function conflictHint(message: string, details: Record<string, unknown> | undefined): string {
+const conflictHint = function conflictHint(message: string, details: Record<string, unknown> | undefined): string {
   if (details && 'currentRevisionId' in details) {
     return 'The page changed since you read it. Re-read it with get_wiki_page, then apply your change with patch_wiki_page.'
   }

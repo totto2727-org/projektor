@@ -10,12 +10,16 @@ import { authHeaders, seedFixture, seedProject, seedWorkspaceRoles } from './hel
 import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
-async function call(url: string, token: string, slug: string, init?: RequestInit) {
+const call = async function call(url: string, token: string, slug: string, init?: RequestInit) {
   await resetRateLimits()
   return fetchNativeApi(url, { ...init, headers: authHeaders(token, slug) })
 }
 
-async function createPage(token: string, slug: string, body: { title: string; content?: string; projectId?: string }) {
+const createPage = async function createPage(
+  token: string,
+  slug: string,
+  body: { title: string; content?: string; projectId?: string },
+) {
   const res = await call('http://localhost/api/wiki', token, slug, {
     method: 'POST',
     body: JSON.stringify({ content: '', ...body }),
@@ -24,13 +28,13 @@ async function createPage(token: string, slug: string, body: { title: string; co
   return (await res.json()) as { id: string; slug: string }
 }
 
-async function broken(token: string, slug: string) {
+const broken = async function broken(token: string, slug: string) {
   const res = await call('http://localhost/api/wiki/broken-links', token, slug)
   expect(res.status).toBe(200)
   return (await res.json()) as { sourceSlug: string; targetTitle: string }[]
 }
 
-async function targetOf(sourceId: string) {
+const targetOf = async function targetOf(sourceId: string) {
   const row = await env.DB.prepare('SELECT target_page_id AS t FROM wiki_links WHERE source_page_id = ?')
     .bind(sourceId)
     .first<{ t: string | null }>()

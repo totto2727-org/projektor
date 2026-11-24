@@ -4,7 +4,7 @@ import { env } from '../../src/api/test/fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus } from '../../src/api/test/helpers.ts'
 import { fetchNativeApi } from '../../src/api/test/native-fetch.ts'
 
-async function fixture() {
+const fixture = async function fixture() {
   const owner = await seedProjectFixture({ role: 'owner' })
   const status = await seedTaskStatus(owner.workspaceId, { key: 'custom_review', category: 'in_progress' })
   const otherStatus = await seedTaskStatus(owner.workspaceId, { key: 'unrelated', category: 'todo', isDefault: true })

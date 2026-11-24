@@ -11,7 +11,7 @@ export function useIssueMutations(workspaceSlug: string | undefined, statuses: r
   const [updatingPriorityId, setUpdatingPriorityId] = useState<string | null>(null)
   const [updateError, setUpdateError] = useState<string | null>(null)
 
-  async function changeStatus(issueId: string, statusId: string) {
+  const changeStatus = async function changeStatus(issueId: string, statusId: string) {
     if (!statuses.some((status) => status.id === statusId)) {
       return
     }
@@ -25,7 +25,7 @@ export function useIssueMutations(workspaceSlug: string | undefined, statuses: r
     setUpdatingId(null)
   }
 
-  async function changePriority(issueId: string, priority: string) {
+  const changePriority = async function changePriority(issueId: string, priority: string) {
     setUpdateError(null)
     setUpdatingPriorityId(issueId)
     try {

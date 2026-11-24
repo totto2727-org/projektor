@@ -12,7 +12,7 @@ import { seedUser, seedWorkspace } from './helpers.ts'
  * wiki_redirects ON CONFLICT upsert).
  */
 
-function splitStatements(sql: string): string[] {
+const splitStatements = function splitStatements(sql: string): string[] {
   return sql
     .replace(/--[^\n]*/g, '')
     .split(';')
@@ -20,13 +20,13 @@ function splitStatements(sql: string): string[] {
     .filter((s) => s.length > 0)
 }
 
-async function runMigration0050() {
+const runMigration0050 = async function runMigration0050() {
   for (const stmt of splitStatements(m0050)) {
     await env.DB.prepare(stmt).run()
   }
 }
 
-async function insertPage(workspaceId: string, userId: string, slug: string, createdAt: number) {
+const insertPage = async function insertPage(workspaceId: string, userId: string, slug: string, createdAt: number) {
   const id = crypto.randomUUID()
   await env.DB.prepare(
     `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,

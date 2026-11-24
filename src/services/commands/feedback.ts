@@ -15,7 +15,10 @@ import { createIssueFromFeedback } from './issues.ts'
 import { inChunks } from './sql.ts'
 import type { ServiceCtx } from './types.ts'
 
-async function requireProjectWriteAccess(ctx: ServiceCtx, projectId: string): Promise<void> {
+const requireProjectWriteAccess = async function requireProjectWriteAccess(
+  ctx: ServiceCtx,
+  projectId: string,
+): Promise<void> {
   await requireProjectInWorkspace(ctx, projectId)
   const role = await requireProjectAccess(ctx, projectId)
   if (!canWriteProject(role)) {
@@ -39,7 +42,10 @@ interface SubmitSourceRow {
   revoked_at: number | null
 }
 
-async function resolveFeedbackSource(db: D1Database, tokenHash: string): Promise<SubmitSourceRow> {
+const resolveFeedbackSource = async function resolveFeedbackSource(
+  db: D1Database,
+  tokenHash: string,
+): Promise<SubmitSourceRow> {
   const source = await db
     .prepare(
       `SELECT id, workspace_id, project_id, is_active, allowed_origins, revoked_at
@@ -60,7 +66,7 @@ async function resolveFeedbackSource(db: D1Database, tokenHash: string): Promise
   return source
 }
 
-function parseSubmitFeedbackBody(rawBody: unknown) {
+const parseSubmitFeedbackBody = function parseSubmitFeedbackBody(rawBody: unknown) {
   const parsed = SubmitFeedbackSchema.safeParse(rawBody)
   if (!parsed.success) {
     throw new ValidationError(parsed.error.flatten())
@@ -68,7 +74,7 @@ function parseSubmitFeedbackBody(rawBody: unknown) {
   return parsed.data
 }
 
-async function insertFeedbackRow(
+const insertFeedbackRow = async function insertFeedbackRow(
   db: D1Database,
   source: SubmitSourceRow,
   d: ReturnType<typeof parseSubmitFeedbackBody>,
@@ -99,7 +105,10 @@ async function insertFeedbackRow(
   return id
 }
 
-function resolveCorsAllowOrigin(source: SubmitSourceRow, requestOrigin: string | null): string | null {
+const resolveCorsAllowOrigin = function resolveCorsAllowOrigin(
+  source: SubmitSourceRow,
+  requestOrigin: string | null,
+): string | null {
   const allowed = source.allowed_origins ? (JSON.parse(source.allowed_origins) as string[]) : null
   return allowed && requestOrigin && allowed.includes(requestOrigin) ? requestOrigin : null
 }
@@ -169,7 +178,7 @@ interface FeedbackScopeRow {
 
 // REST always passes the URL path's projectId (scoping the lookup, 404 on mismatch);
 // MCP omits it and the row's own project_id is used instead.
-async function requireFeedbackScope(
+const requireFeedbackScope = async function requireFeedbackScope(
   ctx: ServiceCtx,
   feedbackId: string,
   projectId: string | undefined,
@@ -208,7 +217,7 @@ export async function updateFeedbackStatus(ctx: ServiceCtx, input: unknown): Pro
   return { ok: true }
 }
 
-function ratingLabel(rating: number | null, scale: string | null): string {
+const ratingLabel = function ratingLabel(rating: number | null, scale: string | null): string {
   if (rating === null) {
     return 'Rating'
   }

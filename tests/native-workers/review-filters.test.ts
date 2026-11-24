@@ -118,12 +118,12 @@ beforeEach(async () => {
   request = { url: `https://front.test/issues?workspace=${slug}`, method: 'GET', headers: [] }
 })
 
-function page(query: string, workspace = workspaceId) {
+const page = function page(query: string, workspace = workspaceId) {
   return Effect.runPromise(
     decodeCoreReply(IssuePageSchema, makeCoreClient(Reflect.get(env, 'CORE')).webIssuePage(request, workspace, query)),
   )
 }
-function search(review?: ReviewFilter, projectId?: string, workspace = workspaceId) {
+const search = function search(review?: ReviewFilter, projectId?: string, workspace = workspaceId) {
   return Effect.runPromise(
     decodeCoreReply(
       SearchResultsSchema,

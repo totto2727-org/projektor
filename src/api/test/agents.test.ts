@@ -18,7 +18,7 @@ describe('Agents API', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
   })
 
-  async function registerAgent(body: Record<string, unknown>) {
+  const registerAgent = async function registerAgent(body: Record<string, unknown>) {
     return fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -189,7 +189,7 @@ describe('Agents API', () => {
 
   // PROJ-929: start_work / finish_work replace the 5-call fleet routine.
   describe('PROJ-929: start_work / finish_work', () => {
-    function startWork(body: Record<string, unknown>) {
+    const startWork = function startWork(body: Record<string, unknown>) {
       return fetchNativeApi('http://localhost/api/agents/start-work', {
         method: 'POST',
         headers: authHeaders(token, slug),
@@ -197,7 +197,7 @@ describe('Agents API', () => {
       })
     }
 
-    function finishWork(body: Record<string, unknown>) {
+    const finishWork = function finishWork(body: Record<string, unknown>) {
       return fetchNativeApi('http://localhost/api/agents/finish-work', {
         method: 'POST',
         headers: authHeaders(token, slug),
@@ -205,7 +205,7 @@ describe('Agents API', () => {
       })
     }
 
-    async function mcpCall(name: string, args: Record<string, unknown>) {
+    const mcpCall = async function mcpCall(name: string, args: Record<string, unknown>) {
       const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
         method: 'POST',
         headers: {
@@ -511,12 +511,12 @@ describe('Agents API', () => {
   describe('PROJ-932: live-only default, includeStale, projectId, issueRef, live flag', () => {
     const projectKey = 'PROJ' // seedProject's default key
 
-    function backdateHeartbeat(agentId: string, secondsAgo = 200) {
+    const backdateHeartbeat = function backdateHeartbeat(agentId: string, secondsAgo = 200) {
       const stale = Math.floor(Date.now() / 1000) - secondsAgo
       return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
     }
 
-    async function listAgents(params: Record<string, string> = {}) {
+    const listAgents = async function listAgents(params: Record<string, string> = {}) {
       const qs = new URLSearchParams(params).toString()
       return fetchNativeApi(`http://localhost/api/agents${qs ? `?${qs}` : ''}`, {
         headers: authHeaders(token, slug),

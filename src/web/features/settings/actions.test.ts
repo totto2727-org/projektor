@@ -124,7 +124,7 @@ function checkGrant(test: Fixture) {
     test.sqlite.prepare("SELECT role FROM group_project_grants WHERE group_id='g1' AND project_id='p1'").get()?.role,
   ).toBe('admin')
 }
-function settingsFixture(origin = 'https://front.example') {
+const settingsFixture = function settingsFixture(origin = 'https://front.example') {
   const test = actionFixture(undefined, origin)
   test.sqlite.exec(`
     INSERT INTO users (id,email,name,created_at) VALUES ('u2','member@example.test','Member',1);
@@ -135,12 +135,12 @@ function settingsFixture(origin = 'https://front.example') {
   `)
   return test
 }
-function memberFixture() {
+const memberFixture = function memberFixture() {
   const test = settingsFixture()
   test.sqlite.exec("UPDATE workspace_members SET role='member' WHERE user_id='u1'")
   return test
 }
-async function seedConnectors(test: Fixture) {
+const seedConnectors = async function seedConnectors(test: Fixture) {
   for (const [id, userId, workspaceId] of [
     ['c1', 'u1', 'w1'],
     ['c2', 'u1', 'w2'],

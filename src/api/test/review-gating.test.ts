@@ -30,7 +30,11 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  async function seedAgentLease(workspace: string, issue: string, options?: Parameters<typeof seedLease>[2]) {
+  const seedAgentLease = async function seedAgentLease(
+    workspace: string,
+    issue: string,
+    options?: Parameters<typeof seedLease>[2],
+  ) {
     const seeded = await seedLease(workspace, issue, options)
     await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
       (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)
@@ -39,7 +43,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     return seeded
   }
 
-  function patch(id: string, body: Record<string, unknown>) {
+  const patch = function patch(id: string, body: Record<string, unknown>) {
     return fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -47,21 +51,21 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     })
   }
 
-  async function completionReportAtOf(id: string): Promise<number | null> {
+  const completionReportAtOf = async function completionReportAtOf(id: string): Promise<number | null> {
     const row = await env.DB.prepare('SELECT completion_report_at FROM issues WHERE id = ?')
       .bind(id)
       .first<{ completion_report_at: number | null }>()
     return row?.completion_report_at ?? null
   }
 
-  async function needsAuditOf(id: string): Promise<boolean> {
+  const needsAuditOf = async function needsAuditOf(id: string): Promise<boolean> {
     const row = await env.DB.prepare('SELECT needs_audit FROM issues WHERE id = ?')
       .bind(id)
       .first<{ needs_audit: number }>()
     return Boolean(row?.needs_audit)
   }
 
-  async function commentBodies(id: string): Promise<string[]> {
+  const commentBodies = async function commentBodies(id: string): Promise<string[]> {
     const res = await fetchNativeApi(`http://localhost/api/issues/${id}/comments`, {
       headers: authHeaders(token, slug),
     })
@@ -71,7 +75,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
   const report = { summary: 'Did the thing', verification: 'pnpm test' }
 
-  async function seedFlaggedAndCleanDoneIssues() {
+  const seedFlaggedAndCleanDoneIssues = async function seedFlaggedAndCleanDoneIssues() {
     const flagged = await seedIssue(workspaceId, projectId, userId, { title: 'Flagged' })
     const clean = await seedIssue(workspaceId, projectId, userId, { title: 'Clean' })
     const { agentSessionId: flaggedAgent } = await seedAgentLease(workspaceId, flagged.id)
@@ -326,7 +330,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
   // --- Heartbeat refresh on a live agentSessionId (PROJ-929) ---
 
-  async function heartbeatOf(id: string): Promise<number> {
+  const heartbeatOf = async function heartbeatOf(id: string): Promise<number> {
     const row = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
       .bind(id)
       .first<{ last_heartbeat_at: number }>()

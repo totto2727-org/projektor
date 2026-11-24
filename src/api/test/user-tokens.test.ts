@@ -26,11 +26,11 @@ import { fetchNativeApi } from './native-fetch.ts'
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function getIssues(token: string, slug: string) {
+const getIssues = async function getIssues(token: string, slug: string) {
   return fetchNativeApi('http://localhost/api/issues', { headers: authHeaders(token, slug) })
 }
 
-async function postIssue(token: string, slug: string, projectId: string, title: string) {
+const postIssue = async function postIssue(token: string, slug: string, projectId: string, title: string) {
   return fetchNativeApi('http://localhost/api/issues', {
     method: 'POST',
     headers: authHeaders(token, slug),
@@ -132,7 +132,7 @@ describe('PROJ-91: workspace-scoped token regression', () => {
  * PROJ-903: minting happens from an interactive human session. In tests that's the
  * dev bypass: ENVIRONMENT=development + DEV_USER_EMAIL, no Authorization header.
  */
-async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
+const asHuman = async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
   const prev = env.DEV_USER_EMAIL
   env.DEV_USER_EMAIL = email
   try {
@@ -142,7 +142,7 @@ async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
   }
 }
 
-function mintAsHuman(email: string, body: unknown) {
+const mintAsHuman = function mintAsHuman(email: string, body: unknown) {
   return asHuman(email, () =>
     fetchNativeApi('http://localhost/auth/tokens', {
       method: 'POST',

@@ -33,7 +33,7 @@ import { webRead } from './issue-operations.ts'
 import type { RequestScope, WebRequest } from './scope.ts'
 
 const admin = (role: string | undefined) => role === 'owner' || role === 'admin'
-function readContext(env: CoreEnvironment, proof: BrowserCommand) {
+const readContext = function readContext(env: CoreEnvironment, proof: BrowserCommand) {
   return Effect.gen(function* () {
     const input = yield* Schema.decodeUnknownEffect(BrowserCommandSchema)(proof).pipe(
       Effect.mapError(() => coreFailure(400, 'Invalid browser request.')),
@@ -62,7 +62,12 @@ function readContext(env: CoreEnvironment, proof: BrowserCommand) {
     return { ctx, workspace, scope }
   })
 }
-function authorizeGrantProject(env: CoreEnvironment, scope: RequestScope, workspaceId: string, projectId: string) {
+const authorizeGrantProject = function authorizeGrantProject(
+  env: CoreEnvironment,
+  scope: RequestScope,
+  workspaceId: string,
+  projectId: string,
+) {
   return Effect.gen(function* () {
     const visibility = yield* checked(() =>
       and(visibleProjectPredicate(scope, workspaceId, schema.projects.id), eq(schema.projects.id, projectId)),
@@ -74,7 +79,7 @@ function authorizeGrantProject(env: CoreEnvironment, scope: RequestScope, worksp
   })
 }
 export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
-  function mutation<S extends Schema.Top, A>(
+  const mutation = function mutation<S extends Schema.Top, A>(
     name: string,
     codec: S,
     proof: BrowserCommand,
@@ -88,7 +93,7 @@ export const makeSettingsHandlers = <R>(envSource: Effect.Effect<CoreEnvironment
       ),
     )
   }
-  function grant(
+  const grant = function grant(
     name: string,
     proof: BrowserCommand,
     groupId: string,

@@ -19,7 +19,7 @@ const Workspaces = Schema.Array(Workspace)
 
 /** These named methods never accept caller-supplied user IDs or roles. */
 export function makeApiIdentityHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
-  function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>) {
+  const attempt = function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>) {
     return Effect.flatMap(envSource, (env) =>
       Effect.tryPromise({ try: () => operation(env), catch: publicDomainFailure }),
     )

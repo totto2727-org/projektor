@@ -10,7 +10,7 @@ import {
 } from '../contracts/errors.ts'
 import { coreFailure } from './contract.ts'
 
-function jsonDetails(input: unknown): Schema.JsonObject | undefined {
+const jsonDetails = function jsonDetails(input: unknown): Schema.JsonObject | undefined {
   try {
     return Schema.decodeUnknownSync(Schema.JsonObject)(input)
   } catch {

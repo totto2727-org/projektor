@@ -15,7 +15,7 @@ import {
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function mcpCall<T>(
+const mcpCall = async function mcpCall<T>(
   workspaceId: string,
   method: string,
   params: unknown,

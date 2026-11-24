@@ -64,7 +64,7 @@ beforeEach(async () => {
   }
 })
 
-function update(status: unknown, command = proof, owner = issueId) {
+const update = function update(status: unknown, command = proof, owner = issueId) {
   return Effect.runPromise(
     decodeCoreReply(
       CommandOkSchema,
@@ -77,7 +77,7 @@ function update(status: unknown, command = proof, owner = issueId) {
   )
 }
 
-async function persistedStatus() {
+const persistedStatus = async function persistedStatus() {
   return env.DB.prepare('SELECT review_status FROM attachments WHERE id = ? AND workspace_id = ?')
     .bind(attachmentId, workspaceId)
     .first()

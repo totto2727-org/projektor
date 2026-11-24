@@ -45,7 +45,7 @@ export interface ContentionHeatmapEntry {
  * Resolves the path segment one level below `prefix` that `itemPath` falls under, or null
  * if `itemPath` IS `prefix` (nothing left to drill into).
  */
-function resolveNextSegment(
+const resolveNextSegment = function resolveNextSegment(
   itemPath: string,
   prefix: string,
   prefixWithSlash: string,
@@ -70,7 +70,7 @@ type SegmentGroup = { ids: Set<string>; count: number; isLeaf: boolean }
  * groupClaimsByNextSegment and groupConflictsByNextSegment (below), which differ only in
  * how they extract the distinct id to count per group.
  */
-function groupItemsByNextSegment<T extends { path: string }>(
+const groupItemsByNextSegment = function groupItemsByNextSegment<T extends { path: string }>(
   items: readonly T[],
   prefix: string,
   prefixWithSlash: string,
@@ -107,7 +107,7 @@ function groupItemsByNextSegment<T extends { path: string }>(
   return groups
 }
 
-function groupClaimsByNextSegment(
+const groupClaimsByNextSegment = function groupClaimsByNextSegment(
   claims: readonly { path: string; issueId: string }[],
   prefix: string,
 ): CodeHeatmapEntry[] {
@@ -125,7 +125,7 @@ function groupClaimsByNextSegment(
     .sort((a, b) => b.distinctIssueCount - a.distinctIssueCount || a.path.localeCompare(b.path))
 }
 
-function groupConflictsByNextSegment(
+const groupConflictsByNextSegment = function groupConflictsByNextSegment(
   conflicts: readonly { path: string; rejectedIssueId: string }[],
   prefix: string,
 ): ContentionHeatmapEntry[] {
@@ -143,7 +143,12 @@ function groupConflictsByNextSegment(
     .sort((a, b) => b.distinctRejectedIssueCount - a.distinctRejectedIssueCount || a.path.localeCompare(b.path))
 }
 
-async function readCodeHeatmap(db: D1Database, workspaceId: string, range: CodeHeatmapRange, now: number) {
+const readCodeHeatmap = async function readCodeHeatmap(
+  db: D1Database,
+  workspaceId: string,
+  range: CodeHeatmapRange,
+  now: number,
+) {
   const { projectId, since, until, prefix, mode } = range
   const orm = drizzle(db, { schema })
 

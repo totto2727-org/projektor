@@ -40,7 +40,7 @@ const EMPTY_WIKI_FRONTMATTER: WikiFrontmatterMeta = {
  * parsed as an ISO date. Throws a plain Error (caller wraps it as a ValidationError) on
  * anything else, or an unparseable string.
  */
-function normalizeVerifiedAt(value: unknown): number | null {
+const normalizeVerifiedAt = function normalizeVerifiedAt(value: unknown): number | null {
   if (value === null) {
     return null
   }
@@ -60,7 +60,7 @@ function normalizeVerifiedAt(value: unknown): number | null {
   throw new Error('verified_at must be a date or a unix-seconds number')
 }
 
-function parseFrontmatterYaml(yamlBlock: string): unknown {
+const parseFrontmatterYaml = function parseFrontmatterYaml(yamlBlock: string): unknown {
   try {
     return parseYaml(yamlBlock)
   } catch {
@@ -75,7 +75,7 @@ function parseFrontmatterYaml(yamlBlock: string): unknown {
   }
 }
 
-function normalizeFrontmatterRecord(raw: object): Record<string, unknown> {
+const normalizeFrontmatterRecord = function normalizeFrontmatterRecord(raw: object): Record<string, unknown> {
   const normalized: Record<string, unknown> = { ...(raw as Record<string, unknown>) }
   if ('verified_at' in normalized) {
     try {
@@ -101,7 +101,7 @@ function normalizeFrontmatterRecord(raw: object): Record<string, unknown> {
  * rather than an error, since it's an easy no-op state to end up in when editing.
  * Anything else that isn't a plain mapping (a list, a scalar) is a genuine error.
  */
-function requireFrontmatterMapping(raw: unknown): Record<string, unknown> | null {
+const requireFrontmatterMapping = function requireFrontmatterMapping(raw: unknown): Record<string, unknown> | null {
   if (raw === null || raw === undefined) {
     return null
   }
@@ -114,7 +114,9 @@ function requireFrontmatterMapping(raw: unknown): Record<string, unknown> | null
   return raw as Record<string, unknown>
 }
 
-function toFrontmatterMeta(d: ReturnType<typeof WikiFrontmatterSchema.parse>): WikiFrontmatterMeta {
+const toFrontmatterMeta = function toFrontmatterMeta(
+  d: ReturnType<typeof WikiFrontmatterSchema.parse>,
+): WikiFrontmatterMeta {
   return {
     type: d.type ?? null,
     tags: d.tags ?? [],

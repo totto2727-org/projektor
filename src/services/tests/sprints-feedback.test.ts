@@ -10,8 +10,8 @@ import { findFeedbackSourceById, listFeedback, listFeedbackSources, readFeedback
 import { findSprintById, listSprints } from '../sprints.ts'
 
 /** Read-only transport over the real migrated schema. */
-function readDatabase(sqlite: DatabaseSync): D1Database {
-  function prepare(sql: string, bindings: SQLInputValue[] = []) {
+const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
+  const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {
       bind: (...values: SQLInputValue[]) => prepare(sql, values),
       first: async () => sqlite.prepare(sql).get(...bindings) ?? null,

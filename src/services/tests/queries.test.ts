@@ -23,8 +23,8 @@ import {
 } from '../index.ts'
 
 /** Read-only D1 transport over the real migrated schema. Not a Worker emulator. */
-function readDatabase(sqlite: DatabaseSync): D1Database {
-  function prepare(sql: string, bindings: SQLInputValue[] = []) {
+const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
+  const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {
       bind: (...values: SQLInputValue[]) => prepare(sql, values),
       all: async () => ({ results: sqlite.prepare(sql).all(...bindings) }),

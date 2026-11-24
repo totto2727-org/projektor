@@ -71,7 +71,10 @@ type TreeNode = {
  * sees it) or project-scoped (visible only when the project is granted). Writes to
  * a project-scoped page need a member/admin grant; deletes need admin.
  */
-async function assertWikiPageVisible(ctx: ServiceCtx, projectId: string | null): Promise<void> {
+const assertWikiPageVisible = async function assertWikiPageVisible(
+  ctx: ServiceCtx,
+  projectId: string | null,
+): Promise<void> {
   if (projectId === null) {
     return
   }
@@ -82,7 +85,7 @@ async function assertWikiPageVisible(ctx: ServiceCtx, projectId: string | null):
   })
 }
 
-async function requireWikiWrite(ctx: ServiceCtx, projectId: string | null): Promise<void> {
+const requireWikiWrite = async function requireWikiWrite(ctx: ServiceCtx, projectId: string | null): Promise<void> {
   if (projectId === null) {
     if (ctx.role === 'viewer') {
       throw new ForbiddenError('Insufficient permissions')
@@ -96,7 +99,7 @@ async function requireWikiWrite(ctx: ServiceCtx, projectId: string | null): Prom
   await assertProjectAccess(ctx, projectId, 'edit', { notFoundMessage: 'Wiki page not found' })
 }
 
-function slugify(title: string): string {
+const slugify = function slugify(title: string): string {
   return title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -159,7 +162,7 @@ const MAX_DELETED_PAGE_IDS = 500
  * Checked only when a slug is newly chosen (create, rename), never when an existing
  * slug is re-validated (undelete), so a page created before this rule still restores.
  */
-function assertSlugNotIdShaped(slug: string): void {
+const assertSlugNotIdShaped = function assertSlugNotIdShaped(slug: string): void {
   if (isIdShapedSlug(slug)) {
     throw new ValidationError({
       formErrors: [`Slug '${slug}' looks like a page id and cannot be used`],
@@ -175,7 +178,7 @@ function assertSlugNotIdShaped(slug: string): void {
  * 0051_wiki_trash.sql) so a trashed page's slug is immediately available again — this
  * check mirrors that by only considering live rows.
  */
-async function assertSlugAvailable(
+const assertSlugAvailable = async function assertSlugAvailable(
   orm: ReturnType<typeof drizzle<typeof schema>>,
   workspaceId: string,
   slug: string,
@@ -203,7 +206,7 @@ async function assertSlugAvailable(
   }
 }
 
-async function resolvePageByIdOrSlug(
+const resolvePageByIdOrSlug = async function resolvePageByIdOrSlug(
   db: D1Database,
   idOrSlug: string,
   workspaceId: string,
@@ -272,7 +275,11 @@ async function resolvePageByIdOrSlug(
  * CTE rather than a per-level walk, since a move can carry an arbitrarily deep subtree
  * with it and we only need the max depth, not the shape.
  */
-async function getSubtreeHeight(db: D1Database, pageId: string, workspaceId: string): Promise<number> {
+const getSubtreeHeight = async function getSubtreeHeight(
+  db: D1Database,
+  pageId: string,
+  workspaceId: string,
+): Promise<number> {
   /*
    * PROJ-820 (post-review correction): a legacy row with a cyclic parent_id (pre-dating
    * validateParentDepth, or written directly against D1) would otherwise make this
@@ -304,7 +311,7 @@ async function getSubtreeHeight(db: D1Database, pageId: string, workspaceId: str
  * would otherwise land at 7 levels deep even though this function only ever "saw" the
  * single hop from parent to moved page.
  */
-async function validateParentDepth(
+const validateParentDepth = async function validateParentDepth(
   db: D1Database,
   parentId: string,
   workspaceId: string,
@@ -355,7 +362,7 @@ async function validateParentDepth(
   }
 }
 
-async function validateNewPageParent(
+const validateNewPageParent = async function validateNewPageParent(
   db: D1Database,
   parentId: string,
   workspaceId: string,
@@ -389,7 +396,7 @@ async function validateNewPageParent(
   await validateParentDepth(db, parentId, workspaceId)
 }
 
-async function validateUpdatedPageParent(
+const validateUpdatedPageParent = async function validateUpdatedPageParent(
   db: D1Database,
   parentId: string,
   workspaceId: string,
@@ -423,7 +430,7 @@ async function validateUpdatedPageParent(
   await validateParentDepth(db, parentId, workspaceId, page.id)
 }
 
-function buildWikiPageUpdateSet(
+const buildWikiPageUpdateSet = function buildWikiPageUpdateSet(
   now: number,
   updatedById: string,
   fields: Readonly<{
@@ -478,7 +485,7 @@ function buildWikiPageUpdateSet(
  * "deleted" events use `diff` at all (services/wiki-watchers.ts). Record just that
  * content changed; the actual before/after text lives in wiki_revisions.
  */
-function buildWikiPageUpdateDiff(
+const buildWikiPageUpdateDiff = function buildWikiPageUpdateDiff(
   fields: Readonly<{
     title?: string
     content?: string
@@ -495,7 +502,7 @@ function buildWikiPageUpdateDiff(
 }
 
 // The app composes its authorization policy, including workspace-level pages.
-function wikiReadVisibility(ctx: ServiceCtx) {
+const wikiReadVisibility = function wikiReadVisibility(ctx: ServiceCtx) {
   const visible = visibleProjectPredicate(ctx, schema.wikiPages.projectId)
   return visible ? or(isNull(schema.wikiPages.projectId), visible) : undefined
 }
@@ -666,7 +673,10 @@ export { backfillWikiLinks, listBrokenWikiLinks } from './wiki-links.ts'
  * rather than silently falling back to blank content. Strips the `template` flag itself
  * out of the seeded content (a page created from a template isn't itself a template).
  */
-async function resolveTemplateContent(ctx: ServiceCtx, templateSlug: string): Promise<string> {
+const resolveTemplateContent = async function resolveTemplateContent(
+  ctx: ServiceCtx,
+  templateSlug: string,
+): Promise<string> {
   let template: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>
   try {
     template = await resolvePageByIdOrSlug(ctx.db, templateSlug, ctx.workspaceId)
@@ -698,7 +708,7 @@ async function resolveTemplateContent(ctx: ServiceCtx, templateSlug: string): Pr
  * opaque slug rather than hard-failing creation, since the title itself (unconstrained
  * by SlugSchema) remains the actual display name.
  */
-function deriveSlugFromTitle(title: string): string {
+const deriveSlugFromTitle = function deriveSlugFromTitle(title: string): string {
   const derivedSlug = SlugSchema.safeParse(slugify(title))
   if (!derivedSlug.success) {
     return `page-${crypto.randomUUID().slice(0, 8)}`
@@ -711,7 +721,7 @@ function deriveSlugFromTitle(title: string): string {
   return needsSuffix ? `${derivedSlug.data}-page` : derivedSlug.data
 }
 
-function buildCreateWikiPageInsertStatement(
+const buildCreateWikiPageInsertStatement = function buildCreateWikiPageInsertStatement(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle<typeof schema>>,
   fields: Readonly<{
@@ -762,7 +772,7 @@ function buildCreateWikiPageInsertStatement(
  * the race between the check and this insert. Surface the resulting unique-index
  * violation as a structured conflict, not a raw 500.
  */
-async function writeCreateWikiPageBatch(
+const writeCreateWikiPageBatch = async function writeCreateWikiPageBatch(
   ctx: ServiceCtx,
   statements: readonly D1PreparedStatement[],
   slug: string,
@@ -782,7 +792,7 @@ async function writeCreateWikiPageBatch(
  * underneath them (there's no possible DIRECT watch on `id` yet — it didn't exist until
  * this insert). Template pages never notify (see wiki-watchers.ts).
  */
-async function finalizeWikiPageCreate(
+const finalizeWikiPageCreate = async function finalizeWikiPageCreate(
   ctx: ServiceCtx,
   fields: Readonly<{
     id: string
@@ -883,7 +893,7 @@ export async function createWikiPage(ctx: ServiceCtx, input: unknown) {
  * class of race already accepted elsewhere in this file (slug availability, issue
  * numbering) — but note it here since "optimistic locking" implies stronger.
  */
-async function getLatestRevisionId(db: D1Database, pageId: string): Promise<string | null> {
+const getLatestRevisionId = async function getLatestRevisionId(db: D1Database, pageId: string): Promise<string | null> {
   const row = await db
     .prepare('SELECT id FROM wiki_revisions WHERE page_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1')
     .bind(pageId)
@@ -910,7 +920,7 @@ const STALE_WRITE_MARKER = '__projektor_stale_wiki_write__'
  */
 type GuardedPage = Readonly<{ id: string; content: string; version: number }>
 
-function staleWriteGuard(ctx: ServiceCtx, page: GuardedPage): D1PreparedStatement {
+const staleWriteGuard = function staleWriteGuard(ctx: ServiceCtx, page: GuardedPage): D1PreparedStatement {
   return ctx.db
     .prepare(
       `SELECT CASE WHEN EXISTS (
@@ -923,11 +933,11 @@ function staleWriteGuard(ctx: ServiceCtx, page: GuardedPage): D1PreparedStatemen
 
 class StaleWikiWriteError extends Error {}
 
-function isStaleWriteError(e: unknown): boolean {
+const isStaleWriteError = function isStaleWriteError(e: unknown): boolean {
   return e instanceof Error && /malformed JSON|__projektor_stale_wiki_write__/i.test(e.message)
 }
 
-async function batchGuarded(
+const batchGuarded = async function batchGuarded(
   ctx: ServiceCtx,
   page: GuardedPage,
   statements: readonly D1PreparedStatement[],
@@ -942,7 +952,7 @@ async function batchGuarded(
   }
 }
 
-async function staleConflict(ctx: ServiceCtx, pageId: string): Promise<ConflictError> {
+const staleConflict = async function staleConflict(ctx: ServiceCtx, pageId: string): Promise<ConflictError> {
   return new ConflictError('Wiki page was modified by another write; re-read and retry', {
     currentRevisionId: await getLatestRevisionId(ctx.db, pageId),
   })
@@ -959,7 +969,7 @@ async function staleConflict(ctx: ServiceCtx, pageId: string): Promise<ConflictE
  * and can't be resolved to any content, so it's rejected rather than silently diffed
  * against an empty string (which would render as "everything added").
  */
-async function resolveBaseContent(
+const resolveBaseContent = async function resolveBaseContent(
   db: D1Database,
   pageId: string,
   baseRevisionId: string | null,
@@ -1002,7 +1012,7 @@ async function resolveBaseContent(
  * this never needs the base content itself (append never diffs against it), so it's a
  * plain existence check rather than resolving a snapshot.
  */
-async function assertRevisionBelongsToPage(
+const assertRevisionBelongsToPage = async function assertRevisionBelongsToPage(
   db: D1Database,
   pageId: string,
   baseRevisionId: string | null,
@@ -1089,7 +1099,7 @@ function buildFtsInsertStatements(
  * the same db.batch() as the page's content write (services/wiki.ts#updateWikiPage/
  * createWikiPage/patchWikiPage), not sequentially afterward.
  */
-function buildFtsReindexStatements(
+const buildFtsReindexStatements = function buildFtsReindexStatements(
   ctx: ServiceCtx,
   id: string,
   title: string,
@@ -1109,7 +1119,7 @@ function buildFtsReindexStatements(
  * built, not a read sandwiched between writes, so it carries none of the old
  * read-after-write ordering risk this function used to have.
  */
-async function currentPageTags(
+const currentPageTags = async function currentPageTags(
   orm: ReturnType<typeof drizzle<typeof schema>>,
   ctx: ServiceCtx,
   id: string,
@@ -1128,7 +1138,7 @@ async function currentPageTags(
  * PROJ-486: chunked so a cascade delete of a large subtree stays under D1's 100-bound
  * parameter cap (services/sql.ts#inChunks).
  */
-async function deleteWikiFtsEntries(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
+const deleteWikiFtsEntries = async function deleteWikiFtsEntries(ctx: ServiceCtx, pageIds: string[]): Promise<void> {
   await inChunks(pageIds, async (chunk) => {
     const placeholders = chunk.map(() => '?').join(',')
     await ctx.db
@@ -1149,7 +1159,7 @@ async function deleteWikiFtsEntries(ctx: ServiceCtx, pageIds: string[]): Promise
  * down; behavior (including the PROJ-511 atomicity guarantee — all of this lands in one
  * ctx.db.batch() call in the caller) is unchanged.
  */
-function buildUpdateWikiPageStatements(
+const buildUpdateWikiPageStatements = function buildUpdateWikiPageStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
@@ -1250,7 +1260,7 @@ function buildUpdateWikiPageStatements(
  * structured conflict (current revision id + a unified diff) so the caller can rebase
  * and retry.
  */
-async function assertNoUpdateConflict(
+const assertNoUpdateConflict = async function assertNoUpdateConflict(
   db: D1Database,
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
   baseRevisionId: string | null | undefined,
@@ -1275,7 +1285,7 @@ async function assertNoUpdateConflict(
  * reindexWikiFts's early-return. PROJ-485: outgoing links are derived purely from
  * content, so they're only reindexed when content actually changed.
  */
-async function buildUpdateWikiPageReindexStatements(
+const buildUpdateWikiPageReindexStatements = async function buildUpdateWikiPageReindexStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle<typeof schema>>,
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
@@ -1304,7 +1314,7 @@ async function buildUpdateWikiPageReindexStatements(
  * the race between the check and this update. Surface the resulting unique-index
  * violation as a structured conflict, not a raw 500.
  */
-async function writeUpdateWikiPageBatch(
+const writeUpdateWikiPageBatch = async function writeUpdateWikiPageBatch(
   ctx: ServiceCtx,
   page: GuardedPage,
   statements: readonly D1PreparedStatement[],
@@ -1329,7 +1339,7 @@ async function writeUpdateWikiPageBatch(
  * this function). meta is only recomputed when content changed — otherwise fall back to
  * the page's existing isTemplate, which this write left untouched.
  */
-async function finalizeWikiPageUpdate(
+const finalizeWikiPageUpdate = async function finalizeWikiPageUpdate(
   ctx: ServiceCtx,
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
   fields: Readonly<{
@@ -1574,7 +1584,7 @@ const FRONTMATTER_DELIM_RE = /^---\s*$/
 
 type HeadingSection = { heading: string; level: number; startLine: number; endLine: number }
 
-function parseHeadingSections(content: string): HeadingSection[] {
+const parseHeadingSections = function parseHeadingSections(content: string): HeadingSection[] {
   const lines = content.split('\n')
   const headings: { level: number; heading: string; startLine: number }[] = []
   let fence: string | null = null
@@ -1612,16 +1622,16 @@ function parseHeadingSections(content: string): HeadingSection[] {
   }))
 }
 
-function findSections(sections: readonly HeadingSection[], heading: string): HeadingSection[] {
+const findSections = function findSections(sections: readonly HeadingSection[], heading: string): HeadingSection[] {
   const target = heading.trim()
   return sections.filter((s) => s.heading === target)
 }
 
-function extractSectionText(content: string, section: HeadingSection): string {
+const extractSectionText = function extractSectionText(content: string, section: HeadingSection): string {
   return content.split('\n').slice(section.startLine, section.endLine).join('\n')
 }
 
-function trimTrailingBlankLines(lines: readonly string[]): string[] {
+const trimTrailingBlankLines = function trimTrailingBlankLines(lines: readonly string[]): string[] {
   const out = [...lines]
   while (out.length > 0 && out[out.length - 1].trim() === '') {
     out.pop()
@@ -1629,7 +1639,7 @@ function trimTrailingBlankLines(lines: readonly string[]): string[] {
   return out
 }
 
-function trimLeadingBlankLines(lines: readonly string[]): string[] {
+const trimLeadingBlankLines = function trimLeadingBlankLines(lines: readonly string[]): string[] {
   const out = [...lines]
   while (out.length > 0 && out[0].trim() === '') {
     out.shift()
@@ -1642,7 +1652,7 @@ function trimLeadingBlankLines(lines: readonly string[]): string[] {
  * separator. Never section-scoped, so it has no target section to conflict-check —
  * see patchWikiPage's comment on why append_to_page skips the section-lock entirely.
  */
-function appendToPageEnd(content: string, text: string): string {
+const appendToPageEnd = function appendToPageEnd(content: string, text: string): string {
   const trimmed = content.replace(/\s+$/, '')
   if (trimmed === '') {
     return `${text.trimEnd()}\n`
@@ -1657,7 +1667,7 @@ function appendToPageEnd(content: string, text: string): string {
  * (append_to_section/replace_section) or the position right after it
  * (insert_after_heading) changes.
  */
-function applySectionOp(
+const applySectionOp = function applySectionOp(
   content: string,
   section: HeadingSection,
   op: Extract<PatchWikiPageInput, { op: 'append_to_section' | 'replace_section' | 'insert_after_heading' }>,
@@ -1722,7 +1732,10 @@ function applySectionOp(
  * which is out of scope here. baseRevisionId is still required on the input for API
  * consistency and because a revision snapshot is still created either way.
  */
-function findUniqueSectionOrThrow(currentSections: readonly HeadingSection[], heading: string): HeadingSection {
+const findUniqueSectionOrThrow = function findUniqueSectionOrThrow(
+  currentSections: readonly HeadingSection[],
+  heading: string,
+): HeadingSection {
   const currentMatches = findSections(currentSections, heading)
   if (currentMatches.length === 0) {
     throw new NotFoundError(`Heading '${heading}' not found`, {
@@ -1754,7 +1767,7 @@ function findUniqueSectionOrThrow(currentSections: readonly HeadingSection[], he
   return currentMatches[0]
 }
 
-async function assertNoSectionPatchConflict(
+const assertNoSectionPatchConflict = async function assertNoSectionPatchConflict(
   ctx: ServiceCtx,
   pageId: string,
   currentContent: string,
@@ -1782,7 +1795,7 @@ async function assertNoSectionPatchConflict(
   }
 }
 
-async function resolveSectionPatchContent(
+const resolveSectionPatchContent = async function resolveSectionPatchContent(
   ctx: ServiceCtx,
   page: Awaited<ReturnType<typeof resolvePageByIdOrSlug>>,
   currentContent: string,
@@ -2111,7 +2124,11 @@ export async function seedDefaultWikiTemplates(db: D1Database, workspaceId: stri
  * deleted_at untouched rather than being folded into this cascade and having its
  * retention clock reset.
  */
-async function collectDescendantIds(db: D1Database, rootId: string, workspaceId: string): Promise<string[]> {
+const collectDescendantIds = async function collectDescendantIds(
+  db: D1Database,
+  rootId: string,
+  workspaceId: string,
+): Promise<string[]> {
   const orm = drizzle(db, { schema })
   const descendants: string[] = []
   let frontier = [rootId]
@@ -2144,7 +2161,7 @@ async function collectDescendantIds(db: D1Database, rootId: string, workspaceId:
  * descendant trashed independently (different batch id) is left out, same as
  * collectDescendantIds leaves it out of a subsequent cascade delete.
  */
-async function collectCascadeTrashedDescendantIds(
+const collectCascadeTrashedDescendantIds = async function collectCascadeTrashedDescendantIds(
   db: D1Database,
   rootId: string,
   workspaceId: string,
@@ -2187,7 +2204,7 @@ async function collectCascadeTrashedDescendantIds(
  */
 const R2_DELETE_BATCH_SIZE = 1000
 
-async function deleteWikiPageAttachments(
+const deleteWikiPageAttachments = async function deleteWikiPageAttachments(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle<typeof schema>>,
   pageIds: string[],
@@ -2234,7 +2251,7 @@ async function deleteWikiPageAttachments(
  * PROJ-311: workspace-level pages need a workspace admin/owner; a project-scoped
  * page can also be deleted by someone with a project-admin grant.
  */
-async function requireWikiDelete(ctx: ServiceCtx, projectId: string | null): Promise<void> {
+const requireWikiDelete = async function requireWikiDelete(ctx: ServiceCtx, projectId: string | null): Promise<void> {
   if (projectId === null) {
     if (ctx.role !== 'admin' && ctx.role !== 'owner') {
       throw new ForbiddenError('Insufficient permissions')

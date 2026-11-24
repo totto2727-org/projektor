@@ -21,7 +21,10 @@ import type { ServiceCtx } from './types.ts'
  * PROJ-311: sprints inherit their project's visibility. Reads on an ungranted
  * project 404/return empty; writes need a member/admin grant (owner/admin bypass).
  */
-async function assertSprintProjectVisible(ctx: ServiceCtx, projectId: string): Promise<void> {
+const assertSprintProjectVisible = async function assertSprintProjectVisible(
+  ctx: ServiceCtx,
+  projectId: string,
+): Promise<void> {
   if (isWorkspaceAdmin(ctx.role)) {
     return
   }
@@ -30,7 +33,10 @@ async function assertSprintProjectVisible(ctx: ServiceCtx, projectId: string): P
   }
 }
 
-async function requireSprintProjectWrite(ctx: ServiceCtx, projectId: string): Promise<void> {
+const requireSprintProjectWrite = async function requireSprintProjectWrite(
+  ctx: ServiceCtx,
+  projectId: string,
+): Promise<void> {
   if (isWorkspaceAdmin(ctx.role)) {
     return
   }
@@ -109,7 +115,7 @@ export async function createSprint(ctx: ServiceCtx, raw: unknown) {
 
 type SprintUpdateData = z.infer<typeof UpdateSprintSchema>
 
-function buildSprintSetData(data: SprintUpdateData, now: number) {
+const buildSprintSetData = function buildSprintSetData(data: SprintUpdateData, now: number) {
   const setData: {
     updatedAt: number
     name?: string

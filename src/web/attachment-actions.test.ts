@@ -4,7 +4,7 @@ import { actionFixture, formData } from './features/planning/action-test-fixture
 
 const { uploadAttachment, uploadInlineImage } = await import('./attachment-actions.ts')
 
-function fileFixture(origin = 'https://front.example', quotaBytes?: string) {
+const fileFixture = function fileFixture(origin = 'https://front.example', quotaBytes?: string) {
   const objects = new Map<string, ArrayBuffer>()
   // A bounded R2 double, with the real migrated database and command authorization.
   const put = vi.fn(async (key: string, body: ReadableStream<Uint8Array>) => {
@@ -27,10 +27,10 @@ function fileFixture(origin = 'https://front.example', quotaBytes?: string) {
   )
   return { ...fixture, objects, put, remove }
 }
-function file(bytes: Uint8Array<ArrayBuffer> = new Uint8Array([0, 255, 7, 128]), type = 'image/png') {
+const file = function file(bytes: Uint8Array<ArrayBuffer> = new Uint8Array([0, 255, 7, 128]), type = 'image/png') {
   return new File([bytes], 'diagram.png', { type })
 }
-function invoke(
+const invoke = function invoke(
   fixture: ReturnType<typeof fileFixture>,
   kind: 'native' | 'inline',
   upload = file(),

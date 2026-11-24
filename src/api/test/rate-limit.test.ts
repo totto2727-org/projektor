@@ -15,7 +15,7 @@ const API_LIMIT = 5
 const WINDOW_SECS = 60 // RATE_LIMIT_WINDOW_SECS in vite.config.ts
 
 // SHA-256 prefix — mirrors the middleware so we can pre-seed the correct key.
-async function sha256Prefix(input: string): Promise<string> {
+const sha256Prefix = async function sha256Prefix(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
   return Array.from(new Uint8Array(buf).slice(0, 8))
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -23,23 +23,23 @@ async function sha256Prefix(input: string): Promise<string> {
 }
 
 // Put a key at `count` hits in the current window (RateLimiter Durable Object).
-async function seedCounter(key: string, count: number): Promise<void> {
+const seedCounter = async function seedCounter(key: string, count: number): Promise<void> {
   await seedRateLimitCounter(key, count, WINDOW_SECS)
 }
 
 // ── Deprecated D1 fallback (no RATE_LIMITER binding; removed in PROJ-924) ──
-function currentSlot(): number {
+const currentSlot = function currentSlot(): number {
   return Math.floor(Date.now() / 1000 / WINDOW_SECS) * WINDOW_SECS
 }
 
-async function seedD1Counter(key: string, count: number): Promise<void> {
+const seedD1Counter = async function seedD1Counter(key: string, count: number): Promise<void> {
   await env.DB.prepare('INSERT OR REPLACE INTO rate_limit (key, count, window_start) VALUES (?, ?, ?)')
     .bind(key, count, currentSlot())
     .run()
 }
 
 // Run the worker without the Durable Object binding, as a deploy that hasn't added it yet.
-function withoutLimiterBinding() {
+const withoutLimiterBinding = function withoutLimiterBinding() {
   let saved: Env['RATE_LIMITER']
   beforeEach(async () => {
     saved = env.RATE_LIMITER
@@ -170,7 +170,7 @@ describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
  */
 describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
   const d1Only = (db: D1Database): Env => ({ ...env, DB: db, RATE_LIMITER: undefined })
-  function countingDb(db: D1Database) {
+  const countingDb = function countingDb(db: D1Database) {
     const counts = { prepare: 0, batch: 0 }
     const proxy = new Proxy(db, {
       get(target, prop, receiver) {
@@ -210,7 +210,7 @@ describe('PROJ-432: the D1 fallback counter costs one round trip', () => {
 describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', () => {
   const ENDPOINT = 'http://localhost/api/workspaces'
 
-  async function rateLimitRows(): Promise<number> {
+  const rateLimitRows = async function rateLimitRows(): Promise<number> {
     const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM rate_limit').first<{ n: number }>()
     return row?.n ?? 0
   }

@@ -17,7 +17,7 @@ afterEach(() => {
     database.close()
   }
 })
-function fixture() {
+const fixture = function fixture() {
   resetAuthCachesForTests()
   const database = createTestDatabase()
   databases.push(database)

@@ -65,7 +65,7 @@ export function useCreateIssueModal({ workspaceSlug, filterProject, projects }: 
     return () => window.removeEventListener('keydown', handler)
   }, [showCreateModal])
 
-  function openCreateModal() {
+  const openCreateModal = function openCreateModal() {
     const targetProjectId = filterProject
       ? (projects.find((p) => p.key === filterProject)?.id ?? projects[0]?.id ?? '')
       : (projects[0]?.id ?? '')

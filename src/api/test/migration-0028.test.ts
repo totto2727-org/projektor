@@ -9,7 +9,7 @@ import { seedMember, seedProject, seedUser, seedWorkspace } from './helpers.ts'
  * viewer keeps a read-only grant instead of being silently promoted to member.
  */
 
-function splitStatements(sql: string): string[] {
+const splitStatements = function splitStatements(sql: string): string[] {
   return sql
     .replace(/--[^\n]*/g, '')
     .split(';')
@@ -17,7 +17,7 @@ function splitStatements(sql: string): string[] {
     .filter((s) => s.length > 0)
 }
 
-async function runMigration0028() {
+const runMigration0028 = async function runMigration0028() {
   for (const stmt of splitStatements(m0028)) {
     await env.DB.prepare(stmt).run()
   }
@@ -27,7 +27,7 @@ async function runMigration0028() {
  * Recreate the post-0027 backfill state for a fresh workspace: an 'all-projects'
  * group granting `member` on every project, enrolling both members and viewers.
  */
-async function seed0027Backfill() {
+const seed0027Backfill = async function seed0027Backfill() {
   const ws = await seedWorkspace()
   const memberGroupId = `grp-allproj-${ws.id}`
   const pX = await seedProject(ws.id, 'X')
@@ -56,7 +56,7 @@ async function seed0027Backfill() {
   return { ws, memberGroupId, viewersGroupId: `grp-allproj-viewers-${ws.id}`, viewer, member }
 }
 
-async function memberCount(groupId: string, userId: string): Promise<number> {
+const memberCount = async function memberCount(groupId: string, userId: string): Promise<number> {
   const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM user_group_members WHERE group_id = ? AND user_id = ?')
     .bind(groupId, userId)
     .first<{ n: number }>()

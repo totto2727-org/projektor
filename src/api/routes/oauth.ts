@@ -38,7 +38,7 @@ import { apiReply } from '../services/reply.ts'
 
 export const oauthRouter = new Hono<HonoEnv>()
 
-function helpers(c: Context<HonoEnv>): OAuthHelpers {
+const helpers = function helpers(c: Context<HonoEnv>): OAuthHelpers {
   return (c.env as unknown as { OAUTH_PROVIDER: OAuthHelpers }).OAUTH_PROVIDER
 }
 
@@ -52,11 +52,11 @@ function helpers(c: Context<HonoEnv>): OAuthHelpers {
  * `<!--email_off-->` is Cloudflare's documented opt-out and is an ordinary HTML comment
  * everywhere else, so it costs nothing on a deployment that never sees the rewriter.
  */
-function emailOff(escaped: string): string {
+const emailOff = function emailOff(escaped: string): string {
   return `<!--email_off-->${escaped}<!--/email_off-->`
 }
 
-function escapeHtml(value: string): string {
+const escapeHtml = function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -90,7 +90,7 @@ button { flex:1 1 10rem; min-height:44px; font:inherit; font-weight:600; border-
 button[value="approve"] { background:var(--accent); border-color:var(--accent); color:#fff; }
 `
 
-function page(title: string, body: string): string {
+const page = function page(title: string, body: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
@@ -115,7 +115,7 @@ function page(title: string, body: string): string {
  * checked redirect_uri against the client's registered URIs before this page rendered,
  * so nothing widens the policy that was not already the approved destination.
  */
-function consentCsp(redirectUri?: string): string {
+const consentCsp = function consentCsp(redirectUri?: string): string {
   let formAction = "'self'"
   if (redirectUri) {
     try {
@@ -134,7 +134,7 @@ const CONSENT_HEADERS = {
   'Cache-Control': 'no-store',
 } as const
 
-function consentHtml(
+const consentHtml = function consentHtml(
   c: Context<HonoEnv>,
   title: string,
   body: string,
@@ -147,7 +147,7 @@ function consentHtml(
   })
 }
 
-function errorPage(c: Context<HonoEnv>, status: 400 | 403 | 500, heading: string, detail: string) {
+const errorPage = function errorPage(c: Context<HonoEnv>, status: 400 | 403 | 500, heading: string, detail: string) {
   return consentHtml(c, heading, `<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(detail)}</p>`, status)
 }
 
@@ -160,7 +160,7 @@ function errorPage(c: Context<HonoEnv>, status: 400 | 403 | 500, heading: string
  * secret, and a forgeable consent token is a working CSRF against the one screen in
  * projektor that grants standing access.
  */
-function consentSigningKey(c: Context<HonoEnv>): string | null {
+const consentSigningKey = function consentSigningKey(c: Context<HonoEnv>): string | null {
   const secret = c.env.JWT_SECRET
   return secret && secret.length > 0 ? secret : null
 }
@@ -179,7 +179,7 @@ const NO_SIGNING_KEY =
  * URI has been checked, and redirecting is not merely safe but required: a client left
  * waiting on a callback that never arrives shows the user a hung tab, not an error.
  */
-function authorizationFailure(c: Context<HonoEnv>, err: AuthorizationError) {
+const authorizationFailure = function authorizationFailure(c: Context<HonoEnv>, err: AuthorizationError) {
   if (!err.redirectUri) {
     return errorPage(c, 400, 'Invalid authorization request', err.description)
   }
@@ -210,7 +210,7 @@ function authorizationFailure(c: Context<HonoEnv>, err: AuthorizationError) {
  * and no Cloudflare Access has nobody who can authorize a connector, and must say so
  * rather than silently issuing a grant as the public viewer.
  */
-function consentingUser(c: Context<HonoEnv>): AuthUser | null {
+const consentingUser = function consentingUser(c: Context<HonoEnv>): AuthUser | null {
   if (c.get('authKind') !== 'human' || !['access', 'dev'].includes(c.get('auth')?.method ?? '')) {
     return null
   }
@@ -221,7 +221,7 @@ function consentingUser(c: Context<HonoEnv>): AuthUser | null {
   return user
 }
 
-async function consentWorkspace(c: Context<HonoEnv>, workspaceId: string) {
+const consentWorkspace = async function consentWorkspace(c: Context<HonoEnv>, workspaceId: string) {
   return apiReply(ApiConsentWorkspace, makeCoreClient(c.env.CORE).apiConsentWorkspace(c.get('coreActor'), workspaceId))
 }
 

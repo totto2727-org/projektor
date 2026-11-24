@@ -225,12 +225,12 @@ describe('server scope loading', () => {
     externalFetch.mockRestore()
     sqlite.close()
   })
-  function load(request = new Request(page('/')), database = db) {
+  const load = function load(request = new Request(page('/')), database = db) {
     return Effect.runPromise(
       loadRequestScope(new URL(request.url), {}, { request, env: testEnvironment(database, env.DEV_USER_EMAIL, env) }),
     )
   }
-  function catalogReads() {
+  const catalogReads = function catalogReads() {
     return prepare.mock.calls.filter(([query]) => typeof query === 'string' && query.includes('COUNT(CASE')).length
   }
 

@@ -35,7 +35,7 @@ export function assignHeadingIds(headings: readonly { text: string; id?: string 
     return candidate
   })
 }
-function textOf(html: string): string {
+const textOf = function textOf(html: string): string {
   return sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} })
     .replace(/&#(x[0-9a-f]+|\d+);/gi, (_, entity: string) =>
       String.fromCodePoint(

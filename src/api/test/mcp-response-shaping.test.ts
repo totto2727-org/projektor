@@ -187,7 +187,10 @@ describe('PROJ-891: MCP tools', () => {
     f = await seedProjectFixture()
   })
 
-  async function tool<T = Record<string, unknown>>(name: string, args: Record<string, unknown> = {}): Promise<T> {
+  const tool = async function tool<T = Record<string, unknown>>(
+    name: string,
+    args: Record<string, unknown> = {},
+  ): Promise<T> {
     const res = await fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },

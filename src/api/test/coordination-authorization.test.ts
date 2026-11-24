@@ -9,7 +9,7 @@ import type { ServiceCtx } from '#commands/types.ts'
 import { env } from './fixture-api.ts'
 import { seedFixture, seedGroupGrant, seedIssue, seedProject } from './helpers.ts'
 
-async function fixture() {
+const fixture = async function fixture() {
   const f = await seedFixture({ role: 'member' })
   const project = await seedProject(f.workspace.id)
   const issue = await seedIssue(f.workspace.id, project.id, f.user.id)

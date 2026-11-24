@@ -28,7 +28,9 @@ export function useIssueForm<Values extends Record<string, unknown>>(
   const values = useStore(form.store, (state) => state.values)
   const isValid = useStore(form.store, (state) => state.isValid)
   const setters = useRef(new Map<string, (next: unknown) => void>())
-  function field<Key extends keyof Values & string>(name: Key): [Values[Key], Dispatch<SetStateAction<Values[Key]>>] {
+  const field = function field<Key extends keyof Values & string>(
+    name: Key,
+  ): [Values[Key], Dispatch<SetStateAction<Values[Key]>>] {
     let setter = setters.current.get(name)
     if (!setter) {
       setter = (next: unknown) => {
@@ -42,7 +44,7 @@ export function useIssueForm<Values extends Record<string, unknown>>(
     }
     return [values[name], setter]
   }
-  async function validate() {
+  const validate = async function validate() {
     await form.validate('submit')
     return form.state.isValid
   }

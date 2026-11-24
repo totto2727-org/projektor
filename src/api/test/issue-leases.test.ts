@@ -19,7 +19,7 @@ describe('Issue leases API (PROJ-184)', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
   })
 
-  async function registerAgent(name: string): Promise<string> {
+  const registerAgent = async function registerAgent(name: string): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -29,7 +29,7 @@ describe('Issue leases API (PROJ-184)', () => {
     return session.id
   }
 
-  function claim(issueId: string, agentId: string) {
+  const claim = function claim(issueId: string, agentId: string) {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -37,7 +37,7 @@ describe('Issue leases API (PROJ-184)', () => {
     })
   }
 
-  function release(issueId: string, agentId?: string) {
+  const release = function release(issueId: string, agentId?: string) {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/release`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -45,7 +45,7 @@ describe('Issue leases API (PROJ-184)', () => {
     })
   }
 
-  function backdateHeartbeat(agentId: string, secondsAgo = 200) {
+  const backdateHeartbeat = function backdateHeartbeat(agentId: string, secondsAgo = 200) {
     const stale = Math.floor(Date.now() / 1000) - secondsAgo
     return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
   }
@@ -167,7 +167,7 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
   })
 
-  async function callPrioritized(args: Record<string, unknown>) {
+  const callPrioritized = async function callPrioritized(args: Record<string, unknown>) {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
@@ -226,7 +226,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  async function registerAgent(name: string): Promise<string> {
+  const registerAgent = async function registerAgent(name: string): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -236,7 +236,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
     return session.id
   }
 
-  function claim(issueId: string, agentId: string) {
+  const claim = function claim(issueId: string, agentId: string) {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -248,7 +248,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
    * Under a WIP cap of 1: registers an agent, seeds two issues, and asserts the first
    * claim succeeds while the second is rejected as over-cap.
    */
-  async function expectWipCapBlocksSecondClaim() {
+  const expectWipCapBlocksSecondClaim = async function expectWipCapBlocksSecondClaim() {
     const agent = await registerAgent('worker')
     const [first, second] = await Promise.all([
       seedIssue(workspaceId, projectId, userId, { title: 'First' }),
@@ -419,7 +419,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
    * lease no one is still working.
    */
   describe('PROJ-928: issue close releases its lease', () => {
-    function patchStatus(id: string, status: string, completionReport?: object) {
+    const patchStatus = function patchStatus(id: string, status: string, completionReport?: object) {
       return fetchNativeApi(`http://localhost/api/issues/${id}`, {
         method: 'PATCH',
         headers: authHeaders(token, slug),
@@ -505,7 +505,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     }))
   })
 
-  async function registerAgent(name: string): Promise<string> {
+  const registerAgent = async function registerAgent(name: string): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -515,7 +515,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     return session.id
   }
 
-  function claim(issueId: string, agentId: string) {
+  const claim = function claim(issueId: string, agentId: string) {
     return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -523,12 +523,12 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     })
   }
 
-  function backdateHeartbeat(agentId: string, secondsAgo = 200) {
+  const backdateHeartbeat = function backdateHeartbeat(agentId: string, secondsAgo = 200) {
     const stale = Math.floor(Date.now() / 1000) - secondsAgo
     return env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, agentId).run()
   }
 
-  async function mcpLeases(args: Record<string, unknown>) {
+  const mcpLeases = async function mcpLeases(args: Record<string, unknown>) {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -715,7 +715,7 @@ describe('PROJ-932: list_issue_leases projectId + visibility for a non-admin mem
       .bind(crypto.randomUUID(), workspaceId, hiddenIssue.id, agent.id, now)
       .run()
 
-    async function mcpLeases(args: Record<string, unknown>) {
+    const mcpLeases = async function mcpLeases(args: Record<string, unknown>) {
       const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
         method: 'POST',
         headers: authHeaders(token, slug),

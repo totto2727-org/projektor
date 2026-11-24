@@ -21,7 +21,7 @@ vi.mock('./actions', () => ({
   archiveProject: vi.fn(),
 }))
 
-function runWithDatabase<T>(
+const runWithDatabase = function runWithDatabase<T>(
   database: ReturnType<typeof featureDatabase>,
   url: URL,
   use: (scope: RequestScope) => Effect.Effect<T, ApiError | ScopeError, RequestServices>,

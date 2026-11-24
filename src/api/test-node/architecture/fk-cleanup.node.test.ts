@@ -21,7 +21,7 @@ import { FK_CLEANUP_ALLOWLIST } from './fk-cleanup-allowlist.ts'
 const API_SRC = join(import.meta.dirname, '..', '..')
 const MIGRATIONS = join(import.meta.dirname, '..', '..', '..', '..', 'migrations')
 
-function declaredFkActions(): Set<string> {
+const declaredFkActions = function declaredFkActions(): Set<string> {
   const keys = new Set<string>()
   for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql'))) {
     const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replace(/--[^\n]*/g, '')
@@ -46,7 +46,7 @@ function declaredFkActions(): Set<string> {
  * The source text of a top-level declaration (function or const): from its declaration
  * line up to the next top-level declaration.
  */
-function declarationSource(ref: string): string | null {
+const declarationSource = function declarationSource(ref: string): string | null {
   const [file, name] = ref.split('#')
   let text: string
   try {
@@ -63,7 +63,7 @@ function declarationSource(ref: string): string | null {
   return start[0] + (next ? rest.slice(0, next.index) : rest)
 }
 
-function camel(snake: string): string {
+const camel = function camel(snake: string): string {
   return snake.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
 }
 

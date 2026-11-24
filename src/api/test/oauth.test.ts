@@ -29,7 +29,7 @@ const ORCA_REDIRECT = 'http://127.0.0.1:40927/callback'
  * than three such requests, so each test gets its own bucket.
  */
 let clientIp: string
-function browserHeaders(extra: Record<string, string> = {}): Record<string, string> {
+const browserHeaders = function browserHeaders(extra: Record<string, string> = {}): Record<string, string> {
   return { 'CF-Connecting-IP': clientIp, ...extra }
 }
 
@@ -43,7 +43,7 @@ function browserHeaders(extra: Record<string, string> = {}): Record<string, stri
 const CF_DOMAIN = 'test-oauth.example.com'
 const CF_AUDIENCE = 'oauth-test-audience'
 
-function b64url(bytes: Uint8Array): string {
+const b64url = function b64url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -52,7 +52,7 @@ function b64url(bytes: Uint8Array): string {
 
 let signingKey: CryptoKey
 
-async function installAccessKeys(): Promise<void> {
+const installAccessKeys = async function installAccessKeys(): Promise<void> {
   const pair = (await crypto.subtle.generateKey(
     {
       name: 'RSASSA-PKCS1-v1_5',
@@ -70,7 +70,7 @@ async function installAccessKeys(): Promise<void> {
   await env.KV.put('cf-access-certs', JSON.stringify([await crypto.subtle.exportKey('jwk', pair.publicKey)]))
 }
 
-async function accessJwt(email: string): Promise<string> {
+const accessJwt = async function accessJwt(email: string): Promise<string> {
   const part = (obj: unknown) => b64url(new TextEncoder().encode(JSON.stringify(obj)))
   const header = part({ alg: 'RS256', typ: 'JWT' })
   const body = part({
@@ -96,7 +96,9 @@ async function accessJwt(email: string): Promise<string> {
  * ---------------------------------------------------------------------------
  */
 
-async function seedOAuthClient(redirectUris: string[] = [CLIENT_REDIRECT]): Promise<{ clientId: string }> {
+const seedOAuthClient = async function seedOAuthClient(
+  redirectUris: string[] = [CLIENT_REDIRECT],
+): Promise<{ clientId: string }> {
   /*
    * Opaque, i.e. a DCR-registered client. A CIMD client's id is an HTTPS URL the
    * provider fetches over the network, which is not seedable from a test.
@@ -122,13 +124,13 @@ async function seedOAuthClient(redirectUris: string[] = [CLIENT_REDIRECT]): Prom
   return { clientId }
 }
 
-async function pkce(): Promise<{ verifier: string; challenge: string }> {
+const pkce = async function pkce(): Promise<{ verifier: string; challenge: string }> {
   const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)))
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
   return { verifier, challenge: b64url(new Uint8Array(digest)) }
 }
 
-function authorizeUrl(
+const authorizeUrl = function authorizeUrl(
   opts: Readonly<{
     clientId: string
     resource?: string
@@ -155,13 +157,13 @@ function authorizeUrl(
 }
 
 /** The hidden signed field the consent form carries. */
-function consentTokenFrom(html: string): string {
+const consentTokenFrom = function consentTokenFrom(html: string): string {
   const match = /name="consent_token" value="([^"]+)"/.exec(html)
   expect(match, 'consent screen did not render a consent_token').toBeTruthy()
   return (match as RegExpExecArray)[1]
 }
 
-async function postConsent(token: string, decision: string, jwt: string): Promise<Response> {
+const postConsent = async function postConsent(token: string, decision: string, jwt: string): Promise<Response> {
   return fetchNativeApi(`${HOST}/oauth/authorize`, {
     method: 'POST',
     headers: browserHeaders({
@@ -178,7 +180,7 @@ async function postConsent(token: string, decision: string, jwt: string): Promis
  * reaches Hono's limiter), and the test limit is 3. Each call presents a fresh address
  * so a multi-step flow is not throttled by a control that has its own test below.
  */
-async function exchange(body: Record<string, string>, ip?: string): Promise<Response> {
+const exchange = async function exchange(body: Record<string, string>, ip?: string): Promise<Response> {
   return fetchNativeApi(`${HOST}/oauth/token`, {
     method: 'POST',
     headers: {
@@ -190,7 +192,7 @@ async function exchange(body: Record<string, string>, ip?: string): Promise<Resp
 }
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-function registerClient(metadata: Record<string, unknown> = {}) {
+const registerClient = function registerClient(metadata: Record<string, unknown> = {}) {
   return fetchNativeApi(`${HOST}/oauth/register`, {
     method: 'POST',
     headers: browserHeaders({ 'Content-Type': 'application/json' }),
@@ -214,7 +216,7 @@ type TokenResponse = {
 }
 
 /** Consent and exchange in one go — the whole flow a connector performs. */
-async function connect(opts: {
+const connect = async function connect(opts: {
   email: string
   workspaceId: string
   scope?: string
@@ -265,7 +267,7 @@ async function connect(opts: {
   return { tokens: await res.json<TokenResponse>(), clientId, resource }
 }
 
-function mcpCall(workspaceId: string, token: string, name: string, args: unknown = {}) {
+const mcpCall = function mcpCall(workspaceId: string, token: string, name: string, args: unknown = {}) {
   return fetchNativeApi(`${HOST}/mcp/${workspaceId}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -975,7 +977,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
 })
 
 describe('Settings lists and withdraws connectors (PROJ-659)', () => {
-  function settings(slug: string, jwt: string, path = '', init: RequestInit = {}) {
+  const settings = function settings(slug: string, jwt: string, path = '', init: RequestInit = {}) {
     return fetchNativeApi(`${HOST}/api/workspaces/${slug}/connectors${path}`, {
       ...init,
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt, 'X-Workspace-Slug': slug }),
@@ -1159,7 +1161,7 @@ describe('hardening the consent screen itself', () => {
     await seedMember(workspaceId, user.id, 'member')
   })
 
-  async function consentPage(): Promise<Response> {
+  const consentPage = async function consentPage(): Promise<Response> {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
     return fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {

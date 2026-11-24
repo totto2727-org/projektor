@@ -134,7 +134,7 @@ export function filterIssues(
     .filter((i) => !filterType || i.type_key === filterType)
 }
 
-function statusSortOrder(issue: Issue): number {
+const statusSortOrder = function statusSortOrder(issue: Issue): number {
   // Backlog issues: status_category=todo, status_key=backlog → order slot 4
   if (issue.status_key === 'backlog') {
     return 4

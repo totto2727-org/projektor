@@ -11,7 +11,7 @@ type FixtureEnvironment = ApiEnvironment & {
   }
 }
 
-function configuration(value: string | undefined): FixtureConfiguration {
+const configuration = function configuration(value: string | undefined): FixtureConfiguration {
   const parsed: unknown = value === undefined ? {} : JSON.parse(value)
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Invalid native API fixture policy')
@@ -29,7 +29,7 @@ function configuration(value: string | undefined): FixtureConfiguration {
 /** Native RPC stubs are owned by their invocation. Construct the configured
  * Core session inside the actual API request, never in the Vitest driver's
  * earlier setup context. This wrapper has no storage or production export. */
-async function requestEnvironment(env: FixtureEnvironment): Promise<ApiEnvironment> {
+const requestEnvironment = async function requestEnvironment(env: FixtureEnvironment): Promise<ApiEnvironment> {
   const core = await env.CORE.fixtureSession(configuration(env.CORE_FIXTURE_CONFIGURATION))
   return { ...env, CORE: core }
 }

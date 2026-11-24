@@ -4,7 +4,7 @@ import { actionFixture, formData, planningIds } from '../planning/action-test-fi
 
 const actions = await import('./actions.ts')
 const scope = { workspaceSlug: 'alpha', projectId: planningIds.project }
-function fixture(origin = 'https://front.example') {
+const fixture = function fixture(origin = 'https://front.example') {
   const test = actionFixture(undefined, origin)
   test.sqlite.exec(`
     INSERT INTO projects (id,workspace_id,name,key,slug,created_at,updated_at) VALUES ('${scope.projectId}','w1','Feedback','FEED','feedback',1,1);

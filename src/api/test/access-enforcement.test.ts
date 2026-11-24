@@ -12,14 +12,14 @@ import { fetchNativeApi } from './native-fetch.ts'
  * belongs to. Workspace owner/admin bypass groups and see everything.
  */
 
-async function listProjects(token: string, slug: string) {
+const listProjects = async function listProjects(token: string, slug: string) {
   const res = await fetchNativeApi('http://localhost/api/projects', {
     headers: authHeaders(token, slug),
   })
   return { status: res.status, body: (await res.json()) as { key: string }[] }
 }
 
-async function listIssues(token: string, slug: string) {
+const listIssues = async function listIssues(token: string, slug: string) {
   const res = await fetchNativeApi('http://localhost/api/issues', {
     headers: authHeaders(token, slug),
   })

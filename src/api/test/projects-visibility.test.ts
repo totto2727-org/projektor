@@ -17,11 +17,11 @@ import type { Env } from '#types'
 import { env } from './fixture-api.ts'
 import { seedGroupGrant, seedIssue, seedMember, seedProject, seedUser, seedWorkspace } from './helpers.ts'
 
-function viewerCtx(workspaceId: string, userId: string): ServiceCtx {
+const viewerCtx = function viewerCtx(workspaceId: string, userId: string): ServiceCtx {
   return { db: env.DB, kv: env.KV, r2: env.R2, workspaceId, userId, role: 'viewer' }
 }
 
-async function ids(p: Promise<unknown>): Promise<string[]> {
+const ids = async function ids(p: Promise<unknown>): Promise<string[]> {
   return ((await p) as { id: string }[]).map((r) => r.id).sort()
 }
 

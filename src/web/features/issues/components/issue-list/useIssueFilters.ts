@@ -7,7 +7,7 @@ import type { SortKey } from '../board-utils.ts'
 import type { SavedViewFilters } from '../saved-views.ts'
 import { parseDateField, parseListParam, useFilterUrlSync } from './useFilterUrlSync.ts'
 
-function readInitialFilters(search: string, projectKey: string) {
+const readInitialFilters = function readInitialFilters(search: string, projectKey: string) {
   const params = new URLSearchParams(search)
   return {
     statuses: parseListParam(params.get('status')),
@@ -96,7 +96,7 @@ export function useIssueFilters(
     projects,
   )
 
-  function handleHeaderClick(key: SortKey) {
+  const handleHeaderClick = function handleHeaderClick(key: SortKey) {
     if (sortBy === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -118,7 +118,7 @@ export function useIssueFilters(
     dateTo: filterDateTo,
   }
 
-  function applyFilters(filters: SavedViewFilters) {
+  const applyFilters = function applyFilters(filters: SavedViewFilters) {
     setFilterStatuses(filters.statuses)
     setFilterPriorities(filters.priorities)
     setFilterProject(filters.project)

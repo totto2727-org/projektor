@@ -132,16 +132,16 @@ const TOOL_NAME_ALIASES: Record<string, string> = {
 // Source scanning
 // ---------------------------------------------------------------------------
 
-function tsFiles(dir: string): string[] {
+const tsFiles = function tsFiles(dir: string): string[] {
   return readdirSync(dir).filter((f) => f.endsWith('.ts'))
 }
 
 /** A directory expands to its .ts files; a file path is taken as-is. */
-function expandToFiles(path: string): string[] {
+const expandToFiles = function expandToFiles(path: string): string[] {
   return path.endsWith('.ts') ? [path] : tsFiles(path).map((f) => join(path, f))
 }
 
-function snakeCase(name: string): string {
+const snakeCase = function snakeCase(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
 }
 
@@ -153,7 +153,7 @@ interface SourceModule {
   functions: Map<string, ts.Node>
 }
 
-function parseSource(path: string, source: string): ts.SourceFile {
+const parseSource = function parseSource(path: string, source: string): ts.SourceFile {
   const configFile = `${path}.parity.json`
   const api = new API({
     fs: createVirtualFileSystem({
@@ -179,7 +179,7 @@ function parseSource(path: string, source: string): ts.SourceFile {
 }
 
 const modules = new Map<string, SourceModule>()
-function sourceModule(path: string, sourceOverride?: string): SourceModule {
+const sourceModule = function sourceModule(path: string, sourceOverride?: string): SourceModule {
   const cached = modules.get(path)
   if (cached) {
     return cached
@@ -232,7 +232,10 @@ function sourceModule(path: string, sourceOverride?: string): SourceModule {
   return module
 }
 
-function importedSymbol(module: SourceModule, expression: ts.Node): { path: string; name: string } | undefined {
+const importedSymbol = function importedSymbol(
+  module: SourceModule,
+  expression: ts.Node,
+): { path: string; name: string } | undefined {
   if (ts.isIdentifier(expression)) {
     const target = module.imports.get(expression.text)
     if (target?.name) {
@@ -254,7 +257,7 @@ function importedSymbol(module: SourceModule, expression: ts.Node): { path: stri
 const coreMethods = new Map<string, { module: SourceModule; node: ts.Node }>()
 for (const path of expandToFiles(join(SRC, '..', 'core', 'api')).filter((path) => !path.endsWith('.test.ts'))) {
   const module = sourceModule(path)
-  function visit(node: ts.Node): void {
+  const visit = function visit(node: ts.Node): void {
     if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && /^api[A-Z]/.test(node.name.text)) {
       if (coreMethods.has(node.name.text)) {
         throw new Error(`Duplicate named Core operation: ${node.name.text}`)
@@ -271,7 +274,7 @@ interface BinaryContext {
   method: string
   values: Map<string, unknown>
 }
-function valueOf(node: ts.Node, context: BinaryContext): unknown {
+const valueOf = function valueOf(node: ts.Node, context: BinaryContext): unknown {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     return node.text
   }
@@ -331,7 +334,7 @@ function valueOf(node: ts.Node, context: BinaryContext): unknown {
   return undefined
 }
 
-function pathLiteral(node: ts.Node | undefined): string | undefined {
+const pathLiteral = function pathLiteral(node: ts.Node | undefined): string | undefined {
   if (!node) {
     return undefined
   }
@@ -345,7 +348,7 @@ function pathLiteral(node: ts.Node | undefined): string | undefined {
 }
 
 /** Trace named functions, native method bindings and only the selected binary request branch. */
-function domainOperations(
+const domainOperations = function domainOperations(
   module: SourceModule,
   node: ts.Node,
   binary?: BinaryContext,
@@ -357,7 +360,7 @@ function domainOperations(
       keys.add(key)
     }
   }
-  function target(path: string, name: string): void {
+  const target = function target(path: string, name: string): void {
     const id = `${path}:${name}`
     if (visited.has(id)) {
       return
@@ -388,7 +391,7 @@ function domainOperations(
       }
     }
   }
-  function native(name: string): void {
+  const native = function native(name: string): void {
     const handler = coreMethods.get(name)
     if (handler) {
       merge(domainOperations(handler.module, handler.node, undefined, new Set([...visited, name])))
@@ -396,9 +399,9 @@ function domainOperations(
       throw new Error(`No concrete Core handler for ${name}`)
     }
   }
-  function binaryRequest(pathname: string, method: string): void {
+  const binaryRequest = function binaryRequest(pathname: string, method: string): void {
     const worker = sourceModule(join(SRC, '..', 'core', 'worker.ts'))
-    function findFetch(child: ts.Node): void {
+    const findFetch = function findFetch(child: ts.Node): void {
       if (ts.isPropertyAssignment(child) && ts.isIdentifier(child.name) && child.name.text === 'fetch') {
         merge(
           domainOperations(worker, child.initializer, { pathname: pathname.split('?')[0], method, values: new Map() }),
@@ -409,7 +412,7 @@ function domainOperations(
     }
     findFetch(worker.ast)
   }
-  function visit(child: ts.Node, method = binary?.method ?? 'GET'): boolean {
+  const visit = function visit(child: ts.Node, method = binary?.method ?? 'GET'): boolean {
     if (binary && ts.isIfStatement(child)) {
       const condition = valueOf(child.expression, binary)
       if (condition !== undefined) {
@@ -484,7 +487,7 @@ function domainOperations(
   return keys
 }
 
-function serviceOperationsUsedIn(...paths: string[]): Set<string> {
+const serviceOperationsUsedIn = function serviceOperationsUsedIn(...paths: string[]): Set<string> {
   const keys = new Set<string>()
   for (const path of paths.flatMap(expandToFiles).filter((path) => !path.endsWith('.test.ts'))) {
     const module = sourceModule(path)
@@ -523,7 +526,7 @@ interface ServiceFn {
  */
 const FILE_IO_WRAPPERS = ['uploadStoredAttachment', 'getStoredAttachment', 'deleteStoredAttachment'] as const
 
-function fileIoCalls(source: string): Map<string, Set<string>> {
+const fileIoCalls = function fileIoCalls(source: string): Map<string, Set<string>> {
   const ast = parseSource(join(COMMANDS, 'files.ts'), source)
   const calls = new Map<string, Set<string>>()
   for (const node of ast.statements) {
@@ -531,7 +534,7 @@ function fileIoCalls(source: string): Map<string, Set<string>> {
       continue
     }
     const names = new Set<string>()
-    function visit(child: ts.Node): void {
+    const visit = function visit(child: ts.Node): void {
       if (ts.isCallExpression(child) && ts.isIdentifier(child.expression)) {
         names.add(child.expression.text)
       }
@@ -549,7 +552,7 @@ const mcpOperations = serviceOperationsUsedIn(join(SRC, 'mcp'))
 const toolOperations = new Map<string, Set<string>>()
 for (const path of expandToFiles(join(SRC, 'mcp'))) {
   const module = sourceModule(path)
-  function visit(node: ts.Node): void {
+  const visit = function visit(node: ts.Node): void {
     if (ts.isObjectLiteralExpression(node)) {
       const name = node.properties.find(
         (property) =>
@@ -637,7 +640,7 @@ describe('MCP surface parity (PROJ-623)', () => {
   })
 
   test('traces only the selected native binary pathname and HTTP method', () => {
-    function operations(method: string, pathname: string) {
+    const operations = function operations(method: string, pathname: string) {
       const module = sourceModule(
         join(SRC, 'routes', `parity-binary-${method}-${encodeURIComponent(pathname)}.ts`),
         `

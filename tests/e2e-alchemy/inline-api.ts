@@ -23,7 +23,10 @@ export class InlineApi extends Plugin.Service<
 export const inlineCoreBinding = Plugin.use(InlineApi, (plugin) => plugin.api.bind)
 
 /** Read official build artifacts unchanged. Entry module must be first for workerd. */
-async function readWorkerModules(directory: string, entryName: string): Promise<WorkerdConfig.Worker_Module[]> {
+const readWorkerModules = async function readWorkerModules(
+  directory: string,
+  entryName: string,
+): Promise<WorkerdConfig.Worker_Module[]> {
   const files = await readdir(directory, { recursive: true, withFileTypes: true })
   const modules: WorkerdConfig.Worker_Module[] = []
   for (const entry of files.filter((file) => file.isFile())) {

@@ -38,7 +38,7 @@ beforeAll(async () => {
   key = await crypto.subtle.exportKey('jwk', pair.publicKey)
   otherKey = await crypto.subtle.exportKey('jwk', otherPair.publicKey)
 })
-async function token(overrides: Record<string, unknown> = {}, signingPair = pair, algorithm = 'RS256') {
+const token = async function token(overrides: Record<string, unknown> = {}, signingPair = pair, algorithm = 'RS256') {
   const header = Buffer.from(JSON.stringify({ alg: algorithm })).toString('base64url')
   const payload = Buffer.from(
     JSON.stringify({
@@ -56,7 +56,7 @@ async function token(overrides: Record<string, unknown> = {}, signingPair = pair
   )
   return `${header}.${payload}.${Buffer.from(signature).toString('base64url')}`
 }
-function browser(jwt: string, cookie = false) {
+const browser = function browser(jwt: string, cookie = false) {
   return new Request('https://front.example.test/issues', {
     headers: cookie
       ? { cookie: `unrelated=private; CF_Authorization=${jwt}; other=value` }
@@ -97,7 +97,7 @@ describe('shared browser authentication without API transport or signing secrets
     vi.restoreAllMocks()
     database.close()
   })
-  function api(request: Request, settings: BrowserAuthEnvironment & { PUBLIC_READ_ONLY?: string } = env) {
+  const api = function api(request: Request, settings: BrowserAuthEnvironment & { PUBLIC_READ_ONLY?: string } = env) {
     /*
      * The API sees only a native-style RPC binding. Its method runs the real Core
      * handler and returns the application's wire reply through the public SDK.

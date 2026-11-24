@@ -25,7 +25,7 @@ export interface ArgIssue {
   message: string
 }
 
-function typeOf(v: unknown): string {
+const typeOf = function typeOf(v: unknown): string {
   if (v === null) {
     return 'null'
   }
@@ -38,11 +38,11 @@ function typeOf(v: unknown): string {
 // Mirrors BooleanQueryParam (schemas/common.ts).
 const BOOLEAN_STRINGS = new Set(['true', '1', 'false', '0', ''])
 
-function isNumericString(v: unknown): boolean {
+const isNumericString = function isNumericString(v: unknown): boolean {
   return typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v.trim())
 }
 
-function matchesType(v: unknown, t: string): boolean {
+const matchesType = function matchesType(v: unknown, t: string): boolean {
   switch (t) {
     case 'boolean':
       return typeof v === 'boolean' || BOOLEAN_STRINGS.has(v as string)
@@ -61,7 +61,7 @@ function matchesType(v: unknown, t: string): boolean {
   }
 }
 
-function validate(value: unknown, schema: Schema, path: string, issues: ArgIssue[]): void {
+const validate = function validate(value: unknown, schema: Schema, path: string, issues: ArgIssue[]): void {
   if (value === null && schema.nullable === true) {
     return
   }

@@ -14,7 +14,7 @@ const draft = {
   startOffset: -540,
   endOffset: 0,
 }
-function fixture(origin = 'https://front.example') {
+const fixture = function fixture(origin = 'https://front.example') {
   const test = actionFixture(undefined, origin)
   test.sqlite.exec(`
     INSERT INTO projects (id,workspace_id,name,key,slug,created_at,updated_at) VALUES ('${planningIds.project}','w1','Planning','PLAN','planning',1,1);
@@ -24,7 +24,7 @@ function fixture(origin = 'https://front.example') {
   `)
   return test
 }
-function seedIssues(
+const seedIssues = function seedIssues(
   test: ReturnType<typeof fixture>,
   count: number,
   sprintId = planningIds.source,

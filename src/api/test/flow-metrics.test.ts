@@ -58,7 +58,7 @@ describe('Flow metrics (PROJ-252)', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  async function stampFlowTimestamps(
+  const stampFlowTimestamps = async function stampFlowTimestamps(
     id: string,
     { readyAt, claimedAt, doneAt }: { readyAt?: number; claimedAt?: number; doneAt?: number },
   ) {
@@ -67,7 +67,7 @@ describe('Flow metrics (PROJ-252)', () => {
       .run()
   }
 
-  async function stampReviewFields(
+  const stampReviewFields = async function stampReviewFields(
     id: string,
     { inReviewAt, reviewBounceCount }: { inReviewAt?: number; reviewBounceCount?: number },
   ) {
@@ -76,7 +76,7 @@ describe('Flow metrics (PROJ-252)', () => {
       .run()
   }
 
-  async function registerAgent(): Promise<string> {
+  const registerAgent = async function registerAgent(): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -86,7 +86,7 @@ describe('Flow metrics (PROJ-252)', () => {
     return session.id
   }
 
-  async function claim(issueId: string, agentId: string) {
+  const claim = async function claim(issueId: string, agentId: string) {
     await fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -94,7 +94,7 @@ describe('Flow metrics (PROJ-252)', () => {
     })
   }
 
-  async function getFlowMetrics(): Promise<FlowMetrics> {
+  const getFlowMetrics = async function getFlowMetrics(): Promise<FlowMetrics> {
     const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics`, {
       headers: authHeaders(token, slug),
     })
@@ -416,7 +416,12 @@ describe('Flow metrics (PROJ-252)', () => {
   })
 
   // PROJ-328: collaboration-shape metrics (review latency, human interventions, autonomy ratio).
-  async function stampLease(id: string, issueId: string, claimedAt: number, releasedAt: number | null) {
+  const stampLease = async function stampLease(
+    id: string,
+    issueId: string,
+    claimedAt: number,
+    releasedAt: number | null,
+  ) {
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
       `INSERT INTO agent_sessions
@@ -787,7 +792,7 @@ describe('Factory health tiles (PROJ-334)', () => {
    * Bypasses the claim/release APIs so tests can place events at an arbitrary
    * timestamp, inside or outside the window under test.
    */
-  async function seedLease(issueId: string, releaseReason: string | null, releasedAt: number | null) {
+  const seedLease = async function seedLease(issueId: string, releaseReason: string | null, releasedAt: number | null) {
     const agentSessionId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
@@ -805,7 +810,11 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
   }
 
-  async function seedFileClaim(issueId: string, releaseReason: string | null, releasedAt: number | null) {
+  const seedFileClaim = async function seedFileClaim(
+    issueId: string,
+    releaseReason: string | null,
+    releasedAt: number | null,
+  ) {
     const now = Math.floor(Date.now() / 1000)
     await env.DB.prepare(
       'INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, ' +
@@ -815,7 +824,7 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
   }
 
-  async function seedGateRejection(issueId: string, occurredAt: number) {
+  const seedGateRejection = async function seedGateRejection(issueId: string, occurredAt: number) {
     await env.DB.prepare(
       'INSERT INTO issue_gate_rejections (id, workspace_id, issue_id, occurred_at) VALUES (?, ?, ?, ?)',
     )
@@ -823,7 +832,7 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
   }
 
-  async function seedWipCapDenial(project: string, issueId: string, occurredAt: number) {
+  const seedWipCapDenial = async function seedWipCapDenial(project: string, issueId: string, occurredAt: number) {
     await env.DB.prepare(
       'INSERT INTO wip_cap_denials (id, workspace_id, project_id, issue_id, agent_session_id, ' +
         'occurred_at) VALUES (?, ?, ?, ?, NULL, ?)',

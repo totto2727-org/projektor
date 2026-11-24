@@ -10,7 +10,7 @@ import { seedIssue, seedProject, seedUser, seedWorkspace } from './helpers.ts'
  * deliberately narrower than 0026's claimed_at/ready_at backfill.
  */
 
-function splitStatements(sql: string): string[] {
+const splitStatements = function splitStatements(sql: string): string[] {
   return sql
     .replace(/--[^\n]*/g, '')
     .split(';')
@@ -18,7 +18,7 @@ function splitStatements(sql: string): string[] {
     .filter((s) => s.length > 0)
 }
 
-async function runMigration0030() {
+const runMigration0030 = async function runMigration0030() {
   for (const stmt of splitStatements(m0030)) {
     await env.DB.prepare(stmt).run()
   }

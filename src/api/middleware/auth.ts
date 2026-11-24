@@ -27,7 +27,7 @@ export function requireInteractiveHuman(c: Context<HonoEnv>, message: string): R
   return null
 }
 
-function accessCookie(cookie: string): string | undefined {
+const accessCookie = function accessCookie(cookie: string): string | undefined {
   return cookie
     .split(';')
     .map((value) => value.trim())
@@ -36,7 +36,7 @@ function accessCookie(cookie: string): string | undefined {
 }
 
 /** Only provider-created execution props, never public request headers, become OAuth proof. */
-function requestActor(c: Context<HonoEnv>): CoreActor {
+const requestActor = function requestActor(c: Context<HonoEnv>): CoreActor {
   const authorization = c.req.header('Authorization')
   const bearer = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined
   const accessJwt = c.req.header('Cf-Access-Jwt-Assertion') ?? accessCookie(c.req.header('cookie') ?? '')
@@ -51,7 +51,7 @@ function requestActor(c: Context<HonoEnv>): CoreActor {
   }
 }
 
-async function authFailureLimited(c: Context<HonoEnv>): Promise<boolean> {
+const authFailureLimited = async function authFailureLimited(c: Context<HonoEnv>): Promise<boolean> {
   try {
     const count = await bumpRateCounter(
       c.env,

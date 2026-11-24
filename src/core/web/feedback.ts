@@ -24,12 +24,12 @@ import { checked } from './issue-data.ts'
 import { webRead } from './issue-operations.ts'
 import type { WebRequest } from './scope.ts'
 
-function admin(role: string) {
+const admin = function admin(role: string) {
   if (role !== 'owner' && role !== 'admin') {
     throw new ScopeError(403, 'Insufficient permissions')
   }
 }
-function sourceDto(row: queries.FeedbackSourceListRow) {
+const sourceDto = function sourceDto(row: queries.FeedbackSourceListRow) {
   return {
     id: row.id,
     name: row.name,
@@ -41,7 +41,7 @@ function sourceDto(row: queries.FeedbackSourceListRow) {
     revokedAt: row.revoked_at,
   }
 }
-function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
+const summaryDtos = function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
   const map = new Map<
     string,
     {
@@ -76,17 +76,17 @@ function summaryDtos(rows: queries.FeedbackSummaryRow[]) {
   }
   return [...map.values()]
 }
-function loadSources(env: CoreEnvironment, workspaceId: string, projectId: string) {
+const loadSources = function loadSources(env: CoreEnvironment, workspaceId: string, projectId: string) {
   return queries
     .listFeedbackSources(env.DB, workspaceId, { projectId })
     .pipe(Effect.flatMap((rows) => Effect.try({ try: () => rows.map(sourceDto), catch: publicWebFailure })))
 }
-function loadSummaries(env: CoreEnvironment, workspaceId: string, projectId: string) {
+const loadSummaries = function loadSummaries(env: CoreEnvironment, workspaceId: string, projectId: string) {
   return queries.readFeedbackSummary(env.DB, workspaceId, { projectId }).pipe(Effect.map(summaryDtos))
 }
 
 export const makeFeedbackHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
-  function mutation<S extends Schema.Top, A>(
+  const mutation = function mutation<S extends Schema.Top, A>(
     name: string,
     schema: S,
     proof: BrowserCommand,

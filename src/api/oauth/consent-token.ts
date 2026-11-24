@@ -27,7 +27,7 @@ export type ConsentPayload = {
   exp: number
 }
 
-function b64urlEncode(bytes: Uint8Array): string {
+const b64urlEncode = function b64urlEncode(bytes: Uint8Array): string {
   let binary = ''
   for (const byte of bytes) {
     binary += String.fromCharCode(byte)
@@ -35,12 +35,12 @@ function b64urlEncode(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-function b64urlDecode(value: string): Uint8Array<ArrayBuffer> {
+const b64urlDecode = function b64urlDecode(value: string): Uint8Array<ArrayBuffer> {
   const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice(0, (4 - (value.length % 4)) % 4)
   return Uint8Array.from(atob(padded), (ch) => ch.charCodeAt(0))
 }
 
-async function hmacKey(secret: string): Promise<CryptoKey> {
+const hmacKey = async function hmacKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
     'sign',
     'verify',

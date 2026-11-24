@@ -17,8 +17,8 @@ import { listTaskStatuses } from '../task-statuses.ts'
 import { listTaskTypes } from '../task-types.ts'
 
 /** Maintained read transport fixture over the real migrated schema, with D1's bind cap. */
-function readDatabase(sqlite: DatabaseSync): D1Database {
-  function prepare(sql: string, bindings: SQLInputValue[] = []) {
+const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
+  const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {
       bind: (...values: SQLInputValue[]) => {
         if (values.length > 100) {

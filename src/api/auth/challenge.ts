@@ -20,11 +20,11 @@ import { OAUTH_SCOPES_SUPPORTED } from './scopes.ts'
  * scope names from a fixed list) contain neither quotes nor backslashes today, but a
  * challenge header that can be broken by its own payload is not worth the gamble.
  */
-function quote(value: string): string {
+const quote = function quote(value: string): string {
   return `"${value.replace(/[\\"]/g, (ch) => `\\${ch}`)}"`
 }
 
-function bearerChallenge(params: Readonly<Record<string, string>>): string {
+const bearerChallenge = function bearerChallenge(params: Readonly<Record<string, string>>): string {
   const rendered = Object.entries(params)
     .map(([key, value]) => `${key}=${quote(value)}`)
     .join(', ')

@@ -81,7 +81,7 @@ const issueColumns = {
   status_key: schema.taskStatuses.key,
   status_name: schema.taskStatuses.name,
 }
-function issueSelect(db: D1Database) {
+const issueSelect = function issueSelect(db: D1Database) {
   return drizzle(db, { schema })
     .select(issueColumns)
     .from(schema.issues)
@@ -153,7 +153,11 @@ export function findIssueCustomField(db: D1Database, workspaceId: string, key: s
         .get()) ?? null,
   )
 }
-function listConditions(workspaceId: string, options: IssueListOptions, visibility?: SQL): SQL[] {
+const listConditions = function listConditions(
+  workspaceId: string,
+  options: IssueListOptions,
+  visibility?: SQL,
+): SQL[] {
   const conditions: SQL[] = [eq(schema.issues.workspaceId, workspaceId)]
   if (visibility) {
     conditions.push(visibility)

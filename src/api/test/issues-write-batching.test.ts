@@ -30,7 +30,7 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-function trackD1RoundTrips() {
+const trackD1RoundTrips = function trackD1RoundTrips() {
   let count = 0
   const origPrepare = env.DB.prepare.bind(env.DB)
   const origBatch = env.DB.batch.bind(env.DB)
@@ -68,7 +68,7 @@ function trackD1RoundTrips() {
 
 type Fixture = Awaited<ReturnType<typeof seedProjectFixture>>
 
-function ownerCtx(f: Fixture): ServiceCtx {
+const ownerCtx = function ownerCtx(f: Fixture): ServiceCtx {
   return {
     db: env.DB,
     kv: env.KV,
@@ -80,7 +80,7 @@ function ownerCtx(f: Fixture): ServiceCtx {
 }
 
 // ValidationError's message is generic; the human-readable reason is in issues.formErrors.
-async function formErrorOf(p: Promise<unknown>): Promise<string[]> {
+const formErrorOf = async function formErrorOf(p: Promise<unknown>): Promise<string[]> {
   const err = (await p.then(
     () => null,
     (e: unknown) => e,
@@ -89,7 +89,7 @@ async function formErrorOf(p: Promise<unknown>): Promise<string[]> {
   return err?.issues?.formErrors ?? []
 }
 
-async function seedChain(f: Fixture, length: number): Promise<string[]> {
+const seedChain = async function seedChain(f: Fixture, length: number): Promise<string[]> {
   const ids: string[] = []
   let parentId: string | undefined
   for (let i = 0; i < length; i++) {

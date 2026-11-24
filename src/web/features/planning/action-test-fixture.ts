@@ -90,7 +90,10 @@ export function actionFixture(
     const value = await resolve(url, options)
     return value instanceof Response ? value : Response.json(value)
   })
-  function invoke<Input extends unknown[], Output>(operation: (...input: Input) => Promise<Output>, ...input: Input) {
+  const invoke = function invoke<Input extends unknown[], Output>(
+    operation: (...input: Input) => Promise<Output>,
+    ...input: Input
+  ) {
     const definition = definitions.get(operation)
     if (!definition) {
       throw new Error('Unregistered feature ServerFn.')

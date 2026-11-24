@@ -50,7 +50,7 @@ afterEach(() => {
     database.close()
   }
 })
-async function fixture(
+const fixture = async function fixture(
   options: {
     origin?: string
     pageProject?: string
@@ -129,7 +129,7 @@ async function fixture(
         ),
     invalidate: native.invalidate.pipe(Effect.andThen(Effect.sync(invalidate))),
   }
-  function run(operation: unknown, input: unknown) {
+  const run = function run(operation: unknown, input: unknown) {
     const definition = definitions.get(operation)
     if (!definition) {
       throw new Error('Missing operation definition')

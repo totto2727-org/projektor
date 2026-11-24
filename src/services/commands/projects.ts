@@ -18,7 +18,7 @@ const WS_META_LOCAL_TTL_MS = 5000
 const PROJECTS_CACHE_KEY = (workspaceId: string) => `ws-meta:${workspaceId}:projects`
 const localCache = cache.createLocalCache<unknown[]>(WS_META_LOCAL_TTL_MS)
 
-async function invalidateProjectsCache(ctx: ServiceCtx) {
+const invalidateProjectsCache = async function invalidateProjectsCache(ctx: ServiceCtx) {
   const cacheKey = PROJECTS_CACHE_KEY(ctx.workspaceId)
   await cache.invalidate(ctx.kv, cacheKey)
   localCache.invalidate(cacheKey)
@@ -142,7 +142,7 @@ export async function getProjectBySlug(ctx: ServiceCtx, slug: string) {
   return project
 }
 
-function slugify(name: string): string {
+const slugify = function slugify(name: string): string {
   return (
     name
       .trim()
@@ -156,7 +156,11 @@ function slugify(name: string): string {
  * Generates a workspace-unique slug from the project name, appending -2, -3, ...
  * on collision. Bounded query count: at most one SELECT per candidate tried.
  */
-async function generateUniqueSlug(orm: ReturnType<typeof drizzle>, workspaceId: string, name: string): Promise<string> {
+const generateUniqueSlug = async function generateUniqueSlug(
+  orm: ReturnType<typeof drizzle>,
+  workspaceId: string,
+  name: string,
+): Promise<string> {
   const base = slugify(name)
   let candidate = base
   for (let n = 2; ; n++) {

@@ -25,7 +25,7 @@ export interface SocketAttachment {
 
 const INTERNAL_WORKSPACE_ID_HEADER = 'X-Internal-Workspace-Id'
 
-function isWorkspaceAdmin(role: Role | undefined): boolean {
+const isWorkspaceAdmin = function isWorkspaceAdmin(role: Role | undefined): boolean {
   return role === 'owner' || role === 'admin'
 }
 

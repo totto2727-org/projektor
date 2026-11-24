@@ -14,7 +14,7 @@ describe('Activity audit log', () => {
     ;({ token, slug, workspaceId, projectId } = await seedProjectFixture())
   })
 
-  async function activityForEntity(entityId: string) {
+  const activityForEntity = async function activityForEntity(entityId: string) {
     const { results } = await env.DB.prepare('SELECT * FROM activity WHERE entity_id = ? ORDER BY created_at ASC')
       .bind(entityId)
       .all<{

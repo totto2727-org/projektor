@@ -20,11 +20,11 @@ import { deployment } from './worker-graph.ts'
 import CoreEntrypoint from './workers/core.ts'
 import Frontend from './workers/frontend.ts'
 
-function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<string, string>) {
+const configured = function configured<A, E, R>(effect: Effect.Effect<A, E, R>, values: Record<string, string>) {
   return effect.pipe(Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromUnknown(values)))
 }
 
-async function register(
+const register = async function register(
   local: boolean,
   productionSecret: string | null = 'test-existing-production-value',
   environmentLayer?: EnvironmentLayer,
@@ -68,13 +68,13 @@ async function register(
   return { ...resources, stack }
 }
 
-function bindings(stack: Stack['Service'], id: string) {
+const bindings = function bindings(stack: Stack['Service'], id: string) {
   return dedupeBindings(stack.bindings[id] ?? []).flatMap((entry) => entry.data.bindings ?? [])
 }
 
 const storageNames = ['DB', 'KV', 'OAUTH_KV', 'R2']
 
-function expectNoStorage(stack: Stack['Service'], id: 'Api' | 'Frontend') {
+const expectNoStorage = function expectNoStorage(stack: Stack['Service'], id: 'Api' | 'Frontend') {
   const resource = stack.resources[id]
   const deniedNames = id === 'Api' ? storageNames.filter((name) => name !== 'OAUTH_KV') : storageNames
   for (const name of deniedNames) {

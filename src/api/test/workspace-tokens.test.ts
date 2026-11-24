@@ -14,7 +14,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedUserToken } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
+const asHuman = async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
   const prev = env.DEV_USER_EMAIL
   env.DEV_USER_EMAIL = email
   try {
@@ -24,11 +24,11 @@ async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
   }
 }
 
-function humanHeaders(slug: string) {
+const humanHeaders = function humanHeaders(slug: string) {
   return { 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' }
 }
 
-function mintAsHuman(email: string, slug: string, body: string) {
+const mintAsHuman = function mintAsHuman(email: string, slug: string, body: string) {
   return asHuman(email, () =>
     fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       method: 'POST',
@@ -38,7 +38,7 @@ function mintAsHuman(email: string, slug: string, body: string) {
   )
 }
 
-async function tokenRow(name: string) {
+const tokenRow = async function tokenRow(name: string) {
   return env.DB.prepare('SELECT id FROM api_tokens WHERE name = ?').bind(name).first<{
     id: string
   }>()

@@ -13,7 +13,7 @@ afterEach(() => {
   }
 })
 
-function fixture(concurrentBatches = 1) {
+const fixture = function fixture(concurrentBatches = 1) {
   const database = createTestDatabase()
   databases.push(database)
   // The migrated node fixture omits FTS5. This mirror verifies row consistency, not FTS matching.

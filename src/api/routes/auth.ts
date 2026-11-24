@@ -11,7 +11,7 @@ import { authMiddleware, requireInteractiveHuman } from '../middleware/auth.ts'
 
 const router = new Hono<HonoEnv>()
 
-function isSafeRedirectPath(url: string): boolean {
+const isSafeRedirectPath = function isSafeRedirectPath(url: string): boolean {
   return url.startsWith('/') && !url.startsWith('//')
 }
 

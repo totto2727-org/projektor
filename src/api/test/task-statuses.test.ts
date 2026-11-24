@@ -516,7 +516,7 @@ describe('Task Statuses — MCP parity', () => {
     workspaceId = fixture.workspace.id
   })
 
-  async function mcpCall(method: string, params: unknown) {
+  const mcpCall = async function mcpCall(method: string, params: unknown) {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },

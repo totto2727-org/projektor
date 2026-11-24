@@ -16,13 +16,13 @@ const filenames = readdirSync(new URL('../../../migrations/', import.meta.url))
   .filter((file) => file.endsWith('.sql'))
   .sort()
 
-function seedWorkspace(db: DatabaseSync) {
+const seedWorkspace = function seedWorkspace(db: DatabaseSync) {
   db.exec(`INSERT INTO workspaces(id,name,slug,created_at) VALUES ('w','Workspace','workspace',0);
     INSERT INTO users(id,email,name,created_at) VALUES ('u','user@example.invalid','User',0);`)
   // No owner membership: historical template seeds must not create unrelated pages.
 }
 
-function seedWiki(db: DatabaseSync, slugs: readonly string[]) {
+const seedWiki = function seedWiki(db: DatabaseSync, slugs: readonly string[]) {
   const insert = db.prepare(`INSERT INTO wiki_pages
     (id,workspace_id,slug,title,content,created_by_id,updated_by_id,created_at,updated_at)
     VALUES (?,?,?,?,'searchneedle','u','u',?,?)`)
@@ -37,12 +37,12 @@ function seedWiki(db: DatabaseSync, slugs: readonly string[]) {
   }
 }
 
-function checkIntegrity(db: DatabaseSync) {
+const checkIntegrity = function checkIntegrity(db: DatabaseSync) {
   expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
   expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
 }
 
-function pages(db: DatabaseSync) {
+const pages = function pages(db: DatabaseSync) {
   return db.prepare('SELECT id,workspace_id,slug,version FROM wiki_pages ORDER BY id').all()
 }
 

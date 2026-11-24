@@ -17,7 +17,7 @@ export interface OAuthEnvironment {
 }
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
-function validateNativeClient({ clientMetadata }: ClientRegistrationCallbackOptions) {
+const validateNativeClient = function validateNativeClient({ clientMetadata }: ClientRegistrationCallbackOptions) {
   const redirects = clientMetadata.redirect_uris
   const redirect = Array.isArray(redirects) && redirects.length === 1 ? redirects[0] : undefined
   if (clientMetadata.token_endpoint_auth_method === 'none' && typeof redirect === 'string' && URL.canParse(redirect)) {

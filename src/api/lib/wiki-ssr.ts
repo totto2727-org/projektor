@@ -22,7 +22,7 @@ import { getWikiPage } from '../services/wiki.ts'
  * not an error, since this is a best-effort enhancement over the client-side behavior
  * that already exists.
  */
-async function resolveWikiWorkspaceContext(
+const resolveWikiWorkspaceContext = async function resolveWikiWorkspaceContext(
   c: Context<HonoEnv>,
 ): Promise<{ id: string; name: string; slug: string; role: string } | null> {
   const headerSlug = c.req.header('X-Workspace-Slug')
@@ -91,7 +91,7 @@ export async function resolveWikiPageForSsr(c: Context<HonoEnv>, slugOrId: strin
   }
 }
 
-function plainTextExcerpt(markdown: string, maxLen = 200): string {
+const plainTextExcerpt = function plainTextExcerpt(markdown: string, maxLen = 200): string {
   const plain = markdown
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')

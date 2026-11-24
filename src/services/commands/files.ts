@@ -30,7 +30,7 @@ import * as wikiService from './wiki.ts'
  * issue/wiki page row (they're free-floating metadata keyed by entity_type/entity_id),
  * so resolving a project to check per-project role isn't possible in general.
  */
-function requireAttachmentWrite(ctx: ServiceCtx): void {
+const requireAttachmentWrite = function requireAttachmentWrite(ctx: ServiceCtx): void {
   if (ctx.role === 'viewer') {
     throw new ForbiddenError('Insufficient permissions')
   }
@@ -53,7 +53,7 @@ function requireAttachmentWrite(ctx: ServiceCtx): void {
  * Queries applying this must alias `attachments` as `a`. Returns null for workspace
  * owner/admin, who see every project.
  */
-function ownerVisibleFilter(ctx: ServiceCtx): { sql: string; params: unknown[] } | null {
+const ownerVisibleFilter = function ownerVisibleFilter(ctx: ServiceCtx): { sql: string; params: unknown[] } | null {
   const issue = visibleProjectSqlFragment(ctx, 'i.project_id')
   const page = visibleProjectSqlFragment(ctx, 'p.project_id')
   if (!issue || !page) {
@@ -77,7 +77,7 @@ function ownerVisibleFilter(ctx: ServiceCtx): { sql: string; params: unknown[] }
  * the same hole. An entity_id that resolves to nothing is left to the flat
  * `requireAttachmentWrite` guard, for the reason given above.
  */
-async function assertEntityWritable(
+const assertEntityWritable = async function assertEntityWritable(
   ctx: ServiceCtx,
   entityType: 'issue' | 'wiki_page',
   entityId: string,
@@ -133,7 +133,7 @@ const ALLOWED_UPLOAD_TYPES = new Set([
   'application/json',
 ])
 
-function toDto(r: attachmentData.AttachmentMetadata): AttachmentDto {
+const toDto = function toDto(r: attachmentData.AttachmentMetadata): AttachmentDto {
   return {
     id: r.id,
     kind: r.kind,
@@ -259,7 +259,7 @@ export function storageQuotaBytes(env: Readonly<{ STORAGE_QUOTA_BYTES?: string }
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_STORAGE_QUOTA_BYTES
 }
 
-async function workspaceStorageUsageBytes(ctx: ServiceCtx): Promise<number> {
+const workspaceStorageUsageBytes = async function workspaceStorageUsageBytes(ctx: ServiceCtx): Promise<number> {
   const row = await ctx.db
     .prepare('SELECT COALESCE(SUM(size), 0) AS total FROM attachments WHERE workspace_id = ?')
     .bind(ctx.workspaceId)

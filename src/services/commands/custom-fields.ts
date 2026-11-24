@@ -39,7 +39,7 @@ export async function listCustomFieldDefs(ctx: ServiceCtx, projectId?: string | 
   )
 }
 
-function assertOptionsAllowedForType(type: string, options: string[] | undefined) {
+const assertOptionsAllowedForType = function assertOptionsAllowedForType(type: string, options: string[] | undefined) {
   if (type !== 'select' && options && options.length > 0) {
     throw new ValidationError({
       formErrors: ['options can only be set for select fields'],
@@ -48,7 +48,7 @@ function assertOptionsAllowedForType(type: string, options: string[] | undefined
   }
 }
 
-async function assertCustomFieldKeyAvailable(
+const assertCustomFieldKeyAvailable = async function assertCustomFieldKeyAvailable(
   orm: ReturnType<typeof drizzle>,
   workspaceId: string,
   projectId: string | null | undefined,
@@ -74,7 +74,10 @@ async function assertCustomFieldKeyAvailable(
   }
 }
 
-async function assertCustomFieldDefLimitNotReached(orm: ReturnType<typeof drizzle>, workspaceId: string) {
+const assertCustomFieldDefLimitNotReached = async function assertCustomFieldDefLimitNotReached(
+  orm: ReturnType<typeof drizzle>,
+  workspaceId: string,
+) {
   const count = await orm.$count(
     schema.customFieldDefinitions,
     eq(schema.customFieldDefinitions.workspaceId, workspaceId),
@@ -119,7 +122,11 @@ export async function createCustomFieldDef(ctx: ServiceCtx, raw: unknown) {
   return { id, key, label, type }
 }
 
-async function getCustomFieldDefForUpdate(orm: ReturnType<typeof drizzle>, workspaceId: string, id: string) {
+const getCustomFieldDefForUpdate = async function getCustomFieldDefForUpdate(
+  orm: ReturnType<typeof drizzle>,
+  workspaceId: string,
+  id: string,
+) {
   const existing = await orm
     .select({ id: schema.customFieldDefinitions.id, type: schema.customFieldDefinitions.type })
     .from(schema.customFieldDefinitions)
@@ -131,7 +138,10 @@ async function getCustomFieldDefForUpdate(orm: ReturnType<typeof drizzle>, works
   return existing
 }
 
-function buildCustomFieldUpdateSet(data: ReturnType<typeof UpdateCustomFieldDefSchema.parse>, existingType: string) {
+const buildCustomFieldUpdateSet = function buildCustomFieldUpdateSet(
+  data: ReturnType<typeof UpdateCustomFieldDefSchema.parse>,
+  existingType: string,
+) {
   if ('options' in data && data.options !== undefined && existingType !== 'select') {
     throw new ValidationError({
       formErrors: ['options can only be set for select fields'],
@@ -233,7 +243,7 @@ export async function seedDefaultCustomFields(db: D1Database, workspaceId: strin
   await db.batch(buildDefaultCustomFieldStatements(db, workspaceId))
 }
 
-function assertValidCustomFieldValue(
+const assertValidCustomFieldValue = function assertValidCustomFieldValue(
   key: string,
   value: string,
   def: typeof schema.customFieldDefinitions.$inferSelect,

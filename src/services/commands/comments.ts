@@ -31,7 +31,11 @@ interface CommentRow {
  * user (owner/admin bypass). Throw the issue-not-found error to avoid leaking that
  * an issue exists in a project the user was never granted.
  */
-async function assertIssueVisible(ctx: ServiceCtx, issueId: string, mode: AccessMode = 'read'): Promise<string> {
+const assertIssueVisible = async function assertIssueVisible(
+  ctx: ServiceCtx,
+  issueId: string,
+  mode: AccessMode = 'read',
+): Promise<string> {
   const orm = drizzle(ctx.db, { schema })
   const issue = await orm
     .select({ projectId: schema.issues.projectId })

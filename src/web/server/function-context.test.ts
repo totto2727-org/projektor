@@ -41,7 +41,7 @@ afterEach(() => {
   }
 })
 
-function fixture(
+const fixture = function fixture(
   path = '/_effront/query',
   auth: AuthSession = session,
   catalog: readonly ProjectSummary[] = [project],
@@ -90,7 +90,7 @@ function fixture(
   }
   const invalidated = vi.fn()
   const env = testEnvironment(database.db, auth.user.email)
-  function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {
+  const run = function run<A, E>(operation: Effect.Effect<A, E, RequestServices>) {
     return Effect.runPromise(
       Effect.gen(function* () {
         const request = new Request(`https://front.example.test${path}`, {

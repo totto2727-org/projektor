@@ -27,7 +27,7 @@ describe('Agent Messages API', () => {
     ;({ token, slug, workspaceId, userId, projectId, issueId } = await seedIssueFixture())
   })
 
-  async function postMessage(body: Record<string, unknown>, t = token, s = slug) {
+  const postMessage = async function postMessage(body: Record<string, unknown>, t = token, s = slug) {
     return fetchNativeApi('http://localhost/api/agent-messages', {
       method: 'POST',
       headers: authHeaders(t, s),
@@ -35,14 +35,20 @@ describe('Agent Messages API', () => {
     })
   }
 
-  async function listMessages(params: Record<string, string> = {}, t = token, s = slug) {
+  const listMessages = async function listMessages(params: Record<string, string> = {}, t = token, s = slug) {
     const qs = new URLSearchParams(params).toString()
     return fetchNativeApi(`http://localhost/api/agent-messages${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(t, s),
     })
   }
 
-  async function mcpCall(method: string, args: Record<string, unknown>, t = token, s = slug, wsId = workspaceId) {
+  const mcpCall = async function mcpCall(
+    method: string,
+    args: Record<string, unknown>,
+    t = token,
+    s = slug,
+    wsId = workspaceId,
+  ) {
     return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
       headers: {
@@ -352,14 +358,14 @@ describe('Agent Messages API', () => {
 
   // --- Heartbeat refresh on a live agentId (PROJ-929) ---
 
-  async function heartbeatOf(id: string): Promise<number> {
+  const heartbeatOf = async function heartbeatOf(id: string): Promise<number> {
     const row = await env.DB.prepare('SELECT last_heartbeat_at FROM agent_sessions WHERE id = ?')
       .bind(id)
       .first<{ last_heartbeat_at: number }>()
     return row!.last_heartbeat_at
   }
 
-  async function ownSession(id: string) {
+  const ownSession = async function ownSession(id: string) {
     await env.DB.prepare(`UPDATE agent_sessions SET credential_id =
       (SELECT id FROM api_tokens WHERE token_hash = ?) WHERE id = ?`)
       .bind(await hashToken(token), id)

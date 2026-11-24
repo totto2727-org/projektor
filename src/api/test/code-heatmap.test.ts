@@ -18,12 +18,14 @@ interface ContentionHeatmapResponse {
   entries: ContentionHeatmapEntry[]
 }
 
-async function expectHeatmapOk(res: Response): Promise<CodeHeatmapResponse> {
+const expectHeatmapOk = async function expectHeatmapOk(res: Response): Promise<CodeHeatmapResponse> {
   expect(res.status).toBe(200)
   return (await res.json()) as CodeHeatmapResponse
 }
 
-function expectAppsGroup<E extends { path: string; isLeaf: boolean }>(entries: readonly E[]): E {
+const expectAppsGroup = function expectAppsGroup<E extends { path: string; isLeaf: boolean }>(
+  entries: readonly E[],
+): E {
   const apps = entries.find((e) => e.path === 'apps')
   expect(apps).toBeDefined()
   expect(apps?.isLeaf).toBe(false)
@@ -47,7 +49,7 @@ describe('Code heatmap (PROJ-332)', () => {
    * scoped to workspace+path, not directory) is never at risk since each seeded path is
    * distinct.
    */
-  async function seedClaim(issueId: string, path: string, claimedAt: number, releasedAt?: number) {
+  const seedClaim = async function seedClaim(issueId: string, path: string, claimedAt: number, releasedAt?: number) {
     await env.DB.prepare(
       'INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, ' +
         'released_at) VALUES (?, ?, ?, NULL, ?, ?, ?)',
@@ -56,7 +58,7 @@ describe('Code heatmap (PROJ-332)', () => {
       .run()
   }
 
-  async function seedConflict(
+  const seedConflict = async function seedConflict(
     rejectedIssueId: string,
     holdingIssueId: string,
     path: string,
@@ -71,7 +73,7 @@ describe('Code heatmap (PROJ-332)', () => {
       .run()
   }
 
-  async function getHeatmap(params: Record<string, string> = {}) {
+  const getHeatmap = async function getHeatmap(params: Record<string, string> = {}) {
     const qs = new URLSearchParams(params).toString()
     return fetchNativeApi(`http://localhost/api/projects/${projectId}/code-heatmap${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(token, slug),

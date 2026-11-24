@@ -27,7 +27,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     watcherToken = await seedToken(workspaceId, watcherId)
   })
 
-  async function createPage(body: Record<string, unknown>): Promise<string> {
+  const createPage = async function createPage(body: Record<string, unknown>): Promise<string> {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(adminToken, slug),
@@ -37,7 +37,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     return ((await res.json()) as { id: string }).id
   }
 
-  async function watch(pageId: string): Promise<void> {
+  const watch = async function watch(pageId: string): Promise<void> {
     const res = await fetchNativeApi(`http://localhost/api/wiki/${pageId}/watch`, {
       method: 'POST',
       headers: authHeaders(watcherToken, slug),
@@ -46,7 +46,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     expect(res.status).toBeLessThan(300)
   }
 
-  async function edit(pageId: string, content: string): Promise<void> {
+  const edit = async function edit(pageId: string, content: string): Promise<void> {
     await resetRateLimits()
     const res = await fetchNativeApi(`http://localhost/api/wiki/${pageId}`, {
       method: 'PUT',
@@ -56,7 +56,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     expect(res.status).toBe(200)
   }
 
-  async function notificationCount(): Promise<number> {
+  const notificationCount = async function notificationCount(): Promise<number> {
     const row = await env.DB.prepare(
       'SELECT COUNT(*) AS n FROM wiki_notifications WHERE user_id = ? AND workspace_id = ?',
     )

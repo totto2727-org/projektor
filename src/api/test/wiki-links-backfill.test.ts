@@ -8,7 +8,7 @@ import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function insertPage(
+const insertPage = async function insertPage(
   workspaceId: string,
   userId: string,
   fields: Readonly<{
@@ -43,7 +43,7 @@ async function insertPage(
   return id
 }
 
-async function backfill(token: string, slug: string, body: Record<string, unknown> = {}) {
+const backfill = async function backfill(token: string, slug: string, body: Record<string, unknown> = {}) {
   const res = await fetchNativeApi('http://localhost/api/wiki/backfill-links', {
     method: 'POST',
     headers: authHeaders(token, slug),

@@ -16,7 +16,7 @@ describe('File Claims API', () => {
     ;({ token, slug, workspaceId, userId, projectId, issueId } = await seedIssueFixture())
   })
 
-  async function claimFiles(body: Record<string, unknown>, t = token, s = slug) {
+  const claimFiles = async function claimFiles(body: Record<string, unknown>, t = token, s = slug) {
     return fetchNativeApi('http://localhost/api/file-claims', {
       method: 'POST',
       headers: authHeaders(t, s),
@@ -24,7 +24,7 @@ describe('File Claims API', () => {
     })
   }
 
-  async function releaseFiles(body: Record<string, unknown>, t = token, s = slug) {
+  const releaseFiles = async function releaseFiles(body: Record<string, unknown>, t = token, s = slug) {
     return fetchNativeApi('http://localhost/api/file-claims/release', {
       method: 'POST',
       headers: authHeaders(t, s),
@@ -32,7 +32,7 @@ describe('File Claims API', () => {
     })
   }
 
-  async function listFileClaims(params: Record<string, string> = {}, t = token, s = slug) {
+  const listFileClaims = async function listFileClaims(params: Record<string, string> = {}, t = token, s = slug) {
     const qs = new URLSearchParams(params).toString()
     return fetchNativeApi(`http://localhost/api/file-claims${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(t, s),
@@ -40,7 +40,13 @@ describe('File Claims API', () => {
   }
 
   // X-Workspace-Slug is required by workspaceMiddleware (reads slug, not path param)
-  async function mcpCall(method: string, args: Record<string, unknown>, t = token, s = slug, wsId = workspaceId) {
+  const mcpCall = async function mcpCall(
+    method: string,
+    args: Record<string, unknown>,
+    t = token,
+    s = slug,
+    wsId = workspaceId,
+  ) {
     return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
       headers: {
@@ -303,7 +309,7 @@ describe('File Claims API', () => {
     expect(rows.results).toHaveLength(0)
   })
 
-  async function listMessagesForScope(scope: string) {
+  const listMessagesForScope = async function listMessagesForScope(scope: string) {
     const res = await fetchNativeApi(`http://localhost/api/agent-messages?scope=${encodeURIComponent(scope)}`, {
       headers: authHeaders(token, slug),
     })
@@ -389,7 +395,7 @@ describe('File Claims API', () => {
    * definition it didn't. B4b above covers the clean-exit path; none of these do.
    */
   describe('PROJ-636: stale-holder reclaim', () => {
-    async function seedSession(
+    const seedSession = async function seedSession(
       opts: Readonly<{ status?: string; heartbeatAgeSecs?: number; name?: string }> = {},
     ): Promise<string> {
       const id = crypto.randomUUID()
@@ -416,7 +422,7 @@ describe('File Claims API', () => {
       return id
     }
 
-    async function claimRow(path: string) {
+    const claimRow = async function claimRow(path: string) {
       return env.DB.prepare(
         'SELECT released_at, release_reason FROM issue_file_claims WHERE path = ? AND workspace_id = ?',
       )
@@ -603,7 +609,7 @@ describe('File Claims API', () => {
      * same reclaim path as a claim whose agent session went stale.
      */
     describe('PROJ-928: agentless claim TTL', () => {
-      async function backdateClaim(path: string, secondsAgo: number) {
+      const backdateClaim = async function backdateClaim(path: string, secondsAgo: number) {
         const claimedAt = Math.floor(Date.now() / 1000) - secondsAgo
         await env.DB.prepare('UPDATE issue_file_claims SET claimed_at = ? WHERE path = ? AND workspace_id = ?')
           .bind(claimedAt, path, workspaceId)
@@ -649,7 +655,7 @@ describe('File Claims API', () => {
    * still working.
    */
   describe('PROJ-928: issue close releases file claims', () => {
-    async function patchStatus(id: string, status: string) {
+    const patchStatus = async function patchStatus(id: string, status: string) {
       return fetchNativeApi(`http://localhost/api/issues/${id}`, {
         method: 'PATCH',
         headers: authHeaders(token, slug),
@@ -764,7 +770,7 @@ describe('File Claims API', () => {
   // (agent-linked vs agentless); includeStale restores it. Both cases fail if the
   // `if (!includeStale)` filter in listFileClaims is removed.
   describe('PROJ-932: default excludes stale/expired claims; includeStale includes them', () => {
-    async function seedStaleAgentSession(): Promise<string> {
+    const seedStaleAgentSession = async function seedStaleAgentSession(): Promise<string> {
       const id = crypto.randomUUID()
       const now = Math.floor(Date.now() / 1000)
       await env.DB.prepare(
@@ -846,7 +852,7 @@ describe('PROJ-932: list_file_claims projectId + visibility for a non-admin memb
       .bind(crypto.randomUUID(), workspaceId, hiddenIssue.id, Math.floor(Date.now() / 1000))
       .run()
 
-    async function list(params: Record<string, string>) {
+    const list = async function list(params: Record<string, string>) {
       const qs = new URLSearchParams(params).toString()
       return fetchNativeApi(`http://localhost/api/file-claims?${qs}`, {
         headers: authHeaders(token, slug),

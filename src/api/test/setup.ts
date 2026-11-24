@@ -10,7 +10,7 @@ import { resetRateLimits } from './rate-limit-reset.ts'
  * otherwise produce spurious fragments. prepare().run() is used per statement
  * because Miniflare's exec() doesn't handle multi-statement SQL.
  */
-function splitStatements(sql: string): string[] {
+const splitStatements = function splitStatements(sql: string): string[] {
   return sql
     .replace(/--[^\n]*/g, '')
     .split(';')

@@ -45,7 +45,7 @@ export function webRead<A, E>(
 }
 
 export const makeIssueReadHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
-  function reply<S extends Schema.Top, A, E>(
+  const reply = function reply<S extends Schema.Top, A, E>(
     operation: string,
     schema: S,
     read: (env: CoreEnvironment) => Effect.Effect<A, E>,

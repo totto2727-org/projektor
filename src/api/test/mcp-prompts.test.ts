@@ -26,7 +26,7 @@ describe('MCP prompts', () => {
     epicNumber = row!.number
   })
 
-  async function mcpCall(method: string, params: unknown) {
+  const mcpCall = async function mcpCall(method: string, params: unknown) {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),

@@ -29,7 +29,7 @@ import { resetRateLimits } from './rate-limit-reset.ts'
  * custom field shape — which is exactly what listWikiChanges' select does — so all three
  * read methods need to be captured, not just `.all()`.
  */
-function wrapD1CapturingReads(db: D1Database, captured: unknown[]): D1Database {
+const wrapD1CapturingReads = function wrapD1CapturingReads(db: D1Database, captured: unknown[]): D1Database {
   const READ_METHODS = new Set(['all', 'first', 'raw'])
   return new Proxy(db, {
     get(dbTarget, dbProp, dbReceiver) {
@@ -68,7 +68,7 @@ function wrapD1CapturingReads(db: D1Database, captured: unknown[]): D1Database {
   })
 }
 
-async function mcpCall<T>(
+const mcpCall = async function mcpCall<T>(
   workspaceId: string,
   name: string,
   args: unknown,
@@ -87,11 +87,11 @@ async function mcpCall<T>(
   return res.json()
 }
 
-function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
+const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
   return 'error' in r
 }
 
-function mcpData<T>(r: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcError): T {
+const mcpData = function mcpData<T>(r: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcError): T {
   if (isMcpError(r)) {
     throw new Error(`MCP error: ${r.error.message}`)
   }
@@ -103,12 +103,12 @@ function mcpData<T>(r: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcE
  * many describe blocks below fire more than that against one token — reset the counter
  * before every request.
  */
-async function resetRateLimitAndFetch(url: string, opts?: RequestInit) {
+const resetRateLimitAndFetch = async function resetRateLimitAndFetch(url: string, opts?: RequestInit) {
   await resetRateLimits()
   return fetchNativeApi(url, opts)
 }
 
-async function resetRateLimitAndMcpCall<T>(
+const resetRateLimitAndMcpCall = async function resetRateLimitAndMcpCall<T>(
   workspaceId: string,
   token: string,
   slug: string,
@@ -119,7 +119,7 @@ async function resetRateLimitAndMcpCall<T>(
   return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
 }
 
-async function seedWorkspaceFixture(): Promise<{
+const seedWorkspaceFixture = async function seedWorkspaceFixture(): Promise<{
   token: string
   slug: string
   workspaceId: string
@@ -726,7 +726,12 @@ describe('Wiki API', () => {
     expect(allPages).toHaveLength(2)
   })
 
-  async function seedWikiPageRow(workspaceId: string, projectId: string | null, pageSlug: string, title: string) {
+  const seedWikiPageRow = async function seedWikiPageRow(
+    workspaceId: string,
+    projectId: string | null,
+    pageSlug: string,
+    title: string,
+  ) {
     await env.DB.prepare(
       "INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, created_by_id, updated_by_id, created_at, updated_at, tags, owners, is_template) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]', 0)",
     )
@@ -1119,7 +1124,7 @@ describe('Wiki API', () => {
     }
   })
 
-  async function uploadFileToPage(token: string, slug: string, pageId: string) {
+  const uploadFileToPage = async function uploadFileToPage(token: string, slug: string, pageId: string) {
     const form = new FormData()
     form.append('file', new File(['attachment content'], 'doc.txt', { type: 'text/plain' }))
     form.append('entityType', 'wiki_page')
@@ -2350,15 +2355,15 @@ describe('Wiki optimistic locking (PROJ-484)', () => {
    * tests each fire more than that against one token — reset the counter before every
    * request (same escape hatch as PROJ-238's nesting-depth test above).
    */
-  async function req(url: string, opts?: RequestInit) {
+  const req = async function req(url: string, opts?: RequestInit) {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  async function mcp<T>(name: string, args: unknown) {
+  const mcp = async function mcp<T>(name: string, args: unknown) {
     return resetRateLimitAndMcpCall<T>(workspaceId, token, slug, name, args)
   }
 
-  async function getRevisions(pageSlug: string) {
+  const getRevisions = async function getRevisions(pageSlug: string) {
     const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
       headers: authHeaders(token, slug),
     })
@@ -2565,15 +2570,15 @@ describe('Wiki revision diff (PROJ-492)', () => {
     ;({ token, slug, workspaceId } = await seedWorkspaceFixture())
   })
 
-  async function req(url: string, opts?: RequestInit) {
+  const req = async function req(url: string, opts?: RequestInit) {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  async function mcp<T>(name: string, args: unknown) {
+  const mcp = async function mcp<T>(name: string, args: unknown) {
     return resetRateLimitAndMcpCall<T>(workspaceId, token, slug, name, args)
   }
 
-  async function getRevisions(pageSlug: string) {
+  const getRevisions = async function getRevisions(pageSlug: string) {
     const res = await req(`http://localhost/api/wiki/${pageSlug}/revisions`, {
       headers: authHeaders(token, slug),
     })
@@ -2849,15 +2854,15 @@ describe('Wiki patch operations (PROJ-490)', () => {
   })
 
   // Same rate-limit escape hatch as the PROJ-484 describe block above.
-  async function req(url: string, opts?: RequestInit) {
+  const req = async function req(url: string, opts?: RequestInit) {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  async function mcp<T>(name: string, args: unknown) {
+  const mcp = async function mcp<T>(name: string, args: unknown) {
     return resetRateLimitAndMcpCall<T>(workspaceId, token, slug, name, args)
   }
 
-  async function createPage(pageSlug: string, title: string, content: string) {
+  const createPage = async function createPage(pageSlug: string, title: string, content: string) {
     const res = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2867,7 +2872,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     return (await res.json()) as { id: string; slug: string }
   }
 
-  async function getPage(pageSlug: string) {
+  const getPage = async function getPage(pageSlug: string) {
     const res = await req(`http://localhost/api/wiki/${pageSlug}`, {
       headers: authHeaders(token, slug),
     })
@@ -3637,7 +3642,7 @@ describe('wiki slug dedup algorithm (0041_wiki_slug_unique.sql)', () => {
 	SET slug = dedup_scratch.slug || '-' || substr(dedup_scratch.id, 1, 8)
 	WHERE id IN (SELECT id FROM ranked WHERE rn > 1)`
 
-  async function withScratchTable(fn: () => Promise<void>) {
+  const withScratchTable = async function withScratchTable(fn: () => Promise<void>) {
     await env.DB.prepare(
       `CREATE TABLE dedup_scratch (
 				id TEXT PRIMARY KEY,
@@ -3714,7 +3719,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     slug = fixture.workspace.slug
   })
 
-  async function createPage(title: string, content: string) {
+  const createPage = async function createPage(title: string, content: string) {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4226,19 +4231,19 @@ describe('Wiki freshness model (PROJ-489)', () => {
 
   const today = () => new Date().toISOString().slice(0, 10)
 
-  function overdueContent(intervalDays = 30) {
+  const overdueContent = function overdueContent(intervalDays = 30) {
     return ['---', `verify_interval: ${intervalDays}`, 'verified_at: 2020-01-01', '---', '# Overdue page'].join('\n')
   }
 
-  function freshContent(intervalDays = 365) {
+  const freshContent = function freshContent(intervalDays = 365) {
     return ['---', `verify_interval: ${intervalDays}`, `verified_at: ${today()}`, '---', '# Fresh page'].join('\n')
   }
 
-  function unverifiedContent(intervalDays = 30) {
+  const unverifiedContent = function unverifiedContent(intervalDays = 30) {
     return ['---', `verify_interval: ${intervalDays}`, '---', '# Never verified page'].join('\n')
   }
 
-  function explicitStatusContent(status: 'stale' | 'deprecated') {
+  const explicitStatusContent = function explicitStatusContent(status: 'stale' | 'deprecated') {
     return ['---', `status: ${status}`, '---', '# Explicitly flagged page'].join('\n')
   }
 
@@ -4561,7 +4566,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     '## Steps',
   ].join('\n')
 
-  async function createTemplate() {
+  const createTemplate = async function createTemplate() {
     const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4856,11 +4861,11 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     workspaceId = fixture.workspace.id
   })
 
-  async function req(url: string, opts?: RequestInit) {
+  const req = async function req(url: string, opts?: RequestInit) {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  async function createPage(pageSlug: string, title: string, content = '') {
+  const createPage = async function createPage(pageSlug: string, title: string, content = '') {
     const res = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4870,7 +4875,12 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     return (await res.json()) as { id: string; slug: string }
   }
 
-  async function createChildPage(pageSlug: string, title: string, content: string, parentId: string) {
+  const createChildPage = async function createChildPage(
+    pageSlug: string,
+    title: string,
+    content: string,
+    parentId: string,
+  ) {
     const res = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -4880,14 +4890,14 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
     return (await res.json()) as { id: string; slug: string }
   }
 
-  async function seedWatcher(role = 'member') {
+  const seedWatcher = async function seedWatcher(role = 'member') {
     const user = await seedUser(`watcher-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(workspaceId, user.id, role)
     const watcherToken = await seedToken(workspaceId, user.id)
     return { user, token: watcherToken }
   }
 
-  async function notifications(watcherToken: string, query = '') {
+  const notifications = async function notifications(watcherToken: string, query = '') {
     const res = await req(`http://localhost/api/wiki/notifications${query}`, {
       headers: authHeaders(watcherToken, slug),
     })
@@ -5377,7 +5387,7 @@ describe('Wiki watchers + list_wiki_changes (PROJ-493)', () => {
      * Several MCP calls back-to-back would otherwise trip the same per-token rate
      * limit that req() clears for REST calls above.
      */
-    async function mcp<T>(name: string, args: unknown) {
+    const mcp = async function mcp<T>(name: string, args: unknown) {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
     }
@@ -5420,11 +5430,11 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
     workspaceId = fixture.workspace.id
   })
 
-  async function req(url: string, opts?: RequestInit) {
+  const req = async function req(url: string, opts?: RequestInit) {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  async function createPage(pageSlug: string, title: string, content = '') {
+  const createPage = async function createPage(pageSlug: string, title: string, content = '') {
     const res = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -5663,7 +5673,7 @@ describe('Wiki server-side drafts (PROJ-495)', () => {
   })
 
   test('MCP: save_wiki_draft / get_wiki_draft / discard_wiki_draft mirror the REST behavior', async () => {
-    async function mcp<T>(name: string, args: unknown) {
+    const mcp = async function mcp<T>(name: string, args: unknown) {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
     }
@@ -5704,11 +5714,11 @@ describe('Wiki trash (PROJ-496)', () => {
     workspaceId = fixture.workspace.id
   })
 
-  async function req(url: string, opts?: RequestInit) {
+  const req = async function req(url: string, opts?: RequestInit) {
     return resetRateLimitAndFetch(url, opts)
   }
 
-  async function createPage(title: string, content: string, opts?: Record<string, unknown>) {
+  const createPage = async function createPage(title: string, content: string, opts?: Record<string, unknown>) {
     const res = await req('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -5718,7 +5728,7 @@ describe('Wiki trash (PROJ-496)', () => {
     return (await res.json()) as { id: string; slug: string }
   }
 
-  async function trashPage(pageSlug: string, cascade = false) {
+  const trashPage = async function trashPage(pageSlug: string, cascade = false) {
     const res = await req(`http://localhost/api/wiki/${pageSlug}${cascade ? '?cascade=true' : ''}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
@@ -5726,7 +5736,7 @@ describe('Wiki trash (PROJ-496)', () => {
     expect(res.status).toBe(200)
   }
 
-  function backdateTrash(seconds = 31 * 24 * 60 * 60) {
+  const backdateTrash = function backdateTrash(seconds = 31 * 24 * 60 * 60) {
     return env.DB.prepare('UPDATE wiki_pages SET deleted_at = ? WHERE workspace_id = ? AND deleted_at IS NOT NULL')
       .bind(Math.floor(Date.now() / 1000) - seconds, workspaceId)
       .run()
@@ -6002,7 +6012,7 @@ describe('Wiki trash (PROJ-496)', () => {
   })
 
   test('MCP list_wiki_trash / undelete_wiki_page / purge_wiki_trash mirror the REST behavior', async () => {
-    async function mcp<T>(name: string, args: unknown) {
+    const mcp = async function mcp<T>(name: string, args: unknown) {
       await resetRateLimits()
       return mcpCall<T>(workspaceId, name, args, authHeaders(token, slug))
     }
@@ -6301,7 +6311,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
     userId = fixture.user.id
   })
 
-  async function create(body: Record<string, unknown>) {
+  const create = async function create(body: Record<string, unknown>) {
     return resetRateLimitAndFetch('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),

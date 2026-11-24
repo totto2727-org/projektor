@@ -12,7 +12,7 @@ const DEFAULT_REVIEW_MODEL = 'opus'
 const DEFAULT_CADENCE = 2
 const DEFAULT_CHECKPOINT_INTERVAL = 10
 
-function fillEpicGoalDirective(params: {
+const fillEpicGoalDirective = function fillEpicGoalDirective(params: {
   variant: 'bounded' | 'full'
   reviewModel: string
   cadence: number

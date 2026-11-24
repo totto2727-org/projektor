@@ -30,7 +30,7 @@ import {
 } from './data.ts'
 
 /** Entity references are resolved under the authorized membership, then checked against the authorized catalog. */
-function authorizedIssue(context: FunctionContext, issueId: string) {
+const authorizedIssue = function authorizedIssue(context: FunctionContext, issueId: string) {
   return Effect.gen(function* () {
     return yield* readDataIssue(context.scope, yield* dataWorkspaceId(context), issueId, context.projectId)
   })

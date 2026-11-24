@@ -13,8 +13,8 @@ const DAY = 86_400
 const now = 3 * DAY
 
 /** Executes the production Drizzle SQL against the complete migrated SQLite schema. */
-function readDatabase(sqlite: DatabaseSync, onQuery: () => void = () => {}): D1Database {
-  function prepare(sql: string, bindings: SQLInputValue[] = []) {
+const readDatabase = function readDatabase(sqlite: DatabaseSync, onQuery: () => void = () => {}): D1Database {
+  const prepare = function prepare(sql: string, bindings: SQLInputValue[] = []) {
     return {
       bind: (...values: SQLInputValue[]) => prepare(sql, values),
       all: async () => {

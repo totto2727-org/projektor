@@ -14,12 +14,12 @@ import { resetRateLimits } from './rate-limit-reset.ts'
  * PROJ-238: the test env's RATE_LIMIT_API_MAX is 5 req/window, and each test below fires
  * more than that against one token — reset before every request.
  */
-async function fetchFresh(url: string, opts?: RequestInit): Promise<Response> {
+const fetchFresh = async function fetchFresh(url: string, opts?: RequestInit): Promise<Response> {
   await resetRateLimits()
   return fetchNativeApi(url, opts)
 }
 
-async function createPage(token: string, slug: string, title: string, content = '') {
+const createPage = async function createPage(token: string, slug: string, title: string, content = '') {
   const res = await fetchFresh('http://localhost/api/wiki', {
     method: 'POST',
     headers: authHeaders(token, slug),
@@ -29,7 +29,12 @@ async function createPage(token: string, slug: string, title: string, content = 
   return res.json() as Promise<{ id: string; slug: string }>
 }
 
-async function updatePage(token: string, wsSlug: string, pageSlug: string, body: Record<string, unknown>) {
+const updatePage = async function updatePage(
+  token: string,
+  wsSlug: string,
+  pageSlug: string,
+  body: Record<string, unknown>,
+) {
   const res = await fetchFresh(`http://localhost/api/wiki/${pageSlug}`, {
     method: 'PUT',
     headers: authHeaders(token, wsSlug),
@@ -39,7 +44,7 @@ async function updatePage(token: string, wsSlug: string, pageSlug: string, body:
   return res.json()
 }
 
-async function deletePage(token: string, wsSlug: string, pageSlug: string) {
+const deletePage = async function deletePage(token: string, wsSlug: string, pageSlug: string) {
   const res = await fetchFresh(`http://localhost/api/wiki/${pageSlug}`, {
     method: 'DELETE',
     headers: authHeaders(token, wsSlug),
@@ -47,7 +52,7 @@ async function deletePage(token: string, wsSlug: string, pageSlug: string) {
   expect(res.status).toBe(200)
 }
 
-async function undeletePage(token: string, wsSlug: string, pageId: string) {
+const undeletePage = async function undeletePage(token: string, wsSlug: string, pageId: string) {
   const res = await fetchFresh(`http://localhost/api/wiki/trash/${pageId}/undelete`, {
     method: 'POST',
     headers: authHeaders(token, wsSlug),
@@ -55,7 +60,7 @@ async function undeletePage(token: string, wsSlug: string, pageId: string) {
   expect(res.status).toBe(200)
 }
 
-async function brokenLinks(token: string, wsSlug: string) {
+const brokenLinks = async function brokenLinks(token: string, wsSlug: string) {
   const res = await fetchFresh('http://localhost/api/wiki/broken-links', {
     headers: authHeaders(token, wsSlug),
   })
@@ -63,7 +68,7 @@ async function brokenLinks(token: string, wsSlug: string) {
   return res.json() as Promise<{ sourcePageId: string; targetTitle: string }[]>
 }
 
-async function backlinks(token: string, wsSlug: string, pageSlug: string) {
+const backlinks = async function backlinks(token: string, wsSlug: string, pageSlug: string) {
   const res = await fetchFresh(`http://localhost/api/wiki/${pageSlug}/backlinks`, {
     headers: authHeaders(token, wsSlug),
   })

@@ -14,7 +14,7 @@ import { ApiError } from './server/errors.ts'
 import { resolveFunctionContext } from './server/function-context.ts'
 import { checkSameOriginMutation } from './server/mutation.ts'
 
-function uploadToCore(input: UploadAttachmentInput, workspaceId: string) {
+const uploadToCore = function uploadToCore(input: UploadAttachmentInput, workspaceId: string) {
   const form = new FormData()
   form.set('file', input.file)
   form.set('entityType', input.entityType)

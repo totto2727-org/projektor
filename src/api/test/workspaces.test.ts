@@ -15,7 +15,7 @@ import {
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function mcpCall<T>(
+const mcpCall = async function mcpCall<T>(
   workspaceId: string,
   name: string,
   args: unknown,
@@ -34,7 +34,7 @@ async function mcpCall<T>(
   return res.json()
 }
 
-function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
+const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
   return 'error' in r
 }
 
@@ -221,7 +221,7 @@ describe('Workspaces MCP', () => {
   })
 
   describe('PROJ-884: delete_workspace cannot cross tenants', () => {
-    async function workspaceExists(id: string) {
+    const workspaceExists = async function workspaceExists(id: string) {
       const row = await env.DB.prepare('SELECT id FROM workspaces WHERE id = ?').bind(id).first()
       return row !== null
     }
@@ -409,7 +409,7 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
 })
 
 describe('Member removal tombstone (PROJ-436)', () => {
-  async function tombstoneRow(workspaceId: string, userId: string) {
+  const tombstoneRow = async function tombstoneRow(workspaceId: string, userId: string) {
     return env.DB.prepare('SELECT removed_at FROM provisioning_removals WHERE workspace_id = ? AND user_id = ?')
       .bind(workspaceId, userId)
       .first<{ removed_at: number }>()

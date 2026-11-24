@@ -27,7 +27,7 @@ type BrowserAudit = {
 const pageAudits = new WeakMap<Page, BrowserAudit>()
 const testAudits = new Map<string, BrowserAudit[]>()
 
-function observeBrowser(page: Page, testInfo: TestInfo) {
+const observeBrowser = function observeBrowser(page: Page, testInfo: TestInfo) {
   const existing = pageAudits.get(page)
   if (existing) {
     return existing
@@ -78,7 +78,7 @@ test.afterEach(async ({ page }, testInfo) => {
   }
 })
 
-async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
+const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(async () => {
     while (document.activeViewTransition) {
       await document.activeViewTransition.finished
@@ -259,7 +259,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
   await expect(titles).toHaveText(expected)
 })
 
-async function assertShell(page: Page) {
+const assertShell = async function assertShell(page: Page) {
   await expect(page.locator('main#main-content')).toBeVisible()
   await expect(page.getByRole('link', { name: /skip to (main )?content/i })).toBeAttached()
   await expect(page.getByRole('button', { name: /^Account(?::|$)/ })).toBeVisible()
@@ -1122,7 +1122,7 @@ test('native create project and issue refresh canonical reads and navigation', a
 })
 
 /** Read-only page fixtures use the actual local API. They do not replace native create tests. */
-async function createReaderFixtures(request: APIRequestContext) {
+const createReaderFixtures = async function createReaderFixtures(request: APIRequestContext) {
   const suffix = randomUUID().replaceAll('-', '').slice(0, 6).toLowerCase()
   const headers = { 'X-Workspace-Slug': 'projektor' }
   const sessionResponse = await request.get('http://127.0.0.1:4392/auth/me')

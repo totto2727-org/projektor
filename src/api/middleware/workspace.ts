@@ -15,7 +15,10 @@ export function mcpWorkspaceIdFromPath(path: string): string | undefined {
   return /^\/mcp\/([^/]+)$/.exec(path)?.[1]
 }
 
-async function warnIfIgnoredSubdomain(c: Context<HonoEnv>, routingEnabled: boolean): Promise<void> {
+const warnIfIgnoredSubdomain = async function warnIfIgnoredSubdomain(
+  c: Context<HonoEnv>,
+  routingEnabled: boolean,
+): Promise<void> {
   if (routingEnabled) {
     return
   }

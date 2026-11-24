@@ -42,7 +42,7 @@ const MD_LINK_RE = /\[[^\]]*\]\(([^)\s]+)\)/g
 
 type ParsedLinkTarget = { kind: 'title'; title: string } | { kind: 'slug'; slug: string }
 
-function extractWikiSlugFromUrl(url: string): string | null {
+const extractWikiSlugFromUrl = function extractWikiSlugFromUrl(url: string): string | null {
   /*
    * Only relative, path-rooted URLs are treated as same-workspace links. An absolute
    * URL (http://, https://, //host/...) is never resolved here — we have no reliable
@@ -146,7 +146,7 @@ export async function healTitleFolds(ctx: ServiceCtx): Promise<number> {
  * match, not a documented/guaranteed one. Undocumented behavior, not a bug: titles were
  * never meant to be a stable identifier, slugs are.
  */
-async function resolveTitleTargets(
+const resolveTitleTargets = async function resolveTitleTargets(
   orm: Orm,
   workspaceId: string,
   titles: readonly string[],
@@ -210,7 +210,7 @@ async function resolveTitleTargets(
  * one wiki_redirects IN (…) for the misses, one page load for redirect targets (each
  * chunked under D1's bind limit) — instead of 1–3 sequential queries per link.
  */
-async function resolveSlugTargets(
+const resolveSlugTargets = async function resolveSlugTargets(
   orm: Orm,
   workspaceId: string,
   slugs: readonly string[],
@@ -291,10 +291,10 @@ type ResolvedLink = {
   targetKind: 'title' | 'slug'
 }
 
-function isTitleTarget(t: ParsedLinkTarget): t is Extract<ParsedLinkTarget, { kind: 'title' }> {
+const isTitleTarget = function isTitleTarget(t: ParsedLinkTarget): t is Extract<ParsedLinkTarget, { kind: 'title' }> {
   return t.kind === 'title'
 }
-function isSlugTarget(t: ParsedLinkTarget): t is Extract<ParsedLinkTarget, { kind: 'slug' }> {
+const isSlugTarget = function isSlugTarget(t: ParsedLinkTarget): t is Extract<ParsedLinkTarget, { kind: 'slug' }> {
   return t.kind === 'slug'
 }
 
@@ -305,7 +305,7 @@ function isSlugTarget(t: ParsedLinkTarget): t is Extract<ParsedLinkTarget, { kin
  * resolveTitleTargets + one resolveSlugTargets call for the whole chunk) instead of a
  * pair per page.
  */
-function resolveTargetsFromMaps(
+const resolveTargetsFromMaps = function resolveTargetsFromMaps(
   targets: readonly ParsedLinkTarget[],
   titleMatches: ReadonlyMap<string, string>,
   slugMatches: ReadonlyMap<string, { id: string; title: string }>,
@@ -343,7 +343,7 @@ function resolveTargetsFromMaps(
   return [...resolved.values()]
 }
 
-async function resolveLinkTargets(
+const resolveLinkTargets = async function resolveLinkTargets(
   orm: Orm,
   workspaceId: string,
   targets: readonly ParsedLinkTarget[],
@@ -370,7 +370,7 @@ async function resolveLinkTargets(
  * memory. Query count for the whole batch stays flat as the page count grows (each of
  * those two calls is itself already chunked under D1's bound-param cap by inChunks).
  */
-async function resolveLinkTargetsForPages(
+const resolveLinkTargetsForPages = async function resolveLinkTargetsForPages(
   orm: Orm,
   workspaceId: string,
   pages: readonly { id: string; targets: readonly ParsedLinkTarget[] }[],
@@ -787,7 +787,7 @@ export async function countBacklinkSources(ctx: ServiceCtx, pageIds: string[]): 
  * null rather than guessing if the exact text can't be located (e.g. content changed
  * since the link was indexed).
  */
-function extractSnippet(content: string, targetTitle: string): string | null {
+const extractSnippet = function extractSnippet(content: string, targetTitle: string): string | null {
   const marker = `[[${targetTitle.toLowerCase()}`
   const idx = content.toLowerCase().indexOf(marker)
   if (idx === -1) {

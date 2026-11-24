@@ -12,8 +12,8 @@ import { migratedDb } from '#db/test/helpers.ts'
 import { DataQueryError } from '../errors.ts'
 import * as wiki from '../wiki.ts'
 
-function readDatabase(sqlite: DatabaseSync): D1Database {
-  function prepare(query: string, bindings: SQLInputValue[] = []) {
+const readDatabase = function readDatabase(sqlite: DatabaseSync): D1Database {
+  const prepare = function prepare(query: string, bindings: SQLInputValue[] = []) {
     return {
       bind: (...values: SQLInputValue[]) => prepare(query, values),
       all: async () => ({ results: sqlite.prepare(query).all(...bindings) }),
@@ -28,7 +28,7 @@ function readDatabase(sqlite: DatabaseSync): D1Database {
   return { prepare } as unknown as D1Database
 }
 
-function wikiReadFixture() {
+const wikiReadFixture = function wikiReadFixture() {
   const sqlite = migratedDb()
   sqlite.exec(`
 	 INSERT INTO workspaces(id,name,slug,created_at) VALUES ('wa','A','alpha',1),('wb','B','beta',1);

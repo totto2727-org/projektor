@@ -11,7 +11,7 @@ interface FixtureBinding {
   fixtureSession(settings: Readonly<Record<string, string | null>>): Promise<FixtureBinding>
 }
 
-function fixtureBinding(value: unknown): FixtureBinding {
+const fixtureBinding = function fixtureBinding(value: unknown): FixtureBinding {
   if (
     value === null ||
     typeof value !== 'object' ||

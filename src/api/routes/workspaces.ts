@@ -131,7 +131,7 @@ router.delete('/:slug/tokens/:tokenId', async (c) => {
  * (routes/oauth.ts), which makes the list provably empty today — but that is an
  * invariant enforced two files away, and this endpoint should not depend on it.
  */
-function connectorsDenied(c: Parameters<typeof ctxFromHono>[0]): Response | null {
+const connectorsDenied = function connectorsDenied(c: Parameters<typeof ctxFromHono>[0]): Response | null {
   return requireInteractiveHuman(
     c,
     'Connectors are personal credentials and need a signed-in browser session, not an API token or connected app',

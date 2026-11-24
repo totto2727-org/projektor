@@ -41,7 +41,7 @@ const AGENT_SESSION_COLUMNS = {
   endedAt: schema.agentSessions.endedAt,
 }
 
-function isApiTokenMethod(method: string): boolean {
+const isApiTokenMethod = function isApiTokenMethod(method: string): boolean {
   return method === 'pk' || method === 'pat'
 }
 

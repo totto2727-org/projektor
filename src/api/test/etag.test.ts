@@ -18,7 +18,7 @@ import { fetchNativeApi } from './native-fetch.ts'
  * 304 can only ever replace a 200 the same caller was already entitled to.
  */
 
-async function get(path: string, token: string, slug: string, ifNoneMatch?: string | null) {
+const get = async function get(path: string, token: string, slug: string, ifNoneMatch?: string | null) {
   return fetchNativeApi(`http://localhost${path}`, {
     headers: {
       ...authHeaders(token, slug),

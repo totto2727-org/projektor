@@ -29,14 +29,14 @@ export interface FeedbackSourceDetailView extends FeedbackSourceView {
   projectId: string
 }
 
-async function sha256hex(input: string): Promise<string> {
+const sha256hex = async function sha256hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
   return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
 }
 
-function newRawToken(): string {
+const newRawToken = function newRawToken(): string {
   return `fbk_${crypto.randomUUID().replace(/-/g, '')}${crypto.randomUUID().replace(/-/g, '')}`
 }
 
@@ -59,7 +59,11 @@ interface SourceRow {
  * from project A can't be mutated via project B's path in the same workspace. MCP
  * tools omit projectId and stay workspace-scoped, matching their existing contract.
  */
-async function requireSource(ctx: ServiceCtx, sourceId: string, projectId?: string): Promise<SourceRow> {
+const requireSource = async function requireSource(
+  ctx: ServiceCtx,
+  sourceId: string,
+  projectId?: string,
+): Promise<SourceRow> {
   const clauses = ['id = ?', 'workspace_id = ?']
   const binds: unknown[] = [sourceId, ctx.workspaceId]
   if (projectId !== undefined) {

@@ -27,7 +27,7 @@ import type { ServiceCtx } from './types.ts'
  * dead session must stay reclaimable, not get its heartbeat bumped by a call that isn't
  * actually coming from it.
  */
-async function touchAgentHeartbeatIfLive(
+const touchAgentHeartbeatIfLive = async function touchAgentHeartbeatIfLive(
   orm: ReturnType<typeof drizzle>,
   ctx: ServiceCtx,
   agentId: string,
@@ -81,7 +81,7 @@ export function parseFileClaimTtlSeconds(raw: string | undefined): number {
  * claimFiles (stale-holder reclaim) and listFileClaims (default live-only filter and the
  * `live` flag) so the two definitions of "stale" can't drift apart.
  */
-function fileClaimAgentlessCutoff(ctx: ServiceCtx, now: number): number {
+const fileClaimAgentlessCutoff = function fileClaimAgentlessCutoff(ctx: ServiceCtx, now: number): number {
   return now - (ctx.config?.fileClaimTtlSeconds ?? DEFAULT_FILE_CLAIM_TTL_SECONDS)
 }
 
@@ -93,7 +93,7 @@ function fileClaimAgentlessCutoff(ctx: ServiceCtx, now: number): number {
  * cutoff; an agent-linked claim by the session's status/heartbeat. Requires the query to
  * LEFT JOIN agent_sessions on issue_file_claims.agent_id, as listFileClaims does.
  */
-function fileClaimLiveExpr(cutoff: number, agentlessCutoff: number) {
+const fileClaimLiveExpr = function fileClaimLiveExpr(cutoff: number, agentlessCutoff: number) {
   return sql<number>`(CASE
 		WHEN ${schema.issueFileClaims.agentId} IS NULL THEN (${schema.issueFileClaims.claimedAt} > ${agentlessCutoff})
 		ELSE (${schema.agentSessions.status} = 'active' AND ${schema.agentSessions.lastHeartbeatAt} > ${cutoff})
@@ -103,7 +103,7 @@ function fileClaimLiveExpr(cutoff: number, agentlessCutoff: number) {
 type ActiveClaim = typeof schema.issueFileClaims.$inferSelect & { live: boolean }
 
 // inChunks keeps each query under D1's 100-bound-parameter cap. See services/sql.ts.
-async function loadActiveClaimsByPath(
+const loadActiveClaimsByPath = async function loadActiveClaimsByPath(
   orm: ReturnType<typeof drizzle>,
   workspaceId: string,
   paths: string[],
@@ -169,11 +169,14 @@ const CONFLICT_INSERT_CHUNK_SIZE = 8 // 9 cols/row
 // Single-param-per-item IN-list chunk size for id-keyed UPDATEs, mirroring services/sql.ts.
 const ID_CHUNK_SIZE = 90
 
-function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
+const toD1Statement = function toD1Statement(
+  ctx: ServiceCtx,
+  query: Readonly<{ sql: string; params: unknown[] }>,
+): D1PreparedStatement {
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
-function chunk<T>(items: readonly T[], size: number): T[][] {
+const chunk = function chunk<T>(items: readonly T[], size: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < items.length; i += size) {
     out.push(items.slice(i, i + size) as T[])
@@ -188,7 +191,7 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
  * released in the meantime is left as that request wrote it; RETURNING id lets the
  * caller report only the rows this batch actually released (releasedIdsFrom below).
  */
-function buildReleaseByIdsStatements(
+const buildReleaseByIdsStatements = function buildReleaseByIdsStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
   ids: readonly string[],
@@ -214,7 +217,7 @@ function buildReleaseByIdsStatements(
   )
 }
 
-function releasedIdsFrom(results: readonly D1Result[]): Set<string> {
+const releasedIdsFrom = function releasedIdsFrom(results: readonly D1Result[]): Set<string> {
   return new Set(results.flatMap((r) => (r.results as { id: string }[]).map((row) => row.id)))
 }
 
@@ -229,7 +232,7 @@ const MESSAGE_BODY_MAX = PostMessageSchema.shape.body.maxLength ?? 5000
  * Quoted, comma-separated paths, cut short with "…and N more" so the result (plus the
  * caller's `overhead` characters of surrounding text) fits within MESSAGE_BODY_MAX.
  */
-function formatPathList(paths: readonly string[], overhead: number): string {
+const formatPathList = function formatPathList(paths: readonly string[], overhead: number): string {
   const max = MESSAGE_BODY_MAX - overhead
   let out = ''
   for (let i = 0; i < paths.length; i++) {
@@ -244,7 +247,7 @@ function formatPathList(paths: readonly string[], overhead: number): string {
   return out
 }
 
-function buildConflictInsertStatements(
+const buildConflictInsertStatements = function buildConflictInsertStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
   rows: readonly (typeof schema.claimConflicts.$inferInsert)[],
@@ -254,7 +257,7 @@ function buildConflictInsertStatements(
   )
 }
 
-function buildClaimInsertStatements(
+const buildClaimInsertStatements = function buildClaimInsertStatements(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
   rows: readonly (typeof schema.issueFileClaims.$inferInsert)[],

@@ -15,7 +15,7 @@ afterEach(() => {
   resetAuthCachesForTests()
 })
 
-async function fixture() {
+const fixture = async function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   database.sqlite.exec(`

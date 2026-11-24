@@ -17,7 +17,7 @@ afterEach(() => {
   }
 })
 
-function fixture() {
+const fixture = function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   const issueId = crypto.randomUUID()

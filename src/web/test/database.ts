@@ -7,7 +7,7 @@ import { migratedDb } from '#db/test/helpers.ts'
 /** Real migrated SQLite schema behind the D1 query interface, for domain tests only. */
 export function createTestDatabase() {
   const sqlite = migratedDb()
-  function prepare(query: string, values: SQLInputValue[] = []): D1PreparedStatement {
+  const prepare = function prepare(query: string, values: SQLInputValue[] = []): D1PreparedStatement {
     return {
       bind: (...parameters: unknown[]) => prepare(query, parameters as SQLInputValue[]),
       all: async () => ({ success: true, results: sqlite.prepare(query).all(...values), meta: {} }),

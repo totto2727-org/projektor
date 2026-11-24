@@ -37,7 +37,7 @@ const WORKFLOW_PAYLOAD = {
 // A rejected hash is not cached, so a transient failure doesn't stick for the isolate.
 let cachedVersion: Promise<string> | undefined
 
-function getWorkflowVersion(): Promise<string> {
+const getWorkflowVersion = function getWorkflowVersion(): Promise<string> {
   if (!cachedVersion) {
     cachedVersion = hashWorkflowContent(JSON.stringify(WORKFLOW_PAYLOAD)).catch((e) => {
       cachedVersion = undefined

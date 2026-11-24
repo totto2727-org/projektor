@@ -15,12 +15,12 @@ import { realtimeRouter } from '../routes/realtime.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, hashToken, seedGroupGrant, seedProject, seedWorkspaceRoles } from './helpers.ts'
 
-function actorFor(token: string): CoreActor {
+const actorFor = function actorFor(token: string): CoreActor {
   return { requestUrl: 'http://localhost/api/realtime', method: 'GET', bearer: token }
 }
 
 // Socket doubles retain attachments across messages, like hibernating native sockets.
-function socket(initial: SocketAttachment) {
+const socket = function socket(initial: SocketAttachment) {
   let attachment = initial
   const ws = {
     send: vi.fn<(message: string) => void>(),
@@ -35,7 +35,7 @@ function socket(initial: SocketAttachment) {
 
 type Socket = ReturnType<typeof socket>
 
-function hubFor(sockets: Socket[] = []) {
+const hubFor = function hubFor(sockets: Socket[] = []) {
   const state = {
     acceptWebSocket: vi.fn<(ws: WebSocket) => void>(),
     getWebSockets: vi.fn(() => sockets),
@@ -57,7 +57,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, otherProjectId, 'viewer')
   })
 
-  function attachmentFor(
+  const attachmentFor = function attachmentFor(
     principal: 'owner' | 'member' | 'viewer' = 'member',
     overrides: Partial<SocketAttachment> = {},
   ): SocketAttachment {
@@ -73,7 +73,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     }
   }
 
-  function upgradeRequest(token: string) {
+  const upgradeRequest = function upgradeRequest(token: string) {
     return new Request('http://localhost/realtime', {
       headers: {
         Upgrade: 'websocket',
@@ -83,7 +83,7 @@ describe('Realtime WebSockets (Opt-In)', () => {
     })
   }
 
-  function event(overrides: Partial<RealtimeEvent> = {}): RealtimeEvent {
+  const event = function event(overrides: Partial<RealtimeEvent> = {}): RealtimeEvent {
     return {
       type: 'issue.created',
       workspaceId: roles.workspace.id,

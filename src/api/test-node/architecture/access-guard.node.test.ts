@@ -73,11 +73,11 @@ interface FnInfo {
   calls: string[] // resolved keys "file:name", or "guard:<name>"
 }
 
-function paramName(p: ts.ParameterDeclaration): string {
+const paramName = function paramName(p: ts.ParameterDeclaration): string {
   return ts.isIdentifier(p.name) ? p.name.text : ''
 }
 
-function collect(): Map<string, FnInfo> {
+const collect = function collect(): Map<string, FnInfo> {
   const fns = new Map<string, FnInfo>()
   const files = readdirSync(SERVICES).filter((f) => f.endsWith('.ts') && !f.endsWith('.d.ts'))
 
@@ -190,7 +190,7 @@ function collect(): Map<string, FnInfo> {
   }
 }
 
-function guardedSet(fns: Map<string, FnInfo>): Set<string> {
+const guardedSet = function guardedSet(fns: Map<string, FnInfo>): Set<string> {
   const guarded = new Set<string>()
   for (const g of GUARDS) {
     guarded.add(`access:${g}`)
@@ -211,7 +211,7 @@ function guardedSet(fns: Map<string, FnInfo>): Set<string> {
   return guarded
 }
 
-function isTarget(fn: FnInfo): boolean {
+const isTarget = function isTarget(fn: FnInfo): boolean {
   if (!fn.exported || fn.file === 'access') {
     return false
   }

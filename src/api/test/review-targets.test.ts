@@ -20,7 +20,7 @@ beforeEach(async () => {
     .run()
 })
 
-function update(status: unknown, options: { token?: string; issueId?: string; id?: string } = {}) {
+const update = function update(status: unknown, options: { token?: string; issueId?: string; id?: string } = {}) {
   return fetchNativeApi(`http://localhost/api/files/${options.id ?? attachmentId}/review-status`, {
     method: 'PATCH',
     headers: authHeaders(options.token ?? fixture.token, fixture.slug),
@@ -28,7 +28,7 @@ function update(status: unknown, options: { token?: string; issueId?: string; id
   })
 }
 
-async function readMetadata() {
+const readMetadata = async function readMetadata() {
   const response = await fetchNativeApi(`http://localhost/api/files/${attachmentId}/metadata`, {
     headers: authHeaders(fixture.token, fixture.slug),
   })
@@ -36,7 +36,7 @@ async function readMetadata() {
   return response.json()
 }
 
-async function mcpUpdate(
+const mcpUpdate = async function mcpUpdate(
   status: unknown,
 ): Promise<JsonRpcResult<{ content: { text: string }[]; isError?: boolean }> | JsonRpcError> {
   const response = await fetchNativeApi(`http://localhost/mcp/${fixture.workspaceId}`, {

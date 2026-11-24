@@ -17,7 +17,7 @@ const apiToken = Redacted.make('test-only-token')
 const identity = { id: 'Storage', fqn: 'Storage', instanceId: 'test' }
 const session = { ...noopSession, note: () => Effect.void }
 
-function fakeCloudflare(responses: Readonly<Record<string, unknown>>) {
+const fakeCloudflare = function fakeCloudflare(responses: Readonly<Record<string, unknown>>) {
   const calls: string[] = []
   const client = HttpClient.make((request, url) => {
     const call = `${request.method} ${url.pathname.replace(`/accounts/${accountId}/`, '')}`

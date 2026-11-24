@@ -26,7 +26,7 @@ afterEach(() => {
   }
 })
 
-function fixture() {
+const fixture = function fixture() {
   const database = createTestDatabase()
   databases.push(database)
   const counters = new Map<string, { count: number; slot: number }>()
@@ -69,7 +69,7 @@ function fixture() {
 }
 const request = (headers: HeadersInit = {}) => new Request('https://example.test/api/issues', { headers })
 
-async function consume(count: number, req: Request, env: RequestRateLimitEnv) {
+const consume = async function consume(count: number, req: Request, env: RequestRateLimitEnv) {
   for (let i = 0; i < count; i++) {
     expect(await checkRateLimit(req, env)).toBeUndefined()
   }

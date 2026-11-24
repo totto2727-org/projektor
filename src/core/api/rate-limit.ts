@@ -8,7 +8,7 @@ import type { RateLimitTestPolicy } from '../../contracts/request-rate-limit.ts'
 import { coreFailure, coreReply } from '../contract.ts'
 import { publicDomainFailure } from '../domain-errors.ts'
 
-function policyEnvironment(
+const policyEnvironment = function policyEnvironment(
   env: RequestRateLimitEnv,
   policy: typeof RateLimitTestPolicy.Type | undefined,
 ): RequestRateLimitEnv {

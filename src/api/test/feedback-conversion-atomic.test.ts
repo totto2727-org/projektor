@@ -6,7 +6,7 @@ import type { ServiceCtx } from '#commands/types.ts'
 import { env } from './fixture-api.ts'
 import { seedProjectFixture } from './helpers.ts'
 
-async function fixture(concurrentBatches = 1) {
+const fixture = async function fixture(concurrentBatches = 1) {
   const f = await seedProjectFixture({ role: 'owner' })
   const sourceId = crypto.randomUUID()
   await env.DB.prepare(`INSERT INTO feedback_sources

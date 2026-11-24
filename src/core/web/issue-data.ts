@@ -79,7 +79,7 @@ const IssueListQuerySchema = Schema.fromURLSearchParams(
     ),
   ),
 )
-function listOptions(params: URLSearchParams, scope: RequestScope) {
+const listOptions = function listOptions(params: URLSearchParams, scope: RequestScope) {
   return Schema.decodeUnknownEffect(IssueListQuerySchema)(params).pipe(
     Effect.mapError(() => new ScopeError(400, 'Invalid issue filters or cursor.')),
     Effect.map(

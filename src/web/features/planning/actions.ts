@@ -20,7 +20,12 @@ import {
   SprintIdentitySchema,
   SprintStatusInputSchema,
 } from './input-schemas.ts'
-function sprintInProject(scope: RequestScope, workspaceId: string, projectId: string, sprintId: string) {
+const sprintInProject = function sprintInProject(
+  scope: RequestScope,
+  workspaceId: string,
+  projectId: string,
+  sprintId: string,
+) {
   return Effect.gen(function* () {
     yield* Effect.try({
       try: () => {

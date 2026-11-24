@@ -13,13 +13,18 @@ import { fetchNativeApi } from './native-fetch.ts'
 
 type ListResult = { items: Record<string, unknown>[] }
 
-function lexicalCompare(a: unknown, b: unknown): number {
+const lexicalCompare = function lexicalCompare(a: unknown, b: unknown): number {
   const left = String(a)
   const right = String(b)
   return left < right ? -1 : left > right ? 1 : 0
 }
 
-async function mcpList(tool: string, token: string, slug: string, workspaceId: string): Promise<ListResult> {
+const mcpList = async function mcpList(
+  tool: string,
+  token: string,
+  slug: string,
+  workspaceId: string,
+): Promise<ListResult> {
   const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers: authHeaders(token, slug),
@@ -36,7 +41,7 @@ async function mcpList(tool: string, token: string, slug: string, workspaceId: s
   return JSON.parse(body.result.content[0].text) as ListResult
 }
 
-async function seedFileClaim(workspaceId: string, issueId: string, path: string) {
+const seedFileClaim = async function seedFileClaim(workspaceId: string, issueId: string, path: string) {
   const now = Math.floor(Date.now() / 1000)
   await env.DB.prepare(
     `INSERT INTO issue_file_claims (id, workspace_id, issue_id, agent_id, path, claimed_at, released_at)
@@ -46,7 +51,7 @@ async function seedFileClaim(workspaceId: string, issueId: string, path: string)
     .run()
 }
 
-async function seedFloatingAgent(workspaceId: string, name: string): Promise<string> {
+const seedFloatingAgent = async function seedFloatingAgent(workspaceId: string, name: string): Promise<string> {
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
   await env.DB.prepare(

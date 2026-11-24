@@ -38,7 +38,7 @@ import { fetchNativeApi } from './native-fetch.ts'
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function mcpCall(
+const mcpCall = async function mcpCall(
   workspaceId: string,
   name: string,
   args: unknown,
@@ -57,7 +57,7 @@ async function mcpCall(
   return res.json()
 }
 
-function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
+const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
   return 'error' in r
 }
 
@@ -557,7 +557,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
    * workspace-tokens.test.ts.
    */
 
-  async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
+  const asHuman = async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
     const prev = env.DEV_USER_EMAIL
     env.DEV_USER_EMAIL = email
     try {

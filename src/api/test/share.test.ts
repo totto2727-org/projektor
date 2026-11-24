@@ -321,7 +321,10 @@ describe('Share tokens', () => {
   })
 
   describe('PROJ-792: share create/revoke honour project-level access', () => {
-    async function restrictedIssue(grant: 'none' | 'viewer' | 'member', workspaceRole = 'member') {
+    const restrictedIssue = async function restrictedIssue(
+      grant: 'none' | 'viewer' | 'member',
+      workspaceRole = 'member',
+    ) {
       const { workspace, user, token } = await seedFixture({ role: workspaceRole })
       const project = await seedProject(workspace.id)
       if (grant !== 'none') {
@@ -395,7 +398,7 @@ describe('Share tokens', () => {
    * creator's access — checked every time the link is read.
    */
   describe("PROJ-794: share links stop resolving when the issue or the creator's access goes", () => {
-    async function sharedIssue(workspaceRole: string, grant: 'none' | 'member') {
+    const sharedIssue = async function sharedIssue(workspaceRole: string, grant: 'none' | 'member') {
       const { workspace, user, token } = await seedFixture({ role: workspaceRole })
       const project = await seedProject(workspace.id)
       const g = grant === 'member' ? await seedGroupGrant(workspace.id, user.id, project.id, 'member') : null
@@ -416,7 +419,7 @@ describe('Share tokens', () => {
       }
     }
 
-    async function shareStatus(shareToken: string): Promise<number> {
+    const shareStatus = async function shareStatus(shareToken: string): Promise<number> {
       // The public share route is rate-limited too; these tests hit it several times.
       await resetRateLimits()
       return (await fetchNativeApi(`http://localhost/api/share/${shareToken}`)).status

@@ -11,7 +11,7 @@ import type { ServiceCtx } from './types.ts'
 
 export type { CodeHeatmapEntry, ContentionHeatmapEntry } from '#services/code-heatmap.ts'
 
-async function assertProjectExists(ctx: ServiceCtx, projectId: string): Promise<void> {
+const assertProjectExists = async function assertProjectExists(ctx: ServiceCtx, projectId: string): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
   const project = await orm
     .select({ id: schema.projects.id })

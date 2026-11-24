@@ -10,7 +10,7 @@ const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../m
  * runs one statement at a time, and comments/semicolons in Drizzle's SQL output would
  * otherwise produce spurious empty fragments.
  */
-function splitStatements(sql: string): string[] {
+const splitStatements = function splitStatements(sql: string): string[] {
   return sql
     .replace(/--[^\n]*/g, '')
     .split(';')

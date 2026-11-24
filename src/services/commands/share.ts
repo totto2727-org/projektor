@@ -4,7 +4,7 @@ import type { ServiceCtx } from './types.ts'
 import { getWorkspaceBrandForShare, getWorkspaceBrandLogoR2Key } from './workspaces.ts'
 import type { WorkspaceBrandDto } from './workspaces.ts'
 
-async function hashToken(token: string): Promise<string> {
+const hashToken = async function hashToken(token: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
   return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -16,7 +16,7 @@ async function hashToken(token: string): Promise<string> {
  * issue's project (group grant, or workspace owner/admin) — not merely a
  * non-viewer workspace role. No access → 404 (hides existence); read-only → 403.
  */
-async function assertIssueShareable(ctx: ServiceCtx, issueId: string): Promise<void> {
+const assertIssueShareable = async function assertIssueShareable(ctx: ServiceCtx, issueId: string): Promise<void> {
   const issue = await ctx.db
     .prepare('SELECT project_id FROM issues WHERE id = ? AND workspace_id = ?')
     .bind(issueId, ctx.workspaceId)
@@ -61,7 +61,7 @@ export async function createShareToken(ctx: ServiceCtx, issueId: string): Promis
  * - the token's creator can still read the issue's project — still a workspace member,
  *   and a workspace owner/admin or a member whose group holds a grant on it.
  */
-async function resolveLiveShareToken(
+const resolveLiveShareToken = async function resolveLiveShareToken(
   db: D1Database,
   tokenHash: string,
 ): Promise<{ issueId: string; workspaceId: string } | null> {

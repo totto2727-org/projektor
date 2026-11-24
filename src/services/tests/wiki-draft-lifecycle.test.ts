@@ -24,7 +24,7 @@ afterEach(() => {
     db.close()
   }
 })
-function fixture() {
+const fixture = function fixture() {
   const sqlite = migratedDb()
   databases.push(sqlite)
   sqlite.exec(`
@@ -33,7 +33,7 @@ function fixture() {
     INSERT INTO wiki_pages(id,workspace_id,slug,title,content,created_by_id,updated_by_id,created_at,updated_at)
       VALUES ('page','w','guide','Published','Published content','u','u',1,1);
   `)
-  function prepare(query: string, bindings: SQLInputValue[] = []) {
+  const prepare = function prepare(query: string, bindings: SQLInputValue[] = []) {
     return {
       bind: (...values: SQLInputValue[]) => prepare(query, values),
       all: async () => ({ success: true, results: sqlite.prepare(query).all(...bindings), meta: {} }),

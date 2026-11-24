@@ -27,7 +27,7 @@ describe('Issue Links API', () => {
     issueC = await seedIssue(workspaceId, projectId, userId, { title: 'Issue C' })
   })
 
-  async function createLink(sourceIssueId: string, targetIssueId: string, type: string) {
+  const createLink = async function createLink(sourceIssueId: string, targetIssueId: string, type: string) {
     return fetchNativeApi(`http://localhost/api/issues/${sourceIssueId}/links`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -35,7 +35,7 @@ describe('Issue Links API', () => {
     })
   }
 
-  async function listLinks(issueId: string) {
+  const listLinks = async function listLinks(issueId: string) {
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/links`, {
       headers: authHeaders(token, slug),
     })

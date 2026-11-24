@@ -172,7 +172,9 @@ let inMemoryCertsCache: { keys: JsonWebKey[]; expiresAt: number } | null = null
 let lastForcedRefreshAt = 0
 const CERTS_LOCAL_TTL_MS = 3600 * 1000
 const FORCE_REFRESH_COOLDOWN_MS = 60 * 1000
-async function fetchAndCacheCfAccessKeys(env: BrowserAuthEnvironment): Promise<JsonWebKey[]> {
+const fetchAndCacheCfAccessKeys = async function fetchAndCacheCfAccessKeys(
+  env: BrowserAuthEnvironment,
+): Promise<JsonWebKey[]> {
   const request = HttpClientRequest.get(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`)
   const body = await Effect.runPromise(
     HttpClient.execute(request).pipe(

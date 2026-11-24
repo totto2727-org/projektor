@@ -56,13 +56,20 @@ const ISSUE_TTL = 300
  * it can be folded into a caller's own ctx.db.batch() array — same pattern as
  * services/wiki.ts and services/file-claims.ts.
  */
-function toD1Statement(ctx: ServiceCtx, query: Readonly<{ sql: string; params: unknown[] }>): D1PreparedStatement {
+const toD1Statement = function toD1Statement(
+  ctx: ServiceCtx,
+  query: Readonly<{ sql: string; params: unknown[] }>,
+): D1PreparedStatement {
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
 // Validates a candidate parentId: checks workspace scope, cycle prevention, and depth cap (max 5).
 // Pass issueId=null on create (no cycle possible yet); pass the existing issue's id on update.
-async function validateParent(ctx: ServiceCtx, parentId: string, issueId: string | null): Promise<void> {
+const validateParent = async function validateParent(
+  ctx: ServiceCtx,
+  parentId: string,
+  issueId: string | null,
+): Promise<void> {
   if (issueId && parentId === issueId) {
     throw new ValidationError({
       formErrors: ['An issue cannot be its own parent'],
@@ -207,7 +214,10 @@ const computeChildRollup = issueQueries.computeChildRollup
  * user's groups (owner/admin bypass). Throw the issue-not-found error rather than a
  * project one so an invisible issue's existence never leaks.
  */
-async function assertIssueProjectVisible(ctx: ServiceCtx, projectId: string): Promise<void> {
+const assertIssueProjectVisible = async function assertIssueProjectVisible(
+  ctx: ServiceCtx,
+  projectId: string,
+): Promise<void> {
   if (isWorkspaceAdmin(ctx.role)) {
     return
   }
@@ -233,7 +243,7 @@ function buildIssueUrl(issueRecord: Record<string, unknown>): string | null {
  */
 type CachedIssueExtras = { rollup: ReturnType<typeof computeChildRollup>; customFields: unknown[] }
 
-async function loadIssueExtras(ctx: ServiceCtx, issueId: string): Promise<CachedIssueExtras> {
+const loadIssueExtras = async function loadIssueExtras(ctx: ServiceCtx, issueId: string): Promise<CachedIssueExtras> {
   const key = `issue:${ctx.workspaceId}:${issueId}`
   const cached = await cache.get<CachedIssueExtras>(ctx.kv, key)
   if (cached?.rollup && cached.customFields) {
@@ -315,7 +325,10 @@ export async function getIssuesBatch(ctx: ServiceCtx, raw: unknown) {
   return { ...page, items: page.items.map((item) => ({ ...item, url: buildIssueUrl(item) })) }
 }
 
-async function resolveTypeId(ctx: ServiceCtx, typeId: string | null | undefined): Promise<string | null> {
+const resolveTypeId = async function resolveTypeId(
+  ctx: ServiceCtx,
+  typeId: string | null | undefined,
+): Promise<string | null> {
   if (typeId === null) {
     return null
   }
@@ -352,7 +365,7 @@ type CreateIssueData = z.infer<typeof CreateIssueSchema>
  * (like the pre-PROJ-870 version) since the number subquery isn't expressible through
  * drizzle's insert builder.
  */
-function buildInsertIssueStatement(
+const buildInsertIssueStatement = function buildInsertIssueStatement(
   ctx: ServiceCtx,
   params: Readonly<{
     id: string
@@ -429,7 +442,7 @@ function buildInsertIssueStatement(
     )
 }
 
-function buildFtsInsertStatement(
+const buildFtsInsertStatement = function buildFtsInsertStatement(
   ctx: ServiceCtx,
   id: string,
   title: string,
@@ -454,7 +467,7 @@ function buildFtsInsertStatement(
  * being a separate awaited round trip. recordActivity itself is left unchanged for its
  * other (non-batched) callers (wiki_page, project, group).
  */
-function buildActivityInsertStatement(
+const buildActivityInsertStatement = function buildActivityInsertStatement(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
   opts: Readonly<{
@@ -498,7 +511,7 @@ function buildActivityInsertStatement(
   return ctx.db.prepare(query.sql).bind(...query.params)
 }
 
-async function resolveCreateIssueDeps(ctx: ServiceCtx, data: CreateIssueData) {
+const resolveCreateIssueDeps = async function resolveCreateIssueDeps(ctx: ServiceCtx, data: CreateIssueData) {
   if (data.parentId) {
     await validateParent(ctx, data.parentId, null)
   }
@@ -666,7 +679,7 @@ type ExistingIssue = {
 // biome-ignore lint/suspicious/noExplicitAny: Drizzle set() requires typed columns; setValues is safe
 type SetValues = Record<string, any>
 
-function buildSimpleFields(data: UpdateIssueData): SetValues {
+const buildSimpleFields = function buildSimpleFields(data: UpdateIssueData): SetValues {
   const setValues: SetValues = {}
   if (data.title !== undefined) {
     setValues.title = data.title
@@ -700,7 +713,7 @@ function buildSimpleFields(data: UpdateIssueData): SetValues {
  * either the configured status category or the legacy `status` enum, so it
  * works whether or not the workspace uses custom task statuses.
  */
-function buildCompletedAtTransition(
+const buildCompletedAtTransition = function buildCompletedAtTransition(
   existing: ExistingIssue,
   resolvedStatusKey: string,
   newStatusCategory: string | undefined,
@@ -724,7 +737,7 @@ function buildCompletedAtTransition(
  * its own status_category (backlog and todo share category 'todo'), so it's detected
  * from the legacy `status` key instead: any status other than 'backlog'.
  */
-function isClaimedState(
+const isClaimedState = function isClaimedState(
   category: string | null | undefined,
   key: string | null | undefined,
   isReviewStep: boolean,
@@ -732,11 +745,14 @@ function isClaimedState(
   return category === 'in_progress' || key === 'in_progress' || isReviewStep
 }
 
-function isDoneState(category: string | null | undefined, key: string | null | undefined): boolean {
+const isDoneState = function isDoneState(category: string | null | undefined, key: string | null | undefined): boolean {
   return category === 'done' || key === 'done'
 }
 
-function isCancelledState(category: string | null | undefined, key: string | null | undefined): boolean {
+const isCancelledState = function isCancelledState(
+  category: string | null | undefined,
+  key: string | null | undefined,
+): boolean {
   return category === 'cancelled' || key === 'cancelled'
 }
 
@@ -755,7 +771,7 @@ function isOpenPastBacklog(key: string, category: string | null | undefined): bo
   return !isDoneState(category, key)
 }
 
-function buildFlowTimestampTransitions(
+const buildFlowTimestampTransitions = function buildFlowTimestampTransitions(
   existing: ExistingIssue,
   resolvedStatusKey: string,
   newStatusCategory: string | undefined,
@@ -797,7 +813,7 @@ function buildFlowTimestampTransitions(
  * reason", so review -> cancelled (the issue was killed, not sent back for more work)
  * must not count here even though it still increments the aggregate.
  */
-function buildReviewTransitions(
+const buildReviewTransitions = function buildReviewTransitions(
   existing: ExistingIssue,
   transition: Readonly<{
     resolvedStatusKey: string
@@ -824,7 +840,7 @@ function buildReviewTransitions(
   return { setValues, isGateRejection }
 }
 
-function assertCompletionReportPresent(data: UpdateIssueData): void {
+const assertCompletionReportPresent = function assertCompletionReportPresent(data: UpdateIssueData): void {
   if (!data.completionReport) {
     throw new ValidationError({
       formErrors: [],
@@ -846,7 +862,7 @@ function assertCompletionReportPresent(data: UpdateIssueData): void {
  * gate and pollute review flow metrics. Migration 0061 backfilled the flag from the old
  * rule, so existing custom review statuses ("code_review", "peer_review") keep the gate.
  */
-function classifyStatusTransition(
+const classifyStatusTransition = function classifyStatusTransition(
   existing: ExistingIssue,
   resolvedStatusKey: string,
   newStatusCategory: string | undefined,
@@ -868,7 +884,7 @@ function classifyStatusTransition(
  * (live lease) transitioning to done — agents can close freely now; see
  * computeNeedsAudit below for the audit-after-the-fact replacement.
  */
-async function assertReviewGate(
+const assertReviewGate = async function assertReviewGate(
   ctx: ServiceCtx,
   data: UpdateIssueData,
   existing: ExistingIssue,
@@ -906,7 +922,7 @@ async function assertReviewGate(
  * can still dodge the flag by omitting agentSessionId entirely — accepted limitation,
  * see the module doc on evidence-classification.ts.
  */
-async function computeNeedsAudit(ctx: ServiceCtx, data: UpdateIssueData): Promise<boolean> {
+const computeNeedsAudit = async function computeNeedsAudit(ctx: ServiceCtx, data: UpdateIssueData): Promise<boolean> {
   if (!data.agentSessionId) {
     return false
   }
@@ -919,7 +935,7 @@ async function computeNeedsAudit(ctx: ServiceCtx, data: UpdateIssueData): Promis
   return !isExternallyVerifiableEvidence(data.completionReport.verification)
 }
 
-async function applyStatusFields(
+const applyStatusFields = async function applyStatusFields(
   ctx: ServiceCtx,
   data: UpdateIssueData,
   existing: ExistingIssue,
@@ -1012,7 +1028,9 @@ function now(): number {
  * been written); the batched insert doesn't re-validate, so check it here, before the
  * batch, and fail the whole update with a 400 instead of storing an oversize comment.
  */
-function completionReportCommentBody(report: Parameters<typeof formatCompletionReportComment>[0]): string {
+const completionReportCommentBody = function completionReportCommentBody(
+  report: Parameters<typeof formatCompletionReportComment>[0],
+): string {
   const body = formatCompletionReportComment(report)
   const max = AddCommentSchema.shape.body.maxLength
   if (max !== null && body.length > max) {
@@ -1054,7 +1072,7 @@ function formatCompletionReportComment(
  * view for them anymore). Block it at the service layer so REST and MCP both get
  * the guard, rather than only a frontend confirm dialog.
  */
-async function assertNotDemotingEpicWithChildren(
+const assertNotDemotingEpicWithChildren = async function assertNotDemotingEpicWithChildren(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
   existing: ExistingIssue,
@@ -1085,7 +1103,7 @@ async function assertNotDemotingEpicWithChildren(
   }
 }
 
-async function buildUpdateSetValues(
+const buildUpdateSetValues = async function buildUpdateSetValues(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
   data: UpdateIssueData,
@@ -1128,7 +1146,12 @@ async function buildUpdateSetValues(
  * fetched alongside `existing` at the top of updateIssue) — no re-SELECT of the row that
  * was just written, unlike the pre-PROJ-870 version.
  */
-function buildFtsReindexStatements(ctx: ServiceCtx, id: string, title: string, body: string): D1PreparedStatement[] {
+const buildFtsReindexStatements = function buildFtsReindexStatements(
+  ctx: ServiceCtx,
+  id: string,
+  title: string,
+  body: string,
+): D1PreparedStatement[] {
   return [
     ctx.db.prepare('DELETE FROM issues_fts WHERE issue_id = ? AND workspace_id = ?').bind(id, ctx.workspaceId),
     ctx.db
@@ -1144,7 +1167,7 @@ function buildFtsReindexStatements(ctx: ServiceCtx, id: string, title: string, b
  * table's growth. Record just that body changed, not the text itself; every other field
  * here is a small scalar, so those keep recording the actual (new) value.
  */
-function buildUpdateDiffCore(data: UpdateIssueData): Record<string, unknown> {
+const buildUpdateDiffCore = function buildUpdateDiffCore(data: UpdateIssueData): Record<string, unknown> {
   const diff: Record<string, unknown> = {}
   if (data.title !== undefined) {
     diff.title = data.title
@@ -1164,7 +1187,7 @@ function buildUpdateDiffCore(data: UpdateIssueData): Record<string, unknown> {
   return diff
 }
 
-function buildUpdateDiffRefs(data: UpdateIssueData): Record<string, unknown> {
+const buildUpdateDiffRefs = function buildUpdateDiffRefs(data: UpdateIssueData): Record<string, unknown> {
   const diff: Record<string, unknown> = {}
   if ('statusId' in data) {
     diff.statusId = data.statusId ?? null
@@ -1184,7 +1207,7 @@ function buildUpdateDiffRefs(data: UpdateIssueData): Record<string, unknown> {
   return diff
 }
 
-async function invalidateUpdateCaches(
+const invalidateUpdateCaches = async function invalidateUpdateCaches(
   ctx: ServiceCtx,
   id: string,
   data: UpdateIssueData,
@@ -1586,7 +1609,7 @@ type PrioritizedFilters = {
   projectId: string | undefined
 }
 
-function parsePrioritizedFilters(raw: unknown): PrioritizedFilters {
+const parsePrioritizedFilters = function parsePrioritizedFilters(raw: unknown): PrioritizedFilters {
   const input = raw as {
     limit?: unknown
     includeBacklog?: unknown
@@ -1622,7 +1645,7 @@ function parsePrioritizedFilters(raw: unknown): PrioritizedFilters {
 const DOR_HEAL_BATCH = 200
 const DOR_HEAL_MAX_BATCHES = 5
 
-async function healDefinitionOfReady(ctx: ServiceCtx): Promise<void> {
+const healDefinitionOfReady = async function healDefinitionOfReady(ctx: ServiceCtx): Promise<void> {
   for (let i = 0; i < DOR_HEAL_MAX_BATCHES; i++) {
     const { results } = await ctx.db
       .prepare('SELECT id, body FROM issues WHERE workspace_id = ? AND dor_ready IS NULL LIMIT ?')
@@ -1673,7 +1696,7 @@ interface PrioritizedRow {
  * BEFORE the ready filter, exactly as the old in-memory version scored everything and
  * filtered afterwards. Ties break on insertion order (rowid).
  */
-async function queryPrioritized(
+const queryPrioritized = async function queryPrioritized(
   ctx: ServiceCtx,
   opts: {
     limit: number
@@ -1750,7 +1773,7 @@ async function queryPrioritized(
   return results ?? []
 }
 
-function toPrioritizedIssue(r: PrioritizedRow) {
+const toPrioritizedIssue = function toPrioritizedIssue(r: PrioritizedRow) {
   const issue = {
     id: r.id,
     title: r.title,

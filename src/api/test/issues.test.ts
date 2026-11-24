@@ -21,7 +21,7 @@ import {
 } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
-async function callMcpTool(
+const callMcpTool = async function callMcpTool(
   workspaceId: string,
   token: string,
   slug: string,
@@ -38,7 +38,7 @@ async function callMcpTool(
   return res.json()
 }
 
-async function seedOwnerProjectFixture(): Promise<{
+const seedOwnerProjectFixture = async function seedOwnerProjectFixture(): Promise<{
   token: string
   slug: string
   workspaceId: string
@@ -71,7 +71,7 @@ describe('Issues API', () => {
     total: number
   }
 
-  async function listIssues(url = 'http://localhost/api/issues') {
+  const listIssues = async function listIssues(url = 'http://localhost/api/issues') {
     const res = await fetchNativeApi(url, { headers: authHeaders(token, slug) })
     return { res, page: (await res.json()) as IssuesPage }
   }
@@ -1074,7 +1074,7 @@ describe('Issues API', () => {
    * window, so set up state via env.DB and assert via env.DB where possible —
    * DB access bypasses both the rate limiter and the getIssue KV cache.
    */
-  async function patch(id: string, body: Record<string, unknown>) {
+  const patch = async function patch(id: string, body: Record<string, unknown>) {
     return fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
@@ -1082,7 +1082,7 @@ describe('Issues API', () => {
     })
   }
 
-  async function completedAtOf(id: string): Promise<number | null> {
+  const completedAtOf = async function completedAtOf(id: string): Promise<number | null> {
     const row = await env.DB.prepare('SELECT completed_at FROM issues WHERE id = ?')
       .bind(id)
       .first<{ completed_at: number | null }>()
@@ -1149,7 +1149,7 @@ describe('Issues API', () => {
   })
 
   // ─── PROJ-252: flow timestamps (ready_at/claimed_at/done_at) ──────────────
-  async function flowTimestampsOf(
+  const flowTimestampsOf = async function flowTimestampsOf(
     id: string,
   ): Promise<{ ready_at: number | null; claimed_at: number | null; done_at: number | null }> {
     const row = await env.DB.prepare('SELECT ready_at, claimed_at, done_at FROM issues WHERE id = ?')
@@ -1200,7 +1200,9 @@ describe('Issues API', () => {
   })
 
   // ─── PROJ-328: in_review_at + review_bounce_count ──────────────
-  async function reviewFieldsOf(id: string): Promise<{ in_review_at: number | null; review_bounce_count: number }> {
+  const reviewFieldsOf = async function reviewFieldsOf(
+    id: string,
+  ): Promise<{ in_review_at: number | null; review_bounce_count: number }> {
     const row = await env.DB.prepare('SELECT in_review_at, review_bounce_count FROM issues WHERE id = ?')
       .bind(id)
       .first<{ in_review_at: number | null; review_bounce_count: number }>()
@@ -1242,7 +1244,7 @@ describe('Issues API', () => {
   })
 
   // ─── PROJ-334: gate rejections (in_review -> in_progress specifically) ──────
-  async function gateRejectionCountOf(id: string): Promise<number> {
+  const gateRejectionCountOf = async function gateRejectionCountOf(id: string): Promise<number> {
     const row = await env.DB.prepare('SELECT COUNT(*) as n FROM issue_gate_rejections WHERE issue_id = ?')
       .bind(id)
       .first<{ n: number }>()
@@ -1290,7 +1292,7 @@ describe('Issues API — includeRollups/includeBody/assignee=me (perf sweep)', (
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  async function listIssues(url: string) {
+  const listIssues = async function listIssues(url: string) {
     const res = await fetchNativeApi(url, { headers: authHeaders(token, slug) })
     return { res, page: (await res.json()) as { items: Record<string, unknown>[] } }
   }
@@ -1449,7 +1451,7 @@ describe('Issues MCP — typeId', () => {
     ;({ token, slug, workspaceId, projectId } = await seedOwnerProjectFixture())
   })
 
-  async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown) {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -1653,7 +1655,7 @@ describe('Issues MCP — list_issues filter parity (PROJ-243)', () => {
     ;({ token, slug, workspaceId, projectId } = await seedOwnerProjectFixture())
   })
 
-  async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown) {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -1936,7 +1938,7 @@ describe('get_prioritized_issues MCP tool', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  async function callPrioritized(args: Record<string, unknown> = {}) {
+  const callPrioritized = async function callPrioritized(args: Record<string, unknown> = {}) {
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -2151,7 +2153,7 @@ describe('GET /api/issues/prioritized', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture({ role: 'owner' }))
   })
 
-  async function getPrioritized(query: Record<string, string> = {}) {
+  const getPrioritized = async function getPrioritized(query: Record<string, string> = {}) {
     const qs = new URLSearchParams(query).toString()
     const res = await fetchNativeApi(`http://localhost/api/issues/prioritized${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(token, slug),
@@ -2209,7 +2211,7 @@ describe('PROJ-712 — unrecognized MCP params are rejected, not silently droppe
     }))
   })
 
-  async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown) {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -2258,7 +2260,7 @@ describe('PROJ-713 — write tools resolve refs/keys server-side', () => {
     projectKey = row!.key
   })
 
-  async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown) {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -2459,7 +2461,7 @@ describe('Issues — assignee workspace membership (PROJ-785)', () => {
     ;({ token, slug, workspaceId, projectId } = await seedOwnerProjectFixture())
   })
 
-  async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown) {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -2597,7 +2599,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     }))
   })
 
-  async function mcpCall(params: unknown) {
+  const mcpCall = async function mcpCall(params: unknown) {
     return callMcpTool(workspaceId, token, slug, params)
   }
 
@@ -2837,7 +2839,7 @@ describe('PROJ-931 — compact MCP responses', () => {
     expect(afterBytes).toBeLessThan(JSON.stringify(fullIssue).length * 0.8)
   })
 
-  async function projectKey() {
+  const projectKey = async function projectKey() {
     const row = await env.DB.prepare('SELECT key FROM projects WHERE id = ?').bind(projectId).first<{ key: string }>()
     return row!.key
   }

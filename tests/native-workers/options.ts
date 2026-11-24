@@ -10,7 +10,7 @@ const execute = promisify(execFile)
 const buildDirectory = fileURLToPath(new URL('./.build/ssr/', import.meta.url))
 let building: Promise<void> | undefined
 
-function prepareCoreArtifact(): Promise<void> {
+const prepareCoreArtifact = function prepareCoreArtifact(): Promise<void> {
   // Parallel native suites share one compilation, never concurrent output writers.
   building ??= execute('vp', ['build', '--config', fileURLToPath(new URL('./core.vite.config.ts', import.meta.url))], {
     cwd: fileURLToPath(new URL('../../', import.meta.url)),

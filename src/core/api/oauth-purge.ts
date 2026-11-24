@@ -12,7 +12,7 @@ interface Continuation {
 type OAuthEnvironment = { OAUTH_KV: KVNamespace }
 type PurgeProvider = Pick<OAuthProvider<OAuthEnvironment>, 'purgeExpiredData'>
 
-function continuation(value: unknown): Continuation {
+const continuation = function continuation(value: unknown): Continuation {
   if (value === null) {
     return { phase: 'grants' }
   }

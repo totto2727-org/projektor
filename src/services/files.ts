@@ -49,7 +49,7 @@ interface AttachmentRow {
   wiki_page_title: string | null
   wiki_page_project_id: string | null
 }
-function toMetadata(row: AttachmentRow): AttachmentMetadata {
+const toMetadata = function toMetadata(row: AttachmentRow): AttachmentMetadata {
   return {
     id: row.id,
     kind: row.kind,
@@ -70,7 +70,7 @@ function toMetadata(row: AttachmentRow): AttachmentMetadata {
         : null,
   }
 }
-function metadataQuery(
+const metadataQuery = function metadataQuery(
   db: D1Database,
   workspaceId: string,
   filter: string,

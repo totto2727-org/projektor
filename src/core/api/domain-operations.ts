@@ -40,7 +40,7 @@ import type { CoreEnvironment } from '../environment.ts'
 
 /** Closed, named native methods. No caller-supplied operation or capability is accepted. */
 export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
-  function operation<Args extends unknown[], A>(
+  const operation = function operation<Args extends unknown[], A>(
     name: keyof typeof ApiResults,
     capability: 'read' | 'write',
     command: (ctx: ServiceCtx, ...args: Args) => A | Promise<A>,
@@ -65,7 +65,7 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
       )
   }
 
-  function connectors<Args extends unknown[], A>(
+  const connectors = function connectors<Args extends unknown[], A>(
     name: 'apiListConnectorGrants' | 'apiRevokeConnectorGrant',
     capability: 'read' | 'write',
     command: (env: CoreEnvironment, ctx: ServiceCtx, ...args: Args) => Promise<A>,
@@ -87,7 +87,7 @@ export function makeApiDomainHandlers<R>(envSource: Effect.Effect<CoreEnvironmen
       )
   }
 
-  function globalRead<Args extends unknown[], A>(
+  const globalRead = function globalRead<Args extends unknown[], A>(
     name: 'apiListPlaybooks' | 'apiGetPlaybook' | 'apiGetWorkflow',
     command: (...args: Args) => A | Promise<A>,
   ) {

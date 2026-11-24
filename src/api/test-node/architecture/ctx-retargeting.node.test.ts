@@ -15,7 +15,7 @@ const SRC = join(import.meta.dirname, '..', '..')
 const COMMANDS = join(SRC, '..', 'services', 'commands')
 const RETARGET = /\{\s*\.\.\.ctx\s*,\s*workspaceId\s*:/
 
-function tsFiles(dir: string): string[] {
+const tsFiles = function tsFiles(dir: string): string[] {
   return readdirSync(dir)
     .filter((f) => f.endsWith('.ts'))
     .map((f) => join(dir, f))

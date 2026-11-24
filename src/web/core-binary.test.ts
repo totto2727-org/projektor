@@ -5,7 +5,7 @@ import { CORE_ACTOR_HEADER } from '../core/contract.ts'
 import { transferCoreBinary } from './core-binary.ts'
 import { makeRequestServices, RequestServices } from './request.ts'
 
-function execute(request: Request, fetch: (request: Request) => Promise<Response>) {
+const execute = function execute(request: Request, fetch: (request: Request) => Promise<Response>) {
   return Effect.gen(function* () {
     const services = yield* makeRequestServices(request, { CORE: { fetch }, ENVIRONMENT: 'production' })
     return yield* transferCoreBinary('/files/a?workspaceId=w').pipe(Effect.provideService(RequestServices, services))

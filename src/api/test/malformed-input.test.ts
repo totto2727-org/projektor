@@ -50,7 +50,7 @@ describe('REST: invalid JSON bodies → 400', () => {
 })
 
 describe('MCP: parse and envelope errors', () => {
-  function mcp(body: string) {
+  const mcp = function mcp(body: string) {
     return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },

@@ -18,7 +18,7 @@ const INTERNAL_ROLE_HEADER = 'X-Internal-Role'
  * on upgrade and every message or broadcast. Legacy identity hints and any
  * client-supplied proof header are stripped before the adapter sets its own proof.
  */
-function buildHubRequest(c: Context<HonoEnv>): Request {
+const buildHubRequest = function buildHubRequest(c: Context<HonoEnv>): Request {
   const headers = new Headers(c.req.raw.headers)
   headers.delete(INTERNAL_USER_ID_HEADER)
   headers.delete(INTERNAL_WORKSPACE_ID_HEADER)

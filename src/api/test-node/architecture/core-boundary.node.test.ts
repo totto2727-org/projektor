@@ -25,7 +25,7 @@ interface ModuleInfo {
   readonly capabilities: string[]
 }
 
-function sourceFiles(directory: string): string[] {
+const sourceFiles = function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name)
     if (entry.isDirectory()) {
@@ -35,7 +35,7 @@ function sourceFiles(directory: string): string[] {
   })
 }
 
-function analyze(sources: Readonly<Record<string, string>>): Map<string, ModuleInfo> {
+const analyze = function analyze(sources: Readonly<Record<string, string>>): Map<string, ModuleInfo> {
   const configFile = join(ROOT, 'tsconfig.core-boundary.json')
   const api = new API({
     fs: createVirtualFileSystem({
@@ -121,7 +121,11 @@ function analyze(sources: Readonly<Record<string, string>>): Map<string, ModuleI
   }
 }
 
-function resolveModule(from: string, specifier: string, graph: ReadonlyMap<string, ModuleInfo>): string | undefined {
+const resolveModule = function resolveModule(
+  from: string,
+  specifier: string,
+  graph: ReadonlyMap<string, ModuleInfo>,
+): string | undefined {
   let target: string | undefined
   if (specifier.startsWith('.')) {
     target = resolve(dirname(from), specifier)
@@ -170,7 +174,10 @@ function resolveModule(from: string, specifier: string, graph: ReadonlyMap<strin
   return found
 }
 
-function violations(graph: ReadonlyMap<string, ModuleInfo>, entrypoints: readonly string[]): string[] {
+const violations = function violations(
+  graph: ReadonlyMap<string, ModuleInfo>,
+  entrypoints: readonly string[],
+): string[] {
   const failures: string[] = []
   const visited = new Set<string>()
   const walk = (path: string, chain: readonly string[]): void => {
@@ -208,7 +215,7 @@ function violations(graph: ReadonlyMap<string, ModuleInfo>, entrypoints: readonl
   return failures
 }
 
-function reverseViolations(graph: ReadonlyMap<string, ModuleInfo>): string[] {
+const reverseViolations = function reverseViolations(graph: ReadonlyMap<string, ModuleInfo>): string[] {
   const failures: string[] = []
   for (const [path, info] of graph) {
     const localPath = relative(ROOT, path)

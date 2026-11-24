@@ -15,13 +15,13 @@ export interface FlowMetricsRange {
   granularity: 'day' | 'week'
 }
 
-function mondayAtOrBefore(t: number): number {
+const mondayAtOrBefore = function mondayAtOrBefore(t: number): number {
   const dayIndex = Math.floor(t / DAY)
   const daysSinceMonday = ((dayIndex % 7) + 7 - 4) % 7
   return (dayIndex - daysSinceMonday) * DAY
 }
 
-function flowMetricsDefaultStarts(now: number) {
+const flowMetricsDefaultStarts = function flowMetricsDefaultStarts(now: number) {
   return { bucketSince: mondayAtOrBefore(now) - 5 * 7 * DAY, wipSince: now - 30 * DAY }
 }
 
@@ -32,7 +32,7 @@ export interface Distribution {
   p90: number | null
 }
 
-function summarize(durations: readonly number[]): Distribution {
+const summarize = function summarize(durations: readonly number[]): Distribution {
   if (durations.length === 0) {
     return { count: 0, avg: null, p50: null, p90: null }
   }
@@ -56,15 +56,15 @@ type FlowIssueRow = {
 
 const DAY = 86_400
 
-function dateLabel(t: number): string {
+const dateLabel = function dateLabel(t: number): string {
   return new Date(t * 1000).toISOString().slice(0, 10)
 }
 
-function bucketSizeFor(granularity: 'day' | 'week'): number {
+const bucketSizeFor = function bucketSizeFor(granularity: 'day' | 'week'): number {
   return granularity === 'day' ? DAY : 7 * DAY
 }
 
-function firstBucketFor(since: number, granularity: 'day' | 'week'): number {
+const firstBucketFor = function firstBucketFor(since: number, granularity: 'day' | 'week'): number {
   return granularity === 'day' ? since - (since % DAY) : mondayAtOrBefore(since)
 }
 
@@ -73,7 +73,11 @@ function firstBucketFor(since: number, granularity: 'day' | 'week'): number {
  * so this list itself is now always small (<=366 for day, <=~261 for week) regardless
  * of what the caller passes.
  */
-function buildBucketStarts(since: number, until: number, granularity: 'day' | 'week'): number[] {
+const buildBucketStarts = function buildBucketStarts(
+  since: number,
+  until: number,
+  granularity: 'day' | 'week',
+): number[] {
   const bucketSize = bucketSizeFor(granularity)
   const starts: number[] = []
   for (let t = firstBucketFor(since, granularity); t <= until; t += bucketSize) {
@@ -87,7 +91,7 @@ function buildBucketStarts(since: number, until: number, granularity: 'day' | 'w
  * doesn't pull in events from just outside the requested window (matches leadTime/
  * cycleTime's inWindow semantics exactly).
  */
-function bucketRanges(
+const bucketRanges = function bucketRanges(
   starts: readonly number[],
   bucketSize: number,
   since: number,
@@ -106,7 +110,7 @@ function bucketRanges(
  * non-decreasing and non-overlapping in `start`/`end` (true for bucketRanges() above,
  * since consecutive buckets are contiguous and since/until only clamp the two edges).
  */
-function groupBySortedRanges<T>(
+const groupBySortedRanges = function groupBySortedRanges<T>(
   items: readonly T[],
   time: (item: T) => number,
   ranges: readonly { start: number; end: number }[],
@@ -129,7 +133,7 @@ function groupBySortedRanges<T>(
   return groups
 }
 
-function buildWipOverTime(
+const buildWipOverTime = function buildWipOverTime(
   issues: readonly FlowIssueRow[],
   since: number,
   until: number,
@@ -166,7 +170,7 @@ function buildWipOverTime(
   return buckets
 }
 
-function buildThroughputOverTime(
+const buildThroughputOverTime = function buildThroughputOverTime(
   issues: readonly FlowIssueRow[],
   since: number,
   until: number,
@@ -187,7 +191,7 @@ function buildThroughputOverTime(
  * as any other non-bug type. bugSharePercent is null (not 0) when a bucket completed
  * nothing, so an empty bucket reads as "no data" rather than "zero defects".
  */
-function buildBugShareOverTime(
+const buildBugShareOverTime = function buildBugShareOverTime(
   issues: readonly FlowIssueRow[],
   since: number,
   until: number,
@@ -214,7 +218,7 @@ function buildBugShareOverTime(
  * PROJ-328: review latency (in_review -> done) bucketed the same way as throughput, but
  * showing the bucket's p50 rather than a count — the "trend" the ticket asks for.
  */
-function buildReviewLatencyOverTime(
+const buildReviewLatencyOverTime = function buildReviewLatencyOverTime(
   issues: readonly FlowIssueRow[],
   since: number,
   until: number,
@@ -238,7 +242,7 @@ function buildReviewLatencyOverTime(
  * the net (created - completed), bucketed the same way as throughput. Answers "is the
  * backlog growing or burning?" at a glance.
  */
-function buildArrivalVsCompletion(
+const buildArrivalVsCompletion = function buildArrivalVsCompletion(
   issues: readonly FlowIssueRow[],
   since: number,
   until: number,
@@ -265,7 +269,7 @@ function buildArrivalVsCompletion(
  */
 type CfdBand = 'excluded' | 'backlogTodo' | 'inProgress' | 'inReview' | 'done'
 
-function classifyCfdBand(issue: FlowIssueRow, sampleAt: number): CfdBand {
+const classifyCfdBand = function classifyCfdBand(issue: FlowIssueRow, sampleAt: number): CfdBand {
   if (issue.createdAt > sampleAt) {
     return 'excluded'
   }
@@ -290,7 +294,7 @@ function classifyCfdBand(issue: FlowIssueRow, sampleAt: number): CfdBand {
  * correct regardless of whether an issue's timestamps happen to be in the "expected"
  * created <= claimed <= in_review <= done order.
  */
-function buildCfdEvents(
+const buildCfdEvents = function buildCfdEvents(
   issues: readonly FlowIssueRow[],
 ): { time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }[] {
   const events: { time: number; band: Exclude<CfdBand, 'excluded'>; delta: 1 | -1 }[] = []
@@ -336,7 +340,7 @@ function buildCfdEvents(
  * monotonic pointer into the sorted event list reproduces exactly what re-running
  * classifyCfdBand per bucket would have produced.
  */
-function buildCfdOverTime(
+const buildCfdOverTime = function buildCfdOverTime(
   issues: readonly FlowIssueRow[],
   since: number,
   until: number,
@@ -383,7 +387,10 @@ function buildCfdOverTime(
  * write time (comments.ts) — not the deprecated agent_sessions.kind. Rows written before
  * that column existed have author_kind NULL and are excluded rather than guessed.
  */
-async function fetchHumanCommentCounts(orm: ReturnType<typeof drizzle>, issueScope: SQL): Promise<Map<string, number>> {
+const fetchHumanCommentCounts = async function fetchHumanCommentCounts(
+  orm: ReturnType<typeof drizzle>,
+  issueScope: SQL,
+): Promise<Map<string, number>> {
   const rows = await orm
     .select({ issueId: schema.issueComments.issueId, n: sql<number>`count(*)` })
     .from(schema.issueComments)
@@ -401,7 +408,7 @@ async function fetchHumanCommentCounts(orm: ReturnType<typeof drizzle>, issueSco
  * PROJ-866/F-P2: issue_leases.workspace_id is filtered too, so the lease side of the
  * join is tenant-scoped like every other cross-tenant read and can use its indexes.
  */
-async function fetchLeaseHeldSeconds(
+const fetchLeaseHeldSeconds = async function fetchLeaseHeldSeconds(
   orm: ReturnType<typeof drizzle>,
   workspaceId: string,
   issueScope: SQL,
@@ -428,7 +435,7 @@ async function fetchLeaseHeldSeconds(
   return held
 }
 
-function computeCoreDistributions(
+const computeCoreDistributions = function computeCoreDistributions(
   issues: readonly FlowIssueRow[],
   inWindow: (t: number) => boolean,
 ): {
@@ -462,7 +469,7 @@ function computeCoreDistributions(
  * PROJ-328: human interventions per completed issue = human comments + status bounces
  * out of review. The primary "how much human attention did this take" signal.
  */
-function computeHumanInterventions(
+const computeHumanInterventions = function computeHumanInterventions(
   issues: readonly FlowIssueRow[],
   humanCommentCounts: Map<string, number>,
   inWindow: (t: number) => boolean,
@@ -476,7 +483,7 @@ function computeHumanInterventions(
  * PROJ-328: autonomy ratio per completed issue = lease-held time / cycle time. Clamped
  * to [0, 1] — sequential re-leases can sum close to the full cycle but shouldn't exceed it.
  */
-function computeAutonomyRatios(
+const computeAutonomyRatios = function computeAutonomyRatios(
   issues: readonly FlowIssueRow[],
   leaseHeldSeconds: Map<string, number>,
   inWindow: (t: number) => boolean,
@@ -502,7 +509,7 @@ function computeAutonomyRatios(
  * "waste", so it's always <= autonomyRatio for the same issue. Clamped to [0, 1] for the
  * same reason as autonomyRatio (sequential re-leases can sum close to the full lead time).
  */
-function computeFlowEfficiencies(
+const computeFlowEfficiencies = function computeFlowEfficiencies(
   issues: readonly FlowIssueRow[],
   leaseHeldSeconds: Map<string, number>,
   inWindow: (t: number) => boolean,
@@ -528,7 +535,7 @@ function computeFlowEfficiencies(
  * reflects the shared date-range controls. Surfaces items stuck long enough to be worth
  * investigating before they finish and pollute the cycle-time percentiles.
  */
-function buildAgingWip(
+const buildAgingWip = function buildAgingWip(
   issues: readonly FlowIssueRow[],
   now: number,
 ): { id: string; status: 'in_progress' | 'in_review'; ageSeconds: number }[] {
@@ -564,7 +571,7 @@ interface FactoryHealth {
  * independent scalar COUNT(*)s, so they run as subqueries of one statement (anchored on
  * the project row) instead of five round trips that each fetched every matching row.
  */
-async function fetchWindowCounts(
+const fetchWindowCounts = async function fetchWindowCounts(
   orm: ReturnType<typeof drizzle>,
   workspaceId: string,
   projectId: string,
@@ -669,7 +676,12 @@ async function fetchWindowCounts(
   }
 }
 
-async function readFlowMetrics(db: D1Database, workspaceId: string, range: FlowMetricsRange, now: number) {
+const readFlowMetrics = async function readFlowMetrics(
+  db: D1Database,
+  workspaceId: string,
+  range: FlowMetricsRange,
+  now: number,
+) {
   const { projectId, since, until, granularity } = range
   const orm = drizzle(db, { schema })
 

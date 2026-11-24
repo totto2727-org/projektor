@@ -23,7 +23,7 @@ import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
 import { fetchNativeApi } from './native-fetch.ts'
 
 /** Seed a workspace + owner + a project in it, for scope-enforcement tests. */
-async function seedScopeFixture() {
+const seedScopeFixture = async function seedScopeFixture() {
   const ws = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
   const user = await seedUser(`u-${crypto.randomUUID().slice(0, 8)}@example.com`)
   await env.DB.prepare(
@@ -164,7 +164,7 @@ describe('PROJ-17: REST scope enforcement', () => {
 // MCP enforcement
 // ---------------------------------------------------------------------------
 
-async function mcpCall(
+const mcpCall = async function mcpCall(
   workspaceId: string,
   name: string,
   args: unknown,
@@ -183,7 +183,7 @@ async function mcpCall(
   return res.json()
 }
 
-function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
+const isMcpError = function isMcpError(r: JsonRpcResult | JsonRpcError): r is JsonRpcError {
   return 'error' in r
 }
 

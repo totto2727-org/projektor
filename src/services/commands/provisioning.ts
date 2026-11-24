@@ -23,7 +23,7 @@ import { createWorkspace } from './workspaces.ts'
  * re-add a tombstoned (workspace, user) pair, even though ADMIN_EMAILS / AUTO_JOIN_ROLE /
  * WORKSPACE_DOMAIN_MAP would otherwise say they belong. inviteMember clears the tombstone.
  */
-async function isRemovalTombstoned(
+const isRemovalTombstoned = async function isRemovalTombstoned(
   orm: ReturnType<typeof drizzle>,
   workspaceId: string,
   userId: string,
@@ -41,7 +41,7 @@ async function isRemovalTombstoned(
 const VALID_ROLES = ['owner', 'admin', 'member', 'viewer'] as const
 type Role = (typeof VALID_ROLES)[number]
 
-function parseEmailSet(raw?: string): Set<string> {
+const parseEmailSet = function parseEmailSet(raw?: string): Set<string> {
   return new Set(
     (raw ?? '')
       .split(',')
@@ -50,7 +50,7 @@ function parseEmailSet(raw?: string): Set<string> {
   )
 }
 
-function resolveAutoJoinRole(raw?: string): Role | null {
+const resolveAutoJoinRole = function resolveAutoJoinRole(raw?: string): Role | null {
   /*
    * Safe default for public self-hosting (PROJ-193): invite-only. When AUTO_JOIN_ROLE
    * is unset we do NOT auto-join CF-Access-admitted users — an operator who wants
@@ -72,7 +72,7 @@ function resolveAutoJoinRole(raw?: string): Role | null {
  * Invalid entries are skipped; a malformed value yields an empty map (so the
  * default-workspace behaviour applies, never a crash).
  */
-function parseDomainMapValue(v: unknown): { slug: string; role: Role } | null {
+const parseDomainMapValue = function parseDomainMapValue(v: unknown): { slug: string; role: Role } | null {
   if (!v || typeof v !== 'object') {
     return null
   }
@@ -86,7 +86,7 @@ function parseDomainMapValue(v: unknown): { slug: string; role: Role } | null {
   return { slug, role }
 }
 
-function parseDomainMapJson(raw: string): unknown {
+const parseDomainMapJson = function parseDomainMapJson(raw: string): unknown {
   try {
     return JSON.parse(raw)
   } catch {
@@ -94,7 +94,7 @@ function parseDomainMapJson(raw: string): unknown {
   }
 }
 
-function parseDomainMap(raw?: string): Map<string, { slug: string; role: Role }> {
+const parseDomainMap = function parseDomainMap(raw?: string): Map<string, { slug: string; role: Role }> {
   const map = new Map<string, { slug: string; role: Role }>()
   if (!raw) {
     return map
@@ -113,7 +113,10 @@ function parseDomainMap(raw?: string): Map<string, { slug: string; role: Role }>
   return map
 }
 
-function resolveDomainMapping(raw: string | undefined, email: string): { slug: string; role: Role } | null {
+const resolveDomainMapping = function resolveDomainMapping(
+  raw: string | undefined,
+  email: string,
+): { slug: string; role: Role } | null {
   const at = email.lastIndexOf('@')
   if (at < 0) {
     return null
@@ -130,7 +133,11 @@ function resolveDomainMapping(raw: string | undefined, email: string): { slug: s
  * insert-if-absent would be silently discarded and leave the admin under-privileged —
  * previously self-healing on the next request, but now cached for the whole TTL.
  */
-async function grantOwner(orm: ReturnType<typeof drizzle>, workspaceId: string, userId: string): Promise<void> {
+const grantOwner = async function grantOwner(
+  orm: ReturnType<typeof drizzle>,
+  workspaceId: string,
+  userId: string,
+): Promise<void> {
   /*
    * PROJ-436: an owner who was explicitly removed from this workspace stays removed,
    * even though they're still an admin instance-wide.
@@ -151,7 +158,7 @@ async function grantOwner(orm: ReturnType<typeof drizzle>, workspaceId: string, 
  * Provision an admin: they own EVERY workspace on this instance. The first admin to log in
  * also bootstraps the default workspace if it doesn't exist yet (first-run).
  */
-async function provisionAdmin(
+const provisionAdmin = async function provisionAdmin(
   orm: ReturnType<typeof drizzle>,
   env: ProvisioningEnvironment,
   user: Readonly<{ id: string; email: string }>,
@@ -228,11 +235,14 @@ const inMemoryProvisionedCache = new Map<string, number>()
 const PROVISIONED_LOCAL_TTL_MS = 300 * 1000
 const PROVISIONED_KV_TTL_SECS = 300
 
-function provisionedKey(userId: string): string {
+const provisionedKey = function provisionedKey(userId: string): string {
   return `provisioned:${userId}`
 }
 
-async function alreadyProvisioned(env: ProvisioningEnvironment, userId: string): Promise<boolean> {
+const alreadyProvisioned = async function alreadyProvisioned(
+  env: ProvisioningEnvironment,
+  userId: string,
+): Promise<boolean> {
   const localExpiry = inMemoryProvisionedCache.get(userId)
   if (localExpiry && localExpiry > Date.now()) {
     return true
@@ -252,7 +262,7 @@ async function alreadyProvisioned(env: ProvisioningEnvironment, userId: string):
   return true
 }
 
-async function markProvisioned(env: ProvisioningEnvironment, userId: string): Promise<void> {
+const markProvisioned = async function markProvisioned(env: ProvisioningEnvironment, userId: string): Promise<void> {
   inMemoryProvisionedCache.set(userId, Date.now() + PROVISIONED_LOCAL_TTL_MS)
   try {
     await env.KV.put(provisionedKey(userId), '1', { expirationTtl: PROVISIONED_KV_TTL_SECS })

@@ -28,7 +28,7 @@ import { pageFreshness, readAuthorizedWikiPage } from './wiki-policy.ts'
 export const WikiDiffSchema = Schema.Struct({ diff: Schema.String })
 
 export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironment, never, R>) => {
-  function mutation<S extends Schema.Top, A>(
+  const mutation = function mutation<S extends Schema.Top, A>(
     name: string,
     schema: S,
     proof: BrowserCommand,
@@ -36,7 +36,7 @@ export const makeWikiCommandHandlers = <R>(envSource: Effect.Effect<CoreEnvironm
   ) {
     return Effect.flatMap(envSource, (env) => coreReply(name, schema, browserCommand(env, proof, operation)))
   }
-  function read<S extends Schema.Top, A, E>(
+  const read = function read<S extends Schema.Top, A, E>(
     name: string,
     schema: S,
     proof: BrowserCommand,

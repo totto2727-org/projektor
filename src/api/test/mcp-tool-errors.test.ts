@@ -30,7 +30,7 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
     f = await seedIssueFixture({ role: 'owner' })
   })
 
-  async function post(body: unknown, token = f.token): Promise<Response> {
+  const post = async function post(body: unknown, token = f.token): Promise<Response> {
     return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -38,14 +38,14 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
     })
   }
 
-  async function call(name: string, args: unknown, token = f.token): Promise<Rpc> {
+  const call = async function call(name: string, args: unknown, token = f.token): Promise<Rpc> {
     const res = await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, token)
     expect(res.status).toBe(200)
     return (await res.json()) as Rpc
   }
 
   /** Asserts the failure is a tool result (not a JSON-RPC error) and returns its body. */
-  async function failure(name: string, args: unknown, token = f.token): Promise<ToolErrorBody> {
+  const failure = async function failure(name: string, args: unknown, token = f.token): Promise<ToolErrorBody> {
     const res = await call(name, args, token)
     expect(res.error, 'must not be a JSON-RPC error').toBeUndefined()
     expect(res.result?.isError).toBe(true)

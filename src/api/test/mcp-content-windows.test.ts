@@ -65,7 +65,7 @@ describe('PROJ-892: MCP tools', () => {
     f = await seedProjectFixture()
   })
 
-  async function call(name: string, args: Record<string, unknown> = {}): Promise<Rpc> {
+  const call = async function call(name: string, args: Record<string, unknown> = {}): Promise<Rpc> {
     const res = await fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
@@ -78,7 +78,7 @@ describe('PROJ-892: MCP tools', () => {
     })
     return (await res.json()) as Rpc
   }
-  async function tool<T = Record<string, unknown>>(name: string, args = {}): Promise<T> {
+  const tool = async function tool<T = Record<string, unknown>>(name: string, args = {}): Promise<T> {
     const body = await call(name, args)
     expect(body.result?.isError, JSON.stringify(body)).toBeUndefined()
     return JSON.parse(body.result?.content?.[0].text ?? 'null') as T
@@ -148,7 +148,7 @@ describe('PROJ-892: MCP tools', () => {
     expect(got).not.toHaveProperty('bodyTotalChars')
   })
 
-  async function makeWiki(content: string): Promise<string> {
+  const makeWiki = async function makeWiki(content: string): Promise<string> {
     const p = await tool<{ slug: string }>('create_wiki_page', { title: 'Long Doc', content })
     return p.slug
   }

@@ -9,7 +9,7 @@ describe('native Wiki draft lifecycle preconditions', () => {
   test('rejects delayed writes after a newer snapshot and after a discard through API/Core/D1', async () => {
     const fixture = await seedFixture({ role: 'admin' })
     const headers = authHeaders(fixture.token, fixture.workspace.slug)
-    async function request(path: string, init?: RequestInit) {
+    const request = async function request(path: string, init?: RequestInit) {
       await resetRateLimits()
       return fetchNativeApi(`http://localhost/api/wiki${path}`, { ...init, headers })
     }
@@ -18,13 +18,13 @@ describe('native Wiki draft lifecycle preconditions', () => {
       body: JSON.stringify({ title: 'Lifecycle', slug: 'lifecycle', content: 'Published' }),
     })
     expect(created.status).toBe(201)
-    async function save(content: string, expectedDraftRevision: string | null) {
+    const save = async function save(content: string, expectedDraftRevision: string | null) {
       return request('/lifecycle/draft', {
         method: 'PUT',
         body: JSON.stringify({ title: 'Draft', content, expectedDraftRevision }),
       })
     }
-    async function revision() {
+    const revision = async function revision() {
       const row = await env.DB.prepare('SELECT revision FROM wiki_draft_heads WHERE workspace_id = ? AND user_id = ?')
         .bind(fixture.workspace.id, fixture.user.id)
         .first<{ revision: string }>()

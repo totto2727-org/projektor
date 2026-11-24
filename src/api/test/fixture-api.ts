@@ -23,7 +23,7 @@ type FixtureCore = {
   ) => Promise<Awaited<ReturnType<FixtureOperations[Key]>>>
 }
 
-function core(): FixtureCore {
+const core = function core(): FixtureCore {
   // Only the native test Core entrypoint exposes these fixture operations.
   return Reflect.get(nativeEnv, 'CORE') as FixtureCore
 }
@@ -32,7 +32,7 @@ const originalCore = core()
 let explicitSettings: Readonly<Record<string, string | null>> = {}
 let settingsSnapshot: Record<string, string | null> = {}
 
-function synchronizeConfiguration(): void {
+const synchronizeConfiguration = function synchronizeConfiguration(): void {
   const configuration: Record<string, string | null> = {}
   for (const [key, value] of Object.entries(nativeEnv)) {
     if (key !== 'CORE_FIXTURE_CONFIGURATION' && (typeof value === 'string' || value === undefined)) {
@@ -151,7 +151,7 @@ const db = {
   },
 }
 
-function fixtureKV(namespace: 'KV' | 'OAUTH_KV') {
+const fixtureKV = function fixtureKV(namespace: 'KV' | 'OAUTH_KV') {
   return {
     get: (...args: unknown[]) => core().fixtureKV(namespace, 'get', args),
     getWithMetadata: (...args: unknown[]) => core().fixtureKV(namespace, 'getWithMetadata', args),
@@ -161,7 +161,7 @@ function fixtureKV(namespace: 'KV' | 'OAUTH_KV') {
   }
 }
 
-function r2Object(value: unknown): unknown {
+const r2Object = function r2Object(value: unknown): unknown {
   if (value === null || typeof value !== 'object') {
     return value
   }

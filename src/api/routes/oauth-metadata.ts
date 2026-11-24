@@ -41,7 +41,7 @@ const PUBLIC_HEADERS = {
   'Access-Control-Allow-Origin': '*',
 }
 
-function originOf(c: { req: { url: string } }): string {
+const originOf = function originOf(c: { req: { url: string } }): string {
   return new URL(c.req.url).origin
 }
 

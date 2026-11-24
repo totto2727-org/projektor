@@ -7,7 +7,7 @@ import type { ProjectMeta } from './types.ts'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
-function makeProject(overrides: Partial<ProjectMeta> = {}): ProjectMeta {
+const makeProject = function makeProject(overrides: Partial<ProjectMeta> = {}): ProjectMeta {
   return {
     workspace_slug: 'test-workspace',
     id: 'project-1',
@@ -18,7 +18,7 @@ function makeProject(overrides: Partial<ProjectMeta> = {}): ProjectMeta {
   }
 }
 
-function makeIssue(overrides: Partial<Issue> = {}): Issue {
+const makeIssue = function makeIssue(overrides: Partial<Issue> = {}): Issue {
   return {
     id: 'issue-1',
     number: 1,

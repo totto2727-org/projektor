@@ -50,7 +50,9 @@ globalThis.fetch = async (input, init) => {
   return nativeFetch(input, init)
 }
 
-function withFixtureRequest<A, E>(effect: Effect.Effect<A, E, WorkerEnvironment | WorkerExecutionContext>) {
+const withFixtureRequest = function withFixtureRequest<A, E>(
+  effect: Effect.Effect<A, E, WorkerEnvironment | WorkerExecutionContext>,
+) {
   return Effect.gen(function* () {
     const env = yield* WorkerEnvironment
     const context = yield* WorkerExecutionContext
@@ -218,7 +220,10 @@ function instrumentEnvironment(env: CoreEnvironment, props: unknown): CoreEnviro
 
 const fixtureLimiterCalls = new Map<string, number>()
 
-function fixtureLimiterNamespace(epoch: string, mode: 'reject' | 'hang'): NonNullable<CoreEnvironment['RATE_LIMITER']> {
+const fixtureLimiterNamespace = function fixtureLimiterNamespace(
+  epoch: string,
+  mode: 'reject' | 'hang',
+): NonNullable<CoreEnvironment['RATE_LIMITER']> {
   /*
    * Only the native test artifact injects failures. The real Core policy still
    * runs, and this counter observes each actual attempt from that policy.
@@ -256,7 +261,7 @@ function configuration(props: unknown): Record<string, string | undefined> {
   return result
 }
 
-function objectMetadata(object: R2Object) {
+const objectMetadata = function objectMetadata(object: R2Object) {
   return {
     key: object.key,
     version: object.version,

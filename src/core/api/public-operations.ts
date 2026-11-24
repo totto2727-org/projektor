@@ -19,7 +19,7 @@ import type { CoreEnvironment } from '../environment.ts'
 
 /** Public credentials are resolved here, never treated as preauthenticated adapter IDs. */
 export function makeApiPublicHandlers<R>(envSource: Effect.Effect<CoreEnvironment, never, R>) {
-  function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>) {
+  const attempt = function attempt<A>(operation: (env: CoreEnvironment) => Promise<A>) {
     return Effect.flatMap(envSource, (env) =>
       Effect.tryPromise({ try: () => operation(env), catch: publicDomainFailure }),
     )

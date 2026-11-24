@@ -33,7 +33,7 @@ describe('PROJ-894: stateless agent identity', () => {
     ;({ token, workspaceId, projectId, userId } = await seedProjectFixture())
   })
 
-  async function call(
+  const call = async function call(
     bearer: string,
     name: string,
     args: Record<string, unknown>,
@@ -63,7 +63,7 @@ describe('PROJ-894: stateless agent identity', () => {
     return { ok: true, value: JSON.parse(text) as Record<string, unknown>, message: '' }
   }
 
-  async function credentialIdOf(bearer: string): Promise<string> {
+  const credentialIdOf = async function credentialIdOf(bearer: string): Promise<string> {
     const row = await env.DB.prepare('SELECT id FROM api_tokens WHERE token_hash = ?')
       .bind(await hashToken(bearer))
       .first<{ id: string }>()
@@ -73,7 +73,7 @@ describe('PROJ-894: stateless agent identity', () => {
     return row.id
   }
 
-  async function register(bearer = token, name = 'agent'): Promise<string> {
+  const register = async function register(bearer = token, name = 'agent'): Promise<string> {
     const r = await call(bearer, 'register_agent', { name })
     expect(r.ok).toBe(true)
     return r.value.id as string

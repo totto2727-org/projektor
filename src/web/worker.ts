@@ -10,7 +10,7 @@ import { RequestServices, RequestServicesLive } from './request.ts'
 import { ScopeError } from './server/errors.ts'
 import { sessionNavigation } from './session-navigation.ts'
 
-function logoResponse(request: Request) {
+const logoResponse = function logoResponse(request: Request) {
   return Effect.gen(function* () {
     const services = yield* RequestServices
     const pathname = new URL(request.url).pathname

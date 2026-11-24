@@ -19,7 +19,7 @@ import { resetRateLimits } from './rate-limit-reset.ts'
 
 const ENTITY_ID = crypto.randomUUID()
 
-async function mcpCall<T>(
+const mcpCall = async function mcpCall<T>(
   workspaceId: string,
   method: string,
   params: unknown,
@@ -33,7 +33,7 @@ async function mcpCall<T>(
   return res.json()
 }
 
-async function mcpToolResult<T>(
+const mcpToolResult = async function mcpToolResult<T>(
   workspaceId: string,
   name: string,
   toolArgs: unknown,
@@ -53,7 +53,12 @@ async function mcpToolResult<T>(
   return JSON.parse(res.result.content[0].text) as T
 }
 
-function makeUploadRequest(token: string, slug: string, content = 'hello world', filename = 'test.txt') {
+const makeUploadRequest = function makeUploadRequest(
+  token: string,
+  slug: string,
+  content = 'hello world',
+  filename = 'test.txt',
+) {
   const form = new FormData()
   form.append('file', new File([content], filename, { type: 'text/plain' }))
   form.append('entityType', 'issue')
@@ -412,7 +417,7 @@ describe('Files API', () => {
   })
 
   describe('POST /api/files/links (wiki_ref and url attachment kinds)', () => {
-    async function createWikiPage(headers: Record<string, string>) {
+    const createWikiPage = async function createWikiPage(headers: Record<string, string>) {
       const res = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
@@ -940,7 +945,7 @@ describe('Attachment project visibility', () => {
   // A project the member can write.
   let grantedProjectId: string
 
-  async function seedAttachment(entityType: string, entityId: string, filename: string) {
+  const seedAttachment = async function seedAttachment(entityType: string, entityId: string, filename: string) {
     const id = crypto.randomUUID()
     const r2Key = `${workspaceId}/${crypto.randomUUID()}`
     await env.R2.put(r2Key, 'secret bytes')

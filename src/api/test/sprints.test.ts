@@ -29,7 +29,7 @@ describe('Sprints API', () => {
     ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
   })
 
-  async function createSprint(body: Record<string, unknown>) {
+  const createSprint = async function createSprint(body: Record<string, unknown>) {
     return fetchNativeApi('http://localhost/api/sprints', {
       method: 'POST',
       headers: authHeaders(token, slug),
@@ -370,7 +370,7 @@ describe('Sprints role guards', () => {
     expect(res.status).toBe(403)
   })
 
-  async function seedMemberSprintWithViewer(sprintName: string) {
+  const seedMemberSprintWithViewer = async function seedMemberSprintWithViewer(sprintName: string) {
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')

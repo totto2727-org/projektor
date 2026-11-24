@@ -15,14 +15,14 @@ import { recordActivity } from './activity.ts'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
 
-function requireAdmin(ctx: ServiceCtx): void {
+const requireAdmin = function requireAdmin(ctx: ServiceCtx): void {
   if (!isWorkspaceAdmin(ctx.role)) {
     throw new ForbiddenError()
   }
 }
 
 /** Load a group scoped to the workspace, or throw NotFound. */
-async function loadGroup(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, groupId: string) {
+const loadGroup = async function loadGroup(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, groupId: string) {
   const group = await orm
     .select()
     .from(schema.userGroups)
@@ -35,7 +35,7 @@ async function loadGroup(orm: ReturnType<typeof drizzle>, ctx: ServiceCtx, group
 }
 
 /** Requires workspace-admin, then loads the group (or throws NotFound). */
-async function requireAdminGroup(ctx: ServiceCtx, groupId: string) {
+const requireAdminGroup = async function requireAdminGroup(ctx: ServiceCtx, groupId: string) {
   requireAdmin(ctx)
   const orm = drizzle(ctx.db, { schema })
   const group = await loadGroup(orm, ctx, groupId)

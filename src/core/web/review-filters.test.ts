@@ -14,7 +14,7 @@ afterEach(() => {
   }
 })
 
-function fixture() {
+const fixture = function fixture() {
   const database = issueDataFixture()
   databases.push(database)
   const selected: { id: string; projectId: string; status: ReviewStatus }[] = []
@@ -56,7 +56,7 @@ function fixture() {
   })
   attach('selected-other', 'in_review', 'workspace-b')
   attach('issue-a', 'in_review', 'workspace-b')
-  function run<A, E>(operation: Effect.Effect<A, E, CoreReadServices>) {
+  const run = function run<A, E>(operation: Effect.Effect<A, E, CoreReadServices>) {
     return Effect.runPromise(operation.pipe(Effect.provideService(CoreReadServices, { db: database.db })))
   }
   const page = (params: string) => run(readDataIssuePage(scope, workspace.id, new URLSearchParams(params)))

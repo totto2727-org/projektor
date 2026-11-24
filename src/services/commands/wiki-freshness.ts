@@ -39,7 +39,7 @@ const SECONDS_PER_DAY = 86_400
  * `freshness` response field, which this function's return value now serializes into
  * directly (`freshness: computeFreshness(...)`).
  */
-function computeDueAt(verifiedAt: number | null, verifyInterval: number | null): number | null {
+const computeDueAt = function computeDueAt(verifiedAt: number | null, verifyInterval: number | null): number | null {
   if (verifyInterval === null || verifiedAt === null) {
     return null
   }
@@ -50,7 +50,7 @@ function computeDueAt(verifiedAt: number | null, verifyInterval: number | null):
  * A verify_interval/verifiedAt due date reached-or-passed, once there's no explicit
  * status override (see computeFreshness) and the page has been verified at least once.
  */
-function computeTimeBasedFreshness(dueAt: number | null, now: number): WikiFreshness {
+const computeTimeBasedFreshness = function computeTimeBasedFreshness(dueAt: number | null, now: number): WikiFreshness {
   if (dueAt !== null && dueAt <= now) {
     return { state: 'stale', staleSince: dueAt }
   }

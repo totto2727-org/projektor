@@ -18,7 +18,7 @@ import { resetRateLimits } from './rate-limit-reset.ts'
  * actual number of subrequests a call made — independent of (and a check on) the
  * production code's own internal budget accounting in index.ts.
  */
-function countSubrequests(realEnv: typeof env): { env: Env; count: () => number } {
+const countSubrequests = function countSubrequests(realEnv: typeof env): { env: Env; count: () => number } {
   let used = 0
   const bump = () => {
     used++
@@ -104,7 +104,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
     slug = fixture.workspace.slug
   })
 
-  async function req(url: string, opts?: RequestInit) {
+  const req = async function req(url: string, opts?: RequestInit) {
     await resetRateLimits()
     return fetchNativeApi(url, opts)
   }

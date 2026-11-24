@@ -110,11 +110,11 @@ export function splitShapeOpts(input: unknown): { rest: Record<string, unknown> 
   return { rest, ...result.data }
 }
 
-function isEmptyArray(v: unknown): boolean {
+const isEmptyArray = function isEmptyArray(v: unknown): boolean {
   return Array.isArray(v) && v.length === 0
 }
 
-function parseLabels(v: unknown): string[] | undefined {
+const parseLabels = function parseLabels(v: unknown): string[] | undefined {
   if (Array.isArray(v)) {
     return v.filter((x): x is string => typeof x === 'string')
   }
@@ -129,7 +129,7 @@ function parseLabels(v: unknown): string[] | undefined {
   }
 }
 
-function isZeroRollup(v: unknown): boolean {
+const isZeroRollup = function isZeroRollup(v: unknown): boolean {
   return !!v && typeof v === 'object' && (v as { total?: unknown }).total === 0
 }
 
@@ -150,14 +150,14 @@ const INTERNAL_ID_KEYS = ['workspace_id', 'project_id', 'type_id', 'status_id', 
 const DUPLICATE_KEYS = ['project_key', 'project_name', 'type_key', 'type_name', 'status_key', 'status_name'] as const
 
 /** `PROJ-42` from a raw issue row, or undefined when the project key isn't joined in. */
-function refOf(issue: Record<string, unknown>): string | undefined {
+const refOf = function refOf(issue: Record<string, unknown>): string | undefined {
   return typeof issue.project_key === 'string' && typeof issue.number === 'number'
     ? `${issue.project_key}-${issue.number}`
     : undefined
 }
 
 /** The summary view: enough to triage and to address the issue again. */
-function summarize(issue: Record<string, unknown>): Record<string, unknown> {
+const summarize = function summarize(issue: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   const ref = refOf(issue)
   if (ref) {
