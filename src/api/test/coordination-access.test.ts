@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 
@@ -68,21 +68,23 @@ const seedFloatingAgent = async function seedFloatingAgent(workspaceId: string, 
 }
 
 describe('covers PROJ-316 coordination data respects project visibility', () => {
-  let ws: Awaited<ReturnType<typeof seedWorkspaceRoles>>
-  let slug: string
-  let issueA: string
-  let issueB: string
+  type TestData = Readonly<{
+    issueA: string
+    issueB: string
+    slug: string
+    ws: Awaited<ReturnType<typeof seedWorkspaceRoles>>
+  }>
 
-  beforeEach(async () => {
-    ws = await seedWorkspaceRoles()
-    slug = ws.workspace.slug
+  const seedTestData = async function seedTestData(): Promise<TestData> {
+    const ws = await seedWorkspaceRoles()
+    const slug = ws.workspace.slug
     const projectA = await seedProject(ws.workspace.id, 'AAA')
     const projectB = await seedProject(ws.workspace.id, 'BBB')
     // The member can see project A only.
     await seedGroupGrant(ws.workspace.id, ws.member.user.id, projectA.id, 'member')
 
-    issueA = (await seedIssue(ws.workspace.id, projectA.id, ws.owner.user.id, { title: 'A' })).id
-    issueB = (await seedIssue(ws.workspace.id, projectB.id, ws.owner.user.id, { title: 'B' })).id
+    const issueA = (await seedIssue(ws.workspace.id, projectA.id, ws.owner.user.id, { title: 'A' })).id
+    const issueB = (await seedIssue(ws.workspace.id, projectB.id, ws.owner.user.id, { title: 'B' })).id
 
     /*
      * A live lease + agent on each issue, a file claim on each, and one agent
@@ -93,9 +95,11 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
     await seedFileClaim(ws.workspace.id, issueA, 'a/only.ts')
     await seedFileClaim(ws.workspace.id, issueB, 'b/secret.ts')
     await seedFloatingAgent(ws.workspace.id, 'floating')
-  })
+    return { issueA, issueB, slug, ws }
+  }
 
   test('owner sees leases/claims/agents across every project', async () => {
+    const { issueA, issueB, slug, ws } = await seedTestData()
     const token = ws.owner.token
     const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
     expect(leases.items.map((item) => item.issueId).sort(lexicalCompare)).toEqual(
@@ -110,6 +114,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
   })
 
   test("a member sees only the granted project's leases and file claims", async () => {
+    const { issueA, slug, ws } = await seedTestData()
     const token = ws.member.token
     const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
     expect(leases.items.map((item) => item.issueId)).toEqual([issueA])
@@ -119,6 +124,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
   })
 
   test('a member sees agents on granted projects plus issue-less agents, never hidden-project agents', async () => {
+    const { slug, ws } = await seedTestData()
     const agents = await mcpList('list_active_agents', ws.member.token, slug, ws.workspace.id)
     const names = agents.items.map((item) => item.name).sort(lexicalCompare)
     expect(names).toStrictEqual(['agent-A', 'floating'])
@@ -126,6 +132,7 @@ describe('covers PROJ-316 coordination data respects project visibility', () => 
   })
 
   test("a member with no grants at all sees none of another project's coordination data", async () => {
+    const { slug, ws } = await seedTestData()
     const token = ws.viewer.token // Viewer has no group grant
     const leases = await mcpList('list_issue_leases', token, slug, ws.workspace.id)
     expect(leases.items).toHaveLength(0)

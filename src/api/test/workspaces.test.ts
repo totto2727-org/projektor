@@ -336,20 +336,24 @@ describe('workspaces MCP', () => {
 })
 
 describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
-  let workspaceId: string
-  let slug: string
-  let ownerToken: string
-  let ownerHeaders: Record<string, string>
+  type TestData = Readonly<{
+    ownerHeaders: Record<string, string>
+    ownerToken: string
+    slug: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'owner' })
-    workspaceId = fixture.workspace.id
-    slug = fixture.workspace.slug
-    ownerToken = fixture.token
-    ownerHeaders = authHeaders(ownerToken, slug)
-  })
+    const workspaceId = fixture.workspace.id
+    const slug = fixture.workspace.slug
+    const ownerToken = fixture.token
+    const ownerHeaders = authHeaders(ownerToken, slug)
+    return { ownerHeaders, ownerToken, slug, workspaceId }
+  }
 
   test('owner can delete a workspace with no projects → 200 { ok: true }', async () => {
+    const { ownerHeaders, slug } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
       headers: ownerHeaders,
       method: 'DELETE',
@@ -360,6 +364,7 @@ describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
   })
 
   test('non-owner gets 403', async () => {
+    await seedTestData()
     const ws = await seedWorkspace(`del-403-${crypto.randomUUID().slice(0, 8)}`)
     const memberUser = await import('./helpers.ts').then((helpers) =>
       helpers.seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`),
@@ -374,6 +379,7 @@ describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
   })
 
   test('deleting DEFAULT_WORKSPACE_SLUG → 400 ValidationError', async () => {
+    await seedTestData()
     // The dev wrangler.toml sets DEFAULT_WORKSPACE_SLUG = "projektor"
     const defaultWs = await seedWorkspace('projektor')
     const ownerUser = await import('./helpers.ts').then((helpers) =>
@@ -389,6 +395,7 @@ describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
   })
 
   test('workspace with projects → 409 ConflictError', async () => {
+    const { ownerHeaders, slug, workspaceId } = await seedTestData()
     await seedProject(workspaceId)
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
       headers: ownerHeaders,
@@ -398,6 +405,7 @@ describe('handles DELETE /api/workspaces/:slug (PROJ-96)', () => {
   })
 
   test('covers URL slug mismatched with X-Workspace-Slug header → 404, neither workspace is deleted (PROJ-437)', async () => {
+    const { ownerHeaders, slug } = await seedTestData()
     /*
      * Ctx.workspaceId (and thus the actual delete target) is resolved from the header,
      * not the URL. Naming a *different* workspace in the URL must not silently delete
@@ -477,20 +485,24 @@ describe('handles GET /api/workspaces/:slug (currentUserRole)', () => {
 })
 
 describe('handles GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
-  let workspaceId: string
-  let slug: string
-  let memberToken: string
-  let memberHeaders: Record<string, string>
+  type TestData = Readonly<{
+    memberHeaders: Record<string, string>
+    memberToken: string
+    slug: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'member' })
-    workspaceId = fixture.workspace.id
-    slug = fixture.workspace.slug
-    memberToken = fixture.token
-    memberHeaders = authHeaders(memberToken, slug)
-  })
+    const workspaceId = fixture.workspace.id
+    const slug = fixture.workspace.slug
+    const memberToken = fixture.token
+    const memberHeaders = authHeaders(memberToken, slug)
+    return { memberHeaders, memberToken, slug, workspaceId }
+  }
 
   test('returns mcpUrl, workspaceId, workspaceSlug, mcpAddCommandTemplate', async () => {
+    const { memberHeaders, slug, workspaceId } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/mcp-info`, {
       headers: memberHeaders,
     })
@@ -513,6 +525,7 @@ describe('handles GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
   })
 
   test('mcpAddCommandTemplate puts flags before the name/url positionals (PROJ-620)', async () => {
+    const { memberHeaders, slug } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/mcp-info`, {
       headers: memberHeaders,
     })
@@ -531,22 +544,26 @@ describe('handles GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
 })
 
 describe('workspace brand (PROJ-761)', () => {
-  let slug: string
-  let ownerHeaders: Record<string, string>
-  let memberHeaders: Record<string, string>
+  type TestData = Readonly<{
+    memberHeaders: Record<string, string>
+    ownerHeaders: Record<string, string>
+    slug: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const owner = await seedFixture({ role: 'owner' })
-    slug = owner.workspace.slug
-    ownerHeaders = authHeaders(owner.token, slug)
+    const slug = owner.workspace.slug
+    const ownerHeaders = authHeaders(owner.token, slug)
 
     const memberUser = await seedUser(`m-${crypto.randomUUID().slice(0, 8)}@example.com`)
     await seedMember(owner.workspace.id, memberUser.id, 'member')
     const memberToken = await seedToken(owner.workspace.id, memberUser.id)
-    memberHeaders = authHeaders(memberToken, slug)
-  })
+    const memberHeaders = authHeaders(memberToken, slug)
+    return { memberHeaders, ownerHeaders, slug }
+  }
 
   test('handles GET /:slug/brand returns all-null defaults for a workspace with no brand set', async () => {
+    const { memberHeaders, slug } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
@@ -562,6 +579,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('owner can PATCH accent/displayName and a member can read the result back', async () => {
+    const { memberHeaders, ownerHeaders, slug } = await seedTestData()
     const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -581,6 +599,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('a member (non admin/owner) gets 403 on PATCH', async () => {
+    const { memberHeaders, slug } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: memberHeaders,
@@ -590,6 +609,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('rejects a non-hex accent value with 400', async () => {
+    const { ownerHeaders, slug } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -599,6 +619,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('explicit null clears a previously-set field without touching the others', async () => {
+    const { ownerHeaders, slug } = await seedTestData()
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -618,6 +639,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test("owner can upload a logo, it's servable, and a re-upload replaces (not duplicates) the R2 object", async () => {
+    const { memberHeaders, ownerHeaders, slug } = await seedTestData()
     const pngBytes = new Uint8Array([
       0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
     ])
@@ -654,6 +676,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('rejects an oversized logo with 413', async () => {
+    const { ownerHeaders, slug } = await seedTestData()
     const big = new Uint8Array(2 * 1024 * 1024 + 1)
     const form = new FormData()
     form.append('file', new File([big], 'big.png', { type: 'image/png' }))
@@ -666,6 +689,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('rejects a disallowed logo content type with 415', async () => {
+    const { ownerHeaders, slug } = await seedTestData()
     const form = new FormData()
     form.append('file', new File(['<svg></svg>'], 'logo.svg', { type: 'image/svg+xml' }))
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
@@ -677,6 +701,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('a member (non admin/owner) gets 403 on logo upload', async () => {
+    const { memberHeaders, slug } = await seedTestData()
     const form = new FormData()
     form.append('file', new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }))
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
@@ -688,6 +713,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('handles GET logo → 404 when no logo has been uploaded', async () => {
+    const { memberHeaders, slug } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       headers: memberHeaders,
     })
@@ -695,6 +721,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('owner can delete the logo, which then 404s', async () => {
+    const { memberHeaders, ownerHeaders, slug } = await seedTestData()
     const form = new FormData()
     form.append('file', new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }))
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
@@ -721,6 +748,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('a member (non admin/owner) gets 403 on logo delete', async () => {
+    const { memberHeaders, slug } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       headers: memberHeaders,
       method: 'DELETE',
@@ -729,6 +757,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('review finding 2: rejects a javascript: fontUrl with 400', async () => {
+    const { ownerHeaders, slug } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -738,6 +767,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('review finding 2: rejects a data: fontUrl with 400', async () => {
+    const { ownerHeaders, slug } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -747,6 +777,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('review finding 2: accepts an https: fontUrl', async () => {
+    const { ownerHeaders, slug } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
@@ -758,6 +789,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test('review finding 3: GET logo 404s when the stored R2 key belongs to another workspace', async () => {
+    const { memberHeaders, slug } = await seedTestData()
     const { env } = await import('./fixture-api.ts')
     const foreignKey = `${crypto.randomUUID()}/brand-logo/${crypto.randomUUID()}`
     await env.R2.put(foreignKey, new Uint8Array([1, 2, 3]))
@@ -772,6 +804,7 @@ describe('workspace brand (PROJ-761)', () => {
   })
 
   test("review finding 4: PATCH /:slug/brand operates on the header-resolved workspace, not the URL slug, and doesn't touch the URL's workspace", async () => {
+    const { memberHeaders, ownerHeaders, slug } = await seedTestData()
     const other = await seedFixture({ role: 'owner' })
 
     const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${other.workspace.slug}/brand`, {

@@ -1,5 +1,5 @@
 import { String, Predicate } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 import {
@@ -98,14 +98,17 @@ const countSubrequests = function countSubrequests(realEnv: typeof env): { env: 
  * and backdate trash.
  */
 describe('scheduled wiki trash purge (PROJ-496)', () => {
-  let token: string
-  let slug: string
+  type TestData = Readonly<{
+    slug: string
+    token: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'admin' })
-    token = fixture.token
-    slug = fixture.workspace.slug
-  })
+    const token = fixture.token
+    const slug = fixture.workspace.slug
+    return { slug, token }
+  }
 
   const req = async function req(url: string, opts?: RequestInit): Promise<Response> {
     await resetRateLimits()
@@ -113,6 +116,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
   }
 
   test('purges expired trash across every workspace, leaving unexpired trash untouched', async () => {
+    const { slug, token } = await seedTestData()
     const other = await seedFixture({ role: 'admin' })
 
     const pageRes = await req('http://localhost/api/wiki', {
@@ -150,6 +154,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
   })
 
   test('does not throw when a workspace has no expired trash', async () => {
+    await seedTestData()
     await expect(purgeAllWorkspacesExpiredWikiPages(env)).resolves.toBeUndefined()
   })
 })

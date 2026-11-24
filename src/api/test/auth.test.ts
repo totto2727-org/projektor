@@ -1278,18 +1278,22 @@ describe('covers PROJ-79: MCP error contract — serviceErr → tool error codes
 })
 
 describe('covers PROJ-79: MCP protocol validation', () => {
-  let workspaceId: string
-  let slug: string
-  let ownerHeaders: Record<string, string>
+  type TestData = Readonly<{
+    ownerHeaders: Record<string, string>
+    slug: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'owner' })
-    workspaceId = fixture.workspace.id
-    slug = fixture.workspace.slug
-    ownerHeaders = authHeaders(fixture.token, slug)
-  })
+    const workspaceId = fixture.workspace.id
+    const slug = fixture.workspace.slug
+    const ownerHeaders = authHeaders(fixture.token, slug)
+    return { ownerHeaders, slug, workspaceId }
+  }
 
   test('wrong jsonrpc version returns HTTP 400 with error code -32600', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -1306,6 +1310,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
   })
 
   test('unknown method returns JSON-RPC error -32601', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -1316,6 +1321,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
   })
 
   test('unknown tool name returns JSON-RPC error -32601 with tool name in message', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -1335,6 +1341,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
   })
 
   test('unknown workspace slug returns 404 from workspaceMiddleware', async () => {
+    await seedTestData()
     const fixture = await seedFixture()
     const res = await fetchNativeApi(`http://localhost/mcp/${crypto.randomUUID()}`, {
       method: 'POST',
@@ -1350,6 +1357,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
   })
 
   test('non-object params on tools/call is handled without crashing', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
@@ -1365,6 +1373,7 @@ describe('covers PROJ-79: MCP protocol validation', () => {
   })
 
   test('missing id field is handled (server echoes null/undefined id without crashing)', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,

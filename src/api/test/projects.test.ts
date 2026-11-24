@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
@@ -31,26 +31,30 @@ const isMcpError = function isMcpError(rpc: JsonRpcResult | JsonRpcError): rpc i
 }
 
 describe('projects REST', () => {
-  let ownerToken: string
-  let memberToken: string
-  let viewerToken: string
-  let slug: string
-  let ownerHeaders: Record<string, string>
-  let memberHeaders: Record<string, string>
-  let viewerHeaders: Record<string, string>
+  type TestData = Readonly<{
+    memberHeaders: Record<string, string>
+    memberToken: string
+    ownerHeaders: Record<string, string>
+    ownerToken: string
+    slug: string
+    viewerHeaders: Record<string, string>
+    viewerToken: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    slug = roles.workspace.slug
-    ownerToken = roles.owner.token
-    memberToken = roles.member.token
-    viewerToken = roles.viewer.token
-    ownerHeaders = authHeaders(ownerToken, slug)
-    memberHeaders = authHeaders(memberToken, slug)
-    viewerHeaders = authHeaders(viewerToken, slug)
-  })
+    const slug = roles.workspace.slug
+    const ownerToken = roles.owner.token
+    const memberToken = roles.member.token
+    const viewerToken = roles.viewer.token
+    const ownerHeaders = authHeaders(ownerToken, slug)
+    const memberHeaders = authHeaders(memberToken, slug)
+    const viewerHeaders = authHeaders(viewerToken, slug)
+    return { memberHeaders, memberToken, ownerHeaders, ownerToken, slug, viewerHeaders, viewerToken }
+  }
 
   test('handles GET /api/projects returns empty list initially', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     expect(res.status).toBe(200)
     const body = await readNativeJson(res, JsonListResponse)
@@ -59,6 +63,7 @@ describe('projects REST', () => {
   })
 
   test('handles POST /api/projects creates a project (owner)', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -75,6 +80,7 @@ describe('projects REST', () => {
   })
 
   test('handles POST /api/projects accepts lowercase key and uppercases it', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -86,6 +92,7 @@ describe('projects REST', () => {
   })
 
   test('handles POST /api/projects rejects member role (403)', async () => {
+    const { memberHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: memberHeaders,
@@ -95,6 +102,7 @@ describe('projects REST', () => {
   })
 
   test('handles POST /api/projects rejects viewer role (403)', async () => {
+    const { viewerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: viewerHeaders,
@@ -104,6 +112,7 @@ describe('projects REST', () => {
   })
 
   test('handles POST /api/projects returns 409 for duplicate key', async () => {
+    const { ownerHeaders } = await seedTestData()
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -118,6 +127,7 @@ describe('projects REST', () => {
   })
 
   test('handles POST /api/projects returns 400 for invalid key format', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -127,6 +137,7 @@ describe('projects REST', () => {
   })
 
   test('handles POST /api/projects returns 400 for a key starting with a digit (PROJ-440)', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -136,6 +147,7 @@ describe('projects REST', () => {
   })
 
   test('handles POST /api/projects accepts a key containing digits after the first character (PROJ-440)', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -145,6 +157,7 @@ describe('projects REST', () => {
   })
 
   test('handles POST /api/projects returns 400 for name too long', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -154,6 +167,7 @@ describe('projects REST', () => {
   })
 
   test('handles POST /api/projects stores NULL description by default', async () => {
+    const { ownerHeaders } = await seedTestData()
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -170,6 +184,7 @@ describe('projects REST', () => {
   })
 
   test('handles GET /api/projects/:id returns the project', async () => {
+    const { ownerHeaders } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -185,6 +200,7 @@ describe('projects REST', () => {
   })
 
   test('handles GET /api/projects/:id returns 404 for missing project', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/projects/${crypto.randomUUID()}`, {
       headers: ownerHeaders,
     })
@@ -192,6 +208,7 @@ describe('projects REST', () => {
   })
 
   test('handles PATCH /api/projects/:id updates name (owner)', async () => {
+    const { ownerHeaders } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -208,6 +225,7 @@ describe('projects REST', () => {
   })
 
   test('handles PATCH /api/projects/:id rejects member (403)', async () => {
+    const { memberHeaders, ownerHeaders } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -224,6 +242,7 @@ describe('projects REST', () => {
   })
 
   test('handles PATCH /api/projects/:id archives and unarchives a project', async () => {
+    const { ownerHeaders } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -270,6 +289,7 @@ describe('projects REST', () => {
   })
 
   test('handles DELETE /api/projects/:id works for owner', async () => {
+    const { ownerHeaders } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -285,6 +305,7 @@ describe('projects REST', () => {
   })
 
   test('handles DELETE /api/projects/:id rejects member (403)', async () => {
+    const { memberHeaders, ownerHeaders } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -301,24 +322,28 @@ describe('projects REST', () => {
 })
 
 describe('projects MCP', () => {
-  let ownerToken: string
-  let slug: string
-  let workspaceId: string
-  let ownerHeaders: Record<string, string>
-  let memberHeaders: Record<string, string>
-  let viewerHeaders: Record<string, string>
+  type TestData = Readonly<{
+    memberHeaders: Record<string, string>
+    ownerHeaders: Record<string, string>
+    ownerToken: string
+    slug: string
+    viewerHeaders: Record<string, string>
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    slug = roles.workspace.slug
-    workspaceId = roles.workspace.id
-    ownerToken = roles.owner.token
-    ownerHeaders = authHeaders(ownerToken, slug)
-    memberHeaders = authHeaders(roles.member.token, slug)
-    viewerHeaders = authHeaders(roles.viewer.token, slug)
-  })
+    const slug = roles.workspace.slug
+    const workspaceId = roles.workspace.id
+    const ownerToken = roles.owner.token
+    const ownerHeaders = authHeaders(ownerToken, slug)
+    const memberHeaders = authHeaders(roles.member.token, slug)
+    const viewerHeaders = authHeaders(roles.viewer.token, slug)
+    return { memberHeaders, ownerHeaders, ownerToken, slug, viewerHeaders, workspaceId }
+  }
 
   test('list_projects returns empty list initially', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ content: { text: string }[] }>(
       workspaceId,
       'list_projects',
@@ -333,6 +358,7 @@ describe('projects MCP', () => {
   })
 
   test('create_project succeeds for owner', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_project', { name: 'MCP Project', key: 'MCP' }, ownerHeaders)
     expect(isMcpError(res)).toBe(false)
     expect(toolError(res)).toBeUndefined()
@@ -346,6 +372,7 @@ describe('projects MCP', () => {
   })
 
   test('create_project uppercases key', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = (await mcpCall(
       workspaceId,
       'create_project',
@@ -357,32 +384,38 @@ describe('projects MCP', () => {
   })
 
   test('create_project rejects member role', async () => {
+    const { memberHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLKD' }, memberHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('create_project rejects viewer role', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLKD' }, viewerHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('create_project rejects duplicate key', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     await mcpCall(workspaceId, 'create_project', { name: 'First', key: 'DUPL' }, ownerHeaders)
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Second', key: 'DUPL' }, ownerHeaders)
     expect(toolError(res)?.code).toBe('conflict')
   })
 
   test('create_project rejects invalid key format', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Bad', key: 'BAD KEY!' }, ownerHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })
 
   test('create_project rejects name too long', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_project', { name: 'x'.repeat(101), key: 'TOOLNG' }, ownerHeaders)
     expect(toolError(res)?.code).toBe('validation')
   })
 
   test('create_project stores NULL description by default', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     await mcpCall(workspaceId, 'create_project', { name: 'NullDesc', key: 'MCPND' }, ownerHeaders)
 
     const listRes = (await mcpCall<{ content: { text: string }[] }>(
@@ -403,6 +436,7 @@ describe('projects MCP', () => {
   })
 
   test('covers REST GET /api/projects returns workspace_slug and open_issue_count fields', async () => {
+    const { ownerHeaders } = await seedTestData()
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -432,6 +466,7 @@ describe('projects MCP', () => {
   })
 
   test('covers REST and MCP list_projects return the same keys', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     // Create via REST
     await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
@@ -457,6 +492,7 @@ describe('projects MCP', () => {
   })
 
   test('update_project archives a project and list_projects excludes it by default', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const createRes = await mcpCall(
       workspaceId,
       'create_project',
@@ -494,6 +530,7 @@ describe('projects MCP', () => {
   })
 
   test('covers REST create_project and MCP create_project enforce the same role guard', async () => {
+    const { memberHeaders, workspaceId } = await seedTestData()
     const restRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: memberHeaders,

@@ -1,5 +1,5 @@
 import { Iterable } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { TOOL_COUNT, TOOL_DOMAIN_SLUGS } from '#api/mcp/catalog.ts'
 
@@ -33,16 +33,20 @@ const mcpCall = async function mcpCall<T>(
 }
 
 describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
-  let workspaceId: string
-  let headers: Record<string, string>
+  type TestData = Readonly<{
+    headers: Record<string, string>
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    workspaceId = fixture.workspace.id
-    headers = authHeaders(fixture.token, fixture.workspace.slug)
-  })
+    const workspaceId = fixture.workspace.id
+    const headers = authHeaders(fixture.token, fixture.workspace.slug)
+    return { headers, workspaceId }
+  }
 
   test('no domains param returns the full unfiltered catalog', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
@@ -53,6 +57,7 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
   })
 
   test("filters to the requested domain's tools only", async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
@@ -68,6 +73,7 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
   })
 
   test('unions tools across multiple requested domains', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
@@ -81,6 +87,7 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
   })
 
   test('dedupes repeated slugs and ignores order', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const dupRes = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
@@ -119,6 +126,7 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
   })
 
   test('unknown domain slug returns 400 naming valid domains, never a silent full catalog', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = await mcpFetch(workspaceId, 'tools/list', {}, headers, '?domains=not-a-domain')
     expect(res.status).toBe(400)
     const body = (await res.json()) as JsonRpcError
@@ -129,11 +137,13 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
   })
 
   test('one unknown slug among valid ones still 400s (fail closed)', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = await mcpFetch(workspaceId, 'tools/list', {}, headers, '?domains=issues,bogus-domain')
     expect(res.status).toBe(400)
   })
 
   test('blank domains param behaves like no filter', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',
@@ -145,6 +155,7 @@ describe('covers MCP tools/list domain filtering (PROJ-716)', () => {
   })
 
   test('tools/call still serves a tool that was filtered out of the listing', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const listRes = (await mcpCall<{ tools: { name: string }[] }>(
       workspaceId,
       'tools/list',

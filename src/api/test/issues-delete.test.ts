@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 /*
  * PROJ-922: deleteIssue must explicitly remove/null every row that references the
@@ -32,23 +32,27 @@ const tableCount = async function tableCount(sql: string, ...params: unknown[]):
 }
 
 describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
+  type TestData = Readonly<{
+    projectId: string
+    slug: string
+    token: string
+    userId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture({ role: 'owner' })
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-    userId = fixture.user.id
+    const token = fixture.token
+    const slug = fixture.workspace.slug
+    const workspaceId = fixture.workspace.id
+    const userId = fixture.user.id
     const project = await seedProject(workspaceId)
-    projectId = project.id
-  })
+    const projectId = project.id
+    return { projectId, slug, token, userId, workspaceId }
+  }
 
   test('removes or nulls every row referencing the deleted issue, and its R2 attachments', async () => {
+    const { projectId, slug, token, userId, workspaceId } = await seedTestData()
     const { id: issueId } = await seedIssue(workspaceId, projectId, userId)
     const { id: otherIssueId } = await seedIssue(workspaceId, projectId, userId, {
       title: 'Other issue',

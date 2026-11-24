@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import {
@@ -32,14 +32,16 @@ const mcpCall = async function mcpCall<T>(
 }
 
 describe('comments REST API', () => {
-  let token: string
-  let slug: string
-  let userId: string
-  let issueId: string
+  type TestData = Readonly<{
+    issueId: string
+    slug: string
+    token: string
+    userId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedProjectFixture()
-    ;({ token, slug, userId } = fixture)
+    const { token, slug, userId } = fixture
 
     const res = await fetchNativeApi('http://localhost/api/issues', {
       body: JSON.stringify({ projectId: fixture.projectId, title: 'Issue with comments' }),
@@ -47,10 +49,12 @@ describe('comments REST API', () => {
       method: 'POST',
     })
     const body = await readNativeJson(res, IdResponse)
-    issueId = body.id
-  })
+    const issueId = body.id
+    return { issueId, slug, token, userId }
+  }
 
   test('handles GET /:issueId/comments returns empty list', async () => {
+    const { issueId, slug, token } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
@@ -61,6 +65,7 @@ describe('comments REST API', () => {
   })
 
   test('handles POST /:issueId/comments creates a comment', async () => {
+    const { issueId, slug, token } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       body: JSON.stringify({ body: 'Hello world' }),
       headers: authHeaders(token, slug),
@@ -77,6 +82,7 @@ describe('comments REST API', () => {
    * same as agents — see middleware/auth.ts / conventions.md for the human/agent split.
    */
   test('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
+    const { issueId, slug, token } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       body: JSON.stringify({ authorKind: 'human', body: 'Hello world' }),
       headers: authHeaders(token, slug),
@@ -92,6 +98,7 @@ describe('comments REST API', () => {
   })
 
   test('handles GET after POST returns the comment', async () => {
+    const { issueId, slug, token } = await seedTestData()
     await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       body: JSON.stringify({ body: 'First comment' }),
       headers: authHeaders(token, slug),
@@ -107,6 +114,7 @@ describe('comments REST API', () => {
   })
 
   test('handles POST rejects body that exceeds 10000 chars', async () => {
+    const { issueId, slug, token } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       body: JSON.stringify({ body: 'x'.repeat(10_001) }),
       headers: authHeaders(token, slug),
@@ -116,6 +124,7 @@ describe('comments REST API', () => {
   })
 
   test('handles POST rejects empty body', async () => {
+    const { issueId, slug, token } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       body: JSON.stringify({ body: '' }),
       headers: authHeaders(token, slug),
@@ -129,6 +138,7 @@ describe('comments REST API', () => {
    * enforces (comments.ts:76) — a workspace/project viewer could post comments.
    */
   test('handles POST returns 403 for a project viewer', async () => {
+    await seedTestData()
     const roles = await seedWorkspaceRoles()
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
@@ -149,6 +159,7 @@ describe('comments REST API', () => {
   })
 
   test('handles GET returns 404 for issue in another workspace', async () => {
+    const { issueId } = await seedTestData()
     const other = await seedFixture()
     // issueId belongs to the first workspace; use other workspace's token+slug
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
@@ -158,6 +169,7 @@ describe('comments REST API', () => {
   })
 
   test('handles PATCH updates own comment', async () => {
+    const { issueId, slug, token, userId } = await seedTestData()
     const comment = await seedComment(issueId, userId)
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
@@ -178,6 +190,7 @@ describe('comments REST API', () => {
   })
 
   test("handles PATCH returns 403 when editing another user's comment", async () => {
+    const { issueId, slug, token } = await seedTestData()
     const other = await seedFixture()
     // Seed a comment by a different user on the same issue (cross-user test within same ws)
     const comment = await seedComment(issueId, other.user.id)
@@ -191,6 +204,7 @@ describe('comments REST API', () => {
   })
 
   test('handles DELETE removes own comment', async () => {
+    const { issueId, slug, token, userId } = await seedTestData()
     const comment = await seedComment(issueId, userId)
 
     const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {

@@ -1,5 +1,5 @@
 import { Iterable, Predicate } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { currentEpochSeconds } from '#contracts/time.ts'
 
@@ -98,19 +98,23 @@ const seedWikiPage = async function seedWikiPage(
 }
 
 describe('list_project_activity MCP tool', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-  let headers: Record<string, string>
+  type TestData = Readonly<{
+    headers: Record<string, string>
+    projectId: string
+    slug: string
+    token: string
+    userId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
-    headers = authHeaders(token, slug)
-  })
+  const seedTestData = async function seedTestData(): Promise<TestData> {
+    const { token, slug, workspaceId, userId, projectId } = await seedProjectFixture()
+    const headers = authHeaders(token, slug)
+    return { headers, projectId, slug, token, userId, workspaceId }
+  }
 
   test('returns empty array when project has no activity', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const res = await mcpCall<McpContent>(workspaceId, 'list_project_activity', { projectId }, headers)
     const events = parseEvents(res)
     expect(Array.isArray(events)).toBe(true)
@@ -118,6 +122,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns issue_created events', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedIssue(workspaceId, projectId, userId, { title: 'My Issue' })
 
     const res = (await mcpCall<McpContent>(
@@ -143,6 +148,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns issue_commented events', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     const issue = await seedIssue(workspaceId, projectId, userId)
     await seedComment(issue.id, userId, 'Hello world')
 
@@ -163,6 +169,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns wiki_page_created events', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedWikiPage(workspaceId, projectId, userId, { title: 'Design Doc' })
 
     const res = (await mcpCall<McpContent>(
@@ -186,6 +193,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns wiki_page_edited events when updated_at differs from created_at', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedWikiPage(workspaceId, projectId, userId, {
       title: 'Edited Doc',
       updatedAt: currentEpochSeconds() + 10,
@@ -206,6 +214,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('does not return wiki_page_edited when page was never updated', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedWikiPage(workspaceId, projectId, userId, { title: 'Untouched' })
 
     const res = (await mcpCall<McpContent>(
@@ -223,6 +232,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('excludes trashed wiki pages from wiki_page_created/wiki_page_edited events', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedWikiPage(workspaceId, projectId, userId, {
       title: 'Trashed Doc',
       deletedAt: currentEpochSeconds(),
@@ -244,6 +254,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns sprint_started events for active sprints with a start_date', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const now = currentEpochSeconds()
     await seedSprint(workspaceId, projectId, {
       name: 'Sprint Alpha',
@@ -270,6 +281,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns sprint_completed events for completed sprints', async () => {
+    const { headers, projectId, workspaceId } = await seedTestData()
     const now = currentEpochSeconds()
     await seedSprint(workspaceId, projectId, {
       name: 'Sprint Beta',
@@ -298,6 +310,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('respects the limit parameter', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     for (let index = 0; index < 5; index++) {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
     }
@@ -313,6 +326,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('respects the since filter', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     const past = currentEpochSeconds() - 3600
     await seedIssue(workspaceId, projectId, userId, { title: 'Old issue', createdAt: past - 1 })
     await seedIssue(workspaceId, projectId, userId, { title: 'New issue' })
@@ -333,6 +347,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns events ordered most-recent first', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     const base = currentEpochSeconds() - 100
     await seedIssue(workspaceId, projectId, userId, { createdAt: base, title: 'Older' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Newer', createdAt: base + 50 })
@@ -356,6 +371,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('scopes events to the given project and not other projects', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     const other = await seedProject(workspaceId, 'OTHER')
     await seedIssue(workspaceId, other.id, userId, { title: 'Other project issue' })
     await seedIssue(workspaceId, projectId, userId, { title: 'This project issue' })
@@ -376,6 +392,7 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns error for unknown project', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'list_project_activity', { projectId: crypto.randomUUID() }, headers)
     const err = toolError(res)
     expect(err?.code).toBe('not_found')
@@ -383,11 +400,13 @@ describe('list_project_activity MCP tool', () => {
   })
 
   test('returns error when projectId is missing', async () => {
+    const { headers, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'list_project_activity', {}, headers)
     expect(toolError(res)?.code).toBe('validation')
   })
 
   test('response shape is flat (no nested objects)', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedIssue(workspaceId, projectId, userId, { title: 'Flat check' })
 
     const res = (await mcpCall<McpContent>(
@@ -410,19 +429,23 @@ describe('list_project_activity MCP tool', () => {
 })
 
 describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
-  let projectId: string
-  let userId: string
-  let headers: Record<string, string>
+  type TestData = Readonly<{
+    headers: Record<string, string>
+    projectId: string
+    slug: string
+    token: string
+    userId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
-    ;({ token, slug, workspaceId, userId, projectId } = await seedProjectFixture())
-    headers = authHeaders(token, slug)
-  })
+  const seedTestData = async function seedTestData(): Promise<TestData> {
+    const { token, slug, workspaceId, userId, projectId } = await seedProjectFixture()
+    const headers = authHeaders(token, slug)
+    return { headers, projectId, slug, token, userId, workspaceId }
+  }
 
   test('returns empty array when project has no activity', async () => {
+    const { headers, projectId } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity`, {
       headers,
     })
@@ -432,6 +455,7 @@ describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
   })
 
   test("returns issue_created events, matching the MCP tool's behavior", async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     await seedIssue(workspaceId, projectId, userId, { title: 'REST activity issue' })
 
     const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity`, {
@@ -445,6 +469,7 @@ describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
   })
 
   test('respects the limit query param', async () => {
+    const { headers, projectId, userId, workspaceId } = await seedTestData()
     for (let index = 0; index < 5; index++) {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${index}` })
     }
@@ -457,6 +482,7 @@ describe('handles GET /api/projects/:id/activity (PROJ-245)', () => {
   })
 
   test('returns 404 for an unknown project', async () => {
+    const { headers } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/projects/${crypto.randomUUID()}/activity`, {
       headers,
     })

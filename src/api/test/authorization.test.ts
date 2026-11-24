@@ -70,26 +70,30 @@ const isMcpError = function isMcpError(rpc: JsonRpcResult | JsonRpcError): rpc i
 // ---------------------------------------------------------------------------
 
 describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes', () => {
-  let slug: string
-  let workspaceId: string
-  let ownerHeaders: Record<string, string>
-  let viewerHeaders: Record<string, string>
-  let ownerId: string
-  let viewerId: string
+  type TestData = Readonly<{
+    ownerHeaders: Record<string, string>
+    ownerId: string
+    slug: string
+    viewerHeaders: Record<string, string>
+    viewerId: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    slug = roles.workspace.slug
-    workspaceId = roles.workspace.id
-    ownerHeaders = authHeaders(roles.owner.token, slug)
-    viewerHeaders = authHeaders(roles.viewer.token, slug)
-    ownerId = roles.owner.user.id
-    viewerId = roles.viewer.user.id
-  })
+    const slug = roles.workspace.slug
+    const workspaceId = roles.workspace.id
+    const ownerHeaders = authHeaders(roles.owner.token, slug)
+    const viewerHeaders = authHeaders(roles.viewer.token, slug)
+    const ownerId = roles.owner.user.id
+    const viewerId = roles.viewer.user.id
+    return { ownerHeaders, ownerId, slug, viewerHeaders, viewerId, workspaceId }
+  }
 
   // -- Projects --
 
   test('viewer cannot POST /api/projects', async () => {
+    const { viewerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: viewerHeaders,
@@ -99,6 +103,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('owner CAN POST /api/projects', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -108,6 +113,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('viewer cannot PATCH /api/projects/:id', async () => {
+    const { ownerHeaders, viewerHeaders } = await seedTestData()
     // Owner creates, viewer tries to update
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
@@ -125,6 +131,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('viewer cannot DELETE /api/projects/:id', async () => {
+    const { ownerHeaders, viewerHeaders } = await seedTestData()
     const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
@@ -142,6 +149,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   // -- Task types --
 
   test('viewer cannot POST /api/task-types', async () => {
+    const { viewerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: viewerHeaders,
@@ -151,6 +159,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('owner CAN POST /api/task-types', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: ownerHeaders,
@@ -160,6 +169,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('viewer cannot PATCH /api/task-types/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
       method: 'PATCH',
@@ -170,6 +180,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('viewer cannot DELETE /api/task-types/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
     const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
       headers: viewerHeaders,
@@ -181,6 +192,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   // -- Task statuses --
 
   test('viewer cannot POST /api/task-statuses', async () => {
+    const { viewerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: viewerHeaders,
@@ -190,6 +202,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('owner CAN POST /api/task-statuses', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: ownerHeaders,
@@ -199,6 +212,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('viewer cannot PATCH /api/task-statuses/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedTaskStatus(workspaceId, { key: 'todo-st', name: 'Todo' })
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       method: 'PATCH',
@@ -209,6 +223,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('viewer cannot DELETE /api/task-statuses/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedTaskStatus(workspaceId, { key: 'del-st', name: 'Del' })
     const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       headers: viewerHeaders,
@@ -220,6 +235,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   // -- Custom fields --
 
   test('viewer cannot POST /api/custom-fields', async () => {
+    const { viewerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: viewerHeaders,
@@ -229,6 +245,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('owner CAN POST /api/custom-fields', async () => {
+    const { ownerHeaders } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: ownerHeaders,
@@ -238,6 +255,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('viewer cannot PATCH /api/custom-fields/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'cf_patch', type: 'text' })
     const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
       method: 'PATCH',
@@ -248,6 +266,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('viewer cannot DELETE /api/custom-fields/:id', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'cf_del', type: 'text' })
     const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
       headers: viewerHeaders,
@@ -260,6 +279,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   // Only DELETE enforces viewer restriction; create/update are intentionally open.
 
   test('viewer cannot DELETE /api/wiki/:slug', async () => {
+    const { ownerHeaders, viewerHeaders } = await seedTestData()
     // Owner creates a wiki page; viewer tries to delete it
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
@@ -274,6 +294,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
   })
 
   test('member CAN DELETE /api/wiki/:slug (only viewer is blocked)', async () => {
+    const { ownerHeaders } = await seedTestData()
     await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
@@ -307,6 +328,7 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
    */
 
   test('viewer cannot POST /api/issues/:issueId/comments', async () => {
+    const { ownerId, viewerHeaders, viewerId, workspaceId } = await seedTestData()
     const project = await seedProject(workspaceId)
     const issue = await seedIssue(workspaceId, project.id, ownerId)
     /*
@@ -329,40 +351,48 @@ describe('covers PROJ-78: same-workspace viewer role → 403 on mutating routes'
 // ---------------------------------------------------------------------------
 
 describe('covers PROJ-78: MCP tools – viewer role → error', () => {
-  let workspaceId: string
-  let slug: string
-  let ownerHeaders: Record<string, string>
-  let viewerHeaders: Record<string, string>
+  type TestData = Readonly<{
+    ownerHeaders: Record<string, string>
+    slug: string
+    viewerHeaders: Record<string, string>
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const roles = await seedWorkspaceRoles()
-    workspaceId = roles.workspace.id
-    slug = roles.workspace.slug
-    ownerHeaders = authHeaders(roles.owner.token, slug)
-    viewerHeaders = authHeaders(roles.viewer.token, slug)
-  })
+    const workspaceId = roles.workspace.id
+    const slug = roles.workspace.slug
+    const ownerHeaders = authHeaders(roles.owner.token, slug)
+    const viewerHeaders = authHeaders(roles.viewer.token, slug)
+    return { ownerHeaders, slug, viewerHeaders, workspaceId }
+  }
 
   test('viewer cannot call create_project via MCP (gets a forbidden tool error)', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Blocked', key: 'BLK' }, viewerHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('owner CAN call create_project via MCP', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_project', { name: 'Owner Made', key: 'OWN' }, ownerHeaders)
     expect(isMcpError(res)).toBe(false)
   })
 
   test('viewer cannot call create_task_type via MCP (gets a forbidden tool error)', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_task_type', { key: 'epic', name: 'Epic' }, viewerHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('owner CAN call create_task_type via MCP', async () => {
+    const { ownerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(workspaceId, 'create_task_type', { key: 'epic', name: 'Epic' }, ownerHeaders)
     expect(isMcpError(res)).toBe(false)
   })
 
   test('viewer cannot call create_task_status via MCP', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'create_task_status',
@@ -373,6 +403,7 @@ describe('covers PROJ-78: MCP tools – viewer role → error', () => {
   })
 
   test('viewer cannot call create_custom_field via MCP', async () => {
+    const { viewerHeaders, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'create_custom_field',

@@ -38,14 +38,18 @@ const parseChallenge = function parseChallenge(header: string | null): Record<st
 }
 
 describe('covers MCP 401 carries an RFC 9728 challenge', () => {
-  let workspaceId: string
+  type TestData = Readonly<{
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    workspaceId = fixture.workspace.id
-  })
+    const workspaceId = fixture.workspace.id
+    return { workspaceId }
+  }
 
   test('points at the per-workspace protected resource metadata document', async () => {
+    const { workspaceId } = await seedTestData()
     const res = await fetchNativeApi(mcpUrl(workspaceId), {
       body: rpc('initialize'),
       headers: { 'Content-Type': 'application/json' },
@@ -61,6 +65,7 @@ describe('covers MCP 401 carries an RFC 9728 challenge', () => {
   })
 
   test('derives resource_metadata from the request host, not a fixed origin', async () => {
+    const { workspaceId } = await seedTestData()
     const other = 'https://tenant.projektor.dev'
     const res = await fetchNativeApi(`${other}/mcp/${workspaceId}`, {
       body: rpc('initialize'),
@@ -73,6 +78,7 @@ describe('covers MCP 401 carries an RFC 9728 challenge', () => {
   })
 
   test('challenges an invalid bearer token too, not just a missing one', async () => {
+    const { workspaceId } = await seedTestData()
     const res = await fetchNativeApi(mcpUrl(workspaceId), {
       body: rpc('initialize'),
       headers: { Authorization: 'Bearer tok_not_a_real_token', 'Content-Type': 'application/json' },

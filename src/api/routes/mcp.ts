@@ -20,6 +20,16 @@ import { groupsTools } from '#api/mcp/groups.ts'
 import { issueLeasesTools } from '#api/mcp/issue-leases.ts'
 import { issueLinksTools } from '#api/mcp/issue-links.ts'
 import { issuesTools } from '#api/mcp/issues.ts'
+import {
+  JSON_RPC_INSUFFICIENT_SCOPE,
+  JSON_RPC_INVALID_PARAMS,
+  JSON_RPC_INVALID_REQUEST,
+  JSON_RPC_METHOD_NOT_FOUND,
+  JSON_RPC_PARSE_ERROR,
+  JSON_RPC_VERSION,
+  jsonRpcError,
+  jsonRpcResult,
+} from '#api/mcp/json-rpc.ts'
 import { playbooksTools } from '#api/mcp/playbooks.ts'
 import { projectActivityTools } from '#api/mcp/project-activity.ts'
 import { projectsTools } from '#api/mcp/projects.ts'
@@ -37,6 +47,7 @@ import { ctxFromHono } from '#api/services/types.ts'
 import { getWorkflow } from '#api/services/workflow.ts'
 import { ValidationError } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN } from '#contracts/http-status.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
 import type { HonoEnv } from '#types'
 
 /*
@@ -125,16 +136,25 @@ router.post('/:workspaceId', async (httpContext) => {
   try {
     raw = await httpContext.req.json()
   } catch {
-    return httpContext.json(jsonRpcError(null, -32_700, 'Parse error'), HTTP_BAD_REQUEST)
+    return httpContext.json(
+      jsonRpcError(JSON_NULL, { code: JSON_RPC_PARSE_ERROR, message: 'Parse error' }),
+      HTTP_BAD_REQUEST,
+    )
   }
   if (!isPlainObject(raw) || !Predicate.isString(raw.method)) {
-    const id = isPlainObject(raw) ? (raw.id ?? null) : null
-    return httpContext.json(jsonRpcError(id, -32_600, 'Invalid Request'), HTTP_BAD_REQUEST)
+    const id = isPlainObject(raw) ? (raw.id ?? JSON_NULL) : JSON_NULL
+    return httpContext.json(
+      jsonRpcError(id, { code: JSON_RPC_INVALID_REQUEST, message: 'Invalid Request' }),
+      HTTP_BAD_REQUEST,
+    )
   }
-  const body = raw as { jsonrpc: '2.0'; id: unknown; method: string; params?: unknown }
+  const body = raw as { jsonrpc: typeof JSON_RPC_VERSION; id: unknown; method: string; params?: unknown }
 
-  if (body.jsonrpc !== '2.0') {
-    return httpContext.json(jsonRpcError(body.id, -32_600, 'Invalid Request'), HTTP_BAD_REQUEST)
+  if (body.jsonrpc !== JSON_RPC_VERSION) {
+    return httpContext.json(
+      jsonRpcError(body.id, { code: JSON_RPC_INVALID_REQUEST, message: 'Invalid Request' }),
+      HTTP_BAD_REQUEST,
+    )
   }
 
   /*
@@ -179,11 +199,10 @@ router.post('/:workspaceId', async (httpContext) => {
           const invalid = requested.filter((slug) => !TOOL_DOMAIN_SLUGS.includes(slug))
           if (Array.isArrayNonEmpty(invalid)) {
             return httpContext.json(
-              jsonRpcError(
-                body.id,
-                -32_602,
-                `Unknown domain slug(s): ${invalid.join(', ')}. Valid domains: ${TOOL_DOMAIN_SLUGS.join(', ')}`,
-              ),
+              jsonRpcError(body.id, {
+                code: JSON_RPC_INVALID_PARAMS,
+                message: `Unknown domain slug(s): ${invalid.join(', ')}. Valid domains: ${TOOL_DOMAIN_SLUGS.join(', ')}`,
+              }),
               HTTP_BAD_REQUEST,
             )
           }
@@ -217,16 +236,25 @@ router.post('/:workspaceId', async (httpContext) => {
        * destructures undefined into a 500.
        */
       if (!isPlainObject(body.params) || !Predicate.isString(body.params.name)) {
-        return httpContext.json(jsonRpcError(body.id, -32_602, 'Invalid params: `name` is required'))
+        return httpContext.json(
+          jsonRpcError(body.id, { code: JSON_RPC_INVALID_PARAMS, message: 'Invalid params: `name` is required' }),
+        )
       }
       const name = body.params.name
       const args = body.params.arguments ?? {}
       if (!isPlainObject(args)) {
-        return httpContext.json(jsonRpcError(body.id, -32_602, 'Invalid params: `arguments` must be an object'))
+        return httpContext.json(
+          jsonRpcError(body.id, {
+            code: JSON_RPC_INVALID_PARAMS,
+            message: 'Invalid params: `arguments` must be an object',
+          }),
+        )
       }
       const tool = getAllTools(workspace.id).find((t) => t.name === name)
       if (!tool) {
-        return httpContext.json(jsonRpcError(body.id, -32601, `Tool not found: ${name}`))
+        return httpContext.json(
+          jsonRpcError(body.id, { code: JSON_RPC_METHOD_NOT_FOUND, message: `Tool not found: ${name}` }),
+        )
       }
       /*
        * PROJ-877/920: required presence AND types/enums/lengths against the tool's
@@ -287,7 +315,7 @@ router.post('/:workspaceId', async (httpContext) => {
           return httpContext.json(jsonRpcResult(body.id, toolError))
         }
         const { code, message, data } = toMcpError(error, crypto.randomUUID())
-        return httpContext.json(jsonRpcError(body.id, code, message, data))
+        return httpContext.json(jsonRpcError(body.id, { code, data, message }))
       }
     }
 
@@ -317,12 +345,12 @@ router.post('/:workspaceId', async (httpContext) => {
         return httpContext.json(jsonRpcResult(body.id, result))
       } catch (error) {
         const { code, message, data } = toMcpError(error, crypto.randomUUID())
-        return httpContext.json(jsonRpcError(body.id, code, message, data))
+        return httpContext.json(jsonRpcError(body.id, { code, data, message }))
       }
     }
 
     default:
-      return httpContext.json(jsonRpcError(body.id, -32_601, 'Method not found'))
+      return httpContext.json(jsonRpcError(body.id, { code: JSON_RPC_METHOD_NOT_FOUND, message: 'Method not found' }))
   }
 })
 
@@ -337,7 +365,10 @@ router.post('/:workspaceId', async (httpContext) => {
  */
 function insufficientScope(httpContext: Context<HonoEnv>, workspaceId: string, id: unknown, required: Capability) {
   httpContext.header('WWW-Authenticate', insufficientScopeChallenge(httpContext.req.url, workspaceId))
-  return httpContext.json(jsonRpcError(id, -32_003, `Token lacks '${required}' scope`), HTTP_FORBIDDEN)
+  return httpContext.json(
+    jsonRpcError(id, { code: JSON_RPC_INSUFFICIENT_SCOPE, message: `Token lacks '${required}' scope` }),
+    HTTP_FORBIDDEN,
+  )
 }
 
 function dedupe(values: string[]): string[] {
@@ -377,19 +408,5 @@ export const coreMCPTools: MCPTool[] = [
   ...flowMetricsTools,
   ...codeHeatmapTools,
 ]
-
-function jsonRpcResult(id: unknown, result: unknown): { jsonrpc: string; id: unknown; result: unknown } {
-  return { jsonrpc: '2.0', id, result }
-}
-
-function jsonRpcError(id: unknown, code: number, message: string, data?: unknown) {
-  // `data` is the JSON-RPC 2.0 spec's optional error.data member — omitted entirely
-  // (not sent as `null`/`undefined`) when the error has no structured payload.
-  return {
-    jsonrpc: '2.0',
-    id,
-    error: data === undefined ? { code, message } : { code, message, data },
-  }
-}
 
 export { router as mcpRouter }

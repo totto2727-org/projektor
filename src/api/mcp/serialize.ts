@@ -2,6 +2,7 @@ import { String, Array, Iterable, Predicate } from 'effect'
 import { z } from 'zod'
 
 import { ValidationError } from '#contracts/errors.ts'
+import { JSON_NULL } from '#contracts/json-null.ts'
 
 /*
  * PROJ-891 (builds on PROJ-931): MCP-only response shaping. Applied in the MCP layer, not
@@ -215,7 +216,7 @@ export const shapeIssue = function shapeIssue(
     }
     const picked: Record<string, unknown> = {}
     Iterable.forEach(opts.fields, (field) => {
-      picked[field] = Object.hasOwn(source, field) ? (source[field] ?? null) : null
+      picked[field] = Object.hasOwn(source, field) ? (source[field] ?? JSON_NULL) : JSON_NULL
     })
     return picked
   }

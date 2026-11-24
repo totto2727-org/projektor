@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { hashWorkflowContent } from '#commands/workflow.ts'
 
@@ -23,18 +23,22 @@ const mcpCall = async function mcpCall<T>(
 }
 
 describe('workflow spec', () => {
-  let token: string
-  let slug: string
-  let workspaceId: string
+  type TestData = Readonly<{
+    slug: string
+    token: string
+    workspaceId: string
+  }>
 
-  beforeEach(async () => {
+  const seedTestData = async function seedTestData(): Promise<TestData> {
     const fixture = await seedFixture()
-    token = fixture.token
-    slug = fixture.workspace.slug
-    workspaceId = fixture.workspace.id
-  })
+    const token = fixture.token
+    const slug = fixture.workspace.slug
+    const workspaceId = fixture.workspace.id
+    return { slug, token, workspaceId }
+  }
 
   test('handles GET /api/workflow returns the spec content plus a version', async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -64,6 +68,7 @@ describe('workflow spec', () => {
   })
 
   test('covers MCP get_workflow returns the same content as REST', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const restRes = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -90,6 +95,7 @@ describe('workflow spec', () => {
    * surfaces.
    */
   test('version is present and stable across repeated requests', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const res1 = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -113,6 +119,7 @@ describe('workflow spec', () => {
   })
 
   test('matching ifVersion over MCP returns only { unchanged: true, version }', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const first = (await mcpCall(
       workspaceId,
       'tools/call',
@@ -133,6 +140,7 @@ describe('workflow spec', () => {
   })
 
   test('matching ifVersion over REST returns only { unchanged: true, version }', async () => {
+    const { slug, token } = await seedTestData()
     const first = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -148,6 +156,7 @@ describe('workflow spec', () => {
   })
 
   test('a mismatched ifVersion returns the full content (MCP and REST)', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const mcpJson = (await mcpCall(
       workspaceId,
       'tools/call',
@@ -171,6 +180,7 @@ describe('workflow spec', () => {
   })
 
   test('an absent ifVersion returns the full content, not unchanged', async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -183,6 +193,7 @@ describe('workflow spec', () => {
   })
 
   test('hashWorkflowContent changes when content changes and is stable for the same content', async () => {
+    await seedTestData()
     const a1 = await hashWorkflowContent('some spec content')
     const a2 = await hashWorkflowContent('some spec content')
     const b = await hashWorkflowContent('some different spec content')
@@ -192,6 +203,7 @@ describe('workflow spec', () => {
   })
 
   test('version is the hash of the whole returned payload (title, description, content)', async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -212,6 +224,7 @@ describe('workflow spec', () => {
   })
 
   test('ifVersion longer than 64 chars is rejected', async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi(`http://localhost/api/workflow?ifVersion=${'a'.repeat(65)}`, {
       headers: authHeaders(token, slug),
     })
@@ -219,6 +232,7 @@ describe('workflow spec', () => {
   })
 
   test('initialize instructions contain the current workflow version', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const workflowRes = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
@@ -233,6 +247,7 @@ describe('workflow spec', () => {
   })
 
   test('an invalid ifVersion type over MCP returns a validation tool error', async () => {
+    const { slug, token, workspaceId } = await seedTestData()
     const res = await mcpCall(
       workspaceId,
       'tools/call',
@@ -244,6 +259,7 @@ describe('workflow spec', () => {
   })
 
   test('an invalid ifVersion type over REST (repeated query param) is a 400 validation error', async () => {
+    const { slug, token } = await seedTestData()
     const res = await fetchNativeApi('http://localhost/api/workflow?ifVersion=a&ifVersion=b', {
       headers: authHeaders(token, slug),
     })
