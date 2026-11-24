@@ -16,7 +16,7 @@ import { WikiPageClient } from './wiki-page-client.tsx'
 import type { WikiSeed } from './wiki-page-client.tsx'
 
 /** Native Effront SSR keeps presentation and markdown rendering, never storage. */
-export function renderWiki(
+export const renderWiki = function renderWiki(
   scope: RequestScope,
   url: URL,
   params: Readonly<Record<string, string | undefined>> = {},

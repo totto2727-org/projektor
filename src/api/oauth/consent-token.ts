@@ -1,6 +1,8 @@
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider'
 import { Iterable } from 'effect'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 /*
  * PROJ-656: the value that carries an authorization request across the consent screen.
  *
@@ -54,7 +56,7 @@ export const signConsentToken = async function signConsentToken(
 ): Promise<string> {
   const full: ConsentPayload = {
     ...payload,
-    exp: Math.floor(Date.now() / 1000) + CONSENT_TTL_SECS,
+    exp: currentEpochSeconds() + CONSENT_TTL_SECS,
   }
   const body = b64urlEncode(new TextEncoder().encode(JSON.stringify(full)))
   const sig = await crypto.subtle.sign('HMAC', await hmacKey(secret), new TextEncoder().encode(body))
@@ -89,7 +91,7 @@ export const verifyConsentToken = async function verifyConsentToken(
     return null
   }
 
-  if (payload.exp < Math.floor(Date.now() / 1000)) {
+  if (payload.exp < currentEpochSeconds()) {
     return null
   }
   // The signature proves the payload is ours; this proves it is *this* session's.

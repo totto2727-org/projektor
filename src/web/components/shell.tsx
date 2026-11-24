@@ -64,7 +64,7 @@ const glossary = {
   },
 } as const
 
-function readPrefs(): Prefs {
+const readPrefs = function readPrefs(): Prefs {
   try {
     const value = JSON.parse(localStorage.getItem('prefs') ?? 'null')
     const legacyTheme = localStorage.getItem('theme')
@@ -84,7 +84,7 @@ function readPrefs(): Prefs {
 }
 
 /** safe-ls: cosmetic theme, density and navigation preferences never reach an API request. */
-function applyPrefs(prefs: Prefs): void {
+const applyPrefs = function applyPrefs(prefs: Prefs): void {
   const root = document.documentElement
   if (prefs.theme === 'system') {
     root.removeAttribute('data-theme')
@@ -94,7 +94,7 @@ function applyPrefs(prefs: Prefs): void {
   root.dataset.density = prefs.density
   root.dataset.sidebar = prefs.sidebar
 }
-function savePrefs(prefs: Prefs): void {
+const savePrefs = function savePrefs(prefs: Prefs): void {
   try {
     // safe-ls: cosmetic preferences only, with a graceful default when storage is unavailable.
     localStorage.setItem('prefs', JSON.stringify(prefs))
@@ -103,7 +103,7 @@ function savePrefs(prefs: Prefs): void {
     /* Cosmetic preference storage is optional. */
   }
 }
-function Icon({ children }: { children: ReactNode }) {
+const Icon = function Icon({ children }: { children: ReactNode }) {
   return (
     <svg
       width='16'
@@ -120,11 +120,11 @@ function Icon({ children }: { children: ReactNode }) {
     </svg>
   )
 }
-function initials(name: string, email: string): string {
+const initials = function initials(name: string, email: string): string {
   const words = (name.trim() || email).split(/\s+/u).filter(Boolean)
   return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : (words[0] ?? '?').slice(0, 2).toUpperCase()
 }
-function ThemeIcon({ theme }: { theme: Theme }) {
+const ThemeIcon = function ThemeIcon({ theme }: { theme: Theme }) {
   return (
     <Icon>
       {theme === 'light' ? (
@@ -144,7 +144,7 @@ function ThemeIcon({ theme }: { theme: Theme }) {
   )
 }
 
-function GlossaryHelp({ term }: { term: keyof typeof glossary }) {
+const GlossaryHelp = function GlossaryHelp({ term }: { term: keyof typeof glossary }) {
   const info = glossary[term]
   return (
     <Popover>
@@ -158,7 +158,7 @@ function GlossaryHelp({ term }: { term: keyof typeof glossary }) {
     </Popover>
   )
 }
-function OfflineBanner() {
+const OfflineBanner = function OfflineBanner() {
   const [online, setOnline] = useState(true)
   useEffect(() => {
     const update = (): void => {
@@ -179,7 +179,7 @@ function OfflineBanner() {
   )
 }
 
-function Preferences({ prefs, update }: { prefs: Prefs; update: (patch: Partial<Prefs>) => void }) {
+const Preferences = function Preferences({ prefs, update }: { prefs: Prefs; update: (patch: Partial<Prefs>) => void }) {
   const { open, setOpen } = useSidebar()
   return (
     <>
@@ -209,7 +209,7 @@ function Preferences({ prefs, update }: { prefs: Prefs; update: (patch: Partial<
   )
 }
 
-function AccountMenu({
+const AccountMenu = function AccountMenu({
   scope,
   returnTo,
   prefs,

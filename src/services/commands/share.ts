@@ -1,5 +1,7 @@
 import { String, Predicate } from 'effect'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 import { assertProjectAccess, usersWithProjectReadAccess } from './access.ts'
 import { NotFoundError } from './errors.ts'
 import type { ServiceCtx } from './types.ts'
@@ -38,7 +40,7 @@ export const createShareToken = async function createShareToken(
 ): Promise<{ token: string; url: string }> {
   await assertIssueShareable(ctx, issueId)
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   const bytes = crypto.getRandomValues(new Uint8Array(16))
   const token = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
@@ -70,7 +72,7 @@ const resolveLiveShareToken = async function resolveLiveShareToken(
   db: D1Database,
   tokenHash: string,
 ): Promise<{ issueId: string; workspaceId: string } | null> {
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const row = await db
     .prepare(
       `SELECT st.issue_id, st.workspace_id, st.created_by, i.project_id

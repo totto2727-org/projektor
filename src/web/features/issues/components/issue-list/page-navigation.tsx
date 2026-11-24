@@ -9,7 +9,7 @@ export interface IssuePagination {
 }
 
 /** Native GET controls keep pagination shareable and owned by Effront's public navigation. */
-export function PageNavigation({ route, nextCursor }: IssuePagination) {
+export const PageNavigation = function PageNavigation({ route, nextCursor }: IssuePagination) {
   const params = new URLSearchParams(route.search)
   const hasCursor = params.has('cursor')
   params.delete('cursor')

@@ -14,7 +14,7 @@ const STATUS_OPTIONS = [
   { value: 'done', label: '完了', color: 'text-text-base bg-success-bg' },
 ] satisfies { value: ReviewStatus; label: string; color: string }[]
 
-function ReviewTargetRow({
+const ReviewTargetRow = function ReviewTargetRow({
   attachment,
   workspaceSlug,
   issueId,
@@ -139,7 +139,7 @@ function ReviewTargetRow({
   )
 }
 
-export function ReviewTargetsSection({
+export const ReviewTargetsSection = function ReviewTargetsSection({
   attachments,
   workspaceSlug,
   issueId,

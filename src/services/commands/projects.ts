@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { BooleanQueryParam, IdSchema } from '#contracts/inputs/common.ts'
 import { CreateProjectSchema, UpdateProjectSchema } from '#contracts/inputs/projects.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as data from '#services'
 import type { ProjectSummary } from '#services/projects.ts'
@@ -206,7 +207,7 @@ export const createProject = async function createProject(ctx: ServiceCtx, input
   }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const slug = await generateUniqueSlug(orm, ctx.workspaceId, name)
 
   await orm.insert(schema.projects).values({
@@ -236,7 +237,7 @@ export const updateProject = async function updateProject(ctx: ServiceCtx, id: s
     throw new ValidationError(z.flattenError(parsed.error))
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   const setObj: Record<string, unknown> = {}
   if (Predicate.isNotNullish(parsed.data.name)) {

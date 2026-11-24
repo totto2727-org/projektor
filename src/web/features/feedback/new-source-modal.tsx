@@ -19,7 +19,7 @@ interface Props {
   onCreated?: () => void
 }
 
-function NewSourceForm({
+const NewSourceForm = function NewSourceForm({
   name,
   setName,
   description,

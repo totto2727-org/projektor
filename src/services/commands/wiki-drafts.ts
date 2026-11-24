@@ -7,6 +7,7 @@ import {
   VersionedWikiDraftInputSchema,
   WikiDraftRevisionInputSchema,
 } from '#contracts/inputs/wiki.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 /*
  * PROJ-495 (R13): server-side per-user drafts, replacing the PROJ-227 localStorage
  * autosave so an in-progress edit survives a device switch.
@@ -208,7 +209,7 @@ export const saveWikiDraft = async function saveWikiDraft(ctx: ServiceCtx, idOrS
   }
   const page = await resolveDraftTarget(ctx, idOrSlug)
   const revision = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const results = await ctx.db.batch([
     advanceHead(ctx, page.id, parsed.data.expectedDraftRevision, revision),
     ctx.db

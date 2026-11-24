@@ -12,7 +12,7 @@ import { useCreateIssueModal } from './use-create-issue-modal.ts'
 
 const PROJECTS = [{ id: 'p1', key: 'PROJ', name: 'Projektor', description: null, workspace_slug: 'test-workspace' }]
 
-function Harness() {
+const Harness = function Harness() {
   const modal = useCreateIssueModal({
     filterProject: '',
     projects: PROJECTS,
@@ -27,7 +27,7 @@ function Harness() {
   )
 }
 
-async function submitCreateForm(): Promise<void> {
+const submitCreateForm = async function submitCreateForm(): Promise<void> {
   const submit = screen.getByRole('button', { name: /create issue/i })
   await waitFor(() => expect(submit).toHaveProperty('disabled', false))
   fireEvent.click(submit)

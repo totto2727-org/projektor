@@ -4,6 +4,7 @@ import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
 import { CreateCustomFieldDefSchema, UpdateCustomFieldDefSchema } from '#contracts/inputs/custom-fields.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as fieldQueries from '#services/custom-fields.ts'
 
@@ -112,7 +113,7 @@ export const createCustomFieldDef = async function createCustomFieldDef(ctx: Ser
   await assertCustomFieldDefLimitNotReached(orm, ctx.workspaceId)
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm.insert(schema.customFieldDefinitions).values({
     id,
     workspaceId: ctx.workspaceId,
@@ -243,7 +244,7 @@ export const buildDefaultCustomFieldStatements = function buildDefaultCustomFiel
     SELECT ?, ?, NULL, 'story_points', 'Story Points', 'number', NULL, ?
     WHERE NOT EXISTS (SELECT 1 FROM custom_field_definitions
       WHERE workspace_id = ? AND project_id IS NULL AND key = 'story_points')`)
-      .bind(crypto.randomUUID(), workspaceId, Math.floor(Date.now() / 1000), workspaceId),
+      .bind(crypto.randomUUID(), workspaceId, currentEpochSeconds(), workspaceId),
   ]
 }
 

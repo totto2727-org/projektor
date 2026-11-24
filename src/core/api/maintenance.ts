@@ -2,6 +2,7 @@ import { String, Array, Predicate } from 'effect'
 
 import type { ServiceCtx } from '#commands/types.ts'
 import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 
 import { purgeOAuthPage } from './oauth-purge.ts'
@@ -42,7 +43,7 @@ export async function runFtsDedupeOnce(env: CoreEnvironment): Promise<void> {
 
 const retentionCutoff = function retentionCutoff(raw: string | undefined, defaultDays: number): number {
   const days = Predicate.isString(raw) && raw.trim() !== '' ? Number(raw) : Number.NaN
-  return Math.floor(Date.now() / 1000) - (Number.isFinite(days) && days > 0 ? days : defaultDays) * 86_400
+  return currentEpochSeconds() - (Number.isFinite(days) && days > 0 ? days : defaultDays) * 86_400
 }
 
 const deleteExpiredInChunks = async function deleteExpiredInChunks(
@@ -238,7 +239,7 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
   const cursor = await loadCursor(kv)
   const { results } = await wrapD1WithBudget(env.DB, budget)
     .prepare('SELECT DISTINCT workspace_id AS id FROM wiki_pages WHERE deleted_at IS NOT NULL AND deleted_at < ?')
-    .bind(Math.floor(Date.now() / 1000) - WIKI_TRASH_RETENTION_SECONDS)
+    .bind(currentEpochSeconds() - WIKI_TRASH_RETENTION_SECONDS)
     .all<{ id: string }>()
   const remaining = [...new Set([...(cursor ?? []), ...(results ?? []).map((row) => row.id)])]
   let purged = 0

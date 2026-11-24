@@ -2,6 +2,7 @@ import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { String, Predicate, Array } from 'effect'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { assertIssueAccess, isWorkspaceAdmin } from './access.ts'
@@ -117,7 +118,7 @@ export const resolveAgentSessionId = async function resolveAgentSessionId(
       .orderBy(desc(schema.agentSessions.lastHeartbeatAt))
       .limit(2)
 
-  const cutoff = Math.floor(Date.now() / 1000) - LIVE_TTL_SECONDS
+  const cutoff = currentEpochSeconds() - LIVE_TTL_SECONDS
   let rows = await find([gt(schema.agentSessions.lastHeartbeatAt, cutoff)])
   // heartbeat/end must be able to reach a session that has just gone stale (that call
   // revives it) — but only when no live session exists, so an abandoned session left

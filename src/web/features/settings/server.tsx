@@ -15,13 +15,13 @@ import { ConnectAgentGuide, ConnectorManager, GroupManager, TokenManager } from 
 const choose = (scope: RequestScope): WorkspaceMembership | null =>
   scope.selection.kind === 'workspace' || scope.selection.kind === 'project' ? scope.selection.workspace : null
 const forbidden = (error: { status: number }): boolean => error.status === 403
-function selected(scope: RequestScope) {
+const selected = function selected(scope: RequestScope) {
   return Effect.try({
     catch: (cause) => (cause instanceof ScopeError ? cause : new ScopeError(403, 'Select an accessible workspace.')),
     try: () => requireDataWorkspace(scope),
   })
 }
-function TokenSettings({
+const TokenSettings = function TokenSettings({
   workspaceSlug,
   initialTokens,
   initialGrants,
@@ -84,7 +84,7 @@ function TokenSettings({
     </div>
   )
 }
-export function renderGroups(scope: RequestScope, url: URL) {
+export const renderGroups = function renderGroups(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) {
@@ -124,7 +124,7 @@ export function renderGroups(scope: RequestScope, url: URL) {
     ),
   )
 }
-export function renderTokens(scope: RequestScope, _url: URL) {
+export const renderTokens = function renderTokens(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) {
@@ -167,7 +167,7 @@ export function renderTokens(scope: RequestScope, _url: URL) {
     ),
   )
 }
-export function renderConnectAgent(scope: RequestScope, _url: URL) {
+export const renderConnectAgent = function renderConnectAgent(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) {
@@ -179,7 +179,7 @@ export function renderConnectAgent(scope: RequestScope, _url: URL) {
     return <ConnectAgentGuide key={workspace.slug} workspaceSlug={workspace.slug} mcpUrl={info?.mcpUrl ?? null} />
   })
 }
-export function renderConnectors(scope: RequestScope, _url: URL) {
+export const renderConnectors = function renderConnectors(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     const workspace = choose(scope)
     if (!workspace) {

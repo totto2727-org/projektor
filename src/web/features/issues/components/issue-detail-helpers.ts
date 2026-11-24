@@ -1,5 +1,6 @@
 'use client'
 import type { ReviewStatus } from '#contracts/review-targets.ts'
+import { currentEpochMilliseconds } from '#contracts/time.ts'
 import type { RenderedMarkdown } from '@/components/markdown/render.ts'
 
 import type { CustomFieldValue, TaskStatus } from './board-utils.ts'
@@ -108,7 +109,7 @@ export const formatDate = function formatDate(unixSeconds: number): string {
 }
 
 export const relativeTime = function relativeTime(unixSeconds: number): string {
-  const diff = Date.now() / 1000 - unixSeconds
+  const diff = currentEpochMilliseconds() / 1000 - unixSeconds
   if (diff < 60) {
     return 'just now'
   }

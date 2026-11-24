@@ -11,7 +11,7 @@ interface Props {
   initialSummary: SourceSummary | null
 }
 
-function versionMetric(version: FeedbackVersionSummary): string {
+const versionMetric = function versionMetric(version: FeedbackVersionSummary): string {
   const parts: string[] = []
   if (Predicate.isNotNullish(version.thumbsUpPct)) {
     parts.push(`👍 ${version.thumbsUpPct}%`)

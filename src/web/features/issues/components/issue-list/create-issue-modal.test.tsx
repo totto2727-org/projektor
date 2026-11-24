@@ -18,7 +18,7 @@ import { useCreateIssueModal } from './use-create-issue-modal.ts'
 
 const PROJECTS = [{ id: 'p1', key: 'PROJ', name: 'Projektor', description: null, workspace_slug: 'test-workspace' }]
 
-function Harness() {
+const Harness = function Harness() {
   const modal = useCreateIssueModal({
     filterProject: '',
     projects: PROJECTS,

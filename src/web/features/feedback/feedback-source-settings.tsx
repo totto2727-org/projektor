@@ -35,11 +35,11 @@ interface Props {
   onChanged?: () => void
 }
 
-function formatDate(ts: number): string {
+const formatDate = function formatDate(ts: number): string {
   return formatTimestampDate(ts)
 }
 
-function NewTokenReveal({ token, onDismiss }: { token: string; onDismiss: () => void }) {
+const NewTokenReveal = function NewTokenReveal({ token, onDismiss }: { token: string; onDismiss: () => void }) {
   return (
     <div className='bg-surface border border-border rounded-md p-4'>
       <p className='text-danger-text text-[0.8rem] my-1'>⚠ Copy this token now — you won't be able to see it again.</p>
@@ -53,7 +53,7 @@ function NewTokenReveal({ token, onDismiss }: { token: string; onDismiss: () => 
   )
 }
 
-function DangerZone({
+const DangerZone = function DangerZone({
   busy,
   rotating,
   onRotateStart,

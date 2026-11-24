@@ -10,6 +10,8 @@
  */
 
 import { Predicate } from 'effect'
+
+import { currentEpochSeconds } from '#contracts/time.ts'
 export type WikiFreshnessState = 'fresh' | 'stale' | 'unverified'
 
 export interface WikiFreshness {
@@ -65,7 +67,7 @@ export const computeFreshness = function computeFreshness(input: ComputeFreshnes
     return null
   }
 
-  const now = input.now ?? Math.floor(Date.now() / 1000)
+  const now = input.now ?? currentEpochSeconds()
   const dueAt = computeDueAt(verifiedAt, verifyInterval)
 
   /*

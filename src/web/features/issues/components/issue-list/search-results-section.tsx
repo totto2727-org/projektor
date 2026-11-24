@@ -7,7 +7,7 @@ import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 
 import type { SearchResult } from './use-issue-search.ts'
 
-function priorityBadge(result: SearchResult) {
+const priorityBadge = function priorityBadge(result: SearchResult) {
   return (
     <span
       className='inline-flex items-center px-1.5 py-0.5 rounded text-[0.7rem] font-semibold capitalize whitespace-nowrap'
@@ -21,11 +21,11 @@ function priorityBadge(result: SearchResult) {
   )
 }
 
-function statusBadge(result: SearchResult) {
+const statusBadge = function statusBadge(result: SearchResult) {
   return <span className='font-medium text-sm text-text-muted'>{result.status.replace(/_/gu, ' ')}</span>
 }
 
-function SearchResultsTable({ results }: { results: SearchResult[] }) {
+const SearchResultsTable = function SearchResultsTable({ results }: { results: SearchResult[] }) {
   return (
     <div className='overflow-x-auto max-sm:hidden'>
       <table className='w-full border-collapse text-[0.9rem]'>
@@ -70,7 +70,7 @@ function SearchResultsTable({ results }: { results: SearchResult[] }) {
   )
 }
 
-function SearchResultsMobileCards({ results }: { results: SearchResult[] }) {
+const SearchResultsMobileCards = function SearchResultsMobileCards({ results }: { results: SearchResult[] }) {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
       {results.map((result) => (

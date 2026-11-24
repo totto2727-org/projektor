@@ -3,6 +3,7 @@ import { String, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { ClaimIssueSchema, ListIssueLeasesSchema, ReleaseIssueSchema } from '#contracts/inputs/issue-leases.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { assertIssueAccess, visibleProjectPredicate } from './access.ts'
@@ -19,7 +20,7 @@ import type { ServiceCtx } from './types.ts'
  */
 export const SESSION_TTL_SECONDS = 120
 
-const liveCutoff = (): number => Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
+const liveCutoff = (): number => currentEpochSeconds() - SESSION_TTL_SECONDS
 
 /*
  * PROJ-253: per-project agent WIP cap, used when a project doesn't set its own
@@ -112,7 +113,7 @@ const touchAgentHeartbeat = async function touchAgentHeartbeat(
 ): Promise<void> {
   await orm
     .update(schema.agentSessions)
-    .set({ lastHeartbeatAt: Math.floor(Date.now() / 1000) })
+    .set({ lastHeartbeatAt: currentEpochSeconds() })
     .where(
       and(
         eq(schema.agentSessions.id, agentId),
@@ -138,7 +139,7 @@ export const buildTouchAgentHeartbeatIfLiveStatement = function buildTouchAgentH
   const orm = drizzle(ctx.db, { schema })
   const query = orm
     .update(schema.agentSessions)
-    .set({ lastHeartbeatAt: Math.floor(Date.now() / 1000) })
+    .set({ lastHeartbeatAt: currentEpochSeconds() })
     .where(
       and(
         eq(schema.agentSessions.id, agentSessionId),
@@ -230,7 +231,7 @@ export const claimIssue = async function claimIssue(ctx: ServiceCtx, raw: unknow
   await touchAgentHeartbeat(orm, ctx, agentId)
   const cap = await fetchAgentWipCap(orm, ctx, projectId)
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await reclaimStaleLeaseOrThrow(orm, ctx, issueId, cutoff, now)
 
   const id = crypto.randomUUID()
@@ -301,7 +302,7 @@ export const releaseIssue = async function releaseIssue(ctx: ServiceCtx, raw: un
   const projectId = await assertIssueAccess(ctx, issueId, 'edit')
 
   const orm = drizzle(ctx.db, { schema })
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   const conditions = [
     eq(schema.issueLeases.workspaceId, ctx.workspaceId),
@@ -350,7 +351,7 @@ export const buildReleaseLeaseForClosedIssueStatement = function buildReleaseLea
   issueId: string,
 ): D1PreparedStatement {
   const orm = drizzle(ctx.db, { schema })
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const query = orm
     .update(schema.issueLeases)
     .set({ releaseReason: 'issue_closed', releasedAt: now })
@@ -371,7 +372,7 @@ export const releaseLeasesForAgent = async function releaseLeasesForAgent(
   agentSessionId: string,
 ): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   await orm
     .update(schema.issueLeases)

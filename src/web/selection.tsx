@@ -3,7 +3,7 @@ import { Array } from 'effect'
 import type { RequestScope } from './server/server-context.ts'
 
 /** Native GET forms also work without JavaScript and preserve explicit URL scope. */
-export function ScopeSelection({ scope, url }: { scope: RequestScope; url: URL }) {
+export const ScopeSelection = function ScopeSelection({ scope, url }: { scope: RequestScope; url: URL }) {
   const selection = scope.selection
   if (selection.kind !== 'selection-required') {
     return null

@@ -1,4 +1,5 @@
 import { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
+import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import type { Env } from '#types'
 
 export { LIMITER_TIMEOUT_MS, rateLimiterObjectName } from '#contracts/request-rate-limit.ts'
@@ -28,7 +29,7 @@ export const checkRateLimit = async function checkRateLimit(
   const windowSecs = parseInt(env.RATE_LIMIT_WINDOW_SECS ?? '60', 10)
   const testNow =
     env.ENVIRONMENT !== 'production' && env.RATE_LIMIT_TEST_NOW_MS ? Number(env.RATE_LIMIT_TEST_NOW_MS) : NaN
-  const nowMs = Number.isFinite(testNow) ? testNow : Date.now()
+  const nowMs = Number.isFinite(testNow) ? testNow : currentEpochMilliseconds()
   const now = Math.floor(nowMs / 1000)
 
   const authHeader = request.headers.get('Authorization')
@@ -80,7 +81,7 @@ export const bumpRateCounter = async function bumpRateCounter(
   key: string,
   windowSecs: number,
 ): Promise<number> {
-  const { count } = await incrementCounter(env, key, windowSecs, Math.floor(Date.now() / 1000))
+  const { count } = await incrementCounter(env, key, windowSecs, currentEpochSeconds())
   return count
 }
 
@@ -99,7 +100,7 @@ const pruneStaleRateLimitRows = function pruneStaleRateLimitRows(
   db: D1Database,
   windowSecs: number,
 ): D1PreparedStatement {
-  const cutoff = Math.floor(Date.now() / 1000) - windowSecs * PRUNE_RETENTION_WINDOWS
+  const cutoff = currentEpochSeconds() - windowSecs * PRUNE_RETENTION_WINDOWS
   return db.prepare('DELETE FROM rate_limit WHERE window_start < ?').bind(cutoff)
 }
 

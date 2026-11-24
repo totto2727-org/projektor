@@ -29,7 +29,7 @@ const deriveKey = (name: string): string =>
     .replace(/[^A-Z0-9]/g, '')
     .slice(0, 10)
 
-function ProjectTile({ project }: { project: ProjectSummary }) {
+const ProjectTile = function ProjectTile({ project }: { project: ProjectSummary }) {
   const open = project.open_issue_count
   const backlog = project.backlog_issue_count
   const active = open - backlog
@@ -55,7 +55,7 @@ function ProjectTile({ project }: { project: ProjectSummary }) {
   )
 }
 
-export function ProjectList({
+export const ProjectList = function ProjectList({
   initialProjects,
   memberships,
   showArchived = false,

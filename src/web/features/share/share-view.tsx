@@ -42,12 +42,12 @@ const PRIORITY_COLORS: Record<string, { bg: string; text: string }> = {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-function formatDate(unixSeconds: number): string {
+const formatDate = function formatDate(unixSeconds: number): string {
   const date = new Date(unixSeconds * 1000)
   return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
 }
 
-export function ErrorState({ error }: { error: string }) {
+export const ErrorState = function ErrorState({ error }: { error: string }) {
   const isExpired = error === 'not_found'
   return (
     <div className='p-8 text-center'>
@@ -65,7 +65,7 @@ export function ErrorState({ error }: { error: string }) {
   )
 }
 
-function IssueHeader({ issue }: { issue: SharedIssue }) {
+const IssueHeader = function IssueHeader({ issue }: { issue: SharedIssue }) {
   const priorityStyle = PRIORITY_COLORS[issue.priority] ?? PRIORITY_COLORS.none
   return (
     <header className='mb-6'>
@@ -95,7 +95,7 @@ function IssueHeader({ issue }: { issue: SharedIssue }) {
   )
 }
 
-function CustomFieldsSection({ fields }: { fields: SharedIssue['customFields'] }) {
+const CustomFieldsSection = function CustomFieldsSection({ fields }: { fields: SharedIssue['customFields'] }) {
   if (Array.isReadonlyArrayEmpty(fields)) {
     return null
   }

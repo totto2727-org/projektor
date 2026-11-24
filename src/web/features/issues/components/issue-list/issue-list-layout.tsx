@@ -29,7 +29,7 @@ interface IssueListLayoutProps {
 }
 
 /** Banners + toolbar + count/view-toggle row — everything above the main content area. */
-function IssueListTop({
+const IssueListTop = function IssueListTop({
   workspaceSlug,
   view,
   setView,
@@ -124,7 +124,14 @@ function IssueListTop({
 }
 
 /** Main content area (search/board/backlog/list) + the create-issue modal. */
-function IssueListMain({ view, filtered, search, data, filters, createModal }: IssueListLayoutProps) {
+const IssueListMain = function IssueListMain({
+  view,
+  filtered,
+  search,
+  data,
+  filters,
+  createModal,
+}: IssueListLayoutProps) {
   return (
     <>
       <MainContent

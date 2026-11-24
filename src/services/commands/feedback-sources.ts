@@ -9,6 +9,7 @@ import {
   RotateFeedbackSourceSchema,
   UpdateFeedbackSourceSchema,
 } from '#contracts/inputs/feedback.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import * as feedbackQueries from '#services/feedback.ts'
 
 import { assertProjectAccess, isWorkspaceAdmin, requireProjectInWorkspace } from './access.ts'
@@ -102,7 +103,7 @@ export const createFeedbackSource = async function createFeedbackSource(
   const token = newRawToken()
   const tokenHash = await sha256hex(token)
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   await ctx.db
     .prepare(
@@ -276,7 +277,7 @@ export const revokeFeedbackSource = async function revokeFeedbackSource(
     throw new ForbiddenError('Insufficient permissions')
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await ctx.db
     .prepare('UPDATE feedback_sources SET revoked_at = ? WHERE id = ? AND workspace_id = ?')
     .bind(now, sourceId, ctx.workspaceId)

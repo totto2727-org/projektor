@@ -2,6 +2,7 @@ import { Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { CreateUserTokenSchema } from '#contracts/inputs/user-tokens.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 
 import { ForbiddenError, ValidationError } from './errors.ts'
 
@@ -73,7 +74,7 @@ export const createUserToken = async function createUserToken(ctx: UserCtx, raw:
       hash,
       JSON.stringify(scopes),
       expiresAt ?? null,
-      Math.floor(Date.now() / 1000),
+      currentEpochSeconds(),
     )
     .run()
 

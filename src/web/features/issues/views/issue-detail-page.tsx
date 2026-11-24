@@ -17,7 +17,7 @@ export interface IssueDetailInitialData {
   readonly currentUserId: string
   readonly reviewTargetsFocused?: boolean
 }
-export function IssueDetailPage({
+export const IssueDetailPage = function IssueDetailPage({
   scope,
   workspaceSlug,
   initialData,

@@ -19,7 +19,7 @@ import { ProjectLanding } from './project-landing.tsx'
 import { ProjectList } from './project-list.tsx'
 import { ProjectOverviewSchema, ProjectSummariesSchema } from './schemas.ts'
 
-export function renderProjects(
+export const renderProjects = function renderProjects(
   scope: RequestScope,
   url: URL,
 ): Effect.Effect<ReactNode, ApiError | ScopeError, RequestServices> {
@@ -40,7 +40,7 @@ export function renderProjects(
   })
 }
 
-export function renderOverview(
+export const renderOverview = function renderOverview(
   scope: RequestScope,
   _url: URL,
 ): Effect.Effect<ReactNode, ApiError | ScopeError, RequestServices> {
@@ -74,6 +74,6 @@ export function renderOverview(
   })
 }
 
-export function renderHelp(_env: Env, _scope: null, _url: URL): Effect.Effect<ReactNode, never> {
+export const renderHelp = function renderHelp(_env: Env, _scope: null, _url: URL): Effect.Effect<ReactNode, never> {
   return Effect.succeed(<HelpPage />)
 }

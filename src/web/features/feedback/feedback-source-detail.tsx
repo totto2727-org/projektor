@@ -36,14 +36,14 @@ const tabBtnClass = (active: boolean): string =>
   'px-4 py-2 text-[0.85rem] font-semibold border-b-2 -mb-px bg-transparent cursor-pointer ' +
   (active ? 'border-accent text-text-base' : 'border-transparent text-text-muted hover:text-text-base')
 
-function statusLabel(s: FeedbackSource): string {
+const statusLabel = function statusLabel(s: FeedbackSource): string {
   if (Predicate.isNotNullish(s.revokedAt)) {
     return 'Revoked'
   }
   return s.isActive ? 'Active' : 'Inactive'
 }
 
-function FeedbackSourceHeader({
+const FeedbackSourceHeader = function FeedbackSourceHeader({
   source,
   sources,
   projectId,
@@ -78,7 +78,7 @@ function FeedbackSourceHeader({
   )
 }
 
-function FeedbackTabPanels({
+const FeedbackTabPanels = function FeedbackTabPanels({
   tab,
   workspaceSlug,
   projectId,
@@ -127,7 +127,7 @@ function FeedbackTabPanels({
   )
 }
 
-function FeedbackTabBar({
+const FeedbackTabBar = function FeedbackTabBar({
   tab,
   tabRefs,
   onTabKeyDown,

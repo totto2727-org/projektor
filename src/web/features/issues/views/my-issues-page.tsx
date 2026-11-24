@@ -7,7 +7,12 @@ export interface MyIssuesInitialData {
   readonly issues: Readonly<ScopedIssue[]>
   readonly memberships: Readonly<WorkspaceMembership[]>
 }
-export function MyIssuesPage({ initialData }: { scope: RequestScope; initialData: MyIssuesInitialData }) {
+export const MyIssuesPage = function MyIssuesPage({
+  initialData,
+}: {
+  scope: RequestScope
+  initialData: MyIssuesInitialData
+}) {
   return (
     <section>
       <h1 className='text-2xl font-bold mb-6'>My Issues</h1>

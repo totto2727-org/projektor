@@ -16,7 +16,7 @@ import { issueUrl } from '@/features/issues/utils/issue-url.ts'
 import { IssueSelectionControl } from './bulk-actions.tsx'
 import { getStoryPoints, priorityBadge, StatusSelect, spBadge } from './issue-render-helpers.tsx'
 
-function BoardCard({
+const BoardCard = function BoardCard({
   issue,
   statuses,
   dragIssueId,

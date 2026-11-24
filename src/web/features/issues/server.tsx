@@ -51,14 +51,14 @@ interface EpicsLoaderData {
 const CONCURRENCY = 4
 type ReadFailure = ApiError | ScopeError
 
-function workspaceSelection(scope: RequestScope) {
+const workspaceSelection = function workspaceSelection(scope: RequestScope) {
   return scope.selection.kind === 'project' || scope.selection.kind === 'workspace' ? scope.selection.workspace : null
 }
-function selectedProject(scope: RequestScope) {
+const selectedProject = function selectedProject(scope: RequestScope) {
   return scope.selection.kind === 'project' ? scope.selection.project : null
 }
 
-export function filteredIssueQuery(
+export const filteredIssueQuery = function filteredIssueQuery(
   url: URL,
   projects: RequestScope['projects'],
   taskTypes: Readonly<{ id: string; key: string }[]>,
@@ -93,7 +93,7 @@ export function filteredIssueQuery(
   return query
 }
 
-function allPages(
+const allPages = function allPages(
   scope: RequestScope,
   workspaceId: string,
   query: URLSearchParams,
@@ -131,14 +131,14 @@ function allPages(
     }
   })
 }
-function lookups(scope: RequestScope, workspaceId: string) {
+const lookups = function lookups(scope: RequestScope, workspaceId: string) {
   return Effect.gen(function* () {
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
     return yield* readIssueLookups(workspaceId)
   })
 }
 
-export function loadIssues(
+export const loadIssues = function loadIssues(
   scope: RequestScope,
   url: URL,
 ): Effect.Effect<IssuesLoaderData | null, ReadFailure, RequestServices> {
@@ -212,7 +212,10 @@ export function loadIssues(
     }
   })
 }
-export function renderIssues(scope: RequestScope, url: URL): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
+export const renderIssues = function renderIssues(
+  scope: RequestScope,
+  url: URL,
+): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
     const data = yield* loadIssues(scope, url)
     return (
@@ -225,7 +228,11 @@ export function renderIssues(scope: RequestScope, url: URL): Effect.Effect<React
   })
 }
 type IssueRouteParams = Readonly<Record<string, string | undefined>>
-function issueIdentifier(url: URL, scope: RequestScope, params: IssueRouteParams): string | null {
+const issueIdentifier = function issueIdentifier(
+  url: URL,
+  scope: RequestScope,
+  params: IssueRouteParams,
+): string | null {
   const id = url.searchParams.get('id')
   if (Predicate.isNotNullish(id) && String.isNonEmpty(id)) {
     return id
@@ -246,7 +253,7 @@ function issueIdentifier(url: URL, scope: RequestScope, params: IssueRouteParams
   }
   return `${project.key}-${number}`
 }
-export function loadIssue(
+export const loadIssue = function loadIssue(
   scope: RequestScope,
   url: URL,
   params: IssueRouteParams = {},
@@ -326,7 +333,7 @@ export function loadIssue(
     }
   })
 }
-export function renderIssue(
+export const renderIssue = function renderIssue(
   scope: RequestScope,
   url: URL,
   params: IssueRouteParams = {},
@@ -336,7 +343,7 @@ export function renderIssue(
     return <IssueDetailPage scope={data?.scope ?? scope} {...(data ?? { workspaceSlug: '', initialData: null })} />
   })
 }
-export function loadMyIssues(
+export const loadMyIssues = function loadMyIssues(
   scope: RequestScope,
   url: URL,
 ): Effect.Effect<MyIssuesInitialData, ReadFailure, RequestServices> {
@@ -356,7 +363,7 @@ export function loadMyIssues(
     return { issues, memberships }
   })
 }
-export function renderMyIssues(
+export const renderMyIssues = function renderMyIssues(
   scope: RequestScope,
   url: URL,
 ): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
@@ -364,7 +371,7 @@ export function renderMyIssues(
     return <MyIssuesPage scope={scope} initialData={yield* loadMyIssues(scope, url)} />
   })
 }
-export function loadEpics(
+export const loadEpics = function loadEpics(
   scope: RequestScope,
   url: URL,
 ): Effect.Effect<EpicsLoaderData | null, ReadFailure, RequestServices> {
@@ -398,7 +405,10 @@ export function loadEpics(
     }
   })
 }
-export function renderEpics(scope: RequestScope, url: URL): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
+export const renderEpics = function renderEpics(
+  scope: RequestScope,
+  url: URL,
+): Effect.Effect<ReactElement, ReadFailure, RequestServices> {
   return Effect.gen(function* () {
     const data = yield* loadEpics(scope, url)
     return <EpicsPage scope={scope} {...(data ?? { workspaceSlug: '', initialData: null })} />

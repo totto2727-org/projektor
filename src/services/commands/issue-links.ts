@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { CreateIssueLinkSchema, DeleteIssueLinkSchema, ListIssueLinksSchema } from '#contracts/inputs/issues.ts'
 import type { LinkTypeStoredEnum } from '#contracts/inputs/issues.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import { listLinksForIssue as queryLinks } from '#services/issue-links.ts'
 
@@ -113,7 +114,7 @@ export async function createLink(ctx: ServiceCtx, raw: unknown) {
   }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   await orm.insert(schema.issueLinks).values({
     id,

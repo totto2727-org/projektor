@@ -8,12 +8,12 @@ import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
 import { statusDisplayName } from '@/features/issues/lib/status.ts'
 import { PRIORITY_OPTIONS } from '@/features/issues/utils/issue-utils.ts'
 
-export function getStoryPoints(issue: Issue): string | null {
+export const getStoryPoints = function getStoryPoints(issue: Issue): string | null {
   const field = (issue.customFields ?? []).find((f) => f.key === 'story_points')
   return field?.value ?? null
 }
 
-export function spBadge(pts: string) {
+export const spBadge = function spBadge(pts: string) {
   return (
     <span
       className={[
@@ -26,7 +26,7 @@ export function spBadge(pts: string) {
   )
 }
 
-export function priorityBadge(issue: Issue) {
+export const priorityBadge = function priorityBadge(issue: Issue) {
   return (
     <span
       className='inline-flex items-center px-1.5 py-0.5 rounded text-[0.7rem] font-semibold capitalize whitespace-nowrap'
@@ -40,7 +40,7 @@ export function priorityBadge(issue: Issue) {
   )
 }
 
-export function statusBadge(issue: Issue) {
+export const statusBadge = function statusBadge(issue: Issue) {
   return (
     <span className='font-medium text-sm' style={{ color: categoryColor(issue.status_category) }}>
       {statusDisplayName(issue.status_name, issue.status_key)}
@@ -48,7 +48,7 @@ export function statusBadge(issue: Issue) {
   )
 }
 
-export function PrioritySelect({
+export const PrioritySelect = function PrioritySelect({
   issue,
   busy,
   onChange,
@@ -76,7 +76,7 @@ export function PrioritySelect({
   )
 }
 
-export function StatusSelect({
+export const StatusSelect = function StatusSelect({
   issue,
   statuses,
   busy,
@@ -105,7 +105,7 @@ export function StatusSelect({
   )
 }
 
-export function SortableHeader({
+export const SortableHeader = function SortableHeader({
   label,
   sortKey,
   sortBy,

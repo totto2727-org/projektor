@@ -41,7 +41,7 @@ interface RowsProps {
   changePriority: (issueId: string, priority: string) => void
 }
 
-function DesktopTable({
+const DesktopTable = function DesktopTable({
   issues,
   statuses,
   updatingId,
@@ -124,7 +124,7 @@ function DesktopTable({
   )
 }
 
-function MobileCards({ issues, updatingPriorityId, changePriority }: RowsProps) {
+const MobileCards = function MobileCards({ issues, updatingPriorityId, changePriority }: RowsProps) {
   return (
     <div className='hidden max-sm:flex max-sm:flex-col max-sm:gap-3'>
       {issues.map((issue) => (

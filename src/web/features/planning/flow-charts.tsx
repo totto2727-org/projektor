@@ -29,19 +29,19 @@ import type { ChartConfig } from '@/components/generated/chart.tsx'
 import { formatDuration, formatPercent } from './helpers.ts'
 import type { FlowMetrics } from './types.ts'
 
-export function formatShortDate(iso: string): string {
+export const formatShortDate = function formatShortDate(iso: string): string {
   const date = new Date(`${iso}T00:00:00Z`)
   return Number.isNaN(date.getTime())
     ? iso
     : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 }
-export function formatFullDate(iso: string): string {
+export const formatFullDate = function formatFullDate(iso: string): string {
   const date = new Date(`${iso}T00:00:00Z`)
   return Number.isNaN(date.getTime())
     ? iso
     : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
-export function EmptyChartState({ message }: { message: string }) {
+export const EmptyChartState = function EmptyChartState({ message }: { message: string }) {
   return <div className='flex items-center justify-center h-[220px] text-sm text-text-muted'>{message}</div>
 }
 const accent = 'var(--accent)'
@@ -54,7 +54,15 @@ const sequential = {
 }
 const margin = { top: 12, right: 12, bottom: 0, left: 0 }
 
-function FlowChart({ name, config, children }: { name: string; config: ChartConfig; children: ReactNode }) {
+const FlowChart = function FlowChart({
+  name,
+  config,
+  children,
+}: {
+  name: string
+  config: ChartConfig
+  children: ReactNode
+}) {
   const id = useId()
   return (
     <ChartContainer
@@ -67,15 +75,15 @@ function FlowChart({ name, config, children }: { name: string; config: ChartConf
     </ChartContainer>
   )
 }
-function DateAxis() {
+const DateAxis = function DateAxis() {
   return (
     <XAxis dataKey='bucketStart' tickFormatter={formatShortDate} tickLine={false} axisLine={false} minTickGap={24} />
   )
 }
-function CountAxis() {
+const CountAxis = function CountAxis() {
   return <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={42} />
 }
-function valueFormatter(
+const valueFormatter = function valueFormatter(
   config: ChartConfig,
   formatValue: (value: number) => string,
   onlyDataKey?: string,
@@ -90,7 +98,13 @@ function valueFormatter(
       </div>
     )
 }
-function DateTooltip({ config, formatValue }: { config?: ChartConfig; formatValue?: (value: number) => string }) {
+const DateTooltip = function DateTooltip({
+  config,
+  formatValue,
+}: {
+  config?: ChartConfig
+  formatValue?: (value: number) => string
+}) {
   return (
     <ChartTooltip
       content={
@@ -103,7 +117,11 @@ function DateTooltip({ config, formatValue }: { config?: ChartConfig; formatValu
   )
 }
 const throughputConfig = { count: { label: 'Issues completed', color: accent } } satisfies ChartConfig
-export function ThroughputChart({ data }: { data: Readonly<FlowMetrics['throughputOverTime'][number][]> }) {
+export const ThroughputChart = function ThroughputChart({
+  data,
+}: {
+  data: Readonly<FlowMetrics['throughputOverTime'][number][]>
+}) {
   if (!data.length || data.every((point) => point.count === 0)) {
     return <EmptyChartState message='No completed issues yet' />
   }

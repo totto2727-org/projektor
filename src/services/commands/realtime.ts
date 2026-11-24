@@ -1,3 +1,4 @@
+import { currentEpochSeconds } from '#contracts/time.ts'
 import type { RealtimeEvent } from '#types'
 
 import type { ServiceCtx } from './types.ts'
@@ -21,7 +22,7 @@ export const broadcastWorkspaceEvent = async function broadcastWorkspaceEvent(
   const fullEvent: RealtimeEvent = {
     ...event,
     workspaceId: ctx.workspaceId,
-    timestamp: Math.floor(Date.now() / 1000),
+    timestamp: currentEpochSeconds(),
   }
 
   try {

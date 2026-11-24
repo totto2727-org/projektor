@@ -26,7 +26,7 @@ import type { MetricId } from './metric-definitions.ts'
 import { MetricHelp, SectionHeading } from './metric-help.tsx'
 import type { CodeHeatmapResponse, Distribution, FlowMetrics, HeatmapMode, RangeState } from './types.ts'
 
-function StatTile({ label, value }: { label: string; value: string }) {
+const StatTile = function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className='px-4 py-3 bg-surface border border-border rounded-lg min-w-0'>
       <p className='m-0 mb-1 text-[0.72rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>{label}</p>
@@ -34,7 +34,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
-function DistributionTiles({
+const DistributionTiles = function DistributionTiles({
   metricId,
   title,
   caption,
@@ -67,7 +67,7 @@ function DistributionTiles({
     </div>
   )
 }
-function HealthTile({ metricId, value }: { metricId: MetricId; value: number }) {
+const HealthTile = function HealthTile({ metricId, value }: { metricId: MetricId; value: number }) {
   const flagged = value > 0
   return (
     <div
@@ -87,7 +87,7 @@ function HealthTile({ metricId, value }: { metricId: MetricId; value: number }) 
     </div>
   )
 }
-function SectionBand({ title, children }: { title?: string; children: ReactNode }) {
+const SectionBand = function SectionBand({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <section className='mb-10'>
       {title && <h2 className='m-0 mb-4 pb-2 text-lg font-bold text-text-base border-b border-border'>{title}</h2>}
@@ -95,7 +95,15 @@ function SectionBand({ title, children }: { title?: string; children: ReactNode 
     </section>
   )
 }
-function ChartSection({ id, caption, children }: { id: MetricId; caption?: string; children: ReactNode }) {
+const ChartSection = function ChartSection({
+  id,
+  caption,
+  children,
+}: {
+  id: MetricId
+  caption?: string
+  children: ReactNode
+}) {
   return (
     <div className='mb-8'>
       <SectionHeading metricId={id} caption={caption} />
@@ -103,7 +111,7 @@ function ChartSection({ id, caption, children }: { id: MetricId; caption?: strin
     </div>
   )
 }
-function FlowBand({ metrics }: { metrics: FlowMetrics }) {
+const FlowBand = function FlowBand({ metrics }: { metrics: FlowMetrics }) {
   return (
     <SectionBand title='Flow'>
       <DistributionTiles metricId='lead-time' dist={metrics.leadTime} />
@@ -149,7 +157,7 @@ function FlowBand({ metrics }: { metrics: FlowMetrics }) {
     </SectionBand>
   )
 }
-function EfficiencyBand({ metrics }: { metrics: FlowMetrics }) {
+const EfficiencyBand = function EfficiencyBand({ metrics }: { metrics: FlowMetrics }) {
   return (
     <SectionBand title='Efficiency & collaboration'>
       <DistributionTiles
@@ -175,7 +183,7 @@ function EfficiencyBand({ metrics }: { metrics: FlowMetrics }) {
     </SectionBand>
   )
 }
-function FactoryHealthBand({ health }: { health: FlowMetrics['factoryHealth'] }) {
+const FactoryHealthBand = function FactoryHealthBand({ health }: { health: FlowMetrics['factoryHealth'] }) {
   return (
     <SectionBand title='Factory health'>
       <div className='mb-8'>
@@ -194,7 +202,7 @@ function FactoryHealthBand({ health }: { health: FlowMetrics['factoryHealth'] })
   )
 }
 /** All primary charts and heatmap arrive in SSR props. Applying a range is a normal GET. */
-export function MetricsDashboard({
+export const MetricsDashboard = function MetricsDashboard({
   projectId,
   workspaceSlug,
   initialMetrics: metrics,

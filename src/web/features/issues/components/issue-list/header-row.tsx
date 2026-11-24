@@ -8,7 +8,7 @@ import type { Issue } from '@/features/issues/components/board-utils.ts'
 import type { ViewMode } from './types-view.ts'
 import type { SearchResult } from './use-issue-search.ts'
 
-function countLabel(view: ViewMode, filtered: Issue[], totalIssues: number | null): string {
+const countLabel = function countLabel(view: ViewMode, filtered: Issue[], totalIssues: number | null): string {
   const listCount = view === 'backlog' ? getBacklogIssues(filtered).length : filtered.length
   const suffix =
     view !== 'backlog' && Predicate.isNotNullish(totalIssues) && totalIssues !== filtered.length
@@ -17,7 +17,7 @@ function countLabel(view: ViewMode, filtered: Issue[], totalIssues: number | nul
   return `${listCount} issue${listCount !== 1 ? 's' : ''}${suffix}`
 }
 
-function searchCountLabel(results: Readonly<SearchResult[]>, query: string): string {
+const searchCountLabel = function searchCountLabel(results: Readonly<SearchResult[]>, query: string): string {
   return `${results.length} result${results.length !== 1 ? 's' : ''} for «${query.trim()}»`
 }
 

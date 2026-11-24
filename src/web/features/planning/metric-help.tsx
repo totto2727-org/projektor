@@ -7,7 +7,10 @@ import { Popover } from '@/components/ui/popover.tsx'
 import { METRIC_DEFINITIONS } from './metric-definitions.ts'
 import type { MetricId } from './metric-definitions.ts'
 
-export function computeMetricHelpPosition(rect: DOMRect): { top: number; left: number } {
+export const computeMetricHelpPosition = function computeMetricHelpPosition(rect: DOMRect): {
+  top: number
+  left: number
+} {
   const left = Math.max(8, Math.min(rect.left, window.innerWidth - 256 - 8))
   const below = window.innerHeight - rect.bottom - 4 - 8
   const above = rect.top - 4 - 8
@@ -15,7 +18,7 @@ export function computeMetricHelpPosition(rect: DOMRect): { top: number; left: n
   return { top, left }
 }
 /** Original viewport-clamped toggletip, dismissed by Escape, outside clicks and scroll. */
-export function MetricHelp({ id }: { id: MetricId }) {
+export const MetricHelp = function MetricHelp({ id }: { id: MetricId }) {
   const definition = METRIC_DEFINITIONS[id]
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
@@ -110,7 +113,7 @@ export function MetricHelp({ id }: { id: MetricId }) {
     </span>
   )
 }
-export function SectionHeading({ metricId, caption }: { metricId: MetricId; caption?: string }) {
+export const SectionHeading = function SectionHeading({ metricId, caption }: { metricId: MetricId; caption?: string }) {
   return (
     <>
       <h2 className='m-0 mb-1 text-base font-semibold text-text-base inline-flex items-center gap-1.5'>

@@ -15,7 +15,7 @@ const REVIEW_LINKS = [
 ] satisfies { review: ReviewFilter | null; label: string }[]
 
 /** Native links keep review scope canonical on the server, including without JavaScript. */
-export function IssueReviewNavigation({
+export const IssueReviewNavigation = function IssueReviewNavigation({
   route,
   workspaceSlug,
   project,

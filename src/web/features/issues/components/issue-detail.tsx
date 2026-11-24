@@ -23,7 +23,7 @@ import {
 } from './issue-detail-parts.tsx'
 import { ReviewTargetsSection } from './review-targets-section.tsx'
 
-function useIssueMutations(issueId: string, workspaceSlug: string) {
+const useIssueMutations = function useIssueMutations(issueId: string, workspaceSlug: string) {
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [updatingPriority, setUpdatingPriority] = useState(false)
   const [updatingAssignee, setUpdatingAssignee] = useState(false)
@@ -85,7 +85,7 @@ function useIssueMutations(issueId: string, workspaceSlug: string) {
   }
 }
 
-function IssueBreadcrumb({ issue, backHref }: { issue: IssueData; backHref: string | null }) {
+const IssueBreadcrumb = function IssueBreadcrumb({ issue, backHref }: { issue: IssueData; backHref: string | null }) {
   return (
     <nav className='text-sm text-text-muted mb-5'>
       {issue.type_key === 'epic' ? (
@@ -104,7 +104,7 @@ function IssueBreadcrumb({ issue, backHref }: { issue: IssueData; backHref: stri
   )
 }
 
-function IssueDetailView(
+const IssueDetailView = function IssueDetailView(
   props: Readonly<{
     issue: IssueData
     issueId: string

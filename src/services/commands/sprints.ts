@@ -9,6 +9,7 @@ import {
   MoveIssuesToSprintSchema,
   UpdateSprintSchema,
 } from '#contracts/inputs/sprints.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as sprintQueries from '#services/sprints.ts'
 
@@ -95,7 +96,7 @@ export const createSprint = async function createSprint(ctx: ServiceCtx, raw: un
   await requireSprintProjectWrite(ctx, projectId)
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   await orm.insert(schema.sprints).values({
     id,
@@ -162,7 +163,7 @@ export const updateSprint = async function updateSprint(ctx: ServiceCtx, id: str
   }
   await requireSprintProjectWrite(ctx, existing.projectId)
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const setData = buildSprintSetData(data, now)
 
   await orm
@@ -196,7 +197,7 @@ export const completeSprint = async function completeSprint(ctx: ServiceCtx, id:
     })
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm
     .update(schema.sprints)
     .set({ status: 'completed', updatedAt: now })
@@ -278,7 +279,7 @@ export const moveIssuesToSprint = async function moveIssuesToSprint(ctx: Service
     throw new NotFoundError(`Issue not found: ${foreignIssues[0].id}`)
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   // inChunks: issueIds is a caller-supplied batch, so keep each UPDATE under D1's
   // 100-bound-parameter cap. See services/sql.ts.
   await inChunks(issueIds, async (chunk) => {

@@ -22,7 +22,7 @@ export type PublicRenderer = (
   params: RouteParams,
 ) => Effect.Effect<ReactNode, PageFailure, RequestServices>
 
-function errorResponse(error: PageFailure) {
+const errorResponse = function errorResponse(error: PageFailure) {
   const status = error.status
   const message =
     status === 401
@@ -47,7 +47,7 @@ function errorResponse(error: PageFailure) {
 }
 
 /** Prepare typed initial data before HTTP streaming, preserving denial/error statuses. */
-export function pageRenderer(
+export const pageRenderer = function pageRenderer(
   render: RouteRenderer | PublicRenderer,
   options: ScopeOptions & { public?: boolean; projectNav?: boolean } = {},
 ) {

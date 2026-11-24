@@ -3,6 +3,7 @@ import { makeCoreClient } from 'projektor/core-client'
 
 import { apiReply } from '#api/services/reply.ts'
 import { ApiRealtimeSnapshot } from '#contracts/api-public.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import type { CoreActor } from '#core/authorization.ts'
 import { CORE_ACTOR_HEADER } from '#core/contract.ts'
 import type { ApiEnv, RealtimeEvent, Role } from '#types'
@@ -84,7 +85,7 @@ export class WorkspaceHub {
 
     this.ctx.acceptWebSocket(server)
 
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const initialAttachment: SocketAttachment = {
       actor,
       userId: snapshot.userId,
@@ -112,7 +113,7 @@ export class WorkspaceHub {
       ...attachment,
       role: snapshot.role,
       visibleProjectIds: [...snapshot.visibleProjectIds],
-      snapshotAt: Math.floor(Date.now() / 1000),
+      snapshotAt: currentEpochSeconds(),
     }
   }
 
@@ -137,7 +138,7 @@ export class WorkspaceHub {
       ws.serializeAttachment(attachment)
 
       if (data.action === 'ping') {
-        ws.send(JSON.stringify({ type: 'pong', timestamp: Math.floor(Date.now() / 1000) }))
+        ws.send(JSON.stringify({ type: 'pong', timestamp: currentEpochSeconds() }))
         return
       }
 
@@ -175,7 +176,7 @@ export class WorkspaceHub {
           JSON.stringify({
             type: 'subscribed',
             filters,
-            timestamp: Math.floor(Date.now() / 1000),
+            timestamp: currentEpochSeconds(),
           }),
         )
       }

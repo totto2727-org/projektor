@@ -1,3 +1,4 @@
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { definePlugin, defineMCPTool } from '#plugin-sdk'
 
 export default definePlugin({
@@ -44,7 +45,7 @@ export default definePlugin({
           .prepare(
             'INSERT INTO github_links (id, issue_id, pr_url, pr_number, repo, created_at) VALUES (?, ?, ?, ?, ?, ?)',
           )
-          .bind(id, issueId, prUrl, prNumber, repo, Math.floor(Date.now() / 1000))
+          .bind(id, issueId, prUrl, prNumber, repo, currentEpochSeconds())
           .run()
         return { id }
       },

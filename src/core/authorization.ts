@@ -6,6 +6,7 @@ import { VerifiedApiOauthGrant } from '#contracts/api-auth.ts'
 import { capabilityForOAuthScope, parseScopes, tokenAllows } from '#contracts/auth-scopes.ts'
 import type { Capability } from '#contracts/auth-scopes.ts'
 import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_NOT_FOUND, HTTP_UNAUTHORIZED } from '#contracts/http-status.ts'
+import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import {
   authenticateAccessJwt,
   authenticateDevelopment,
@@ -146,11 +147,11 @@ async function authenticateOpaqueToken(token: string, env: CoreEnvironment): Pro
   if (!row || !row.user_id || !row.email || Predicate.isNullish(row.name)) {
     throw coreFailure(HTTP_UNAUTHORIZED, 'Unauthorized')
   }
-  if (Predicate.isNotNullish(row.expires_at) && row.expires_at < Date.now() / 1000) {
+  if (Predicate.isNotNullish(row.expires_at) && row.expires_at < currentEpochMilliseconds() / 1000) {
     throw coreFailure(HTTP_UNAUTHORIZED, 'Token expired')
   }
   const scopes = parseScopes(row.scopes)
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   if (!row.last_used_at || now - row.last_used_at >= 60) {
     const audit = env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?')
       .bind(now, hash)

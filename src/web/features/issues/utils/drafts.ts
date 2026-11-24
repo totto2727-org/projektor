@@ -6,6 +6,8 @@
  */
 
 import { Iterable, Predicate } from 'effect'
+
+import { currentEpochMilliseconds } from '#contracts/time.ts'
 const PREFIX = 'projektor:draft:'
 const TTL_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -34,7 +36,7 @@ export const loadDraft = function loadDraft(key: string): string | null {
       sessionStorage.removeItem(key)
       return null
     }
-    if (Date.now() - parsed.at > TTL_MS) {
+    if (currentEpochMilliseconds() - parsed.at > TTL_MS) {
       sessionStorage.removeItem(key)
       return null
     }
@@ -52,7 +54,7 @@ export const saveDraft = function saveDraft(key: string, value: string): void {
       sessionStorage.removeItem(key)
       return
     }
-    sessionStorage.setItem(key, JSON.stringify({ value, at: Date.now() } satisfies StoredDraft))
+    sessionStorage.setItem(key, JSON.stringify({ value, at: currentEpochMilliseconds() } satisfies StoredDraft))
   } catch {
     /*
      * Quota exceeded or storage blocked. Draft persistence is a convenience, never a

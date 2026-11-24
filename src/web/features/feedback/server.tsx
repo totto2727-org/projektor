@@ -9,7 +9,7 @@ import { FeedbackDetailClient } from './feedback-detail-client.tsx'
 import { FeedbackGridClient } from './feedback-grid-client.tsx'
 import { FeedbackIndexSchema, FeedbackDetailSchema } from './schemas.ts'
 
-function NeedProject() {
+const NeedProject = function NeedProject() {
   return (
     <section className='p-6 bg-surface border border-border rounded-lg'>
       <h1 className='m-0'>Choose a project</h1>
@@ -17,14 +17,14 @@ function NeedProject() {
     </section>
   )
 }
-function NotFound() {
+const NotFound = function NotFound() {
   return (
     <section className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>
       Feedback source not found.
     </section>
   )
 }
-export function renderFeedback(scope: RequestScope, _url: URL) {
+export const renderFeedback = function renderFeedback(scope: RequestScope, _url: URL) {
   return Effect.gen(function* () {
     if (scope.selection.kind !== 'project') {
       return <NeedProject />
@@ -49,7 +49,7 @@ export function renderFeedback(scope: RequestScope, _url: URL) {
     )
   })
 }
-export function renderFeedbackDetail(
+export const renderFeedbackDetail = function renderFeedbackDetail(
   scope: RequestScope,
   url: URL,
   params: Readonly<Record<string, string | undefined>> = {},

@@ -14,7 +14,7 @@ import { IssuePageSchema } from './schemas.ts'
 import type { SprintIssue } from './types.ts'
 import { MetricsDashboard, SprintManager } from './widgets.tsx'
 
-function selectedProject(scope: RequestScope, projectId: string, workspaceId: string) {
+const selectedProject = function selectedProject(scope: RequestScope, projectId: string, workspaceId: string) {
   return Effect.try({
     catch: (cause) => (cause instanceof ScopeError ? cause : dataError(cause)),
     try: () => {
@@ -25,7 +25,11 @@ function selectedProject(scope: RequestScope, projectId: string, workspaceId: st
 }
 
 /** Fully page scoped issue DTOs on the server, including completed velocity history. */
-export function loadSprintIssues(projectId: string, workspaceSlug: string, scope: RequestScope) {
+export const loadSprintIssues = function loadSprintIssues(
+  projectId: string,
+  workspaceSlug: string,
+  scope: RequestScope,
+) {
   return Effect.gen(function* () {
     const workspace = scope.workspaces.find((item) => item.slug === workspaceSlug)
     if (!workspace) {
@@ -68,7 +72,7 @@ export function loadSprintIssues(projectId: string, workspaceSlug: string, scope
     return issues
   })
 }
-export function renderSprints(scope: RequestScope, url: URL) {
+export const renderSprints = function renderSprints(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
     if (scope.selection.kind !== 'project') {
       return <p className='text-text-muted'>Select a project to view its sprints.</p>
@@ -96,7 +100,7 @@ export function renderSprints(scope: RequestScope, url: URL) {
     )
   })
 }
-export function renderMetrics(scope: RequestScope, url: URL) {
+export const renderMetrics = function renderMetrics(scope: RequestScope, url: URL) {
   return Effect.gen(function* () {
     if (scope.selection.kind !== 'project') {
       return <p className='text-text-muted'>Select a project to view metrics.</p>

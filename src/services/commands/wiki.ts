@@ -18,6 +18,7 @@ import {
   WikiTreeInputSchema,
 } from '#contracts/inputs/wiki.ts'
 import type { PatchWikiPageInput } from '#contracts/inputs/wiki.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
 import { drizzle, schema } from '#db'
 import * as wikiData from '#services/wiki.ts'
@@ -543,7 +544,7 @@ export const searchWiki = async function searchWiki(ctx: ServiceCtx, input: unkn
   ) {
     return []
   }
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const visible =
     Predicate.isNullish(projectId) || String.isEmpty(projectId) || includeWorkspacePages
       ? visibleProjectSqlFragment(ctx, 'p.project_id')
@@ -850,7 +851,7 @@ export const createWikiPage = async function createWikiPage(ctx: ServiceCtx, inp
   const slug = customSlug ?? deriveSlugFromTitle(title)
   await assertSlugAvailable(orm, ctx.workspaceId, slug)
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   /*
    * PROJ-488 (R6): parse+validate the optional frontmatter block up front, so an
    * invalid frontmatter throws before any row is written (never a partial create).
@@ -1388,7 +1389,7 @@ export const updateWikiPage = async function updateWikiPage(ctx: ServiceCtx, idO
   const { title, content, parentId, slug, baseRevisionId, summary } = parsed.data
   const page = await resolvePageByIdOrSlug(ctx.db, idOrSlug, ctx.workspaceId)
   await requireWikiWrite(ctx, page.projectId)
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const orm = drizzle(ctx.db, { schema })
 
   await assertNoUpdateConflict(ctx.db, page, baseRevisionId)
@@ -1507,7 +1508,7 @@ export const verifyWikiPage = async function verifyWikiPage(ctx: ServiceCtx, idO
   const baseRevisionId = await getLatestRevisionId(ctx.db, page.id)
   const current = await resolvePageByIdOrSlug(ctx.db, page.id, ctx.workspaceId)
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const newContent = stampWikiFrontmatterVerification(current.content, now, user.email)
   await updateWikiPage(ctx, page.id, { content: newContent, summary: 'Verified', baseRevisionId })
 
@@ -1551,7 +1552,7 @@ export const listStaleWikiPages = async function listStaleWikiPages(ctx: Service
     }
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const rows = await Effect.runPromise(
     wikiData.listStaleWikiPages(ctx.db, ctx.workspaceId, {
       ...parsed.data,
@@ -1873,7 +1874,7 @@ async function patchWikiPageOnce(
     newContent = await resolveSectionPatchContent(ctx, page, currentContent, data)
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const orm = drizzle(ctx.db, { schema })
   /*
    * PROJ-490: parse+validate frontmatter up front, same as updateWikiPage, so
@@ -2052,7 +2053,7 @@ export const buildDefaultWikiTemplateStatements = function buildDefaultWikiTempl
   userId: string,
 ): D1PreparedStatement[] {
   const orm = drizzle(db, { schema })
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   const parentId = crypto.randomUUID()
   const statements: D1PreparedStatement[] = [
@@ -2316,7 +2317,7 @@ export const deleteWikiPage = async function deleteWikiPage(ctx: ServiceCtx, idO
 
   await requireWikiDelete(ctx, page.projectId)
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   /*
    * PROJ-493 (R11)/PROJ-496: slug/title/projectId are captured here (not re-read off
    * the row later) so list_wiki_changes can still report what a "deleted" event was
@@ -2531,7 +2532,7 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
     await assertSlugAvailable(orm, ctx.workspaceId, descendant.slug, descendant.id)
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await inChunks(allIds, async (chunk) => {
     await orm
       .update(schema.wikiPages)
@@ -2663,7 +2664,7 @@ export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
 
   const limit = options.limit ?? WIKI_TRASH_PURGE_DEFAULT_PAGE_LIMIT
   const orm = drizzle(ctx.db, { schema })
-  const cutoff = Math.floor(Date.now() / 1000) - WIKI_TRASH_RETENTION_SECONDS
+  const cutoff = currentEpochSeconds() - WIKI_TRASH_RETENTION_SECONDS
   /*
    * PROJ-865: ORDER BY deleted_at (oldest-expired-first) + LIMIT bounds this call's work;
    * fetching limit+1 tells us whether more expired pages remain without a second COUNT

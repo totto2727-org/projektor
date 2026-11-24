@@ -128,12 +128,12 @@ afterEach(() => {
   vi.mocked(discardWikiDraft).mockResolvedValue({ ok: true, value: { ok: true, revision: 'discarded' } })
 })
 describe('wiki delayed draft lifecycle', () => {
-  async function debounce(): Promise<void> {
+  const debounce = async function debounce(): Promise<void> {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1100)
     })
   }
-  function timers(): void {
+  const timers = function timers(): void {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
   }
 

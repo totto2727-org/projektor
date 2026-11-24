@@ -15,7 +15,7 @@ export interface AttachmentUploadProps {
 }
 
 /** Effront form action owns upload decoding, request limits and canonical SSR refresh. */
-export function AttachmentUpload({
+export const AttachmentUpload = function AttachmentUpload({
   workspaceSlug,
   entityType,
   entityId,

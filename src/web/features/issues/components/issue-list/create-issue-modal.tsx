@@ -43,7 +43,7 @@ interface CreateIssueModalProps {
   statuses: TaskStatus[]
 }
 
-function CreateIssueModalFields({
+const CreateIssueModalFields = function CreateIssueModalFields({
   createPriority,
   setCreatePriority,
   createProjectId,

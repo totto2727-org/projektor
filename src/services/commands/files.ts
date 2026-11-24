@@ -10,6 +10,7 @@ import {
   SetAttachmentReviewStatusSchema,
 } from '#contracts/inputs/files.ts'
 import type { ReviewStatus } from '#contracts/review-targets.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
 import * as attachmentData from '#services/files.ts'
 
@@ -229,7 +230,7 @@ export const createLinkAttachment = async function createLinkAttachment(
   }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   await ctx.db
     .prepare(
@@ -366,7 +367,7 @@ export async function recordUpload(
   await assertEntityWritable(ctx, entityType, entityId)
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   // This final write, not the advisory preflight, serializes concurrent quota decisions.
   // A losing upload is compensated by uploadStoredAttachment before its error escapes.

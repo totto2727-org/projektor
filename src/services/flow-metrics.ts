@@ -3,6 +3,7 @@ import type { SQL, SQLWrapper } from 'drizzle-orm'
 import { Array, Predicate } from 'effect'
 import type { Effect } from 'effect'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
@@ -892,7 +893,5 @@ export const getFlowMetrics = function getFlowMetrics(
   range: FlowMetricsRange,
   now?: number,
 ): Effect.Effect<FlowMetrics, DataQueryError> {
-  return queryEffect('getFlowMetrics', () =>
-    readFlowMetrics(db, workspaceId, range, now ?? Math.floor(Date.now() / 1000)),
-  )
+  return queryEffect('getFlowMetrics', () => readFlowMetrics(db, workspaceId, range, now ?? currentEpochSeconds()))
 }

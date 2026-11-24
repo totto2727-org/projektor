@@ -1,6 +1,8 @@
 import { Predicate } from 'effect'
 import { z } from 'zod'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
+
 const DAY = 86_400
 
 /*
@@ -48,7 +50,7 @@ export const GetFlowMetricsSchema = z
     if (Predicate.isNullish(data.since) && Predicate.isNullish(data.until)) {
       return
     }
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     let effSince: number
     let effUntil: number
     if (Predicate.isNotNullish(data.since)) {

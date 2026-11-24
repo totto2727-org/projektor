@@ -3,6 +3,7 @@ import { String, Array, Iterable, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { BackfillWikiLinksInputSchema, ListBrokenWikiLinksInputSchema } from '#contracts/inputs/wiki.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 /*
  * PROJ-496 (R14): a trashed page is treated as gone for link resolution purposes — see
  * resolveTitleTargets/resolveSlugTargets/backlinksForResolvedPage/listBrokenWikiLinks
@@ -437,7 +438,7 @@ function buildLinkWriteStatements(
   sourcePageId: string,
   resolved: Readonly<ResolvedLink[]>,
 ): D1PreparedStatement[] {
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const rows = resolved.map((r) => ({
     id: crypto.randomUUID(),
     workspaceId: ctx.workspaceId,

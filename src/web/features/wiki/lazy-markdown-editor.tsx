@@ -11,7 +11,7 @@ const loadMarkdownEditor = () => import('./markdown-editor.tsx')
 
 // Keep the native input usable while the enhanced editor loads.
 // Once editing starts, retain that control until this editor unmounts.
-function EditorFallback({
+const EditorFallback = function EditorFallback({
   value,
   onChange,
   minHeight,

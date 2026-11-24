@@ -5,13 +5,13 @@ import { Array } from 'effect'
 import { SectionHeading } from './metric-help.tsx'
 import type { CodeHeatmapEntry, CodeHeatmapResponse, HeatmapMode } from './types.ts'
 
-function issueCount(count: number): string {
+const issueCount = function issueCount(count: number): string {
   return `${count} ${count === 1 ? 'issue' : 'issues'}`
 }
-function heatBackground(ratio: number): string {
+const heatBackground = function heatBackground(ratio: number): string {
   return `color-mix(in srgb, var(--accent) ${14 + Math.round(70 * ratio)}%, var(--surface))`
 }
-export function heatmapHref(initialUrl: string, mode: HeatmapMode, prefix: string): string {
+export const heatmapHref = function heatmapHref(initialUrl: string, mode: HeatmapMode, prefix: string): string {
   const url = new URL(initialUrl)
   url.searchParams.set('heatmapMode', mode)
   if (prefix) {
@@ -21,7 +21,7 @@ export function heatmapHref(initialUrl: string, mode: HeatmapMode, prefix: strin
   }
   return `${url.pathname}?${url.searchParams}`
 }
-function HeatmapRow({
+const HeatmapRow = function HeatmapRow({
   entry,
   mode,
   ratio,
@@ -67,7 +67,7 @@ function HeatmapRow({
   )
 }
 /** Claim/contention and breadcrumb drill-down are shareable server navigations, never mount fetches. */
-export function CodeHeatmap({
+export const CodeHeatmap = function CodeHeatmap({
   data,
   mode,
   initialUrl,

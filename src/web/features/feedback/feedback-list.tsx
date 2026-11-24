@@ -51,7 +51,7 @@ const STATUS_OPTIONS = [
 const TD = 'px-3 py-2 border-b border-border align-top text-[0.875rem]'
 const TH = 'text-left px-3 py-2 border-b-2 border-border font-semibold text-text-base whitespace-nowrap'
 
-function ratingDisplay(rating: number | null, scale: string | null): string {
+const ratingDisplay = function ratingDisplay(rating: number | null, scale: string | null): string {
   if (Predicate.isNullish(rating)) {
     return '—'
   }
@@ -61,11 +61,13 @@ function ratingDisplay(rating: number | null, scale: string | null): string {
   return '★'.repeat(Math.max(0, Math.min(5, rating)))
 }
 
-function formatDate(ts: number): string {
+const formatDate = function formatDate(ts: number): string {
   return formatTimestampDate(ts)
 }
 
-function parseContext(sourceUrl: string | null): { url: string; params: [string, string][] } | null {
+const parseContext = function parseContext(
+  sourceUrl: string | null,
+): { url: string; params: [string, string][] } | null {
   if (Predicate.isNullish(sourceUrl) || String.isEmpty(sourceUrl)) {
     return null
   }
@@ -80,7 +82,15 @@ function parseContext(sourceUrl: string | null): { url: string; params: [string,
   }
 }
 
-function FeedbackContext({ row, expanded, onToggle }: { row: Feedback; expanded: boolean; onToggle: () => void }) {
+const FeedbackContext = function FeedbackContext({
+  row,
+  expanded,
+  onToggle,
+}: {
+  row: Feedback
+  expanded: boolean
+  onToggle: () => void
+}) {
   const context = parseContext(row.sourceUrl)
   if (!context) {
     return null
@@ -106,7 +116,7 @@ function FeedbackContext({ row, expanded, onToggle }: { row: Feedback; expanded:
   )
 }
 
-function FeedbackRowActions({
+const FeedbackRowActions = function FeedbackRowActions({
   row,
   onMarkReviewed,
   onConvert,
@@ -143,7 +153,7 @@ interface FeedbackMobileCardsProps {
   onConvert: (id: string) => void
 }
 
-function FeedbackMobileCards({
+const FeedbackMobileCards = function FeedbackMobileCards({
   rows,
   selected,
   expanded,
@@ -195,7 +205,7 @@ interface FeedbackTableProps {
   onConvert: (id: string) => void
 }
 
-function FeedbackTable({
+const FeedbackTable = function FeedbackTable({
   rows,
   selected,
   expanded,
@@ -257,7 +267,7 @@ function FeedbackTable({
   )
 }
 
-function useFeedbackActions(
+const useFeedbackActions = function useFeedbackActions(
   workspaceSlug: string | undefined,
   projectId: string,
   setError: (e: string | null) => void,
@@ -265,7 +275,7 @@ function useFeedbackActions(
   addOptimistic: (change: { ids: Readonly<string[]>; status: string }) => void,
   startTransition: (action: () => Promise<void>) => void,
 ) {
-  function convert(id: string): void {
+  const convert = function convert(id: string): void {
     startTransition(async () => {
       addOptimistic({ ids: [id], status: 'actioned' })
       try {
@@ -275,7 +285,7 @@ function useFeedbackActions(
       }
     })
   }
-  function markReviewed(id: string): void {
+  const markReviewed = function markReviewed(id: string): void {
     startTransition(async () => {
       addOptimistic({ ids: [id], status: 'reviewed' })
       try {
@@ -285,7 +295,7 @@ function useFeedbackActions(
       }
     })
   }
-  function bulkMarkReviewed(selected: Set<string>): void {
+  const bulkMarkReviewed = function bulkMarkReviewed(selected: Set<string>): void {
     startTransition(async () => {
       const feedbackIds = [...selected]
       addOptimistic({ ids: feedbackIds, status: 'reviewed' })
@@ -297,7 +307,7 @@ function useFeedbackActions(
       }
     })
   }
-  function bulkConvertToIssue(selected: Set<string>): void {
+  const bulkConvertToIssue = function bulkConvertToIssue(selected: Set<string>): void {
     startTransition(async () => {
       const feedbackIds = [...selected]
       addOptimistic({ ids: feedbackIds, status: 'actioned' })
@@ -312,7 +322,7 @@ function useFeedbackActions(
   return { convert, markReviewed, bulkMarkReviewed, bulkConvertToIssue }
 }
 
-function useToggleSet() {
+const useToggleSet = function useToggleSet() {
   const [set, setSet] = useState<Set<string>>(new Set())
   function toggle(id: string): void {
     setSet((prev) => {
@@ -328,7 +338,7 @@ function useToggleSet() {
   return [set, toggle, setSet] as const
 }
 
-function useSelectedFeedback() {
+const useSelectedFeedback = function useSelectedFeedback() {
   const form = useForm({
     defaultValues: { ids: [] as string[] },
     validators: {

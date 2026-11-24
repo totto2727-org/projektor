@@ -10,6 +10,7 @@ import {
   RegisterAgentSchema,
   StartWorkSchema,
 } from '#contracts/inputs/agents.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { assertIssueAccess, visibleProjectPredicate } from './access.ts'
@@ -61,7 +62,7 @@ export const registerAgent = async function registerAgent(ctx: ServiceCtx, raw: 
   }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   /*
    * PROJ-336: kind is no longer read from the caller — see AGENT_SESSION_COLUMNS
@@ -176,7 +177,7 @@ export const heartbeatAgent = async function heartbeatAgent(ctx: ServiceCtx, raw
     throw new NotFoundError('Agent session not found')
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm
     .update(schema.agentSessions)
     .set({ lastHeartbeatAt: now })
@@ -212,7 +213,7 @@ export async function endAgent(ctx: ServiceCtx, raw: unknown) {
     throw new NotFoundError('Agent session not found')
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm
     .update(schema.agentSessions)
     .set({ endedAt: now, status: 'ended' })
@@ -282,7 +283,7 @@ export const listActiveAgents = async function listActiveAgents(ctx: ServiceCtx,
   const projectId = result.data.projectId ? await resolveVisibleProjectIdParam(ctx, result.data.projectId) : undefined
 
   const orm = drizzle(ctx.db, { schema })
-  const cutoff = Math.floor(Date.now() / 1000) - ACTIVE_TTL
+  const cutoff = currentEpochSeconds() - ACTIVE_TTL
 
   /*
    * `status='active'` is unconditional — an ended session is never returned, whether or

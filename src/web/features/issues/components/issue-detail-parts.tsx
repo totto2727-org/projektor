@@ -68,7 +68,7 @@ const PencilIcon = () => (
   </svg>
 )
 
-function SectionDivider({ title }: { title: string }) {
+const SectionDivider = function SectionDivider({ title }: { title: string }) {
   return (
     <div className='flex items-center gap-3 mb-4'>
       <span className='text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted whitespace-nowrap'>
@@ -79,7 +79,7 @@ function SectionDivider({ title }: { title: string }) {
   )
 }
 
-function SidebarField({ label, children }: { label: string; children: ReactNode }) {
+const SidebarField = function SidebarField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className='flex items-start gap-2 py-2'>
       <span className='text-[0.7rem] font-medium uppercase tracking-wider text-text-muted w-[4.5rem] shrink-0 pt-[0.2rem]'>
@@ -90,7 +90,7 @@ function SidebarField({ label, children }: { label: string; children: ReactNode 
   )
 }
 
-export function RefChip({ issueRef, copyUrl }: { issueRef: string; copyUrl: string }) {
+export const RefChip = function RefChip({ issueRef, copyUrl }: { issueRef: string; copyUrl: string }) {
   const [copiedRef, setCopiedRef] = useState(false)
 
   function copyLink(): void {
@@ -145,7 +145,13 @@ export function RefChip({ issueRef, copyUrl }: { issueRef: string; copyUrl: stri
   )
 }
 
-export function ShareButton({ issueId, workspaceSlug }: { issueId: string; workspaceSlug?: string }) {
+export const ShareButton = function ShareButton({
+  issueId,
+  workspaceSlug,
+}: {
+  issueId: string
+  workspaceSlug?: string
+}) {
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [sharingLoading, setSharingLoading] = useState(false)
   const [copiedShare, setCopiedShare] = useState(false)
@@ -210,7 +216,7 @@ export function ShareButton({ issueId, workspaceSlug }: { issueId: string; works
   )
 }
 
-export function ParentBadge({ parentEpic }: { parentEpic: IssueData | null }) {
+export const ParentBadge = function ParentBadge({ parentEpic }: { parentEpic: IssueData | null }) {
   if (!parentEpic) {
     return null
   }
@@ -237,7 +243,7 @@ export function ParentBadge({ parentEpic }: { parentEpic: IssueData | null }) {
   )
 }
 
-export function TitleSection({
+export const TitleSection = function TitleSection({
   issue,
   issueId,
   workspaceSlug,
@@ -347,7 +353,7 @@ export function TitleSection({
   )
 }
 
-function useBodyEditor(
+const useBodyEditor = function useBodyEditor(
   issue: IssueData,
   issueId: string,
   workspaceSlug: string | undefined,
@@ -449,7 +455,7 @@ function useBodyEditor(
   }
 }
 
-function BodyEditForm({
+const BodyEditForm = function BodyEditForm({
   editBody,
   updateBody,
   saveBody,
@@ -479,7 +485,7 @@ function BodyEditForm({
   )
 }
 
-export function BodySection({
+export const BodySection = function BodySection({
   issue,
   issueId,
   workspaceSlug,
@@ -561,7 +567,13 @@ export function BodySection({
   )
 }
 
-export function ChildIssuesSection({ issue, childIssues }: { issue: IssueData; childIssues: IssueData[] }) {
+export const ChildIssuesSection = function ChildIssuesSection({
+  issue,
+  childIssues,
+}: {
+  issue: IssueData
+  childIssues: IssueData[]
+}) {
   if (issue.type_key !== 'epic') {
     return null
   }
@@ -625,7 +637,7 @@ export function ChildIssuesSection({ issue, childIssues }: { issue: IssueData; c
   )
 }
 
-function LinkItem({
+const LinkItem = function LinkItem({
   link,
   onRemove,
   workspaceSlug,
@@ -673,7 +685,7 @@ function LinkItem({
   )
 }
 
-function LinkForm({
+const LinkForm = function LinkForm({
   linkFormType,
   setLinkFormType,
   linkFormRef,
@@ -732,7 +744,7 @@ function LinkForm({
   )
 }
 
-export function RelationsSection({
+export const RelationsSection = function RelationsSection({
   issueId,
   workspaceSlug,
   links,
@@ -912,7 +924,7 @@ const LinkIcon = () => (
   </svg>
 )
 
-function resolveAttachmentDisplay(
+const resolveAttachmentDisplay = function resolveAttachmentDisplay(
   attachment: Attachment,
   qs: string,
 ): {
@@ -962,7 +974,7 @@ function resolveAttachmentDisplay(
   }
 }
 
-function AttachmentRow({
+const AttachmentRow = function AttachmentRow({
   attachment,
   workspaceSlug,
   onDelete,
@@ -1002,7 +1014,7 @@ function AttachmentRow({
   )
 }
 
-function AttachmentUploadForm({
+const AttachmentUploadForm = function AttachmentUploadForm({
   issueId,
   workspaceSlug,
   onCancel,
@@ -1056,7 +1068,7 @@ interface WikiSearchResult {
   project_id: string | null
 }
 
-function WikiPageLinkForm({
+const WikiPageLinkForm = function WikiPageLinkForm({
   workspaceSlug,
   linking,
   linkError,
@@ -1167,7 +1179,7 @@ function WikiPageLinkForm({
   )
 }
 
-function UrlLinkForm({
+const UrlLinkForm = function UrlLinkForm({
   urlValue,
   setUrlValue,
   labelValue,
@@ -1255,7 +1267,11 @@ function UrlLinkForm({
 
 type AttachMode = 'none' | 'file' | 'wiki' | 'url'
 
-function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, onDone: () => void) {
+const useAttachmentLinks = function useAttachmentLinks(
+  issueId: string,
+  workspaceSlug: string | undefined,
+  onDone: () => void,
+) {
   const [linking, setLinking] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
   const urlForm = useIssueForm({ url: '', label: '' }, Schema.Struct({ url: UrlText, label: Text }))
@@ -1318,7 +1334,7 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
   }
 }
 
-function useAttachmentForms(issueId: string, workspaceSlug: string | undefined) {
+const useAttachmentForms = function useAttachmentForms(issueId: string, workspaceSlug: string | undefined) {
   const [mode, setMode] = useState<AttachMode>('none')
 
   const links = useAttachmentLinks(issueId, workspaceSlug, () => {
@@ -1345,7 +1361,7 @@ function useAttachmentForms(issueId: string, workspaceSlug: string | undefined) 
   return { mode, setMode, links, resetForms, deleteAttachment, deleteError }
 }
 
-export function AttachmentsSection({
+export const AttachmentsSection = function AttachmentsSection({
   issueId,
   workspaceSlug,
   attachments,
@@ -1451,7 +1467,7 @@ export function AttachmentsSection({
   )
 }
 
-function CommentItem({
+const CommentItem = function CommentItem({
   comment,
   isEditing,
   editBody,
@@ -1531,7 +1547,7 @@ function CommentItem({
   )
 }
 
-function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
+const useCommentEditing = function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const editForm = useIssueForm({ body: '' }, Schema.Struct({ body: CommentText }))
   const [editCommentBody, setEditCommentBody] = editForm.field('body')
@@ -1603,7 +1619,11 @@ function useCommentEditing(issueId: string, workspaceSlug: string | undefined) {
   }
 }
 
-function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, currentUserId: string | null) {
+const useNewCommentForm = function useNewCommentForm(
+  issueId: string,
+  workspaceSlug: string | undefined,
+  currentUserId: string | null,
+) {
   const commentForm = useIssueForm({ body: '' }, Schema.Struct({ body: CommentText }))
   const [newComment, setNewComment] = commentForm.field('body')
   const newCommentRevision = useRef(0)
@@ -1651,7 +1671,7 @@ function useNewCommentForm(issueId: string, workspaceSlug: string | undefined, c
   return { newComment, setNewComment: updateComment, postingComment, commentError, submitComment }
 }
 
-export function CommentsSection({
+export const CommentsSection = function CommentsSection({
   issueId,
   workspaceSlug,
   comments,
@@ -1743,7 +1763,7 @@ export function CommentsSection({
   )
 }
 
-function StatusField({
+const StatusField = function StatusField({
   issue,
   statuses,
   updatingStatus,
@@ -1776,7 +1796,7 @@ function StatusField({
   return <span className='text-sm text-text-muted'>—</span>
 }
 
-function TypeField({
+const TypeField = function TypeField({
   issue,
   taskTypes,
   updatingType,
@@ -1818,7 +1838,7 @@ function TypeField({
   return <span className='text-sm text-text-muted'>—</span>
 }
 
-function PointsField({
+const PointsField = function PointsField({
   issueId,
   workspaceSlug,
   storyPointsValue,
@@ -1903,7 +1923,7 @@ function PointsField({
   )
 }
 
-export function SidebarPanel({
+export const SidebarPanel = function SidebarPanel({
   issue,
   issueId,
   workspaceSlug,

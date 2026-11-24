@@ -29,17 +29,17 @@ const TAB_BASE_CLASS =
 const MORE_TRIGGER_RESERVE_PX = 84
 const TAB_GAP_PX = 2
 
-function normalPath(pathname: string): string {
+const normalPath = function normalPath(pathname: string): string {
   return pathname === '/' ? pathname : pathname.replace(/\/+$/u, '') || '/'
 }
-function isTabActive(path: string, pathname: string): boolean {
+const isTabActive = function isTabActive(path: string, pathname: string): boolean {
   const current = normalPath(pathname)
   return path === '/projects/view' ? current === path || current.startsWith(`${path}/`) : current === path
 }
-function tabClass(active: boolean): string {
+const tabClass = function tabClass(active: boolean): string {
   return `${TAB_BASE_CLASS} ${active ? 'text-accent bg-bg border-border font-semibold' : 'text-text-muted border-transparent hover:text-text-base hover:bg-surface'}`
 }
-function visibleCount(width: number, tabs: Readonly<number[]>): number {
+const visibleCount = function visibleCount(width: number, tabs: Readonly<number[]>): number {
   const total = tabs.reduce((sum, item) => sum + item, 0) + TAB_GAP_PX * Math.max(tabs.length - 1, 0)
   if (total <= width) {
     return tabs.length
@@ -56,7 +56,7 @@ function visibleCount(width: number, tabs: Readonly<number[]>): number {
 }
 
 /** Project-family header navigation. Server scope is authoritative, and no client project lookup occurs. */
-export function ProjectNav({ scope, url }: ProjectNavProps) {
+export const ProjectNav = function ProjectNav({ scope, url }: ProjectNavProps) {
   const [width, setWidth] = useState(0)
   const [tabWidths, setTabWidths] = useState<number[] | null>(null)
   const [moreOpen, setMoreOpen] = useState(false)

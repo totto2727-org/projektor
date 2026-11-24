@@ -12,7 +12,7 @@ export interface EpicsInitialData {
   readonly projects: Readonly<ProjectSummary[]>
   readonly search: string
 }
-export function EpicsPage({
+export const EpicsPage = function EpicsPage({
   scope,
   workspaceSlug,
   initialData,

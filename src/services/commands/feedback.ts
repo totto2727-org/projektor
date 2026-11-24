@@ -8,6 +8,7 @@ import {
   SubmitFeedbackSchema,
   UpdateFeedbackSchema,
 } from '#contracts/inputs/feedback.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import * as feedbackQueries from '#services/feedback.ts'
 
 import { canWriteProject, requireProjectAccess, requireProjectInWorkspace } from './access.ts'
@@ -81,7 +82,7 @@ const insertFeedbackRow = async function insertFeedbackRow(
   d: ReturnType<typeof parseSubmitFeedbackBody>,
 ): Promise<string> {
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await db
     .prepare(
       `INSERT INTO feedback

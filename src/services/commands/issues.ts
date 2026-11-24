@@ -12,6 +12,7 @@ import {
   SearchIssuesInputSchema,
   UpdateIssueSchema,
 } from '#contracts/inputs/issues.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { issuePath } from '#contracts/urls.ts'
 import { drizzle, schema } from '#db'
 import * as issueQueries from '#services/issues.ts'
@@ -1025,7 +1026,7 @@ const applyStatusFields = async function applyStatusFields(
 }
 
 function now(): number {
-  return Math.floor(Date.now() / 1000)
+  return currentEpochSeconds()
 }
 
 /*
@@ -1737,7 +1738,7 @@ const queryPrioritized = async function queryPrioritized(
 			SELECT 1 FROM issue_leases l JOIN agent_sessions s ON s.id = l.agent_session_id
 			WHERE l.workspace_id = i.workspace_id AND l.issue_id = i.id AND l.released_at IS NULL
 			  AND s.status = 'active' AND s.last_heartbeat_at > ?)`)
-    params.push(Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS)
+    params.push(currentEpochSeconds() - SESSION_TTL_SECONDS)
   }
 
   const sqlText = `

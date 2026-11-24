@@ -3,6 +3,7 @@ import { Array, Predicate, Effect } from 'effect'
 
 import { ApiError, ScopeError } from '#contracts/errors.ts'
 import { HTTP_NOT_FOUND } from '#contracts/http-status.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { listProjects } from '#services/projects.ts'
 import * as wikiData from '#services/wiki.ts'
@@ -52,7 +53,7 @@ export const readAuthorizedWikiPage = function readAuthorizedWikiPage(
 
 export const pageFreshness = function pageFreshness(
   page: { verified_at: number | null; verify_interval: number | null; status: string | null },
-  now = Math.floor(Date.now() / 1000),
+  now = currentEpochSeconds(),
 ) {
   const due =
     Predicate.isNotNullish(page.verified_at) && Predicate.isNotNullish(page.verify_interval)

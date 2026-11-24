@@ -4,6 +4,7 @@ import { useForm } from '@tanstack/react-form'
 import { Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
 
+import { currentEpochMilliseconds } from '#contracts/time.ts'
 import { unwrapResult } from '@/client/functions.ts'
 import { Button } from '@/components/ui/button.tsx'
 import { EmptyState } from '@/components/ui/empty-state.tsx'
@@ -20,7 +21,7 @@ const TOKEN_CODE =
   'flex-1 font-mono text-[0.8rem] px-2 py-[0.375rem] bg-bg border border-border rounded text-text-base break-all'
 const MCP_COMMAND =
   'font-mono text-xs px-3 py-2 bg-bg border border-border rounded text-text-muted break-all whitespace-pre-wrap leading-[1.6]'
-export function formatTokenScopes(raw: string): string {
+export const formatTokenScopes = function formatTokenScopes(raw: string): string {
   let scopes: unknown
   try {
     scopes = JSON.parse(raw)
@@ -41,10 +42,10 @@ export function formatTokenScopes(raw: string): string {
   }
   return scopes.filter((value): value is string => Predicate.isString(value)).join(', ') || '–'
 }
-function formatDate(timestamp: number | null): string {
+const formatDate = function formatDate(timestamp: number | null): string {
   return Predicate.isNullish(timestamp) ? 'Never' : formatTimestampDate(timestamp)
 }
-function NewTokenPanel({
+const NewTokenPanel = function NewTokenPanel({
   token,
   template,
   onDone,
@@ -108,7 +109,7 @@ interface RevokeState {
   cancel: () => void
   confirm: (id: string) => void
 }
-function TokenRevokeControl({ token, state }: { token: Token; state: RevokeState }) {
+const TokenRevokeControl = function TokenRevokeControl({ token, state }: { token: Token; state: RevokeState }) {
   if (state.id === token.id) {
     return (
       <span className='inline-flex gap-[0.375rem] items-center flex-wrap'>
@@ -139,7 +140,7 @@ function TokenRevokeControl({ token, state }: { token: Token; state: RevokeState
     </Button>
   )
 }
-function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }) {
+const TokenTable = function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }) {
   if (!tokens.length) {
     return (
       <EmptyState
@@ -170,7 +171,7 @@ function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }) 
                 <TableCell muted>{formatTokenScopes(token.scopes)}</TableCell>
                 <TableCell muted>{formatDate(token.createdAt)}</TableCell>
                 <TableCell
-                  className={`font-mono text-[0.8rem] ${Predicate.isNotNullish(token.expiresAt) && token.expiresAt < Date.now() / 1000 ? 'text-danger-text' : 'text-text-muted'}`}
+                  className={`font-mono text-[0.8rem] ${Predicate.isNotNullish(token.expiresAt) && token.expiresAt < currentEpochMilliseconds() / 1000 ? 'text-danger-text' : 'text-text-muted'}`}
                 >
                   {Predicate.isNullish(token.expiresAt) ? 'No expiry' : formatDate(token.expiresAt)}
                 </TableCell>
@@ -194,7 +195,7 @@ function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }) 
               <dd className='m-0'>{formatDate(token.createdAt)}</dd>
               <dt className='font-semibold'>Expires</dt>
               <dd
-                className={`m-0 ${Predicate.isNotNullish(token.expiresAt) && token.expiresAt < Date.now() / 1000 ? 'text-danger-text' : ''}`}
+                className={`m-0 ${Predicate.isNotNullish(token.expiresAt) && token.expiresAt < currentEpochMilliseconds() / 1000 ? 'text-danger-text' : ''}`}
               >
                 {Predicate.isNullish(token.expiresAt) ? 'No expiry' : formatDate(token.expiresAt)}
               </dd>
@@ -209,7 +210,7 @@ function TokenTable({ tokens, state }: { tokens: Token[]; state: RevokeState }) 
   )
 }
 /** The one-time secret is client-only mutation state. The token list always comes from SSR. */
-export function TokenManager({
+export const TokenManager = function TokenManager({
   workspaceSlug,
   initialTokens: tokens,
   mcpCommandTemplate = null,

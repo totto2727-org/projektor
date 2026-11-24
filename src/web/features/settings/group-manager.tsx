@@ -56,7 +56,7 @@ const CHIP =
 const H2 = 'text-[1.05rem] font-bold text-text-base m-0 mb-3'
 const adminRole = (role: string): boolean => role === 'owner' || role === 'admin'
 type Tab = 'groups' | 'members'
-export function nextTabId(tabs: Readonly<Tab[]>, active: Tab, key: string): Tab | null {
+export const nextTabId = function nextTabId(tabs: Readonly<Tab[]>, active: Tab, key: string): Tab | null {
   const index = tabs.indexOf(active)
   if (key === 'ArrowRight') {
     return tabs[(index + 1) % tabs.length]
@@ -72,7 +72,13 @@ export function nextTabId(tabs: Readonly<Tab[]>, active: Tab, key: string): Tab 
   }
   return null
 }
-function MemberGroupsCell({ member, groups }: { member: WorkspaceMember; groups: { id: string; name: string }[] }) {
+const MemberGroupsCell = function MemberGroupsCell({
+  member,
+  groups,
+}: {
+  member: WorkspaceMember
+  groups: { id: string; name: string }[]
+}) {
   if (adminRole(member.role)) {
     return <span className='text-[0.78rem] text-text-muted'>All projects (bypasses groups)</span>
   }
@@ -89,7 +95,13 @@ function MemberGroupsCell({ member, groups }: { member: WorkspaceMember; groups:
     </>
   )
 }
-function MembersOverview({ members, memberGroups }: { members: WorkspaceMember[]; memberGroups: MemberGroupsRow[] }) {
+const MembersOverview = function MembersOverview({
+  members,
+  memberGroups,
+}: {
+  members: WorkspaceMember[]
+  memberGroups: MemberGroupsRow[]
+}) {
   const byUser = new Map(memberGroups.map((row) => [row.userId, row.groups]))
   return (
     <section className={CARD}>
@@ -141,7 +153,7 @@ interface GroupListProps {
   onSelect: (id: string) => void
   onDelete: (id: string) => void
 }
-function GroupsList({ groups, admin, busy, onSelect, onDelete }: GroupListProps) {
+const GroupsList = function GroupsList({ groups, admin, busy, onSelect, onDelete }: GroupListProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const name = (group: GroupSummary) =>
     admin ? (
@@ -232,7 +244,7 @@ function GroupsList({ groups, admin, busy, onSelect, onDelete }: GroupListProps)
   )
 }
 /** Details, membership and grant rows are prop-owned, while unsaved editor fields are local. */
-function GroupDetailEditor({
+const GroupDetailEditor = function GroupDetailEditor({
   slug,
   detail,
   members,
@@ -668,7 +680,7 @@ function GrantRoleForm({
   )
 }
 
-export function GroupManager({
+export const GroupManager = function GroupManager({
   workspaceSlug,
   initialData: data,
   view = 'groups',

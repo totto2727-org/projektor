@@ -18,7 +18,7 @@ export type ButtonProps = CommonProps &
   )
 
 /** Compatibility props only. Base UI owns button interaction and native form semantics. */
-export function Button({
+export const Button = function Button({
   variant,
   size,
   as = 'button',

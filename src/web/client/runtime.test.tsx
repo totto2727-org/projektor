@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 import { RuntimeProvider, useRuntime } from './runtime.tsx'
 
-function CurrentPage() {
+const CurrentPage = function CurrentPage() {
   const { url } = useRuntime()
   return <output>{url}</output>
 }

@@ -11,7 +11,7 @@ import './markdown.css'
 const empty: RenderedMarkdown = { html: '', toc: [] }
 
 /** Local rendering only, no API dispatcher. Debounce and ignore superseded async work. */
-export function useMarkdownPreview(
+export const useMarkdownPreview = function useMarkdownPreview(
   content: string,
   options: MarkdownOptions = {},
   initial?: RenderedMarkdown,
@@ -55,7 +55,7 @@ export function useMarkdownPreview(
   return result.content === content && result.key === key ? result.document : empty
 }
 
-export function MarkdownPreview({
+export const MarkdownPreview = function MarkdownPreview({
   content,
   initial,
   className = '',

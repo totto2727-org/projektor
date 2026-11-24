@@ -8,6 +8,7 @@ import {
   ListCommentsSchema,
   UpdateCommentSchema,
 } from '#contracts/inputs/comments.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import { listComments as queryComments } from '#services/comments.ts'
 
@@ -74,7 +75,7 @@ export const addComment = async function addComment(ctx: ServiceCtx, input: unkn
   const projectId = await assertIssueVisible(ctx, issueId, 'edit')
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const orm = drizzle(ctx.db, { schema })
 
   await buildAddCommentInsertStatement(ctx, orm, { id, issueId, body, now }).run()
@@ -144,7 +145,7 @@ export const updateComment = async function updateComment(ctx: ServiceCtx, input
 
   await orm
     .update(schema.issueComments)
-    .set({ body, updatedAt: Math.floor(Date.now() / 1000) })
+    .set({ body, updatedAt: currentEpochSeconds() })
     .where(eq(schema.issueComments.id, commentId))
 
   await broadcastWorkspaceEvent(ctx, {

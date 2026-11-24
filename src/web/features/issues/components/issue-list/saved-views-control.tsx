@@ -18,7 +18,7 @@ type Saved = ReturnType<typeof useSavedViews>
  * Standard menu items keep selection and deletion keyboard-accessible without
  * nesting action buttons inside a Select option or maintaining a custom menu.
  */
-function ViewsMenu({ saved }: { saved: Saved }) {
+const ViewsMenu = function ViewsMenu({ saved }: { saved: Saved }) {
   const { savedViews, activeViewName, applyView, deleteView } = saved
   if (Array.isArrayEmpty(savedViews)) {
     return null
@@ -46,7 +46,7 @@ function ViewsMenu({ saved }: { saved: Saved }) {
   )
 }
 
-function SaveViewControl({ saved }: { saved: Saved }) {
+const SaveViewControl = function SaveViewControl({ saved }: { saved: Saved }) {
   const { showSaveInput, setShowSaveInput, saveViewName, setSaveViewName, doSaveView } = saved
 
   if (!showSaveInput) {

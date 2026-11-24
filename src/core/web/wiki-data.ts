@@ -6,6 +6,7 @@ import { Iterable, Effect, Schema } from 'effect'
 import { readWikiDraftState } from '#commands/wiki-drafts.ts'
 import { ApiError, ScopeError } from '#contracts/errors.ts'
 import { HTTP_BAD_REQUEST } from '#contracts/http-status.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import {
   Attachment,
   DraftState,
@@ -74,7 +75,7 @@ export const loadWikiData = function loadWikiData(
     const filterStatus = url.searchParams.get('status') ?? ''
     const filterTags = url.searchParams.get('tags') ?? ''
     const searchQuery = url.searchParams.get('q') ?? ''
-    const now = Math.floor(Date.now() / 1000)
+    const now = currentEpochSeconds()
     const options = {
       ...(projectId ? { projectId, includeWorkspacePages: true } : {}),
       visibility,

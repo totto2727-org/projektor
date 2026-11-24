@@ -15,7 +15,15 @@ export interface DialogProps {
 }
 
 /** Base UI owns portals, modal focus, dismissal, and scroll locking. */
-export function Dialog({ open, onClose, ariaLabel, title, class: legacyClass, className, children }: DialogProps) {
+export const Dialog = function Dialog({
+  open,
+  onClose,
+  ariaLabel,
+  title,
+  class: legacyClass,
+  className,
+  children,
+}: DialogProps) {
   return (
     <PrimitiveDialog
       open={open}

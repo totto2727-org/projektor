@@ -13,7 +13,7 @@ export interface FormErrorsProps {
   'aria-label'?: string
 }
 
-function messagesFrom(error: unknown): string[] {
+const messagesFrom = function messagesFrom(error: unknown): string[] {
   if (Predicate.isString(error) && error.trim()) {
     return [error]
   }
@@ -38,7 +38,7 @@ function messagesFrom(error: unknown): string[] {
  * Renders the message-bearing portion of Standard Schema and TanStack Form errors.
  * Form state and validation remain owned by the calling form.
  */
-export function FormErrors({
+export const FormErrors = function FormErrors({
   errors,
   id,
   className,

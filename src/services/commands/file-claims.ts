@@ -4,6 +4,7 @@ import { flattenError } from 'zod'
 
 import { PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
 import { ClaimFilesSchema, ListFileClaimsSchema, ReleaseFilesSchema } from '#contracts/inputs/file-claims.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { assertIssueAccess, assertProjectAccess, visibleProjectPredicate } from './access.ts'
@@ -37,7 +38,7 @@ const touchAgentHeartbeatIfLive = async function touchAgentHeartbeatIfLive(
 ): Promise<void> {
   await orm
     .update(schema.agentSessions)
-    .set({ lastHeartbeatAt: Math.floor(Date.now() / 1000) })
+    .set({ lastHeartbeatAt: currentEpochSeconds() })
     .where(
       and(
         eq(schema.agentSessions.id, agentId),
@@ -55,7 +56,7 @@ const touchAgentHeartbeatIfLive = async function touchAgentHeartbeatIfLive(
  */
 const SESSION_TTL_SECONDS = 120
 
-const liveCutoff = (): number => Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
+const liveCutoff = (): number => currentEpochSeconds() - SESSION_TTL_SECONDS
 
 /*
  * PROJ-928: an agentless claim (agentId null — see loadActiveClaimsByPath) has no
@@ -294,7 +295,7 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
   }
 
   // Pre-check all paths for active claims — all-or-nothing on conflict.
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const claimsByPath = await loadActiveClaimsByPath(
     orm,
     ctx.workspaceId,
@@ -459,7 +460,7 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
   }
 
   const orm = drizzle(ctx.db, { schema })
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   // inChunks keeps each read under D1's 100-bound-parameter cap (paths are caller-scaled).
   // projectId is joined in directly (PROJ-864) so the broadcast below needs no follow-up
@@ -571,7 +572,7 @@ export const listFileClaims = async function listFileClaims(ctx: ServiceCtx, raw
   const orm = drizzle(ctx.db, { schema })
 
   const cutoff = liveCutoff()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const agentlessCutoff = fileClaimAgentlessCutoff(ctx, now)
   /*
    * PROJ-636/928: one rule for "is this claim live" (see fileClaimLiveExpr), reused below
@@ -659,7 +660,7 @@ export const releaseClaimsForAgent = async function releaseClaimsForAgent(
   agentId: string,
 ): Promise<void> {
   const orm = drizzle(ctx.db, { schema })
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   await orm
     .update(schema.issueFileClaims)
@@ -685,7 +686,7 @@ export const buildReleaseClaimsForClosedIssueStatement = function buildReleaseCl
   issueId: string,
 ): D1PreparedStatement {
   const orm = drizzle(ctx.db, { schema })
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   return toD1Statement(
     ctx,
     orm

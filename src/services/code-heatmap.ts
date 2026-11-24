@@ -1,6 +1,7 @@
 import { and, eq, gte, lte } from 'drizzle-orm'
 import type { Effect } from 'effect'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { queryEffect } from './errors.ts'
@@ -239,7 +240,5 @@ export const getCodeHeatmap = function getCodeHeatmap(
   range: CodeHeatmapRange,
   now?: number,
 ): Effect.Effect<CodeHeatmap, DataQueryError> {
-  return queryEffect('getCodeHeatmap', () =>
-    readCodeHeatmap(db, workspaceId, range, now ?? Math.floor(Date.now() / 1000)),
-  )
+  return queryEffect('getCodeHeatmap', () => readCodeHeatmap(db, workspaceId, range, now ?? currentEpochSeconds()))
 }

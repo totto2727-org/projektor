@@ -5,6 +5,7 @@ import { String, Predicate, Effect, Schema } from 'effect'
 import { ScopeError } from '#contracts/errors.ts'
 import { ReviewFilterSchema } from '#contracts/review-targets.ts'
 import type { ReviewFilter } from '#contracts/review-targets.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { WikiSearchResultsSchema } from '#contracts/web-schemas/issue-actions.ts'
 import {
   normalizeAttachments,
@@ -290,7 +291,7 @@ export const searchDataWikiAttachments = function searchDataWikiAttachments(
     const rows = yield* searchWiki(db, workspaceId, ftsQuery, {
       limit: 10,
       offset: 0,
-      now: Math.floor(Date.now() / 1000),
+      now: currentEpochSeconds(),
       visibilitySql,
     }).pipe(Effect.mapError(dataError))
     // Wiki searches expose broad metadata, while this picker deliberately consumes identity only.

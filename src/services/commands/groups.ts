@@ -8,6 +8,7 @@ import {
   SetGroupGrantSchema,
   UpdateGroupSchema,
 } from '#contracts/inputs/groups.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import * as groupData from '#services/groups.ts'
 
@@ -111,7 +112,7 @@ export const createGroup = async function createGroup(ctx: ServiceCtx, input: un
   }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm.insert(schema.userGroups).values({
     id,
     workspaceId: ctx.workspaceId,
@@ -213,7 +214,7 @@ export const addGroupMember = async function addGroupMember(ctx: ServiceCtx, gro
     throw new ValidationError({ formErrors: ['User is not a workspace member'], fieldErrors: {} })
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm
     .insert(schema.userGroupMembers)
     .values({ groupId, userId, addedBy: ctx.userId, addedAt: now })

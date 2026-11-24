@@ -44,14 +44,17 @@ const CELL_CLASS =
   'px-3 py-[0.625rem] border-b border-border align-middle group-hover:bg-surface [tr:last-child_&]:border-b-0'
 const MODAL_CLASS = 'bg-bg border border-border rounded-lg p-6 w-full sm:max-w-[480px] overscroll-contain'
 
-function defaultCreateProjectId(projectId: string | null, projects: Readonly<ProjectMeta[]>): string {
+const defaultCreateProjectId = function defaultCreateProjectId(
+  projectId: string | null,
+  projects: Readonly<ProjectMeta[]>,
+): string {
   if (Predicate.isNotNullish(projectId) && String.isNonEmpty(projectId)) {
     return projects.find((project) => project.id === projectId)?.id ?? projects[0]?.id ?? ''
   }
   return projects[0]?.id ?? ''
 }
 
-function computeDerivedStatuses(epics: Readonly<Issue[]>): TaskStatus[] {
+const computeDerivedStatuses = function computeDerivedStatuses(epics: Readonly<Issue[]>): TaskStatus[] {
   const derived: TaskStatus[] = []
   const seen = new Set<string>()
   Iterable.forEach(epics, (ep) => {
@@ -69,7 +72,7 @@ function computeDerivedStatuses(epics: Readonly<Issue[]>): TaskStatus[] {
   return derived
 }
 
-function sortIndicator(key: SortKey, sortBy: SortKey, sortDir: 'asc' | 'desc') {
+const sortIndicator = function sortIndicator(key: SortKey, sortBy: SortKey, sortDir: 'asc' | 'desc') {
   if (sortBy !== key) {
     return null
   }
@@ -92,7 +95,7 @@ interface EpicListHeaderProps {
   onOpenCreate: () => void
 }
 
-function EpicListHeader(props: EpicListHeaderProps) {
+const EpicListHeader = function EpicListHeader(props: EpicListHeaderProps) {
   return (
     <div className='flex items-center justify-between mb-4 gap-2 flex-wrap'>
       <FiltersPopover
@@ -118,7 +121,11 @@ function EpicListHeader(props: EpicListHeaderProps) {
   )
 }
 
-function useCreateEpicForm(projectId: string | null, projects: Readonly<ProjectMeta[]>, epicTypeId: string | null) {
+const useCreateEpicForm = function useCreateEpicForm(
+  projectId: string | null,
+  projects: Readonly<ProjectMeta[]>,
+  epicTypeId: string | null,
+) {
   const [showCreate, setShowCreate] = useState(false)
   const createForm = useIssueForm(
     { createTitle: '', createProjectId: '', createPriority: 'medium' },

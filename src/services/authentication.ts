@@ -3,6 +3,7 @@ import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } fr
 import { z } from 'zod'
 
 import { ensureUserProvisioned } from '#commands/provisioning.ts'
+import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import type { AuthInfo, Env } from '#types'
 
 /** Only browser verification/provisioning capabilities, never OAuth signing secrets. */
@@ -115,7 +116,7 @@ function jwtClaimsValid(
   audience: string,
   issuer: string,
 ): payload is JwtPayload & { email: string } {
-  if (header.alg !== 'RS256' || payload.exp < Math.floor(Date.now() / 1000)) {
+  if (header.alg !== 'RS256' || payload.exp < currentEpochSeconds()) {
     return false
   }
   const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
@@ -200,7 +201,7 @@ const fetchAndCacheCfAccessKeys = async function fetchAndCacheCfAccessKeys(
   } catch (error) {
     console.error('[auth] failed to cache cf-access-certs in KV, continuing without it:', error)
   }
-  inMemoryCertsCache = { keys, expiresAt: Date.now() + CERTS_LOCAL_TTL_MS }
+  inMemoryCertsCache = { keys, expiresAt: currentEpochMilliseconds() + CERTS_LOCAL_TTL_MS }
   return keys
 }
 async function getCfAccessKeysOrUnavailable(
@@ -214,11 +215,11 @@ async function getCfAccessKeysOrUnavailable(
   }
 }
 async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefresh?: boolean }): Promise<JsonWebKey[]> {
-  if (opts?.forceRefresh === true && Date.now() - lastForcedRefreshAt >= FORCE_REFRESH_COOLDOWN_MS) {
-    lastForcedRefreshAt = Date.now()
+  if (opts?.forceRefresh === true && currentEpochMilliseconds() - lastForcedRefreshAt >= FORCE_REFRESH_COOLDOWN_MS) {
+    lastForcedRefreshAt = currentEpochMilliseconds()
     return fetchAndCacheCfAccessKeys(env)
   }
-  if (inMemoryCertsCache && inMemoryCertsCache.expiresAt > Date.now()) {
+  if (inMemoryCertsCache && inMemoryCertsCache.expiresAt > currentEpochMilliseconds()) {
     return inMemoryCertsCache.keys
   }
   let cached: unknown
@@ -229,7 +230,7 @@ async function getCfAccessKeys(env: BrowserAuthEnvironment, opts?: { forceRefres
   }
   if (cached) {
     const keys = cached as JsonWebKey[]
-    inMemoryCertsCache = { keys, expiresAt: Date.now() + CERTS_LOCAL_TTL_MS }
+    inMemoryCertsCache = { keys, expiresAt: currentEpochMilliseconds() + CERTS_LOCAL_TTL_MS }
     return keys
   }
   return fetchAndCacheCfAccessKeys(env)
@@ -243,7 +244,7 @@ export const resetAuthCachesForTests = function resetAuthCachesForTests(): void 
 /** Shared by Access/dev and the API-only opt-in public identity strategy. */
 export async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNamespace): Promise<AuthUser> {
   const local = inMemoryUserCache.get(email)
-  if (local && local.expiresAt > Date.now()) {
+  if (local && local.expiresAt > currentEpochMilliseconds()) {
     return local.user
   }
   if (kv) {
@@ -255,14 +256,14 @@ export async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNa
     }
     if (cached) {
       const user = cached as AuthUser
-      inMemoryUserCache.set(email, { user, expiresAt: Date.now() + USER_LOCAL_TTL_MS })
+      inMemoryUserCache.set(email, { user, expiresAt: currentEpochMilliseconds() + USER_LOCAL_TTL_MS })
       return user
     }
   }
   await db
     .prepare(`INSERT INTO users (id,email,name,created_at) VALUES (?,?,?,?)
     ON CONFLICT(email) DO UPDATE SET name = excluded.name`)
-    .bind(crypto.randomUUID(), email, email.split('@')[0], Math.floor(Date.now() / 1000))
+    .bind(crypto.randomUUID(), email, email.split('@')[0], currentEpochSeconds())
     .run()
   const user = await db.prepare('SELECT id, email, name FROM users WHERE email = ?').bind(email).first<AuthUser>()
   if (!user) {
@@ -275,7 +276,7 @@ export async function upsertUserByEmail(email: string, db: D1Database, kv?: KVNa
       console.error(`[auth] failed to cache user-by-email:${email} in KV, continuing without it:`, error)
     }
   }
-  inMemoryUserCache.set(email, { user, expiresAt: Date.now() + USER_LOCAL_TTL_MS })
+  inMemoryUserCache.set(email, { user, expiresAt: currentEpochMilliseconds() + USER_LOCAL_TTL_MS })
   return user
 }
 export function parseCookie(cookieHeader: string, name: string): string | undefined {

@@ -18,6 +18,7 @@ import {
   parseConsentRequest,
   relyingPartyHost,
 } from '#contracts/oauth-consent.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import type { HonoEnv } from '#types'
 
 /*
@@ -405,7 +406,7 @@ oauthRouter.post('/authorize', async (httpContext) => {
   const { redirectTo } = await helpers(httpContext).completeAuthorization({
     request: payload.authRequest,
     userId: user.id,
-    metadata: { workspaceId: payload.workspaceId, consentedAt: Math.floor(Date.now() / 1000) },
+    metadata: { workspaceId: payload.workspaceId, consentedAt: currentEpochSeconds() },
     scope: payload.scopes,
     /*
      * Carried on every request this grant authorizes; middleware/auth.ts turns it

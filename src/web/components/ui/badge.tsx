@@ -11,7 +11,7 @@ export interface BadgeProps {
   children: ReactNode
 }
 /** Priority and status colour remain caller-supplied through style. */
-export function Badge({ class: legacyClass, className, style, children }: BadgeProps) {
+export const Badge = function Badge({ class: legacyClass, className, style, children }: BadgeProps) {
   return (
     <PrimitiveBadge
       variant='outline'

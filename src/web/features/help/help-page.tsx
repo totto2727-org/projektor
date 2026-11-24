@@ -20,7 +20,7 @@ const sections = [
 ] as const
 
 /** The original help route is intentionally static, so it is fully meaningful in SSR HTML. */
-export function HelpPage() {
+export const HelpPage = function HelpPage() {
   return (
     <div className='page-container' style={{ maxWidth: '42rem' }}>
       <header style={{ marginBottom: '1.5rem' }}>

@@ -11,6 +11,7 @@ import {
   UpdateWorkspaceBrandSchema,
   UpdateWorkspaceSchema,
 } from '#contracts/inputs/workspaces.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import type { WorkspaceBrand } from '#db'
 import { drizzle, schema } from '#db'
 import * as data from '#services'
@@ -60,7 +61,7 @@ export const createWorkspace = async function createWorkspace(db: D1Database, us
   }
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await db.batch([
     prepareQuery(db, orm.insert(schema.workspaces).values({ createdAt: now, id, name, slug }).toSQL()),
     prepareQuery(
@@ -106,7 +107,7 @@ export const inviteMember = async function inviteMember(ctx: ServiceCtx, input: 
     throw new ValidationError(flattenError(parsed.error))
   }
   const { email, role: newRole } = parsed.data
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
 
   const orm = drizzle(ctx.db, { schema })
   let user = await orm.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, email)).get()
@@ -170,11 +171,11 @@ export const removeMember = async function removeMember(ctx: ServiceCtx, targetU
     .values({
       workspaceId: ctx.workspaceId,
       userId: targetUserId,
-      removedAt: Math.floor(Date.now() / 1000),
+      removedAt: currentEpochSeconds(),
     })
     .onConflictDoUpdate({
       target: [schema.provisioningRemovals.workspaceId, schema.provisioningRemovals.userId],
-      set: { removedAt: Math.floor(Date.now() / 1000) },
+      set: { removedAt: currentEpochSeconds() },
     })
   return { ok: true }
 }
@@ -216,7 +217,7 @@ export const createToken = async function createToken(ctx: ServiceCtx, input: un
   const hash = await sha256hex(token)
 
   const id = crypto.randomUUID()
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const expiresAt = expiresInDays ? now + expiresInDays * 86_400 : null
 
   const orm = drizzle(ctx.db, { schema })

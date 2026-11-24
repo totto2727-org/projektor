@@ -8,6 +8,7 @@ import {
   MarkWikiNotificationsReadInputSchema,
   WatchWikiPageInputSchema,
 } from '#contracts/inputs/wiki.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { wikiPagePath } from '#contracts/urls.ts'
 /*
  * PROJ-493 (R11): watch/unwatch per page or subtree, a per-user notification list, and
@@ -117,7 +118,7 @@ export const watchWikiPage = async function watchWikiPage(ctx: ServiceCtx, idOrS
   const page = await resolveWatchTarget(ctx, idOrSlug)
 
   const orm = drizzle(ctx.db, { schema })
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm
     .insert(schema.wikiWatchers)
     .values({
@@ -331,7 +332,7 @@ async function insertNotifications(
   if (Array.isArrayEmpty(deliverable)) {
     return
   }
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const values = deliverable.map((e) => ({
     id: crypto.randomUUID(),
     workspaceId: ctx.workspaceId,
@@ -476,7 +477,7 @@ export const markWikiNotificationsRead = async function markWikiNotificationsRea
   const { ids, all } = parsed.data
 
   const orm = drizzle(ctx.db, { schema })
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   const conditions = [
     eq(schema.wikiNotifications.workspaceId, ctx.workspaceId),
     eq(schema.wikiNotifications.userId, ctx.userId),

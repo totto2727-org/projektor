@@ -23,7 +23,7 @@ export interface IssuesRoute {
   readonly pathname: string
   readonly search: string
 }
-export function IssuesPage({
+export const IssuesPage = function IssuesPage({
   scope,
   route,
   workspaceSlug,

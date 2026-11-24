@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { String, Iterable, Predicate } from 'effect'
 
+import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 import type { Env } from '#types'
 
@@ -149,7 +150,7 @@ const grantOwner = async function grantOwner(
   }
   await orm
     .insert(schema.workspaceMembers)
-    .values({ workspaceId, userId, role: 'owner', joinedAt: Math.floor(Date.now() / 1000) })
+    .values({ workspaceId, userId, role: 'owner', joinedAt: currentEpochSeconds() })
     .onConflictDoUpdate({
       target: [schema.workspaceMembers.workspaceId, schema.workspaceMembers.userId],
       set: { role: 'owner' },
@@ -246,7 +247,7 @@ const alreadyProvisioned = async function alreadyProvisioned(
   userId: string,
 ): Promise<boolean> {
   const localExpiry = inMemoryProvisionedCache.get(userId)
-  if (localExpiry && localExpiry > Date.now()) {
+  if (localExpiry && localExpiry > currentEpochMilliseconds()) {
     return true
   }
 
@@ -260,12 +261,12 @@ const alreadyProvisioned = async function alreadyProvisioned(
   if (Predicate.isNullish(marker) || String.isEmpty(marker)) {
     return false
   }
-  inMemoryProvisionedCache.set(userId, Date.now() + PROVISIONED_LOCAL_TTL_MS)
+  inMemoryProvisionedCache.set(userId, currentEpochMilliseconds() + PROVISIONED_LOCAL_TTL_MS)
   return true
 }
 
 const markProvisioned = async function markProvisioned(env: ProvisioningEnvironment, userId: string): Promise<void> {
-  inMemoryProvisionedCache.set(userId, Date.now() + PROVISIONED_LOCAL_TTL_MS)
+  inMemoryProvisionedCache.set(userId, currentEpochMilliseconds() + PROVISIONED_LOCAL_TTL_MS)
   try {
     await env.KV.put(provisionedKey(userId), '1', { expirationTtl: PROVISIONED_KV_TTL_SECS })
   } catch (error) {
@@ -380,7 +381,7 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
         workspaceId: ws.id,
         userId: user.id,
         role: mapped.role,
-        joinedAt: Math.floor(Date.now() / 1000),
+        joinedAt: currentEpochSeconds(),
       })
       .onConflictDoNothing()
     return true
@@ -411,7 +412,7 @@ async function runProvisioning(env: ProvisioningEnvironment, user: { id: string;
       workspaceId: ws.id,
       userId: user.id,
       role,
-      joinedAt: Math.floor(Date.now() / 1000),
+      joinedAt: currentEpochSeconds(),
     })
     .onConflictDoNothing()
   return true
@@ -465,11 +466,11 @@ export const provisionPublicViewer = async function provisionPublicViewer(
       workspaceId: ws.id,
       userId: user.id,
       role: 'viewer',
-      joinedAt: Math.floor(Date.now() / 1000),
+      joinedAt: currentEpochSeconds(),
     })
     .onConflictDoNothing()
 
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await orm
     .insert(schema.userGroups)
     .values({

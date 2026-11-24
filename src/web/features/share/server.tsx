@@ -37,7 +37,7 @@ const SHARE_STYLES = `
 `
 
 /** Token-authorized public view. Never requests a protected workspace/session lookup. */
-export function renderShare(
+export const renderShare = function renderShare(
   env: Pick<Env, 'CORE' | 'BRAND_NAME' | 'BRAND_MARK' | 'BRAND_ACCENT' | 'BRAND_ON_ACCENT' | 'BRAND_LOGO_URL'>,
   _scope: null,
   url: URL,

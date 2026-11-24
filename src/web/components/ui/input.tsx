@@ -11,9 +11,9 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   class?: string
   inputRef?: Ref<HTMLTextAreaElement>
 }
-export function Input({ class: legacyClass, className, inputRef, ...props }: InputProps) {
+export const Input = function Input({ class: legacyClass, className, inputRef, ...props }: InputProps) {
   return <PrimitiveInput {...props} ref={inputRef} className={[legacyClass, className].filter(Boolean).join(' ')} />
 }
-export function Textarea({ class: legacyClass, className, inputRef, ...props }: TextareaProps) {
+export const Textarea = function Textarea({ class: legacyClass, className, inputRef, ...props }: TextareaProps) {
   return <PrimitiveTextarea {...props} ref={inputRef} className={[legacyClass, className].filter(Boolean).join(' ')} />
 }

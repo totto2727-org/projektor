@@ -49,7 +49,7 @@ const STATUSES: TaskStatus[] = [
   },
 ]
 
-function fakeDataTransfer() {
+const fakeDataTransfer = function fakeDataTransfer() {
   const store = new Map<string, string>()
   return {
     setData: (type: string, val: string) => store.set(type, val),
@@ -57,14 +57,14 @@ function fakeDataTransfer() {
   }
 }
 
-function dragStartCard() {
+const dragStartCard = function dragStartCard() {
   const card = screen.getByText('Move me').closest('a') as HTMLElement
   const dataTransfer = fakeDataTransfer()
   fireEvent.dragStart(card, { dataTransfer })
   return dataTransfer
 }
 
-function dropOnInProgress(dataTransfer: ReturnType<typeof fakeDataTransfer>): void {
+const dropOnInProgress = function dropOnInProgress(dataTransfer: ReturnType<typeof fakeDataTransfer>): void {
   const inProgressColumn = screen.getByRole('region', { name: 'In Progress column' })
   fireEvent.drop(inProgressColumn, { dataTransfer })
 }

@@ -30,7 +30,7 @@ interface FilterSelectsProps {
   setHideEpics: (v: boolean) => void
 }
 
-function FilterSelects({
+const FilterSelects = function FilterSelects({
   uniqueProjects,
   filterProject,
   setFilterProject,
@@ -122,7 +122,7 @@ function FilterSelects({
   )
 }
 
-function SortControls({
+const SortControls = function SortControls({
   sortBy,
   setSortBy,
   sortDir,

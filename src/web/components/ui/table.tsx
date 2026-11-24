@@ -14,16 +14,16 @@ export interface TableProps {
   className?: string
   children: ReactNode
 }
-export function Table({ class: legacyClass, className, children }: TableProps) {
+export const Table = function Table({ class: legacyClass, className, children }: TableProps) {
   return <PrimitiveTable className={[legacyClass, className].filter(Boolean).join(' ')}>{children}</PrimitiveTable>
 }
-export function TableHead({ children }: { children: ReactNode }) {
+export const TableHead = function TableHead({ children }: { children: ReactNode }) {
   return <PrimitiveTableHeader>{children}</PrimitiveTableHeader>
 }
-export function TableBody({ children }: { children: ReactNode }) {
+export const TableBody = function TableBody({ children }: { children: ReactNode }) {
   return <PrimitiveTableBody>{children}</PrimitiveTableBody>
 }
-export function TableRow({
+export const TableRow = function TableRow({
   class: legacyClass,
   className,
   ...props
@@ -39,7 +39,7 @@ export function TableHeaderCell({
 }: HTMLAttributes<HTMLTableCellElement> & { class?: string; children?: ReactNode }) {
   return <PrimitiveTableHead {...props} className={[legacyClass, className].filter(Boolean).join(' ')} />
 }
-export function TableCell({
+export const TableCell = function TableCell({
   class: legacyClass,
   className,
   muted,

@@ -23,7 +23,7 @@ export interface SprintDetail {
 
 const tsToDateInput = unixToDateInput
 
-function sprintStatusStyle(status: SprintDetail['status']): {
+const sprintStatusStyle = function sprintStatusStyle(status: SprintDetail['status']): {
   background: string
   color: string
   borderColor: string
@@ -45,7 +45,7 @@ function sprintStatusStyle(status: SprintDetail['status']): {
   return { background: 'var(--surface)', color: 'var(--text-muted)', borderColor: 'var(--border)' }
 }
 
-function SprintProgress({ issues }: { issues: Issue[] }) {
+const SprintProgress = function SprintProgress({ issues }: { issues: Issue[] }) {
   const doneCount = issues.filter((issue) => issue.status_category === 'done').length
   const totalCount = issues.length
   if (totalCount === 0) {

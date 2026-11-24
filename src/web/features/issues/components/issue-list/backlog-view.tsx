@@ -18,7 +18,10 @@ import {
   statusBadge,
 } from './issue-render-helpers.tsx'
 
-function applyBacklogOrder(issues: Readonly<Issue[]>, backlogOrder: string[]): Readonly<Issue[]> {
+const applyBacklogOrder = function applyBacklogOrder(
+  issues: Readonly<Issue[]>,
+  backlogOrder: string[],
+): Readonly<Issue[]> {
   if (Array.isArrayEmpty(backlogOrder)) {
     return issues
   }
@@ -31,7 +34,7 @@ function applyBacklogOrder(issues: Readonly<Issue[]>, backlogOrder: string[]): R
   return [...inOrder, ...rest]
 }
 
-function BacklogTableHead({
+const BacklogTableHead = function BacklogTableHead({
   sortBy,
   sortDir,
   onSort,
@@ -76,7 +79,7 @@ interface RowProps {
   onDragEnd: () => void
 }
 
-function BacklogRow({
+const BacklogRow = function BacklogRow({
   issue,
   statuses,
   updatingId,
@@ -163,7 +166,7 @@ function BacklogRow({
   )
 }
 
-function BacklogMobileCards({
+const BacklogMobileCards = function BacklogMobileCards({
   issues,
   updatingPriorityId,
   changePriority,

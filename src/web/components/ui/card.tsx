@@ -22,7 +22,7 @@ export type CardProps =
       children: ReactNode
     } & AnchorHTMLAttributes<HTMLAnchorElement>)
 
-export function Card({
+export const Card = function Card({
   as = 'div',
   href,
   interactive,

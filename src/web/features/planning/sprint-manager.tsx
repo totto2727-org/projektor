@@ -33,7 +33,7 @@ const fromSprint = (sprint: Sprint): Draft => ({
   end: unixToDateInput(sprint.endDate),
 })
 
-function StatusBadge({ status }: { status: Sprint['status'] }) {
+const StatusBadge = function StatusBadge({ status }: { status: Sprint['status'] }) {
   const style = {
     planned: { background: 'var(--surface)', color: 'var(--text-muted)' },
     active: { background: 'var(--sprint-active-bg)', color: 'var(--status-in-progress)' },
@@ -47,7 +47,7 @@ function StatusBadge({ status }: { status: Sprint['status'] }) {
 }
 
 /** Data stays prop-owned. A same-URL server refresh changes the list, not an open draft. */
-export function SprintManager({
+export const SprintManager = function SprintManager({
   projectId,
   workspaceSlug,
   initialSprints: sprints,

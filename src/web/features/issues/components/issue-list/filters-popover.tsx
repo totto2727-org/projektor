@@ -25,7 +25,7 @@ export interface FiltersPopoverPos {
   maxHeight: number
 }
 
-export function computeFiltersPopoverPosition(rect: DOMRect): FiltersPopoverPos {
+export const computeFiltersPopoverPosition = function computeFiltersPopoverPosition(rect: DOMRect): FiltersPopoverPos {
   const left = Math.max(POPOVER_MARGIN, Math.min(rect.left, window.innerWidth - POPOVER_WIDTH - POPOVER_MARGIN))
   const below = window.innerHeight - rect.bottom - POPOVER_GAP - POPOVER_MARGIN
   const above = rect.top - POPOVER_GAP - POPOVER_MARGIN
@@ -43,7 +43,7 @@ const PILL_COLORS: Record<string, { bg: string; text: string }> = {
   low: { bg: 'var(--priority-low-solid)', text: 'var(--on-accent)' },
 }
 
-function StatusPills({
+const StatusPills = function StatusPills({
   derivedStatuses,
   filterStatuses,
   setFilterStatuses,
@@ -82,7 +82,7 @@ function StatusPills({
   )
 }
 
-function PriorityPills({
+const PriorityPills = function PriorityPills({
   filterPriorities,
   setFilterPriorities,
 }: {
@@ -118,7 +118,7 @@ function PriorityPills({
   )
 }
 
-function DateRangeFilter({
+const DateRangeFilter = function DateRangeFilter({
   filterDateField,
   setFilterDateField,
   filterDateFrom,
@@ -198,7 +198,7 @@ interface FiltersPopoverProps {
   isSearchActive: boolean
 }
 
-function FiltersToggleButton({
+const FiltersToggleButton = function FiltersToggleButton({
   buttonRef,
   isSearchActive,
   activeFilterCount,
@@ -237,7 +237,7 @@ function FiltersToggleButton({
   )
 }
 
-function FiltersPopoverContent(
+const FiltersPopoverContent = function FiltersPopoverContent(
   props: Pick<
     FiltersPopoverProps,
     | 'derivedStatuses'

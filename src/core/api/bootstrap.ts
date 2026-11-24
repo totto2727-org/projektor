@@ -2,6 +2,7 @@ import { seedDefaultCustomFields } from '#commands/custom-fields.ts'
 import { seedDefaultTaskStatuses } from '#commands/task-statuses.ts'
 import { seedDefaultTaskTypes } from '#commands/task-types.ts'
 import { HTTP_FORBIDDEN, HTTP_INTERNAL_SERVER_ERROR } from '#contracts/http-status.ts'
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { coreFailure } from '#core/contract.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
 import { buildMcpAddCommand } from '#types'
@@ -22,7 +23,7 @@ export const bootstrapDevelopment = async function bootstrapDevelopment(
     throw coreFailure(HTTP_FORBIDDEN, 'Forbidden')
   }
   const email = env.DEV_USER_EMAIL ?? 'admin@projektor.dev'
-  const now = Math.floor(Date.now() / 1000)
+  const now = currentEpochSeconds()
   await env.DB.prepare(`INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)
     ON CONFLICT(email) DO UPDATE SET name = excluded.name`)
     .bind(crypto.randomUUID(), email, email.split('@')[0], now)

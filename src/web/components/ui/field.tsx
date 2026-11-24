@@ -14,7 +14,7 @@ export interface FieldProps {
   children: ReactNode
 }
 
-export function Field({
+export const Field = function Field({
   label,
   htmlFor,
   required,

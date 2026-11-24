@@ -17,6 +17,7 @@ import {
 } from 'react'
 import type { RefObject } from 'react'
 
+import { currentEpochSeconds } from '#contracts/time.ts'
 import { uploadInlineImage as uploadEditorImage } from '@/attachment-actions.ts'
 import { FunctionError, unwrapResult } from '@/client/functions.ts'
 import { AttachmentUpload } from '@/components/attachment-upload.tsx'
@@ -2635,7 +2636,7 @@ function useHashScroll(
   }, [toc, scrollToHash])
 
   useEffect(() => {
-    function onNavigate(): void {
+    const onNavigate = function onNavigate(): void {
       handledRef.current = null
       scrollToHash()
     }
@@ -2688,7 +2689,7 @@ function useWikiAttachments(workspaceSlug: string | undefined, page: WikiPageDat
           entityId: page.id,
         }),
       )
-      setInlineAttachments((files) => [...files, { ...uploaded, createdAt: Math.floor(Date.now() / 1000) }])
+      setInlineAttachments((files) => [...files, { ...uploaded, createdAt: currentEpochSeconds() }])
       return `/api/files/${encodeURIComponent(uploaded.id)}?workspace=${encodeURIComponent(workspaceSlug)}`
     } catch (error) {
       setUploadError(globalThis.String(error))

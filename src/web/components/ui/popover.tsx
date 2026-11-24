@@ -6,7 +6,7 @@ import type { CSSProperties, ReactNode, Ref } from 'react'
 import { Popover as PrimitivePopover } from '@/components/generated/popover.tsx'
 
 /** Compatibility entry point backed by the framework portal, not app portal logic. */
-export function Portal({ into, vnode }: { into: HTMLElement; vnode: ReactNode }) {
+export const Portal = function Portal({ into, vnode }: { into: HTMLElement; vnode: ReactNode }) {
   return (
     <PrimitivePopover open>
       <PopoverPrimitive.Portal container={into}>{vnode}</PopoverPrimitive.Portal>
@@ -31,7 +31,7 @@ export interface PopoverProps {
  * Generated PopoverContent cannot forward positioner anchors, so use its Base UI popup
  * directly for this compatibility-only coordinate surface, without modifying generation.
  */
-export function Popover({
+export const Popover = function Popover({
   id,
   role = 'dialog',
   ariaLabel,

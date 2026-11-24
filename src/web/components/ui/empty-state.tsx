@@ -17,7 +17,14 @@ export interface EmptyStateProps {
   class?: string
   className?: string
 }
-export function EmptyState({ title, description, action, icon, class: legacyClass, className }: EmptyStateProps) {
+export const EmptyState = function EmptyState({
+  title,
+  description,
+  action,
+  icon,
+  class: legacyClass,
+  className,
+}: EmptyStateProps) {
   return (
     <Empty className={['py-12', legacyClass, className].filter(Boolean).join(' ')}>
       <EmptyHeader>

@@ -3,6 +3,7 @@ import { String, Array, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { ListMessagesSchema, PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
+import { currentEpochMilliseconds, currentEpochSeconds } from '#contracts/time.ts'
 import { drizzle, schema } from '#db'
 
 import { assertIssueAccess } from './access.ts'
@@ -30,10 +31,10 @@ const touchAgentHeartbeatIfLive = async function touchAgentHeartbeatIfLive(
   ctx: ServiceCtx,
   agentId: string,
 ): Promise<void> {
-  const cutoff = Math.floor(Date.now() / 1000) - SESSION_TTL_SECONDS
+  const cutoff = currentEpochSeconds() - SESSION_TTL_SECONDS
   await orm
     .update(schema.agentSessions)
-    .set({ lastHeartbeatAt: Math.floor(Date.now() / 1000) })
+    .set({ lastHeartbeatAt: currentEpochSeconds() })
     .where(
       and(
         eq(schema.agentSessions.id, agentId),
@@ -74,7 +75,7 @@ export const buildPostMessageStatements = function buildPostMessageStatements(
   if (Array.isReadonlyArrayEmpty(messages)) {
     return []
   }
-  const now = Date.now()
+  const now = currentEpochMilliseconds()
   const rows = messages.map((message) => ({
     id: crypto.randomUUID(),
     workspaceId: ctx.workspaceId,
@@ -119,7 +120,7 @@ export const postMessage = async function postMessage(ctx: ServiceCtx, raw: unkn
    * Millisecond precision: ensures unique ordering for messages posted in rapid
    * succession (e.g., multiple SELF.fetch calls in tests within the same second).
    */
-  const now = Date.now()
+  const now = currentEpochMilliseconds()
 
   await orm.insert(schema.agentMessages).values({
     id,

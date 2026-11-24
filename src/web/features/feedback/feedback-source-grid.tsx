@@ -21,18 +21,18 @@ interface Props {
   initialSummaries: Readonly<SourceSummary[]>
 }
 
-function formatDate(ts: number): string {
+const formatDate = function formatDate(ts: number): string {
   return formatTimestampDate(ts)
 }
 
-function statusLabel(s: FeedbackSource): string {
+const statusLabel = function statusLabel(s: FeedbackSource): string {
   if (Predicate.isNotNullish(s.revokedAt)) {
     return 'Revoked'
   }
   return s.isActive ? 'Active' : 'Inactive'
 }
 
-function statusClass(s: FeedbackSource): string {
+const statusClass = function statusClass(s: FeedbackSource): string {
   if (Predicate.isNotNullish(s.revokedAt)) {
     return 'opacity-60'
   }
