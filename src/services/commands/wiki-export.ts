@@ -194,7 +194,7 @@ const pagesByIds = async function pagesByIds(ctx: ServiceCtx, ids: string[]): Pr
  * so every exported file carries frontmatter, per the R15 spec.
  */
 const ensureFrontmatter = function ensureFrontmatter(page: ExportedPage): string {
-  if (/^---\r?\n/.test(page.content)) {
+  if (/^---\r?\n/u.test(page.content)) {
     return page.content
   }
   const yamlText = stringifyYaml({ title: page.title }).trimEnd()
@@ -250,8 +250,8 @@ const collectAttachments = async function collectAttachments(
 
 const safeZipPathSegment = function safeZipPathSegment(value: string): string {
   // oxlint-disable-next-line no-control-regex -- Intentionally strip control characters from ZIP entry names.
-  const stripped = value.replace(/[\\/]/g, '_').replace(/[\x00-\x1f]/g, '')
-  return /^\.+$/.test(stripped) ? '_' : stripped
+  const stripped = value.replace(/[\\/]/gu, '_').replace(/[\x00-\x1f]/g, '')
+  return /^\.+$/u.test(stripped) ? '_' : stripped
 }
 
 /*

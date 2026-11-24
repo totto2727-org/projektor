@@ -33,11 +33,11 @@ const b64urlEncode = function b64urlEncode(bytes: Uint8Array): string {
   Iterable.forEach(bytes, (byte) => {
     binary += String.fromCharCode(byte)
   })
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  return btoa(binary).replace(/\+/gu, '-').replace(/\//gu, '_').replace(/=+$/u, '')
 }
 
 const b64urlDecode = function b64urlDecode(value: string): Uint8Array<ArrayBuffer> {
-  const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice(0, (4 - (value.length % 4)) % 4)
+  const padded = value.replace(/-/gu, '+').replace(/_/gu, '/') + '=='.slice(0, (4 - (value.length % 4)) % 4)
   return Uint8Array.from(atob(padded), (ch) => ch.charCodeAt(0))
 }
 

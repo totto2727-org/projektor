@@ -18,7 +18,7 @@ function rectAt(top: number, left = 10, height = 24, width = 100): DOMRect {
     x: left,
     y: top,
     toJSON: () => ({}),
-  } as DOMRect
+  }
 }
 
 /*

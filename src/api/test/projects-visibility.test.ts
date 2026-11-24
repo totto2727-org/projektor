@@ -48,7 +48,7 @@ describe('covers PROJ-581: viewers see projects only through grants, consistentl
     const pub = await seedUser(`public-${crypto.randomUUID().slice(0, 8)}@projektor.local`)
     const published = await seedProject(ws.id, 'PUB')
     await seedProject(ws.id, 'PRV')
-    await provisionPublicViewer({ ...env, DEFAULT_WORKSPACE_SLUG: slug } as Env, pub)
+    await provisionPublicViewer({ ...env, DEFAULT_WORKSPACE_SLUG: slug }, pub)
 
     const group = await env.DB.prepare(
       'SELECT g.id FROM user_groups g JOIN user_group_members m ON m.group_id = g.id WHERE g.workspace_id = ? AND g.name = ? AND m.user_id = ?',
@@ -77,7 +77,7 @@ describe('covers PROJ-581: viewers see projects only through grants, consistentl
       ...viewerCtx(ws.id, pub.id),
       auth: { kind: 'human', method: 'public' },
     }
-    await expect(updateIssue(ctx, issue.id, { title: 'defaced' })).rejects.toThrow(/Insufficient permissions/)
+    await expect(updateIssue(ctx, issue.id, { title: 'defaced' })).rejects.toThrow(/Insufficient permissions/u)
     // A signed-in viewer with a member grant can still write (PROJ-311's documented model).
     await expect(
       updateIssue({ ...viewerCtx(ws.id, pub.id), auth: { kind: 'human', method: 'access' } }, issue.id, {

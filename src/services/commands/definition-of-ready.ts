@@ -12,7 +12,7 @@ export interface ReadinessCheck {
 
 // Does the line introduce a new section (so a section started earlier has ended)?
 const isSectionBoundary = function isSectionBoundary(line: string): boolean {
-  return /^#{1,6}\s/.test(line) || /^\*\*[A-Za-z][^*]*\*\*:?\s*$/.test(line)
+  return /^#{1,6}\s/u.test(line) || /^\*\*[A-Za-z][^*]*\*\*:?\s*$/.test(line)
 }
 
 const ci = function ci(source: string, flags: string): RegExp {
@@ -48,14 +48,14 @@ const labelMatchers = function labelMatchers(label: RegExp): LabelMatchers {
 const isLabelLine = function isLabelLine(line: string, m: LabelMatchers): boolean {
   const t = line.trim()
 
-  const isHeading = /^#{1,6}\s+/.test(t)
+  const isHeading = /^#{1,6}\s+/u.test(t)
   const isBold = /^\*\*[^*]+\*\*:?\s*$/.test(t) || /^[-*]\s+\*\*[^*]+\*\*/.test(t)
   if (isHeading || isBold) {
     return m.word.test(t)
   }
 
   // A plain line only counts when the label is a "Label:" prefix, not mid-sentence.
-  const stripped = t.replace(/^[-*]\s+/, '').replace(/\*\*/g, '')
+  const stripped = t.replace(/^[-*]\s+/u, '').replace(/\*\*/gu, '')
   return m.prefix.test(stripped)
 }
 
@@ -64,7 +64,7 @@ const isLabelLine = function isLabelLine(line: string, m: LabelMatchers): boolea
  * non-blank line before the next section boundary.
  */
 const sectionHasContent = function sectionHasContent(body: string, label: RegExp): boolean {
-  const lines = body.split(/\r?\n/)
+  const lines = body.split(/\r?\n/u)
   const m = labelMatchers(label)
   const idx = lines.findIndex((l) => isLabelLine(l, m))
   if (idx === -1) {
@@ -72,9 +72,9 @@ const sectionHasContent = function sectionHasContent(body: string, label: RegExp
   }
 
   const inline = lines[idx]
-    .replace(/^[#\-*\s]+/, '')
-    .replace(/\*\*/g, '')
-    .replace(/`/g, '')
+    .replace(/^[#\-*\s]+/u, '')
+    .replace(/\*\*/gu, '')
+    .replace(/`/gu, '')
   const sepIdx = inline.search(/[:—–]/)
   const afterColon = sepIdx === -1 ? '' : inline.slice(sepIdx + 1).trim()
   if (afterColon !== '') {

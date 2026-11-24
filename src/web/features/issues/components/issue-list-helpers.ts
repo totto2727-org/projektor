@@ -21,7 +21,7 @@ interface KeyedById {
 const dateInputToTs = function dateInputToTs(dateStr: string, endOfDay: boolean): number {
   const timestamp = Date.parse(`${dateStr}T00:00:00Z`)
   if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ||
+    !/^\d{4}-\d{2}-\d{2}$/u.test(dateStr) ||
     !Number.isFinite(timestamp) ||
     new Date(timestamp).toISOString().slice(0, 10) !== dateStr
   ) {

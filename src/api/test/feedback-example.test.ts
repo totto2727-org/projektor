@@ -50,6 +50,6 @@ describe('feedback widget example', () => {
 
     await expect(
       submitFeedback('http://localhost/api/feedback/submit', 'not-a-real-token', { body: 'x' }),
-    ).rejects.toThrow(/Feedback submit failed: 401/)
+    ).rejects.toThrow(/Feedback submit failed: 401/u)
   })
 })

@@ -102,7 +102,7 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
     expect(uploaded).toEqual({ id: expect.any(String), filename: 'diagram.png', contentType: 'image/png', size: 4 })
     const row = testFixture.sqlite.prepare('SELECT * FROM attachments WHERE id = ?').get(uploaded.id)
     expect(row).toMatchObject({ created_by_id: 'u1', entity_id: 'i1', size: 4, workspace_id: 'w1' })
-    expect(testFixture.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//), expect.any(ReadableStream), {
+    expect(testFixture.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//u), expect.any(ReadableStream), {
       httpMetadata: { contentType: 'image/png' },
     })
     expect([...testFixture.objects.values()]).toEqual([await testFixture.file.arrayBuffer()])
@@ -258,7 +258,7 @@ describe('shared file transfer commands over migrated SQLite and bounded R2', ()
       )
       expect(log).toHaveBeenCalledWith(
         'uploadStoredAttachment: compensation failed',
-        expect.objectContaining({ r2Key: expect.stringMatching(/^w1\//) }),
+        expect.objectContaining({ r2Key: expect.stringMatching(/^w1\//u) }),
       )
     } finally {
       log.mockRestore()

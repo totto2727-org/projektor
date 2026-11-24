@@ -58,7 +58,7 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
       },
     })
 
-  vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => wrapStmt(origPrepare(q)) as D1PreparedStatement)
+  vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => wrapStmt(origPrepare(q)))
   vi.spyOn(env.DB, 'batch').mockImplementation((stmts: D1PreparedStatement[]) => {
     count++
     return origBatch(stmts)
@@ -267,7 +267,7 @@ describe('covers PROJ-870 review: completion report comment limit', () => {
       }),
     })
     expect(res.status).toBe(400)
-    expect(JSON.stringify(await res.json())).toMatch(/Completion report is too long/)
+    expect(JSON.stringify(await res.json())).toMatch(/Completion report is too long/u)
 
     // The batch never ran: no status change, no comment.
     const row = await env.DB.prepare('SELECT status, completion_report_at FROM issues WHERE id = ?')

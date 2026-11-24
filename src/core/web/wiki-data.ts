@@ -64,9 +64,9 @@ export const loadWikiData = function loadWikiData(
       },
     })
     const mode =
-      /\/wiki\/new\/?$/.test(url.pathname) || url.searchParams.get('createTitle')
+      /\/wiki\/new\/?$/u.test(url.pathname) || url.searchParams.get('createTitle')
         ? 'create'
-        : /\/edit\/?$/.test(url.pathname)
+        : /\/edit\/?$/u.test(url.pathname)
           ? 'edit'
           : 'read'
     const filterType = url.searchParams.get('type') ?? ''
@@ -129,9 +129,9 @@ export const loadWikiData = function loadWikiData(
     })
     const ftsQuery = searchQuery
       .trim()
-      .split(/\s+/)
-      .filter((token) => Boolean(token) && /\w/.test(token))
-      .map((token) => `"${token.replace(/"/g, '""')}"`)
+      .split(/\s+/u)
+      .filter((token) => Boolean(token) && /\w/u.test(token))
+      .map((token) => `"${token.replace(/"/gu, '""')}"`)
       .join(' ')
     // Serialize the same app-authored visibility predicate for the shared raw FTS query.
     const rawVisibility = yield* Effect.try({

@@ -58,7 +58,7 @@ function ifNoneMatchMatches(header: string | undefined, etag: string): boolean {
   if (header.trim() === '*') {
     return true
   }
-  const stripWeak = (t: string): string => t.trim().replace(/^W\//, '')
+  const stripWeak = (t: string): string => t.trim().replace(/^W\//u, '')
   return header.split(',').some((t) => stripWeak(t) === stripWeak(etag))
 }
 

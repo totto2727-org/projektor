@@ -47,7 +47,7 @@ export const viewsStorageKey = function viewsStorageKey(project: string): string
 const normalizeFilters = function normalizeFilters(
   raw: Partial<SavedViewFilters> | null | undefined,
 ): SavedViewFilters {
-  const r = (raw ?? {}) as Partial<SavedViewFilters>
+  const r = raw ?? {}
   const strings = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((s): s is string => Predicate.isString(s)) : []
   const str = (v: unknown): string => (Predicate.isString(v) ? v : '')

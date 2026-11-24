@@ -180,7 +180,7 @@ const toD1Statement = function toD1Statement(
 const chunk = function chunk<T>(items: Readonly<T[]>, size: number): T[][] {
   const out: T[][] = []
   for (let index = 0; index < items.length; index += size) {
-    out.push(items.slice(index, index + size) as T[])
+    out.push(items.slice(index, index + size))
   }
   return out
 }

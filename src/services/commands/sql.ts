@@ -27,9 +27,9 @@ const D1_BOUND_PARAM_LIMIT = 100
 export const sanitizeFtsQuery = function sanitizeFtsQuery(q: string): string {
   return q
     .trim()
-    .split(/\s+/)
-    .filter((t) => Boolean(t) && /\w/.test(t))
-    .map((t) => `"${t.replace(/"/g, '""')}"`)
+    .split(/\s+/u)
+    .filter((t) => Boolean(t) && /\w/u.test(t))
+    .map((t) => `"${t.replace(/"/gu, '""')}"`)
     .join(' ')
 }
 
@@ -54,7 +54,7 @@ export const inChunks = async function inChunks<I, O>(
   }
   const out: O[] = []
   for (let index = 0; index < items.length; index += CHUNK_SIZE) {
-    out.push(...(await op(items.slice(index, index + CHUNK_SIZE) as I[])))
+    out.push(...(await op(items.slice(index, index + CHUNK_SIZE))))
   }
   return out
 }

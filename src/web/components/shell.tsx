@@ -121,7 +121,7 @@ function Icon({ children }: { children: ReactNode }) {
   )
 }
 function initials(name: string, email: string): string {
-  const words = (name.trim() || email).split(/\s+/).filter(Boolean)
+  const words = (name.trim() || email).split(/\s+/u).filter(Boolean)
   return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : (words[0] ?? '?').slice(0, 2).toUpperCase()
 }
 function ThemeIcon({ theme }: { theme: Theme }) {

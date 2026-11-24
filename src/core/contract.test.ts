@@ -51,7 +51,7 @@ describe('core native RPC public boundary', () => {
         const problem = JSON.parse(wire).failure
         expect(problem.status).toBe(500)
         expect(problem.message).toBe('An unexpected error occurred.')
-        expect(problem.occurrenceId).toMatch(/^urn:uuid:/)
+        expect(problem.occurrenceId).toMatch(/^urn:uuid:/u)
         expect(log).toHaveBeenCalledOnce()
       } finally {
         log.mockRestore()

@@ -7,5 +7,5 @@ export const normalizeIssueRef = function normalizeIssueRef(ref: string): string
 }
 
 export const isValidIssueRef = function isValidIssueRef(ref: string): boolean {
-  return /^[A-Z][A-Z0-9]*-\d+$/.test(ref)
+  return /^[A-Z][A-Z0-9]*-\d+$/u.test(ref)
 }

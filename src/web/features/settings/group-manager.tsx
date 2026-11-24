@@ -240,7 +240,7 @@ function GroupDetailEditor({
     name: { workspaceSlug: slug, groupId: detail.id, name: detail.name },
     description: { workspaceSlug: slug, groupId: detail.id, description: detail.description ?? '' },
     member: { workspaceSlug: slug, groupId: detail.id, userId: '' },
-    grant: { workspaceSlug: slug, groupId: detail.id, projectId: '', role: 'member' as GrantRole },
+    grant: { workspaceSlug: slug, groupId: detail.id, projectId: '', role: 'member' },
   }))
   const nameValidator = Schema.toStandardSchemaV1(RenameGroupInputSchema)
   const descriptionValidator = Schema.toStandardSchemaV1(GroupDescriptionInputSchema)

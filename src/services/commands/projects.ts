@@ -85,7 +85,7 @@ export const listProjectsAcrossWorkspaces = async function listProjectsAcrossWor
   return Effect.runPromise(data.listProjectSummaries(db, userId, visibility, includeArchived))
 }
 
-const PROJECT_KEY_PATTERN = /^[A-Z][A-Z0-9]*$/
+const PROJECT_KEY_PATTERN = /^[A-Z][A-Z0-9]*$/u
 
 export const resolveProjectIdParam = async function resolveProjectIdParam(
   ctx: ServiceCtx,

@@ -246,7 +246,7 @@ describe('flow metrics (PROJ-252)', () => {
     expect(totalCounted).toBe(2)
     expect(metrics.throughputOverTime.length).toBeGreaterThan(0)
     Iterable.forEach(metrics.throughputOverTime, (bucket) => {
-      expect(bucket.bucketStart).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      expect(bucket.bucketStart).toMatch(/^\d{4}-\d{2}-\d{2}$/u)
     })
   })
 

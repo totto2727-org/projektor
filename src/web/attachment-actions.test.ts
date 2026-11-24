@@ -62,7 +62,7 @@ describe('native Core attachment ServerFns with guarded storage commands', () =>
           size: bytes.length,
         },
       })
-      expect(fixture.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//), expect.any(ReadableStream), {
+      expect(fixture.put).toHaveBeenCalledWith(expect.stringMatching(/^w1\//u), expect.any(ReadableStream), {
         httpMetadata: { contentType: 'image/png' },
       })
       expect(new Uint8Array([...fixture.objects.values()][0])).toEqual(bytes)

@@ -2426,8 +2426,8 @@ function excerptOf(content: string, maxLength = 200): string {
   // PROJ-488: never let a page's frontmatter YAML become its og:description.
   const plain = stripFrontmatter(content)
     .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/[#*_>`[\]()!-]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/[#*_>`[\]()!-]/gu, ' ')
+    .replace(/\s+/gu, ' ')
     .trim()
   return plain.length > maxLength ? `${plain.slice(0, maxLength).trimEnd()}…` : plain
 }

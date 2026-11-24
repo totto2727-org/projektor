@@ -489,7 +489,7 @@ describe('handles GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
     }
     expect(body.workspaceId).toBe(workspaceId)
     expect(body.workspaceSlug).toBe(slug)
-    expect(body.mcpUrl).toMatch(/\/mcp\//)
+    expect(body.mcpUrl).toMatch(/\/mcp\//u)
     expect(body.mcpAddCommandTemplate).toContain('claude mcp add')
     expect(body.mcpAddCommandTemplate).toContain('{{TOKEN}}')
     expect(body.mcpAddCommandTemplate).toContain(slug)

@@ -60,12 +60,12 @@ const declarationSource = function declarationSource(ref: string): string | null
     return null
   }
   const rest = text.slice(start.index + start[0].length)
-  const next = /^(?:export |async function |function |const |let |type |interface )/m.exec(rest)
+  const next = /^(?:export |async function |function |const |let |type |interface )/mu.exec(rest)
   return start[0] + (next ? rest.slice(0, next.index) : rest)
 }
 
 const camel = function camel(snake: string): string {
-  return snake.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
+  return snake.replace(/_([a-z])/gu, (_, c: string) => c.toUpperCase())
 }
 
 describe('covers PROJ-923: FK ON DELETE actions have explicit app cleanup', () => {

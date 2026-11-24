@@ -30,7 +30,7 @@ describe('visibleProjectSqlFragment column-expression guard', () => {
     Iterable.forEach(
       ['i.project_id; DROP TABLE issues', '(SELECT 1)', 'i.project_id OR 1=1', 'i.project_id, name', '', '1'],
       (bad) => {
-        expect(() => visibleProjectSqlFragment(memberCtx, bad)).toThrow(/column identifier/)
+        expect(() => visibleProjectSqlFragment(memberCtx, bad)).toThrow(/column identifier/u)
       },
     )
   })

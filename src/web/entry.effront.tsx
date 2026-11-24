@@ -18,7 +18,7 @@ import { RequestServices, RequestServicesLive } from './request.ts'
 const cosmeticPrefs = `(function(){try{var p=JSON.parse(localStorage.getItem('prefs')||'null')||{},t=p.theme||localStorage.getItem('theme'),r=document.documentElement;if(t==='light'||t==='dark')r.dataset.theme=t;else r.removeAttribute('data-theme');r.dataset.density=p.density==='compact'?'compact':'comfortable';r.dataset.sidebar=p.sidebar==='collapsed'?'collapsed':'expanded'}catch(e){}})();`
 
 function pageTitle(pathname: string): string {
-  const path = pathname.replace(/\/$/, '') || '/'
+  const path = pathname.replace(/\/$/u, '') || '/'
   const titles: Record<string, string> = {
     '/': 'Projects',
     '/help': 'Help',
@@ -41,7 +41,7 @@ const RootLayout = EFFRONT.Layout.make({
   render: ({ children }) =>
     Effect.gen(function* () {
       const services = yield* RequestServices
-      const publicRoute = /^\/share(?:\/|$)/.test(services.url.pathname) || /^\/help\/?$/.test(services.url.pathname)
+      const publicRoute = /^\/share(?:\/|$)/u.test(services.url.pathname) || /^\/help\/?$/u.test(services.url.pathname)
       const scope = publicRoute ? null : yield* services.scope()
       const brand = yield* loadBrand(services.env, scope, services.request)
       return (
@@ -67,7 +67,7 @@ const RootLayout = EFFRONT.Layout.make({
               type='font/woff2'
               crossOrigin='anonymous'
             />
-            <title>{pageTitle(services.url.pathname).replace(/Projektor/g, brand.name)}</title>
+            <title>{pageTitle(services.url.pathname).replace(/Projektor/gu, brand.name)}</title>
           </head>
           <body>
             <Shell

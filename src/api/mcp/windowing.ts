@@ -76,7 +76,7 @@ const headings = function headings(content: string): Heading[] {
       }
       continue
     }
-    const fenceMatch = /^\s*(```|~~~)/.exec(line)
+    const fenceMatch = /^\s*(```|~~~)/u.exec(line)
     if (fenceMatch) {
       if (Predicate.isNullish(fence)) {
         fence = fenceMatch[1]
@@ -106,7 +106,7 @@ const slugify = function slugify(s: string): string {
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .trim()
-    .replace(/\s+/g, '-')
+    .replace(/\s+/gu, '-')
 }
 
 /**
@@ -116,7 +116,7 @@ const slugify = function slugify(s: string): string {
  */
 export const sectionOf = function sectionOf(content: string, name: string): string | undefined {
   const wanted = name
-    .replace(/^#+\s*/, '')
+    .replace(/^#+\s*/u, '')
     .trim()
     .toLowerCase()
   const hs = headings(content)
@@ -125,7 +125,7 @@ export const sectionOf = function sectionOf(content: string, name: string): stri
     return undefined
   }
   const next = hs.slice(i + 1).find((h) => h.level <= hs[i].level)
-  return content.slice(hs[i].start, next ? next.start : content.length).replace(/\n+$/, '')
+  return content.slice(hs[i].start, next ? next.start : content.length).replace(/\n+$/u, '')
 }
 
 /** `bodyChars` on lists: a prefix of the body, flagged when it was cut. */

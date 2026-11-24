@@ -391,7 +391,7 @@ describe('complete direct D1 issues SSR loaders', () => {
       assigneeId: scope.user.id,
     })
     const html = renderToStaticMarkup(await data.run(renderMyIssues(selected, new URL('https://front.test/my-issues'))))
-    expect(html.match(/<table/g)).toHaveLength(1)
+    expect(html.match(/<table/gu)).toHaveLength(1)
     expect(html).toContain('105 issues')
     expect(html.indexOf('Old review first')).toBeLessThan(html.indexOf('New todo'))
     expect(html).not.toContain('Closed work excluded')

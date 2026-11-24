@@ -47,7 +47,7 @@ export const createFeedbackSource = EFFRONT.ServerFn.make({
         yield* checkSameOriginMutation(services.request)
         const ctx = yield* resolveFunctionContext(input, { requireProject: true })
         const origins = input.origins
-          .split(/[\n,]/)
+          .split(/[\n,]/u)
           .map((value) => value.trim())
           .filter(Boolean)
         const value = yield* runCommand(ctx, (command) =>

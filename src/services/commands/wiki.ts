@@ -547,9 +547,9 @@ export const searchWiki = async function searchWiki(ctx: ServiceCtx, input: unkn
   return rows.map((r) => ({
     ...r,
     freshness: computeFreshness({
-      verifiedAt: r.verified_at as number | null,
-      verifyInterval: r.verify_interval as number | null,
-      status: r.status as string | null,
+      verifiedAt: r.verified_at,
+      verifyInterval: r.verify_interval,
+      status: r.status,
       now,
     }),
   }))
@@ -1211,15 +1211,7 @@ const buildUpdateWikiPageStatements = function buildUpdateWikiPageStatements(
 
   const setData = buildWikiPageUpdateSet(now, ctx.userId, { title, content, parentId, slug, meta })
   statements.push(
-    toD1Statement(
-      ctx,
-      orm
-        .update(schema.wikiPages)
-        // biome-ignore lint/suspicious/noExplicitAny: Drizzle set() requires typed columns; setData is safe
-        .set(setData as any)
-        .where(eq(schema.wikiPages.id, page.id))
-        .toSQL(),
-    ),
+    toD1Statement(ctx, orm.update(schema.wikiPages).set(setData).where(eq(schema.wikiPages.id, page.id)).toSQL()),
   )
 
   /*
@@ -1583,8 +1575,8 @@ const ATX_HEADING_RE = /^(#{1,6})\s+(.+?)\s*#*\s*$/
  *   - the leading YAML frontmatter block — `# a yaml comment` sits before any real
  *     heading, so "patching" it would rewrite the metadata block itself.
  */
-const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/
-const FRONTMATTER_DELIM_RE = /^---\s*$/
+const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/u
+const FRONTMATTER_DELIM_RE = /^---\s*$/u
 
 type HeadingSection = { heading: string; level: number; startLine: number; endLine: number }
 
@@ -1657,7 +1649,7 @@ const trimLeadingBlankLines = function trimLeadingBlankLines(lines: Readonly<str
  * see patchWikiPage's comment on why append_to_page skips the section-lock entirely.
  */
 const appendToPageEnd = function appendToPageEnd(content: string, text: string): string {
-  const trimmed = content.replace(/\s+$/, '')
+  const trimmed = content.replace(/\s+$/u, '')
   if (trimmed === '') {
     return `${text.trimEnd()}\n`
   }
@@ -1893,12 +1885,7 @@ async function patchWikiPageOnce(
   const setData = buildWikiPageUpdateSet(now, ctx.userId, { content: newContent, meta })
   const updateStatement = toD1Statement(
     ctx,
-    orm
-      .update(schema.wikiPages)
-      // biome-ignore lint/suspicious/noExplicitAny: Drizzle set() requires typed columns; setData is safe
-      .set(setData as any)
-      .where(eq(schema.wikiPages.id, page.id))
-      .toSQL(),
+    orm.update(schema.wikiPages).set(setData).where(eq(schema.wikiPages.id, page.id)).toSQL(),
   )
 
   const ftsStatements = buildFtsReindexStatements(ctx, page.id, page.title, newContent, meta.tags)

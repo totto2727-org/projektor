@@ -29,7 +29,7 @@ const MORE_TRIGGER_RESERVE_PX = 84
 const TAB_GAP_PX = 2
 
 function normalPath(pathname: string): string {
-  return pathname === '/' ? pathname : pathname.replace(/\/+$/, '') || '/'
+  return pathname === '/' ? pathname : pathname.replace(/\/+$/u, '') || '/'
 }
 function isTabActive(path: string, pathname: string): boolean {
   const current = normalPath(pathname)

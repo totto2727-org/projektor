@@ -53,7 +53,7 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
       body: JSON.stringify({ name: 'sibling', scopes: ['*'] }),
     })
     expect(res.status).toBe(403)
-    expect(((await res.json()) as { error: string }).error).toMatch(/signed-in browser session/)
+    expect(((await res.json()) as { error: string }).error).toMatch(/signed-in browser session/u)
     await expect(tokenRow('sibling')).resolves.toBeNull()
   })
 
@@ -79,7 +79,7 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
     )
     expect(mint.status).toBe(201)
     const { id, token } = (await mint.json()) as { id: string; token: string }
-    expect(token).toMatch(/^pk_/)
+    expect(token).toMatch(/^pk_/u)
 
     const byToken = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
       headers: authHeaders(testFixture.token, slug),
@@ -113,7 +113,7 @@ describe('covers PROJ-917: workspace tokens require a human session', () => {
     const testFixture = await seedFixture({ role: 'owner' })
     const res = await mintAsHuman(testFixture.user.email, testFixture.workspace.slug, '{bad json')
     expect(res.status).toBe(400)
-    expect(JSON.stringify(await res.json())).toMatch(/valid JSON/)
+    expect(JSON.stringify(await res.json())).toMatch(/valid JSON/u)
   })
 
   test("listing stays available to an admin's pk_ token (no secrets returned)", async () => {

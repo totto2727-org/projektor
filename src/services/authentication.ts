@@ -288,6 +288,6 @@ export function parseCookie(cookieHeader: string, name: string): string | undefi
   return undefined
 }
 function base64urlDecode(value: string): string {
-  const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice(0, (4 - (value.length % 4)) % 4)
+  const padded = value.replace(/-/gu, '+').replace(/_/gu, '/') + '=='.slice(0, (4 - (value.length % 4)) % 4)
   return atob(padded)
 }

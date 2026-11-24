@@ -312,7 +312,7 @@ describe('wiki semantic ServerFn contracts', () => {
     const test = await fixture({ pageProject: '00000000-0000-4000-8000-000000000002' })
     await expect(test.run(duplicateWikiPage, { workspaceSlug: 'team', slug: 'guide' })).resolves.toEqual({
       ok: true,
-      value: { id: expect.any(String), slug: expect.stringMatching(/^guide-copy-/) },
+      value: { id: expect.any(String), slug: expect.stringMatching(/^guide-copy-/u) },
     })
     expect(
       test.sqlite

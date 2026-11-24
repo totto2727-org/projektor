@@ -269,7 +269,7 @@ export default function BacklogView({
           <BacklogTableHead sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
           <tbody
             onDragLeave={(event: import('react').DragEvent<HTMLElement>) => {
-              if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)) {
+              if (!event.currentTarget.contains(event.relatedTarget as Node)) {
                 setBacklogDragOverId(null)
               }
             }}

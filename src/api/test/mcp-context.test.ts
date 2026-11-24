@@ -36,7 +36,7 @@ describe('covers PROJ-889: MCP mutations broadcast like REST', () => {
     await expect.poll(async () => (await getCoreObservations()).broadcasts.length).toBeGreaterThan(0)
     const { broadcasts } = await getCoreObservations()
     expect(broadcasts.length).toBeGreaterThan(0)
-    expect(broadcasts[0].url).toMatch(/\/broadcast$/)
+    expect(broadcasts[0].url).toMatch(/\/broadcast$/u)
     expect(JSON.parse(broadcasts[0].body)).toMatchObject({
       workspaceId: testFixture.workspaceId,
       projectId: testFixture.projectId,
@@ -68,7 +68,7 @@ describe('covers PROJ-889: auth middleware records method + credential', () => {
 
   test('a pk_ workspace token → method pk, with its api_tokens id and scopes', async () => {
     const { workspace, user } = await seedFixture()
-    const raw = `pk_${crypto.randomUUID().replace(/-/g, '')}`
+    const raw = `pk_${crypto.randomUUID().replace(/-/gu, '')}`
     const id = crypto.randomUUID()
     await env.DB.prepare(
       `INSERT INTO api_tokens (id, workspace_id, user_id, name, token_hash, scopes, created_at)

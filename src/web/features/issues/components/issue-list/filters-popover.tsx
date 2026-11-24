@@ -136,7 +136,7 @@ function DateRangeFilter({
       <select
         aria-label='Date filter field'
         value={filterDateField}
-        onChange={(event) => setFilterDateField((event.target as HTMLSelectElement).value as DateField)}
+        onChange={(event) => setFilterDateField(event.target.value as DateField)}
         className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base cursor-pointer'
       >
         <option value=''>No date filter</option>

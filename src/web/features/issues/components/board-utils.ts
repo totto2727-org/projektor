@@ -87,7 +87,7 @@ export const categoryColor = function categoryColor(category: string | null): st
 }
 
 export const assigneeInitials = function assigneeInitials(name: string): string {
-  const parts = name.trim().split(/\s+/)
+  const parts = name.trim().split(/\s+/u)
   if (parts.length >= 2) {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
   }

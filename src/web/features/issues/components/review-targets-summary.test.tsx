@@ -37,10 +37,10 @@ describe('issue review target summary', () => {
     (workspaceSlug) => {
       render(<ReviewTargetsSummary issue={{ ...issue(), workspaceSlug }} />)
       const href = screen.getByRole('link', { name: 'Review targets: 対象なし' }).getAttribute('href')
-      expect(href).toMatch(/^\//)
+      expect(href).toMatch(/^\//u)
       const url = new URL(href ?? '', 'https://front.test')
       expect(url.origin).toBe('https://front.test')
-      expect(url.pathname).toMatch(/^\/projects\//)
+      expect(url.pathname).toMatch(/^\/projects\//u)
       expect(url.searchParams.get('workspace')).toBe(workspaceSlug ?? null)
       expect(url.searchParams.getAll('tab')).toEqual(['review-targets'])
     },
@@ -69,7 +69,7 @@ describe('issue review target summary', () => {
     const link = screen.getByRole('link', { name: `Review targets: Reference (${label})` })
     expect(link.textContent).toContain('レビュー不要')
     expect(link.className).toContain('text-text-muted')
-    expect(screen.queryByText(/^\+\d+$/)).toBeNull()
+    expect(screen.queryByText(/^\+\d+$/u)).toBeNull()
   })
 
   test('preserves fallback issue and workspace identity when opening the focused page', () => {
@@ -101,6 +101,6 @@ describe('issue review target summary', () => {
     const link = screen.getByRole('link', { name: 'Review targets: 対象なし' })
     expect(link.textContent).not.toContain('Hidden completion')
     expect(link.textContent).not.toContain('完了')
-    expect(screen.queryByText(/^\+\d+$/)).toBeNull()
+    expect(screen.queryByText(/^\+\d+$/u)).toBeNull()
   })
 })

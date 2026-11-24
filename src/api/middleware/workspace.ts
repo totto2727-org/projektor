@@ -22,7 +22,7 @@ const warnIfIgnoredSubdomain = async function warnIfIgnoredSubdomain(
     return
   }
   const hostname = httpContext.req.header('host')?.split(':')[0]
-  if (!hostname || hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+  if (!hostname || hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/u.test(hostname)) {
     return
   }
   const labels = hostname.split('.')

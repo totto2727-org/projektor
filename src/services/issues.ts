@@ -9,7 +9,7 @@ import { batchLoadCustomFields, inChunks } from './custom-fields.ts'
 import type { CustomFieldValue } from './custom-fields.ts'
 import { queryEffect } from './errors.ts'
 
-export const ISSUE_REF_PATTERN = /^([A-Z][A-Z0-9]*)-(\d{1,9})$/
+export const ISSUE_REF_PATTERN = /^([A-Z][A-Z0-9]*)-(\d{1,9})$/u
 export interface IssueListOptions {
   review?: ReviewFilter
   status?: typeof schema.issues.$inferSelect.status
@@ -465,9 +465,9 @@ export const searchIssues = function searchIssues(
   return queryEffect('searchIssues', async (): Promise<IssueSearchRow[]> => {
     const query = options.query
       .trim()
-      .split(/\s+/)
-      .filter((t) => Boolean(t) && /\w/.test(t))
-      .map((t) => `"${t.replace(/"/g, '""')}"`)
+      .split(/\s+/u)
+      .filter((t) => Boolean(t) && /\w/u.test(t))
+      .map((t) => `"${t.replace(/"/gu, '""')}"`)
       .join(' ')
     if (!query) {
       return []

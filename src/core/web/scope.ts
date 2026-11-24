@@ -137,7 +137,7 @@ export const readProjectHint = function readProjectHint(url: URL): string | unde
   }
   // Path parameters come from Effront's matched route through RequestServices.
   // Other ?id values identify issues, wiki pages or feedback, not projects.
-  return url.pathname.replace(/\/$/, '') === '/projects/view' ? queryHint(url, 'id') : undefined
+  return url.pathname.replace(/\/$/u, '') === '/projects/view' ? queryHint(url, 'id') : undefined
 }
 
 export const matchesProject = function matchesProject(project: ProjectSummary, hint: string): boolean {

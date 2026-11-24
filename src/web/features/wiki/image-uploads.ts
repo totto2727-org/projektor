@@ -62,7 +62,7 @@ export const insertUploadedImages = async function insertUploadedImages(
       if (!url) {
         continue
       }
-      const label = file.name.replace(/[\\[\]]/g, '\\$&')
+      const label = file.name.replace(/[\\[\]]/gu, '\\$&')
       view.dispatch({ changes: { from: anchor.position, insert: `![${label}](${url})\n` } })
     }
   } finally {

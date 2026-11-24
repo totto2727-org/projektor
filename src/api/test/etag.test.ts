@@ -39,7 +39,7 @@ describe('covers PROJ-439 — ETag / conditional GET', () => {
     const first = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug)
     expect(first.status).toBe(200)
     const etag = first.headers.get('ETag')
-    expect(etag).toMatch(/^"[0-9a-f]{32}"$/)
+    expect(etag).toMatch(/^"[0-9a-f]{32}"$/u)
     expect(first.headers.get('Cache-Control')).toBe('private, no-cache')
 
     const second = await get(`/api/issues/${testFixture.issueId}`, testFixture.token, testFixture.slug, etag)

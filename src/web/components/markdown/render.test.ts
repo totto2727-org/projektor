@@ -47,14 +47,14 @@ describe('untrusted runtime Comark', () => {
     expect(html).toContain('wiki-link-broken')
     expect(html).toContain('createTitle=Missing&amp;workspace=team&amp;projectId=project')
     expect(html).toContain('<code>[[Café]]</code>')
-    expect(html.match(/href="\/wiki\/caf/g)).toHaveLength(1)
+    expect(html.match(/href="\/wiki\/caf/gu)).toHaveLength(1)
   })
 
   test('strips script, SVG event handlers, foreignObject, unsafe schemes and CSS', async () => {
     const { html } = await renderMarkdownDocument(
       '<script>evil()</script><img src="/image" onerror="evil()"><a href="javascript:evil()">bad</a>\n\n<svg onload="evil()"><foreignObject><iframe src="https://evil.invalid"></iframe></foreignObject><path fill="url(https://evil.invalid)" /></svg>\n\n<span style="color:#123456;background-image:url(https://evil.invalid)">safe</span>',
     )
-    expect(html).not.toMatch(/<script|onerror|onload|javascript:|foreignObject|iframe|background-image|url\(https/)
+    expect(html).not.toMatch(/<script|onerror|onload|javascript:|foreignObject|iframe|background-image|url\(https/u)
     expect(html).not.toContain('evil()')
   })
 

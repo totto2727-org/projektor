@@ -12,7 +12,7 @@ import { formatTimestampDate } from '@/features/timestamp.ts'
 
 /** "YYYY-MM-DD" → unix seconds at local midnight; empty/invalid → null. */
 export const dateInputToUnix = function dateInputToUnix(value: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value.trim())
   if (!m) {
     return null
   }

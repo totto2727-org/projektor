@@ -102,8 +102,8 @@ const plainTextExcerpt = function plainTextExcerpt(markdown: string, maxLen = 20
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[\[([^\]|]*)(\|[^\]]*)?\]\]/g, '$1')
-    .replace(/[#>*_`~-]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/[#>*_`~-]/gu, ' ')
+    .replace(/\s+/gu, ' ')
     .trim()
   return plain.length > maxLen ? `${plain.slice(0, maxLen - 1)}…` : plain
 }

@@ -118,7 +118,7 @@ describe('wiki export (PROJ-497)', () => {
 
     // Page with no frontmatter block gets a minimal one synthesized (title only).
     const noteText = entryText(entries!, 'pages/note-two.md')
-    expect(noteText).toMatch(/^---\ntitle: Note Two\n---\n/)
+    expect(noteText).toMatch(/^---\ntitle: Note Two\n---\n/u)
     expect(noteText).toContain('Plain body, no frontmatter')
   })
 

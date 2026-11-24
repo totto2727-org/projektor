@@ -98,7 +98,7 @@ test.each(['all Workers update', 'Core is unchanged', 'migration fails'] as cons
     events.length = 0
 
     if (scenario === 'migration fails') {
-      await expect(deploy(2)).rejects.toThrow(/Fixture migration failed/)
+      await expect(deploy(2)).rejects.toThrow(/Fixture migration failed/u)
       expect(events).toEqual(['database:start'])
     } else {
       await deploy(2)

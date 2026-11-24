@@ -32,7 +32,7 @@ const sourceFiles = function sourceFiles(directory: string): string[] {
     if (entry.isDirectory()) {
       return sourceFiles(path)
     }
-    return /\.tsx?$/.test(path) && !/\.(test|d)\.tsx?$/.test(path) ? [path] : []
+    return /\.tsx?$/u.test(path) && !/\.(test|d)\.tsx?$/u.test(path) ? [path] : []
   })
 }
 
@@ -164,7 +164,7 @@ const resolveModule = function resolveModule(
   if (!target) {
     return undefined
   }
-  if (/\.(css|json|svg|png|webp|woff2)$/.test(target) && existsSync(target)) {
+  if (/\.(css|json|svg|png|webp|woff2)$/u.test(target) && existsSync(target)) {
     return undefined
   }
   const candidates = [target, `${target}.ts`, `${target}.tsx`, join(target, 'index.ts'), join(target, 'index.tsx')]
@@ -192,7 +192,7 @@ const violations = function violations(
     }
     const localPath = relative(ROOT, path)
     const next = [...chain, localPath]
-    if (/^src\/(services|db|plugins|plugin-sdk)\//.test(localPath)) {
+    if (/^src\/(services|db|plugins|plugin-sdk)\//u.test(localPath)) {
       failures.push(`${next.join(' -> ')}: Core implementation reached from a public adapter`)
       return
     }
@@ -200,7 +200,7 @@ const violations = function violations(
       failures.push(`${next.join(' -> ')}: ${capability}`)
     })
     for (const specifier of info.imports) {
-      if (/^(drizzle-orm(?:\/|$)|node:sqlite$)/.test(specifier)) {
+      if (/^(drizzle-orm(?:\/|$)|node:sqlite$)/u.test(specifier)) {
         failures.push(`${next.join(' -> ')} -> ${specifier}: database runtime imported by a public adapter`)
         continue
       }
@@ -220,12 +220,12 @@ const reverseViolations = function reverseViolations(graph: ReadonlyMap<string, 
   const failures: string[] = []
   for (const [path, info] of graph) {
     const localPath = relative(ROOT, path)
-    if (!/^src\/(core|contracts|services|db|plugins|plugin-sdk)\//.test(localPath)) {
+    if (!/^src\/(core|contracts|services|db|plugins|plugin-sdk)\//u.test(localPath)) {
       continue
     }
     Iterable.forEach(info.imports, (specifier) => {
       const dependency = resolveModule(path, specifier, graph)
-      if (dependency && /^src\/(api|web)\//.test(relative(ROOT, dependency))) {
+      if (dependency && /^src\/(api|web)\//u.test(relative(ROOT, dependency))) {
         failures.push(
           `${localPath} -> ${relative(ROOT, dependency)}: shared implementation depends on a public adapter`,
         )

@@ -273,9 +273,9 @@ export const searchDataWikiAttachments = function searchDataWikiAttachments(
     yield* checked(() => requireDataWorkspace(scope, workspaceId))
     const ftsQuery = query
       .trim()
-      .split(/\s+/)
-      .filter((word) => /\w/.test(word))
-      .map((word) => `"${word.replace(/"/g, '""')}"`)
+      .split(/\s+/u)
+      .filter((word) => /\w/u.test(word))
+      .map((word) => `"${word.replace(/"/gu, '""')}"`)
       .join(' ')
     if (!ftsQuery) {
       return []

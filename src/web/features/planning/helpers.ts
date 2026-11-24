@@ -6,7 +6,7 @@ import type { RangeState, SprintIssue } from './types.ts'
 
 /** Original local-midnight date input contract, including timezone-safe round trips. */
 export const dateInputToUnix = function dateInputToUnix(value: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value.trim())
   if (!m) {
     return null
   }
@@ -61,7 +61,7 @@ export const rangeFromUrl = function rangeFromUrl(url: URL, now = new Date()): R
   const fallback = defaultRange(now)
   const date = (key: 'since' | 'until'): string => {
     const value = url.searchParams.get(key)
-    return value && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(dateEpochStart(value)) ? value : fallback[key]
+    return value && /^\d{4}-\d{2}-\d{2}$/u.test(value) && Number.isFinite(dateEpochStart(value)) ? value : fallback[key]
   }
   const since = date('since')
   const until = date('until')

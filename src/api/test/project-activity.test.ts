@@ -69,7 +69,7 @@ const seedWikiPage = async function seedWikiPage(
 ) {
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
-  const slug = opts.slug ?? (opts.title ?? 'test-page').toLowerCase().replace(/\s+/g, '-')
+  const slug = opts.slug ?? (opts.title ?? 'test-page').toLowerCase().replace(/\s+/gu, '-')
   const updatedAt = opts.updatedAt ?? now
   await env.DB.prepare(
     `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content, created_by_id, updated_by_id,
@@ -133,7 +133,7 @@ describe('list_project_activity MCP tool', () => {
     expect(created).toHaveLength(1)
     expect(created[0].summary).toBe('My Issue')
     expect(created[0].entity_type).toBe('issue')
-    expect(created[0].entity_ref).toMatch(/^PROJ-\d+$/)
+    expect(created[0].entity_ref).toMatch(/^PROJ-\d+$/u)
     expect(typeof created[0].created_at).toBe('number')
   })
 

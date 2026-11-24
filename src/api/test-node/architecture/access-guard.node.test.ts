@@ -50,8 +50,8 @@ const GUARDS = new Set([
   'visibleProjectIds',
 ])
 
-const ENTITY_PARAM = /^(issueId|projectId|sprintId|pageId|wikiPageId|parentId|issueRef)$/
-const GENERIC_ID_PARAM = /^(id|idOrSlug|slug|pageIdOrSlug|ref)$/
+const ENTITY_PARAM = /^(issueId|projectId|sprintId|pageId|wikiPageId|parentId|issueRef)$/u
+const GENERIC_ID_PARAM = /^(id|idOrSlug|slug|pageIdOrSlug|ref)$/u
 const PROJECT_SCOPED_FILES = new Set([
   'issues',
   'sprints',
@@ -105,7 +105,7 @@ const collect = function collect(): Map<string, FnInfo> {
     }
 
     Iterable.forEach(files, (fileName) => {
-      const file = fileName.replace(/\.ts$/, '')
+      const file = fileName.replace(/\.ts$/u, '')
       const src = project.program.getSourceFile(join(SERVICES, fileName))
       if (!src) {
         throw new Error(`Could not parse architecture source: ${fileName}`)
@@ -121,7 +121,7 @@ const collect = function collect(): Map<string, FnInfo> {
           ts.isStringLiteral(stmt.moduleSpecifier) &&
           stmt.moduleSpecifier.text.startsWith('./')
         ) {
-          const from = stmt.moduleSpecifier.text.slice(2).replace(/\.ts$/, '')
+          const from = stmt.moduleSpecifier.text.slice(2).replace(/\.ts$/u, '')
           const named = stmt.importClause?.namedBindings
           if (named && ts.isNamedImports(named)) {
             Iterable.forEach(named.elements, (el) => {

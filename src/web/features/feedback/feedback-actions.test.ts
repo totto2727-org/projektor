@@ -31,7 +31,7 @@ describe('feedback concrete ServerFn shared commands', () => {
           origins: 'https://one.test\nhttps://two.test, ',
         }),
       ),
-    ).resolves.toEqual({ ok: true, value: { id: expect.any(String), token: expect.stringMatching(/^fbk_/) } })
+    ).resolves.toEqual({ ok: true, value: { id: expect.any(String), token: expect.stringMatching(/^fbk_/u) } })
     expect(
       test.sqlite
         .prepare("SELECT name,description,allowed_origins,created_by FROM feedback_sources WHERE name='Customers'")
@@ -95,7 +95,7 @@ describe('feedback concrete ServerFn shared commands', () => {
     expect(test.sqlite.prepare("SELECT is_active FROM feedback_sources WHERE id='source'").get()?.is_active).toBe(0)
     await expect(test.invoke(actions.rotateFeedbackSourceToken, reference)).resolves.toMatchObject({
       ok: true,
-      value: { token: expect.stringMatching(/^fbk_/) },
+      value: { token: expect.stringMatching(/^fbk_/u) },
     })
     expect(test.sqlite.prepare("SELECT token_hash FROM feedback_sources WHERE id='source'").get()?.token_hash).not.toBe(
       'initial-hash',

@@ -122,7 +122,7 @@ describe('covers PROJ-920: MCP tool arguments are type-checked before the handle
     })
     const err = toolError(res)
     expect(err?.code).toBe('validation')
-    expect(err?.fields?.id?.[0]).toMatch(/must be string/)
+    expect(err?.fields?.id?.[0]).toMatch(/must be string/u)
   })
 
   test('still reports missing required arguments by name (PROJ-877)', async () => {

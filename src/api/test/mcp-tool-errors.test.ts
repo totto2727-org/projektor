@@ -85,9 +85,9 @@ describe('covers PROJ-893: MCP tool failures are isError results', () => {
   test('validation: a missing required argument is named', async () => {
     const e = await failure('get_project', {})
     expect(e.code).toBe('validation')
-    expect(e.message).toMatch(/Missing required argument/)
+    expect(e.message).toMatch(/Missing required argument/u)
     expect(e.fields).toBeDefined()
-    expect(e.hint).toMatch(/^Fix /)
+    expect(e.hint).toMatch(/^Fix /u)
   })
 
   test('validation: a wrongly-typed argument is caught before the handler runs', async () => {

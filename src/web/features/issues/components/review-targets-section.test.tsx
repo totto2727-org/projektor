@@ -302,7 +302,7 @@ test('shows active-empty guidance when every selected target is completed', () =
   expect(screen.getByRole('heading', { name: 'レビュー対象 (0)' })).toBeTruthy()
   expect(screen.getByText('表示するレビュー対象はありません。')).toBeTruthy()
   expect(screen.queryByText('finished.pdf')).toBeNull()
-  expect(screen.queryByText(/レビュー対象を選択/)).toBeNull()
+  expect(screen.queryByText(/レビュー対象を選択/u)).toBeNull()
   expect(screen.queryByRole('checkbox')).toBeNull()
 })
 

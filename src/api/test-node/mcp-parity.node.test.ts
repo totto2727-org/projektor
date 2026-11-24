@@ -144,7 +144,7 @@ const expandToFiles = function expandToFiles(path: string): string[] {
 }
 
 const snakeCase = function snakeCase(name: string): string {
-  return name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
+  return name.replace(/([a-z0-9])([A-Z])/gu, '$1_$2').toLowerCase()
 }
 
 /** Qualified import bindings keep facade names distinct from their canonical domain operations. */
@@ -200,7 +200,7 @@ const sourceModule = function sourceModule(path: string, sourceOverride?: string
     const target = specifier.startsWith('#')
       ? fileURLToPath(import.meta.resolve(specifier))
       : specifier.startsWith('.')
-        ? join(path, '..', `${specifier.replace(/\.ts$/, '')}.ts`)
+        ? join(path, '..', `${specifier.replace(/\.ts$/u, '')}.ts`)
         : undefined
     if (!target) {
       continue
@@ -261,7 +261,7 @@ const coreMethods = new Map<string, { module: SourceModule; node: ts.Node }>()
 for (const path of expandToFiles(join(SRC, '..', 'core', 'api')).filter((path) => !path.endsWith('.test.ts'))) {
   const module = sourceModule(path)
   const visit = function visit(node: ts.Node): void {
-    if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && /^api[A-Z]/.test(node.name.text)) {
+    if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && /^api[A-Z]/u.test(node.name.text)) {
       if (coreMethods.has(node.name.text)) {
         throw new Error(`Duplicate named Core operation: ${node.name.text}`)
       }
@@ -452,7 +452,7 @@ const domainOperations = function domainOperations(
           throw new Error(`Unresolved Core file path in ${module.path}`)
         }
         binaryRequest(pathname, method)
-      } else if (ts.isPropertyAccessExpression(expression) && /^api[A-Z]/.test(expression.name.text)) {
+      } else if (ts.isPropertyAccessExpression(expression) && /^api[A-Z]/u.test(expression.name.text)) {
         native(expression.name.text)
       } else if (
         ts.isPropertyAccessExpression(expression) &&
@@ -478,7 +478,7 @@ const domainOperations = function domainOperations(
       }
       if (
         ts.isPropertyAccessExpression(expression) &&
-        /^(get|post|put|patch|delete|head|all)$/.test(expression.name.text)
+        /^(get|post|put|patch|delete|head|all)$/u.test(expression.name.text)
       ) {
         method = expression.name.text.toUpperCase()
       }

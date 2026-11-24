@@ -75,7 +75,7 @@ describe('covers ProjectNav SSR width fallback', () => {
     render(<ProjectNav scope={scope} url={url} />)
     const nav = screen.getByRole('navigation', { name: 'Project sections' })
     expect(nav.classList.contains('overflow-x-auto')).toBe(false)
-    fireEvent.click(screen.getByRole('button', { name: /More/ }))
+    fireEvent.click(screen.getByRole('button', { name: /More/u }))
     expect(screen.getByRole('menu', { name: 'More project sections' })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: 'Feedback' })).toBeTruthy()
   })

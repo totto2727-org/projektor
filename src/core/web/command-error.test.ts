@@ -35,7 +35,7 @@ describe('private Core browser command failure boundary', () => {
     async (cause, status, message) => {
       const { problem, encoded } = await failure(cause)
       expect(problem).toMatchObject({ status, message })
-      expect(problem.occurrenceId).toMatch(/^urn:uuid:/)
+      expect(problem.occurrenceId).toMatch(/^urn:uuid:/u)
       if (cause instanceof NotFoundError || cause instanceof ConflictError) {
         expect(problem.details).toEqual(cause.details)
       }

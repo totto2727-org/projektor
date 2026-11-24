@@ -22,7 +22,7 @@ function priorityBadge(r: SearchResult) {
 }
 
 function statusBadge(r: SearchResult) {
-  return <span className='font-medium text-sm text-text-muted'>{r.status.replace(/_/g, ' ')}</span>
+  return <span className='font-medium text-sm text-text-muted'>{r.status.replace(/_/gu, ' ')}</span>
 }
 
 function SearchResultsTable({ results }: { results: SearchResult[] }) {

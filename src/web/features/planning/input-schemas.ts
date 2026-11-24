@@ -18,7 +18,7 @@ const date = Schema.String.check(
   Schema.makeFilter((value) => {
     const timestamp = Date.parse(`${value}T00:00:00Z`)
     return (
-      (/^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      (/^\d{4}-\d{2}-\d{2}$/u.test(value) &&
         Number.isFinite(timestamp) &&
         new Date(timestamp).toISOString().slice(0, 10) === value) ||
       'Enter a valid date.'

@@ -45,7 +45,7 @@ describe('covers REST: invalid JSON bodies → 400', () => {
       body: '{bad json',
     })
     expect(res.status).toBe(400)
-    expect(JSON.stringify(await res.json())).toMatch(/valid JSON/)
+    expect(JSON.stringify(await res.json())).toMatch(/valid JSON/u)
   })
 })
 
@@ -89,6 +89,6 @@ describe('covers MCP: parse and envelope errors', () => {
     const body = await res.json()
     const err = toolError(body)
     expect(err?.code).toBe('validation')
-    expect(err?.message).toMatch(/Missing required argument/)
+    expect(err?.message).toMatch(/Missing required argument/u)
   })
 })

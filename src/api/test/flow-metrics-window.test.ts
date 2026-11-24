@@ -41,7 +41,7 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=day`)
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error: unknown }
-    expect(JSON.stringify(body)).toMatch(/366 days/)
+    expect(JSON.stringify(body)).toMatch(/366 days/u)
   })
 
   test('accepts a day-granularity window of exactly 366 days', async () => {
@@ -57,7 +57,7 @@ describe('covers PROJ-866: flow-metrics window validation', () => {
     const res = await getFlowMetrics(`since=${since}&until=${now}&granularity=week`)
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error: unknown }
-    expect(JSON.stringify(body)).toMatch(/5 years/)
+    expect(JSON.stringify(body)).toMatch(/5 years/u)
   })
 
   test('accepts a week-granularity window of exactly 5 years', async () => {

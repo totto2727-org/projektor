@@ -240,7 +240,7 @@ describe('explicit settings ServerFns use real shared commands and authoritative
         value: {
           id: expect.any(String),
           name: 'Agent',
-          token: expect.stringMatching(/^pk_[0-9a-f]{64}$/),
+          token: expect.stringMatching(/^pk_[0-9a-f]{64}$/u),
           scopes: ['read'],
           expiresAt: expect.any(Number),
         },

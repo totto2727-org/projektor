@@ -52,7 +52,7 @@ export const SourceFields = Schema.Struct({
   origins: Schema.String.check(
     Schema.makeFilter((raw) => {
       const origins = raw
-        .split(/[\n,]/)
+        .split(/[\n,]/u)
         .map((value) => value.trim())
         .filter(Boolean)
       return (

@@ -85,7 +85,7 @@ describe('covers API facade reply boundary', () => {
         humanHandlers.apiCreateToken(human, 'facade-workspace', { name: 'Human credential', scopes: ['read'] }),
       )
       expect(created).toMatchObject({ expiresAt: null, name: 'Human credential', scopes: ['read'] })
-      expect(created.token).toMatch(/^pk_[a-f0-9]{64}$/)
+      expect(created.token).toMatch(/^pk_[a-f0-9]{64}$/u)
       await expect(
         apiReply(ApiResults.apiRevokeToken, humanHandlers.apiRevokeToken(human, 'facade-workspace', created.id)),
       ).resolves.toEqual({ ok: true })

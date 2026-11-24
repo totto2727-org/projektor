@@ -105,7 +105,7 @@ describe('flow chart public data and primitive semantics', () => {
     const chart = screen.getByTestId('flow-chart-cfd')
     expect(chart.textContent).toContain('--color-backlogTodo: var(--chart-seq-1)')
     expect(chart.textContent).toContain('--color-done: var(--chart-seq-4)')
-    expect(chart.getAttribute('data-chart')).toMatch(/^chart-flow-cfd-[a-zA-Z0-9_-]+$/)
+    expect(chart.getAttribute('data-chart')).toMatch(/^chart-flow-cfd-[a-zA-Z0-9_-]+$/u)
   })
 
   test('accepts readonly throughput without cloning or modifying its counts', () => {

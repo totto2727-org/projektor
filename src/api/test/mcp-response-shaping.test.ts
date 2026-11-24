@@ -241,7 +241,7 @@ describe('covers PROJ-891: MCP tools', () => {
   test('get_issue full view has ref, an array of labels and no internal ids', async () => {
     const issue = await seedIssue(f.workspaceId, f.projectId, f.userId, { title: 'Shaped' })
     const got = await tool('get_issue', { id: issue.id })
-    expect(got.ref).toMatch(/-\d+$/)
+    expect(got.ref).toMatch(/-\d+$/u)
     expect(got).not.toHaveProperty('workspace_id')
     expect(got).not.toHaveProperty('project_id')
     expect(got).not.toHaveProperty('created_by_id')

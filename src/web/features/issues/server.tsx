@@ -180,7 +180,7 @@ export function loadIssues(
     const { page, epics, sprints, sprintDetail, search } = yield* Effect.all(
       {
         page: view === 'list' ? readDataIssuePage(scope, workspace.id, query) : allPages(scope, workspace.id, query),
-        epics: epicType ? allPages(scope, workspace.id, epicQuery) : Effect.succeed({ items: [] } as IssuePage),
+        epics: epicType ? allPages(scope, workspace.id, epicQuery) : Effect.succeed({ items: [] }),
         sprints: project ? readSprints(workspace.id, project.id) : Effect.succeed([]),
         sprintDetail: sprintId ? readSprint(workspace.id, sprintId) : Effect.succeed(null),
         search: q ? searchDataIssues(scope, workspace.id, q, project?.id, review) : Effect.succeed(null),
@@ -237,7 +237,7 @@ function issueIdentifier(url: URL, scope: RequestScope, params: IssueRouteParams
     return null
   }
   const number = Number(params.issueNumber)
-  if (!/^\d+$/.test(params.issueNumber) || !Number.isSafeInteger(number) || number < 1) {
+  if (!/^\d+$/u.test(params.issueNumber) || !Number.isSafeInteger(number) || number < 1) {
     throw new ScopeError(400, 'The issue reference is not valid.')
   }
   return `${project.key}-${number}`
@@ -277,7 +277,7 @@ export function loadIssue(
         children:
           issue.type_key === 'epic'
             ? allPages(scope, workspace.id, new URLSearchParams({ parentId: issue.id, limit: '100' }))
-            : Effect.succeed({ items: [] } as IssuePage),
+            : Effect.succeed({ items: [] }),
       },
       { concurrency: CONCURRENCY },
     )

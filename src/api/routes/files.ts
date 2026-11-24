@@ -85,7 +85,7 @@ router.get('/:id', async (httpContext) => {
   return new Response(response.body, {
     headers: {
       'Content-Type': inline ? contentType : 'application/octet-stream',
-      'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="${filename.replace(/[\r\n"\\]/g, '_')}"`,
+      'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="${filename.replace(/[\r\n"\\]/gu, '_')}"`,
       'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "sandbox; default-src 'none'",
     },

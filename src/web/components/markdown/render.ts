@@ -97,9 +97,9 @@ export const sanitizeMarkdownHtml = function sanitizeMarkdownHtml(html: string):
             [/^#[\da-f]{3,8}$/i],
           ]),
         ),
-        'font-style': [/^(normal|italic)$/],
-        'font-weight': [/^(normal|bold|[1-9]00)$/],
-        'text-decoration': [/^(none|underline|line-through)$/],
+        'font-style': [/^(normal|italic)$/u],
+        'font-weight': [/^(normal|bold|[1-9]00)$/u],
+        'text-decoration': [/^(none|underline|line-through)$/u],
         ...Object.fromEntries(
           [
             'height',
@@ -113,7 +113,7 @@ export const sanitizeMarkdownHtml = function sanitizeMarkdownHtml(html: string):
             'padding-left',
             'vertical-align',
             'border-bottom-width',
-          ].map((property) => [property, [/^-?\d*(?:\.\d+)?(?:em|ex|px|%)$/]]),
+          ].map((property) => [property, [/^-?\d*(?:\.\d+)?(?:em|ex|px|%)$/u]]),
         ),
       },
     },
@@ -126,7 +126,7 @@ export const sanitizeMarkdownHtml = function sanitizeMarkdownHtml(html: string):
           }
         })
         Iterable.forEach(['marker-end', 'marker-start'], (key) => {
-          if (attribs[key] && !/^(?:none|url\(#[\w-]+\))$/.test(attribs[key])) {
+          if (attribs[key] && !/^(?:none|url\(#[\w-]+\))$/u.test(attribs[key])) {
             delete attribs[key]
           }
         })

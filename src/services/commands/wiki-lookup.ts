@@ -9,7 +9,7 @@ import { schema } from '#db'
  * satisfy the slug pattern ^[a-z0-9-]+$, so a slug could otherwise equal another
  * page's id and make an id-or-slug lookup match two rows.
  */
-const ID_SHAPED = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/
+const ID_SHAPED = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/u
 
 export const isIdShapedSlug = function isIdShapedSlug(slug: string): boolean {
   return ID_SHAPED.test(slug)

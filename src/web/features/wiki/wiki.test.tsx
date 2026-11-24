@@ -114,7 +114,7 @@ describe('original Wiki React SSR', () => {
     expect(html).toContain('<h2 id="server">Server</h2>')
     expect(html).toContain('<table>')
     expect(html).toContain('class="mermaid"')
-    expect(html).not.toMatch(/javascript:|onerror|<script|evil\(\)/)
+    expect(html).not.toMatch(/javascript:|onerror|<script|evil\(\)/u)
   })
 
   test('preserves named heading entities and does not double-encode authored IDs', () => {

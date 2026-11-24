@@ -13,7 +13,7 @@ import { describe, expect, test } from 'vite-plus/test'
 
 const SRC = join(import.meta.dirname, '..', '..')
 const COMMANDS = join(SRC, '..', 'services', 'commands')
-const RETARGET = /\{\s*\.\.\.ctx\s*,\s*workspaceId\s*:/
+const RETARGET = /\{\s*\.\.\.ctx\s*,\s*workspaceId\s*:/u
 
 const tsFiles = function tsFiles(dir: string): string[] {
   return readdirSync(dir)

@@ -33,8 +33,8 @@ beforeAll(async () => {
     publicExponent: new Uint8Array([1, 0, 1]),
     hash: 'SHA-256',
   }
-  pair = (await crypto.subtle.generateKey(algorithm, true, ['sign', 'verify'])) as CryptoKeyPair
-  otherPair = (await crypto.subtle.generateKey(algorithm, true, ['sign', 'verify'])) as CryptoKeyPair
+  pair = await crypto.subtle.generateKey(algorithm, true, ['sign', 'verify'])
+  otherPair = await crypto.subtle.generateKey(algorithm, true, ['sign', 'verify'])
   key = await crypto.subtle.exportKey('jwk', pair.publicKey)
   otherKey = await crypto.subtle.exportKey('jwk', otherPair.publicKey)
 })

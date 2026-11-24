@@ -868,7 +868,7 @@ describe('wiki API', () => {
     })
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error: { formErrors: string[] } }
-    expect(body.error.formErrors[0]).toMatch(/Maximum wiki nesting depth/)
+    expect(body.error.formErrors[0]).toMatch(/Maximum wiki nesting depth/u)
   })
 
   test('handles PUT /api/wiki/:slug rejects a reparent whose moved SUBTREE would exceed max depth (PROJ-820)', async () => {
@@ -933,7 +933,7 @@ describe('wiki API', () => {
     })
     expect(moveRes.status).toBe(400)
     const moveBody = (await moveRes.json()) as { error: { formErrors: string[] } }
-    expect(moveBody.error.formErrors[0]).toMatch(/Maximum wiki nesting depth/)
+    expect(moveBody.error.formErrors[0]).toMatch(/Maximum wiki nesting depth/u)
   })
 
   test("handles PUT /api/wiki/:slug doesn't hang when a legacy parent_id cycle exists in the subtree being moved (PROJ-820)", async () => {
@@ -1404,7 +1404,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
     })
     expect(res.status).toBe(201)
     const page = (await res.json()) as { slug: string; id: string }
-    expect(page.slug).toMatch(/^page-[0-9a-f]{8}$/)
+    expect(page.slug).toMatch(/^page-[0-9a-f]{8}$/u)
 
     const getRes = await fetchNativeApi(`http://localhost/api/wiki/${page.slug}`, {
       headers: authHeaders(token, slug),
@@ -1421,7 +1421,7 @@ describe('wiki slug uniqueness and redirects (PROJ-483)', () => {
     })
     expect(res.status).toBe(201)
     const page = (await res.json()) as { slug: string }
-    expect(page.slug).toMatch(/^page-[0-9a-f]{8}$/)
+    expect(page.slug).toMatch(/^page-[0-9a-f]{8}$/u)
   })
 
   test("covers MCP create_wiki_page rejects a slug containing '/' (PROJ-517, REST/MCP parity)", async () => {
@@ -3242,7 +3242,7 @@ describe('wiki patch operations (PROJ-490)', () => {
       })
     ).json()) as { content: string; status: string }
     expect(page.status).toBe('current')
-    expect(page.content).toMatch(/^---\nstatus: current\n---\n/)
+    expect(page.content).toMatch(/^---\nstatus: current\n---\n/u)
     expect(page.content).toContain(TWO_SECTIONS.trim())
   })
 
@@ -6337,7 +6337,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
   test('rejects an explicit slug shaped like a dashed or undashed page id', async () => {
     const dashed = await create({ title: 'A', slug: crypto.randomUUID() })
     expect(dashed.status).toBe(400)
-    const hex = await create({ title: 'B', slug: crypto.randomUUID().replace(/-/g, '') })
+    const hex = await create({ title: 'B', slug: crypto.randomUUID().replace(/-/gu, '') })
     expect(hex.status).toBe(400)
   })
 

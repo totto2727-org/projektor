@@ -221,7 +221,7 @@ describe('covers PROJ-903: only a human session can mint or revoke a PAT', () =>
       body: JSON.stringify({ name: 'escape', scopes: ['*'] }),
     })
     expect(res.status).toBe(403)
-    expect(((await res.json()) as { error: string }).error).toMatch(/signed-in browser session/)
+    expect(((await res.json()) as { error: string }).error).toMatch(/signed-in browser session/u)
     const row = await env.DB.prepare('SELECT id FROM api_tokens WHERE name = ?').bind('escape').first()
     expect(row).toBeNull()
   })

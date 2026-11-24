@@ -401,7 +401,7 @@ describe('individual issue ServerFn authorization and contracts', () => {
       database.sqlite
         .prepare('SELECT title FROM issues WHERE id = ?')
         .get(issueId === 'missing-issue' ? 'issue-a' : issueId),
-    ).toMatchObject({ title: expect.not.stringMatching(/^Changed$/) })
+    ).toMatchObject({ title: expect.not.stringMatching(/^Changed$/u) })
     expect(invalidated).toHaveBeenCalledOnce()
   })
 

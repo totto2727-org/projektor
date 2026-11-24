@@ -123,7 +123,7 @@ export default function BoardView({
               setDragOverColumn(col.category)
             }}
             onDragLeave={(event: import('react').DragEvent<HTMLElement>) => {
-              if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)) {
+              if (!event.currentTarget.contains(event.relatedTarget as Node)) {
                 setDragOverColumn(null)
               }
             }}

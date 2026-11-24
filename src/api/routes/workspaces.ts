@@ -29,7 +29,7 @@ const router = new Hono<HonoEnv>()
 
 router.get('/:slug', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
-  const workspace = httpContext.get('workspace') as { id: string; name: string; slug: string }
+  const workspace = httpContext.get('workspace')
   try {
     return httpContext.json(await getWorkspaceWithMembers(ctx, workspace))
   } catch (caughtError) {
@@ -212,7 +212,7 @@ router.get('/:slug/brand/logo', (c) => coreFileRequest(c, '/workspace-logo'))
 
 router.get('/:slug/mcp-info', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
-  const workspace = httpContext.get('workspace') as { id: string; name: string; slug: string }
+  const workspace = httpContext.get('workspace')
   const origin = new URL(httpContext.req.url).origin
   try {
     return httpContext.json(await getWorkspaceMcpInfo(ctx, workspace, origin))

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const scopeSchema = z.string().refine((v) => v === 'workspace' || /^issue:[0-9a-f-]{36}$/.test(v), {
+const scopeSchema = z.string().refine((v) => v === 'workspace' || /^issue:[0-9a-f-]{36}$/u.test(v), {
   message: 'scope must be "workspace" or "issue:<uuid>"',
 })
 

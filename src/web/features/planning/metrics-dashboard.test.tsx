@@ -81,7 +81,7 @@ describe('full original metrics surfaces', () => {
 
   test('renders all seven real Recharts surfaces, distribution tiles, help controls, and factory signals without mount loads', async () => {
     render(<MetricsDashboard {...props} initialMetrics={metrics()} />)
-    expect(screen.getAllByTestId(/^flow-chart-/)).toHaveLength(7)
+    expect(screen.getAllByTestId(/^flow-chart-/u)).toHaveLength(7)
     expect(document.querySelectorAll('svg.recharts-surface')).toHaveLength(7)
     await waitFor(() => expect(document.querySelectorAll('.recharts-area')).toHaveLength(4))
     expect(document.querySelectorAll('.recharts-scatter-symbol')).toHaveLength(2)
@@ -109,7 +109,7 @@ describe('full original metrics surfaces', () => {
         expect(screen.getAllByText(label).length).toBeGreaterThan(0)
       },
     )
-    Iterable.forEach(screen.getAllByTestId(/^flow-chart-/), (chart) => {
+    Iterable.forEach(screen.getAllByTestId(/^flow-chart-/u), (chart) => {
       expect(chart.className).toContain('h-[220px]')
       expect(chart.className).toContain('w-full')
     })

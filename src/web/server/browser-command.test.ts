@@ -48,7 +48,7 @@ describe('storage-free browser command composition', () => {
       request: { method: 'POST' },
       workspaceSlug: 'workspace',
     })
-    expect(JSON.stringify(client.proof)).not.toMatch(/userId|role|DB|KV|R2/)
+    expect(JSON.stringify(client.proof)).not.toMatch(/userId|role|DB|KV|R2/u)
   })
 
   test('executes an actual authorized mutation through its concrete Core operation', async () => {

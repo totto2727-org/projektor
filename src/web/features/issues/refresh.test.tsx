@@ -57,7 +57,7 @@ describe('canonical issues SSR refresh', () => {
     const route = { pathname: '/issues', search: '?workspace=workspace' }
     const data = listData()
     const view = render(<IssuesPage scope={scope} route={route} workspaceSlug={workspace.slug} initialData={data} />)
-    fireEvent.click(screen.getByRole('button', { name: /New issue/ }))
+    fireEvent.click(screen.getByRole('button', { name: /New issue/u }))
     const dialog = screen.getByRole('dialog', { name: 'Create new issue' })
     const title = within(dialog).getByPlaceholderText('Issue title')
     fireEvent.input(title, { target: { value: 'Unsaved create title' } })
@@ -155,7 +155,7 @@ describe('canonical issues SSR refresh', () => {
       />,
     )
     expect(fetch).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: /New Epic/ }))
+    fireEvent.click(screen.getByRole('button', { name: /New Epic/u }))
     fireEvent.input(screen.getByPlaceholderText('Epic title'), {
       target: { value: 'Created epic' },
     })

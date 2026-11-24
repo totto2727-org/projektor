@@ -56,10 +56,10 @@ export const IssueListCursorSchema = z
   .union([z.number().int().nonnegative(), z.string().regex(/^\d+(?::[A-Za-z0-9-]+)?$/)])
   .transform((v) => {
     if (Predicate.isNumber(v)) {
-      return { createdAt: v } as { createdAt: number; id?: string }
+      return { createdAt: v }
     }
     const [createdAt, id] = v.split(':')
-    return { createdAt: Number(createdAt), id } as { createdAt: number; id?: string }
+    return { createdAt: Number(createdAt), id }
   })
 
 export const ListIssuesSchema = z

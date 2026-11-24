@@ -107,11 +107,7 @@ function FilterSelects({
 
       {epics.length > 0 && (
         <label className='flex items-center gap-1.5 text-[0.8rem] text-text-muted whitespace-nowrap cursor-pointer select-none'>
-          <input
-            type='checkbox'
-            checked={hideEpics}
-            onChange={(event) => setHideEpics((event.target as HTMLInputElement).checked)}
-          />
+          <input type='checkbox' checked={hideEpics} onChange={(event) => setHideEpics(event.target.checked)} />
           Hide epics
         </label>
       )}

@@ -45,12 +45,12 @@ const textOf = function textOf(html: string): string {
         Math.min(0x10_ff_ff, entity[0].toLowerCase() === 'x' ? parseInt(entity.slice(1), 16) : parseInt(entity, 10)),
       ),
     )
-    .replace(/&quot;/g, '"')
+    .replace(/&quot;/gu, '"')
     .replace(/&apos;|&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/gu, ' ')
+    .replace(/&lt;/gu, '<')
+    .replace(/&gt;/gu, '>')
+    .replace(/&amp;/gu, '&')
 }
 
 /** Add the same stable IDs before SSR so hash links and ToC work without JavaScript. */
@@ -65,7 +65,11 @@ export const decorateHeadings = function decorateHeadings(html: string): { html:
   const toc = headings.map((heading, index) => ({ ...heading, id: ids[index] }))
   let index = 0
   const decorated = html.replace(/<h([1-3])([^>]*)>/g, (_, level: string, attributes: string) => {
-    const id = ids[index++].replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const id = ids[index++]
+      .replace(/&/gu, '&amp;')
+      .replace(/"/gu, '&quot;')
+      .replace(/</gu, '&lt;')
+      .replace(/>/gu, '&gt;')
     return `<h${level}${attributes.replace(/\s+id="[^"]*"/g, '')} id="${id}">`
   })
   return { html: decorated, toc }

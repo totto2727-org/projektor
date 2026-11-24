@@ -87,7 +87,7 @@ const checkpoint = async function checkpoint(page: Page, testInfo: TestInfo, nam
   })
   if (new URL(page.url()).pathname === '/settings/groups') {
     await expect(page.getByRole('heading', { name: 'Groups', level: 1 })).toBeVisible()
-    await expect(page.getByText(/Groups grant members access to projects/)).toBeVisible()
+    await expect(page.getByText(/Groups grant members access to projects/u)).toBeVisible()
   }
   const dimensions = await page.evaluate(() => ({
     innerWidth,
@@ -263,7 +263,7 @@ test('My Issues uses one open-work table ordered by progress, priority and lates
 const assertShell = async function assertShell(page: Page): Promise<void> {
   await expect(page.locator('main#main-content')).toBeVisible()
   await expect(page.getByRole('link', { name: /skip to (main )?content/i })).toBeAttached()
-  await expect(page.getByRole('button', { name: /^Account(?::|$)/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Account(?::|$)/u })).toBeVisible()
   const menu = page.locator('header.projektor-topbar').getByRole('button', { name: 'Toggle Sidebar', exact: true })
   if (await menu.isVisible()) {
     await menu.click()
@@ -344,7 +344,7 @@ test('issue review targets persist optional selection and four statuses across f
   const scope = new URLSearchParams({ workspace: 'projektor', projectId: project.id }).toString()
   const emptyIssueUrl = `/issues/view?id=${emptyIssue.id}&${scope}`
   await page.goto(emptyIssueUrl)
-  await page.getByRole('button', { name: /Add URL/ }).click()
+  await page.getByRole('button', { name: /Add URL/u }).click()
   const urlInput = page.getByPlaceholder('https://example.com/…', { exact: true })
   await urlInput.fill('https://[broken')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
@@ -488,7 +488,7 @@ test('issue review targets persist optional selection and four statuses across f
     ).toBeVisible()
     await checkpoint(cold, testInfo, 'review-targets-cold-focused-no-js')
     expect((await cold.goto(emptyIssueUrl))?.status()).toBe(200)
-    await expect(cold.getByRole('button', { name: /Add URL/ })).toBeDisabled()
+    await expect(cold.getByRole('button', { name: /Add URL/u })).toBeDisabled()
   } finally {
     await coldContext.close()
   }
@@ -805,7 +805,7 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   const areas = chart.locator('.recharts-area-area')
   await expect(areas).toHaveCount(4)
   for (const area of await areas.all()) {
-    await expect(area).toHaveAttribute('d', /[zZ]$/)
+    await expect(area).toHaveAttribute('d', /[zZ]$/u)
     expect(await area.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(0)
   }
   for (const label of ['Backlog/todo', 'In progress', 'In review', 'Done']) {
@@ -821,8 +821,8 @@ test('shared Recharts render raw CFD bands and Wiki mobile drawer leaves the hea
   await page.mouse.move(box.x + box.width - 15, box.y + 80)
   const tooltip = chart.locator('.recharts-tooltip-wrapper')
   await expect(tooltip).toBeVisible()
-  await expect(tooltip.getByText('In progress', { exact: true }).locator('../..')).toHaveText(/In progress\s*2$/)
-  await expect(tooltip.getByText('Backlog/todo', { exact: true }).locator('../..')).toHaveText(/Backlog\/todo\s*1$/)
+  await expect(tooltip.getByText('In progress', { exact: true }).locator('../..')).toHaveText(/In progress\s*2$/u)
+  await expect(tooltip.getByText('Backlog/todo', { exact: true }).locator('../..')).toHaveText(/Backlog\/todo\s*1$/u)
   await checkpoint(page, testInfo, 'charts-tooltip-raw-not-cumulative')
   await page.mouse.move(0, 0)
   const lightFill = await areas.last().evaluate((element) => getComputedStyle(element).fill)
@@ -908,10 +908,10 @@ test('cold protected initial HTML is usable without JavaScript', async ({ browse
     observeBrowser(page, testInfo)
     const response = await page.goto('/?workspace=projektor')
     expect(response?.status()).toBe(200)
-    expect(response?.headers()['cache-control']).toMatch(/private/)
+    expect(response?.headers()['cache-control']).toMatch(/private/u)
     await expect(page.getByRole('main')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: /^Account(?::|$)/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Account(?::|$)/u })).toBeVisible()
     if (testInfo.project.name === 'mobile') {
       const menu = page.getByRole('button', { name: 'Toggle Sidebar', exact: true })
       await expect(menu).toBeVisible()
@@ -960,7 +960,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   expect(new URL(issuesUrl).searchParams.get('workspace')).toBe('projektor')
   expect(new URL(issuesUrl).searchParams.get('projectId')).toBeTruthy()
   await checkpoint(page, testInfo, 'project-scoped-issues')
-  await page.getByRole('button', { name: /New issue/ }).click()
+  await page.getByRole('button', { name: /New issue/u }).click()
   const dialog = page.getByRole('dialog', { name: 'Create new issue' })
   await expect(dialog).toBeVisible()
   await dialog.getByPlaceholder('Issue title').fill(issueTitle)
@@ -992,7 +992,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   await checkpoint(page, testInfo, 'issue-updated-body-reload')
   const filename = `native-attachment-${suffix}.txt`
   const bytes = Buffer.alloc(65_536, 'native-effront-attachment\n')
-  await page.getByRole('button', { name: /Attach file/ }).click()
+  await page.getByRole('button', { name: /Attach file/u }).click()
   await page.getByLabel('Choose file', { exact: true }).setInputFiles({
     name: filename,
     mimeType: 'text/plain',
@@ -1073,7 +1073,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   await expect(page.getByRole('heading', { name: `Comark acceptance ${suffix}`, exact: true, level: 2 })).toBeVisible()
   await expect(page.locator('.markdown-content table')).toBeVisible()
   await expect(page.locator('.markdown-content pre.shiki')).toBeVisible()
-  await expect(page.locator('strong').filter({ hasText: /^strong$/ })).toBeVisible()
+  await expect(page.locator('strong').filter({ hasText: /^strong$/u })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Scoped project', exact: true })).toHaveAttribute('href', projectUrl)
   expect(await page.evaluate(() => '__acceptanceInjected' in window)).toBe(false)
   await checkpoint(page, testInfo, 'wiki-created-comark-render')
@@ -1093,7 +1093,7 @@ test('native create project and issue refresh canonical reads and navigation', a
   const refreshedDocument = page.waitForEvent('framenavigated', {
     predicate: (frame) => frame === page.mainFrame(),
   })
-  await page.getByRole('button', { name: /^Account(?::|$)/ }).click()
+  await page.getByRole('button', { name: /^Account(?::|$)/u }).click()
   await page.getByRole('menuitem', { name: 'Refresh session', exact: true }).click()
   expect((await refreshPost).status()).toBe(303)
   await refreshedDocument

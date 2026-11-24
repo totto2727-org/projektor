@@ -50,7 +50,7 @@ const trackD1RoundTrips = function trackD1RoundTrips() {
       },
     })
 
-  vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => wrapStmt(origPrepare(q)) as D1PreparedStatement)
+  vi.spyOn(env.DB, 'prepare').mockImplementation((q: string) => wrapStmt(origPrepare(q)))
   vi.spyOn(env.DB, 'batch').mockImplementation((stmts: D1PreparedStatement[]) => {
     count++
     return origBatch(stmts)
@@ -355,7 +355,7 @@ describe('covers PROJ-864: claim_files/release_files write batching', () => {
     Iterable.forEach(messages.results, (m) => {
       expect(m.body.length).toBeLessThanOrEqual(5000)
       expect(m.body).toContain(`"${paths[0]}"`)
-      expect(m.body).toMatch(/…and \d+ more/)
+      expect(m.body).toMatch(/…and \d+ more/u)
     })
   })
 })

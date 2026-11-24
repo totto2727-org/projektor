@@ -66,7 +66,7 @@ describe('covers PROJ-18: /bootstrap fail-closed', () => {
       workspace: { slug: string }
       user: { email: string }
     }
-    expect(body.token).toMatch(/^pk_/)
+    expect(body.token).toMatch(/^pk_/u)
     expect(body.workspace.slug).toBe('projektor')
   })
 
@@ -74,6 +74,6 @@ describe('covers PROJ-18: /bootstrap fail-closed', () => {
     const res = await fetchNativeApi(`http://localhost/bootstrap?setup_secret=${CORRECT_SECRET}`)
     expect(res.status).toBe(200)
     const body = (await res.json()) as { token: string }
-    expect(body.token).toMatch(/^pk_/)
+    expect(body.token).toMatch(/^pk_/u)
   })
 })
