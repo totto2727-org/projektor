@@ -1,4 +1,6 @@
 'use client'
+import { Array as EffectArray } from 'effect'
+
 import Select from '@/components/ui/select.tsx'
 import { categoryColor } from '@/features/issues/components/board-utils.ts'
 import type { Issue, SortKey, TaskStatus } from '@/features/issues/components/board-utils.ts'
@@ -85,7 +87,7 @@ export function StatusSelect({
   busy: boolean
   onChange: (value: string) => void
 }) {
-  if (statuses.length === 0) {
+  if (EffectArray.isArrayEmpty(statuses)) {
     return statusBadge(issue)
   }
   return (
@@ -130,7 +132,9 @@ export function SortableHeader({
     >
       <button
         type='button'
-        onClick={() => onSort(sortKey)}
+        onClick={() => {
+          onSort(sortKey)
+        }}
         className={[
           'inline-flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0 font-semibold',
           'text-text-base text-[0.9rem] hover:text-accent',

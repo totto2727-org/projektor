@@ -51,7 +51,13 @@ vi.mock('./lazy-markdown-editor.tsx', () => ({
     onImageFile?: (file: File) => Promise<string | null>
   }) => (
     <>
-      <textarea aria-label='Markdown' value={value} onChange={(event) => onChange(event.target.value)} />
+      <textarea
+        aria-label='Markdown'
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value)
+        }}
+      />
       <button
         type='button'
         onClick={async () => {

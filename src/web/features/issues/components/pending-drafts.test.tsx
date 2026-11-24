@@ -19,7 +19,13 @@ vi.mock('../actions', () => ({
 }))
 vi.mock('./lazy-markdown-editor.tsx', () => ({
   default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
-    <textarea aria-label='Markdown draft' value={value} onChange={(event) => onChange(event.currentTarget.value)} />
+    <textarea
+      aria-label='Markdown draft'
+      value={value}
+      onChange={(event) => {
+        onChange(event.currentTarget.value)
+      }}
+    />
   ),
 }))
 vi.mock('../../../components/markdown/markdown-preview.tsx', () => ({

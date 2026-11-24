@@ -20,7 +20,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 import * as ts from 'typescript/unstable/ast'
 import { createVirtualFileSystem } from 'typescript/unstable/fs'
 import { API } from 'typescript/unstable/sync'
@@ -499,7 +499,7 @@ const serviceOperationsUsedIn = function serviceOperationsUsedIn(...paths: strin
     for (const statement of module.ast.statements) {
       if (
         ts.isImportDeclaration(statement) ||
-        (isFunctionStatement(statement) && declaredFunctions(statement).length > 0)
+        (isFunctionStatement(statement) && EffectArray.isArrayNonEmpty(declaredFunctions(statement)))
       ) {
         continue
       }

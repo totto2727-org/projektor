@@ -1,5 +1,5 @@
 'use client'
-import { Iterable, Predicate, Schema } from 'effect'
+import { Array as EffectArray, Iterable, Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
@@ -280,10 +280,10 @@ interface EpicsTableProps {
 }
 
 function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: EpicsTableProps) {
-  if (epics.length === 0) {
+  if (EffectArray.isArrayEmpty(epics)) {
     return <EmptyState title='No epics found. Use the button above to create one.' />
   }
-  if (filteredEpics.length === 0) {
+  if (EffectArray.isArrayEmpty(filteredEpics)) {
     return <EmptyState title='No epics match the active filters.' />
   }
   // sortIssues' signature is Issue[] => Issue[]; the sort is a pure reorder, so the
@@ -299,7 +299,9 @@ function EpicsTable({ epics, filteredEpics, sortBy, sortDir, toggleSort }: Epics
               <th className={TH_CLASS}>Status</th>
               <th
                 className={`${TH_CLASS} cursor-pointer select-none hover:text-text-base`}
-                onClick={() => toggleSort('priority')}
+                onClick={() => {
+                  toggleSort('priority')
+                }}
               >
                 Priority{sortIndicator('priority', sortBy, sortDir)}
               </th>

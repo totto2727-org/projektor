@@ -1,3 +1,4 @@
+import { Array as EffectArray } from 'effect'
 import { z } from 'zod'
 
 export const CreateTaskTypeSchema = z.object({
@@ -24,4 +25,4 @@ export const UpdateTaskTypeSchema = z
     position: z.number().int().min(0).optional(),
     isDefault: z.boolean().optional(),
   })
-  .refine((obj) => Object.keys(obj).length > 0, { message: 'Nothing to update' })
+  .refine((obj) => EffectArray.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })

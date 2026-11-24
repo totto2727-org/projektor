@@ -1,4 +1,4 @@
-import { Iterable, Predicate } from 'effect'
+import { Array as EffectArray, Iterable, Predicate } from 'effect'
 import { z } from 'zod'
 
 import { ValidationError } from '#contracts/errors.ts'
@@ -112,7 +112,7 @@ export const splitShapeOpts = function splitShapeOpts(input: unknown): { rest: R
 }
 
 const isEmptyArray = function isEmptyArray(v: unknown): boolean {
-  return Array.isArray(v) && v.length === 0
+  return Array.isArray(v) && EffectArray.isArrayEmpty(v)
 }
 
 const parseLabels = function parseLabels(v: unknown): string[] | undefined {
@@ -206,7 +206,7 @@ export const shapeIssue = function shapeIssue(
   opts: ShapeOpts = {},
 ): Record<string, unknown> {
   const ref = refOf(issue)
-  if (opts.fields && opts.fields.length > 0) {
+  if (opts.fields && EffectArray.isArrayNonEmpty(opts.fields)) {
     const source: Record<string, unknown> = {
       ...issue,
       ref,
@@ -234,7 +234,7 @@ export const shapeIssue = function shapeIssue(
     out.type = issue.type_key
   }
   const labels = parseLabels(out.labels)
-  if (labels && labels.length > 0) {
+  if (labels && EffectArray.isArrayNonEmpty(labels)) {
     out.labels = labels
   } else {
     delete out.labels
@@ -303,7 +303,7 @@ export const capPage = function capPage<P extends { items: unknown[]; next?: str
   } = {},
 ): P & { truncated?: true; hint?: string } {
   const max = opts.max ?? MAX_RESULT_CHARS
-  if (page.items.length === 0 || JSON.stringify(page).length <= max) {
+  if (EffectArray.isArrayEmpty(page.items) || JSON.stringify(page).length <= max) {
     return page
   }
 

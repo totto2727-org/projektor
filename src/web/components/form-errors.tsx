@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 import type { ReactNode } from 'react'
 
 /** Structural subset shared by Standard Schema issues and TanStack Form error values. */
@@ -45,7 +45,7 @@ export function FormErrors({
   'aria-label': ariaLabel = 'Validation errors',
 }: FormErrorsProps): ReactNode {
   const messages = [...new Set(messagesFrom(errors))]
-  if (messages.length === 0) {
+  if (EffectArray.isArrayEmpty(messages)) {
     return null
   }
   const classes = ['mt-1 text-xs text-danger-text', className].filter(Boolean).join(' ')

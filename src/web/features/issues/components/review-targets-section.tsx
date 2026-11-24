@@ -1,5 +1,5 @@
 'use client'
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 
 import type { ReviewStatus } from '#contracts/review-targets.ts'
@@ -196,7 +196,7 @@ export function ReviewTargetsSection({
       ) : (
         <p className='text-sm text-text-muted mb-3'>表示するレビュー対象はありません。</p>
       )}
-      {available.length > 0 && (
+      {EffectArray.isArrayNonEmpty(available) && (
         <details className='mt-4' open={!focused}>
           <summary className='cursor-pointer min-h-[44px] text-sm font-medium'>
             レビュー対象を選択 ({available.length})
@@ -204,7 +204,7 @@ export function ReviewTargetsSection({
           {rows(available, '選択できる添付ファイルとURL')}
         </details>
       )}
-      {eligible.length === 0 && (
+      {EffectArray.isArrayEmpty(eligible) && (
         <p className='text-sm text-text-muted'>対象にできる添付ファイルまたはURLがありません。</p>
       )}
       <noscript>

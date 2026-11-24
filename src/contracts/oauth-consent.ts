@@ -1,5 +1,5 @@
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider'
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 
 import { OAUTH_SCOPE_READ, OAUTH_SCOPE_WRITE, OAUTH_SCOPES_SUPPORTED } from './auth-scopes.ts'
 
@@ -42,11 +42,11 @@ export const workspaceIdFromResource = function workspaceIdFromResource(
 
 /** An omitted scope requests all supported scopes. Unsupported extras are discarded. */
 export const grantedScopes = function grantedScopes(requested: Readonly<string[]>): string[] {
-  if (requested.length === 0) {
+  if (EffectArray.isReadonlyArrayEmpty(requested)) {
     return [...OAUTH_SCOPES_SUPPORTED]
   }
   const granted = OAUTH_SCOPES_SUPPORTED.filter((scope) => requested.includes(scope))
-  if (granted.length === 0) {
+  if (EffectArray.isArrayEmpty(granted)) {
     throw new OAuthRequestError(
       'invalid_scope',
       `No supported scopes requested. Supported: ${OAUTH_SCOPES_SUPPORTED.join(', ')}`,
@@ -72,7 +72,7 @@ export const relyingPartyHost = function relyingPartyHost(clientId: string): str
   }
 }
 export const isLoopbackOnlyClient = function isLoopbackOnlyClient(redirectUris: Readonly<string[]>): boolean {
-  if (redirectUris.length === 0) {
+  if (EffectArray.isReadonlyArrayEmpty(redirectUris)) {
     return false
   }
   return redirectUris.every((uri) => {

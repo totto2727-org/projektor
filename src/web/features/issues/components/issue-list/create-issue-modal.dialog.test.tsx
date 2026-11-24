@@ -17,7 +17,13 @@ function CreateHarness() {
   const [status, setStatus] = useState('')
   return (
     <>
-      <button onClick={() => setOpen(true)}>New issue</button>
+      <button
+        onClick={() => {
+          setOpen(true)
+        }}
+      >
+        New issue
+      </button>
       {open && (
         <CreateIssueModal
           createTitle={title}

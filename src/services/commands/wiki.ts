@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
-import { Iterable, Predicate, Effect } from 'effect'
+import { Array as EffectArray, Iterable, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -1585,7 +1585,7 @@ const parseHeadingSections = function parseHeadingSections(content: string): Hea
   const headings: { level: number; heading: string; startLine: number }[] = []
   let fence: string | null = null
   // A frontmatter block only counts when `---` is the very first line.
-  let inFrontmatter = lines.length > 0 && FRONTMATTER_DELIM_RE.test(lines[0])
+  let inFrontmatter = EffectArray.isArrayNonEmpty(lines) && FRONTMATTER_DELIM_RE.test(lines[0])
   lines.forEach((line, idx) => {
     if (inFrontmatter) {
       if (idx > 0 && FRONTMATTER_DELIM_RE.test(line)) {
@@ -1629,7 +1629,7 @@ const extractSectionText = function extractSectionText(content: string, section:
 
 const trimTrailingBlankLines = function trimTrailingBlankLines(lines: Readonly<string[]>): string[] {
   const out = [...lines]
-  while (out.length > 0 && out[out.length - 1].trim() === '') {
+  while (EffectArray.isArrayNonEmpty(out) && out[out.length - 1].trim() === '') {
     out.pop()
   }
   return out
@@ -1637,7 +1637,7 @@ const trimTrailingBlankLines = function trimTrailingBlankLines(lines: Readonly<s
 
 const trimLeadingBlankLines = function trimLeadingBlankLines(lines: Readonly<string[]>): string[] {
   const out = [...lines]
-  while (out.length > 0 && out[0].trim() === '') {
+  while (EffectArray.isArrayNonEmpty(out) && out[0].trim() === '') {
     out.shift()
   }
   return out
@@ -1677,16 +1677,20 @@ const applySectionOp = function applySectionOp(
   let newBodyLines: string[]
   if (op.op === 'append_to_section') {
     const trimmedBody = trimTrailingBlankLines(bodyLines)
-    newBodyLines = trimmedBody.length > 0 ? [...trimmedBody, '', ...op.text.split('\n')] : op.text.split('\n')
+    newBodyLines = EffectArray.isArrayNonEmpty(trimmedBody)
+      ? [...trimmedBody, '', ...op.text.split('\n')]
+      : op.text.split('\n')
   } else if (op.op === 'replace_section') {
     newBodyLines = op.text.trim() === '' ? [] : op.text.split('\n')
   } else {
     const trimmedBody = trimTrailingBlankLines(trimLeadingBlankLines(bodyLines))
-    newBodyLines = trimmedBody.length > 0 ? [...op.text.split('\n'), '', ...trimmedBody] : op.text.split('\n')
+    newBodyLines = EffectArray.isArrayNonEmpty(trimmedBody)
+      ? [...op.text.split('\n'), '', ...trimmedBody]
+      : op.text.split('\n')
   }
 
   const newSectionLines = [headingLine, ...newBodyLines]
-  const separator = afterLines.length > 0 ? [''] : []
+  const separator = EffectArray.isArrayNonEmpty(afterLines) ? [''] : []
   return [...before, ...newSectionLines, ...separator, ...afterLines].join('\n')
 }
 
@@ -1733,7 +1737,7 @@ const findUniqueSectionOrThrow = function findUniqueSectionOrThrow(
   heading: string,
 ): HeadingSection {
   const currentMatches = findSections(currentSections, heading)
-  if (currentMatches.length === 0) {
+  if (EffectArray.isArrayEmpty(currentMatches)) {
     throw new NotFoundError(`Heading '${heading}' not found`, {
       currentHeadings: currentSections.map((s) => s.heading),
     })
@@ -2127,7 +2131,7 @@ const collectDescendantIds = async function collectDescendantIds(
   const orm = drizzle(db, { schema })
   const descendants: string[] = []
   let frontier = [rootId]
-  while (frontier.length > 0) {
+  while (EffectArray.isArrayNonEmpty(frontier)) {
     const children = await inChunks(frontier, (chunk) =>
       orm
         .select({ id: schema.wikiPages.id })
@@ -2168,7 +2172,7 @@ const collectCascadeTrashedDescendantIds = async function collectCascadeTrashedD
   const orm = drizzle(db, { schema })
   const descendants: string[] = []
   let frontier = [rootId]
-  while (frontier.length > 0) {
+  while (EffectArray.isArrayNonEmpty(frontier)) {
     const children = await inChunks(frontier, (chunk) =>
       orm
         .select({ id: schema.wikiPages.id })
@@ -2335,7 +2339,7 @@ export const deleteWikiPage = async function deleteWikiPage(ctx: ServiceCtx, idO
      * notification above, but someone watching one of the DESCENDANTS directly would
      * otherwise hear nothing at all about their page being trashed.
      */
-    if (descendantIds.length > 0) {
+    if (EffectArray.isArrayNonEmpty(descendantIds)) {
       const descendants = await inChunks(descendantIds, (chunk) =>
         orm
           .select({
@@ -2482,20 +2486,19 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
   const descendantIds = await collectCascadeTrashedDescendantIds(ctx.db, page.id, ctx.workspaceId, page.trashBatchId)
   const allIds = [page.id, ...descendantIds]
 
-  const descendantRows =
-    descendantIds.length > 0
-      ? await inChunks(descendantIds, (chunk) =>
-          orm
-            .select({
-              id: schema.wikiPages.id,
-              slug: schema.wikiPages.slug,
-              title: schema.wikiPages.title,
-              isTemplate: schema.wikiPages.isTemplate,
-            })
-            .from(schema.wikiPages)
-            .where(and(inArray(schema.wikiPages.id, chunk), eq(schema.wikiPages.workspaceId, ctx.workspaceId))),
-        )
-      : []
+  const descendantRows = EffectArray.isArrayNonEmpty(descendantIds)
+    ? await inChunks(descendantIds, (chunk) =>
+        orm
+          .select({
+            id: schema.wikiPages.id,
+            slug: schema.wikiPages.slug,
+            title: schema.wikiPages.title,
+            isTemplate: schema.wikiPages.isTemplate,
+          })
+          .from(schema.wikiPages)
+          .where(and(inArray(schema.wikiPages.id, chunk), eq(schema.wikiPages.workspaceId, ctx.workspaceId))),
+      )
+    : []
 
   /*
    * PROJ-496 follow-up: every id in the cascade batch must clear the slug check, not
@@ -2568,7 +2571,7 @@ export const undeleteWikiPage = async function undeleteWikiPage(ctx: ServiceCtx,
    * watchers on trash — without this, someone watching a descendant directly hears
    * about the delete but never a matching "restored" event on cascade undelete.
    */
-  if (descendantRows.length > 0) {
+  if (EffectArray.isArrayNonEmpty(descendantRows)) {
     await notifyCascadeDescendantWatchers(ctx, descendantRows, 'updated')
   }
 
@@ -2663,7 +2666,7 @@ export const purgeExpiredWikiPages = async function purgeExpiredWikiPages(
   const moreExpired = expiredPlusOne.length > limit
   const expired = moreExpired ? expiredPlusOne.slice(0, limit) : expiredPlusOne
   const ids = expired.map((p) => p.id)
-  if (ids.length === 0) {
+  if (EffectArray.isArrayEmpty(ids)) {
     return { purgedCount: 0, purgedIds: [], moreExpired: false }
   }
 

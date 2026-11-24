@@ -1,4 +1,4 @@
-import { Iterable, Predicate } from 'effect'
+import { Array as EffectArray, Iterable, Predicate } from 'effect'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import { validateToolArgs } from '#api/mcp/validate-args.ts'
@@ -20,7 +20,7 @@ const schemaType = function schemaType(s: Schema): string | undefined {
 }
 
 const validValue = function validValue(s: Schema): unknown {
-  if (Array.isArray(s.enum) && s.enum.length > 0) {
+  if (Array.isArray(s.enum) && EffectArray.isArrayNonEmpty(s.enum)) {
     return s.enum[0]
   }
   switch (schemaType(s)) {

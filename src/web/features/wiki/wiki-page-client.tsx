@@ -2,7 +2,7 @@
 
 import { query } from '@effront/core/query'
 import { useForm, useStore } from '@tanstack/react-form'
-import { Iterable, Predicate, Effect, Schema } from 'effect'
+import { Array as EffectArray, Iterable, Predicate, Effect, Schema } from 'effect'
 import {
   createContext,
   Fragment,
@@ -139,7 +139,9 @@ function useIsMobileViewport(): boolean {
     }
     const mq = window.matchMedia(WIKI_MOBILE_QUERY)
     setIsMobile(mq.matches)
-    const onChange = (e: MediaQueryListEvent): void => setIsMobile(e.matches)
+    const onChange = (e: MediaQueryListEvent): void => {
+      setIsMobile(e.matches)
+    }
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [])
@@ -323,7 +325,7 @@ const WIKI_TAG_CHIP_CLASS =
   'bg-bg border border-border text-text-base'
 
 function TagChips({ tags }: { tags: string[] | undefined | null }) {
-  if (!Array.isArray(tags) || tags.length === 0) {
+  if (!Array.isArray(tags) || EffectArray.isArrayEmpty(tags)) {
     return null
   }
   return (
@@ -362,7 +364,7 @@ function WikiMetadataBadges({ page }: { page: WikiPageData }) {
       {page.status && <WikiStatusPill status={page.status} />}
       {page.freshness && page.freshness.state !== 'fresh' && <WikiFreshnessBadge state={page.freshness.state} />}
       <TagChips tags={page.tags} />
-      {page.owners.length > 0 && <span>Owners: {page.owners.join(', ')}</span>}
+      {EffectArray.isArrayNonEmpty(page.owners) && <span>Owners: {page.owners.join(', ')}</span>}
       {page.verified_at && (
         <span>
           Verified {formatTimestampDate(page.verified_at)}
@@ -418,8 +420,8 @@ function WikiMetadataCard({
   const hasMetadata =
     Boolean(page.type) ||
     Boolean(page.status) ||
-    page.tags.length > 0 ||
-    page.owners.length > 0 ||
+    EffectArray.isArrayNonEmpty(page.tags) ||
+    EffectArray.isArrayNonEmpty(page.owners) ||
     Boolean(page.verified_at)
   const hasVerificationSignal = Boolean(page.verify_interval) || Boolean(page.status)
   if (!hasMetadata && !hasVerificationSignal) {
@@ -603,13 +605,15 @@ function TreeNodeItem({
         type='button'
         className={`${TREE_ITEM_BASE_CLASS} ${isActive ? '!bg-accent !text-white font-semibold' : ''}`}
         style={{ paddingLeft: `${0.5 + depth * 1}rem` }}
-        onClick={() => onNavigate(node.slug)}
+        onClick={() => {
+          onNavigate(node.slug)
+        }}
         aria-current={isActive ? 'page' : undefined}
       >
         {depth > 0 && <span className='text-text-muted mr-1'>{'›'}</span>}
         {node.title}
       </button>
-      {node.children.length > 0 && (
+      {EffectArray.isArrayNonEmpty(node.children) && (
         <ul className='list-none m-0 p-0'>
           {node.children.map((child) => (
             <TreeNodeItem
@@ -670,7 +674,13 @@ function SearchResultMetaLine({ r }: { r: SearchResult }) {
 
 function SearchResultButton({ r, onSelect }: { r: SearchResult; onSelect: (slug: string) => void }) {
   return (
-    <button type='button' className={SEARCH_RESULT_BUTTON_CLASS} onClick={() => onSelect(r.slug)}>
+    <button
+      type='button'
+      className={SEARCH_RESULT_BUTTON_CLASS}
+      onClick={() => {
+        onSelect(r.slug)
+      }}
+    >
       <span className='font-medium'>{r.title}</span>
       <SearchResultMetaLine r={r} />
       {r.excerpt && (
@@ -692,7 +702,7 @@ function SearchResultsList({
   if (loading) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Searching…</p>
   }
-  if (results.length === 0) {
+  if (EffectArray.isArrayEmpty(results)) {
     return <p className='text-[0.8rem] text-text-muted m-0'>No results</p>
   }
   return (
@@ -723,14 +733,20 @@ function StalePagesList({
   if (loading) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
   }
-  if (results.length === 0) {
+  if (EffectArray.isArrayEmpty(results)) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Nothing needs verification</p>
   }
   return (
     <ul className='list-none m-0 p-0'>
       {results.map((r) => (
         <li key={r.id}>
-          <button type='button' className={SEARCH_RESULT_BUTTON_CLASS} onClick={() => onSelect(r.slug)}>
+          <button
+            type='button'
+            className={SEARCH_RESULT_BUTTON_CLASS}
+            onClick={() => {
+              onSelect(r.slug)
+            }}
+          >
             <span className='font-medium'>{r.title}</span>
             {r.freshness && (
               <span className='block mt-[0.15rem]'>
@@ -762,14 +778,20 @@ function FilteredPagesList({
   if (loading) {
     return <p className='text-[0.8rem] text-text-muted m-0'>Loading…</p>
   }
-  if (results.length === 0) {
+  if (EffectArray.isArrayEmpty(results)) {
     return <p className='text-[0.8rem] text-text-muted m-0'>No matching pages</p>
   }
   return (
     <ul className='list-none m-0 p-0'>
       {results.map((r) => (
         <li key={r.id}>
-          <button type='button' className={SEARCH_RESULT_BUTTON_CLASS} onClick={() => onSelect(r.slug)}>
+          <button
+            type='button'
+            className={SEARCH_RESULT_BUTTON_CLASS}
+            onClick={() => {
+              onSelect(r.slug)
+            }}
+          >
             <span className='font-medium'>{r.title}</span>
             {(r.type || r.status || (r.tags?.length ?? 0) > 0) && (
               <span className='block mt-[0.15rem]'>
@@ -803,7 +825,7 @@ function PageTreeList({
       {tree.map((node) => (
         <TreeNodeItem key={node.id} node={node} currentSlug={slug} depth={0} onNavigate={onNavigate} />
       ))}
-      {tree.length === 0 && <li className='text-[0.8rem] text-text-muted'>No pages yet</li>}
+      {EffectArray.isArrayEmpty(tree) && <li className='text-[0.8rem] text-text-muted'>No pages yet</li>}
     </ul>
   )
 }
@@ -813,10 +835,10 @@ function PageTreeList({
  * scope explicitly, since the only other entry point is a project's nav tab. Switching
  * scope is a full navigation (fresh tree/search for the new scope), not an in-place swap.
  */
-function useProjects(_workspaceSlug: string | undefined) {
+function useProjects(_workspaceSlug: string | undefined): ProjectOption[] {
   return useWikiSeed().projects
 }
-function useWikiTemplates(_workspaceSlug: string | undefined) {
+function useWikiTemplates(_workspaceSlug: string | undefined): TemplateOption[] {
   return useWikiSeed().templates
 }
 
@@ -885,7 +907,9 @@ function WikiFilterBar({
         name='tags'
         maxLength={2549}
         value={filterTags}
-        onChange={(event) => onFilterTagsChange((event.target as HTMLInputElement).value)}
+        onChange={(event) => {
+          onFilterTagsChange((event.target as HTMLInputElement).value)
+        }}
         placeholder='Filter by tags (comma-separated)…'
         className='w-full px-3 py-[0.375rem] border border-border rounded text-sm bg-bg text-text-base box-border'
         aria-label='Filter wiki pages by tags'
@@ -993,7 +1017,9 @@ function WikiSidebar({
           name='q'
           maxLength={2000}
           value={searchQuery}
-          onChange={(event) => onSearchQueryChange((event.target as HTMLInputElement).value)}
+          onChange={(event) => {
+            onSearchQueryChange((event.target as HTMLInputElement).value)
+          }}
           placeholder='Search pages…'
           className='w-full px-3 py-[0.375rem] mb-3 border border-border rounded text-sm bg-bg text-text-base box-border'
           aria-label='Search wiki pages'
@@ -1028,7 +1054,9 @@ function WikiSidebar({
       <details
         className='mt-3 pt-3 border-t border-border'
         open={staleOpen}
-        onToggle={(event) => onToggleStale(event.currentTarget.open)}
+        onToggle={(event) => {
+          onToggleStale(event.currentTarget.open)
+        }}
       >
         <summary className='cursor-pointer text-[0.8rem] text-text-muted select-none'>Needs verification</summary>
         <div className='pt-2'>
@@ -1094,7 +1122,9 @@ function CreatePageForm({
           id='create-title'
           type='text'
           value={title}
-          onChange={(event) => onTitleChange((event.target as HTMLInputElement).value)}
+          onChange={(event) => {
+            onTitleChange((event.target as HTMLInputElement).value)
+          }}
           placeholder='Page title'
           className='w-full px-3 py-2 border border-border rounded text-sm bg-bg text-text-base box-border text-base'
         />
@@ -1107,12 +1137,14 @@ function CreatePageForm({
           id='create-slug'
           type='text'
           value={slug}
-          onChange={(event) => onSlugChange((event.target as HTMLInputElement).value)}
+          onChange={(event) => {
+            onSlugChange((event.target as HTMLInputElement).value)
+          }}
           placeholder='auto-derived-from-title'
           className='w-full px-3 py-2 border border-border rounded text-sm bg-bg text-text-base box-border font-mono'
         />
       </div>
-      {templates.length > 0 && (
+      {EffectArray.isArrayNonEmpty(templates) && (
         <div className='mb-4'>
           <p className='m-0 mb-1 font-medium text-sm text-text-base'>Template</p>
           <Select
@@ -1168,7 +1200,13 @@ function PageBreadcrumbs({
       className='wiki-breadcrumb text-[0.8rem] text-text-muted mb-3 flex flex-wrap gap-1 items-center'
       aria-label='Breadcrumb'
     >
-      <button type='button' className={BREADCRUMB_BUTTON_CLASS} onClick={() => onNavigate(breadcrumbs[0].slug)}>
+      <button
+        type='button'
+        className={BREADCRUMB_BUTTON_CLASS}
+        onClick={() => {
+          onNavigate(breadcrumbs[0].slug)
+        }}
+      >
         Home
       </button>
       {breadcrumbs.slice(1, -1).map((crumb) => (
@@ -1181,7 +1219,13 @@ function PageBreadcrumbs({
          */
         <Fragment key={crumb.id}>
           <span>›</span>
-          <button type='button' className={BREADCRUMB_BUTTON_CLASS} onClick={() => onNavigate(crumb.slug)}>
+          <button
+            type='button'
+            className={BREADCRUMB_BUTTON_CLASS}
+            onClick={() => {
+              onNavigate(crumb.slug)
+            }}
+          >
             {crumb.title}
           </button>
         </Fragment>
@@ -1352,7 +1396,7 @@ function PageActionOverflowMenu({
         return
       }
       const items = menuItems()
-      if (items.length === 0) {
+      if (EffectArray.isArrayEmpty(items)) {
         return
       }
       event.preventDefault()
@@ -1407,7 +1451,9 @@ function PageActionOverflowMenu({
             role='menuitem'
             tabIndex={-1}
             className='page-action-menu-item'
-            onClick={() => runAndClose(() => onStartCreateChild(pageId))}
+            onClick={() => {
+              runAndClose(() => onStartCreateChild(pageId))
+            }}
           >
             + Child page
           </button>
@@ -1416,7 +1462,9 @@ function PageActionOverflowMenu({
             role='menuitem'
             tabIndex={-1}
             className='page-action-menu-item'
-            onClick={() => runAndClose(onStartMove)}
+            onClick={() => {
+              runAndClose(onStartMove)
+            }}
           >
             Move
           </button>
@@ -1426,7 +1474,9 @@ function PageActionOverflowMenu({
             tabIndex={-1}
             className='page-action-menu-item'
             disabled={duplicating}
-            onClick={() => runAndClose(() => void duplicate())}
+            onClick={() => {
+              runAndClose(() => void duplicate())
+            }}
           >
             Duplicate
           </button>
@@ -1435,7 +1485,9 @@ function PageActionOverflowMenu({
             role='menuitem'
             tabIndex={-1}
             className='page-action-menu-item page-action-menu-item-danger'
-            onClick={() => runAndClose(onDelete)}
+            onClick={() => {
+              runAndClose(onDelete)
+            }}
           >
             Delete
           </button>
@@ -1483,7 +1535,9 @@ function PageHeader({
           id='wiki-title'
           type='text'
           value={editTitle}
-          onChange={(event) => onEditTitleChange((event.target as HTMLInputElement).value)}
+          onChange={(event) => {
+            onEditTitleChange((event.target as HTMLInputElement).value)
+          }}
           aria-label='Page title'
           className='flex-1 px-3 py-2 border border-border rounded text-sm bg-bg text-text-base box-border text-2xl font-bold'
         />
@@ -1719,7 +1773,7 @@ function RevisionsHistory({
   restoringId: string | null
   editing: boolean
 }) {
-  if (revisions.length === 0) {
+  if (EffectArray.isArrayEmpty(revisions)) {
     return null
   }
   return (
@@ -1853,7 +1907,9 @@ function AttachmentUploadForm({ uploadError, onCancel }: { uploadError: string |
             name='file'
             required
             className='sr-only'
-            onChange={(event) => form.setFieldValue('file', event.currentTarget.files?.[0] ?? null)}
+            onChange={(event) => {
+              form.setFieldValue('file', event.currentTarget.files?.[0] ?? null)
+            }}
           />
           <Button as='span' variant='outline' size='sm'>
             {uploadFile ? uploadFile.name : 'Choose file'}
@@ -1899,10 +1955,10 @@ function AttachmentsPanel({
   return (
     <div className='mt-8'>
       <h3 className='text-xs uppercase tracking-[0.05em] text-text-muted font-semibold mb-3 pb-2 border-b border-border'>
-        {`Attachments${attachments.length > 0 ? ` (${attachments.length})` : ''}`}
+        {`Attachments${EffectArray.isArrayNonEmpty(attachments) ? ` (${attachments.length})` : ''}`}
       </h3>
 
-      {attachments.length > 0 && (
+      {EffectArray.isArrayNonEmpty(attachments) && (
         <div className='mb-4 flex flex-col gap-2'>
           {attachments.map((a) => (
             <AttachmentEntry
@@ -1923,7 +1979,9 @@ function AttachmentsPanel({
         ) : (
           <button
             type='button'
-            onClick={() => onToggleUploadForm(true)}
+            onClick={() => {
+              onToggleUploadForm(true)
+            }}
             className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1'
           >
             <span className='text-base leading-none'>+</span>
@@ -2271,7 +2329,9 @@ function WikiMainContent(
 function useWikiUrlState(_slugProp: string | undefined) {
   const seed = useWikiSeed()
   const [slug, setSlug] = useState(seed.slug)
-  useEffect(() => setSlug(seed.slug), [seed.slug])
+  useEffect(() => {
+    setSlug(seed.slug)
+  }, [seed.slug])
   return { slug, setSlug }
 }
 function useWikiScope(_workspaceSlug: string | undefined, _projectIdProp: string | undefined): string {
@@ -2356,7 +2416,9 @@ function useWikiPageData(_workspaceSlug: string | undefined, _slug: string) {
   const seed = useWikiSeed()
   const [deletedPageId, setDeletedPageId] = useState<string | null>(null)
   const page = seed.page?.id === deletedPageId ? null : seed.page
-  const setPage = (value: WikiPageData | null): void => setDeletedPageId(value ? null : (seed.page?.id ?? null))
+  const setPage = (value: WikiPageData | null): void => {
+    setDeletedPageId(value ? null : (seed.page?.id ?? null))
+  }
   const loading = false
   const error = seed.slug && !seed.page ? '404' : null
   const revisions = seed.revisions
@@ -2564,7 +2626,7 @@ function useHashScroll(
   }, [contentRef, pageSlug])
 
   useEffect(() => {
-    if (toc.length > 0) {
+    if (EffectArray.isReadonlyArrayNonEmpty(toc)) {
       scrollToHash()
     }
   }, [toc, scrollToHash])
@@ -3855,7 +3917,9 @@ function useWikiSidebarDrawer() {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
 
-  const close = useCallback(() => setOpen(false), [])
+  const close = useCallback(() => {
+    setOpen(false)
+  }, [])
 
   useEffect(() => {
     if (!open) {
@@ -3924,7 +3988,7 @@ function useWikiSidebarDrawer() {
       const focusables = Array.from(
         container.querySelectorAll<HTMLElement>('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])'),
       ).filter((el) => !el.hasAttribute('disabled'))
-      if (focusables.length === 0) {
+      if (EffectArray.isArrayEmpty(focusables)) {
         return
       }
       const first = focusables[0]
@@ -3999,7 +4063,9 @@ function WikiPageShell(
           className='wiki-drawer-trigger'
           aria-expanded={open}
           aria-controls='wiki-page-tree'
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => {
+            setOpen((o) => !o)
+          }}
         >
           <svg
             width='16'
@@ -4473,9 +4539,15 @@ function UndoToastBar({ toast, onDismiss }: { toast: UndoToast; onDismiss: () =>
         'fixed bottom-4 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3',
         'bg-surface border border-border rounded shadow-lg px-4 py-3 text-sm text-text-base',
       ].join(' ')}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onFocus={() => setFocusWithin(true)}
+      onMouseEnter={() => {
+        setHovered(true)
+      }}
+      onMouseLeave={() => {
+        setHovered(false)
+      }}
+      onFocus={() => {
+        setFocusWithin(true)
+      }}
       onBlur={(event) => {
         const next = event.relatedTarget
         if (!(next instanceof Node) || !event.currentTarget.contains(next)) {

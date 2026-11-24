@@ -1,5 +1,6 @@
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
+import { Array as EffectArray } from 'effect'
 
 import { drizzle, schema } from '#db'
 
@@ -117,7 +118,7 @@ export const resolveAgentSessionId = async function resolveAgentSessionId(
   // heartbeat/end must be able to reach a session that has just gone stale (that call
   // revives it) — but only when no live session exists, so an abandoned session left
   // behind by a crash can't make a lone agent's id-less heartbeat ambiguous.
-  if (rows.length === 0 && opts.includeStale) {
+  if (EffectArray.isArrayEmpty(rows) && opts.includeStale) {
     rows = await find([])
   }
 
@@ -130,7 +131,7 @@ export const resolveAgentSessionId = async function resolveAgentSessionId(
     formErrors: [],
     fieldErrors: {
       agentId: [
-        rows.length === 0
+        EffectArray.isArrayEmpty(rows)
           ? 'no live session on this credential — pass agentId from register_agent'
           : `several ${opts.includeStale ? 'active' : 'live'} sessions on this credential — pass agentId from register_agent`,
       ],

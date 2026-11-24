@@ -4,7 +4,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { EditorSelection, EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { Iterable } from 'effect'
+import { Array as EffectArray, Iterable } from 'effect'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { useMarkdownPreview } from '@/components/markdown/markdown-preview.tsx'
@@ -333,7 +333,7 @@ function useMarkdownEditorView(
           paste(event, view) {
             const handler = onImageFileRef.current
             const files = imageFilesFromClipboard(event.clipboardData)
-            if (!handler || files.length === 0) {
+            if (!handler || EffectArray.isArrayEmpty(files)) {
               return false
             }
             event.preventDefault()
@@ -343,7 +343,7 @@ function useMarkdownEditorView(
           drop(event, view) {
             const handler = onImageFileRef.current
             const files = imageFilesFromDrop(event.dataTransfer)
-            if (!handler || files.length === 0) {
+            if (!handler || EffectArray.isArrayEmpty(files)) {
               return false
             }
             event.preventDefault()
@@ -479,10 +479,22 @@ export default function MarkdownEditor({
 
       {/* Mobile pane toggle — hidden on ≥640px */}
       <div className='hidden max-sm:flex gap-1 px-[6px] py-1 border-b border-border bg-surface'>
-        <button type='button' className={mobileToggleClass(!mobilePreview)} onClick={() => setMobilePreview(false)}>
+        <button
+          type='button'
+          className={mobileToggleClass(!mobilePreview)}
+          onClick={() => {
+            setMobilePreview(false)
+          }}
+        >
           Edit
         </button>
-        <button type='button' className={mobileToggleClass(mobilePreview)} onClick={() => setMobilePreview(true)}>
+        <button
+          type='button'
+          className={mobileToggleClass(mobilePreview)}
+          onClick={() => {
+            setMobilePreview(true)
+          }}
+        >
           Preview
         </button>
       </div>

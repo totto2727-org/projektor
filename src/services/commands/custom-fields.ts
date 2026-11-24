@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
-import { Predicate, Effect } from 'effect'
+import { Array as EffectArray, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import { IdSchema } from '#contracts/inputs/common.ts'
@@ -44,7 +44,7 @@ const assertOptionsAllowedForType = function assertOptionsAllowedForType(
   type: string,
   options: string[] | undefined,
 ): void {
-  if (type !== 'select' && options && options.length > 0) {
+  if (type !== 'select' && options && EffectArray.isArrayNonEmpty(options)) {
     throw new ValidationError({
       formErrors: ['options can only be set for select fields'],
       fieldErrors: {},
@@ -119,7 +119,7 @@ export const createCustomFieldDef = async function createCustomFieldDef(ctx: Ser
     key,
     label,
     type,
-    options: options && options.length > 0 ? JSON.stringify(options) : null,
+    options: options && EffectArray.isArrayNonEmpty(options) ? JSON.stringify(options) : null,
     createdAt: now,
   })
 
@@ -158,10 +158,10 @@ const buildCustomFieldUpdateSet = function buildCustomFieldUpdateSet(
     setObj.label = data.label
   }
   if ('options' in data) {
-    setObj.options = data.options && data.options.length > 0 ? JSON.stringify(data.options) : null
+    setObj.options = data.options && EffectArray.isArrayNonEmpty(data.options) ? JSON.stringify(data.options) : null
   }
 
-  if (Object.keys(setObj).length === 0) {
+  if (EffectArray.isArrayEmpty(Object.keys(setObj))) {
     throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
   }
 
@@ -289,7 +289,7 @@ export const validateCustomFields = async function validateCustomFields(
   workspaceId: string,
   customFields: Record<string, unknown>,
 ): Promise<{ fieldId: string; value: string }[]> {
-  if (Object.keys(customFields).length === 0) {
+  if (EffectArray.isArrayEmpty(Object.keys(customFields))) {
     return []
   }
 
@@ -338,7 +338,7 @@ export const buildCustomFieldUpsertStatements = function buildCustomFieldUpsertS
   issueId: string,
   writes: Readonly<{ fieldId: string; value: string }[]>,
 ): D1PreparedStatement[] {
-  if (writes.length === 0) {
+  if (EffectArray.isReadonlyArrayEmpty(writes)) {
     return []
   }
   const orm = drizzle(db, { schema })

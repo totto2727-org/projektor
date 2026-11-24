@@ -18,7 +18,13 @@ import type { IssuesInitialData } from './views/issues-page.tsx'
 
 vi.mock('./components/lazy-markdown-editor.tsx', () => ({
   default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
-    <textarea aria-label='Markdown editor' value={value} onChange={(event) => onChange(event.currentTarget.value)} />
+    <textarea
+      aria-label='Markdown editor'
+      value={value}
+      onChange={(event) => {
+        onChange(event.currentTarget.value)
+      }}
+    />
   ),
 }))
 function listData(): IssuesInitialData {

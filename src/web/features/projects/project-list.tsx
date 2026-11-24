@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Schema } from 'effect'
+import { Array as EffectArray, Schema } from 'effect'
 import { useActionState, useEffect, useRef } from 'react'
 
 import { useRuntime } from '@/client/runtime.tsx'
@@ -142,12 +142,12 @@ export function ProjectList({
         {isPublicViewer ? (
           <p className='text-xs text-text-muted m-0'>Read-only demo — projects can't be created here.</p>
         ) : (
-          writable.length === 0 && (
+          EffectArray.isArrayEmpty(writable) && (
             <p className='text-xs text-text-muted m-0'>You need an owner or admin workspace role to create projects.</p>
           )
         )}
       </div>
-      {writable.length > 0 && (
+      {EffectArray.isArrayNonEmpty(writable) && (
         <details ref={disclosure} className='mb-5'>
           <summary className='btn btn-primary text-xs w-fit ml-auto cursor-pointer'>+ New project</summary>
           <form
@@ -171,7 +171,9 @@ export function ProjectList({
                       required
                       aria-label='Workspace'
                       value={field.state.value}
-                      onChange={(event) => field.handleChange(event.currentTarget.value)}
+                      onChange={(event) => {
+                        field.handleChange(event.currentTarget.value)
+                      }}
                       onBlur={field.handleBlur}
                       disabled={pending}
                     >
@@ -279,7 +281,7 @@ export function ProjectList({
           </form>
         </details>
       )}
-      {initialProjects.length === 0 ? (
+      {EffectArray.isReadonlyArrayEmpty(initialProjects) ? (
         <EmptyState title='No projects yet.' />
       ) : (
         <div className='grid gap-4 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]'>

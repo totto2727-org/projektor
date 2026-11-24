@@ -1,3 +1,4 @@
+import { Array as EffectArray } from 'effect'
 import { z } from 'zod'
 
 const CategoryEnum = z.enum(['todo', 'in_progress', 'done', 'cancelled'])
@@ -32,4 +33,4 @@ export const UpdateTaskStatusSchema = z
     isDefault: z.boolean().optional(),
     isReviewStep: z.boolean().optional(),
   })
-  .refine((obj) => Object.keys(obj).length > 0, { message: 'Nothing to update' })
+  .refine((obj) => EffectArray.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })

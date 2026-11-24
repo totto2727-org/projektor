@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 
 import type { ServiceCtx } from '#commands/types.ts'
 import { purgeExpiredWikiPages, WIKI_TRASH_RETENTION_SECONDS } from '#commands/wiki.ts'
@@ -239,7 +239,7 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
   let purged = 0
   let failed = 0
   const failedThisRun = new Set<string>()
-  while (remaining.length > 0 && budget.remaining() >= WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE) {
+  while (EffectArray.isArrayNonEmpty(remaining) && budget.remaining() >= WIKI_TRASH_MIN_BUDGET_TO_START_WORKSPACE) {
     const id = remaining[0]
     if (failedThisRun.has(id)) {
       if (remaining.every((workspace) => failedThisRun.has(workspace))) {
@@ -275,7 +275,7 @@ export async function purgeAllWorkspacesExpiredWikiPages(env: CoreEnvironment): 
       break
     }
   }
-  if (remaining.length === 0) {
+  if (EffectArray.isArrayEmpty(remaining)) {
     await kv.delete(WIKI_TRASH_PURGE_CURSOR_KV_KEY)
   } else {
     await kv.put(WIKI_TRASH_PURGE_CURSOR_KV_KEY, JSON.stringify({ workspaceIds: remaining }))

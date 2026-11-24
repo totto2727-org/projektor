@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, sql } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { ListMessagesSchema, PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
@@ -71,7 +71,7 @@ export const buildPostMessageStatements = function buildPostMessageStatements(
   orm: ReturnType<typeof drizzle>,
   messages: Readonly<Readonly<{ scope: string; agentId?: string; body: string }>[]>,
 ): D1PreparedStatement[] {
-  if (messages.length === 0) {
+  if (EffectArray.isReadonlyArrayEmpty(messages)) {
     return []
   }
   const now = Date.now()

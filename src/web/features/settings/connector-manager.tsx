@@ -95,7 +95,9 @@ export function ConnectorManager({
       setRevokeId(id)
       setError(null)
     },
-    cancel: () => setRevokeId(null),
+    cancel: () => {
+      setRevokeId(null)
+    },
     confirm: revoke,
   }
   if (!grants.length) {

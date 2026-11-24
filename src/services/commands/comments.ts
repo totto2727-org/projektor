@@ -99,7 +99,7 @@ export function buildAddCommentInsertStatement(
   ctx: ServiceCtx,
   orm: ReturnType<typeof drizzle>,
   opts: Readonly<{ id: string; issueId: string; body: string; now: number }>,
-) {
+): D1PreparedStatement {
   const query = orm
     .insert(schema.issueComments)
     .values({

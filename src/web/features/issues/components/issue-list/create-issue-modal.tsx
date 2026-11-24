@@ -1,4 +1,5 @@
 'use client'
+import { Array as EffectArray } from 'effect'
 import type { Dispatch, SetStateAction } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
@@ -100,7 +101,7 @@ function CreateIssueModalFields({
         />
       </div>
 
-      {taskTypes.length > 0 && (
+      {EffectArray.isArrayNonEmpty(taskTypes) && (
         <div>
           {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
           <label className={FIELD_CAPTION_CLASS}>Type</label>
@@ -113,7 +114,7 @@ function CreateIssueModalFields({
         </div>
       )}
 
-      {statuses.length > 0 && (
+      {EffectArray.isArrayNonEmpty(statuses) && (
         <div>
           {/* biome-ignore lint/a11y/noLabelWithoutControl: Select uses ariaLabel for accessibility */}
           <label className={FIELD_CAPTION_CLASS}>Status</label>
@@ -171,7 +172,9 @@ export default function CreateIssueModal(props: CreateIssueModalProps) {
                 name='title'
                 maxLength={500}
                 value={createTitle}
-                onInput={(event) => setCreateTitle((event.target as HTMLInputElement).value)}
+                onInput={(event) => {
+                  setCreateTitle((event.target as HTMLInputElement).value)
+                }}
                 placeholder='Issue title'
                 required
                 className={[

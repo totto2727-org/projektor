@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
-import { Iterable, Predicate } from 'effect'
+import { Array as EffectArray, Iterable, Predicate } from 'effect'
 
 import { drizzle, schema } from '#db'
 
@@ -470,7 +470,7 @@ export const buildUnifiedDiff = function buildUnifiedDiff(baseContent: string, c
     }
     return acc
   }, [])
-  if (changeIdxs.length === 0) {
+  if (EffectArray.isArrayEmpty(changeIdxs)) {
     return ''
   }
   const groups: [number, number][] = []

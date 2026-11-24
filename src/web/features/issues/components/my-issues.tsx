@@ -1,5 +1,7 @@
 'use client'
 
+import { Array as EffectArray } from 'effect'
+
 import { formatIssueRef } from '@/features/issues/lib/issue-ref.ts'
 import { statusDisplayName } from '@/features/issues/lib/status.ts'
 import { issueUrl } from '@/features/issues/utils/issue-url.ts'
@@ -166,7 +168,7 @@ export default function MyIssues({ initialData }: { initialData: MyIssuesInitial
   const visible = initialData.issues
     .filter((issue) => OPEN_CATEGORIES.has(issue.status_category ?? ''))
     .sort(compareIssues)
-  const hasAny = visible.length > 0
+  const hasAny = EffectArray.isArrayNonEmpty(visible)
 
   return (
     <div>

@@ -30,7 +30,9 @@ function EditorFallback({
       </div>
       <textarea
         value={value}
-        onInput={(event) => onChange(event.currentTarget.value)}
+        onInput={(event) => {
+          onChange(event.currentTarget.value)
+        }}
         onFocus={onFocus}
         aria-label={ariaLabel}
         style={{ minHeight }}
@@ -75,6 +77,11 @@ export default function LazyMarkdownEditor(props: Props) {
   return Editor && !fallbackInteracted ? (
     <Editor {...props} />
   ) : (
-    <EditorFallback {...props} onFocus={() => setFallbackInteracted(true)} />
+    <EditorFallback
+      {...props}
+      onFocus={() => {
+        setFallbackInteracted(true)
+      }}
+    />
   )
 }

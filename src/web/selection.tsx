@@ -1,3 +1,5 @@
+import { Array as EffectArray } from 'effect'
+
 import type { RequestScope } from './server/server-context.ts'
 
 /** Native GET forms also work without JavaScript and preserve explicit URL scope. */
@@ -23,7 +25,7 @@ export function ScopeSelection({ scope, url }: { scope: RequestScope; url: URL }
   return (
     <section className='card p-6' aria-labelledby='scope-heading'>
       <h1 id='scope-heading'>Select a {project ? 'project' : 'workspace'}</h1>
-      {options.length === 0 ? (
+      {EffectArray.isArrayEmpty(options) ? (
         <p>
           No accessible {project ? 'projects' : 'workspaces'}. <a href='/'>View projects</a>
         </p>

@@ -1,6 +1,6 @@
 'use client'
 import { query as serverQuery } from '@effront/core/query'
-import { Predicate, Effect, Schema } from 'effect'
+import { Array as EffectArray, Predicate, Effect, Schema } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -96,7 +96,9 @@ export function RefChip({ issueRef, copyUrl }: { issueRef: string; copyUrl: stri
   function copyLink(): void {
     navigator.clipboard.writeText(new URL(copyUrl, window.location.origin).href).catch(() => {})
     setCopiedRef(true)
-    setTimeout(() => setCopiedRef(false), 2000)
+    setTimeout(() => {
+      setCopiedRef(false)
+    }, 2000)
   }
 
   return (
@@ -169,7 +171,9 @@ export function ShareButton({ issueId, workspaceSlug }: { issueId: string; works
     }
     navigator.clipboard.writeText(shareUrl).catch(() => {})
     setCopiedShare(true)
-    setTimeout(() => setCopiedShare(false), 2000)
+    setTimeout(() => {
+      setCopiedShare(false)
+    }, 2000)
   }
 
   return (
@@ -287,7 +291,9 @@ export function TitleSection({
         <input
           type='text'
           value={editTitle}
-          onInput={(event) => setEditTitle((event.target as HTMLInputElement).value)}
+          onInput={(event) => {
+            setEditTitle((event.target as HTMLInputElement).value)
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               void saveTitle()
@@ -506,7 +512,9 @@ export function BodySection({
         {!editingBody && (
           <button
             type='button'
-            onClick={() => startEditBody()}
+            onClick={() => {
+              startEditBody()
+            }}
             title='Edit description'
             className='text-text-muted hover:text-text-base transition-colors rounded p-0.5'
           >
@@ -526,7 +534,9 @@ export function BodySection({
           You have an unsaved description edit.{' '}
           <button
             type='button'
-            onClick={() => startEditBody(true)}
+            onClick={() => {
+              startEditBody(true)
+            }}
             className='underline bg-transparent border-0 p-0 text-inherit cursor-pointer font-[inherit]'
           >
             Resume editing
@@ -560,7 +570,7 @@ export function ChildIssuesSection({ issue, childIssues }: { issue: IssueData; c
     <section className='mb-8'>
       <div className='flex items-center gap-3 mb-4'>
         <span className='text-[0.7rem] font-semibold uppercase tracking-wider text-text-muted whitespace-nowrap'>
-          Child issues{childIssues.length > 0 && ` (${childIssues.length})`}
+          Child issues{EffectArray.isArrayNonEmpty(childIssues) && ` (${childIssues.length})`}
         </span>
         {issue.rollup && issue.rollup.total > 0 && (
           <span className='text-xs text-text-muted whitespace-nowrap'>
@@ -569,7 +579,7 @@ export function ChildIssuesSection({ issue, childIssues }: { issue: IssueData; c
         )}
         <div className='flex-1 h-px bg-border' />
       </div>
-      {childIssues.length === 0 ? (
+      {EffectArray.isArrayEmpty(childIssues) ? (
         <p className='text-text-muted italic'>No child issues yet.</p>
       ) : (
         <div className='flex flex-col gap-2'>
@@ -750,7 +760,7 @@ export function RelationsSection({
       label: LINK_TYPE_LABELS[type],
       items: links.filter((l) => l.type === type),
     }))
-    .filter((g) => g.items.length > 0)
+    .filter((g) => EffectArray.isArrayNonEmpty(g.items))
 
   async function addLink(): Promise<void> {
     const ref = normalizeIssueRef(linkFormRef)
@@ -794,9 +804,9 @@ export function RelationsSection({
 
   return (
     <section className='mb-8'>
-      <SectionDivider title={`Relations${links.length > 0 ? ` (${links.length})` : ''}`} />
+      <SectionDivider title={`Relations${EffectArray.isArrayNonEmpty(links) ? ` (${links.length})` : ''}`} />
 
-      {linksByType.length > 0 && (
+      {EffectArray.isArrayNonEmpty(linksByType) && (
         <div className='mb-4'>
           {linksByType.map((group) => (
             <div key={group.type} className='mb-3'>
@@ -828,12 +838,16 @@ export function RelationsSection({
           setLinkFormError={setLinkFormError}
           addingLink={addingLink}
           onAdd={addLink}
-          onCancel={() => setLinkFormOpen(false)}
+          onCancel={() => {
+            setLinkFormOpen(false)
+          }}
         />
       ) : (
         <button
           type='button'
-          onClick={() => setLinkFormOpen(true)}
+          onClick={() => {
+            setLinkFormOpen(true)
+          }}
           className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1'
         >
           <span className='text-base leading-none'>+</span>
@@ -1008,7 +1022,9 @@ function AttachmentUploadForm({
             required
             aria-label='Choose file'
             className='sr-only'
-            onChange={(event) => setFilename(event.currentTarget.files?.[0]?.name ?? '')}
+            onChange={(event) => {
+              setFilename(event.currentTarget.files?.[0]?.name ?? '')
+            }}
           />
           <Button
             as='span'
@@ -1111,14 +1127,16 @@ function WikiPageLinkForm({
         className='px-[0.625rem] py-[0.5rem] border border-border rounded text-sm bg-bg text-text-base min-h-[44px]'
       />
       {searching && <p className='text-xs text-text-muted m-0'>Searching…</p>}
-      {results.length > 0 && (
+      {EffectArray.isArrayNonEmpty(results) && (
         <ul className='list-none m-0 p-0 flex flex-col gap-1 max-h-56 overflow-y-auto'>
           {results.map((r) => (
             <li key={r.id}>
               <button
                 type='button'
                 disabled={linking}
-                onClick={() => onLink(r.id)}
+                onClick={() => {
+                  onLink(r.id)
+                }}
                 className='w-full text-left px-[0.625rem] py-2 border border-border rounded text-sm
 									bg-surface hover:bg-bg transition-colors min-h-[44px]'
               >
@@ -1196,7 +1214,9 @@ function UrlLinkForm({
       <input
         type='text'
         value={labelValue}
-        onInput={(event) => setLabelValue((event.target as HTMLInputElement).value)}
+        onInput={(event) => {
+          setLabelValue((event.target as HTMLInputElement).value)
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             onAdd()
@@ -1300,7 +1320,9 @@ function useAttachmentLinks(issueId: string, workspaceSlug: string | undefined, 
 function useAttachmentForms(issueId: string, workspaceSlug: string | undefined) {
   const [mode, setMode] = useState<AttachMode>('none')
 
-  const links = useAttachmentLinks(issueId, workspaceSlug, () => setMode('none'))
+  const links = useAttachmentLinks(issueId, workspaceSlug, () => {
+    setMode('none')
+  })
 
   function resetForms(): void {
     setMode('none')
@@ -1339,14 +1361,16 @@ export function AttachmentsSection({
 
   return (
     <section className='mb-8'>
-      <SectionDivider title={`Attachments${attachments.length > 0 ? ` (${attachments.length})` : ''}`} />
+      <SectionDivider
+        title={`Attachments${EffectArray.isArrayNonEmpty(attachments) ? ` (${attachments.length})` : ''}`}
+      />
 
       {deleteError && (
         <p role='alert' className='mb-2 text-[0.8rem] text-danger-text'>
           {deleteError}
         </p>
       )}
-      {attachments.length > 0 && (
+      {EffectArray.isArrayNonEmpty(attachments) && (
         <div className='mb-4 flex flex-col gap-2'>
           {attachments.map((a) => (
             <AttachmentRow
@@ -1394,7 +1418,9 @@ export function AttachmentsSection({
         >
           <button
             type='button'
-            onClick={() => setMode('file')}
+            onClick={() => {
+              setMode('file')
+            }}
             className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1 max-sm:min-h-[44px]'
           >
             <span className='text-base leading-none'>+</span>
@@ -1402,7 +1428,9 @@ export function AttachmentsSection({
           </button>
           <button
             type='button'
-            onClick={() => setMode('wiki')}
+            onClick={() => {
+              setMode('wiki')
+            }}
             className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1 max-sm:min-h-[44px]'
           >
             <span className='text-base leading-none'>+</span>
@@ -1410,7 +1438,9 @@ export function AttachmentsSection({
           </button>
           <button
             type='button'
-            onClick={() => setMode('url')}
+            onClick={() => {
+              setMode('url')
+            }}
             className='text-sm text-text-muted hover:text-text-base transition-colors flex items-center gap-1 max-sm:min-h-[44px]'
           >
             <span className='text-base leading-none'>+</span>
@@ -1480,7 +1510,9 @@ function CommentItem({
           )}
           <textarea
             value={editBody}
-            onInput={(event) => onChangeBody((event.target as HTMLTextAreaElement).value)}
+            onInput={(event) => {
+              onChangeBody((event.target as HTMLTextAreaElement).value)
+            }}
             rows={4}
             className='w-full px-3 py-2 border border-border rounded text-sm resize-y box-border mb-2 bg-bg text-text-base'
           />
@@ -1651,9 +1683,9 @@ export function CommentsSection({
 
   return (
     <section>
-      <SectionDivider title={`Comments${comments.length > 0 ? ` (${comments.length})` : ''}`} />
+      <SectionDivider title={`Comments${EffectArray.isArrayNonEmpty(comments) ? ` (${comments.length})` : ''}`} />
 
-      {comments.length === 0 ? (
+      {EffectArray.isArrayEmpty(comments) ? (
         <p className='text-text-muted mb-4'>No comments yet.</p>
       ) : (
         <div className='mb-6'>
@@ -1684,7 +1716,9 @@ export function CommentsSection({
         )}
         <textarea
           value={newComment}
-          onInput={(event) => setNewComment((event.target as HTMLTextAreaElement).value)}
+          onInput={(event) => {
+            setNewComment((event.target as HTMLTextAreaElement).value)
+          }}
           placeholder='Add a comment…'
           rows={4}
           // text-base (16px) on phones: below 16px iOS Safari zooms the viewport
@@ -1718,7 +1752,7 @@ function StatusField({
   updatingStatus: boolean
   changeStatus: (statusId: string) => void
 }) {
-  if (statuses.length > 0) {
+  if (EffectArray.isArrayNonEmpty(statuses)) {
     return (
       <Select
         ariaLabel='Change status'
@@ -1753,7 +1787,7 @@ function TypeField({
   typeChangeError: string | null
   changeType: (typeId: string) => void
 }) {
-  if (taskTypes.length > 0) {
+  if (EffectArray.isArrayNonEmpty(taskTypes)) {
     return (
       <>
         <Select
@@ -1828,7 +1862,9 @@ function PointsField({
         <input
           type='number'
           value={pointsValue}
-          onInput={(event) => setPointsValue((event.target as HTMLInputElement).value)}
+          onInput={(event) => {
+            setPointsValue((event.target as HTMLInputElement).value)
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               void savePoints()
@@ -1936,7 +1972,7 @@ export function SidebarPanel({
         </SidebarField>
 
         <SidebarField label='Assignee'>
-          {members.length > 0 ? (
+          {EffectArray.isArrayNonEmpty(members) ? (
             <Select
               ariaLabel='Change assignee'
               value={issue.assignee_id ?? ''}

@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Array as EffectArray, Schema } from 'effect'
 
 import { ScopeError } from '#contracts/errors.ts'
 import type { AuthInfo } from '#types'
@@ -172,7 +172,7 @@ export const resolveScope = function resolveScope(
   let selection: ScopeSelection
   if (projectHint || options.requireProject) {
     const matches = projectHint ? candidates.filter((project) => matchesProject(project, projectHint)) : candidates
-    if (projectHint && matches.length === 0) {
+    if (projectHint && EffectArray.isReadonlyArrayEmpty(matches)) {
       throw new ScopeError(404, 'Selected project is not accessible.')
     }
     if (matches.length === 1) {
@@ -188,7 +188,7 @@ export const resolveScope = function resolveScope(
       selection = {
         kind: 'selection-required',
         target: 'project',
-        reason: matches.length === 0 ? 'empty' : 'ambiguous',
+        reason: EffectArray.isReadonlyArrayEmpty(matches) ? 'empty' : 'ambiguous',
       }
     }
   } else if (workspace) {
@@ -200,7 +200,7 @@ export const resolveScope = function resolveScope(
         : {
             kind: 'selection-required',
             target: 'workspace',
-            reason: session.workspaces.length === 0 ? 'empty' : 'ambiguous',
+            reason: EffectArray.isReadonlyArrayEmpty(session.workspaces) ? 'empty' : 'ambiguous',
           }
   } else {
     selection = { kind: 'global' }

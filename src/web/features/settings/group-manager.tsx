@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Schema } from 'effect'
+import { Array as EffectArray, Schema } from 'effect'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 
@@ -76,7 +76,7 @@ function MemberGroupsCell({ member, groups }: { member: WorkspaceMember; groups:
   if (adminRole(member.role)) {
     return <span className='text-[0.78rem] text-text-muted'>All projects (bypasses groups)</span>
   }
-  if (groups.length === 0) {
+  if (EffectArray.isArrayEmpty(groups)) {
     return <Badge>Pending: no access</Badge>
   }
   return (
@@ -148,7 +148,9 @@ function GroupsList({ groups, admin, busy, onSelect, onDelete }: GroupListProps)
       <button
         type='button'
         className='text-accent font-medium bg-transparent border-0 cursor-pointer p-0'
-        onClick={() => onSelect(group.id)}
+        onClick={() => {
+          onSelect(group.id)
+        }}
       >
         {group.name}
       </button>
@@ -162,12 +164,26 @@ function GroupsList({ groups, admin, busy, onSelect, onDelete }: GroupListProps)
         <Button variant='danger' size='sm' disabled={busy} onClick={() => onDelete(group.id)}>
           Yes
         </Button>
-        <Button variant='outline' size='sm' disabled={busy} onClick={() => setDeleteId(null)}>
+        <Button
+          variant='outline'
+          size='sm'
+          disabled={busy}
+          onClick={() => {
+            setDeleteId(null)
+          }}
+        >
           No
         </Button>
       </span>
     ) : (
-      <Button variant='danger' size='sm' disabled={busy} onClick={() => setDeleteId(group.id)}>
+      <Button
+        variant='danger'
+        size='sm'
+        disabled={busy}
+        onClick={() => {
+          setDeleteId(group.id)
+        }}
+      >
         Delete
       </Button>
     )
@@ -411,7 +427,9 @@ function GroupDetailEditor({
       )}
       <h3 className='text-[0.85rem] font-semibold text-text-base mb-2'>Members</h3>
       <div className='mb-2'>
-        {detail.members.length === 0 && <div className='text-[0.8rem] text-text-muted mb-2'>No members yet.</div>}
+        {EffectArray.isArrayEmpty(detail.members) && (
+          <div className='text-[0.8rem] text-text-muted mb-2'>No members yet.</div>
+        )}
         {detail.members.map((member) => (
           <div key={member.userId} className='flex items-center gap-2 mb-1'>
             <span className={CHIP} style={{ margin: 0 }}>
@@ -441,7 +459,9 @@ function GroupDetailEditor({
               value={field.state.value}
               disabled={busy}
               onBlur={field.handleBlur}
-              onChange={(event) => field.handleChange(event.currentTarget.value)}
+              onChange={(event) => {
+                field.handleChange(event.currentTarget.value)
+              }}
             >
               <option value=''>Add a member…</option>
               {addable.map((member) => (
@@ -476,7 +496,7 @@ function GroupDetailEditor({
       </form>
       <h3 className='text-[0.85rem] font-semibold text-text-base mb-2'>Project grants</h3>
       <div className='mb-2'>
-        {detail.grants.length === 0 && (
+        {EffectArray.isArrayEmpty(detail.grants) && (
           <div className='text-[0.8rem] text-text-muted mb-2'>No grants. This group opens no projects.</div>
         )}
         {detail.grants.map((grant) => (
@@ -517,7 +537,9 @@ function GroupDetailEditor({
               value={field.state.value}
               disabled={busy}
               onBlur={field.handleBlur}
-              onChange={(event) => field.handleChange(event.currentTarget.value)}
+              onChange={(event) => {
+                field.handleChange(event.currentTarget.value)
+              }}
             >
               <option value=''>Grant a project…</option>
               {grantable.map((project) => (
@@ -537,7 +559,9 @@ function GroupDetailEditor({
               value={field.state.value}
               disabled={busy}
               onBlur={field.handleBlur}
-              onChange={(event) => field.handleChange(event.currentTarget.value as GrantRole)}
+              onChange={(event) => {
+                field.handleChange(event.currentTarget.value as GrantRole)
+              }}
             >
               {ROLES.map((role) => (
                 <option key={role} value={role}>
@@ -743,7 +767,7 @@ export function GroupManager({
             {createResult.message}
           </div>
         )}
-        {data.groups.length === 0 ? (
+        {EffectArray.isArrayEmpty(data.groups) ? (
           <EmptyState
             title={
               admin ? 'No groups yet.' : "You don't belong to any groups yet. An owner or admin can add you to one."
@@ -760,7 +784,9 @@ export function GroupManager({
           detail={detail}
           members={data.members}
           projects={data.projects}
-          onClose={() => setSelected(null)}
+          onClose={() => {
+            setSelected(null)
+          }}
         />
       )}
     </>

@@ -1,4 +1,4 @@
-import { Iterable, Predicate } from 'effect'
+import { Array as EffectArray, Iterable, Predicate } from 'effect'
 export interface FilterQueryFilters {
   filterStatuses: string[]
   filterPriorities: string[]
@@ -131,8 +131,14 @@ export type UrlSyncFilters = Pick<
 >
 
 const URL_SYNC_KEYS = [
-  ['status', (f: UrlSyncFilters) => (f.filterStatuses.length > 0 ? f.filterStatuses.join(',') : null)],
-  ['priority', (f: UrlSyncFilters) => (f.filterPriorities.length > 0 ? f.filterPriorities.join(',') : null)],
+  [
+    'status',
+    (f: UrlSyncFilters) => (EffectArray.isArrayNonEmpty(f.filterStatuses) ? f.filterStatuses.join(',') : null),
+  ],
+  [
+    'priority',
+    (f: UrlSyncFilters) => (EffectArray.isArrayNonEmpty(f.filterPriorities) ? f.filterPriorities.join(',') : null),
+  ],
   ['epic', (f: UrlSyncFilters) => f.filterEpicId || null],
   ['sprintId', (f: UrlSyncFilters) => f.filterSprintId || null],
   ['hideEpics', (f: UrlSyncFilters) => (f.hideEpics ? '1' : null)],

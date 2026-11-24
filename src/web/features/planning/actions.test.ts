@@ -30,7 +30,7 @@ const seedIssues = function seedIssues(
   count: number,
   sprintId = planningIds.source,
   projectId = planningIds.project,
-) {
+): string[] {
   const ids = Array.from({ length: count }, (_, i) => `10000000-0000-4000-8000-${String(i).padStart(12, '0')}`)
   const insert = test.sqlite.prepare(
     "INSERT INTO issues (id,workspace_id,project_id,number,title,created_by_id,created_at,updated_at,sprint_id) VALUES (?, 'w1', ?, ?, 'Task', 'u1', 1, 1, ?)",

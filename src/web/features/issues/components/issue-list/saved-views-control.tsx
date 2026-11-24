@@ -1,4 +1,6 @@
 'use client'
+import { Array as EffectArray } from 'effect'
+
 import { Button } from '@/components/generated/button.tsx'
 import {
   DropdownMenu,
@@ -18,7 +20,7 @@ type Saved = ReturnType<typeof useSavedViews>
  */
 function ViewsMenu({ saved }: { saved: Saved }) {
   const { savedViews, activeViewName, applyView, deleteView } = saved
-  if (savedViews.length === 0) {
+  if (EffectArray.isArrayEmpty(savedViews)) {
     return null
   }
 
@@ -51,7 +53,9 @@ function SaveViewControl({ saved }: { saved: Saved }) {
     return (
       <button
         type='button'
-        onClick={() => setShowSaveInput(true)}
+        onClick={() => {
+          setShowSaveInput(true)
+        }}
         className='py-1 px-[0.625rem] rounded-full border border-border bg-bg text-text-muted cursor-pointer text-[0.8rem]'
       >
         Save view
@@ -64,7 +68,9 @@ function SaveViewControl({ saved }: { saved: Saved }) {
       <input
         type='text'
         value={saveViewName}
-        onInput={(event) => setSaveViewName((event.target as HTMLInputElement).value)}
+        onInput={(event) => {
+          setSaveViewName((event.target as HTMLInputElement).value)
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             void doSaveView()

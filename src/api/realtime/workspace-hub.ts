@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 import { makeCoreClient } from 'projektor/core-client'
 
 import { apiReply } from '#api/services/reply.ts'
@@ -225,13 +225,13 @@ export class WorkspaceHub {
          * Apply the client-requested project filter (already intersected with
          * visibility at subscribe time, but re-checking is cheap and robust).
          */
-        if (filters?.projects && filters.projects.length > 0 && event.projectId) {
+        if (filters?.projects && EffectArray.isArrayNonEmpty(filters.projects) && event.projectId) {
           if (!filters.projects.includes(event.projectId)) {
             continue
           }
         }
 
-        if (filters?.eventTypes && filters.eventTypes.length > 0) {
+        if (filters?.eventTypes && EffectArray.isArrayNonEmpty(filters.eventTypes)) {
           const matched = filters.eventTypes.some((pattern) => {
             if (pattern.endsWith('.*')) {
               const prefix = pattern.slice(0, -2)

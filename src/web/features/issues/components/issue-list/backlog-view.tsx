@@ -1,4 +1,5 @@
 'use client'
+import { Array as EffectArray } from 'effect'
 import { useState } from 'react'
 
 import { getBacklogIssues } from '@/features/issues/components/board-utils.ts'
@@ -18,7 +19,7 @@ import {
 } from './issue-render-helpers.tsx'
 
 function applyBacklogOrder(issues: Readonly<Issue[]>, backlogOrder: string[]): Readonly<Issue[]> {
-  if (backlogOrder.length === 0) {
+  if (EffectArray.isArrayEmpty(backlogOrder)) {
     return issues
   }
   const inOrder = backlogOrder.flatMap((id) => {
@@ -95,9 +96,15 @@ function BacklogRow({
       key={issue.id}
       className='border-b border-border group'
       draggable={true}
-      onDragStart={(e: import('react').DragEvent<HTMLElement>) => onDragStart(e, issue.id)}
-      onDragOver={(e: import('react').DragEvent<HTMLElement>) => onDragOver(e, issue.id)}
-      onDrop={(e: import('react').DragEvent<HTMLElement>) => onDrop(e, issue.id)}
+      onDragStart={(e: import('react').DragEvent<HTMLElement>) => {
+        onDragStart(e, issue.id)
+      }}
+      onDragOver={(e: import('react').DragEvent<HTMLElement>) => {
+        onDragOver(e, issue.id)
+      }}
+      onDrop={(e: import('react').DragEvent<HTMLElement>) => {
+        onDrop(e, issue.id)
+      }}
       onDragEnd={onDragEnd}
       style={{
         opacity: isDragging ? 0.5 : 1,
@@ -225,7 +232,7 @@ export default function BacklogView({
   const [backlogDragOverId, setBacklogDragOverId] = useState<string | null>(null)
 
   const backlogIssues = getBacklogIssues(issues)
-  if (backlogIssues.length === 0) {
+  if (EffectArray.isArrayEmpty(backlogIssues)) {
     return <p className='text-text-base'>No backlog issues match the current filters.</p>
   }
   const orderedIssues = applyBacklogOrder(backlogIssues, backlogOrder)

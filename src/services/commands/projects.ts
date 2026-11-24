@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Predicate, Effect } from 'effect'
+import { Array as EffectArray, Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { BooleanQueryParam, IdSchema } from '#contracts/inputs/common.ts'
@@ -255,7 +255,7 @@ export const updateProject = async function updateProject(ctx: ServiceCtx, id: s
     setObj.archivedAt = parsed.data.archived ? now : null
   }
 
-  if (Object.keys(setObj).length === 0) {
+  if (EffectArray.isArrayEmpty(Object.keys(setObj))) {
     throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
   }
 

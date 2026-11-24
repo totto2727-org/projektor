@@ -1,4 +1,4 @@
-import { Iterable, Predicate } from 'effect'
+import { Array as EffectArray, Iterable, Predicate } from 'effect'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { flattenError } from 'zod'
 
@@ -171,7 +171,7 @@ export const stripTemplateFlag = function stripTemplateFlag(content: string): st
     return content
   }
   const { template: _template, ...remaining } = raw as Record<string, unknown>
-  if (Object.keys(remaining).length === 0) {
+  if (EffectArray.isArrayEmpty(Object.keys(remaining))) {
     return rest
   }
 
@@ -202,7 +202,7 @@ export const setWikiFrontmatterFields = function setWikiFrontmatterFields(
     }
   })
 
-  if (Object.keys(raw).length === 0) {
+  if (EffectArray.isArrayEmpty(Object.keys(raw))) {
     return rest
   }
 

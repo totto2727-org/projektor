@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -167,7 +167,7 @@ const advanceHead = function advanceHead(
   pageId: string,
   expected: string | null | undefined,
   revision: string,
-) {
+): D1PreparedStatement {
   const key = [ctx.workspaceId, ctx.userId, pageId]
   if (expected === undefined) {
     /*
@@ -319,7 +319,7 @@ export const deleteWikiDraftsForPages = async function deleteWikiDraftsForPages(
   ctx: ServiceCtx,
   pageIds: string[],
 ): Promise<void> {
-  if (pageIds.length === 0) {
+  if (EffectArray.isArrayEmpty(pageIds)) {
     return
   }
   const orm = drizzle(ctx.db, { schema })

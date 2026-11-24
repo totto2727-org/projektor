@@ -107,10 +107,20 @@ export default function FeedbackSourceGrid({ workspaceSlug, projectId, initialSo
             projectId={projectId}
           />
         ))}
-        <NewSourceCard onClick={() => setShowCreate(true)} />
+        <NewSourceCard
+          onClick={() => {
+            setShowCreate(true)
+          }}
+        />
       </div>
       {showCreate && (
-        <NewSourceModal projectId={projectId} workspaceSlug={workspaceSlug} onClose={() => setShowCreate(false)} />
+        <NewSourceModal
+          projectId={projectId}
+          workspaceSlug={workspaceSlug}
+          onClose={() => {
+            setShowCreate(false)
+          }}
+        />
       )}
     </section>
   )

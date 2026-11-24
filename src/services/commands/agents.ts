@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -125,7 +125,10 @@ export const startWork = async function startWork(ctx: ServiceCtx, raw: unknown)
   try {
     const lease = await claimIssue(ctx, { issueId, agentId: session.id })
 
-    const claimed = paths && paths.length > 0 ? await claimFiles(ctx, { issueId, agentId: session.id, paths }) : null
+    const claimed =
+      paths && EffectArray.isArrayNonEmpty(paths)
+        ? await claimFiles(ctx, { issueId, agentId: session.id, paths })
+        : null
 
     await postMessage(ctx, {
       scope: `issue:${issueId}`,

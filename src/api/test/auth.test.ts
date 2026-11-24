@@ -527,7 +527,7 @@ describe('native Core authentication invocation isolation', () => {
 // A stale signing key forces one refresh, with a cooldown for invalid signatures.
 describe('covers PROJ-358: JWKS force-refresh on signature verification failure', () => {
   test("uncached-key token authenticates via forced refresh; bad sig within cooldown doesn't refetch again", async () => {
-    const genKeyPair = () =>
+    const genKeyPair = (): Promise<CryptoKeyPair> =>
       crypto.subtle.generateKey(
         {
           name: 'RSASSA-PKCS1-v1_5',

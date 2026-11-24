@@ -1,4 +1,4 @@
-import { Iterable, Predicate } from 'effect'
+import { Array as EffectArray, Iterable, Predicate } from 'effect'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 
@@ -173,9 +173,9 @@ router.post('/:workspaceId', async (httpContext) => {
             .map((s) => s.trim())
             .filter(Boolean),
         )
-        if (requested.length > 0) {
+        if (EffectArray.isArrayNonEmpty(requested)) {
           const invalid = requested.filter((slug) => !TOOL_DOMAIN_SLUGS.includes(slug))
-          if (invalid.length > 0) {
+          if (EffectArray.isArrayNonEmpty(invalid)) {
             return httpContext.json(
               jsonRpcError(
                 body.id,
@@ -233,7 +233,7 @@ router.post('/:workspaceId', async (httpContext) => {
        * (the model can fix and retry), not as a JSON-RPC protocol error.
        */
       const argIssues = validateToolArgs(tool.inputSchema, args)
-      if (argIssues.length > 0) {
+      if (EffectArray.isArrayNonEmpty(argIssues)) {
         const fieldErrors: Record<string, string[]> = {}
         Iterable.forEach(argIssues, (i) => {
           fieldErrors[i.path] = [...(fieldErrors[i.path] ?? []), i.message]

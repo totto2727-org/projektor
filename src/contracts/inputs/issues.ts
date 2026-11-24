@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 import { z } from 'zod'
 
 import { BooleanQueryParam, PriorityEnum, StatusEnum, TaxonomyIdSchema } from './common.ts'
@@ -50,7 +50,7 @@ export const UpdateIssueSchema = z
     completionReport: CompletionReportSchema.optional(),
   })
   .strict()
-  .refine((obj) => Object.keys(obj).length > 0, { message: 'Nothing to update' })
+  .refine((obj) => EffectArray.isArrayNonEmpty(Object.keys(obj)), { message: 'Nothing to update' })
 
 export const IssueListCursorSchema = z
   .union([z.number().int().nonnegative(), z.string().regex(/^\d+(?::[A-Za-z0-9-]+)?$/)])

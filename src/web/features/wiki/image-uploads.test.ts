@@ -7,7 +7,7 @@ import { afterEach, describe, expect, test } from 'vite-plus/test'
 import { imageUploads, insertUploadedImages } from './image-uploads.ts'
 
 const views: EditorView[] = []
-const editor = function editor(doc = 'before after') {
+const editor = function editor(doc = 'before after'): EditorView {
   const view = new EditorView({ state: EditorState.create({ doc, extensions: [imageUploads] }) })
   views.push(view)
   return view

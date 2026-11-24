@@ -68,7 +68,9 @@ export default function HeaderRow({
                 type='button'
                 key={v}
                 aria-pressed={view === v}
-                onClick={() => setView(v)}
+                onClick={() => {
+                  setView(v)
+                }}
                 className='border-none py-1 px-3 cursor-pointer text-[0.8rem] capitalize transition-colors duration-100'
                 style={{
                   borderRight: v !== 'backlog' ? '1px solid var(--border)' : 'none',

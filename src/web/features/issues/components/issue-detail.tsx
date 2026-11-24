@@ -1,4 +1,5 @@
 'use client'
+import { Array as EffectArray } from 'effect'
 import { useState } from 'react'
 
 import { FunctionError, unwrapResult } from '@/client/functions.ts'
@@ -139,7 +140,7 @@ function IssueDetailView(
       <IssueBreadcrumb issue={issue} backHref={props.backHref} />
 
       {/* Blocked-by banner */}
-      {props.blockedByLinks.length > 0 && (
+      {EffectArray.isArrayNonEmpty(props.blockedByLinks) && (
         <div
           role='alert'
           className='mb-4 px-[0.875rem] py-2 bg-warning-bg border border-warning-border

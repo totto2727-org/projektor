@@ -127,7 +127,7 @@ describe('schema constraints', () => {
 
     const db = new DatabaseSync(':memory:')
     db.exec('PRAGMA foreign_keys = ON;')
-    const splitStatements = (sql: string) =>
+    const splitStatements = (sql: string): string[] =>
       sql
         .replace(/--[^\n]*/g, '')
         .split(';')

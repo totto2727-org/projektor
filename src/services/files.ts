@@ -77,7 +77,7 @@ const metadataQuery = function metadataQuery(
   filter: string,
   values: unknown[],
   options: AttachmentQueryOptions,
-) {
+): D1PreparedStatement {
   const linked = options.linkedWikiVisibility
   const owner = options.ownerVisibility
   return db

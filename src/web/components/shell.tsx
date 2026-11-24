@@ -161,7 +161,9 @@ function GlossaryHelp({ term }: { term: keyof typeof glossary }) {
 function OfflineBanner() {
   const [online, setOnline] = useState(true)
   useEffect(() => {
-    const update = (): void => setOnline(navigator.onLine)
+    const update = (): void => {
+      setOnline(navigator.onLine)
+    }
     update()
     addEventListener('online', update)
     addEventListener('offline', update)
@@ -374,7 +376,13 @@ function ShellContent({
       </header>
       <Sidebar collapsible='icon' className='border-border pt-[var(--topbar-height)]'>
         <SidebarHeader className='md:hidden'>
-          <a href={projectsHref} className='topbar-brand' onClick={() => setOpenMobile(false)}>
+          <a
+            href={projectsHref}
+            className='topbar-brand'
+            onClick={() => {
+              setOpenMobile(false)
+            }}
+          >
             <span className='brand-mark'>{brandMark}</span>
             <span>{brandName}</span>
           </a>
@@ -397,7 +405,9 @@ function ShellContent({
                           <a
                             href={workspaceHref(item.href, scope)}
                             aria-current={active ? 'page' : undefined}
-                            onClick={() => setOpenMobile(false)}
+                            onClick={() => {
+                              setOpenMobile(false)
+                            }}
                           />
                         }
                       >

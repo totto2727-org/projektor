@@ -1,5 +1,5 @@
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
-import { Iterable, Predicate } from 'effect'
+import { Array as EffectArray, Iterable, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import { PostMessageSchema } from '#contracts/inputs/agent-messages.ts'
@@ -335,7 +335,7 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
     .map((path) => ({ path, existing: claimsByPath.get(path) }))
     .filter((p): p is { path: string; existing: ActiveClaim } => Boolean(p.existing))
 
-  if (!force && contended.length > 0) {
+  if (!force && EffectArray.isArrayNonEmpty(contended)) {
     /*
      * Record every contended path (rejection is all-or-nothing, but each simultaneously
      * held path is its own contention signal for the heat map). The reclaim above and
@@ -372,7 +372,7 @@ export const claimFiles = async function claimFiles(ctx: ServiceCtx, raw: unknow
    * as everything else (no conflict is possible when force is false and contended is empty).
    */
   const overridden: ActiveClaim[] = []
-  if (force && contended.length > 0) {
+  if (force && EffectArray.isArrayNonEmpty(contended)) {
     const displacedPaths = new Map<string, string[]>()
     Iterable.forEach(contended, ({ path, existing }) => {
       overridden.push({ ...existing, releasedAt: now, releaseReason: 'overridden' })
@@ -490,7 +490,7 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
       .where(and(...conditions))
   })
 
-  if (toRelease.length === 0) {
+  if (EffectArray.isArrayEmpty(toRelease)) {
     return { released: [], count: 0 }
   }
 
@@ -515,7 +515,7 @@ export const releaseFiles = async function releaseFiles(ctx: ServiceCtx, raw: un
    * between the read and the batch is someone else's release.
    */
   const releasedRows = toRelease.filter((r) => releasedIds.has(r.id))
-  if (releasedRows.length === 0) {
+  if (EffectArray.isArrayEmpty(releasedRows)) {
     return { released: [], count: 0 }
   }
   const released = releasedRows.map(({ projectId: _projectId, ...r }) => ({

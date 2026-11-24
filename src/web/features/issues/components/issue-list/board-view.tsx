@@ -1,4 +1,5 @@
 'use client'
+import { Array as EffectArray } from 'effect'
 import { useState } from 'react'
 
 import {
@@ -51,7 +52,9 @@ function BoardCard({
           event.dataTransfer?.setData('text/plain', issue.id)
           setDragIssueId(issue.id)
         }}
-        onDragEnd={() => setDragIssueId(null)}
+        onDragEnd={() => {
+          setDragIssueId(null)
+        }}
       >
         <div className='font-mono text-[0.72rem] text-text-muted mb-1'>
           {issue.project_key ? `${issue.project_key}-${issue.number}` : `#${issue.number}`}
@@ -160,7 +163,7 @@ export default function BoardView({
                 background: isOver ? 'var(--dropzone-bg)' : 'var(--bg)',
               }}
             >
-              {colIssues.length === 0 ? (
+              {EffectArray.isArrayEmpty(colIssues) ? (
                 <p className='text-[0.8rem] text-text-muted text-center py-4 m-0'>No issues</p>
               ) : (
                 colIssues.map((issue) => (

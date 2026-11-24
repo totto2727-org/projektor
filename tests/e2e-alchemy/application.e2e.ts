@@ -28,7 +28,7 @@ type BrowserAudit = {
 const pageAudits = new WeakMap<Page, BrowserAudit>()
 const testAudits = new Map<string, BrowserAudit[]>()
 
-const observeBrowser = function observeBrowser(page: Page, testInfo: TestInfo) {
+const observeBrowser = function observeBrowser(page: Page, testInfo: TestInfo): BrowserAudit {
   const existing = pageAudits.get(page)
   if (existing) {
     return existing

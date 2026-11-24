@@ -1,5 +1,5 @@
 import { and, sql } from 'drizzle-orm'
-import { Predicate, Effect } from 'effect'
+import { Array as EffectArray, Predicate, Effect } from 'effect'
 
 import { ApiError, ScopeError } from '#contracts/errors.ts'
 import type { CoreEnvironment } from '#core/environment.ts'
@@ -36,7 +36,7 @@ export const readAuthorizedWikiPage = function readAuthorizedWikiPage(
       const projects = yield* listProjects(db, workspace.id, { includeArchived: true, visibility }).pipe(
         Effect.mapError(dataError),
       )
-      if (projects.length === 0) {
+      if (EffectArray.isArrayEmpty(projects)) {
         return yield* new ScopeError(404, 'Selected project is not accessible.')
       }
     } else {

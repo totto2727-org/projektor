@@ -123,7 +123,7 @@ export const actionFixture = function actionFixture(
 }
 
 /** Native action test boundary uses the browser's actual submitted fields. */
-export const formData = function formData(values: Record<string, string | number>) {
+export const formData = function formData(values: Record<string, string | number>): FormData {
   const data = new FormData()
   Iterable.forEach(Object.entries(values), ([name, value]) => {
     data.set(name, String(value))

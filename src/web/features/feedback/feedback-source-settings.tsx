@@ -160,7 +160,14 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
         </p>
       )}
 
-      {newToken && <NewTokenReveal token={newToken} onDismiss={() => setNewToken(null)} />}
+      {newToken && (
+        <NewTokenReveal
+          token={newToken}
+          onDismiss={() => {
+            setNewToken(null)
+          }}
+        />
+      )}
 
       <div className='flex flex-col gap-1'>
         <span className='text-[0.8rem] font-semibold text-text-muted'>Token</span>
@@ -182,8 +189,12 @@ export default function FeedbackSourceSettings({ source, projectId, workspaceSlu
       <DangerZone
         busy={rotationBusy}
         rotating={rotating}
-        onRotateStart={() => setRotating(true)}
-        onRotateCancel={() => setRotating(false)}
+        onRotateStart={() => {
+          setRotating(true)
+        }}
+        onRotateCancel={() => {
+          setRotating(false)
+        }}
         onRotateConfirm={confirmRotate}
         onRevoke={revoke}
       />

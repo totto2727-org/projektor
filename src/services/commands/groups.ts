@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { Predicate, Effect } from 'effect'
+import { Array as EffectArray, Predicate, Effect } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -143,7 +143,7 @@ export const updateGroup = async function updateGroup(ctx: ServiceCtx, groupId: 
   if (parsed.data.description !== undefined) {
     setObj.description = parsed.data.description
   }
-  if (Object.keys(setObj).length === 0) {
+  if (EffectArray.isArrayEmpty(Object.keys(setObj))) {
     throw new ValidationError({ formErrors: ['Nothing to update'], fieldErrors: {} })
   }
 

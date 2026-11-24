@@ -23,7 +23,12 @@ export const browserCommand = function browserCommand<A>(
       Effect.mapError(() => coreFailure(400, 'Invalid browser command.')),
     )
     const request = nativeRequest(proof.request)
-    yield* Effect.try({ catch: publicWebFailure, try: () => assertSameOriginMutation(request) })
+    yield* Effect.try({
+      catch: publicWebFailure,
+      try: () => {
+        assertSameOriginMutation(request)
+      },
+    })
     const scope = yield* loadBrowserScope(env, proof.request, {
       workspaceHint: proof.workspaceSlug,
       projectHint: proof.projectId ?? '',

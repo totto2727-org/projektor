@@ -18,7 +18,7 @@
  * doesn't match the declared type is rejected.
  */
 
-import { Iterable, Predicate } from 'effect'
+import { Array as EffectArray, Iterable, Predicate } from 'effect'
 type Schema = Record<string, unknown>
 
 export interface ArgIssue {
@@ -73,7 +73,7 @@ const validate = function validate(value: unknown, schema: Schema, path: string,
     : Predicate.isString(declared)
       ? [declared]
       : []
-  if (types.length > 0 && !types.some((t) => matchesType(value, t))) {
+  if (EffectArray.isArrayNonEmpty(types) && !types.some((t) => matchesType(value, t))) {
     issues.push({ path, message: `must be ${types.join(' or ')}, got ${typeOf(value)}` })
     return
   }

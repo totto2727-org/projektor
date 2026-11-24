@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Predicate, Schema } from 'effect'
+import { Array as EffectArray, Predicate, Schema } from 'effect'
 import { useActionState, useEffect, useEffectEvent, useState } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
@@ -120,9 +120,15 @@ export function SprintManager({
         )}
       </div>
       {summary && (
-        <CompletionSummaryPanel summary={summary} workspaceSlug={workspaceSlug} onClose={() => setSummary(null)} />
+        <CompletionSummaryPanel
+          summary={summary}
+          workspaceSlug={workspaceSlug}
+          onClose={() => {
+            setSummary(null)
+          }}
+        />
       )}
-      {active.length > 0 && !showCreate && (
+      {EffectArray.isArrayNonEmpty(active) && !showCreate && (
         <div
           role='status'
           className='mb-4 px-[0.875rem] py-[0.625rem] bg-sprint-notice-bg border border-sprint-notice-border rounded-md text-sm text-status-in-progress'
@@ -149,7 +155,7 @@ export function SprintManager({
       {showCreate && (
         <div className='mb-6 px-5 py-4 bg-surface border border-border rounded-lg'>
           <h3 className='m-0 mb-4 text-base font-semibold text-text-base'>New sprint</h3>
-          {active.length > 0 && (
+          {EffectArray.isArrayNonEmpty(active) && (
             <div
               role='alert'
               className='mb-[0.875rem] px-3 py-2 bg-danger-bg border border-danger-border rounded text-[0.8rem] text-danger-text'
@@ -161,8 +167,12 @@ export function SprintManager({
           <SprintForm
             id='spr'
             initialValues={{ workspaceSlug, projectId, ...emptyDraft() }}
-            onSuccess={() => setShowCreate(false)}
-            onCancel={() => setShowCreate(false)}
+            onSuccess={() => {
+              setShowCreate(false)
+            }}
+            onCancel={() => {
+              setShowCreate(false)
+            }}
             submitLabel='Create sprint'
           />
         </div>
@@ -181,7 +191,7 @@ export function SprintManager({
           </Button>
         ))}
       </nav>
-      {sprints.length === 0 ? (
+      {EffectArray.isArrayEmpty(sprints) ? (
         <div className='p-8 text-center text-text-muted bg-surface rounded-lg border border-border'>
           <p className='m-0 mb-2'>{mode === 'all' ? 'No sprints yet.' : `No ${mode} sprints.`}</p>
           <p className='m-0 text-sm'>Create a sprint to organise issues into time-boxed iterations.</p>
@@ -203,11 +213,13 @@ export function SprintManager({
               setCompleteError(null)
             }}
             onConfirmComplete={() => complete(sprint)}
-            onCancelComplete={() => setCompleteId(null)}
+            onCancelComplete={() => {
+              setCompleteId(null)
+            }}
           />
         ))
       )}
-      {completed.length > 0 && <VelocityChart sprints={completed.slice(-6)} issues={issues} />}
+      {EffectArray.isArrayNonEmpty(completed) && <VelocityChart sprints={completed.slice(-6)} issues={issues} />}
     </div>
   )
 }
@@ -459,8 +471,12 @@ function SprintRow({
           id={`edit-${sprint.id}`}
           initialValues={{ workspaceSlug, projectId, ...fromSprint(sprint) }}
           sprintId={sprint.id}
-          onSuccess={() => setEditing(false)}
-          onCancel={() => setEditing(false)}
+          onSuccess={() => {
+            setEditing(false)
+          }}
+          onCancel={() => {
+            setEditing(false)
+          }}
           submitLabel='Save sprint'
         />
       ) : (
@@ -531,12 +547,26 @@ function SprintRow({
               <Button variant='danger' size='sm' disabled={busy} onClick={archiveConfirmed}>
                 Yes, archive
               </Button>
-              <Button variant='outline' size='sm' disabled={busy} onClick={() => setArchive(false)}>
+              <Button
+                variant='outline'
+                size='sm'
+                disabled={busy}
+                onClick={() => {
+                  setArchive(false)
+                }}
+              >
                 Cancel
               </Button>
             </span>
           ) : (
-            <Button variant='outline' size='sm' disabled={busy} onClick={() => setArchive(true)}>
+            <Button
+              variant='outline'
+              size='sm'
+              disabled={busy}
+              onClick={() => {
+                setArchive(true)
+              }}
+            >
               Archive
             </Button>
           )}
@@ -554,7 +584,9 @@ function SprintRow({
           issues={sprintIssues}
           projectId={projectId}
           workspaceSlug={workspaceSlug}
-          onClose={() => setMoving(false)}
+          onClose={() => {
+            setMoving(false)
+          }}
         />
       )}
     </div>
@@ -628,13 +660,13 @@ function MoveIssuesForm({
                           type='checkbox'
                           checked={field.state.value.includes(issue.id)}
                           onBlur={field.handleBlur}
-                          onChange={(event) =>
+                          onChange={(event) => {
                             field.handleChange(
                               event.currentTarget.checked
                                 ? [...field.state.value, issue.id]
                                 : field.state.value.filter((id) => id !== issue.id),
                             )
-                          }
+                          }}
                           disabled={busy}
                         />
                         <a className='text-accent' href={issueHref(issue, workspaceSlug)}>
@@ -645,7 +677,7 @@ function MoveIssuesForm({
                   </>
                 )}
               </form.Field>
-              {issues.length === 0 && <p className='text-text-muted text-sm'>No issues in this sprint.</p>}
+              {EffectArray.isArrayEmpty(issues) && <p className='text-text-muted text-sm'>No issues in this sprint.</p>}
             </div>
             <label className='text-sm' htmlFor={`move-target-${sprint.id}`}>
               Destination{' '}
@@ -656,7 +688,9 @@ function MoveIssuesForm({
                     className='px-3 py-2 border border-border rounded bg-bg text-text-base'
                     value={field.state.value}
                     onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.currentTarget.value)}
+                    onChange={(event) => {
+                      field.handleChange(event.currentTarget.value)
+                    }}
                     disabled={busy}
                   >
                     <option value=''>Select sprint…</option>
@@ -736,7 +770,7 @@ function CompletionSummaryPanel({
           </div>
         )}
       </div>
-      {done.length > 0 && (
+      {EffectArray.isArrayNonEmpty(done) && (
         <div>
           <p className='m-0 mb-2 text-[0.78rem] font-semibold text-text-muted uppercase tracking-[0.04em]'>
             Completed issues

@@ -122,7 +122,9 @@ function SprintEditFields({
           <input
             type='text'
             value={sprintEditName}
-            onInput={(event) => setSprintEditName((event.target as HTMLInputElement).value)}
+            onInput={(event) => {
+              setSprintEditName((event.target as HTMLInputElement).value)
+            }}
             required
             maxLength={255}
             className={`w-full ${SPRINT_EDIT_INPUT_CLASS}`}
@@ -134,9 +136,9 @@ function SprintEditFields({
           Status
           <select
             value={sprintEditStatus}
-            onChange={(event) =>
+            onChange={(event) => {
               setSprintEditStatus((event.target as HTMLSelectElement).value as 'planned' | 'active' | 'completed')
-            }
+            }}
             className={`cursor-pointer ${SPRINT_EDIT_INPUT_CLASS}`}
           >
             <option value='planned'>Planned</option>
@@ -151,7 +153,9 @@ function SprintEditFields({
           <input
             type='date'
             value={sprintEditStart}
-            onInput={(event) => setSprintEditStart((event.target as HTMLInputElement).value)}
+            onInput={(event) => {
+              setSprintEditStart((event.target as HTMLInputElement).value)
+            }}
             className={SPRINT_EDIT_INPUT_CLASS}
           />
         </label>
@@ -162,7 +166,9 @@ function SprintEditFields({
           <input
             type='date'
             value={sprintEditEnd}
-            onInput={(event) => setSprintEditEnd((event.target as HTMLInputElement).value)}
+            onInput={(event) => {
+              setSprintEditEnd((event.target as HTMLInputElement).value)
+            }}
             className={SPRINT_EDIT_INPUT_CLASS}
           />
         </label>
@@ -211,7 +217,9 @@ function SprintEditForm({
             <input
               type='text'
               value={sprintEditGoal}
-              onInput={(event) => setSprintEditGoal((event.target as HTMLInputElement).value)}
+              onInput={(event) => {
+                setSprintEditGoal((event.target as HTMLInputElement).value)
+              }}
               maxLength={2000}
               placeholder='What do you want to achieve this sprint?'
               className={`w-full ${SPRINT_EDIT_INPUT_CLASS}`}
@@ -266,7 +274,9 @@ function SprintBannerView({
         </button>
         <button
           type='button'
-          onClick={() => setFilterSprintId('')}
+          onClick={() => {
+            setFilterSprintId('')
+          }}
           className='ml-auto py-[0.2rem] px-2 rounded border border-border bg-bg text-text-muted cursor-pointer text-[0.78rem]'
         >
           ✕ Clear sprint

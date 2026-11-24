@@ -27,7 +27,9 @@ export default function SearchBox({
         type='search'
         name='q'
         value={searchQuery}
-        onInput={(event) => setSearchQuery((event.target as HTMLInputElement).value)}
+        onInput={(event) => {
+          setSearchQuery((event.target as HTMLInputElement).value)
+        }}
         placeholder='Search…'
         aria-label='Search issues'
         className={`py-1 px-[0.625rem] border border-border rounded bg-bg text-text-base text-[0.8rem]

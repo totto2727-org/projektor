@@ -32,7 +32,8 @@ const call = (method: string, path: string, body?: unknown): Promise<Response> =
     headers: authHeaders(f.token, f.slug),
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-const get = async (id: string) => (await (await call('GET', `/api/issues/${id}`)).json()) as IssueBody
+const get = async (id: string): Promise<IssueBody> =>
+  (await (await call('GET', `/api/issues/${id}`)).json()) as IssueBody
 
 // These tests make more calls per token than vite.config.ts's RATE_LIMIT_API_MAX.
 const prevApiMax = env.RATE_LIMIT_API_MAX

@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Schema } from 'effect'
+import { Array as EffectArray, Schema } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 
 import { unwrapResult } from '@/client/functions.ts'
@@ -135,7 +135,9 @@ export function ProjectLanding({
                     aria-label='Project description'
                     className='w-full px-3 py-2 border border-border rounded text-sm bg-bg text-text-base font-[inherit] leading-[1.5] resize-y'
                     onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.currentTarget.value)}
+                    onChange={(event) => {
+                      field.handleChange(event.currentTarget.value)
+                    }}
                   />
                 )}
               </form.Field>
@@ -207,7 +209,7 @@ export function ProjectLanding({
         <h2 id='recent-issues-heading' className={heading}>
           Recent Issues
         </h2>
-        {initialIssues.length === 0 ? (
+        {EffectArray.isReadonlyArrayEmpty(initialIssues) ? (
           <p className='text-text-muted text-sm py-2'>No issues yet.</p>
         ) : (
           <div>
@@ -238,7 +240,7 @@ export function ProjectLanding({
         <h2 id='recent-wiki-heading' className={heading}>
           Recent Wiki Pages
         </h2>
-        {initialWiki.length === 0 ? (
+        {EffectArray.isReadonlyArrayEmpty(initialWiki) ? (
           <p className='text-text-muted text-sm py-2'>No wiki pages yet.</p>
         ) : (
           <div>

@@ -1,4 +1,5 @@
 'use client'
+import { Array as EffectArray } from 'effect'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 
 import { Button } from '@/components/ui/button.tsx'
@@ -47,7 +48,7 @@ function FilterSelects({
 }: FilterSelectsProps) {
   return (
     <>
-      {uniqueProjects.length > 0 && (
+      {EffectArray.isArrayNonEmpty(uniqueProjects) && (
         <Select
           ariaLabel='Filter by project'
           value={filterProject}
@@ -62,7 +63,7 @@ function FilterSelects({
         />
       )}
 
-      {sprints.length > 0 && (
+      {EffectArray.isArrayNonEmpty(sprints) && (
         <Select
           ariaLabel='Filter by sprint'
           value={filterSprintId}
@@ -77,7 +78,7 @@ function FilterSelects({
         />
       )}
 
-      {uniqueTypes.length > 0 && (
+      {EffectArray.isArrayNonEmpty(uniqueTypes) && (
         <Select
           ariaLabel='Filter by type'
           value={filterType}
@@ -89,7 +90,7 @@ function FilterSelects({
         />
       )}
 
-      {epics.length > 0 && (
+      {EffectArray.isArrayNonEmpty(epics) && (
         <Select
           ariaLabel='Filter by epic'
           value={filterEpicId}
@@ -105,9 +106,15 @@ function FilterSelects({
         />
       )}
 
-      {epics.length > 0 && (
+      {EffectArray.isArrayNonEmpty(epics) && (
         <label className='flex items-center gap-1.5 text-[0.8rem] text-text-muted whitespace-nowrap cursor-pointer select-none'>
-          <input type='checkbox' checked={hideEpics} onChange={(event) => setHideEpics(event.target.checked)} />
+          <input
+            type='checkbox'
+            checked={hideEpics}
+            onChange={(event) => {
+              setHideEpics(event.target.checked)
+            }}
+          />
           Hide epics
         </label>
       )}

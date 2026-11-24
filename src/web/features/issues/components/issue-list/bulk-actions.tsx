@@ -1,4 +1,5 @@
 'use client'
+import { Array as EffectArray } from 'effect'
 import { createContext, useContext, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -22,7 +23,9 @@ export function IssueSelectionControl({ issue }: { issue: Pick<Issue, 'id' | 'nu
       type='checkbox'
       aria-label={`Select ${issue.project_key ?? 'issue'}-${issue.number}`}
       checked={selection.selected.has(issue.id)}
-      onChange={(event) => selection.toggle(issue.id, event.currentTarget.checked)}
+      onChange={(event) => {
+        selection.toggle(issue.id, event.currentTarget.checked)
+      }}
       className='mr-2 accent-accent'
     />
   )
@@ -72,8 +75,10 @@ export function IssueBulkProvider({
         <Button
           variant='outline'
           size='sm'
-          onClick={() => setSelected(new Set(issues.map((issue) => issue.id)))}
-          disabled={busy || issues.length === 0}
+          onClick={() => {
+            setSelected(new Set(issues.map((issue) => issue.id)))
+          }}
+          disabled={busy || EffectArray.isReadonlyArrayEmpty(issues)}
         >
           Select all loaded
         </Button>
@@ -111,7 +116,14 @@ export function IssueBulkProvider({
               disabled={busy}
               ariaLabel='Bulk priority'
             />
-            <Button variant='outline' size='sm' onClick={() => setSelected(new Set())} disabled={busy}>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => {
+                setSelected(new Set())
+              }}
+              disabled={busy}
+            >
               Clear selection
             </Button>
           </>

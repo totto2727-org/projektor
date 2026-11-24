@@ -1,4 +1,4 @@
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 
 import type { ReviewTarget } from '#contracts/review-targets.ts'
 
@@ -140,10 +140,10 @@ export const filterIssues = function filterIssues(
   return issues
     .filter(
       (issue) =>
-        filterStatuses.length === 0 ||
+        EffectArray.isReadonlyArrayEmpty(filterStatuses) ||
         (Predicate.isNotNullish(issue.status_id) && filterStatuses.includes(issue.status_id)),
     )
-    .filter((issue) => filterPriorities.length === 0 || filterPriorities.includes(issue.priority))
+    .filter((issue) => EffectArray.isReadonlyArrayEmpty(filterPriorities) || filterPriorities.includes(issue.priority))
     .filter((issue) => !filterProject || issue.project_key === filterProject)
     .filter((issue) => !filterType || issue.type_key === filterType)
 }

@@ -1,4 +1,4 @@
-import { Iterable, Predicate } from 'effect'
+import { Array as EffectArray, Iterable, Predicate } from 'effect'
 import { CorePublicError } from 'projektor/core-client'
 import { z } from 'zod'
 
@@ -41,7 +41,7 @@ const summarizeDetails = function summarizeDetails(details: Record<string, unkno
 const hasDetails = function hasDetails(
   details: Record<string, unknown> | undefined,
 ): details is Record<string, unknown> {
-  return Predicate.isNotNullish(details) && Object.keys(details).length > 0
+  return Predicate.isNotNullish(details) && EffectArray.isArrayNonEmpty(Object.keys(details))
 }
 
 /*
@@ -51,9 +51,11 @@ const hasDetails = function hasDetails(
  */
 const summarizeIssues = function summarizeIssues(issues: ZodFlattenOutput): string {
   const parts: string[] = [
-    ...(issues.formErrors.length > 0 ? [truncate(issues.formErrors.join(', '), MAX_DETAIL_VALUE_CHARS)] : []),
+    ...(EffectArray.isArrayNonEmpty(issues.formErrors)
+      ? [truncate(issues.formErrors.join(', '), MAX_DETAIL_VALUE_CHARS)]
+      : []),
     ...Object.entries(issues.fieldErrors)
-      .filter(([, messages]) => messages && messages.length > 0)
+      .filter(([, messages]) => messages && EffectArray.isArrayNonEmpty(messages))
       .map(([field, messages]) => `${field}: ${truncate(messages?.join(', ') ?? '', MAX_DETAIL_VALUE_CHARS)}`),
   ]
   return truncate(parts.join('; '), MAX_DETAIL_SUMMARY_CHARS)
@@ -61,8 +63,8 @@ const summarizeIssues = function summarizeIssues(issues: ZodFlattenOutput): stri
 
 const hasIssues = function hasIssues(issues: ZodFlattenOutput): boolean {
   return (
-    issues.formErrors.length > 0 ||
-    Object.values(issues.fieldErrors).some((messages) => messages && messages.length > 0)
+    EffectArray.isArrayNonEmpty(issues.formErrors) ||
+    Object.values(issues.fieldErrors).some((messages) => messages && EffectArray.isArrayNonEmpty(messages))
   )
 }
 
@@ -201,11 +203,11 @@ const definedFields = function definedFields(
 ): Record<string, string[]> | undefined {
   const out: Record<string, string[]> = {}
   Iterable.forEach(Object.entries(fieldErrors), ([field, messages]) => {
-    if (messages && messages.length > 0) {
+    if (messages && EffectArray.isArrayNonEmpty(messages)) {
       out[field] = messages
     }
   })
-  return Object.keys(out).length > 0 ? out : undefined
+  return EffectArray.isArrayNonEmpty(Object.keys(out)) ? out : undefined
 }
 
 const notFoundHint = function notFoundHint(message: string, toolName: string | undefined): string {
@@ -305,7 +307,9 @@ export const toToolError = function toToolError(err: unknown, ctx: ToolErrorCont
   }
   if (err instanceof ValidationError) {
     const fields = definedFields(err.issues.fieldErrors)
-    const message = err.issues.formErrors.length > 0 ? err.issues.formErrors.join('; ') : 'Invalid arguments'
+    const message = EffectArray.isArrayNonEmpty(err.issues.formErrors)
+      ? err.issues.formErrors.join('; ')
+      : 'Invalid arguments'
     return toolErrorResult({
       code: 'validation',
       message,

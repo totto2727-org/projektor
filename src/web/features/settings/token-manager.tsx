@@ -285,7 +285,9 @@ export function TokenManager({
       setRevokeId(id)
       setRevokeError(null)
     },
-    cancel: () => setRevokeId(null),
+    cancel: () => {
+      setRevokeId(null)
+    },
     confirm: revoke,
   }
   return (
@@ -353,7 +355,9 @@ export function TokenManager({
                                   checked={field.state.value === 'readwrite'}
                                   disabled={creating}
                                   onBlur={field.handleBlur}
-                                  onChange={() => field.handleChange('readwrite')}
+                                  onChange={() => {
+                                    field.handleChange('readwrite')
+                                  }}
                                 />
                                 Read + Write (recommended)
                               </label>
@@ -365,7 +369,9 @@ export function TokenManager({
                                   checked={field.state.value === 'read'}
                                   disabled={creating}
                                   onBlur={field.handleBlur}
-                                  onChange={() => field.handleChange('read')}
+                                  onChange={() => {
+                                    field.handleChange('read')
+                                  }}
                                 />
                                 Read-only
                               </label>

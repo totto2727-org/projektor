@@ -1,5 +1,5 @@
 import { and, eq, or } from 'drizzle-orm'
-import { Iterable, Predicate, Effect } from 'effect'
+import { Array as EffectArray, Iterable, Predicate, Effect } from 'effect'
 import { z } from 'zod'
 
 import { AddCommentSchema } from '#contracts/inputs/comments.ts'
@@ -1316,7 +1316,7 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown) 
    * looping one round trip per field.
    */
   const cfWrites =
-    data.customFields && Object.keys(data.customFields).length > 0
+    data.customFields && EffectArray.isArrayNonEmpty(Object.keys(data.customFields))
       ? await validateCustomFields(ctx.db, ctx.workspaceId, data.customFields)
       : []
 
@@ -1653,7 +1653,7 @@ const healDefinitionOfReady = async function healDefinitionOfReady(ctx: ServiceC
       .bind(ctx.workspaceId, DOR_HEAL_BATCH)
       .all<{ id: string; body: string | null }>()
     const rows = results ?? []
-    if (rows.length === 0) {
+    if (EffectArray.isArrayEmpty(rows)) {
       return
     }
     await ctx.db.batch(
@@ -1817,7 +1817,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
    */
   if (includeNotReady) {
     const rows = await queryPrioritized(ctx, { ...base, readyOnly: false })
-    if (rows.length === 0) {
+    if (EffectArray.isArrayEmpty(rows)) {
       return { issues: [] }
     }
     return { issues: rows.map(toPrioritizedIssue), droppedNotReady: 0 }
@@ -1828,7 +1828,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
    * PROJ-291: don't SILENTLY drop not-ready issues — surface the count so a caller
    * seeing few results knows to groom (or re-query with includeNotReady).
    */
-  if (ready.length > 0) {
+  if (EffectArray.isArrayNonEmpty(ready)) {
     return { issues: ready.map(toPrioritizedIssue), droppedNotReady: ready[0].not_ready_count }
   }
 
@@ -1837,7 +1837,7 @@ export async function getPrioritizedIssues(ctx: ServiceCtx, raw: unknown) {
    * array that reads as "no open work".
    */
   const all = await queryPrioritized(ctx, { ...base, readyOnly: false })
-  if (all.length === 0) {
+  if (EffectArray.isArrayEmpty(all)) {
     return { issues: [] }
   }
   return {

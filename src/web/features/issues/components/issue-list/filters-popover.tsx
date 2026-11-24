@@ -61,7 +61,9 @@ function StatusPills({
             type='button'
             key={s.id}
             aria-pressed={active}
-            onClick={() => setFilterStatuses((prev) => (active ? prev.filter((id) => id !== s.id) : [...prev, s.id]))}
+            onClick={() => {
+              setFilterStatuses((prev) => (active ? prev.filter((id) => id !== s.id) : [...prev, s.id]))
+            }}
             className='py-1 px-[0.625rem] rounded-full cursor-pointer text-[0.8rem]'
             style={{
               border: active ? 'none' : '1px solid var(--border)',
@@ -95,7 +97,9 @@ function PriorityPills({
             type='button'
             key={p}
             aria-pressed={active}
-            onClick={() => setFilterPriorities((prev) => (active ? prev.filter((k) => k !== p) : [...prev, p]))}
+            onClick={() => {
+              setFilterPriorities((prev) => (active ? prev.filter((k) => k !== p) : [...prev, p]))
+            }}
             className='py-1 px-[0.625rem] rounded-full cursor-pointer text-[0.8rem] capitalize'
             style={{
               border: active ? 'none' : '1px solid var(--border)',
@@ -136,7 +140,9 @@ function DateRangeFilter({
       <select
         aria-label='Date filter field'
         value={filterDateField}
-        onChange={(event) => setFilterDateField(event.target.value as DateField)}
+        onChange={(event) => {
+          setFilterDateField(event.target.value as DateField)
+        }}
         className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base cursor-pointer'
       >
         <option value=''>No date filter</option>
@@ -151,7 +157,9 @@ function DateRangeFilter({
               type='date'
               aria-label='From date'
               value={filterDateFrom}
-              onInput={(event) => setFilterDateFrom((event.target as HTMLInputElement).value)}
+              onInput={(event) => {
+                setFilterDateFrom((event.target as HTMLInputElement).value)
+              }}
               className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
             />
           </label>
@@ -161,7 +169,9 @@ function DateRangeFilter({
               type='date'
               aria-label='To date'
               value={filterDateTo}
-              onInput={(event) => setFilterDateTo((event.target as HTMLInputElement).value)}
+              onInput={(event) => {
+                setFilterDateTo((event.target as HTMLInputElement).value)
+              }}
               className='w-full px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
             />
           </label>

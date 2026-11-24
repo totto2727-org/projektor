@@ -269,7 +269,9 @@ export function MetricsDashboard({
                       max={range.until}
                       required
                       onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.currentTarget.value)}
+                      onChange={(event) => {
+                        field.handleChange(event.currentTarget.value)
+                      }}
                       className='block px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
                     />
                   )}
@@ -288,7 +290,9 @@ export function MetricsDashboard({
                       min={range.since}
                       required
                       onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.currentTarget.value)}
+                      onChange={(event) => {
+                        field.handleChange(event.currentTarget.value)
+                      }}
                       className='block px-2 py-[0.3rem] border border-border rounded text-sm bg-bg text-text-base mt-[0.2rem]'
                     />
                   )}

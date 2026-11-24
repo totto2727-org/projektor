@@ -6367,7 +6367,7 @@ describe('wiki slug/id collisions (PROJ-812)', () => {
     const target = { id: crypto.randomUUID() }
     const impostorId = crypto.randomUUID()
     const now = Math.floor(Date.now() / 1000)
-    const insert = (id: string, pageSlug: string, title: string) =>
+    const insert = (id: string, pageSlug: string, title: string): D1PreparedStatement =>
       env.DB.prepare(
         `INSERT INTO wiki_pages (id, workspace_id, project_id, slug, title, content,
 				 parent_id, created_by_id, updated_by_id, created_at, updated_at)

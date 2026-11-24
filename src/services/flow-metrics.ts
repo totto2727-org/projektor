@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import type { SQL, SQLWrapper } from 'drizzle-orm'
-import { Predicate } from 'effect'
+import { Array as EffectArray, Predicate } from 'effect'
 import type { Effect } from 'effect'
 
 import { drizzle, schema } from '#db'
@@ -34,7 +34,7 @@ export interface Distribution {
 }
 
 const summarize = function summarize(durations: Readonly<number[]>): Distribution {
-  if (durations.length === 0) {
+  if (EffectArray.isReadonlyArrayEmpty(durations)) {
     return { count: 0, avg: null, p50: null, p90: null }
   }
   const sorted = [...durations].toSorted((left, right) => left - right)
@@ -210,7 +210,7 @@ const buildBugShareOverTime = function buildBugShareOverTime(
       bucketStart: dateLabel(t),
       total: group.length,
       bugCount,
-      bugSharePercent: group.length > 0 ? bugCount / group.length : null,
+      bugSharePercent: EffectArray.isArrayNonEmpty(group) ? bugCount / group.length : null,
     }
   })
 }

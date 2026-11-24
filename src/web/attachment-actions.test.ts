@@ -27,7 +27,10 @@ const fileFixture = function fileFixture(origin = 'https://front.example', quota
   )
   return { ...fixture, objects, put, remove }
 }
-const file = function file(bytes: Uint8Array<ArrayBuffer> = new Uint8Array([0, 255, 7, 128]), type = 'image/png') {
+const file = function file(
+  bytes: Uint8Array<ArrayBuffer> = new Uint8Array([0, 255, 7, 128]),
+  type = 'image/png',
+): File {
   return new File([bytes], 'diagram.png', { type })
 }
 const invoke = function invoke(

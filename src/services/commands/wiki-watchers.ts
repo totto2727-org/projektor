@@ -1,5 +1,5 @@
 import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
-import { Iterable, Predicate } from 'effect'
+import { Array as EffectArray, Iterable, Predicate } from 'effect'
 import { flattenError } from 'zod'
 
 import {
@@ -252,7 +252,7 @@ export const notifyWikiWatchers = async function notifyWikiWatchers(
     )
 
   const userIds = [...new Set(rows.map((r) => r.userId))].filter((id) => id !== ctx.userId)
-  if (userIds.length === 0) {
+  if (EffectArray.isArrayEmpty(userIds)) {
     return
   }
 
@@ -324,11 +324,11 @@ async function insertNotifications(
     }[]
   >,
 ): Promise<void> {
-  if (entries.length === 0) {
+  if (EffectArray.isReadonlyArrayEmpty(entries)) {
     return
   }
   const deliverable = await filterRecipientsWithAccess(ctx, orm, entries)
-  if (deliverable.length === 0) {
+  if (EffectArray.isArrayEmpty(deliverable)) {
     return
   }
   const now = Math.floor(Date.now() / 1000)
@@ -374,7 +374,7 @@ export const notifyCascadeDescendantWatchers = async function notifyCascadeDesce
   action: 'created' | 'updated' | 'deleted' = 'deleted',
 ): Promise<void> {
   const pages = descendants.filter((p) => !p.isTemplate)
-  if (pages.length === 0) {
+  if (EffectArray.isArrayEmpty(pages)) {
     return
   }
 
@@ -419,7 +419,7 @@ export const deleteWikiWatchersForPages = async function deleteWikiWatchersForPa
   ctx: ServiceCtx,
   pageIds: string[],
 ): Promise<void> {
-  if (pageIds.length === 0) {
+  if (EffectArray.isArrayEmpty(pageIds)) {
     return
   }
   const orm = drizzle(ctx.db, { schema })
@@ -763,7 +763,7 @@ const trimTrailingPartialSecond = function trimTrailingPartialSecond<T extends {
   rows: Readonly<T[]>,
   limit: number,
 ): Readonly<T[]> {
-  if (rows.length !== limit || rows.length === 0) {
+  if (rows.length !== limit || EffectArray.isReadonlyArrayEmpty(rows)) {
     return rows
   }
   const maxTs = rows[rows.length - 1].createdAt

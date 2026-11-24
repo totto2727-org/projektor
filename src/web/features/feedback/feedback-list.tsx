@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm, useStore } from '@tanstack/react-form'
-import { Predicate, Schema } from 'effect'
+import { Array as EffectArray, Predicate, Schema } from 'effect'
 import { useOptimistic, useState, useTransition } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
@@ -161,7 +161,9 @@ function FeedbackMobileCards({
               type='checkbox'
               aria-label={`select row ${r.id}`}
               checked={selected.has(r.id)}
-              onChange={() => onToggleRow(r.id)}
+              onChange={() => {
+                onToggleRow(r.id)
+              }}
               className='mt-1'
             />
             <div className='flex-1'>
@@ -212,7 +214,7 @@ function FeedbackTable({
               <input
                 type='checkbox'
                 aria-label='select all'
-                checked={rows.length > 0 && selected.size === rows.length}
+                checked={EffectArray.isArrayNonEmpty(rows) && selected.size === rows.length}
                 onChange={onToggleSelectAll}
               />
             </th>
@@ -231,7 +233,9 @@ function FeedbackTable({
                   type='checkbox'
                   aria-label={`select row ${r.id}`}
                   checked={selected.has(r.id)}
-                  onChange={() => onToggleRow(r.id)}
+                  onChange={() => {
+                    onToggleRow(r.id)
+                  }}
                 />
               </td>
               <td className={TD}>{ratingDisplay(r.rating, r.ratingScale)}</td>
@@ -423,7 +427,7 @@ export default function FeedbackList({ workspaceSlug, projectId, sourceId, initi
         </div>
       )}
       {pending && <p aria-live='polite'>Updating feedback…</p>}
-      {rows.length === 0 ? (
+      {EffectArray.isArrayEmpty(rows) ? (
         <div className='p-6 text-center text-text-muted bg-surface rounded-lg border border-border'>
           No feedback yet.
         </div>

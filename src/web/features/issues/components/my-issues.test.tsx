@@ -17,7 +17,7 @@ function show(issues: Readonly<ScopedIssue[]>) {
   return render(<MyIssues initialData={{ issues, memberships: [workspace] }} />)
 }
 
-function titles() {
+function titles(): string[] {
   return within(screen.getByRole('table'))
     .getAllByRole('row')
     .slice(1)
