@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -11,6 +10,7 @@ import {
   seedToken,
   seedUser,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('Task Types API', () => {
   let token: string
@@ -27,7 +27,7 @@ describe('Task Types API', () => {
   // ---- list ----
 
   test('GET /api/task-types returns empty list initially', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -40,7 +40,7 @@ describe('Task Types API', () => {
     await seedTaskType(workspaceId, { key: 'bug', name: 'Bug', position: 2 })
     await seedTaskType(workspaceId, { key: 'task', name: 'Task', position: 1, isDefault: true })
 
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
     const list = (await res.json()) as { key: string }[]
@@ -52,7 +52,7 @@ describe('Task Types API', () => {
   // ---- create ----
 
   test('POST /api/task-types creates a new type (owner)', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'epic', name: 'Epic', position: 1 }),
@@ -65,7 +65,7 @@ describe('Task Types API', () => {
 
   test('POST /api/task-types rejects duplicate key', async () => {
     await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'epic', name: 'Epic 2' }),
@@ -74,7 +74,7 @@ describe('Task Types API', () => {
   })
 
   test('POST /api/task-types rejects invalid key format', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'Bad Key!', name: 'Bad' }),
@@ -85,13 +85,13 @@ describe('Task Types API', () => {
   test('POST /api/task-types clears other defaults when isDefault=true', async () => {
     await seedTaskType(workspaceId, { key: 'task', name: 'Task', isDefault: true })
 
-    await SELF.fetch('http://localhost/api/task-types', {
+    await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'story', name: 'Story', isDefault: true }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
     const list = (await res.json()) as { key: string; is_default: number }[]
@@ -105,7 +105,7 @@ describe('Task Types API', () => {
     await seedMember(workspaceId, memberUser.id, 'member')
     const memberToken = await seedToken(workspaceId, memberUser.id)
 
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: authHeaders(memberToken, slug),
       body: JSON.stringify({ key: 'epic', name: 'Epic' }),
@@ -118,14 +118,14 @@ describe('Task Types API', () => {
   test('PATCH /api/task-types/:id updates name', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
-    const res = await SELF.fetch(`http://localhost/api/task-types/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'Defect' }),
     })
     expect(res.status).toBe(200)
 
-    const listRes = await SELF.fetch('http://localhost/api/task-types', {
+    const listRes = await fetchNativeApi('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
     const list = (await listRes.json()) as { key: string; name: string }[]
@@ -133,7 +133,7 @@ describe('Task Types API', () => {
   })
 
   test('PATCH /api/task-types/:id returns 404 for unknown id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'Ghost' }),
@@ -149,13 +149,13 @@ describe('Task Types API', () => {
     })
     const { id: bugId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
-    await SELF.fetch(`http://localhost/api/task-types/${bugId}`, {
+    await fetchNativeApi(`http://localhost/api/task-types/${bugId}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ isDefault: true }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
     const list = (await res.json()) as { id: string; is_default: number }[]
@@ -170,13 +170,13 @@ describe('Task Types API', () => {
   test('DELETE /api/task-types/:id removes a type', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
 
-    const res = await SELF.fetch(`http://localhost/api/task-types/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
 
-    const listRes = await SELF.fetch('http://localhost/api/task-types', {
+    const listRes = await fetchNativeApi('http://localhost/api/task-types', {
       headers: authHeaders(token, slug),
     })
     const list = (await listRes.json()) as unknown[]
@@ -184,7 +184,7 @@ describe('Task Types API', () => {
   })
 
   test('DELETE /api/task-types/:id returns 404 for unknown id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-types/${crypto.randomUUID()}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -195,7 +195,7 @@ describe('Task Types API', () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     await seedIssue(workspaceId, projectId, userId, { typeId })
 
-    const res = await SELF.fetch(`http://localhost/api/task-types/${typeId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-types/${typeId}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -208,7 +208,7 @@ describe('Task Types API', () => {
     await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     const other = await seedFixture({ role: 'owner' })
 
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: authHeaders(other.token, other.workspace.slug),
     })
     const list = (await res.json()) as unknown[]
@@ -230,7 +230,7 @@ describe('Task Types — issue integration', () => {
   test('POST /api/issues uses workspace default type when no typeId given', async () => {
     await seedTaskType(workspaceId, { key: 'task', name: 'Task', isDefault: true })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'No type given' }),
@@ -238,7 +238,7 @@ describe('Task Types — issue integration', () => {
     expect(res.status).toBe(201)
     const { id } = (await res.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
     const issue = (await getRes.json()) as { type_key: string; type_name: string }
@@ -249,7 +249,7 @@ describe('Task Types — issue integration', () => {
   test('POST /api/issues with typeId sets the type', async () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Bug issue', typeId }),
@@ -257,7 +257,7 @@ describe('Task Types — issue integration', () => {
     expect(res.status).toBe(201)
     const { id } = (await res.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
     const issue = (await getRes.json()) as { type_key: string }
@@ -271,7 +271,7 @@ describe('Task Types — issue integration', () => {
       name: 'Epic',
     })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Cross-ws type', typeId: foreignTypeId }),
@@ -283,14 +283,14 @@ describe('Task Types — issue integration', () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No type' })
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ typeId }),
     })
     expect(res.status).toBe(200)
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     const updated = (await getRes.json()) as { type_key: string }
@@ -301,13 +301,13 @@ describe('Task Types — issue integration', () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const issue = await seedIssue(workspaceId, projectId, userId, { typeId })
 
-    await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ typeId: null }),
     })
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     const updated = (await getRes.json()) as { type_id: string | null; type_key: string | null }
@@ -323,7 +323,7 @@ describe('Task Types — issue integration', () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Bug 2', typeId: bugTypeId })
     await seedIssue(workspaceId, projectId, userId, { title: 'Story 1', typeId: storyTypeId })
 
-    const res = await SELF.fetch(`http://localhost/api/issues?typeId=${bugTypeId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues?typeId=${bugTypeId}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await res.json()) as { items: { title: string }[] }
@@ -335,7 +335,7 @@ describe('Task Types — issue integration', () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'epic', name: 'Epic' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Typed issue', typeId })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(token, slug),
     })
     const page = (await res.json()) as { items: { type_key: string; type_name: string }[] }
@@ -347,7 +347,7 @@ describe('Task Types — issue integration', () => {
     const { id: typeId } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
     const issue = await seedIssue(workspaceId, projectId, userId, { typeId })
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     const body = (await res.json()) as { type_key: string; type_name: string }
@@ -356,7 +356,7 @@ describe('Task Types — issue integration', () => {
   })
 
   test('POST /api/issues has null type_key when no types exist', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Typeless issue' }),
@@ -364,7 +364,7 @@ describe('Task Types — issue integration', () => {
     expect(res.status).toBe(201)
     const { id } = (await res.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
     const issue = (await getRes.json()) as { type_id: null; type_key: null }
@@ -386,7 +386,7 @@ describe('Task Types — MCP parity', () => {
   })
 
   async function mcpCall(method: string, params: unknown) {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceNumericId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceNumericId}`, {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),

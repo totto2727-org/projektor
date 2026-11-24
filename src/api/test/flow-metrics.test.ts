@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { Distribution } from '#commands/flow-metrics.ts'
@@ -6,6 +5,7 @@ import type { Distribution } from '#commands/flow-metrics.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProjectFixture, seedTaskType } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 interface FlowMetrics {
   leadTime: Distribution
@@ -77,7 +77,7 @@ describe('Flow metrics (PROJ-252)', () => {
   }
 
   async function registerAgent(): Promise<string> {
-    const res = await SELF.fetch('http://localhost/api/agents', {
+    const res = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'flow-metrics-test-agent' }),
@@ -87,7 +87,7 @@ describe('Flow metrics (PROJ-252)', () => {
   }
 
   async function claim(issueId: string, agentId: string) {
-    await SELF.fetch(`http://localhost/api/issues/${issueId}/claim`, {
+    await fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId }),
@@ -95,7 +95,7 @@ describe('Flow metrics (PROJ-252)', () => {
   }
 
   async function getFlowMetrics(): Promise<FlowMetrics> {
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/flow-metrics`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -132,12 +132,12 @@ describe('Flow metrics (PROJ-252)', () => {
   })
 
   test('MCP get_flow_metrics matches REST', async () => {
-    const restRes = await SELF.fetch(`http://localhost/api/projects/${projectId}/flow-metrics`, {
+    const restRes = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics`, {
       headers: authHeaders(token, slug),
     })
     const restBody = await restRes.json()
 
-    const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -154,7 +154,7 @@ describe('Flow metrics (PROJ-252)', () => {
   })
 
   test('404s for a project in another workspace', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects/does-not-exist/flow-metrics', {
+    const res = await fetchNativeApi('http://localhost/api/projects/does-not-exist/flow-metrics', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
@@ -176,7 +176,7 @@ describe('Flow metrics (PROJ-252)', () => {
       doneAt: now - 1 * DAY,
     })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
       { headers: authHeaders(token, slug) },
     )
@@ -232,7 +232,7 @@ describe('Flow metrics (PROJ-252)', () => {
       doneAt: now - 10 * WEEK + 100,
     })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
       { headers: authHeaders(token, slug) },
     )
@@ -271,7 +271,7 @@ describe('Flow metrics (PROJ-252)', () => {
       doneAt: since - 10,
     })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
       { headers: authHeaders(token, slug) },
     )
@@ -283,7 +283,7 @@ describe('Flow metrics (PROJ-252)', () => {
   })
 
   test('aligns weekly bucketStart labels to Monday', async () => {
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${Math.floor(Date.now() / 1000) - 4 * 7 * 86_400}`,
       { headers: authHeaders(token, slug) },
     )
@@ -315,11 +315,11 @@ describe('Flow metrics (PROJ-252)', () => {
       doneAt: now,
     })
 
-    const weeklyRes = await SELF.fetch(
+    const weeklyRes = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=week`,
       { headers: authHeaders(token, slug) },
     )
-    const dailyRes = await SELF.fetch(
+    const dailyRes = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=day`,
       { headers: authHeaders(token, slug) },
     )
@@ -520,7 +520,7 @@ describe('Flow metrics (PROJ-252)', () => {
     })
     await stampReviewFields(doneIssue.id, { inReviewAt: until - WEEK })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=day`,
       { headers: authHeaders(token, slug) },
     )
@@ -573,7 +573,7 @@ describe('Flow metrics (PROJ-252)', () => {
       doneAt: now - 10,
     })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/flow-metrics?granularity=week`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics?granularity=week`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -616,7 +616,7 @@ describe('Flow metrics (PROJ-252)', () => {
       doneAt: now - 50,
     })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
       { headers: authHeaders(token, slug) },
     )
@@ -710,7 +710,7 @@ describe('Flow metrics (PROJ-252)', () => {
 
     const since = now - 11 * DAY
     const until = now
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=week`,
       { headers: authHeaders(token, slug) },
     )
@@ -741,7 +741,7 @@ describe('Flow metrics (PROJ-252)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Untracked' })
     await stampFlowTimestamps(issue.id, { doneAt: now })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86_400}&until=${now}`,
       { headers: authHeaders(token, slug) },
     )
@@ -839,7 +839,7 @@ describe('Factory health tiles (PROJ-334)', () => {
     await seedFileClaim(issue.id, 'released', now - 1 * DAY)
     await seedFileClaim(issue.id, 'overridden', now - 1 * DAY)
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}`,
       { headers: authHeaders(token, slug) },
     )
@@ -874,7 +874,7 @@ describe('Factory health tiles (PROJ-334)', () => {
       .run()
     await seedWipCapDenial(other.projectId, otherIssue.id, now)
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 100}&until=${now + 100}`,
       { headers: authHeaders(token, slug) },
     )
@@ -887,7 +887,7 @@ describe('Factory health tiles (PROJ-334)', () => {
     const now = Math.floor(Date.now() / 1000)
     await seedIssue(workspaceId, projectId, userId, { title: 'Healthy' })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${now - 86_400}&until=${now}`,
       { headers: authHeaders(token, slug) },
     )

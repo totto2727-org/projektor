@@ -1,7 +1,5 @@
 // PROJ-863: GET of an issue never shows stale data about OTHER entities (linked
 // issues, status/type names, project key, sprint) after those change.
-
-import { SELF } from 'cloudflare:test'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { getIssue } from '#commands/issues.ts'
@@ -9,6 +7,7 @@ import type { ServiceCtx } from '#commands/types.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedTaskStatus } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 type IssueBody = {
   project_key: string
@@ -26,7 +25,7 @@ let f: Awaited<ReturnType<typeof seedIssueFixture>>
 let otherId: string
 
 const call = (method: string, path: string, body?: unknown) =>
-  SELF.fetch(`http://localhost${path}`, {
+  fetchNativeApi(`http://localhost${path}`, {
     method,
     headers: authHeaders(f.token, f.slug),
     body: body === undefined ? undefined : JSON.stringify(body),

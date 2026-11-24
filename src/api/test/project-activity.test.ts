@@ -1,9 +1,9 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedComment, seedIssue, seedProject, seedProjectFixture, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 type McpContent = { content: { text: string }[] }
 
@@ -13,7 +13,7 @@ async function mcpCall<T>(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -412,7 +412,7 @@ describe('GET /api/projects/:id/activity (PROJ-245)', () => {
   })
 
   test('returns empty array when project has no activity', async () => {
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/activity`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity`, {
       headers,
     })
     expect(res.status).toBe(200)
@@ -423,7 +423,7 @@ describe('GET /api/projects/:id/activity (PROJ-245)', () => {
   test("returns issue_created events, matching the MCP tool's behavior", async () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'REST activity issue' })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/activity`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity`, {
       headers,
     })
     expect(res.status).toBe(200)
@@ -438,7 +438,7 @@ describe('GET /api/projects/:id/activity (PROJ-245)', () => {
       await seedIssue(workspaceId, projectId, userId, { title: `Issue ${i}` })
     }
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/activity?limit=2`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/activity?limit=2`, {
       headers,
     })
     const events = (await res.json()) as unknown[]
@@ -446,7 +446,7 @@ describe('GET /api/projects/:id/activity (PROJ-245)', () => {
   })
 
   test('returns 404 for an unknown project', async () => {
-    const res = await SELF.fetch(`http://localhost/api/projects/${crypto.randomUUID()}/activity`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${crypto.randomUUID()}/activity`, {
       headers,
     })
     expect(res.status).toBe(404)

@@ -7,8 +7,6 @@
  *  3. Workspace-scoped token is still confined to its workspace (regression).
  *  4. POST /auth/tokens without workspaceId mints a user-scoped token (NULL in DB).
  */
-
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -22,17 +20,18 @@ import {
   seedUserToken,
   seedWorkspace,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 async function getIssues(token: string, slug: string) {
-  return SELF.fetch('http://localhost/api/issues', { headers: authHeaders(token, slug) })
+  return fetchNativeApi('http://localhost/api/issues', { headers: authHeaders(token, slug) })
 }
 
 async function postIssue(token: string, slug: string, projectId: string, title: string) {
-  return SELF.fetch('http://localhost/api/issues', {
+  return fetchNativeApi('http://localhost/api/issues', {
     method: 'POST',
     headers: authHeaders(token, slug),
     body: JSON.stringify({ projectId, title }),
@@ -143,7 +142,7 @@ async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
 
 function mintAsHuman(email: string, body: unknown) {
   return asHuman(email, () =>
-    SELF.fetch('http://localhost/auth/tokens', {
+    fetchNativeApi('http://localhost/auth/tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -207,7 +206,7 @@ describe('PROJ-91: POST /auth/tokens — user-scoped minting', () => {
 describe('PROJ-903: only a human session can mint or revoke a PAT', () => {
   test('a workspace-confined pk_ token cannot mint a PAT (no confinement escape)', async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch('http://localhost/auth/tokens', {
+    const res = await fetchNativeApi('http://localhost/auth/tokens', {
       method: 'POST',
       headers: { Authorization: `Bearer ${fixture.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'escape', scopes: ['*'] }),
@@ -221,7 +220,7 @@ describe('PROJ-903: only a human session can mint or revoke a PAT', () => {
   test('a user-scoped PAT cannot mint another PAT either', async () => {
     const fixture = await seedFixture()
     const pat = await seedUserToken(fixture.user.id)
-    const res = await SELF.fetch('http://localhost/auth/tokens', {
+    const res = await fetchNativeApi('http://localhost/auth/tokens', {
       method: 'POST',
       headers: { Authorization: `Bearer ${pat}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'chain', scopes: ['*'] }),
@@ -238,14 +237,14 @@ describe('PROJ-903: only a human session can mint or revoke a PAT', () => {
       .first<{ id: string }>()
     const id = row?.id as string
 
-    const byToken = await SELF.fetch(`http://localhost/auth/tokens/${id}`, {
+    const byToken = await fetchNativeApi(`http://localhost/auth/tokens/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(byToken.status).toBe(403)
 
     const byHuman = await asHuman(fixture.user.email, () =>
-      SELF.fetch(`http://localhost/auth/tokens/${id}`, { method: 'DELETE' }),
+      fetchNativeApi(`http://localhost/auth/tokens/${id}`, { method: 'DELETE' }),
     )
     expect(byHuman.status).toBe(200)
   })

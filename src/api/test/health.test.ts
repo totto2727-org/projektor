@@ -1,16 +1,17 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
+
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('GET /health', () => {
   test('returns 200 ok', async () => {
-    const res = await SELF.fetch('http://localhost/health')
+    const res = await fetchNativeApi('http://localhost/health')
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body).toEqual({ ok: true })
   })
 
   test('is also reachable under /api/health (open, no auth)', async () => {
-    const res = await SELF.fetch('http://localhost/api/health')
+    const res = await fetchNativeApi('http://localhost/api/health')
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body).toEqual({ ok: true })
@@ -19,14 +20,14 @@ describe('GET /health', () => {
 
 describe('auth middleware', () => {
   test('rejects requests with no Authorization header', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: { 'X-Workspace-Slug': 'anything' },
     })
     expect(res.status).toBe(401)
   })
 
   test('rejects requests with a bad token', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
         Authorization: 'Bearer not-a-real-token',
         'X-Workspace-Slug': 'anything',
@@ -43,32 +44,32 @@ describe('auth middleware', () => {
 
 describe('SPA catch-all (ASSETS absent in test env)', () => {
   test('returns 404 for unmatched non-API paths', async () => {
-    const res = await SELF.fetch('http://localhost/some-random-path')
+    const res = await fetchNativeApi('http://localhost/some-random-path')
     expect(res.status).toBe(404)
   })
 
   test('returns 404 for issue pretty-URL paths (ASSETS absent in test env)', async () => {
-    const res = await SELF.fetch('http://localhost/projects/PROJ/issues/87/some-title')
+    const res = await fetchNativeApi('http://localhost/projects/PROJ/issues/87/some-title')
     expect(res.status).toBe(404)
   })
 
   test('does not intercept /api/health — still returns 200', async () => {
-    const res = await SELF.fetch('http://localhost/api/health')
+    const res = await fetchNativeApi('http://localhost/api/health')
     expect(res.status).toBe(200)
   })
 
   test('does not intercept /health — still returns 200', async () => {
-    const res = await SELF.fetch('http://localhost/health')
+    const res = await fetchNativeApi('http://localhost/health')
     expect(res.status).toBe(200)
   })
 
   test('returns 404 for /wiki/:slug pretty-URL paths (ASSETS absent in test env)', async () => {
-    const res = await SELF.fetch('http://localhost/wiki/some-page')
+    const res = await fetchNativeApi('http://localhost/wiki/some-page')
     expect(res.status).toBe(404)
   })
 
   test('returns 404 for the legacy /wiki?slug= redirect route (ASSETS absent in test env)', async () => {
-    const res = await SELF.fetch('http://localhost/wiki?slug=some-page')
+    const res = await fetchNativeApi('http://localhost/wiki?slug=some-page')
     expect(res.status).toBe(404)
   })
 })

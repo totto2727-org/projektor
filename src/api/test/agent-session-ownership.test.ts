@@ -1,15 +1,15 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 import { z } from 'zod'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture, seedToken, toolError } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function ownershipFixture(role: 'owner' | 'admin') {
   const f = await seedIssueFixture({ role })
   const foreignToken = await seedToken(f.workspaceId, f.userId)
   const send = (path: string, body: unknown, token = f.token, method = 'POST') =>
-    SELF.fetch(`http://localhost${path}`, {
+    fetchNativeApi(`http://localhost${path}`, {
       method,
       headers: authHeaders(token, f.slug),
       body: JSON.stringify(body),

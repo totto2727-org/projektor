@@ -5,8 +5,6 @@
 // and a whole db.batch() call counts once) plus a separate native REST behavioural check.
 // Query budgets cover shared domain work, not private Core authentication overhead.
 // Conflict/force/stale semantics remain asserted at 100-path scale.
-
-import { SELF } from 'cloudflare:test'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { claimFiles, releaseFiles } from '#commands/file-claims.ts'
@@ -14,6 +12,7 @@ import type { ServiceCtx } from '#commands/types.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 /**
  * Counts D1 round trips: each statement executed on its own (via .run()/.all()/.get()/.raw(),
@@ -128,7 +127,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
         expect(roundTrips).toBeLessThanOrEqual(10)
         return
       }
-      const res = await SELF.fetch('http://localhost/api/file-claims', {
+      const res = await fetchNativeApi('http://localhost/api/file-claims', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ issueId, paths, force: true }),
@@ -174,7 +173,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
         expect(roundTrips).toBeGreaterThan(0)
         expect(roundTrips).toBeLessThanOrEqual(10)
       } else {
-        const res = await SELF.fetch('http://localhost/api/file-claims', {
+        const res = await fetchNativeApi('http://localhost/api/file-claims', {
           method: 'POST',
           headers: authHeaders(token, slug),
           body: JSON.stringify({ issueId, paths }),
@@ -211,7 +210,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
     const { token, slug, issueId, workspaceId, userId } = await seedIssueFixture()
     const paths = Array.from({ length: 100 }, (_, i) => `src/release-${i}.ts`)
 
-    const claimRes = await SELF.fetch('http://localhost/api/file-claims', {
+    const claimRes = await fetchNativeApi('http://localhost/api/file-claims', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId, paths }),
@@ -231,7 +230,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       expect(roundTrips).toBeLessThanOrEqual(8)
       return
     }
-    const res = await SELF.fetch('http://localhost/api/file-claims/release', {
+    const res = await fetchNativeApi('http://localhost/api/file-claims/release', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId, paths }),
@@ -245,7 +244,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
   test('release reports only claims it actually released (a concurrent release is left alone)', async () => {
     const { token, slug, issueId, workspaceId, userId } = await seedIssueFixture()
     const paths = Array.from({ length: 5 }, (_, i) => `src/race-${i}.ts`)
-    const claimRes = await SELF.fetch('http://localhost/api/file-claims', {
+    const claimRes = await fetchNativeApi('http://localhost/api/file-claims', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId, paths }),
@@ -293,7 +292,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       .bind('src/race-0.ts')
       .first()
     expect(raced).toEqual({ released_at: 1, release_reason: 'expired' })
-    const observed = await SELF.fetch('http://localhost/api/file-claims?includeStale=true', {
+    const observed = await fetchNativeApi('http://localhost/api/file-claims?includeStale=true', {
       headers: authHeaders(token, slug),
     })
     expect(observed.status).toBe(200)
@@ -303,7 +302,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
 
   test('claiming the same path twice in one request claims it once', async () => {
     const { token, slug, issueId } = await seedIssueFixture()
-    const res = await SELF.fetch('http://localhost/api/file-claims', {
+    const res = await fetchNativeApi('http://localhost/api/file-claims', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId, paths: ['src/b.ts', 'src/a.ts', 'src/b.ts'] }),
@@ -325,7 +324,7 @@ describe('PROJ-864: claim_files/release_files write batching', () => {
       await seedLiveClaim(workspaceId, holder.id, p)
     }
 
-    const res = await SELF.fetch('http://localhost/api/file-claims', {
+    const res = await fetchNativeApi('http://localhost/api/file-claims', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId, paths, force: true }),

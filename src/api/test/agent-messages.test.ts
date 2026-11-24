@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -13,6 +12,7 @@ import {
   seedToken,
   toolError,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 describe('Agent Messages API', () => {
@@ -28,7 +28,7 @@ describe('Agent Messages API', () => {
   })
 
   async function postMessage(body: Record<string, unknown>, t = token, s = slug) {
-    return SELF.fetch('http://localhost/api/agent-messages', {
+    return fetchNativeApi('http://localhost/api/agent-messages', {
       method: 'POST',
       headers: authHeaders(t, s),
       body: JSON.stringify(body),
@@ -37,13 +37,13 @@ describe('Agent Messages API', () => {
 
   async function listMessages(params: Record<string, string> = {}, t = token, s = slug) {
     const qs = new URLSearchParams(params).toString()
-    return SELF.fetch(`http://localhost/api/agent-messages${qs ? `?${qs}` : ''}`, {
+    return fetchNativeApi(`http://localhost/api/agent-messages${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(t, s),
     })
   }
 
   async function mcpCall(method: string, args: Record<string, unknown>, t = token, s = slug, wsId = workspaceId) {
-    return SELF.fetch(`http://localhost/mcp/${wsId}`, {
+    return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${t}`,
@@ -321,7 +321,7 @@ describe('Agent Messages API', () => {
 
     // Post in workspace Y's issue scope
     const token2 = await seedToken(workspaceId, userId)
-    const otherPostRes = await SELF.fetch('http://localhost/api/agent-messages', {
+    const otherPostRes = await fetchNativeApi('http://localhost/api/agent-messages', {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ scope: otherScope, body: 'workspace-Y message' }),

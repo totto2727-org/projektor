@@ -1,8 +1,6 @@
 // PROJ-887 — MCP tool annotations (readOnlyHint / destructiveHint / idempotentHint /
 // openWorldHint) on every core tool, and their presence on the `tools/list` wire
 // response.
-
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { capabilityForMcpTool } from '../auth/scopes.ts'
@@ -10,6 +8,7 @@ import { DESTRUCTIVE_TOOLS } from '../mcp/annotations.ts'
 import { coreMCPTools } from '../routes/mcp.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('MCP tool annotations (PROJ-887)', () => {
   test('every core tool declares readOnlyHint and openWorldHint', () => {
@@ -72,7 +71,7 @@ describe('tools/list response carries annotations (PROJ-887)', () => {
   test('returns readOnlyHint/openWorldHint/destructiveHint in the wire payload', async () => {
     const fixture = await seedFixture()
     const headers = authHeaders(fixture.token, fixture.workspace.slug)
-    const res = (await SELF.fetch(`http://localhost/mcp/${fixture.workspace.id}`, {
+    const res = (await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),

@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -15,6 +14,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 const ENTITY_ID = crypto.randomUUID()
@@ -25,7 +25,7 @@ async function mcpCall<T>(
   params: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
@@ -58,7 +58,7 @@ function makeUploadRequest(token: string, slug: string, content = 'hello world',
   form.append('file', new File([content], filename, { type: 'text/plain' }))
   form.append('entityType', 'issue')
   form.append('entityId', ENTITY_ID)
-  return SELF.fetch('http://localhost/api/files', {
+  return fetchNativeApi('http://localhost/api/files', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -87,7 +87,7 @@ describe('Files API', () => {
     await makeUploadRequest(token, slug, 'content a', 'a.txt')
     await makeUploadRequest(token, slug, 'content b', 'b.txt')
 
-    const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
+    const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -104,14 +104,14 @@ describe('Files API', () => {
   })
 
   test('GET /api/files returns 400 for missing entityId', async () => {
-    const res = await SELF.fetch('http://localhost/api/files?entityType=issue', {
+    const res = await fetchNativeApi('http://localhost/api/files?entityType=issue', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)
   })
 
   test('GET /api/files returns empty array when no attachments exist', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -137,7 +137,7 @@ describe('Files API', () => {
     const uploadRes = await makeUploadRequest(token, slug, 'round-trip content', 'data.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(200)
@@ -160,14 +160,14 @@ describe('Files API', () => {
     form.append('file', new File([gifBytes], 'img.gif', { type: 'image/gif' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const uploadRes = await SELF.fetch('http://localhost/api/files', {
+    const uploadRes = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
     })
     const { id } = (await uploadRes.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(200)
@@ -179,7 +179,7 @@ describe('Files API', () => {
     const uploadRes = await makeUploadRequest(token, slug, 'meta content', 'meta.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
-    const res = await SELF.fetch(`http://localhost/api/files/${id}/metadata`, {
+    const res = await fetchNativeApi(`http://localhost/api/files/${id}/metadata`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -190,7 +190,7 @@ describe('Files API', () => {
   })
 
   test('GET /api/files/:id/metadata returns 404 for an unknown id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files/${crypto.randomUUID()}/metadata`, {
+    const res = await fetchNativeApi(`http://localhost/api/files/${crypto.randomUUID()}/metadata`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
@@ -200,13 +200,13 @@ describe('Files API', () => {
     const uploadRes = await makeUploadRequest(token, slug)
     const { id } = (await uploadRes.json()) as { id: string }
 
-    const delRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+    const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
     expect(delRes.status).toBe(204)
 
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(404)
@@ -218,7 +218,7 @@ describe('Files API', () => {
     const uploadRes = await makeUploadRequest(token, slug, 'query-param content', 'q.txt')
     const { id } = (await uploadRes.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}?workspace=${slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}?workspace=${slug}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     expect(getRes.status).toBe(200)
@@ -230,7 +230,7 @@ describe('Files API', () => {
     const { id } = (await uploadRes.json()) as { id: string }
 
     const other = await seedFixture()
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}?workspace=${other.workspace.slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}?workspace=${other.workspace.slug}`, {
       headers: { Authorization: `Bearer ${other.token}` },
     })
     expect(getRes.status).toBe(404)
@@ -241,7 +241,7 @@ describe('Files API', () => {
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch(`http://localhost/api/files?workspace=${slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/files?workspace=${slug}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: form,
@@ -256,7 +256,7 @@ describe('Files API', () => {
     // Second workspace — different member
     const other = await seedFixture()
 
-    const getRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       headers: authHeaders(other.token, other.workspace.slug),
     })
     expect(getRes.status).toBe(404)
@@ -268,7 +268,7 @@ describe('Files API', () => {
 
     const other = await seedFixture()
 
-    const delRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+    const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
       method: 'DELETE',
       headers: authHeaders(other.token, other.workspace.slug),
     })
@@ -280,7 +280,7 @@ describe('Files API', () => {
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', { method: 'POST', body: form })
+    const res = await fetchNativeApi('http://localhost/api/files', { method: 'POST', body: form })
     expect(res.status).toBe(401)
   })
 
@@ -289,7 +289,7 @@ describe('Files API', () => {
     form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
     form.append('entityType', 'project')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', {
+    const res = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -305,7 +305,7 @@ describe('Files API', () => {
     form.append('file', new File(['<html>evil</html>'], 'evil.html', { type: 'text/html' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', {
+    const res = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
@@ -320,7 +320,7 @@ describe('Files API', () => {
     form.append('file', new File(['data'], 'noext', { type: '' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', {
+    const res = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
@@ -336,7 +336,7 @@ describe('Files API', () => {
     form.append('file', new File([big], 'big.png', { type: 'image/png' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', {
+    const res = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
@@ -352,7 +352,7 @@ describe('Files API', () => {
     form.append('file', new File(['wiki content'], 'wiki.txt', { type: 'text/plain' }))
     form.append('entityType', 'wiki_page')
     form.append('entityId', wikiPageId)
-    const res = await SELF.fetch('http://localhost/api/files', {
+    const res = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
@@ -362,7 +362,7 @@ describe('Files API', () => {
     expect(body.filename).toBe('wiki.txt')
 
     // Can list the attachment back
-    const listRes = await SELF.fetch(`http://localhost/api/files?entityType=wiki_page&entityId=${wikiPageId}`, {
+    const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=wiki_page&entityId=${wikiPageId}`, {
       headers: authHeaders(token, slug),
     })
     expect(listRes.status).toBe(200)
@@ -399,7 +399,7 @@ describe('Files API', () => {
     form.append('file', new File(['xy'], 'tiny.png', { type: 'image/png' }))
     form.append('entityType', 'issue')
     form.append('entityId', ENTITY_ID)
-    const res = await SELF.fetch('http://localhost/api/files', {
+    const res = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
@@ -411,7 +411,7 @@ describe('Files API', () => {
 
   describe('POST /api/files/links (wiki_ref and url attachment kinds)', () => {
     async function createWikiPage(headers: Record<string, string>) {
-      const res = await SELF.fetch('http://localhost/api/wiki', {
+      const res = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Linked page', content: 'hello' }),
@@ -424,7 +424,7 @@ describe('Files API', () => {
       const headers = { ...authHeaders(token, slug), 'Content-Type': 'application/json' }
       const wikiPageId = await createWikiPage(headers)
 
-      const res = await SELF.fetch('http://localhost/api/files/links', {
+      const res = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -437,7 +437,7 @@ describe('Files API', () => {
       expect(res.status).toBe(201)
       expect(await res.json()).toMatchObject({ id: expect.any(String), kind: 'wiki_ref' })
 
-      const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
+      const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
       })
       const list = (await listRes.json()) as {
@@ -450,7 +450,7 @@ describe('Files API', () => {
     })
 
     test('rejects a wiki_ref for a non-existent wiki page → 404', async () => {
-      const res = await SELF.fetch('http://localhost/api/files/links', {
+      const res = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
         headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -464,7 +464,7 @@ describe('Files API', () => {
     })
 
     test('attaches a URL with a label and lists it', async () => {
-      const res = await SELF.fetch('http://localhost/api/files/links', {
+      const res = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
         headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -478,7 +478,7 @@ describe('Files API', () => {
       expect(res.status).toBe(201)
       expect(await res.json()).toMatchObject({ id: expect.any(String), kind: 'url' })
 
-      const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
+      const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${ENTITY_ID}`, {
         headers: authHeaders(token, slug),
       })
       const list = (await listRes.json()) as {
@@ -492,7 +492,7 @@ describe('Files API', () => {
     })
 
     test.each(['not-a-url', 'https://[broken', '/relative/path'])('rejects a malformed URL → 400: %s', async (url) => {
-      const res = await SELF.fetch('http://localhost/api/files/links', {
+      const res = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
         headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -508,7 +508,7 @@ describe('Files API', () => {
     test.each(['http://example.com/doc', 'mailto:review@example.com'])(
       'accepts URLs supported by the standard validator: %s',
       async (url) => {
-        const res = await SELF.fetch('http://localhost/api/files/links', {
+        const res = await fetchNativeApi('http://localhost/api/files/links', {
           method: 'POST',
           headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -524,7 +524,7 @@ describe('Files API', () => {
 
     test('DELETE removes a link attachment without touching R2', async () => {
       const headers = { ...authHeaders(token, slug), 'Content-Type': 'application/json' }
-      const createRes = await SELF.fetch('http://localhost/api/files/links', {
+      const createRes = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -536,7 +536,7 @@ describe('Files API', () => {
       })
       const { id } = (await createRes.json()) as { id: string }
 
-      const delRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+      const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
         method: 'DELETE',
         headers: authHeaders(token, slug),
       })
@@ -552,7 +552,7 @@ describe('Files API', () => {
       const adminToken = await seedToken(workspaceId, adminUser.id)
 
       const project = await seedProject(workspaceId)
-      const pageRes = await SELF.fetch('http://localhost/api/wiki', {
+      const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(adminToken, slug),
         body: JSON.stringify({
@@ -563,7 +563,7 @@ describe('Files API', () => {
       })
       const { id: restrictedPageId } = (await pageRes.json()) as { id: string }
 
-      const res = await SELF.fetch('http://localhost/api/files/links', {
+      const res = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
         headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -583,7 +583,7 @@ describe('Files API', () => {
       const adminHeaders = { ...authHeaders(adminToken, slug), 'Content-Type': 'application/json' }
 
       const project = await seedProject(workspaceId)
-      const pageRes = await SELF.fetch('http://localhost/api/wiki', {
+      const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: adminHeaders,
         body: JSON.stringify({
@@ -597,7 +597,7 @@ describe('Files API', () => {
       // Admin attaches it to an entity — the attachment itself is workspace-visible,
       // only the joined wiki page details should be gated.
       const entityId = crypto.randomUUID()
-      const linkRes = await SELF.fetch('http://localhost/api/files/links', {
+      const linkRes = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
         headers: adminHeaders,
         body: JSON.stringify({
@@ -609,7 +609,7 @@ describe('Files API', () => {
       })
       expect(linkRes.status).toBe(201)
 
-      const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
+      const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: authHeaders(token, slug),
       })
       const list = (await listRes.json()) as { kind: string; wikiPage: unknown }[]
@@ -625,7 +625,7 @@ describe('Files API', () => {
       const adminToken = await seedToken(workspaceId, adminUser.id)
       const adminHeaders = { ...authHeaders(adminToken, slug), 'Content-Type': 'application/json' }
 
-      const pageRes = await SELF.fetch('http://localhost/api/wiki', {
+      const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: adminHeaders,
         body: JSON.stringify({ title: 'Doomed page', content: 'will be deleted' }),
@@ -636,14 +636,14 @@ describe('Files API', () => {
       }
 
       const entityId = crypto.randomUUID()
-      const linkRes = await SELF.fetch('http://localhost/api/files/links', {
+      const linkRes = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
         headers: adminHeaders,
         body: JSON.stringify({ kind: 'wiki_ref', entityType: 'issue', entityId, wikiPageId }),
       })
       expect(linkRes.status).toBe(201)
 
-      const delRes = await SELF.fetch(`http://localhost/api/wiki/${wikiPageSlug}`, {
+      const delRes = await fetchNativeApi(`http://localhost/api/wiki/${wikiPageSlug}`, {
         method: 'DELETE',
         headers: adminHeaders,
       })
@@ -652,7 +652,7 @@ describe('Files API', () => {
       // PROJ-496: wiki attachment/wiki_ref cleanup (deleteWikiPageAttachments) moved
       // from delete time to purge time — the pointer attachment must still exist right
       // after the page is trashed.
-      const listRes = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
+      const listRes = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: adminHeaders,
       })
       const list = (await listRes.json()) as { kind: string; id: string; wikiPage: unknown }[]
@@ -676,14 +676,14 @@ describe('Files API', () => {
         .bind(Math.floor(Date.now() / 1000) - 31 * 24 * 60 * 60, wikiPageId)
         .run()
       await resetRateLimits()
-      const purgeRes = await SELF.fetch('http://localhost/api/wiki/purge-trash', {
+      const purgeRes = await fetchNativeApi('http://localhost/api/wiki/purge-trash', {
         method: 'POST',
         headers: adminHeaders,
       })
       expect(purgeRes.status).toBe(200)
 
       await resetRateLimits()
-      const listAfterPurge = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
+      const listAfterPurge = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${entityId}`, {
         headers: adminHeaders,
       })
       const listAfter = (await listAfterPurge.json()) as { kind: string }[]
@@ -698,7 +698,7 @@ describe('Files API', () => {
       form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
       form.append('entityType', 'issue')
       form.append('entityId', crypto.randomUUID())
-      const res = await SELF.fetch('http://localhost/api/files', {
+      const res = await fetchNativeApi('http://localhost/api/files', {
         method: 'POST',
         headers: { Authorization: `Bearer ${viewer.token}`, 'X-Workspace-Slug': workspace.slug },
         body: form,
@@ -708,7 +708,7 @@ describe('Files API', () => {
 
     test('POST /api/files/links rejects a viewer → 403', async () => {
       const { workspace, viewer } = await seedWorkspaceRoles()
-      const res = await SELF.fetch('http://localhost/api/files/links', {
+      const res = await fetchNativeApi('http://localhost/api/files/links', {
         method: 'POST',
         headers: {
           ...authHeaders(viewer.token, workspace.slug),
@@ -730,14 +730,14 @@ describe('Files API', () => {
       form.append('file', new File(['data'], 'f.txt', { type: 'text/plain' }))
       form.append('entityType', 'issue')
       form.append('entityId', crypto.randomUUID())
-      const uploadRes = await SELF.fetch('http://localhost/api/files', {
+      const uploadRes = await fetchNativeApi('http://localhost/api/files', {
         method: 'POST',
         headers: { Authorization: `Bearer ${owner.token}`, 'X-Workspace-Slug': workspace.slug },
         body: form,
       })
       const { id } = (await uploadRes.json()) as { id: string }
 
-      const delRes = await SELF.fetch(`http://localhost/api/files/${id}`, {
+      const delRes = await fetchNativeApi(`http://localhost/api/files/${id}`, {
         method: 'DELETE',
         headers: authHeaders(viewer.token, workspace.slug),
       })
@@ -837,7 +837,7 @@ describe('Files MCP tools', () => {
     form.append('file', new File(['mcp delete test'], 'mcp.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', crypto.randomUUID())
-    const uploadRes = await SELF.fetch('http://localhost/api/files', {
+    const uploadRes = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
@@ -964,7 +964,7 @@ describe('Attachment project visibility', () => {
   const asMember = () => authHeaders(memberToken, slug)
 
   test('hides attachments on an issue in a project the member has no grant on', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
       headers: asMember(),
     })
     expect(res.status).toBe(200)
@@ -974,14 +974,14 @@ describe('Attachment project visibility', () => {
   })
 
   test('404s the metadata read for an attachment on an invisible issue', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
+    const res = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
       headers: asMember(),
     })
     expect(res.status).toBe(404)
   })
 
   test('404s the download rather than streaming the bytes', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}`, {
       headers: asMember(),
     })
     expect(res.status).toBe(404)
@@ -992,7 +992,7 @@ describe('Attachment project visibility', () => {
   })
 
   test('404s the delete and leaves the R2 object intact', async () => {
-    const res = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}`, {
       method: 'DELETE',
       headers: asMember(),
     })
@@ -1033,14 +1033,14 @@ describe('Attachment project visibility', () => {
       await seedAttachment('wiki_page', id, `${name}.txt`)
     }
 
-    const scoped = await SELF.fetch(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.scoped}`, {
+    const scoped = await fetchNativeApi(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.scoped}`, {
       headers: asMember(),
     })
     expect(await scoped.json()).toEqual([])
 
     // A null project_id is a workspace-level page. Filtering these out too would be a
     // silent regression that the invisible-project assertions above cannot catch.
-    const global = await SELF.fetch(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.global}`, {
+    const global = await fetchNativeApi(`http://localhost/api/files?entityType=wiki_page&entityId=${pages.global}`, {
       headers: asMember(),
     })
     expect(((await global.json()) as unknown[]).length).toBe(1)
@@ -1049,12 +1049,12 @@ describe('Attachment project visibility', () => {
   test('still shows the attachment to a workspace admin', async () => {
     // The filter must be scoped to grant-less members; an admin losing access would be
     // this fix overshooting into a denial of service.
-    const list = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
+    const list = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${hiddenIssueId}`, {
       headers: authHeaders(adminToken, slug),
     })
     expect(((await list.json()) as unknown[]).length).toBe(1)
 
-    const meta = await SELF.fetch(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
+    const meta = await fetchNativeApi(`http://localhost/api/files/${hiddenAttachmentId}/metadata`, {
       headers: authHeaders(adminToken, slug),
     })
     expect(meta.status).toBe(200)
@@ -1067,7 +1067,7 @@ describe('Attachment project visibility', () => {
     const orphanId = crypto.randomUUID()
     await seedAttachment('issue', orphanId, 'orphan.txt')
 
-    const res = await SELF.fetch(`http://localhost/api/files?entityType=issue&entityId=${orphanId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/files?entityType=issue&entityId=${orphanId}`, {
       headers: asMember(),
     })
     expect(((await res.json()) as { filename: string }[]).map((a) => a.filename)).toEqual(['orphan.txt'])
@@ -1082,7 +1082,7 @@ describe('Attachment project visibility', () => {
     form.append('file', new File(['planted'], 'planted.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', hiddenIssueId)
-    const res = await SELF.fetch('http://localhost/api/files', {
+    const res = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
       body: form,
@@ -1103,7 +1103,7 @@ describe('Attachment project visibility', () => {
   })
 
   test('rejects a link attachment onto an issue in an invisible project', async () => {
-    const res = await SELF.fetch('http://localhost/api/files/links', {
+    const res = await fetchNativeApi('http://localhost/api/files/links', {
       method: 'POST',
       headers: asMember(),
       body: JSON.stringify({
@@ -1127,7 +1127,7 @@ describe('Attachment project visibility', () => {
     form.append('file', new File(['nope'], 'nope.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', issue.id)
-    const res = await SELF.fetch('http://localhost/api/files', {
+    const res = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${viewerToken}`, 'X-Workspace-Slug': slug },
       body: form,
@@ -1144,7 +1144,7 @@ describe('Attachment project visibility', () => {
     form.append('file', new File(['fine'], 'fine.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', issue.id)
-    const res = await SELF.fetch('http://localhost/api/files', {
+    const res = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${memberToken}`, 'X-Workspace-Slug': slug },
       body: form,

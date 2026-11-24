@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { fetchAgentWipCap } from '#commands/issue-leases.ts'
@@ -7,6 +6,7 @@ import { drizzle, schema } from '#db'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedFixture, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('Issue leases API (PROJ-184)', () => {
   let token: string
@@ -20,7 +20,7 @@ describe('Issue leases API (PROJ-184)', () => {
   })
 
   async function registerAgent(name: string): Promise<string> {
-    const res = await SELF.fetch('http://localhost/api/agents', {
+    const res = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name }),
@@ -30,7 +30,7 @@ describe('Issue leases API (PROJ-184)', () => {
   }
 
   function claim(issueId: string, agentId: string) {
-    return SELF.fetch(`http://localhost/api/issues/${issueId}/claim`, {
+    return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId }),
@@ -38,7 +38,7 @@ describe('Issue leases API (PROJ-184)', () => {
   }
 
   function release(issueId: string, agentId?: string) {
-    return SELF.fetch(`http://localhost/api/issues/${issueId}/release`, {
+    return fetchNativeApi(`http://localhost/api/issues/${issueId}/release`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify(agentId ? { agentId } : {}),
@@ -112,7 +112,7 @@ describe('Issue leases API (PROJ-184)', () => {
     const a2 = await registerAgent('a2')
 
     expect((await claim(issue.id, a1)).status).toBe(201)
-    const endRes = await SELF.fetch(`http://localhost/api/agents/${a1}/end`, {
+    const endRes = await fetchNativeApi(`http://localhost/api/agents/${a1}/end`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -127,7 +127,7 @@ describe('Issue leases API (PROJ-184)', () => {
     const a1 = await registerAgent('a1')
     await claim(issue.id, a1)
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}/leases`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/leases`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -140,14 +140,14 @@ describe('Issue leases API (PROJ-184)', () => {
   test('workspace isolation: cannot claim an issue from another workspace', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Mine' })
     const other = await seedFixture()
-    const otherAgentRes = await SELF.fetch('http://localhost/api/agents', {
+    const otherAgentRes = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ name: 'intruder' }),
     })
     const otherAgent = (await otherAgentRes.json()) as { id: string }
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}/claim`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/claim`, {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ agentId: otherAgent.id }),
@@ -168,7 +168,7 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
   })
 
   async function callPrioritized(args: Record<string, unknown>) {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -189,13 +189,13 @@ describe('get_prioritized_issues excludeClaimed (PROJ-184)', () => {
     const a = await seedIssue(workspaceId, projectId, userId, { title: 'A', priority: 'high' })
     const b = await seedIssue(workspaceId, projectId, userId, { title: 'B', priority: 'high' })
 
-    const agentRes = await SELF.fetch('http://localhost/api/agents', {
+    const agentRes = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'worker' }),
     })
     const agent = (await agentRes.json()) as { id: string }
-    await SELF.fetch(`http://localhost/api/issues/${a.id}/claim`, {
+    await fetchNativeApi(`http://localhost/api/issues/${a.id}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId: agent.id }),
@@ -227,7 +227,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   })
 
   async function registerAgent(name: string): Promise<string> {
-    const res = await SELF.fetch('http://localhost/api/agents', {
+    const res = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name }),
@@ -237,7 +237,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   }
 
   function claim(issueId: string, agentId: string) {
-    return SELF.fetch(`http://localhost/api/issues/${issueId}/claim`, {
+    return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId }),
@@ -346,7 +346,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   })
 
   test("respects a project's own agent_wip_limit override", async () => {
-    const patchRes = await SELF.fetch(`http://localhost/api/projects/${projectId}`, {
+    const patchRes = await fetchNativeApi(`http://localhost/api/projects/${projectId}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ agentWipLimit: 1 }),
@@ -359,7 +359,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   // --- REST/MCP parity (PROJ-301) ---
 
   test('MCP parity: update_project sets agent_wip_limit the same as REST PATCH', async () => {
-    const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -375,7 +375,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   })
 
   test('MCP parity: create_project sets agent_wip_limit the same as REST create', async () => {
-    const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -410,7 +410,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
   // lease no one is still working.
   describe('PROJ-928: issue close releases its lease', () => {
     function patchStatus(id: string, status: string, completionReport?: object) {
-      return SELF.fetch(`http://localhost/api/issues/${id}`, {
+      return fetchNativeApi(`http://localhost/api/issues/${id}`, {
         method: 'PATCH',
         headers: authHeaders(token, slug),
         body: JSON.stringify(completionReport ? { status, completionReport } : { status }),
@@ -457,7 +457,7 @@ describe('claim_issue agent WIP limit (PROJ-253)', () => {
       const a1 = await registerAgent('a1')
       expect((await claim(issue.id, a1)).status).toBe(201)
 
-      const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+      const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
         method: 'PATCH',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Renamed' }),
@@ -494,7 +494,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
   })
 
   async function registerAgent(name: string): Promise<string> {
-    const res = await SELF.fetch('http://localhost/api/agents', {
+    const res = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name }),
@@ -504,7 +504,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
   }
 
   function claim(issueId: string, agentId: string) {
-    return SELF.fetch(`http://localhost/api/issues/${issueId}/claim`, {
+    return fetchNativeApi(`http://localhost/api/issues/${issueId}/claim`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId }),
@@ -517,7 +517,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
   }
 
   async function mcpLeases(args: Record<string, unknown>) {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -554,7 +554,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     expect((await claim(issue.id, agent)).status).toBe(201)
     expect(
       (
-        await SELF.fetch(`http://localhost/api/issues/${issue.id}/release`, {
+        await fetchNativeApi(`http://localhost/api/issues/${issue.id}/release`, {
           method: 'POST',
           headers: authHeaders(token, slug),
           body: JSON.stringify({}),
@@ -603,13 +603,13 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     expect((await claim(issue.id, agent)).status).toBe(201)
     await backdateHeartbeat(agent)
 
-    const defaultRes = await SELF.fetch(`http://localhost/api/issues/${issue.id}/leases`, {
+    const defaultRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/leases`, {
       headers: authHeaders(token, slug),
     })
     const defaultBody = (await defaultRes.json()) as { items: unknown[] }
     expect(defaultBody.items).toHaveLength(0)
 
-    const staleRes = await SELF.fetch(`http://localhost/api/issues/${issue.id}/leases?includeStale=true`, {
+    const staleRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/leases?includeStale=true`, {
       headers: authHeaders(token, slug),
     })
     const staleBody = (await staleRes.json()) as { items: unknown[] }
@@ -627,7 +627,7 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
       name: 'workspace-rest-holder',
     })
 
-    const byIssue = await SELF.fetch(`http://localhost/api/issue-leases?issueId=${issue.id}`, {
+    const byIssue = await fetchNativeApi(`http://localhost/api/issue-leases?issueId=${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     expect(byIssue.status).toBe(200)
@@ -638,26 +638,26 @@ describe('PROJ-932: list_issue_leases live-only default', () => {
     expect(byIssueBody.items[0].issueId).toBe(issue.id)
     expect(byIssueBody.items[0].issueRef).toBe(`${projectKey}-${issue.number}`)
 
-    const byAgent = await SELF.fetch(`http://localhost/api/issue-leases?agentId=${agent}`, {
+    const byAgent = await fetchNativeApi(`http://localhost/api/issue-leases?agentId=${agent}`, {
       headers: authHeaders(token, slug),
     })
     const byAgentBody = (await byAgent.json()) as { items: { agentSessionId: string }[] }
     expect(byAgentBody.items.some((i) => i.agentSessionId === agent)).toBe(true)
 
-    const byProjectKey = await SELF.fetch(`http://localhost/api/issue-leases?projectId=${projectKey}`, {
+    const byProjectKey = await fetchNativeApi(`http://localhost/api/issue-leases?projectId=${projectKey}`, {
       headers: authHeaders(token, slug),
     })
     const byProjectKeyBody = (await byProjectKey.json()) as { items: { issueId: string }[] }
     expect(byProjectKeyBody.items.some((i) => i.issueId === issue.id)).toBe(true)
 
     await backdateHeartbeat(agent)
-    const defaultRes = await SELF.fetch('http://localhost/api/issue-leases', {
+    const defaultRes = await fetchNativeApi('http://localhost/api/issue-leases', {
       headers: authHeaders(token, slug),
     })
     const defaultBody = (await defaultRes.json()) as { items: { issueId: string }[] }
     expect(defaultBody.items.some((i) => i.issueId === issue.id)).toBe(false)
 
-    const staleRes = await SELF.fetch('http://localhost/api/issue-leases?includeStale=true', {
+    const staleRes = await fetchNativeApi('http://localhost/api/issue-leases?includeStale=true', {
       headers: authHeaders(token, slug),
     })
     const staleBody = (await staleRes.json()) as {
@@ -681,7 +681,7 @@ describe('PROJ-932: list_issue_leases projectId + visibility for a non-admin mem
     // No seedGroupGrant for `userId` on `hidden` — it stays invisible to them.
     const hiddenIssue = await seedIssue(workspaceId, hidden.id, userId, { title: 'Hidden' })
 
-    const agentRes = await SELF.fetch('http://localhost/api/agents', {
+    const agentRes = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'hidden-holder' }),
@@ -698,7 +698,7 @@ describe('PROJ-932: list_issue_leases projectId + visibility for a non-admin mem
       .run()
 
     async function mcpLeases(args: Record<string, unknown>) {
-      const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+      const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({

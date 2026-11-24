@@ -1,7 +1,5 @@
 // PROJ-809 / PROJ-810: wiki reads carry their revision pointer, and every content
 // write is guarded so a concurrent write can't be silently reverted.
-
-import { SELF } from 'cloudflare:test'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { ConflictError } from '#commands/errors.ts'
@@ -10,6 +8,7 @@ import { createWikiPage, getWikiPage, listWikiRevisions, patchWikiPage, updateWi
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function setup() {
   const { workspace, user, token } = await seedFixture({ role: 'owner' })
@@ -67,7 +66,7 @@ describe('PROJ-809: get_wiki_page returns the revision it read', () => {
 
   test('REST GET carries revisionId in the body and as the ETag', async () => {
     const { slug, token, wsSlug } = await setup()
-    const res = await SELF.fetch(`http://localhost/api/wiki/${slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${slug}`, {
       headers: authHeaders(token, wsSlug),
     })
     expect(res.status).toBe(200)

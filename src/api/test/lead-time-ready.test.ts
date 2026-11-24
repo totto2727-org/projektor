@@ -1,9 +1,9 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import m0062 from '../../../migrations/0062_repair_zero_lead_time.sql?raw'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-921: lead time (ready -> done) came out as a 0s median because an issue moved
 // straight from backlog to done in one update got ready_at = done_at. ready_at is now
@@ -19,7 +19,7 @@ describe('PROJ-921: ready_at and lead time', () => {
   })
 
   async function create(status: string): Promise<string> {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: `t-${status}`, status }),
@@ -29,7 +29,7 @@ describe('PROJ-921: ready_at and lead time', () => {
   }
 
   async function patch(id: string, status: string) {
-    const res = await SELF.fetch(`http://localhost/api/issues/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ status }),
@@ -77,7 +77,7 @@ describe('PROJ-921: ready_at and lead time', () => {
     const normal = await create('todo')
     await patch(normal, 'done')
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${projectId}/flow-metrics`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)

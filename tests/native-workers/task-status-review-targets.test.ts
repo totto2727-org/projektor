@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from '../../src/api/test/fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus } from '../../src/api/test/helpers.ts'
+import { fetchNativeApi } from '../../src/api/test/native-fetch.ts'
 
 async function fixture() {
   const owner = await seedProjectFixture({ role: 'owner' })
@@ -40,7 +40,7 @@ async function fixture() {
       .bind(...ids)
       .all<{ id: string; review_status: string | null; r2_key: string }>()
   const patch = (body: unknown) =>
-    SELF.fetch(`http://localhost/api/task-statuses/${status.id}`, {
+    fetchNativeApi(`http://localhost/api/task-statuses/${status.id}`, {
       method: 'PATCH',
       headers: authHeaders(owner.token, owner.slug),
       body: JSON.stringify(body),

@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { computeFreshness } from '#commands/wiki-freshness.ts'
@@ -18,6 +17,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 // PROJ-869: wraps a D1Database so every row a `.all()`/`.first()`/`.raw()` call resolves
@@ -72,7 +72,7 @@ async function mcpCall<T>(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -101,7 +101,7 @@ function mcpData<T>(r: JsonRpcResult<{ content: { text: string }[] }> | JsonRpcE
 // before every request.
 async function resetRateLimitAndFetch(url: string, opts?: RequestInit) {
   await resetRateLimits()
-  return SELF.fetch(url, opts)
+  return fetchNativeApi(url, opts)
 }
 
 async function resetRateLimitAndMcpCall<T>(
@@ -139,7 +139,7 @@ describe('Wiki API', () => {
   })
 
   test('GET /api/wiki returns empty list initially', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -147,7 +147,7 @@ describe('Wiki API', () => {
   })
 
   test('POST /api/wiki creates a page', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Getting Started', content: '# Welcome' }),
@@ -159,7 +159,7 @@ describe('Wiki API', () => {
 
   describe('canonical page url (PROJ-307)', () => {
     test('create/get/update/list/tree all expose a resolvable url', async () => {
-      const createRes = await SELF.fetch('http://localhost/api/wiki', {
+      const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Weekly Updates', content: 'index' }),
@@ -167,13 +167,13 @@ describe('Wiki API', () => {
       const created = (await createRes.json()) as { url: string }
       expect(created.url).toBe('/wiki/weekly-updates')
 
-      const getRes = await SELF.fetch('http://localhost/api/wiki/weekly-updates', {
+      const getRes = await fetchNativeApi('http://localhost/api/wiki/weekly-updates', {
         headers: authHeaders(token, slug),
       })
       const fetched = (await getRes.json()) as { url: string }
       expect(fetched.url).toBe('/wiki/weekly-updates')
 
-      const updateRes = await SELF.fetch('http://localhost/api/wiki/weekly-updates', {
+      const updateRes = await fetchNativeApi('http://localhost/api/wiki/weekly-updates', {
         method: 'PUT',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'index v2' }),
@@ -181,13 +181,13 @@ describe('Wiki API', () => {
       const updated = (await updateRes.json()) as { url: string }
       expect(updated.url).toBe('/wiki/weekly-updates')
 
-      const listRes = await SELF.fetch('http://localhost/api/wiki', {
+      const listRes = await fetchNativeApi('http://localhost/api/wiki', {
         headers: authHeaders(token, slug),
       })
       const list = (await listRes.json()) as { slug: string; url: string }[]
       expect(list.find((p) => p.slug === 'weekly-updates')?.url).toBe('/wiki/weekly-updates')
 
-      const treeRes = await SELF.fetch('http://localhost/api/wiki/tree', {
+      const treeRes = await fetchNativeApi('http://localhost/api/wiki/tree', {
         headers: authHeaders(token, slug),
       })
       const tree = (await treeRes.json()) as { slug: string; url: string }[]
@@ -197,7 +197,7 @@ describe('Wiki API', () => {
     test('omits projectId from the url for a project-scoped page (slugs are workspace-unique, PROJ-483)', async () => {
       const project = await seedProject(workspaceId)
       await seedGroupGrant(workspaceId, userId, project.id)
-      const createRes = await SELF.fetch('http://localhost/api/wiki', {
+      const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Project Notes', content: 'notes', projectId: project.id }),
@@ -210,7 +210,7 @@ describe('Wiki API', () => {
   test("PROJ-389: another workspace's owner cannot create a wiki page in this project", async () => {
     const project = await seedProject(workspaceId)
     const otherOwner = await seedFixture({ role: 'owner' })
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(otherOwner.token, otherOwner.workspace.slug),
       body: JSON.stringify({ title: 'Cross ws page', content: 'x', projectId: project.id }),
@@ -219,13 +219,13 @@ describe('Wiki API', () => {
   })
 
   test('GET /api/wiki/:slug retrieves a page by slug', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Architecture', content: '## System design' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/architecture', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/architecture', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -235,33 +235,33 @@ describe('Wiki API', () => {
   })
 
   test('GET /api/wiki/:slug returns 404 for unknown slug', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki/does-not-exist', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/does-not-exist', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
   })
 
   test('PUT /api/wiki/:slug updates content and saves a revision', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Versioned', content: 'v1 content' }),
     })
 
-    const updateRes = await SELF.fetch('http://localhost/api/wiki/versioned', {
+    const updateRes = await fetchNativeApi('http://localhost/api/wiki/versioned', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Versioned', content: 'v2 content' }),
     })
     expect(updateRes.status).toBe(200)
 
-    const pageRes = await SELF.fetch('http://localhost/api/wiki/versioned', {
+    const pageRes = await fetchNativeApi('http://localhost/api/wiki/versioned', {
       headers: authHeaders(token, slug),
     })
     const page = (await pageRes.json()) as { content: string }
     expect(page.content).toBe('v2 content')
 
-    const revRes = await SELF.fetch('http://localhost/api/wiki/versioned/revisions', {
+    const revRes = await fetchNativeApi('http://localhost/api/wiki/versioned/revisions', {
       headers: authHeaders(token, slug),
     })
     const revisions = (await revRes.json()) as unknown[]
@@ -269,18 +269,18 @@ describe('Wiki API', () => {
   })
 
   test('GET /api/wiki/search finds pages by keyword', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Deployment Guide', content: 'Use wrangler to deploy' }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Onboarding', content: 'Welcome to the team' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=wrangler', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search?q=wrangler', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
@@ -292,12 +292,12 @@ describe('Wiki API', () => {
   // `freshness: null` — never fabricated. (R7 landed; full freshness behavior is
   // exercised in the "Wiki freshness model (PROJ-489)" describe block below.)
   test('GET /api/wiki/search returns freshness: null for a page with no verification signal', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Freshness Placeholder Page', content: 'wrangler' }),
     })
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=wrangler', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search?q=wrangler', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { freshness: unknown }[]
@@ -311,23 +311,23 @@ describe('Wiki API', () => {
   // valid filter, just one that (correctly) matches nothing here. `status` stays a
   // closed enum, so an unrecognized value there is still rejected.
   test('GET /api/wiki/search accepts an arbitrary type filter but rejects an unknown status (PROJ-513)', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Noop Filter Page', content: 'wrangler' }),
     })
-    const okRes = await SELF.fetch('http://localhost/api/wiki/search?q=wrangler&type=guide', {
+    const okRes = await fetchNativeApi('http://localhost/api/wiki/search?q=wrangler&type=guide', {
       headers: authHeaders(token, slug),
     })
     expect(okRes.status).toBe(200)
-    const badStatusRes = await SELF.fetch('http://localhost/api/wiki/search?q=wrangler&status=fresh', {
+    const badStatusRes = await fetchNativeApi('http://localhost/api/wiki/search?q=wrangler&status=fresh', {
       headers: authHeaders(token, slug),
     })
     expect(badStatusRes.status).toBe(400)
   })
 
   test('accepts a custom slug', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Home', slug: 'home', content: 'Root page' }),
@@ -339,25 +339,25 @@ describe('Wiki API', () => {
   // --- canonical behavior parity tests ---
 
   test('GET /api/wiki?parentId= filters to children of that page (PROJ-244)', async () => {
-    const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Parent Page', content: 'root' }),
     })
     const parent = (await parentRes.json()) as { id: string }
 
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Child Page', content: 'child', parentId: parent.id }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Unrelated Page', content: 'sibling' }),
     })
 
-    const res = await SELF.fetch(`http://localhost/api/wiki?parentId=${parent.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki?parentId=${parent.id}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -367,20 +367,20 @@ describe('Wiki API', () => {
   })
 
   test('GET /api/wiki returns ALL pages regardless of parent hierarchy', async () => {
-    const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Parent Page', content: 'root' }),
     })
     const parent = (await parentRes.json()) as { id: string; slug: string }
 
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Child Page', content: 'child', parentId: parent.id }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       headers: authHeaders(token, slug),
     })
     const pages = (await res.json()) as unknown[]
@@ -388,12 +388,12 @@ describe('Wiki API', () => {
   })
 
   test('GET /api/wiki/search with no query returns empty array', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Some Page', content: 'content' }),
     })
-    const res = await SELF.fetch('http://localhost/api/wiki/search', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -404,7 +404,7 @@ describe('Wiki API', () => {
   // that is anchored to the actual match and highlighted with ** markers.
   test('GET /api/wiki/search snippet is match-anchored and highlighted', async () => {
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -412,7 +412,7 @@ describe('Wiki API', () => {
         content: `${filler} needle-term ${filler}`,
       }),
     })
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=needle-term', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search?q=needle-term', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { excerpt: string }[]
@@ -428,7 +428,7 @@ describe('Wiki API', () => {
   // in a long body.
   test('GET /api/wiki/search ranks a title match above a buried body match', async () => {
     const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(20)
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -436,13 +436,13 @@ describe('Wiki API', () => {
         content: `${filler} zylophone ${filler}`,
       }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Zylophone Guide', content: 'short body, no repeat term' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=zylophone', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search?q=zylophone', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
@@ -452,19 +452,19 @@ describe('Wiki API', () => {
 
   test('GET /api/wiki/search supports limit/offset pagination', async () => {
     for (let i = 0; i < 3; i++) {
-      await SELF.fetch('http://localhost/api/wiki', {
+      await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ title: `Paginated Page ${i}`, content: 'shared-search-term' }),
       })
     }
-    const page1 = await SELF.fetch('http://localhost/api/wiki/search?q=shared-search-term&limit=2', {
+    const page1 = await fetchNativeApi('http://localhost/api/wiki/search?q=shared-search-term&limit=2', {
       headers: authHeaders(token, slug),
     })
     const page1Results = (await page1.json()) as { id: string }[]
     expect(page1Results).toHaveLength(2)
 
-    const page2 = await SELF.fetch('http://localhost/api/wiki/search?q=shared-search-term&limit=2&offset=2', {
+    const page2 = await fetchNativeApi('http://localhost/api/wiki/search?q=shared-search-term&limit=2&offset=2', {
       headers: authHeaders(token, slug),
     })
     const page2Results = (await page2.json()) as { id: string }[]
@@ -480,7 +480,7 @@ describe('Wiki API', () => {
     // slug-collision 409s; the rate_limit reset avoids tripping the 5-req/window cap
     // (RATE_LIMIT_API_MAX) across the create + fetch calls below.
     for (let i = 0; i < 3; i++) {
-      const createRes = await SELF.fetch('http://localhost/api/wiki', {
+      const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({
@@ -493,7 +493,7 @@ describe('Wiki API', () => {
     await resetRateLimits()
 
     const fetchAll = () =>
-      SELF.fetch('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2', {
+      fetchNativeApi('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2', {
         headers: authHeaders(token, slug),
       }).then((r) => r.json() as Promise<{ id: string }[]>)
 
@@ -503,7 +503,7 @@ describe('Wiki API', () => {
     expect(first.map((r) => r.id)).toEqual(second.map((r) => r.id))
 
     await resetRateLimits()
-    const page2 = await SELF.fetch('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2&offset=2', {
+    const page2 = await fetchNativeApi('http://localhost/api/wiki/search?q=tie-rank-search-term&limit=2&offset=2', {
       headers: authHeaders(token, slug),
     })
     const page2Results = (await page2.json()) as { id: string }[]
@@ -513,7 +513,7 @@ describe('Wiki API', () => {
   })
 
   test('GET /api/wiki/search updatedSince filters out pages updated before the cutoff', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Stale Match Page', content: 'freshness-cutoff-term' }),
@@ -524,12 +524,15 @@ describe('Wiki API', () => {
       .first<{ updated_at: number }>()
     const cutoff = (pageRow?.updated_at ?? 0) + 1000
 
-    const res = await SELF.fetch(`http://localhost/api/wiki/search?q=freshness-cutoff-term&updatedSince=${cutoff}`, {
-      headers: authHeaders(token, slug),
-    })
+    const res = await fetchNativeApi(
+      `http://localhost/api/wiki/search?q=freshness-cutoff-term&updatedSince=${cutoff}`,
+      {
+        headers: authHeaders(token, slug),
+      },
+    )
     expect(await res.json()).toEqual([])
 
-    const resAll = await SELF.fetch('http://localhost/api/wiki/search?q=freshness-cutoff-term', {
+    const resAll = await fetchNativeApi('http://localhost/api/wiki/search?q=freshness-cutoff-term', {
       headers: authHeaders(token, slug),
     })
     const allResults = (await resAll.json()) as { id: string }[]
@@ -538,18 +541,18 @@ describe('Wiki API', () => {
 
   test("GET /api/wiki/search never returns another workspace's pages", async () => {
     const other = await seedFixture()
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ title: 'Other Workspace Page', content: 'cross-tenant-term' }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'This Workspace Page', content: 'cross-tenant-term' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=cross-tenant-term', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search?q=cross-tenant-term', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
@@ -560,37 +563,37 @@ describe('Wiki API', () => {
   // PROJ-486: the wiki_fts mirror table must track create/update/delete of wiki_pages.
   describe('wiki_fts index stays in sync', () => {
     test('a newly created page is searchable immediately', async () => {
-      await SELF.fetch('http://localhost/api/wiki', {
+      await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Sync Create Page', content: 'sync-create-term' }),
       })
-      const res = await SELF.fetch('http://localhost/api/wiki/search?q=sync-create-term', {
+      const res = await fetchNativeApi('http://localhost/api/wiki/search?q=sync-create-term', {
         headers: authHeaders(token, slug),
       })
       expect(await res.json()).toHaveLength(1)
     })
 
     test("an updated page's new content becomes searchable and old content stops matching", async () => {
-      const createRes = await SELF.fetch('http://localhost/api/wiki', {
+      const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Sync Update Page', content: 'before-update-term' }),
       })
       const created = (await createRes.json()) as { slug: string }
 
-      await SELF.fetch(`http://localhost/api/wiki/${created.slug}`, {
+      await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
         method: 'PUT',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ content: 'after-update-term' }),
       })
 
-      const oldRes = await SELF.fetch('http://localhost/api/wiki/search?q=before-update-term', {
+      const oldRes = await fetchNativeApi('http://localhost/api/wiki/search?q=before-update-term', {
         headers: authHeaders(token, slug),
       })
       expect(await oldRes.json()).toEqual([])
 
-      const newRes = await SELF.fetch('http://localhost/api/wiki/search?q=after-update-term', {
+      const newRes = await fetchNativeApi('http://localhost/api/wiki/search?q=after-update-term', {
         headers: authHeaders(token, slug),
       })
       expect(await newRes.json()).toHaveLength(1)
@@ -599,19 +602,19 @@ describe('Wiki API', () => {
     test('a deleted page is no longer searchable', async () => {
       // Deleting a workspace-level page requires admin/owner (services/wiki.ts).
       const owner = await seedFixture({ role: 'owner' })
-      const createRes = await SELF.fetch('http://localhost/api/wiki', {
+      const createRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(owner.token, owner.workspace.slug),
         body: JSON.stringify({ title: 'Sync Delete Page', content: 'sync-delete-term' }),
       })
       const created = (await createRes.json()) as { slug: string }
 
-      await SELF.fetch(`http://localhost/api/wiki/${created.slug}`, {
+      await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
         method: 'DELETE',
         headers: authHeaders(owner.token, owner.workspace.slug),
       })
 
-      const res = await SELF.fetch('http://localhost/api/wiki/search?q=sync-delete-term', {
+      const res = await fetchNativeApi('http://localhost/api/wiki/search?q=sync-delete-term', {
         headers: authHeaders(owner.token, owner.workspace.slug),
       })
       expect(await res.json()).toEqual([])
@@ -619,13 +622,13 @@ describe('Wiki API', () => {
 
     test("a cascade-deleted subtree's pages are no longer searchable", async () => {
       const owner = await seedFixture({ role: 'owner' })
-      const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+      const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(owner.token, owner.workspace.slug),
         body: JSON.stringify({ title: 'Sync Cascade Parent', content: 'root' }),
       })
       const parent = (await parentRes.json()) as { id: string; slug: string }
-      await SELF.fetch('http://localhost/api/wiki', {
+      await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(owner.token, owner.workspace.slug),
         body: JSON.stringify({
@@ -635,12 +638,12 @@ describe('Wiki API', () => {
         }),
       })
 
-      await SELF.fetch(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
+      await fetchNativeApi(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
         method: 'DELETE',
         headers: authHeaders(owner.token, owner.workspace.slug),
       })
 
-      const res = await SELF.fetch('http://localhost/api/wiki/search?q=sync-cascade-term', {
+      const res = await fetchNativeApi('http://localhost/api/wiki/search?q=sync-cascade-term', {
         headers: authHeaders(owner.token, owner.workspace.slug),
       })
       expect(await res.json()).toEqual([])
@@ -648,19 +651,19 @@ describe('Wiki API', () => {
   })
 
   test('PUT /api/wiki/:slug title-only update does not create a revision', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Original Title', content: 'body text' }),
     })
 
-    await SELF.fetch('http://localhost/api/wiki/original-title', {
+    await fetchNativeApi('http://localhost/api/wiki/original-title', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Renamed Title' }),
     })
 
-    const revRes = await SELF.fetch('http://localhost/api/wiki/original-title/revisions', {
+    const revRes = await fetchNativeApi('http://localhost/api/wiki/original-title/revisions', {
       headers: authHeaders(token, slug),
     })
     const revisions = (await revRes.json()) as unknown[]
@@ -668,7 +671,7 @@ describe('Wiki API', () => {
   })
 
   test('POST /api/wiki returns 400 for invalid input', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: '' }),
@@ -682,25 +685,25 @@ describe('Wiki API', () => {
     const project = await seedProject(ws!.id, 'WIKI')
     await seedGroupGrant(ws!.id, userId, project.id)
 
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Project Page', content: 'scoped', projectId: project.id }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Workspace Page', content: 'global' }),
     })
 
-    const projectRes = await SELF.fetch(`http://localhost/api/wiki?projectId=${project.id}`, {
+    const projectRes = await fetchNativeApi(`http://localhost/api/wiki?projectId=${project.id}`, {
       headers: authHeaders(token, slug),
     })
     const projectPages = (await projectRes.json()) as { title: string }[]
     expect(projectPages).toHaveLength(1)
     expect(projectPages[0].title).toBe('Project Page')
 
-    const allRes = await SELF.fetch('http://localhost/api/wiki', {
+    const allRes = await fetchNativeApi('http://localhost/api/wiki', {
       headers: authHeaders(token, slug),
     })
     const allPages = (await allRes.json()) as unknown[]
@@ -725,22 +728,28 @@ describe('Wiki API', () => {
     await seedWikiPageRow(ws!.id, null, 'shared-page', 'Shared Page')
     await seedWikiPageRow(ws!.id, other.id, 'other-page', 'Other Project Page')
 
-    const strictRes = await SELF.fetch(`http://localhost/api/wiki?projectId=${project.id}`, {
+    const strictRes = await fetchNativeApi(`http://localhost/api/wiki?projectId=${project.id}`, {
       headers: authHeaders(token, slug),
     })
     expect(((await strictRes.json()) as { title: string }[]).map((p) => p.title)).toEqual(['Scoped Page'])
 
-    const widenedRes = await SELF.fetch(`http://localhost/api/wiki?projectId=${project.id}&includeWorkspacePages=1`, {
-      headers: authHeaders(token, slug),
-    })
+    const widenedRes = await fetchNativeApi(
+      `http://localhost/api/wiki?projectId=${project.id}&includeWorkspacePages=1`,
+      {
+        headers: authHeaders(token, slug),
+      },
+    )
     expect(((await widenedRes.json()) as { title: string }[]).map((p) => p.title).sort()).toEqual([
       'Scoped Page',
       'Shared Page',
     ])
 
-    const treeRes = await SELF.fetch(`http://localhost/api/wiki/tree?projectId=${project.id}&includeWorkspacePages=1`, {
-      headers: authHeaders(token, slug),
-    })
+    const treeRes = await fetchNativeApi(
+      `http://localhost/api/wiki/tree?projectId=${project.id}&includeWorkspacePages=1`,
+      {
+        headers: authHeaders(token, slug),
+      },
+    )
     expect(((await treeRes.json()) as { title: string }[]).map((p) => p.title).sort()).toEqual([
       'Scoped Page',
       'Shared Page',
@@ -753,7 +762,7 @@ describe('Wiki API', () => {
     await seedWikiPageRow(ws!.id, null, 'ungranted-shared-page', 'Shared Page')
     await seedWikiPageRow(ws!.id, ungranted.id, 'secret-page', 'Secret Page')
 
-    const res = await SELF.fetch(`http://localhost/api/wiki?projectId=${ungranted.id}&includeWorkspacePages=1`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki?projectId=${ungranted.id}&includeWorkspacePages=1`, {
       headers: authHeaders(token, slug),
     })
     expect(((await res.json()) as { title: string }[]).map((p) => p.title)).toEqual(['Shared Page'])
@@ -765,7 +774,7 @@ describe('Wiki API', () => {
     const project = await seedProject(ws!.id, 'P2')
     await seedGroupGrant(ws!.id, userId, project.id)
 
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Scoped Doc', content: 'content', projectId: project.id }),
@@ -774,7 +783,7 @@ describe('Wiki API', () => {
     const created = (await createRes.json()) as { slug: string; projectId: string | null }
     expect(created.projectId).toBe(project.id)
 
-    const getRes = await SELF.fetch(`http://localhost/api/wiki/${created.slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await getRes.json()) as { project_id: string | null }
@@ -782,7 +791,7 @@ describe('Wiki API', () => {
   })
 
   test('POST /api/wiki creates a nested page with parentId', async () => {
-    const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Parent', content: 'parent content' }),
@@ -790,7 +799,7 @@ describe('Wiki API', () => {
     expect(parentRes.status).toBe(201)
     const parent = (await parentRes.json()) as { id: string; slug: string }
 
-    const childRes = await SELF.fetch('http://localhost/api/wiki', {
+    const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Child', content: 'child content', parentId: parent.id }),
@@ -798,7 +807,7 @@ describe('Wiki API', () => {
     expect(childRes.status).toBe(201)
     const child = (await childRes.json()) as { id: string; slug: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/wiki/${child.slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/wiki/${child.slug}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await getRes.json()) as { parent_id: string }
@@ -813,7 +822,7 @@ describe('Wiki API', () => {
       if (parentId) {
         body.parentId = parentId
       }
-      const res = await SELF.fetch('http://localhost/api/wiki', {
+      const res = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify(body),
@@ -827,7 +836,7 @@ describe('Wiki API', () => {
     await resetRateLimits()
 
     // Level 6 must be rejected (parent is at depth 5 → child would be depth 6)
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Too deep', content: '', parentId }),
@@ -846,7 +855,7 @@ describe('Wiki API', () => {
       if (chainParentId) {
         body.parentId = chainParentId
       }
-      const res = await SELF.fetch('http://localhost/api/wiki', {
+      const res = await fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify(body),
@@ -860,7 +869,7 @@ describe('Wiki API', () => {
     await resetRateLimits()
 
     // Build a separate 3-level subtree: A -> A1 -> A2 (A has height 2).
-    const aRes = await SELF.fetch('http://localhost/api/wiki', {
+    const aRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Subtree Root A', content: '' }),
@@ -869,7 +878,7 @@ describe('Wiki API', () => {
     const a = (await aRes.json()) as { id: string; slug: string }
 
     await resetRateLimits()
-    const a1Res = await SELF.fetch('http://localhost/api/wiki', {
+    const a1Res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Subtree A1', content: '', parentId: a.id }),
@@ -878,7 +887,7 @@ describe('Wiki API', () => {
     const a1 = (await a1Res.json()) as { id: string }
 
     await resetRateLimits()
-    const a2Res = await SELF.fetch('http://localhost/api/wiki', {
+    const a2Res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Subtree A2', content: '', parentId: a1.id }),
@@ -890,7 +899,7 @@ describe('Wiki API', () => {
     // Moving A (height 2) under L3 (depth 3) would put A2 at depth 3+1+2 = 6, which
     // exceeds the max nesting depth of 5 (indices 0..4) even though A's OWN new depth
     // (4) is within range — the check must look at the whole subtree, not just A.
-    const moveRes = await SELF.fetch(`http://localhost/api/wiki/${a.slug}`, {
+    const moveRes = await fetchNativeApi(`http://localhost/api/wiki/${a.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: l3Id }),
@@ -908,7 +917,7 @@ describe('Wiki API', () => {
     // getSubtreeHeight(db, X, ...) starts its recursive walk AT X and, joining into
     // children by parent_id, finds Y then loops back to X — without the depth bound this
     // never terminates.
-    const xRes = await SELF.fetch('http://localhost/api/wiki', {
+    const xRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Cycle X', content: '' }),
@@ -917,7 +926,7 @@ describe('Wiki API', () => {
     const x = (await xRes.json()) as { id: string; slug: string }
 
     await resetRateLimits()
-    const yRes = await SELF.fetch('http://localhost/api/wiki', {
+    const yRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Cycle Y', content: '', parentId: x.id }),
@@ -929,7 +938,7 @@ describe('Wiki API', () => {
     await env.DB.prepare('UPDATE wiki_pages SET parent_id = ? WHERE id = ?').bind(y.id, x.id).run()
 
     await resetRateLimits()
-    const otherRes = await SELF.fetch('http://localhost/api/wiki', {
+    const otherRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Cycle New Parent', content: '' }),
@@ -940,7 +949,7 @@ describe('Wiki API', () => {
     await resetRateLimits()
     // Moving X under `other` computes getSubtreeHeight(X), which walks into the X<->Y
     // cycle. This must resolve promptly (reject or succeed), never hang.
-    const moveRes = await SELF.fetch(`http://localhost/api/wiki/${x.slug}`, {
+    const moveRes = await fetchNativeApi(`http://localhost/api/wiki/${x.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: other.id }),
@@ -949,21 +958,21 @@ describe('Wiki API', () => {
   }, 10_000)
 
   test('GET /api/wiki/tree returns nested structure', async () => {
-    const rootRes = await SELF.fetch('http://localhost/api/wiki', {
+    const rootRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Root', content: '' }),
     })
     const root = (await rootRes.json()) as { id: string }
 
-    const childRes = await SELF.fetch('http://localhost/api/wiki', {
+    const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Child', content: '', parentId: root.id }),
     })
     const child = (await childRes.json()) as { id: string }
 
-    const treeRes = await SELF.fetch('http://localhost/api/wiki/tree', {
+    const treeRes = await fetchNativeApi('http://localhost/api/wiki/tree', {
       headers: authHeaders(token, slug),
     })
     expect(treeRes.status).toBe(200)
@@ -979,14 +988,14 @@ describe('Wiki API', () => {
   })
 
   test('PUT /api/wiki/:slug reparents a page via parentId', async () => {
-    const aRes = await SELF.fetch('http://localhost/api/wiki', {
+    const aRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Page A', content: 'a' }),
     })
     const a = (await aRes.json()) as { id: string; slug: string }
 
-    const bRes = await SELF.fetch('http://localhost/api/wiki', {
+    const bRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Page B', content: 'b' }),
@@ -994,14 +1003,14 @@ describe('Wiki API', () => {
     const b = (await bRes.json()) as { slug: string }
 
     // Reparent B under A
-    const updateRes = await SELF.fetch(`http://localhost/api/wiki/${b.slug}`, {
+    const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${b.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ parentId: a.id }),
     })
     expect(updateRes.status).toBe(200)
 
-    const getRes = await SELF.fetch(`http://localhost/api/wiki/${b.slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/wiki/${b.slug}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await getRes.json()) as { parent_id: string }
@@ -1012,35 +1021,35 @@ describe('Wiki API', () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
-    const grandparentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const grandparentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Grandparent', content: '' }),
     })
     const grandparent = (await grandparentRes.json()) as { id: string }
 
-    const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Parent To Delete', content: '', parentId: grandparent.id }),
     })
     const parent = (await parentRes.json()) as { id: string; slug: string }
 
-    const childRes = await SELF.fetch('http://localhost/api/wiki', {
+    const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Child', content: '', parentId: parent.id }),
     })
     const child = (await childRes.json()) as { id: string; slug: string }
 
-    const delRes = await SELF.fetch(`http://localhost/api/wiki/${parent.slug}`, {
+    const delRes = await fetchNativeApi(`http://localhost/api/wiki/${parent.slug}`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
     expect(delRes.status).toBe(200)
     expect(await delRes.json()).toEqual({ ok: true, deletedCount: 1, linkedByCount: 0 })
 
-    const childPageRes = await SELF.fetch(`http://localhost/api/wiki/${child.slug}`, {
+    const childPageRes = await fetchNativeApi(`http://localhost/api/wiki/${child.slug}`, {
       headers: ownerHeaders,
     })
     const childPage = (await childPageRes.json()) as { parent_id: string }
@@ -1051,28 +1060,28 @@ describe('Wiki API', () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
-    const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Parent', content: '' }),
     })
     const parent = (await parentRes.json()) as { id: string; slug: string }
 
-    const childRes = await SELF.fetch('http://localhost/api/wiki', {
+    const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Child', content: '', parentId: parent.id }),
     })
     const child = (await childRes.json()) as { id: string; slug: string }
 
-    const grandchildRes = await SELF.fetch('http://localhost/api/wiki', {
+    const grandchildRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Grandchild', content: '', parentId: child.id }),
     })
     const grandchild = (await grandchildRes.json()) as { slug: string }
 
-    const delRes = await SELF.fetch(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
+    const delRes = await fetchNativeApi(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
@@ -1081,7 +1090,7 @@ describe('Wiki API', () => {
 
     await resetRateLimits()
     for (const s of [parent.slug, child.slug, grandchild.slug]) {
-      const res = await SELF.fetch(`http://localhost/api/wiki/${s}`, {
+      const res = await fetchNativeApi(`http://localhost/api/wiki/${s}`, {
         headers: ownerHeaders,
       })
       expect(res.status).toBe(404)
@@ -1093,7 +1102,7 @@ describe('Wiki API', () => {
     form.append('file', new File(['attachment content'], 'doc.txt', { type: 'text/plain' }))
     form.append('entityType', 'wiki_page')
     form.append('entityId', pageId)
-    const res = await SELF.fetch('http://localhost/api/files', {
+    const res = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
@@ -1107,7 +1116,7 @@ describe('Wiki API', () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
-    const pageRes = await SELF.fetch('http://localhost/api/wiki', {
+    const pageRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Page With File', content: '' }),
@@ -1117,7 +1126,7 @@ describe('Wiki API', () => {
     const { attachmentId, r2Key } = await uploadFileToPage(owner.token, owner.workspace.slug, page.id)
     expect(await env.R2.get(r2Key)).not.toBeNull()
 
-    const delRes = await SELF.fetch(`http://localhost/api/wiki/${page.slug}`, {
+    const delRes = await fetchNativeApi(`http://localhost/api/wiki/${page.slug}`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
@@ -1134,14 +1143,14 @@ describe('Wiki API', () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
-    const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Parent With File', content: '' }),
     })
     const parent = (await parentRes.json()) as { id: string; slug: string }
 
-    const childRes = await SELF.fetch('http://localhost/api/wiki', {
+    const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Cascade Child With File', content: '', parentId: parent.id }),
@@ -1153,7 +1162,7 @@ describe('Wiki API', () => {
     expect(await env.R2.get(parentFile.r2Key)).not.toBeNull()
     expect(await env.R2.get(childFile.r2Key)).not.toBeNull()
 
-    const delRes = await SELF.fetch(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
+    const delRes = await fetchNativeApi(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
@@ -1164,7 +1173,7 @@ describe('Wiki API', () => {
   })
 
   test('DELETE /api/wiki/:slug returns 403 for viewer role', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Protected Page', content: 'secret' }),
@@ -1177,7 +1186,7 @@ describe('Wiki API', () => {
     await seedMember(ws!.id, viewerUser.id, 'viewer')
     const viewerToken = await seedToken(ws!.id, viewerUser.id)
 
-    const delRes = await SELF.fetch('http://localhost/api/wiki/protected-page', {
+    const delRes = await fetchNativeApi('http://localhost/api/wiki/protected-page', {
       method: 'DELETE',
       headers: authHeaders(viewerToken, slug),
     })
@@ -1189,7 +1198,7 @@ describe('Wiki role guards', () => {
   test('viewer cannot create a wiki page (403)', async () => {
     const roles = await seedWorkspaceRoles()
 
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
       body: JSON.stringify({ title: 'Viewer Page', content: 'test' }),
@@ -1200,14 +1209,14 @@ describe('Wiki role guards', () => {
   test('viewer cannot update a wiki page (403)', async () => {
     const roles = await seedWorkspaceRoles()
 
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ title: 'Member Page', content: 'original' }),
     })
     const { slug: pageSlug } = (await createRes.json()) as { slug: string }
 
-    const updateRes = await SELF.fetch(`http://localhost/api/wiki/${pageSlug}`, {
+    const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
       method: 'PUT',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
       body: JSON.stringify({ content: 'hacked' }),
@@ -1218,14 +1227,14 @@ describe('Wiki role guards', () => {
   test('member cannot delete a wiki page (403)', async () => {
     const roles = await seedWorkspaceRoles()
 
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ title: 'Member Deletable', content: 'content' }),
     })
     const { slug: pageSlug } = (await createRes.json()) as { slug: string }
 
-    const deleteRes = await SELF.fetch(`http://localhost/api/wiki/${pageSlug}`, {
+    const deleteRes = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
       method: 'DELETE',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
     })
@@ -1235,14 +1244,14 @@ describe('Wiki role guards', () => {
   test('admin can delete a wiki page', async () => {
     const roles = await seedWorkspaceRoles()
 
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ title: 'Admin Target', content: 'content' }),
     })
     const { slug: pageSlug } = (await createRes.json()) as { slug: string }
 
-    const deleteRes = await SELF.fetch(`http://localhost/api/wiki/${pageSlug}`, {
+    const deleteRes = await fetchNativeApi(`http://localhost/api/wiki/${pageSlug}`, {
       method: 'DELETE',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
     })
@@ -1266,14 +1275,14 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("POST /api/wiki rejects a title that slugifies to an existing page's slug (409)", async () => {
-    const first = await SELF.fetch('http://localhost/api/wiki', {
+    const first = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Operations', content: 'v1' }),
     })
     expect(first.status).toBe(201)
 
-    const second = await SELF.fetch('http://localhost/api/wiki', {
+    const second = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Operations', content: 'v2' }),
@@ -1282,13 +1291,13 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('POST /api/wiki rejects an explicit slug that collides with an existing page (409)', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Operations', content: 'v1' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Ops Handbook', slug: 'operations', content: 'v2' }),
@@ -1297,7 +1306,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("POST /api/wiki rejects the reserved slug 'view' (PROJ-487, 400)", async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'View', slug: 'view', content: 'v1' }),
@@ -1306,7 +1315,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("POST /api/wiki auto-slugs the title 'View' to 'view-page' (PROJ-811)", async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'View', content: 'v1' }),
@@ -1316,13 +1325,13 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("PUT /api/wiki/:slug rejects renaming to the reserved slug 'view' (PROJ-487, 400)", async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Gamma', content: 'g' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/gamma', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/gamma', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'view' }),
@@ -1331,7 +1340,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("POST /api/wiki rejects a slug containing '/' (PROJ-517, 400)", async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Nested', content: 'v1', slug: 'a/b' }),
@@ -1340,13 +1349,13 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("PUT /api/wiki/:slug rejects renaming to a slug containing '/' (PROJ-517, 400)", async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Delta', content: 'd' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/delta', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/delta', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'a/b' }),
@@ -1355,7 +1364,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('POST /api/wiki uses an opaque slug for a non-Latin title (empty derived slug, PROJ-517 #5)', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: '測試', content: 'v1' }),
@@ -1364,7 +1373,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     const page = (await res.json()) as { slug: string; id: string }
     expect(page.slug).toMatch(/^page-[0-9a-f]{8}$/)
 
-    const getRes = await SELF.fetch(`http://localhost/api/wiki/${page.slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/wiki/${page.slug}`, {
       headers: authHeaders(token, slug),
     })
     const fetched = (await getRes.json()) as { title: string }
@@ -1372,7 +1381,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("POST /api/wiki uses an opaque slug when derived slug exceeds SlugSchema's 200-char max (PROJ-517)", async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'a'.repeat(300), content: 'v1' }),
@@ -1433,7 +1442,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
       .bind('operations-admin-allow-list', pageId)
       .run()
 
-    const newRes = await SELF.fetch('http://localhost/api/wiki/operations-admin-allow-list', {
+    const newRes = await fetchNativeApi('http://localhost/api/wiki/operations-admin-allow-list', {
       headers: authHeaders(token, slug),
     })
     expect(newRes.status).toBe(200)
@@ -1448,7 +1457,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("POST /api/wiki rejects the reserved slug 'index' (PROJ-487, 400)", async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Index', slug: 'index', content: 'v1' }),
@@ -1457,7 +1466,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("POST /api/wiki auto-slugs the title 'Index' to 'index-page' (PROJ-811)", async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Index', content: 'v1' }),
@@ -1467,13 +1476,13 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test("PUT /api/wiki/:slug rejects renaming to the reserved slug 'index' (PROJ-487, 400)", async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Delta', content: 'd' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/delta', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/delta', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'index' }),
@@ -1482,7 +1491,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('PUT /api/wiki/:slug renaming the slug creates a redirect; the old slug still resolves', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Roadmap', content: 'v1' }),
@@ -1490,7 +1499,7 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     const created = (await createRes.json()) as { slug: string }
     expect(created.slug).toBe('roadmap')
 
-    const updateRes = await SELF.fetch('http://localhost/api/wiki/roadmap', {
+    const updateRes = await fetchNativeApi('http://localhost/api/wiki/roadmap', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'product-roadmap' }),
@@ -1499,12 +1508,12 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
     const updated = (await updateRes.json()) as { url: string }
     expect(updated.url).toBe('/wiki/product-roadmap')
 
-    const newRes = await SELF.fetch('http://localhost/api/wiki/product-roadmap', {
+    const newRes = await fetchNativeApi('http://localhost/api/wiki/product-roadmap', {
       headers: authHeaders(token, slug),
     })
     expect(newRes.status).toBe(200)
 
-    const oldRes = await SELF.fetch('http://localhost/api/wiki/roadmap', {
+    const oldRes = await fetchNativeApi('http://localhost/api/wiki/roadmap', {
       headers: authHeaders(token, slug),
     })
     expect(oldRes.status).toBe(200)
@@ -1514,18 +1523,18 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('PUT /api/wiki/:slug rejects renaming to a slug already used by another page (409)', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Alpha', content: 'a' }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Beta', content: 'b' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/beta', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/beta', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'alpha' }),
@@ -1534,30 +1543,30 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('redirect chains collapse: renaming a page twice still resolves the original slug in one hop', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Docs', content: 'v1' }),
     })
 
-    await SELF.fetch('http://localhost/api/wiki/docs', {
+    await fetchNativeApi('http://localhost/api/wiki/docs', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'docs-v2' }),
     })
-    await SELF.fetch('http://localhost/api/wiki/docs-v2', {
+    await fetchNativeApi('http://localhost/api/wiki/docs-v2', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'docs-v3' }),
     })
 
-    const originalRes = await SELF.fetch('http://localhost/api/wiki/docs', {
+    const originalRes = await fetchNativeApi('http://localhost/api/wiki/docs', {
       headers: authHeaders(token, slug),
     })
     expect(originalRes.status).toBe(200)
     expect(((await originalRes.json()) as { slug: string }).slug).toBe('docs-v3')
 
-    const intermediateRes = await SELF.fetch('http://localhost/api/wiki/docs-v2', {
+    const intermediateRes = await fetchNativeApi('http://localhost/api/wiki/docs-v2', {
       headers: authHeaders(token, slug),
     })
     expect(intermediateRes.status).toBe(200)
@@ -1565,26 +1574,26 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   })
 
   test('getWikiPage prefers a live page over a stale redirect for a reused slug (never ambiguous)', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Old Name', content: 'original' }),
     })
-    await SELF.fetch('http://localhost/api/wiki/old-name', {
+    await fetchNativeApi('http://localhost/api/wiki/old-name', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'new-name' }),
     })
 
     // "old-name" is now only a redirect. A new page can legitimately claim it.
-    const reclaimRes = await SELF.fetch('http://localhost/api/wiki', {
+    const reclaimRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Reclaimed', slug: 'old-name', content: 'reclaimed' }),
     })
     expect(reclaimRes.status).toBe(201)
 
-    const res = await SELF.fetch('http://localhost/api/wiki/old-name', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/old-name', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -1595,14 +1604,14 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   test('the same slug in two different workspaces does not conflict', async () => {
     const other = await seedFixture()
 
-    const first = await SELF.fetch('http://localhost/api/wiki', {
+    const first = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Shared Name', content: 'workspace one' }),
     })
     expect(first.status).toBe(201)
 
-    const second = await SELF.fetch('http://localhost/api/wiki', {
+    const second = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ title: 'Shared Name', content: 'workspace two' }),
@@ -1615,25 +1624,25 @@ describe('Wiki slug uniqueness and redirects (PROJ-483)', () => {
   test('a redirect created in one workspace does not resolve in another workspace', async () => {
     const other = await seedFixture()
 
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Isolated', content: 'v1' }),
     })
-    await SELF.fetch('http://localhost/api/wiki/isolated', {
+    await fetchNativeApi('http://localhost/api/wiki/isolated', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'isolated-renamed' }),
     })
 
     // "isolated" is now a redirect in the first workspace only.
-    const crossWorkspaceRes = await SELF.fetch('http://localhost/api/wiki/isolated', {
+    const crossWorkspaceRes = await fetchNativeApi('http://localhost/api/wiki/isolated', {
       headers: authHeaders(other.token, other.workspace.slug),
     })
     expect(crossWorkspaceRes.status).toBe(404)
 
     // A page in the other workspace is free to use "isolated" as its own live slug.
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ title: 'Isolated', slug: 'isolated', content: 'other workspace' }),
@@ -1695,7 +1704,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   ].join('\n')
 
   test('REST POST /api/wiki parses valid frontmatter into denormalized fields', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Incident Runbook', content: RUNBOOK_CONTENT }),
@@ -1716,7 +1725,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
     expect(created.owners).toEqual(['alice', 'bob'])
     expect(created.verifyInterval).toBe(90)
 
-    const getRes = await SELF.fetch('http://localhost/api/wiki/incident-runbook', {
+    const getRes = await fetchNativeApi('http://localhost/api/wiki/incident-runbook', {
       headers: authHeaders(token, slug),
     })
     const page = (await getRes.json()) as {
@@ -1745,7 +1754,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('a page with no frontmatter gets empty/null metadata', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Plain Page', content: 'just markdown, no frontmatter' }),
@@ -1763,7 +1772,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   // PROJ-513: `type` is freeform per the PRD — a value outside the well-known
   // runbook/adr/spec/note set is accepted and stored as-is, not rejected.
   test('REST POST /api/wiki accepts a `type` value outside the well-known set (PROJ-513)', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1791,7 +1800,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   // PROJ-513: the freeform value has to survive the whole round trip — stored on create,
   // then usable as a filter on both list and search, exactly like a well-known one.
   test('filters list/search by a `type` value outside the well-known set (PROJ-513)', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1799,7 +1808,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
         content: '---\ntype: whitepaper\n---\nlatency budget',
       }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1808,13 +1817,13 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
       }),
     })
 
-    const listRes = await SELF.fetch('http://localhost/api/wiki?type=whitepaper', {
+    const listRes = await fetchNativeApi('http://localhost/api/wiki?type=whitepaper', {
       headers: authHeaders(token, slug),
     })
     const listed = (await listRes.json()) as { title: string }[]
     expect(listed.map((r) => r.title)).toEqual(['Freeform Filter Whitepaper'])
 
-    const searchRes = await SELF.fetch('http://localhost/api/wiki/search?q=latency&type=whitepaper', {
+    const searchRes = await fetchNativeApi('http://localhost/api/wiki/search?q=latency&type=whitepaper', {
       headers: authHeaders(token, slug),
     })
     const found = (await searchRes.json()) as { title: string }[]
@@ -1827,7 +1836,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('rejects an invalid `status` enum value with a structured error', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1839,7 +1848,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('rejects malformed YAML in the frontmatter block with a structured error, not a silent drop', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1851,7 +1860,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('rejects an unrecognized frontmatter key rather than silently ignoring it', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1863,7 +1872,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('rejects tags with the wrong type (a string instead of an array)', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1875,7 +1884,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test("rejects a frontmatter block that isn't a YAML mapping", async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1887,7 +1896,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test("rejects a verified_at that isn't a parseable date", async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1899,7 +1908,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('rejects a verified_at that is neither a date nor a number', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1911,7 +1920,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('accepts a verified_at given as unix seconds', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -1996,12 +2005,12 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('REST GET /api/wiki filters by type and status', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Filter Runbook', content: RUNBOOK_CONTENT }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -2010,13 +2019,13 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
       }),
     })
 
-    const byType = await SELF.fetch('http://localhost/api/wiki?type=adr', {
+    const byType = await fetchNativeApi('http://localhost/api/wiki?type=adr', {
       headers: authHeaders(token, slug),
     })
     const byTypeResults = (await byType.json()) as { title: string }[]
     expect(byTypeResults.map((r) => r.title)).toEqual(['Filter Adr'])
 
-    const byStatus = await SELF.fetch('http://localhost/api/wiki?status=current', {
+    const byStatus = await fetchNativeApi('http://localhost/api/wiki?status=current', {
       headers: authHeaders(token, slug),
     })
     const byStatusResults = (await byStatus.json()) as { title: string }[]
@@ -2024,12 +2033,12 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('REST GET /api/wiki?tags= filters by any-of tag match', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Tagged Ops', content: '---\ntags: [ops]\n---\nbody' }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -2037,13 +2046,13 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
         content: '---\ntags: [frontend]\n---\nbody',
       }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Untagged', content: 'no frontmatter here' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki?tags=ops,frontend', {
+    const res = await fetchNativeApi('http://localhost/api/wiki?tags=ops,frontend', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
@@ -2071,7 +2080,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
   })
 
   test('REST GET /api/wiki/search filters by type/status/tags on top of the FTS match', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -2079,7 +2088,7 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
         content: '---\ntype: runbook\nstatus: current\ntags: [deploy]\n---\ndeploy steps',
       }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -2088,29 +2097,32 @@ describe('Wiki frontmatter metadata (PROJ-488)', () => {
       }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=deploy&type=runbook&status=current&tags=deploy', {
-      headers: authHeaders(token, slug),
-    })
+    const res = await fetchNativeApi(
+      'http://localhost/api/wiki/search?q=deploy&type=runbook&status=current&tags=deploy',
+      {
+        headers: authHeaders(token, slug),
+      },
+    )
     expect(res.status).toBe(200)
     const results = (await res.json()) as { title: string }[]
     expect(results.map((r) => r.title)).toEqual(['Deploy Runbook'])
   })
 
   test('search results return tags/owners as arrays, same shape as list and get', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Shape Runbook', content: RUNBOOK_CONTENT }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=Runbook', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search?q=Runbook', {
       headers: authHeaders(token, slug),
     })
     const [hit] = (await res.json()) as { tags: string[]; owners: string[] }[]
     expect(hit.tags).toEqual(['ops', 'oncall'])
     expect(hit.owners).toEqual(['alice', 'bob'])
 
-    const listRes = await SELF.fetch('http://localhost/api/wiki?type=runbook', {
+    const listRes = await fetchNativeApi('http://localhost/api/wiki?type=runbook', {
       headers: authHeaders(token, slug),
     })
     const [listed] = (await listRes.json()) as { tags: string[]; owners: string[] }[]
@@ -2152,21 +2164,21 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
   })
 
   test('REST: GET /:slug/revisions resolves via an old (pre-rename) slug', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Runbook', content: 'v1' }),
     })
     expect(createRes.status).toBe(201)
 
-    const editRes = await SELF.fetch('http://localhost/api/wiki/runbook', {
+    const editRes = await fetchNativeApi('http://localhost/api/wiki/runbook', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v2' }),
     })
     expect(editRes.status).toBe(200)
 
-    const renameRes = await SELF.fetch('http://localhost/api/wiki/runbook', {
+    const renameRes = await fetchNativeApi('http://localhost/api/wiki/runbook', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'operations-runbook' }),
@@ -2176,7 +2188,7 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
 
     // "runbook" is now only a redirect — the old slug must still resolve here, same
     // as GET /:slug (getWikiPage).
-    const revRes = await SELF.fetch('http://localhost/api/wiki/runbook/revisions', {
+    const revRes = await fetchNativeApi('http://localhost/api/wiki/runbook/revisions', {
       headers: authHeaders(token, slug),
     })
     expect(revRes.status).toBe(200)
@@ -2186,29 +2198,29 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
   })
 
   test('REST: GET /:slug/revisions/:revisionId resolves via an old (pre-rename) slug', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Playbook', content: 'v1' }),
     })
-    await SELF.fetch('http://localhost/api/wiki/playbook', {
+    await fetchNativeApi('http://localhost/api/wiki/playbook', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'v2' }),
     })
-    const revRes = await SELF.fetch('http://localhost/api/wiki/playbook/revisions', {
+    const revRes = await fetchNativeApi('http://localhost/api/wiki/playbook/revisions', {
       headers: authHeaders(token, slug),
     })
     const [revision] = (await revRes.json()) as { id: string }[]
 
-    await SELF.fetch('http://localhost/api/wiki/playbook', {
+    await fetchNativeApi('http://localhost/api/wiki/playbook', {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'team-playbook' }),
     })
     await resetRateLimits()
 
-    const detailRes = await SELF.fetch(`http://localhost/api/wiki/playbook/revisions/${revision.id}`, {
+    const detailRes = await fetchNativeApi(`http://localhost/api/wiki/playbook/revisions/${revision.id}`, {
       headers: authHeaders(token, slug),
     })
     expect(detailRes.status).toBe(200)
@@ -2251,12 +2263,12 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
   test('REST: DELETE /:slug resolves via an old (pre-rename) slug', async () => {
     // Deleting a workspace-level page requires admin/owner (services/wiki.ts).
     const owner = await seedFixture({ role: 'owner' })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(owner.token, owner.workspace.slug),
       body: JSON.stringify({ title: 'Draft Notes', content: 'v1' }),
     })
-    await SELF.fetch('http://localhost/api/wiki/draft-notes', {
+    await fetchNativeApi('http://localhost/api/wiki/draft-notes', {
       method: 'PUT',
       headers: authHeaders(owner.token, owner.workspace.slug),
       body: JSON.stringify({ slug: 'archived-notes' }),
@@ -2265,7 +2277,7 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
 
     // "draft-notes" is now only a redirect — deleting by the old slug should resolve
     // to the same (renamed) page rather than 404ing.
-    const deleteRes = await SELF.fetch('http://localhost/api/wiki/draft-notes', {
+    const deleteRes = await fetchNativeApi('http://localhost/api/wiki/draft-notes', {
       method: 'DELETE',
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
@@ -2274,7 +2286,7 @@ describe('Wiki revisions/delete resolve by old slug after rename (PROJ-509)', ()
     expect(body.ok).toBe(true)
     expect(body.deletedCount).toBe(1)
 
-    const getRes = await SELF.fetch('http://localhost/api/wiki/archived-notes', {
+    const getRes = await fetchNativeApi('http://localhost/api/wiki/archived-notes', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
     expect(getRes.status).toBe(404)
@@ -3056,7 +3068,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
   test('REST: viewer role cannot patch a workspace-level page', async () => {
     const roles = await seedWorkspaceRoles()
     await resetRateLimits()
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ title: 'Patch Viewer', content: TWO_SECTIONS, slug: 'patch-viewer' }),
@@ -3064,7 +3076,7 @@ describe('Wiki patch operations (PROJ-490)', () => {
     expect(createRes.status).toBe(201)
 
     await resetRateLimits()
-    const res = await SELF.fetch('http://localhost/api/wiki/patch-viewer', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/patch-viewer', {
       method: 'PATCH',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
       body: JSON.stringify({
@@ -3633,7 +3645,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
   })
 
   async function createPage(title: string, content: string) {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title, content }),
@@ -3646,7 +3658,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     await createPage('Alpha', 'see [[Runbook]] for details')
     await createPage('Beta', 'see [[Runbook|the runbook]] for details')
 
-    const res = await SELF.fetch(`http://localhost/api/wiki/${target.slug}/backlinks`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -3658,7 +3670,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const target = await createPage('Handbook', 'contents')
     await createPage('Gamma', `[link](/wiki/${target.slug})`)
 
-    const res = await SELF.fetch(`http://localhost/api/wiki/${target.slug}/backlinks`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
     const backlinks = (await res.json()) as { slug: string }[]
@@ -3669,7 +3681,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const operations = await createPage('Operations', 'contents')
     await createPage('Runbook', `[Runbook](/wiki/${operations.slug}/admin-allow-list)`)
 
-    const res = await SELF.fetch(`http://localhost/api/wiki/${operations.slug}/backlinks`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${operations.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
     const backlinks = (await res.json()) as { slug: string }[]
@@ -3683,7 +3695,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
       `[external](https://example.com/wiki/${target.slug}) and [also](//other-host/wiki/${target.slug})`,
     )
 
-    const res = await SELF.fetch(`http://localhost/api/wiki/${target.slug}/backlinks`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
     const backlinks = (await res.json()) as { slug: string }[]
@@ -3692,7 +3704,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
 
   test("PROJ-510: a malformed %-escape in a link URL doesn't crash the write; other links still index", async () => {
     const runbook = await createPage('Runbook Eta', 'how to page')
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -3702,7 +3714,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     })
     expect(res.status).toBe(201)
 
-    const backlinksRes = await SELF.fetch(`http://localhost/api/wiki/${runbook.slug}/backlinks`, {
+    const backlinksRes = await fetchNativeApi(`http://localhost/api/wiki/${runbook.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
     const backlinks = (await backlinksRes.json()) as { slug: string }[]
@@ -3712,7 +3724,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
   test('an unresolved [[Target]] is stored as a broken link, not a backlink', async () => {
     await createPage('Delta', 'see [[Nonexistent Page]] for details')
 
-    const brokenRes = await SELF.fetch('http://localhost/api/wiki/broken-links', {
+    const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(token, slug),
     })
     const broken = (await brokenRes.json()) as { sourceSlug: string; targetTitle: string }[]
@@ -3721,12 +3733,12 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
 
   test('get_backlinks (MCP) returns the same result as REST', async () => {
     const fixture = await seedFixture()
-    const target = await SELF.fetch('http://localhost/api/wiki', {
+    const target = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(fixture.token, fixture.workspace.slug),
       body: JSON.stringify({ title: 'MCP Target', content: 'x' }),
     }).then((r) => r.json() as Promise<{ slug: string }>)
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(fixture.token, fixture.workspace.slug),
       body: JSON.stringify({ title: 'MCP Source', content: '[[MCP Target]]' }),
@@ -3744,7 +3756,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
 
   test('list_broken_wiki_links (MCP) matches REST', async () => {
     const fixture = await seedFixture()
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(fixture.token, fixture.workspace.slug),
       body: JSON.stringify({ title: 'Epsilon', content: '[[Missing Target]]' }),
@@ -3764,13 +3776,13 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const target = await createPage('Original Name', 'content')
     await createPage('Linker', 'see [[Original Name]]')
 
-    await SELF.fetch(`http://localhost/api/wiki/${target.slug}`, {
+    await fetchNativeApi(`http://localhost/api/wiki/${target.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'renamed-slug' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/renamed-slug/backlinks', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/renamed-slug/backlinks', {
       headers: authHeaders(token, slug),
     })
     const backlinks = (await res.json()) as { slug: string }[]
@@ -3781,18 +3793,18 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const target = await createPage('Stable Target', 'x')
     const linker = await createPage('Changing Source', 'see [[Stable Target]]')
 
-    let res = await SELF.fetch(`http://localhost/api/wiki/${target.slug}/backlinks`, {
+    let res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
     expect(((await res.json()) as unknown[]).length).toBe(1)
 
-    await SELF.fetch(`http://localhost/api/wiki/${linker.slug}`, {
+    await fetchNativeApi(`http://localhost/api/wiki/${linker.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: 'no more links here' }),
     })
 
-    res = await SELF.fetch(`http://localhost/api/wiki/${target.slug}/backlinks`, {
+    res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
     expect(await res.json()).toEqual([])
@@ -3802,13 +3814,13 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const target = await createPage('Untouched Target', 'x')
     const linker = await createPage('Title Change Source', 'see [[Untouched Target]]')
 
-    await SELF.fetch(`http://localhost/api/wiki/${linker.slug}`, {
+    await fetchNativeApi(`http://localhost/api/wiki/${linker.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Renamed Title Only' }),
     })
 
-    const res = await SELF.fetch(`http://localhost/api/wiki/${target.slug}/backlinks`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}/backlinks`, {
       headers: authHeaders(token, slug),
     })
     const backlinks = (await res.json()) as { slug: string }[]
@@ -3817,18 +3829,18 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
 
   test('DELETE surfaces linkedByCount as a non-blocking warning and still deletes the page', async () => {
     const owner = await seedFixture({ role: 'owner' })
-    const target = await SELF.fetch('http://localhost/api/wiki', {
+    const target = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(owner.token, owner.workspace.slug),
       body: JSON.stringify({ title: 'Linked Target', content: 'x' }),
     }).then((r) => r.json() as Promise<{ slug: string }>)
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(owner.token, owner.workspace.slug),
       body: JSON.stringify({ title: 'Linker One', content: '[[Linked Target]]' }),
     })
 
-    const res = await SELF.fetch(`http://localhost/api/wiki/${target.slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}`, {
       method: 'DELETE',
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
@@ -3836,14 +3848,14 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const body = (await res.json()) as { ok: boolean; linkedByCount: number }
     expect(body.linkedByCount).toBe(1)
 
-    const getRes = await SELF.fetch(`http://localhost/api/wiki/${target.slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/wiki/${target.slug}`, {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
     expect(getRes.status).toBe(404)
 
     // The now-deleted target turns the surviving linker's outgoing link into a broken
     // link (target_page_id set null) rather than silently vanishing.
-    const brokenRes = await SELF.fetch('http://localhost/api/wiki/broken-links', {
+    const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
     const broken = (await brokenRes.json()) as { targetTitle: string }[]
@@ -3852,13 +3864,13 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
 
   test('cascade-deleting a subtree cleans up outgoing links for every deleted page', async () => {
     const owner = await seedFixture({ role: 'owner' })
-    const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(owner.token, owner.workspace.slug),
       body: JSON.stringify({ title: 'Cascade Parent', content: '[[Nonexistent A]]' }),
     })
     const parent = (await parentRes.json()) as { id: string; slug: string }
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(owner.token, owner.workspace.slug),
       body: JSON.stringify({
@@ -3868,12 +3880,12 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
       }),
     })
 
-    await SELF.fetch(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
+    await fetchNativeApi(`http://localhost/api/wiki/${parent.slug}?cascade=true`, {
       method: 'DELETE',
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
 
-    const brokenRes = await SELF.fetch('http://localhost/api/wiki/broken-links', {
+    const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
     const broken = (await brokenRes.json()) as { targetTitle: string }[]
@@ -3885,12 +3897,12 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const workspaceA = await seedFixture()
     const workspaceB = await seedFixture()
 
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(workspaceA.token, workspaceA.workspace.slug),
       body: JSON.stringify({ title: 'Shared Title', content: 'x' }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(workspaceB.token, workspaceB.workspace.slug),
       body: JSON.stringify({ title: 'B Source', content: 'see [[Shared Title]]' }),
@@ -3899,18 +3911,18 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     // workspace B's link can only resolve against workspace B's own pages, so it's
     // unresolved there (no "Shared Title" page exists in B) — never leaking a match
     // against workspace A's page of the same title.
-    const brokenB = await SELF.fetch('http://localhost/api/wiki/broken-links', {
+    const brokenB = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(workspaceB.token, workspaceB.workspace.slug),
     })
     expect(((await brokenB.json()) as { targetTitle: string }[]).some((b) => b.targetTitle === 'Shared Title')).toBe(
       true,
     )
 
-    const sharedA = await SELF.fetch('http://localhost/api/wiki/shared-title', {
+    const sharedA = await fetchNativeApi('http://localhost/api/wiki/shared-title', {
       headers: authHeaders(workspaceA.token, workspaceA.workspace.slug),
     })
     const target = (await sharedA.json()) as { id: string }
-    const backlinksA = await SELF.fetch(`http://localhost/api/wiki/${target.id}/backlinks`, {
+    const backlinksA = await fetchNativeApi(`http://localhost/api/wiki/${target.id}/backlinks`, {
       headers: authHeaders(workspaceA.token, workspaceA.workspace.slug),
     })
     expect(await backlinksA.json()).toEqual([])
@@ -3936,7 +3948,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
       .bind(owner.workspace.id, owner.user.id, owner.user.id, now, now)
       .run()
 
-    const preBacklinks = await SELF.fetch('http://localhost/api/wiki/legacy-target/backlinks', {
+    const preBacklinks = await fetchNativeApi('http://localhost/api/wiki/legacy-target/backlinks', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
     expect(await preBacklinks.json()).toEqual([])
@@ -3950,7 +3962,7 @@ describe('Wiki link graph and backlinks (PROJ-485)', () => {
     const backfillResult = mcpData<{ pagesProcessed: number }>(result)
     expect(backfillResult.pagesProcessed).toBeGreaterThanOrEqual(2)
 
-    const postBacklinks = await SELF.fetch('http://localhost/api/wiki/legacy-target/backlinks', {
+    const postBacklinks = await fetchNativeApi('http://localhost/api/wiki/legacy-target/backlinks', {
       headers: authHeaders(owner.token, owner.workspace.slug),
     })
     const backlinks = (await postBacklinks.json()) as { slug: string }[]
@@ -3988,7 +4000,7 @@ describe('Wiki write atomicity (PROJ-511)', () => {
     // rows together, so the loser's batch must fail as a whole — never leaving a
     // dangling wiki_links row for a page insert that didn't happen.
     const [resA, resB] = await Promise.all([
-      SELF.fetch('http://localhost/api/wiki', {
+      fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({
@@ -3996,7 +4008,7 @@ describe('Wiki write atomicity (PROJ-511)', () => {
           content: 'see [[Race Target Alpha]]',
         }),
       }),
-      SELF.fetch('http://localhost/api/wiki', {
+      fetchNativeApi('http://localhost/api/wiki', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Atomicity Race Page', content: 'see [[Race Target Beta]]' }),
@@ -4007,7 +4019,7 @@ describe('Wiki write atomicity (PROJ-511)', () => {
     )
     expect(statuses).toEqual([201, 409])
 
-    const brokenRes = await SELF.fetch('http://localhost/api/wiki/broken-links', {
+    const brokenRes = await fetchNativeApi('http://localhost/api/wiki/broken-links', {
       headers: authHeaders(token, slug),
     })
     const broken = (await brokenRes.json()) as { targetTitle: string }[]
@@ -4016,17 +4028,17 @@ describe('Wiki write atomicity (PROJ-511)', () => {
   })
 
   test("a failed rename (slug conflict) leaves the page's content, wiki_links, and wiki_fts untouched", async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Atomic Runbook', content: 'how to page' }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Atomic Existing', content: 'x' }),
     })
-    const sourceRes = await SELF.fetch('http://localhost/api/wiki', {
+    const sourceRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Atomic Source', content: 'see [[Atomic Runbook]]' }),
@@ -4034,7 +4046,7 @@ describe('Wiki write atomicity (PROJ-511)', () => {
     const source = (await sourceRes.json()) as { slug: string }
 
     await resetRateLimits()
-    const updateRes = await SELF.fetch(`http://localhost/api/wiki/${source.slug}`, {
+    const updateRes = await fetchNativeApi(`http://localhost/api/wiki/${source.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'atomic-existing', content: 'no longer links anywhere' }),
@@ -4042,20 +4054,20 @@ describe('Wiki write atomicity (PROJ-511)', () => {
     expect(updateRes.status).toBe(409)
 
     await resetRateLimits()
-    const pageRes = await SELF.fetch(`http://localhost/api/wiki/${source.slug}`, {
+    const pageRes = await fetchNativeApi(`http://localhost/api/wiki/${source.slug}`, {
       headers: authHeaders(token, slug),
     })
     expect(await pageRes.json()).toEqual(expect.objectContaining({ content: 'see [[Atomic Runbook]]' }))
 
     await resetRateLimits()
-    const backlinksRes = await SELF.fetch('http://localhost/api/wiki/atomic-runbook/backlinks', {
+    const backlinksRes = await fetchNativeApi('http://localhost/api/wiki/atomic-runbook/backlinks', {
       headers: authHeaders(token, slug),
     })
     const backlinks = (await backlinksRes.json()) as { slug: string }[]
     expect(backlinks.map((b) => b.slug)).toEqual(['atomic-source'])
 
     await resetRateLimits()
-    const searchRes = await SELF.fetch('http://localhost/api/wiki/search?q=links+anywhere', {
+    const searchRes = await fetchNativeApi('http://localhost/api/wiki/search?q=links+anywhere', {
       headers: authHeaders(token, slug),
     })
     expect(await searchRes.json()).toEqual([])
@@ -4155,14 +4167,14 @@ describe('Wiki freshness model (PROJ-489)', () => {
   }
 
   test('REST GET /api/wiki/:slug returns computed freshness in the page header', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Overdue Runbook', content: overdueContent() }),
     })
     const created = (await createRes.json()) as { slug: string }
 
-    const res = await SELF.fetch(`http://localhost/api/wiki/${created.slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await res.json()) as { freshness: { state: string; staleSince: number | null } }
@@ -4171,14 +4183,14 @@ describe('Wiki freshness model (PROJ-489)', () => {
   })
 
   test("REST POST /api/wiki/:slug/verify stamps verified_at/verified_by using the CALLING user's identity", async () => {
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Needs Verification', content: overdueContent() }),
     })
     const created = (await createRes.json()) as { slug: string }
 
-    const verifyRes = await SELF.fetch(`http://localhost/api/wiki/${created.slug}/verify`, {
+    const verifyRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/verify`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -4194,7 +4206,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
 
     // The stamp is written into the page's frontmatter (not just the denormalized
     // columns), so a subsequent read reflects it without needing an unrelated edit.
-    const pageRes = await SELF.fetch(`http://localhost/api/wiki/${created.slug}`, {
+    const pageRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await pageRes.json()) as { verified_by: string; content: string }
@@ -4203,24 +4215,24 @@ describe('Wiki freshness model (PROJ-489)', () => {
   })
 
   test('verify_wiki_page records a revision, same as any other content edit', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Revision Check', content: overdueContent() }),
     })
     const created = (await createRes.json()) as { slug: string }
 
-    const before = await SELF.fetch(`http://localhost/api/wiki/${created.slug}/revisions`, {
+    const before = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/revisions`, {
       headers: authHeaders(token, slug),
     })
     const beforeRevisions = (await before.json()) as unknown[]
 
-    await SELF.fetch(`http://localhost/api/wiki/${created.slug}/verify`, {
+    await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/verify`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
 
-    const after = await SELF.fetch(`http://localhost/api/wiki/${created.slug}/revisions`, {
+    const after = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/revisions`, {
       headers: authHeaders(token, slug),
     })
     const afterRevisions = (await after.json()) as unknown[]
@@ -4230,25 +4242,25 @@ describe('Wiki freshness model (PROJ-489)', () => {
   // PROJ-489: verifying rewrites the whole content (frontmatter stamp + body), so it must
   // stamp the CURRENT content — a stale read would silently revert the edit before it.
   test('POST /api/wiki/:slug/verify stamps on top of the latest content, never a stale snapshot', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Edited Then Verified', content: overdueContent() }),
     })
     const created = (await createRes.json()) as { slug: string }
 
-    await SELF.fetch(`http://localhost/api/wiki/${created.slug}`, {
+    await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ content: `${overdueContent()}\n\nBrand new paragraph.` }),
     })
 
-    await SELF.fetch(`http://localhost/api/wiki/${created.slug}/verify`, {
+    await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/verify`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
 
-    const pageRes = await SELF.fetch(`http://localhost/api/wiki/${created.slug}`, {
+    const pageRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await pageRes.json()) as { content: string; verified_by: string }
@@ -4258,14 +4270,14 @@ describe('Wiki freshness model (PROJ-489)', () => {
 
   test('POST /api/wiki/:slug/verify is rejected for a viewer', async () => {
     const roles = await seedWorkspaceRoles()
-    const createRes = await SELF.fetch('http://localhost/api/wiki', {
+    const createRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ title: 'Viewer Guard', content: overdueContent() }),
     })
     const created = (await createRes.json()) as { slug: string }
 
-    const res = await SELF.fetch(`http://localhost/api/wiki/${created.slug}/verify`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}/verify`, {
       method: 'POST',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
     })
@@ -4290,7 +4302,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
   })
 
   test('GET /api/wiki/search demotes a computed-stale page below a fresh page matching the same query', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -4298,7 +4310,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
         content: `${overdueContent()}\ndeploy keyword`,
       }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -4307,7 +4319,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
       }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=deploy', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search?q=deploy', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as {
@@ -4320,7 +4332,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
   })
 
   test('GET /api/wiki/search demotes an explicitly status: deprecated page too', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -4328,13 +4340,13 @@ describe('Wiki freshness model (PROJ-489)', () => {
         content: `${explicitStatusContent('deprecated')}\nonboardingkeyword`,
       }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Current Onboarding', content: 'onboardingkeyword' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=onboardingkeyword', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search?q=onboardingkeyword', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
@@ -4350,7 +4362,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
     // "No Signal" below regardless of relevance, the same way a stale/deprecated page
     // is forced below a fresh one in the tests above. Giving it the stronger (title)
     // match proves the opposite: bm25 alone decides the order now.
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -4358,7 +4370,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
         content: unverifiedContent(),
       }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -4367,7 +4379,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
       }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=securitypolicykeyword', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search?q=securitypolicykeyword', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as {
@@ -4379,17 +4391,17 @@ describe('Wiki freshness model (PROJ-489)', () => {
   })
 
   test('GET /api/wiki/stale-pages lists computed-stale, unverified, deprecated pages, excluding fresh', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Overdue Page', content: overdueContent() }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Never Verified Page', content: unverifiedContent() }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -4397,12 +4409,12 @@ describe('Wiki freshness model (PROJ-489)', () => {
         content: explicitStatusContent('stale'),
       }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Fresh Page', content: freshContent() }),
     })
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'No Signal Page', content: 'plain markdown' }),
@@ -4411,7 +4423,7 @@ describe('Wiki freshness model (PROJ-489)', () => {
     // PROJ-489: 5 creates already used up this token's test-env rate limit
     // (vite.config.ts RATE_LIMIT_API_MAX=5) — reset before the read below.
     await resetRateLimits()
-    const res = await SELF.fetch('http://localhost/api/wiki/stale-pages', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/stale-pages', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -4464,7 +4476,7 @@ describe('Wiki page templates (PROJ-491)', () => {
   ].join('\n')
 
   async function createTemplate() {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Runbook Template', content: TEMPLATE_CONTENT }),
@@ -4477,7 +4489,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     const created = await createTemplate()
     expect(created.isTemplate).toBe(true)
 
-    const getRes = await SELF.fetch(`http://localhost/api/wiki/${created.slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await getRes.json()) as { is_template: boolean }
@@ -4487,7 +4499,7 @@ describe('Wiki page templates (PROJ-491)', () => {
   test('REST: create_wiki_page with templateSlug seeds content and strips template:true', async () => {
     await createTemplate()
 
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Deploy Runbook', templateSlug: 'runbook-template' }),
@@ -4499,7 +4511,7 @@ describe('Wiki page templates (PROJ-491)', () => {
     expect(created.isTemplate).toBe(false)
     expect(created.type).toBe('runbook')
 
-    const getRes = await SELF.fetch(`http://localhost/api/wiki/${created.slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/wiki/${created.slug}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await getRes.json()) as { content: string; is_template: boolean }
@@ -4524,7 +4536,7 @@ describe('Wiki page templates (PROJ-491)', () => {
   })
 
   test('rejects templateSlug that does not resolve to any page (not a silent blank fallback)', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Orphan Page', templateSlug: 'does-not-exist' }),
@@ -4533,13 +4545,13 @@ describe('Wiki page templates (PROJ-491)', () => {
   })
 
   test("rejects templateSlug pointing at a page that isn't flagged template:true", async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Ordinary Page', content: '# Just a page' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Bad Seed', templateSlug: 'ordinary-page' }),
@@ -4550,7 +4562,7 @@ describe('Wiki page templates (PROJ-491)', () => {
   test('rejects content and templateSlug provided together', async () => {
     await createTemplate()
 
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -4564,13 +4576,13 @@ describe('Wiki page templates (PROJ-491)', () => {
 
   test('search_wiki excludes template pages by default', async () => {
     await createTemplate()
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Runbook For Deploys', content: '# Runbook body content' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/search?q=Runbook', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/search?q=Runbook', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
@@ -4583,20 +4595,20 @@ describe('Wiki page templates (PROJ-491)', () => {
   // "Runbook Template" alongside real runbook pages.
   test('GET /api/wiki excludes template pages by default, matching search_wiki/list_stale_pages', async () => {
     await createTemplate()
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Ordinary Runbook', content: '# Not a template' }),
     })
 
-    const defaultRes = await SELF.fetch('http://localhost/api/wiki', {
+    const defaultRes = await fetchNativeApi('http://localhost/api/wiki', {
       headers: authHeaders(token, slug),
     })
     const defaultResults = (await defaultRes.json()) as { title: string }[]
     expect(defaultResults.map((r) => r.title)).toContain('Ordinary Runbook')
     expect(defaultResults.map((r) => r.title)).not.toContain('Runbook Template')
 
-    const includedRes = await SELF.fetch('http://localhost/api/wiki?includeTemplates=true', {
+    const includedRes = await fetchNativeApi('http://localhost/api/wiki?includeTemplates=true', {
       headers: authHeaders(token, slug),
     })
     const includedResults = (await includedRes.json()) as { title: string }[]
@@ -4612,13 +4624,13 @@ describe('Wiki page templates (PROJ-491)', () => {
       '---',
       '# Stale-looking template',
     ].join('\n')
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Overdue Template', content: overdueTemplateContent }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/stale-pages', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/stale-pages', {
       headers: authHeaders(token, slug),
     })
     const results = (await res.json()) as { title: string }[]
@@ -4627,13 +4639,13 @@ describe('Wiki page templates (PROJ-491)', () => {
 
   test('REST GET /api/wiki/templates lists only template-flagged pages', async () => {
     await createTemplate()
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Regular Page', content: '# Not a template' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki/templates', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/templates', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -4642,7 +4654,7 @@ describe('Wiki page templates (PROJ-491)', () => {
   })
 
   test("rejects a page slugged 'templates' — it would be shadowed by GET /api/wiki/templates", async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Templates', slug: 'templates', content: '' }),
@@ -4676,14 +4688,14 @@ describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () =
     const newToken = await seedToken(created.id, fixture.user.id)
     const newHeaders = authHeaders(newToken, created.slug)
 
-    const listRes = await SELF.fetch('http://localhost/api/wiki/templates', {
+    const listRes = await fetchNativeApi('http://localhost/api/wiki/templates', {
       headers: newHeaders,
     })
     expect(listRes.status).toBe(200)
     const templates = (await listRes.json()) as { title: string; type: string | null }[]
     expect(templates.map((t) => t.title).sort()).toEqual(['ADR Template', 'Runbook Template', 'Spec Template'])
 
-    const treeRes = await SELF.fetch('http://localhost/api/wiki/tree', { headers: newHeaders })
+    const treeRes = await fetchNativeApi('http://localhost/api/wiki/tree', { headers: newHeaders })
     const tree = (await treeRes.json()) as {
       title: string
       slug: string
@@ -4695,7 +4707,7 @@ describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () =
     // The seeded parent must stay reachable by slug: GET /api/wiki/templates is the
     // template-list endpoint, so a parent slugged "templates" would be shadowed by it
     // and the page would never render.
-    const parentRes = await SELF.fetch(`http://localhost/api/wiki/${templatesNode?.slug}`, {
+    const parentRes = await fetchNativeApi(`http://localhost/api/wiki/${templatesNode?.slug}`, {
       headers: newHeaders,
     })
     expect(parentRes.status).toBe(200)
@@ -4717,7 +4729,7 @@ describe('Wiki built-in template seeding on workspace creation (PROJ-491)', () =
     const newToken = await seedToken(created.id, fixture.user.id)
     const newHeaders = authHeaders(newToken, created.slug)
 
-    const searchRes = await SELF.fetch('http://localhost/api/wiki/search?q=Templates', {
+    const searchRes = await fetchNativeApi('http://localhost/api/wiki/search?q=Templates', {
       headers: newHeaders,
     })
     expect(searchRes.status).toBe(200)

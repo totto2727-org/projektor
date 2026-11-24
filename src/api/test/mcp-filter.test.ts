@@ -1,9 +1,9 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { TOOL_COUNT, TOOL_DOMAIN_SLUGS } from '../mcp/catalog.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function mcpFetch(
   workspaceId: string,
@@ -12,7 +12,7 @@ async function mcpFetch(
   headers: Record<string, string>,
   query = '',
 ): Promise<Response> {
-  return SELF.fetch(`http://localhost/mcp/${workspaceId}${query}`, {
+  return fetchNativeApi(`http://localhost/mcp/${workspaceId}${query}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),

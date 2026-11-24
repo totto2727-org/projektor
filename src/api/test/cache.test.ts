@@ -1,10 +1,10 @@
-import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import * as cache from '#commands/cache.ts'
 
 import { configureCore, env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture, seedTaskStatus, seedTaskType } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('KV caching', () => {
   let token: string
@@ -26,7 +26,7 @@ describe('KV caching', () => {
       const hdrs = authHeaders(token, slug)
 
       // First GET — populates cache
-      const first = await SELF.fetch(url, { headers: hdrs })
+      const first = await fetchNativeApi(url, { headers: hdrs })
       expect(first.status).toBe(200)
       const firstBody = (await first.json()) as { id: string; title: string }
       expect(firstBody.title).toBe('Cached Issue')
@@ -34,7 +34,7 @@ describe('KV caching', () => {
       // Delete D1 row — simulates D1 being unavailable or stale
       await env.DB.prepare('DELETE FROM issues WHERE id = ?').bind(issue.id).run()
 
-      const second = await SELF.fetch(url, { headers: hdrs })
+      const second = await fetchNativeApi(url, { headers: hdrs })
       expect(second.status).toBe(404)
     })
 
@@ -44,10 +44,10 @@ describe('KV caching', () => {
       const hdrs = authHeaders(token, slug)
 
       // GET to populate cache
-      await SELF.fetch(url, { headers: hdrs })
+      await fetchNativeApi(url, { headers: hdrs })
 
       // PATCH to update — should invalidate the cache entry
-      const patch = await SELF.fetch(url, {
+      const patch = await fetchNativeApi(url, {
         method: 'PATCH',
         headers: hdrs,
         body: JSON.stringify({ title: 'After' }),
@@ -55,7 +55,7 @@ describe('KV caching', () => {
       expect(patch.status).toBe(200)
 
       // GET — cache was invalidated so this reads from D1 and returns the new title
-      const res = await SELF.fetch(url, { headers: hdrs })
+      const res = await fetchNativeApi(url, { headers: hdrs })
       expect(res.status).toBe(200)
       const body = (await res.json()) as { title: string }
       expect(body.title).toBe('After')
@@ -67,14 +67,14 @@ describe('KV caching', () => {
       const hdrs = authHeaders(token, slug)
 
       // GET to populate cache
-      await SELF.fetch(url, { headers: hdrs })
+      await fetchNativeApi(url, { headers: hdrs })
 
       // DELETE — should invalidate the cache entry
-      const del = await SELF.fetch(url, { method: 'DELETE', headers: hdrs })
+      const del = await fetchNativeApi(url, { method: 'DELETE', headers: hdrs })
       expect(del.status).toBe(200)
 
       // GET after delete must return 404, not the stale cached value
-      const res = await SELF.fetch(url, { headers: hdrs })
+      const res = await fetchNativeApi(url, { headers: hdrs })
       expect(res.status).toBe(404)
     })
   })
@@ -86,7 +86,7 @@ describe('KV caching', () => {
       const hdrs = authHeaders(token, slug)
 
       // First GET — populates cache
-      const first = await SELF.fetch(url, { headers: hdrs })
+      const first = await fetchNativeApi(url, { headers: hdrs })
       expect(first.status).toBe(200)
       const firstBody = (await first.json()) as unknown[]
       expect(firstBody.length).toBeGreaterThan(0)
@@ -95,7 +95,7 @@ describe('KV caching', () => {
       await env.DB.prepare('DELETE FROM task_statuses WHERE workspace_id = ?').bind(workspaceId).run()
 
       // Second GET — served from KV cache
-      const second = await SELF.fetch(url, { headers: hdrs })
+      const second = await fetchNativeApi(url, { headers: hdrs })
       expect(second.status).toBe(200)
       const secondBody = (await second.json()) as unknown[]
       expect(secondBody.length).toBeGreaterThan(0)
@@ -106,14 +106,14 @@ describe('KV caching', () => {
       const url = 'http://localhost/api/task-types'
       const hdrs = authHeaders(token, slug)
 
-      const first = await SELF.fetch(url, { headers: hdrs })
+      const first = await fetchNativeApi(url, { headers: hdrs })
       expect(first.status).toBe(200)
       const firstBody = (await first.json()) as unknown[]
       expect(firstBody.length).toBeGreaterThan(0)
 
       await env.DB.prepare('DELETE FROM task_types WHERE workspace_id = ?').bind(workspaceId).run()
 
-      const second = await SELF.fetch(url, { headers: hdrs })
+      const second = await fetchNativeApi(url, { headers: hdrs })
       expect(second.status).toBe(200)
       const secondBody = (await second.json()) as unknown[]
       expect(secondBody.length).toBeGreaterThan(0)
@@ -125,7 +125,7 @@ describe('KV caching', () => {
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
       async function mcpListProjects() {
-        const res = await SELF.fetch(mcpUrl, {
+        const res = await fetchNativeApi(mcpUrl, {
           method: 'POST',
           headers: hdrs,
           body: JSON.stringify({
@@ -156,7 +156,7 @@ describe('KV caching', () => {
       const mcpUrl = `http://localhost/mcp/${workspaceId}`
 
       async function mcpListProjects() {
-        const res = await SELF.fetch(mcpUrl, {
+        const res = await fetchNativeApi(mcpUrl, {
           method: 'POST',
           headers: hdrs,
           body: JSON.stringify({
@@ -172,7 +172,7 @@ describe('KV caching', () => {
 
       const before = await mcpListProjects()
 
-      const created = await SELF.fetch('http://localhost/api/projects', {
+      const created = await fetchNativeApi('http://localhost/api/projects', {
         method: 'POST',
         headers: hdrs,
         body: JSON.stringify({ name: 'New Project', key: 'NEWP' }),
@@ -189,10 +189,10 @@ describe('KV caching', () => {
       const hdrs = authHeaders(token, slug)
 
       // GET to populate cache with the current (empty-ish) list
-      const before = await SELF.fetch(url, { headers: hdrs })
+      const before = await fetchNativeApi(url, { headers: hdrs })
       const beforeBody = (await before.json()) as unknown[]
 
-      const created = await SELF.fetch(url, {
+      const created = await fetchNativeApi(url, {
         method: 'POST',
         headers: hdrs,
         body: JSON.stringify({ key: 'blocked', name: 'Blocked', category: 'in_progress' }),
@@ -200,7 +200,7 @@ describe('KV caching', () => {
       expect(created.status).toBe(201)
 
       // GET immediately after — must not be served from the pre-create cache entry
-      const after = await SELF.fetch(url, { headers: hdrs })
+      const after = await fetchNativeApi(url, { headers: hdrs })
       const afterBody = (await after.json()) as { key: string }[]
       expect(afterBody.length).toBe(beforeBody.length + 1)
       expect(afterBody.some((s) => s.key === 'blocked')).toBe(true)
@@ -212,15 +212,15 @@ describe('KV caching', () => {
       const hdrs = authHeaders(token, slug)
 
       // GET to populate cache including the seeded type
-      const before = await SELF.fetch(url, { headers: hdrs })
+      const before = await fetchNativeApi(url, { headers: hdrs })
       const beforeBody = (await before.json()) as { key: string }[]
       expect(beforeBody.some((t) => t.key === 'chore')).toBe(true)
 
-      const del = await SELF.fetch(`${url}/${taskType.id}`, { method: 'DELETE', headers: hdrs })
+      const del = await fetchNativeApi(`${url}/${taskType.id}`, { method: 'DELETE', headers: hdrs })
       expect(del.status).toBe(200)
 
       // GET immediately after — must not be served from the pre-delete cache entry
-      const after = await SELF.fetch(url, { headers: hdrs })
+      const after = await fetchNativeApi(url, { headers: hdrs })
       const afterBody = (await after.json()) as { key: string }[]
       expect(afterBody.some((t) => t.key === 'chore')).toBe(false)
     })
@@ -287,7 +287,7 @@ describe('KV caching', () => {
       await configureCore({ FIXTURE_CACHE_DELETE_MODE: 'reject' })
       await resetCoreObservations()
 
-      const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+      const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({

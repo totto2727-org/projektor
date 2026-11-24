@@ -12,8 +12,6 @@
  * Issues do NOT enforce a viewer role — any member can write — so they are
  * intentionally excluded from the viewer-403 matrix below.
  */
-
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -34,6 +32,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,7 +44,7 @@ async function mcpCall(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -87,7 +86,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   // -- Projects --
 
   test('viewer cannot POST /api/projects', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: viewerHeaders,
       body: JSON.stringify({ name: 'Proj', key: 'PRJ' }),
@@ -96,7 +95,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   })
 
   test('owner CAN POST /api/projects', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Proj', key: 'PRJ' }),
@@ -106,14 +105,14 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   test('viewer cannot PATCH /api/projects/:id', async () => {
     // Owner creates, viewer tries to update
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
+    const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Owner Proj', key: 'OP1' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'PATCH',
       headers: viewerHeaders,
       body: JSON.stringify({ name: 'Renamed' }),
@@ -122,14 +121,14 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   })
 
   test('viewer cannot DELETE /api/projects/:id', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
+    const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Del Proj', key: 'DP1' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'DELETE',
       headers: viewerHeaders,
     })
@@ -139,7 +138,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   // -- Task types --
 
   test('viewer cannot POST /api/task-types', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: viewerHeaders,
       body: JSON.stringify({ key: 'epic', name: 'Epic' }),
@@ -148,7 +147,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   })
 
   test('owner CAN POST /api/task-types', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'epic', name: 'Epic' }),
@@ -158,7 +157,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   test('viewer cannot PATCH /api/task-types/:id', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'bug', name: 'Bug' })
-    const res = await SELF.fetch(`http://localhost/api/task-types/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
       method: 'PATCH',
       headers: viewerHeaders,
       body: JSON.stringify({ name: 'Renamed Bug' }),
@@ -168,7 +167,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   test('viewer cannot DELETE /api/task-types/:id', async () => {
     const { id } = await seedTaskType(workspaceId, { key: 'story', name: 'Story' })
-    const res = await SELF.fetch(`http://localhost/api/task-types/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-types/${id}`, {
       method: 'DELETE',
       headers: viewerHeaders,
     })
@@ -178,7 +177,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   // -- Task statuses --
 
   test('viewer cannot POST /api/task-statuses', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: viewerHeaders,
       body: JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
@@ -187,7 +186,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   })
 
   test('owner CAN POST /api/task-statuses', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),
@@ -197,7 +196,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   test('viewer cannot PATCH /api/task-statuses/:id', async () => {
     const { id } = await seedTaskStatus(workspaceId, { key: 'todo-st', name: 'Todo' })
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       method: 'PATCH',
       headers: viewerHeaders,
       body: JSON.stringify({ name: 'Updated' }),
@@ -207,7 +206,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   test('viewer cannot DELETE /api/task-statuses/:id', async () => {
     const { id } = await seedTaskStatus(workspaceId, { key: 'del-st', name: 'Del' })
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       method: 'DELETE',
       headers: viewerHeaders,
     })
@@ -217,7 +216,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   // -- Custom fields --
 
   test('viewer cannot POST /api/custom-fields', async () => {
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
+    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: viewerHeaders,
       body: JSON.stringify({ key: 'priority_score', label: 'Priority Score', type: 'number' }),
@@ -226,7 +225,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   })
 
   test('owner CAN POST /api/custom-fields', async () => {
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
+    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ key: 'priority_score', label: 'Priority Score', type: 'number' }),
@@ -236,7 +235,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   test('viewer cannot PATCH /api/custom-fields/:id', async () => {
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'cf_patch', type: 'text' })
-    const res = await SELF.fetch(`http://localhost/api/custom-fields/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
       method: 'PATCH',
       headers: viewerHeaders,
       body: JSON.stringify({ label: 'Updated' }),
@@ -246,7 +245,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   test('viewer cannot DELETE /api/custom-fields/:id', async () => {
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'cf_del', type: 'text' })
-    const res = await SELF.fetch(`http://localhost/api/custom-fields/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
       method: 'DELETE',
       headers: viewerHeaders,
     })
@@ -258,12 +257,12 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
 
   test('viewer cannot DELETE /api/wiki/:slug', async () => {
     // Owner creates a wiki page; viewer tries to delete it
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Protected Page', content: 'content' }),
     })
-    const res = await SELF.fetch('http://localhost/api/wiki/protected-page', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/protected-page', {
       method: 'DELETE',
       headers: viewerHeaders,
     })
@@ -271,7 +270,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
   })
 
   test('member CAN DELETE /api/wiki/:slug (only viewer is blocked)', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'Member Page', content: 'content' }),
@@ -286,7 +285,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     // To avoid using the wrong workspace, simply verify member in the correct workspace
     // gets 200. We do this inline without an extra seedWorkspaceRoles call.
     // (This test just validates the owner can also delete.)
-    const res = await SELF.fetch('http://localhost/api/wiki/member-page', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/member-page', {
       method: 'DELETE',
       headers: ownerHeaders,
     })
@@ -306,7 +305,7 @@ describe('PROJ-78: same-workspace viewer role → 403 on mutating routes', () =>
     // so the request reaches the viewer-role guard instead of a 404.
     await seedGroupGrant(workspaceId, viewerId, project.id, 'viewer')
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}/comments`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/comments`, {
       method: 'POST',
       headers: viewerHeaders,
       body: JSON.stringify({ body: 'a comment' }),
@@ -407,7 +406,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
   // PATCH /:slug — owner-only rename
 
   test('member cannot PATCH /api/workspaces/:slug', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
       method: 'PATCH',
       headers: memberHeaders,
       body: JSON.stringify({ name: 'Renamed' }),
@@ -416,7 +415,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
   })
 
   test('viewer cannot PATCH /api/workspaces/:slug', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
       method: 'PATCH',
       headers: viewerHeaders,
       body: JSON.stringify({ name: 'Renamed' }),
@@ -425,7 +424,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
   })
 
   test('owner CAN PATCH /api/workspaces/:slug', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Renamed By Owner' }),
@@ -436,7 +435,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
   // POST /:slug/members — owner-only invite
 
   test('member cannot POST /api/workspaces/:slug/members (invite)', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members`, {
       method: 'POST',
       headers: memberHeaders,
       body: JSON.stringify({ email: 'newbie@example.com', role: 'viewer' }),
@@ -445,7 +444,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
   })
 
   test('owner CAN POST /api/workspaces/:slug/members', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ email: 'newbie@example.com', role: 'viewer' }),
@@ -457,7 +456,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
 
   test('member cannot DELETE /api/workspaces/:slug/members/:userId', async () => {
     // Invite someone first so there is a target to remove
-    await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
+    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ email: 'target@example.com', role: 'viewer' }),
@@ -466,7 +465,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
       .bind('target@example.com')
       .first<{ id: string }>()
 
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members/${target!.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${target!.id}`, {
       method: 'DELETE',
       headers: memberHeaders,
     })
@@ -474,7 +473,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
   })
 
   test('owner CAN DELETE /api/workspaces/:slug/members/:userId', async () => {
-    await SELF.fetch(`http://localhost/api/workspaces/${slug}/members`, {
+    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ email: 'removal@example.com', role: 'viewer' }),
@@ -483,7 +482,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
       .bind('removal@example.com')
       .first<{ id: string }>()
 
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members/${target!.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${target!.id}`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
@@ -500,7 +499,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
       .bind(workspaceId)
       .first<{ user_id: string }>()
 
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`, {
       method: 'PATCH',
       headers: memberHeaders,
       body: JSON.stringify({ role: 'member' }),
@@ -515,7 +514,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
       .bind(workspaceId)
       .first<{ user_id: string }>()
 
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/members/${viewerRow!.user_id}`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ role: 'member' }),
@@ -526,21 +525,21 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
   // GET /:slug/tokens — admin/owner only
 
   test('member cannot GET /api/workspaces/:slug/tokens', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: memberHeaders,
     })
     expect(res.status).toBe(403)
   })
 
   test('viewer cannot GET /api/workspaces/:slug/tokens', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: viewerHeaders,
     })
     expect(res.status).toBe(403)
   })
 
   test('owner CAN GET /api/workspaces/:slug/tokens', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       headers: ownerHeaders,
     })
     expect(res.status).toBe(200)
@@ -562,7 +561,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
   const humanHeaders = () => ({ 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' })
   const mint = (email: string, name: string, scopes: string[]) =>
     asHuman(email, () =>
-      SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
+      fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
         method: 'POST',
         headers: humanHeaders(),
         body: JSON.stringify({ name, scopes }),
@@ -570,7 +569,7 @@ describe('PROJ-78: Workspace routes – non-owner blocked, owner allowed', () =>
     )
   const revoke = (email: string, id: string) =>
     asHuman(email, () =>
-      SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
+      fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
         method: 'DELETE',
         headers: humanHeaders(),
       }),

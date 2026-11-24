@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedProject, seedUser, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function mcpCall<T>(
   workspaceId: string,
@@ -10,7 +10,7 @@ async function mcpCall<T>(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -52,7 +52,7 @@ describe('Groups REST', () => {
   })
 
   async function createGroup(name: string, headers = ownerHeaders): Promise<string> {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ name }),
@@ -63,7 +63,7 @@ describe('Groups REST', () => {
 
   test('owner can create and list a group', async () => {
     await createGroup('Engineering')
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       headers: ownerHeaders,
     })
     expect(res.status).toBe(200)
@@ -79,7 +79,7 @@ describe('Groups REST', () => {
   })
 
   test('member cannot create a group (403)', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       method: 'POST',
       headers: memberHeaders,
       body: JSON.stringify({ name: 'Sneaky' }),
@@ -89,7 +89,7 @@ describe('Groups REST', () => {
 
   test('duplicate group name is a 409', async () => {
     await createGroup('Dupe')
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Dupe' }),
@@ -100,13 +100,13 @@ describe('Groups REST', () => {
   test('rename group and reject clashing rename', async () => {
     const a = await createGroup('Alpha')
     await createGroup('Beta')
-    const ok = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${a}`, {
+    const ok = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${a}`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Alpha2' }),
     })
     expect(ok.status).toBe(200)
-    const clash = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${a}`, {
+    const clash = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${a}`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Beta' }),
@@ -117,7 +117,7 @@ describe('Groups REST', () => {
   test('add/remove members and reject non-workspace members', async () => {
     const gid = await createGroup('Team')
     // add the workspace member
-    const add = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
+    const add = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ userId: roles.member.user.id }),
@@ -126,7 +126,7 @@ describe('Groups REST', () => {
 
     // a user who is not a workspace member cannot be added
     const outsider = await seedUser(`outsider-${crypto.randomUUID().slice(0, 8)}@example.com`)
-    const bad = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
+    const bad = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ userId: outsider.id }),
@@ -134,13 +134,13 @@ describe('Groups REST', () => {
     expect(bad.status).toBe(400)
 
     const detail = await (
-      await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
+      await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
         headers: ownerHeaders,
       })
     ).json()
     expect((detail as { members: unknown[] }).members).toHaveLength(1)
 
-    const rm = await SELF.fetch(
+    const rm = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}/groups/${gid}/members/${roles.member.user.id}`,
       { method: 'DELETE', headers: ownerHeaders },
     )
@@ -151,7 +151,7 @@ describe('Groups REST', () => {
     const gid = await createGroup('Grantee')
     const project = await seedProject(roles.workspace.id, 'GRP')
 
-    const set = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
+    const set = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
       method: 'PUT',
       headers: ownerHeaders,
       body: JSON.stringify({ projectId: project.id, role: 'viewer' }),
@@ -159,20 +159,20 @@ describe('Groups REST', () => {
     expect(set.status).toBe(200)
 
     // upsert to a stronger role
-    await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
+    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
       method: 'PUT',
       headers: ownerHeaders,
       body: JSON.stringify({ projectId: project.id, role: 'admin' }),
     })
     const detail = (await (
-      await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
+      await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
         headers: ownerHeaders,
       })
     ).json()) as { grants: { projectId: string; role: string }[] }
     expect(detail.grants).toHaveLength(1)
     expect(detail.grants[0].role).toBe('admin')
 
-    const rm = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants/${project.id}`, {
+    const rm = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants/${project.id}`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
@@ -181,7 +181,7 @@ describe('Groups REST', () => {
 
   test('grant on a project outside the workspace is a 404', async () => {
     const gid = await createGroup('BadGrant')
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
       method: 'PUT',
       headers: ownerHeaders,
       body: JSON.stringify({ projectId: crypto.randomUUID(), role: 'member' }),
@@ -192,31 +192,31 @@ describe('Groups REST', () => {
   test('member sees only their own groups; owner sees all', async () => {
     const mine = await createGroup('Mine')
     await createGroup('Theirs')
-    await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${mine}/members`, {
+    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${mine}/members`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ userId: roles.member.user.id }),
     })
 
     const memberList = (await (
-      await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups`, { headers: memberHeaders })
+      await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, { headers: memberHeaders })
     ).json()) as { name: string }[]
     expect(memberList.map((g) => g.name)).toEqual(['Mine'])
 
     const ownerList = (await (
-      await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups`, { headers: ownerHeaders })
+      await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, { headers: ownerHeaders })
     ).json()) as { name: string }[]
     expect(ownerList.map((g) => g.name).sort()).toEqual(['Mine', 'Theirs'])
   })
 
   test('member-groups lists every member with a pending (empty) entry', async () => {
     const gid = await createGroup('Assigned')
-    await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
+    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ userId: roles.member.user.id }),
     })
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/member-groups`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/member-groups`, {
       headers: ownerHeaders,
     })
     expect(res.status).toBe(200)
@@ -230,17 +230,17 @@ describe('Groups REST', () => {
   test('delete group cascades members and grants', async () => {
     const gid = await createGroup('Doomed')
     const project = await seedProject(roles.workspace.id, 'DOOM')
-    await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
+    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
       method: 'PUT',
       headers: ownerHeaders,
       body: JSON.stringify({ projectId: project.id, role: 'member' }),
     })
-    const del = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
+    const del = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
     expect(del.status).toBe(200)
-    const gone = await SELF.fetch(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
+    const gone = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}`, {
       headers: ownerHeaders,
     })
     expect(gone.status).toBe(404)

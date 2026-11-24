@@ -1,11 +1,10 @@
 // PROJ-858: saving a page resolves its slug links in a fixed number of queries,
 // not 1–3 per link, and produces the same wiki_links rows as before.
-
-import { SELF } from 'cloudflare:test'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('PROJ-858: batched slug link resolution on save', () => {
   afterEach(() => vi.restoreAllMocks())
@@ -57,7 +56,7 @@ describe('PROJ-858: batched slug link resolution on save', () => {
       return orig(q)
     })
 
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, workspace.slug),
       body: JSON.stringify({ title: 'Hub', content: links.join('\n') }),

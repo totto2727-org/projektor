@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -11,6 +10,7 @@ import {
   seedProjectFixture,
   seedWorkspaceRoles,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-311: role-guard tests grant the member a member-role and the viewer a
 // viewer-role on the project so both can see it — the assertions then verify the
@@ -28,7 +28,7 @@ describe('Sprints API', () => {
   })
 
   async function createSprint(body: Record<string, unknown>) {
-    return SELF.fetch('http://localhost/api/sprints', {
+    return fetchNativeApi('http://localhost/api/sprints', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify(body),
@@ -43,7 +43,7 @@ describe('Sprints API', () => {
   })
 
   test('GET /api/sprints?projectId= returns empty list initially', async () => {
-    const res = await SELF.fetch(`http://localhost/api/sprints?projectId=${projectId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -55,7 +55,7 @@ describe('Sprints API', () => {
   test('POST then GET lists the sprint', async () => {
     await createSprint({ projectId, name: 'Sprint 1', goal: 'Ship the feature' })
 
-    const res = await SELF.fetch(`http://localhost/api/sprints?projectId=${projectId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
     const body = (await res.json()) as { items: Record<string, unknown>[] }
@@ -69,7 +69,7 @@ describe('Sprints API', () => {
     const createRes = await createSprint({ projectId, name: 'Sprint 2' })
     const { id } = (await createRes.json()) as { id: string }
 
-    const res = await SELF.fetch(`http://localhost/api/sprints/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -79,7 +79,7 @@ describe('Sprints API', () => {
   })
 
   test('GET /api/sprints/:id returns 404 for unknown id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/sprints/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/sprints/${crypto.randomUUID()}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
@@ -89,14 +89,14 @@ describe('Sprints API', () => {
     const createRes = await createSprint({ projectId, name: 'Draft Sprint' })
     const { id } = (await createRes.json()) as { id: string }
 
-    const patchRes = await SELF.fetch(`http://localhost/api/sprints/${id}`, {
+    const patchRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'Sprint 1', status: 'active', goal: 'Updated goal' }),
     })
     expect(patchRes.status).toBe(200)
 
-    const getRes = await SELF.fetch(`http://localhost/api/sprints/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       headers: authHeaders(token, slug),
     })
     const sprint = (await getRes.json()) as { name: string; status: string; goal: string }
@@ -110,19 +110,19 @@ describe('Sprints API', () => {
     const { id } = (await createRes.json()) as { id: string }
 
     // First make it active
-    await SELF.fetch(`http://localhost/api/sprints/${id}`, {
+    await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ status: 'active' }),
     })
 
-    const completeRes = await SELF.fetch(`http://localhost/api/sprints/${id}/complete`, {
+    const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
     expect(completeRes.status).toBe(200)
 
-    const getRes = await SELF.fetch(`http://localhost/api/sprints/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       headers: authHeaders(token, slug),
     })
     const sprint = (await getRes.json()) as { status: string }
@@ -133,7 +133,7 @@ describe('Sprints API', () => {
     const createRes = await createSprint({ projectId, name: 'Planned Sprint' })
     const { id } = (await createRes.json()) as { id: string }
 
-    const completeRes = await SELF.fetch(`http://localhost/api/sprints/${id}/complete`, {
+    const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -144,13 +144,13 @@ describe('Sprints API', () => {
     const createRes = await createSprint({ projectId, name: 'To delete' })
     const { id } = (await createRes.json()) as { id: string }
 
-    const deleteRes = await SELF.fetch(`http://localhost/api/sprints/${id}`, {
+    const deleteRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
     expect(deleteRes.status).toBe(200)
 
-    const getRes = await SELF.fetch(`http://localhost/api/sprints/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       headers: authHeaders(token, slug),
     })
     expect(getRes.status).toBe(404)
@@ -163,7 +163,7 @@ describe('Sprints API', () => {
     const issue1 = await seedIssue(workspaceId, projectId, userId, { title: 'Issue A' })
     const issue2 = await seedIssue(workspaceId, projectId, userId, { title: 'Issue B' })
 
-    const moveRes = await SELF.fetch(`http://localhost/api/sprints/${sprintId}/move-issues`, {
+    const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueIds: [issue1.id, issue2.id] }),
@@ -174,7 +174,7 @@ describe('Sprints API', () => {
     expect(result.count).toBe(2)
 
     // Verify issues now appear in sprint filter
-    const listRes = await SELF.fetch(`http://localhost/api/issues?sprintId=${sprintId}`, {
+    const listRes = await fetchNativeApi(`http://localhost/api/issues?sprintId=${sprintId}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await listRes.json()) as { items: { title: string }[] }
@@ -189,19 +189,19 @@ describe('Sprints API', () => {
 
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Sprint issue' })
 
-    await SELF.fetch(`http://localhost/api/sprints/${sprintId}/move-issues`, {
+    await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueIds: [issue.id] }),
     })
 
-    await SELF.fetch(`http://localhost/api/sprints/${sprintId}`, {
+    await fetchNativeApi(`http://localhost/api/sprints/${sprintId}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
 
     // Issue should still exist but sprint_id should be null
-    const issueRes = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const issueRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     expect(issueRes.status).toBe(200)
@@ -216,13 +216,13 @@ describe('Sprints API', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Cache issue' })
 
     // Warm the issue KV cache with the pre-move (sprint_id: null) shape.
-    const before = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const before = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     const beforeBody = (await before.json()) as { sprint_id: string | null }
     expect(beforeBody.sprint_id).toBeNull()
 
-    const moveRes = await SELF.fetch(`http://localhost/api/sprints/${sprintId}/move-issues`, {
+    const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueIds: [issue.id] }),
@@ -230,7 +230,7 @@ describe('Sprints API', () => {
     expect(moveRes.status).toBe(200)
 
     // Immediately after — must not be served from the pre-move cache entry.
-    const after = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const after = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     const afterBody = (await after.json()) as { sprint_id: string | null }
@@ -240,7 +240,7 @@ describe('Sprints API', () => {
   test('POST /api/sprints/:id/move-issues returns 404 for unknown sprint', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'Orphan issue' })
 
-    const res = await SELF.fetch(`http://localhost/api/sprints/${crypto.randomUUID()}/move-issues`, {
+    const res = await fetchNativeApi(`http://localhost/api/sprints/${crypto.randomUUID()}/move-issues`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueIds: [issue.id] }),
@@ -275,7 +275,7 @@ describe('Sprints API', () => {
       // Warm the per-issue KV cache first, so the GET after the move proves sprint_id
       // isn't served stale from it (it's read live from the row; the cache only holds
       // rollup/customFields).
-      const warmRes = await SELF.fetch(`http://localhost/api/issues/${issueIds[0]}`, {
+      const warmRes = await fetchNativeApi(`http://localhost/api/issues/${issueIds[0]}`, {
         headers: authHeaders(token, slug),
       })
       expect(warmRes.status).toBe(200)
@@ -289,7 +289,7 @@ describe('Sprints API', () => {
         return origDelete(...args)
       })
 
-      const moveRes = await SELF.fetch(`http://localhost/api/sprints/${sprintId}/move-issues`, {
+      const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ issueIds }),
@@ -305,7 +305,7 @@ describe('Sprints API', () => {
       // The cache entry is still there (nothing invalidated it), yet the GET shows the
       // new sprint.
       expect(await env.KV.get(`issue:${workspaceId}:${issueIds[0]}`)).not.toBeNull()
-      const getRes = await SELF.fetch(`http://localhost/api/issues/${issueIds[0]}`, {
+      const getRes = await fetchNativeApi(`http://localhost/api/issues/${issueIds[0]}`, {
         headers: authHeaders(token, slug),
       })
       expect(getRes.status).toBe(200)
@@ -319,7 +319,7 @@ describe('Sprints API', () => {
     await createSprint({ projectId, name: 'Second Sprint' })
     await createSprint({ projectId, name: 'Third Sprint' })
 
-    const res = await SELF.fetch(`http://localhost/api/sprints?projectId=${projectId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
     const body = (await res.json()) as { items: { name: string }[] }
@@ -333,14 +333,14 @@ describe('Sprints API', () => {
     const otherProject = await seedProject(other.workspace.id, 'OTH')
 
     // Create sprint in other workspace
-    await SELF.fetch('http://localhost/api/sprints', {
+    await fetchNativeApi('http://localhost/api/sprints', {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
       body: JSON.stringify({ projectId: otherProject.id, name: 'Other Workspace Sprint' }),
     })
 
     // Our workspace sees none
-    const res = await SELF.fetch(`http://localhost/api/sprints?projectId=${projectId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/sprints?projectId=${projectId}`, {
       headers: authHeaders(token, slug),
     })
     const body = (await res.json()) as { items: unknown[] }
@@ -354,7 +354,7 @@ describe('Sprints role guards', () => {
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
 
-    const res = await SELF.fetch('http://localhost/api/sprints', {
+    const res = await fetchNativeApi('http://localhost/api/sprints', {
       method: 'POST',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: project.id, name: 'Viewer Sprint' }),
@@ -368,7 +368,7 @@ describe('Sprints role guards', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
 
-    const createRes = await SELF.fetch('http://localhost/api/sprints', {
+    const createRes = await fetchNativeApi('http://localhost/api/sprints', {
       method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: project.id, name: sprintName }),
@@ -381,7 +381,7 @@ describe('Sprints role guards', () => {
   test('viewer cannot update a sprint (403)', async () => {
     const { roles, id } = await seedMemberSprintWithViewer('Member Sprint')
 
-    const patchRes = await SELF.fetch(`http://localhost/api/sprints/${id}`, {
+    const patchRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       method: 'PATCH',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'Hacked' }),
@@ -392,7 +392,7 @@ describe('Sprints role guards', () => {
   test('viewer cannot delete a sprint (403)', async () => {
     const { roles, id } = await seedMemberSprintWithViewer('Member Sprint')
 
-    const deleteRes = await SELF.fetch(`http://localhost/api/sprints/${id}`, {
+    const deleteRes = await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       method: 'DELETE',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
     })
@@ -401,13 +401,13 @@ describe('Sprints role guards', () => {
 
   test('viewer cannot complete a sprint (403)', async () => {
     const { roles, id } = await seedMemberSprintWithViewer('Sprint')
-    await SELF.fetch(`http://localhost/api/sprints/${id}`, {
+    await fetchNativeApi(`http://localhost/api/sprints/${id}`, {
       method: 'PATCH',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ status: 'active' }),
     })
 
-    const completeRes = await SELF.fetch(`http://localhost/api/sprints/${id}/complete`, {
+    const completeRes = await fetchNativeApi(`http://localhost/api/sprints/${id}/complete`, {
       method: 'POST',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
     })
@@ -421,7 +421,7 @@ describe('Sprints role guards', () => {
     // Member has write access to project A only — no grant at all on project B.
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, projectA.id, 'member')
 
-    const createRes = await SELF.fetch('http://localhost/api/sprints', {
+    const createRes = await fetchNativeApi('http://localhost/api/sprints', {
       method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: projectA.id, name: 'Sprint A' }),
@@ -433,7 +433,7 @@ describe('Sprints role guards', () => {
       title: 'Project B issue',
     })
 
-    const moveRes = await SELF.fetch(`http://localhost/api/sprints/${sprintId}/move-issues`, {
+    const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
       method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ issueIds: [foreignIssue.id] }),
@@ -453,7 +453,7 @@ describe('Sprints role guards', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
 
-    const createRes = await SELF.fetch('http://localhost/api/sprints', {
+    const createRes = await fetchNativeApi('http://localhost/api/sprints', {
       method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: project.id, name: 'Sprint' }),
@@ -462,7 +462,7 @@ describe('Sprints role guards', () => {
 
     const issue = await seedIssue(roles.workspace.id, project.id, roles.member.user.id)
 
-    const moveRes = await SELF.fetch(`http://localhost/api/sprints/${sprintId}/move-issues`, {
+    const moveRes = await fetchNativeApi(`http://localhost/api/sprints/${sprintId}/move-issues`, {
       method: 'POST',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
       body: JSON.stringify({ issueIds: [issue.id] }),

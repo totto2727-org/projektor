@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { Env } from '#types'
@@ -10,6 +9,7 @@ import {
 } from '../../core/api/maintenance.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedFixture, seedIssueFixture, seedUser, seedWorkspace } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 // PROJ-865: counts every real D1 statement execution (.all/.first/.raw/.run, .batch as
@@ -102,7 +102,7 @@ describe('scheduled wiki trash purge (PROJ-496)', () => {
 
   async function req(url: string, opts?: RequestInit) {
     await resetRateLimits()
-    return SELF.fetch(url, opts)
+    return fetchNativeApi(url, opts)
   }
 
   test('purges expired trash across every workspace, leaving unexpired trash untouched', async () => {

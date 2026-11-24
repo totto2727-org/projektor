@@ -1,13 +1,12 @@
 // PROJ-893: a failed tools/call is a tool *result* (`isError: true`) with a code and a
 // next-step hint, so the model can self-correct. JSON-RPC errors are reserved for protocol
 // faults; scope denials stay an HTTP 403 with a WWW-Authenticate challenge (PROJ-651).
-
-import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { seedIssueFixture, seedProjectFixture, seedToken, toolError } from './helpers.ts'
 import type { ToolErrorBody } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 type Rpc = {
   error?: { code: number; message: string }
@@ -30,7 +29,7 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
   })
 
   async function post(body: unknown, token = f.token): Promise<Response> {
-    return SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
+    return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: typeof body === 'string' ? body : JSON.stringify(body),
@@ -96,7 +95,7 @@ describe('PROJ-893: MCP tool failures are isError results', () => {
 
   test('forbidden: the hint says what role is needed', async () => {
     const viewer = await seedProjectFixture({ role: 'viewer' })
-    const res = await SELF.fetch(`http://localhost/mcp/${viewer.workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${viewer.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${viewer.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -1,9 +1,9 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('MCP prompts', () => {
   let token: string
@@ -25,7 +25,7 @@ describe('MCP prompts', () => {
   })
 
   async function mcpCall(method: string, params: unknown) {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),

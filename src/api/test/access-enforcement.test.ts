@@ -1,24 +1,24 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { visibleProjectIds } from '#commands/access.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-311: group-based project access. Authorization lives entirely in projektor:
 // access is default-deny, granted per (project, role) through a group the user
 // belongs to. Workspace owner/admin bypass groups and see everything.
 
 async function listProjects(token: string, slug: string) {
-  const res = await SELF.fetch('http://localhost/api/projects', {
+  const res = await fetchNativeApi('http://localhost/api/projects', {
     headers: authHeaders(token, slug),
   })
   return { status: res.status, body: (await res.json()) as { key: string }[] }
 }
 
 async function listIssues(token: string, slug: string) {
-  const res = await SELF.fetch('http://localhost/api/issues', {
+  const res = await fetchNativeApi('http://localhost/api/issues', {
     headers: authHeaders(token, slug),
   })
   return (await res.json()) as { items: { id: string }[] }
@@ -65,12 +65,12 @@ describe('PROJ-311 group-based project access', () => {
     const project = await seedProject(roles.workspace.id, 'SECRET')
     const issue = await seedIssue(roles.workspace.id, project.id, roles.owner.user.id)
 
-    const projRes = await SELF.fetch(`http://localhost/api/projects/${project.id}`, {
+    const projRes = await fetchNativeApi(`http://localhost/api/projects/${project.id}`, {
       headers: authHeaders(roles.member.token, slug),
     })
     expect(projRes.status).toBe(404)
 
-    const issueRes = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const issueRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(roles.member.token, slug),
     })
     expect(issueRes.status).toBe(404)
@@ -86,7 +86,7 @@ describe('PROJ-311 group-based project access', () => {
 
     // Admin removes the member from the group; access is per-request, so the next
     // call reflects it immediately with no session state to invalidate.
-    const del = await SELF.fetch(
+    const del = await fetchNativeApi(
       `http://localhost/api/workspaces/${slug}/groups/${groupId}/members/${roles.member.user.id}`,
       { method: 'DELETE', headers: authHeaders(roles.owner.token, slug) },
     )
@@ -104,7 +104,7 @@ describe('PROJ-311 group-based project access', () => {
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'viewer')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(roles.member.token, slug),
       body: JSON.stringify({ projectId: project.id, title: 'Written by member grant' }),
@@ -122,7 +122,7 @@ describe('PROJ-311 group-based project access', () => {
     expect((await listProjects(roles.member.token, slug)).body.map((p) => p.key)).toEqual(['RO'])
 
     // ...but a write is a 403, not a 404 (existence is not hidden once granted).
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(roles.member.token, slug),
       body: JSON.stringify({ projectId: project.id, title: 'Should be refused' }),
@@ -136,7 +136,7 @@ describe('PROJ-311 group-based project access', () => {
     const project = await seedProject(roles.workspace.id, 'WORK')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, project.id, 'member')
 
-    const createRes = await SELF.fetch('http://localhost/api/issues', {
+    const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(roles.member.token, slug),
       body: JSON.stringify({ projectId: project.id, title: 'Member task' }),
@@ -144,7 +144,7 @@ describe('PROJ-311 group-based project access', () => {
     expect(createRes.status).toBe(201)
     const { id } = (await createRes.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(roles.member.token, slug),
     })
     expect(getRes.status).toBe(200)

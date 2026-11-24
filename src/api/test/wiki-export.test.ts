@@ -1,9 +1,9 @@
-import { SELF } from 'cloudflare:test'
 import { unzipSync } from 'fflate'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProject, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // MAX_EXPORT_PAGES in services/wiki-export.ts — kept in sync manually since the
 // constant isn't exported; a mismatch would just make this test seed a few more/fewer
@@ -37,7 +37,7 @@ async function createPage(
   slug: string,
   body: Record<string, unknown>,
 ): Promise<{ id: string; slug: string }> {
-  const res = await SELF.fetch('http://localhost/api/wiki', {
+  const res = await fetchNativeApi('http://localhost/api/wiki', {
     method: 'POST',
     headers: authHeaders(token, slug),
     body: JSON.stringify(body),
@@ -57,7 +57,7 @@ async function uploadAttachment(
   form.append('file', new File([content], filename, { type: 'text/plain' }))
   form.append('entityType', 'wiki_page')
   form.append('entityId', pageId)
-  const res = await SELF.fetch('http://localhost/api/files', {
+  const res = await fetchNativeApi('http://localhost/api/files', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
     body: form,
@@ -70,7 +70,7 @@ async function exportZip(
   slug: string,
   query: string,
 ): Promise<{ status: number; entries?: Record<string, Uint8Array> }> {
-  const res = await SELF.fetch(`http://localhost/api/wiki/export?${query}`, {
+  const res = await fetchNativeApi(`http://localhost/api/wiki/export?${query}`, {
     headers: authHeaders(token, slug),
   })
   if (res.status !== 200) {
@@ -211,7 +211,7 @@ describe('Wiki export (PROJ-497)', () => {
   })
 
   test('400s when scope is missing or invalid', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki/export?scope=bogus', {
+    const res = await fetchNativeApi('http://localhost/api/wiki/export?scope=bogus', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)
@@ -315,7 +315,7 @@ describe('Wiki export (PROJ-497)', () => {
     })
 
     async function trash(pageId: string): Promise<void> {
-      const res = await SELF.fetch(`http://localhost/api/wiki/${pageId}`, {
+      const res = await fetchNativeApi(`http://localhost/api/wiki/${pageId}`, {
         method: 'DELETE',
         headers: authHeaders(token, slug),
       })

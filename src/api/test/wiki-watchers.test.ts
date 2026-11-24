@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedMember, seedProject, seedToken, seedUser } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 // PROJ-821: a watcher who loses access to a page (grant revoked, or removed from the
@@ -26,7 +26,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
   })
 
   async function createPage(body: Record<string, unknown>): Promise<string> {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(adminToken, slug),
       body: JSON.stringify(body),
@@ -36,7 +36,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
   }
 
   async function watch(pageId: string): Promise<void> {
-    const res = await SELF.fetch(`http://localhost/api/wiki/${pageId}/watch`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${pageId}/watch`, {
       method: 'POST',
       headers: authHeaders(watcherToken, slug),
       body: JSON.stringify({}),
@@ -46,7 +46,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
 
   async function edit(pageId: string, content: string): Promise<void> {
     await resetRateLimits()
-    const res = await SELF.fetch(`http://localhost/api/wiki/${pageId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${pageId}`, {
       method: 'PUT',
       headers: authHeaders(adminToken, slug),
       body: JSON.stringify({ content }),
@@ -99,7 +99,7 @@ describe('wiki watch notifications respect current access (PROJ-821)', () => {
     const project = await seedProject(workspaceId)
     await seedGroupGrant(workspaceId, watcherId, project.id, 'viewer')
     const parentId = await createPage({ title: 'Parent', content: 'p', projectId: project.id })
-    const res = await SELF.fetch(`http://localhost/api/wiki/${parentId}/watch`, {
+    const res = await fetchNativeApi(`http://localhost/api/wiki/${parentId}/watch`, {
       method: 'POST',
       headers: authHeaders(watcherToken, slug),
       body: JSON.stringify({ subtree: true }),

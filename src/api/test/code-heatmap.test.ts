@@ -1,10 +1,10 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { CodeHeatmapEntry, ContentionHeatmapEntry } from '#commands/code-heatmap.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 interface CodeHeatmapResponse {
   prefix: string
@@ -71,7 +71,7 @@ describe('Code heatmap (PROJ-332)', () => {
 
   async function getHeatmap(params: Record<string, string> = {}) {
     const qs = new URLSearchParams(params).toString()
-    return SELF.fetch(`http://localhost/api/projects/${projectId}/code-heatmap${qs ? `?${qs}` : ''}`, {
+    return fetchNativeApi(`http://localhost/api/projects/${projectId}/code-heatmap${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(token, slug),
     })
   }
@@ -164,12 +164,12 @@ describe('Code heatmap (PROJ-332)', () => {
     await seedClaim(issue.id, 'apps/api/src/services/code-heatmap.ts', now - 100)
 
     const query = `since=${now - 3600}&until=${now}`
-    const restRes = await SELF.fetch(`http://localhost/api/projects/${projectId}/code-heatmap?${query}`, {
+    const restRes = await fetchNativeApi(`http://localhost/api/projects/${projectId}/code-heatmap?${query}`, {
       headers: authHeaders(token, slug),
     })
     const restBody = await restRes.json()
 
-    const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({

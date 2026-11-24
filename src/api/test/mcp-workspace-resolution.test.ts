@@ -1,7 +1,7 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { seedFixture, seedMember, seedToken } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-348: the MCP endpoint (POST /mcp/<workspaceId>) must resolve its workspace
 // from the URL path UUID when no X-Workspace-Slug header is sent — the Claude app's
@@ -9,7 +9,7 @@ import { seedFixture, seedMember, seedToken } from './helpers.ts'
 // security boundary: a token minted for another workspace is still rejected.
 describe('MCP workspace resolution without X-Workspace-Slug (PROJ-348)', () => {
   function mcpRequest(workspaceId: string, token: string, extraHeaders?: Record<string, string>) {
-    return SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    return fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -69,7 +69,7 @@ describe('MCP workspace resolution without X-Workspace-Slug (PROJ-348)', () => {
 describe('non-MCP routes still require X-Workspace-Slug (PROJ-348 scope guard)', () => {
   test('REST route without the header 400s naming the missing header', async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(res.status).toBe(400)
@@ -79,7 +79,7 @@ describe('non-MCP routes still require X-Workspace-Slug (PROJ-348 scope guard)',
 
   test('REST route with the header still resolves the workspace', async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: {
         Authorization: `Bearer ${fixture.token}`,
         'X-Workspace-Slug': fixture.workspace.slug,

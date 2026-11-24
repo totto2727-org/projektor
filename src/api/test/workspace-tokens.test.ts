@@ -6,12 +6,11 @@
 //
 // In tests the human session is the dev bypass: ENVIRONMENT=development +
 // DEV_USER_EMAIL, no Authorization header.
-
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedUserToken } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function asHuman<T>(email: string, fn: () => Promise<T>): Promise<T> {
   const prev = env.DEV_USER_EMAIL
@@ -29,7 +28,7 @@ function humanHeaders(slug: string) {
 
 function mintAsHuman(email: string, slug: string, body: string) {
   return asHuman(email, () =>
-    SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens`, {
+    fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens`, {
       method: 'POST',
       headers: humanHeaders(slug),
       body,
@@ -46,7 +45,7 @@ async function tokenRow(name: string) {
 describe('PROJ-917: workspace tokens require a human session', () => {
   test("an owner's pk_ token cannot mint a workspace token", async () => {
     const f = await seedFixture({ role: 'owner' })
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
       method: 'POST',
       headers: authHeaders(f.token, f.workspace.slug),
       body: JSON.stringify({ name: 'sibling', scopes: ['*'] }),
@@ -59,7 +58,7 @@ describe('PROJ-917: workspace tokens require a human session', () => {
   test('a user-scoped PAT cannot mint a workspace token either', async () => {
     const f = await seedFixture({ role: 'owner' })
     const pat = await seedUserToken(f.user.id)
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
       method: 'POST',
       headers: authHeaders(pat, f.workspace.slug),
       body: JSON.stringify({ name: 'via-pat', scopes: ['read'] }),
@@ -76,7 +75,7 @@ describe('PROJ-917: workspace tokens require a human session', () => {
     const { id, token } = (await mint.json()) as { id: string; token: string }
     expect(token).toMatch(/^pk_/)
 
-    const byToken = await SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
+    const byToken = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
       method: 'DELETE',
       headers: authHeaders(f.token, slug),
     })
@@ -84,7 +83,7 @@ describe('PROJ-917: workspace tokens require a human session', () => {
     expect(await tokenRow('human-minted')).not.toBeNull()
 
     const byHuman = await asHuman(f.user.email, () =>
-      SELF.fetch(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
+      fetchNativeApi(`http://localhost/api/workspaces/${slug}/tokens/${id}`, {
         method: 'DELETE',
         headers: humanHeaders(slug),
       }),
@@ -113,7 +112,7 @@ describe('PROJ-917: workspace tokens require a human session', () => {
 
   test("listing stays available to an admin's pk_ token (no secrets returned)", async () => {
     const f = await seedFixture({ role: 'owner' })
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${f.workspace.slug}/tokens`, {
       headers: authHeaders(f.token, f.workspace.slug),
     })
     expect(res.status).toBe(200)

@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { configureCore, env } from './fixture-api.ts'
 import { authHeaders, hashToken, seedFixture, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('File Claims API', () => {
   let token: string
@@ -17,7 +17,7 @@ describe('File Claims API', () => {
   })
 
   async function claimFiles(body: Record<string, unknown>, t = token, s = slug) {
-    return SELF.fetch('http://localhost/api/file-claims', {
+    return fetchNativeApi('http://localhost/api/file-claims', {
       method: 'POST',
       headers: authHeaders(t, s),
       body: JSON.stringify(body),
@@ -25,7 +25,7 @@ describe('File Claims API', () => {
   }
 
   async function releaseFiles(body: Record<string, unknown>, t = token, s = slug) {
-    return SELF.fetch('http://localhost/api/file-claims/release', {
+    return fetchNativeApi('http://localhost/api/file-claims/release', {
       method: 'POST',
       headers: authHeaders(t, s),
       body: JSON.stringify(body),
@@ -34,14 +34,14 @@ describe('File Claims API', () => {
 
   async function listFileClaims(params: Record<string, string> = {}, t = token, s = slug) {
     const qs = new URLSearchParams(params).toString()
-    return SELF.fetch(`http://localhost/api/file-claims${qs ? `?${qs}` : ''}`, {
+    return fetchNativeApi(`http://localhost/api/file-claims${qs ? `?${qs}` : ''}`, {
       headers: authHeaders(t, s),
     })
   }
 
   // X-Workspace-Slug is required by workspaceMiddleware (reads slug, not path param)
   async function mcpCall(method: string, args: Record<string, unknown>, t = token, s = slug, wsId = workspaceId) {
-    return SELF.fetch(`http://localhost/mcp/${wsId}`, {
+    return fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${t}`,
@@ -170,7 +170,7 @@ describe('File Claims API', () => {
   // 5 requests (register-agent, claim, end-agent, list, re-claim) — at limit of 5
   test('B4b: endAgent auto-releases agent file claims; path becomes re-claimable', async () => {
     // Register an agent session
-    const agentRes = await SELF.fetch('http://localhost/api/agents', {
+    const agentRes = await fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'test-agent-fc' }),
@@ -187,7 +187,7 @@ describe('File Claims API', () => {
     expect(agentClaimRes.status).toBe(201)
 
     // End the agent session — should auto-release claims
-    const endRes = await SELF.fetch(`http://localhost/api/agents/${agent.id}/end`, {
+    const endRes = await fetchNativeApi(`http://localhost/api/agents/${agent.id}/end`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -304,7 +304,7 @@ describe('File Claims API', () => {
   })
 
   async function listMessagesForScope(scope: string) {
-    const res = await SELF.fetch(`http://localhost/api/agent-messages?scope=${encodeURIComponent(scope)}`, {
+    const res = await fetchNativeApi(`http://localhost/api/agent-messages?scope=${encodeURIComponent(scope)}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -624,7 +624,7 @@ describe('File Claims API', () => {
   // still working.
   describe('PROJ-928: issue close releases file claims', () => {
     async function patchStatus(id: string, status: string) {
-      return SELF.fetch(`http://localhost/api/issues/${id}`, {
+      return fetchNativeApi(`http://localhost/api/issues/${id}`, {
         method: 'PATCH',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ status }),
@@ -664,7 +664,7 @@ describe('File Claims API', () => {
       // update must not sweep it up.
       await claimFiles({ issueId, paths: ['src/after-done.ts'] })
 
-      const res = await SELF.fetch(`http://localhost/api/issues/${issueId}`, {
+      const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
         method: 'PATCH',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ title: 'Renamed' }),
@@ -801,7 +801,7 @@ describe('PROJ-932: list_file_claims projectId + visibility for a non-admin memb
     // No group grant for `userId` on `hidden` — it stays invisible to them.
     const hiddenIssue = await seedIssue(workspaceId, hidden.id, userId, { title: 'Hidden' })
 
-    const claimRes = await SELF.fetch('http://localhost/api/file-claims', {
+    const claimRes = await fetchNativeApi('http://localhost/api/file-claims', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ issueId: hiddenIssue.id, paths: ['hidden/secret.ts'] }),
@@ -816,7 +816,7 @@ describe('PROJ-932: list_file_claims projectId + visibility for a non-admin memb
 
     async function list(params: Record<string, string>) {
       const qs = new URLSearchParams(params).toString()
-      return SELF.fetch(`http://localhost/api/file-claims?${qs}`, {
+      return fetchNativeApi(`http://localhost/api/file-claims?${qs}`, {
         headers: authHeaders(token, slug),
       })
     }

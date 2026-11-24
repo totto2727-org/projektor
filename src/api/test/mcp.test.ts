@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -14,6 +13,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function mcpFetch(
   workspaceId: string,
@@ -22,7 +22,7 @@ async function mcpFetch(
   headers: Record<string, string>,
   query = '',
 ): Promise<Response> {
-  return SELF.fetch(`http://localhost/mcp/${workspaceId}${query}`, {
+  return fetchNativeApi(`http://localhost/mcp/${workspaceId}${query}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
@@ -187,7 +187,7 @@ describe('MCP endpoint', () => {
   })
 
   test('tools/call search_wiki finds pages', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
       body: JSON.stringify({ title: 'MCP Docs', content: 'How to use the MCP endpoint' }),
@@ -205,7 +205,7 @@ describe('MCP endpoint', () => {
   })
 
   test('tools/call get_wiki_page retrieves a page', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
       body: JSON.stringify({ title: 'Runbook', content: '## Steps' }),
@@ -291,7 +291,7 @@ describe('MCP endpoint', () => {
     const created = JSON.parse(createRes.result.content[0].text) as { id: string }
     expect(created.id).toBeTruthy()
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${created.id}`, { headers })
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${created.id}`, { headers })
     const issue = (await getRes.json()) as { assignee_id: string; labels: string }
     expect(issue.assignee_id).toBe(assignee.id)
     expect(JSON.parse(issue.labels)).toEqual(['mcp', 'test'])
@@ -319,7 +319,7 @@ describe('MCP endpoint', () => {
       headers,
     )
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${id}`, { headers })
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, { headers })
     const issue = (await getRes.json()) as { assignee_id: string; labels: string }
     expect(issue.assignee_id).toBe(assignee.id)
     expect(JSON.parse(issue.labels)).toEqual(['updated'])
@@ -361,7 +361,7 @@ describe('MCP endpoint', () => {
     expect((mcpData.items[0] as { title: string }).title).toBe('Assigned')
 
     // REST filter — same result
-    const restRes = await SELF.fetch(`http://localhost/api/issues?assignee=${assignee.id}`, {
+    const restRes = await fetchNativeApi(`http://localhost/api/issues?assignee=${assignee.id}`, {
       headers,
     })
     const restData = (await restRes.json()) as IssuePage
@@ -378,7 +378,7 @@ describe('MCP endpoint', () => {
     )) as JsonRpcResult<{ content: { text: string }[] }>
     const mcpData = JSON.parse(mcpRes.result.content[0].text) as IssuePage
 
-    const restRes = await SELF.fetch('http://localhost/api/issues', { headers })
+    const restRes = await fetchNativeApi('http://localhost/api/issues', { headers })
     const restData = (await restRes.json()) as IssuePage
 
     expect(Array.isArray(mcpData.items)).toBe(true)
@@ -424,14 +424,14 @@ describe('MCP endpoint', () => {
   // --- wiki parity tests ---
 
   test('MCP list_wiki_pages without parentId returns ALL pages', async () => {
-    const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
       body: JSON.stringify({ title: 'Parent', content: 'root' }),
     })
     const parent = (await parentRes.json()) as { id: string }
 
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
       body: JSON.stringify({ title: 'Child', content: 'child', parentId: parent.id }),
@@ -448,7 +448,7 @@ describe('MCP endpoint', () => {
   })
 
   test('MCP search_wiki with empty query returns []', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
       body: JSON.stringify({ title: 'Some Page', content: 'content' }),
@@ -466,7 +466,7 @@ describe('MCP endpoint', () => {
 
   test('MCP search_wiki excerpt is at most 250 chars', async () => {
     const longContent = 'z'.repeat(1000)
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
       body: JSON.stringify({ title: 'Verbose Page', content: longContent }),
@@ -513,7 +513,7 @@ describe('MCP endpoint', () => {
       headers,
     )
 
-    const revRes = await SELF.fetch(`http://localhost/api/wiki/rev-test/revisions`, {
+    const revRes = await fetchNativeApi(`http://localhost/api/wiki/rev-test/revisions`, {
       headers,
     })
     const revisions = (await revRes.json()) as unknown[]
@@ -539,7 +539,7 @@ describe('MCP endpoint', () => {
       headers,
     )
 
-    const revRes = await SELF.fetch('http://localhost/api/wiki/title-only/revisions', {
+    const revRes = await fetchNativeApi('http://localhost/api/wiki/title-only/revisions', {
       headers,
     })
     const revisions = (await revRes.json()) as unknown[]
@@ -547,7 +547,7 @@ describe('MCP endpoint', () => {
   })
 
   test('MCP update_wiki_page by slug works', async () => {
-    await SELF.fetch('http://localhost/api/wiki', {
+    await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers,
       body: JSON.stringify({ title: 'Slug Update', content: 'original' }),
@@ -563,7 +563,7 @@ describe('MCP endpoint', () => {
       headers,
     )
 
-    const pageRes = await SELF.fetch('http://localhost/api/wiki/slug-update', { headers })
+    const pageRes = await fetchNativeApi('http://localhost/api/wiki/slug-update', { headers })
     const page = (await pageRes.json()) as { content: string }
     expect(page.content).toBe('updated')
   })
@@ -583,14 +583,14 @@ describe('MCP endpoint', () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
-    const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'MCP Cascade Parent', content: '' }),
     })
     const parent = (await parentRes.json()) as { id: string; slug: string }
 
-    const childRes = await SELF.fetch('http://localhost/api/wiki', {
+    const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'MCP Cascade Child', content: '', parentId: parent.id }),
@@ -609,7 +609,7 @@ describe('MCP endpoint', () => {
       linkedByCount: 0,
     })
 
-    const childRes2 = await SELF.fetch(`http://localhost/api/wiki/${child.slug}`, {
+    const childRes2 = await fetchNativeApi(`http://localhost/api/wiki/${child.slug}`, {
       headers: ownerHeaders,
     })
     expect(childRes2.status).toBe(404)
@@ -619,14 +619,14 @@ describe('MCP endpoint', () => {
     const owner = await seedFixture({ role: 'owner' })
     const ownerHeaders = authHeaders(owner.token, owner.workspace.slug)
 
-    const parentRes = await SELF.fetch('http://localhost/api/wiki', {
+    const parentRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'MCP Promote Parent', content: '' }),
     })
     const parent = (await parentRes.json()) as { id: string; slug: string }
 
-    const childRes = await SELF.fetch('http://localhost/api/wiki', {
+    const childRes = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ title: 'MCP Promote Child', content: '', parentId: parent.id }),
@@ -640,7 +640,7 @@ describe('MCP endpoint', () => {
       ownerHeaders,
     )
 
-    const childRes2 = await SELF.fetch(`http://localhost/api/wiki/${child.slug}`, {
+    const childRes2 = await fetchNativeApi(`http://localhost/api/wiki/${child.slug}`, {
       headers: ownerHeaders,
     })
     expect(childRes2.status).toBe(200)
@@ -762,7 +762,7 @@ describe('MCP endpoint', () => {
     })
 
     // target is blocked by blocker → target gets in-degree 1
-    await SELF.fetch(`http://localhost/api/issues/${blocker.id}/links`, {
+    await fetchNativeApi(`http://localhost/api/issues/${blocker.id}/links`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ targetIssueId: target.id, type: 'blocks' }),

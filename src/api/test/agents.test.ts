@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { startWork as startWorkDirect } from '#commands/agents.ts'
@@ -6,6 +5,7 @@ import type { ServiceCtx } from '#commands/types.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('Agents API', () => {
   let token: string
@@ -19,7 +19,7 @@ describe('Agents API', () => {
   })
 
   async function registerAgent(body: Record<string, unknown>) {
-    return SELF.fetch('http://localhost/api/agents', {
+    return fetchNativeApi('http://localhost/api/agents', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify(body),
@@ -36,7 +36,7 @@ describe('Agents API', () => {
     expect(session.id).toBeTruthy()
     expect(session.status).toBe('active')
 
-    const listRes = await SELF.fetch(`http://localhost/api/agents?issueId=${issue.id}`, {
+    const listRes = await fetchNativeApi(`http://localhost/api/agents?issueId=${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     expect(listRes.status).toBe(200)
@@ -51,7 +51,7 @@ describe('Agents API', () => {
     const session = (await res.json()) as { id: string }
 
     // Heartbeat should succeed
-    const hbRes = await SELF.fetch(`http://localhost/api/agents/${session.id}/heartbeat`, {
+    const hbRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/heartbeat`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -64,7 +64,7 @@ describe('Agents API', () => {
     await env.DB.prepare('UPDATE agent_sessions SET last_heartbeat_at = ? WHERE id = ?').bind(stale, session.id).run()
 
     // Should now be excluded from active list
-    const listRes = await SELF.fetch('http://localhost/api/agents', {
+    const listRes = await fetchNativeApi('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
     })
     expect(listRes.status).toBe(200)
@@ -78,7 +78,7 @@ describe('Agents API', () => {
     expect(res.status).toBe(201)
     const session = (await res.json()) as { id: string }
 
-    const endRes = await SELF.fetch(`http://localhost/api/agents/${session.id}/end`, {
+    const endRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/end`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -88,7 +88,7 @@ describe('Agents API', () => {
     expect(ended.endedAt).toBeGreaterThan(0)
 
     // Must not appear in active list
-    const listRes = await SELF.fetch('http://localhost/api/agents', {
+    const listRes = await fetchNativeApi('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
     })
     const listBody = (await listRes.json()) as { items: { id: string }[] }
@@ -107,7 +107,7 @@ describe('Agents API', () => {
     const humanSession = (await humanRes.json()) as { id: string } & Record<string, unknown>
     expect(humanSession.kind).toBeUndefined()
 
-    const listRes = await SELF.fetch('http://localhost/api/agents', {
+    const listRes = await fetchNativeApi('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
     })
     const listBody = (await listRes.json()) as { items: Record<string, unknown>[] }
@@ -125,21 +125,21 @@ describe('Agents API', () => {
     const session = (await res.json()) as { id: string }
 
     // Workspace Y should not see it
-    const listRes = await SELF.fetch('http://localhost/api/agents', {
+    const listRes = await fetchNativeApi('http://localhost/api/agents', {
       headers: authHeaders(other.token, other.workspace.slug),
     })
     const listBody = (await listRes.json()) as { items: { id: string }[] }
     expect(listBody.items.some((s) => s.id === session.id)).toBe(false)
 
     // Heartbeat from Y -> 404
-    const hbRes = await SELF.fetch(`http://localhost/api/agents/${session.id}/heartbeat`, {
+    const hbRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/heartbeat`, {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
     })
     expect(hbRes.status).toBe(404)
 
     // End from Y -> 404
-    const endRes = await SELF.fetch(`http://localhost/api/agents/${session.id}/end`, {
+    const endRes = await fetchNativeApi(`http://localhost/api/agents/${session.id}/end`, {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
     })
@@ -157,7 +157,7 @@ describe('Agents API', () => {
   })
 
   test('POST /:id/heartbeat returns 404 for unknown id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/agents/${crypto.randomUUID()}/heartbeat`, {
+    const res = await fetchNativeApi(`http://localhost/api/agents/${crypto.randomUUID()}/heartbeat`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -165,7 +165,7 @@ describe('Agents API', () => {
   })
 
   test('POST /:id/end returns 404 for unknown id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/agents/${crypto.randomUUID()}/end`, {
+    const res = await fetchNativeApi(`http://localhost/api/agents/${crypto.randomUUID()}/end`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -176,7 +176,7 @@ describe('Agents API', () => {
     await registerAgent({ name: 'agent-1' })
     await registerAgent({ name: 'agent-2' })
 
-    const listRes = await SELF.fetch('http://localhost/api/agents', {
+    const listRes = await fetchNativeApi('http://localhost/api/agents', {
       headers: authHeaders(token, slug),
     })
     const body = (await listRes.json()) as { items: { name: string }[] }
@@ -188,7 +188,7 @@ describe('Agents API', () => {
   // PROJ-929: start_work / finish_work replace the 5-call fleet routine.
   describe('PROJ-929: start_work / finish_work', () => {
     function startWork(body: Record<string, unknown>) {
-      return SELF.fetch('http://localhost/api/agents/start-work', {
+      return fetchNativeApi('http://localhost/api/agents/start-work', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify(body),
@@ -196,7 +196,7 @@ describe('Agents API', () => {
     }
 
     function finishWork(body: Record<string, unknown>) {
-      return SELF.fetch('http://localhost/api/agents/finish-work', {
+      return fetchNativeApi('http://localhost/api/agents/finish-work', {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify(body),
@@ -204,7 +204,7 @@ describe('Agents API', () => {
     }
 
     async function mcpCall(name: string, args: Record<string, unknown>) {
-      const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+      const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -479,14 +479,14 @@ describe('Agents API', () => {
       const reg = await registerAgent({ name: 'old-style' })
       const { id: agentId } = (await reg.json()) as { id: string }
 
-      const claim = await SELF.fetch(`http://localhost/api/issues/${issue.id}/claim`, {
+      const claim = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/claim`, {
         method: 'POST',
         headers: authHeaders(token, slug),
         body: JSON.stringify({ agentId }),
       })
       expect(claim.status).toBe(201)
 
-      const end = await SELF.fetch(`http://localhost/api/agents/${agentId}/end`, {
+      const end = await fetchNativeApi(`http://localhost/api/agents/${agentId}/end`, {
         method: 'POST',
         headers: authHeaders(token, slug),
       })
@@ -508,7 +508,7 @@ describe('Agents API', () => {
 
     async function listAgents(params: Record<string, string> = {}) {
       const qs = new URLSearchParams(params).toString()
-      return SELF.fetch(`http://localhost/api/agents${qs ? `?${qs}` : ''}`, {
+      return fetchNativeApi(`http://localhost/api/agents${qs ? `?${qs}` : ''}`, {
         headers: authHeaders(token, slug),
       })
     }
@@ -534,7 +534,7 @@ describe('Agents API', () => {
     test('never returns an ended session, with or without includeStale', async () => {
       const res = await registerAgent({ name: 'ended-agent-932' })
       const session = (await res.json()) as { id: string }
-      await SELF.fetch(`http://localhost/api/agents/${session.id}/end`, {
+      await fetchNativeApi(`http://localhost/api/agents/${session.id}/end`, {
         method: 'POST',
         headers: authHeaders(token, slug),
       })

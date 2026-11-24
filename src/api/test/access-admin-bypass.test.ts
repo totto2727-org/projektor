@@ -1,7 +1,7 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-319: pin the admin-bypass path through the hand-written SQL callers of
 // visibleProjectSqlFragment (search) and the effectiveProjectRole/isWorkspaceAdmin
@@ -9,7 +9,7 @@ import { authHeaders, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles
 // default-deny until granted.
 
 async function search(token: string, slug: string, q: string) {
-  const res = await SELF.fetch(`http://localhost/api/issues/search?q=${encodeURIComponent(q)}`, {
+  const res = await fetchNativeApi(`http://localhost/api/issues/search?q=${encodeURIComponent(q)}`, {
     headers: authHeaders(token, slug),
   })
   return { status: res.status, body: (await res.json()) as { project_id: string }[] }
@@ -19,7 +19,7 @@ async function search(token: string, slug: string, q: string) {
 // populated by the create-issue service, not a DB trigger); go through the REST
 // route so search can actually find these issues.
 async function createIssue(token: string, slug: string, projectId: string, title: string) {
-  const res = await SELF.fetch('http://localhost/api/issues', {
+  const res = await fetchNativeApi('http://localhost/api/issues', {
     method: 'POST',
     headers: authHeaders(token, slug),
     body: JSON.stringify({ projectId, title }),
@@ -50,7 +50,7 @@ describe('PROJ-319 admin bypass pinning', () => {
       title: 'Metrics issue',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${project.id}/flow-metrics`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${project.id}/flow-metrics`, {
       headers: authHeaders(roles.owner.token, slug),
     })
     expect(res.status).toBe(200)
@@ -80,7 +80,7 @@ describe('PROJ-319 admin bypass pinning', () => {
       title: 'Hidden metrics',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${project.id}/flow-metrics`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${project.id}/flow-metrics`, {
       headers: authHeaders(roles.member.token, slug),
     })
     expect(res.status).toBe(404)

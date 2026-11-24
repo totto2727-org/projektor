@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('Activity audit log', () => {
   let token: string
@@ -28,7 +28,7 @@ describe('Activity audit log', () => {
   }
 
   test('records a created row when an issue is created', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Activity test issue', priority: 'high' }),
@@ -45,14 +45,14 @@ describe('Activity audit log', () => {
   })
 
   test('records an updated row with diff when an issue is updated', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/issues', {
+    const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Before update' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
-    const patchRes = await SELF.fetch(`http://localhost/api/issues/${id}`, {
+    const patchRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ status: 'in_progress', priority: 'high' }),
@@ -69,7 +69,7 @@ describe('Activity audit log', () => {
   })
 
   test('records a created row when a wiki page is created', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Activity Wiki Page', content: 'hello' }),
@@ -86,7 +86,7 @@ describe('Activity audit log', () => {
   test('records a created row when a project is created', async () => {
     // createProject requires owner or admin role
     const ownerFixture = await seedFixture({ role: 'owner' })
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: authHeaders(ownerFixture.token, ownerFixture.workspace.slug),
       body: JSON.stringify({ name: 'Activity Project', key: 'ACTV' }),

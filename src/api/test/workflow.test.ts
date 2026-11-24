@@ -1,10 +1,10 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { hashWorkflowContent } from '#commands/workflow.ts'
 
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function mcpCall<T>(
   workspaceId: string,
@@ -12,7 +12,7 @@ async function mcpCall<T>(
   params: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
@@ -33,7 +33,7 @@ describe('Workflow spec', () => {
   })
 
   test('GET /api/workflow returns the spec content plus a version', async () => {
-    const res = await SELF.fetch('http://localhost/api/workflow', {
+    const res = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -59,12 +59,12 @@ describe('Workflow spec', () => {
   })
 
   test('MCP get_workflow returns the same content as REST', async () => {
-    const restRes = await SELF.fetch('http://localhost/api/workflow', {
+    const restRes = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
     const restBody = await restRes.json()
 
-    const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -83,12 +83,12 @@ describe('Workflow spec', () => {
   // PROJ-933: version present, stable across requests/processes, and the same on both
   // surfaces.
   test('version is present and stable across repeated requests', async () => {
-    const res1 = await SELF.fetch('http://localhost/api/workflow', {
+    const res1 = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
     const body1 = (await res1.json()) as { version: string }
 
-    const res2 = await SELF.fetch('http://localhost/api/workflow', {
+    const res2 = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
     const body2 = (await res2.json()) as { version: string }
@@ -126,12 +126,12 @@ describe('Workflow spec', () => {
   })
 
   test('matching ifVersion over REST returns only { unchanged: true, version }', async () => {
-    const first = await SELF.fetch('http://localhost/api/workflow', {
+    const first = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
     const { version } = (await first.json()) as { version: string }
 
-    const second = await SELF.fetch(`http://localhost/api/workflow?ifVersion=${version}`, {
+    const second = await fetchNativeApi(`http://localhost/api/workflow?ifVersion=${version}`, {
       headers: authHeaders(token, slug),
     })
     expect(second.status).toBe(200)
@@ -151,7 +151,7 @@ describe('Workflow spec', () => {
     expect(mcpBody.content).toContain('Definition of ready')
     expect(mcpBody).not.toHaveProperty('unchanged')
 
-    const restRes = await SELF.fetch('http://localhost/api/workflow?ifVersion=not-the-real-version', {
+    const restRes = await fetchNativeApi('http://localhost/api/workflow?ifVersion=not-the-real-version', {
       headers: authHeaders(token, slug),
     })
     expect(restRes.status).toBe(200)
@@ -161,7 +161,7 @@ describe('Workflow spec', () => {
   })
 
   test('an absent ifVersion returns the full content, not unchanged', async () => {
-    const res = await SELF.fetch('http://localhost/api/workflow', {
+    const res = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
     const body = (await res.json()) as { content: string; unchanged?: boolean }
@@ -179,7 +179,7 @@ describe('Workflow spec', () => {
   })
 
   test('version is the hash of the whole returned payload (title, description, content)', async () => {
-    const res = await SELF.fetch('http://localhost/api/workflow', {
+    const res = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
     const body = (await res.json()) as {
@@ -196,14 +196,14 @@ describe('Workflow spec', () => {
   })
 
   test('ifVersion longer than 64 chars is rejected', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workflow?ifVersion=${'a'.repeat(65)}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workflow?ifVersion=${'a'.repeat(65)}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)
   })
 
   test('initialize instructions contain the current workflow version', async () => {
-    const workflowRes = await SELF.fetch('http://localhost/api/workflow', {
+    const workflowRes = await fetchNativeApi('http://localhost/api/workflow', {
       headers: authHeaders(token, slug),
     })
     const { version } = (await workflowRes.json()) as { version: string }
@@ -228,7 +228,7 @@ describe('Workflow spec', () => {
   })
 
   test('an invalid ifVersion type over REST (repeated query param) is a 400 validation error', async () => {
-    const res = await SELF.fetch('http://localhost/api/workflow?ifVersion=a&ifVersion=b', {
+    const res = await fetchNativeApi('http://localhost/api/workflow?ifVersion=a&ifVersion=b', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)

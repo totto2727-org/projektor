@@ -1,14 +1,14 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
   body: Record<string, unknown> = { name: 'Widget' },
 ): Promise<string> {
-  const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+  const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
     method: 'POST',
     headers: authHeaders(f.token, f.slug),
     body: JSON.stringify(body),
@@ -92,7 +92,7 @@ describe('GET /api/projects/:id/feedback/summary', () => {
       createdAt: 201,
     })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)
@@ -133,7 +133,7 @@ describe('GET /api/projects/:id/feedback/summary', () => {
       .first<{ id: string }>()
     await seedFeedbackRow(src!.id, f.workspaceId, f.projectId, { body: 'no version here' })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
       headers: authHeaders(f.token, f.slug),
     })
     const summary = (await res.json()) as { versions: Array<{ appVersion: string | null }> }[]
@@ -143,7 +143,7 @@ describe('GET /api/projects/:id/feedback/summary', () => {
   test('404s for a caller with no project access', async () => {
     const owner = await seedProjectFixture({ role: 'owner' })
     const stranger = await seedProjectFixture({ role: 'owner' })
-    const res = await SELF.fetch(`http://localhost/api/projects/${owner.projectId}/feedback/summary`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${owner.projectId}/feedback/summary`, {
       headers: authHeaders(stranger.token, stranger.slug),
     })
     expect(res.status).toBe(404)
@@ -151,7 +151,7 @@ describe('GET /api/projects/:id/feedback/summary', () => {
 
   test('is readable by a viewer', async () => {
     const f = await seedProjectFixture({ role: 'viewer' })
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)
@@ -159,7 +159,7 @@ describe('GET /api/projects/:id/feedback/summary', () => {
 
   test('returns an empty array for a project with no feedback', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/summary`, {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)

@@ -1,11 +1,10 @@
 // PROJ-815: backfillWikiLinks batches reads/writes, skips trashed pages, and is
 // incremental/resumable via a cursor + page budget, with an updatedSince scope filter.
-
-import { SELF } from 'cloudflare:test'
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function insertPage(
   workspaceId: string,
@@ -43,7 +42,7 @@ async function insertPage(
 }
 
 async function backfill(token: string, slug: string, body: Record<string, unknown> = {}) {
-  const res = await SELF.fetch('http://localhost/api/wiki/backfill-links', {
+  const res = await fetchNativeApi('http://localhost/api/wiki/backfill-links', {
     method: 'POST',
     headers: authHeaders(token, slug),
     body: JSON.stringify(body),

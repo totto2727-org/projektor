@@ -2,12 +2,11 @@
 // bare collection paths. Hono's `/x/*` also matches `/x`, so registering both `/x` and
 // `/x/*` ran the pair twice. Observe only the middleware's named authenticate
 // dispatch. Domain operations must still independently reauthorize inside Core.
-
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('PROJ-856: middleware runs once per request', () => {
   let f: Awaited<ReturnType<typeof seedIssueFixture>>
@@ -25,7 +24,7 @@ describe('PROJ-856: middleware runs once per request', () => {
     ['GET', '/api/custom-fields'],
     ['GET', '/api/files'],
   ])('%s %s authenticates once', async (method, path) => {
-    const res = await SELF.fetch(`http://localhost${path}`, {
+    const res = await fetchNativeApi(`http://localhost${path}`, {
       method,
       headers: authHeaders(f.token, f.slug),
     })
@@ -34,7 +33,7 @@ describe('PROJ-856: middleware runs once per request', () => {
   })
 
   test('GET /api/issues/:id authenticates once', async () => {
-    const res = await SELF.fetch(`http://localhost/api/issues/${f.issueId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}`, {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)
@@ -42,7 +41,7 @@ describe('PROJ-856: middleware runs once per request', () => {
   })
 
   test('GET /api/workspaces/:slug authenticates once', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${f.slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${f.slug}`, {
       headers: authHeaders(f.token, f.slug),
     })
     expect([401, 403]).not.toContain(res.status)
@@ -50,7 +49,7 @@ describe('PROJ-856: middleware runs once per request', () => {
   })
 
   test('POST /api/issues authenticates once', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ projectId: f.projectId, title: 'once' }),
@@ -62,7 +61,7 @@ describe('PROJ-856: middleware runs once per request', () => {
   test.each(['/api/issues', '/api/wiki', '/api/files', '/api/sprints'])(
     'bare %s without credentials is still 401',
     async (path) => {
-      const res = await SELF.fetch(`http://localhost${path}`)
+      const res = await fetchNativeApi(`http://localhost${path}`)
       expect(res.status).toBe(401)
     },
   )

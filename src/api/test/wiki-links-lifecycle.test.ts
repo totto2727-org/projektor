@@ -1,7 +1,5 @@
 // PROJ-814: creating, renaming, restoring or purging a page re-resolves OTHER pages'
 // [[Target]] links that match its title/slug, without those pages being re-saved.
-
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import type { ServiceCtx } from '#commands/types.ts'
@@ -9,13 +7,14 @@ import { purgeExpiredWikiPages } from '#commands/wiki.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 // PROJ-238: the test env's RATE_LIMIT_API_MAX is 5 req/window, and each test below fires
 // more than that against one token — reset before every request.
 async function fetchFresh(url: string, opts?: RequestInit): Promise<Response> {
   await resetRateLimits()
-  return SELF.fetch(url, opts)
+  return fetchNativeApi(url, opts)
 }
 
 async function createPage(token: string, slug: string, title: string, content = '') {

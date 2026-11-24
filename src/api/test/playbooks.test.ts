@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('Playbooks', () => {
   let token: string
@@ -17,7 +17,7 @@ describe('Playbooks', () => {
   })
 
   test('GET /api/playbooks lists the registry', async () => {
-    const res = await SELF.fetch('http://localhost/api/playbooks', {
+    const res = await fetchNativeApi('http://localhost/api/playbooks', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -33,20 +33,20 @@ describe('Playbooks', () => {
   test('GET /api/playbooks and /:name work without an X-Workspace-Slug header', async () => {
     const auth = { Authorization: `Bearer ${token}` }
 
-    const list = await SELF.fetch('http://localhost/api/playbooks', { headers: auth })
+    const list = await fetchNativeApi('http://localhost/api/playbooks', { headers: auth })
     expect(list.status).toBe(200)
 
-    const one = await SELF.fetch('http://localhost/api/playbooks/epic-goal', { headers: auth })
+    const one = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', { headers: auth })
     expect(one.status).toBe(200)
   })
 
   test('MCP list_playbooks returns the same content as REST', async () => {
-    const restRes = await SELF.fetch('http://localhost/api/playbooks', {
+    const restRes = await fetchNativeApi('http://localhost/api/playbooks', {
       headers: authHeaders(token, slug),
     })
     const restBody = await restRes.json()
 
-    const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -63,7 +63,7 @@ describe('Playbooks', () => {
   })
 
   test('GET /api/playbooks/:name returns the full playbook', async () => {
-    const res = await SELF.fetch('http://localhost/api/playbooks/epic-goal', {
+    const res = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -75,7 +75,7 @@ describe('Playbooks', () => {
   })
 
   test('GET /api/playbooks/idea-discovery returns the full playbook', async () => {
-    const res = await SELF.fetch('http://localhost/api/playbooks/idea-discovery', {
+    const res = await fetchNativeApi('http://localhost/api/playbooks/idea-discovery', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -87,12 +87,12 @@ describe('Playbooks', () => {
   })
 
   test('MCP get_playbook returns the same content as REST', async () => {
-    const restRes = await SELF.fetch('http://localhost/api/playbooks/epic-goal', {
+    const restRes = await fetchNativeApi('http://localhost/api/playbooks/epic-goal', {
       headers: authHeaders(token, slug),
     })
     const restBody = await restRes.json()
 
-    const mcpRes = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const mcpRes = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -109,7 +109,7 @@ describe('Playbooks', () => {
   })
 
   test('GET /api/playbooks/:name 404s on an unknown name', async () => {
-    const res = await SELF.fetch('http://localhost/api/playbooks/does-not-exist', {
+    const res = await fetchNativeApi('http://localhost/api/playbooks/does-not-exist', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(404)
@@ -119,7 +119,7 @@ describe('Playbooks', () => {
   })
 
   test('MCP get_playbook errors on an unknown name, naming valid options', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({

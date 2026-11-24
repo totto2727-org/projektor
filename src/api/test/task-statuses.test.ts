@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -11,6 +10,7 @@ import {
   seedToken,
   seedUser,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('Task Statuses API', () => {
   let token: string
@@ -26,7 +26,7 @@ describe('Task Statuses API', () => {
   // ---- list ----
 
   test('GET /api/task-statuses returns empty list initially', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -39,7 +39,7 @@ describe('Task Statuses API', () => {
     await seedTaskStatus(workspaceId, { key: 'done', name: 'Done', category: 'done', position: 2 })
     await seedTaskStatus(workspaceId, { key: 'todo', name: 'Todo', category: 'todo', position: 1 })
 
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
     const list = (await res.json()) as { key: string }[]
@@ -51,7 +51,7 @@ describe('Task Statuses API', () => {
   // ---- create ----
 
   test('POST /api/task-statuses creates a new status (owner)', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -69,7 +69,7 @@ describe('Task Statuses API', () => {
 
   test('POST /api/task-statuses rejects duplicate key', async () => {
     await seedTaskStatus(workspaceId, { key: 'done', name: 'Done', category: 'done' })
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'done', name: 'Done 2', category: 'done' }),
@@ -78,7 +78,7 @@ describe('Task Statuses API', () => {
   })
 
   test('POST /api/task-statuses rejects invalid key format', async () => {
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'Bad Key!', name: 'Bad', category: 'todo' }),
@@ -94,13 +94,13 @@ describe('Task Statuses API', () => {
       isDefault: true,
     })
 
-    await SELF.fetch('http://localhost/api/task-statuses', {
+    await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'backlog', name: 'Backlog', category: 'todo', isDefault: true }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
     const list = (await res.json()) as { key: string; is_default: number }[]
@@ -114,7 +114,7 @@ describe('Task Statuses API', () => {
     await seedMember(workspaceId, memberUser.id, 'member')
     const memberToken = await seedToken(workspaceId, memberUser.id)
 
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: authHeaders(memberToken, slug),
       body: JSON.stringify({ key: 'done', name: 'Done', category: 'done' }),
@@ -131,14 +131,14 @@ describe('Task Statuses API', () => {
       category: 'todo',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'To Do' }),
     })
     expect(res.status).toBe(200)
 
-    const listRes = await SELF.fetch('http://localhost/api/task-statuses', {
+    const listRes = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
     const list = (await listRes.json()) as { key: string; name: string }[]
@@ -146,7 +146,7 @@ describe('Task Statuses API', () => {
   })
 
   test('PATCH /api/task-statuses/:id returns 404 for unknown id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${crypto.randomUUID()}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ name: 'Ghost' }),
@@ -167,13 +167,13 @@ describe('Task Statuses API', () => {
       category: 'done',
     })
 
-    await SELF.fetch(`http://localhost/api/task-statuses/${doneId}`, {
+    await fetchNativeApi(`http://localhost/api/task-statuses/${doneId}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ isDefault: true }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
     const list = (await res.json()) as { id: string; is_default: number }[]
@@ -192,13 +192,13 @@ describe('Task Statuses API', () => {
       category: 'cancelled',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
 
-    const listRes = await SELF.fetch('http://localhost/api/task-statuses', {
+    const listRes = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(token, slug),
     })
     const list = (await listRes.json()) as unknown[]
@@ -206,7 +206,7 @@ describe('Task Statuses API', () => {
   })
 
   test('DELETE /api/task-statuses/:id returns 404 for unknown id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${crypto.randomUUID()}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -221,7 +221,7 @@ describe('Task Statuses API', () => {
     })
     await seedIssue(workspaceId, projectId, userId, { statusId })
 
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${statusId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${statusId}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -236,7 +236,7 @@ describe('Task Statuses API', () => {
       isDefault: true,
     })
 
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -249,7 +249,7 @@ describe('Task Statuses API', () => {
     await seedTaskStatus(workspaceId, { key: 'done', name: 'Done', category: 'done' })
     const other = await seedFixture({ role: 'owner' })
 
-    const res = await SELF.fetch('http://localhost/api/task-statuses', {
+    const res = await fetchNativeApi('http://localhost/api/task-statuses', {
       headers: authHeaders(other.token, other.workspace.slug),
     })
     const list = (await res.json()) as unknown[]
@@ -276,7 +276,7 @@ describe('Task Statuses — issue integration', () => {
       isDefault: true,
     })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'No status given' }),
@@ -284,7 +284,7 @@ describe('Task Statuses — issue integration', () => {
     expect(res.status).toBe(201)
     const { id } = (await res.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
     const issue = (await getRes.json()) as {
@@ -304,7 +304,7 @@ describe('Task Statuses — issue integration', () => {
       category: 'done',
     })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Done issue', statusId }),
@@ -312,7 +312,7 @@ describe('Task Statuses — issue integration', () => {
     expect(res.status).toBe(201)
     const { id } = (await res.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
     const issue = (await getRes.json()) as { status_key: string; status_id: string }
@@ -327,7 +327,7 @@ describe('Task Statuses — issue integration', () => {
       category: 'in_progress',
     })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Legacy status', status: 'in_progress' }),
@@ -335,7 +335,7 @@ describe('Task Statuses — issue integration', () => {
     expect(res.status).toBe(201)
     const { id } = (await res.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${id}`, {
       headers: authHeaders(token, slug),
     })
     const issue = (await getRes.json()) as { status: string; status_key: string }
@@ -351,7 +351,7 @@ describe('Task Statuses — issue integration', () => {
       category: 'done',
     })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Cross-ws status', statusId: foreignStatusId }),
@@ -367,7 +367,7 @@ describe('Task Statuses — issue integration', () => {
     })
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No status' })
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -377,7 +377,7 @@ describe('Task Statuses — issue integration', () => {
     })
     expect(res.status).toBe(200)
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     const updated = (await getRes.json()) as { status_key: string }
@@ -400,7 +400,7 @@ describe('Task Statuses — issue integration', () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Done 2', statusId: doneId })
     await seedIssue(workspaceId, projectId, userId, { title: 'Todo 1', statusId: todoId })
 
-    const res = await SELF.fetch(`http://localhost/api/issues?statusId=${doneId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues?statusId=${doneId}`, {
       headers: authHeaders(token, slug),
     })
     const page = (await res.json()) as { items: { title: string }[] }
@@ -432,7 +432,7 @@ describe('Task Statuses — issue integration', () => {
       statusId: inProgressId,
     })
 
-    const res = await SELF.fetch('http://localhost/api/issues?category=todo', {
+    const res = await fetchNativeApi('http://localhost/api/issues?category=todo', {
       headers: authHeaders(token, slug),
     })
     const page = (await res.json()) as { items: { title: string }[] }
@@ -444,7 +444,7 @@ describe('Task Statuses — issue integration', () => {
     await seedIssue(workspaceId, projectId, userId, { title: 'Backlog issue', status: 'backlog' })
     await seedIssue(workspaceId, projectId, userId, { title: 'Done issue', status: 'done' })
 
-    const res = await SELF.fetch('http://localhost/api/issues?status=backlog', {
+    const res = await fetchNativeApi('http://localhost/api/issues?status=backlog', {
       headers: authHeaders(token, slug),
     })
     const page = (await res.json()) as { items: { title: string }[] }
@@ -460,7 +460,7 @@ describe('Task Statuses — issue integration', () => {
     })
     await seedIssue(workspaceId, projectId, userId, { title: 'Done issue', statusId })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(token, slug),
     })
     const page = (await res.json()) as {
@@ -479,7 +479,7 @@ describe('Task Statuses — issue integration', () => {
     })
     const issue = await seedIssue(workspaceId, projectId, userId, { statusId })
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     const body = (await res.json()) as {
@@ -495,7 +495,7 @@ describe('Task Statuses — issue integration', () => {
   test('GET /api/issues/:id has null status_key when no status_id set', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'No status_id' })
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     const body = (await res.json()) as { status_id: null; status_key: null }
@@ -517,7 +517,7 @@ describe('Task Statuses — MCP parity', () => {
   })
 
   async function mcpCall(method: string, params: unknown) {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),

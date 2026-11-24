@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { bumpRateCounter } from '#services/request-rate-limit.ts'
@@ -7,6 +6,7 @@ import type { Env } from '#types'
 import { LIMITER_TIMEOUT_MS } from '../middleware/rate-limit.ts'
 import { configureCore, env, getCoreLimiterCalls } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { seedRateLimitCounter } from './rate-limit-reset.ts'
 
 // Must match vite.config.ts values.
@@ -58,7 +58,7 @@ describe('PROJ-19: rate limiting', () => {
   describe('IP-keyed (no bearer token)', () => {
     test('allows a request within the limit', async () => {
       // No CF-Connecting-IP → middleware falls back to '127.0.0.1'
-      const res = await SELF.fetch(ENDPOINT)
+      const res = await fetchNativeApi(ENDPOINT)
       // 401 from auth is the expected non-rate-limited response
       expect(res.status).not.toBe(429)
     })
@@ -67,7 +67,7 @@ describe('PROJ-19: rate limiting', () => {
       // Seed against the fallback IP used when CF-Connecting-IP is absent in tests
       await seedCounter('ip:127.0.0.1', AUTH_LIMIT)
 
-      const res = await SELF.fetch(ENDPOINT) // no CF-Connecting-IP → key = ip:127.0.0.1
+      const res = await fetchNativeApi(ENDPOINT) // no CF-Connecting-IP → key = ip:127.0.0.1
       expect(res.status).toBe(429)
       const retryAfter = parseInt(res.headers.get('Retry-After') ?? '0', 10)
       expect(retryAfter).toBeGreaterThan(0)
@@ -79,7 +79,7 @@ describe('PROJ-19: rate limiting', () => {
       await seedCounter('ip:127.0.0.1', AUTH_LIMIT)
 
       const fixture = await seedFixture()
-      const res = await SELF.fetch(ENDPOINT, {
+      const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
       // Token-keyed bucket is separate → should not be 429
@@ -90,7 +90,7 @@ describe('PROJ-19: rate limiting', () => {
   describe('token-keyed (bearer token present)', () => {
     test('allows a request within the limit', async () => {
       const fixture = await seedFixture()
-      const res = await SELF.fetch(ENDPOINT, {
+      const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
       expect(res.status).not.toBe(429)
@@ -101,7 +101,7 @@ describe('PROJ-19: rate limiting', () => {
       const fingerprint = await sha256Prefix(fixture.token)
       await seedCounter(`tok:${fingerprint}`, API_LIMIT)
 
-      const res = await SELF.fetch(ENDPOINT, {
+      const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
       expect(res.status).toBe(429)
@@ -118,7 +118,7 @@ describe('PROJ-19: rate limiting', () => {
       const fingerprintA = await sha256Prefix(fixtureA.token)
       await seedCounter(`tok:${fingerprintA}`, API_LIMIT)
 
-      const res = await SELF.fetch(ENDPOINT, {
+      const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixtureB.token, fixtureB.workspace.slug),
       })
       expect(res.status).not.toBe(429)
@@ -131,7 +131,7 @@ describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
   const AUTH_FAIL_LIMIT = 3 // RATE_LIMIT_AUTH_FAIL_MAX in vite.config.ts
 
   test('returns 401 for an invalid bearer token while under the failure limit', async () => {
-    const res = await SELF.fetch(ENDPOINT, {
+    const res = await fetchNativeApi(ENDPOINT, {
       headers: { Authorization: 'Bearer pk_not_a_real_token' },
     })
     expect(res.status).toBe(401)
@@ -142,7 +142,7 @@ describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
     // Without CF-Connecting-IP the middleware keys by the 127.0.0.1 fallback.
     await seedCounter('authfail:127.0.0.1', AUTH_FAIL_LIMIT)
 
-    const res = await SELF.fetch(ENDPOINT, {
+    const res = await fetchNativeApi(ENDPOINT, {
       headers: { Authorization: 'Bearer pk_still_not_a_real_token' },
     })
     expect(res.status).toBe(429)
@@ -154,7 +154,7 @@ describe('PROJ-198: failed bearer-auth throttle (IP-keyed)', () => {
     await seedCounter('authfail:127.0.0.1', AUTH_FAIL_LIMIT + 5)
     const fixture = await seedFixture()
 
-    const res = await SELF.fetch(ENDPOINT, {
+    const res = await fetchNativeApi(ENDPOINT, {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
     })
     expect(res.status).not.toBe(429)
@@ -214,12 +214,12 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
   test('GET requests write nothing to D1', async () => {
     const fixture = await seedFixture()
     for (let i = 0; i < 3; i++) {
-      const res = await SELF.fetch(ENDPOINT, {
+      const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
       expect(res.status).toBe(200)
     }
-    await SELF.fetch(ENDPOINT) // IP-keyed, unauthenticated
+    await fetchNativeApi(ENDPOINT) // IP-keyed, unauthenticated
     expect(await rateLimitRows()).toBe(0)
   })
 
@@ -227,7 +227,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
     const fixture = await seedFixture()
     const statuses: number[] = []
     for (let i = 0; i < API_LIMIT + 1; i++) {
-      const res = await SELF.fetch(ENDPOINT, {
+      const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
       statuses.push(res.status)
@@ -245,7 +245,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`
       let res: Response | undefined
       for (let i = 0; i < AUTH_LIMIT + 1; i++) {
-        res = await SELF.fetch(ENDPOINT, { headers: { 'CF-Connecting-IP': ip } })
+        res = await fetchNativeApi(ENDPOINT, { headers: { 'CF-Connecting-IP': ip } })
       }
       expect(res?.status).toBe(429)
       expect(res?.headers.get('Retry-After')).toBe(String(WINDOW_SECS - 20))
@@ -264,7 +264,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
     test('allows the request when the Durable Object call throws', async () => {
       await configureCore({ FIXTURE_LIMITER_MODE: 'reject' })
       const fixture = await seedFixture()
-      const res = await SELF.fetch(ENDPOINT, {
+      const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
       expect(await getCoreLimiterCalls()).toBeGreaterThan(0)
@@ -273,7 +273,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
 
     test('an invalid token still gets 401, not 500, from the auth-failure throttle', async () => {
       await configureCore({ FIXTURE_LIMITER_MODE: 'reject' })
-      const res = await SELF.fetch(ENDPOINT, {
+      const res = await fetchNativeApi(ENDPOINT, {
         headers: { Authorization: 'Bearer pk_not_a_real_token' },
       })
       expect(await getCoreLimiterCalls()).toBeGreaterThanOrEqual(2)
@@ -284,7 +284,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
       await configureCore({ FIXTURE_LIMITER_MODE: 'hang' })
       const fixture = await seedFixture()
       const started = Date.now()
-      const res = await SELF.fetch(ENDPOINT, {
+      const res = await fetchNativeApi(ENDPOINT, {
         headers: authHeaders(fixture.token, fixture.workspace.slug),
       })
       expect(await getCoreLimiterCalls()).toBeGreaterThan(0)
@@ -298,7 +298,7 @@ describe('PROJ-867: counters live in the RateLimiter Durable Object, not D1', ()
 
     test('falls back to the D1 counter and still enforces the limit', async () => {
       await seedD1Counter('ip:127.0.0.1', AUTH_LIMIT)
-      const res = await SELF.fetch(ENDPOINT)
+      const res = await fetchNativeApi(ENDPOINT)
       expect(res.status).toBe(429)
     })
   })

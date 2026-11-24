@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
@@ -23,6 +22,7 @@ import {
   seedTaskStatus,
   seedTaskType,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('Shared issue queries over the API D1 pool', () => {
   let fixture: Awaited<ReturnType<typeof seedProjectFixture>>
@@ -30,7 +30,7 @@ describe('Shared issue queries over the API D1 pool', () => {
     fixture = await seedProjectFixture({ role: 'owner' })
   })
   async function api(path: string) {
-    const response = await SELF.fetch(`http://localhost/api/${path}`, {
+    const response = await fetchNativeApi(`http://localhost/api/${path}`, {
       headers: authHeaders(fixture.token, fixture.slug),
     })
     expect(response.status).toBe(200)

@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 describe('native Wiki draft lifecycle preconditions', () => {
@@ -11,7 +11,7 @@ describe('native Wiki draft lifecycle preconditions', () => {
     const headers = authHeaders(fixture.token, fixture.workspace.slug)
     async function request(path: string, init?: RequestInit) {
       await resetRateLimits()
-      return SELF.fetch(`http://localhost/api/wiki${path}`, { ...init, headers })
+      return fetchNativeApi(`http://localhost/api/wiki${path}`, { ...init, headers })
     }
     const created = await request('', {
       method: 'POST',

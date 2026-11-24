@@ -1,9 +1,9 @@
-import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import { validateToolArgs } from '../mcp/validate-args.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, toolError } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-920: MCP arguments are validated against each tool's inputSchema (types, enums,
 // lengths, required) before the handler runs, so a wrongly-typed argument is a validation
@@ -54,7 +54,7 @@ function wrongValue(s: Schema): unknown {
 }
 
 async function rpc(workspaceId: string, headers: Record<string, string>, method: string, params: unknown) {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),

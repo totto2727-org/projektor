@@ -1,4 +1,4 @@
-import { env as nativeEnv } from 'cloudflare:test'
+import { env as nativeEnv } from 'cloudflare:workers'
 
 import type { Env } from '#types'
 

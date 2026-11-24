@@ -1,7 +1,7 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { seedFixture, seedToken } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-651: RFC 9728 WWW-Authenticate challenges on the MCP endpoint.
 //
@@ -43,7 +43,7 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
   })
 
   test('points at the per-workspace protected resource metadata document', async () => {
-    const res = await SELF.fetch(mcpUrl(workspaceId), {
+    const res = await fetchNativeApi(mcpUrl(workspaceId), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: rpc('initialize'),
@@ -59,7 +59,7 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
 
   test('derives resource_metadata from the request host, not a fixed origin', async () => {
     const other = 'https://tenant.projektor.dev'
-    const res = await SELF.fetch(`${other}/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`${other}/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: rpc('initialize'),
@@ -70,7 +70,7 @@ describe('MCP 401 carries an RFC 9728 challenge', () => {
   })
 
   test('challenges an invalid bearer token too, not just a missing one', async () => {
-    const res = await SELF.fetch(mcpUrl(workspaceId), {
+    const res = await fetchNativeApi(mcpUrl(workspaceId), {
       method: 'POST',
       headers: { Authorization: 'Bearer tok_not_a_real_token', 'Content-Type': 'application/json' },
       body: rpc('initialize'),
@@ -85,7 +85,7 @@ describe('/api/* 401s are unchanged', () => {
   // PROJ-430: the frontend reloads the page to re-authenticate on a 401, so the
   // shape of an /api/* 401 is load-bearing. The challenge must not leak onto it.
   test('carries no WWW-Authenticate header and the same bare body', async () => {
-    const res = await SELF.fetch(`${HOST}/api/projects`)
+    const res = await fetchNativeApi(`${HOST}/api/projects`)
 
     expect(res.status).toBe(401)
     expect(res.headers.get('WWW-Authenticate')).toBeNull()
@@ -93,7 +93,7 @@ describe('/api/* 401s are unchanged', () => {
   })
 
   test('is unchanged for an invalid bearer token as well', async () => {
-    const res = await SELF.fetch(`${HOST}/api/projects`, {
+    const res = await fetchNativeApi(`${HOST}/api/projects`, {
       headers: { Authorization: 'Bearer tok_not_a_real_token' },
     })
 
@@ -113,7 +113,7 @@ describe('insufficient scope is a 403 challenge, not a 200 with a JSON-RPC error
   })
 
   async function callAsReadToken(method: string, params: unknown) {
-    return SELF.fetch(mcpUrl(workspaceId), {
+    return fetchNativeApi(mcpUrl(workspaceId), {
       method: 'POST',
       headers: { Authorization: `Bearer ${readToken}`, 'Content-Type': 'application/json' },
       body: rpc(method, params),

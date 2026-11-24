@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -11,6 +10,7 @@ import {
   seedIssueFixture,
   seedProject,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 describe('Share tokens', () => {
@@ -27,7 +27,7 @@ describe('Share tokens', () => {
   })
 
   test('POST /api/issues/:id/share creates a token and returns { token, url }', async () => {
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -39,13 +39,13 @@ describe('Share tokens', () => {
   })
 
   test('GET /api/share/:token returns issue data without auth', async () => {
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
-    const res = await SELF.fetch(`http://localhost/api/share/${shareToken}`)
+    const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(200)
     const data = (await res.json()) as {
       title: string
@@ -67,12 +67,12 @@ describe('Share tokens', () => {
       .bind(await hashToken(expiredToken), issueId, workspaceId, userId, now - 1, now - 86_400)
       .run()
 
-    const res = await SELF.fetch(`http://localhost/api/share/${expiredToken}`)
+    const res = await fetchNativeApi(`http://localhost/api/share/${expiredToken}`)
     expect(res.status).toBe(404)
   })
 
   test('stores the share token hashed, not in plaintext, in D1', async () => {
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -88,13 +88,13 @@ describe('Share tokens', () => {
   })
 
   test('GET /api/share/<unknown-token> returns 404', async () => {
-    const res = await SELF.fetch('http://localhost/api/share/ffffffffffffffffffffffffffffffff')
+    const res = await fetchNativeApi('http://localhost/api/share/ffffffffffffffffffffffffffffffff')
     expect(res.status).toBe(404)
   })
 
   test('POST /api/issues/:id/share returns 404 for issue in another workspace', async () => {
     const other = await seedFixture()
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'POST',
       headers: authHeaders(other.token, other.workspace.slug),
     })
@@ -102,7 +102,7 @@ describe('Share tokens', () => {
   })
 
   test('POST /api/issues/:id/share returns 404 for a nonexistent issue ID', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues/00000000-0000-0000-0000-000000000000/share', {
+    const res = await fetchNativeApi('http://localhost/api/issues/00000000-0000-0000-0000-000000000000/share', {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
@@ -110,13 +110,13 @@ describe('Share tokens', () => {
   })
 
   test('GET /api/share/:token returns project_key, project_name, and status_name', async () => {
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
-    const res = await SELF.fetch(`http://localhost/api/share/${shareToken}`)
+    const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(200)
     const data = (await res.json()) as {
       project_key: string | null
@@ -131,21 +131,21 @@ describe('Share tokens', () => {
   })
 
   test('GET /api/share/:token is reusable — multiple requests all return 200', async () => {
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
     for (let i = 0; i < 3; i++) {
-      const res = await SELF.fetch(`http://localhost/api/share/${shareToken}`)
+      const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
       expect(res.status).toBe(200)
     }
   })
 
   test('PROJ-240: viewer role cannot create a share link', async () => {
     const viewerFixture = await seedIssueFixture({ role: 'viewer' })
-    const res = await SELF.fetch(`http://localhost/api/issues/${viewerFixture.issueId}/share`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${viewerFixture.issueId}/share`, {
       method: 'POST',
       headers: authHeaders(viewerFixture.token, viewerFixture.slug),
     })
@@ -178,13 +178,13 @@ describe('Share tokens', () => {
       .bind(issueId, publicFieldId, 'hello world')
       .run()
 
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
-    const res = await SELF.fetch(`http://localhost/api/share/${shareToken}`)
+    const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(200)
     const data = (await res.json()) as {
       customFields: { key: string; value: string }[]
@@ -194,38 +194,38 @@ describe('Share tokens', () => {
   })
 
   test('PROJ-242: revokes a share token so it no longer resolves', async () => {
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
-    const revokeRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const revokeRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
     expect(revokeRes.status).toBe(200)
 
-    const res = await SELF.fetch(`http://localhost/api/share/${shareToken}`)
+    const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(404)
   })
 
   test("PROJ-762: GET /api/share/:token includes the owning workspace's brand", async () => {
     const owner = await seedIssueFixture({ role: 'owner' })
-    const patchRes = await SELF.fetch(`http://localhost/api/workspaces/${owner.slug}/brand`, {
+    const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${owner.slug}/brand`, {
       method: 'PATCH',
       headers: authHeaders(owner.token, owner.slug),
       body: JSON.stringify({ displayName: 'Acme Tracker', accent: '#ff8800' }),
     })
     expect(patchRes.status).toBe(200)
 
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${owner.issueId}/share`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${owner.issueId}/share`, {
       method: 'POST',
       headers: authHeaders(owner.token, owner.slug),
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
-    const res = await SELF.fetch(`http://localhost/api/share/${shareToken}`)
+    const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(200)
     const data = (await res.json()) as {
       brand: { displayName: string | null; accent: string | null; logoUrl: string | null }
@@ -236,13 +236,13 @@ describe('Share tokens', () => {
   })
 
   test('PROJ-762: GET /api/share/:token returns a null-fielded brand when the workspace has none set', async () => {
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
-    const res = await SELF.fetch(`http://localhost/api/share/${shareToken}`)
+    const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     expect(res.status).toBe(200)
     const data = (await res.json()) as {
       brand: { displayName: string | null; accent: string | null }
@@ -257,42 +257,42 @@ describe('Share tokens', () => {
     const form = new FormData()
     form.append('file', new File([pngBytes], 'logo.png', { type: 'image/png' }))
     const ownerAuth = authHeaders(owner.token, owner.slug)
-    const uploadRes = await SELF.fetch(`http://localhost/api/workspaces/${owner.slug}/brand/logo`, {
+    const uploadRes = await fetchNativeApi(`http://localhost/api/workspaces/${owner.slug}/brand/logo`, {
       method: 'POST',
       headers: { Authorization: ownerAuth.Authorization, 'X-Workspace-Slug': owner.slug },
       body: form,
     })
     expect(uploadRes.status).toBe(201)
 
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${owner.issueId}/share`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${owner.issueId}/share`, {
       method: 'POST',
       headers: authHeaders(owner.token, owner.slug),
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
-    const shareRes = await SELF.fetch(`http://localhost/api/share/${shareToken}`)
+    const shareRes = await fetchNativeApi(`http://localhost/api/share/${shareToken}`)
     const shareData = (await shareRes.json()) as { brand: { logoUrl: string | null } }
     expect(shareData.brand.logoUrl).toBe(`/api/share/${shareToken}/logo`)
 
-    const logoRes = await SELF.fetch(`http://localhost${shareData.brand.logoUrl}`)
+    const logoRes = await fetchNativeApi(`http://localhost${shareData.brand.logoUrl}`)
     expect(logoRes.status).toBe(200)
     expect(logoRes.headers.get('Content-Type')).toBe('image/png')
     expect(new Uint8Array(await logoRes.arrayBuffer())).toEqual(pngBytes)
   })
 
   test('review finding 1: GET /api/share/:token/logo 404s when the workspace has no logo set', async () => {
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/share`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/share`, {
       method: 'POST',
       headers: authHeaders(token, slug),
     })
     const { token: shareToken } = (await createRes.json()) as { token: string; url: string }
 
-    const res = await SELF.fetch(`http://localhost/api/share/${shareToken}/logo`)
+    const res = await fetchNativeApi(`http://localhost/api/share/${shareToken}/logo`)
     expect(res.status).toBe(404)
   })
 
   test('review finding 1: GET /api/share/<unknown-token>/logo 404s', async () => {
-    const res = await SELF.fetch('http://localhost/api/share/ffffffffffffffffffffffffffffffff/logo')
+    const res = await fetchNativeApi('http://localhost/api/share/ffffffffffffffffffffffffffffffff/logo')
     expect(res.status).toBe(404)
   })
 
@@ -313,7 +313,7 @@ describe('Share tokens', () => {
       )
       .run()
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${viewerFixture.issueId}/share`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${viewerFixture.issueId}/share`, {
       method: 'DELETE',
       headers: authHeaders(viewerFixture.token, viewerFixture.slug),
     })
@@ -339,7 +339,7 @@ describe('Share tokens', () => {
 
     test('member without a grant cannot create a share link (404, existence hidden)', async () => {
       const f = await restrictedIssue('none')
-      const res = await SELF.fetch(`http://localhost/api/issues/${f.issueId}/share`, {
+      const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
         method: 'POST',
         headers: authHeaders(f.token, f.slug),
       })
@@ -360,7 +360,7 @@ describe('Share tokens', () => {
       )
         .bind(await hashToken('victim-link'), f.issueId, f.workspaceId, f.userId, now + 3600, now)
         .run()
-      const res = await SELF.fetch(`http://localhost/api/issues/${f.issueId}/share`, {
+      const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
         method: 'DELETE',
         headers: authHeaders(f.token, f.slug),
       })
@@ -373,7 +373,7 @@ describe('Share tokens', () => {
 
     test('member with only a viewer grant gets 403', async () => {
       const f = await restrictedIssue('viewer')
-      const res = await SELF.fetch(`http://localhost/api/issues/${f.issueId}/share`, {
+      const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
         method: 'POST',
         headers: authHeaders(f.token, f.slug),
       })
@@ -382,7 +382,7 @@ describe('Share tokens', () => {
 
     test('workspace viewer with a member grant on the project can share (grant replaces workspace role)', async () => {
       const f = await restrictedIssue('member', 'viewer')
-      const res = await SELF.fetch(`http://localhost/api/issues/${f.issueId}/share`, {
+      const res = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}/share`, {
         method: 'POST',
         headers: authHeaders(f.token, f.slug),
       })
@@ -398,7 +398,7 @@ describe('Share tokens', () => {
       const project = await seedProject(workspace.id)
       const g = grant === 'member' ? await seedGroupGrant(workspace.id, user.id, project.id, 'member') : null
       const issue = await seedIssue(workspace.id, project.id, user.id, { title: 'Shared' })
-      const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}/share`, {
+      const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/share`, {
         method: 'POST',
         headers: authHeaders(token, workspace.slug),
       })
@@ -417,7 +417,7 @@ describe('Share tokens', () => {
     async function shareStatus(shareToken: string): Promise<number> {
       // The public share route is rate-limited too; these tests hit it several times.
       await resetRateLimits()
-      return (await SELF.fetch(`http://localhost/api/share/${shareToken}`)).status
+      return (await fetchNativeApi(`http://localhost/api/share/${shareToken}`)).status
     }
 
     test('404s once the issue is deleted', async () => {
@@ -448,7 +448,7 @@ describe('Share tokens', () => {
         .run()
       expect(await shareStatus(f.shareToken)).toBe(404)
       await resetRateLimits()
-      expect((await SELF.fetch(`http://localhost/api/share/${f.shareToken}/logo`)).status).toBe(404)
+      expect((await fetchNativeApi(`http://localhost/api/share/${f.shareToken}/logo`)).status).toBe(404)
 
       await env.DB.prepare('INSERT INTO group_project_grants (group_id, project_id, role) VALUES (?, ?, ?)')
         .bind(f.groupId, f.projectId, grant?.role ?? 'member')

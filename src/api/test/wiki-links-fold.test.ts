@@ -1,17 +1,16 @@
 // PROJ-818: link titles fold case the same way on both sides (in JS, stored), so
 // accented Latin titles resolve; and link reads never reveal pages in projects the
 // caller can't see.
-
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedProject, seedWorkspaceRoles } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 async function call(url: string, token: string, slug: string, init?: RequestInit) {
   await resetRateLimits()
-  return SELF.fetch(url, { ...init, headers: authHeaders(token, slug) })
+  return fetchNativeApi(url, { ...init, headers: authHeaders(token, slug) })
 }
 
 async function createPage(token: string, slug: string, body: { title: string; content?: string; projectId?: string }) {

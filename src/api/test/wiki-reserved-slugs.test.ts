@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { RESERVED_WIKI_SLUGS } from '#commands/wiki.ts'
@@ -7,6 +6,7 @@ import m0060 from '../../../migrations/0060_wiki_reserved_slug_rename.sql?raw'
 import { wikiRouter } from '../routes/wiki.ts'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-811: every fixed first path segment under /api/wiki is matched before the /:slug
 // catch-all, so a page with that slug could never load.
@@ -36,7 +36,7 @@ describe('reserved wiki slugs (PROJ-811)', () => {
   })
 
   test('auto-slugs a reserved title with a -page suffix, and the page loads', async () => {
-    const res = await SELF.fetch('http://localhost/api/wiki', {
+    const res = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Search', content: 'body' }),
@@ -45,27 +45,27 @@ describe('reserved wiki slugs (PROJ-811)', () => {
     const page = (await res.json()) as { slug: string }
     expect(page.slug).toBe('search-page')
 
-    const get = await SELF.fetch(`http://localhost/api/wiki/${page.slug}`, {
+    const get = await fetchNativeApi(`http://localhost/api/wiki/${page.slug}`, {
       headers: authHeaders(token, slug),
     })
     expect(get.status).toBe(200)
   })
 
   test('rejects choosing a reserved slug explicitly, on create and on rename', async () => {
-    const created = await SELF.fetch('http://localhost/api/wiki', {
+    const created = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Bin', slug: 'trash' }),
     })
     expect(created.status).toBe(400)
 
-    const ok = await SELF.fetch('http://localhost/api/wiki', {
+    const ok = await fetchNativeApi('http://localhost/api/wiki', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ title: 'Plain' }),
     })
     const page = (await ok.json()) as { id: string }
-    const renamed = await SELF.fetch(`http://localhost/api/wiki/${page.id}`, {
+    const renamed = await fetchNativeApi(`http://localhost/api/wiki/${page.id}`, {
       method: 'PUT',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ slug: 'tree' }),

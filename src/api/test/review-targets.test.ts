@@ -1,9 +1,9 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { configureCore, env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedToken, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 let fixture: Awaited<ReturnType<typeof seedIssueFixture>>
@@ -21,7 +21,7 @@ beforeEach(async () => {
 })
 
 function update(status: unknown, options: { token?: string; issueId?: string; id?: string } = {}) {
-  return SELF.fetch(`http://localhost/api/files/${options.id ?? attachmentId}/review-status`, {
+  return fetchNativeApi(`http://localhost/api/files/${options.id ?? attachmentId}/review-status`, {
     method: 'PATCH',
     headers: authHeaders(options.token ?? fixture.token, fixture.slug),
     body: JSON.stringify({ issueId: options.issueId ?? fixture.issueId, status }),
@@ -29,7 +29,7 @@ function update(status: unknown, options: { token?: string; issueId?: string; id
 }
 
 async function readMetadata() {
-  const response = await SELF.fetch(`http://localhost/api/files/${attachmentId}/metadata`, {
+  const response = await fetchNativeApi(`http://localhost/api/files/${attachmentId}/metadata`, {
     headers: authHeaders(fixture.token, fixture.slug),
   })
   expect(response.status).toBe(200)
@@ -39,7 +39,7 @@ async function readMetadata() {
 async function mcpUpdate(
   status: unknown,
 ): Promise<JsonRpcResult<{ content: { text: string }[]; isError?: boolean }> | JsonRpcError> {
-  const response = await SELF.fetch(`http://localhost/mcp/${fixture.workspaceId}`, {
+  const response = await fetchNativeApi(`http://localhost/mcp/${fixture.workspaceId}`, {
     method: 'POST',
     headers: authHeaders(fixture.token, fixture.slug),
     body: JSON.stringify({
@@ -110,7 +110,7 @@ describe('review targets REST through the real API and Core Workers', () => {
 
   test('rejects malformed JSON and missing status', async () => {
     for (const body of ['{', JSON.stringify({ issueId: fixture.issueId })]) {
-      const response = await SELF.fetch(`http://localhost/api/files/${attachmentId}/review-status`, {
+      const response = await fetchNativeApi(`http://localhost/api/files/${attachmentId}/review-status`, {
         method: 'PATCH',
         headers: authHeaders(fixture.token, fixture.slug),
         body,
@@ -127,7 +127,7 @@ describe('review targets REST through the real API and Core Workers', () => {
   })
 
   test('treats the path attachment id as authoritative instead of a body override', async () => {
-    const response = await SELF.fetch('http://localhost/api/files/missing-review-target/review-status', {
+    const response = await fetchNativeApi('http://localhost/api/files/missing-review-target/review-status', {
       method: 'PATCH',
       headers: authHeaders(fixture.token, fixture.slug),
       body: JSON.stringify({ issueId: fixture.issueId, attachmentId, status: 'fixing' }),

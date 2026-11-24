@@ -1,10 +1,10 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function createSource(f: Readonly<{ projectId: string; token: string; slug: string }>) {
-  const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+  const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
     method: 'POST',
     headers: authHeaders(f.token, f.slug),
     body: JSON.stringify({ name: 'Onboarding survey' }),
@@ -18,7 +18,7 @@ describe('GET /api/feedback-sources/:sourceId (PROJ-724)', () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const sourceId = await createSource(f)
 
-    const res = await SELF.fetch(`http://localhost/api/feedback-sources/${sourceId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/feedback-sources/${sourceId}`, {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)
@@ -30,7 +30,7 @@ describe('GET /api/feedback-sources/:sourceId (PROJ-724)', () => {
 
   test('404s for an unknown sourceId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const res = await SELF.fetch(`http://localhost/api/feedback-sources/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/feedback-sources/${crypto.randomUUID()}`, {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(404)
@@ -41,7 +41,7 @@ describe('GET /api/feedback-sources/:sourceId (PROJ-724)', () => {
     const sourceId = await createSource(owner)
 
     const outsider = await seedProjectFixture({ role: 'owner' })
-    const res = await SELF.fetch(`http://localhost/api/feedback-sources/${sourceId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/feedback-sources/${sourceId}`, {
       headers: authHeaders(outsider.token, outsider.slug),
     })
     expect(res.status).toBe(404)

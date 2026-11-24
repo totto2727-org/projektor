@@ -7,8 +7,6 @@
  *  3. /auth endpoints — GET /auth/me, POST /auth/tokens, DELETE /auth/tokens/:id
  *  4. MCP error contract — serviceErr → JSON-RPC error codes, malformed bodies, unknown workspace
  */
-
-import { SELF } from 'cloudflare:test'
 import { Effect } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
@@ -35,6 +33,7 @@ import {
   seedWorkspaceRoles,
   toolError,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // ---------------------------------------------------------------------------
 // JWT generation utilities (used only by CF Access JWT tests)
@@ -71,7 +70,7 @@ describe('PROJ-79: token expiry', () => {
       expiresAt: Math.floor(Date.now() / 1000) - 60, // 1 minute ago
     })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(expiredToken, fixture.workspace.slug),
     })
     expect(res.status).toBe(401)
@@ -86,7 +85,7 @@ describe('PROJ-79: token expiry', () => {
       expiresAt: Math.floor(Date.now() / 1000) + 3600,
     })
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(futureToken, fixture.workspace.slug),
     })
     expect(res.status).toBe(200)
@@ -94,7 +93,7 @@ describe('PROJ-79: token expiry', () => {
 
   test('api_token with no expires_at never expires', async () => {
     const fixture = await seedFixture() // seedFixture uses seedToken without expiresAt
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
     })
     expect(res.status).toBe(200)
@@ -292,13 +291,13 @@ describe('PROJ-79: CF Access JWT verification (verifyJwtPayload unit tests)', ()
 
 // ---------------------------------------------------------------------------
 // PROJ-79 §2b: CF Access JWT — HTTP-level rejection paths
-// These tests go through SELF.fetch to verify the middleware rejects early
+// These tests go through fetchNativeApi to verify the middleware rejects early
 // without requiring the JWKS fetch path (network or KV).
 // ---------------------------------------------------------------------------
 
 describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
   test('malformed Cf-Access-Jwt-Assertion header returns 401', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': 'not-a-valid-jwt',
         'X-Workspace-Slug': 'any-slug',
@@ -308,7 +307,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
   })
 
   test('JWT with only two segments returns 401', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': 'eyJhbGciOiJSUzI1NiJ9.eyJlbWFpbCI6InRlc3QifQ',
         'X-Workspace-Slug': 'any-slug',
@@ -329,7 +328,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
       .replace(/=/g, '')
     const jwt = `${header}.${payload}.fakesig`
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': jwt,
         'X-Workspace-Slug': 'any-slug',
@@ -346,7 +345,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
     })
     const jwt = `${header}.${payload}.fakesig`
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: {
         'Cf-Access-Jwt-Assertion': jwt,
         'X-Workspace-Slug': 'any-slug',
@@ -368,7 +367,7 @@ describe('PROJ-79: CF Access JWT HTTP rejection paths', () => {
         aud,
         iss: `https://${domain}`,
       })
-      const res = await SELF.fetch('http://localhost/api/issues', {
+      const res = await fetchNativeApi('http://localhost/api/issues', {
         headers: {
           'Cf-Access-Jwt-Assertion': `${header}.${payload}.fakesig`,
           'X-Workspace-Slug': 'x',
@@ -423,7 +422,7 @@ describe('PROJ-354: CF Access auth caches are isolate-local', () => {
       email,
     })
 
-    const first = await SELF.fetch('http://localhost/auth/me', {
+    const first = await fetchNativeApi('http://localhost/auth/me', {
       headers: { 'Cf-Access-Jwt-Assertion': jwt },
     })
     expect(first.status).toBe(200)
@@ -438,7 +437,7 @@ describe('PROJ-354: CF Access auth caches are isolate-local', () => {
     await env.KV.delete('cf-access-certs')
     await env.KV.delete(`user-by-email:${email}`)
 
-    const second = await SELF.fetch('http://localhost/auth/me', {
+    const second = await fetchNativeApi('http://localhost/auth/me', {
       headers: { 'Cf-Access-Jwt-Assertion': jwt },
     })
     expect(second.status).toBe(200)
@@ -561,7 +560,7 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
         iss: `https://${domain}`,
         email,
       })
-      const rotated = await SELF.fetch('http://localhost/auth/me', {
+      const rotated = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': currentJwt },
       })
       expect(rotated.status).toBe(200)
@@ -576,7 +575,7 @@ describe('PROJ-358: JWKS force-refresh on signature verification failure', () =>
         iss: `https://${domain}`,
         email,
       })
-      const stillBad = await SELF.fetch('http://localhost/auth/me', {
+      const stillBad = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': badJwt },
       })
       expect(stillBad.status).toBe(401)
@@ -623,7 +622,7 @@ describe("PROJ-730: JWKS cache write failure doesn't fail auth", () => {
         email: `proj-730-${crypto.randomUUID().slice(0, 8)}@example.com`,
       })
 
-      const res = await SELF.fetch('http://localhost/auth/me', {
+      const res = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': jwt },
       })
 
@@ -671,7 +670,7 @@ describe('PROJ-735: JWKS cache read failure falls back to a fresh fetch', () => 
         email: `proj-735-${crypto.randomUUID().slice(0, 8)}@example.com`,
       })
 
-      const res = await SELF.fetch('http://localhost/auth/me', {
+      const res = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': jwt },
       })
 
@@ -721,7 +720,7 @@ describe('PROJ-746: user-by-email cache read failure falls back to the DB upsert
         email,
       })
 
-      const res = await SELF.fetch('http://localhost/auth/me', {
+      const res = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': jwt },
       })
 
@@ -746,7 +745,7 @@ describe('PROJ-360: api_tokens.last_used_at write throttling', () => {
       .bind(recentTimestamp, hash)
       .run()
 
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(res.status).toBe(200)
@@ -765,7 +764,7 @@ describe('PROJ-360: api_tokens.last_used_at write throttling', () => {
 
     await env.DB.prepare('UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?').bind(staleTimestamp, hash).run()
 
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(res.status).toBe(200)
@@ -789,7 +788,7 @@ describe('PROJ-274: read-scoped token is denied write on every request', () => {
       scopes: ['read'],
     })
 
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: {
         ...authHeaders(readOnlyToken, fixture.workspace.slug),
@@ -808,7 +807,7 @@ describe('PROJ-274: read-scoped token is denied write on every request', () => {
       scopes: ['read'],
     })
 
-    const res = await SELF.fetch(`http://localhost/mcp/${fixture.workspace.id}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
       method: 'POST',
       headers: authHeaders(readOnlyToken, fixture.workspace.slug),
       body: JSON.stringify({
@@ -829,7 +828,7 @@ describe('PROJ-274: read-scoped token is denied write on every request', () => {
     const otherWs = await seedWorkspace(`ws2-${crypto.randomUUID().slice(0, 8)}`)
     await seedMember(otherWs.id, fixture.user.id, 'member')
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(fixture.token, otherWs.slug),
     })
     expect(res.status).toBe(403)
@@ -845,7 +844,7 @@ describe('PROJ-274: read-scoped token is denied write on every request', () => {
       .bind(fixture.workspace.id, fixture.user.id)
       .run()
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
     })
     expect(res.status).toBe(403)
@@ -868,7 +867,7 @@ describe('PROJ-660: dev bypass and /mcp/', () => {
     const ws = await seedWorkspace()
     env.DEV_USER_EMAIL = 'dev@projektor.dev'
 
-    const res = await SELF.fetch(`http://localhost/mcp/${ws.id}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${ws.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
@@ -881,7 +880,7 @@ describe('PROJ-660: dev bypass and /mcp/', () => {
   test('still logs a browser request in, which is what the bypass is for', async () => {
     env.DEV_USER_EMAIL = 'dev@projektor.dev'
 
-    const res = await SELF.fetch('http://localhost/auth/me')
+    const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(200)
     const body = (await res.json()) as { user: { email: string } }
     expect(body.user.email).toBe('dev@projektor.dev')
@@ -903,7 +902,7 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
 
   test('anonymous request still 401s when PUBLIC_READ_ONLY is unset (default)', async () => {
     env.PUBLIC_READ_ONLY = undefined
-    const res = await SELF.fetch('http://localhost/auth/me')
+    const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(401)
   })
 
@@ -913,7 +912,7 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
     env.DEFAULT_WORKSPACE_SLUG = slug
     env.PUBLIC_READ_ONLY = 'true'
 
-    const res = await SELF.fetch('http://localhost/auth/me')
+    const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(200)
     const body = (await res.json()) as {
       user: { email: string }
@@ -955,7 +954,7 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
       email,
     })
 
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { 'Cf-Access-Jwt-Assertion': jwt },
     })
     expect(res.status).toBe(200)
@@ -969,7 +968,7 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
     env.DEFAULT_WORKSPACE_SLUG = slug
     env.PUBLIC_READ_ONLY = 'true'
 
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: { 'X-Workspace-Slug': slug, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Blocked', key: 'BLK' }),
@@ -984,12 +983,12 @@ describe('PROJ-373: PUBLIC_READ_ONLY anonymous viewer', () => {
 
 describe('PROJ-79: GET /auth/me', () => {
   test('returns 401 without any authentication', async () => {
-    const res = await SELF.fetch('http://localhost/auth/me')
+    const res = await fetchNativeApi('http://localhost/auth/me')
     expect(res.status).toBe(401)
   })
 
   test('returns 401 with a wrong bearer token', async () => {
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: 'Bearer tok_totally_fake_token' },
     })
     expect(res.status).toBe(401)
@@ -997,7 +996,7 @@ describe('PROJ-79: GET /auth/me', () => {
 
   test('returns user info and workspaces with a valid token', async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(res.status).toBe(200)
@@ -1018,7 +1017,7 @@ describe('PROJ-79: GET /auth/me', () => {
     await seedMember(ws2.id, fixture.user.id, 'viewer')
     const token = await seedUserToken(fixture.user.id)
 
-    const res = await SELF.fetch('http://localhost/auth/me', {
+    const res = await fetchNativeApi('http://localhost/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     })
     const body = (await res.json()) as { workspaces: { id: string }[] }
@@ -1034,7 +1033,7 @@ async function humanFetch(email: string, url: string, init: RequestInit): Promis
   const prev = env.DEV_USER_EMAIL
   env.DEV_USER_EMAIL = email
   try {
-    return await SELF.fetch(url, init)
+    return await fetchNativeApi(url, init)
   } finally {
     env.DEV_USER_EMAIL = prev
   }
@@ -1086,7 +1085,7 @@ describe('PROJ-79: POST /auth/tokens', () => {
 
   test('returns 401 without authentication', async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch('http://localhost/auth/tokens', {
+    const res = await fetchNativeApi('http://localhost/auth/tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 't', workspaceId: fixture.workspace.id, scopes: ['read'] }),
@@ -1153,7 +1152,7 @@ describe('PROJ-79: DELETE /auth/tokens/:id', () => {
   })
 
   test('returns 401 without authentication', async () => {
-    const res = await SELF.fetch(`http://localhost/auth/tokens/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/auth/tokens/${crypto.randomUUID()}`, {
       method: 'DELETE',
     })
     expect(res.status).toBe(401)
@@ -1177,7 +1176,7 @@ describe('PROJ-79: MCP error contract — serviceErr → tool error codes', () =
   })
 
   async function mcp(name: string, args: unknown, headers = ownerHeaders, wsId = workspaceId) {
-    const res = await SELF.fetch(`http://localhost/mcp/${wsId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${wsId}`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -1247,7 +1246,7 @@ describe('PROJ-79: MCP protocol validation', () => {
   })
 
   test('wrong jsonrpc version returns HTTP 400 with error code -32600', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({
@@ -1263,7 +1262,7 @@ describe('PROJ-79: MCP protocol validation', () => {
   })
 
   test('unknown method returns JSON-RPC error -32601', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'foo/bar', params: {} }),
@@ -1273,7 +1272,7 @@ describe('PROJ-79: MCP protocol validation', () => {
   })
 
   test('unknown tool name returns JSON-RPC error -32601 with tool name in message', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({
@@ -1290,7 +1289,7 @@ describe('PROJ-79: MCP protocol validation', () => {
 
   test('unknown workspace slug returns 404 from workspaceMiddleware', async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch(`http://localhost/mcp/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${crypto.randomUUID()}`, {
       method: 'POST',
       headers: {
         // Valid token but X-Workspace-Slug points to a non-existent workspace
@@ -1304,7 +1303,7 @@ describe('PROJ-79: MCP protocol validation', () => {
   })
 
   test('non-object params on tools/call is handled without crashing', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({
@@ -1319,7 +1318,7 @@ describe('PROJ-79: MCP protocol validation', () => {
   })
 
   test('missing id field is handled (server echoes null/undefined id without crashing)', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: ownerHeaders,
       // No "id" field in the request body
@@ -1375,7 +1374,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
         email: `proj-430-${crypto.randomUUID().slice(0, 8)}@example.com`,
       })
 
-      const res = await SELF.fetch('http://localhost/auth/me', {
+      const res = await fetchNativeApi('http://localhost/auth/me', {
         headers: { 'Cf-Access-Jwt-Assertion': jwt },
       })
 
@@ -1391,7 +1390,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
 
   describe('GET /auth/login', () => {
     test('redirects to default root / with 302 when redirect_url query is omitted', async () => {
-      const res = await SELF.fetch('http://localhost/auth/login', {
+      const res = await fetchNativeApi('http://localhost/auth/login', {
         redirect: 'manual',
       })
       expect(res.status).toBe(302)
@@ -1399,7 +1398,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
     })
 
     test('redirects to specified redirect_url with 302', async () => {
-      const res = await SELF.fetch('http://localhost/auth/login?redirect_url=/projects/view/proj-1', {
+      const res = await fetchNativeApi('http://localhost/auth/login?redirect_url=/projects/view/proj-1', {
         redirect: 'manual',
       })
       expect(res.status).toBe(302)
@@ -1407,7 +1406,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
     })
 
     test('falls back to / for an absolute-URL redirect_url', async () => {
-      const res = await SELF.fetch('http://localhost/auth/login?redirect_url=https://evil.example.com', {
+      const res = await fetchNativeApi('http://localhost/auth/login?redirect_url=https://evil.example.com', {
         redirect: 'manual',
       })
       expect(res.status).toBe(302)
@@ -1415,7 +1414,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
     })
 
     test('falls back to / for a protocol-relative redirect_url', async () => {
-      const res = await SELF.fetch('http://localhost/auth/login?redirect_url=//evil.example.com', {
+      const res = await fetchNativeApi('http://localhost/auth/login?redirect_url=//evil.example.com', {
         redirect: 'manual',
       })
       expect(res.status).toBe(302)
@@ -1423,7 +1422,7 @@ describe('PROJ-430: CF Access certs fetch failure', () => {
     })
 
     test('falls back to / for a javascript: redirect_url', async () => {
-      const res = await SELF.fetch(
+      const res = await fetchNativeApi(
         `http://localhost/auth/login?redirect_url=${encodeURIComponent('javascript:alert(1)')}`,
         { redirect: 'manual' },
       )

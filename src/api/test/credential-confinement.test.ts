@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedMember, seedProject, seedUserToken, seedWorkspace } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('credential confinement for user-level operations', () => {
   test('workspace credentials see only their workspace in REST catalogs and auth bootstrap', async () => {
@@ -14,14 +14,14 @@ describe('credential confinement for user-level operations', () => {
     const headers = authHeaders(fixture.token, fixture.workspace.slug)
 
     for (const path of ['/api/workspaces', '/auth/me']) {
-      const response = await SELF.fetch(`http://localhost${path}`, { headers })
+      const response = await fetchNativeApi(`http://localhost${path}`, { headers })
       expect(response.status).toBe(200)
       const body = await response.json<{ id: string }[] | { workspaces: { id: string }[] }>()
       const workspaces = Array.isArray(body) ? body : body.workspaces
       expect(workspaces.map((workspace) => workspace.id)).toEqual([fixture.workspace.id])
     }
 
-    const response = await SELF.fetch('http://localhost/api/projects', { headers })
+    const response = await fetchNativeApi('http://localhost/api/projects', { headers })
     expect(response.status).toBe(200)
     const projects = await response.json<{ id: string }[]>()
     expect(projects.map((project) => project.id)).toContain(ownProject.id)
@@ -33,7 +33,7 @@ describe('credential confinement for user-level operations', () => {
     const other = await seedWorkspace()
     await seedMember(other.id, fixture.user.id, 'owner')
     const token = await seedUserToken(fixture.user.id)
-    const response = await SELF.fetch('http://localhost/api/workspaces', {
+    const response = await fetchNativeApi('http://localhost/api/workspaces', {
       headers: authHeaders(token, fixture.workspace.slug),
     })
     expect(response.status).toBe(200)
@@ -46,7 +46,7 @@ describe('credential confinement for user-level operations', () => {
   test('workspace credentials cannot create an unconfined workspace', async () => {
     const fixture = await seedFixture({ role: 'owner' })
     const slug = `confined-${crypto.randomUUID()}`
-    const response = await SELF.fetch('http://localhost/api/workspaces', {
+    const response = await fetchNativeApi('http://localhost/api/workspaces', {
       method: 'POST',
       headers: authHeaders(fixture.token, fixture.workspace.slug),
       body: JSON.stringify({ slug, name: 'Not authorized' }),
@@ -61,7 +61,7 @@ describe('credential confinement for user-level operations', () => {
     for (const token of [fixture.token, pat]) {
       for (const method of ['GET', 'DELETE']) {
         const suffix = method === 'DELETE' ? '/unknown-grant' : ''
-        const response = await SELF.fetch(
+        const response = await fetchNativeApi(
           `http://localhost/api/workspaces/${fixture.workspace.slug}/connectors${suffix}`,
           {
             method,

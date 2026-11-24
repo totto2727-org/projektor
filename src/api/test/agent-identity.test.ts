@@ -1,12 +1,11 @@
 // PROJ-894: stateless agent identity. register_agent records the credential that made the
 // call; claim_issue / heartbeat_agent / end_agent may then omit the agent id when that
 // credential owns exactly one (live) session, and must pass it otherwise.
-
-import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { hashToken, seedIssue, seedProjectFixture, seedToken } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 type RpcBody = {
   result?: { content?: { text: string }[]; isError?: boolean }
@@ -37,7 +36,7 @@ describe('PROJ-894: stateless agent identity', () => {
     name: string,
     args: Record<string, unknown>,
   ): Promise<{ ok: boolean; value: Record<string, unknown>; message: string }> {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({

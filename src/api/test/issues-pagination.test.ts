@@ -1,10 +1,9 @@
 // PROJ-857: issue list pagination + query plans.
-
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssueFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('PROJ-857: issue list cursor', () => {
   test('pages through 35 issues created in the same second with no gaps or duplicates', async () => {
@@ -30,7 +29,7 @@ describe('PROJ-857: issue list cursor', () => {
       if (cursor) {
         qs.set('cursor', cursor)
       }
-      const res = await SELF.fetch(`http://localhost/api/issues?${qs}`, {
+      const res = await fetchNativeApi(`http://localhost/api/issues?${qs}`, {
         headers: authHeaders(f.token, f.slug),
       })
       expect(res.status).toBe(200)
@@ -57,7 +56,7 @@ describe('PROJ-857: issue list cursor', () => {
 
   test('still accepts a legacy numeric cursor', async () => {
     const f = await seedIssueFixture()
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/issues?projectId=${f.projectId}&cursor=${Math.floor(Date.now() / 1000) + 60}`,
       { headers: authHeaders(f.token, f.slug) },
     )

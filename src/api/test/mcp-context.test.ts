@@ -1,7 +1,5 @@
 // PROJ-889: MCP calls get the full ServiceCtx (realtime hub, waitUntil) and every auth
 // strategy records its method + credential on the request context.
-
-import { SELF } from 'cloudflare:test'
 import { Hono } from 'hono'
 import { afterEach, describe, expect, test } from 'vite-plus/test'
 
@@ -10,13 +8,14 @@ import type { AuthInfo, HonoEnv } from '#types'
 import { authMiddleware } from '../middleware/auth.ts'
 import { env, getCoreObservations, resetCoreObservations } from './fixture-api.ts'
 import { hashToken, seedFixture, seedIssueFixture, seedUserToken } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('PROJ-889: MCP mutations broadcast like REST', () => {
   test('add_comment over MCP posts a realtime event to the workspace hub', async () => {
     const f = await seedIssueFixture()
     await resetCoreObservations()
 
-    const res = await SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({

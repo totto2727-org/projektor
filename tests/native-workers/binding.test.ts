@@ -1,4 +1,4 @@
-import { env as nativeApiEnv } from 'cloudflare:test'
+import { env as nativeApiEnv } from 'cloudflare:workers'
 import { Effect } from 'effect'
 import { decodeCoreReply, makeCoreClient } from 'projektor/core-client'
 import { describe, expect, test } from 'vite-plus/test'

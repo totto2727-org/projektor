@@ -1,11 +1,11 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { deriveBrandMark } from '../routes/config.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('GET /api/config/brand', () => {
   test('reflects configured BRAND_* vars, deriving the mark and defaulting unset fields (open, no auth)', async () => {
-    const res = await SELF.fetch('http://localhost/api/config/brand')
+    const res = await fetchNativeApi('http://localhost/api/config/brand')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
       name: 'Test Brand',

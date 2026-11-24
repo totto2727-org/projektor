@@ -1,12 +1,11 @@
 // PROJ-891: MCP response shaping — summary/full views, fields=, no nulls or internal ids,
 // one `{items, next}` pagination shape, and a hard per-result size cap.
-
-import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { capPage, shapeIssue, splitShapeOpts, toPage } from '../mcp/serialize.ts'
 import { env } from './fixture-api.ts'
 import { seedIssue, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 type Rpc = { result?: { content?: { text: string }[]; isError?: boolean } }
 
@@ -187,7 +186,7 @@ describe('PROJ-891: MCP tools', () => {
   })
 
   async function tool<T = Record<string, unknown>>(name: string, args: Record<string, unknown> = {}): Promise<T> {
-    const res = await SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -251,7 +250,7 @@ describe('PROJ-891: MCP tools', () => {
     let cursor: string | undefined
     let truncatedPages = 0
     for (let guard = 0; guard < 10; guard++) {
-      const res = await SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
+      const res = await fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({

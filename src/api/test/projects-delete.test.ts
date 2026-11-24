@@ -4,8 +4,6 @@
 // for those, these are end-state checks. What they prove is the cleanup the database
 // can't do: FTS mirrors, share tokens, R2 objects and references without an FK.
 // fk-cleanup.node.test.ts is the guard that the app-level cleanup exists.
-
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import type { ServiceCtx } from '#commands/types.ts'
@@ -23,6 +21,7 @@ import {
   seedIssue,
   seedProject,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function count(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
@@ -73,7 +72,7 @@ describe('PROJ-819: deleteProject cleans up explicitly', () => {
       projectId: other.id,
     })) as { id: string }
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${doomed.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${doomed.id}`, {
       method: 'DELETE',
       headers: authHeaders(token, workspace.slug),
     })
@@ -107,7 +106,7 @@ describe('PROJ-819: deleteProject cleans up explicitly', () => {
     const a = await seedFixture({ role: 'owner' })
     const b = await seedFixture({ role: 'owner' })
     const bProject = await seedProject(b.workspace.id, 'BBB')
-    const res = await SELF.fetch(`http://localhost/api/projects/${bProject.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${bProject.id}`, {
       method: 'DELETE',
       headers: authHeaders(a.token, a.workspace.slug),
     })

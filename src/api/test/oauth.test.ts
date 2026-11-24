@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { relyingPartyHost } from '#commands/oauth.ts'
@@ -7,6 +6,7 @@ import type { Env } from '#types'
 import { purgeExpiredOAuthData } from '../../core/api/maintenance.ts'
 import { env, resetCoreAuthCaches } from './fixture-api.ts'
 import { seedFixture, seedMember, seedToken, seedUser, seedWorkspace } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-656/657: the OAuth 2.1 authorization code flow, end to end.
 //
@@ -150,7 +150,7 @@ function consentTokenFrom(html: string): string {
 }
 
 async function postConsent(token: string, decision: string, jwt: string): Promise<Response> {
-  return SELF.fetch(`${HOST}/oauth/authorize`, {
+  return fetchNativeApi(`${HOST}/oauth/authorize`, {
     method: 'POST',
     headers: browserHeaders({
       'Cf-Access-Jwt-Assertion': jwt,
@@ -165,7 +165,7 @@ async function postConsent(token: string, decision: string, jwt: string): Promis
 // reaches Hono's limiter), and the test limit is 3. Each call presents a fresh address
 // so a multi-step flow is not throttled by a control that has its own test below.
 async function exchange(body: Record<string, string>, ip?: string): Promise<Response> {
-  return SELF.fetch(`${HOST}/oauth/token`, {
+  return fetchNativeApi(`${HOST}/oauth/token`, {
     method: 'POST',
     headers: {
       'CF-Connecting-IP': ip ?? `198.51.100.${Math.floor(Math.random() * 250) + 1}`,
@@ -177,7 +177,7 @@ async function exchange(body: Record<string, string>, ip?: string): Promise<Resp
 
 // TODO: Orca lacks CIMD, so DCR is temporary. Restore the pre-fix code once Orca supports CIMD.
 function registerClient(metadata: Record<string, unknown> = {}) {
-  return SELF.fetch(`${HOST}/oauth/register`, {
+  return fetchNativeApi(`${HOST}/oauth/register`, {
     method: 'POST',
     headers: browserHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
@@ -215,7 +215,7 @@ async function connect(opts: {
   const { verifier, challenge } = await pkce()
   const resource = `${HOST}/mcp/${opts.workspaceId}`
 
-  const consentPage = await SELF.fetch(
+  const consentPage = await fetchNativeApi(
     authorizeUrl({
       clientId,
       resource,
@@ -252,7 +252,7 @@ async function connect(opts: {
 }
 
 function mcpCall(workspaceId: string, token: string, name: string, args: unknown = {}) {
-  return SELF.fetch(`${HOST}/mcp/${workspaceId}`, {
+  return fetchNativeApi(`${HOST}/mcp/${workspaceId}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -295,7 +295,7 @@ describe('only a signed-in human reaches the consent screen', () => {
   test('401s an anonymous request', async () => {
     const { challenge } = await pkce()
     const { clientId } = await seedOAuthClient()
-    const res = await SELF.fetch(authorizeUrl({ clientId, challenge }), {
+    const res = await fetchNativeApi(authorizeUrl({ clientId, challenge }), {
       headers: browserHeaders(),
     })
 
@@ -310,7 +310,7 @@ describe('only a signed-in human reaches the consent screen', () => {
     const { challenge } = await pkce()
     const { clientId } = await seedOAuthClient()
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${fixture.workspace.id}` }),
       { headers: { Authorization: `Bearer ${token}` } },
     )
@@ -327,7 +327,7 @@ describe('only a signed-in human reaches the consent screen', () => {
     try {
       const { challenge } = await pkce()
       const { clientId } = await seedOAuthClient()
-      const res = await SELF.fetch(authorizeUrl({ clientId, challenge }), {
+      const res = await fetchNativeApi(authorizeUrl({ clientId, challenge }), {
         headers: browserHeaders(),
       })
 
@@ -345,7 +345,7 @@ describe('the authorization request must name a workspace the user belongs to', 
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(authorizeUrl({ clientId, challenge }), {
+    const res = await fetchNativeApi(authorizeUrl({ clientId, challenge }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
       redirect: 'manual',
     })
@@ -366,7 +366,7 @@ describe('the authorization request must name a workspace the user belongs to', 
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(authorizeUrl({ clientId, challenge, resource: `${HOST}/api/projects` }), {
+    const res = await fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/api/projects` }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
       redirect: 'manual',
     })
@@ -382,7 +382,7 @@ describe('the authorization request must name a workspace the user belongs to', 
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${other.id}` }), {
+    const res = await fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${other.id}` }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
       redirect: 'manual',
     })
@@ -412,7 +412,7 @@ describe('the consent screen', () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {
+    const res = await fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
     })
     const body = await res.text()
@@ -439,7 +439,7 @@ describe('the consent screen', () => {
     const { clientId } = await seedOAuthClient(['http://127.0.0.1:8976/callback'])
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       authorizeUrl({
         clientId,
         challenge,
@@ -458,7 +458,7 @@ describe('the consent screen', () => {
     const { clientId } = await seedOAuthClient(['http://127.0.0.1:1/callback'])
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       authorizeUrl({
         clientId,
         challenge,
@@ -475,7 +475,7 @@ describe('the consent screen', () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       authorizeUrl({
         clientId,
         challenge,
@@ -494,7 +494,7 @@ describe('the consent screen', () => {
   test('declining tells the client instead of leaving it waiting', async () => {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    const consentPage = await SELF.fetch(
+    const consentPage = await fetchNativeApi(
       authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
@@ -531,7 +531,7 @@ describe('the consent POST cannot be forged or replayed', () => {
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    const consentPage = await SELF.fetch(
+    const consentPage = await fetchNativeApi(
       authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
@@ -548,7 +548,7 @@ describe('the consent POST cannot be forged or replayed', () => {
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    const consentPage = await SELF.fetch(
+    const consentPage = await fetchNativeApi(
       authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
@@ -668,7 +668,7 @@ describe('an OAuth grant cannot mint a personal access token (PROJ-903)', () => 
     await seedMember(workspace.id, user.id, 'owner')
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
-    const res = await SELF.fetch(`${HOST}/auth/tokens`, {
+    const res = await fetchNativeApi(`${HOST}/auth/tokens`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${tokens.access_token}`,
@@ -692,7 +692,7 @@ describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', ()
     await seedMember(workspace.id, user.id, 'owner')
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
-    const res = await SELF.fetch(`${HOST}/api/workspaces/${workspace.slug}/tokens`, {
+    const res = await fetchNativeApi(`${HOST}/api/workspaces/${workspace.slug}/tokens`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${tokens.access_token}`,
@@ -719,7 +719,7 @@ describe('an OAuth grant cannot mint or revoke a workspace token (PROJ-917)', ()
       .first<{ id: string }>()
     const { tokens } = await connect({ email, workspaceId: workspace.id })
 
-    const res = await SELF.fetch(`${HOST}/api/workspaces/${workspace.slug}/tokens/${target?.id}`, {
+    const res = await fetchNativeApi(`${HOST}/api/workspaces/${workspace.slug}/tokens/${target?.id}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${tokens.access_token}`,
@@ -754,7 +754,7 @@ describe("the token endpoint's failure modes", () => {
     const { verifier, challenge } = await pkce()
     const resource = `${HOST}/mcp/${workspaceId}`
 
-    const consentPage = await SELF.fetch(authorizeUrl({ clientId, resource, challenge }), {
+    const consentPage = await fetchNativeApi(authorizeUrl({ clientId, resource, challenge }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
     })
     const approved = await postConsent(consentTokenFrom(await consentPage.text()), 'approve', jwt)
@@ -792,7 +792,7 @@ describe("the token endpoint's failure modes", () => {
     const url = new URL(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }))
     url.searchParams.delete('code_challenge_method')
 
-    const res = await SELF.fetch(url.toString(), {
+    const res = await fetchNativeApi(url.toString(), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
       redirect: 'manual',
     })
@@ -807,7 +807,7 @@ describe("the token endpoint's failure modes", () => {
     const { challenge } = await pkce()
     const resource = `${HOST}/mcp/${workspaceId}`
 
-    const consentPage = await SELF.fetch(authorizeUrl({ clientId, resource, challenge }), {
+    const consentPage = await fetchNativeApi(authorizeUrl({ clientId, resource, challenge }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }),
     })
     const approved = await postConsent(consentTokenFrom(await consentPage.text()), 'approve', jwt)
@@ -920,7 +920,7 @@ describe('the request limiter keys on the grant, not the token (PROJ-658)', () =
 
 describe('Settings lists and withdraws connectors (PROJ-659)', () => {
   function settings(slug: string, jwt: string, path = '', init: RequestInit = {}) {
-    return SELF.fetch(`${HOST}/api/workspaces/${slug}/connectors${path}`, {
+    return fetchNativeApi(`${HOST}/api/workspaces/${slug}/connectors${path}`, {
       ...init,
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt, 'X-Workspace-Slug': slug }),
     })
@@ -966,7 +966,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     const jwt = await accessJwt(email)
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    const consentPage = await SELF.fetch(
+    const consentPage = await fetchNativeApi(
       authorizeUrl({ clientId, resource: `${HOST}/mcp/${workspace.id}`, challenge }),
       { headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': jwt }) },
     )
@@ -1038,7 +1038,7 @@ describe('Settings lists and withdraws connectors (PROJ-659)', () => {
     const workspace = await seedWorkspace()
     env.PUBLIC_READ_ONLY = 'true'
     try {
-      const res = await SELF.fetch(`${HOST}/api/workspaces/${workspace.slug}/connectors`, {
+      const res = await fetchNativeApi(`${HOST}/api/workspaces/${workspace.slug}/connectors`, {
         headers: browserHeaders({ 'X-Workspace-Slug': workspace.slug }),
       })
       expect(res.status).toBe(403)
@@ -1094,7 +1094,7 @@ describe('hardening the consent screen itself', () => {
   async function consentPage(): Promise<Response> {
     const { clientId } = await seedOAuthClient()
     const { challenge } = await pkce()
-    return SELF.fetch(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {
+    return fetchNativeApi(authorizeUrl({ clientId, challenge, resource: `${HOST}/mcp/${workspaceId}` }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': await accessJwt(email) }),
     })
   }
@@ -1128,7 +1128,7 @@ describe('hardening the consent screen itself', () => {
   test('does not name a redirect origin on a page with no form to submit', async () => {
     // An error page carries no consent form, so widening its policy would grant
     // reach that nothing on the page needs.
-    const res = await SELF.fetch(authorizeUrl({ clientId: 'nope', challenge: 'x' }), {
+    const res = await fetchNativeApi(authorizeUrl({ clientId: 'nope', challenge: 'x' }), {
       headers: browserHeaders({ 'Cf-Access-Jwt-Assertion': await accessJwt(email) }),
     })
     const csp = res.headers.get('Content-Security-Policy') ?? ''
@@ -1170,7 +1170,7 @@ describe('workspace confinement survives a header that says otherwise', () => {
 
     const { tokens } = await connect({ email, workspaceId: first.id })
 
-    const res = await SELF.fetch(`${HOST}/mcp/${first.id}`, {
+    const res = await fetchNativeApi(`${HOST}/mcp/${first.id}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${tokens.access_token}`,
@@ -1202,7 +1202,7 @@ describe('existing credentials are untouched by the provider', () => {
 
   test("an unauthenticated MCP request still gets projektor's own 401 challenge", async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch(`${HOST}/mcp/${fixture.workspace.id}`, {
+    const res = await fetchNativeApi(`${HOST}/mcp/${fixture.workspace.id}`, {
       method: 'POST',
       headers: browserHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),

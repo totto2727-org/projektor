@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -10,6 +9,7 @@ import {
   seedProject,
   seedProjectFixture,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-439: conditional GETs. The ETag is a hash of the response body, so a mutation
 // that changes the body changes the tag by construction — there is no invalidation list
@@ -17,7 +17,7 @@ import {
 // 304 can only ever replace a 200 the same caller was already entitled to.
 
 async function get(path: string, token: string, slug: string, ifNoneMatch?: string | null) {
-  return SELF.fetch(`http://localhost${path}`, {
+  return fetchNativeApi(`http://localhost${path}`, {
     headers: {
       ...authHeaders(token, slug),
       ...(ifNoneMatch ? { 'If-None-Match': ifNoneMatch } : {}),
@@ -67,7 +67,7 @@ describe('PROJ-439 — ETag / conditional GET', () => {
     const f = await seedIssueFixture({ role: 'owner', issueTitle: 'Before' })
     const etag = (await get(`/api/issues/${f.issueId}`, f.token, f.slug)).headers.get('ETag')
 
-    const patch = await SELF.fetch(`http://localhost/api/issues/${f.issueId}`, {
+    const patch = await fetchNativeApi(`http://localhost/api/issues/${f.issueId}`, {
       method: 'PATCH',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ title: 'After' }),
@@ -85,7 +85,7 @@ describe('PROJ-439 — ETag / conditional GET', () => {
     const path = `/api/issues/${f.issueId}/comments`
     const etag = (await get(path, f.token, f.slug)).headers.get('ETag')
 
-    const post = await SELF.fetch(`http://localhost${path}`, {
+    const post = await fetchNativeApi(`http://localhost${path}`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ body: 'new comment' }),
@@ -101,7 +101,7 @@ describe('PROJ-439 — ETag / conditional GET', () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const etag = (await get('/api/task-statuses', f.token, f.slug)).headers.get('ETag')
 
-    const post = await SELF.fetch('http://localhost/api/task-statuses', {
+    const post = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ key: 'triage', name: 'Triage', category: 'todo' }),

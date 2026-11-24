@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedFixture, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('Issue Links API', () => {
   let token: string
@@ -28,7 +28,7 @@ describe('Issue Links API', () => {
   })
 
   async function createLink(sourceIssueId: string, targetIssueId: string, type: string) {
-    return SELF.fetch(`http://localhost/api/issues/${sourceIssueId}/links`, {
+    return fetchNativeApi(`http://localhost/api/issues/${sourceIssueId}/links`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ targetIssueId, type }),
@@ -36,7 +36,7 @@ describe('Issue Links API', () => {
   }
 
   async function listLinks(issueId: string) {
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/links`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/links`, {
       headers: authHeaders(token, slug),
     })
     return { res, links: (await res.json()) as Record<string, unknown>[] }
@@ -125,7 +125,7 @@ describe('Issue Links API', () => {
     const createRes = await createLink(issueA.id, issueB.id, 'relates_to')
     const { id: linkId } = (await createRes.json()) as { id: string }
 
-    const deleteRes = await SELF.fetch(`http://localhost/api/issues/${issueA.id}/links/${linkId}`, {
+    const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${issueA.id}/links/${linkId}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -136,7 +136,7 @@ describe('Issue Links API', () => {
   })
 
   test('returns 404 when deleting nonexistent link', async () => {
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueA.id}/links/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueA.id}/links/${crypto.randomUUID()}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -147,7 +147,7 @@ describe('Issue Links API', () => {
     await createLink(issueA.id, issueB.id, 'blocks')
 
     // Delete issueA
-    await SELF.fetch(`http://localhost/api/issues/${issueA.id}`, {
+    await fetchNativeApi(`http://localhost/api/issues/${issueA.id}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -190,7 +190,7 @@ describe('Issue Links API', () => {
     await createLink(issueA.id, issueB.id, 'blocks')
     await createLink(issueA.id, issueC.id, 'relates_to')
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueA.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueA.id}`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -211,7 +211,7 @@ describe('Issue Links role guards', () => {
       title: 'B',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue1.id}/links`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue1.id}/links`, {
       method: 'POST',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
       body: JSON.stringify({ targetIssueId: issue2.id, type: 'relates_to' }),
@@ -229,14 +229,14 @@ describe('Issue Links role guards', () => {
       title: 'B',
     })
 
-    const createRes = await SELF.fetch(`http://localhost/api/issues/${issue1.id}/links`, {
+    const createRes = await fetchNativeApi(`http://localhost/api/issues/${issue1.id}/links`, {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ targetIssueId: issue2.id, type: 'relates_to' }),
     })
     const { id: linkId } = (await createRes.json()) as { id: string }
 
-    const deleteRes = await SELF.fetch(`http://localhost/api/issues/${issue1.id}/links/${linkId}`, {
+    const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${issue1.id}/links/${linkId}`, {
       method: 'DELETE',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
     })
@@ -253,13 +253,13 @@ describe('PROJ-438 — links accept an issue ref', () => {
     const a = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'A' })
     const b = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'B' })
 
-    await SELF.fetch(`http://localhost/api/issues/${a.id}/links`, {
+    await fetchNativeApi(`http://localhost/api/issues/${a.id}/links`, {
       method: 'POST',
       headers: authHeaders(fixture.token, slug),
       body: JSON.stringify({ targetIssueId: b.id, type: 'blocks' }),
     })
 
-    const detail = await SELF.fetch(`http://localhost/api/issues/${a.id}`, {
+    const detail = await fetchNativeApi(`http://localhost/api/issues/${a.id}`, {
       headers: authHeaders(fixture.token, slug),
     })
     const { project_key: key, number } = (await detail.json()) as {
@@ -267,10 +267,10 @@ describe('PROJ-438 — links accept an issue ref', () => {
       number: number
     }
 
-    const byRef = await SELF.fetch(`http://localhost/api/issues/${key}-${number}/links`, {
+    const byRef = await fetchNativeApi(`http://localhost/api/issues/${key}-${number}/links`, {
       headers: authHeaders(fixture.token, slug),
     })
-    const byUuid = await SELF.fetch(`http://localhost/api/issues/${a.id}/links`, {
+    const byUuid = await fetchNativeApi(`http://localhost/api/issues/${a.id}/links`, {
       headers: authHeaders(fixture.token, slug),
     })
 
@@ -286,7 +286,7 @@ describe('PROJ-438 — links accept an issue ref', () => {
     const myProject = await seedProject(mine.workspace.id, 'DUP')
     const a = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'A' })
     const b = await seedIssue(mine.workspace.id, myProject.id, mine.user.id, { title: 'B' })
-    await SELF.fetch(`http://localhost/api/issues/${a.id}/links`, {
+    await fetchNativeApi(`http://localhost/api/issues/${a.id}/links`, {
       method: 'POST',
       headers: authHeaders(mine.token, mine.workspace.slug),
       body: JSON.stringify({ targetIssueId: b.id, type: 'blocks' }),
@@ -296,7 +296,7 @@ describe('PROJ-438 — links accept an issue ref', () => {
     const theirProject = await seedProject(theirs.workspace.id, 'DUP')
     await seedIssue(theirs.workspace.id, theirProject.id, theirs.user.id, { title: 'Not yours' })
 
-    const res = await SELF.fetch('http://localhost/api/issues/DUP-1/links', {
+    const res = await fetchNativeApi('http://localhost/api/issues/DUP-1/links', {
       headers: authHeaders(mine.token, mine.workspace.slug),
     })
 
@@ -311,7 +311,7 @@ describe('PROJ-438 — links accept an issue ref', () => {
     const theirProject = await seedProject(theirs.workspace.id, 'OTHER')
     await seedIssue(theirs.workspace.id, theirProject.id, theirs.user.id, { title: 'Not yours' })
 
-    const res = await SELF.fetch('http://localhost/api/issues/OTHER-1/links', {
+    const res = await fetchNativeApi('http://localhost/api/issues/OTHER-1/links', {
       headers: authHeaders(mine.token, mine.workspace.slug),
     })
 
@@ -324,7 +324,7 @@ describe('PROJ-438 — links accept an issue ref', () => {
     await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'A' })
     const b = await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { title: 'B' })
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${project.key}-1/links`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${project.key}-1/links`, {
       method: 'POST',
       headers: authHeaders(fixture.token, fixture.workspace.slug),
       body: JSON.stringify({ targetIssueId: b.id, type: 'blocks' }),
@@ -348,12 +348,12 @@ describe('createLink target-visibility existence oracle', () => {
       title: 'Hidden target',
     })
 
-    const missingRes = await SELF.fetch(`http://localhost/api/issues/${source.id}/links`, {
+    const missingRes = await fetchNativeApi(`http://localhost/api/issues/${source.id}/links`, {
       method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ targetIssueId: 'NOPE-1', type: 'blocks' }),
     })
-    const unwritableRes = await SELF.fetch(`http://localhost/api/issues/${source.id}/links`, {
+    const unwritableRes = await fetchNativeApi(`http://localhost/api/issues/${source.id}/links`, {
       method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ targetIssueId: hiddenTarget.id, type: 'blocks' }),

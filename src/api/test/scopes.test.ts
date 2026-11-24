@@ -7,8 +7,6 @@
  *  - MCP per-tool enforcement (read token blocked from write tools),
  *  - scope validation + membership check at token creation (/auth/tokens).
  */
-
-import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import {
@@ -22,6 +20,7 @@ import {
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProject, seedToken, seedUser, seedWorkspace } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 /** Seed a workspace + owner + a project in it, for scope-enforcement tests. */
 async function seedScopeFixture() {
@@ -116,10 +115,10 @@ describe('PROJ-17: REST scope enforcement', () => {
     const token = await seedToken(workspaceId, userId, { scopes: ['read'] })
     const headers = authHeaders(token, slug)
 
-    const getRes = await SELF.fetch('http://localhost/api/issues', { headers })
+    const getRes = await fetchNativeApi('http://localhost/api/issues', { headers })
     expect(getRes.status).toBe(200)
 
-    const postRes = await SELF.fetch('http://localhost/api/issues', {
+    const postRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers,
       body: JSON.stringify({ projectId, title: 'should be blocked' }),
@@ -130,7 +129,7 @@ describe('PROJ-17: REST scope enforcement', () => {
 
   test('write token can POST', async () => {
     const token = await seedToken(workspaceId, userId, { scopes: ['write'] })
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'written by write token' }),
@@ -142,8 +141,8 @@ describe('PROJ-17: REST scope enforcement', () => {
     const token = await seedToken(workspaceId, userId, { scopes: ['*'] })
     const headers = authHeaders(token, slug)
 
-    expect((await SELF.fetch('http://localhost/api/issues', { headers })).status).toBe(200)
-    const postRes = await SELF.fetch('http://localhost/api/issues', {
+    expect((await fetchNativeApi('http://localhost/api/issues', { headers })).status).toBe(200)
+    const postRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers,
       body: JSON.stringify({ projectId, title: 'written by wildcard token' }),
@@ -153,7 +152,7 @@ describe('PROJ-17: REST scope enforcement', () => {
 
   test('read token is blocked from DELETE', async () => {
     const token = await seedToken(workspaceId, userId, { scopes: ['read'] })
-    const res = await SELF.fetch(`http://localhost/api/issues/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${crypto.randomUUID()}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -171,7 +170,7 @@ async function mcpCall(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -255,7 +254,7 @@ describe('PROJ-17: POST /auth/tokens', () => {
   })
 
   test('a member can mint a token for their workspace', async () => {
-    const res = await SELF.fetch('http://localhost/auth/tokens', {
+    const res = await fetchNativeApi('http://localhost/auth/tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'mine', workspaceId, scopes: ['read'] }),
@@ -266,7 +265,7 @@ describe('PROJ-17: POST /auth/tokens', () => {
 
   test("minting a token for a workspace you don't belong to is forbidden", async () => {
     const other = await seedWorkspace(`ws-${crypto.randomUUID().slice(0, 8)}`)
-    const res = await SELF.fetch('http://localhost/auth/tokens', {
+    const res = await fetchNativeApi('http://localhost/auth/tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'sneaky', workspaceId: other.id, scopes: ['*'] }),
@@ -275,7 +274,7 @@ describe('PROJ-17: POST /auth/tokens', () => {
   })
 
   test('rejects invalid scope values', async () => {
-    const res = await SELF.fetch('http://localhost/auth/tokens', {
+    const res = await fetchNativeApi('http://localhost/auth/tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'bad', workspaceId, scopes: ['admin'] }),

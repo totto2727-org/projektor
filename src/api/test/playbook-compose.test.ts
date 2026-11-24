@@ -1,9 +1,9 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedIssueFixture, seedProject, toolError } from './helpers.ts'
 import type { JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('compose_playbook', () => {
   let token: string
@@ -31,7 +31,7 @@ describe('compose_playbook', () => {
   })
 
   async function compose(params: Record<string, unknown>) {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -160,7 +160,7 @@ describe('compose_playbook', () => {
   })
 
   test('errors on an unknown playbook name, naming valid options', async () => {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -197,7 +197,7 @@ describe('POST /api/playbooks/:name/compose', () => {
   })
 
   test('returns 200 for epic-goal with a valid params body', async () => {
-    const res = await SELF.fetch('http://localhost/api/playbooks/epic-goal/compose', {
+    const res = await fetchNativeApi('http://localhost/api/playbooks/epic-goal/compose', {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
       body: JSON.stringify({ epicRef: `PROJ-${epicNumber}` }),
@@ -209,7 +209,7 @@ describe('POST /api/playbooks/:name/compose', () => {
   })
 
   test("returns a 4xx via the service's validation for a bad body", async () => {
-    const res = await SELF.fetch('http://localhost/api/playbooks/epic-goal/compose', {
+    const res = await fetchNativeApi('http://localhost/api/playbooks/epic-goal/compose', {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
       body: JSON.stringify({}),

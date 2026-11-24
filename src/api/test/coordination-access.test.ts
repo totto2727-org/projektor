@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedGroupGrant, seedIssue, seedProject, seedWorkspaceRoles } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-316: the fleet-coordination list surfaces (issue-leases, file-claims,
 // agents) must respect the same default-deny project visibility as issues — a
@@ -18,7 +18,7 @@ function lexicalCompare(a: unknown, b: unknown): number {
 }
 
 async function mcpList(tool: string, token: string, slug: string, workspaceId: string): Promise<ListResult> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers: authHeaders(token, slug),
     body: JSON.stringify({

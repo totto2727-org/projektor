@@ -11,8 +11,6 @@
 // Measured with this counter (before -> after this ticket): create 15 -> 6, update 15 -> 6,
 // review transition with completion report 7 -> 4, and the parent walk no longer grows
 // with depth (a 4-ancestor parent cost 3 more round trips than a 1-ancestor one; now equal).
-
-import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { createIssue, updateIssue } from '#commands/issues.ts'
@@ -28,6 +26,7 @@ import {
   seedTaskStatus,
   seedTaskType,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 function trackD1RoundTrips() {
   let count = 0
@@ -256,7 +255,7 @@ describe('PROJ-870 review: completion report comment limit', () => {
       status: 'in_progress',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       method: 'PATCH',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({

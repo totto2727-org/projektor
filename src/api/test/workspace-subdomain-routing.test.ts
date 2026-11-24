@@ -1,4 +1,4 @@
-import { createExecutionContext, SELF, waitOnExecutionContext } from 'cloudflare:test'
+import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
@@ -8,6 +8,7 @@ import { authMiddleware } from '../middleware/auth.ts'
 import { subdomainRoutingEnabled, workspaceMiddleware } from '../middleware/workspace.ts'
 import { env } from './fixture-api.ts'
 import { seedFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('subdomainRoutingEnabled', () => {
   test.each(['true', '1', 'yes', 'TRUE', 'Yes', ' true ', '1 '])('accepts %j', (v) => {
@@ -28,7 +29,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
 
   test('X-Workspace-Slug header works regardless of the flag', async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch(`http://localhost/mcp/${fixture.workspace.id}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${fixture.token}`,
@@ -44,7 +45,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
   // the "no header → 400" contract now only holds for non-MCP routes.
   test('flag off + no header: clean 400 naming the missing header, Host subdomain is ignored', async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch('http://localhost/api/task-types', {
+    const res = await fetchNativeApi('http://localhost/api/task-types', {
       headers: {
         Authorization: `Bearer ${fixture.token}`,
         Host: `${fixture.workspace.slug}.example.com`,
@@ -58,7 +59,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
   test('flag on + no header + matching Host subdomain resolves the workspace', async () => {
     const fixture = await seedFixture()
     env.WORKSPACE_SUBDOMAIN_ROUTING = 'true'
-    const res = await SELF.fetch(`http://localhost/mcp/${fixture.workspace.id}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${fixture.token}`,
@@ -73,7 +74,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
   test('flag "1" (truthy, non-"true") + no header + matching Host subdomain resolves', async () => {
     const fixture = await seedFixture()
     env.WORKSPACE_SUBDOMAIN_ROUTING = '1'
-    const res = await SELF.fetch(`http://localhost/mcp/${fixture.workspace.id}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${fixture.workspace.id}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${fixture.token}`,
@@ -89,7 +90,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
   // /api/files*, see index.ts) — everything else must keep requiring the header.
   test("a ?workspace= query param is ignored on routes that didn't opt in", async () => {
     const fixture = await seedFixture()
-    const res = await SELF.fetch(`http://localhost/api/task-types?workspace=${fixture.workspace.slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-types?workspace=${fixture.workspace.slug}`, {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     expect(res.status).toBe(400)
@@ -103,7 +104,7 @@ describe('workspace subdomain routing (WORKSPACE_SUBDOMAIN_ROUTING)', () => {
         Authorization: `Bearer ${fixture.token}`,
         Host: `${fixture.workspace.slug}.example.com`,
       }
-      const res = await SELF.fetch('http://localhost/api/task-types', { headers })
+      const res = await fetchNativeApi('http://localhost/api/task-types', { headers })
       expect(res.status).toBe(400)
       expect(await res.json()).toMatchObject({ error: 'Workspace not specified: missing X-Workspace-Slug header' })
 

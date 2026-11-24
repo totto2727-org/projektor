@@ -1,14 +1,14 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedIssue, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
   body: Record<string, unknown> = { name: 'Widget' },
 ): Promise<void> {
-  await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+  await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
     method: 'POST',
     headers: authHeaders(f.token, f.slug),
     body: JSON.stringify(body),
@@ -67,7 +67,7 @@ describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
     const id1 = await seedFeedbackRow(src, f.workspaceId, f.projectId, { status: 'new' })
     const id2 = await seedFeedbackRow(src, f.workspaceId, f.projectId, { status: 'actioned' })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/bulk-mark-reviewed`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-mark-reviewed`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ feedbackIds: [id1, id2] }),
@@ -88,7 +88,7 @@ describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
     const otherSrc = await firstSourceId(other.projectId)
     const foreignId = await seedFeedbackRow(otherSrc, other.workspaceId, other.projectId)
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/bulk-mark-reviewed`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-mark-reviewed`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ feedbackIds: [foreignId] }),
@@ -104,7 +104,7 @@ describe('POST /api/projects/:id/feedback/bulk-mark-reviewed', () => {
 
   test('403s for a viewer', async () => {
     const f = await seedProjectFixture({ role: 'viewer' })
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/bulk-mark-reviewed`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-mark-reviewed`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ feedbackIds: ['nonexistent'] }),
@@ -129,7 +129,7 @@ describe('POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
       ratingScale: 'thumbs',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ feedbackIds: [id1, id2] }),
@@ -170,7 +170,7 @@ describe('POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
       .bind(f.projectId)
       .first<{ count: number }>()
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ feedbackIds: [freshId, convertedId] }),
@@ -195,7 +195,7 @@ describe('POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
     const src = await firstSourceId(f.projectId)
     const id1 = await seedFeedbackRow(src, f.workspaceId, f.projectId)
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ feedbackIds: [id1, 'nonexistent-id'] }),
@@ -205,7 +205,7 @@ describe('POST /api/projects/:id/feedback/bulk-convert-to-issue', () => {
 
   test('403s for a viewer', async () => {
     const f = await seedProjectFixture({ role: 'viewer' })
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/bulk-convert-to-issue`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ feedbackIds: ['nonexistent'] }),

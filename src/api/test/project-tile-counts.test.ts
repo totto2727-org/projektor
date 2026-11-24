@@ -1,7 +1,6 @@
 // PROJ-849: project tiles show "N open · M backlog" instead of a single (broken)
 // total-issue count, and issues.status_category stays in sync with a status's
 // category on every write path that can change it.
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { listProjectsAcrossWorkspaces } from '#commands/projects.ts'
@@ -18,6 +17,7 @@ import {
   seedUser,
   seedWorkspace,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('listProjectsAcrossWorkspaces: open vs backlog counts (PROJ-849)', () => {
   test('counts open issues correctly and reports backlog separately, within open', async () => {
@@ -68,7 +68,7 @@ describe('update_task_status re-syncs issues.status_category (PROJ-849)', () => 
       .first<{ status_category: string }>()
     expect(before?.status_category).toBe('in_progress')
 
-    const res = await SELF.fetch(`http://localhost/api/task-statuses/${status.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/task-statuses/${status.id}`, {
       method: 'PATCH',
       headers: authHeaders(token, ws.slug),
       body: JSON.stringify({ category: 'done' }),

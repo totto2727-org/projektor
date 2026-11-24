@@ -4,8 +4,6 @@
 // D1/Miniflare (it still reads 1), so FK-backed rows are also removed by the database's
 // cascade here — those assertions are end-state checks. The non-FK references (share
 // tokens, R2 objects, FTS) are what this proves; fk-cleanup.node.test.ts guards the rest.
-
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -19,6 +17,7 @@ import {
   seedIssue,
   seedProject,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function tableCount(sql: string, ...params: unknown[]): Promise<number> {
   const row = await env.DB.prepare(sql)
@@ -139,7 +138,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
     form.append('file', new File(['hello'], 'hello.txt', { type: 'text/plain' }))
     form.append('entityType', 'issue')
     form.append('entityId', issueId)
-    const uploadRes = await SELF.fetch('http://localhost/api/files', {
+    const uploadRes = await fetchNativeApi('http://localhost/api/files', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'X-Workspace-Slug': slug },
       body: form,
@@ -181,7 +180,7 @@ describe('deleteIssue — dependent row cleanup (PROJ-922)', () => {
     expect(await tableCount('SELECT COUNT(*) AS n FROM issues WHERE parent_id = ?', issueId)).toBe(1)
 
     // --- act ---
-    const deleteRes = await SELF.fetch(`http://localhost/api/issues/${issueId}`, {
+    const deleteRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -253,7 +252,7 @@ describe("PROJ-922: deleteIssue refuses another workspace's issue", () => {
     const bIssue = await seedIssue(b.workspaceId, b.projectId, b.userId, { title: "B's" })
     await seedComment(bIssue.id, b.userId, 'keep me')
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${bIssue.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${bIssue.id}`, {
       method: 'DELETE',
       headers: authHeaders(a.token, a.slug),
     })

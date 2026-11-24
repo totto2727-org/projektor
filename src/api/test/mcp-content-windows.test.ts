@@ -1,12 +1,11 @@
 // PROJ-892: windowed reads — bodyChars previews on lists, get_wiki_page maxChars/cursor/
 // section/outline, and get_issue's long-body cursor.
-
-import { SELF } from 'cloudflare:test'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { outlineOf, sectionOf, windowText } from '../mcp/windowing.ts'
 import { env } from './fixture-api.ts'
 import { seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 type Rpc = { result?: { content?: { text: string }[]; isError?: boolean } }
 
@@ -65,7 +64,7 @@ describe('PROJ-892: MCP tools', () => {
   })
 
   async function call(name: string, args: Record<string, unknown> = {}): Promise<Rpc> {
-    const res = await SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -1,9 +1,9 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import m0061 from '../../../migrations/0061_task_status_review_step.sql?raw'
 import { env } from './fixture-api.ts'
 import { authHeaders, seedAgentLease, seedIssue, seedProjectFixture, seedTaskStatus } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-749: a status is a review step because the workspace flagged it
 // (task_statuses.is_review_step), not because its key contains "review".
@@ -19,7 +19,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
   })
 
   function patch(id: string, body: Record<string, unknown>) {
-    return SELF.fetch(`http://localhost/api/issues/${id}`, {
+    return fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify(body),
@@ -85,7 +85,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
   })
 
   test('create/update_task_status set and clear the flag (REST)', async () => {
-    const created = await SELF.fetch('http://localhost/api/task-statuses', {
+    const created = await fetchNativeApi('http://localhost/api/task-statuses', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -105,7 +105,7 @@ describe('PROJ-749: review steps are explicit, not inferred from the status key'
       )?.f
     expect(await flag()).toBe(1)
 
-    const updated = await SELF.fetch(`http://localhost/api/task-statuses/${id}`, {
+    const updated = await fetchNativeApi(`http://localhost/api/task-statuses/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ isReviewStep: false }),

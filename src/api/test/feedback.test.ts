@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { describe, expect, test } from 'vite-plus/test'
 
 import { hashFeedbackToken } from '#commands/feedback.ts'
@@ -13,6 +12,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { seedRateLimitCounter } from './rate-limit-reset.ts'
 
 describe('feedback migration', () => {
@@ -32,7 +32,7 @@ describe('feedback migration', () => {
 describe('Feedback sources REST', () => {
   test('creates a source (owner) and returns a one-time token', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ name: 'Onboarding survey', allowedOrigins: ['https://acme.test'] }),
@@ -45,7 +45,7 @@ describe('Feedback sources REST', () => {
 
   test('rejects source creation by a member (403)', async () => {
     const f = await seedProjectFixture({ role: 'member' })
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ name: 'X' }),
@@ -55,14 +55,14 @@ describe('Feedback sources REST', () => {
 
   test('lists sources with a truncated token preview, never the raw token', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const created = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+    const created = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ name: 'NPS' }),
     })
     const { token } = (await created.json()) as { token: string }
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)
@@ -80,14 +80,14 @@ describe('Feedback sources REST', () => {
 
   test('updates name/description/isActive (owner)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const created = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+    const created = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ name: 'Old' }),
     })
     const { id } = (await created.json()) as { id: string }
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
       method: 'PATCH',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ name: 'New', isActive: false }),
@@ -103,20 +103,20 @@ describe('Feedback sources REST', () => {
   test('revoke stamps revoked_at (owner); member is 403', async () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'FBK')
-    const create = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
+    const create = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),
     })
     const { id } = (await create.json()) as { id: string }
 
-    const memberRes = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback-sources/${id}`, {
+    const memberRes = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources/${id}`, {
       method: 'DELETE',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
     })
     expect(memberRes.status).toBe(403)
 
-    const ownerRes = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback-sources/${id}`, {
+    const ownerRes = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources/${id}`, {
       method: 'DELETE',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
     })
@@ -132,7 +132,7 @@ async function mintSource(
   f: Readonly<{ projectId: string; token: string; slug: string }>,
   body: Record<string, unknown> = { name: 'Widget' },
 ): Promise<string> {
-  const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+  const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
     method: 'POST',
     headers: authHeaders(f.token, f.slug),
     body: JSON.stringify(body),
@@ -146,7 +146,7 @@ describe('Feedback submit (public)', () => {
     const token = await mintSource(f)
     await configureCore({ FIXTURE_LIMITER_MODE: 'reject' })
     try {
-      const res = await SELF.fetch('http://localhost/api/feedback/submit', {
+      const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ body: 'Still works' }),
@@ -162,7 +162,7 @@ describe('Feedback submit (public)', () => {
   test('accepts a body-only submission and returns { id } only', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
-    const res = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: 'Love it' }),
@@ -181,7 +181,7 @@ describe('Feedback submit (public)', () => {
   test('resolves project/workspace from the source, ignoring body-supplied ids', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
-    const res = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: 'x', projectId: '00000000-0000-0000-0000-000000000000' }),
@@ -195,7 +195,7 @@ describe('Feedback submit (public)', () => {
   })
 
   test('rejects an unknown token with 401', async () => {
-    const res = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: 'Bearer nope', 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: 'x' }),
@@ -206,15 +206,15 @@ describe('Feedback submit (public)', () => {
   test('rejects a revoked source with 401', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
-    const list = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+    const list = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       headers: authHeaders(f.token, f.slug),
     })
     const [{ id }] = (await list.json()) as { id: string }[]
-    await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
+    await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
       method: 'DELETE',
       headers: authHeaders(f.token, f.slug),
     })
-    const res = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: 'x' }),
@@ -225,16 +225,16 @@ describe('Feedback submit (public)', () => {
   test('rejects an inactive source with 403', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
-    const list = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+    const list = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       headers: authHeaders(f.token, f.slug),
     })
     const [{ id }] = (await list.json()) as { id: string }[]
-    await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
+    await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
       method: 'PATCH',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ isActive: false }),
     })
-    const res = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: 'x' }),
@@ -245,7 +245,7 @@ describe('Feedback submit (public)', () => {
   test('400s an empty submission (neither rating nor body)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f)
-    const res = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
@@ -257,7 +257,7 @@ describe('Feedback submit (public)', () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const token = await mintSource(f, { name: 'W', allowedOrigins: ['https://acme.test'] })
 
-    const allowed = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const allowed = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -268,7 +268,7 @@ describe('Feedback submit (public)', () => {
     })
     expect(allowed.headers.get('Access-Control-Allow-Origin')).toBe('https://acme.test')
 
-    const other = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const other = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -281,7 +281,7 @@ describe('Feedback submit (public)', () => {
   })
 
   test('answers OPTIONS preflight with 204 and permissive CORS headers', async () => {
-    const res = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'OPTIONS',
       headers: { Origin: 'https://acme.test', 'Access-Control-Request-Method': 'POST' },
     })
@@ -296,7 +296,7 @@ describe('Feedback submit (public)', () => {
     const tokenHash = await hashFeedbackToken(token)
     await seedRateLimitAtCap(`feedback:${tokenHash}`)
 
-    const res = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: 'x' }),
@@ -311,7 +311,7 @@ describe('Feedback submit (public)', () => {
     // '127.0.0.1' key.
     await seedRateLimitAtCap('feedback-ip:127.0.0.1')
 
-    const res = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const res = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: 'x' }),
@@ -353,14 +353,14 @@ describe('Feedback triage read/patch', () => {
     await seedFeedbackRow(src!.id, f.workspaceId, f.projectId, { status: 'new', body: 'a' })
     await seedFeedbackRow(src!.id, f.workspaceId, f.projectId, { status: 'reviewed', body: 'b' })
 
-    const all = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback`, {
+    const all = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback`, {
       headers: authHeaders(f.token, f.slug),
     })
     const allRows = (await all.json()) as { sourceName: string; status: string }[]
     expect(allRows).toHaveLength(2)
     expect(allRows[0].sourceName).toBe('Onboarding')
 
-    const filtered = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback?status=new`, {
+    const filtered = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback?status=new`, {
       headers: authHeaders(f.token, f.slug),
     })
     const rows = (await filtered.json()) as { status: string }[]
@@ -372,7 +372,7 @@ describe('Feedback triage read/patch', () => {
     const owner = await seedProjectFixture({ role: 'owner' })
     await mintSource(owner)
     const stranger = await seedProjectFixture({ role: 'owner' }) // different workspace
-    const res = await SELF.fetch(`http://localhost/api/projects/${owner.projectId}/feedback`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${owner.projectId}/feedback`, {
       headers: authHeaders(stranger.token, stranger.slug),
     })
     expect(res.status).toBe(404)
@@ -383,7 +383,7 @@ describe('Feedback triage read/patch', () => {
     const proj = await seedProject(roles.workspace.id, 'TRI')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, proj.id, 'member')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, proj.id, 'viewer')
-    const create = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
+    const create = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),
@@ -394,14 +394,14 @@ describe('Feedback triage read/patch', () => {
       .first<{ id: string }>()
     const fbId = await seedFeedbackRow(src!.id, roles.workspace.id, proj.id)
 
-    const viewerRes = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback/${fbId}`, {
+    const viewerRes = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback/${fbId}`, {
       method: 'PATCH',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
       body: JSON.stringify({ status: 'reviewed' }),
     })
     expect(viewerRes.status).toBe(403)
 
-    const memberRes = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback/${fbId}`, {
+    const memberRes = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback/${fbId}`, {
       method: 'PATCH',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
       body: JSON.stringify({ status: 'reviewed' }),
@@ -414,7 +414,7 @@ describe('Feedback triage read/patch', () => {
   test('GET is readable by a viewer (read visibility, not a write action)', async () => {
     const f = await seedProjectFixture({ role: 'viewer' })
     await mintSource(f)
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback`, {
       headers: authHeaders(f.token, f.slug),
     })
     expect(res.status).toBe(200)
@@ -431,7 +431,7 @@ describe('Feedback triage read/patch', () => {
     await seedFeedbackRow(srcA.id, f.workspaceId, f.projectId, { body: 'from a' })
     await seedFeedbackRow(srcB.id, f.workspaceId, f.projectId, { body: 'from b' })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback?sourceId=${srcA.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback?sourceId=${srcA.id}`, {
       headers: authHeaders(f.token, f.slug),
     })
     const rows = (await res.json()) as { sourceId: string }[]
@@ -447,7 +447,7 @@ describe('Feedback triage read/patch', () => {
       .first<{ id: string }>()
     const fbId = await seedFeedbackRow(src!.id, f.workspaceId, f.projectId)
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/${fbId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/${fbId}`, {
       method: 'PATCH',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ status: 'bogus' }),
@@ -462,7 +462,7 @@ async function mcpCall<T>(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -594,14 +594,14 @@ describe('Feedback source MCP tools', () => {
     expect(newToken).not.toBe(oldToken)
 
     // Old token now rejected
-    const oldRes = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const oldRes = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: `Bearer ${oldToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: 'x' }),
     })
     expect(oldRes.status).toBe(401)
     // New token works
-    const newRes = await SELF.fetch('http://localhost/api/feedback/submit', {
+    const newRes = await fetchNativeApi('http://localhost/api/feedback/submit', {
       method: 'POST',
       headers: { Authorization: `Bearer ${newToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: 'y' }),
@@ -626,7 +626,7 @@ describe('Feedback convert-to-issue', () => {
       body: 'The export button is broken',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
     })
@@ -645,7 +645,7 @@ describe('Feedback convert-to-issue', () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'CVT')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, proj.id, 'viewer')
-    const create = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
+    const create = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),
@@ -656,7 +656,7 @@ describe('Feedback convert-to-issue', () => {
       .first<{ id: string }>()
     const fbId = await seedFeedbackRow(src!.id, roles.workspace.id, proj.id)
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback/${fbId}/convert-to-issue`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback/${fbId}/convert-to-issue`, {
       method: 'POST',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
     })
@@ -667,7 +667,7 @@ describe('Feedback convert-to-issue', () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'CVM')
     await seedGroupGrant(roles.workspace.id, roles.member.user.id, proj.id, 'member')
-    const create = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
+    const create = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),
@@ -678,7 +678,7 @@ describe('Feedback convert-to-issue', () => {
       .first<{ id: string }>()
     const fbId = await seedFeedbackRow(src!.id, roles.workspace.id, proj.id, { body: 'Fix this' })
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback/${fbId}/convert-to-issue`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback/${fbId}/convert-to-issue`, {
       method: 'POST',
       headers: authHeaders(roles.member.token, roles.workspace.slug),
     })
@@ -700,7 +700,7 @@ describe('Feedback convert-to-issue', () => {
       .bind(id, src!.id, f.workspaceId, f.projectId, 1, 'thumbs', now)
       .run()
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/${id}/convert-to-issue`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/${id}/convert-to-issue`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
     })
@@ -720,16 +720,22 @@ describe('Feedback convert-to-issue', () => {
       .first<{ id: string }>()
     const fbId = await seedFeedbackRow(src!.id, f.workspaceId, f.projectId, { body: 'Repeat me' })
 
-    const first = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`, {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-    })
+    const first = await fetchNativeApi(
+      `http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`,
+      {
+        method: 'POST',
+        headers: authHeaders(f.token, f.slug),
+      },
+    )
     expect(first.status).toBe(201)
 
-    const second = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`, {
-      method: 'POST',
-      headers: authHeaders(f.token, f.slug),
-    })
+    const second = await fetchNativeApi(
+      `http://localhost/api/projects/${f.projectId}/feedback/${fbId}/convert-to-issue`,
+      {
+        method: 'POST',
+        headers: authHeaders(f.token, f.slug),
+      },
+    )
     expect(second.status).toBe(409)
   })
 })
@@ -743,7 +749,7 @@ describe('PROJ-390: path params win over body-supplied ids', () => {
       .first<{ id: string }>()
     const fbId = await seedFeedbackRow(src!.id, f.workspaceId, f.projectId)
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback/${fbId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback/${fbId}`, {
       method: 'PATCH',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({
@@ -759,7 +765,7 @@ describe('PROJ-390: path params win over body-supplied ids', () => {
 
   test('POST feedback-sources ignores a body-supplied projectId', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ name: 'X', projectId: '00000000-0000-0000-0000-000000000000' }),
@@ -780,7 +786,7 @@ describe('PROJ-390: path params win over body-supplied ids', () => {
       .first<{ id: string }>()
     const id = source!.id
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
       method: 'PATCH',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({
@@ -802,7 +808,7 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
     const roles = await seedWorkspaceRoles()
     const projA = await seedProject(roles.workspace.id, 'PA')
     const projB = await seedProject(roles.workspace.id, 'PB')
-    const created = await SELF.fetch(`http://localhost/api/projects/${projA.id}/feedback-sources`, {
+    const created = await fetchNativeApi(`http://localhost/api/projects/${projA.id}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: "A's source" }),
@@ -813,7 +819,7 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
 
   test("PATCH via project B's path 404s on project A's source", async () => {
     const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace()
-    const res = await SELF.fetch(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}`, {
       method: 'PATCH',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'Hijacked' }),
@@ -823,7 +829,7 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
 
   test("rotate via project B's path 404s on project A's source", async () => {
     const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace()
-    const res = await SELF.fetch(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}/rotate`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}/rotate`, {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
     })
@@ -832,7 +838,7 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
 
   test("revoke via project B's path 404s on project A's source", async () => {
     const { roles, projB, sourceId } = await seedTwoProjectsSameWorkspace()
-    const res = await SELF.fetch(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${projB.id}/feedback-sources/${sourceId}`, {
       method: 'DELETE',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
     })
@@ -842,13 +848,13 @@ describe('PROJ-390: cross-project feedback source mutation is rejected', () => {
 
 describe('PROJ-390: mutating a revoked feedback source', () => {
   async function seedRevokedSource(f: Readonly<{ projectId: string; token: string; slug: string }>) {
-    const created = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
+    const created = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ name: 'Doomed' }),
     })
     const { id } = (await created.json()) as { id: string }
-    await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
+    await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
       method: 'DELETE',
       headers: authHeaders(f.token, f.slug),
     })
@@ -858,7 +864,7 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
   test('PATCH on an already-revoked source 409s', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const id = await seedRevokedSource(f)
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
       method: 'PATCH',
       headers: authHeaders(f.token, f.slug),
       body: JSON.stringify({ name: 'Resurrected' }),
@@ -869,7 +875,7 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
   test('rotate on an already-revoked source 409s', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const id = await seedRevokedSource(f)
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}/rotate`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}/rotate`, {
       method: 'POST',
       headers: authHeaders(f.token, f.slug),
     })
@@ -879,7 +885,7 @@ describe('PROJ-390: mutating a revoked feedback source', () => {
   test('revoke on an already-revoked source stays idempotent (200)', async () => {
     const f = await seedProjectFixture({ role: 'owner' })
     const id = await seedRevokedSource(f)
-    const res = await SELF.fetch(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${f.projectId}/feedback-sources/${id}`, {
       method: 'DELETE',
       headers: authHeaders(f.token, f.slug),
     })
@@ -932,7 +938,7 @@ describe('Feedback read/triage MCP tools', () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'LFV')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, proj.id, 'viewer')
-    const create = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
+    const create = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),
@@ -973,7 +979,7 @@ describe('Feedback read/triage MCP tools', () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'UFV')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, proj.id, 'viewer')
-    const create = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
+    const create = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),
@@ -1038,7 +1044,7 @@ describe('Feedback read/triage MCP tools', () => {
     const roles = await seedWorkspaceRoles()
     const proj = await seedProject(roles.workspace.id, 'CFV')
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, proj.id, 'viewer')
-    const create = await SELF.fetch(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
+    const create = await fetchNativeApi(`http://localhost/api/projects/${proj.id}/feedback-sources`, {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ name: 'S' }),

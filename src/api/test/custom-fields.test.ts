@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { batchLoadCustomFields } from '#commands/custom-fields.ts'
@@ -17,6 +16,7 @@ import {
   seedToken,
   seedUser,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // ─── Definition CRUD ──────────────────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ describe('Custom Field Definitions API', () => {
   })
 
   test('GET /api/custom-fields returns empty list initially', async () => {
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
+    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -43,7 +43,7 @@ describe('Custom Field Definitions API', () => {
   })
 
   test('POST /api/custom-fields creates a text field (owner)', async () => {
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
+    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'sprint', label: 'Sprint', type: 'text' }),
@@ -55,7 +55,7 @@ describe('Custom Field Definitions API', () => {
   })
 
   test('POST /api/custom-fields creates a number field', async () => {
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
+    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'story_points', label: 'Story Points', type: 'number' }),
@@ -64,7 +64,7 @@ describe('Custom Field Definitions API', () => {
   })
 
   test('POST /api/custom-fields creates a select field with options', async () => {
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
+    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -79,7 +79,7 @@ describe('Custom Field Definitions API', () => {
 
   test('POST /api/custom-fields rejects duplicate key', async () => {
     await seedCustomFieldDef(workspaceId, { key: 'sprint', type: 'text' })
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
+    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'sprint', label: 'Sprint 2', type: 'text' }),
@@ -88,7 +88,7 @@ describe('Custom Field Definitions API', () => {
   })
 
   test('POST /api/custom-fields rejects invalid key format', async () => {
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
+    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ key: 'Bad Key!', label: 'Bad', type: 'text' }),
@@ -101,7 +101,7 @@ describe('Custom Field Definitions API', () => {
     await seedMember(workspaceId, memberUser.id, 'member')
     const memberToken = await seedToken(workspaceId, memberUser.id)
 
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
+    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       method: 'POST',
       headers: authHeaders(memberToken, slug),
       body: JSON.stringify({ key: 'sprint', label: 'Sprint', type: 'text' }),
@@ -116,14 +116,14 @@ describe('Custom Field Definitions API', () => {
       type: 'number',
     })
 
-    const res = await SELF.fetch(`http://localhost/api/custom-fields/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ label: 'Points' }),
     })
     expect(res.status).toBe(200)
 
-    const listRes = await SELF.fetch('http://localhost/api/custom-fields', {
+    const listRes = await fetchNativeApi('http://localhost/api/custom-fields', {
       headers: authHeaders(token, slug),
     })
     const list = (await listRes.json()) as { key: string; label: string }[]
@@ -137,7 +137,7 @@ describe('Custom Field Definitions API', () => {
       options: ['S', 'M'],
     })
 
-    const res = await SELF.fetch(`http://localhost/api/custom-fields/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ options: ['S', 'M', 'L', 'XL'] }),
@@ -146,7 +146,7 @@ describe('Custom Field Definitions API', () => {
   })
 
   test('PATCH /api/custom-fields/:id returns 404 for unknown id', async () => {
-    const res = await SELF.fetch(`http://localhost/api/custom-fields/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/custom-fields/${crypto.randomUUID()}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ label: 'Ghost' }),
@@ -157,13 +157,13 @@ describe('Custom Field Definitions API', () => {
   test('DELETE /api/custom-fields/:id removes a field', async () => {
     const { id } = await seedCustomFieldDef(workspaceId, { key: 'sprint', type: 'text' })
 
-    const res = await SELF.fetch(`http://localhost/api/custom-fields/${id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/custom-fields/${id}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
 
-    const listRes = await SELF.fetch('http://localhost/api/custom-fields', {
+    const listRes = await fetchNativeApi('http://localhost/api/custom-fields', {
       headers: authHeaders(token, slug),
     })
     const list = (await listRes.json()) as unknown[]
@@ -178,7 +178,7 @@ describe('Custom Field Definitions API', () => {
     const issue = await seedIssue(workspaceId, project.id, user.id)
     await seedCustomFieldValue(issue.id, fieldId, 'sprint-1')
 
-    const res = await SELF.fetch(`http://localhost/api/custom-fields/${fieldId}`, {
+    const res = await fetchNativeApi(`http://localhost/api/custom-fields/${fieldId}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
@@ -189,7 +189,7 @@ describe('Custom Field Definitions API', () => {
     await seedCustomFieldDef(workspaceId, { key: 'sp', type: 'number' })
     const other = await seedFixture({ role: 'owner' })
 
-    const res = await SELF.fetch('http://localhost/api/custom-fields', {
+    const res = await fetchNativeApi('http://localhost/api/custom-fields', {
       headers: authHeaders(other.token, other.workspace.slug),
     })
     const list = (await res.json()) as unknown[]
@@ -211,7 +211,7 @@ describe('Custom Field Values — validation', () => {
   })
 
   test('rejects unknown custom field key on create', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Test', customFields: { unknown_field: 'value' } }),
@@ -221,7 +221,7 @@ describe('Custom Field Values — validation', () => {
 
   test('rejects unknown custom field key on update', async () => {
     const issue = await seedIssue(workspaceId, projectId, userId)
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ customFields: { ghost_field: '5' } }),
@@ -231,7 +231,7 @@ describe('Custom Field Values — validation', () => {
 
   test('rejects non-numeric value for number field', async () => {
     await seedCustomFieldDef(workspaceId, { key: 'sp', label: 'SP', type: 'number' })
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Test', customFields: { sp: 'not-a-number' } }),
@@ -246,7 +246,7 @@ describe('Custom Field Values — validation', () => {
       type: 'select',
       options: ['S', 'M', 'L'],
     })
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Test', customFields: { size: 'XL' } }),
@@ -261,7 +261,7 @@ describe('Custom Field Values — validation', () => {
       type: 'select',
       options: ['S', 'M', 'L'],
     })
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Test', customFields: { size: 'M' } }),
@@ -271,7 +271,7 @@ describe('Custom Field Values — validation', () => {
 
   test('accepts valid number for number field', async () => {
     await seedCustomFieldDef(workspaceId, { key: 'sp', label: 'SP', type: 'number' })
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Test', customFields: { sp: '5' } }),
@@ -281,7 +281,7 @@ describe('Custom Field Values — validation', () => {
 
   test('rejects invalid date for date field', async () => {
     await seedCustomFieldDef(workspaceId, { key: 'due', label: 'Due', type: 'date' })
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'Test', customFields: { due: 'not-a-date' } }),
@@ -309,14 +309,14 @@ describe('Custom Fields — resolved on read', () => {
       label: 'Story Points',
       type: 'number',
     })
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'With SP', customFields: { sp: '8' } }),
     })
     const { id: issueId } = (await res.json()) as { id: string }
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${issueId}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
       headers: authHeaders(token, slug),
     })
     const issue = (await getRes.json()) as { customFields: { key: string; value: string }[] }
@@ -337,7 +337,7 @@ describe('Custom Fields — resolved on read', () => {
       await seedCustomFieldValue(issue.id, fieldId, String(i * 3))
     }
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       headers: authHeaders(token, slug),
     })
     const page = (await res.json()) as {
@@ -353,20 +353,20 @@ describe('Custom Fields — resolved on read', () => {
 
   test('PATCH /api/issues/:id updates a custom field value', async () => {
     await seedCustomFieldDef(workspaceId, { key: 'sp', label: 'SP', type: 'number' })
-    const createRes = await SELF.fetch('http://localhost/api/issues', {
+    const createRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId, title: 'SP issue', customFields: { sp: '3' } }),
     })
     const { id: issueId } = (await createRes.json()) as { id: string }
 
-    await SELF.fetch(`http://localhost/api/issues/${issueId}`, {
+    await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ customFields: { sp: '13' } }),
     })
 
-    const getRes = await SELF.fetch(`http://localhost/api/issues/${issueId}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}`, {
       headers: authHeaders(token, slug),
     })
     const issue = (await getRes.json()) as { customFields: { key: string; value: string }[] }
@@ -377,7 +377,7 @@ describe('Custom Fields — resolved on read', () => {
     await seedCustomFieldDef(workspaceId, { key: 'sp', label: 'SP', type: 'number' })
     const issue = await seedIssue(workspaceId, projectId, userId)
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(token, slug),
     })
     const body = (await res.json()) as { customFields: unknown[] }
@@ -411,7 +411,7 @@ describe('Custom Fields — list_issues filter', () => {
     await seedCustomFieldValue(i1.id, fieldId, '5')
     await seedCustomFieldValue(i2.id, fieldId, '8')
 
-    const res = await SELF.fetch('http://localhost/api/issues?cfKey=sp&cfOp=eq&cfValue=5', {
+    const res = await fetchNativeApi('http://localhost/api/issues?cfKey=sp&cfOp=eq&cfValue=5', {
       headers: authHeaders(token, slug),
     })
     const page = (await res.json()) as { items: { title: string }[] }
@@ -433,7 +433,7 @@ describe('Custom Fields — list_issues filter', () => {
     await seedCustomFieldValue(i2.id, fieldId, '8')
     await seedCustomFieldValue(i3.id, fieldId, '13')
 
-    const res = await SELF.fetch('http://localhost/api/issues?cfKey=sp&cfOp=gt&cfValue=5', {
+    const res = await fetchNativeApi('http://localhost/api/issues?cfKey=sp&cfOp=gt&cfValue=5', {
       headers: authHeaders(token, slug),
     })
     const page = (await res.json()) as { items: { title: string }[] }
@@ -443,7 +443,7 @@ describe('Custom Fields — list_issues filter', () => {
   })
 
   test('GET /api/issues with unknown cfKey returns 400', async () => {
-    const res = await SELF.fetch('http://localhost/api/issues?cfKey=nonexistent&cfOp=eq&cfValue=x', {
+    const res = await fetchNativeApi('http://localhost/api/issues?cfKey=nonexistent&cfOp=eq&cfValue=x', {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(400)
@@ -509,7 +509,7 @@ describe('Custom Fields — MCP parity', () => {
   })
 
   async function mcpCall(method: string, params: unknown) {
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: { ...authHeaders(token, slug), 'Content-Type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
@@ -628,14 +628,14 @@ describe('PROJ-837: custom field definitions respect project access', () => {
     await seedCustomFieldDef(workspace.id, { key: 'open_field', projectId: granted.id })
     await seedCustomFieldDef(workspace.id, { key: 'secret_field', projectId: restricted.id })
 
-    const all = await SELF.fetch('http://localhost/api/custom-fields', {
+    const all = await fetchNativeApi('http://localhost/api/custom-fields', {
       headers: authHeaders(token, workspace.slug),
     })
     expect(all.status).toBe(200)
     const keys = ((await all.json()) as { key: string }[]).map((d) => d.key).sort()
     expect(keys).toEqual(['open_field', 'ws_field'])
 
-    const scoped = await SELF.fetch(`http://localhost/api/custom-fields?projectId=${restricted.id}`, {
+    const scoped = await fetchNativeApi(`http://localhost/api/custom-fields?projectId=${restricted.id}`, {
       headers: authHeaders(token, workspace.slug),
     })
     const scopedKeys = ((await scoped.json()) as { key: string }[]).map((d) => d.key)

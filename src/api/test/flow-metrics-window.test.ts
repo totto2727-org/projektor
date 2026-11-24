@@ -9,8 +9,6 @@
 // - A 2,000-issue project queried over a 12-week window stays within a small, fixed
 //   number of D1 queries — proving the issue SELECT and lease lookup are now scoped to
 //   the window instead of the whole project.
-
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { getFlowMetrics } from '#commands/flow-metrics.ts'
@@ -18,6 +16,7 @@ import type { ServiceCtx } from '#commands/types.ts'
 
 import { env } from './fixture-api.ts'
 import { authHeaders, seedProjectFixture } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 describe('PROJ-866: flow-metrics window validation', () => {
   let token: string
@@ -29,7 +28,7 @@ describe('PROJ-866: flow-metrics window validation', () => {
   })
 
   async function getFlowMetrics(qs: string) {
-    return SELF.fetch(`http://localhost/api/projects/${projectId}/flow-metrics?${qs}`, {
+    return fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics?${qs}`, {
       headers: authHeaders(token, slug),
     })
   }
@@ -192,7 +191,7 @@ describe('PROJ-866: bucket-rewrite fidelity (snapshot on a representative fixtur
       doneAt: since - 60,
     })
 
-    const res = await SELF.fetch(
+    const res = await fetchNativeApi(
       `http://localhost/api/projects/${projectId}/flow-metrics?since=${since}&until=${until}&granularity=day`,
       { headers: authHeaders(token, slug) },
     )
@@ -313,7 +312,7 @@ describe('PROJ-866 review: window defaults and aging WIP', () => {
   })
 
   async function fetchMetrics(qs: string) {
-    return SELF.fetch(`http://localhost/api/projects/${projectId}/flow-metrics?${qs}`, {
+    return fetchNativeApi(`http://localhost/api/projects/${projectId}/flow-metrics?${qs}`, {
       headers: authHeaders(token, slug),
     })
   }

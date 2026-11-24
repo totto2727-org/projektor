@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -10,6 +9,7 @@ import {
   seedProjectFixture,
   seedTaskStatus,
 } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 // PROJ-254 gate, hardened by PROJ-287/289/292/293: the in_review report requirement is
 // bound to the issue's LIVE AGENT LEASE (an agent can't spoof it by omitting
@@ -38,7 +38,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
   }
 
   function patch(id: string, body: Record<string, unknown>) {
-    return SELF.fetch(`http://localhost/api/issues/${id}`, {
+    return fetchNativeApi(`http://localhost/api/issues/${id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify(body),
@@ -60,7 +60,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
   }
 
   async function commentBodies(id: string): Promise<string[]> {
-    const res = await SELF.fetch(`http://localhost/api/issues/${id}/comments`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${id}/comments`, {
       headers: authHeaders(token, slug),
     })
     const comments = (await res.json()) as { body: string }[]
@@ -212,7 +212,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
       title: 'Released then closed',
     })
     const { agentSessionId } = await seedAgentLease(workspaceId, issue.id)
-    await SELF.fetch(`http://localhost/api/issues/${issue.id}/release`, {
+    await fetchNativeApi(`http://localhost/api/issues/${issue.id}/release`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ agentId: agentSessionId }),
@@ -262,7 +262,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
     const issue = await seedIssue(workspaceId, projectId, userId, { title: 'MCP done' })
     const { agentSessionId } = await seedAgentLease(workspaceId, issue.id)
 
-    const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+    const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({
@@ -286,7 +286,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
   test('list_issues({ needsAudit: true }) surfaces flagged closures only', async () => {
     const { flagged, clean } = await seedFlaggedAndCleanDoneIssues()
 
-    const res = await SELF.fetch(`http://localhost/api/issues?projectId=${projectId}&needsAudit=true`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues?projectId=${projectId}&needsAudit=true`, {
       headers: authHeaders(token, slug),
     })
     const { items } = (await res.json()) as { items: { id: string }[] }
@@ -300,7 +300,7 @@ describe('Review gating (PROJ-254/287/289/292/293/375)', () => {
 
     // z.coerce.boolean() would coerce the string "false" to true, silently
     // inverting this filter. Guards against regressing to that.
-    const res = await SELF.fetch(`http://localhost/api/issues?projectId=${projectId}&needsAudit=false`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues?projectId=${projectId}&needsAudit=false`, {
       headers: authHeaders(token, slug),
     })
     const { items } = (await res.json()) as { items: { id: string }[] }

@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -14,6 +13,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function mcpCall<T>(
   workspaceId: string,
@@ -21,7 +21,7 @@ async function mcpCall<T>(
   params: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
@@ -39,7 +39,7 @@ describe('Comments REST API', () => {
     const fixture = await seedProjectFixture()
     ;({ token, slug, userId } = fixture)
 
-    const res = await SELF.fetch('http://localhost/api/issues', {
+    const res = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ projectId: fixture.projectId, title: 'Issue with comments' }),
@@ -49,7 +49,7 @@ describe('Comments REST API', () => {
   })
 
   test('GET /:issueId/comments returns empty list', async () => {
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
@@ -59,7 +59,7 @@ describe('Comments REST API', () => {
   })
 
   test('POST /:issueId/comments creates a comment', async () => {
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'Hello world' }),
@@ -73,7 +73,7 @@ describe('Comments REST API', () => {
   // caller-supplied field. Tests authenticate over Bearer tokens (see authHeaders),
   // same as agents — see middleware/auth.ts / conventions.md for the human/agent split.
   test('stamps author_kind from the auth transport, not a caller-supplied field', async () => {
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'Hello world', authorKind: 'human' }),
@@ -88,13 +88,13 @@ describe('Comments REST API', () => {
   })
 
   test('GET after POST returns the comment', async () => {
-    await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
+    await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'First comment' }),
     })
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
     const data = (await res.json()) as { body: string }[]
@@ -103,7 +103,7 @@ describe('Comments REST API', () => {
   })
 
   test('POST rejects body that exceeds 10000 chars', async () => {
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'x'.repeat(10_001) }),
@@ -112,7 +112,7 @@ describe('Comments REST API', () => {
   })
 
   test('POST rejects empty body', async () => {
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       method: 'POST',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ body: '' }),
@@ -127,14 +127,14 @@ describe('Comments REST API', () => {
     const project = await seedProject(roles.workspace.id)
     await seedGroupGrant(roles.workspace.id, roles.viewer.user.id, project.id, 'viewer')
 
-    const issueRes = await SELF.fetch('http://localhost/api/issues', {
+    const issueRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(roles.owner.token, roles.workspace.slug),
       body: JSON.stringify({ projectId: project.id, title: 'Viewer-visible issue' }),
     })
     const { id: viewerIssueId } = (await issueRes.json()) as { id: string }
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${viewerIssueId}/comments`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${viewerIssueId}/comments`, {
       method: 'POST',
       headers: authHeaders(roles.viewer.token, roles.workspace.slug),
       body: JSON.stringify({ body: "Viewers shouldn't be able to post this" }),
@@ -145,7 +145,7 @@ describe('Comments REST API', () => {
   test('GET returns 404 for issue in another workspace', async () => {
     const other = await seedFixture()
     // issueId belongs to the first workspace; use other workspace's token+slug
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(other.token, other.workspace.slug),
     })
     expect(res.status).toBe(404)
@@ -154,14 +154,14 @@ describe('Comments REST API', () => {
   test('PATCH updates own comment', async () => {
     const comment = await seedComment(issueId, userId)
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'Updated text' }),
     })
     expect(res.status).toBe(200)
 
-    const listRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
+    const listRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
     const data = (await listRes.json()) as { body: string }[]
@@ -173,7 +173,7 @@ describe('Comments REST API', () => {
     // Seed a comment by a different user on the same issue (cross-user test within same ws)
     const comment = await seedComment(issueId, other.user.id)
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
       method: 'PATCH',
       headers: authHeaders(token, slug),
       body: JSON.stringify({ body: 'Hijacked' }),
@@ -184,13 +184,13 @@ describe('Comments REST API', () => {
   test('DELETE removes own comment', async () => {
     const comment = await seedComment(issueId, userId)
 
-    const res = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
+    const res = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments/${comment.id}`, {
       method: 'DELETE',
       headers: authHeaders(token, slug),
     })
     expect(res.status).toBe(200)
 
-    const listRes = await SELF.fetch(`http://localhost/api/issues/${issueId}/comments`, {
+    const listRes = await fetchNativeApi(`http://localhost/api/issues/${issueId}/comments`, {
       headers: authHeaders(token, slug),
     })
     const data = (await listRes.json()) as unknown[]
@@ -205,7 +205,7 @@ describe('Comments MCP cross-workspace security', () => {
     const projB = await seedProject(wsB.workspace.id, 'VIC')
     await seedGroupGrant(wsB.workspace.id, wsB.user.id, projB.id)
 
-    const issueRes = await SELF.fetch('http://localhost/api/issues', {
+    const issueRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(wsB.token, wsB.workspace.slug),
       body: JSON.stringify({ projectId: projB.id, title: 'Secret issue' }),
@@ -229,7 +229,7 @@ describe('Comments MCP cross-workspace security', () => {
     const projB = await seedProject(wsB.workspace.id, 'SEC')
     await seedGroupGrant(wsB.workspace.id, wsB.user.id, projB.id)
 
-    const issueRes = await SELF.fetch('http://localhost/api/issues', {
+    const issueRes = await fetchNativeApi('http://localhost/api/issues', {
       method: 'POST',
       headers: authHeaders(wsB.token, wsB.workspace.slug),
       body: JSON.stringify({ projectId: projB.id, title: 'Private issue' }),
@@ -237,7 +237,7 @@ describe('Comments MCP cross-workspace security', () => {
     const { id: victimIssueId } = (await issueRes.json()) as { id: string }
 
     // Add a comment so there's something to leak if scoping breaks
-    await SELF.fetch(`http://localhost/api/issues/${victimIssueId}/comments`, {
+    await fetchNativeApi(`http://localhost/api/issues/${victimIssueId}/comments`, {
       method: 'POST',
       headers: authHeaders(wsB.token, wsB.workspace.slug),
       body: JSON.stringify({ body: 'Secret comment content' }),
@@ -266,7 +266,7 @@ describe('PROJ-438 — comments accept an issue ref', () => {
     })
     await seedComment(issue.id, fixture.userId, 'visible via both identifiers')
 
-    const detail = await SELF.fetch(`http://localhost/api/issues/${issue.id}`, {
+    const detail = await fetchNativeApi(`http://localhost/api/issues/${issue.id}`, {
       headers: authHeaders(fixture.token, fixture.slug),
     })
     const { project_key: key, number } = (await detail.json()) as {
@@ -274,10 +274,10 @@ describe('PROJ-438 — comments accept an issue ref', () => {
       number: number
     }
 
-    const byRef = await SELF.fetch(`http://localhost/api/issues/${key}-${number}/comments`, {
+    const byRef = await fetchNativeApi(`http://localhost/api/issues/${key}-${number}/comments`, {
       headers: authHeaders(fixture.token, fixture.slug),
     })
-    const byUuid = await SELF.fetch(`http://localhost/api/issues/${issue.id}/comments`, {
+    const byUuid = await fetchNativeApi(`http://localhost/api/issues/${issue.id}/comments`, {
       headers: authHeaders(fixture.token, fixture.slug),
     })
 
@@ -308,7 +308,7 @@ describe('PROJ-438 — comments accept an issue ref', () => {
     })
     await seedComment(theirIssue.id, theirs.user.id, 'secret')
 
-    const res = await SELF.fetch('http://localhost/api/issues/DUP-1/comments', {
+    const res = await fetchNativeApi('http://localhost/api/issues/DUP-1/comments', {
       headers: authHeaders(mine.token, mine.workspace.slug),
     })
 
@@ -326,7 +326,7 @@ describe('PROJ-438 — comments accept an issue ref', () => {
     })
     await seedComment(theirIssue.id, theirs.user.id, 'secret')
 
-    const res = await SELF.fetch('http://localhost/api/issues/OTHER-1/comments', {
+    const res = await fetchNativeApi('http://localhost/api/issues/OTHER-1/comments', {
       headers: authHeaders(mine.token, mine.slug),
     })
 
@@ -342,7 +342,7 @@ describe('PROJ-438 — comments accept an issue ref', () => {
     })
     await seedComment(issue.id, fixture.userId, 'secret')
 
-    const res = await SELF.fetch('http://localhost/api/issues/NOGRANT-1/comments', {
+    const res = await fetchNativeApi('http://localhost/api/issues/NOGRANT-1/comments', {
       headers: authHeaders(fixture.token, fixture.slug),
     })
 

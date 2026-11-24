@@ -1,10 +1,9 @@
 // PROJ-877: malformed JSON and missing params are client errors (400 / JSON-RPC
 // -32700/-32600/-32602), never a 500 — and never reach app.onError.
-
-import { SELF } from 'cloudflare:test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 import { authHeaders, seedIssueFixture, toolError } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 let f: Awaited<ReturnType<typeof seedIssueFixture>>
 let unhandled: ReturnType<typeof vi.spyOn>
@@ -38,7 +37,7 @@ describe('REST: invalid JSON bodies → 400', () => {
     // malformed-body case lives in workspace-tokens.test.ts.
   ])('%s %s', async (method, path) => {
     const url = path.replace(':issueId', f.issueId).replace(':slug', f.slug)
-    const res = await SELF.fetch(`http://localhost${url}`, {
+    const res = await fetchNativeApi(`http://localhost${url}`, {
       method,
       headers: authHeaders(f.token, f.slug),
       body: '{bad json',
@@ -50,7 +49,7 @@ describe('REST: invalid JSON bodies → 400', () => {
 
 describe('MCP: parse and envelope errors', () => {
   function mcp(body: string) {
-    return SELF.fetch(`http://localhost/mcp/${f.workspaceId}`, {
+    return fetchNativeApi(`http://localhost/mcp/${f.workspaceId}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json' },
       body,

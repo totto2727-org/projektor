@@ -1,8 +1,8 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 import { resetRateLimits } from './rate-limit-reset.ts'
 
 async function mcpCall<T>(
@@ -11,7 +11,7 @@ async function mcpCall<T>(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -49,7 +49,7 @@ describe('Projects REST', () => {
   })
 
   test('GET /api/projects returns empty list initially', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
+    const res = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     expect(res.status).toBe(200)
     const body = (await res.json()) as unknown[]
     expect(Array.isArray(body)).toBe(true)
@@ -57,7 +57,7 @@ describe('Projects REST', () => {
   })
 
   test('POST /api/projects creates a project (owner)', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Alpha', key: 'ALPHA' }),
@@ -70,7 +70,7 @@ describe('Projects REST', () => {
   })
 
   test('POST /api/projects accepts lowercase key and uppercases it', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Beta', key: 'beta' }),
@@ -81,7 +81,7 @@ describe('Projects REST', () => {
   })
 
   test('POST /api/projects rejects member role (403)', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: memberHeaders,
       body: JSON.stringify({ name: 'Gamma', key: 'GAMMA' }),
@@ -90,7 +90,7 @@ describe('Projects REST', () => {
   })
 
   test('POST /api/projects rejects viewer role (403)', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: viewerHeaders,
       body: JSON.stringify({ name: 'Delta', key: 'DELTA' }),
@@ -99,12 +99,12 @@ describe('Projects REST', () => {
   })
 
   test('POST /api/projects returns 409 for duplicate key', async () => {
-    await SELF.fetch('http://localhost/api/projects', {
+    await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'First', key: 'DUPL' }),
     })
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Second', key: 'DUPL' }),
@@ -113,7 +113,7 @@ describe('Projects REST', () => {
   })
 
   test('POST /api/projects returns 400 for invalid key format', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Bad', key: 'BAD KEY!' }),
@@ -122,7 +122,7 @@ describe('Projects REST', () => {
   })
 
   test('POST /api/projects returns 400 for a key starting with a digit (PROJ-440)', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Leading digit', key: '2FA' }),
@@ -131,7 +131,7 @@ describe('Projects REST', () => {
   })
 
   test('POST /api/projects accepts a key containing digits after the first character (PROJ-440)', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Digit key', key: 'WEB2' }),
@@ -140,7 +140,7 @@ describe('Projects REST', () => {
   })
 
   test('POST /api/projects returns 400 for name too long', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'x'.repeat(101), key: 'TOOLONG' }),
@@ -149,12 +149,12 @@ describe('Projects REST', () => {
   })
 
   test('POST /api/projects stores NULL description by default', async () => {
-    await SELF.fetch('http://localhost/api/projects', {
+    await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'NullDesc', key: 'NULLD' }),
     })
-    const listRes = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
+    const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     const projects = (await listRes.json()) as { key: string; description: string | null }[]
     const proj = projects.find((p) => p.key === 'NULLD')
     expect(proj).toBeTruthy()
@@ -162,14 +162,14 @@ describe('Projects REST', () => {
   })
 
   test('GET /api/projects/:id returns the project', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
+    const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'GetMe', key: 'GETME' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
-    const res = await SELF.fetch(`http://localhost/api/projects/${id}`, { headers: ownerHeaders })
+    const res = await fetchNativeApi(`http://localhost/api/projects/${id}`, { headers: ownerHeaders })
     expect(res.status).toBe(200)
     const proj = (await res.json()) as { name: string; key: string }
     expect(proj.name).toBe('GetMe')
@@ -177,21 +177,21 @@ describe('Projects REST', () => {
   })
 
   test('GET /api/projects/:id returns 404 for missing project', async () => {
-    const res = await SELF.fetch(`http://localhost/api/projects/${crypto.randomUUID()}`, {
+    const res = await fetchNativeApi(`http://localhost/api/projects/${crypto.randomUUID()}`, {
       headers: ownerHeaders,
     })
     expect(res.status).toBe(404)
   })
 
   test('PATCH /api/projects/:id updates name (owner)', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
+    const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'OldName', key: 'PATCH1' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
-    const patchRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
+    const patchRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'NewName' }),
@@ -200,14 +200,14 @@ describe('Projects REST', () => {
   })
 
   test('PATCH /api/projects/:id rejects member (403)', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
+    const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'PatchTarget', key: 'PTGT' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
-    const patchRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
+    const patchRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'PATCH',
       headers: memberHeaders,
       body: JSON.stringify({ name: 'Hacked' }),
@@ -216,25 +216,25 @@ describe('Projects REST', () => {
   })
 
   test('PATCH /api/projects/:id archives and unarchives a project', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
+    const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Archivable', key: 'ARCH1' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
-    const archiveRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
+    const archiveRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ archived: true }),
     })
     expect(archiveRes.status).toBe(200)
 
-    const listRes = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
+    const listRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     const keys = ((await listRes.json()) as { key: string }[]).map((p) => p.key)
     expect(keys).not.toContain('ARCH1')
 
-    const includeArchivedRes = await SELF.fetch('http://localhost/api/projects?includeArchived=true', {
+    const includeArchivedRes = await fetchNativeApi('http://localhost/api/projects?includeArchived=true', {
       headers: ownerHeaders,
     })
     const withArchived = (await includeArchivedRes.json()) as {
@@ -247,14 +247,14 @@ describe('Projects REST', () => {
 
     await resetRateLimits()
 
-    const unarchiveRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
+    const unarchiveRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ archived: false }),
     })
     expect(unarchiveRes.status).toBe(200)
 
-    const afterUnarchive = await SELF.fetch('http://localhost/api/projects', {
+    const afterUnarchive = await fetchNativeApi('http://localhost/api/projects', {
       headers: ownerHeaders,
     })
     const afterKeys = ((await afterUnarchive.json()) as { key: string }[]).map((p) => p.key)
@@ -262,14 +262,14 @@ describe('Projects REST', () => {
   })
 
   test('DELETE /api/projects/:id works for owner', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
+    const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'ToDelete', key: 'DEL1' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
-    const delRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
+    const delRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
@@ -277,14 +277,14 @@ describe('Projects REST', () => {
   })
 
   test('DELETE /api/projects/:id rejects member (403)', async () => {
-    const createRes = await SELF.fetch('http://localhost/api/projects', {
+    const createRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'NoDelete', key: 'NODEL' }),
     })
     const { id } = (await createRes.json()) as { id: string }
 
-    const delRes = await SELF.fetch(`http://localhost/api/projects/${id}`, {
+    const delRes = await fetchNativeApi(`http://localhost/api/projects/${id}`, {
       method: 'DELETE',
       headers: memberHeaders,
     })
@@ -390,13 +390,13 @@ describe('Projects MCP', () => {
   })
 
   test('REST GET /api/projects returns workspace_slug and open_issue_count fields', async () => {
-    await SELF.fetch('http://localhost/api/projects', {
+    await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Shape Check', key: 'SHAPE' }),
     })
 
-    const res = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
+    const res = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     const projects = (await res.json()) as {
       key: string
       workspace_id: string
@@ -415,13 +415,13 @@ describe('Projects MCP', () => {
 
   test('REST and MCP list_projects return the same keys', async () => {
     // Create via REST
-    await SELF.fetch('http://localhost/api/projects', {
+    await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ name: 'Parity Test', key: 'PARITY' }),
     })
 
-    const restRes = await SELF.fetch('http://localhost/api/projects', { headers: ownerHeaders })
+    const restRes = await fetchNativeApi('http://localhost/api/projects', { headers: ownerHeaders })
     const restProjects = (await restRes.json()) as { key: string }[]
 
     const mcpRes = (await mcpCall<{ content: { text: string }[] }>(
@@ -472,7 +472,7 @@ describe('Projects MCP', () => {
   })
 
   test('REST create_project and MCP create_project enforce the same role guard', async () => {
-    const restRes = await SELF.fetch('http://localhost/api/projects', {
+    const restRes = await fetchNativeApi('http://localhost/api/projects', {
       method: 'POST',
       headers: memberHeaders,
       body: JSON.stringify({ name: 'ByMember', key: 'MEMBR' }),
@@ -499,7 +499,7 @@ describe('GET /api/projects cross-workspace', () => {
     await seedGroupGrant(ws2.id, ws1.user.id, ws2p.id)
 
     const userToken = await seedUserToken(ws1.user.id)
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       headers: { Authorization: `Bearer ${userToken}` },
     })
     expect(res.status).toBe(200)
@@ -516,7 +516,7 @@ describe('GET /api/projects cross-workspace', () => {
     await seedProject(user.workspace.id, 'MINE')
     await seedProject(other.id, 'NOTMINE')
 
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       headers: { Authorization: `Bearer ${user.token}` },
     })
     expect(res.status).toBe(200)
@@ -526,7 +526,7 @@ describe('GET /api/projects cross-workspace', () => {
   })
 
   test('returns 401 with no auth', async () => {
-    const res = await SELF.fetch('http://localhost/api/projects')
+    const res = await fetchNativeApi('http://localhost/api/projects')
     expect(res.status).toBe(401)
   })
 
@@ -540,7 +540,7 @@ describe('GET /api/projects cross-workspace', () => {
     await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { status: 'todo' })
     await seedIssue(fixture.workspace.id, project.id, fixture.user.id, { status: 'done' })
 
-    const res = await SELF.fetch('http://localhost/api/projects', {
+    const res = await fetchNativeApi('http://localhost/api/projects', {
       headers: { Authorization: `Bearer ${fixture.token}` },
     })
     const projects = (await res.json()) as { key: string; open_issue_count: number }[]

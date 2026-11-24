@@ -1,4 +1,3 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import { env } from './fixture-api.ts'
@@ -14,6 +13,7 @@ import {
   toolError,
 } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
+import { fetchNativeApi } from './native-fetch.ts'
 
 async function mcpCall<T>(
   workspaceId: string,
@@ -21,7 +21,7 @@ async function mcpCall<T>(
   args: unknown,
   headers: Record<string, string>,
 ): Promise<JsonRpcResult<T> | JsonRpcError> {
-  const res = await SELF.fetch(`http://localhost/mcp/${workspaceId}`, {
+  const res = await fetchNativeApi(`http://localhost/mcp/${workspaceId}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -298,7 +298,7 @@ describe('Workspaces MCP', () => {
     const data = JSON.parse(res.result.content[0].text) as { ok: boolean }
     expect(data.ok).toBe(true)
 
-    const getRes = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
       headers: userHeaders,
     })
     const workspace = (await getRes.json()) as { name: string }
@@ -339,7 +339,7 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
   })
 
   test('owner can delete a workspace with no projects → 200 { ok: true }', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
@@ -355,7 +355,7 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     )
     await seedMember(ws.id, memberUser.id, 'member')
     const memberToken = await seedToken(ws.id, memberUser.id)
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${ws.slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${ws.slug}`, {
       method: 'DELETE',
       headers: authHeaders(memberToken, ws.slug),
     })
@@ -370,7 +370,7 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     )
     await seedMember(defaultWs.id, ownerUser.id, 'owner')
     const ownerTok = await seedToken(defaultWs.id, ownerUser.id)
-    const res = await SELF.fetch(`http://localhost/api/workspaces/projektor`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/projektor`, {
       method: 'DELETE',
       headers: authHeaders(ownerTok, 'projektor'),
     })
@@ -379,7 +379,7 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
 
   test('workspace with projects → 409 ConflictError', async () => {
     await seedProject(workspaceId)
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
@@ -391,13 +391,13 @@ describe('DELETE /api/workspaces/:slug (PROJ-96)', () => {
     // not the URL. Naming a *different* workspace in the URL must not silently delete
     // the header's workspace, nor the URL's.
     const other = await seedWorkspace(`del-437-${crypto.randomUUID().slice(0, 8)}`)
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${other.slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${other.slug}`, {
       method: 'DELETE',
       headers: ownerHeaders, // X-Workspace-Slug: slug (the fixture workspace, not `other`)
     })
     expect(res.status).toBe(404)
 
-    const stillThere = await SELF.fetch(`http://localhost/api/workspaces/${slug}`, {
+    const stillThere = await fetchNativeApi(`http://localhost/api/workspaces/${slug}`, {
       headers: ownerHeaders,
     })
     expect(stillThere.status).toBe(200)
@@ -417,14 +417,14 @@ describe('Member removal tombstone (PROJ-436)', () => {
     await seedMember(fixture.workspace.id, memberUser.id, 'member')
     const ownerHeaders = authHeaders(fixture.token, fixture.workspace.slug)
 
-    const delRes = await SELF.fetch(
+    const delRes = await fetchNativeApi(
       `http://localhost/api/workspaces/${fixture.workspace.slug}/members/${memberUser.id}`,
       { method: 'DELETE', headers: ownerHeaders },
     )
     expect(delRes.status).toBe(200)
     expect(await tombstoneRow(fixture.workspace.id, memberUser.id)).not.toBeNull()
 
-    const inviteRes = await SELF.fetch(`http://localhost/api/workspaces/${fixture.workspace.slug}/members`, {
+    const inviteRes = await fetchNativeApi(`http://localhost/api/workspaces/${fixture.workspace.slug}/members`, {
       method: 'POST',
       headers: ownerHeaders,
       body: JSON.stringify({ email: memberUser.email, role: 'member' }),
@@ -437,7 +437,7 @@ describe('Member removal tombstone (PROJ-436)', () => {
 describe('GET /api/workspaces/:slug (currentUserRole)', () => {
   test("returns members and the caller's own role for an owner", async () => {
     const fixture = await seedFixture({ role: 'owner' })
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${fixture.workspace.slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${fixture.workspace.slug}`, {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
     })
     expect(res.status).toBe(200)
@@ -448,7 +448,7 @@ describe('GET /api/workspaces/:slug (currentUserRole)', () => {
 
   test("reports the caller's role as viewer when they are a viewer", async () => {
     const fixture = await seedFixture({ role: 'viewer' })
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${fixture.workspace.slug}`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${fixture.workspace.slug}`, {
       headers: authHeaders(fixture.token, fixture.workspace.slug),
     })
     expect(res.status).toBe(200)
@@ -472,7 +472,7 @@ describe('GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
   })
 
   test('returns mcpUrl, workspaceId, workspaceSlug, mcpAddCommandTemplate', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/mcp-info`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/mcp-info`, {
       headers: memberHeaders,
     })
     expect(res.status).toBe(200)
@@ -491,7 +491,7 @@ describe('GET /api/workspaces/:slug/mcp-info (PROJ-83)', () => {
   })
 
   test('mcpAddCommandTemplate puts flags before the name/url positionals (PROJ-620)', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/mcp-info`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/mcp-info`, {
       headers: memberHeaders,
     })
     const body = (await res.json()) as { mcpAddCommandTemplate: string; mcpUrl: string }
@@ -522,7 +522,7 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 
   test('GET /:slug/brand returns all-null defaults for a workspace with no brand set', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
     expect(res.status).toBe(200)
@@ -537,7 +537,7 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 
   test('owner can PATCH accent/displayName and a member can read the result back', async () => {
-    const patchRes = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ displayName: 'Acme Tracker', accent: '#ff8800' }),
@@ -547,7 +547,7 @@ describe('Workspace brand (PROJ-761)', () => {
     expect(patched.displayName).toBe('Acme Tracker')
     expect(patched.accent).toBe('#ff8800')
 
-    const getRes = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
     const brand = (await getRes.json()) as { displayName: string; accent: string }
@@ -556,7 +556,7 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 
   test('a member (non admin/owner) gets 403 on PATCH', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: memberHeaders,
       body: JSON.stringify({ displayName: 'Should Fail' }),
@@ -565,7 +565,7 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 
   test('rejects a non-hex accent value with 400', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ accent: 'orange' }),
@@ -574,12 +574,12 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 
   test('explicit null clears a previously-set field without touching the others', async () => {
-    await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ displayName: 'Acme Tracker', accent: '#ff8800' }),
     })
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ accent: null }),
@@ -595,20 +595,20 @@ describe('Workspace brand (PROJ-761)', () => {
     ])
     const form = new FormData()
     form.append('file', new File([pngBytes], 'logo.png', { type: 'image/png' }))
-    const uploadRes = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    const uploadRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       method: 'POST',
       headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form,
     })
     expect(uploadRes.status).toBe(201)
 
-    const brandRes = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const brandRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
     const brand = (await brandRes.json()) as { logoUrl: string }
     expect(brand.logoUrl).toBe(`/api/workspaces/${slug}/brand/logo`)
 
-    const logoRes = await SELF.fetch(`http://localhost${brand.logoUrl}`, {
+    const logoRes = await fetchNativeApi(`http://localhost${brand.logoUrl}`, {
       headers: memberHeaders,
     })
     expect(logoRes.status).toBe(200)
@@ -617,7 +617,7 @@ describe('Workspace brand (PROJ-761)', () => {
 
     const form2 = new FormData()
     form2.append('file', new File([pngBytes], 'logo2.png', { type: 'image/png' }))
-    const reuploadRes = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    const reuploadRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       method: 'POST',
       headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form2,
@@ -629,7 +629,7 @@ describe('Workspace brand (PROJ-761)', () => {
     const big = new Uint8Array(2 * 1024 * 1024 + 1)
     const form = new FormData()
     form.append('file', new File([big], 'big.png', { type: 'image/png' }))
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       method: 'POST',
       headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form,
@@ -640,7 +640,7 @@ describe('Workspace brand (PROJ-761)', () => {
   test('rejects a disallowed logo content type with 415', async () => {
     const form = new FormData()
     form.append('file', new File(['<svg></svg>'], 'logo.svg', { type: 'image/svg+xml' }))
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       method: 'POST',
       headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form,
@@ -651,7 +651,7 @@ describe('Workspace brand (PROJ-761)', () => {
   test('a member (non admin/owner) gets 403 on logo upload', async () => {
     const form = new FormData()
     form.append('file', new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }))
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       method: 'POST',
       headers: { Authorization: memberHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form,
@@ -660,7 +660,7 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 
   test('GET logo → 404 when no logo has been uploaded', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       headers: memberHeaders,
     })
     expect(res.status).toBe(404)
@@ -669,31 +669,31 @@ describe('Workspace brand (PROJ-761)', () => {
   test('owner can delete the logo, which then 404s', async () => {
     const form = new FormData()
     form.append('file', new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }))
-    await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       method: 'POST',
       headers: { Authorization: ownerHeaders.Authorization, 'X-Workspace-Slug': slug },
       body: form,
     })
 
-    const delRes = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    const delRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
     expect(delRes.status).toBe(204)
 
-    const getRes = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    const getRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       headers: memberHeaders,
     })
     expect(getRes.status).toBe(404)
 
-    const brandRes = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const brandRes = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
     expect(((await brandRes.json()) as { logoUrl: string | null }).logoUrl).toBeNull()
   })
 
   test('a member (non admin/owner) gets 403 on logo delete', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       method: 'DELETE',
       headers: memberHeaders,
     })
@@ -701,7 +701,7 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 
   test('review finding 2: rejects a javascript: fontUrl with 400', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ fontUrl: 'javascript:alert(1)' }),
@@ -710,7 +710,7 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 
   test('review finding 2: rejects a data: fontUrl with 400', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ fontUrl: 'data:text/html,<script>alert(1)</script>' }),
@@ -719,7 +719,7 @@ describe('Workspace brand (PROJ-761)', () => {
   })
 
   test('review finding 2: accepts an https: fontUrl', async () => {
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ fontUrl: 'https://fonts.example.com/font.css' }),
@@ -737,7 +737,7 @@ describe('Workspace brand (PROJ-761)', () => {
       .bind(JSON.stringify({ logoR2Key: foreignKey }), slug)
       .run()
 
-    const res = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand/logo`, {
+    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand/logo`, {
       headers: memberHeaders,
     })
     expect(res.status).toBe(404)
@@ -746,7 +746,7 @@ describe('Workspace brand (PROJ-761)', () => {
   test("review finding 4: PATCH /:slug/brand operates on the header-resolved workspace, not the URL slug, and doesn't touch the URL's workspace", async () => {
     const other = await seedFixture({ role: 'owner' })
 
-    const patchRes = await SELF.fetch(`http://localhost/api/workspaces/${other.workspace.slug}/brand`, {
+    const patchRes = await fetchNativeApi(`http://localhost/api/workspaces/${other.workspace.slug}/brand`, {
       method: 'PATCH',
       headers: ownerHeaders,
       body: JSON.stringify({ displayName: 'Header Workspace' }),
@@ -755,13 +755,13 @@ describe('Workspace brand (PROJ-761)', () => {
     const patched = (await patchRes.json()) as { displayName: string | null }
     expect(patched.displayName).toBe('Header Workspace')
 
-    const headerWsBrand = await SELF.fetch(`http://localhost/api/workspaces/${slug}/brand`, {
+    const headerWsBrand = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/brand`, {
       headers: memberHeaders,
     })
     expect(((await headerWsBrand.json()) as { displayName: string | null }).displayName).toBe('Header Workspace')
 
     const otherOwnerHeaders = authHeaders(other.token, other.workspace.slug)
-    const otherWsBrand = await SELF.fetch(`http://localhost/api/workspaces/${other.workspace.slug}/brand`, {
+    const otherWsBrand = await fetchNativeApi(`http://localhost/api/workspaces/${other.workspace.slug}/brand`, {
       headers: otherOwnerHeaders,
     })
     expect(((await otherWsBrand.json()) as { displayName: string | null }).displayName).toBeNull()
@@ -775,7 +775,7 @@ describe('Workspace brand R2 cleanup (review finding 5)', () => {
 
     const form = new FormData()
     form.append('file', new File([new Uint8Array([1, 2, 3])], 'logo.png', { type: 'image/png' }))
-    await SELF.fetch(`http://localhost/api/workspaces/${owner.workspace.slug}/brand/logo`, {
+    await fetchNativeApi(`http://localhost/api/workspaces/${owner.workspace.slug}/brand/logo`, {
       method: 'POST',
       headers: {
         Authorization: ownerHeaders.Authorization,
@@ -792,7 +792,7 @@ describe('Workspace brand R2 cleanup (review finding 5)', () => {
     expect(r2Key).toBeDefined()
     expect(await env.R2.get(r2Key as string)).not.toBeNull()
 
-    const delRes = await SELF.fetch(`http://localhost/api/workspaces/${owner.workspace.slug}`, {
+    const delRes = await fetchNativeApi(`http://localhost/api/workspaces/${owner.workspace.slug}`, {
       method: 'DELETE',
       headers: ownerHeaders,
     })
