@@ -203,7 +203,7 @@ router.delete('/:slug/brand/logo', async (httpContext) => {
   const ctx = ctxFromHono(httpContext)
   try {
     await deleteWorkspaceLogo(ctx)
-    return new Response(null, { status: 204 })
+    return new Response(undefined, { status: 204 })
   } catch (caughtError) {
     return serviceErrToResponse(httpContext, caughtError)
   }

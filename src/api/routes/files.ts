@@ -95,7 +95,7 @@ router.get('/:id', async (httpContext) => {
 router.delete('/:id', async (httpContext) => {
   try {
     await filesService.deleteAttachment(ctxFromHono(httpContext), { id: httpContext.req.param('id') })
-    return new Response(null, { status: 204 })
+    return new Response(undefined, { status: 204 })
   } catch (error) {
     return serviceErrToResponse(httpContext, error)
   }

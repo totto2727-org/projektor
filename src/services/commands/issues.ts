@@ -789,19 +789,19 @@ const buildFlowTimestampTransitions = function buildFlowTimestampTransitions(
 ): SetValues {
   const setValues: SetValues = {}
 
-  if (existing.readyAt == null && isOpenPastBacklog(resolvedStatusKey, newStatusCategory)) {
+  if (!Predicate.isNotNullish(existing.readyAt) && isOpenPastBacklog(resolvedStatusKey, newStatusCategory)) {
     setValues.readyAt = now()
   }
 
   const wasClaimed = isClaimedState(existing.statusCategory, existing.status, existing.statusIsReviewStep)
   const isClaimed = isClaimedState(newStatusCategory, resolvedStatusKey, newIsReviewStep)
-  if (isClaimed && !wasClaimed && existing.claimedAt == null) {
+  if (isClaimed && !wasClaimed && !Predicate.isNotNullish(existing.claimedAt)) {
     setValues.claimedAt = now()
   }
 
   const wasDone = isDoneState(existing.statusCategory, existing.status)
   const isDone = isDoneState(newStatusCategory, resolvedStatusKey)
-  if (isDone && !wasDone && existing.doneAt == null) {
+  if (isDone && !wasDone && !Predicate.isNotNullish(existing.doneAt)) {
     setValues.doneAt = now()
   }
 
@@ -835,7 +835,7 @@ const buildReviewTransitions = function buildReviewTransitions(
 ): { setValues: SetValues; isGateRejection: boolean } {
   const { resolvedStatusKey, newStatusCategory, newIsReviewStep, enteringInReview, enteringDone } = transition
   const setValues: SetValues = {}
-  if (enteringInReview && existing.inReviewAt == null) {
+  if (enteringInReview && !Predicate.isNotNullish(existing.inReviewAt)) {
     setValues.inReviewAt = now()
   }
 
@@ -914,7 +914,7 @@ const assertReviewGate = async function assertReviewGate(
 
   if (enteringDone) {
     const everAgentWorked = await issueEverHadAgentLease(ctx, existing.id)
-    if (everAgentWorked && existing.completionReportAt == null && !data.completionReport) {
+    if (everAgentWorked && !Predicate.isNotNullish(existing.completionReportAt) && !data.completionReport) {
       throw new ValidationError({
         formErrors: ['A completion report is required before an agent-worked issue can be marked done (PROJ-254)'],
         fieldErrors: {},
@@ -1284,7 +1284,9 @@ export async function updateIssue(ctx: ServiceCtx, rawId: string, raw: unknown):
   const { statusReviewFlag, ...existingFields } = existingRow
   const existing = {
     ...existingFields,
-    statusIsReviewStep: statusReviewFlag == null ? existingRow.status === 'in_review' : statusReviewFlag === 1,
+    statusIsReviewStep: Predicate.isNotNullish(statusReviewFlag)
+      ? statusReviewFlag === 1
+      : existingRow.status === 'in_review',
   }
 
   // PROJ-311: gate the write on the effective project role (owner/admin bypass).

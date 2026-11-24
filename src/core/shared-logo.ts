@@ -15,7 +15,7 @@ export const handleSharedLogoRequest = async function handleSharedLogoRequest(
     return undefined
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    return new Response(null, { headers: { allow: 'GET, HEAD' }, status: 405 })
+    return new Response(undefined, { headers: { allow: 'GET, HEAD' }, status: 405 })
   }
   try {
     let token: string

@@ -34,11 +34,11 @@ const incoming = (): Request<unknown, CfProperties> => new Request('https://fron
 
 describe('request-scoped native services', () => {
   test('requires a native Core fetch capability and valid browser-only configuration', () => {
-    expect(isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'production' })).toBe(true)
+    expect(isWebEnvironment({ CORE: { fetch: async () => new Response() }, ENVIRONMENT: 'production' })).toBe(true)
     expect(isWebEnvironment({ CORE: {}, ENVIRONMENT: 'production' })).toBe(false)
-    expect(isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'invalid' })).toBe(false)
+    expect(isWebEnvironment({ CORE: { fetch: async () => new Response() }, ENVIRONMENT: 'invalid' })).toBe(false)
     expect(
-      isWebEnvironment({ CORE: { fetch: async () => new Response(null) }, ENVIRONMENT: 'production', BRAND_NAME: 42 }),
+      isWebEnvironment({ CORE: { fetch: async () => new Response() }, ENVIRONMENT: 'production', BRAND_NAME: 42 }),
     ).toBe(false)
     expect(isWebEnvironment(null)).toBe(false)
   })

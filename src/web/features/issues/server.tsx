@@ -105,7 +105,7 @@ const allPages = function allPages(
     const items = [...page.items]
     let cursor = page.nextCursor
     const seen = new Set<string>()
-    while (cursor != null) {
+    while (Predicate.isNotNullish(cursor)) {
       if (items.length >= MAX_AGGREGATE_ISSUES) {
         return yield* new ApiError(
           'request',

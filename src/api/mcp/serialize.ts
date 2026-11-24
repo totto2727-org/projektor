@@ -163,21 +163,21 @@ const summarize = function summarize(issue: Record<string, unknown>): Record<str
   const ref = refOf(issue)
   if (Predicate.isNotNullish(ref) && String.isNonEmpty(ref)) {
     out.ref = ref
-  } else if (issue.id != null) {
+  } else if (Predicate.isNotNullish(issue.id)) {
     out.id = issue.id
   }
   out.title = issue.title
   out.status = issue.status
   out.priority = issue.priority
-  if (issue.type_key != null) {
+  if (Predicate.isNotNullish(issue.type_key)) {
     out.type = issue.type_key
   }
   // Until refs are available on parents (PROJ-890) this is the parent's id.
-  if (issue.parent_id != null) {
+  if (Predicate.isNotNullish(issue.parent_id)) {
     out.parent = issue.parent_id
   }
   const assignee = issue.assignee_name ?? issue.assignee_id
-  if (assignee != null) {
+  if (Predicate.isNotNullish(assignee)) {
     out.assignee = assignee
   }
   out.updated = issue.updated_at
@@ -230,7 +230,7 @@ export const shapeIssue = function shapeIssue(
   if (Predicate.isNotNullish(ref) && String.isNonEmpty(ref)) {
     out.ref = ref
   }
-  if (issue.type_key != null) {
+  if (Predicate.isNotNullish(issue.type_key)) {
     out.type = issue.type_key
   }
   const labels = parseLabels(out.labels)
@@ -248,7 +248,7 @@ export const shapeIssue = function shapeIssue(
   if (isEmptyArray(out.customFields)) {
     delete out.customFields
   }
-  if (out.assignee_id == null) {
+  if (!Predicate.isNotNullish(out.assignee_id)) {
     delete out.assignee_id
     delete out.assignee_name
   }
@@ -256,7 +256,7 @@ export const shapeIssue = function shapeIssue(
     delete out.needs_audit
   }
   Iterable.forEach(NULLABLE_DEFAULT_KEYS, (key) => {
-    if (out[key] == null || out[key] === '') {
+    if (!Predicate.isNotNullish(out[key]) || out[key] === '') {
       delete out[key]
     }
   })
@@ -282,7 +282,7 @@ export const toPage = function toPage<T>(
   next?: string | number | null,
   extra: Record<string, unknown> = {},
 ): { items: T[]; next?: string } & Record<string, unknown> {
-  return { items, ...(next == null ? {} : { next: globalThis.String(next) }), ...extra }
+  return { items, ...(Predicate.isNotNullish(next) ? { next: globalThis.String(next) } : {}), ...extra }
 }
 
 /**

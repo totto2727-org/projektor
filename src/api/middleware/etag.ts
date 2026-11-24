@@ -42,7 +42,7 @@ export const etagMiddleware = async function etagMiddleware(httpContext: Context
   const etag = `"${await sha256Prefix(body)}"`
 
   if (ifNoneMatchMatches(httpContext.req.header('If-None-Match'), etag)) {
-    httpContext.res = new Response(null, {
+    httpContext.res = new Response(undefined, {
       headers: { ETag: etag, 'Cache-Control': CACHE_CONTROL },
       status: 304,
     })

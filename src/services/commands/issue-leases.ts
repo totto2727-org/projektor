@@ -436,7 +436,7 @@ export const issueHasLiveAgentLease = async function issueHasLiveAgentLease(
       ),
     )
     .get()
-  return row != null
+  return Predicate.isNotNullish(row)
 }
 
 /**
@@ -457,7 +457,7 @@ export const issueEverHadAgentLease = async function issueEverHadAgentLease(
     .innerJoin(schema.agentSessions, eq(schema.issueLeases.agentSessionId, schema.agentSessions.id))
     .where(and(eq(schema.issueLeases.workspaceId, ctx.workspaceId), eq(schema.issueLeases.issueId, issueId)))
     .get()
-  return row != null
+  return Predicate.isNotNullish(row)
 }
 
 /**
@@ -489,7 +489,7 @@ export const isLiveAgentSessionId = async function isLiveAgentSessionId(
       ),
     )
     .get()
-  return row != null
+  return Predicate.isNotNullish(row)
 }
 
 /**

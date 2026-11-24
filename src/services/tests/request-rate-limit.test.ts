@@ -57,7 +57,7 @@ const fixture = function fixture() {
   // An SDK-compatible binding substitute executes the real Core handlers against this SQLite fixture.
   const handlers = makeApiRateLimitHandlers(Effect.sync(() => env))
   const binding = {
-    fetch: async () => new Response(null, { status: 404 }),
+    fetch: async () => new Response(undefined, { status: 404 }),
     apiCheckRateLimit: (input: typeof RateLimitRequest.Type) => runTestEffect(handlers.apiCheckRateLimit(input)),
     apiBumpRateCounter: (input: typeof RateCounterRequest.Type) => runTestEffect(handlers.apiBumpRateCounter(input)),
   } as unknown as Fetcher

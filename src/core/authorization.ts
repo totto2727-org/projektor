@@ -194,7 +194,7 @@ export const resolveCoreServiceCtx = async function resolveCoreServiceCtx(
   env: CoreEnvironment,
 ): Promise<ServiceCtx> {
   const principal = await resolveCorePrincipal(actor, env)
-  if (principal.tokenWorkspaceId != null && principal.tokenWorkspaceId !== workspaceId) {
+  if (Predicate.isNotNullish(principal.tokenWorkspaceId) && principal.tokenWorkspaceId !== workspaceId) {
     throw coreFailure(HTTP_FORBIDDEN, 'Forbidden')
   }
   requireCoreCapability(principal, requiredCapability)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Array, Schema } from 'effect'
+import { Array, Schema, Predicate } from 'effect'
 import { useActionState, useEffect, useState } from 'react'
 import type { JSX } from 'react'
 
@@ -73,7 +73,7 @@ export const ProjectLanding = function ProjectLanding({
   async function toggleArchived(): Promise<void> {
     setArchiveBusy(true)
     setRequestError(null)
-    const archived = project.archivedAt == null
+    const archived = !Predicate.isNotNullish(project.archivedAt)
     try {
       unwrapResult(await archiveProject({ workspaceSlug: effectiveSlug, projectId: project.id, archived }))
     } catch (error) {
@@ -107,10 +107,10 @@ export const ProjectLanding = function ProjectLanding({
         <div className='flex items-center gap-3 mb-2'>
           <h1 className='m-0 text-2xl font-bold text-text-base'>{project.name}</h1>
           <span className={badge}>{project.key}</span>
-          {project.archivedAt != null && <span className={badge}>Archived</span>}
+          {Predicate.isNotNullish(project.archivedAt) && <span className={badge}>Archived</span>}
           {canMutate && (
             <Button variant='outline' size='sm' onClick={() => void toggleArchived()} disabled={archiveBusy || pending}>
-              {project.archivedAt != null ? 'Unarchive' : 'Archive'}
+              {Predicate.isNotNullish(project.archivedAt) ? 'Unarchive' : 'Archive'}
             </Button>
           )}
         </div>

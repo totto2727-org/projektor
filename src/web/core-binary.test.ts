@@ -38,7 +38,7 @@ describe('web same-binding binary transport', () => {
     const fetch = vi.fn(async (request: Request) => {
       abort.abort('disconnected')
       expect(request.signal.aborted).toBe(true)
-      return new Response(null)
+      return new Response()
     })
     await runTestEffect(execute(incoming, fetch))
   })

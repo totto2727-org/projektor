@@ -19,10 +19,10 @@ export const handleApiBinaryRequest = async function handleApiBinaryRequest(
   }
   try {
     if (request.method !== 'GET' && request.method !== 'POST' && request.method !== 'HEAD') {
-      return new Response(null, { status: 405 })
+      return new Response(undefined, { status: 405 })
     }
     if (url.pathname === '/wiki-export' && request.method !== 'GET') {
-      return new Response(null, { status: 405 })
+      return new Response(undefined, { status: 405 })
     }
     const actor = Schema.decodeUnknownSync(Schema.fromJsonString(CoreActor))(request.headers.get(CORE_ACTOR_HEADER))
     const ids = url.searchParams.getAll('workspaceId')

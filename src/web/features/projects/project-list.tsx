@@ -1,7 +1,7 @@
 'use client'
 
 import { useForm } from '@tanstack/react-form'
-import { Array, Schema } from 'effect'
+import { Array, Schema, Predicate } from 'effect'
 import { useActionState, useEffect, useRef } from 'react'
 import type { JSX } from 'react'
 
@@ -37,7 +37,7 @@ const ProjectTile = function ProjectTile({ project }: { project: ProjectSummary 
   const count = open === 0 ? 'No open issues' : backlog === 0 ? `${active} open` : `${active} open · ${backlog} backlog`
   const path = project.slug ? `/projects/view/${encodeURIComponent(project.slug)}` : '/projects/view'
   return (
-    <Card interactive className={`shadow-xs${project.archived_at != null ? ' opacity-60' : ''}`}>
+    <Card interactive className={`shadow-xs${Predicate.isNotNullish(project.archived_at) ? ' opacity-60' : ''}`}>
       <a
         href={`${path}?${new URLSearchParams({ projectId: project.id, workspace: project.workspace_slug })}`}
         className='block no-underline'
@@ -45,7 +45,7 @@ const ProjectTile = function ProjectTile({ project }: { project: ProjectSummary 
         <div className='flex items-center gap-2'>
           <span className='font-bold text-text-base text-base'>{project.name}</span>
           <span className={badgeClass}>{project.key}</span>
-          {project.archived_at != null && <span className={badgeClass}>Archived</span>}
+          {Predicate.isNotNullish(project.archived_at) && <span className={badgeClass}>Archived</span>}
         </div>
         <span className='text-xs text-text-muted'>{count}</span>
         {project.description && (

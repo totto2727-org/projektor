@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Effect, Schema, Predicate } from 'effect'
 
 import { listProjectsAcrossWorkspaces } from '#commands/projects.ts'
 import { createUserToken, deleteUserToken, getUserWorkspaces } from '#commands/user-tokens.ts'
@@ -71,9 +71,9 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
         attempt(async (env) => {
           const principal = await resolveUser(actor, env, 'read')
           const memberships = await listWorkspaces(env.DB, principal.user.id)
-          return principal.tokenWorkspaceId == null
-            ? memberships
-            : memberships.filter((workspace) => workspace.id === principal.tokenWorkspaceId)
+          return Predicate.isNotNullish(principal.tokenWorkspaceId)
+            ? memberships.filter((workspace) => workspace.id === principal.tokenWorkspaceId)
+            : memberships
         }),
       ),
     apiUserBootstrap: (actor: CoreActor) =>
@@ -83,10 +83,9 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
         attempt(async (env) => {
           const principal = await resolveUser(actor, env, 'read')
           const memberships = await getUserWorkspaces({ db: env.DB, userId: principal.user.id })
-          const workspaces =
-            principal.tokenWorkspaceId == null
-              ? memberships
-              : memberships.filter((workspace) => workspace.id === principal.tokenWorkspaceId)
+          const workspaces = Predicate.isNotNullish(principal.tokenWorkspaceId)
+            ? memberships.filter((workspace) => workspace.id === principal.tokenWorkspaceId)
+            : memberships
           return { user: principal.user, workspaces }
         }),
       ),
@@ -97,9 +96,9 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
         attempt(async (env) => {
           const principal = await resolveUser(actor, env, 'read')
           const projects = await listProjectsAcrossWorkspaces(principal.user.id, env.DB, includeArchived)
-          return principal.tokenWorkspaceId == null
-            ? projects
-            : projects.filter((project) => project.workspace_id === principal.tokenWorkspaceId)
+          return Predicate.isNotNullish(principal.tokenWorkspaceId)
+            ? projects.filter((project) => project.workspace_id === principal.tokenWorkspaceId)
+            : projects
         }),
       ),
     apiCreateWorkspace: (actor: CoreActor, input: unknown) =>
@@ -108,7 +107,7 @@ export const makeApiIdentityHandlers = function makeApiIdentityHandlers<R>(
         ApiResults.apiCreateWorkspace,
         attempt(async (env) => {
           const principal = await resolveUser(actor, env, 'write')
-          if (principal.tokenWorkspaceId != null) {
+          if (Predicate.isNotNullish(principal.tokenWorkspaceId)) {
             throw coreFailure(HTTP_FORBIDDEN, 'Workspace-scoped credentials cannot create workspaces')
           }
           return createWorkspace(env.DB, principal.user.id, input)

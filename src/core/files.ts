@@ -21,7 +21,7 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
       return new Response('Not found', { status: 404 })
     }
     if (download && request.method !== 'GET' && request.method !== 'HEAD') {
-      return new Response(null, { headers: { allow: 'GET, HEAD' }, status: 405 })
+      return new Response(undefined, { headers: { allow: 'GET, HEAD' }, status: 405 })
     }
     let actor: CoreActor
     try {
@@ -69,7 +69,7 @@ export const handleCoreFileRequest = async function handleCoreFileRequest(
     }
     if (request.method === 'HEAD') {
       const object = await env.R2.head(metadata.r2Key)
-      return object ? new Response(null, { headers }) : new Response(null, { status: 404 })
+      return object ? new Response(undefined, { headers }) : new Response(undefined, { status: 404 })
     }
     const object = await env.R2.get(metadata.r2Key)
     if (!object) {

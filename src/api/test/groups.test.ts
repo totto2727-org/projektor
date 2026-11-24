@@ -1,5 +1,5 @@
 import { Schema } from 'effect'
-import { beforeEach, describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test } from 'vite-plus/test'
 
 import { authHeaders, seedProject, seedUser, seedWorkspaceRoles, toolError } from './helpers.ts'
 import type { JsonRpcError, JsonRpcResult } from './helpers.ts'
@@ -43,30 +43,36 @@ const mcpData = function mcpData<S extends Schema.Constraint>(
   return parseNativeMcpText(rpc.result.content[0].text, shape)
 }
 
-describe('groups REST', () => {
-  let roles: Awaited<ReturnType<typeof seedWorkspaceRoles>>
-  let slug: string
-  let ownerHeaders: Record<string, string>
-  let memberHeaders: Record<string, string>
+type GroupFixture = Readonly<{
+  createGroup: (name: string) => Promise<string>
+  memberHeaders: ReturnType<typeof authHeaders>
+  ownerHeaders: ReturnType<typeof authHeaders>
+  roles: Awaited<ReturnType<typeof seedWorkspaceRoles>>
+  slug: string
+  workspaceId: string
+}>
 
-  beforeEach(async () => {
-    roles = await seedWorkspaceRoles()
-    slug = roles.workspace.slug
-    ownerHeaders = authHeaders(roles.owner.token, slug)
-    memberHeaders = authHeaders(roles.member.token, slug)
-  })
-
-  const createGroup = async function createGroup(name: string, headers = ownerHeaders): Promise<string> {
-    const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
-      method: 'POST',
-      headers,
+const seedGroupFixture = async function seedGroupFixture(): Promise<GroupFixture> {
+  const roles = await seedWorkspaceRoles()
+  const { id: workspaceId, slug } = roles.workspace
+  const ownerHeaders = authHeaders(roles.owner.token, slug)
+  const memberHeaders = authHeaders(roles.member.token, slug)
+  const createGroup = async function createGroup(name: string): Promise<string> {
+    const response = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       body: JSON.stringify({ name }),
+      headers: ownerHeaders,
+      method: 'POST',
     })
-    expect(res.status).toBe(201)
-    return ((await res.json()) as { id: string }).id
+    expect(response.status).toBe(201)
+    const group = await readNativeJson(response, IdResponse)
+    return group.id
   }
+  return { createGroup, memberHeaders, ownerHeaders, roles, slug, workspaceId }
+}
 
+describe('groups REST', () => {
   test('owner can create and list a group', async () => {
+    const { createGroup, ownerHeaders, slug } = await seedGroupFixture()
     await createGroup('Engineering')
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       headers: ownerHeaders,
@@ -85,6 +91,7 @@ describe('groups REST', () => {
   })
 
   test('member cannot create a group (403)', async () => {
+    const { memberHeaders, slug } = await seedGroupFixture()
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       method: 'POST',
       headers: memberHeaders,
@@ -94,6 +101,7 @@ describe('groups REST', () => {
   })
 
   test('duplicate group name is a 409', async () => {
+    const { createGroup, ownerHeaders, slug } = await seedGroupFixture()
     await createGroup('Dupe')
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups`, {
       method: 'POST',
@@ -104,6 +112,7 @@ describe('groups REST', () => {
   })
 
   test('rename group and reject clashing rename', async () => {
+    const { createGroup, ownerHeaders, slug } = await seedGroupFixture()
     const a = await createGroup('Alpha')
     await createGroup('Beta')
     const ok = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${a}`, {
@@ -121,6 +130,7 @@ describe('groups REST', () => {
   })
 
   test('add/remove members and reject non-workspace members', async () => {
+    const { createGroup, ownerHeaders, roles, slug } = await seedGroupFixture()
     const gid = await createGroup('Team')
     // Add the workspace member
     const add = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
@@ -154,6 +164,7 @@ describe('groups REST', () => {
   })
 
   test('set, upsert, and remove a project grant', async () => {
+    const { createGroup, ownerHeaders, roles, slug } = await seedGroupFixture()
     const gid = await createGroup('Grantee')
     const project = await seedProject(roles.workspace.id, 'GRP')
 
@@ -186,6 +197,7 @@ describe('groups REST', () => {
   })
 
   test('grant on a project outside the workspace is a 404', async () => {
+    const { createGroup, ownerHeaders, slug } = await seedGroupFixture()
     const gid = await createGroup('BadGrant')
     const res = await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
       method: 'PUT',
@@ -196,6 +208,7 @@ describe('groups REST', () => {
   })
 
   test('member sees only their own groups; owner sees all', async () => {
+    const { createGroup, memberHeaders, ownerHeaders, roles, slug } = await seedGroupFixture()
     const mine = await createGroup('Mine')
     await createGroup('Theirs')
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${mine}/members`, {
@@ -216,6 +229,7 @@ describe('groups REST', () => {
   })
 
   test('member-groups lists every member with a pending (empty) entry', async () => {
+    const { createGroup, ownerHeaders, roles, slug } = await seedGroupFixture()
     const gid = await createGroup('Assigned')
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/members`, {
       method: 'POST',
@@ -240,6 +254,7 @@ describe('groups REST', () => {
   })
 
   test('delete group cascades members and grants', async () => {
+    const { createGroup, ownerHeaders, roles, slug } = await seedGroupFixture()
     const gid = await createGroup('Doomed')
     const project = await seedProject(roles.workspace.id, 'DOOM')
     await fetchNativeApi(`http://localhost/api/workspaces/${slug}/groups/${gid}/grants`, {
@@ -260,19 +275,8 @@ describe('groups REST', () => {
 })
 
 describe('groups MCP parity', () => {
-  let roles: Awaited<ReturnType<typeof seedWorkspaceRoles>>
-  let workspaceId: string
-  let ownerHeaders: Record<string, string>
-  let memberHeaders: Record<string, string>
-
-  beforeEach(async () => {
-    roles = await seedWorkspaceRoles()
-    workspaceId = roles.workspace.id
-    ownerHeaders = authHeaders(roles.owner.token, roles.workspace.slug)
-    memberHeaders = authHeaders(roles.member.token, roles.workspace.slug)
-  })
-
   test('create_group + list_groups via MCP', async () => {
+    const { ownerHeaders, workspaceId } = await seedGroupFixture()
     const created = await mcpCall(workspaceId, 'create_group', { name: 'MCPGroup' }, ownerHeaders)
     expect(isMcpError(created)).toBe(false)
     const list = (await mcpCall(workspaceId, 'list_groups', {}, ownerHeaders)) as JsonRpcResult<{
@@ -283,11 +287,13 @@ describe('groups MCP parity', () => {
   })
 
   test('create_group rejects member (forbidden)', async () => {
+    const { memberHeaders, workspaceId } = await seedGroupFixture()
     const res = await mcpCall(workspaceId, 'create_group', { name: 'Nope' }, memberHeaders)
     expect(toolError(res)?.code).toBe('forbidden')
   })
 
   test('list_groups via MCP: member sees only their own groups; owner sees all (PROJ-319)', async () => {
+    const { memberHeaders, ownerHeaders, roles, workspaceId } = await seedGroupFixture()
     const g1 = mcpData(
       (await mcpCall(workspaceId, 'create_group', { name: 'G1' }, ownerHeaders)) as JsonRpcResult<{
         content: { text: string }[]
@@ -311,6 +317,7 @@ describe('groups MCP parity', () => {
   })
 
   test('full admin loop over MCP: group -> grant -> member', async () => {
+    const { ownerHeaders, roles, workspaceId } = await seedGroupFixture()
     const project = await seedProject(workspaceId, 'LOOP')
     const created = mcpData(
       (await mcpCall(workspaceId, 'create_group', { name: 'LoopGroup' }, ownerHeaders)) as JsonRpcResult<{
